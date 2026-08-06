@@ -1,0 +1,136 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_kursgevinst_årsnetto_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_årsnetto),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+    )
+)
+
+--@label:personskat_kursgevinst_årsnetto_scenarier::meta:personskat_kursgevinst_årsnetto_scenarier_metadata--
+----
+Fokuserede regressionsscenarier for den kanoniske årsopgørelse af fordringer,
+obligationer og obligationsbaserede minimumsbeviser.
+
+Scenarierne er ikke lovtekst. De fastholder, at Personskat modtager
+kildehændelser og en udtrykkelig position fra det foregående indkomstår, mens
+Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
+----
+
+--@begin:personskat_kursgevinst_årsnetto_scenarier--
+| personskat_kgl_årsnetto_almindelig_fordringskilde() -> KglÅrsnettoFordringskilde(
+    fordringsart = KglÅrsnettoPengefordring,
+    markedsfakta = KglÅrsnettoIkkeOptagetPåReguleretMarked,
+    debitorrelation = KglÅrsnettoUafhængigDebitor,
+    næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
+    erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
+    dba_status = KglÅrsnettoIngenDbaBegrænsning,
+    opgørelsesprincip = KglRealisationsprincip
+)
+
+| personskat_kgl_årsnetto_fordringsforløb(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoFordringsforløb(
+    identifikation = identifikation,
+    kilde = personskat_kgl_årsnetto_almindelig_fordringskilde(),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = anskaffelsessum_kroner),
+        KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner),
+    ]
+)
+
+| personskat_kgl_årsnetto_videreført_fordringsforløb(identifikation: Tekst, fra_indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoFordringsforløb(
+    identifikation = identifikation,
+    kilde = personskat_kgl_årsnetto_almindelig_fordringskilde(),
+    position_primo = KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår = fra_indkomstår, skattemæssig_værdi_kroner = anskaffelsessum_kroner),
+    hændelser = [KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner)]
+)
+
+| personskat_kgl_årsnetto_abl22_forløb(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoAbl22Forløb(
+    identifikation = identifikation,
+    kilde = KglÅrsnettoAbl22Kilde(
+        klassifikation = abl22_klassifikationsresultat.input,
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        )
+    ),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = anskaffelsessum_kroner),
+        KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner),
+    ]
+)
+
+| personskat_kgl_årsnetto_gæld(identifikation: Tekst, værdi_ved_påtagelse_kroner: Heltal, værdi_ved_frigørelse_kroner: Heltal) -> KursgevinstlovGældFakta(
+    identifikation = identifikation,
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = værdi_ved_påtagelse_kroner,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = værdi_ved_frigørelse_kroner,
+        fordringens_værdi_for_kreditor_kroner = værdi_ved_frigørelse_kroner
+    ),
+    frigørelsesart = KglGældOrdinærIndfrielse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = KglIngenDokumenteretGældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+
+| personskat_kgl_årsnetto_resultat(fordringer: List(KglÅrsnettoFordringsforløb), obligationsbeviser: List(KglÅrsnettoAbl22Forløb), gældsposter: List(KursgevinstlovGældFakta)) -> personskat_kursgevinst_resultat(
+    MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "årsnetto-person",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = gældsposter,
+        øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+            fordringer = fordringer,
+            obligationsbaserede_minimumsbeviser = obligationsbeviser
+        ),
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    )),
+    2026,
+    IngenEjendomsavance
+)
+
+= personskat_kgl_årsnetto_scenarie_gevinst = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_fordringsforløb("fordring-gevinst", 10000, 13000)],
+    [],
+    []
+)
+= personskat_kgl_årsnetto_scenarie_tab = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_fordringsforløb("fordring-tab", 10000, 7000)],
+    [],
+    []
+)
+= personskat_kgl_årsnetto_scenarie_præcis_grænse = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_fordringsforløb("fordring-grænse", 10000, 12000)],
+    [],
+    []
+)
+= personskat_kgl_årsnetto_scenarie_blandet = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_fordringsforløb("fordring-blandet", 10000, 11000)],
+    [personskat_kgl_årsnetto_abl22_forløb("abl22-blandet", 10000, 10800)],
+    [personskat_kgl_årsnetto_gæld("valutagæld-blandet", 10000, 9500)]
+)
+= personskat_kgl_årsnetto_scenarie_videreført = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_videreført_fordringsforløb("fordring-videreført", 2025, 10000, 13000)],
+    [],
+    []
+)
+= personskat_kgl_årsnetto_scenarie_for_gammel_position = personskat_kgl_årsnetto_resultat(
+    [personskat_kgl_årsnetto_videreført_fordringsforløb("fordring-for-gammel", 2024, 10000, 13000)],
+    [],
+    []
+)
+
+| personskat_kgl_årsnetto_gevinst_afledes: personskat_kgl_årsnetto_scenarie_gevinst -> personskat_kgl_årsnetto_scenarie_gevinst.input_gyldigt && personskat_kgl_årsnetto_scenarie_gevinst.årets_samlede_netto_efter_par14_kroner == 3000 && length(personskat_kgl_årsnetto_scenarie_gevinst.kursgevinstlov_resultater) == 1 && personskat_kgl_årsnetto_scenarie_gevinst.kursgevinstlov_resultater[0].netto_efter_kursgevinstloven_kroner == 3000 && personskat_kgl_årsnetto_scenarie_gevinst.kapitalposter[0].beløb_kroner == 3000
+| personskat_kgl_årsnetto_tab_afledes: personskat_kgl_årsnetto_scenarie_tab -> personskat_kgl_årsnetto_scenarie_tab.input_gyldigt && personskat_kgl_årsnetto_scenarie_tab.årets_samlede_netto_efter_par14_kroner == -3000 && personskat_kgl_årsnetto_scenarie_tab.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 3000 && personskat_kgl_årsnetto_scenarie_tab.kapitalposter[0].beløb_kroner == -3000
+| personskat_kgl_årsnetto_præcis_to_tusind_afskæres: personskat_kgl_årsnetto_scenarie_præcis_grænse -> personskat_kgl_årsnetto_scenarie_præcis_grænse.input_gyldigt && personskat_kgl_årsnetto_scenarie_præcis_grænse.årets_samlede_netto_efter_par14_kroner == 2000 && personskat_kgl_årsnetto_scenarie_præcis_grænse.kursgevinstlov_resultater[0].bagatelgrænse_afskærer && personskat_kgl_årsnetto_scenarie_præcis_grænse.kursgevinstlov_resultater[0].netto_efter_kursgevinstloven_kroner == 0
+| personskat_kgl_årsnetto_blandet_grænse_afledes_før_resultater: personskat_kgl_årsnetto_scenarie_blandet -> personskat_kgl_årsnetto_scenarie_blandet.input_gyldigt && personskat_kgl_årsnetto_scenarie_blandet.årets_samlede_netto_efter_par14_kroner == 2300 && length(personskat_kgl_årsnetto_scenarie_blandet.kursgevinstlov_resultater) == 2 && length(personskat_kgl_årsnetto_scenarie_blandet.aktieavancebeskatningslov_resultater) == 1 && personskat_kgl_årsnetto_scenarie_blandet.gældsresultater[0].netto_efter_kursgevinstloven_kroner == 500 && personskat_kgl_årsnetto_scenarie_blandet.øvrige_instrumentresultat.kursgevinstlov_resultater[0].netto_efter_kursgevinstloven_kroner == 1000 && personskat_kgl_årsnetto_scenarie_blandet.aktieavancebeskatningslov_resultater[0].netto_efter_aktieavancebeskatningsloven_kroner == 800 && personskat_kgl_årsnetto_scenarie_blandet.aktieavancebeskatningslov_resultater[0].personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
+| personskat_kgl_årsnetto_position_fra_foregående_år_accepteres: personskat_kgl_årsnetto_scenarie_videreført -> personskat_kgl_årsnetto_scenarie_videreført.input_gyldigt && personskat_kgl_årsnetto_scenarie_videreført.øvrige_instrumentresultat.fordringsresultater[0].forløb.position_ultimo == KglÅrsnettoIngenPositionUltimo && personskat_kgl_årsnetto_scenarie_videreført.kursgevinstlov_resultater[0].netto_efter_kursgevinstloven_kroner == 3000
+| personskat_kgl_årsnetto_for_gammel_position_afvises: personskat_kgl_årsnetto_scenarie_for_gammel_position -> personskat_kgl_årsnetto_scenarie_for_gammel_position.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_for_gammel_position.øvrige_instrumentresultat.fordringsresultater[0].forløb.input_gyldigt == Falskt && length(personskat_kgl_årsnetto_scenarie_for_gammel_position.kursgevinstlov_resultater) == 0
+--@end:personskat_kursgevinst_årsnetto_scenarier--

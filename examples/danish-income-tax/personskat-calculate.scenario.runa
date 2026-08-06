@@ -593,8 +593,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     koncernintern_konvertibel_eller_tegningsret = input.koncernintern_konvertibel_eller_tegningsret,
     andelsforening_stiftet_før_22_maj_1987 = input.andelsforening_stiftet_før_22_maj_1987,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = input.afståelse_sker_for_at_undgå_likvidationsbeskatning,
-    investeringsklassifikation = input.investeringsklassifikation,
-    årets_netto_med_kgl_par14_23_kroner = input.årets_netto_med_kgl_par14_23_kroner
+    investeringsklassifikation = input.investeringsklassifikation
 )
 | personskat_calculate_øvrigt_særligt_aktiv_fra_abl(identifikation: Tekst, input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatSærligtAktieaktivFakta(
     identifikation = identifikation,

@@ -46,7 +46,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     ægtefælles_skatteyder_identifikation = None,
     sælgerpantebreve = [],
     gældsposter = [],
-    øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+    øvrige_instrumenter = kgl_årsnetto_tomt_input(),
     par32_kontraktforløb = MedPar32Kontraktforløb(tidligere_år = tidligere_år, aktuelt_år = aktuelt_år)
 ))
 | personskat_par32_scenarie_kapitalindkomst(kursgevinst: PersonskatKursgevinstInput) -> PersonskatKapitalindkomstInput(
@@ -220,7 +220,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     ægtefælles_skatteyder_identifikation = None,
     sælgerpantebreve = [],
     gældsposter = [],
-    øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+    øvrige_instrumenter = kgl_årsnetto_tomt_input(),
     par32_kontraktforløb = UdenPar32Kontraktforløb
 ))
 = personskat_par32_scenarie_frakoblet_kontekst_afvist = personskat_kgl_par32_kontekst_matcher_input(

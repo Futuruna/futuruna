@@ -105,7 +105,7 @@
         dispositioner_efter_ebl_forløbet = []
     )],
     gældsposter = [],
-    øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner = 0,
+    øvrige_instrumenter = kgl_årsnetto_tomt_input(),
     par32_kontraktforløb = UdenPar32Kontraktforløb
 ))
 | personskat_par6d_scenarie_kursgevinst(skatteyder_identifikation: Tekst) -> personskat_par6d_scenarie_kursgevinst_med_ægtefælleidentifikation(skatteyder_identifikation, Some(hvis skatteyder_identifikation == "Sælger" { "Ægtefælle" } ellers { "Sælger" }))

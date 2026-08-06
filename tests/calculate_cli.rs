@@ -2193,7 +2193,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.kursgevinst.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.ægtefælles_skatteyder_identifikation",
-            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.identifikation",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.kilde.fordringsart",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.position_primo.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.hændelser.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.obligationsbaserede_minimumsbeviser.identifikation",
             "kapitalindkomst.fremleje.$variant",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.bruttolejeindtægt_kroner",
@@ -2654,6 +2658,101 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human KGL debt label {expected} on {kgl_debt_sheet}"
             );
         }
+        let kgl_annual_claim_path =
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer";
+        let kgl_annual_claim_sheet =
+            workbook_collection_sheet_name(&mut workbook, kgl_annual_claim_path);
+        let kgl_annual_claim_paths = workbook_column_paths(&mut workbook, &kgl_annual_claim_sheet);
+        for expected in [
+            "identifikation",
+            "kilde.fordringsart",
+            "kilde.markedsfakta.$variant",
+            "kilde.debitorrelation",
+            "kilde.næringsforhold",
+            "kilde.erhvervelsesgrundlag",
+            "kilde.dba_status",
+            "kilde.opgørelsesprincip",
+            "position_primo.$variant",
+            "position_primo.KglÅrsnettoVidereførtPositionPrimo.fra_indkomstår",
+            "position_primo.KglÅrsnettoVidereførtPositionPrimo.skattemæssig_værdi_kroner",
+        ] {
+            assert!(
+                kgl_annual_claim_paths.iter().any(|path| path == expected),
+                "missing annual KGL claim source path {expected} on {kgl_annual_claim_sheet}"
+            );
+        }
+        for forbidden in ["rå_netto_kroner", "kursgevinstlov_resultat"] {
+            assert!(
+                !kgl_annual_claim_paths.iter().any(|path| path == forbidden),
+                "derived annual KGL field {forbidden} leaked into {kgl_annual_claim_sheet}"
+            );
+        }
+        let kgl_annual_claim_headers = workbook_headers(&mut workbook, &kgl_annual_claim_sheet);
+        for expected in [
+            "Fordringens identifikation",
+            "Fordringens art",
+            "Handel på reguleret marked",
+            "Relationen til debitor",
+            "Fordrings- eller finansieringsnæring",
+            "Hvordan fordringen blev erhvervet",
+            "Dobbeltbeskatningsoverenskomst",
+            "Opgørelsesprincip for fordringen",
+            "Fordringens position ved årets begyndelse",
+            "Skattemæssig værdi ved årets begyndelse",
+        ] {
+            assert!(
+                kgl_annual_claim_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human annual KGL claim label {expected} on {kgl_annual_claim_sheet}"
+            );
+        }
+        let kgl_annual_claim_events_path = format!("{kgl_annual_claim_path}.hændelser");
+        let kgl_annual_claim_events_sheet =
+            workbook_collection_sheet_name(&mut workbook, &kgl_annual_claim_events_path);
+        let kgl_annual_claim_event_paths =
+            workbook_column_paths(&mut workbook, &kgl_annual_claim_events_sheet);
+        for expected in [
+            "$variant",
+            "KglÅrsnettoAnskaffelse.anskaffelsessum_kroner",
+            "KglÅrsnettoAfståelse.afståelsessum_kroner",
+            "KglÅrsnettoUltimoværdi.værdi_kroner",
+        ] {
+            assert!(
+                kgl_annual_claim_event_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing annual KGL event path {expected} on {kgl_annual_claim_events_sheet}"
+            );
+        }
+        let kgl_annual_claim_event_headers =
+            workbook_headers(&mut workbook, &kgl_annual_claim_events_sheet);
+        for expected in [
+            "Fordringens hændelse",
+            "Fordringens anskaffelsessum",
+            "Fordringens afståelsessum",
+            "Fordringens værdi ved årets udgang",
+        ] {
+            assert!(
+                kgl_annual_claim_event_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human annual KGL event label {expected} on {kgl_annual_claim_events_sheet}"
+            );
+        }
+        let kgl_abl22_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.obligationsbaserede_minimumsbeviser";
+        let kgl_abl22_sheet = workbook_collection_sheet_name(&mut workbook, kgl_abl22_path);
+        let kgl_abl22_headers = workbook_headers(&mut workbook, &kgl_abl22_sheet);
+        for expected in [
+            "Minimumsbevisets identifikation",
+            "Minimumsbevisets position ved årets begyndelse",
+            "Minimumsbevisets anskaffelsessum fra tidligere år",
+        ] {
+            assert!(
+                kgl_abl22_headers.iter().any(|header| header == expected),
+                "missing human ABL §22 annual label {expected} on {kgl_abl22_sheet}"
+            );
+        }
         let kgl_voluntary_claim_path =
             format!("{kgl_debt_path}.gældsordning.KglFrivilligKreditorordning.fakta.krav");
         let kgl_voluntary_claim_sheet =
@@ -2888,7 +2987,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "§ 17-modprøve for investeringsaktiv",
             "Det øvrige aktivs ABL-kategori",
             "Det særlige aktivs investeringsklassifikation",
-            "Årets netto efter KGL §§ 14-23",
             "Medarbejderejeordningens identifikation",
             "Opgørelsesår for medarbejderejeordningen",
             "År for overdragelsen til medarbejderejevirksomheden",
@@ -3979,10 +4077,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     Data::String(skatteyder_identifikation.to_string()),
                 ),
                 (
-                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
-                    Data::Int(0),
-                ),
-                (
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
                     Data::String("MedPar32Kontraktforløb".to_string()),
                 ),
@@ -4398,10 +4492,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 (
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
                     Data::String("Borger".to_string()),
-                ),
-                (
-                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
-                    Data::Int(0),
                 ),
                 (
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
@@ -6339,10 +6429,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
                 Data::String("Sælger".to_string()),
-            ),
-            (
-                "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner",
-                Data::Int(0),
             ),
             (
                 "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.$variant",
@@ -8983,7 +9069,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "dispositioner_efter_ebl_forløbet": []
                 }],
                 "gældsposter": [],
-                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+                "øvrige_instrumenter": {
+                    "fordringer": [],
+                    "obligationsbaserede_minimumsbeviser": []
+                },
                 "par32_kontraktforløb": {
                     "$variant": "UdenPar32Kontraktforløb"
                 }
@@ -9872,7 +9961,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "vedrører_ikke_indbetalt_selskabskapital": false,
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
-            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+            "øvrige_instrumenter": {
+                "fordringer": [],
+                "obligationsbaserede_minimumsbeviser": []
+            },
             "par32_kontraktforløb": {
                 "$variant": "UdenPar32Kontraktforløb"
             }
@@ -9887,6 +9979,59 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(debt_case);
+    let mut annual_claim_case = json_input["cases"][0].clone();
+    annual_claim_case["case_id"] = Value::String("personskat-kgl-aarsnetto-fordring-2026".into());
+    annual_claim_case["input"]["kapitalindkomst"]["kursgevinst"] = serde_json::json!({
+        "$variant": "MedKursgevinst",
+        "fakta": {
+            "skatteyder_identifikation": "Borger",
+            "ægtefælles_skatteyder_identifikation": null,
+            "sælgerpantebreve": [],
+            "gældsposter": [],
+            "øvrige_instrumenter": {
+                "fordringer": [{
+                    "identifikation": "privat-fordring-2026",
+                    "kilde": {
+                        "fordringsart": { "$variant": "KglÅrsnettoPengefordring" },
+                        "markedsfakta": {
+                            "$variant": "KglÅrsnettoIkkeOptagetPåReguleretMarked"
+                        },
+                        "debitorrelation": { "$variant": "KglÅrsnettoUafhængigDebitor" },
+                        "næringsforhold": { "$variant": "KglÅrsnettoIkkeNæringsdrivende" },
+                        "erhvervelsesgrundlag": {
+                            "$variant": "KglÅrsnettoAlmindeligErhvervelse"
+                        },
+                        "dba_status": { "$variant": "KglÅrsnettoIngenDbaBegrænsning" },
+                        "opgørelsesprincip": { "$variant": "KglRealisationsprincip" }
+                    },
+                    "position_primo": { "$variant": "KglÅrsnettoIngenPositionPrimo" },
+                    "hændelser": [
+                        {
+                            "$variant": "KglÅrsnettoAnskaffelse",
+                            "anskaffelsessum_kroner": 10_000
+                        },
+                        {
+                            "$variant": "KglÅrsnettoAfståelse",
+                            "afståelsessum_kroner": 13_000
+                        }
+                    ]
+                }],
+                "obligationsbaserede_minimumsbeviser": []
+            },
+            "par32_kontraktforløb": {
+                "$variant": "UdenPar32Kontraktforløb"
+            }
+        }
+    });
+    annual_claim_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(annual_claim_case);
     let mut voluntary_arrangement_case = json_input["cases"][0].clone();
     voluntary_arrangement_case["case_id"] =
         Value::String("personskat-kgl-frivillig-ordning-2026".into());
@@ -9981,7 +10126,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "vedrører_ikke_indbetalt_selskabskapital": false,
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
-            "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+            "øvrige_instrumenter": {
+                "fordringer": [],
+                "obligationsbaserede_minimumsbeviser": []
+            },
             "par32_kontraktforløb": {
                 "$variant": "UdenPar32Kontraktforløb"
             }
@@ -10421,7 +10569,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ægtefælles_skatteyder_identifikation": null,
                 "sælgerpantebreve": [],
                 "gældsposter": [],
-                "øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner": 0,
+                "øvrige_instrumenter": {
+                    "fordringer": [],
+                    "obligationsbaserede_minimumsbeviser": []
+                },
                 "par32_kontraktforløb": {
                     "$variant": "MedPar32Kontraktforløb",
                     "tidligere_år": tidligere_år,
@@ -10578,7 +10729,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-par37-40-blandet-slutskat-2026")
         .expect("mixed §§ 37-40 JSON case")
         .clone();
-    hydrated_json_input["cases"] = Value::Array(vec![mixed_case]);
+    let annual_claim_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-aarsnetto-fordring-2026")
+        .expect("annual KGL claim JSON case")
+        .clone();
+    hydrated_json_input["cases"] = Value::Array(vec![mixed_case, annual_claim_case]);
     std::fs::write(
         &hydrated_json_input_path,
         serde_json::to_vec_pretty(&hydrated_json_input)
@@ -10637,6 +10795,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
+    let json_annual_claim_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-aarsnetto-fordring-2026")
+        .expect("JSON annual KGL claim result");
+    let hydrated_annual_claim_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-aarsnetto-fordring-2026")
+        .expect("hydrated XLSX annual KGL claim result");
+    assert_eq!(
+        hydrated_annual_claim_result["result"],
+        json_annual_claim_result["result"]
+    );
+    let annual_claim_trace =
+        &hydrated_annual_claim_result["result"]["kapitalindkomst"]["kursgevinst_resultat"];
+    assert_eq!(annual_claim_trace["input_gyldigt"], true);
+    assert_eq!(
+        annual_claim_trace["årets_samlede_netto_efter_par14_kroner"],
+        3_000
+    );
+    assert_eq!(
+        annual_claim_trace["øvrige_instrumentresultat"]["fordringsresultater"][0]["forløb"]
+            ["rå_netto_kroner"],
+        3_000
+    );
+    assert_eq!(
+        annual_claim_trace["øvrige_instrumentresultat"]["fordringsresultater"][0]["forløb"]
+            ["position_ultimo"]["$variant"],
+        "KglÅrsnettoIngenPositionUltimo"
+    );
+    assert_eq!(
+        hydrated_annual_claim_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        3_000
+    );
     let xlsx_par32_history_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")

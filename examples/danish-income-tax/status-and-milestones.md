@@ -3,8 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-03
 TD epic: `td-56cf8d`
-Current implementation slice: `td-4e42fd` (hvert ABL-resultat bevarer nu sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; fokuseret, kanonisk og gennem JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
-Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; afventer uafhængig gennemgang)
+Current implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; klargøres til uafhængig gennemgang)
+Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
+Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
 Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
@@ -18,6 +19,8 @@ Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkte
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
 Planned simultaneous spouse exit-tax netting: `td-421749` (fælles modregning og entydig skatteattribution, når begge samlevende ægtefæller bliver fraflytterskattepligtige samme år)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
+Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
+Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
@@ -25,7 +28,7 @@ Previous language support slice: `td-8a34e0` (`refof`-referencer er implementere
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
-Latest approved implementation slice: `td-7469fc`
+Latest approved implementation slice: `td-4e42fd`
 Latest approved language slice: `td-8a34e0`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -2570,6 +2573,15 @@ encoded as a temporal rule on top of the consolidation.
   first Kursgevinstloven dependency slice consumed by Personskatteloven § 4,
   stk. 1, nr. 2 for ordinary personal claims, selected debt cases and basic
   financial contracts.
+- `kursgevinstloven-aarsnetto.runa` og
+  `personskat-kursgevinst-aarsnetto.scenario.runa` findes og passerer både
+  fortolket og kompileret udførelse. Personskat modtager nu identificerede
+  fordringer, obligationer og obligationsbaserede minimumsbeviser med typede
+  kildefakta, anskaffelses-, afståelses- og ultimohændelser samt en udtrykkelig
+  position fra det foregående indkomstår. Reglerne afleder selv KGL §§ 1 og
+  12-18, opgørelsen efter §§ 25-26, ABL § 22 og den fælles 2.000-kr.-grænse
+  sammen med gæld og sælgerpantebreve. Det tidligere offentlige, allerede
+  nettede restbeløb findes ikke længere i Personskat-kontrakten.
 - `kursgevinstloven-saelgerpantebrev.runa`, its `.scenario.runa` file,
   `kursgevinstloven-ebl-par6d.runa` and its `.scenario.runa` file exist and pass
   interpreted and compiled execution. They model proportional cash-value basis,
@@ -2883,7 +2895,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-08-01, the corpus should be treated as a source-backed first-slice
+As of 2026-08-03, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -4055,6 +4067,37 @@ Review candidates to revisit deliberately, not as broad churn:
   fulde kanoniske Personskat-kørsel passerer, og den komplette
   JSON/XLSX-rundtur gendanner en blandet noteret/unoteret portefølje med samme
   kilde-id'er, markedsgrene og bit-for-bit samme slutresultat.
+- Under `td-5beddd` er
+  `øvrigt_netto_fordringer_og_obligationsbaserede_investeringsbeviser_kroner`
+  fjernet fra den offentlige Personskat-kontrakt. Erstatningen er et typet
+  `KursgevinstlovÅrsnettoInput` med særskilte lister for fordringer og ABL
+  § 22-beviser. Hvert forløb har en stabil identifikation, lovrelevante
+  kildefakta, en eksplicit primo-position og ordnede anskaffelses-, afståelses-
+  eller ultimohændelser. En videreført position accepteres kun fra det
+  umiddelbart foregående indkomstår, og en aktiv lagerposition kræver en
+  ultimoværdi.
+  Futuruna afleder § 1-afgrænsning, §§ 13/17-klassifikation,
+  tabsbegrænsningerne i §§ 14, 15 og 18, opgørelsen efter §§ 25-26 samt ABL
+  § 22-status. Det rå, regelafledte bagatelgrundlag samordnes derefter med den
+  eksisterende § 23-gæld og sælgerpantebrevene, før de endelige KGL- og
+  ABL-resultater beregnes. Seks fokuserede scenarier dækker gevinst, tab,
+  præcis 2.000 kr., et blandet grundlag på 2.300 kr., gyldig videreførsel og
+  afvisning af en for gammel primo-position i både fortolkeren og genereret
+  Rust.
+  Beregningsmetadataens nye KGL-stier bruger typede `pathof`-referencer gennem
+  importerede lister og sumtyper. Den genererede arbejdsbog udstiller derfor
+  menneskelige danske labels på fordrings-, positions- og hændelsesark uden at
+  udstille `rå_netto_kroner` eller et færdigt KGL-resultat som input. En
+  anskaffelse på 10.000 kr. og afståelse på 13.000 kr. giver samme fulde
+  Personskat-resultat gennem direkte JSON og en genereret, udfyldt XLSX:
+  3.000 kr. i afledt årsnetto og kapitalindkomst. Den fokuserede rundtur
+  passerer på 1.016,23 sekunder; målingen er ført på performanceopgaven
+  `td-6659f1`.
+  Den nuværende position er bevidst smallere end en fuld KGL-ledger. Særskilt
+  kredit- og valutakomponent efter §§ 14/25 er planlagt i `td-1e2380`, og
+  delafdrag eller flere realisationer på samme position er planlagt i
+  `td-aac8d3`. De afgrænsninger må ikke løses ved at genindføre et
+  caller-beregnet årsnetto.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -4105,16 +4148,22 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
+- Bevar den nu afledte KGL-årsnetto-grænse fra `td-5beddd`. Den næste
+  KGL-udvidelse skal komme fra kildefakta: `td-1e2380` adskiller kredit- og
+  valutakomponenter efter §§ 14/25, og `td-aac8d3` udvider positionen med
+  delafdrag og gentagne realisationer. Ingen af delene må genindføre et råt,
+  caller-beregnet årsnetto. Den eksisterende `td-6659f1` ejer fortsat den
+  målte latenstid i den komplette JSON/XLSX-rundtur.
 - Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
   lifecycle design. Own/spouse share-income context is derived under
   `td-aea204`, and § 38's annual categories and ordinary loss eligibility are
   source-derived under `td-7469fc`. The mixed-category annual final-tax delta
-  and realization-only henstand are derived under `td-8e8561`. Next,
-  `td-4e42fd` must preserve per-holding market provenance through § 13 A and
-  KGL § 32, and `td-3f2ee9` makes a missing annual § 39 A report detectable
-  rather than requiring an explicit late-reporting event. These are bounded
-  fidelity follow-ups, not a reason to replace the derived ledger with
-  caller-supplied conclusions.
+  and realization-only henstand are derived under `td-8e8561`, and
+  per-holding market provenance through § 13 A and KGL § 32 is derived under
+  `td-4e42fd`. Next, `td-3f2ee9` makes a missing annual § 39 A report
+  detectable rather than requiring an explicit late-reporting event. These
+  are bounded fidelity follow-ups, not a reason to replace the derived ledger
+  with caller-supplied conclusions.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation
