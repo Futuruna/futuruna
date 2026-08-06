@@ -51,6 +51,19 @@ fn assert_success(output: &Output) {
     );
 }
 
+fn rustc_check_workspaces(cache: &Path) -> Vec<PathBuf> {
+    let workspace_root = cache.join("compiler-artifacts-v1").join("rustc-check-v2");
+    let mut workspaces = std::fs::read_dir(workspace_root)
+        .into_iter()
+        .flatten()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_type().is_ok_and(|file_type| file_type.is_dir()))
+        .map(|entry| entry.path())
+        .collect::<Vec<_>>();
+    workspaces.sort();
+    workspaces
+}
+
 #[test]
 fn check_cache_hits_and_invalidates_on_transitive_import_change() {
     let (root, source, dependency, cache) = fixture_paths("check-artifact-cache");
@@ -62,6 +75,18 @@ fn check_cache_hits_and_invalidates_on_transitive_import_change() {
     let first = run_with_cache(&["check", source], &cache);
     assert_success(&first);
     assert!(String::from_utf8_lossy(&first.stderr).contains("check miss"));
+    let first_workspaces = rustc_check_workspaces(&cache);
+    assert_eq!(first_workspaces.len(), 1);
+    assert!(
+        std::fs::read_to_string(first_workspaces[0].join("check.rs"))
+            .expect("read first generated Rust source")
+            .contains("42")
+    );
+    let generated_rust_path = first_workspaces[0].join("check.rs");
+    let first_generated_rust_modified = std::fs::metadata(&generated_rust_path)
+        .expect("stat first generated Rust source")
+        .modified()
+        .expect("generated Rust modification time");
 
     let second = run_with_cache(&["check", source], &cache);
     assert_success(&second);
@@ -76,7 +101,16 @@ fn check_cache_hits_and_invalidates_on_transitive_import_change() {
     .expect("add nearer manifest");
     let manifest_invalidated = run_with_cache(&["check", source], &cache);
     assert_success(&manifest_invalidated);
-    assert!(String::from_utf8_lossy(&manifest_invalidated.stderr).contains("check miss"));
+    let manifest_invalidated_stderr = String::from_utf8_lossy(&manifest_invalidated.stderr);
+    assert!(manifest_invalidated_stderr.contains("check miss"));
+    assert!(manifest_invalidated_stderr.contains("rustc validation hit"));
+    assert_eq!(
+        std::fs::metadata(&generated_rust_path)
+            .expect("stat unchanged generated Rust source")
+            .modified()
+            .expect("unchanged generated Rust modification time"),
+        first_generated_rust_modified
+    );
 
     let manifest_cached = run_with_cache(&["check", source], &cache);
     assert_success(&manifest_cached);
@@ -87,7 +121,15 @@ fn check_cache_hits_and_invalidates_on_transitive_import_change() {
     assert_success(&invalidated);
     let invalidated_stderr = String::from_utf8_lossy(&invalidated.stderr);
     assert!(invalidated_stderr.contains("check miss"));
+    assert!(invalidated_stderr.contains("rustc validation miss"));
     assert!(!invalidated_stderr.contains("lines of Rust, cached"));
+    let invalidated_workspaces = rustc_check_workspaces(&cache);
+    assert_eq!(invalidated_workspaces, first_workspaces);
+    assert!(
+        std::fs::read_to_string(invalidated_workspaces[0].join("check.rs"))
+            .expect("read rewritten generated Rust source")
+            .contains("43")
+    );
 
     std::fs::remove_dir_all(root).ok();
 }
@@ -153,6 +195,36 @@ fn check_cache_invalidates_when_local_module_shadows_manifest_dependency() {
     let shadowed = run_with_cache(&["check", source_text], &cache);
     assert_success(&shadowed);
     assert!(String::from_utf8_lossy(&shadowed.stderr).contains("check miss"));
+
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn rustc_validation_cache_does_not_cover_raw_rust_blocks() {
+    let (root, source, _dependency, cache) = fixture_paths("raw-rust-validation-cache");
+    std::fs::write(
+        &source,
+        "@ rust {\n    fn rust_multiply(a: i64, b: i64) -> i64 { a * b }\n}\n@ print(rust_multiply(6, 7))\n",
+    )
+    .expect("write raw Rust cache fixture");
+    let source = source.to_str().expect("source path");
+
+    let first = run_with_cache(&["check", source], &cache);
+    assert_success(&first);
+    let first_stderr = String::from_utf8_lossy(&first.stderr);
+    assert!(first_stderr.contains("rustc validation bypassed: raw Rust"));
+
+    std::fs::write(
+        root.join("runa.toml"),
+        "[package]\nname = \"raw-rust-cache-fixture\"\nversion = \"0.1.0\"\n",
+    )
+    .expect("invalidate source graph without changing generated Rust");
+    let invalidated = run_with_cache(&["check", source], &cache);
+    assert_success(&invalidated);
+    let invalidated_stderr = String::from_utf8_lossy(&invalidated.stderr);
+    assert!(invalidated_stderr.contains("check miss"));
+    assert!(invalidated_stderr.contains("rustc validation bypassed: raw Rust"));
+    assert!(!invalidated_stderr.contains("rustc validation hit"));
 
     std::fs::remove_dir_all(root).ok();
 }

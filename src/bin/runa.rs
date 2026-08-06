@@ -743,6 +743,11 @@ const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
 const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
 const COMPILER_FINGERPRINT_CACHE_VERSION: u32 = 1;
+const RUSTC_INCREMENTAL_CACHE_VERSION: u32 = 2;
+const RUSTC_VALIDATION_CACHE_VERSION: u32 = 1;
+const RUSTC_CHECK_EDITION: &str = "2021";
+const RUSTC_CHECK_CRATE_TYPE: &str = "bin";
+const RUSTC_CHECK_EMIT_ARG: &str = "--emit=metadata";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SourceGraphFile {
@@ -827,6 +832,13 @@ struct CompilerExecutableFingerprintCacheEntry {
     cache_version: u32,
     identity: CompilerExecutableIdentity,
     sha256: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct RustcValidationCacheEntry {
+    cache_version: u32,
+    rustc_fingerprint: String,
+    generated_rust_hash: String,
 }
 
 fn cache_env_enabled(name: &str) -> bool {
@@ -1237,6 +1249,16 @@ fn write_json_atomically<T: Serialize>(path: &Path, value: &T) -> Option<()> {
         return None;
     }
     Some(())
+}
+
+fn write_file_if_changed(path: &Path, contents: &[u8]) -> std::io::Result<bool> {
+    if std::fs::metadata(path).is_ok_and(|metadata| metadata.len() == contents.len() as u64)
+        && std::fs::read(path).is_ok_and(|existing| existing == contents)
+    {
+        return Ok(false);
+    }
+    std::fs::write(path, contents)?;
+    Ok(true)
 }
 
 fn calculation_contract_cache_path(filename: &str, use_prelude: bool) -> Option<PathBuf> {
@@ -4478,18 +4500,74 @@ fn store_check_artifact_cache(
 
 fn rustc_incremental_check_workspace(filename: &str, use_prelude: bool) -> Option<PathBuf> {
     let mut hasher = Sha256::new();
+    cache_hash_segment(&mut hasher, &RUSTC_INCREMENTAL_CACHE_VERSION.to_le_bytes());
     cache_hash_segment(
         &mut hasher,
         cache_identity(filename, use_prelude)?.as_bytes(),
     );
-    cache_hash_segment(&mut hasher, compiler_executable_hash()?.as_bytes());
     cache_hash_segment(&mut hasher, rustc_fingerprint()?.as_bytes());
     let identity = format!("{:x}", hasher.finalize());
     Some(
         compiler_artifact_cache_dir()?
-            .join("rustc-check-v1")
+            .join(format!("rustc-check-v{}", RUSTC_INCREMENTAL_CACHE_VERSION))
             .join(identity),
     )
+}
+
+fn rustc_validation_cache_path(
+    generated_rust_hash: &str,
+    rustc_fingerprint: &str,
+) -> Option<PathBuf> {
+    let mut hasher = Sha256::new();
+    cache_hash_segment(&mut hasher, &RUSTC_VALIDATION_CACHE_VERSION.to_le_bytes());
+    cache_hash_segment(&mut hasher, rustc_fingerprint.as_bytes());
+    cache_hash_segment(&mut hasher, generated_rust_hash.as_bytes());
+    cache_hash_segment(&mut hasher, RUSTC_CHECK_EDITION.as_bytes());
+    cache_hash_segment(&mut hasher, RUSTC_CHECK_CRATE_TYPE.as_bytes());
+    cache_hash_segment(&mut hasher, RUSTC_CHECK_EMIT_ARG.as_bytes());
+    Some(
+        compiler_artifact_cache_dir()?
+            .join(format!(
+                "rustc-validation-v{}",
+                RUSTC_VALIDATION_CACHE_VERSION
+            ))
+            .join(format!("{:x}.json", hasher.finalize())),
+    )
+}
+
+fn load_rustc_validation_cache(generated_rust_hash: &str) -> bool {
+    let Some(rustc_fingerprint) = rustc_fingerprint() else {
+        return false;
+    };
+    let Some(path) = rustc_validation_cache_path(generated_rust_hash, &rustc_fingerprint) else {
+        return false;
+    };
+    let Ok(bytes) = std::fs::read(path) else {
+        return false;
+    };
+    let Ok(entry) = serde_json::from_slice::<RustcValidationCacheEntry>(&bytes) else {
+        return false;
+    };
+    entry.cache_version == RUSTC_VALIDATION_CACHE_VERSION
+        && entry.rustc_fingerprint == rustc_fingerprint
+        && entry.generated_rust_hash == generated_rust_hash
+}
+
+fn store_rustc_validation_cache(generated_rust_hash: &str) {
+    let Some(rustc_fingerprint) = rustc_fingerprint() else {
+        return;
+    };
+    let Some(path) = rustc_validation_cache_path(generated_rust_hash, &rustc_fingerprint) else {
+        return;
+    };
+    write_json_atomically(
+        &path,
+        &RustcValidationCacheEntry {
+            cache_version: RUSTC_VALIDATION_CACHE_VERSION,
+            rustc_fingerprint,
+            generated_rust_hash: generated_rust_hash.to_string(),
+        },
+    );
 }
 
 fn native_artifact_cache_entry_path(filename: &str, use_prelude: bool) -> Option<PathBuf> {
@@ -4796,6 +4874,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                             eprintln!();
                             eprintln!("{}", String::from_utf8_lossy(&output.stderr));
                             std::process::exit(1);
+                        }
+                        if !cg.has_raw_rust_blocks {
+                            store_rustc_validation_cache(&sha256_hex(code.as_bytes()));
                         }
                         // Save hash for incremental compilation
                         std::fs::write(&hash_path, &code_hash).ok();
@@ -12330,6 +12411,28 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
             };
 
             if cg.cargo_deps.is_empty() {
+                let generated_rust_hash = sha256_hex(code.as_bytes());
+                if !cg.has_raw_rust_blocks && load_rustc_validation_cache(&generated_rust_hash) {
+                    trace_compiler_artifact_cache("rustc validation hit");
+                    if let Some(source_graph) = source_graph {
+                        store_check_artifact_cache(
+                            filename,
+                            use_prelude,
+                            source_graph,
+                            summary.clone(),
+                        );
+                    }
+                    eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
+                        filename, stmt_count, fn_count, type_count, summary.rust_line_count, start.elapsed().as_secs_f64());
+                    return;
+                }
+                if cg.has_raw_rust_blocks {
+                    trace_compiler_artifact_cache("rustc validation bypassed: raw Rust");
+                } else if compiler_artifact_cache_dir().is_some() {
+                    trace_compiler_artifact_cache("rustc validation miss");
+                } else {
+                    trace_compiler_artifact_cache("rustc validation disabled");
+                }
                 // No deps — type-check with rustc directly and retain its incremental state.
                 let persistent_workspace = rustc_incremental_check_workspace(filename, use_prelude);
                 let check_workspace = persistent_workspace
@@ -12337,7 +12440,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                     .unwrap_or_else(|| unique_temp_workspace("runa-check"));
                 std::fs::create_dir_all(&check_workspace).ok();
                 let rs_path = check_workspace.join("check.rs");
-                std::fs::write(&rs_path, &code).ok();
+                write_file_if_changed(&rs_path, code.as_bytes()).ok();
                 let rustc_bin = find_rust_tool("rustc");
                 let meta_out = check_workspace.join("check-out");
                 let incremental_dir = check_workspace.join("incremental");
@@ -12347,10 +12450,10 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                     .arg(&rs_path)
                     .args([
                         "--edition",
-                        "2021",
+                        RUSTC_CHECK_EDITION,
                         "--crate-type",
-                        "bin",
-                        "--emit=metadata",
+                        RUSTC_CHECK_CRATE_TYPE,
+                        RUSTC_CHECK_EMIT_ARG,
                         "-o",
                     ])
                     .arg(&meta_out)
@@ -12363,6 +12466,9 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
+                        if !cg.has_raw_rust_blocks {
+                            store_rustc_validation_cache(&generated_rust_hash);
+                        }
                         if let Some(source_graph) = source_graph {
                             store_check_artifact_cache(
                                 filename,
@@ -12394,7 +12500,7 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                 let src_dir = format!("{}/src", build_dir);
                 std::fs::create_dir_all(&src_dir).ok();
                 let main_rs = format!("{}/main.rs", src_dir);
-                std::fs::write(&main_rs, &code).ok();
+                write_file_if_changed(Path::new(&main_rs), code.as_bytes()).ok();
                 // Generate Cargo.toml
                 let safe_stem: String = stem
                     .chars()
@@ -12425,7 +12531,11 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
                         cargo_toml.push_str(&format!("{} = \"{}\"\n", safe_name, safe_version));
                     }
                 }
-                std::fs::write(format!("{}/Cargo.toml", build_dir), &cargo_toml).ok();
+                write_file_if_changed(
+                    Path::new(&format!("{}/Cargo.toml", build_dir)),
+                    cargo_toml.as_bytes(),
+                )
+                .ok();
                 let cargo_bin = find_rust_tool("cargo");
                 let output = Command::new(&cargo_bin)
                     .args(&["check"])
@@ -16770,6 +16880,8 @@ struct RustCodegen {
     wasm_mode: bool,
     /// Cargo dependencies: crate_name -> version
     cargo_deps: BTreeMap<String, String>,
+    /// Raw Rust may depend on files or compile-time environment outside generated source.
+    has_raw_rust_blocks: bool,
     /// Source file directory (for resolving @ import paths)
     source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
@@ -16863,6 +16975,27 @@ enum ImportedStmtExpansion {
     CargoDependency,
     RetainedLibraryStmt,
     IgnoredScriptFlow,
+}
+
+fn stmt_contains_raw_rust(stmt: &Stmt) -> bool {
+    match stmt {
+        Stmt::RustBlock(_) => true,
+        Stmt::Defn(Defn::Module { body, .. })
+        | Stmt::TypeDecl(TypeDecl::RuleScope { body, .. })
+        | Stmt::Rule(Rule::ReactiveScope { body, .. })
+        | Stmt::For(_, _, body)
+        | Stmt::While(_, body) => body.iter().any(stmt_contains_raw_rust),
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => pass_block
+            .iter()
+            .chain(else_block)
+            .flatten()
+            .any(stmt_contains_raw_rust),
+        _ => false,
+    }
 }
 
 /// Save only keys covered by a temporary inference overlay. Large programs can
@@ -21640,6 +21773,7 @@ impl RustCodegen {
             closure_params: BTreeSet::new(),
             wasm_mode: false,
             cargo_deps: BTreeMap::new(),
+            has_raw_rust_blocks: false,
             source_dir: None,
             imported: BTreeSet::new(),
             borrow_only_params: BTreeMap::new(),
@@ -25770,6 +25904,7 @@ impl RustCodegen {
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
         let all_stmts = self.scan_declarations(input_stmts);
+        self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
         self.prescan_actor_message_site_types(&all_stmts);
         self.prescan_map_types(&all_stmts);
         self.prescan_hof_named_callback_param_types(&all_stmts);

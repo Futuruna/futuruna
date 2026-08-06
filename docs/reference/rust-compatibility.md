@@ -112,6 +112,18 @@ persistent rustc incremental workspace for changed graphs. Set
 `FUTURUNA_COMPILER_CACHE_TRACE=1` to report cache hits and misses on standard
 error.
 
+`runa check` also keeps `rustc` incremental state per canonical source root,
+prelude mode, and Rust toolchain. Exact Futuruna check results still invalidate
+when the Futuruna compiler changes, while compatible Rust backend work is reused
+across compiler rebuilds. Byte-identical generated Rust is left untouched so its
+filesystem identity remains useful to `rustc` and Cargo's incremental engines.
+Successful backend validation is also cached by the complete generated Rust
+hash and Rust toolchain fingerprint. A compiler rebuild or source-only metadata
+change therefore reruns Futuruna analysis but does not ask `rustc` to prove an
+identical backend artifact again. Programs containing raw `@ rust` blocks do not
+use this content-only validation cache because those blocks may read external
+files or compile-time environment values.
+
 Cache validation includes the exact SHA-256 of the `runa` executable. That
 digest is reused across CLI processes only while the executable's canonical
 path, size, modification time, and platform file identity remain unchanged.
