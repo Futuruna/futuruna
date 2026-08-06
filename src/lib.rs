@@ -29,7 +29,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fmt;
 use std::io::{self, BufRead, Write as IoWrite};
+use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, OnceLock};
 
 pub mod calculate;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
@@ -1925,8 +1927,26 @@ pub fn scan_meta_comments(source: &str) -> MetaIndex {
 }
 
 pub fn scan_meta_comments_with_dir(source: &str, source_dir: Option<String>) -> MetaIndex {
-    let mut index = scan_meta_comment_structure(source);
-    resolve_meta_references(source, source_dir, &mut index);
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    match parser.parse_program() {
+        Ok(stmts) => scan_meta_comments_with_dir_from_stmts(source, &stmts, source_dir),
+        Err(_) => {
+            let mut index = scan_meta_comment_structure(source);
+            resolve_meta_references(source, source_dir, &mut index);
+            index
+        }
+    }
+}
+
+fn scan_meta_comments_with_dir_from_stmts(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+) -> MetaIndex {
+    let mut index = scan_meta_comment_structure_from_stmts(source, stmts);
+    resolve_meta_references_from_stmts(source, stmts, source_dir, &mut index);
     index
 }
 
@@ -1941,7 +1961,22 @@ pub fn scan_meta_comments_with_imported_labels(
     source_dir: Option<String>,
     labels: &BTreeSet<String>,
 ) -> MetaIndex {
-    let mut index = scan_meta_comments_with_dir(source, source_dir.clone());
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let Ok(stmts) = parser.parse_program() else {
+        return scan_meta_comments_with_dir(source, source_dir);
+    };
+    scan_meta_comments_with_imported_labels_from_stmts(source, &stmts, source_dir, labels)
+}
+
+fn scan_meta_comments_with_imported_labels_from_stmts(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    labels: &BTreeSet<String>,
+) -> MetaIndex {
+    let mut index = scan_meta_comments_with_dir_from_stmts(source, stmts, source_dir.clone());
     let mut target_labels = labels.clone();
     for span in &index.spans {
         if span
@@ -1952,8 +1987,8 @@ pub fn scan_meta_comments_with_imported_labels(
             target_labels.insert(span.label.clone());
         }
     }
-    collect_imported_meta_anchors(
-        source,
+    collect_imported_meta_anchors_from_stmts(
+        stmts,
         source_dir.as_deref(),
         &target_labels,
         &mut BTreeSet::new(),
@@ -1962,8 +1997,8 @@ pub fn scan_meta_comments_with_imported_labels(
     index
 }
 
-fn collect_imported_meta_anchors(
-    source: &str,
+fn collect_imported_meta_anchors_from_stmts(
+    stmts: &[Stmt],
     source_dir: Option<&str>,
     labels: &BTreeSet<String>,
     visited: &mut BTreeSet<String>,
@@ -1972,14 +2007,8 @@ fn collect_imported_meta_anchors(
     let Some(source_dir) = source_dir else {
         return;
     };
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(tokens, source);
-    let Ok(stmts) = parser.parse_program() else {
-        return;
-    };
 
-    for stmt in &stmts {
+    for stmt in stmts {
         let Stmt::Import(import_path) = stmt else {
             continue;
         };
@@ -1993,15 +2022,17 @@ fn collect_imported_meta_anchors(
         if !visited.insert(canonical) {
             continue;
         }
-        let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
+        let Ok(imported_module) = parse_source_module_file_cached(Path::new(&file_path)) else {
             continue;
         };
+        let imported_source = imported_module.source();
         let imported_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
 
-        let mut imported_index = scan_meta_comment_structure(&imported_source);
+        let mut imported_index =
+            scan_meta_comment_structure_from_stmts(imported_source, imported_module.statements());
         let targets_calculation = imported_index
             .anchors
             .iter()
@@ -2025,8 +2056,9 @@ fn collect_imported_meta_anchors(
             imported_index.diagnostics.clear();
         }
         if !imported_index.anchors.is_empty() {
-            resolve_meta_references(
-                &imported_source,
+            resolve_meta_references_from_stmts(
+                imported_source,
+                imported_module.statements(),
                 Some(imported_dir.clone()),
                 &mut imported_index,
             );
@@ -2036,8 +2068,8 @@ fn collect_imported_meta_anchors(
         index.spans.extend(imported_index.spans);
         index.diagnostics.extend(imported_index.diagnostics);
 
-        collect_imported_meta_anchors(
-            &imported_source,
+        collect_imported_meta_anchors_from_stmts(
+            imported_module.statements(),
             Some(&imported_dir),
             labels,
             visited,
@@ -2047,8 +2079,20 @@ fn collect_imported_meta_anchors(
 }
 
 fn scan_meta_comment_structure(source: &str) -> MetaIndex {
+    scan_meta_comment_structure_with_rule_symbols(source, parsed_meta_rule_symbols(source))
+}
+
+fn scan_meta_comment_structure_from_stmts(source: &str, stmts: &[Stmt]) -> MetaIndex {
+    let mut symbols = BTreeMap::new();
+    collect_parsed_meta_rule_symbols(stmts, source, &mut symbols);
+    scan_meta_comment_structure_with_rule_symbols(source, Some(symbols))
+}
+
+fn scan_meta_comment_structure_with_rule_symbols(
+    source: &str,
+    parsed_rule_symbols: Option<BTreeMap<usize, Vec<String>>>,
+) -> MetaIndex {
     let lines: Vec<&str> = source.lines().collect();
-    let parsed_rule_symbols = parsed_meta_rule_symbols(source);
     let mut comments = Vec::new();
     let mut anchors = Vec::new();
     let mut spans = Vec::new();
@@ -2527,13 +2571,7 @@ fn collect_meta_runtime_declarations(
             if !visited.insert(canonical) {
                 continue;
             }
-            let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
-                continue;
-            };
-            let mut lexer = Lexer::new(&imported_source);
-            let tokens = lexer.tokenize();
-            let mut parser = Parser::new(tokens, &imported_source);
-            let Ok(imported_stmts) = parser.parse_program() else {
+            let Ok(imported_module) = parse_source_module_file_cached(Path::new(&file_path)) else {
                 continue;
             };
             let imported_dir = std::path::Path::new(&file_path)
@@ -2541,7 +2579,7 @@ fn collect_meta_runtime_declarations(
                 .map(|parent| parent.to_string_lossy().to_string())
                 .unwrap_or_else(|| ".".to_string());
             collect_meta_runtime_declarations(
-                &imported_stmts,
+                imported_module.statements(),
                 Some(&imported_dir),
                 visited,
                 declarations,
@@ -2855,6 +2893,7 @@ fn collect_local_meta_bindings(
     definition_file: Option<&str>,
     bindings: &mut BTreeMap<String, MetaBindingDefinition>,
 ) {
+    let definition_lines = index_meta_binding_definition_lines(source);
     for stmt in stmts {
         if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
             bindings
@@ -2863,10 +2902,25 @@ fn collect_local_meta_bindings(
                     expr: expr.clone(),
                     annotated_type: ty.as_ref().map(ToString::to_string),
                     definition_file: definition_file.map(str::to_string),
-                    definition_line: meta_binding_definition_line(source, name, expr),
+                    definition_line: meta_binding_definition_line(
+                        source,
+                        name,
+                        expr,
+                        &definition_lines,
+                    ),
                 });
         }
     }
+}
+
+fn index_meta_binding_definition_lines(source: &str) -> BTreeMap<String, Vec<usize>> {
+    let mut lines = BTreeMap::<String, Vec<usize>>::new();
+    for (index, line) in source.lines().enumerate() {
+        if let Some(name) = meta_binding_symbol_name(line.trim_start()) {
+            lines.entry(name).or_default().push(index + 1);
+        }
+    }
+    lines
 }
 
 fn collect_imported_meta_bindings(
@@ -2900,28 +2954,19 @@ fn collect_imported_meta_bindings(
         if !visited.insert(canonical) {
             continue;
         }
-        let Ok(imported_source) = std::fs::read_to_string(&file_path) else {
+        let Ok(imported_module) = parse_source_module_file_cached(Path::new(&file_path)) else {
             continue;
         };
-        let mut lexer = Lexer::new(&imported_source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, &imported_source);
-        let Ok(imported_stmts) = parser.parse_program() else {
-            continue;
-        };
+        let imported_source = imported_module.source();
+        let imported_stmts = imported_module.statements();
 
-        collect_local_meta_bindings(
-            &imported_source,
-            &imported_stmts,
-            Some(&file_path),
-            bindings,
-        );
+        collect_local_meta_bindings(imported_source, imported_stmts, Some(&file_path), bindings);
         let nested_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
         collect_imported_meta_bindings(
-            &imported_stmts,
+            imported_stmts,
             Some(&nested_dir),
             sought_bindings,
             bindings,
@@ -2977,6 +3022,24 @@ fn collect_meta_expr_dependencies(expr: &Expr, dependencies: &mut BTreeSet<Strin
 }
 
 fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut MetaIndex) {
+    resolve_meta_references_with_stmts(source, None, source_dir, index);
+}
+
+fn resolve_meta_references_from_stmts(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    index: &mut MetaIndex,
+) {
+    resolve_meta_references_with_stmts(source, Some(stmts), source_dir, index);
+}
+
+fn resolve_meta_references_with_stmts(
+    source: &str,
+    stmts: Option<&[Stmt]>,
+    source_dir: Option<String>,
+    index: &mut MetaIndex,
+) {
     let mut has_valid_reference = false;
     let mut referenced_bindings = BTreeSet::new();
     for anchor in &index.anchors {
@@ -3007,21 +3070,27 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
         return;
     }
 
-    let mut lexer = Lexer::new(source);
-    let tokens = lexer.tokenize();
-    let mut parser = Parser::new(tokens, source);
-    let stmts = match parser.parse_program() {
-        Ok(stmts) => stmts,
-        Err(message) => {
-            index.diagnostics.push(MetaDiagnostic {
-                line: 1,
-                message: format!("cannot resolve meta references: {}", message),
-            });
-            return;
-        }
+    let parsed_stmts;
+    let stmts = if let Some(stmts) = stmts {
+        stmts
+    } else {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        parsed_stmts = match parser.parse_program() {
+            Ok(stmts) => stmts,
+            Err(message) => {
+                index.diagnostics.push(MetaDiagnostic {
+                    line: 1,
+                    message: format!("cannot resolve meta references: {}", message),
+                });
+                return;
+            }
+        };
+        &parsed_stmts
     };
 
-    let checked_stmts = prepend_prelude(parse_prelude(), &stmts);
+    let checked_stmts = prepend_prelude(parse_prelude(), stmts);
     let mut checker = TypeChecker::new();
     checker.source_dir = source_dir.clone();
     checker.source_text = source.to_string();
@@ -3030,7 +3099,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
     checker.infer_top_level_binding_types(&checked_stmts);
 
     let mut bindings = BTreeMap::new();
-    collect_local_meta_bindings(source, &stmts, None, &mut bindings);
+    collect_local_meta_bindings(source, stmts, None, &mut bindings);
     loop {
         let sought_bindings =
             meta_binding_dependencies(&referenced_bindings, &bindings, &checker.constructors);
@@ -3042,7 +3111,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
         }
         let previous_binding_count = bindings.len();
         collect_imported_meta_bindings(
-            &stmts,
+            stmts,
             source_dir.as_deref(),
             &sought_bindings,
             &mut bindings,
@@ -3057,7 +3126,7 @@ fn resolve_meta_references(source: &str, source_dir: Option<String>, index: &mut
         .iter()
         .map(|(name, definition)| (name.clone(), &definition.expr))
         .collect();
-    let mut ground_evaluator = MetaGroundEvaluator::new(&stmts, source_dir.as_deref());
+    let mut ground_evaluator = MetaGroundEvaluator::new(stmts, source_dir.as_deref());
 
     for anchor in &mut index.anchors {
         for reference in &mut anchor.references {
@@ -3193,17 +3262,20 @@ fn collect_invalid_meta_role_values(
     }
 }
 
-fn meta_binding_definition_line(source: &str, name: &str, expr: &Expr) -> usize {
+fn meta_binding_definition_line(
+    source: &str,
+    name: &str,
+    expr: &Expr,
+    definition_lines: &BTreeMap<String, Vec<usize>>,
+) -> usize {
     let (expr_line, _) = expr.span.start_line_col(source);
-    let lines: Vec<&str> = source.lines().take(expr_line).collect();
-    lines
-        .iter()
-        .enumerate()
+    definition_lines
+        .get(name)
+        .into_iter()
+        .flatten()
         .rev()
-        .find_map(|(idx, line)| {
-            (meta_binding_symbol_name(line.trim_start()).as_deref() == Some(name))
-                .then_some(idx + 1)
-        })
+        .find(|line| **line <= expr_line)
+        .copied()
         .unwrap_or(expr_line)
 }
 
@@ -4712,6 +4784,90 @@ pub enum Rule {
         name: String,
         body: Vec<Stmt>,
     },
+}
+
+/// Parsed source retained for the duration of a compiler process. Import-heavy
+/// programs have several semantic consumers, but a module's syntax tree is
+/// independent of the consumer that requested it.
+#[derive(Debug)]
+pub struct ParsedSourceModule {
+    source: Arc<str>,
+    statements: Arc<Vec<Stmt>>,
+    content_hash: String,
+}
+
+impl ParsedSourceModule {
+    pub fn source(&self) -> &str {
+        &self.source
+    }
+
+    pub fn statements(&self) -> &[Stmt] {
+        self.statements.as_slice()
+    }
+
+    pub fn content_hash(&self) -> &str {
+        &self.content_hash
+    }
+}
+
+static PARSED_SOURCE_MODULES: OnceLock<Mutex<BTreeMap<PathBuf, Arc<ParsedSourceModule>>>> =
+    OnceLock::new();
+
+fn parsed_source_modules() -> &'static Mutex<BTreeMap<PathBuf, Arc<ParsedSourceModule>>> {
+    PARSED_SOURCE_MODULES.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+fn parsed_source_content_hash(source: &str) -> String {
+    let mut hasher = Sha256::new();
+    hasher.update(source.as_bytes());
+    format!("{:x}", hasher.finalize())
+}
+
+fn canonical_parsed_source_path(path: &Path) -> PathBuf {
+    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
+}
+
+/// Parse a module once per exact path/content pair and share its immutable AST
+/// between graph discovery, type checking, metadata indexing, interpretation,
+/// and code generation. Content hashing keeps long-lived processes correct
+/// when a file is rewritten at the same path.
+pub fn parse_source_module_cached(
+    path: &Path,
+    source: &str,
+) -> Result<Arc<ParsedSourceModule>, String> {
+    let path = canonical_parsed_source_path(path);
+    let content_hash = parsed_source_content_hash(source);
+    {
+        let cache = parsed_source_modules()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if let Some(module) = cache.get(&path) {
+            if module.content_hash == content_hash {
+                return Ok(module.clone());
+            }
+        }
+    }
+
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let statements = parser.parse_program()?;
+    let module = Arc::new(ParsedSourceModule {
+        source: Arc::from(source),
+        statements: Arc::new(statements),
+        content_hash,
+    });
+    parsed_source_modules()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .insert(path, module.clone());
+    Ok(module)
+}
+
+pub fn parse_source_module_file_cached(path: &Path) -> Result<Arc<ParsedSourceModule>, String> {
+    let source = std::fs::read_to_string(path)
+        .map_err(|error| format!("cannot read {}: {}", path.display(), error))?;
+    parse_source_module_cached(path, &source)
 }
 
 #[derive(Debug, Clone)]
@@ -10566,18 +10722,12 @@ impl Interpreter {
             if !visited.insert(canonical) {
                 continue;
             }
-            let Ok(source) = std::fs::read_to_string(&file_path) else {
-                continue;
-            };
-            let mut lexer = Lexer::new(&source);
-            let tokens = lexer.tokenize();
-            let mut parser = Parser::new(tokens, &source);
-            let Ok(import_stmts) = parser.parse_program() else {
+            let Ok(imported_module) = parse_source_module_file_cached(Path::new(&file_path)) else {
                 continue;
             };
             let imported_source_dir = Self::imported_source_dir(&file_path);
             Self::collect_calculation_runtime_graph(
-                &import_stmts,
+                imported_module.statements(),
                 Some(&imported_source_dir),
                 visited,
                 graph,
@@ -10765,31 +10915,29 @@ impl Interpreter {
                                 .unwrap_or(file_path.clone());
                             if !self.imported.contains(&canon) {
                                 self.imported.insert(canon);
-                                match std::fs::read_to_string(&file_path) {
-                                    Ok(source) => {
-                                        let mut lexer = Lexer::new(&source);
-                                        let tokens = lexer.tokenize();
-                                        let mut parser = Parser::new(tokens, &source);
-                                        match parser.parse_program() {
-                                            Ok(import_stmts) => {
-                                                let defs: Vec<Stmt> = import_stmts
-                                                    .into_iter()
-                                                    .filter(Self::is_runtime_import_statement)
-                                                    .collect();
-                                                let previous_source_dir = self.source_dir.clone();
-                                                self.source_dir =
-                                                    Some(Self::imported_source_dir(&file_path));
-                                                last = self.run_program_internal(
-                                                    &defs,
-                                                    env,
-                                                    prune_top_level_bindings,
-                                                );
-                                                self.source_dir = previous_source_dir;
-                                            }
-                                            Err(e) => eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e),
-                                        }
+                                match parse_source_module_file_cached(Path::new(&file_path)) {
+                                    Ok(imported_module) => {
+                                        let defs: Vec<Stmt> = imported_module
+                                            .statements()
+                                            .iter()
+                                            .filter(|statement| {
+                                                Self::is_runtime_import_statement(statement)
+                                            })
+                                            .cloned()
+                                            .collect();
+                                        let previous_source_dir = self.source_dir.clone();
+                                        self.source_dir =
+                                            Some(Self::imported_source_dir(&file_path));
+                                        last = self.run_program_internal(
+                                            &defs,
+                                            env,
+                                            prune_top_level_bindings,
+                                        );
+                                        self.source_dir = previous_source_dir;
                                     }
-                                    Err(e) => eprintln!("Cannot import {}: {}", file_path, e),
+                                    Err(error) => {
+                                        eprintln!("Cannot import {}: {}", file_path, error)
+                                    }
                                 }
                             }
                         }
@@ -10806,99 +10954,113 @@ impl Interpreter {
                             .unwrap_or(file_path.clone());
                         if !self.imported.contains(&canon) {
                             self.imported.insert(canon);
-                            match std::fs::read_to_string(&file_path) {
-                                Ok(source) => {
-                                    let mut lexer = Lexer::new(&source);
-                                    let tokens = lexer.tokenize();
-                                    let mut parser = Parser::new(tokens, &source);
-                                    match parser.parse_program() {
-                                        Ok(import_stmts) => {
-                                            // Scan for @ export annotations to find exported names
-                                            let mut exported_names: BTreeSet<String> = BTreeSet::new();
-                                            let mut is_export = false;
-                                            for s in &import_stmts {
-                                                if let Stmt::Annot(name, args) = s {
-                                                    if name == "export" {
-                                                        // Post-hoc form: `@ export add`
-                                                        for a in args { if let ExprKind::Var(n) = &a.kind { exported_names.insert(n.clone()); } }
-                                                        if args.is_empty() { is_export = true; }
-                                                        continue;
+                            match parse_source_module_file_cached(Path::new(&file_path)) {
+                                Ok(imported_module) => {
+                                    let import_stmts = imported_module.statements();
+                                    // Scan for @ export annotations to find exported names
+                                    let mut exported_names: BTreeSet<String> = BTreeSet::new();
+                                    let mut is_export = false;
+                                    for s in import_stmts {
+                                        if let Stmt::Annot(name, args) = s {
+                                            if name == "export" {
+                                                // Post-hoc form: `@ export add`
+                                                for a in args {
+                                                    if let ExprKind::Var(n) = &a.kind {
+                                                        exported_names.insert(n.clone());
                                                     }
                                                 }
-                                                if is_export {
-                                                    match s {
-                                                        Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) => {
-                                                            exported_names.insert(name.clone());
-                                                        }
-                                                        Stmt::Defn(Defn::Module { name, .. }) => {
-                                                            exported_names.insert(name.clone());
-                                                        }
-                                                        Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
-                                                            exported_names.insert(name.clone());
-                                                        }
-                                                        Stmt::Bind(Pat::Var(name), _, _) => {
-                                                            exported_names.insert(name.clone());
-                                                        }
-                                                        Stmt::StreamBind(name, _) => {
-                                                            exported_names.insert(name.clone());
-                                                        }
-                                                        _ => {}
-                                                    }
-                                                    is_export = false;
+                                                if args.is_empty() {
+                                                    is_export = true;
                                                 }
+                                                continue;
                                             }
-                                            // Execute all definitions in a child env
-                                            let defs: Vec<Stmt> = import_stmts
-                                                .into_iter()
-                                                .filter(Self::is_runtime_import_statement)
-                                                .collect();
-                                            let mut mod_env = env.child();
-                                            let previous_source_dir = self.source_dir.clone();
-                                            self.source_dir =
-                                                Some(Self::imported_source_dir(&file_path));
-                                            self.run_program_internal(
-                                                &defs,
-                                                &mut mod_env,
-                                                prune_top_level_bindings,
-                                            );
-                                            self.source_dir = previous_source_dir;
-                                            // Filter to only exported bindings
-                                            let mut bindings = HashMap::new();
-                                            let module_closure_env = mod_env.child();
-                                            for (k, v) in &mod_env.bindings {
-                                                if exported_names.contains(k) {
-                                                    bindings.insert(
-                                                        k.clone(),
-                                                        Self::capture_module_closure(
-                                                            v,
-                                                            &module_closure_env,
-                                                        ),
-                                                    );
-                                                }
-                                            }
-                                            // Also include constructors of exported ADTs
-                                            // (constructors are registered by variant name, not type name)
-                                            // Scan the imported file to find which constructors belong to exported types
-                                            for s in &defs {
-                                                if let Stmt::TypeDecl(TypeDecl::ADT { name: type_name, variants, .. }) = s {
-                                                    if exported_names.contains(type_name) {
-                                                        for v in variants {
-                                                            if let Some(val) = mod_env.bindings.get(&v.name) {
-                                                                bindings.insert(v.name.clone(), val.clone());
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                            env.set(mod_name.clone(), Value::Scope {
-                                                name: mod_name.clone(),
-                                                bindings,
-                                            });
                                         }
-                                        Err(e) => eprintln!("\x1b[1;31merror\x1b[0m: parse error in imported {}: {}", file_path, e),
+                                        if is_export {
+                                            match s {
+                                                Stmt::Defn(Defn::Fn { name, .. })
+                                                | Stmt::Defn(Defn::Actor { name, .. }) => {
+                                                    exported_names.insert(name.clone());
+                                                }
+                                                Stmt::Defn(Defn::Module { name, .. }) => {
+                                                    exported_names.insert(name.clone());
+                                                }
+                                                Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                                                    exported_names.insert(name.clone());
+                                                }
+                                                Stmt::Bind(Pat::Var(name), _, _) => {
+                                                    exported_names.insert(name.clone());
+                                                }
+                                                Stmt::StreamBind(name, _) => {
+                                                    exported_names.insert(name.clone());
+                                                }
+                                                _ => {}
+                                            }
+                                            is_export = false;
+                                        }
                                     }
+                                    // Execute all definitions in a child env
+                                    let defs: Vec<Stmt> = import_stmts
+                                        .iter()
+                                        .filter(|statement| {
+                                            Self::is_runtime_import_statement(statement)
+                                        })
+                                        .cloned()
+                                        .collect();
+                                    let mut mod_env = env.child();
+                                    let previous_source_dir = self.source_dir.clone();
+                                    self.source_dir = Some(Self::imported_source_dir(&file_path));
+                                    self.run_program_internal(
+                                        &defs,
+                                        &mut mod_env,
+                                        prune_top_level_bindings,
+                                    );
+                                    self.source_dir = previous_source_dir;
+                                    // Filter to only exported bindings
+                                    let mut bindings = HashMap::new();
+                                    let module_closure_env = mod_env.child();
+                                    for (k, v) in &mod_env.bindings {
+                                        if exported_names.contains(k) {
+                                            bindings.insert(
+                                                k.clone(),
+                                                Self::capture_module_closure(
+                                                    v,
+                                                    &module_closure_env,
+                                                ),
+                                            );
+                                        }
+                                    }
+                                    // Also include constructors of exported ADTs
+                                    // (constructors are registered by variant name, not type name)
+                                    // Scan the imported file to find which constructors belong to exported types
+                                    for s in &defs {
+                                        if let Stmt::TypeDecl(TypeDecl::ADT {
+                                            name: type_name,
+                                            variants,
+                                            ..
+                                        }) = s
+                                        {
+                                            if exported_names.contains(type_name) {
+                                                for v in variants {
+                                                    if let Some(val) = mod_env.bindings.get(&v.name)
+                                                    {
+                                                        bindings
+                                                            .insert(v.name.clone(), val.clone());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                    env.set(
+                                        mod_name.clone(),
+                                        Value::Scope {
+                                            name: mod_name.clone(),
+                                            bindings,
+                                        },
+                                    );
                                 }
-                                Err(e) => eprintln!("Cannot import {}: {}", file_path, e),
+                                Err(error) => {
+                                    eprintln!("Cannot import {}: {}", file_path, error)
+                                }
                             }
                         }
                     }
@@ -10908,39 +11070,27 @@ impl Interpreter {
                     if let Some(ref dir) = self.source_dir {
                         let rel = path.trim_start_matches("./");
                         let file_path = format!("{}/{}.runa", dir, rel);
-                        match std::fs::read_to_string(&file_path) {
-                            Ok(source) => {
-                                let mut lexer = Lexer::new(&source);
-                                let tokens = lexer.tokenize();
-                                let mut parser = Parser::new(tokens, &source);
-                                match parser.parse_program() {
-                                    Ok(import_stmts) => {
-                                        let mut found = false;
-                                        for s in &import_stmts {
-                                            let matches = match s {
-                                                Stmt::Defn(d) => content_hash_defn(d) == *hash,
-                                                Stmt::TypeDecl(td) => {
-                                                    content_hash_type(td) == *hash
-                                                }
-                                                _ => false,
-                                            };
-                                            if matches {
-                                                last = self.run_program(&[s.clone()], env);
-                                                found = true;
-                                                break;
-                                            }
-                                        }
-                                        if !found {
-                                            eprintln!("Hash #{} not found in {}", hash, file_path);
-                                        }
+                        match parse_source_module_file_cached(Path::new(&file_path)) {
+                            Ok(imported_module) => {
+                                let import_stmts = imported_module.statements();
+                                let mut found = false;
+                                for s in import_stmts {
+                                    let matches = match s {
+                                        Stmt::Defn(d) => content_hash_defn(d) == *hash,
+                                        Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
+                                        _ => false,
+                                    };
+                                    if matches {
+                                        last = self.run_program(&[s.clone()], env);
+                                        found = true;
+                                        break;
                                     }
-                                    Err(e) => eprintln!(
-                                        "\x1b[1;31merror\x1b[0m: parse error in imported {}: {}",
-                                        file_path, e
-                                    ),
+                                }
+                                if !found {
+                                    eprintln!("Hash #{} not found in {}", hash, file_path);
                                 }
                             }
-                            Err(e) => eprintln!("Cannot import {}: {}", file_path, e),
+                            Err(error) => eprintln!("Cannot import {}: {}", file_path, error),
                         }
                     }
                 }
@@ -18277,31 +18427,28 @@ impl TypeChecker {
         &mut self,
         import_path: &str,
         file_path: &str,
-    ) -> Option<Vec<Stmt>> {
+    ) -> Option<Arc<ParsedSourceModule>> {
         let source = match std::fs::read_to_string(file_path) {
             Ok(source) => source,
-            Err(e) => {
+            Err(error) => {
                 self.error_at_import_path(
                     import_path,
                     format!(
                         "cannot resolve import `{}`: {} ({})",
-                        import_path, file_path, e
+                        import_path, file_path, error
                     ),
                 );
                 return None;
             }
         };
-        let mut lexer = Lexer::new(&source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, &source);
-        match parser.parse_program() {
-            Ok(stmts) => Some(stmts),
-            Err(e) => {
+        match parse_source_module_cached(Path::new(file_path), &source) {
+            Ok(module) => Some(module),
+            Err(error) => {
                 self.error_at_import_path(
                     import_path,
                     format!(
                         "cannot parse imported module `{}` at {}: {}",
-                        import_path, file_path, e
+                        import_path, file_path, error
                     ),
                 );
                 None
@@ -18760,7 +18907,7 @@ impl TypeChecker {
                                     self.parse_imported_source_for_tc(path, &file_path)
                                 {
                                     self.collect_declarations_from_imported_file(
-                                        &import_stmts,
+                                        import_stmts.statements(),
                                         &file_path,
                                         &dir,
                                     );
@@ -18782,7 +18929,8 @@ impl TypeChecker {
                             if let Some(import_stmts) =
                                 self.parse_imported_source_for_tc(path, &file_path)
                             {
-                                let exported = Self::exported_names_from_stmts(&import_stmts);
+                                let exported =
+                                    Self::exported_names_from_stmts(import_stmts.statements());
                                 self.module_exports.insert(mod_name.clone(), exported);
                             }
                         }
@@ -18802,7 +18950,8 @@ impl TypeChecker {
                                     self.parse_imported_source_for_tc(path, &file_path)
                                 {
                                     let matched: Vec<Stmt> = import_stmts
-                                        .into_iter()
+                                        .statements()
+                                        .iter()
                                         .filter(|s| match s {
                                             Stmt::Defn(d) => content_hash_defn(d) == *hash,
                                             Stmt::TypeDecl(td) => content_hash_type(td) == *hash,
@@ -18828,6 +18977,7 @@ impl TypeChecker {
                                             | Stmt::Abort
                                             | Stmt::Expr(_) => false,
                                         })
+                                        .cloned()
                                         .collect();
                                     if matched.is_empty() {
                                         self.error_at_import_path(
@@ -20220,6 +20370,35 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn parsed_source_module_cache_reuses_exact_content_and_invalidates_rewrites() {
+        let temp_path = std::env::temp_dir().join(format!(
+            "futuruna_parsed_module_cache_{}_{}.runa",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let first_source = "= cached_value = 1\n";
+        let second_source = "= cached_value = 2\n";
+
+        std::fs::write(&temp_path, first_source).expect("write first cached module");
+        let first = parse_source_module_file_cached(&temp_path).expect("parse first module");
+        let unchanged =
+            parse_source_module_file_cached(&temp_path).expect("reuse unchanged module");
+        assert!(Arc::ptr_eq(&first, &unchanged));
+
+        std::fs::write(&temp_path, second_source).expect("rewrite cached module");
+        let rewritten =
+            parse_source_module_file_cached(&temp_path).expect("parse rewritten module");
+        assert!(!Arc::ptr_eq(&first, &rewritten));
+        assert_ne!(first.content_hash(), rewritten.content_hash());
+        assert_eq!(rewritten.source(), second_source);
+
+        std::fs::remove_file(temp_path).ok();
+    }
 
     #[test]
     fn localized_fields_preserve_spelling_without_disabling_identifier_aliases() {

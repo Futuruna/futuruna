@@ -953,15 +953,12 @@ fn collect_source_graph_module(
             (source_dir.clone(), import_path.to_string()),
             resolved_path.clone(),
         );
-        let imported_source = std::fs::read_to_string(&imported_filename).ok()?;
-        let mut lexer = Lexer::new(&imported_source);
-        let tokens = lexer.tokenize();
-        let mut parser = Parser::new(tokens, &imported_source);
-        let imported_stmts = parser.parse_program().ok()?;
+        let imported_module =
+            parse_source_module_file_cached(Path::new(&imported_filename)).ok()?;
         collect_source_graph_module(
             Path::new(&imported_filename),
-            &imported_source,
-            &imported_stmts,
+            imported_module.source(),
+            imported_module.statements(),
             visited_modules,
             files,
             resolution_contexts,
@@ -13269,7 +13266,7 @@ fn import_time_impure_builtin_names() -> BTreeSet<String> {
     let mut names = BTreeSet::from(["print".to_string(), "spawn".to_string(), "ask".to_string()]);
     for (name, def) in rust_builtin_registry() {
         if def.impure {
-            names.insert(name);
+            names.insert(name.clone());
         }
     }
     names
@@ -15960,6 +15957,7 @@ fn lsp_builtin_doc(name: &str) -> Option<(&'static str, &'static str)> {
 //   - purity analysis (impure builtins prevent auto-comptime folding)
 //   - Rust code templates (future: add wasm_tpl for WASM backend)
 
+#[derive(Clone, Copy)]
 struct BuiltinDef {
     arity: usize,
     shadowable: bool,
@@ -15976,7 +15974,9 @@ fn apply_builtin_template(tpl: &str, args: &[String]) -> String {
     s
 }
 
-fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
+static RUST_BUILTIN_REGISTRY: OnceLock<BTreeMap<String, BuiltinDef>> = OnceLock::new();
+
+fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
     const D: &[(&str, &str)] = &[];
     const SERDE: &[(&str, &str)] = &[("serde_json", "1")];
     const UREQ: &[(&str, &str)] = &[("ureq", "2")];
@@ -16178,6 +16178,10 @@ fn rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
         .collect()
+}
+
+fn rust_builtin_registry() -> &'static BTreeMap<String, BuiltinDef> {
+    RUST_BUILTIN_REGISTRY.get_or_init(build_rust_builtin_registry)
 }
 
 /// Shared type metadata: types, variants, constructors, field info.
@@ -16712,7 +16716,7 @@ struct RustCodegen {
     /// Inferred element types for broadcast subjects: name -> Rust type string
     subject_elem_type: BTreeMap<String, String>,
     /// Builtin registry: name -> definition (template, arity, deps, purity)
-    builtin_registry: BTreeMap<String, BuiltinDef>,
+    builtin_registry: &'static BTreeMap<String, BuiltinDef>,
     /// Counter for generating unique async stream operator variable names
     async_stream_counter: usize,
     /// Source file stem (e.g. "weather" from "weather.runa") — used for store DB naming
@@ -22315,23 +22319,18 @@ impl RustCodegen {
     /// Parse a .runa file without import-cycle tracking (for hash imports).
     fn parse_tau_file(file_path: &str) -> Vec<Stmt> {
         match std::fs::read_to_string(file_path) {
-            Ok(source) => {
-                let mut lexer = Lexer::new(&source);
-                let tokens = lexer.tokenize();
-                let mut parser = Parser::new(tokens, &source);
-                match parser.parse_program() {
-                    Ok(stmts) => stmts,
-                    Err(e) => {
-                        eprintln!(
-                            "\x1b[1;31merror\x1b[0m: parse error in {}: {}",
-                            file_path, e
-                        );
-                        Vec::new()
-                    }
+            Ok(source) => match parse_source_module_cached(Path::new(file_path), &source) {
+                Ok(module) => module.statements().to_vec(),
+                Err(error) => {
+                    eprintln!(
+                        "\x1b[1;31merror\x1b[0m: parse error in {}: {}",
+                        file_path, error
+                    );
+                    Vec::new()
                 }
-            }
-            Err(e) => {
-                eprintln!("Cannot read {}: {}", file_path, e);
+            },
+            Err(error) => {
+                eprintln!("Cannot read {}: {}", file_path, error);
                 Vec::new()
             }
         }
@@ -40445,7 +40444,7 @@ impl RustCodegen {
             .flat_map(|ops| ops.iter().cloned())
             .collect();
         all_effect_ops.insert("print".to_string());
-        for (name, def) in &registry {
+        for (name, def) in registry {
             if def.impure {
                 all_effect_ops.insert(name.clone());
             }
@@ -40716,7 +40715,7 @@ impl RustCodegen {
             .flat_map(|ops| ops.iter().cloned())
             .collect();
         effect_and_impure_ops.insert("print".to_string());
-        for (name, def) in &registry {
+        for (name, def) in registry {
             if def.impure {
                 effect_and_impure_ops.insert(name.clone());
             }
