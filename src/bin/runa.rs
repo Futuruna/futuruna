@@ -742,6 +742,7 @@ const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
 const CALCULATION_CONTRACT_CACHE_VERSION: u32 = 2;
 const CHECK_ARTIFACT_CACHE_VERSION: u32 = 1;
 const NATIVE_ARTIFACT_CACHE_VERSION: u32 = 1;
+const COMPILER_FINGERPRINT_CACHE_VERSION: u32 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SourceGraphFile {
@@ -805,6 +806,29 @@ struct NativeArtifactCacheEntry {
     binary_hash: String,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+struct CompilerExecutableIdentity {
+    path: String,
+    length: u64,
+    modified_seconds: u64,
+    modified_nanoseconds: u32,
+    #[serde(default)]
+    device: Option<u64>,
+    #[serde(default)]
+    inode: Option<u64>,
+    #[serde(default)]
+    changed_seconds: Option<i64>,
+    #[serde(default)]
+    changed_nanoseconds: Option<i64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct CompilerExecutableFingerprintCacheEntry {
+    cache_version: u32,
+    identity: CompilerExecutableIdentity,
+    sha256: String,
+}
+
 fn cache_env_enabled(name: &str) -> bool {
     std::env::var(name).is_ok_and(|value| {
         matches!(
@@ -864,6 +888,22 @@ fn compiler_artifact_cache_dir() -> Option<PathBuf> {
     Some(root.join("compiler-artifacts-v1"))
 }
 
+fn compiler_fingerprint_cache_dir() -> Option<PathBuf> {
+    if let Some(path) = std::env::var_os("FUTURUNA_COMPILER_CACHE_DIR") {
+        return Some(PathBuf::from(path).join("compiler-fingerprints-v1"));
+    }
+    if let Some(path) = std::env::var_os("XDG_CACHE_HOME") {
+        return Some(PathBuf::from(path).join("futuruna/compiler-fingerprints-v1"));
+    }
+    let home = std::env::var_os("HOME")?;
+    let root = if cfg!(target_os = "macos") {
+        PathBuf::from(home).join("Library/Caches/futuruna")
+    } else {
+        PathBuf::from(home).join(".cache/futuruna")
+    };
+    Some(root.join("compiler-fingerprints-v1"))
+}
+
 fn cache_hash_segment(hasher: &mut Sha256, value: &[u8]) {
     hasher.update((value.len() as u64).to_le_bytes());
     hasher.update(value);
@@ -889,11 +929,88 @@ fn sha256_file(path: &Path) -> Option<String> {
     Some(format!("{:x}", hasher.finalize()))
 }
 
+fn compiler_executable_identity(path: &Path) -> Option<CompilerExecutableIdentity> {
+    let path = canonical_cache_path(path);
+    let metadata = std::fs::metadata(&path).ok()?;
+    let modified = metadata
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?;
+
+    #[cfg(unix)]
+    let (device, inode, changed_seconds, changed_nanoseconds) = {
+        use std::os::unix::fs::MetadataExt;
+        (
+            Some(metadata.dev()),
+            Some(metadata.ino()),
+            Some(metadata.ctime()),
+            Some(metadata.ctime_nsec()),
+        )
+    };
+    #[cfg(not(unix))]
+    let (device, inode, changed_seconds, changed_nanoseconds) = (None, None, None, None);
+
+    Some(CompilerExecutableIdentity {
+        path: path.to_string_lossy().to_string(),
+        length: metadata.len(),
+        modified_seconds: modified.as_secs(),
+        modified_nanoseconds: modified.subsec_nanos(),
+        device,
+        inode,
+        changed_seconds,
+        changed_nanoseconds,
+    })
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn compiler_fingerprint_cache_path(
+    cache_dir: &Path,
+    identity: &CompilerExecutableIdentity,
+) -> PathBuf {
+    cache_dir.join(format!("{}.json", sha256_hex(identity.path.as_bytes())))
+}
+
+fn sha256_file_with_metadata_cache(path: &Path, cache_dir: &Path) -> Option<(String, bool)> {
+    let identity_before = compiler_executable_identity(path)?;
+    let cache_path = compiler_fingerprint_cache_path(cache_dir, &identity_before);
+    if let Ok(bytes) = std::fs::read(&cache_path) {
+        if let Ok(entry) = serde_json::from_slice::<CompilerExecutableFingerprintCacheEntry>(&bytes)
+        {
+            if entry.cache_version == COMPILER_FINGERPRINT_CACHE_VERSION
+                && entry.identity == identity_before
+                && valid_sha256(&entry.sha256)
+            {
+                return Some((entry.sha256, true));
+            }
+        }
+    }
+
+    let sha256 = sha256_file(path)?;
+    let identity_after = compiler_executable_identity(path)?;
+    if identity_before == identity_after {
+        let entry = CompilerExecutableFingerprintCacheEntry {
+            cache_version: COMPILER_FINGERPRINT_CACHE_VERSION,
+            identity: identity_after,
+            sha256: sha256.clone(),
+        };
+        write_json_atomically(&cache_path, &entry);
+    }
+    Some((sha256, false))
+}
+
 fn compiler_executable_hash() -> Option<String> {
     COMPILER_EXECUTABLE_HASH
         .get_or_init(|| {
             let executable = std::env::current_exe().ok()?;
-            sha256_file(&executable)
+            compiler_fingerprint_cache_dir()
+                .and_then(|cache_dir| {
+                    sha256_file_with_metadata_cache(&executable, &cache_dir).map(|(hash, _)| hash)
+                })
+                .or_else(|| sha256_file(&executable))
         })
         .clone()
 }
@@ -42578,6 +42695,45 @@ fn fresh_generated_rust_name(base: &str, used: &mut BTreeSet<String>) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compiler_executable_fingerprint_cache_reuses_and_invalidates_exact_hashes() {
+        let temp_dir = unique_temp_workspace("futuruna-compiler-fingerprint-cache");
+        let cache_dir = temp_dir.join("cache");
+        let executable = temp_dir.join("runa-test");
+        std::fs::create_dir_all(&temp_dir).expect("create fingerprint cache test directory");
+        std::fs::write(&executable, b"first compiler image").expect("write first compiler image");
+
+        let expected_first = sha256_file(&executable).expect("hash first compiler image");
+        let (first, first_hit) = sha256_file_with_metadata_cache(&executable, &cache_dir)
+            .expect("cache first compiler image");
+        assert_eq!(first, expected_first);
+        assert!(!first_hit);
+
+        let (second, second_hit) = sha256_file_with_metadata_cache(&executable, &cache_dir)
+            .expect("reuse compiler image hash");
+        assert_eq!(second, expected_first);
+        assert!(second_hit);
+
+        std::fs::write(&executable, b"second, changed compiler image")
+            .expect("rewrite compiler image");
+        let expected_changed = sha256_file(&executable).expect("hash changed compiler image");
+        let (changed, changed_hit) = sha256_file_with_metadata_cache(&executable, &cache_dir)
+            .expect("invalidate changed compiler image");
+        assert_eq!(changed, expected_changed);
+        assert_ne!(changed, expected_first);
+        assert!(!changed_hit);
+
+        let identity = compiler_executable_identity(&executable).expect("compiler identity");
+        let cache_path = compiler_fingerprint_cache_path(&cache_dir, &identity);
+        std::fs::write(&cache_path, b"not valid JSON").expect("corrupt fingerprint cache");
+        let (recovered, recovered_hit) = sha256_file_with_metadata_cache(&executable, &cache_dir)
+            .expect("recover corrupt fingerprint cache");
+        assert_eq!(recovered, expected_changed);
+        assert!(!recovered_hit);
+
+        std::fs::remove_dir_all(temp_dir).ok();
+    }
 
     #[test]
     fn calculation_xlsx_output_chunks_large_results_without_loss() {

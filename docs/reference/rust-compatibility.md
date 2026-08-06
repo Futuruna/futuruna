@@ -112,6 +112,13 @@ persistent rustc incremental workspace for changed graphs. Set
 `FUTURUNA_COMPILER_CACHE_TRACE=1` to report cache hits and misses on standard
 error.
 
+Cache validation includes the exact SHA-256 of the `runa` executable. That
+digest is reused across CLI processes only while the executable's canonical
+path, size, modification time, and platform file identity remain unchanged.
+Replacing or rewriting the executable recomputes the digest before any
+compiler or calculation artifact can be accepted; malformed fingerprint cache
+entries are ignored.
+
 For the precise compatibility boundary around emitted Rust, native build
 artifacts, `runa lib`, and WASM package output, see
 [../artifact-codegen-contracts.md](../artifact-codegen-contracts.md). The short
