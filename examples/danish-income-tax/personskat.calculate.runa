@@ -17,7 +17,9 @@
 @ importer ./personskat - virksomhedskapital - kildefakta
 @ importer ./ligningsloven - kontingenter - gaver
 @ importer ./pensionsbeskatningsloven - par49 - 49b
+@ importer ./soemandsbeskatningsloven - par3 - par4
 @ importer ./personskat - ligningsfradrag - beregningsmeta
+@ importer ./personskat - soemandsfradrag - beregningsmeta
 @ importer ./slutopgoerelse
 @ importer ./kursgevinstloven - ebl - par6d
 @ importer ./kursgevinstloven - aarsnetto
@@ -36,6 +38,7 @@
         AmendmentSource(value = personskat_reform_2024_482),
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
         DependencySource(value = ligningsloven_2025_1500),
+        DependencySource(value = sømandsbeskatningsloven_2023_1181),
         DependencySource(value = ligningsloven_par16a_lbk1500),
         DependencySource(value = etableringskontoloven_lbk1307_par1_par4),
         AmendmentSource(value = ligningsloven_par16a_lov1755),
@@ -59,6 +62,8 @@
         RateSource(value = skatteministeriet_pensionsbeskatningsloven_beløbsgrænser_2026),
         Guidance(value = ligningsloven_juridisk_vejledning_par9b_godtgørelse),
         Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+        Practice(value = landsskatteretten_skm2025_442_lsr),
         AmendmentSource(value = ligningsloven_lov616_par1),
         RateSource(value = ligningsloven_bek1333_par1_par4),
         Guidance(value = ligningsloven_vejledning_par9c_fri_befordring),
@@ -97,9 +102,9 @@
 # PersonskatArbejdsgiverbetaltBefordring = UdenArbejdsgiverbetaltBefordring | ArbejdsgiverbetaltOffentligTransportForHeleStrækningen | ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen | AndenArbejdsgiverbetaltBefordringForHeleStrækningen
 # PersonskatBefordringsfradragFakta(arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # PersonskatBefordringsfradragInput = UdenBefordringsfradrag | MedBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta)
-# PersonskatLigningsfradragInput(befordring: PersonskatBefordringsfradragInput, faglige_kontingenter: Ligningslov13Årsinput, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsinput, gaver: LigningslovGaveÅrsinput)
+# PersonskatLigningsfradragInput(sømandsfradrag: Sømandsbeskatningslov3Årsinput, befordring: PersonskatBefordringsfradragInput, faglige_kontingenter: Ligningslov13Årsinput, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsinput, gaver: LigningslovGaveÅrsinput)
 # PersonskatBefordringsfradragResultat = IntetBefordringsfradrag | UgyldigtBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradrag(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
-# PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, befordring: PersonskatBefordringsfradragResultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat, gaver: LigningslovGaveÅrsresultat, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
+# PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat, befordring: PersonskatBefordringsfradragResultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat, gaver: LigningslovGaveÅrsresultat, erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner: Heltal, erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner: Heltal, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, erhvervsbefordring_fradrag_før_par4_kroner: Heltal, erhvervsbefordring_fradrag_anvendt_kroner: Heltal, befordring_fradrag_før_par4_kroner: Heltal, befordring_fradrag_anvendt_kroner: Heltal, faglige_kontingenter_fradrag_anvendt_kroner: Heltal, pbl49_stk1_fradrag_før_par4_kroner: Heltal, pbl49_stk1_fradrag_anvendt_kroner: Heltal, pbl49a_og_49b_fradrag_anvendt_kroner: Heltal, samlet_afskåret_efter_sømandsbeskatningslov4_kroner: Heltal, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
 # PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
 # PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
@@ -9635,6 +9640,7 @@
 | personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(resultat: PersonskatErhvervsbefordringResultat) -> resultat.samlet_fradrag_i_personlig_indkomst_kroner
 
 | personskat_ingen_ligningsfradrag() -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     befordring = UdenBefordringsfradrag,
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
@@ -9659,7 +9665,7 @@
 | personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.broer.øresund_kollektiv_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
 | personskat_arbejdsgiverbetalt_befordring_for_hele_strækningen(input: PersonskatArbejdsgiverbetaltBefordring) -> input != UdenArbejdsgiverbetaltBefordring
 | personskat_arbejdsgiverbetalt_befordring_am_bidragspligtig(input: PersonskatArbejdsgiverbetaltBefordring) -> input == ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen
-| personskat_ll9c_aftrapningsindkomst_før_fri_befordring_kroner(input: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, personlig_indkomst: PersonskatPersonligIndkomstResultat) -> input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner
+| personskat_ll9c_aftrapningsindkomst_før_fri_befordring_kroner(input: PersonskatLønmodtagerInput, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat) -> input.bruttoløn_kroner + erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner
 | personskat_ll9c_input(fakta: PersonskatBefordringsfradragFakta, lønmodtager: PersonskatLønmodtagerInput, aftrapningsindkomst_kroner: Heltal, ligningslov9d_resultat: Ligningslov9DResultat) -> Ligningslov9CInput(
     skatteår = lønmodtager.skatteår,
     arbejdsdage = fakta.arbejdsdage,
@@ -9675,7 +9681,7 @@
     broer = fakta.broer,
     særlig_transport = fakta.særlig_transport
 )
-| personskat_befordringsfradrag_resultat(input: PersonskatBefordringsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, personlig_indkomst: PersonskatPersonligIndkomstResultat) -> match input {
+| personskat_befordringsfradrag_resultat(input: PersonskatBefordringsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat) -> match input {
     | UdenBefordringsfradrag -> IntetBefordringsfradrag
     | MedBefordringsfradrag(fakta) -> {
         = skatteår_understøttet = personskat_ll9c_skatteår_understøttet(lønmodtager.skatteår)
@@ -9683,7 +9689,7 @@
         = ligningslov9d_input_gyldigt = personskat_ll9d_input_gyldigt(fakta.ligningslov9d, lønmodtager.skatteår)
         hvis skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt {
             = ligningslov9d_resultat = personskat_ll9d_resultat(fakta.ligningslov9d, lønmodtager.skatteår)
-            = aftrapningsindkomst_før_fri_befordring_kroner = personskat_ll9c_aftrapningsindkomst_før_fri_befordring_kroner(lønmodtager, erhvervsbefordring, personlig_indkomst)
+            = aftrapningsindkomst_før_fri_befordring_kroner = personskat_ll9c_aftrapningsindkomst_før_fri_befordring_kroner(input = lønmodtager, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner = erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner, personlig_indkomst = personlig_indkomst)
             = foreløbigt_ligningslov9c_input = personskat_ll9c_input(fakta, lønmodtager, aftrapningsindkomst_før_fri_befordring_kroner, ligningslov9d_resultat)
             = foreløbigt_ligningslov9c_resultat = ll9c_befordringsfradrag_resultat(foreløbigt_ligningslov9c_input)
             = arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = hvis personskat_arbejdsgiverbetalt_befordring_am_bidragspligtig(fakta.arbejdsgiverbetalt_befordring) { foreløbigt_ligningslov9c_resultat.fri_befordring_skattepligtig_værdi_kroner } ellers { 0 }
@@ -9724,20 +9730,48 @@
     | BeregnetBefordringsfradrag(_, _, _, _, _, _, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner) -> arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
     | _ -> 0
 }
+| personskat_pbl49_stk1_fradrag_kroner(resultat: Pbl49Til49BÅrsresultat) -> foldl(resultat.bidragsresultater, 0, |sum_kroner: Heltal, bidrag: Pbl49Til49BBidragsresultat| sum_kroner + hvis bidrag.hjemmel == Pbl49Arbejdsløshedsforsikringsfradrag { bidrag.fradrag_kroner } ellers { 0 })
+| personskat_pbl49a_og_49b_fradrag_kroner(resultat: Pbl49Til49BÅrsresultat) -> foldl(resultat.bidragsresultater, 0, |sum_kroner: Heltal, bidrag: Pbl49Til49BBidragsresultat| sum_kroner + hvis bidrag.hjemmel == Pbl49AEfterlønsfradrag || bidrag.hjemmel == Pbl49BFleksydelsesfradrag { bidrag.fradrag_kroner } ellers { 0 })
 | personskat_ligningsfradrag_resultat(input: PersonskatLigningsfradragInput, lønmodtager: PersonskatLønmodtagerInput, erhvervsbefordring: PersonskatErhvervsbefordringResultat, personlig_indkomst: PersonskatPersonligIndkomstResultat, ligningslov12_indkomstgrundlag: Ligningslov12Indkomstgrundlag) -> {
-    = befordring = personskat_befordringsfradrag_resultat(input.befordring, lønmodtager, erhvervsbefordring, personlig_indkomst)
+    = sømandsfradrag = sømandsbeskatningslov3_årsresultat(indkomstår = lønmodtager.skatteår, input = input.sømandsfradrag)
+    = erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner = erhvervsbefordring.samlet_skattefri_godtgørelse_kroner
+    = erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner = sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner = erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner, resultat = sømandsfradrag)
+    = erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner = erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner + erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner - erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner
+    = befordring = personskat_befordringsfradrag_resultat(input = input.befordring, lønmodtager = lønmodtager, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner = erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner, personlig_indkomst = personlig_indkomst)
     = faglige_kontingenter = ligningslov13_årsresultat(lønmodtager.skatteår, input.faglige_kontingenter)
     = arbejdsløshed_efterløn_og_fleksydelse = pbl49_til49b_årsresultat(lønmodtager.skatteår, input.arbejdsløshed_efterløn_og_fleksydelse)
     = gaver = ligningslov_gave_årsresultat(lønmodtager.skatteår, input.gaver, ligningslov12_indkomstgrundlag)
-    = alle_input_gyldige = personskat_befordringsfradrag_input_gyldigt(befordring) && faglige_kontingenter.alle_input_gyldige && arbejdsløshed_efterløn_og_fleksydelse.alle_input_gyldige && gaver.alle_input_gyldige
+    = erhvervsbefordring_fradrag_før_par4_kroner = personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring)
+    = erhvervsbefordring_fradrag_anvendt_kroner = sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = erhvervsbefordring_fradrag_før_par4_kroner, resultat = sømandsfradrag)
+    = befordring_fradrag_før_par4_kroner = personskat_befordringsfradrag_kroner(befordring)
+    = befordring_fradrag_anvendt_kroner = sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = befordring_fradrag_før_par4_kroner, resultat = sømandsfradrag)
+    = faglige_kontingenter_fradrag_anvendt_kroner = sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = faglige_kontingenter.samlet_fradrag_kroner, resultat = sømandsfradrag)
+    = pbl49_stk1_fradrag_før_par4_kroner = personskat_pbl49_stk1_fradrag_kroner(resultat = arbejdsløshed_efterløn_og_fleksydelse)
+    = pbl49_stk1_fradrag_anvendt_kroner = sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = pbl49_stk1_fradrag_før_par4_kroner, resultat = sømandsfradrag)
+    = pbl49a_og_49b_fradrag_anvendt_kroner = personskat_pbl49a_og_49b_fradrag_kroner(resultat = arbejdsløshed_efterløn_og_fleksydelse)
+    = samlet_afskåret_efter_sømandsbeskatningslov4_kroner = erhvervsbefordring_fradrag_før_par4_kroner - erhvervsbefordring_fradrag_anvendt_kroner + befordring_fradrag_før_par4_kroner - befordring_fradrag_anvendt_kroner + faglige_kontingenter.samlet_fradrag_kroner - faglige_kontingenter_fradrag_anvendt_kroner + pbl49_stk1_fradrag_før_par4_kroner - pbl49_stk1_fradrag_anvendt_kroner
+    = alle_input_gyldige = sømandsfradrag.alle_input_gyldige && personskat_befordringsfradrag_input_gyldigt(befordring) && faglige_kontingenter.alle_input_gyldige && arbejdsløshed_efterløn_og_fleksydelse.alle_input_gyldige && gaver.alle_input_gyldige
     PersonskatLigningsfradragResultat(
         input = input,
+        sømandsfradrag = sømandsfradrag,
         befordring = befordring,
         faglige_kontingenter = faglige_kontingenter,
         arbejdsløshed_efterløn_og_fleksydelse = arbejdsløshed_efterløn_og_fleksydelse,
         gaver = gaver,
+        erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner = erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner,
+        erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner = erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner,
+        erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner = erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner,
+        erhvervsbefordring_fradrag_før_par4_kroner = erhvervsbefordring_fradrag_før_par4_kroner,
+        erhvervsbefordring_fradrag_anvendt_kroner = erhvervsbefordring_fradrag_anvendt_kroner,
+        befordring_fradrag_før_par4_kroner = befordring_fradrag_før_par4_kroner,
+        befordring_fradrag_anvendt_kroner = befordring_fradrag_anvendt_kroner,
+        faglige_kontingenter_fradrag_anvendt_kroner = faglige_kontingenter_fradrag_anvendt_kroner,
+        pbl49_stk1_fradrag_før_par4_kroner = pbl49_stk1_fradrag_før_par4_kroner,
+        pbl49_stk1_fradrag_anvendt_kroner = pbl49_stk1_fradrag_anvendt_kroner,
+        pbl49a_og_49b_fradrag_anvendt_kroner = pbl49a_og_49b_fradrag_anvendt_kroner,
+        samlet_afskåret_efter_sømandsbeskatningslov4_kroner = samlet_afskåret_efter_sømandsbeskatningslov4_kroner,
         alle_input_gyldige = alle_input_gyldige,
-        samlet_ligningsfradrag_kroner = hvis alle_input_gyldige { personskat_befordringsfradrag_kroner(befordring) + faglige_kontingenter.samlet_fradrag_kroner + arbejdsløshed_efterløn_og_fleksydelse.samlet_fradrag_kroner + gaver.samlet_fradrag_kroner } ellers { 0 },
+        samlet_ligningsfradrag_kroner = hvis alle_input_gyldige { sømandsfradrag.samlet_fradrag_kroner + befordring_fradrag_anvendt_kroner + faglige_kontingenter_fradrag_anvendt_kroner + pbl49_stk1_fradrag_anvendt_kroner + pbl49a_og_49b_fradrag_anvendt_kroner + gaver.samlet_fradrag_kroner } ellers { 0 },
         personlig_indkomst_kroner = personskat_befordring_personlig_indkomst_kroner(befordring),
         arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner = personskat_befordring_arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner(befordring)
     )
@@ -11205,8 +11239,8 @@
     | lønmodtager_før_pensionsfradrag() -> LønmodtagerInput(
         skatteår = input.lønmodtager.skatteår,
         kommune = input.lønmodtager.kommune,
-        bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
-        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
+        bruttoløn_kroner = input.lønmodtager.bruttoløn_kroner + ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
+        øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
         pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
@@ -11303,14 +11337,14 @@
 | personskat_aktieavance_efter_pensionsfradrag(aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat) -> PersonskatAktieavanceEfterPensionSag(aktieavance, pension).resultat()
 
 | personskat_arbejdsmarkedsbidrag_kroner(input: PersonskatLønmodtagerInput, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat) -> arbejdsmarkedsbidrag_lønmodtager_kroner(ArbejdsmarkedsbidragInput(
-    lønvederlag_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
+    lønvederlag_kroner = input.bruttoløn_kroner + ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
     naturalieværdi_kroner = ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner
 ))
 | personskat_lønmodtager_input(input: PersonskatLønmodtagerInput, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat) -> LønmodtagerInput(
     skatteår = input.skatteår,
     kommune = input.kommune,
-    bruttoløn_kroner = input.bruttoløn_kroner + personskat_erhvervsbefordring_skattepligtig_løn_kroner(erhvervsbefordring) + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
-    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner - personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring) - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
+    bruttoløn_kroner = input.bruttoløn_kroner + ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner + ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner,
+    øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
     nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
     ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
     pensionsfradrag = pension.lønmodtager_pensionsfradrag,

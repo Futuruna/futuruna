@@ -1,0 +1,232 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./source - status
+
+# SømandsbeskatningslovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= sømandsbeskatningsloven_lbk1181_par3_til4 = SømandsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1181",
+    identifier = "Sømandsbeskatningsloven §§ 3-4 i LBK nr. 1181 af 21/09/2023",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Efterfølgende ændringer gennem LOV nr. 333 af 09/04/2024 gennemgået; §§ 3-4 er uændrede"
+)
+= sømandsbeskatningsbekendtgørelsen_bek940_par3 = SømandsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2022/940",
+    identifier = "Bekendtgørelse om beskatning af søfolk § 3, BEK nr. 940 af 20/06/2022",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende bekendtgørelse kontrolleret 04/08/2026"
+)
+= juridisk_vejledning_sømandsfradrag_2026_1 = SømandsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976791",
+    identifier = "Den juridiske vejledning 2026-1, C.A.3.4.6.4: Sømandsfradrag",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Gældende juridisk vejledning kontrolleret 04/08/2026"
+)
+= skat_sømandsfradrag_vejledning = SømandsbeskatningslovKildeInfo(
+    url = "https://skat.dk/borger/udlandsforhold/fradrag-for-soefarende-soemaend",
+    identifier = "Skattestyrelsen: Fradrag for søfarende (sømænd)",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Vejledning om helår, delår og almindelige fradrag kontrolleret 04/08/2026"
+)
+= landsskatteretten_skm2025_442_lsr = SømandsbeskatningslovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2459127",
+    identifier = "SKM2025.442.LSR: Skattepligtig befordringsgodtgørelse - Sømandsfradrag",
+    hentet_dato = "2026-08-04",
+    ændringsstatus = "Landsskatterettens praksis om LL § 9 B-godtgørelse for befordring i samme periode som et foretaget sømandsfradrag"
+)
+
+= sømandsbeskatningsloven_par3_metadata = Metadata(
+    attachments = (
+        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        Source(value = sømandsbeskatningsloven_2023_1181),
+        DependencySource(value = sømandsbeskatningsbekendtgørelsen_bek940_par3),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+        Guidance(value = skat_sømandsfradrag_vejledning),
+    )
+)
+
+--@label:sømandsbeskatningsloven_par3::meta:sømandsbeskatningsloven_par3_metadata--
+----
+§ 3. Personer, der uden for begrænset fart erhverver lønindkomst ved arbejde om bord på danske eller udenlandske skibe, som udelukkende anvendes til erhvervsmæssig befordring af passagerer eller gods, som bugser- og bjærgningsfartøj eller som kabellægningsfartøj, kan ved opgørelsen af den skattepligtige indkomst fradrage et beløb på 56.900 kr., jf. dog § 3 a. Har skibet en bruttotonnage på 500 t eller derover, udgør fradraget efter 1. pkt. 105.000 kr., medmindre skibet anvendes til regelmæssig passagersejlads mellem havne i EU- eller EØS-medlemsstater.
+
+Stk. 2. Personer, som erhverver lønindkomst ved arbejde om bord på stenfiskerfartøjer, herunder sandsugere, der vil kunne omfattes af §§ 8 eller 10, kan ved opgørelsen af den skattepligtige indkomst fradrage et beløb på 56.900 kr.
+
+Stk. 3. Har en person kun lønindtægt som nævnt i stk. 1 eller stk. 2 i en del af året, eller er der tale om ansættelse på deltid, nedsættes fradraget forholdsmæssigt. Det er en betingelse for fradrag, at forhyringsvilkårene for den pågældende svarer til, hvad der sædvanligvis gælder for søfolk.
+
+Stk. 4. Stk. 1-3 finder tilsvarende anvendelse ved erhvervelse af lønindkomst ved arbejde udført om bord på skibe og installationer, der anvendes i tilknytning til efterforskning og udvinding af kulbrinter uden for dansk søterritorium og dansk kontinentalsokkelområde, samt ved arbejde om bord på skole- og øvelsesskibe, jf. lov om maritime uddannelser.
+
+Stk. 5. Stk. 1 og 3 finder tilsvarende anvendelse for personer, som uden for begrænset fart erhverver lønindkomst ved arbejde om bord på forsknings- og havundersøgelsesskibe.
+
+Stk. 6. Det er en betingelse for fradrag efter stk. 1, 2, 4 og 5, at fartøjet eller installationen er registreret med hjemsted her i landet eller i en anden EU- eller EØS-medlemsstat, og at fartøjet sejler under et flag fra en EU- eller EØS-medlemsstat.
+----
+
+--@begin::sømandsbeskatningsloven_par3--
+# Sømandsbeskatningslov3Fradragsvalg = AnvendSømandsfradrag | FravælgSømandsfradrag
+# Sømandsbeskatningslov3Fart = UdenForBegrænsetFart | BegrænsetFart
+# Sømandsbeskatningslov3Hjemsted = RegistreretMedHjemstedIDanmark | RegistreretMedHjemstedIAndenEUEØSStat | RegistreretMedHjemstedUdenForEUEØS
+# Sømandsbeskatningslov3Flag = FlagFraEUEØSStat | FlagUdenForEUEØS | InstallationUdenFlag
+# Sømandsbeskatningslov3Forhyringsvilkår = SædvanligeForhyringsvilkårForSøfolk | AndreForhyringsvilkår
+# Sømandsbeskatningslov3ASkattepligt = SkattepligtigEfterKildeskattelov1 | SkattepligtigEfterKildeskattelov2Stk2 | AndenSkattepligtsposition
+# Sømandsbeskatningslov3AStatsborgerskab = StatsborgerIEUEØS | StatsborgerISchweiz | BritiskStatsborgerOmfattetAfUdtrædelsesaftalen | AndetStatsborgerskab
+# Sømandsbeskatningslov3Passagerrute = IkkeRegelmæssigPassagersejladsMellemEUEØSHavne | RegelmæssigPassagersejladsMellemEUEØSHavne(skattepligt: Sømandsbeskatningslov3ASkattepligt, statsborgerskab: Sømandsbeskatningslov3AStatsborgerskab)
+# Sømandsbeskatningslov3Skibsanvendelse = ErhvervsmæssigBefordringAfPassagerer(rute: Sømandsbeskatningslov3Passagerrute) | ErhvervsmæssigBefordringAfGods | BugserOgBjærgningsfartøj | Kabellægningsfartøj | StenfiskerfartøjOmfattetAfPar8 | StenfiskerfartøjOmfattetAfPar10 | KulbrinteEfterforskningEllerUdvindingUdenForDanskOmråde | SkoleEllerØvelsesskibEfterLovOmMaritimeUddannelser | ForskningsEllerHavundersøgelsesskib | AndenSkibsanvendelse
+# Sømandsbeskatningslov3Arbejdssted = ArbejdePåSkib(bruttotonnage: Heltal, anvendelse: Sømandsbeskatningslov3Skibsanvendelse) | ArbejdePåKulbrinteinstallationUdenForDanskOmråde
+# Sømandsbeskatningslov3Beskæftigelsesfakta(identifikation: Tekst, indkomstår: Heltal, arbejdssted: Sømandsbeskatningslov3Arbejdssted, fart: Sømandsbeskatningslov3Fart, hjemsted: Sømandsbeskatningslov3Hjemsted, flag: Sømandsbeskatningslov3Flag, forhyringsvilkår: Sømandsbeskatningslov3Forhyringsvilkår, fuldtidsomregnede_sødage_hundrededele: Heltal)
+# Sømandsbeskatningslov3Årsinput(valg: Sømandsbeskatningslov3Fradragsvalg, beskæftigelser: List(Sømandsbeskatningslov3Beskæftigelsesfakta))
+# Sømandsbeskatningslov3Beskæftigelsesresultat(fakta: Sømandsbeskatningslov3Beskæftigelsesfakta, input_gyldigt: Boolsk, arbejdssted_og_anvendelse_omfattet: Boolsk, fartkrav_opfyldt: Boolsk, par3a_opfyldt: Boolsk, hjemsted_opfyldt: Boolsk, flag_opfyldt: Boolsk, forhyringsvilkår_opfyldt: Boolsk, fradragsbetingelser_opfyldt: Boolsk, årligt_fradragsgrundlag_kroner: Heltal, forholdsmæssigt_fradrag_kroner: Heltal)
+# Sømandsbeskatningslov3Årsresultat(indkomstår: Heltal, input: Sømandsbeskatningslov3Årsinput, beskæftigelsesresultater: List(Sømandsbeskatningslov3Beskæftigelsesresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, sødage_inden_for_årsgrænse: Boolsk, alle_input_gyldige: Boolsk, kan_foretage_fradrag_efter_par3: Boolsk, fradrag_før_valg_kroner: Heltal, fradrag_foretaget_efter_par3: Boolsk, samlet_fradrag_kroner: Heltal, sødage_med_fradrag_hundrededele: Heltal, almindelige_fradragsdage_hundrededele: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
+
+| sømandsbeskatningslov3_intet_årsinput() -> Sømandsbeskatningslov3Årsinput(valg = FravælgSømandsfradrag, beskæftigelser = [])
+| sømandsbeskatningslov3_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| sømandsbeskatningslov3_hjemsted_opfyldt(hjemsted: Sømandsbeskatningslov3Hjemsted) -> hjemsted == RegistreretMedHjemstedIDanmark || hjemsted == RegistreretMedHjemstedIAndenEUEØSStat
+| sømandsbeskatningslov3_stenfiskerfartøj(anvendelse: Sømandsbeskatningslov3Skibsanvendelse) -> anvendelse == StenfiskerfartøjOmfattetAfPar8 || anvendelse == StenfiskerfartøjOmfattetAfPar10
+| sømandsbeskatningslov3_regelmæssig_passagersejlads_mellem_eu_eøs_havne(anvendelse: Sømandsbeskatningslov3Skibsanvendelse) -> match anvendelse {
+    | ErhvervsmæssigBefordringAfPassagerer(RegelmæssigPassagersejladsMellemEUEØSHavne(_, _)) -> Sandt
+    | _ -> Falskt
+}
+| sømandsbeskatningslov3_arbejdssted_grundfakta_gyldige(arbejdssted: Sømandsbeskatningslov3Arbejdssted) -> match arbejdssted {
+    | ArbejdePåSkib(bruttotonnage, _) -> bruttotonnage >= 0
+    | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Sandt
+}
+| sømandsbeskatningslov3_identifikationer_entydige(beskæftigelser: List(Sømandsbeskatningslov3Beskæftigelsesfakta)) -> length(distinct(map(beskæftigelser, |fakta: Sømandsbeskatningslov3Beskæftigelsesfakta| fakta.identifikation))) == length(beskæftigelser) && all(beskæftigelser, |fakta: Sømandsbeskatningslov3Beskæftigelsesfakta| fakta.identifikation != "")
+| sømandsbeskatningslov3_samlede_sødage_hundrededele(beskæftigelser: List(Sømandsbeskatningslov3Beskæftigelsesfakta)) -> foldl(beskæftigelser, 0, |sum_hundrededele: Heltal, fakta: Sømandsbeskatningslov3Beskæftigelsesfakta| sum_hundrededele + hvis fakta.fuldtidsomregnede_sødage_hundrededele > 0 { fakta.fuldtidsomregnede_sødage_hundrededele } ellers { 0 })
+
+# Sømandsbeskatningslov3Beskæftigelsessag(indkomstår: Heltal, fakta: Sømandsbeskatningslov3Beskæftigelsesfakta) {
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && sømandsbeskatningslov3_arbejdssted_grundfakta_gyldige(fakta.arbejdssted) && fakta.fuldtidsomregnede_sødage_hundrededele >= 0 && fakta.fuldtidsomregnede_sødage_hundrededele <= 36500
+    | arbejdssted_og_anvendelse_omfattet() -> match fakta.arbejdssted {
+        | ArbejdePåSkib(_, anvendelse) -> anvendelse != AndenSkibsanvendelse
+        | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Sandt
+    }
+    | fartkrav_opfyldt() -> match fakta.arbejdssted {
+        | ArbejdePåSkib(_, anvendelse) -> sømandsbeskatningslov3_stenfiskerfartøj(anvendelse) || anvendelse == KulbrinteEfterforskningEllerUdvindingUdenForDanskOmråde || fakta.fart == UdenForBegrænsetFart
+        | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Sandt
+    }
+    | par3a_opfyldt() -> match fakta.arbejdssted {
+        | ArbejdePåSkib(_, ErhvervsmæssigBefordringAfPassagerer(rute)) -> sømandsbeskatningslov3a_passagerbetingelser_opfyldt(rute = rute)
+        | _ -> Sandt
+    }
+    | hjemsted_opfyldt() -> sømandsbeskatningslov3_hjemsted_opfyldt(hjemsted = fakta.hjemsted)
+    | flag_opfyldt() -> match fakta.arbejdssted {
+        | ArbejdePåSkib(_, _) -> fakta.flag == FlagFraEUEØSStat
+        | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> fakta.flag == InstallationUdenFlag
+    }
+    | forhyringsvilkår_opfyldt() -> fakta.forhyringsvilkår == SædvanligeForhyringsvilkårForSøfolk
+    | fradragsbetingelser_opfyldt() -> input_gyldigt() && arbejdssted_og_anvendelse_omfattet() && fartkrav_opfyldt() && par3a_opfyldt() && hjemsted_opfyldt() && flag_opfyldt() && forhyringsvilkår_opfyldt()
+    | forhøjet_fradragsgrundlag_opfyldt() -> match fakta.arbejdssted {
+        | ArbejdePåSkib(bruttotonnage, anvendelse) -> bruttotonnage >= 500 && sømandsbeskatningslov3_stenfiskerfartøj(anvendelse) == Falskt && sømandsbeskatningslov3_regelmæssig_passagersejlads_mellem_eu_eøs_havne(anvendelse) == Falskt
+        | ArbejdePåKulbrinteinstallationUdenForDanskOmråde -> Falskt
+    }
+    | årligt_fradragsgrundlag_kroner() -> 0
+    | exception sømandsbeskatningslov3_almindeligt_fradragsgrundlag årligt_fradragsgrundlag_kroner() -> 56900 under fradragsbetingelser_opfyldt() && forhøjet_fradragsgrundlag_opfyldt() == Falskt
+    | exception sømandsbeskatningslov3_forhøjet_fradragsgrundlag årligt_fradragsgrundlag_kroner() -> 105000 under fradragsbetingelser_opfyldt() && forhøjet_fradragsgrundlag_opfyldt()
+    | forholdsmæssigt_fradrag_kroner() -> sømandsbeskatningslov3_forholdsmæssigt_fradrag_kroner(årligt_fradragsgrundlag_kroner = årligt_fradragsgrundlag_kroner(), fuldtidsomregnede_sødage_hundrededele = fakta.fuldtidsomregnede_sødage_hundrededele)
+    | resultat() -> Sømandsbeskatningslov3Beskæftigelsesresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        arbejdssted_og_anvendelse_omfattet = arbejdssted_og_anvendelse_omfattet(),
+        fartkrav_opfyldt = fartkrav_opfyldt(),
+        par3a_opfyldt = par3a_opfyldt(),
+        hjemsted_opfyldt = hjemsted_opfyldt(),
+        flag_opfyldt = flag_opfyldt(),
+        forhyringsvilkår_opfyldt = forhyringsvilkår_opfyldt(),
+        fradragsbetingelser_opfyldt = fradragsbetingelser_opfyldt(),
+        årligt_fradragsgrundlag_kroner = årligt_fradragsgrundlag_kroner(),
+        forholdsmæssigt_fradrag_kroner = forholdsmæssigt_fradrag_kroner()
+    )
+}
+
+| sømandsbeskatningslov3_beskæftigelsesresultat(indkomstår: Heltal, fakta: Sømandsbeskatningslov3Beskæftigelsesfakta) -> Sømandsbeskatningslov3Beskæftigelsessag(indkomstår = indkomstår, fakta = fakta).resultat()
+| sømandsbeskatningslov3_fradrag_før_valg_kroner(resultater: List(Sømandsbeskatningslov3Beskæftigelsesresultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Sømandsbeskatningslov3Beskæftigelsesresultat| sum_kroner + resultat.forholdsmæssigt_fradrag_kroner)
+| sømandsbeskatningslov3_sødage_med_fradrag_hundrededele(resultater: List(Sømandsbeskatningslov3Beskæftigelsesresultat)) -> foldl(resultater, 0, |sum_hundrededele: Heltal, resultat: Sømandsbeskatningslov3Beskæftigelsesresultat| sum_hundrededele + hvis resultat.fradragsbetingelser_opfyldt { resultat.fakta.fuldtidsomregnede_sødage_hundrededele } ellers { 0 })
+| sømandsbeskatningslov3_årsresultat(indkomstår: Heltal, input: Sømandsbeskatningslov3Årsinput) -> {
+    = beskæftigelsesresultater = map(input.beskæftigelser, |fakta: Sømandsbeskatningslov3Beskæftigelsesfakta| sømandsbeskatningslov3_beskæftigelsesresultat(indkomstår = indkomstår, fakta = fakta))
+    = skatteår_understøttet = length(input.beskæftigelser) == 0 || sømandsbeskatningslov3_skatteår_understøttet(indkomstår = indkomstår)
+    = identifikationer_entydige = sømandsbeskatningslov3_identifikationer_entydige(beskæftigelser = input.beskæftigelser)
+    = sødage_inden_for_årsgrænse = sømandsbeskatningslov3_samlede_sødage_hundrededele(beskæftigelser = input.beskæftigelser) <= 36500
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && sødage_inden_for_årsgrænse && all(beskæftigelsesresultater, |resultat: Sømandsbeskatningslov3Beskæftigelsesresultat| resultat.input_gyldigt)
+    = kan_foretage_fradrag_efter_par3 = alle_input_gyldige && any(beskæftigelsesresultater, |resultat: Sømandsbeskatningslov3Beskæftigelsesresultat| resultat.fradragsbetingelser_opfyldt && resultat.fakta.fuldtidsomregnede_sødage_hundrededele > 0)
+    = fradrag_før_valg_kroner = hvis alle_input_gyldige { sømandsbeskatningslov3_fradrag_før_valg_kroner(resultater = beskæftigelsesresultater) } ellers { 0 }
+    = fradrag_foretaget_efter_par3 = input.valg == AnvendSømandsfradrag && kan_foretage_fradrag_efter_par3 && fradrag_før_valg_kroner > 0
+    = sødage_med_fradrag_hundrededele = hvis fradrag_foretaget_efter_par3 { sømandsbeskatningslov3_sødage_med_fradrag_hundrededele(resultater = beskæftigelsesresultater) } ellers { 0 }
+    Sømandsbeskatningslov3Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        beskæftigelsesresultater = beskæftigelsesresultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        sødage_inden_for_årsgrænse = sødage_inden_for_årsgrænse,
+        alle_input_gyldige = alle_input_gyldige,
+        kan_foretage_fradrag_efter_par3 = kan_foretage_fradrag_efter_par3,
+        fradrag_før_valg_kroner = fradrag_før_valg_kroner,
+        fradrag_foretaget_efter_par3 = fradrag_foretaget_efter_par3,
+        samlet_fradrag_kroner = hvis fradrag_foretaget_efter_par3 { fradrag_før_valg_kroner } ellers { 0 },
+        sødage_med_fradrag_hundrededele = sødage_med_fradrag_hundrededele,
+        almindelige_fradragsdage_hundrededele = 36500 - sødage_med_fradrag_hundrededele,
+        ligningslov9a_stk1_til9_afskåret = kan_foretage_fradrag_efter_par3
+    )
+}
+--@end::sømandsbeskatningsloven_par3--
+
+= sømandsbeskatningsloven_par3a_metadata = Metadata(
+    attachments = (
+        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+    )
+)
+
+--@label:sømandsbeskatningsloven_par3a::meta:sømandsbeskatningsloven_par3a_metadata--
+----
+§ 3 a. Ved arbejde om bord på et dansk eller udenlandsk skib, som sejler i regelmæssig passagersejlads mellem havne i EU- eller EØS-medlemsstater, finder § 3 kun anvendelse på personer, der er skattepligtige efter kildeskattelovens § 1 eller § 2, stk. 2, og som er statsborgere i en EU- eller EØS-medlemsstat eller i Schweiz. Med personer, som er statsborgere i en EU-medlemsstat, sidestilles personer, der er statsborgere i Det Forenede Kongerige, og som er omfattet af anden del, afsnit II, kapitel 2, i Aftale om Det Forenede Kongerige Storbritannien og Nordirlands udtræden af Den Europæiske Union og Det Europæiske Atomenergifællesskab (2019/C 384 I/01).
+----
+
+--@begin::sømandsbeskatningsloven_par3a--
+| sømandsbeskatningslov3a_skattepligt_opfyldt(skattepligt: Sømandsbeskatningslov3ASkattepligt) -> skattepligt == SkattepligtigEfterKildeskattelov1 || skattepligt == SkattepligtigEfterKildeskattelov2Stk2
+| sømandsbeskatningslov3a_statsborgerskab_opfyldt(statsborgerskab: Sømandsbeskatningslov3AStatsborgerskab) -> statsborgerskab == StatsborgerIEUEØS || statsborgerskab == StatsborgerISchweiz || statsborgerskab == BritiskStatsborgerOmfattetAfUdtrædelsesaftalen
+| sømandsbeskatningslov3a_passagerbetingelser_opfyldt(rute: Sømandsbeskatningslov3Passagerrute) -> match rute {
+    | IkkeRegelmæssigPassagersejladsMellemEUEØSHavne -> Sandt
+    | RegelmæssigPassagersejladsMellemEUEØSHavne(skattepligt, statsborgerskab) -> sømandsbeskatningslov3a_skattepligt_opfyldt(skattepligt = skattepligt) && sømandsbeskatningslov3a_statsborgerskab_opfyldt(statsborgerskab = statsborgerskab)
+}
+--@end::sømandsbeskatningsloven_par3a--
+
+= sømandsbeskatningsbekendtgørelsen_par3_metadata = Metadata(
+    attachments = (
+        Source(value = sømandsbeskatningsbekendtgørelsen_bek940_par3),
+        Guidance(value = skat_sømandsfradrag_vejledning),
+    )
+)
+
+--@label:sømandsbeskatningsbekendtgørelsen_par3::meta:sømandsbeskatningsbekendtgørelsen_par3_metadata--
+----
+§ 3. Når en person er ansat til arbejde om bord på et skib, jf. § 1, en del af et år eller er ansat med en aftalt arbejdstid, som er kortere end den, der svarer til sædvanlige forhyringsvilkår på fuld tid, gives sømandsfradraget forholdsmæssigt, jf. sømandsbeskatningslovens § 3, stk. 3.
+
+Stk. 2. Ved indberetning af oplysninger til Skatteforvaltningen om antallet af sødage for personer omfattet af stk. 1 skal arbejdsgiveren omregne antallet af sødage, så det svarer til antallet ved ansættelse på sædvanlige forhyringsvilkår på fuld tid.
+----
+
+--@begin::sømandsbeskatningsbekendtgørelsen_par3--
+| sømandsbeskatningslov3_fuldtidsomregnede_sødage_gyldige(sødage_hundrededele: Heltal) -> sødage_hundrededele >= 0 && sødage_hundrededele <= 36500
+| sømandsbeskatningslov3_forholdsmæssigt_fradrag_kroner(årligt_fradragsgrundlag_kroner: Heltal, fuldtidsomregnede_sødage_hundrededele: Heltal) -> hvis årligt_fradragsgrundlag_kroner > 0 && sømandsbeskatningslov3_fuldtidsomregnede_sødage_gyldige(sødage_hundrededele = fuldtidsomregnede_sødage_hundrededele) { årligt_fradragsgrundlag_kroner * fuldtidsomregnede_sødage_hundrededele / 36500 } ellers { 0 }
+--@end::sømandsbeskatningsbekendtgørelsen_par3--
+
+= sømandsbeskatningsloven_par4_metadata = Metadata(
+    attachments = (
+        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+        Guidance(value = skat_sømandsfradrag_vejledning),
+        Practice(value = landsskatteretten_skm2025_442_lsr),
+    )
+)
+
+--@label:sømandsbeskatningsloven_par4::meta:sømandsbeskatningsloven_par4_metadata--
+----
+§ 4. Når der foretages fradrag efter § 3, kan der ikke samtidig foretages fradrag efter ligningslovens § 9, stk. 1, ligningslovens §§ 9 B-9 D og ligningslovens § 13 samt efter pensionsbeskatningslovens § 49, stk. 1.
+
+Stk. 2. Personer, som kan foretage fradrag efter § 3, er ikke omfattet af ligningslovens § 9 A, stk. 1-9.
+----
+
+--@begin::sømandsbeskatningsloven_par4--
+| sømandsbeskatningslov4_stk1_samordning_aktiv(resultat: Sømandsbeskatningslov3Årsresultat) -> resultat.fradrag_foretaget_efter_par3
+| sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> hvis sømandsbeskatningslov4_stk1_samordning_aktiv(resultat = resultat) { beløb_før_par4_kroner * resultat.almindelige_fradragsdage_hundrededele / 36500 } ellers { beløb_før_par4_kroner }
+| sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner = fradrag_før_par4_kroner, resultat = resultat)
+| sømandsbeskatningslov4_almindeligt_fradrag_afskåret_kroner(fradrag_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> fradrag_før_par4_kroner - sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = fradrag_før_par4_kroner, resultat = resultat)
+--@end::sømandsbeskatningsloven_par4--

@@ -1,0 +1,140 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./soemandsbeskatningsloven - par3 - par4
+
+= personskat_sømandsfradrag_felt_valg = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::valg::$variant),
+    label = "Valg af sømandsfradrag",
+    question = Some("Skal sømandsfradraget anvendes for indkomståret?"),
+    help = Some("Et fravalg bevarer de almindelige lønmodtagerfradrag. Futuruna afgør ud fra beskæftigelserne, om et valg kan gennemføres."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_beskæftigelser = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser),
+    label = "Sømandsbeskæftigelser",
+    question = Some("Hvilke beskæftigelser til søs eller på en omfattet installation havde personen i indkomståret?"),
+    help = Some("Opret én række pr. særskilt beskæftigelse eller satsperiode. Arbejdsgiverens fuldtidsomregnede sødage styrer delårs- og deltidsberegningen."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::identifikation),
+    label = "Beskæftigelsens identifikation",
+    question = Some("Hvilken entydig identifikation har sømandsbeskæftigelsen?"),
+    help = Some("Brug en stabil reference fra arbejdsgiverens indberetning eller ansættelsesforholdet."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::indkomstår),
+    label = "Sømandsbeskæftigelsens indkomstår",
+    question = Some("Hvilket indkomstår vedrører beskæftigelsen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sømandsfradrag_felt_arbejdssted = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::$variant),
+    label = "Arbejdssted til søs",
+    question = Some("Blev arbejdet udført på et skib eller på en kulbrinteinstallation uden for dansk område?"),
+    help = Some("Installationsvarianten må kun bruges ved efterforskning eller udvinding uden for dansk søterritorium og kontinentalsokkelområde."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_bruttotonnage = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::bruttotonnage),
+    label = "Skibets bruttotonnage",
+    question = Some("Hvad er skibets bruttotonnage?"),
+    help = Some("En bruttotonnage på mindst 500 t kan udløse det forhøjede fradrag, bortset fra de lovbestemte undtagelser."),
+    unit = Some("t")
+)
+= personskat_sømandsfradrag_felt_anvendelse = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::$variant),
+    label = "Skibets udelukkende anvendelse",
+    question = Some("Hvilken lovbestemt anvendelse havde skibet i beskæftigelsesperioden?"),
+    help = Some("Vælg kun en omfattet anvendelse, når skibet i perioden udelukkende blev anvendt til det angivne formål."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_passagerrute = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::$variant),
+    label = "Passagerrutens EU/EØS-status",
+    question = Some("Sejlede skibet regelmæssigt med passagerer mellem havne i EU- eller EØS-medlemsstater?"),
+    help = Some("En sådan rute afskærer det forhøjede fradrag og udløser de særlige personbetingelser i § 3 a."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_passager_skattepligt = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::RegelmæssigPassagersejladsMellemEUEØSHavne::skattepligt::$variant),
+    label = "Skattepligt ved regelmæssig EU/EØS-passagersejlads",
+    question = Some("Er personen skattepligtig efter kildeskattelovens § 1 eller § 2, stk. 2?"),
+    help = Some("Andre skattepligtspositioner opfylder ikke § 3 a."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_passager_statsborgerskab = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::ArbejdePåSkib::anvendelse::ErhvervsmæssigBefordringAfPassagerer::rute::RegelmæssigPassagersejladsMellemEUEØSHavne::statsborgerskab::$variant),
+    label = "Statsborgerskab ved regelmæssig EU/EØS-passagersejlads",
+    question = Some("Hvilken statsborgerskabsposition har personen efter § 3 a?"),
+    help = Some("EU/EØS, Schweiz og omfattede britiske statsborgere kan opfylde betingelsen."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_fart = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::fart::$variant),
+    label = "Fart uden for eller inden for begrænset fart",
+    question = Some("Foregik beskæftigelsen uden for begrænset fart?"),
+    help = Some("Stenfiskerfartøjer omfattet af § 3, stk. 2, og den særskilte kulbrintegren behandles efter deres egne betingelser."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_hjemsted = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::hjemsted::$variant),
+    label = "Fartøjets eller installationens registrerede hjemsted",
+    question = Some("Er arbejdsstedet registreret med hjemsted i Danmark, en anden EU/EØS-stat eller uden for EU/EØS?"),
+    help = Some("§ 3, stk. 6, kræver hjemsted i Danmark eller en anden EU/EØS-medlemsstat."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_flag = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::flag::$variant),
+    label = "Fartøjets flag",
+    question = Some("Sejler fartøjet under flag fra en EU- eller EØS-medlemsstat?"),
+    help = Some("Brug installationsvarianten alene for et arbejdssted, som ikke er et fartøj."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_forhyringsvilkår = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::forhyringsvilkår::$variant),
+    label = "Forhyringsvilkår",
+    question = Some("Svarer forhyringsvilkårene til, hvad der sædvanligvis gælder for søfolk?"),
+    help = Some("Vurderingen skal følge løn-, arbejds- og ansættelsesvilkårene for arbejde af den pågældende karakter."),
+    unit = None
+)
+= personskat_sømandsfradrag_felt_sødage = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::fuldtidsomregnede_sødage_hundrededele),
+    label = "Fuldtidsomregnede sødage",
+    question = Some("Hvor mange sødage har arbejdsgiveren omregnet til sædvanlige forhyringsvilkår på fuld tid?"),
+    help = Some("Angiv hundrededele af en dag: 365,00 dage skrives som 36500, og 273,75 dage som 27375."),
+    unit = Some("hundrededele dag")
+)
+
+= personskat_sømandsfradrag_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_sømandsfradrag_felt_valg,
+        personskat_sømandsfradrag_felt_beskæftigelser,
+        personskat_sømandsfradrag_felt_identifikation,
+        personskat_sømandsfradrag_felt_indkomstår,
+        personskat_sømandsfradrag_felt_arbejdssted,
+        personskat_sømandsfradrag_felt_bruttotonnage,
+        personskat_sømandsfradrag_felt_anvendelse,
+        personskat_sømandsfradrag_felt_passagerrute,
+        personskat_sømandsfradrag_felt_passager_skattepligt,
+        personskat_sømandsfradrag_felt_passager_statsborgerskab,
+        personskat_sømandsfradrag_felt_fart,
+        personskat_sømandsfradrag_felt_hjemsted,
+        personskat_sømandsfradrag_felt_flag,
+        personskat_sømandsfradrag_felt_forhyringsvilkår,
+        personskat_sømandsfradrag_felt_sødage
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        DependencySource(value = sømandsbeskatningsbekendtgørelsen_bek940_par3),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+        Guidance(value = skat_sømandsfradrag_vejledning),
+    )
+)
+
+--@label:Sømandsbeskatningslov3Årsinput::meta:personskat_sømandsfradrag_beregningsmeta--

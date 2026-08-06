@@ -1298,6 +1298,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Samlevende med ægtefællen ved årets udløb",
             "Ægtefællens årlige bruttoløn",
             "Ægtefællens renteudgifter",
+            "Valg af sømandsfradrag",
             "Befordringsfradrag",
             "Skatteyderens status for faglige kontingenter",
             "Skattepligtsposition for A-kasse og lignende bidrag",
@@ -1369,6 +1370,49 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             })
             .count();
         assert_eq!(case_headers.len(), case_column_count + 1);
+        let seafarer_employments_path = "lønmodtager.ligningsfradrag.sømandsfradrag.beskæftigelser";
+        let seafarer_employments_sheet =
+            workbook_collection_sheet_name(&mut workbook, seafarer_employments_path);
+        let seafarer_employment_paths =
+            workbook_column_paths(&mut workbook, &seafarer_employments_sheet);
+        for expected in [
+            "identifikation",
+            "indkomstår",
+            "arbejdssted.$variant",
+            "arbejdssted.ArbejdePåSkib.bruttotonnage",
+            "arbejdssted.ArbejdePåSkib.anvendelse.$variant",
+            "fart",
+            "hjemsted",
+            "flag",
+            "forhyringsvilkår",
+            "fuldtidsomregnede_sødage_hundrededele",
+        ] {
+            assert!(
+                seafarer_employment_paths.iter().any(|path| path == expected),
+                "missing canonical SØBL § 3 source-fact path {expected} on {seafarer_employments_sheet}"
+            );
+        }
+        let seafarer_employment_headers =
+            workbook_headers(&mut workbook, &seafarer_employments_sheet);
+        for expected in [
+            "Beskæftigelsens identifikation",
+            "Sømandsbeskæftigelsens indkomstår",
+            "Arbejdssted til søs",
+            "Skibets bruttotonnage",
+            "Skibets udelukkende anvendelse",
+            "Fart uden for eller inden for begrænset fart",
+            "Fartøjets eller installationens registrerede hjemsted",
+            "Fartøjets flag",
+            "Forhyringsvilkår",
+            "Fuldtidsomregnede sødage",
+        ] {
+            assert!(
+                seafarer_employment_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human SØBL § 3 input label {expected} on {seafarer_employments_sheet}"
+            );
+        }
         let union_dues_path = "lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter";
         let union_dues_sheet = workbook_collection_sheet_name(&mut workbook, union_dues_path);
         let union_dues_paths = workbook_column_paths(&mut workbook, &union_dues_sheet);
@@ -4217,6 +4261,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenEtableringskontoindskud".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.sømandsfradrag.valg",
+                        Data::String("FravælgSømandsfradrag".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.befordring.$variant",
                         Data::String("UdenBefordringsfradrag".to_string()),
                     ),
@@ -4425,6 +4473,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             set_workbook_cell_by_header(sheets, "cases", 24, header, value);
         }
         fill_wage_case(sheets, 25, "personskat-underskud-årsresultat-2026");
+        fill_wage_case(sheets, 26, "personskat-soemandsfradrag-2026");
+        set_workbook_cell_by_header(
+            sheets,
+            "cases",
+            26,
+            "lønmodtager.ligningsfradrag.sømandsfradrag.valg",
+            Data::String("AnvendSømandsfradrag".to_string()),
+        );
         for (header, value) in [
             (
                 "underskudsforhold.$variant",
@@ -4947,6 +5003,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.etableringskonto.$variant",
                 Data::String("UdenEtableringskontoindskud".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.sømandsfradrag.valg",
+                Data::String("FravælgSømandsfradrag".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.befordring.$variant",
@@ -5484,6 +5544,45 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ] {
                 set_workbook_cell_by_header(sheets, &business_travel_sheet, row, header, value);
             }
+        }
+        let seafarer_employments_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "lønmodtager.ligningsfradrag.sømandsfradrag.beskæftigelser",
+        );
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-soemandsfradrag-2026".to_string()),
+            ),
+            ("item_id", Data::String("fragtskib-over-500".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("fragtskib-over-500".to_string()),
+            ),
+            ("indkomstår", Data::Int(2026)),
+            (
+                "arbejdssted.$variant",
+                Data::String("ArbejdePåSkib".to_string()),
+            ),
+            ("arbejdssted.ArbejdePåSkib.bruttotonnage", Data::Int(500)),
+            (
+                "arbejdssted.ArbejdePåSkib.anvendelse.$variant",
+                Data::String("ErhvervsmæssigBefordringAfGods".to_string()),
+            ),
+            ("fart", Data::String("UdenForBegrænsetFart".to_string())),
+            (
+                "hjemsted",
+                Data::String("RegistreretMedHjemstedIDanmark".to_string()),
+            ),
+            ("flag", Data::String("FlagFraEUEØSStat".to_string())),
+            (
+                "forhyringsvilkår",
+                Data::String("SædvanligeForhyringsvilkårForSøfolk".to_string()),
+            ),
+            ("fuldtidsomregnede_sødage_hundrededele", Data::Int(36_500)),
+        ] {
+            set_workbook_cell_by_header(sheets, &seafarer_employments_sheet, 1, header, value);
         }
         let pbl53a_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
@@ -8745,6 +8844,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array()
         .expect("diagnostics")
         .is_empty());
+    let xlsx_seafarer_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-soemandsfradrag-2026")
+        .expect("XLSX seafarer-deduction result");
+    assert_eq!(
+        xlsx_seafarer_result["result"]["ligningsfradrag"]["sømandsfradrag"]
+            ["samlet_fradrag_kroner"],
+        105_000
+    );
+    assert_eq!(
+        xlsx_seafarer_result["result"]["ligningsfradrag"]["samlet_ligningsfradrag_kroner"],
+        105_000
+    );
 
     let json_input_path = temp_path("json");
     let json_template = run(&[
@@ -8780,6 +8894,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             },
             "erhvervsbefordring": { "sager": [] },
             "ligningsfradrag": {
+                "sømandsfradrag": {
+                    "valg": { "$variant": "FravælgSømandsfradrag" },
+                    "beskæftigelser": []
+                },
                 "befordring": { "$variant": "UdenBefordringsfradrag" },
                 "faglige_kontingenter": {
                     "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
@@ -10230,6 +10348,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "erhvervsbefordring": { "sager": [] },
                 "ligningsfradrag": {
+                    "sømandsfradrag": {
+                        "valg": { "$variant": "FravælgSømandsfradrag" },
+                        "beskæftigelser": []
+                    },
                     "befordring": { "$variant": "UdenBefordringsfradrag" },
                     "faglige_kontingenter": {
                         "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
