@@ -819,6 +819,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     identifikation = "personskat-fraflytning-2026",
     opgørelsesår = 2026,
     fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+        fraflytningsdato = Dato(år = 2026, måned = 7, dag = 1),
         fraflytningsår = 2026,
         ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
         tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,

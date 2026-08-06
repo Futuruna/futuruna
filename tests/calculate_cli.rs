@@ -3639,6 +3639,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.identifikation",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.opgørelsesår",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsår",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.år",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.måned",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.dag",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.ophørsgrund",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.kontekstgrundlag.$variant",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.$variant",
@@ -3688,6 +3691,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fraflytterskatteforløbets identifikation",
             "Opgørelsesår for fraflytterskatten",
             "Indkomstår for fraflytningen",
+            "Fraflytningsdatoens år",
+            "Fraflytningsdatoens måned",
+            "Fraflytningsdatoens dag",
             "Grund til ophør af dansk beskatningsret",
             "Grundlag for fraflytningsårets aktieindkomstkontekst",
             "Tilbageflytning efter ABL § 39 B",
@@ -8766,6 +8772,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::Int(2026),
             ),
             (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.år",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.måned",
+                Data::Int(7),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.dag",
+                Data::Int(1),
+            ),
+            (
                 "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.ophørsgrund",
                 Data::String(
                     "AblPar38OphørAfSkattepligtEfterKildeskattelovPar1".to_string(),
@@ -11247,6 +11265,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "identifikation": "personskat-fraflytning-2026",
                 "opgørelsesår": 2026,
                 "fraflytning": {
+                    "fraflytningsdato": { "år": 2026, "måned": 7, "dag": 1 },
                     "fraflytningsår": 2026,
                     "ophørsgrund": {
                         "$variant": "AblPar38OphørAfSkattepligtEfterKildeskattelovPar1"
@@ -11431,7 +11450,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     par37_spouse_case["input"]["aktieavance"]["særlige_aktiver"][0]["kilde"]["fakta"]
         ["fraflytning"]["aktier"][0]["selskabsidentifikation"] =
         Value::String("DK-PERSONSKAT-FRAFLYTNING-AEGTEFAELLE".into());
-    par37_spouse_case["input"]["ægtefælle"] = par37_spouse_relationship;
+    par37_spouse_case["input"]["ægtefælle"] = par37_spouse_relationship.clone();
     par37_spouse_case["input"]["ægtefælle"]["fakta"]["lønmodtager"]["skatteår"] =
         serde_json::json!(2026);
     par37_spouse_case["input"]["ægtefælle"]["fakta"]["lønmodtager"]["kommune"] =
@@ -11448,6 +11467,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "$variant": "AblPar13AUdbytteUdenForModregningsgrundlag"
         }
     }]);
+    let mut par37_simultaneous_spouse_case = par37_case.clone();
+    par37_simultaneous_spouse_case["case_id"] =
+        Value::String("personskat-par37-40-samtidige-aegtefaeller-2026".into());
+    let main_departure =
+        &mut par37_simultaneous_spouse_case["input"]["aktieavance"]["særlige_aktiver"][0];
+    main_departure["identifikation"] = Value::String("faelles-fraflytning".into());
+    main_departure["kilde"]["fakta"]["identifikation"] =
+        Value::String("faelles-fraflytning".into());
+    let main_departure_share = &mut main_departure["kilde"]["fakta"]["fraflytning"]["aktier"][0];
+    main_departure_share["identifikation"] = Value::String("samtidig-hovedperson-tab".into());
+    main_departure_share["selskabsidentifikation"] =
+        Value::String("DK-SAMTIDIG-HOVEDPERSON".into());
+    main_departure_share["handelsværdi_ved_ophør_kroner"] = serde_json::json!(170_000);
+    main_departure_share["skattemæssig_anskaffelsessum_kroner"] = serde_json::json!(200_000);
+    main_departure_share["aktivgrundlag"]["fakta"]["par5a_kildefakta"] = serde_json::json!({
+        "$variant": "AblOrdinærPar5AKildefakta",
+        "fakta": {
+            "anvendelsesgrundlag": {
+                "$variant": "AblPar5AAfståelseDen24November2010EllerSenere"
+            },
+            "skatteydergrundlag": {
+                "$variant": "AblPar5APersonSkattepligtigEfterPar7"
+            },
+            "ejertidsudbytter": [],
+            "præferenceposition": {
+                "modtaget_tilsvarende_udbytte_kroner": 0,
+                "allerede_anvendt_til_tabsreduktion_kroner": 0
+            },
+            "koncernbeløb": []
+        }
+    });
+    let mut spouse_departure = par37_case["input"]["aktieavance"]["særlige_aktiver"][0].clone();
+    spouse_departure["identifikation"] = Value::String("faelles-fraflytning".into());
+    spouse_departure["kilde"]["fakta"]["identifikation"] =
+        Value::String("faelles-fraflytning".into());
+    spouse_departure["kilde"]["fakta"]["fraflytning"]["aktier"][0]["identifikation"] =
+        Value::String("samtidig-aegtefaelle-gevinst".into());
+    spouse_departure["kilde"]["fakta"]["fraflytning"]["aktier"][0]["selskabsidentifikation"] =
+        Value::String("DK-SAMTIDIG-AEGTEFAELLE".into());
+    par37_simultaneous_spouse_case["input"]["ægtefælle"] = par37_spouse_relationship;
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["lønmodtager"]["skatteår"] =
+        serde_json::json!(2026);
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["lønmodtager"]["kommune"] =
+        serde_json::json!({ "$variant": "København" });
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["kapitalindkomst"]["renter"]
+        ["renteudgifter_kroner"] = serde_json::json!(0);
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["aktieavance"]
+        ["særlige_aktiver"] = Value::Array(vec![spouse_departure]);
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["aktieavance"]["udbytter"] =
+        serde_json::json!([]);
     let mut par37_conflicting_context_case = par37_case.clone();
     par37_conflicting_context_case["case_id"] =
         Value::String("personskat-par37-40-modstridende-kontekst-2026".into());
@@ -11484,6 +11553,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par37_spouse_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par37_simultaneous_spouse_case);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -11796,6 +11869,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-par37-40-blandet-slutskat-2026")
         .expect("mixed §§ 37-40 JSON case")
         .clone();
+    let simultaneous_spouse_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-samtidige-aegtefaeller-2026")
+        .expect("simultaneous-spouse §§ 37-40 JSON case")
+        .clone();
     let annual_claim_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -11826,6 +11906,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
+        simultaneous_spouse_case,
         annual_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
@@ -12517,6 +12598,49 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         true
     );
     assert_eq!(par37_spouse_trace["beregnet_fraflytterskat_kroner"], 27_000);
+    let json_par37_simultaneous_spouse_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-samtidige-aegtefaeller-2026")
+        .expect("JSON simultaneous-spouse §§ 37-40 result");
+    let hydrated_par37_simultaneous_spouse_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-samtidige-aegtefaeller-2026")
+        .expect("hydrated XLSX simultaneous-spouse §§ 37-40 result");
+    assert_eq!(
+        hydrated_par37_simultaneous_spouse_result["result"],
+        json_par37_simultaneous_spouse_result["result"]
+    );
+    let simultaneous_result = &json_par37_simultaneous_spouse_result["result"];
+    let simultaneous_main_special = &simultaneous_result["aktieavance"]["særlige_resultater"][0];
+    let simultaneous_spouse_special =
+        &simultaneous_result["ægtefælle"]["grundlag"]["aktieavance"]["særlige_resultater"][0];
+    assert_eq!(
+        simultaneous_result["aktieavance"]["aktieindkomst_kroner"],
+        -30_000
+    );
+    assert_eq!(
+        simultaneous_result["ægtefælle"]["grundlag"]["aktieavance"]["aktieindkomst_kroner"],
+        100_000
+    );
+    assert_eq!(
+        simultaneous_main_special["kilderesultater"][0]["resultat"]
+            ["netto_efter_aktieavancebeskatningsloven_kroner"],
+        -30_000
+    );
+    assert_eq!(
+        simultaneous_main_special["par37_til40_forløbsresultat"]
+            ["årets_beregnede_fraflytterskat_kroner"],
+        0
+    );
+    assert_eq!(
+        simultaneous_spouse_special["par37_til40_forløbsresultat"]
+            ["årets_beregnede_fraflytterskat_kroner"],
+        18_900
+    );
     let xlsx_par37_conflicting_context_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")

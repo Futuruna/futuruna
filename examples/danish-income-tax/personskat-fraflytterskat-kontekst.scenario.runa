@@ -36,6 +36,7 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
         identifikation = identifikation,
         opgørelsesår = opgørelsesår,
         fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+            fraflytningsdato = Dato(år = fraflytningsår, måned = 7, dag = 1),
             fraflytningsår = fraflytningsår,
             ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
             tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
@@ -254,9 +255,15 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
     | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == -18000 && forløb.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == -4860 && forløb.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 22140 && forløb.årets_beregnede_fraflytterskat_kroner == 27000
     | None -> Falskt
 }
-| fraflytterskat_kontekst_afviser_samtidig_samlevende_fraflytning: fraflytterskat_kontekst_samtidig_fraflytning_parresultat -> fraflytterskat_kontekst_samtidig_fraflytning_parresultat.par_gyldigt == Falskt && fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.alle_input_gyldige == Falskt && head(fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.særlige_resultater).input_gyldigt == Falskt && match fraflytterskat_kontekst_samtidig_fraflytning_parresultat.ægtefælle {
-    | BeregnetÆgtefælleAktieavance(resultat) -> resultat.alle_input_gyldige == Falskt && head(resultat.særlige_resultater).input_gyldigt == Falskt
-    | IngenÆgtefælleAktieavance -> Falskt
+| fraflytterskat_kontekst_sammensætter_samtidig_samlevende_fraflytning: fraflytterskat_kontekst_samtidig_fraflytning_parresultat -> fraflytterskat_kontekst_samtidig_fraflytning_parresultat.par_gyldigt && fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.alle_input_gyldige && fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.aktieindkomst_kroner == 100000 && match head(fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(hovedforløb) -> hovedforløb.årets_beregnede_fraflytterskat_kroner == 27000 && hovedforløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == 50000 && match fraflytterskat_kontekst_samtidig_fraflytning_parresultat.ægtefælle {
+        | BeregnetÆgtefælleAktieavance(resultat) -> resultat.alle_input_gyldige && resultat.aktieindkomst_kroner == 50000 && match head(resultat.særlige_resultater).par37_til40_forløbsresultat {
+            | Some(ægtefælleforløb) -> ægtefælleforløb.årets_beregnede_fraflytterskat_kroner == 13500 && ægtefælleforløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == 100000
+            | None -> Falskt
+        }
+        | IngenÆgtefælleAktieavance -> Falskt
+    }
+    | None -> Falskt
 }
 | fraflytterskat_kontekst_tillader_kun_historisk_kontekst_for_tidligere_år: fraflytterskat_kontekst_historisk_resultat -> fraflytterskat_kontekst_historisk_resultat.alle_input_gyldige && fraflytterskat_kontekst_historisk_resultat.aktieindkomst_kroner == 0 && match head(fraflytterskat_kontekst_historisk_resultat.særlige_resultater).par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.input_gyldigt && forløb.input.fraflytning.aktieindkomstkontekst.indkomstår == 2025 && forløb.input.fraflytning.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == 50000
@@ -273,6 +280,6 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
 ? fraflytterskat_kontekst_afleder_samlevende_ægtefælle
 ? fraflytterskat_kontekst_respekterer_manglende_samliv
 ? fraflytterskat_kontekst_afleder_signeret_ægtefælleindkomst
-? fraflytterskat_kontekst_afviser_samtidig_samlevende_fraflytning
+? fraflytterskat_kontekst_sammensætter_samtidig_samlevende_fraflytning
 ? fraflytterskat_kontekst_tillader_kun_historisk_kontekst_for_tidligere_år
 ? fraflytterskat_kontekst_afviser_eksplicit_sammeårskontekst

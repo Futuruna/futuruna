@@ -270,7 +270,8 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
     | realisationsprincippets_fradragsberettigede_tab_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + hvis aktie.princip == AblPar23Realisationsprincip { fradragsberettiget_tab_for_aktie_kroner(aktie) } ellers { 0 })
     | har_realisationsopgjorte_poster() -> foldl(input.aktier, Falskt, |fundet: Boolsk, aktie: AktieavancePar38Aktie| fundet || aktie_finder_anvendelse(aktie) && aktie.princip == AblPar23Realisationsprincip)
     | aktie_har_personskattelov_resultat(aktie: AktieavancePar38Aktie) -> aktie_finder_anvendelse(aktie) && klassifikation_for_aktie(aktie).resultat.medregnes_i_skattepligtig_indkomst
-    | aktieavancebeskatningslov_kilderesultater() -> hvis input_gyldigt() && nettogevinst_til_skatteberegning_efter_stk5_kroner() > 0 { map(filter(input.aktier, |aktie: AktieavancePar38Aktie| aktie_har_personskattelov_resultat(aktie)), |aktie: AktieavancePar38Aktie| aktieavance_par38_kilderesultat(input.indkomstår, aktie)) } ellers { [] }
+    | aktieavancebeskatningslov_kilderesultater_før_nettogulv() -> hvis input_gyldigt() { map(filter(input.aktier, |aktie: AktieavancePar38Aktie| aktie_har_personskattelov_resultat(aktie)), |aktie: AktieavancePar38Aktie| aktieavance_par38_kilderesultat(input.indkomstår, aktie)) } ellers { [] }
+    | aktieavancebeskatningslov_kilderesultater() -> hvis nettogevinst_til_skatteberegning_efter_stk5_kroner() > 0 { aktieavancebeskatningslov_kilderesultater_før_nettogulv() } ellers { [] }
     | aktieavancebeskatningslov_resultater() -> map(aktieavancebeskatningslov_kilderesultater(), |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat)
     | resultat() -> AktieavancePar38Resultat(
         input = input,
@@ -296,6 +297,7 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 }
 
 | aktieavance_par38_resultat(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).resultat()
+| aktieavance_par38_kilderesultater_før_nettogulv(input: AktieavancePar38Input) -> AktieavancePar38Sag(input).aktieavancebeskatningslov_kilderesultater_før_nettogulv()
 --@end:aktieavancebeskatningsloven_par38--
 
 = aktieavancebeskatningsloven_par39_metadata = Metadata(

@@ -1,9 +1,10 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-04
+Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
+Current implementation slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
+Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
 Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
 Previous travel-expense slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
 Previous seafarer-coordination slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
@@ -30,7 +31,7 @@ Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sa
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
-Planned simultaneous spouse exit-tax netting: `td-421749` (fælles modregning og entydig skatteattribution, når begge samlevende ægtefæller bliver fraflytterskattepligtige samme år)
+Planned residual share-tax completion: `td-b95e35` (bevar og anvend negativ aktieindkomstskat, som består efter fuld ægtefællemodregning, i den kanoniske slutskat og fremførsel)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
@@ -38,6 +39,7 @@ Current language support slice: `td-d25733` (genbrugelige, typede beregningsfelt
 Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
 Latest compiler-artifact cache: `td-22e56f` (validerede `check`-resultater og native binære artefakter genbruges sikkert ud fra hele den transitive kildegraf; kanonisk Personskat-check falder fra cirka fire minutter koldt til 2,6 s varmt)
 Previous compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
+Planned interpreter performance slice: `td-38f074` (memoiser rene, uforanderlige globale værdier og nul-argumentsregler under én fortolket rodevaluering; det fulde Personskat-XLSX-scenarie bruger aktuelt cirka 18,7 minutter)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
 Planned calculation-runner performance: `td-783a9c` (genbrug en kompileret eller resident, initialiseret beregningsrunner på tværs af kald)

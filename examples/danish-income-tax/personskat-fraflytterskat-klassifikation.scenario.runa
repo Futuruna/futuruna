@@ -130,6 +130,7 @@ fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
         identifikation = identifikation,
         opgørelsesår = 2026,
         fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+            fraflytningsdato = Dato(år = 2026, måned = 7, dag = 1),
             fraflytningsår = 2026,
             ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
             tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
