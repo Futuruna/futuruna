@@ -1229,6 +1229,16 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 # AktieavanceAktivklassifikationResultat(input: AktieavanceAktivklassifikationInput, input_gyldigt: Boolsk, effektiv_aktiv: AktieavancebeskatningslovAktiv, ville_være_omfattet_af_par17_uden_investeringsstatus: Boolsk)
 # AktieavancebeskatningslovInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, par17_modprøve: AktieavancePar17Modprøve, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
 # AktieavancebeskatningslovResultat(indkomstår: Heltal, effektiv_aktiv: AktieavancebeskatningslovAktiv, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_kroner: Heltal, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, netto_efter_aktieavancebeskatningsloven_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk, personskattelov_kategori: AktieavancebeskatningslovPslKategori)
+# AktieavancebeskatningslovKildegrundlag = AblOrdinærtAktiekildegrundlag(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblSærligtAktiekildegrundlag(markedsstatus: AktieavanceOrdinærMarkedsstatus) | AblManglendeAktiekildegrundlag
+# AktieavancebeskatningslovKilderesultat(kildeidentifikation: Tekst, resultat: AktieavancebeskatningslovResultat, kildegrundlag: AktieavancebeskatningslovKildegrundlag, input_gyldigt: Boolsk)
+
+| aktieavancebeskatningslov_kildegrundlag_markedsstatus(kildegrundlag: AktieavancebeskatningslovKildegrundlag) -> match kildegrundlag {
+    | AblOrdinærtAktiekildegrundlag(markedsstatus, _, _) -> Some(markedsstatus)
+    | AblSærligtAktiekildegrundlag(markedsstatus) -> Some(markedsstatus)
+    | AblManglendeAktiekildegrundlag -> None
+}
+| aktieavancebeskatningslov_kildegrundlag_dokumenteret(kildegrundlag: AktieavancebeskatningslovKildegrundlag) -> match kildegrundlag { | AblManglendeAktiekildegrundlag -> Falskt | _ -> Sandt }
+| aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat: AktieavancebeskatningslovKilderesultat) -> kilderesultat.kildeidentifikation != "" && kilderesultat.input_gyldigt && aktieavancebeskatningslov_kildegrundlag_dokumenteret(kilderesultat.kildegrundlag)
 
 | aktieavance_par17_modprøve_stk1_omfattet(modprøve: AktieavancePar17Modprøve) -> modprøve.næringsstatus == AblPar17UdøverNæringVedKøbOgSalgAfAktier && modprøve.erhvervelsesstatus == AblPar17ErhvervetSomLedINæringsvej
 | aktieavance_par17_modprøve_stk3_omfattet(modprøve: AktieavancePar17Modprøve) -> modprøve.næringsstatus == AblPar17UdøverNæringVedKøbOgSalgAfAktier

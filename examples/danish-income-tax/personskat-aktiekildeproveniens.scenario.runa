@@ -1,0 +1,100 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Regressionsscenarier for markedskilden på hvert ABL-resultat.
+
+Scenarierne er ikke lovtekst. De fastholder, at en blandet fraflytterportefølje
+bevarer hvert aktiepartis markedsstatus gennem ABL § 38, ABL § 13 A og KGL
+§ 32, mens manglende eller flertydig kildeproveniens afvises.
+----
+
+= personskat_aktiekilde_par19b_klassifikation = AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = AktieavancePar19BPar19CInput(
+        indkomstår = 2026,
+        meddelelse = AblPar19BOrdinærMeddelelse(
+            virkningsår = 2026,
+            indsendelsesdato = AktieavanceInvesteringsdato(år = 2025, måned = 11, dag = 1)
+        ),
+        aktivmasse = AktieavanceInvesteringsaktivmasse(
+            indkomstår = 2026,
+            direkte_aktiver = [
+                AblDirekteInvesteringsaktiv(art = AblKvalificerendeAktieaktiv, gennemsnitlig_værdi_kroner = 50000),
+                AblDirekteInvesteringsaktiv(art = AblAndetVærdipapir, gennemsnitlig_værdi_kroner = 50000)
+            ],
+            ejerposter = []
+        ),
+        oplysninger = AblPar19BOplysningerIndsendt(
+            indsendelsesdato = AktieavanceInvesteringsdato(år = 2027, måned = 7, dag = 1)
+        )
+    ))
+)
+
+| personskat_aktiekilde_par38_aktie(identifikation: Tekst, nettogevinst_kroner: Heltal, markedsstatus: AktieavanceOrdinærMarkedsstatus) -> AktieavancePar38Aktie(
+    identifikation = identifikation,
+    handelsværdi_ved_ophør_kroner = 100000,
+    skattemæssig_anskaffelsessum_kroner = 100000 - nettogevinst_kroner,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = nettogevinst_kroner),
+    aktivgrundlag = AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
+        klassifikation = personskat_aktiekilde_par19b_klassifikation,
+        markedsstatus = markedsstatus,
+        koncernintern_konvertibel_eller_tegningsret = Falskt,
+        andelsforening_stiftet_før_22_maj_1987 = Falskt,
+        afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+        årets_netto_med_kgl_par14_23_kroner = 0
+    )),
+    princip = AblPar23Lagerprincip
+)
+
+= personskat_aktiekilde_par38_resultat = aktieavance_par38_resultat(AktieavancePar38Input(
+    indkomstår = 2026,
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [
+        personskat_aktiekilde_par38_aktie("par19b-noteret", 40000, AblOptagetTilHandelPåReguleretMarked),
+        personskat_aktiekilde_par38_aktie("par19b-unoteret", 30000, AblIkkeOptagetTilHandel)
+    ]
+))
+= personskat_aktiekilde_kilderesultater = personskat_aktiekilde_par38_resultat.aktieavancebeskatningslov_kilderesultater
+= personskat_aktiekilde_kgl_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(KursgevinstPar32Aktieårsgrundlag(
+    par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+    supplerende_årsresultater = personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(personskat_aktiekilde_kilderesultater)
+    ), 2026)
+= personskat_aktiekilde_manglende_kilde = AktieavancebeskatningslovKilderesultat(
+    kildeidentifikation = "par19b-uden-markedskilde",
+    resultat = head(personskat_aktiekilde_par38_resultat.aktieavancebeskatningslov_resultater),
+    kildegrundlag = AblManglendeAktiekildegrundlag,
+    input_gyldigt = Sandt
+)
+= personskat_aktiekilde_kgl_manglende_grundlag = kgl_par32_aktiegevinstgrundlagsresultat(KursgevinstPar32Aktieårsgrundlag(
+    par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(2026),
+    supplerende_årsresultater = personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater([personskat_aktiekilde_manglende_kilde])
+    ), 2026)
+
+| personskat_aktiekilde_matcher(kilderesultat: AktieavancebeskatningslovKilderesultat, identifikation: Tekst, markedsstatus: AktieavanceOrdinærMarkedsstatus) -> kilderesultat.kildeidentifikation == identifikation && kilderesultat.input_gyldigt && match kilderesultat.kildegrundlag {
+    | AblSærligtAktiekildegrundlag(faktisk_markedsstatus) -> faktisk_markedsstatus == markedsstatus
+    | _ -> Falskt
+}
+| personskat_aktiekilde_par38_bevarer_marked_pr_aktie: personskat_aktiekilde_par38_resultat -> personskat_aktiekilde_par38_resultat.input_gyldigt && length(personskat_aktiekilde_kilderesultater) == 2 && personskat_aktiekilde_matcher(head(personskat_aktiekilde_kilderesultater), "par19b-noteret", AblOptagetTilHandelPåReguleretMarked) && personskat_aktiekilde_matcher(head(tail(personskat_aktiekilde_kilderesultater)), "par19b-unoteret", AblIkkeOptagetTilHandel) && map(personskat_aktiekilde_kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat) == personskat_aktiekilde_par38_resultat.aktieavancebeskatningslov_resultater
+| personskat_aktiekilde_par13a_anvender_kun_noteret_par19b: personskat_aktiekilde_kilderesultater -> personskat_særligt_aktiv_par13a_par19b_nettogevinster_fra_kilderesultater_kroner(personskat_aktiekilde_kilderesultater) == 40000
+| personskat_aktiekilde_kgl_par32_anvender_kun_kvalificeret_marked: personskat_aktiekilde_kgl_grundlag -> personskat_aktiekilde_kgl_grundlag.input_gyldigt && length(personskat_aktiekilde_kgl_grundlag.klassificerede_supplerende_resultater) == 2 && personskat_aktiekilde_kgl_grundlag.supplerende_medregnet_nettoaktiegevinst_kroner == 40000 && personskat_aktiekilde_kgl_grundlag.supplerende_udeladt_ikke_kvalificeret_netto_kroner == 30000 && personskat_aktiekilde_kgl_grundlag.aktiegevinstkapacitet_kroner == 40000
+| personskat_aktiekilde_blandet_reference_afvises_som_flertydig: personskat_aktiekilde_kilderesultater -> personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater(personskat_aktiekilde_kilderesultater) == None
+| personskat_aktiekilde_enkeltkilder_bevarer_kompatibilitet: personskat_aktiekilde_kilderesultater -> personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater([head(personskat_aktiekilde_kilderesultater)]) == Some(AblOptagetTilHandelPåReguleretMarked) && personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater([head(tail(personskat_aktiekilde_kilderesultater))]) == Some(AblIkkeOptagetTilHandel)
+| personskat_aktiekilde_manglende_proveniens_afvises: personskat_aktiekilde_kgl_manglende_grundlag -> personskat_særligt_aktiv_par13a_par19b_nettogevinster_fra_kilderesultater_kroner([personskat_aktiekilde_manglende_kilde]) == 0 && personskat_aktiekilde_kgl_manglende_grundlag.input_gyldigt == Falskt && personskat_aktiekilde_kgl_manglende_grundlag.supplerende_afvist_ugyldigt_netto_kroner == 40000 && personskat_aktiekilde_kgl_manglende_grundlag.aktiegevinstkapacitet_kroner == 0 && personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater([personskat_aktiekilde_manglende_kilde]) == None
+
+? personskat_aktiekilde_par38_bevarer_marked_pr_aktie
+? personskat_aktiekilde_par13a_anvender_kun_noteret_par19b
+? personskat_aktiekilde_kgl_par32_anvender_kun_kvalificeret_marked
+? personskat_aktiekilde_blandet_reference_afvises_som_flertydig
+? personskat_aktiekilde_enkeltkilder_bevarer_kompatibilitet
+? personskat_aktiekilde_manglende_proveniens_afvises

@@ -164,13 +164,13 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
 # AktieavancePar38Par44Status = AblPar38IkkeHistoriskPar44Aktie | AblPar38Par44AktieEjetUnderTreÅrVedOphør | AblPar38Par44AktieEjetMindstTreÅrVedOphør
 # AktieavancePar38Aktieegenskab = AblPar38MedarbejderandelEfterLl7N | AblPar38AktieErhvervetEfterLl7P | AblPar38AktieVedUdnyttelseAfLl7PRet | AblPar38ØvrigAktieISammeSelskabSomLl7P | AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet | AblPar38SuccessionEfterPar34Til35A | AblPar38SkattefriVirksomhedsomdannelseEfterSuccession
 # AktieavancePar38OrdinærtAktivgrundlag(markedsstatus: AktieavanceOrdinærMarkedsstatus, har_tidligere_været_optaget_til_handel: Boolsk, oplysningsstatus: AktieavanceOrdinærOplysningsstatus, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
-# AktieavancePar38SærligtAktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, årets_netto_med_kgl_par14_23_kroner: Heltal)
+# AktieavancePar38SærligtAktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput, markedsstatus: AktieavanceOrdinærMarkedsstatus, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, årets_netto_med_kgl_par14_23_kroner: Heltal)
 # AktieavancePar38Aktivgrundlag = AblPar38OrdinærAktieEfterPar12Til15(fakta: AktieavancePar38OrdinærtAktivgrundlag) | AblPar38SærligtAktiv(fakta: AktieavancePar38SærligtAktivgrundlag)
 # AktieavancePar38Opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner: Heltal) | AblPar38TegningsretValgEfterStk4(antal_rettigheder: Heltal, udnyttelseskurs_pr_aktie_kroner: Heltal, markedskurs_pr_aktie_ved_ophør_kroner: Heltal)
 # AktieavancePar38Aktie(identifikation: Tekst, handelsværdi_ved_ophør_kroner: Heltal, skattemæssig_anskaffelsessum_kroner: Heltal, beskatningsstatus: AktieavancePar38Beskatningsstatus, par44_status: AktieavancePar38Par44Status, egenskaber: List(AktieavancePar38Aktieegenskab), opgørelsesgrundlag: AktieavancePar38Opgørelsesgrundlag, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip)
 # AktieavancePar38Klassifikationsresultat(aktivgrundlag: AktieavancePar38Aktivgrundlag, input_gyldigt: Boolsk, resultat: AktieavancebeskatningslovResultat)
 # AktieavancePar38Input(indkomstår: Heltal, ophørsgrund: AktieavancePar38Ophørsgrund, tilknytning: AktieavancePar38Tilknytning, aktier: List(AktieavancePar38Aktie))
-# AktieavancePar38Resultat(input: AktieavancePar38Input, input_gyldigt: Boolsk, klassifikationsresultater: List(AktieavancePar38Klassifikationsresultat), skattepligtsophør_efter_stk1: Boolsk, samlet_kursværdi_efter_stk2_kroner: Heltal, særlig_beholdning_efter_stk2: Boolsk, beholdningskrav_efter_stk2_opfyldt: Boolsk, antal_aktier_omfattet: Heltal, samlede_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, afskårne_tab_kroner: Heltal, samlet_nettogevinst_før_gulv_kroner: Heltal, nettogevinst_til_skatteberegning_efter_stk5_kroner: Heltal, overskydende_tab_kroner: Heltal, realisationsprincippets_gevinster_kroner: Heltal, realisationsprincippets_fradragsberettigede_tab_kroner: Heltal, har_realisationsopgjorte_poster: Boolsk, aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
+# AktieavancePar38Resultat(input: AktieavancePar38Input, input_gyldigt: Boolsk, klassifikationsresultater: List(AktieavancePar38Klassifikationsresultat), skattepligtsophør_efter_stk1: Boolsk, samlet_kursværdi_efter_stk2_kroner: Heltal, særlig_beholdning_efter_stk2: Boolsk, beholdningskrav_efter_stk2_opfyldt: Boolsk, antal_aktier_omfattet: Heltal, samlede_gevinster_kroner: Heltal, fradragsberettigede_tab_kroner: Heltal, afskårne_tab_kroner: Heltal, samlet_nettogevinst_før_gulv_kroner: Heltal, nettogevinst_til_skatteberegning_efter_stk5_kroner: Heltal, overskydende_tab_kroner: Heltal, realisationsprincippets_gevinster_kroner: Heltal, realisationsprincippets_fradragsberettigede_tab_kroner: Heltal, har_realisationsopgjorte_poster: Boolsk, aktieavancebeskatningslov_kilderesultater: List(AktieavancebeskatningslovKilderesultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
 
 | aktieavance_par38_ophør_udløser_stk1(ophørsgrund: AktieavancePar38Ophørsgrund) -> match ophørsgrund { | AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 -> Sandt | AblPar38TraktathjemstedBliverUdland -> Sandt | AblPar38AndetOphørAfDanskBeskatningsret -> Sandt | _ -> Falskt }
 | aktieavance_par38_ophør_kan_give_henstand(ophørsgrund: AktieavancePar38Ophørsgrund) -> ophørsgrund == AblPar38OphørAfSkattepligtEfterKildeskattelovPar1 || ophørsgrund == AblPar38TraktathjemstedBliverUdland
@@ -230,6 +230,19 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
         AktieavancePar38Klassifikationsresultat(aktivgrundlag = aktie.aktivgrundlag, input_gyldigt = aktieavance_par38_saerlig_klassifikation_gyldig(indkomstår, fakta, abl_input, resultat), resultat = resultat)
     }
 }
+| aktieavance_par38_kildegrundlag(aktie: AktieavancePar38Aktie) -> match aktie.aktivgrundlag {
+    | AblPar38OrdinærAktieEfterPar12Til15(fakta) -> AblOrdinærtAktiekildegrundlag(markedsstatus = fakta.markedsstatus, har_tidligere_været_optaget_til_handel = fakta.har_tidligere_været_optaget_til_handel, oplysningsstatus = fakta.oplysningsstatus)
+    | AblPar38SærligtAktiv(fakta) -> AblSærligtAktiekildegrundlag(markedsstatus = fakta.markedsstatus)
+}
+| aktieavance_par38_kilderesultat(indkomstår: Heltal, aktie: AktieavancePar38Aktie) -> {
+    = klassifikation = aktieavance_par38_klassifikationsresultat(indkomstår, aktie)
+    AktieavancebeskatningslovKilderesultat(
+        kildeidentifikation = aktie.identifikation,
+        resultat = klassifikation.resultat,
+        kildegrundlag = aktieavance_par38_kildegrundlag(aktie),
+        input_gyldigt = klassifikation.input_gyldigt
+    )
+}
 | aktieavance_par38_aktie_gyldig(indkomstår: Heltal, aktie: AktieavancePar38Aktie) -> aktie.identifikation != "" && aktie.handelsværdi_ved_ophør_kroner >= 0 && aktieavance_par38_opgørelsesgrundlag_gyldigt(aktie.opgørelsesgrundlag) && aktieavance_par38_klassifikationsresultat(indkomstår, aktie).input_gyldigt
 | aktieavance_par38_identifikation_unik(aktier: List(AktieavancePar38Aktie), aktie: AktieavancePar38Aktie) -> foldl(aktier, 0, |antal: Heltal, anden: AktieavancePar38Aktie| antal + hvis anden.identifikation == aktie.identifikation { 1 } ellers { 0 }) == 1
 
@@ -257,7 +270,8 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
     | realisationsprincippets_fradragsberettigede_tab_kroner() -> foldl(input.aktier, 0, |sum: Heltal, aktie: AktieavancePar38Aktie| sum + hvis aktie.princip == AblPar23Realisationsprincip { fradragsberettiget_tab_for_aktie_kroner(aktie) } ellers { 0 })
     | har_realisationsopgjorte_poster() -> foldl(input.aktier, Falskt, |fundet: Boolsk, aktie: AktieavancePar38Aktie| fundet || aktie_finder_anvendelse(aktie) && aktie.princip == AblPar23Realisationsprincip)
     | aktie_har_personskattelov_resultat(aktie: AktieavancePar38Aktie) -> aktie_finder_anvendelse(aktie) && klassifikation_for_aktie(aktie).resultat.medregnes_i_skattepligtig_indkomst
-    | aktieavancebeskatningslov_resultater() -> hvis input_gyldigt() && nettogevinst_til_skatteberegning_efter_stk5_kroner() > 0 { map(filter(input.aktier, |aktie: AktieavancePar38Aktie| aktie_har_personskattelov_resultat(aktie)), |aktie: AktieavancePar38Aktie| klassifikation_for_aktie(aktie).resultat) } ellers { [] }
+    | aktieavancebeskatningslov_kilderesultater() -> hvis input_gyldigt() && nettogevinst_til_skatteberegning_efter_stk5_kroner() > 0 { map(filter(input.aktier, |aktie: AktieavancePar38Aktie| aktie_har_personskattelov_resultat(aktie)), |aktie: AktieavancePar38Aktie| aktieavance_par38_kilderesultat(input.indkomstår, aktie)) } ellers { [] }
+    | aktieavancebeskatningslov_resultater() -> map(aktieavancebeskatningslov_kilderesultater(), |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat)
     | resultat() -> AktieavancePar38Resultat(
         input = input,
         input_gyldigt = input_gyldigt(),
@@ -276,6 +290,7 @@ ved skattepligtsophøret skal opgøres efter realisationsprincippet.
         realisationsprincippets_gevinster_kroner = realisationsprincippets_gevinster_kroner(),
         realisationsprincippets_fradragsberettigede_tab_kroner = realisationsprincippets_fradragsberettigede_tab_kroner(),
         har_realisationsopgjorte_poster = har_realisationsopgjorte_poster(),
+        aktieavancebeskatningslov_kilderesultater = aktieavancebeskatningslov_kilderesultater(),
         aktieavancebeskatningslov_resultater = aktieavancebeskatningslov_resultater()
     )
 }

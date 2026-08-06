@@ -2970,6 +2970,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "handelsværdi_ved_ophør_kroner",
             "skattemæssig_anskaffelsessum_kroner",
             "opgørelseskilde.$variant",
+            "aktivgrundlag.AblPar38SærligtAktiv.fakta.markedsstatus",
             "princip",
             "henstandsvalg",
         ] {
@@ -2986,6 +2987,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Handelsværdi ved fraflytningen",
             "Skattemæssig anskaffelsessum ved fraflytningen",
             "Opgørelsesmetode ved fraflytningen",
+            "Det særlige fraflytteraktivs markedsstatus",
             "Realisations- eller lagerprincip",
             "Valg om henstand for aktiepartiet",
         ] {
@@ -10235,6 +10237,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "AblIngenInvesteringsklassifikation"
                 }
             },
+            "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" },
             "koncernintern_konvertibel_eller_tegningsret": false,
             "andelsforening_stiftet_før_22_maj_1987": false,
             "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
@@ -10284,6 +10287,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "oplysninger": { "$variant": "AblPar19BOplysningerIkkeIndsendt" }
                     }
                 }
+            },
+            "markedsstatus": {
+                "$variant": "AblOptagetTilHandelPåReguleretMarked"
             },
             "koncernintern_konvertibel_eller_tegningsret": false,
             "andelsforening_stiftet_før_22_maj_1987": false,
@@ -10997,6 +11003,38 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let mixed_special_result = &mixed_result["aktieavance"]["særlige_resultater"][0];
     assert_eq!(mixed_special_result["input_gyldigt"], true);
+    let mixed_source_results = mixed_special_result["kilderesultater"]
+        .as_array()
+        .expect("mixed §§ 37-40 source results");
+    assert_eq!(mixed_source_results.len(), 3);
+    assert_eq!(
+        mixed_source_results[0]["kildeidentifikation"],
+        "blandet-ordinaer"
+    );
+    assert_eq!(
+        mixed_source_results[0]["kildegrundlag"]["$variant"],
+        "AblOrdinærtAktiekildegrundlag"
+    );
+    assert_eq!(
+        mixed_source_results[0]["kildegrundlag"]["markedsstatus"]["$variant"],
+        "AblIkkeOptagetTilHandel"
+    );
+    assert_eq!(
+        mixed_source_results[1]["kildeidentifikation"],
+        "blandet-naering"
+    );
+    assert_eq!(
+        mixed_source_results[1]["kildegrundlag"]["markedsstatus"]["$variant"],
+        "AblIkkeOptagetTilHandel"
+    );
+    assert_eq!(
+        mixed_source_results[2]["kildeidentifikation"],
+        "blandet-par19c"
+    );
+    assert_eq!(
+        mixed_source_results[2]["kildegrundlag"]["markedsstatus"]["$variant"],
+        "AblOptagetTilHandelPåReguleretMarked"
+    );
     assert_eq!(
         mixed_special_result["resultater"]
             .as_array()
@@ -11013,6 +11051,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         mixed_departure["skattekontekst"]["$variant"],
         "AblPar37Til40AfledtSlutskat"
+    );
+    assert_eq!(
+        mixed_departure["umiddelbare_aktieavancebeskatningslov_kilderesultater"]
+            .as_array()
+            .expect("immediate mixed §§ 37-40 source results")
+            .len(),
+        1
+    );
+    assert_eq!(
+        mixed_departure["henstandsvalgte_aktieavancebeskatningslov_kilderesultater"]
+            .as_array()
+            .expect("deferred mixed §§ 37-40 source results")
+            .len(),
+        2
     );
     assert_eq!(
         mixed_departure["umiddelbare_aktieavancebeskatningslov_resultater"]

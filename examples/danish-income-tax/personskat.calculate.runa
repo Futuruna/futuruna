@@ -149,7 +149,7 @@
 # PersonskatSlutskatParprojektion(hovedperson_kroner: Heltal, ægtefælle_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput) | PersonskatFraflytteraktierEfterPar37Til40(fakta: PersonskatPar37Til40Forløbsfakta)
 # PersonskatSærligtAktieaktivFakta(identifikation: Tekst, kilde: PersonskatSærligtAktieaktivKilde, markedsstatus: AktieavanceOrdinærMarkedsstatus)
-# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, resultater: List(AktieavancebeskatningslovResultat), par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
+# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, kilderesultater: List(AktieavancebeskatningslovKilderesultat), resultater: List(AktieavancebeskatningslovResultat), par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatSærligtAktieaktivAfledningstilstand(årskontekst: PersonskatPar37Til40Årskontekst, resultater: List(PersonskatSærligtAktieaktivResultat))
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
@@ -4865,6 +4865,13 @@
     help = Some("Futuruna bruger kun feltet, når et tab kræver opfyldelse af oplysningsbetingelsen efter ABL § 14."),
     unit = None
 )
+= personskat_felt_par38_saerligt_markedsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar38SærligtAktivgrundlag::markedsstatus),
+    label = "Det særlige fraflytteraktivs markedsstatus",
+    question = Some("Var dette særlige aktiv optaget til handel på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?"),
+    help = Some("Markedsstatus knyttes til det enkelte aktieparti og bruges ved modregning efter ABL § 13 A og KGL § 32."),
+    unit = None
+)
 = personskat_felt_par38_saerligt_koncerninstrument = TypetBeregningsfelt(
     path = refof(AktieavancePar38SærligtAktivgrundlag::koncernintern_konvertibel_eller_tegningsret),
     label = "Koncernintern konvertibel obligation eller tegningsret",
@@ -5085,8 +5092,8 @@
 = personskat_felt_særligt_aktieaktiv_markedsstatus = TypetBeregningsfelt(
     path = refof(PersonskatSærligtAktieaktivFakta::markedsstatus),
     label = "Det særlige aktivs markedsstatus",
-    question = Some("Var aktivet optaget til handel på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?"),
-    help = Some("Kun en af lovens to markedsgrene kan give en § 19 B-nettogevinst plads i modregningsgrundlaget efter ABL § 13 A."),
+    question = Some("Var dette enkeltstående særlige aktiv optaget til handel på et reguleret marked, en multilateral handelsfacilitet eller ingen af delene?"),
+    help = Some("Feltet bruges for enkeltstående kilder. Fraflytterporteføljer efter ABL §§ 37-40 angiver markedsstatus på hvert aktieparti."),
     unit = None
 )
 = personskat_felt_par17_kildefakta_indkomstår = TypetBeregningsfelt(
@@ -8874,6 +8881,7 @@
         Field(value = personskat_felt_par38_ordinaer_markedsstatus),
         Field(value = personskat_felt_par38_ordinaer_tidligere_markedsstatus),
         Field(value = personskat_felt_par38_ordinaer_oplysningsstatus),
+        Field(value = personskat_felt_par38_saerligt_markedsstatus),
         Field(value = personskat_felt_par38_saerligt_koncerninstrument),
         Field(value = personskat_felt_par38_saerligt_gammel_andelsforening),
         Field(value = personskat_felt_par38_saerligt_likvidationsformaal),
@@ -9853,13 +9861,21 @@
         | None -> Falskt
     }
 }
+| personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk) -> AktieavancebeskatningslovKilderesultat(
+    kildeidentifikation = fakta.identifikation,
+    resultat = resultat,
+    kildegrundlag = AblSærligtAktiekildegrundlag(markedsstatus = fakta.markedsstatus),
+    input_gyldigt = input_gyldigt
+)
 | personskat_øvrigt_særligt_aktieaktiv_resultat(fakta: PersonskatSærligtAktieaktivFakta, input: PersonskatØvrigtSærligtAktieaktivInput, par17_kilde: PersonskatPar17Modprøvekilde, skatteår: Heltal) -> {
     = par17_resultat = personskat_par17_resultat_fra_kilde(par17_kilde)
     = abl_input = personskat_øvrigt_særligt_aktieaktiv_abl_input(input, personskat_par17_modprøve_fra_kilde(par17_kilde))
     = resultat = aktieavancebeskatningslov_resultat(abl_input)
+    = input_gyldigt = input.indkomstår == skatteår && input.aktiv != AblNæringsaktiePar17 && aktieavancebeskatningslov_input_gyldigt(abl_input) && personskat_øvrigt_aktiv_par17_kilde_gyldig(par17_kilde, input, resultat, par17_resultat)
     PersonskatSærligtAktieaktivResultat(
         fakta = fakta,
         resultat = resultat,
+        kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, resultat, input_gyldigt)],
         resultater = [resultat],
         par17_resultat = par17_resultat,
         par35_forløbsresultat = None,
@@ -9872,7 +9888,7 @@
         årets_forfaldne_fraflytterskat_kroner = 0,
         årets_betalte_fraflytterskat_kroner = 0,
         årets_fraflytterskat_saldobortfald_kroner = 0,
-        input_gyldigt = input.indkomstår == skatteår && input.aktiv != AblNæringsaktiePar17 && aktieavancebeskatningslov_input_gyldigt(abl_input) && personskat_øvrigt_aktiv_par17_kilde_gyldig(par17_kilde, input, resultat, par17_resultat)
+        input_gyldigt = input_gyldigt
     )
 }
 | personskat_par37_til40_kontekstafledning(fakta: PersonskatPar37Til40Fraflytningsfakta, skatteår: Heltal, årskontekst: PersonskatPar37Til40Årskontekst) -> match fakta.kontekstgrundlag {
@@ -9910,9 +9926,11 @@
 | personskat_særligt_aktieaktiv_resultat_med_par37_kontekst(fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal, årskontekst: PersonskatPar37Til40Årskontekst) -> match fakta.kilde {
     | PersonskatAktieaktivEfterPar17(par17_fakta) -> {
         = par17_resultat = personskat_par17_resultat_fra_kildefakta(par17_fakta)
+        = input_gyldigt = par17_fakta.indkomstår == skatteår && personskat_par17_kildefakta_er_person(par17_fakta) && par17_resultat.input_gyldigt && par17_resultat.reglen_finder_anvendelse
         PersonskatSærligtAktieaktivResultat(
             fakta = fakta,
             resultat = par17_resultat.aktieavancebeskatningslov_resultat,
+            kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, par17_resultat.aktieavancebeskatningslov_resultat, input_gyldigt)],
             resultater = [par17_resultat.aktieavancebeskatningslov_resultat],
             par17_resultat = Some(par17_resultat),
             par35_forløbsresultat = None,
@@ -9925,15 +9943,17 @@
             årets_forfaldne_fraflytterskat_kroner = 0,
             årets_betalte_fraflytterskat_kroner = 0,
             årets_fraflytterskat_saldobortfald_kroner = 0,
-            input_gyldigt = par17_fakta.indkomstår == skatteår && personskat_par17_kildefakta_er_person(par17_fakta) && par17_resultat.input_gyldigt && par17_resultat.reglen_finder_anvendelse
+            input_gyldigt = input_gyldigt
         )
     }
     | PersonskatØvrigtAktieaktiv(input, par17_kilde) -> personskat_øvrigt_særligt_aktieaktiv_resultat(fakta, input, par17_kilde, skatteår)
     | PersonskatMedarbejderejeordningEfterPar35G(par35_fakta) -> {
         = par35_resultat = aktieavance_par35_forløbsresultat(par35_fakta)
+        = input_gyldigt = par35_fakta.opgørelsesår == skatteår && par35_resultat.input_gyldigt
         PersonskatSærligtAktieaktivResultat(
             fakta = fakta,
             resultat = par35_resultat.aktieavancebeskatningslov_resultat,
+            kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, par35_resultat.aktieavancebeskatningslov_resultat, input_gyldigt)],
             resultater = [par35_resultat.aktieavancebeskatningslov_resultat],
             par17_resultat = None,
             par35_forløbsresultat = Some(par35_resultat),
@@ -9946,7 +9966,7 @@
             årets_forfaldne_fraflytterskat_kroner = 0,
             årets_betalte_fraflytterskat_kroner = 0,
             årets_fraflytterskat_saldobortfald_kroner = 0,
-            input_gyldigt = par35_fakta.opgørelsesår == skatteår && par35_resultat.input_gyldigt
+            input_gyldigt = input_gyldigt
         )
     }
     | PersonskatFraflytteraktierEfterPar37Til40(par37_til40_fakta) -> {
@@ -9956,6 +9976,7 @@
         PersonskatSærligtAktieaktivResultat(
             fakta = fakta,
             resultat = par37_til40_resultat.aktieavancebeskatningslov_resultat,
+            kilderesultater = par37_til40_resultat.fraflytningsresultat.aktieavancebeskatningslov_kilderesultater,
             resultater = par37_til40_resultat.aktieavancebeskatningslov_resultater,
             par17_resultat = None,
             par35_forløbsresultat = None,
@@ -9981,15 +10002,20 @@
 | personskat_udbytte_par13a_par12_beløb_kroner(resultat: PersonskatUdbytteResultat) -> personskat_udbytte_par13a_beløb_kroner(resultat, resultat.par13a_kilderesultat.udbytte_for_aktie_med_gevinst_efter_par12)
 | personskat_udbytte_par13a_par19b_beløb_kroner(resultat: PersonskatUdbytteResultat) -> personskat_udbytte_par13a_beløb_kroner(resultat, resultat.par13a_kilderesultat.udbytte_for_aktie_med_gevinst_efter_par19b)
 | personskat_udbytte_par13a_par44_beløb_kroner(resultat: PersonskatUdbytteResultat) -> personskat_udbytte_par13a_beløb_kroner(resultat, resultat.par13a_kilderesultat.udbytte_for_aktie_omfattet_af_par44)
-| personskat_særligt_aktiv_par13a_par19b_nettogevinst_for_abl_kroner(resultat: AktieavancebeskatningslovResultat) -> hvis resultat.effektiv_aktiv == AblInvesteringsselskab19B && resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a { penge_positivt_beløb(resultat.netto_efter_aktieavancebeskatningsloven_kroner) } ellers { 0 }
-| personskat_særligt_aktiv_par13a_par19b_nettogevinst_kroner(resultat: PersonskatSærligtAktieaktivResultat) -> hvis resultat.input_gyldigt && aktieavance_ordinaer_er_optaget_til_handel(resultat.fakta.markedsstatus) { foldl(resultat.resultater, 0, |sum: Heltal, abl_resultat: AktieavancebeskatningslovResultat| sum + personskat_særligt_aktiv_par13a_par19b_nettogevinst_for_abl_kroner(abl_resultat)) } ellers { 0 }
+| personskat_særligt_aktiv_kilderesultat_er_optaget_til_handel(kilderesultat: AktieavancebeskatningslovKilderesultat) -> match aktieavancebeskatningslov_kildegrundlag_markedsstatus(kilderesultat.kildegrundlag) { | Some(markedsstatus) -> aktieavance_ordinaer_er_optaget_til_handel(markedsstatus) | None -> Falskt }
+| personskat_særligt_aktiv_par13a_par19b_nettogevinst_for_kilde_kroner(kilderesultat: AktieavancebeskatningslovKilderesultat) -> hvis aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat) && personskat_særligt_aktiv_kilderesultat_er_optaget_til_handel(kilderesultat) && kilderesultat.resultat.effektiv_aktiv == AblInvesteringsselskab19B && kilderesultat.resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a { penge_positivt_beløb(kilderesultat.resultat.netto_efter_aktieavancebeskatningsloven_kroner) } ellers { 0 }
+| personskat_særligt_aktiv_par13a_par19b_nettogevinster_fra_kilderesultater_kroner(kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> foldl(kilderesultater, 0, |sum: Heltal, kilderesultat: AktieavancebeskatningslovKilderesultat| sum + personskat_særligt_aktiv_par13a_par19b_nettogevinst_for_kilde_kroner(kilderesultat))
+| personskat_særligt_aktiv_par13a_par19b_nettogevinst_kroner(resultat: PersonskatSærligtAktieaktivResultat) -> hvis resultat.input_gyldigt { personskat_særligt_aktiv_par13a_par19b_nettogevinster_fra_kilderesultater_kroner(resultat.kilderesultater) } ellers { 0 }
 | personskat_særligt_aktieaktiv_identifikation_unik(aktiver: List(PersonskatSærligtAktieaktivFakta), fakta: PersonskatSærligtAktieaktivFakta) -> fakta.identifikation != "" && length(filter(aktiver, |andet: PersonskatSærligtAktieaktivFakta| andet.identifikation == fakta.identifikation)) == 1
-| personskat_særligt_aktieaktiv_resultat_gyldigt(aktiver: List(PersonskatSærligtAktieaktivFakta), resultat: PersonskatSærligtAktieaktivResultat) -> resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(aktiver, resultat.fakta)
+| personskat_særligt_aktieaktiv_kilderesultater_matcher_resultater(resultat: PersonskatSærligtAktieaktivResultat) -> map(resultat.kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat) == resultat.resultater
+| personskat_særligt_aktieaktiv_kilderesultater_gyldige(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_særligt_aktieaktiv_kilderesultater_matcher_resultater(resultat) && all(resultat.kilderesultater, aktieavancebeskatningslov_kilderesultat_gyldigt)
+| personskat_særligt_aktieaktiv_resultat_gyldigt(aktiver: List(PersonskatSærligtAktieaktivFakta), resultat: PersonskatSærligtAktieaktivResultat) -> resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(aktiver, resultat.fakta) && personskat_særligt_aktieaktiv_kilderesultater_gyldige(resultat)
 | personskat_særligt_aktieaktiv_er_par37_til40(fakta: PersonskatSærligtAktieaktivFakta) -> match fakta.kilde { | PersonskatFraflytteraktierEfterPar37Til40(_) -> Sandt | _ -> Falskt }
-| personskat_særligt_aktieaktiv_med_resultater(resultat: PersonskatSærligtAktieaktivResultat, resultater: List(AktieavancebeskatningslovResultat)) -> PersonskatSærligtAktieaktivResultat(
+| personskat_særligt_aktieaktiv_med_kilderesultater(resultat: PersonskatSærligtAktieaktivResultat, kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> PersonskatSærligtAktieaktivResultat(
     fakta = resultat.fakta,
     resultat = resultat.resultat,
-    resultater = resultater,
+    kilderesultater = kilderesultater,
+    resultater = map(kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat),
     par17_resultat = resultat.par17_resultat,
     par35_forløbsresultat = resultat.par35_forløbsresultat,
     par37_til40_forløbsresultat = resultat.par37_til40_forløbsresultat,
@@ -10004,7 +10030,7 @@
     input_gyldigt = resultat.input_gyldigt
 )
 | personskat_særligt_aktieaktiv_med_umiddelbare_par37_til40_resultater(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
-    | Some(forløb) -> personskat_særligt_aktieaktiv_med_resultater(resultat, forløb.fraflytningsresultat.umiddelbare_aktieavancebeskatningslov_resultater)
+    | Some(forløb) -> personskat_særligt_aktieaktiv_med_kilderesultater(resultat, forløb.fraflytningsresultat.umiddelbare_aktieavancebeskatningslov_kilderesultater)
     | None -> resultat
 }
 | personskat_aktieavance_uden_par37_til40(input: PersonskatAktieavanceInput) -> PersonskatAktieavanceInput(
@@ -10321,21 +10347,45 @@
     | IntetOrdinærtAktieår -> kgl_par32_tomt_par13a_aktieårsresultat(indkomstår)
     | BeregnetOrdinærtAktieår(årsresultat) -> årsresultat.årsresultat
 }
-| personskat_kgl_par32_supplerende_aktieårsresultat(resultat: PersonskatSærligtAktieaktivResultat) -> KglPar32AblKilderesultat(kilde = KursgevinstPar32AblKilderesultat(
-    resultat = resultat.resultat,
-    markedsstatus = resultat.fakta.markedsstatus,
-    input_gyldigt = resultat.input_gyldigt
-))
+| personskat_kgl_par32_supplerende_aktieårsresultat(kilderesultat: AktieavancebeskatningslovKilderesultat) -> match aktieavancebeskatningslov_kildegrundlag_markedsstatus(kilderesultat.kildegrundlag) {
+    | Some(markedsstatus) -> KglPar32AblKilderesultat(kilde = KursgevinstPar32AblKilderesultat(
+        resultat = kilderesultat.resultat,
+        markedsstatus = markedsstatus,
+        input_gyldigt = aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat)
+    ))
+    | None -> KglPar32AblKilderesultat(kilde = KursgevinstPar32AblKilderesultat(
+        resultat = kilderesultat.resultat,
+        markedsstatus = AblIkkeOptagetTilHandel,
+        input_gyldigt = Falskt
+    ))
+}
+| personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> map(kilderesultater, personskat_kgl_par32_supplerende_aktieårsresultat)
+| personskat_kgl_par32_supplerende_aktieårsresultater(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(resultat.kilderesultater)
 | personskat_kgl_par32_aktieårsgrundlag(resultat: PersonskatAktieavanceResultat, indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(
     par13a_årsresultat = personskat_kgl_par32_ordinært_aktieårsresultat(resultat, indkomstår),
-    supplerende_årsresultater = map(resultat.særlige_resultater, personskat_kgl_par32_supplerende_aktieårsresultat)
+    supplerende_årsresultater = foldl(resultat.særlige_resultater, [], |samlet: List(KursgevinstPar32SupplerendeAktieårsresultat), særligt_resultat: PersonskatSærligtAktieaktivResultat| concat(samlet, personskat_kgl_par32_supplerende_aktieårsresultater(særligt_resultat)))
 )
-| personskat_kgl_par32_abl_reference(resultat: PersonskatSærligtAktieaktivResultat, alle_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> KursgevinstPar32AblKontraktreference(
-    aktieaktiv_identifikation = resultat.fakta.identifikation,
-    relation = resultat.kgl_par32_kontraktrelation,
-    markedsstatus = resultat.fakta.markedsstatus,
-    input_gyldigt = resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(alle_aktiver, resultat.fakta)
-)
+| personskat_kgl_par32_kilderesultat_har_markedsstatus(kilderesultat: AktieavancebeskatningslovKilderesultat, forventet: AktieavanceOrdinærMarkedsstatus) -> match aktieavancebeskatningslov_kildegrundlag_markedsstatus(kilderesultat.kildegrundlag) { | Some(markedsstatus) -> markedsstatus == forventet | None -> Falskt }
+| personskat_kgl_par32_alle_kilderesultater_har_markedsstatus(kilderesultater: List(AktieavancebeskatningslovKilderesultat), forventet: AktieavanceOrdinærMarkedsstatus) -> length(kilderesultater) > 0 && all(kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat) && personskat_kgl_par32_kilderesultat_har_markedsstatus(kilderesultat, forventet))
+| personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater(kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> hvis personskat_kgl_par32_alle_kilderesultater_har_markedsstatus(kilderesultater, AblOptagetTilHandelPåReguleretMarked) {
+    Some(AblOptagetTilHandelPåReguleretMarked)
+} ellers hvis personskat_kgl_par32_alle_kilderesultater_har_markedsstatus(kilderesultater, AblOptagetTilHandelPåMultilateralHandelsfacilitet) {
+    Some(AblOptagetTilHandelPåMultilateralHandelsfacilitet)
+} ellers hvis personskat_kgl_par32_alle_kilderesultater_har_markedsstatus(kilderesultater, AblIkkeOptagetTilHandel) {
+    Some(AblIkkeOptagetTilHandel)
+} ellers {
+    None
+}
+| personskat_kgl_par32_entydig_markedsstatus(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_kgl_par32_entydig_markedsstatus_fra_kilderesultater(resultat.kilderesultater)
+| personskat_kgl_par32_abl_reference(resultat: PersonskatSærligtAktieaktivResultat, alle_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> {
+    = markedsstatus = personskat_kgl_par32_entydig_markedsstatus(resultat)
+    KursgevinstPar32AblKontraktreference(
+        aktieaktiv_identifikation = resultat.fakta.identifikation,
+        relation = resultat.kgl_par32_kontraktrelation,
+        markedsstatus = match markedsstatus { | Some(status) -> status | None -> AblIkkeOptagetTilHandel },
+        input_gyldigt = resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(alle_aktiver, resultat.fakta) && match markedsstatus { | Some(_) -> Sandt | None -> Falskt }
+    )
+}
 | personskat_kgl_par32_abl_referencer(resultat: PersonskatAktieavanceResultat) -> map(resultat.særlige_resultater, |særligt_resultat: PersonskatSærligtAktieaktivResultat| personskat_kgl_par32_abl_reference(særligt_resultat, resultat.input.særlige_aktiver))
 | personskat_kgl_par32_ægtefælle_aktieavance_resultat(par: PersonskatAktieavanceParResultat, indkomstår: Heltal) -> match par.ægtefælle {
     | IngenÆgtefælleAktieavance -> personskat_aktieavance_resultat(personskat_ingen_aktieavance(), indkomstår)
@@ -11288,6 +11338,7 @@
             PersonskatSærligtAktieaktivResultat(
                 fakta = resultat.fakta,
                 resultat = nyt_forløb.aktieavancebeskatningslov_resultat,
+                kilderesultater = nyt_forløb.fraflytningsresultat.aktieavancebeskatningslov_kilderesultater,
                 resultater = nyt_forløb.aktieavancebeskatningslov_resultater,
                 par17_resultat = resultat.par17_resultat,
                 par35_forløbsresultat = resultat.par35_forløbsresultat,

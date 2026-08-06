@@ -15,6 +15,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 ))
 | fraflytter_slutskat_saerligt_aktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput) -> AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
     klassifikation = klassifikation,
+    markedsstatus = AblIkkeOptagetTilHandel,
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,

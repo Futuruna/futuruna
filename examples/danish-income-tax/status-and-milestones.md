@@ -1,15 +1,15 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-02
+Last updated: 2026-08-03
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes nu som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; direkte, kanonisk og gennem JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
-Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; afventer uafhængig gennemgang)
+Current implementation slice: `td-4e42fd` (hvert ABL-resultat bevarer nu sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; fokuseret, kanonisk og gennem JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
+Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; afventer uafhængig gennemgang)
+Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
 Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
 Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
-Next exit-tax refinement: `td-4e42fd` (bevar hvert aktivs eget markeds- og indberetningsgrundlag til ABL § 13 A og KGL § 32)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -25,7 +25,7 @@ Previous language support slice: `td-8a34e0` (`refof`-referencer er implementere
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
-Latest approved implementation slice: `td-86bd9a`
+Latest approved implementation slice: `td-7469fc`
 Latest approved language slice: `td-8a34e0`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -4008,7 +4008,8 @@ Review candidates to revisit deliberately, not as broad churn:
   livscyklusberegning anvender fortsat kun § 8 a, når alle udgående resultater
   faktisk er aktieindkomst. En blandet portefølje returnerer derfor aldrig en
   opdigtet § 8 a-skat uden for den kanoniske Personskat-graf. Per-aktiv
-  markedsproveniens til § 13 A/KGL § 32 er afgrænset som `td-4e42fd`.
+  markedsproveniens til § 13 A/KGL § 32 er implementeret under `td-4e42fd`
+  og beskrevet nedenfor.
 - Under `td-8e8561` kan den kanoniske Personskat-graf nu beregne den blandede
   § 38-portefølje, som den lokale § 8 a-gren med vilje afviser. For hver aktuel
   fraflytningskilde afledes tre fulde slutskatteprojektioner: uden kildens
@@ -4031,6 +4032,29 @@ Review candidates to revisit deliberately, not as broad churn:
   ingen af kilderne. En direkte livscyklustest, fem kanoniske scenarier og en
   præcis JSON/XLSX-rundtur passerer; sidstnævnte gendanner også de indlejrede
   § 19 B/§ 19 C-aktivmassefakta og giver bit-for-bit samme fulde resultat.
+- Under `td-4e42fd` bærer hvert udsendt ABL-resultat nu sin egen
+  kildeidentifikation og et typet kildegrundlag. Det almindelige grundlag
+  bevarer markedsstatus, tidligere markedsoptagelse og § 14-oplysningsstatus;
+  det særlige grundlag bevarer aktivets egen markedsstatus. § 38 udsender et
+  sådant par for hvert aktieparti, og §§ 37-40-forløbet bevarer de fulde,
+  umiddelbare og henstandsvalgte lister. De ældre lister uden kildegrundlag
+  afledes mekanisk fra disse par og kontrolleres strukturelt mod dem.
+  Personskats § 13 A-grundlag og KGL § 32 flader nu resultaterne ud pr.
+  aktieparti i stedet for at genbruge porteføljens ydre markedsfelt. Et
+  fokusscenarie med 40.000 kr. noteret og 30.000 kr. unoteret § 19 B-gevinst
+  giver derfor præcis 40.000 kr. modregningskapacitet i begge regelsæt.
+  Manglende proveniens giver ingen kapacitet og et synligt ugyldigt
+  KGL-grundlag. En KGL-kontraktreference til et ABL-aktiv er kun gyldig, når
+  alle udsendte resultater har samme dokumenterede markedsstatus; en blandet
+  portefølje afvises som flertydig, mens enkeltkilder bevarer den hidtidige
+  kontrakt.
+  Den genererede arbejdsbog spørger nu om markedsstatus på hvert særligt
+  fraflytteraktiv med et dansk feltlabel. Det eksisterende ydre felt er bevaret
+  for enkeltstående kilder og forklaret som sådan i hjælpeteksten. Seks
+  fokuserede invarianter passerer i både fortolkeren og genereret Rust. Den
+  fulde kanoniske Personskat-kørsel passerer, og den komplette
+  JSON/XLSX-rundtur gendanner en blandet noteret/unoteret portefølje med samme
+  kilde-id'er, markedsgrene og bit-for-bit samme slutresultat.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,

@@ -32,6 +32,7 @@ fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
 ))
 | par38_klassifikation_saerligt_aktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput) -> AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
     klassifikation = klassifikation,
+    markedsstatus = AblIkkeOptagetTilHandel,
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
@@ -75,6 +76,7 @@ fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
         ),
         investeringsklassifikation = AblIngenInvesteringsklassifikation
     ),
+    markedsstatus = AblIkkeOptagetTilHandel,
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Sandt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
@@ -90,6 +92,7 @@ fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
         ),
         investeringsklassifikation = AblPar21Par22Klassifikation(input = abl22_klassifikationsresultat.input)
     ),
+    markedsstatus = AblIkkeOptagetTilHandel,
     koncernintern_konvertibel_eller_tegningsret = Falskt,
     andelsforening_stiftet_før_22_maj_1987 = Falskt,
     afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
@@ -172,14 +175,14 @@ fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
         par38_klassifikation_aktiepost("historisk-andel", 1, 120000, 100000, par38_klassifikation_historisk_andelsbevis, AblPar23Realisationsprincip),
     ])],
     udbytter = []
-), 2026)
+    ), 2026)
 = par38_klassifikation_par22_bagatel_resultat = personskat_aktieavance_resultat(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [par38_klassifikation_fraflytningskilde("par22-bagatel", [
         par38_klassifikation_aktiepost("par22-bagatel", 1, 101500, 100000, par38_klassifikation_par22_under_bagatelgraense, AblPar23Lagerprincip),
     ])],
     udbytter = []
-), 2026)
+    ), 2026)
 
 | par38_klassifikation_lovlig_nulbehandling(resultat: PersonskatAktieavanceResultat, forventet_aktiv: AktieavancebeskatningslovAktiv) -> resultat.alle_input_gyldige && resultat.personlig_indkomst_kroner == 0 && resultat.kapitalindkomst_kroner == 0 && resultat.aktieindkomst_kroner == 0 && match head(resultat.særlige_resultater).par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.fraflytningsresultat.par38_resultat.input_gyldigt && length(forløb.fraflytningsresultat.par38_resultat.aktieavancebeskatningslov_resultater) == 0 && head(forløb.fraflytningsresultat.par38_resultat.klassifikationsresultater).resultat.effektiv_aktiv == forventet_aktiv && head(forløb.fraflytningsresultat.par38_resultat.klassifikationsresultater).resultat.medregnes_i_skattepligtig_indkomst == Falskt
