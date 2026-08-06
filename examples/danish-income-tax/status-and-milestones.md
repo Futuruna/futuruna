@@ -3,9 +3,10 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-3681f7` (ABL §§ 37-40's fraflytterskat, henstand, årlige hændelser og tilbageflytning er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Next source-backed slice: `td-3681f7` (før ABL §§ 37-40's fraflytterskat, henstand og tilbageflytning gennem den kanoniske årsberegning)
+Previous implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
+Next canonical refinement: `td-aea204` (afled fraflytterskattens øvrige aktieindkomstkontekst fra den omgivende Personskat i stedet for at gentage samme års fakta)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -3827,8 +3828,8 @@ Review candidates to revisit deliberately, not as broad churn:
   identified material Personskat composition gaps for ABL § 5 A
   (`td-6766a4`) and paired § 13 A loss offsets (`td-ed02d8`), which are now
   implemented and awaiting independent review. Subsequent slices have also
-  closed the richer § 17 source model (`td-699438`) and §§ 35 G-35 K
-  (`td-0b0a4b`); the next ranked lifecycle gap is §§ 37-40 (`td-3681f7`). It also
+  closed the richer § 17 source model (`td-699438`), §§ 35 G-35 K
+  (`td-0b0a4b`) and the canonical §§ 37-40 lifecycle (`td-3681f7`). It also
   confirms public caller-derived current-law values in the residual KGL annual
   net (`td-5beddd`), untyped capital expenses (`td-151941`) and the PSL § 13
   deficit-eligibility flag (`td-292327`). Fixtures remain deliberately outside
@@ -3904,11 +3905,32 @@ Review candidates to revisit deliberately, not as broad churn:
   claims. The eventual full workbook remains downstream of the complete
   calculation contract rather than replacing legal recursion with precomputed
   caller values.
-- Aktieavancebeskatningsloven §§ 37-40 now cover entry value, personal exit-tax
-  scope and netting, the initial deferral decision, the persistent § 39 A
-  portfolio/deferred-tax ledger, § 39 B re-entry basis and § 40 paid-tax
-  reduction. The multi-period state remains a separate typed module instead of
-  being folded into § 39's one-time eligibility decision.
+- Aktieavancebeskatningsloven §§ 37-40 are now composed into the canonical
+  Personskat calculation under `td-3681f7`. A typed source record establishes
+  the departure holdings and their § 38 basis, derives the marginal § 8 a tax,
+  applies § 39's reporting and security conditions, creates the § 39 A
+  holdings/deferral ledger, replays ordered annual disposals, distributions,
+  loans, payments, reporting, documentation, death and § 40 reductions, and
+  applies § 39 B on re-entry. Callers provide legal facts and event history,
+  not a tax amount or mutable opening ledger. Invalid identifiers, years or
+  ordering fail closed without advancing the state; a negative acquisition
+  basis remains a valid statutory fact.
+  The departure-year gain enters share income exactly once, while new
+  deferral, amounts falling due, payments and balance lapse remain separate
+  collection-state outputs. In the canonical 2026 example, a 100.000 kr.
+  departure gain produces a 79.400 kr. low-rate basis and a 20.600 kr.
+  high-rate basis: 21.438 kr. is the final low-rate share-tax field, 8.652 kr.
+  enters the ordinary final assessment, and the total exit tax and new
+  deferral are both 30.090 kr.
+  The generated workbook exposes human-labelled parent, holding, event and
+  re-entry tables. One populated XLSX case and the equivalent direct JSON case
+  produce identical complete results, including the 30.090 kr. deferral, and
+  the workbook metadata preserves the official sources and guidance for
+  §§ 37-40. Nine focused lifecycle scenarios pass in both the interpreter and
+  generated Rust, including security denial, spouse threshold transfer,
+  negative basis, ordered multi-year replay, late reporting, re-entry and
+  death. The persistent multi-period state remains a separate typed module
+  instead of being folded into § 39's one-time eligibility decision.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -3959,11 +3981,13 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Compose ABL §§ 37-40's source-backed exit-tax, deferral and re-entry
-  lifecycle into the canonical annual Personskat graph under `td-3681f7`.
-  Establish and continue the § 39 A ledger from typed source history, preserve
-  annual tax and credit effects plus year-end state, and do not replace the
-  lifecycle with caller-supplied tax conclusions.
+- Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
+  lifecycle design. `td-aea204` derives the departure calculation's surrounding
+  own/spouse share-income context from canonical Personskat; `td-7469fc`
+  classifies § 38 gains by the applicable income category; and `td-3f2ee9`
+  makes a missing annual § 39 A report detectable rather than requiring an
+  explicit late-reporting event. These are bounded fidelity follow-ups, not a
+  reason to replace the derived ledger with caller-supplied conclusions.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

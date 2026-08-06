@@ -2709,6 +2709,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.opgørelsesår",
             "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.overdragelsesår",
             "kilde.PersonskatMedarbejderejeordningEfterPar35G.fakta.overdragelse.parterne_har_valgt_ordningen",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.identifikation",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.opgørelsesår",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsår",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.ophørsgrund",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.$variant",
             "markedsstatus",
         ] {
             assert!(
@@ -2748,6 +2754,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Opgørelsesår for medarbejderejeordningen",
             "År for overdragelsen til medarbejderejevirksomheden",
             "Parterne har valgt §§ 35 H-35 K",
+            "Fraflytterskatteforløbets identifikation",
+            "Opgørelsesår for fraflytterskatten",
+            "Indkomstår for fraflytningen",
+            "Grund til ophør af dansk beskatningsret",
+            "Øvrig egen aktieindkomst i fraflytningsåret",
+            "Tilbageflytning efter ABL § 39 B",
             "Det særlige aktivs markedsstatus",
         ] {
             assert!(
@@ -2803,6 +2815,78 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 par35_party_paths.iter().any(|path| path == expected),
                 "missing § 35 transferred-lot path {expected} on {par35_parties_sheet}"
+            );
+        }
+        let par37_shares_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktier";
+        let par37_shares_sheet = workbook_collection_sheet_name(&mut workbook, par37_shares_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par37_shares_sheet),
+            "Dansk personskat - Aktiepartier ved fraflytningen"
+        );
+        let par37_share_paths = workbook_column_paths(&mut workbook, &par37_shares_sheet);
+        for expected in [
+            "identifikation",
+            "selskabsidentifikation",
+            "erhvervelsesdato.år",
+            "handelsværdi_ved_ophør_kroner",
+            "skattemæssig_anskaffelsessum_kroner",
+            "opgørelseskilde.$variant",
+            "princip",
+            "henstandsvalg",
+        ] {
+            assert!(
+                par37_share_paths.iter().any(|path| path == expected),
+                "missing § 37-40 departure-lot path {expected} on {par37_shares_sheet}"
+            );
+        }
+        let par37_share_headers = workbook_headers(&mut workbook, &par37_shares_sheet);
+        for expected in [
+            "Fraflytteraktiens identifikation",
+            "Fraflytteraktiens selskab",
+            "Aktiepartiets erhvervelsesår",
+            "Handelsværdi ved fraflytningen",
+            "Skattemæssig anskaffelsessum ved fraflytningen",
+            "Opgørelsesmetode ved fraflytningen",
+            "Realisations- eller lagerprincip",
+            "Valg om henstand for aktiepartiet",
+        ] {
+            assert!(
+                par37_share_headers.iter().any(|header| header == expected),
+                "missing human § 37-40 departure-lot label {expected} on {par37_shares_sheet}"
+            );
+        }
+        let par37_events_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.hændelsesposter";
+        let par37_events_sheet = workbook_collection_sheet_name(&mut workbook, par37_events_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par37_events_sheet),
+            "Dansk personskat - Hændelser i fraflytterskatteforløbet"
+        );
+        let par37_event_headers = workbook_headers(&mut workbook, &par37_events_sheet);
+        for expected in [
+            "Fraflytterskattehændelsens identifikation",
+            "Fraflytterskattehændelsens indkomstår",
+            "Hændelsens rækkefølge i indkomståret",
+            "Hændelse efter ABL §§ 39 A-40",
+        ] {
+            assert!(
+                par37_event_headers.iter().any(|header| header == expected),
+                "missing human § 37-40 event label {expected} on {par37_events_sheet}"
+            );
+        }
+        let par39b_values_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.TilflytningEfterPar39B.tilflytningsværdier";
+        let par39b_values_sheet = workbook_collection_sheet_name(&mut workbook, par39b_values_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par39b_values_sheet),
+            "Dansk personskat - Handelsværdier ved tilbageflytningen"
+        );
+        let par39b_value_headers = workbook_headers(&mut workbook, &par39b_values_sheet);
+        for expected in [
+            "Aktieparti ved tilbageflytningen",
+            "Handelsværdi ved tilbageflytningen",
+        ] {
+            assert!(
+                par39b_value_headers.iter().any(|header| header == expected),
+                "missing human § 39 B value label {expected} on {par39b_values_sheet}"
             );
         }
         let ordinary_investment_certificates_path =
@@ -3408,6 +3492,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing PBL § 53 A source {expected}"
             );
         }
+        let table_metadata = workbook.worksheet_range("_tables").expect("table metadata");
+        let table_metadata_headers = table_metadata
+            .rows()
+            .next()
+            .expect("table metadata headers");
+        let table_path_column = table_metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "path")
+            .expect("table path metadata column");
+        let table_sources_column = table_metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "sources")
+            .expect("table sources metadata column");
+        let par37_to_40_source_row = table_metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(table_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some("aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktier")
+            })
+            .expect("ABL §§ 37-40 source metadata");
+        let par37_to_40_sources = par37_to_40_source_row
+            .get(table_sources_column)
+            .map(ToString::to_string)
+            .expect("ABL §§ 37-40 sources");
+        for expected in [
+            "aktieavancebeskatningsloven_lbk1098_par37",
+            "aktieavancebeskatningsloven_lbk1098_par38",
+            "aktieavancebeskatningsloven_lbk1098_par39",
+            "aktieavancebeskatningsloven_lbk1098_par39a",
+            "aktieavancebeskatningsloven_lbk1098_par39b",
+            "aktieavancebeskatningsloven_lbk1098_par40",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par37",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger",
+            "aktieavancebeskatningsloven_juridisk_vejledning_par39b",
+        ] {
+            assert!(
+                par37_to_40_sources.contains(expected),
+                "missing ABL §§ 37-40 source {expected}"
+            );
+        }
         let par5a_source_row = metadata
             .rows()
             .skip(1)
@@ -3661,6 +3795,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fill_wage_case(sheets, 16, "personskat-udbytte-2026");
         fill_wage_case(sheets, 17, "personskat-etableringskonto-2026");
         fill_wage_case(sheets, 18, "personskat-par35-medarbejdereje-2026");
+        fill_wage_case(sheets, 19, "personskat-par37-40-fraflytning-2026");
         for (header, value) in [
             (
                 "lønmodtager.personlig_indkomst.etableringskonto.$variant",
@@ -7112,6 +7247,148 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ] {
             set_workbook_cell_by_header(sheets, &par35_events_sheet, 1, header, value);
         }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-par37-40-fraflytning-2026".to_string()),
+            ),
+            ("item_id", Data::String("par37-40-forloeb-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "kilde.$variant",
+                Data::String("PersonskatFraflytteraktierEfterPar37Til40".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.identifikation",
+                Data::String("personskat-fraflytning-2026".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.opgørelsesår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.ophørsgrund",
+                Data::String(
+                    "AblPar38OphørAfSkattepligtEfterKildeskattelovPar1".to_string(),
+                ),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.tilknytning",
+                Data::String("AblPar38MindstSyvÅrIndenForSenesteTiÅr".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktieindkomstkontekst.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktieindkomstkontekst.samlevende_med_ægtefælle_ved_indkomstårets_udløb",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.indberetning.oplysninger_efter_skattekontrollov_par2",
+                Data::String("AblPar39RettidigOrdinærFrist".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.indberetning.beholdningsoversigt_efter_par39a",
+                Data::String("AblPar39RettidigOrdinærFrist".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.bopæl.oprindeligt_fraflytningsland",
+                Data::String(
+                    "AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv".to_string(),
+                ),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.bopæl.aktuelt_land",
+                Data::String(
+                    "AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv".to_string(),
+                ),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.bopæl.frigivelse_af_sikkerhed_anmodet",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.sikkerhed.$variant",
+                Data::String("AblPar39IngenSikkerhedStillet".to_string()),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.$variant",
+                Data::String("IngenTilflytningEfterPar39B".to_string()),
+            ),
+            (
+                "markedsstatus",
+                Data::String("AblIkkeOptagetTilHandel".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "aktieavance_særlige_aktiver", 3, header, value);
+        }
+        let par37_shares_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.aktier";
+        let par37_shares_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, par37_shares_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-par37-40-fraflytning-2026".to_string()),
+            ),
+            ("parent_id", Data::String("par37-40-forloeb-1".to_string())),
+            ("item_id", Data::String("par37-40-parti-1".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("personskat-fraflytteraktie".to_string()),
+            ),
+            (
+                "selskabsidentifikation",
+                Data::String("DK-PERSONSKAT-FRAFLYTNING".to_string()),
+            ),
+            ("aktieserie", Data::String("ordinær".to_string())),
+            ("erhvervelsesdato.år", Data::Int(2020)),
+            ("erhvervelsesdato.måned", Data::Int(4)),
+            ("erhvervelsesdato.dag", Data::Int(5)),
+            ("erhvervelsesrækkefølge", Data::Int(1)),
+            ("antal", Data::Int(100)),
+            ("handelsværdi_ved_ophør_kroner", Data::Int(200_000)),
+            ("skattemæssig_anskaffelsessum_kroner", Data::Int(100_000)),
+            (
+                "beskatningsstatus",
+                Data::String("AblPar38AktieOmfattetAfDanskBeskatning".to_string()),
+            ),
+            (
+                "par44_status",
+                Data::String("AblPar38IkkeHistoriskPar44Aktie".to_string()),
+            ),
+            (
+                "opgørelseskilde.$variant",
+                Data::String("AblPar37Til40OpgørelseEfterPar23Til29Og46".to_string()),
+            ),
+            (
+                "tabsstatus",
+                Data::String("AblPar38TabFradragsberettigetEfterStk4".to_string()),
+            ),
+            (
+                "princip",
+                Data::String("AblPar23Realisationsprincip".to_string()),
+            ),
+            (
+                "henstandsvalg",
+                Data::String("AblPar37Til40HenstandSøges".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &par37_shares_sheet, 1, header, value);
+        }
         set_workbook_cell_by_header(
             sheets,
             "cases",
@@ -9086,6 +9363,84 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par35_case);
+    let mut par37_case = json_input["cases"][0].clone();
+    par37_case["case_id"] = Value::String("personskat-par37-40-fraflytning-2026".into());
+    par37_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([{
+        "kilde": {
+            "$variant": "PersonskatFraflytteraktierEfterPar37Til40",
+            "fakta": {
+                "identifikation": "personskat-fraflytning-2026",
+                "opgørelsesår": 2026,
+                "fraflytning": {
+                    "fraflytningsår": 2026,
+                    "ophørsgrund": {
+                        "$variant": "AblPar38OphørAfSkattepligtEfterKildeskattelovPar1"
+                    },
+                    "tilknytning": {
+                        "$variant": "AblPar38MindstSyvÅrIndenForSenesteTiÅr"
+                    },
+                    "aktier": [{
+                        "identifikation": "personskat-fraflytteraktie",
+                        "selskabsidentifikation": "DK-PERSONSKAT-FRAFLYTNING",
+                        "aktieserie": "ordinær",
+                        "erhvervelsesdato": { "år": 2020, "måned": 4, "dag": 5 },
+                        "erhvervelsesrækkefølge": 1,
+                        "antal": 100,
+                        "handelsværdi_ved_ophør_kroner": 200_000,
+                        "skattemæssig_anskaffelsessum_kroner": 100_000,
+                        "beskatningsstatus": {
+                            "$variant": "AblPar38AktieOmfattetAfDanskBeskatning"
+                        },
+                        "par44_status": {
+                            "$variant": "AblPar38IkkeHistoriskPar44Aktie"
+                        },
+                        "egenskaber": [],
+                        "opgørelseskilde": {
+                            "$variant": "AblPar37Til40OpgørelseEfterPar23Til29Og46"
+                        },
+                        "tabsstatus": {
+                            "$variant": "AblPar38TabFradragsberettigetEfterStk4"
+                        },
+                        "princip": { "$variant": "AblPar23Realisationsprincip" },
+                        "henstandsvalg": {
+                            "$variant": "AblPar37Til40HenstandSøges"
+                        }
+                    }],
+                    "aktieindkomstkontekst": {
+                        "indkomstår": 2026,
+                        "øvrig_egen_aktieindkomst_kroner": 0,
+                        "ægtefælles_aktieindkomst_kroner": 0,
+                        "samlevende_med_ægtefælle_ved_indkomstårets_udløb": false
+                    },
+                    "indberetning": {
+                        "oplysninger_efter_skattekontrollov_par2": {
+                            "$variant": "AblPar39RettidigOrdinærFrist"
+                        },
+                        "beholdningsoversigt_efter_par39a": {
+                            "$variant": "AblPar39RettidigOrdinærFrist"
+                        }
+                    },
+                    "bopæl": {
+                        "oprindeligt_fraflytningsland": {
+                            "$variant": "AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv"
+                        },
+                        "aktuelt_land": {
+                            "$variant": "AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv"
+                        },
+                        "frigivelse_af_sikkerhed_anmodet": false
+                    },
+                    "sikkerhed": { "$variant": "AblPar39IngenSikkerhedStillet" }
+                },
+                "hændelsesposter": [],
+                "tilflytning": { "$variant": "IngenTilflytningEfterPar39B" }
+            }
+        },
+        "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par37_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -9290,6 +9645,76 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         par35_event["hændelse"]["data"]["hændelsesidentifikation"],
         "personskat-par35-salg-2026"
+    );
+    let xlsx_par37_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-fraflytning-2026")
+        .expect("XLSX §§ 37-40 departure result");
+    let json_par37_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par37-40-fraflytning-2026")
+        .expect("JSON §§ 37-40 departure result");
+    assert_eq!(xlsx_par37_result["result"], json_par37_result["result"]);
+    assert_eq!(
+        xlsx_par37_result["result"]["aktieavance"]["aktieindkomst_kroner"],
+        100_000
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["endelig_aktieindkomstskat_kroner"],
+        21_438
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["positiv_aktieindkomstskat"]["lavt_grundlag_kroner"],
+        79_400
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["positiv_aktieindkomstskat"]["højt_grundlag_kroner"],
+        20_600
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["positiv_aktieindkomstskat"]["slutskat_indgående_skat_kroner"],
+        8_652
+    );
+    assert_eq!(
+        xlsx_par37_result["result"]["positiv_aktieindkomstskat"]["samlet_skat_kroner"],
+        30_090
+    );
+    let par37_special_result = &xlsx_par37_result["result"]["aktieavance"]["særlige_resultater"][0];
+    assert_eq!(par37_special_result["input_gyldigt"], true);
+    assert_eq!(
+        par37_special_result["årets_nye_henstand_med_fraflytterskat_kroner"],
+        30_090
+    );
+    assert_eq!(
+        par37_special_result["årets_forfaldne_fraflytterskat_kroner"],
+        0
+    );
+    assert_eq!(
+        par37_special_result["årets_betalte_fraflytterskat_kroner"],
+        0
+    );
+    assert_eq!(
+        par37_special_result["årets_fraflytterskat_saldobortfald_kroner"],
+        0
+    );
+    let par37_trace = &par37_special_result["par37_til40_forløbsresultat"];
+    assert_eq!(par37_trace["input_gyldigt"], true);
+    assert_eq!(par37_trace["årets_beregnede_fraflytterskat_kroner"], 30_090);
+    assert_eq!(par37_trace["årets_nye_henstand_kroner"], 30_090);
+    assert_eq!(
+        par37_trace["tilstand_ultimo"]["henstandssaldo_kroner"],
+        30_090
+    );
+    assert_eq!(
+        par37_trace["tilstand_ultimo"]["beholdning"]
+            .as_array()
+            .expect("§§ 37-40 closing departure holdings")
+            .len(),
+        1
     );
     let xlsx_debt_result = result["results"]
         .as_array()

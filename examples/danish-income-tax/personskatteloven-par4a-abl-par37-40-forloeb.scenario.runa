@@ -1,0 +1,291 @@
+@ sprog da
+
+@ importer ./aktieavancebeskatningsloven - par37 - 40 - forloeb
+
+| abl37_til40_scenarie_aktie(identifikation: Tekst, anskaffelsessum_kroner: Heltal, handelsværdi_kroner: Heltal) -> AktieavancePar37Til40AktiepostFakta(
+    identifikation = identifikation,
+    selskabsidentifikation = "DK-A/S",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 4, dag = 5),
+    erhvervelsesrækkefølge = 1,
+    antal = 100,
+    handelsværdi_ved_ophør_kroner = handelsværdi_kroner,
+    skattemæssig_anskaffelsessum_kroner = anskaffelsessum_kroner,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip,
+    henstandsvalg = AblPar37Til40HenstandSøges
+)
+| abl37_til40_scenarie_kontekst(indkomstår: Heltal, egen_aktieindkomst_kroner: Heltal, ægtefælles_aktieindkomst_kroner: Heltal, samlevende: Boolsk) -> AktieavancePar37Til40Aktieindkomstkontekst(
+    indkomstår = indkomstår,
+    øvrig_egen_aktieindkomst_kroner = egen_aktieindkomst_kroner,
+    ægtefælles_aktieindkomst_kroner = ægtefælles_aktieindkomst_kroner,
+    samlevende_med_ægtefælle_ved_indkomstårets_udløb = samlevende
+)
+| abl37_til40_scenarie_fraflytning(indkomstår: Heltal, aktie: AktieavancePar37Til40AktiepostFakta, kontekst: AktieavancePar37Til40Aktieindkomstkontekst) -> AktieavancePar37Til40Fraflytningsfakta(
+    fraflytningsår = indkomstår,
+    ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+    tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+    aktier = [aktie],
+    aktieindkomstkontekst = kontekst,
+    indberetning = AktieavancePar39Indberetning(
+        oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+        beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+    ),
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+)
+| abl37_til40_scenarie_forløb(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: AktieavancePar37Til40Fraflytningsfakta, poster: List(AktieavancePar37Til40Hændelsespost), tilflytning: AktieavancePar37Til40Tilflytning) -> aktieavance_par37_til40_forløbsresultat(AktieavancePar37Til40Forløbsinput(
+    identifikation = identifikation,
+    opgørelsesår = opgørelsesår,
+    fraflytning = fraflytning,
+    hændelsesposter = poster,
+    tilflytning = tilflytning
+))
+
+= abl37_til40_officiel_2026_fraflytning = abl37_til40_scenarie_fraflytning(
+    indkomstår = 2026,
+    aktie = abl37_til40_scenarie_aktie(identifikation = "OFFICIEL-2026", anskaffelsessum_kroner = 100000, handelsværdi_kroner = 200000),
+    kontekst = abl37_til40_scenarie_kontekst(indkomstår = 2026, egen_aktieindkomst_kroner = 61000, ægtefælles_aktieindkomst_kroner = 0, samlevende = Falskt)
+)
+= abl37_til40_officiel_2026 = abl37_til40_scenarie_forløb(
+    identifikation = "officiel-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_officiel_2026_fraflytning,
+    poster = [],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_uden_sikkerhed_fraflytning = AktieavancePar37Til40Fraflytningsfakta(
+    fraflytningsår = abl37_til40_officiel_2026_fraflytning.fraflytningsår,
+    ophørsgrund = abl37_til40_officiel_2026_fraflytning.ophørsgrund,
+    tilknytning = abl37_til40_officiel_2026_fraflytning.tilknytning,
+    aktier = abl37_til40_officiel_2026_fraflytning.aktier,
+    aktieindkomstkontekst = abl37_til40_officiel_2026_fraflytning.aktieindkomstkontekst,
+    indberetning = abl37_til40_officiel_2026_fraflytning.indberetning,
+    bopæl = AktieavancePar39Bopæl(
+        oprindeligt_fraflytningsland = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        aktuelt_land = AblPar39LandIkkeOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+        frigivelse_af_sikkerhed_anmodet = Falskt
+    ),
+    sikkerhed = AblPar39IngenSikkerhedStillet
+)
+= abl37_til40_uden_sikkerhed = abl37_til40_scenarie_forløb(
+    identifikation = "uden-sikkerhed",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_uden_sikkerhed_fraflytning,
+    poster = [],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_ægtefælle_2026 = abl37_til40_scenarie_forløb(
+    identifikation = "ægtefælle-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_scenarie_fraflytning(
+        indkomstår = 2026,
+        aktie = abl37_til40_scenarie_aktie(identifikation = "ÆGTEFÆLLE-2026", anskaffelsessum_kroner = 100000, handelsværdi_kroner = 200000),
+        kontekst = abl37_til40_scenarie_kontekst(indkomstår = 2026, egen_aktieindkomst_kroner = 61000, ægtefælles_aktieindkomst_kroner = 0, samlevende = Sandt)
+    ),
+    poster = [],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_negativ_basis_2026 = abl37_til40_scenarie_forløb(
+    identifikation = "negativ-basis-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_scenarie_fraflytning(
+        indkomstår = 2026,
+        aktie = abl37_til40_scenarie_aktie(identifikation = "NEGATIV-BASIS", anskaffelsessum_kroner = -10000, handelsværdi_kroner = 50000),
+        kontekst = abl37_til40_scenarie_kontekst(indkomstår = 2026, egen_aktieindkomst_kroner = 0, ægtefælles_aktieindkomst_kroner = 0, samlevende = Falskt)
+    ),
+    poster = [],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_krydsår_fraflytning = abl37_til40_scenarie_fraflytning(
+    indkomstår = 2024,
+    aktie = abl37_til40_scenarie_aktie(identifikation = "KRYDSÅR", anskaffelsessum_kroner = 100000, handelsværdi_kroner = 200000),
+    kontekst = abl37_til40_scenarie_kontekst(indkomstår = 2024, egen_aktieindkomst_kroner = 0, ægtefælles_aktieindkomst_kroner = 0, samlevende = Falskt)
+)
+= abl37_til40_krydsår_udbytte = AktieavancePar37Til40Hændelsespost(
+    identifikation = "udbytte-2025",
+    indkomstår = 2025,
+    rækkefølge_i_indkomståret = 1,
+    hændelse = AblPar39AUdbytte(data = AktieavancePar39AUdlodningsdata(
+        hændelsesidentifikation = "udbytte-2025",
+        selskabsidentifikation = "DK-A/S",
+        skatteår = 2025,
+        beregningsgrundlag_kroner = 10000,
+        betalt_dansk_skat_kroner = 0,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0
+    ))
+)
+= abl37_til40_krydsår_betaling = AktieavancePar37Til40Hændelsespost(
+    identifikation = "betaling-2025",
+    indkomstår = 2025,
+    rækkefølge_i_indkomståret = 2,
+    hændelse = AblPar39ABetaling(data = AktieavancePar39ABetaling(
+        forfaldsidentifikation = "udbytte-2025:forfald",
+        beløb_kroner = 2700,
+        art = AblPar39ABetalingAfForfaldspost,
+        friststatus = AblPar39ABetalingRettidigDen20
+    ))
+)
+= abl37_til40_krydsår_årsoplysninger_2025 = AktieavancePar37Til40Hændelsespost(
+    identifikation = "årsoplysninger-2025",
+    indkomstår = 2025,
+    rækkefølge_i_indkomståret = 3,
+    hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-2025",
+        indkomstår = 2025,
+        friststatus = AblPar39ARettidig1Juli,
+        adresse_oplyst = Sandt
+    ))
+)
+= abl37_til40_krydsår_salg = AktieavancePar37Til40Hændelsespost(
+    identifikation = "salg-2026",
+    indkomstår = 2026,
+    rækkefølge_i_indkomståret = 1,
+    hændelse = AblPar39AAfståelse(data = AktieavancePar39AAfståelsesdata(
+        hændelsesidentifikation = "salg-2026",
+        selskabsidentifikation = "DK-A/S",
+        aktieserie = "ordinær",
+        antal = 50,
+        afståelsessum_kroner = 120000,
+        skatteår = 2026,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        udenlandsk_tabsfradrag_efter_stk3 = AktieavancePar39ATabsfradrag(fradrag_i_udlandet = Falskt, negativ_skatteværdi_i_udlandet_kroner = 0),
+        udenlandsk_tabsfradrag_efter_stk4 = AktieavancePar39ATabsfradrag(fradrag_i_udlandet = Falskt, negativ_skatteværdi_i_udlandet_kroner = 0),
+        uudnyttet_realiseret_tab_kan_fremføres = Falskt
+    ))
+)
+= abl37_til40_krydsår_årsoplysninger_2026 = AktieavancePar37Til40Hændelsespost(
+    identifikation = "årsoplysninger-2026",
+    indkomstår = 2026,
+    rækkefølge_i_indkomståret = 2,
+    hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+        hændelsesidentifikation = "årsoplysninger-2026",
+        indkomstår = 2026,
+        friststatus = AblPar39ARettidig1Juli,
+        adresse_oplyst = Sandt
+    ))
+)
+= abl37_til40_krydsår_poster = [
+    abl37_til40_krydsår_udbytte,
+    abl37_til40_krydsår_betaling,
+    abl37_til40_krydsår_årsoplysninger_2025,
+    abl37_til40_krydsår_salg,
+    abl37_til40_krydsår_årsoplysninger_2026,
+]
+= abl37_til40_krydsår = abl37_til40_scenarie_forløb(
+    identifikation = "krydsår-2024-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_krydsår_fraflytning,
+    poster = abl37_til40_krydsår_poster,
+    tilflytning = IngenTilflytningEfterPar39B
+)
+= abl37_til40_forkert_rækkefølge = abl37_til40_scenarie_forløb(
+    identifikation = "forkert-rækkefølge",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_krydsår_fraflytning,
+    poster = [abl37_til40_krydsår_betaling, abl37_til40_krydsår_udbytte],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_manglende_årsoplysninger = abl37_til40_scenarie_forløb(
+    identifikation = "manglende-årsoplysninger",
+    opgørelsesår = 2025,
+    fraflytning = abl37_til40_krydsår_fraflytning,
+    poster = [AktieavancePar37Til40Hændelsespost(
+        identifikation = "for-sene-årsoplysninger-2025",
+        indkomstår = 2025,
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+            hændelsesidentifikation = "for-sene-årsoplysninger-2025",
+            indkomstår = 2025,
+            friststatus = AblPar39AÅrsoplysningerForSent,
+            adresse_oplyst = Sandt
+        ))
+    )],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+= abl37_til40_tilflytning_2026 = abl37_til40_scenarie_forløb(
+    identifikation = "tilflytning-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_krydsår_fraflytning,
+    poster = [
+        abl37_til40_krydsår_udbytte,
+        abl37_til40_krydsår_betaling,
+        abl37_til40_krydsår_årsoplysninger_2025,
+        abl37_til40_krydsår_salg,
+    ],
+    tilflytning = TilflytningEfterPar39B(
+        identifikation = "tilflytning-2026",
+        indkomstår = 2026,
+        rækkefølge_i_indkomståret = 2,
+        tilflytningsværdier = [AktieavancePar39BTilflytningsværdi(partiidentifikation = "KRYDSÅR", handelsværdi_kroner = 90000)],
+        får_på_ny_skattemæssigt_hjemsted_i_danmark = Sandt,
+        samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt
+    )
+)
+
+= abl37_til40_død_2026 = abl37_til40_scenarie_forløb(
+    identifikation = "død-2026",
+    opgørelsesår = 2026,
+    fraflytning = abl37_til40_scenarie_fraflytning(
+        indkomstår = 2025,
+        aktie = abl37_til40_scenarie_aktie(identifikation = "DØD", anskaffelsessum_kroner = 100000, handelsværdi_kroner = 200000),
+        kontekst = abl37_til40_scenarie_kontekst(indkomstår = 2025, egen_aktieindkomst_kroner = 0, ægtefælles_aktieindkomst_kroner = 0, samlevende = Falskt)
+    ),
+    poster = [AktieavancePar37Til40Hændelsespost(
+        identifikation = "død-2026",
+        indkomstår = 2026,
+        rækkefølge_i_indkomståret = 1,
+        hændelse = AblPar39ADød(data = AktieavancePar39ADødsdata(
+            hændelsesidentifikation = "død-2026",
+            afståelser_til_markedsværdi = [AktieavancePar39AAfståelsesdata(
+                hændelsesidentifikation = "død-2026-salg",
+                selskabsidentifikation = "DK-A/S",
+                aktieserie = "ordinær",
+                antal = 100,
+                afståelsessum_kroner = 200000,
+                skatteår = 2026,
+                godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+                udenlandsk_tabsfradrag_efter_stk3 = AktieavancePar39ATabsfradrag(fradrag_i_udlandet = Falskt, negativ_skatteværdi_i_udlandet_kroner = 0),
+                udenlandsk_tabsfradrag_efter_stk4 = AktieavancePar39ATabsfradrag(fradrag_i_udlandet = Falskt, negativ_skatteværdi_i_udlandet_kroner = 0),
+                uudnyttet_realiseret_tab_kan_fremføres = Falskt
+            )]
+        ))
+    )],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+
+| scenarie_abl37_til40_officiel_marginalskat_afledes: abl37_til40_officiel_2026 -> abl37_til40_officiel_2026.input_gyldigt && abl37_til40_officiel_2026.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == 16470 && abl37_til40_officiel_2026.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 55710 && abl37_til40_officiel_2026.årets_beregnede_fraflytterskat_kroner == 39240 && abl37_til40_officiel_2026.årets_nye_henstand_kroner == 39240 && abl37_til40_officiel_2026.tilstand_ultimo.henstandssaldo_kroner == 39240
+| scenarie_abl37_til40_uden_sikkerhed_forfalder_skatten: abl37_til40_uden_sikkerhed -> abl37_til40_uden_sikkerhed.input_gyldigt && abl37_til40_uden_sikkerhed.fraflytningsresultat.par39_resultat.henstand_afvist_på_grund_af_sikkerhed && abl37_til40_uden_sikkerhed.årets_nye_henstand_kroner == 0 && abl37_til40_uden_sikkerhed.årets_skat_til_betaling_ved_fraflytning_kroner == 39240 && length(abl37_til40_uden_sikkerhed.tilstand_ultimo.beholdning) == 0
+| scenarie_abl37_til40_ægtefælles_ubenyttede_grundbeløb_afledes: abl37_til40_ægtefælle_2026 -> abl37_til40_ægtefælle_2026.input_gyldigt && abl37_til40_ægtefælle_2026.fraflytningsresultat.effektivt_aktiegrundbeløb_kroner == 158800 && abl37_til40_ægtefælle_2026.årets_beregnede_fraflytterskat_kroner == 27330
+| scenarie_abl37_til40_negativ_basis_bevares_fra_kilden: abl37_til40_negativ_basis_2026 -> abl37_til40_negativ_basis_2026.input_gyldigt && abl37_til40_negativ_basis_2026.fraflytningsresultat.par38_resultat.særlig_beholdning_efter_stk2 && abl37_til40_negativ_basis_2026.fraflytningsresultat.par38_resultat.nettogevinst_til_skatteberegning_efter_stk5_kroner == 60000 && head(abl37_til40_negativ_basis_2026.tilstand_ultimo.beholdning).resterende_anskaffelsessum_efter_par38_kroner == -10000
+| scenarie_abl37_til40_krydsår_genafspilles_i_orden: abl37_til40_krydsår -> abl37_til40_krydsår.input_gyldigt && length(abl37_til40_krydsår.hændelsesresultater) == 5 && abl37_til40_krydsår.årets_nye_forfald_kroner == 18900 && abl37_til40_krydsår.årets_betalte_fraflytterskat_kroner == 0 && abl37_til40_krydsår.tilstand_ultimo.henstandssaldo_kroner == 30150 && head(abl37_til40_krydsår.tilstand_ultimo.beholdning).resterende_antal == 50
+| scenarie_abl37_til40_forkert_rækkefølge_er_fail_closed: abl37_til40_forkert_rækkefølge -> abl37_til40_forkert_rækkefølge.input_gyldigt == Falskt && abl37_til40_forkert_rækkefølge.årets_nye_forfald_kroner == 0 && abl37_til40_forkert_rækkefølge.tilstand_ultimo == abl37_til40_forkert_rækkefølge.fraflytningsresultat.tilstand_primo
+| scenarie_abl37_til40_for_sene_årsoplysninger_udløser_forfald: abl37_til40_manglende_årsoplysninger -> abl37_til40_manglende_årsoplysninger.input_gyldigt && abl37_til40_manglende_årsoplysninger.årets_nye_forfald_kroner == abl37_til40_manglende_årsoplysninger.fraflytningsresultat.par39_resultat.henstandsbeløb_kroner && abl37_til40_manglende_årsoplysninger.tilstand_ultimo.henstand_aktiv == Falskt
+| scenarie_abl37_til40_tilflytning_afleder_ny_basis_og_bortfald: abl37_til40_tilflytning_2026 -> match abl37_til40_tilflytning_2026.tilflytningsresultat { | Some(resultat) -> abl37_til40_tilflytning_2026.input_gyldigt && resultat.par37_finder_anvendelse && resultat.samlet_nedsættelse_kroner == 40000 && head(resultat.indgangsværdier).reguleret_indgangsværdi_kroner == 50000 && abl37_til40_tilflytning_2026.årets_saldobortfald_kroner == 11250 && abl37_til40_tilflytning_2026.tilstand_ultimo.henstandssaldo_kroner == 18900 | None -> Falskt }
+| scenarie_abl37_til40_død_realiserer_resterende_beholdning: abl37_til40_død_2026 -> abl37_til40_død_2026.input_gyldigt && abl37_til40_død_2026.årets_nye_forfald_kroner > 0 && length(abl37_til40_død_2026.tilstand_ultimo.beholdning) == 0
+
+? scenarie_abl37_til40_officiel_marginalskat_afledes
+? scenarie_abl37_til40_uden_sikkerhed_forfalder_skatten
+? scenarie_abl37_til40_ægtefælles_ubenyttede_grundbeløb_afledes
+? scenarie_abl37_til40_negativ_basis_bevares_fra_kilden
+? scenarie_abl37_til40_krydsår_genafspilles_i_orden
+? scenarie_abl37_til40_forkert_rækkefølge_er_fail_closed
+? scenarie_abl37_til40_for_sene_årsoplysninger_udløser_forfald
+? scenarie_abl37_til40_tilflytning_afleder_ny_basis_og_bortfald
+? scenarie_abl37_til40_død_realiserer_resterende_beholdning
+
+@ print("Aktieavancebeskatningsloven §§ 37-40: 9 kildefaktabaserede fraflytnings-, henstands- og tilflytningsscenarier kontrolleret")

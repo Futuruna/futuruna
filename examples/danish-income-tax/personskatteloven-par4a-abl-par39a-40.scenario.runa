@@ -61,6 +61,40 @@
     uudnyttede_realiserede_tab_kan_fremføres = Falskt,
     henstand_aktiv = Sandt
 )
+= abl39a_negativt_basisparti = AktieavancePar39ABeholdningsparti(
+    identifikation = "NEG-2020",
+    selskabsidentifikation = "NEG",
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 4, dag = 5),
+    erhvervelsesrækkefølge = 1,
+    resterende_antal = 100,
+    resterende_anskaffelsessum_efter_par38_kroner = -20000,
+    resterende_værdi_ved_fraflytning_kroner = 30000,
+    par44_status = AblPar39AIkkeOmfattetAfPar44,
+    indgik_i_nettotab_ved_fraflytning = Falskt
+)
+= abl39a_negativt_basistilstand = AktieavancePar39ATilstand(
+    beholdning = [abl39a_negativt_basisparti],
+    henstandssaldo_kroner = 13500,
+    forfaldsposter = [],
+    uudnyttede_realiserede_tab_kan_fremføres = Falskt,
+    henstand_aktiv = Sandt
+)
+= abl39a_negativt_basis_salg = aktieavance_par39a_hændelsesresultat(
+    tilstand = abl39a_negativt_basistilstand,
+    hændelse = AblPar39AAfståelse(data = AktieavancePar39AAfståelsesdata(
+        hændelsesidentifikation = "salg-negativ-basis",
+        selskabsidentifikation = "NEG",
+        aktieserie = "ordinær",
+        antal = 100,
+        afståelsessum_kroner = 50000,
+        skatteår = 2026,
+        godkendt_fradrag_efter_ligningslov_par33_kroner = 0,
+        udenlandsk_tabsfradrag_efter_stk3 = abl39a_intet_tabsfradrag,
+        udenlandsk_tabsfradrag_efter_stk4 = abl39a_intet_tabsfradrag,
+        uudnyttet_realiseret_tab_kan_fremføres = Falskt
+    ))
+)
 
 | abl39a_afståelse_halvdelen_af_a_i_år(skatteår: Heltal) -> AktieavancePar39AAfståelsesdata(
     hændelsesidentifikation = "salg-a-halv",
@@ -739,6 +773,7 @@
 )
 
 | scenarie_abl39a_tilstanden_bevarer_ledger_invarianter: abl39a_tilstand -> aktieavance_par39a_tilstand_gyldig(abl39a_tilstand) && length(abl39a_tilstand.beholdning) == 3 && abl39a_tilstand.henstandssaldo_kroner == 100000 && aktieavance_par39a_samlet_anskaffelsessum_kroner(abl39a_tilstand.beholdning) == 240000 && aktieavance_par39a_samlet_fraflytningsværdi_kroner(abl39a_tilstand.beholdning) == 300000
+| scenarie_abl39a_negativ_anskaffelsessum_bevares_i_beholdningen: abl39a_negativt_basis_salg -> aktieavance_par39a_tilstand_gyldig(abl39a_negativt_basistilstand) && abl39a_negativt_basis_salg.hændelse_gyldig && abl39a_negativt_basis_salg.gevinst_efter_stk2_kroner == 70000 && abl39a_negativt_basis_salg.beregnet_skat_efter_par8a_kroner == 18900 && abl39a_negativt_basis_salg.nyt_forfald_kroner == 13500 && head(abl39a_negativt_basis_salg.tilstand_før.beholdning).resterende_anskaffelsessum_efter_par38_kroner == -20000 && length(abl39a_negativt_basis_salg.tilstand_efter.beholdning) == 0
 | scenarie_abl39a_fifo_delsalg_beregner_gevinst_og_forfald: abl39a_afståelse_halvdelen_af_a_resultat -> abl39a_afståelse_halvdelen_af_a_resultat.hændelse_gyldig && abl39a_afståelse_halvdelen_af_a_resultat.gevinst_efter_stk2_kroner == 50000 && abl39a_afståelse_halvdelen_af_a_resultat.beregnet_skat_efter_par8a_kroner == 13500 && abl39a_afståelse_halvdelen_af_a_resultat.nyt_forfald_kroner == 11500 && head(abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.beholdning).resterende_antal == 50 && head(abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.beholdning).resterende_anskaffelsessum_efter_par38_kroner == 50000 && abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter.henstandssaldo_kroner == 100000
 | scenarie_abl39a_ikke_understøttet_skatteår_afvises_før_skatteberegning: abl39a_afståelse_i_ikke_understøttet_år_resultat -> abl39a_afståelse_i_ikke_understøttet_år_resultat.hændelse_gyldig == Falskt && abl39a_afståelse_i_ikke_understøttet_år_resultat.beregnet_skat_efter_par8a_kroner == 0 && abl39a_afståelse_i_ikke_understøttet_år_resultat.tilstand_efter == abl39a_tilstand
 | scenarie_abl39a_betaling_nedskriver_saldo_og_fordring: abl39a_betaling_af_a_fordring -> abl39a_betaling_af_a_fordring.hændelse_gyldig && abl39a_betaling_af_a_fordring.betalt_kroner == 11500 && abl39a_betaling_af_a_fordring.tilstand_efter.henstandssaldo_kroner == 88500 && aktieavance_par39a_fordringsrest_kroner(abl39a_betaling_af_a_fordring.tilstand_efter, "salg-a-halv:stk3-gevinst") == 0
@@ -781,6 +816,7 @@
 | scenarie_abl39a_regelkaskade_folder_hændelser_i_rækkefølge: abl39a_kort_forløb_resultat -> abl39a_kort_forløb_resultat.alle_hændelser_gyldige && length(abl39a_kort_forløb_resultat.resultater) == 2 && abl39a_kort_forløb_resultat.tilstand_ultimo.henstandssaldo_kroner == 74910 && aktieavance_par39a_fordringsrest_kroner(abl39a_kort_forløb_resultat.tilstand_ultimo, "udbytte-a:forfald") == 0
 
 ? scenarie_abl39a_tilstanden_bevarer_ledger_invarianter
+? scenarie_abl39a_negativ_anskaffelsessum_bevares_i_beholdningen
 ? scenarie_abl39a_fifo_delsalg_beregner_gevinst_og_forfald
 ? scenarie_abl39a_ikke_understøttet_skatteår_afvises_før_skatteberegning
 ? scenarie_abl39a_betaling_nedskriver_saldo_og_fordring
@@ -822,4 +858,4 @@
 ? scenarie_abl39a_oprettes_fra_faktisk_par39_henstand
 ? scenarie_abl39a_regelkaskade_folder_hændelser_i_rækkefølge
 
-@ print("Aktieavancebeskatningsloven §§ 39 A-40: 41 ledger-, prioritets-, forfalds- og tilflytningsscenarier kontrolleret")
+@ print("Aktieavancebeskatningsloven §§ 39 A-40: 42 ledger-, prioritets-, forfalds- og tilflytningsscenarier kontrolleret")

@@ -742,6 +742,63 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | None -> Falskt
 }
 
+= personskat_calculate_par37_til40_forløbsinput = AktieavancePar37Til40Forløbsinput(
+    identifikation = "personskat-fraflytning-2026",
+    opgørelsesår = 2026,
+    fraflytning = AktieavancePar37Til40Fraflytningsfakta(
+        fraflytningsår = 2026,
+        ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+        tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+        aktier = [AktieavancePar37Til40AktiepostFakta(
+            identifikation = "personskat-fraflytteraktie",
+            selskabsidentifikation = "DK-PERSONSKAT-FRAFLYTNING",
+            aktieserie = "ordinær",
+            erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 4, dag = 5),
+            erhvervelsesrækkefølge = 1,
+            antal = 100,
+            handelsværdi_ved_ophør_kroner = 200000,
+            skattemæssig_anskaffelsessum_kroner = 100000,
+            beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+            par44_status = AblPar38IkkeHistoriskPar44Aktie,
+            egenskaber = [],
+            opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
+            tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+            princip = AblPar23Realisationsprincip,
+            henstandsvalg = AblPar37Til40HenstandSøges
+        )],
+        aktieindkomstkontekst = AktieavancePar37Til40Aktieindkomstkontekst(
+            indkomstår = 2026,
+            øvrig_egen_aktieindkomst_kroner = 0,
+            ægtefælles_aktieindkomst_kroner = 0,
+            samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt
+        ),
+        indberetning = AktieavancePar39Indberetning(
+            oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+            beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+        ),
+        bopæl = AktieavancePar39Bopæl(
+            oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+            aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+            frigivelse_af_sikkerhed_anmodet = Falskt
+        ),
+        sikkerhed = AblPar39IngenSikkerhedStillet
+    ),
+    hændelsesposter = [],
+    tilflytning = IngenTilflytningEfterPar39B
+)
+= personskat_calculate_par37_til40_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [PersonskatSærligtAktieaktivFakta(
+        kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = personskat_calculate_par37_til40_forløbsinput),
+        markedsstatus = AblIkkeOptagetTilHandel
+    )],
+    udbytter = []
+)))
+| personskat_calculate_par37_til40_spor_afledt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.input_gyldigt && forløb.årets_beregnede_fraflytterskat_kroner == 30090 && forløb.årets_nye_henstand_kroner == 30090 && forløb.årets_skat_til_betaling_ved_fraflytning_kroner == 0 && forløb.tilstand_ultimo.henstandssaldo_kroner == 30090 && length(forløb.tilstand_ultimo.beholdning) == 1
+    | None -> Falskt
+}
+
 | personskat_calculate_almindeligt_udbytte(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
     identifikation = identifikation,
     udlodder = Ll16AAlmindeligtSelskab,
@@ -1134,6 +1191,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | None -> Falskt
 }
 | personskat_calculate_par35_kildespor_komponeres_uden_dobbelt_personskat: personskat_calculate_par35_resultat -> personskat_calculate_par35_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par35_resultat.aktieavance.aktieindkomst_kroner == 50000 && personskat_calculate_par35_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_par35_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_par35_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_calculate_par35_resultat.endelig_aktieindkomstskat_kroner == 13500 && head(personskat_calculate_par35_resultat.aktieavance.særlige_resultater).årets_forfaldne_overdragerskat_kroner == 22000 && head(personskat_calculate_par35_resultat.aktieavance.særlige_resultater).årets_betalte_overdragerskat_kroner == 0 && head(personskat_calculate_par35_resultat.aktieavance.særlige_resultater).årets_saldobortfald_kroner == 0 && personskat_calculate_par35_spor_afledt(head(personskat_calculate_par35_resultat.aktieavance.særlige_resultater))
+| personskat_calculate_par37_til40_kildespor_komponeres_med_henstand: personskat_calculate_par37_til40_resultat -> personskat_calculate_par37_til40_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par37_til40_resultat.aktieavance.aktieindkomst_kroner == 100000 && personskat_calculate_par37_til40_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_par37_til40_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_par37_til40_resultat.positiv_aktieindkomstskat.lavt_grundlag_kroner == 79400 && personskat_calculate_par37_til40_resultat.positiv_aktieindkomstskat.højt_grundlag_kroner == 20600 && personskat_calculate_par37_til40_resultat.endelig_aktieindkomstskat_kroner == 21438 && personskat_calculate_par37_til40_resultat.positiv_aktieindkomstskat.slutskat_indgående_skat_kroner == 8652 && personskat_calculate_par37_til40_resultat.positiv_aktieindkomstskat.samlet_skat_kroner == 30090 && head(personskat_calculate_par37_til40_resultat.aktieavance.særlige_resultater).årets_nye_henstand_med_fraflytterskat_kroner == 30090 && head(personskat_calculate_par37_til40_resultat.aktieavance.særlige_resultater).årets_forfaldne_fraflytterskat_kroner == 0 && head(personskat_calculate_par37_til40_resultat.aktieavance.særlige_resultater).årets_betalte_fraflytterskat_kroner == 0 && head(personskat_calculate_par37_til40_resultat.aktieavance.særlige_resultater).årets_fraflytterskat_saldobortfald_kroner == 0 && personskat_calculate_par37_til40_spor_afledt(head(personskat_calculate_par37_til40_resultat.aktieavance.særlige_resultater))
 | personskat_calculate_ugyldig_abl_kæde_afvises_samlet: personskat_calculate_ugyldig_resultat -> personskat_calculate_ugyldig_resultat.aktieavance.alle_input_gyldige == Falskt && personskat_calculate_ugyldig_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.aktieavance.aktieindkomst_kroner == 0 && personskat_calculate_ugyldig_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726
 | personskat_calculate_par13a_ægtefælleoverførsel_afledes_fra_begge_personer: personskat_calculate_par13a_ægtefælleoverførsel_resultat -> personskat_calculate_par13a_hovedresultat(personskat_calculate_par13a_ægtefælleoverførsel_resultat, 12000, 38000) && personskat_calculate_par13a_ægtefælleresultat(personskat_calculate_par13a_ægtefælleoverførsel_resultat, 12000, 0)
 | personskat_calculate_par13a_uden_samliv_fremfører_tabet: personskat_calculate_par13a_uden_samliv_resultat -> personskat_calculate_par13a_hovedresultat(personskat_calculate_par13a_uden_samliv_resultat, 0, 50000) && personskat_calculate_par13a_ægtefælleresultat(personskat_calculate_par13a_uden_samliv_resultat, 0, 12000)
@@ -1190,6 +1248,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_par17_stk3_minimumsbevis_afledes
 ? personskat_calculate_par17_par6_afvises_ved_personskatgrænsen
 ? personskat_calculate_par35_kildespor_komponeres_uden_dobbelt_personskat
+? personskat_calculate_par37_til40_kildespor_komponeres_med_henstand
 ? personskat_calculate_ugyldig_abl_kæde_afvises_samlet
 ? personskat_calculate_par13a_ægtefælleoverførsel_afledes_fra_begge_personer
 ? personskat_calculate_par13a_uden_samliv_fremfører_tabet

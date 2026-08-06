@@ -18,6 +18,7 @@
 @ importer ./kursgevinstloven - ebl - par6d
 @ importer ./aktieavancebeskatningsloven - par17
 @ importer ./aktieavancebeskatningsloven - par35g - 35k
+@ importer ./aktieavancebeskatningsloven - par37 - 40 - forloeb
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
 # PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, årsopgørelse: årsopgørelse)
@@ -134,9 +135,9 @@
 # PersonskatPar17Kildefakta(indkomstår: Heltal, skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, næringsstatus: AktieavancePar17Næringsstatus, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
 # PersonskatPar17Modprøvekilde = UdenPar17Modprøvekilde | MedPar17Modprøvekilde(fakta: PersonskatPar17Kildefakta)
 # PersonskatØvrigtSærligtAktieaktivInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation, årets_netto_med_kgl_par14_23_kroner: Heltal)
-# PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput)
+# PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput) | PersonskatFraflytteraktierEfterPar37Til40(fakta: AktieavancePar37Til40Forløbsinput)
 # PersonskatSærligtAktieaktivFakta(kilde: PersonskatSærligtAktieaktivKilde, markedsstatus: AktieavanceOrdinærMarkedsstatus)
-# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
+# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta))
 # PersonskatOrdinærtAktieårResultat = IntetOrdinærtAktieår | BeregnetOrdinærtAktieår(resultat: AktieavanceOrdinærPersonÅrsresultat)
 # PersonskatAktieavanceForberedelse(input: PersonskatAktieavanceInput, skatteår: Heltal, særlige_resultater: List(PersonskatSærligtAktieaktivResultat), udbytter: List(PersonskatUdbytteResultat), særlige_aktiver_gyldige: Boolsk, udbytter_gyldige: Boolsk, modregningsgrundlag_efter_par13a: AktieavanceOrdinærPar13AModregningsgrundlag)
@@ -4446,6 +4447,356 @@
     help = None,
     unit = None
 )
+= personskat_felt_par37_til40_forløb_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Forløbsinput::identifikation),
+    label = "Fraflytterskatteforløbets identifikation",
+    question = Some("Hvilken stabil og entydig identifikation skal forløbet efter ABL §§ 37-40 have?"),
+    help = Some("Identifikationen forbinder fraflytningen, senere hændelser og en eventuel tilbageflytning."),
+    unit = None
+)
+= personskat_felt_par37_til40_opgørelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Forløbsinput::opgørelsesår),
+    label = "Opgørelsesår for fraflytterskatten",
+    question = Some("Til og med hvilket indkomstår skal fraflytterskatteforløbet genafspilles?"),
+    help = Some("Medtag hele den dokumenterede hændelseshistorik fra fraflytningen til og med dette år."),
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_fraflytningsår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Fraflytningsfakta::fraflytningsår),
+    label = "Indkomstår for fraflytningen",
+    question = Some("I hvilket indkomstår ophørte den danske beskatningsret til aktierne?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_ophørsgrund = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Fraflytningsfakta::ophørsgrund),
+    label = "Grund til ophør af dansk beskatningsret",
+    question = Some("Hvorfor ophørte den danske beskatningsret til aktierne?"),
+    help = Some("Futuruna prøver selv, om grunden udløser ABL § 38 og kan give henstand efter § 39."),
+    unit = None
+)
+= personskat_felt_par37_til40_tilknytning = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Fraflytningsfakta::tilknytning),
+    label = "Skattemæssig tilknytning før fraflytningen",
+    question = Some("Var personen skattepligtig af aktiegevinster i mindst 7 af de seneste 10 år, eller gælder § 39 B-undtagelsen?"),
+    help = Some("Særlige aktieegenskaber kan opfylde tilknytningskravet for den enkelte aktie."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktier = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Fraflytningsfakta::aktier),
+    label = "Aktiepartier ved fraflytningen",
+    question = Some("Hvilke aktiepartier ejede personen, da den danske beskatningsret ophørte?"),
+    help = Some("Tilføj hvert skattemæssigt parti særskilt og i stigende erhvervelsesrækkefølge. Futuruna afleder § 38-opgørelsen og § 39 A-beholdningen."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::identifikation),
+    label = "Fraflytteraktiens identifikation",
+    question = Some("Hvilken entydig identifikation har aktiepartiet?"),
+    help = Some("Brug samme identifikation ved en senere § 39 B-tilflytningsværdi."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_selskab = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::selskabsidentifikation),
+    label = "Fraflytteraktiens selskab",
+    question = Some("Hvilket selskab vedrører aktiepartiet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_serie = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::aktieserie),
+    label = "Fraflytteraktiens serie",
+    question = Some("Hvilken aktieserie tilhører partiet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_erhvervelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::år),
+    label = "Aktiepartiets erhvervelsesår",
+    question = Some("I hvilket år blev aktiepartiet erhvervet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_aktie_erhvervelsesmåned = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::måned),
+    label = "Aktiepartiets erhvervelsesmåned",
+    question = Some("I hvilken måned blev aktiepartiet erhvervet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_par37_til40_aktie_erhvervelsesdag = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesdato::dag),
+    label = "Aktiepartiets erhvervelsesdag",
+    question = Some("På hvilken dag blev aktiepartiet erhvervet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_par37_til40_aktie_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::erhvervelsesrækkefølge),
+    label = "Aktiepartiets erhvervelsesrækkefølge",
+    question = Some("Hvilket løbenummer har partiet blandt aktier erhvervet samme dag?"),
+    help = Some("Dato og løbenummer danner den entydige FIFO-rækkefølge."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::antal),
+    label = "Antal aktier ved fraflytningen",
+    question = Some("Hvor mange aktier omfattede partiet ved fraflytningen?"),
+    help = None,
+    unit = Some("aktier")
+)
+= personskat_felt_par37_til40_aktie_handelsværdi = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::handelsværdi_ved_ophør_kroner),
+    label = "Handelsværdi ved fraflytningen",
+    question = Some("Hvad var aktiepartiets dokumenterede handelsværdi, da beskatningsretten ophørte?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par37_til40_aktie_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::skattemæssig_anskaffelsessum_kroner),
+    label = "Skattemæssig anskaffelsessum ved fraflytningen",
+    question = Some("Hvilken skattemæssig anskaffelsessum indgår i § 38-opgørelsen?"),
+    help = Some("En negativ anskaffelsessum skal angives som et negativt beløb."),
+    unit = Some("kr.")
+)
+= personskat_felt_par37_til40_aktie_beskatningsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::beskatningsstatus),
+    label = "Dansk beskatningsstatus for aktien",
+    question = Some("Var aktien omfattet af dansk beskatning umiddelbart før ophøret?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_par44 = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::par44_status),
+    label = "Historisk status efter ABL § 44",
+    question = Some("Var aktien omfattet af § 44, og hvor længe havde personen ejet den ved fraflytningen?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_egenskaber = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::egenskaber),
+    label = "Særlige egenskaber efter ABL § 38",
+    question = Some("Har aktien medarbejder-, ægtefælle- eller successionsforhold, som påvirker § 38?"),
+    help = Some("Tilføj kun egenskaber, der kan dokumenteres for det konkrete parti."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_opgørelseskilde = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::opgørelseskilde::$variant),
+    label = "Opgørelsesmetode ved fraflytningen",
+    question = Some("Skal gevinsten afledes som handelsværdi minus anskaffelsessum eller efter tegningsretsvalget i § 38, stk. 4?"),
+    help = Some("Angiv kildefakta; et færdigt gevinstbeløb kan ikke indtastes."),
+    unit = None
+)
+= personskat_felt_par37_til40_tegningsret_udnyttelseskurs = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Opgørelseskilde::AblPar37Til40Tegningsretsvalg::udnyttelseskurs_pr_aktie_kroner),
+    label = "Tegningsrettens udnyttelseskurs pr. aktie",
+    question = Some("Hvad var udnyttelseskursen pr. aktie for tegningsretten?"),
+    help = None,
+    unit = Some("kr./aktie")
+)
+= personskat_felt_par37_til40_tegningsret_markedskurs = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Opgørelseskilde::AblPar37Til40Tegningsretsvalg::markedskurs_pr_aktie_ved_ophør_kroner),
+    label = "Markedskurs pr. aktie ved fraflytningen",
+    question = Some("Hvad var markedskursen pr. underliggende aktie ved ophøret?"),
+    help = None,
+    unit = Some("kr./aktie")
+)
+= personskat_felt_par37_til40_aktie_tabsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::tabsstatus),
+    label = "Fradragsret for et beregnet tab",
+    question = Some("Ville et tab på aktien være fradragsberettiget efter § 38, stk. 4?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_princip = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::princip),
+    label = "Realisations- eller lagerprincip",
+    question = Some("Blev aktiepartiet opgjort efter realisationsprincippet eller lagerprincippet ved fraflytningen?"),
+    help = Some("Kun realisationsopgjorte poster kan indgå i henstanden."),
+    unit = None
+)
+= personskat_felt_par37_til40_aktie_henstandsvalg = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40AktiepostFakta::henstandsvalg),
+    label = "Valg om henstand for aktiepartiet",
+    question = Some("Søges der henstand for skatten på dette konkrete aktieparti, eller betales skatten straks?"),
+    help = Some("Aktier, hvor skatten betales, kommer ikke på § 39 A-beholdningsoversigten."),
+    unit = None
+)
+= personskat_felt_par37_til40_kontekst_indkomstår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Aktieindkomstkontekst::indkomstår),
+    label = "Indkomstår for aktieindkomstkonteksten",
+    question = Some("Hvilket indkomstår vedrører den øvrige aktieindkomst omkring fraflytningen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_kontekst_egen_aktieindkomst = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Aktieindkomstkontekst::øvrig_egen_aktieindkomst_kroner),
+    label = "Øvrig egen aktieindkomst i fraflytningsåret",
+    question = Some("Hvor stor positiv aktieindkomst havde personen i året før § 38-gevinsten lægges til?"),
+    help = Some("Futuruna bruger beløbet til den marginale § 8 a-beregning; angiv ikke en beregnet skat."),
+    unit = Some("kr.")
+)
+= personskat_felt_par37_til40_kontekst_ægtefælle_aktieindkomst = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Aktieindkomstkontekst::ægtefælles_aktieindkomst_kroner),
+    label = "Ægtefællens aktieindkomst i fraflytningsåret",
+    question = Some("Hvor stor positiv aktieindkomst havde ægtefællen i fraflytningsåret?"),
+    help = Some("Beløbet bruges kun sammen med samlivsstatus ved årets udløb."),
+    unit = Some("kr.")
+)
+= personskat_felt_par37_til40_kontekst_samliv = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Aktieindkomstkontekst::samlevende_med_ægtefælle_ved_indkomstårets_udløb),
+    label = "Samlevende med ægtefælle ved fraflytningsårets udløb",
+    question = Some("Var ægtefællerne samlevende ved indkomstårets udløb?"),
+    help = Some("Samliv kan overføre ægtefællens uudnyttede progressionsgrænse efter personskattelovens § 8 a."),
+    unit = None
+)
+= personskat_felt_par37_til40_indberetning_skattekontrol = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Indberetning::oplysninger_efter_skattekontrollov_par2),
+    label = "Frist for oplysninger efter skattekontrollovens § 2",
+    question = Some("Blev oplysningerne ved fraflytningen indgivet rettidigt, forlænget eller efter en tilsidesat fristoverskridelse?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_indberetning_beholdning = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Indberetning::beholdningsoversigt_efter_par39a),
+    label = "Frist for beholdningsoversigten efter § 39 A",
+    question = Some("Blev beholdningsoversigten indgivet inden den gældende frist?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_bopæl_oprindeligt_land = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Bopæl::oprindeligt_fraflytningsland),
+    label = "Inddrivelsesbistand i det oprindelige fraflytningsland",
+    question = Some("Er det oprindelige fraflytningsland omfattet af nordisk bistand eller EU-direktiv 2010/24/EU?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_bopæl_aktuelt_land = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Bopæl::aktuelt_land),
+    label = "Inddrivelsesbistand i det aktuelle bopælsland",
+    question = Some("Er det aktuelle bopælsland omfattet af nordisk bistand eller EU-direktiv 2010/24/EU?"),
+    help = Some("Det aktuelle land afgør, om fortsat henstand kræver betryggende sikkerhed."),
+    unit = None
+)
+= personskat_felt_par37_til40_bopæl_frigivelse = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Bopæl::frigivelse_af_sikkerhed_anmodet),
+    label = "Anmodning om frigivelse af sikkerhed",
+    question = Some("Er der anmodet om at få sikkerheden frigivet efter flytning til et bistandsland?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_sikkerhed = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Fraflytningsfakta::sikkerhed::$variant),
+    label = "Sikkerhed for fraflytterskatten",
+    question = Some("Er der stillet betryggende sikkerhed for henstanden, og i hvilken form?"),
+    help = Some("Sikkerhed kræves ved bopæl i et land uden den relevante inddrivelsesbistand."),
+    unit = None
+)
+= personskat_felt_par37_til40_sikkerhedsform = TypetBeregningsfelt(
+    path = refof(AktieavancePar39Sikkerhed::AblPar39BetryggendeSikkerhed::form),
+    label = "Form for betryggende sikkerhed",
+    question = Some("Er sikkerheden stillet i aktier, regulerede obligationer, bankgaranti eller anden betryggende form?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_hændelser = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Forløbsinput::hændelsesposter),
+    label = "Hændelser i fraflytterskatteforløbet",
+    question = Some("Hvilke afståelser, udlodninger, lån, betalinger eller oplysningshændelser er indtruffet siden fraflytningen?"),
+    help = Some("Tilføj alle dokumenterede hændelser kronologisk. Futuruna genafspiller § 39 A-ledgeren og afviser uordnet historik uden at ændre tilstanden."),
+    unit = None
+)
+= personskat_felt_par37_til40_hændelse_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Hændelsespost::identifikation),
+    label = "Fraflytterskattehændelsens identifikation",
+    question = Some("Hvilken entydig identifikation har hændelsen?"),
+    help = Some("Identifikationen skal være stabil og må ikke genbruges i samme forløb."),
+    unit = None
+)
+= personskat_felt_par37_til40_hændelse_indkomstår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Hændelsespost::indkomstår),
+    label = "Fraflytterskattehændelsens indkomstår",
+    question = Some("I hvilket indkomstår indtraf hændelsen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_hændelse_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Hændelsespost::rækkefølge_i_indkomståret),
+    label = "Hændelsens rækkefølge i indkomståret",
+    question = Some("Hvilket løbenummer har hændelsen blandt årets fraflytterskattehændelser?"),
+    help = Some("Løbenummeret skal være strengt stigende inden for året."),
+    unit = None
+)
+= personskat_felt_par37_til40_hændelse_art = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AHændelse::$variant),
+    label = "Hændelse efter ABL §§ 39 A-40",
+    question = Some("Hvilken dokumenteret hændelsestype skal anvendes på henstandsledgeren?"),
+    help = Some("Vælg kildehændelsen; Futuruna afleder gevinst, forfald, betaling, nedskrivning og bortfald."),
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytning = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Forløbsinput::tilflytning::$variant),
+    label = "Tilbageflytning efter ABL § 39 B",
+    question = Some("Har personen fået skattemæssigt hjemsted i Danmark igen inden opgørelsesårets udløb?"),
+    help = Some("Ved tilbageflytning afleder Futuruna nye indgangsværdier fra den genafspillede beholdning og den resterende henstandssaldo."),
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytning_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::identifikation),
+    label = "Tilbageflytningens identifikation",
+    question = Some("Hvilken entydig identifikation har tilbageflytningen?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytning_indkomstår = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::indkomstår),
+    label = "Indkomstår for tilbageflytningen",
+    question = Some("I hvilket indkomstår fik personen igen skattemæssigt hjemsted i Danmark?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_tilflytning_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::rækkefølge_i_indkomståret),
+    label = "Tilbageflytningens rækkefølge i indkomståret",
+    question = Some("Efter hvilket løbenummer i årets hændelseshistorik skete tilbageflytningen?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytningsværdier = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::tilflytningsværdier),
+    label = "Handelsværdier ved tilbageflytningen",
+    question = Some("Hvad var handelsværdien for hvert aktieparti, der stadig stod på beholdningsoversigten ved tilbageflytningen?"),
+    help = Some("Angiv én værdi for hver resterende partiidentifikation."),
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytningsværdi_parti = TypetBeregningsfelt(
+    path = refof(AktieavancePar39BTilflytningsværdi::partiidentifikation),
+    label = "Aktieparti ved tilbageflytningen",
+    question = Some("Hvilken partiidentifikation vedrører handelsværdien?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytningsværdi_beløb = TypetBeregningsfelt(
+    path = refof(AktieavancePar39BTilflytningsværdi::handelsværdi_kroner),
+    label = "Handelsværdi ved tilbageflytningen",
+    question = Some("Hvad var partiets handelsværdi på tilbageflytningstidspunktet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par37_til40_tilflytning_hjemsted = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::får_på_ny_skattemæssigt_hjemsted_i_danmark),
+    label = "Skattemæssigt hjemsted i Danmark igen",
+    question = Some("Fik personen på ny skattemæssigt hjemsted i Danmark?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par37_til40_tilflytning_samliv = TypetBeregningsfelt(
+    path = refof(AktieavancePar37Til40Tilflytning::TilflytningEfterPar39B::samlevende_med_ægtefælle_ved_indkomstårets_udløb),
+    label = "Samlevende med ægtefælle ved tilbageflytningsårets udløb",
+    question = Some("Var ægtefællerne samlevende ved tilbageflytningsårets udløb?"),
+    help = Some("Samlivsstatus påvirker omregningen af en resterende henstandssaldo efter personskattelovens § 8 a."),
+    unit = None
+)
 = personskat_felt_særligt_aktieaktiv_markedsstatus = TypetBeregningsfelt(
     path = refof(PersonskatSærligtAktieaktivFakta::markedsstatus),
     label = "Det særlige aktivs markedsstatus",
@@ -8171,6 +8522,56 @@
         Field(value = personskat_felt_par35_værdinedgang_identifikation),
         Field(value = personskat_felt_par35_årsoplysninger_identifikation),
         Field(value = personskat_felt_par35_hjemstedsflytning_identifikation),
+        Field(value = personskat_felt_par37_til40_forløb_identifikation),
+        Field(value = personskat_felt_par37_til40_opgørelsesår),
+        Field(value = personskat_felt_par37_til40_fraflytningsår),
+        Field(value = personskat_felt_par37_til40_ophørsgrund),
+        Field(value = personskat_felt_par37_til40_tilknytning),
+        Field(value = personskat_felt_par37_til40_aktier),
+        Field(value = personskat_felt_par37_til40_aktie_identifikation),
+        Field(value = personskat_felt_par37_til40_aktie_selskab),
+        Field(value = personskat_felt_par37_til40_aktie_serie),
+        Field(value = personskat_felt_par37_til40_aktie_erhvervelsesår),
+        Field(value = personskat_felt_par37_til40_aktie_erhvervelsesmåned),
+        Field(value = personskat_felt_par37_til40_aktie_erhvervelsesdag),
+        Field(value = personskat_felt_par37_til40_aktie_rækkefølge),
+        Field(value = personskat_felt_par37_til40_aktie_antal),
+        Field(value = personskat_felt_par37_til40_aktie_handelsværdi),
+        Field(value = personskat_felt_par37_til40_aktie_anskaffelsessum),
+        Field(value = personskat_felt_par37_til40_aktie_beskatningsstatus),
+        Field(value = personskat_felt_par37_til40_aktie_par44),
+        Field(value = personskat_felt_par37_til40_aktie_egenskaber),
+        Field(value = personskat_felt_par37_til40_aktie_opgørelseskilde),
+        Field(value = personskat_felt_par37_til40_tegningsret_udnyttelseskurs),
+        Field(value = personskat_felt_par37_til40_tegningsret_markedskurs),
+        Field(value = personskat_felt_par37_til40_aktie_tabsstatus),
+        Field(value = personskat_felt_par37_til40_aktie_princip),
+        Field(value = personskat_felt_par37_til40_aktie_henstandsvalg),
+        Field(value = personskat_felt_par37_til40_kontekst_indkomstår),
+        Field(value = personskat_felt_par37_til40_kontekst_egen_aktieindkomst),
+        Field(value = personskat_felt_par37_til40_kontekst_ægtefælle_aktieindkomst),
+        Field(value = personskat_felt_par37_til40_kontekst_samliv),
+        Field(value = personskat_felt_par37_til40_indberetning_skattekontrol),
+        Field(value = personskat_felt_par37_til40_indberetning_beholdning),
+        Field(value = personskat_felt_par37_til40_bopæl_oprindeligt_land),
+        Field(value = personskat_felt_par37_til40_bopæl_aktuelt_land),
+        Field(value = personskat_felt_par37_til40_bopæl_frigivelse),
+        Field(value = personskat_felt_par37_til40_sikkerhed),
+        Field(value = personskat_felt_par37_til40_sikkerhedsform),
+        Field(value = personskat_felt_par37_til40_hændelser),
+        Field(value = personskat_felt_par37_til40_hændelse_identifikation),
+        Field(value = personskat_felt_par37_til40_hændelse_indkomstår),
+        Field(value = personskat_felt_par37_til40_hændelse_rækkefølge),
+        Field(value = personskat_felt_par37_til40_hændelse_art),
+        Field(value = personskat_felt_par37_til40_tilflytning),
+        Field(value = personskat_felt_par37_til40_tilflytning_identifikation),
+        Field(value = personskat_felt_par37_til40_tilflytning_indkomstår),
+        Field(value = personskat_felt_par37_til40_tilflytning_rækkefølge),
+        Field(value = personskat_felt_par37_til40_tilflytningsværdier),
+        Field(value = personskat_felt_par37_til40_tilflytningsværdi_parti),
+        Field(value = personskat_felt_par37_til40_tilflytningsværdi_beløb),
+        Field(value = personskat_felt_par37_til40_tilflytning_hjemsted),
+        Field(value = personskat_felt_par37_til40_tilflytning_samliv),
         Field(value = personskat_felt_par17_kildefakta_indkomstår),
         Field(value = personskat_felt_par17_kildefakta_skattepligtsgrundlag),
         Field(value = personskat_felt_par17_kildefakta_næringsstatus),
@@ -8208,9 +8609,25 @@
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
         Source(value = aktieavancebeskatningsloven_lbk1098_par44),
         Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par37),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par38),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39a),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par39b),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par40),
         PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
         DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_beholdningsoversigt),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_henstandssaldo),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_prioritet),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_alle_afstået),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39a_årsoplysninger),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par39b),
     )
 )
 = personskat_metadata_aktiebeholdninger = PersonskatMetadata(
@@ -9090,10 +9507,15 @@
         resultat = resultat,
         par17_resultat = par17_resultat,
         par35_forløbsresultat = None,
+        par37_til40_forløbsresultat = None,
         kgl_par32_kontraktrelation = personskat_par17_kgl_relation_fra_kilde(par17_kilde),
         årets_forfaldne_overdragerskat_kroner = 0,
         årets_betalte_overdragerskat_kroner = 0,
         årets_saldobortfald_kroner = 0,
+        årets_nye_henstand_med_fraflytterskat_kroner = 0,
+        årets_forfaldne_fraflytterskat_kroner = 0,
+        årets_betalte_fraflytterskat_kroner = 0,
+        årets_fraflytterskat_saldobortfald_kroner = 0,
         input_gyldigt = input.indkomstår == skatteår && input.aktiv != AblNæringsaktiePar17 && aktieavancebeskatningslov_input_gyldigt(abl_input) && personskat_øvrigt_aktiv_par17_kilde_gyldig(par17_kilde, input, resultat, par17_resultat)
     )
 }
@@ -9105,10 +9527,15 @@
             resultat = par17_resultat.aktieavancebeskatningslov_resultat,
             par17_resultat = Some(par17_resultat),
             par35_forløbsresultat = None,
+            par37_til40_forløbsresultat = None,
             kgl_par32_kontraktrelation = par17_resultat.kgl_par32_kontraktrelation,
             årets_forfaldne_overdragerskat_kroner = 0,
             årets_betalte_overdragerskat_kroner = 0,
             årets_saldobortfald_kroner = 0,
+            årets_nye_henstand_med_fraflytterskat_kroner = 0,
+            årets_forfaldne_fraflytterskat_kroner = 0,
+            årets_betalte_fraflytterskat_kroner = 0,
+            årets_fraflytterskat_saldobortfald_kroner = 0,
             input_gyldigt = par17_fakta.indkomstår == skatteår && personskat_par17_kildefakta_er_person(par17_fakta) && par17_resultat.input_gyldigt && par17_resultat.reglen_finder_anvendelse
         )
     }
@@ -9120,11 +9547,35 @@
             resultat = par35_resultat.aktieavancebeskatningslov_resultat,
             par17_resultat = None,
             par35_forløbsresultat = Some(par35_resultat),
+            par37_til40_forløbsresultat = None,
             kgl_par32_kontraktrelation = KglPar32AlmindeligKontrakt,
             årets_forfaldne_overdragerskat_kroner = par35_resultat.årets_nye_forfald_kroner,
             årets_betalte_overdragerskat_kroner = par35_resultat.årets_betalte_overdragerskat_kroner,
             årets_saldobortfald_kroner = par35_resultat.årets_saldobortfald_kroner,
+            årets_nye_henstand_med_fraflytterskat_kroner = 0,
+            årets_forfaldne_fraflytterskat_kroner = 0,
+            årets_betalte_fraflytterskat_kroner = 0,
+            årets_fraflytterskat_saldobortfald_kroner = 0,
             input_gyldigt = par35_fakta.opgørelsesår == skatteår && par35_resultat.input_gyldigt
+        )
+    }
+    | PersonskatFraflytteraktierEfterPar37Til40(par37_til40_fakta) -> {
+        = par37_til40_resultat = aktieavance_par37_til40_forløbsresultat(par37_til40_fakta)
+        PersonskatSærligtAktieaktivResultat(
+            fakta = fakta,
+            resultat = par37_til40_resultat.aktieavancebeskatningslov_resultat,
+            par17_resultat = None,
+            par35_forløbsresultat = None,
+            par37_til40_forløbsresultat = Some(par37_til40_resultat),
+            kgl_par32_kontraktrelation = KglPar32AlmindeligKontrakt,
+            årets_forfaldne_overdragerskat_kroner = 0,
+            årets_betalte_overdragerskat_kroner = 0,
+            årets_saldobortfald_kroner = 0,
+            årets_nye_henstand_med_fraflytterskat_kroner = par37_til40_resultat.årets_nye_henstand_kroner,
+            årets_forfaldne_fraflytterskat_kroner = par37_til40_resultat.årets_skat_til_betaling_ved_fraflytning_kroner + par37_til40_resultat.årets_nye_forfald_kroner,
+            årets_betalte_fraflytterskat_kroner = par37_til40_resultat.årets_betalte_fraflytterskat_kroner,
+            årets_fraflytterskat_saldobortfald_kroner = par37_til40_resultat.årets_saldobortfald_kroner,
+            input_gyldigt = par37_til40_fakta.opgørelsesår == skatteår && par37_til40_resultat.input_gyldigt
         )
     }
 }
