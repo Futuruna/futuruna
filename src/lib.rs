@@ -8455,7 +8455,7 @@ impl Parser {
             // Unary operators
             TokenKind::Op if self.peek().text == "-" || self.peek().text == "!" => {
                 let tok = self.advance();
-                let operand = self.parse_atom()?;
+                let operand = self.parse_expr_prec(u8::MAX)?;
                 Ok(ExprKind::UnOp(tok.text, Box::new(operand)).into())
             }
             // & reference
@@ -8463,10 +8463,10 @@ impl Parser {
                 self.advance();
                 if self.peek_kind() == TokenKind::KW && self.peek().text == "mut" {
                     self.advance();
-                    let inner = self.parse_atom()?;
+                    let inner = self.parse_expr_prec(u8::MAX)?;
                     Ok(ExprKind::UnOp("&mut".to_string(), Box::new(inner)).into())
                 } else {
-                    let inner = self.parse_atom()?;
+                    let inner = self.parse_expr_prec(u8::MAX)?;
                     Ok(ExprKind::UnOp("&".to_string(), Box::new(inner)).into())
                 }
             }
@@ -16108,8 +16108,13 @@ impl ProgramSymbolKind {
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
+    /// function/rule name -> every declared arity. Calls are resolved by
+    /// name and arity so a scoped member does not hide a global overload.
+    function_arities: BTreeMap<String, BTreeSet<usize>>,
     /// function/rule name -> declaration-order parameter names for named calls.
     pub function_params: BTreeMap<String, Vec<String>>,
+    /// function/rule name and arity -> declaration-order parameter names.
+    function_params_by_arity: BTreeMap<(String, usize), Vec<String>>,
     /// type name -> exists
     pub types: BTreeSet<String>,
     /// constructor/variant name -> (parent type, field count)
@@ -16203,7 +16208,9 @@ impl TypeChecker {
     pub fn new() -> Self {
         let mut tc = TypeChecker {
             functions: BTreeMap::new(),
+            function_arities: BTreeMap::new(),
             function_params: BTreeMap::new(),
+            function_params_by_arity: BTreeMap::new(),
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
@@ -16460,8 +16467,32 @@ impl TypeChecker {
         // Variable-arity builtins: registered in functions (not user_functions)
         // so is_rule_function() returns true → arity check skipped
         tc.functions.insert("subject".into(), 0);
+        tc.record_function_signature("subject", 0, None);
         tc.functions.insert("complete".into(), 1);
+        tc.record_function_signature("complete", 1, None);
         tc
+    }
+
+    fn record_function_signature(&mut self, name: &str, arity: usize, params: Option<Vec<String>>) {
+        self.function_arities
+            .entry(name.to_string())
+            .or_default()
+            .insert(arity);
+        if let Some(params) = params {
+            self.function_params_by_arity
+                .insert((name.to_string(), arity), params);
+        }
+    }
+
+    fn function_has_arity(&self, name: &str, arity: usize) -> bool {
+        self.function_arities
+            .get(name)
+            .is_some_and(|arities| arities.contains(&arity))
+    }
+
+    fn function_params_for_arity(&self, name: &str, arity: usize) -> Option<&Vec<String>> {
+        self.function_params_by_arity
+            .get(&(name.to_string(), arity))
     }
 
     fn method_receiver_shape(params: &[Param]) -> MethodReceiverShape {
@@ -17868,29 +17899,43 @@ impl TypeChecker {
         }
 
         let old_functions = self.functions.clone();
+        let old_function_arities = self.function_arities.clone();
         let old_function_params = self.function_params.clone();
+        let old_function_params_by_arity = self.function_params_by_arity.clone();
         let old_user_functions = self.user_functions.clone();
         for (method, arity) in &methods {
             self.functions.insert(method.clone(), *arity);
+            self.function_arities
+                .entry(method.clone())
+                .or_default()
+                .insert(*arity);
             if let Some(params) = self
                 .rule_scope_method_params
                 .get(name)
                 .and_then(|by_method| by_method.get(method))
                 .cloned()
             {
-                self.function_params.insert(method.clone(), params);
+                self.function_params.insert(method.clone(), params.clone());
+                self.function_params_by_arity
+                    .insert((method.clone(), *arity), params);
             }
             self.user_functions.insert(method.clone());
         }
         for (method, arity) in &value_methods {
             self.functions.insert(method.clone(), *arity);
+            self.function_arities
+                .entry(method.clone())
+                .or_default()
+                .insert(*arity);
             if let Some(params) = self
                 .rule_scope_value_method_params
                 .get(name)
                 .and_then(|by_method| by_method.get(method))
                 .cloned()
             {
-                self.function_params.insert(method.clone(), params);
+                self.function_params.insert(method.clone(), params.clone());
+                self.function_params_by_arity
+                    .insert((method.clone(), *arity), params);
             }
             self.user_functions.insert(method.clone());
         }
@@ -17945,7 +17990,9 @@ impl TypeChecker {
         }
 
         self.functions = old_functions;
+        self.function_arities = old_function_arities;
         self.function_params = old_function_params;
+        self.function_params_by_arity = old_function_params_by_arity;
         self.user_functions = old_user_functions;
         self.pop_context();
     }
@@ -18279,11 +18326,14 @@ impl TypeChecker {
         for stmt in stmts {
             match stmt {
                 Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                    let param_names = params
+                        .iter()
+                        .map(|param| param.name.clone())
+                        .collect::<Vec<_>>();
                     self.functions.insert(name.clone(), params.len());
-                    self.function_params.insert(
-                        name.clone(),
-                        params.iter().map(|param| param.name.clone()).collect(),
-                    );
+                    self.function_params
+                        .insert(name.clone(), param_names.clone());
+                    self.record_function_signature(name, params.len(), Some(param_names));
                     self.user_functions.insert(name.clone());
                     self.register_reference_symbol(name, ProgramSymbolKind::Function);
                     self.define_var(name);
@@ -18368,6 +18418,7 @@ impl TypeChecker {
                         }
                         if variants.len() == 1 && variant.name == *name && field_count > 0 {
                             self.functions.insert(name.clone(), field_count);
+                            self.record_function_signature(name, field_count, None);
                             self.user_functions.insert(name.clone());
                         }
                     }
@@ -18385,11 +18436,14 @@ impl TypeChecker {
                     }
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
+                            let param_names = params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect::<Vec<_>>();
                             self.functions.insert(name.clone(), params.len());
-                            self.function_params.insert(
-                                name.clone(),
-                                params.iter().map(|param| param.name.clone()).collect(),
-                            );
+                            self.function_params
+                                .insert(name.clone(), param_names.clone());
+                            self.record_function_signature(name, params.len(), Some(param_names));
                             self.register_reference_symbol(name, ProgramSymbolKind::Function);
                         }
                     }
@@ -18407,10 +18461,13 @@ impl TypeChecker {
                             .collect(),
                     );
                     self.functions.insert(name.clone(), params.len());
-                    self.function_params.insert(
-                        name.clone(),
-                        params.iter().map(|param| param.name.clone()).collect(),
-                    );
+                    let param_names = params
+                        .iter()
+                        .map(|param| param.name.clone())
+                        .collect::<Vec<_>>();
+                    self.function_params
+                        .insert(name.clone(), param_names.clone());
+                    self.record_function_signature(name, params.len(), Some(param_names));
                     self.user_functions.insert(name.clone());
                     self.define_var(name);
                     self.type_fields.insert(
@@ -18455,12 +18512,15 @@ impl TypeChecker {
                     self.types.insert(name.clone());
                     let mut ops_map = BTreeMap::new();
                     for (op_name, params, _) in ops {
+                        let param_names = params
+                            .iter()
+                            .map(|param| param.name.clone())
+                            .collect::<Vec<_>>();
                         ops_map.insert(op_name.clone(), params.len());
                         self.functions.insert(op_name.clone(), params.len());
-                        self.function_params.insert(
-                            op_name.clone(),
-                            params.iter().map(|param| param.name.clone()).collect(),
-                        );
+                        self.function_params
+                            .insert(op_name.clone(), param_names.clone());
+                        self.record_function_signature(op_name, params.len(), Some(param_names));
                         self.register_reference_symbol(op_name, ProgramSymbolKind::Function);
                     }
                     self.effect_ops.insert(name.clone(), ops_map);
@@ -18469,15 +18529,19 @@ impl TypeChecker {
                     self.types.insert(name.clone());
                     let mut method_names = Vec::new();
                     for method in methods {
+                        let param_names = method
+                            .params
+                            .iter()
+                            .map(|param| param.name.clone())
+                            .collect::<Vec<_>>();
                         self.functions
                             .insert(method.name.clone(), method.params.len());
-                        self.function_params.insert(
-                            method.name.clone(),
-                            method
-                                .params
-                                .iter()
-                                .map(|param| param.name.clone())
-                                .collect(),
+                        self.function_params
+                            .insert(method.name.clone(), param_names.clone());
+                        self.record_function_signature(
+                            &method.name,
+                            method.params.len(),
+                            Some(param_names),
                         );
                         self.register_reference_symbol(&method.name, ProgramSymbolKind::Function);
                         method_names.push(method.name.clone());
@@ -18496,11 +18560,14 @@ impl TypeChecker {
                     let mut method_names = Vec::new();
                     for defn in methods {
                         if let Defn::Fn { name, params, .. } = defn {
+                            let param_names = params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect::<Vec<_>>();
                             self.functions.insert(name.clone(), params.len());
-                            self.function_params.insert(
-                                name.clone(),
-                                params.iter().map(|param| param.name.clone()).collect(),
-                            );
+                            self.function_params
+                                .insert(name.clone(), param_names.clone());
+                            self.record_function_signature(name, params.len(), Some(param_names));
                             self.register_reference_symbol(name, ProgramSymbolKind::Function);
                             method_names.push(name.clone());
                             self.impl_method_receivers.insert(
@@ -18535,9 +18602,13 @@ impl TypeChecker {
                     if let ExprKind::App(func, args) = &head.kind {
                         if let ExprKind::Var(fname) = &func.as_ref().kind {
                             self.functions.entry(fname.clone()).or_insert(args.len());
+                            self.record_function_signature(fname, args.len(), None);
                             if let Some(param_names) = Self::rule_head_param_names(head) {
                                 self.function_params
                                     .entry(fname.clone())
+                                    .or_insert_with(|| param_names.clone());
+                                self.function_params_by_arity
+                                    .entry((fname.clone(), args.len()))
                                     .or_insert(param_names);
                             }
                             self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
@@ -18547,6 +18618,10 @@ impl TypeChecker {
                         // Zero-arg rule without parens: | foo -> Bar
                         self.functions.entry(fname.clone()).or_insert(0);
                         self.function_params.entry(fname.clone()).or_insert(vec![]);
+                        self.record_function_signature(fname, 0, None);
+                        self.function_params_by_arity
+                            .entry((fname.clone(), 0))
+                            .or_insert(vec![]);
                         self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
                         self.define_var(fname);
                     }
@@ -18588,6 +18663,7 @@ impl TypeChecker {
                                         params_str.split(',').count()
                                     };
                                     self.functions.insert(fn_name.clone(), arity);
+                                    self.record_function_signature(&fn_name, arity, None);
                                     self.register_reference_symbol(
                                         &fn_name,
                                         ProgramSymbolKind::Function,
@@ -19371,6 +19447,10 @@ impl TypeChecker {
                                 .constructor_signature_for_named_validation(name, args)
                                 .expect("registered constructor has a validation signature");
                             self.check_named_constructor_args(expr, name, args, signature);
+                        } else if let Some(params) =
+                            self.function_params_for_arity(name, actual_arity).cloned()
+                        {
+                            self.check_named_call_args(expr, "function/rule", name, args, &params);
                         } else if let Some(params) = self.function_params.get(name).cloned() {
                             self.check_named_call_args(expr, "function/rule", name, args, &params);
                         } else if self.functions.contains_key(name) {
@@ -19420,7 +19500,10 @@ impl TypeChecker {
                     }
 
                     if let Some(&expected) = self.functions.get(name) {
-                        if actual_arity != expected && !self.is_rule_function(name) {
+                        if !self.function_has_arity(name, actual_arity)
+                            && actual_arity != expected
+                            && !self.is_rule_function(name)
+                        {
                             self.error_at_expr(
                                 expr,
                                 format!(
@@ -20596,6 +20679,64 @@ mod tests {
     }
 
     #[test]
+    fn interpreted_nested_rulescope_preserves_outer_sibling_values() {
+        let source = r#"
+# Status = Ordinary | Special
+# Input(value: Int)
+# InnerResult(blocked: Bool)
+# OuterResult(valid: Bool, blocked: Bool, deductible: Bool, status: Status)
+
+| classify(status: Status) -> Ordinary
+| exception special classify(status: Status) -> Special under status == Special
+
+# Inner(input: Input) {
+    | input_valid() -> input.value >= 0
+    | blocked() -> input_valid() && false
+    | result() -> InnerResult(blocked = blocked())
+}
+
+| inner_result(input: Input) -> Inner(input).result()
+
+# Outer(input: Input, status: Status) {
+    | input_valid() -> input.value >= 0
+    | same_year() -> true
+    | supported_purpose() -> true
+    | inner_result() -> inner_result(input)
+    | blocked() -> inner_result().blocked
+    | deductible() -> input_valid() && same_year() && supported_purpose() && !blocked()
+    | classification() -> Ordinary
+    | exception classified classification() -> classify(status) under deductible()
+    | result() -> OuterResult(
+        valid = input_valid(),
+        blocked = blocked(),
+        deductible = deductible(),
+        status = classification()
+    )
+}
+
+= result = Outer(Input(1), Special).result()
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse nested RuleScope sibling regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some(
+                "OuterResult(valid: true, blocked: false, deductible: true, status: Special)"
+                    .to_string()
+            )
+        );
+    }
+
+    #[test]
     fn interpreted_rulescope_memoizes_zero_argument_sibling_rules() {
         let source = r#"
 # Case(input: Int) {
@@ -21662,6 +21803,45 @@ mod tests {
         assert!(
             diags.is_empty(),
             "local struct constructors after imports should resolve by name, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_named_calls_use_later_local_parameter_names_after_import() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "futuruna-typechecker-named-import-precedence-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            "> selected(imported_value: Int) -> Int { imported_value }\n",
+        )
+        .unwrap();
+
+        let source = r#"
+@ import ./dep
+> selected(local_value: Int) -> Int { local_value }
+= value = selected(local_value = 2)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert!(
+            diags.is_empty(),
+            "named calls should use the later local definition's parameter names, got: {:?}",
             diags
         );
     }
@@ -22849,6 +23029,20 @@ mod tests {
             end_col >= 15,
             "expected span to cover through ')', got end col {}",
             end_col
+        );
+    }
+
+    #[test]
+    fn unary_operator_wraps_postfix_call_expression() {
+        let expr = parse_expr_from("= x = !blocked()");
+        let ExprKind::UnOp(op, operand) = &expr.kind else {
+            panic!("expected unary expression, got {:?}", expr.kind);
+        };
+        assert_eq!(op, "!");
+        assert!(
+            matches!(&operand.kind, ExprKind::App(_, args) if args.is_empty()),
+            "unary operand should include the complete call: {:?}",
+            operand.kind
         );
     }
 

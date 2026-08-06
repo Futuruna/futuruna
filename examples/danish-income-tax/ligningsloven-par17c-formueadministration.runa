@@ -1,0 +1,71 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+-- Ligningsloven § 17 C - udgifter til formueadministration.
+--
+-- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+
+# Ligningslov17CKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par17c = Ligningslov17CKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 17 C i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-03"
+)
+
+= ligningsloven_par17c_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par17c),
+    )
+)
+
+--@label:ligningsloven_par17c::meta:ligningsloven_par17c_metadata--
+----
+§ 17 C. Udgifter til depotgebyrer, boksleje, kontooversigter samt administration
+i øvrigt vedrørende værdipapirer og bankindeståender, der er anvendt til at
+erhverve, sikre og vedligeholde kapitalindkomst, jf. personskattelovens § 4,
+eller aktieindkomst, jf. personskattelovens § 4 a, kan ikke fradrages ved
+opgørelsen af den skattepligtige indkomst.
+----
+
+--@begin:ligningsloven_par17c--
+# Ligningslov17COmkostningsart = Ll17CAndenOmkostning | Ll17CDepotgebyr | Ll17CBoksleje | Ll17CKontooversigt | Ll17CAdministrationVedrørendeVærdipapirer | Ll17CAdministrationVedrørendeBankindestående
+# Ligningslov17CIndkomsttilknytning = Ll17CKapitalindkomst | Ll17CAktieindkomst | Ll17CAndenIndkomst
+# Ligningslov17CInput(art: Ligningslov17COmkostningsart, indkomsttilknytning: Ligningslov17CIndkomsttilknytning, beløb_kroner: Heltal)
+# Ligningslov17CResultat(input: Ligningslov17CInput, input_gyldigt: Boolsk, formueadministration_omfattet: Boolsk, indkomsttilknytning_omfattet: Boolsk, fradrag_afskåret: Boolsk, afskåret_beløb_kroner: Heltal)
+
+| ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Falskt
+| exception ll17c_depotgebyr ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Sandt under art == Ll17CDepotgebyr
+| exception ll17c_boksleje ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Sandt under art == Ll17CBoksleje
+| exception ll17c_kontooversigt ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Sandt under art == Ll17CKontooversigt
+| exception ll17c_værdipapiradministration ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Sandt under art == Ll17CAdministrationVedrørendeVærdipapirer
+| exception ll17c_bankadministration ligningslov17c_formueadministration_omfattet(art: Ligningslov17COmkostningsart) -> Sandt under art == Ll17CAdministrationVedrørendeBankindestående
+
+| ligningslov17c_indkomsttilknytning_omfattet(tilknytning: Ligningslov17CIndkomsttilknytning) -> Falskt
+| exception ll17c_kapitalindkomst ligningslov17c_indkomsttilknytning_omfattet(tilknytning: Ligningslov17CIndkomsttilknytning) -> Sandt under tilknytning == Ll17CKapitalindkomst
+| exception ll17c_aktieindkomst ligningslov17c_indkomsttilknytning_omfattet(tilknytning: Ligningslov17CIndkomsttilknytning) -> Sandt under tilknytning == Ll17CAktieindkomst
+
+# Ligningslov17CSag(input: Ligningslov17CInput) {
+    | input_gyldigt() -> input.beløb_kroner >= 0
+    | formueadministration_omfattet() -> ligningslov17c_formueadministration_omfattet(input.art)
+    | indkomsttilknytning_omfattet() -> ligningslov17c_indkomsttilknytning_omfattet(input.indkomsttilknytning)
+    | fradrag_afskåret() -> input_gyldigt() && formueadministration_omfattet() && indkomsttilknytning_omfattet()
+    | afskåret_beløb_kroner() -> 0
+    | exception ll17c_afskærer_formueadministration afskåret_beløb_kroner() -> penge_positivt_beløb(input.beløb_kroner) under fradrag_afskåret()
+    | resultat() -> Ligningslov17CResultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        formueadministration_omfattet = formueadministration_omfattet(),
+        indkomsttilknytning_omfattet = indkomsttilknytning_omfattet(),
+        fradrag_afskåret = fradrag_afskåret(),
+        afskåret_beløb_kroner = afskåret_beløb_kroner()
+    )
+}
+
+| ligningslov17c_sag(input: Ligningslov17CInput) -> Ligningslov17CSag(input)
+| ligningslov17c_resultat(input: Ligningslov17CInput) -> ligningslov17c_sag(input).resultat()
+--@end:ligningsloven_par17c--

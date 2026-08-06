@@ -2532,7 +2532,18 @@ encoded as a temporal rule on top of the consolidation.
 - `scripts/refresh-danish-tax-source-status.py` exists and self-tests; the live
   run checks all `Retskilde(...)` records against official Retsinformation XML
   before source metadata is refreshed by hand.
-- `kapitel-01-indkomst.runa` exists and checks with `runa check`.
+- `kapitel-01-indkomst.runa` findes og passerer `runa check`. Sporet for
+  kapitalomkostninger efter personskattelovens § 4, stk. 2-3 afleder nu den
+  lovbestemte anvendelse, afskæringen efter ligningslovens § 17 C og en mulig
+  omklassifikation til personlig indkomst fra typede kildefakta frem for at
+  modtage et ubestemt beløb.
+- `ligningsloven-par17c-formueadministration.runa` bevarer den gældende
+  officielle § 17 C-tekst ordret og modellerer de nævnte
+  formueadministrationsudgifter som typede afskæringer. Det fokuserede
+  `personskatteloven-par4-kapitalomkostninger.scenario.runa` dækker alle tre
+  formål i § 4, stk. 2, alle fem nævnte § 17 C-kategorier, begge
+  næringsomklassifikationer i § 4, stk. 3 og ugyldige fakta i begge
+  udførelsesveje.
 - `kapitel-02-statsskat.runa` exists and checks with `runa check`.
 - `kapitel-03-personfradrag.runa` exists and checks with `runa check`.
 - `kapitel-04-omregning-skatteloft.runa` exists and checks with `runa check`.
@@ -3535,6 +3546,24 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Personskattelovens § 4, stk. 2-3 modtager nu hver kapitalomkostning som et
+  identificeret kildefaktum med anvendelsesår, lovbestemt anvendelse,
+  omkostningsart efter Ligningslovens § 17 C, egen næringsstatus og beløb.
+  Reglerne afleder selv, om omkostningen vedrører årets kapitalindkomst, om den
+  tjener erhvervelse, sikring og vedligeholdelse af kapitalindkomst, om § 17 C
+  afskærer fradraget, og om § 4, stk. 3 flytter det til personlig indkomst.
+  Afviste og ugyldige beløb bevares særskilt i resultatsporet; blanke eller
+  dobbelte identifikationer kan ikke lække ind i beregningen. Den kanoniske
+  Personskat-kontrakt og dens relationelle projektmappe udstiller de samme seks
+  felter med danske spørgsmål og kildehenvisninger. Det fokuserede scenarie
+  dækker alle tre formål, alle fem § 17 C-kategorier, næringsomklassifikation og
+  ugyldige fakta. Det kanoniske scenarie passerer alle 27 invarianter i både
+  fortolket og kompileret udførelse, og skemaudtrækket bevarer felterne og deres
+  kildeankre.
+- Denne model afdækkede to generelle sprogfejl, som nu er rettet med
+  regressionstest: RuleScope-kald skelner mellem lokale og globale regler efter
+  aritet, og postfix-kald binder korrekt inden for præfiksoperatorerne `!`, `-`,
+  `&` og `&mut`. Rettelserne er generelle og ikke særlige for skattelovgivning.
 - Kursgevinstlovens § 32 er nu ført ind i den kanoniske Personskat-beregning
   som kildedata frem for færdigklassificerede skattebeløb. Identificerede
   kontrakter, ABL-aktiver og ordnet årshistorik afleder årets gevinst, tab,

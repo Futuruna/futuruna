@@ -15516,6 +15516,9 @@ struct TypeRegistry {
     user_functions: BTreeSet<String>,
     /// Declared function types: fn_name -> Arrow(param1, ... -> ret), using Unknown for gaps
     fn_types: BTreeMap<String, FirTy>,
+    /// Declared function types keyed by source-level arity. RuleScope members can
+    /// share a name with a global callable when their arities differ.
+    fn_types_by_arity: BTreeMap<(String, usize), FirTy>,
     /// Names marked with `@ export` — emitted as `pub` in Rust
     exported_names: BTreeSet<String>,
     /// Names exported from the root module after flat imports and local exports.
@@ -15582,6 +15585,7 @@ impl TypeRegistry {
             watched_persist_types: BTreeSet::new(),
             user_functions: BTreeSet::new(),
             fn_types: BTreeMap::new(),
+            fn_types_by_arity: BTreeMap::new(),
             exported_names: BTreeSet::new(),
             root_exported_names: BTreeSet::new(),
             known_modules: BTreeSet::new(),
@@ -15935,8 +15939,8 @@ struct RustCodegen {
     scope_bindings: BTreeMap<String, Vec<String>>,
     /// M13c: scope name -> list of stream binding names for qualified stream accessors.
     scope_stream_bindings: BTreeMap<String, Vec<String>>,
-    /// RuleScope method names visible while emitting a RuleScope method body.
-    current_rule_scope_methods: BTreeSet<String>,
+    /// RuleScope method arities visible while emitting a RuleScope method body.
+    current_rule_scope_methods: BTreeMap<String, usize>,
     /// RuleScope type currently being emitted, for hidden-global member calls.
     current_rule_scope_name: Option<String>,
     /// Stored invariants for ? verification: name -> (subject_expr, predicate_expr)
@@ -17441,6 +17445,15 @@ impl<'a> LoweringCtx<'a> {
                 let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
                 let mut fir_func = self.lower_expr(func);
+                if let ExprKind::Var(name) = &func.kind {
+                    if let Some(fn_ty) = self
+                        .types
+                        .fn_types_by_arity
+                        .get(&(name.clone(), args_for_lowering.len()))
+                    {
+                        fir_func.ty = fn_ty.clone();
+                    }
+                }
                 if let (ExprKind::Field(_, member), FirExprKind::Field(base, _)) =
                     (&func.kind, &fir_func.kind)
                 {
@@ -20276,22 +20289,24 @@ fn collect_mutable_vars(stmts: &[&Stmt], mutable: &mut BTreeSet<String>) {
 
 fn collect_called_vars(stmt: &Stmt, called: &mut BTreeSet<String>) {
     let mut member_calls = BTreeSet::new();
-    collect_called_targets(stmt, called, &mut member_calls);
+    let mut call_signatures = BTreeSet::new();
+    collect_called_targets(stmt, called, &mut member_calls, &mut call_signatures);
 }
 
 fn collect_called_targets(
     stmt: &Stmt,
     called: &mut BTreeSet<String>,
     member_calls: &mut BTreeSet<String>,
+    call_signatures: &mut BTreeSet<(String, usize)>,
 ) {
     match stmt {
         Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => {
-            collect_called_targets_expr(expr, called, member_calls)
+            collect_called_targets_expr(expr, called, member_calls, call_signatures)
         }
         Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
-            collect_called_targets_expr(iter, called, member_calls);
+            collect_called_targets_expr(iter, called, member_calls, call_signatures);
             for s in body {
-                collect_called_targets(s, called, member_calls);
+                collect_called_targets(s, called, member_calls, call_signatures);
             }
         }
         _ => {}
@@ -20302,76 +20317,82 @@ fn collect_called_targets_expr(
     expr: &Expr,
     called: &mut BTreeSet<String>,
     member_calls: &mut BTreeSet<String>,
+    call_signatures: &mut BTreeSet<(String, usize)>,
 ) {
     match &expr.kind {
         ExprKind::App(func, args) => {
             match &func.as_ref().kind {
                 ExprKind::Var(name) => {
                     called.insert(name.clone());
+                    call_signatures.insert((name.clone(), args.len()));
                 }
                 ExprKind::Field(_, method) => {
                     member_calls.insert(method.clone());
                 }
                 _ => {}
             }
-            collect_called_targets_expr(func, called, member_calls);
+            collect_called_targets_expr(func, called, member_calls, call_signatures);
             for a in args {
-                collect_called_targets_expr(a, called, member_calls);
+                collect_called_targets_expr(a, called, member_calls, call_signatures);
             }
         }
         ExprKind::BinOp(_, l, r) => {
-            collect_called_targets_expr(l, called, member_calls);
-            collect_called_targets_expr(r, called, member_calls);
+            collect_called_targets_expr(l, called, member_calls, call_signatures);
+            collect_called_targets_expr(r, called, member_calls, call_signatures);
         }
         ExprKind::UnOp(_, inner) | ExprKind::Try(inner) => {
-            collect_called_targets_expr(inner, called, member_calls);
+            collect_called_targets_expr(inner, called, member_calls, call_signatures);
         }
         ExprKind::If(c, t, e) => {
-            collect_called_targets_expr(c, called, member_calls);
-            collect_called_targets_expr(t, called, member_calls);
-            collect_called_targets_expr(e, called, member_calls);
+            collect_called_targets_expr(c, called, member_calls, call_signatures);
+            collect_called_targets_expr(t, called, member_calls, call_signatures);
+            collect_called_targets_expr(e, called, member_calls, call_signatures);
         }
         ExprKind::Block(stmts) => {
             for s in stmts {
-                collect_called_targets(s, called, member_calls);
+                collect_called_targets(s, called, member_calls, call_signatures);
             }
         }
         ExprKind::Match(scrutinee, arms) => {
-            collect_called_targets_expr(scrutinee, called, member_calls);
+            collect_called_targets_expr(scrutinee, called, member_calls, call_signatures);
             for arm in arms {
-                collect_called_targets_expr(&arm.body, called, member_calls);
+                collect_called_targets_expr(&arm.body, called, member_calls, call_signatures);
             }
         }
-        ExprKind::Lambda(_, body) => collect_called_targets_expr(body, called, member_calls),
+        ExprKind::Lambda(_, body) => {
+            collect_called_targets_expr(body, called, member_calls, call_signatures)
+        }
         ExprKind::List(elems) | ExprKind::Tuple(elems) => {
             for elem in elems {
-                collect_called_targets_expr(elem, called, member_calls);
+                collect_called_targets_expr(elem, called, member_calls, call_signatures);
             }
         }
         ExprKind::Effect(_, args) => {
             for a in args {
-                collect_called_targets_expr(a, called, member_calls);
+                collect_called_targets_expr(a, called, member_calls, call_signatures);
             }
         }
         ExprKind::Handle { handlers, body, .. } => {
             for handler in handlers {
-                collect_called_targets_expr(&handler.body, called, member_calls);
+                collect_called_targets_expr(&handler.body, called, member_calls, call_signatures);
             }
-            collect_called_targets_expr(body, called, member_calls);
+            collect_called_targets_expr(body, called, member_calls, call_signatures);
         }
         ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for goal in goals {
-                collect_called_targets_expr(goal, called, member_calls);
+                collect_called_targets_expr(goal, called, member_calls, call_signatures);
             }
         }
         ExprKind::Pipe(lhs, rhs) => {
-            collect_called_targets_expr(lhs, called, member_calls);
-            collect_called_targets_expr(rhs, called, member_calls);
+            collect_called_targets_expr(lhs, called, member_calls, call_signatures);
+            collect_called_targets_expr(rhs, called, member_calls, call_signatures);
         }
-        ExprKind::Field(obj, _) => collect_called_targets_expr(obj, called, member_calls),
+        ExprKind::Field(obj, _) => {
+            collect_called_targets_expr(obj, called, member_calls, call_signatures)
+        }
         ExprKind::Index(arr, idx) => {
-            collect_called_targets_expr(arr, called, member_calls);
-            collect_called_targets_expr(idx, called, member_calls);
+            collect_called_targets_expr(arr, called, member_calls, call_signatures);
+            collect_called_targets_expr(idx, called, member_calls, call_signatures);
         }
         _ => {}
     }
@@ -20713,7 +20734,7 @@ impl RustCodegen {
             sub_counter: 0,
             scope_bindings: BTreeMap::new(),
             scope_stream_bindings: BTreeMap::new(),
-            current_rule_scope_methods: BTreeSet::new(),
+            current_rule_scope_methods: BTreeMap::new(),
             current_rule_scope_name: None,
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
@@ -23268,7 +23289,10 @@ impl RustCodegen {
                         .unwrap_or(FirTy::Unknown);
                     fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                 }
-                self.types.fn_types.insert(name.clone(), fn_ty);
+                self.types.fn_types.insert(name.clone(), fn_ty.clone());
+                self.types
+                    .fn_types_by_arity
+                    .insert((name.clone(), params.len()), fn_ty);
                 self.fn_return_types.insert(name.clone(), rust_name);
                 self.register_rule_scope_member_params(name, body);
             }
@@ -23375,7 +23399,10 @@ impl RustCodegen {
                                 .unwrap_or(FirTy::Unknown);
                             fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                         }
-                        self.types.fn_types.insert(name.clone(), fn_ty);
+                        self.types.fn_types.insert(name.clone(), fn_ty.clone());
+                        self.types
+                            .fn_types_by_arity
+                            .insert((name.clone(), params.len()), fn_ty);
                         self.fn_return_types.insert(name.clone(), rust_name);
                         self.register_rule_scope_member_params(name, body);
                     }
@@ -23406,7 +23433,10 @@ impl RustCodegen {
                         .unwrap_or(FirTy::Unknown);
                     fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
                 }
-                self.types.fn_types.insert(name.clone(), fn_ty);
+                self.types.fn_types.insert(name.clone(), fn_ty.clone());
+                self.types
+                    .fn_types_by_arity
+                    .insert((name.clone(), params.len()), fn_ty);
                 if let Some(ty) = ret_ty {
                     self.fn_return_types
                         .insert(name.clone(), self.emit_type(ty));
@@ -26270,9 +26300,12 @@ impl RustCodegen {
                     fn_ty = FirTy::Arrow(Box::new(param_ty.clone()), Box::new(fn_ty));
                 }
                 if self.types.fn_types.get(fn_name.as_str()) != Some(&fn_ty) {
-                    self.types.fn_types.insert(fn_name.clone(), fn_ty);
+                    self.types.fn_types.insert(fn_name.clone(), fn_ty.clone());
                     changed = true;
                 }
+                self.types
+                    .fn_types_by_arity
+                    .insert((fn_name.clone(), params.len()), fn_ty);
                 if self.fn_return_types.get(fn_name.as_str()) != Some(&ret_type) {
                     self.fn_return_types
                         .insert(fn_name.clone(), ret_type.clone());
@@ -26582,7 +26615,8 @@ impl RustCodegen {
 
             let mut called = BTreeSet::new();
             let mut member_calls = BTreeSet::new();
-            collect_called_targets_expr(body, &mut called, &mut member_calls);
+            let mut call_signatures = BTreeSet::new();
+            collect_called_targets_expr(body, &mut called, &mut member_calls, &mut call_signatures);
             called.extend(free.iter().cloned());
             fn_calls.insert(name.clone(), called);
             fn_member_calls.insert(name.clone(), member_calls);
@@ -26596,13 +26630,19 @@ impl RustCodegen {
             let mut free = BTreeSet::new();
             let mut called = BTreeSet::new();
             let mut member_calls = BTreeSet::new();
+            let mut call_signatures = BTreeSet::new();
 
             for rule in rules {
                 let mut exprs = Vec::new();
                 Self::rule_value_and_condition_exprs(rule, &mut exprs);
                 for expr in exprs {
                     collect_true_free_vars(expr, &mut free, &bound);
-                    collect_called_targets_expr(expr, &mut called, &mut member_calls);
+                    collect_called_targets_expr(
+                        expr,
+                        &mut called,
+                        &mut member_calls,
+                        &mut call_signatures,
+                    );
                 }
             }
 
@@ -26622,13 +26662,21 @@ impl RustCodegen {
         for (scope_name, scope_params, body) in declarations {
             let scope_name = scope_name.to_string();
             let rule_groups = Self::collect_rule_groups_from_stmts(body);
-            let mut scope_method_names: BTreeSet<String> = rule_groups.keys().cloned().collect();
-            scope_method_names.extend(Self::rule_scope_defn_methods(body).into_iter().filter_map(
-                |method| match method {
-                    Defn::Fn { name, .. } => Some(name.clone()),
-                    _ => None,
-                },
-            ));
+            let mut scope_method_arities: BTreeMap<String, usize> = rule_groups
+                .iter()
+                .map(|(name, rules)| (name.clone(), Self::rule_params(rules).len()))
+                .collect();
+            scope_method_arities.extend(
+                Self::rule_scope_defn_methods(body)
+                    .into_iter()
+                    .filter_map(|method| match method {
+                        Defn::Fn { name, params, .. } => Some((
+                            name.clone(),
+                            params.iter().filter(|param| param.name != "self").count(),
+                        )),
+                        _ => None,
+                    }),
+            );
             let scope_bound: BTreeSet<String> = scope_params
                 .iter()
                 .map(|param| param.name.clone())
@@ -26642,12 +26690,18 @@ impl RustCodegen {
                 let mut free = BTreeSet::new();
                 let mut called = BTreeSet::new();
                 let mut member_calls = BTreeSet::new();
+                let mut call_signatures = BTreeSet::new();
                 for rule in rules {
                     let mut exprs = Vec::new();
                     Self::rule_value_and_condition_exprs(rule, &mut exprs);
                     for expr in exprs {
                         collect_true_free_vars(expr, &mut free, &bound);
-                        collect_called_targets_expr(expr, &mut called, &mut member_calls);
+                        collect_called_targets_expr(
+                            expr,
+                            &mut called,
+                            &mut member_calls,
+                            &mut call_signatures,
+                        );
                     }
                 }
                 if free
@@ -26656,9 +26710,25 @@ impl RustCodegen {
                 {
                     env_methods.insert(key.clone());
                 }
-                called.extend(free.iter().cloned());
-                for called_name in called {
-                    if scope_method_names.contains(&called_name) {
+                let called_signature_names: BTreeSet<String> = call_signatures
+                    .iter()
+                    .map(|(called_name, _)| called_name.clone())
+                    .collect();
+                for (called_name, called_arity) in call_signatures {
+                    if scope_method_arities.get(&called_name) == Some(&called_arity) {
+                        member_calls.insert(called_name);
+                    } else {
+                        method_calls
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(called_name);
+                    }
+                }
+                for called_name in free
+                    .into_iter()
+                    .filter(|name| !called_signature_names.contains(name))
+                {
+                    if scope_method_arities.contains_key(&called_name) {
                         member_calls.insert(called_name);
                     } else {
                         method_calls
@@ -26692,10 +26762,32 @@ impl RustCodegen {
                 }
                 let mut called = BTreeSet::new();
                 let mut member_calls = BTreeSet::new();
-                collect_called_targets_expr(body, &mut called, &mut member_calls);
-                called.extend(free.iter().cloned());
-                for called_name in called {
-                    if scope_method_names.contains(&called_name) {
+                let mut call_signatures = BTreeSet::new();
+                collect_called_targets_expr(
+                    body,
+                    &mut called,
+                    &mut member_calls,
+                    &mut call_signatures,
+                );
+                let called_signature_names: BTreeSet<String> = call_signatures
+                    .iter()
+                    .map(|(called_name, _)| called_name.clone())
+                    .collect();
+                for (called_name, called_arity) in call_signatures {
+                    if scope_method_arities.get(&called_name) == Some(&called_arity) {
+                        member_calls.insert(called_name);
+                    } else {
+                        method_calls
+                            .entry(key.clone())
+                            .or_default()
+                            .insert(called_name);
+                    }
+                }
+                for called_name in free
+                    .into_iter()
+                    .filter(|name| !called_signature_names.contains(name))
+                {
+                    if scope_method_arities.contains_key(&called_name) {
                         member_calls.insert(called_name);
                     } else {
                         method_calls
@@ -27267,9 +27359,11 @@ impl RustCodegen {
         }
 
         let saved_fn_types = self.types.fn_types.clone();
+        let saved_fn_types_by_arity = self.types.fn_types_by_arity.clone();
         let saved_rule_scope_member_fn_types = self.types.rule_scope_member_fn_types.clone();
         for _ in 0..rule_groups.len().max(1) {
             self.types.fn_types = saved_fn_types.clone();
+            self.types.fn_types_by_arity = saved_fn_types_by_arity.clone();
             self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types.clone();
             for (method, param_tys) in &method_param_tys {
                 let ret_ty = method_return_tys
@@ -27278,6 +27372,9 @@ impl RustCodegen {
                     .unwrap_or(FirTy::Unknown);
                 let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
                 self.types.fn_types.insert(method.clone(), fn_ty.clone());
+                self.types
+                    .fn_types_by_arity
+                    .insert((method.clone(), param_tys.len()), fn_ty.clone());
                 self.types
                     .rule_scope_member_fn_types
                     .insert((scope_name.to_string(), method.clone()), fn_ty.clone());
@@ -27327,6 +27424,7 @@ impl RustCodegen {
             }
         }
         self.types.fn_types = saved_fn_types;
+        self.types.fn_types_by_arity = saved_fn_types_by_arity;
         self.types.rule_scope_member_fn_types = saved_rule_scope_member_fn_types;
 
         for ret_ty in method_return_tys.values_mut() {
@@ -27357,6 +27455,18 @@ impl RustCodegen {
         }
         let (method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(name, &rust_name, params, &rule_groups);
+        let mut method_arities: BTreeMap<String, usize> = method_params
+            .iter()
+            .map(|(method, params)| (method.clone(), params.len()))
+            .collect();
+        for method in &value_methods {
+            if let Defn::Fn { name, params, .. } = method {
+                method_arities.insert(
+                    name.clone(),
+                    params.iter().filter(|param| param.name != "self").count(),
+                );
+            }
+        }
         let memoized_rule_methods: Vec<(String, String, String)> = rule_groups
             .keys()
             .filter(|method| {
@@ -27575,15 +27685,18 @@ impl RustCodegen {
         }
 
         let saved_fn_types = self.types.fn_types.clone();
+        let saved_fn_types_by_arity = self.types.fn_types_by_arity.clone();
         let saved_call_params = self.types.call_params.clone();
         for (method, param_tys) in &method_param_tys {
             let ret_ty = method_return_tys
                 .get(method)
                 .cloned()
                 .unwrap_or(FirTy::Bool);
+            let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
+            self.types.fn_types.insert(method.clone(), fn_ty.clone());
             self.types
-                .fn_types
-                .insert(method.clone(), Self::fn_type_from_parts(param_tys, ret_ty));
+                .fn_types_by_arity
+                .insert((method.clone(), param_tys.len()), fn_ty);
         }
         for (method, params) in &method_params {
             self.types
@@ -27602,7 +27715,7 @@ impl RustCodegen {
                 );
             }
         }
-        let prev_methods = std::mem::replace(&mut self.current_rule_scope_methods, method_names);
+        let prev_methods = std::mem::replace(&mut self.current_rule_scope_methods, method_arities);
         let prev_scope_name =
             std::mem::replace(&mut self.current_rule_scope_name, Some(name.to_string()));
 
@@ -27662,6 +27775,7 @@ impl RustCodegen {
         self.current_rule_scope_methods = prev_methods;
         self.current_rule_scope_name = prev_scope_name;
         self.types.fn_types = saved_fn_types;
+        self.types.fn_types_by_arity = saved_fn_types_by_arity;
         self.types.call_params = saved_call_params;
         out
     }
@@ -34633,7 +34747,9 @@ impl RustCodegen {
                 };
                 fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
             }
-            self.types.fn_types.insert(name, fn_ty);
+            let arity = func.sig.inputs.len();
+            self.types.fn_types.insert(name.clone(), fn_ty.clone());
+            self.types.fn_types_by_arity.insert((name, arity), fn_ty);
         }
     }
 
@@ -34917,7 +35033,7 @@ impl RustCodegen {
             .into_iter()
             .filter(|v| {
                 self.lambda_free_var_is_runtime_capture(v.as_str())
-                    && !self.current_rule_scope_methods.contains(v.as_str())
+                    && !self.current_rule_scope_methods.contains_key(v.as_str())
                     && !lsp_builtin_names.contains(v.as_str())
                     && !all_effect_ops.contains(v.as_str())
                     && !matches!(
@@ -37180,7 +37296,7 @@ impl RustCodegen {
                     })
                     .collect();
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if self.current_rule_scope_methods.contains(name.as_str()) {
+                    if self.current_rule_scope_methods.get(name.as_str()) == Some(&args.len()) {
                         let mut method_args = args_str.clone();
                         if self.binary_global_env_arg_in_scope
                             && self
@@ -37327,7 +37443,7 @@ impl RustCodegen {
                                 .into_iter()
                                 .filter(|v| {
                                     self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains(v.as_str())
+                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
                                         && !self.copy_vars.contains(v.as_str())
                                         && !lsp_names.contains(v.as_str())
                                         && !matches!(
@@ -37442,7 +37558,7 @@ impl RustCodegen {
                                 .into_iter()
                                 .filter(|v| {
                                     self.lambda_free_var_is_runtime_capture(v.as_str())
-                                        && !self.current_rule_scope_methods.contains(v.as_str())
+                                        && !self.current_rule_scope_methods.contains_key(v.as_str())
                                         && !self.copy_vars.contains(v.as_str())
                                         && !lsp_names.contains(v.as_str())
                                         && !matches!(
@@ -49484,6 +49600,43 @@ for x in [1, 2] {
             "projection from delegated RuleScope member must not be lowered as a boolean predicate: {}",
             rust
         );
+    }
+
+    #[test]
+    fn compiled_rulescope_resolves_same_named_global_call_by_arity() {
+        let source = r#"
+# Input(value: Int)
+# Output(value: Int)
+
+= increment = 1
+| result(input: Input) -> Output(value = input.value + increment)
+
+# Case(input: Input) {
+    | result() -> result(input)
+    | value() -> result().value
+}
+
+@ print(show(Case(input = Input(value = 41)).value()))
+"#;
+
+        let (mut cg, stmts) = scan_with_codegen(source);
+        let rust = cg.emit_program(&stmts);
+        assert!(
+            rust.contains("fn result(&self, __fut_globals: &__FutGlobals) -> Output"),
+            "RuleScope return inference should use the same-named global at arity one: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("self.result(self.input"),
+            "the arity-one call must not lower to the zero-arity RuleScope member: {}",
+            rust
+        );
+        assert!(
+            rust.contains("return result(__fut_globals, input);"),
+            "the arity-one global call should receive the inherited hidden environment: {}",
+            rust
+        );
+        assert_eq!(compile_and_run_test_program(source).trim(), "42");
     }
 
     #[test]

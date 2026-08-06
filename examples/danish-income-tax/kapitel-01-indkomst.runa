@@ -4,6 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./ligningsloven_fradrag
 @ importer ./ligningsloven_kapitalindkomst
+@ importer ./ligningsloven - par17c - formueadministration
 @ importer ./personskatteloven - par4b - cfc
 @ importer ./selskabsskatteloven
 @ importer ./kursgevinstloven
@@ -1075,6 +1076,7 @@ fra og med den 1. januar 2027.
 --@begin:personskatteloven_par4--
 # Kapitalpost = RenterOgLigningslov6 | KursgevinstOgTab | KapitalafkastVsl7 | KapitalafkastVsl22 | AktieudbytteIkkeAktieindkomst | AktieavanceIkkeAktieindkomst | Medlemsbeviser | InvesteringsformidlerBeløb | MedarbejderinvesteringsselskabBeløb | EjendomsoverskudUnderskud | Provisioner | Rentekorrektion | PassivSelvstændigErhvervsvirksomhed | Ligningslov14AIndbetaling | UdlejningAfDriftsmidlerOgSkibe | Ligningslov5CVederlag | Pensionsbeskatning53AAfkast | Ejendomsavance | Ligningslov12BBeløb | Afskrivningslov40CBeløb | FremlejeOverskud
 # Næringsstatus = IkkeNæring | FordringsEllerKontraktNæring | FinansieringsNæring
+# Par4Stk2Omkostningsanvendelse = Par4Stk2ErhverveKapitalindkomst | Par4Stk2SikreKapitalindkomst | Par4Stk2VedligeholdeKapitalindkomst | Par4Stk2AndetFormål
 # AndelsforeningUdlodning = IkkeAndelsforeningsudlodning | NormalForrentning | IkkeNormalForrentning
 # KapitalTilPersonligUndtagelse = Aktieavance17 | Aktieavance19CHvis17 | Investeringsformidler19CHvis17 | Medarbejderinvesteringsselskab
 # Anskaffelsesstatus = Før19Maj1993 | PåEllerEfter19Maj1993
@@ -1136,9 +1138,10 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr17Input(rolle: Par4Stk1Nr17Boligrolle, afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning, bruttolejeindtægt_kroner: Heltal, ligningslov15q_fradrag_kroner: Heltal)
 # Par4Stk1Nr17Resultat(rolle: Par4Stk1Nr17Boligrolle, afgrænsning: Par4Stk1Nr17Ligningslov15QAfgrænsning, lejer_eller_andelshaver: Boolsk, omfattet_af_ligningslov15q: Boolsk, bruttolejeindtægt_kroner: Heltal, ligningslov15q_fradrag_kroner: Heltal, overskud_efter_ligningslov15q_kroner: Heltal, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr17_kroner: Heltal)
 # Par4Kapitalpost(art: Kapitalpost, beløb_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation, personlig_indkomst_tillæg_kroner: Heltal)
-# Par4Kapitalomkostning(beløb_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
-# Par4KapitalindkomstInput(poster: List(Par4Kapitalpost), omkostninger: List(Par4Kapitalomkostning))
-# Par4KapitalindkomstResultat(postbeløb_i_kapitalindkomst_kroner: Heltal, fradragsberettigede_omkostninger_kroner: Heltal, omklassificerede_personlige_omkostninger_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal, omklassificeret_personlig_indkomst_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal)
+# Par4Stk2Omkostningsinput(indkomstår: Heltal, anvendelsesår: Heltal, anvendelse: Par4Stk2Omkostningsanvendelse, omkostningsart: Ligningslov17COmkostningsart, beløb_kroner: Heltal, næringsstatus: Næringsstatus)
+# Par4Stk2Omkostningsresultat(input: Par4Stk2Omkostningsinput, ligningslov17c_resultat: Ligningslov17CResultat, input_gyldigt: Boolsk, anvendt_i_indkomståret: Boolsk, kapitalindkomstformål_opfyldt: Boolsk, fradrag_afskåret_efter_ligningslov17c: Boolsk, fradragsberettiget: Boolsk, personlig_reklassifikation: KapitalPersonligReklassifikation, bruttobeløb_kroner: Heltal, fradrag_i_kapitalindkomst_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, afskåret_beløb_kroner: Heltal, afvist_ugyldigt_beløb_kroner: Heltal)
+# Par4KapitalindkomstInput(poster: List(Par4Kapitalpost), omkostninger: List(Par4Stk2Omkostningsresultat))
+# Par4KapitalindkomstResultat(postbeløb_i_kapitalindkomst_kroner: Heltal, fradragsberettigede_omkostninger_kroner: Heltal, omklassificerede_personlige_omkostninger_kroner: Heltal, afskårne_omkostninger_kroner: Heltal, afviste_ugyldige_omkostninger_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, positiv_nettokapitalindkomst_kroner: Heltal, negativ_nettokapitalindkomst_abs_kroner: Heltal, omklassificeret_personlig_indkomst_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal)
 
 | kapitalindkomst_omfatter(post: Kapitalpost) -> Sandt
 | kapitalomkostning_fradrages_i_kapitalindkomst() -> Sandt
@@ -1146,6 +1149,10 @@ fra og med den 1. januar 2027.
 | kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Falskt under status == IkkeNæring
 | exception fordringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FordringsEllerKontraktNæring
 | exception finansieringsnæring kapitalpost_medregnes_personligt_ved_næring(post: Kapitalpost, status: Næringsstatus) -> Sandt under status == FinansieringsNæring
+
+| par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> IngenPersonligReklassifikation
+| exception par4_stk3_fordrings_eller_kontraktnæring par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> FordringsEllerKontraktNæringReklassifikation under status == FordringsEllerKontraktNæring
+| exception par4_stk3_finansieringsnæring par4_reklassifikation_fra_næringsstatus(status: Næringsstatus) -> FinansieringsNæringReklassifikation under status == FinansieringsNæring
 
 | andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Falskt
 | exception ikke_normal_forrentning andelsudlodning_medregnes_personligt(udlodning: AndelsforeningUdlodning) -> Sandt under udlodning == IkkeNormalForrentning
@@ -1975,15 +1982,63 @@ fra og med den 1. januar 2027.
 | par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> 0
 | exception par4_stk3_til_7_reklassificeret_personlig par4_kapitalpost_i_personlig_indkomst_kroner(post: Par4Kapitalpost) -> post.beløb_kroner under par4_kapitalpost_reklassificeres_til_personlig_indkomst(post)
 | par4_kapitalpost_personlig_indkomst_tillæg_kroner(post: Par4Kapitalpost) -> penge_positivt_beløb(post.personlig_indkomst_tillæg_kroner)
-| par4_kapitalomkostning_kroner(omkostning: Par4Kapitalomkostning) -> penge_positivt_beløb(omkostning.beløb_kroner)
-| par4_kapitalomkostning_reklassificeres_til_personlig_indkomst(omkostning: Par4Kapitalomkostning) -> par4_reklassifikation_til_personlig_indkomst(omkostning.personlig_reklassifikation)
-| par4_kapitalomkostning_i_kapitalindkomst_kroner(omkostning: Par4Kapitalomkostning) -> par4_kapitalomkostning_kroner(omkostning)
-| exception par4_stk3_reklassificeret_omkostning_ikke_kapital par4_kapitalomkostning_i_kapitalindkomst_kroner(omkostning: Par4Kapitalomkostning) -> 0 under par4_kapitalomkostning_reklassificeres_til_personlig_indkomst(omkostning)
-| par4_kapitalomkostning_i_personlig_indkomst_kroner(omkostning: Par4Kapitalomkostning) -> 0
-| exception par4_stk3_reklassificeret_omkostning_personlig par4_kapitalomkostning_i_personlig_indkomst_kroner(omkostning: Par4Kapitalomkostning) -> par4_kapitalomkostning_kroner(omkostning) under par4_kapitalomkostning_reklassificeres_til_personlig_indkomst(omkostning)
+
+| par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Falskt
+| exception par4_stk2_erhverve_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2ErhverveKapitalindkomst
+| exception par4_stk2_sikre_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2SikreKapitalindkomst
+| exception par4_stk2_vedligeholde_kapitalindkomst par4_stk2_kapitalindkomstformål_opfyldt(anvendelse: Par4Stk2Omkostningsanvendelse) -> Sandt under anvendelse == Par4Stk2VedligeholdeKapitalindkomst
+
+| par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse: Par4Stk2Omkostningsanvendelse) -> Ll17CAndenIndkomst
+| exception par4_stk2_kapitalindkomsttilknytning par4_stk2_ligningslov17c_indkomsttilknytning(anvendelse: Par4Stk2Omkostningsanvendelse) -> Ll17CKapitalindkomst under par4_stk2_kapitalindkomstformål_opfyldt(anvendelse)
+
+# Par4Stk2Omkostningssag(input: Par4Stk2Omkostningsinput) {
+    | input_gyldigt() -> input.indkomstår > 0 && input.anvendelsesår > 0 && input.beløb_kroner >= 0
+    | anvendt_i_indkomståret() -> input.anvendelsesår == input.indkomstår
+    | kapitalindkomstformål_opfyldt() -> par4_stk2_kapitalindkomstformål_opfyldt(input.anvendelse)
+    | ligningslov17c_resultat() -> ligningslov17c_resultat(Ligningslov17CInput(
+        art = input.omkostningsart,
+        indkomsttilknytning = par4_stk2_ligningslov17c_indkomsttilknytning(input.anvendelse),
+        beløb_kroner = input.beløb_kroner
+    ))
+    | fradrag_afskåret_efter_ligningslov17c() -> ligningslov17c_resultat().fradrag_afskåret
+    | fradragsberettiget() -> input_gyldigt() && anvendt_i_indkomståret() && kapitalindkomstformål_opfyldt() && !fradrag_afskåret_efter_ligningslov17c()
+    | personlig_reklassifikation() -> IngenPersonligReklassifikation
+    | exception par4_stk3_fradragsberettiget_omkostning_følger_næring personlig_reklassifikation() -> par4_reklassifikation_fra_næringsstatus(input.næringsstatus) under fradragsberettiget()
+    | bruttobeløb_kroner() -> penge_positivt_beløb(input.beløb_kroner)
+    | fradrag_i_kapitalindkomst_kroner() -> 0
+    | exception par4_stk2_fradrag_i_kapitalindkomst fradrag_i_kapitalindkomst_kroner() -> bruttobeløb_kroner() under fradragsberettiget() && personlig_reklassifikation() == IngenPersonligReklassifikation
+    | fradrag_i_personlig_indkomst_kroner() -> 0
+    | exception par4_stk3_fradrag_i_personlig_indkomst fradrag_i_personlig_indkomst_kroner() -> bruttobeløb_kroner() under fradragsberettiget() && par4_reklassifikation_til_personlig_indkomst(personlig_reklassifikation())
+    | afskåret_beløb_kroner() -> 0
+    | exception par4_stk2_gyldig_men_ikke_fradragsberettiget afskåret_beløb_kroner() -> bruttobeløb_kroner() under input_gyldigt() && !fradragsberettiget()
+    | afvist_ugyldigt_beløb_kroner() -> 0
+    | exception par4_stk2_ugyldigt_input_afvises afvist_ugyldigt_beløb_kroner() -> bruttobeløb_kroner() under !input_gyldigt()
+    | resultat() -> Par4Stk2Omkostningsresultat(
+        input = input,
+        ligningslov17c_resultat = ligningslov17c_resultat(),
+        input_gyldigt = input_gyldigt(),
+        anvendt_i_indkomståret = anvendt_i_indkomståret(),
+        kapitalindkomstformål_opfyldt = kapitalindkomstformål_opfyldt(),
+        fradrag_afskåret_efter_ligningslov17c = fradrag_afskåret_efter_ligningslov17c(),
+        fradragsberettiget = fradragsberettiget(),
+        personlig_reklassifikation = personlig_reklassifikation(),
+        bruttobeløb_kroner = bruttobeløb_kroner(),
+        fradrag_i_kapitalindkomst_kroner = fradrag_i_kapitalindkomst_kroner(),
+        fradrag_i_personlig_indkomst_kroner = fradrag_i_personlig_indkomst_kroner(),
+        afskåret_beløb_kroner = afskåret_beløb_kroner(),
+        afvist_ugyldigt_beløb_kroner = afvist_ugyldigt_beløb_kroner()
+    )
+}
+
+| par4_stk2_omkostningssag(input: Par4Stk2Omkostningsinput) -> Par4Stk2Omkostningssag(input)
+| par4_stk2_omkostningsresultat(input: Par4Stk2Omkostningsinput) -> par4_stk2_omkostningssag(input).resultat()
+| par4_kapitalomkostning_i_kapitalindkomst_kroner(omkostning: Par4Stk2Omkostningsresultat) -> omkostning.fradrag_i_kapitalindkomst_kroner
+| par4_kapitalomkostning_i_personlig_indkomst_kroner(omkostning: Par4Stk2Omkostningsresultat) -> omkostning.fradrag_i_personlig_indkomst_kroner
 | par4_postbeløb_i_kapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4_kapitalpost_i_kapitalindkomst_kroner(post))
 | par4_fradragsberettigede_omkostninger_kroner(input: Par4KapitalindkomstInput) -> foldl(input.omkostninger, 0, |sum, omkostning| sum + par4_kapitalomkostning_i_kapitalindkomst_kroner(omkostning))
 | par4_omklassificerede_personlige_omkostninger_kroner(input: Par4KapitalindkomstInput) -> foldl(input.omkostninger, 0, |sum, omkostning| sum + par4_kapitalomkostning_i_personlig_indkomst_kroner(omkostning))
+| par4_afskårne_omkostninger_kroner(input: Par4KapitalindkomstInput) -> foldl(input.omkostninger, 0, |sum, omkostning| sum + omkostning.afskåret_beløb_kroner)
+| par4_afviste_ugyldige_omkostninger_kroner(input: Par4KapitalindkomstInput) -> foldl(input.omkostninger, 0, |sum, omkostning| sum + omkostning.afvist_ugyldigt_beløb_kroner)
 | par4_nettokapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> par4_postbeløb_i_kapitalindkomst_kroner(input) - par4_fradragsberettigede_omkostninger_kroner(input)
 | par4_positiv_nettokapitalindkomst_kroner(input: Par4KapitalindkomstInput) -> penge_positivt_beløb(par4_nettokapitalindkomst_kroner(input))
 | par4_negativ_nettokapitalindkomst_abs_kroner(input: Par4KapitalindkomstInput) -> penge_positivt_beløb(0 - par4_nettokapitalindkomst_kroner(input))
@@ -1993,6 +2048,8 @@ fra og med den 1. januar 2027.
     postbeløb_i_kapitalindkomst_kroner = par4_postbeløb_i_kapitalindkomst_kroner(input),
     fradragsberettigede_omkostninger_kroner = par4_fradragsberettigede_omkostninger_kroner(input),
     omklassificerede_personlige_omkostninger_kroner = par4_omklassificerede_personlige_omkostninger_kroner(input),
+    afskårne_omkostninger_kroner = par4_afskårne_omkostninger_kroner(input),
+    afviste_ugyldige_omkostninger_kroner = par4_afviste_ugyldige_omkostninger_kroner(input),
     nettokapitalindkomst_kroner = par4_nettokapitalindkomst_kroner(input),
     positiv_nettokapitalindkomst_kroner = par4_positiv_nettokapitalindkomst_kroner(input),
     negativ_nettokapitalindkomst_abs_kroner = par4_negativ_nettokapitalindkomst_abs_kroner(input),
@@ -2498,10 +2555,14 @@ fra og med den 1. januar 2027.
         par4_stk1_nr17_kapitalpost(par4_stk1_nr17_lejer_input)
     ],
     omkostninger = [
-        Par4Kapitalomkostning(
+        par4_stk2_omkostningsresultat(Par4Stk2Omkostningsinput(
+            indkomstår = 2026,
+            anvendelsesår = 2026,
+            anvendelse = Par4Stk2ErhverveKapitalindkomst,
+            omkostningsart = Ll17CAndenOmkostning,
             beløb_kroner = 2000,
-            personlig_reklassifikation = IngenPersonligReklassifikation
-        )
+            næringsstatus = IkkeNæring
+        ))
     ]
 ))
 = par4_negativ_nettokapitalindkomst_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
@@ -2509,10 +2570,14 @@ fra og med den 1. januar 2027.
         par4_stk1_nr1_kapitalpost(par4_stk1_nr1_negativ_fixture_input)
     ],
     omkostninger = [
-        Par4Kapitalomkostning(
+        par4_stk2_omkostningsresultat(Par4Stk2Omkostningsinput(
+            indkomstår = 2026,
+            anvendelsesår = 2026,
+            anvendelse = Par4Stk2SikreKapitalindkomst,
+            omkostningsart = Ll17CAndenOmkostning,
             beløb_kroner = 5000,
-            personlig_reklassifikation = IngenPersonligReklassifikation
-        )
+            næringsstatus = IkkeNæring
+        ))
     ]
 ))
 = par4_næringsrente_med_omkostning_fixture = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
@@ -2526,10 +2591,14 @@ fra og med den 1. januar 2027.
         ))
     ],
     omkostninger = [
-        Par4Kapitalomkostning(
+        par4_stk2_omkostningsresultat(Par4Stk2Omkostningsinput(
+            indkomstår = 2026,
+            anvendelsesår = 2026,
+            anvendelse = Par4Stk2VedligeholdeKapitalindkomst,
+            omkostningsart = Ll17CAndenOmkostning,
             beløb_kroner = 3000,
-            personlig_reklassifikation = FinansieringsNæringReklassifikation
-        )
+            næringsstatus = FinansieringsNæring
+        ))
     ]
 ))
 

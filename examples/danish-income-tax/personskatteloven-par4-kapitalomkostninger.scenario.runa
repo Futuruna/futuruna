@@ -1,0 +1,71 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+
+----
+Fokuserede scenarier for personskattelovens § 4, stk. 2 og 3, samt
+ligningslovens § 17 C. Scenariet er ikke lovtekst.
+----
+
+| par4_stk2_scenarieresultat(anvendelse: Par4Stk2Omkostningsanvendelse, art: Ligningslov17COmkostningsart, beløb_kroner: Heltal, anvendelsesår: Heltal, næringsstatus: Næringsstatus) -> par4_stk2_omkostningsresultat(Par4Stk2Omkostningsinput(
+    indkomstår = 2026,
+    anvendelsesår = anvendelsesår,
+    anvendelse = anvendelse,
+    omkostningsart = art,
+    beløb_kroner = beløb_kroner,
+    næringsstatus = næringsstatus
+))
+
+= par4_stk2_erhverve_resultat = par4_stk2_scenarieresultat(Par4Stk2ErhverveKapitalindkomst, Ll17CAndenOmkostning, 1000, 2026, IkkeNæring)
+= par4_stk2_sikre_resultat = par4_stk2_scenarieresultat(Par4Stk2SikreKapitalindkomst, Ll17CAndenOmkostning, 2000, 2026, IkkeNæring)
+= par4_stk2_vedligeholde_resultat = par4_stk2_scenarieresultat(Par4Stk2VedligeholdeKapitalindkomst, Ll17CAndenOmkostning, 3000, 2026, IkkeNæring)
+= par4_stk2_finansieringsnæring_resultat = par4_stk2_scenarieresultat(Par4Stk2VedligeholdeKapitalindkomst, Ll17CAndenOmkostning, 4000, 2026, FinansieringsNæring)
+= par4_stk2_fordrings_eller_kontraktnæring_resultat = par4_stk2_scenarieresultat(Par4Stk2SikreKapitalindkomst, Ll17CAndenOmkostning, 4500, 2026, FordringsEllerKontraktNæring)
+= par4_stk2_forkert_år_resultat = par4_stk2_scenarieresultat(Par4Stk2ErhverveKapitalindkomst, Ll17CAndenOmkostning, 5000, 2025, IkkeNæring)
+= par4_stk2_andet_formål_resultat = par4_stk2_scenarieresultat(Par4Stk2AndetFormål, Ll17CAndenOmkostning, 6000, 2026, IkkeNæring)
+= par4_stk2_negativt_beløb_resultat = par4_stk2_scenarieresultat(Par4Stk2ErhverveKapitalindkomst, Ll17CAndenOmkostning, -7000, 2026, IkkeNæring)
+= par4_stk2_ugyldigt_år_resultat = par4_stk2_scenarieresultat(Par4Stk2ErhverveKapitalindkomst, Ll17CAndenOmkostning, 7000, 0, IkkeNæring)
+
+= par4_stk2_ll17c_arter = [
+    Ll17CDepotgebyr,
+    Ll17CBoksleje,
+    Ll17CKontooversigt,
+    Ll17CAdministrationVedrørendeVærdipapirer,
+    Ll17CAdministrationVedrørendeBankindestående
+]
+= par4_stk2_ll17c_resultater = map(par4_stk2_ll17c_arter, |art: Ligningslov17COmkostningsart| par4_stk2_scenarieresultat(Par4Stk2VedligeholdeKapitalindkomst, art, 800, 2026, IkkeNæring))
+
+= par4_stk2_samlet_resultat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+    poster = [],
+    omkostninger = [
+        par4_stk2_erhverve_resultat,
+        par4_stk2_sikre_resultat,
+        par4_stk2_vedligeholde_resultat,
+        par4_stk2_finansieringsnæring_resultat,
+        par4_stk2_fordrings_eller_kontraktnæring_resultat,
+        par4_stk2_forkert_år_resultat,
+        par4_stk2_andet_formål_resultat,
+        par4_stk2_negativt_beløb_resultat,
+        par4_stk2_ugyldigt_år_resultat
+    ]
+))
+
+| par4_stk2_alle_tre_formål_fradrages: par4_stk2_samlet_resultat -> par4_stk2_erhverve_resultat.fradrag_i_kapitalindkomst_kroner == 1000 && par4_stk2_sikre_resultat.fradrag_i_kapitalindkomst_kroner == 2000 && par4_stk2_vedligeholde_resultat.fradrag_i_kapitalindkomst_kroner == 3000 && par4_stk2_samlet_resultat.fradragsberettigede_omkostninger_kroner == 6000
+| par4_stk3_finansieringsnæring_flytter_fradraget: par4_stk2_finansieringsnæring_resultat -> par4_stk2_finansieringsnæring_resultat.fradrag_i_kapitalindkomst_kroner == 0 && par4_stk2_finansieringsnæring_resultat.fradrag_i_personlig_indkomst_kroner == 4000 && par4_stk2_finansieringsnæring_resultat.personlig_reklassifikation == FinansieringsNæringReklassifikation
+| par4_stk3_fordrings_eller_kontraktnæring_flytter_fradraget: par4_stk2_fordrings_eller_kontraktnæring_resultat -> par4_stk2_fordrings_eller_kontraktnæring_resultat.fradrag_i_kapitalindkomst_kroner == 0 && par4_stk2_fordrings_eller_kontraktnæring_resultat.fradrag_i_personlig_indkomst_kroner == 4500 && par4_stk2_fordrings_eller_kontraktnæring_resultat.personlig_reklassifikation == FordringsEllerKontraktNæringReklassifikation
+| par4_stk2_forkert_år_afskæres: par4_stk2_forkert_år_resultat -> par4_stk2_forkert_år_resultat.input_gyldigt && par4_stk2_forkert_år_resultat.anvendt_i_indkomståret == Falskt && par4_stk2_forkert_år_resultat.fradragsberettiget == Falskt && par4_stk2_forkert_år_resultat.afskåret_beløb_kroner == 5000
+| par4_stk2_andet_formål_afskæres: par4_stk2_andet_formål_resultat -> par4_stk2_andet_formål_resultat.kapitalindkomstformål_opfyldt == Falskt && par4_stk2_andet_formål_resultat.fradragsberettiget == Falskt && par4_stk2_andet_formål_resultat.afskåret_beløb_kroner == 6000
+| par4_stk2_negativt_beløb_afvises: par4_stk2_negativt_beløb_resultat -> par4_stk2_negativt_beløb_resultat.input_gyldigt == Falskt && par4_stk2_negativt_beløb_resultat.fradragsberettiget == Falskt && par4_stk2_negativt_beløb_resultat.bruttobeløb_kroner == 0
+| par4_stk2_ugyldigt_år_afvises: par4_stk2_ugyldigt_år_resultat -> par4_stk2_ugyldigt_år_resultat.input_gyldigt == Falskt && par4_stk2_ugyldigt_år_resultat.fradragsberettiget == Falskt && par4_stk2_ugyldigt_år_resultat.afvist_ugyldigt_beløb_kroner == 7000
+| ligningslov17c_alle_nævnte_arter_afskæres: par4_stk2_ll17c_resultater -> length(par4_stk2_ll17c_resultater) == 5 && all(par4_stk2_ll17c_resultater, |resultat: Par4Stk2Omkostningsresultat| resultat.input_gyldigt && resultat.kapitalindkomstformål_opfyldt && resultat.fradrag_afskåret_efter_ligningslov17c && resultat.fradragsberettiget == Falskt && resultat.afskåret_beløb_kroner == 800)
+| par4_stk2_aggregat_bevarer_afskårne_og_afviste_beløb: par4_stk2_samlet_resultat -> par4_stk2_samlet_resultat.omklassificerede_personlige_omkostninger_kroner == 8500 && par4_stk2_samlet_resultat.afskårne_omkostninger_kroner == 11000 && par4_stk2_samlet_resultat.afviste_ugyldige_omkostninger_kroner == 7000 && par4_stk2_samlet_resultat.nettokapitalindkomst_kroner == -6000 && par4_stk2_samlet_resultat.omklassificeret_personlig_indkomst_kroner == -8500
+
+? par4_stk2_alle_tre_formål_fradrages
+? par4_stk3_finansieringsnæring_flytter_fradraget
+? par4_stk3_fordrings_eller_kontraktnæring_flytter_fradraget
+? par4_stk2_forkert_år_afskæres
+? par4_stk2_andet_formål_afskæres
+? par4_stk2_negativt_beløb_afvises
+? par4_stk2_ugyldigt_år_afvises
+? ligningslov17c_alle_nævnte_arter_afskæres
+? par4_stk2_aggregat_bevarer_afskårne_og_afviste_beløb

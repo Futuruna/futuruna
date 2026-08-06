@@ -2265,8 +2265,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "case_id",
                 "item_id",
                 "position",
-                "Identifikation",
-                "Beløb (DKK)"
+                "Omkostningens identifikation",
+                "År hvor omkostningen blev anvendt",
+                "Omkostningens formål",
+                "Omkostningsart efter ligningslovens § 17 C",
+                "Omkostningens næringsstatus",
+                "Kapitalindkomstomkostningens beløb"
             ]
         );
         let own_property_sheet = workbook_collection_sheet_name(
@@ -7634,7 +7638,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             ("item_id", Data::String("kapitalomkostning-1".to_string())),
             ("position", Data::Int(1)),
-            ("identifikation", Data::String("bankgebyr".to_string())),
+            (
+                "identifikation",
+                Data::String("dokumenteret-kapitalomkostning-1".to_string()),
+            ),
+            ("anvendelsesår", Data::Int(2026)),
+            (
+                "anvendelse",
+                Data::String("Par4Stk2ErhverveKapitalindkomst".to_string()),
+            ),
+            (
+                "omkostningsart",
+                Data::String("Ll17CAndenOmkostning".to_string()),
+            ),
+            ("næringsstatus", Data::String("IkkeNæring".to_string())),
             ("beløb_kroner", Data::Int(2_000)),
         ] {
             set_workbook_cell_by_header(sheets, "kapitalindkomst_omkostninger", 1, header, value);
@@ -8651,7 +8668,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "kursgevinst": { "$variant": "UdenKursgevinst" },
         "fremleje": { "$variant": "UdenFremlejeEfterLigningslov15Q" },
         "omkostninger": [{
-            "identifikation": "bankgebyr",
+            "identifikation": "dokumenteret-kapitalomkostning-1",
+            "anvendelsesår": 2026,
+            "anvendelse": { "$variant": "Par4Stk2ErhverveKapitalindkomst" },
+            "omkostningsart": { "$variant": "Ll17CAndenOmkostning" },
+            "næringsstatus": { "$variant": "IkkeNæring" },
             "beløb_kroner": 2_000
         }]
     });
