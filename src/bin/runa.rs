@@ -12,6 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::io::{self, BufRead, Read, Write as IoWrite};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
@@ -8183,7 +8184,7 @@ fn run_repl() {
                     break;
                 }
                 if trimmed == ":env" {
-                    for (k, v) in &env.bindings {
+                    for (k, v) in env.bindings.iter() {
                         if !matches!(v, Value::Builtin(_)) {
                             println!("  {} = {}", k, v);
                         }
@@ -8191,7 +8192,7 @@ fn run_repl() {
                     continue;
                 }
                 if trimmed == ":rules" {
-                    for (name, _rule) in &interp.rules {
+                    for (name, _rule) in interp.registered_rules() {
                         println!("  | {}(...)", name);
                     }
                     continue;
@@ -9416,14 +9417,14 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     };
 
     // Snapshot rule metadata before evaluation (avoids borrow conflicts with try_rule_call)
-    let rules_snapshot: Vec<(String, Rule)> = interp.rules.clone();
+    let rules_snapshot = interp.registered_rules().to_vec();
 
     // Determine resolution path for a rule (which layer resolved it)
-    let rule_resolution = |rule_name: &str, snapshot: &[(String, Rule)]| -> String {
+    let rule_resolution = |rule_name: &str, snapshot: &[(String, Rc<Rule>)]| -> String {
         let matching: Vec<&Rule> = snapshot
             .iter()
             .filter(|(n, _)| n == rule_name)
-            .map(|(_, r)| r)
+            .map(|(_, r)| r.as_ref())
             .collect();
         let has_exception = matching.iter().any(|r| matches!(r, Rule::Exception { .. }));
         let has_cond_default = matching.iter().any(|r| {
@@ -9477,7 +9478,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             .iter()
             .find(|(n, _)| n == rule_name)
             .and_then(|(_, rule)| {
-                let head = match rule {
+                let head = match rule.as_ref() {
                     Rule::Clause { head, .. }
                     | Rule::Default { head, .. }
                     | Rule::Exception { head, .. } => head,
@@ -9774,7 +9775,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
 
         // Find what the default/clause layer says (evaluate without exceptions)
-        let matching: Vec<Rule> = rules_snapshot
+        let matching: Vec<Rc<Rule>> = rules_snapshot
             .iter()
             .filter(|(n, _)| n == &r.name)
             .map(|(_, rule)| rule.clone())
@@ -9784,7 +9785,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         let default_val = {
             let mut dv: Option<Value> = None;
             for rule in &matching {
-                match rule {
+                match rule.as_ref() {
                     Rule::Default {
                         value,
                         condition: None,
@@ -10218,8 +10219,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         let mut universal_rules: Vec<String> = Vec::new();
         let mut ground_facts: BTreeMap<String, Vec<String>> = BTreeMap::new(); // variant → [rule_names]
 
-        for (rule_name, rule) in &interp.rules {
-            match rule {
+        for (rule_name, rule) in interp.registered_rules() {
+            match rule.as_ref() {
                 Rule::Clause { head, body } => {
                     if let ExprKind::App(_, args) = &head.kind {
                         // Check for typed args referencing this type
@@ -26323,7 +26324,7 @@ impl RustCodegen {
                     }
                     Stmt::Rule(rule) => {
                         let name = comptime_interp.rule_name(rule);
-                        comptime_interp.rules.push((name, rule.clone()));
+                        comptime_interp.register_rule(name, rule.clone());
                     }
                     Stmt::Bind(pat, _ty, expr) => {
                         if let Pat::Var(name) = pat {

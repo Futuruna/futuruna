@@ -2237,11 +2237,11 @@ fn decode_value(
         }
         CalculationTypeRef::Optional { item } => {
             if value.is_null() {
-                Ok(Value::Constructor("None".to_string(), Vec::new()))
+                Ok(Value::Constructor("None".to_string(), Vec::new().into()))
             } else {
                 Ok(Value::Constructor(
                     "Some".to_string(),
-                    vec![decode_value(value, &item, contract, substitutions, path)?],
+                    vec![decode_value(value, &item, contract, substitutions, path)?].into(),
                 ))
             }
         }
@@ -2334,10 +2334,10 @@ fn decode_value(
                 if definition.kind == "rule_scope" {
                     Ok(Value::RuleScopeInstance {
                         name,
-                        bindings: fields.into_iter().collect(),
+                        bindings: Rc::new(fields.into_iter().collect()),
                     })
                 } else {
-                    Ok(Value::NamedConstructor(variant.name.clone(), fields))
+                    Ok(Value::NamedConstructor(variant.name.clone(), fields.into()))
                 }
             } else {
                 decode_variant(value, definition, contract, &local, path)
@@ -2518,13 +2518,13 @@ fn decode_variant(
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Value::Constructor(variant.name.clone(), decoded))
+        Ok(Value::Constructor(variant.name.clone(), decoded.into()))
     } else {
         let fields = decode_named_fields(value, variant, contract, substitutions, path, true)?;
         if fields.is_empty() {
-            Ok(Value::Constructor(variant.name.clone(), Vec::new()))
+            Ok(Value::Constructor(variant.name.clone(), Vec::new().into()))
         } else {
-            Ok(Value::NamedConstructor(variant.name.clone(), fields))
+            Ok(Value::NamedConstructor(variant.name.clone(), fields.into()))
         }
     }
 }

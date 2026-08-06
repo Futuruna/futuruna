@@ -4874,12 +4874,13 @@ pub fn parse_source_module_file_cached(path: &Path) -> Result<Arc<ParsedSourceMo
 pub struct RuleScopeDef {
     pub params: Vec<Param>,
     pub body: Vec<Stmt>,
+    rules_by_name: HashMap<String, Vec<Rc<Rule>>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct RuleScopeFrame {
     pub name: String,
-    pub bindings: HashMap<String, Value>,
+    pub bindings: Rc<HashMap<String, Value>>,
     pub memoized_zero_arg_rules: HashMap<String, Value>,
 }
 
@@ -9123,8 +9124,8 @@ pub enum Value {
     Unit,
     List(Vec<Value>),
     Tuple(Vec<Value>),
-    Constructor(String, Vec<Value>),
-    NamedConstructor(String, Vec<(String, Value)>), // Named fields: Circle { radius: 5.0 }
+    Constructor(String, Rc<Vec<Value>>),
+    NamedConstructor(String, Rc<Vec<(String, Value)>>), // Named fields: Circle { radius: 5.0 }
     Closure {
         name: Option<String>, // for recursion
         params: Vec<String>,
@@ -9152,12 +9153,12 @@ pub enum Value {
     /// Scope: a named block with its own environment. Bindings accessible via Scope.name.
     Scope {
         name: String,
-        bindings: HashMap<String, Value>,
+        bindings: Rc<HashMap<String, Value>>,
     },
     /// RuleScope instance: pure scoped legal/calculation rules with captured inputs.
     RuleScopeInstance {
         name: String,
-        bindings: HashMap<String, Value>,
+        bindings: Rc<HashMap<String, Value>>,
     },
     /// Comptime type definition: describes a type to be generated at compile time.
     /// fields: vec of (field_name, type_name) for structs, or variant descriptions for enums.
@@ -9304,8 +9305,9 @@ impl fmt::Display for Value {
 
 #[derive(Debug, Clone)]
 pub struct Env {
-    /// HashMap for O(1) amortized lookup (was BTreeMap O(log n))
-    pub bindings: HashMap<String, Value>,
+    /// Bindings are immutable snapshots shared by cloned environments. Mutation
+    /// uses copy-on-write, so child calls do not recursively clone global values.
+    pub bindings: Rc<HashMap<String, Value>>,
     /// Rc parent: child creation is O(1) refcount bump, not O(n) deep clone.
     /// This is the critical optimization for closure-heavy code (map/filter/foldl).
     pub parent: Option<Rc<Env>>,
@@ -9314,14 +9316,14 @@ pub struct Env {
 impl Env {
     pub fn new() -> Self {
         Env {
-            bindings: HashMap::new(),
+            bindings: Rc::new(HashMap::new()),
             parent: None,
         }
     }
 
     pub fn child(&self) -> Self {
         Env {
-            bindings: HashMap::new(),
+            bindings: Rc::new(HashMap::new()),
             parent: Some(Rc::new(self.clone())),
         }
     }
@@ -9330,7 +9332,7 @@ impl Env {
     /// Use this in hot paths (map/filter/foldl closure application).
     pub fn child_rc(self_rc: &Rc<Env>) -> Self {
         Env {
-            bindings: HashMap::new(),
+            bindings: Rc::new(HashMap::new()),
             parent: Some(Rc::clone(self_rc)),
         }
     }
@@ -9342,7 +9344,7 @@ impl Env {
     }
 
     pub fn set(&mut self, name: String, val: Value) {
-        self.bindings.insert(name, val);
+        Rc::make_mut(&mut self.bindings).insert(name, val);
     }
 
     /// Iterate over all bindings (current scope + parents)
@@ -9351,7 +9353,7 @@ impl Env {
         let mut seen = std::collections::HashSet::new();
         let mut current = Some(self);
         while let Some(env) = current {
-            for (k, v) in &env.bindings {
+            for (k, v) in env.bindings.iter() {
                 if seen.insert(k.clone()) {
                     result.push((k.clone(), v.clone()));
                 }
@@ -9362,7 +9364,9 @@ impl Env {
     }
 
     pub fn remove(&mut self, name: &str) {
-        self.bindings.remove(name);
+        if self.bindings.contains_key(name) {
+            Rc::make_mut(&mut self.bindings).remove(name);
+        }
     }
 }
 
@@ -9499,7 +9503,9 @@ impl RuntimeConstructorSignature {
 
 pub struct Interpreter {
     /// Logic rules (Prolog-style)
-    pub rules: Vec<(String, Rule)>,
+    rules: Vec<(String, Rc<Rule>)>,
+    /// Source-order indexes into `rules`, avoiding corpus-wide scans per call.
+    rules_by_name: HashMap<String, Vec<usize>>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -9515,7 +9521,7 @@ pub struct Interpreter {
     /// Runtime impl methods keyed by (receiver type, method name)
     pub impl_methods: BTreeMap<(String, String), FnDef>,
     /// RuleScope definitions keyed by scope name.
-    pub rule_scopes: BTreeMap<String, RuleScopeDef>,
+    pub rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
     /// Active RuleScope stack for resolving sibling scoped rules.
     pub active_rule_scopes: Vec<RuleScopeFrame>,
     /// Output buffer for tests
@@ -9556,6 +9562,7 @@ impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             rules: Vec::new(),
+            rules_by_name: HashMap::new(),
             constructors: {
                 let mut c = BTreeMap::new();
                 c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
@@ -9606,6 +9613,16 @@ impl Interpreter {
             calculation_runtime_bindings: BTreeSet::new(),
             runtime_callable_declarations: BTreeMap::new(),
         }
+    }
+
+    pub fn register_rule(&mut self, name: String, rule: Rule) {
+        let index = self.rules.len();
+        self.rules.push((name.clone(), Rc::new(rule)));
+        self.rules_by_name.entry(name).or_default().push(index);
+    }
+
+    pub fn registered_rules(&self) -> &[(String, Rc<Rule>)] {
+        &self.rules
     }
 
     fn register_runtime_constructor_signature(&mut self, parent: &str, variant: &Variant) {
@@ -9803,7 +9820,7 @@ impl Interpreter {
                 method_env.set("self".to_string(), obj_val.clone());
                 if let Value::RuleScopeInstance { bindings, .. } = obj_val {
                     method_env.set("__rulescope_self".to_string(), obj_val.clone());
-                    for (name, value) in bindings {
+                    for (name, value) in bindings.iter() {
                         method_env.set(name.clone(), value.clone());
                     }
                 }
@@ -9835,7 +9852,7 @@ impl Interpreter {
             method_env.set("self".to_string(), obj_val.clone());
             if let Value::RuleScopeInstance { bindings, .. } = obj_val {
                 method_env.set("__rulescope_self".to_string(), obj_val.clone());
-                for (name, value) in bindings {
+                for (name, value) in bindings.iter() {
                     method_env.set(name.clone(), value.clone());
                 }
             }
@@ -9962,8 +9979,14 @@ impl Interpreter {
         let mut env = Env::new();
         env.set("True".into(), Value::Bool(true));
         env.set("False".into(), Value::Bool(false));
-        env.set("None".into(), Value::Constructor("None".into(), vec![]));
-        env.set("Nil".into(), Value::Constructor("Nil".into(), vec![]));
+        env.set(
+            "None".into(),
+            Value::Constructor("None".into(), vec![].into()),
+        );
+        env.set(
+            "Nil".into(),
+            Value::Constructor("Nil".into(), vec![].into()),
+        );
         env.set("print".into(), Value::Builtin("print".into()));
         env.set("show".into(), Value::Builtin("show".into()));
         env.set("rust_debug".into(), Value::Builtin("rust_debug".into()));
@@ -10399,12 +10422,24 @@ impl Interpreter {
                 }
                 self.field_names.insert(name.clone(), signature.fields);
                 self.ctor_to_type.insert(name.clone(), name.clone());
+                let mut rules_by_name: HashMap<String, Vec<Rc<Rule>>> = HashMap::new();
+                for stmt in body {
+                    if let Stmt::Rule(rule) = stmt {
+                        if !matches!(rule, Rule::ReactiveScope { .. }) {
+                            rules_by_name
+                                .entry(self.rule_name(rule))
+                                .or_default()
+                                .push(Rc::new(rule.clone()));
+                        }
+                    }
+                }
                 self.rule_scopes.insert(
                     name.clone(),
-                    RuleScopeDef {
+                    Rc::new(RuleScopeDef {
                         params: params.clone(),
                         body: body.clone(),
-                    },
+                        rules_by_name,
+                    }),
                 );
                 for stmt in body {
                     if let Stmt::Defn(Defn::Fn {
@@ -10480,7 +10515,7 @@ impl Interpreter {
                         &name,
                         None,
                     );
-                    self.rules.push((name, rule.clone()));
+                    self.register_rule(name, rule.clone());
                 }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(name, body);
@@ -11018,7 +11053,7 @@ impl Interpreter {
                                     // Filter to only exported bindings
                                     let mut bindings = HashMap::new();
                                     let module_closure_env = mod_env.child();
-                                    for (k, v) in &mod_env.bindings {
+                                    for (k, v) in mod_env.bindings.iter() {
                                         if exported_names.contains(k) {
                                             bindings.insert(
                                                 k.clone(),
@@ -11054,7 +11089,7 @@ impl Interpreter {
                                         mod_name.clone(),
                                         Value::Scope {
                                             name: mod_name.clone(),
-                                            bindings,
+                                            bindings: Rc::new(bindings),
                                         },
                                     );
                                 }
@@ -11266,7 +11301,7 @@ impl Interpreter {
                         let mut local_env = env.child();
                         if self.match_pattern(
                             &arm.pat,
-                            &Value::Constructor("Complete".into(), vec![]),
+                            &Value::Constructor("Complete".into(), vec![].into()),
                             &mut local_env,
                         ) {
                             let guard_ok = match &arm.guard {
@@ -11488,14 +11523,14 @@ impl Interpreter {
                 // Store actor definition as a named constructor so spawn() can find it
                 let val = Value::Constructor(
                     format!("ActorDef<{}>", name),
-                    vec![Value::Str(state_param.name.clone())],
+                    vec![Value::Str(state_param.name.clone())].into(),
                 );
                 // Also store the handlers in a separate env key for spawn to use
                 env.set(
                     format!("__actor_handlers_{}", name),
                     Value::Constructor(
                         "Handlers".to_string(),
-                        vec![], // handlers stored structurally — we'll look up the Defn directly
+                        vec![].into(), // handlers stored structurally — we'll look up the Defn directly
                     ),
                 );
                 // Store the raw defn for the interpreter to reference
@@ -11516,16 +11551,18 @@ impl Interpreter {
                 // M3b: Store module as Value::Scope for qualified access (Name.func())
                 // No unqualified leaking — use Name.binding to access
                 let module_closure_env = mod_env.child();
-                let bindings = mod_env
-                    .bindings
-                    .iter()
-                    .map(|(binding_name, value)| {
-                        (
-                            binding_name.clone(),
-                            Self::capture_module_closure(value, &module_closure_env),
-                        )
-                    })
-                    .collect();
+                let bindings = Rc::new(
+                    mod_env
+                        .bindings
+                        .iter()
+                        .map(|(binding_name, value)| {
+                            (
+                                binding_name.clone(),
+                                Self::capture_module_closure(value, &module_closure_env),
+                            )
+                        })
+                        .collect(),
+                );
                 let val = Value::Scope {
                     name: name.clone(),
                     bindings,
@@ -11561,7 +11598,10 @@ impl Interpreter {
                 for v in variants {
                     if v.fields.is_empty() {
                         // Nullary constructor: just a value
-                        env.set(v.name.clone(), Value::Constructor(v.name.clone(), vec![]));
+                        env.set(
+                            v.name.clone(),
+                            Value::Constructor(v.name.clone(), vec![].into()),
+                        );
                     } else if v.positional {
                         // Positional constructor: tuple-style Value::Constructor
                         let arity = v.fields.len();
@@ -11648,15 +11688,15 @@ impl Interpreter {
         if self.rule_scopes.contains_key(ctor_name) {
             return Some(Value::RuleScopeInstance {
                 name: ctor_name.to_string(),
-                bindings: signature.fields.into_iter().zip(values).collect(),
+                bindings: Rc::new(signature.fields.into_iter().zip(values).collect()),
             });
         }
         if signature.positional {
-            Some(Value::Constructor(ctor_name.to_string(), values))
+            Some(Value::Constructor(ctor_name.to_string(), values.into()))
         } else {
             Some(Value::NamedConstructor(
                 ctor_name.to_string(),
-                signature.fields.into_iter().zip(values).collect(),
+                Rc::new(signature.fields.into_iter().zip(values).collect()),
             ))
         }
     }
@@ -11686,7 +11726,7 @@ impl Interpreter {
                     if self.nullary_constructor_signature(name).is_some()
                         && Self::value_is_registered_constructor_binding(val, name)
                     {
-                        Value::Constructor(name.clone(), vec![])
+                        Value::Constructor(name.clone(), vec![].into())
                     } else {
                         val.clone()
                     }
@@ -11704,7 +11744,7 @@ impl Interpreter {
                 } else if self.constructors.contains_key(name) {
                     let (arity, positional) = self.constructors[name];
                     if arity == 0 {
-                        Value::Constructor(name.clone(), vec![])
+                        Value::Constructor(name.clone(), vec![].into())
                     } else if positional {
                         Value::Builtin(format!("ctor:{}/{}", name, arity))
                     } else {
@@ -11712,7 +11752,7 @@ impl Interpreter {
                     }
                 } else {
                     // Might be an unbound variable (used in logic rules)
-                    Value::Constructor(name.clone(), vec![])
+                    Value::Constructor(name.clone(), vec![].into())
                 }
             }
             ExprKind::Lit(lit) => match lit {
@@ -11756,9 +11796,9 @@ impl Interpreter {
                         let results = self.eval_findall(&args[0], &args[1], env);
                         return match results {
                             Value::List(items) if !items.is_empty() => {
-                                Value::Constructor("Some".into(), vec![items[0].clone()])
+                                Value::Constructor("Some".into(), vec![items[0].clone()].into())
                             }
-                            _ => Value::Constructor("None".into(), vec![]),
+                            _ => Value::Constructor("None".into(), vec![].into()),
                         };
                     }
                     if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
@@ -11794,7 +11834,7 @@ impl Interpreter {
                             if n != fn_name {
                                 return false;
                             }
-                            match r {
+                            match r.as_ref() {
                                 Rule::Default { .. } | Rule::Exception { .. } => true,
                                 Rule::Clause {
                                     body: Some(body_expr),
@@ -11894,7 +11934,7 @@ impl Interpreter {
                     },
                     Value::NamedConstructor(_name, named_fields) => {
                         // Named field access: obj.field_name
-                        for (fname, val) in named_fields {
+                        for (fname, val) in named_fields.iter() {
                             if fname == field {
                                 return val.clone();
                             }
@@ -11961,7 +12001,7 @@ impl Interpreter {
                                     } else {
                                         closure_env.child()
                                     };
-                                    for (binding_name, binding_value) in bindings {
+                                    for (binding_name, binding_value) in bindings.iter() {
                                         scope_env.set(binding_name.clone(), binding_value.clone());
                                     }
                                     return Value::Closure {
@@ -12010,9 +12050,9 @@ impl Interpreter {
             ExprKind::List(elems) => {
                 // Convert list literal to Cons/Nil chain
                 let vals: Vec<Value> = elems.iter().map(|e| self.eval(e, env)).collect();
-                let mut result = Value::Constructor("Nil".into(), vec![]);
+                let mut result = Value::Constructor("Nil".into(), vec![].into());
                 for v in vals.into_iter().rev() {
-                    result = Value::Constructor("Cons".into(), vec![v, result]);
+                    result = Value::Constructor("Cons".into(), vec![v, result].into());
                 }
                 result
             }
@@ -12130,9 +12170,9 @@ impl Interpreter {
             Value::Builtin(ref name) => self.eval_builtin(name, args, call_env),
             Value::Constructor(name, existing) => {
                 // Partial application of constructor
-                let mut all = existing;
+                let mut all = Rc::unwrap_or_clone(existing);
                 all.extend(args);
-                Value::Constructor(name, all)
+                Value::Constructor(name, all.into())
             }
             _ => {
                 self.output.push(format!("Error: cannot apply {}", func));
@@ -12161,7 +12201,7 @@ impl Interpreter {
             }
             return Value::RuleScopeInstance {
                 name: scope_name.to_string(),
-                bindings,
+                bindings: Rc::new(bindings),
             };
         }
         // Constructor application
@@ -12175,14 +12215,14 @@ impl Interpreter {
                     .zip(args.into_iter())
                     .map(|(n, v)| (n.clone(), v))
                     .collect();
-                return Value::NamedConstructor(ctor_name.to_string(), named_fields);
+                return Value::NamedConstructor(ctor_name.to_string(), named_fields.into());
             }
-            return Value::Constructor(ctor_name.to_string(), args);
+            return Value::Constructor(ctor_name.to_string(), args.into());
         }
         if name.starts_with("ctor:") {
             let parts: Vec<&str> = name[5..].split('/').collect();
             let ctor_name = parts[0];
-            return Value::Constructor(ctor_name.to_string(), args);
+            return Value::Constructor(ctor_name.to_string(), args.into());
         }
 
         match name {
@@ -12235,15 +12275,15 @@ impl Interpreter {
                 Some(Value::Constructor(n, fields)) if n == "Cons" => fields
                     .get(1)
                     .cloned()
-                    .unwrap_or(Value::Constructor("Nil".into(), vec![])),
+                    .unwrap_or(Value::Constructor("Nil".into(), vec![].into())),
                 Some(Value::List(elems)) => {
                     if elems.len() <= 1 {
-                        Value::Constructor("Nil".into(), vec![])
+                        Value::Constructor("Nil".into(), vec![].into())
                     } else {
                         Value::List(elems[1..].to_vec())
                     }
                 }
-                _ => Value::Constructor("Nil".into(), vec![]),
+                _ => Value::Constructor("Nil".into(), vec![].into()),
             },
             "nth" => {
                 // nth(list, index) — 0-based indexed access
@@ -12351,14 +12391,14 @@ impl Interpreter {
                             Ok(re) => match re.find(text) {
                                 Some(m) => Value::Constructor(
                                     "Some".into(),
-                                    vec![Value::Str(m.as_str().to_string())],
+                                    vec![Value::Str(m.as_str().to_string())].into(),
                                 ),
-                                None => Value::Constructor("None".into(), vec![]),
+                                None => Value::Constructor("None".into(), vec![].into()),
                             },
-                            Err(_) => Value::Constructor("None".into(), vec![]),
+                            Err(_) => Value::Constructor("None".into(), vec![].into()),
                         }
                     }
-                    _ => Value::Constructor("None".into(), vec![]),
+                    _ => Value::Constructor("None".into(), vec![].into()),
                 }
             }
             "regex_find_all" => {
@@ -12408,7 +12448,7 @@ impl Interpreter {
                         items.extend(list_to_vec(b));
                         vec_to_list(items)
                     }
-                    _ => Value::Constructor("Nil".into(), vec![]),
+                    _ => Value::Constructor("Nil".into(), vec![].into()),
                 }
             }
             "reverse" => match args.first() {
@@ -12417,7 +12457,7 @@ impl Interpreter {
                     items.reverse();
                     vec_to_list(items)
                 }
-                _ => Value::Constructor("Nil".into(), vec![]),
+                _ => Value::Constructor("Nil".into(), vec![].into()),
             },
             "map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -12504,21 +12544,21 @@ impl Interpreter {
                 Some(list) => {
                     let items = list_to_vec(list);
                     match items.into_iter().min_by(|a, b| value_sort_cmp(a, b)) {
-                        Some(value) => Value::Constructor("Some".into(), vec![value]),
-                        None => Value::Constructor("None".into(), vec![]),
+                        Some(value) => Value::Constructor("Some".into(), vec![value].into()),
+                        None => Value::Constructor("None".into(), vec![].into()),
                     }
                 }
-                _ => Value::Constructor("None".into(), vec![]),
+                _ => Value::Constructor("None".into(), vec![].into()),
             },
             "list_max" => match args.first() {
                 Some(list) => {
                     let items = list_to_vec(list);
                     match items.into_iter().max_by(|a, b| value_sort_cmp(a, b)) {
-                        Some(value) => Value::Constructor("Some".into(), vec![value]),
-                        None => Value::Constructor("None".into(), vec![]),
+                        Some(value) => Value::Constructor("Some".into(), vec![value].into()),
+                        None => Value::Constructor("None".into(), vec![].into()),
                     }
                 }
-                _ => Value::Constructor("None".into(), vec![]),
+                _ => Value::Constructor("None".into(), vec![].into()),
             },
             "any" => {
                 // Polymorphic: works on Stream/Subject/List/Cons
@@ -12552,12 +12592,12 @@ impl Interpreter {
                             self.apply(func.clone(), vec![item.clone()], env),
                             Value::Bool(true)
                         ) {
-                            return Value::Constructor("Some".into(), vec![item]);
+                            return Value::Constructor("Some".into(), vec![item].into());
                         }
                     }
-                    Value::Constructor("None".into(), vec![])
+                    Value::Constructor("None".into(), vec![].into())
                 }
-                _ => Value::Constructor("None".into(), vec![]),
+                _ => Value::Constructor("None".into(), vec![].into()),
             },
             "flat_map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
@@ -12786,11 +12826,11 @@ impl Interpreter {
                 (Some(Value::Map(entries)), Some(key)) => {
                     let key_str = format!("{}", key);
                     match entries.get(&key_str) {
-                        Some(v) => Value::Constructor("Some".into(), vec![v.clone()]),
-                        None => Value::Constructor("None".into(), vec![]),
+                        Some(v) => Value::Constructor("Some".into(), vec![v.clone()].into()),
+                        None => Value::Constructor("None".into(), vec![].into()),
                     }
                 }
-                _ => Value::Constructor("None".into(), vec![]),
+                _ => Value::Constructor("None".into(), vec![].into()),
             },
             "map_get_or" => match (args.get(0), args.get(1), args.get(2)) {
                 (Some(Value::Map(entries)), Some(key), Some(default)) => {
@@ -13452,13 +13492,16 @@ impl Interpreter {
                 match (args.get(0), args.get(1)) {
                     (Some(Value::Int(a)), Some(Value::Int(b))) => {
                         // Build a Cons/Nil list for the interpreter
-                        let mut result = Value::Constructor("Nil".into(), vec![]);
+                        let mut result = Value::Constructor("Nil".into(), vec![].into());
                         for i in (*a..*b).rev() {
-                            result = Value::Constructor("Cons".into(), vec![Value::Int(i), result]);
+                            result = Value::Constructor(
+                                "Cons".into(),
+                                vec![Value::Int(i), result].into(),
+                            );
                         }
                         result
                     }
-                    _ => Value::Constructor("Nil".into(), vec![]),
+                    _ => Value::Constructor("Nil".into(), vec![].into()),
                 }
             }
             "push" => {
@@ -13467,13 +13510,13 @@ impl Interpreter {
                     (Some(list), Some(elem)) => {
                         let mut items = list_to_vec(list);
                         items.push(elem.clone());
-                        let mut result = Value::Constructor("Nil".into(), vec![]);
+                        let mut result = Value::Constructor("Nil".into(), vec![].into());
                         for item in items.into_iter().rev() {
-                            result = Value::Constructor("Cons".into(), vec![item, result]);
+                            result = Value::Constructor("Cons".into(), vec![item, result].into());
                         }
                         result
                     }
-                    _ => Value::Constructor("Nil".into(), vec![]),
+                    _ => Value::Constructor("Nil".into(), vec![].into()),
                 }
             }
             "spawn" => {
@@ -14021,9 +14064,15 @@ impl Interpreter {
                 // teardown("ScopeName") → returns Teardown marker for the caller to handle
                 // The actual env removal happens in run_program where we have &mut Env
                 if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor("__Teardown".into(), vec![Value::Str(scope_name.clone())])
+                    Value::Constructor(
+                        "__Teardown".into(),
+                        vec![Value::Str(scope_name.clone())].into(),
+                    )
                 } else if let Some(Value::Constructor(scope_name, _)) = args.first() {
-                    Value::Constructor("__Teardown".into(), vec![Value::Str(scope_name.clone())])
+                    Value::Constructor(
+                        "__Teardown".into(),
+                        vec![Value::Str(scope_name.clone())].into(),
+                    )
                 } else {
                     Value::Unit
                 }
@@ -14220,7 +14269,10 @@ impl Interpreter {
             "teardown" => {
                 // Return teardown marker — caller handles env removal
                 if let Some(Value::Str(scope_name)) = args.first() {
-                    Value::Constructor("__Teardown".into(), vec![Value::Str(scope_name.clone())])
+                    Value::Constructor(
+                        "__Teardown".into(),
+                        vec![Value::Str(scope_name.clone())].into(),
+                    )
                 } else {
                     Value::Unit
                 }
@@ -14652,24 +14704,12 @@ impl Interpreter {
         }
     }
 
-    fn rule_scope_matching_rules(def: &RuleScopeDef, fn_name: &str, arity: usize) -> Vec<Rule> {
-        def.body
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Rule(rule @ Rule::Clause { .. })
-                | Stmt::Rule(rule @ Rule::Default { .. })
-                | Stmt::Rule(rule @ Rule::Exception { .. }) => Some(rule),
-                _ => None,
-            })
-            .filter(|rule| {
-                let name = match rule {
-                    Rule::Clause { head, .. }
-                    | Rule::Default { head, .. }
-                    | Rule::Exception { head, .. } => Self::expr_name_static(head),
-                    Rule::ReactiveScope { .. } => "?".to_string(),
-                };
-                name == fn_name && Self::rule_arity(rule) == Some(arity)
-            })
+    fn rule_scope_matching_rules(def: &RuleScopeDef, fn_name: &str, arity: usize) -> Vec<Rc<Rule>> {
+        def.rules_by_name
+            .get(fn_name)
+            .into_iter()
+            .flatten()
+            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(arity))
             .cloned()
             .collect()
     }
@@ -14686,20 +14726,19 @@ impl Interpreter {
             .active_rule_scopes
             .last()
             .and_then(|frame| self.rule_scopes.get(&frame.name))
-            .map(|def| {
-                def.body
-                    .iter()
-                    .filter_map(|stmt| match stmt {
-                        Stmt::Rule(Rule::Clause { head, .. })
-                        | Stmt::Rule(Rule::Default { head, .. })
-                        | Stmt::Rule(Rule::Exception { head, .. }) => Some(head),
-                        _ => None,
-                    })
-                    .any(|head| Self::expr_name_static(head) == name)
-            })
+            .map(|def| def.rules_by_name.contains_key(name))
             .unwrap_or(false);
 
-        active_rule || self.rules.iter().any(|(rule_name, _)| rule_name == name)
+        active_rule || self.rules_by_name.contains_key(name)
+    }
+
+    fn rules_named(&self, name: &str) -> Vec<Rc<Rule>> {
+        self.rules_by_name
+            .get(name)
+            .into_iter()
+            .flatten()
+            .filter_map(|index| self.rules.get(*index).map(|(_, rule)| rule.clone()))
+            .collect()
     }
 
     fn apply_rule_value(&mut self, name: &str, args: Vec<Value>, env: &Env) -> Value {
@@ -14730,7 +14769,7 @@ impl Interpreter {
     fn eval_rule_scope_method(
         &mut self,
         scope_name: &str,
-        bindings: &HashMap<String, Value>,
+        bindings: &Rc<HashMap<String, Value>>,
         method: &str,
         args: &[Expr],
         env: &Env,
@@ -14743,7 +14782,7 @@ impl Interpreter {
             return Value::Unit;
         }
         let mut scoped_env = env.child();
-        for (name, value) in bindings {
+        for (name, value) in bindings.iter() {
             scoped_env.set(name.clone(), value.clone());
         }
         scoped_env.set(
@@ -14787,7 +14826,7 @@ impl Interpreter {
             }
         }
         let mut scoped_env = env.child();
-        for (name, value) in &frame.bindings {
+        for (name, value) in frame.bindings.iter() {
             scoped_env.set(name.clone(), value.clone());
         }
         scoped_env.set(
@@ -14821,13 +14860,8 @@ impl Interpreter {
     /// Within each priority tier, rules are tried in source order and the first
     /// applicable rule wins.
     pub fn try_rule_call(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
-        // Collect matching rules (clone to avoid borrow conflict with self.eval)
-        let matching: Vec<Rule> = self
-            .rules
-            .iter()
-            .filter(|(name, _)| name == fn_name)
-            .map(|(_, rule)| rule.clone())
-            .collect();
+        // Clone shared rule handles so evaluation can mutably borrow the interpreter.
+        let matching = self.rules_named(fn_name);
 
         self.try_rule_call_from_rules(fn_name, args, env, matching)
     }
@@ -14837,11 +14871,11 @@ impl Interpreter {
         _fn_name: &str,
         args: &[Expr],
         env: &Env,
-        matching: Vec<Rule>,
+        matching: Vec<Rc<Rule>>,
     ) -> Option<Value> {
-        let matching: Vec<Rule> = matching
+        let matching: Vec<Rc<Rule>> = matching
             .into_iter()
-            .filter(|rule| Self::rule_arity(rule) == Some(args.len()))
+            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(args.len()))
             .collect();
         if matching.is_empty() {
             return None;
@@ -14869,7 +14903,7 @@ impl Interpreter {
         // while preserving top-level bindings like `threshold`.
         let mut base_env = env.clone();
         for rule in &matching {
-            let head = match rule {
+            let head = match rule.as_ref() {
                 Rule::Clause { head, .. }
                 | Rule::Default { head, .. }
                 | Rule::Exception { head, .. } => head,
@@ -14888,7 +14922,7 @@ impl Interpreter {
             if let Rule::Clause {
                 body: Some(body_expr),
                 ..
-            } = rule
+            } = rule.as_ref()
             {
                 let body_goals = match &body_expr.kind {
                     ExprKind::Conjunction(goals) => Some(goals.clone()),
@@ -14927,7 +14961,7 @@ impl Interpreter {
                 value,
                 condition,
                 ..
-            } = rule
+            } = rule.as_ref()
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     let cond_met = match condition {
@@ -14947,7 +14981,7 @@ impl Interpreter {
                 head,
                 value,
                 condition: Some(cond),
-            } = rule
+            } = rule.as_ref()
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
@@ -14961,7 +14995,7 @@ impl Interpreter {
         // Try each clause; if the body evaluates to false, try the next one.
         let mut matched_false_clause = false;
         for rule in &matching {
-            if let Rule::Clause { head, body } = rule {
+            if let Rule::Clause { head, body } = rule.as_ref() {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
@@ -15003,7 +15037,7 @@ impl Interpreter {
                 head,
                 value,
                 condition: None,
-            } = rule
+            } = rule.as_ref()
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     return Some(self.eval(value, &rule_env));
@@ -15019,8 +15053,9 @@ impl Interpreter {
     /// Ground terms in the head (literals, constructors) must match the corresponding argument.
     /// Variables in the head bind to the corresponding argument value.
     fn match_rule_head(&self, head: &Expr, args: &[Value], env: &Env) -> Option<Env> {
-        // Use the provided env (base_env from try_rule_call, clean of conjunction vars)
-        let mut rule_env = env.clone();
+        // Head bindings belong to this rule attempt. Keep the cleaned caller
+        // environment as an immutable parent instead of copying all bindings.
+        let mut rule_env = env.child();
         if let ExprKind::App(_, params) = &head.kind {
             if params.len() != args.len() {
                 return None;
@@ -15098,9 +15133,9 @@ impl Interpreter {
         }
     }
 
-    fn rule_param_names_from_rules(rules: &[Rule]) -> Option<Vec<String>> {
+    fn rule_param_names_from_rules(rules: &[Rc<Rule>]) -> Option<Vec<String>> {
         rules.iter().find_map(|rule| {
-            let head = match rule {
+            let head = match rule.as_ref() {
                 Rule::Clause { head, .. }
                 | Rule::Default { head, .. }
                 | Rule::Exception { head, .. } => head,
@@ -15249,7 +15284,7 @@ impl Interpreter {
                 if self.nullary_constructor_signature(name).is_some()
                     || !self.constructor_signatures.contains_key(name)
                 {
-                    Some(Value::Constructor(name.clone(), vec![]))
+                    Some(Value::Constructor(name.clone(), vec![].into()))
                 } else {
                     None
                 }
@@ -15273,11 +15308,11 @@ impl Interpreter {
                     .collect();
                 let values = values?;
                 if signature.positional {
-                    Some(Value::Constructor(ctor_name.clone(), values))
+                    Some(Value::Constructor(ctor_name.clone(), values.into()))
                 } else {
                     Some(Value::NamedConstructor(
                         ctor_name.clone(),
-                        signature.fields.into_iter().zip(values).collect(),
+                        Rc::new(signature.fields.into_iter().zip(values).collect()),
                     ))
                 }
             }
@@ -15446,13 +15481,7 @@ impl Interpreter {
         remaining: &[Expr],
         env: &Env,
     ) -> bool {
-        // Collect all rules for this function name
-        let rules: Vec<Rule> = self
-            .rules
-            .iter()
-            .filter(|(name, _)| name == fn_name)
-            .map(|(_, rule)| rule.clone())
-            .collect();
+        let rules = self.rules_named(fn_name);
 
         // Create clean env: caller's env minus unbound variables (prevents leakage)
         let mut clean_env = env.clone();
@@ -15474,7 +15503,7 @@ impl Interpreter {
 
         // Try each rule/fact as a potential source of bindings
         for rule in &rules {
-            if let Rule::Clause { head, body } = rule {
+            if let Rule::Clause { head, body } = rule.as_ref() {
                 if let ExprKind::App(_, head_params) = &head.kind {
                     if head_params.len() != goal_args.len() {
                         continue;
@@ -15585,7 +15614,7 @@ impl Interpreter {
     /// Collect all string values that appear as ground terms in any rule/fact.
     fn collect_all_values(&self, values: &mut std::collections::BTreeSet<String>) {
         for (_, rule) in &self.rules {
-            match rule {
+            match rule.as_ref() {
                 Rule::Clause { head, .. }
                 | Rule::Default { head, .. }
                 | Rule::Exception { head, .. } => {
@@ -15657,15 +15686,10 @@ impl Interpreter {
             return;
         } // prevent infinite recursion
 
-        let rules: Vec<Rule> = self
-            .rules
-            .iter()
-            .filter(|(name, _)| name == fn_name)
-            .map(|(_, rule)| rule.clone())
-            .collect();
+        let rules = self.rules_named(fn_name);
 
         for rule in &rules {
-            match rule {
+            match rule.as_ref() {
                 Rule::Clause { head, body } => {
                     if let ExprKind::App(_, head_params) = &head.kind {
                         if head_params.len() != bound_vals.len() {
@@ -16119,7 +16143,7 @@ pub fn list_to_vec(val: &Value) -> Vec<Value> {
                 current = fields
                     .get(1)
                     .cloned()
-                    .unwrap_or(Value::Constructor("Nil".into(), vec![]));
+                    .unwrap_or(Value::Constructor("Nil".into(), vec![].into()));
             }
             Value::List(elems) => {
                 result.extend(elems);
@@ -16189,9 +16213,9 @@ fn value_sort_cmp(a: &Value, b: &Value) -> std::cmp::Ordering {
 }
 
 pub fn vec_to_list(items: Vec<Value>) -> Value {
-    let mut result = Value::Constructor("Nil".into(), vec![]);
+    let mut result = Value::Constructor("Nil".into(), vec![].into());
     for item in items.into_iter().rev() {
-        result = Value::Constructor("Cons".into(), vec![item, result]);
+        result = Value::Constructor("Cons".into(), vec![item, result].into());
     }
     result
 }
@@ -20524,7 +20548,7 @@ mod tests {
             "input".to_string(),
             Value::NamedConstructor(
                 "CalcInput".to_string(),
-                vec![("amount".to_string(), Value::Int(8))],
+                vec![("amount".to_string(), Value::Int(8))].into(),
             ),
         );
         let call: Expr = ExprKind::App(
@@ -20585,7 +20609,7 @@ mod tests {
             "input".to_string(),
             Value::NamedConstructor(
                 "CalcInput".to_string(),
-                vec![("amount".to_string(), Value::Int(2))],
+                vec![("amount".to_string(), Value::Int(2))].into(),
             ),
         );
         let call: Expr = ExprKind::App(
@@ -20705,7 +20729,7 @@ mod tests {
             "input".to_string(),
             Value::NamedConstructor(
                 "CalcInput".to_string(),
-                vec![("amount".to_string(), Value::Int(2))],
+                vec![("amount".to_string(), Value::Int(2))].into(),
             ),
         );
         let call: Expr = ExprKind::App(
@@ -20777,7 +20801,7 @@ mod tests {
             .insert("LedgerEntry".into(), "LedgerEntry".into());
         let entries = Value::List(vec![Value::NamedConstructor(
             "LedgerEntry".into(),
-            vec![("amount".into(), Value::Int(42))],
+            vec![("amount".into(), Value::Int(42))].into(),
         )]);
         assert!(interpreter.value_matches_type(&entries, type_name));
 
@@ -21087,7 +21111,7 @@ mod tests {
         interpreter.run_program(&stmts, &mut env);
         interpreter.active_rule_scopes.push(RuleScopeFrame {
             name: "Case".to_string(),
-            bindings: HashMap::from([("input".to_string(), Value::Int(21))]),
+            bindings: Rc::new(HashMap::from([("input".to_string(), Value::Int(21))])),
             memoized_zero_arg_rules: HashMap::new(),
         });
 
@@ -21208,6 +21232,74 @@ mod tests {
             env.get("same").map(ToString::to_string),
             Some("true".into())
         );
+    }
+
+    #[test]
+    fn immutable_constructor_clones_share_payloads_and_extend_copy_on_write() {
+        let original = Value::Constructor("Pair".into(), Rc::new(vec![Value::Int(1)]));
+        let cloned = original.clone();
+        let (Value::Constructor(_, original_fields), Value::Constructor(_, cloned_fields)) =
+            (&original, &cloned)
+        else {
+            panic!("expected positional constructors");
+        };
+        assert!(Rc::ptr_eq(original_fields, cloned_fields));
+
+        let mut interpreter = Interpreter::new();
+        let extended = interpreter.apply(cloned, vec![Value::Int(2)], &Env::new());
+        assert!(matches!(
+            extended,
+            Value::Constructor(_, fields)
+                if matches!(fields.as_slice(), [Value::Int(1), Value::Int(2)])
+        ));
+        assert!(matches!(
+            original,
+            Value::Constructor(_, fields) if matches!(fields.as_slice(), [Value::Int(1)])
+        ));
+
+        let record = Value::NamedConstructor(
+            "Record".into(),
+            Rc::new(vec![("field".into(), Value::Int(3))]),
+        );
+        let record_clone = record.clone();
+        let (Value::NamedConstructor(_, fields), Value::NamedConstructor(_, cloned_fields)) =
+            (&record, &record_clone)
+        else {
+            panic!("expected named constructors");
+        };
+        assert!(Rc::ptr_eq(fields, cloned_fields));
+    }
+
+    #[test]
+    fn rule_head_bindings_use_an_isolated_child_environment() {
+        let mut env = Env::new();
+        env.set("global".into(), Value::Int(7));
+        let bindings_before = env.bindings.clone();
+        env.remove("missing");
+        assert!(Rc::ptr_eq(&bindings_before, &env.bindings));
+
+        let head: Expr = ExprKind::App(
+            Box::new(ExprKind::Var("identity".into()).into()),
+            vec![ExprKind::Var("value".into()).into()],
+        )
+        .into();
+        let interpreter = Interpreter::new();
+        let matched = interpreter
+            .match_rule_head(&head, &[Value::Int(42)], &env)
+            .expect("rule head should match");
+
+        assert_eq!(matched.bindings.len(), 1);
+        assert_eq!(
+            matched.get("value").map(ToString::to_string),
+            Some("42".into())
+        );
+        assert_eq!(
+            matched.get("global").map(ToString::to_string),
+            Some("7".into())
+        );
+        let parent = matched.parent.as_ref().expect("rule frame parent");
+        assert!(Rc::ptr_eq(&parent.bindings, &env.bindings));
+        assert!(env.get("value").is_none());
     }
 
     #[test]
