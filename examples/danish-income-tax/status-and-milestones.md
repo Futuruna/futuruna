@@ -3,17 +3,18 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er nu ført gennem den kanoniske Personskat-grænse; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes nu fra den kanoniske Personskat-graf; fortolket, kompileret og ved JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Previous implementation slice: `td-3681f7` (ABL §§ 37-40's fraflytterskat, henstand, årlige hændelser og tilbageflytning er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
+Previous implementation slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
-Next canonical refinement: `td-aea204` (afled fraflytterskattens øvrige aktieindkomstkontekst fra den omgivende Personskat i stedet for at gentage samme års fakta)
+Next canonical refinement: `td-7469fc` (klassificer § 38-gevinster efter den anvendelige indkomstkategori)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
+Planned simultaneous spouse exit-tax netting: `td-421749` (fælles modregning og entydig skatteattribution, når begge samlevende ægtefæller bliver fraflytterskattepligtige samme år)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current compiler performance slice: `td-95076b` (kompilerede RuleScopes memoiserer nul-argumentsregler under én rodevaluering; afventer uafhængig gennemgang)
@@ -22,7 +23,7 @@ Previous language support slice: `td-8a34e0` (`refof`-referencer er implementere
 Deferred performance issues: `td-6659f1`, `td-6b2cba`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
-Latest approved implementation slice: `td-699438`
+Latest approved implementation slice: `td-86bd9a`
 Latest approved language slice: `td-8a34e0`
 
 This folder is the working home for encoding Danish personal income tax law in
@@ -3963,6 +3964,27 @@ Review candidates to revisit deliberately, not as broad churn:
   negative basis, ordered multi-year replay, late reporting, re-entry and
   death. The persistent multi-period state remains a separate typed module
   instead of being folded into § 39's one-time eligibility decision.
+  Under `td-aea204` no longer repeats current-year own or spouse share income
+  inside that lifecycle input. The canonical Personskat graph first derives
+  signed ordinary share income, dividends and other valid share-income sources,
+  then supplies that context to each current departure branch in source-list
+  order. Negative own or spouse income is treated through the same § 8 a pair
+  rules as positive income. A separate historical variant remains available
+  only when a departure from an earlier income year is replayed; an explicit
+  same-year aggregate is rejected. The generated JSON/XLSX contract therefore
+  exposes the context origin but no duplicate current-year context amounts.
+  A typed annual context keeps the signed own/spouse amounts, cohabitation and
+  derivation validity together through the rule chain. When both cohabiting
+  spouses have current-year departure branches, the canonical calculation now
+  fails closed instead of attributing the shared § 8 a effect twice. The joint
+  netting and attribution model is bounded follow-up `td-421749`.
+  Twelve focused scenarios cover signed pair tax, own and spouse derivation,
+  cohabitation, ordered multiple branches, historical replay, conflicting
+  same-year context and simultaneous spouse departure in both the interpreter
+  and generated Rust. The expanded direct-JSON/generated-XLSX boundary test
+  also produces identical spouse-context results (including 50.000 kr. of
+  spouse share income and 27.000 kr. of exit tax) and rejects the conflicting
+  same-year historical context through both formats.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -4014,9 +4036,9 @@ Review candidates to revisit deliberately, not as broad churn:
 ## Next
 
 - Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
-  lifecycle design. `td-aea204` derives the departure calculation's surrounding
-  own/spouse share-income context from canonical Personskat; `td-7469fc`
-  classifies § 38 gains by the applicable income category; and `td-3f2ee9`
+  lifecycle design. The surrounding own/spouse share-income context is now
+  derived from canonical Personskat under `td-aea204`; `td-7469fc` classifies
+  § 38 gains by the applicable income category; and `td-3f2ee9`
   makes a missing annual § 39 A report detectable rather than requiring an
   explicit late-reporting event. These are bounded fidelity follow-ups, not a
   reason to replace the derived ledger with caller-supplied conclusions.

@@ -745,10 +745,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | None -> Falskt
 }
 
-= personskat_calculate_par37_til40_forløbsinput = AktieavancePar37Til40Forløbsinput(
+= personskat_calculate_par37_til40_forløbsinput = PersonskatPar37Til40Forløbsfakta(
     identifikation = "personskat-fraflytning-2026",
     opgørelsesår = 2026,
-    fraflytning = AktieavancePar37Til40Fraflytningsfakta(
+    fraflytning = PersonskatPar37Til40Fraflytningsfakta(
         fraflytningsår = 2026,
         ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
         tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
@@ -769,12 +769,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             princip = AblPar23Realisationsprincip,
             henstandsvalg = AblPar37Til40HenstandSøges
         )],
-        aktieindkomstkontekst = AktieavancePar37Til40Aktieindkomstkontekst(
-            indkomstår = 2026,
-            øvrig_egen_aktieindkomst_kroner = 0,
-            ægtefælles_aktieindkomst_kroner = 0,
-            samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt
-        ),
+        kontekstgrundlag = AfledPar37Til40KontekstFraPersonskat,
         indberetning = AktieavancePar39Indberetning(
             oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
             beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist

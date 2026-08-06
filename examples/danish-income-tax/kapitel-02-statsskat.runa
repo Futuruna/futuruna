@@ -1191,6 +1191,8 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 # AktieindkomstÆgtefælleNegativResultat(modregnet_i_ægtefælles_positive_aktieindkomst_kroner: Heltal, resterende_negativ_aktieindkomst_kroner: Heltal, negativ_skat_kroner: Heltal)
 # AktieindkomstÆgtefællerBeggeNegativeInput(skatteår: Heltal, egen_negativ_aktieindkomst_kroner: Heltal, ægtefælles_negativ_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # AktieindkomstÆgtefællerBeggeNegativeResultat(grundbeløb_kroner: Heltal, dobbelt_grundbeløb_kroner: Heltal, egen_negativ_aktieindkomst_abs_kroner: Heltal, ægtefælles_negativ_aktieindkomst_abs_kroner: Heltal, egen_effektivt_grundbeløb_kroner: Heltal, ægtefælles_effektivt_grundbeløb_kroner: Heltal, egen_negativ_skat_kroner: Heltal, ægtefælles_negativ_skat_kroner: Heltal, samlet_negativ_skat_kroner: Heltal)
+# AktieindkomstParÅrsskatInput(skatteår: Heltal, egen_aktieindkomst_kroner: Heltal, ægtefælles_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
+# AktieindkomstParÅrsskatResultat(input: AktieindkomstParÅrsskatInput, egen_negativ_modregnet_i_ægtefælle_kroner: Heltal, ægtefælles_negativ_modregnet_i_egen_kroner: Heltal, egen_aktieindkomst_efter_ægtefællemodregning_kroner: Heltal, ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner: Heltal, eget_effektive_grundbeløb_kroner: Heltal, ægtefælles_effektive_grundbeløb_kroner: Heltal, egen_skat_kroner: Heltal, ægtefælles_skat_kroner: Heltal, samlet_skat_kroner: Heltal, input_gyldigt: Boolsk)
 
 | aktieindkomstskat_sats_kilde(år: Heltal, lag: AktieSkatteLag) -> PersonskattelovenLbk1284Af2021Par8aStk1 under lag == LavAktieSkat && år >= 2010
 | aktieindkomstskat_sats_kilde(år: Heltal, lag: AktieSkatteLag) -> PersonskattelovenLbk1284Af2021Par8aStk2 under lag == HøjAktieSkat && år >= 2010
@@ -1305,6 +1307,82 @@ Stk. 7. Grundbeløb i stk. 1-2 reguleres efter § 20.
 }
 | aktieindkomst_ægtefæller_begge_negative_sag(input: AktieindkomstÆgtefællerBeggeNegativeInput) -> AktieindkomstÆgtefællerBeggeNegativeSag(input)
 | aktieindkomst_ægtefæller_begge_negative_resultat(input: AktieindkomstÆgtefællerBeggeNegativeInput) -> aktieindkomst_ægtefæller_begge_negative_sag(input).resultat()
+
+# AktieindkomstParÅrsskatSag(input: AktieindkomstParÅrsskatInput) {
+    | egen_negativ_modregnet_i_ægtefælle_kroner() -> hvis input.samlevende_ved_årets_udløb && input.egen_aktieindkomst_kroner < 0 && input.ægtefælles_aktieindkomst_kroner > 0 { penge_mindste_beløb(0 - input.egen_aktieindkomst_kroner, input.ægtefælles_aktieindkomst_kroner) } ellers { 0 }
+    | ægtefælles_negativ_modregnet_i_egen_kroner() -> hvis input.samlevende_ved_årets_udløb && input.ægtefælles_aktieindkomst_kroner < 0 && input.egen_aktieindkomst_kroner > 0 { penge_mindste_beløb(0 - input.ægtefælles_aktieindkomst_kroner, input.egen_aktieindkomst_kroner) } ellers { 0 }
+    | egen_aktieindkomst_efter_ægtefællemodregning_kroner() -> input.egen_aktieindkomst_kroner + egen_negativ_modregnet_i_ægtefælle_kroner() - ægtefælles_negativ_modregnet_i_egen_kroner()
+    | ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner() -> input.ægtefælles_aktieindkomst_kroner + ægtefælles_negativ_modregnet_i_egen_kroner() - egen_negativ_modregnet_i_ægtefælle_kroner()
+    | begge_negative_efter_ægtefællemodregning() -> input.samlevende_ved_årets_udløb && egen_aktieindkomst_efter_ægtefællemodregning_kroner() < 0 && ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner() < 0
+    | begge_negative_resultat() -> aktieindkomst_ægtefæller_begge_negative_resultat(AktieindkomstÆgtefællerBeggeNegativeInput(
+        skatteår = input.skatteår,
+        egen_negativ_aktieindkomst_kroner = egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+        ægtefælles_negativ_aktieindkomst_kroner = ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+        samlevende_ved_årets_udløb = input.samlevende_ved_årets_udløb
+    ))
+    | eget_effektive_grundbeløb_kroner() -> hvis egen_aktieindkomst_efter_ægtefællemodregning_kroner() < 0 {
+        hvis begge_negative_efter_ægtefællemodregning() { begge_negative_resultat().egen_effektivt_grundbeløb_kroner } ellers { aktieindkomst_grundbeløb_for(input.skatteår) * hvis input.samlevende_ved_årets_udløb { 2 } ellers { 1 } }
+    } ellers {
+        aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(
+            skatteår = input.skatteår,
+            aktieindkomst_kroner = egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            ægtefælle_aktieindkomst_kroner = ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            samlevende_ved_årets_udløb = input.samlevende_ved_årets_udløb
+        ))
+    }
+    | ægtefælles_effektive_grundbeløb_kroner() -> hvis ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner() < 0 {
+        hvis begge_negative_efter_ægtefællemodregning() { begge_negative_resultat().ægtefælles_effektivt_grundbeløb_kroner } ellers { aktieindkomst_grundbeløb_for(input.skatteår) * hvis input.samlevende_ved_årets_udløb { 2 } ellers { 1 } }
+    } ellers {
+        aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(
+            skatteår = input.skatteår,
+            aktieindkomst_kroner = ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            ægtefælle_aktieindkomst_kroner = egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            samlevende_ved_årets_udløb = input.samlevende_ved_årets_udløb
+        ))
+    }
+    | egen_skat_kroner() -> hvis egen_aktieindkomst_efter_ægtefællemodregning_kroner() < 0 {
+        0 - aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+            skatteår = input.skatteår,
+            negativ_aktieindkomst_abs_kroner = 0 - egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            effektivt_grundbeløb_kroner = eget_effektive_grundbeløb_kroner()
+        ))
+    } ellers {
+        aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+            skatteår = input.skatteår,
+            aktieindkomst_kroner = egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            effektivt_grundbeløb_kroner = eget_effektive_grundbeløb_kroner()
+        )).samlet_skat_kroner
+    }
+    | ægtefælles_skat_kroner() -> hvis ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner() < 0 {
+        0 - aktieindkomst_negativ_skat_kroner(AktieindkomstNegativSkatInput(
+            skatteår = input.skatteår,
+            negativ_aktieindkomst_abs_kroner = 0 - ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            effektivt_grundbeløb_kroner = ægtefælles_effektive_grundbeløb_kroner()
+        ))
+    } ellers {
+        aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
+            skatteår = input.skatteår,
+            aktieindkomst_kroner = ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+            effektivt_grundbeløb_kroner = ægtefælles_effektive_grundbeløb_kroner()
+        )).samlet_skat_kroner
+    }
+    | samlet_skat_kroner() -> egen_skat_kroner() + ægtefælles_skat_kroner()
+    | input_gyldigt() -> skatteår_understøttet(input.skatteår)
+    | resultat() -> AktieindkomstParÅrsskatResultat(
+        input = input,
+        egen_negativ_modregnet_i_ægtefælle_kroner = egen_negativ_modregnet_i_ægtefælle_kroner(),
+        ægtefælles_negativ_modregnet_i_egen_kroner = ægtefælles_negativ_modregnet_i_egen_kroner(),
+        egen_aktieindkomst_efter_ægtefællemodregning_kroner = egen_aktieindkomst_efter_ægtefællemodregning_kroner(),
+        ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner = ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner(),
+        eget_effektive_grundbeløb_kroner = eget_effektive_grundbeløb_kroner(),
+        ægtefælles_effektive_grundbeløb_kroner = ægtefælles_effektive_grundbeløb_kroner(),
+        egen_skat_kroner = egen_skat_kroner(),
+        ægtefælles_skat_kroner = ægtefælles_skat_kroner(),
+        samlet_skat_kroner = samlet_skat_kroner(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| aktieindkomst_par_årsskat_resultat(input: AktieindkomstParÅrsskatInput) -> AktieindkomstParÅrsskatSag(input).resultat()
 
 = par8a_lav_2011 = aktieindkomstskat_sats_basispoint(2011, LavAktieSkat)
 = par8a_lav_2012 = aktieindkomstskat_sats_basispoint(2012, LavAktieSkat)

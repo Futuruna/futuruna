@@ -1,0 +1,273 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Regressionsscenarier for den kanoniske afledning af aktieindkomstkontekst til
+fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
+----
+
+| fraflytterskat_kontekst_aktie(identifikation: Tekst, gevinst_kroner: Heltal) -> AktieavancePar37Til40AktiepostFakta(
+    identifikation = identifikation,
+    selskabsidentifikation = "DK-" + identifikation,
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 1, dag = 1),
+    erhvervelsesrækkefølge = 1,
+    antal = 100,
+    handelsværdi_ved_ophør_kroner = 100000 + gevinst_kroner,
+    skattemæssig_anskaffelsessum_kroner = 100000,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
+    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    princip = AblPar23Realisationsprincip,
+    henstandsvalg = AblPar37Til40HenstandSøges
+)
+
+| fraflytterskat_kontekst_kilde(identifikation: Tekst, fraflytningsår: Heltal, opgørelsesår: Heltal, gevinst_kroner: Heltal, kontekstgrundlag: PersonskatPar37Til40Kontekstgrundlag) -> PersonskatSærligtAktieaktivFakta(
+    identifikation = identifikation,
+    kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = PersonskatPar37Til40Forløbsfakta(
+        identifikation = identifikation,
+        opgørelsesår = opgørelsesår,
+        fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+            fraflytningsår = fraflytningsår,
+            ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+            tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+            aktier = [fraflytterskat_kontekst_aktie(identifikation + "-aktie", gevinst_kroner)],
+            kontekstgrundlag = kontekstgrundlag,
+            indberetning = AktieavancePar39Indberetning(
+                oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+                beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+            ),
+            bopæl = AktieavancePar39Bopæl(
+                oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                frigivelse_af_sikkerhed_anmodet = Falskt
+            ),
+            sikkerhed = AblPar39IngenSikkerhedStillet
+        ),
+        hændelsesposter = [],
+        tilflytning = IngenTilflytningEfterPar39B
+    )),
+    markedsstatus = AblIkkeOptagetTilHandel
+)
+
+| fraflytterskat_kontekst_udbytte(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatAlmindeligAktie,
+    beløb_kroner = beløb_kroner,
+    par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+)
+
+| fraflytterskat_kontekst_aktieinput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta)) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = ordinært_aktieår,
+    særlige_aktiver = særlige_aktiver,
+    udbytter = udbytter
+)
+
+= fraflytterskat_kontekst_negativ_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-FRAFLYTTERSKAT-NEGATIV",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsessum_kroner = 30000
+)
+= fraflytterskat_kontekst_negativ_afståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    afståelsessum_kroner = 0,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+        skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+        ejertidsudbytter = [AblPar5ASkattefritUdbytteAfPågældendeAktier(beløb_kroner = 12000)],
+        præferenceposition = AktieavancePar5APræferenceposition(
+            modtaget_tilsvarende_udbytte_kroner = 0,
+            allerede_anvendt_til_tabsreduktion_kroner = 0
+        ),
+        koncernbeløb = []
+    ))
+)
+= fraflytterskat_kontekst_negativt_aktieår = MedOrdinærtAktieår(input = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = fraflytterskat_kontekst_negativ_position,
+        hændelser = [fraflytterskat_kontekst_negativ_afståelse]
+    )],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+))
+
+= fraflytterskat_kontekst_modregnet_parskat = aktieindkomst_par_årsskat_resultat(AktieindkomstParÅrsskatInput(
+    skatteår = 2026,
+    egen_aktieindkomst_kroner = -20000,
+    ægtefælles_aktieindkomst_kroner = 100000,
+    samlevende_ved_årets_udløb = Sandt
+))
+= fraflytterskat_kontekst_resterende_negativ_parskat = aktieindkomst_par_årsskat_resultat(AktieindkomstParÅrsskatInput(
+    skatteår = 2026,
+    egen_aktieindkomst_kroner = -100000,
+    ægtefælles_aktieindkomst_kroner = 20000,
+    samlevende_ved_årets_udløb = Sandt
+))
+= fraflytterskat_kontekst_begge_negative_parskat = aktieindkomst_par_årsskat_resultat(AktieindkomstParÅrsskatInput(
+    skatteår = 2026,
+    egen_aktieindkomst_kroner = -100000,
+    ægtefælles_aktieindkomst_kroner = -100000,
+    samlevende_ved_årets_udløb = Sandt
+))
+
+= fraflytterskat_kontekst_enkelt_input = fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-enkel", 2026, 2026, 100000, AfledPar37Til40KontekstFraPersonskat)],
+    [fraflytterskat_kontekst_udbytte("udbytte-50000", 50000)]
+)
+= fraflytterskat_kontekst_enkelt_resultat = personskat_aktieavance_resultat(fraflytterskat_kontekst_enkelt_input, 2026)
+
+= fraflytterskat_kontekst_negativ_egen_input = fraflytterskat_kontekst_aktieinput(
+    fraflytterskat_kontekst_negativt_aktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-negativ-egen", 2026, 2026, 100000, AfledPar37Til40KontekstFraPersonskat)],
+    []
+)
+= fraflytterskat_kontekst_negativ_egen_resultat = personskat_aktieavance_resultat(fraflytterskat_kontekst_negativ_egen_input, 2026)
+
+= fraflytterskat_kontekst_flere_input = fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [
+        fraflytterskat_kontekst_kilde("fraflytning-først", 2026, 2026, 20000, AfledPar37Til40KontekstFraPersonskat),
+        fraflytterskat_kontekst_kilde("fraflytning-anden", 2026, 2026, 80000, AfledPar37Til40KontekstFraPersonskat)
+    ],
+    [fraflytterskat_kontekst_udbytte("udbytte-flere", 50000)]
+)
+= fraflytterskat_kontekst_flere_resultat = personskat_aktieavance_resultat(fraflytterskat_kontekst_flere_input, 2026)
+
+= fraflytterskat_kontekst_hoved_input = fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-hoved", 2026, 2026, 100000, AfledPar37Til40KontekstFraPersonskat)],
+    []
+)
+= fraflytterskat_kontekst_ægtefælle_positiv_input = fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [],
+    [fraflytterskat_kontekst_udbytte("ægtefælle-udbytte", 50000)]
+)
+= fraflytterskat_kontekst_ægtefælle_negativ_input = fraflytterskat_kontekst_aktieinput(
+    fraflytterskat_kontekst_negativt_aktieår,
+    [],
+    []
+)
+= fraflytterskat_kontekst_ægtefælle_fraflytning_input = fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-ægtefælle", 2026, 2026, 50000, AfledPar37Til40KontekstFraPersonskat)],
+    []
+)
+= fraflytterskat_kontekst_samlevende_parresultat = personskat_aktieavance_parresultat_fra_personer(
+    fraflytterskat_kontekst_hoved_input,
+    2026,
+    fraflytterskat_kontekst_ægtefælle_positiv_input,
+    2026,
+    Sandt
+)
+= fraflytterskat_kontekst_ikke_samlevende_parresultat = personskat_aktieavance_parresultat_fra_personer(
+    fraflytterskat_kontekst_hoved_input,
+    2026,
+    fraflytterskat_kontekst_ægtefælle_positiv_input,
+    2026,
+    Falskt
+)
+= fraflytterskat_kontekst_negativ_ægtefælle_parresultat = personskat_aktieavance_parresultat_fra_personer(
+    fraflytterskat_kontekst_hoved_input,
+    2026,
+    fraflytterskat_kontekst_ægtefælle_negativ_input,
+    2026,
+    Sandt
+)
+= fraflytterskat_kontekst_samtidig_fraflytning_parresultat = personskat_aktieavance_parresultat_fra_personer(
+    fraflytterskat_kontekst_hoved_input,
+    2026,
+    fraflytterskat_kontekst_ægtefælle_fraflytning_input,
+    2026,
+    Sandt
+)
+
+= fraflytterskat_kontekst_historisk_resultat = personskat_aktieavance_resultat(fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-historisk", 2025, 2026, 100000, HistoriskPar37Til40Aktieindkomstkontekst(kontekst = AktieavancePar37Til40Aktieindkomstkontekst(
+        indkomstår = 2025,
+        øvrig_egen_aktieindkomst_kroner = 50000,
+        ægtefælles_aktieindkomst_kroner = 0,
+        samlevende_med_ægtefælle_ved_indkomstårets_udløb = Falskt
+    )))],
+    []
+    ), 2026)
+= fraflytterskat_kontekst_modstridende_resultat = personskat_aktieavance_resultat(fraflytterskat_kontekst_aktieinput(
+    UdenOrdinærtAktieår,
+    [fraflytterskat_kontekst_kilde("fraflytning-modstridende", 2026, 2026, 100000, HistoriskPar37Til40Aktieindkomstkontekst(kontekst = AktieavancePar37Til40Aktieindkomstkontekst(
+        indkomstår = 2026,
+        øvrig_egen_aktieindkomst_kroner = 999999,
+        ægtefælles_aktieindkomst_kroner = 999999,
+        samlevende_med_ægtefælle_ved_indkomstårets_udløb = Sandt
+    )))],
+    []
+    ), 2026)
+
+| fraflytterskat_kontekst_par8a_modregner_negativ_i_positiv: fraflytterskat_kontekst_modregnet_parskat -> fraflytterskat_kontekst_modregnet_parskat.input_gyldigt && fraflytterskat_kontekst_modregnet_parskat.egen_negativ_modregnet_i_ægtefælle_kroner == 20000 && fraflytterskat_kontekst_modregnet_parskat.ægtefælles_aktieindkomst_efter_ægtefællemodregning_kroner == 80000 && fraflytterskat_kontekst_modregnet_parskat.samlet_skat_kroner == 21600
+| fraflytterskat_kontekst_par8a_bevarer_resterende_negativ_skat: fraflytterskat_kontekst_resterende_negativ_parskat -> fraflytterskat_kontekst_resterende_negativ_parskat.egen_aktieindkomst_efter_ægtefællemodregning_kroner == -80000 && fraflytterskat_kontekst_resterende_negativ_parskat.eget_effektive_grundbeløb_kroner == 158800 && fraflytterskat_kontekst_resterende_negativ_parskat.samlet_skat_kroner == -21600
+| fraflytterskat_kontekst_par8a_fordeler_dobbelt_grænse_for_begge_negative: fraflytterskat_kontekst_begge_negative_parskat -> fraflytterskat_kontekst_begge_negative_parskat.eget_effektive_grundbeløb_kroner == 79400 && fraflytterskat_kontekst_begge_negative_parskat.ægtefælles_effektive_grundbeløb_kroner == 79400 && fraflytterskat_kontekst_begge_negative_parskat.samlet_skat_kroner == -60180
+| fraflytterskat_kontekst_afleder_egen_øvrig_aktieindkomst: fraflytterskat_kontekst_enkelt_resultat -> fraflytterskat_kontekst_enkelt_resultat.alle_input_gyldige && fraflytterskat_kontekst_enkelt_resultat.aktieindkomst_kroner == 150000 && match head(fraflytterskat_kontekst_enkelt_resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == 50000 && forløb.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == 13500 && forløb.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 51090 && forløb.årets_beregnede_fraflytterskat_kroner == 37590
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_afleder_signeret_egen_aktieindkomst: fraflytterskat_kontekst_negativ_egen_resultat -> fraflytterskat_kontekst_negativ_egen_resultat.alle_input_gyldige && fraflytterskat_kontekst_negativ_egen_resultat.aktieindkomst_kroner == 82000 && match head(fraflytterskat_kontekst_negativ_egen_resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == -18000 && forløb.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == -4860 && forløb.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 22530 && forløb.årets_beregnede_fraflytterskat_kroner == 27390
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_følger_kildelisteorden: fraflytterskat_kontekst_flere_resultat -> fraflytterskat_kontekst_flere_resultat.alle_input_gyldige && fraflytterskat_kontekst_flere_resultat.aktieindkomst_kroner == 150000 && length(fraflytterskat_kontekst_flere_resultat.særlige_resultater) == 2 && match head(fraflytterskat_kontekst_flere_resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(første) -> match head(tail(fraflytterskat_kontekst_flere_resultat.særlige_resultater)).par37_til40_forløbsresultat {
+        | Some(anden) -> første.fraflytningsresultat.fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == 50000 && første.årets_beregnede_fraflytterskat_kroner == 5400 && anden.fraflytningsresultat.fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == 70000 && anden.årets_beregnede_fraflytterskat_kroner == 32190 && første.årets_beregnede_fraflytterskat_kroner + anden.årets_beregnede_fraflytterskat_kroner == 37590
+        | None -> Falskt
+    }
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_afleder_samlevende_ægtefælle: fraflytterskat_kontekst_samlevende_parresultat -> fraflytterskat_kontekst_samlevende_parresultat.par_gyldigt && match head(fraflytterskat_kontekst_samlevende_parresultat.hovedperson.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == 50000 && forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.samlevende_med_ægtefælle_ved_indkomstårets_udløb && forløb.årets_beregnede_fraflytterskat_kroner == 27000
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_respekterer_manglende_samliv: fraflytterskat_kontekst_ikke_samlevende_parresultat -> fraflytterskat_kontekst_ikke_samlevende_parresultat.par_gyldigt && match head(fraflytterskat_kontekst_ikke_samlevende_parresultat.hovedperson.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == 50000 && forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.samlevende_med_ægtefælle_ved_indkomstårets_udløb == Falskt && forløb.årets_beregnede_fraflytterskat_kroner == 30090
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_afleder_signeret_ægtefælleindkomst: fraflytterskat_kontekst_negativ_ægtefælle_parresultat -> fraflytterskat_kontekst_negativ_ægtefælle_parresultat.par_gyldigt && match head(fraflytterskat_kontekst_negativ_ægtefælle_parresultat.hovedperson.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner == -18000 && forløb.fraflytningsresultat.skat_uden_fraflyttergevinst_kroner == -4860 && forløb.fraflytningsresultat.skat_med_hele_fraflyttergevinsten_kroner == 22140 && forløb.årets_beregnede_fraflytterskat_kroner == 27000
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_afviser_samtidig_samlevende_fraflytning: fraflytterskat_kontekst_samtidig_fraflytning_parresultat -> fraflytterskat_kontekst_samtidig_fraflytning_parresultat.par_gyldigt == Falskt && fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.alle_input_gyldige == Falskt && head(fraflytterskat_kontekst_samtidig_fraflytning_parresultat.hovedperson.særlige_resultater).input_gyldigt == Falskt && match fraflytterskat_kontekst_samtidig_fraflytning_parresultat.ægtefælle {
+    | BeregnetÆgtefælleAktieavance(resultat) -> resultat.alle_input_gyldige == Falskt && head(resultat.særlige_resultater).input_gyldigt == Falskt
+    | IngenÆgtefælleAktieavance -> Falskt
+}
+| fraflytterskat_kontekst_tillader_kun_historisk_kontekst_for_tidligere_år: fraflytterskat_kontekst_historisk_resultat -> fraflytterskat_kontekst_historisk_resultat.alle_input_gyldige && fraflytterskat_kontekst_historisk_resultat.aktieindkomst_kroner == 0 && match head(fraflytterskat_kontekst_historisk_resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.input_gyldigt && forløb.input.fraflytning.aktieindkomstkontekst.indkomstår == 2025 && forløb.input.fraflytning.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner == 50000
+    | None -> Falskt
+}
+| fraflytterskat_kontekst_afviser_eksplicit_sammeårskontekst: fraflytterskat_kontekst_modstridende_resultat -> fraflytterskat_kontekst_modstridende_resultat.alle_input_gyldige == Falskt && fraflytterskat_kontekst_modstridende_resultat.aktieindkomst_kroner == 0 && head(fraflytterskat_kontekst_modstridende_resultat.særlige_resultater).input_gyldigt == Falskt
+
+? fraflytterskat_kontekst_par8a_modregner_negativ_i_positiv
+? fraflytterskat_kontekst_par8a_bevarer_resterende_negativ_skat
+? fraflytterskat_kontekst_par8a_fordeler_dobbelt_grænse_for_begge_negative
+? fraflytterskat_kontekst_afleder_egen_øvrig_aktieindkomst
+? fraflytterskat_kontekst_afleder_signeret_egen_aktieindkomst
+? fraflytterskat_kontekst_følger_kildelisteorden
+? fraflytterskat_kontekst_afleder_samlevende_ægtefælle
+? fraflytterskat_kontekst_respekterer_manglende_samliv
+? fraflytterskat_kontekst_afleder_signeret_ægtefælleindkomst
+? fraflytterskat_kontekst_afviser_samtidig_samlevende_fraflytning
+? fraflytterskat_kontekst_tillader_kun_historisk_kontekst_for_tidligere_år
+? fraflytterskat_kontekst_afviser_eksplicit_sammeårskontekst

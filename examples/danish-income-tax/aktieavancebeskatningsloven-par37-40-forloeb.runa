@@ -143,9 +143,14 @@ til mindre end 0 kr.
     | par38_aktier() -> map(fakta.aktier, aktieavance_par37_til40_par38_aktie)
     | par38_input() -> AktieavancePar38Input(ophørsgrund = fakta.ophørsgrund, tilknytning = fakta.tilknytning, aktier = par38_aktier())
     | par38_resultat() -> aktieavance_par38_resultat(par38_input())
-    | aktieindkomstkontekst_gyldig() -> fakta.aktieindkomstkontekst.indkomstår == fakta.fraflytningsår && fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner >= 0 && fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner >= 0 && skatteår_understøttet(fakta.fraflytningsår)
+    | aktieindkomstkontekst_gyldig() -> fakta.aktieindkomstkontekst.indkomstår == fakta.fraflytningsår && skatteår_understøttet(fakta.fraflytningsår)
     | effektivt_aktiegrundbeløb_kroner() -> hvis aktieindkomstkontekst_gyldig() { aktieindkomst_effektivt_grundbeløb_for_person(AktieindkomstÆgtefælleGrundbeløbInput(skatteår = fakta.fraflytningsår, aktieindkomst_kroner = fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner, ægtefælle_aktieindkomst_kroner = fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner, samlevende_ved_årets_udløb = fakta.aktieindkomstkontekst.samlevende_med_ægtefælle_ved_indkomstårets_udløb)) } ellers { 0 }
-    | skat_af_aktieindkomst_kroner(aktieindkomst_kroner: Heltal) -> hvis aktieindkomstkontekst_gyldig() { aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(skatteår = fakta.fraflytningsår, aktieindkomst_kroner = penge_positivt_beløb(aktieindkomst_kroner), effektivt_grundbeløb_kroner = effektivt_aktiegrundbeløb_kroner())).samlet_skat_kroner } ellers { 0 }
+    | skat_af_aktieindkomst_kroner(aktieindkomst_kroner: Heltal) -> hvis aktieindkomstkontekst_gyldig() { aktieindkomst_par_årsskat_resultat(AktieindkomstParÅrsskatInput(
+        skatteår = fakta.fraflytningsår,
+        egen_aktieindkomst_kroner = aktieindkomst_kroner,
+        ægtefælles_aktieindkomst_kroner = fakta.aktieindkomstkontekst.ægtefælles_aktieindkomst_kroner,
+        samlevende_ved_årets_udløb = fakta.aktieindkomstkontekst.samlevende_med_ægtefælle_ved_indkomstårets_udløb
+    )).samlet_skat_kroner } ellers { 0 }
     | øvrig_aktieindkomst_kroner() -> fakta.aktieindkomstkontekst.øvrig_egen_aktieindkomst_kroner
     | samlet_fraflyttergevinst_kroner() -> par38_resultat().nettogevinst_til_skatteberegning_efter_stk5_kroner
     | henstandsvalgt_nettogevinst_før_gulv_kroner() -> foldl(fakta.aktier, 0, |sum: Heltal, aktie: AktieavancePar37Til40AktiepostFakta| sum + hvis aktieavance_par37_til40_aktie_henstandsvalgt(fakta, par38_resultat(), aktie) { aktieavance_par37_til40_opgjort_nettogevinst_kroner(aktie) } ellers { 0 })
