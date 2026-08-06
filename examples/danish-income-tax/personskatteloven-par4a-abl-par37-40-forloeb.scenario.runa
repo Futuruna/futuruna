@@ -15,7 +15,12 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+    )),
     princip = AblPar23Realisationsprincip,
     henstandsvalg = AblPar37Til40HenstandSøges
 )

@@ -3,11 +3,12 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-02
 TD epic: `td-56cf8d`
-Current implementation slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes nu fra den kanoniske Personskat-graf; fortolket, kompileret og ved JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
+Current implementation slice: `td-7469fc` (ABL § 38's aktiver og tab klassificeres nu fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; fortolket, kompileret og ved JSON/XLSX-grænsen; klargøres til uafhængig gennemgang)
 Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
-Previous implementation slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
+Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
+Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
-Next canonical refinement: `td-7469fc` (klassificer § 38-gevinster efter den anvendelige indkomstkategori)
+Next exit-tax refinements: `td-8e8561` (beregn blandede § 38-porteføljer som forskellen mellem fuld slutskat med og uden fraflytterindkomsten) og `td-4e42fd` (bevar hvert aktivs eget markeds- og indberetningsgrundlag til ABL § 13 A og KGL § 32)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
@@ -3985,6 +3986,30 @@ Review candidates to revisit deliberately, not as broad churn:
   also produces identical spouse-context results (including 50.000 kr. of
   spouse share income and 27.000 kr. of exit tax) and rejects the conflicting
   same-year historical context through both formats.
+  Under `td-7469fc` er den tidligere, caller-valgte `tabsstatus` fjernet.
+  Hvert § 38-aktiv bærer nu enten almindelige §§ 12-15-kildefakta om marked,
+  tidligere optagelse, § 14-oplysninger og § 5 A eller et typet
+  `AktieavanceAktivklassifikationInput` for §§ 17-22. Reglerne afleder selv
+  både ABL-aktiv og Personskattelov-kategori. En blandet portefølje med 50.000
+  kr. almindelig aktiegevinst, 30.000 kr. næringsgevinst og 20.000 kr. § 19
+  C-gevinst føres derfor til henholdsvis aktieindkomst, personlig indkomst og
+  kapitalindkomst. Et markedsnoteret tab på 10.000 kr. uden opfyldt § 14-
+  oplysningsbetingelse afskæres fra nettogevinsten ud fra kildefakta; en endnu
+  ikke understøttet § 20-kategori afviser hele inputtet i stedet for at blive
+  almindelig aktieindkomst.
+  De syv nye klassifikationsscenarier dækker også den lovlige nulbehandling af
+  en historisk § 18-andelsgevinst og en § 22-gevinst under bagatelgrænsen; de
+  skelnes udtrykkeligt fra en ikke understøttet ABL-kategori. Scenarierne
+  passerer i både fortolkeren og genereret Rust. Den komplette JSON/XLSX-rundtur passerer fortsat og udfylder nu
+  `aktivgrundlag` med de typede kildefakta i stedet for en konklusion om
+  tabsfradrag. Genbrugelig typeankret metadata giver de nye felter danske
+  etiketter og interviewspørgsmål i hele Personskat-grafen. Den lokale
+  livscyklusberegning anvender fortsat kun § 8 a, når alle udgående resultater
+  faktisk er aktieindkomst. En blandet portefølje bevarer sine korrekte
+  årsindkomstposter, men markerer selve fraflytterskatten som ikke understøttet
+  og returnerer ikke en opdigtet § 8 a-skat. Den fulde slutskatteforskel og
+  henstandsfordeling er afgrænset som `td-8e8561`; per-aktiv markedsproveniens
+  til § 13 A/KGL § 32 er afgrænset som `td-4e42fd`.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -4036,9 +4061,11 @@ Review candidates to revisit deliberately, not as broad churn:
 ## Next
 
 - Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
-  lifecycle design. The surrounding own/spouse share-income context is now
-  derived from canonical Personskat under `td-aea204`; `td-7469fc` classifies
-  § 38 gains by the applicable income category; and `td-3f2ee9`
+  lifecycle design. Own/spouse share-income context is derived under
+  `td-aea204`, and § 38's annual categories and ordinary loss eligibility are
+  source-derived under `td-7469fc`. Next, `td-8e8561` must derive mixed-category
+  exit tax from the complete annual Personskat delta, `td-4e42fd` must preserve
+  per-holding market provenance through § 13 A and KGL § 32, and `td-3f2ee9`
   makes a missing annual § 39 A report detectable rather than requiring an
   explicit late-reporting event. These are bounded fidelity follow-ups, not a
   reason to replace the derived ledger with caller-supplied conclusions.

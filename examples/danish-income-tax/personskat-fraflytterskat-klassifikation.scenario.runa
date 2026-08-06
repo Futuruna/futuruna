@@ -1,0 +1,205 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Fokusscenarier for kildeafledt klassifikation af aktiver og tab i
+fraflytningsopgørelsen efter ABL § 38. Scenarierne er ikke lovtekst.
+----
+
+= par38_klassifikation_par5a_uden_reduktion = AktieavancePar5AFakta(
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+    ejertidsudbytter = [],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 0,
+        allerede_anvendt_til_tabsreduktion_kroner = 0
+    ),
+    koncernbeløb = []
+)
+
+| par38_klassifikation_ordinaert_aktivgrundlag() -> AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Falskt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+))
+| par38_klassifikation_afskaaret_markedstab() -> AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    har_tidligere_været_optaget_til_handel = Sandt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(fakta = par38_klassifikation_par5a_uden_reduktion)
+))
+| par38_klassifikation_saerligt_aktivgrundlag(klassifikation: AktieavanceAktivklassifikationInput) -> AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
+    klassifikation = klassifikation,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+))
+
+= par38_klassifikation_naeringsaktiv = par38_klassifikation_saerligt_aktivgrundlag(AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblNæringsaktiePar17,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblIngenInvesteringsklassifikation
+))
+= par38_klassifikation_investeringsselskab19c = par38_klassifikation_saerligt_aktivgrundlag(AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = abl19c_klassifikationsresultat.input)
+))
+= par38_klassifikation_ikke_understoettet_par20 = par38_klassifikation_saerligt_aktivgrundlag(AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblAkkumulerendeInvesteringsbevis20Stk1,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblIngenInvesteringsklassifikation
+))
+= par38_klassifikation_historisk_andelsbevis = AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
+    klassifikation = AktieavanceAktivklassifikationInput(
+        indkomstår = 2026,
+        aktiv = AblAndelsbevisPar18,
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        ),
+        investeringsklassifikation = AblIngenInvesteringsklassifikation
+    ),
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Sandt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 0
+))
+= par38_klassifikation_par22_under_bagatelgraense = AblPar38SærligtAktiv(fakta = AktieavancePar38SærligtAktivgrundlag(
+    klassifikation = AktieavanceAktivklassifikationInput(
+        indkomstår = 2026,
+        aktiv = AblMinimumsinstitutTilKlassifikation,
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        ),
+        investeringsklassifikation = AblPar21Par22Klassifikation(input = abl22_klassifikationsresultat.input)
+    ),
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    årets_netto_med_kgl_par14_23_kroner = 1500
+))
+
+| par38_klassifikation_aktiepost(identifikation: Tekst, raekkefoelge: Heltal, handelsvaerdi_kroner: Heltal, anskaffelsessum_kroner: Heltal, aktivgrundlag: AktieavancePar38Aktivgrundlag, princip: AktieavancePar23Princip) -> AktieavancePar37Til40AktiepostFakta(
+    identifikation = identifikation,
+    selskabsidentifikation = "DK-" + identifikation,
+    aktieserie = "ordinær",
+    erhvervelsesdato = AktieavancePar23Dato(år = 2020, måned = 1, dag = 1),
+    erhvervelsesrækkefølge = raekkefoelge,
+    antal = 100,
+    handelsværdi_ved_ophør_kroner = handelsvaerdi_kroner,
+    skattemæssig_anskaffelsessum_kroner = anskaffelsessum_kroner,
+    beskatningsstatus = AblPar38AktieOmfattetAfDanskBeskatning,
+    par44_status = AblPar38IkkeHistoriskPar44Aktie,
+    egenskaber = [],
+    opgørelseskilde = AblPar37Til40OpgørelseEfterPar23Til29Og46,
+    aktivgrundlag = aktivgrundlag,
+    princip = princip,
+    henstandsvalg = AblPar37Til40SkatBetalesStraks
+)
+
+= par38_klassifikation_blandet_aktier = [
+    par38_klassifikation_aktiepost("ordinaer-gevinst", 1, 150000, 100000, par38_klassifikation_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip),
+    par38_klassifikation_aktiepost("naering-gevinst", 2, 130000, 100000, par38_klassifikation_naeringsaktiv, AblPar23Realisationsprincip),
+    par38_klassifikation_aktiepost("par19c-gevinst", 3, 120000, 100000, par38_klassifikation_investeringsselskab19c, AblPar23Lagerprincip),
+    par38_klassifikation_aktiepost("afskaaret-tab", 4, 110000, 120000, par38_klassifikation_afskaaret_markedstab(), AblPar23Realisationsprincip),
+]
+
+| par38_klassifikation_fraflytningskilde(identifikation: Tekst, aktier: List(AktieavancePar37Til40AktiepostFakta)) -> PersonskatSærligtAktieaktivFakta(
+    identifikation = identifikation,
+    kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = PersonskatPar37Til40Forløbsfakta(
+        identifikation = identifikation,
+        opgørelsesår = 2026,
+        fraflytning = PersonskatPar37Til40Fraflytningsfakta(
+            fraflytningsår = 2026,
+            ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
+            tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
+            aktier = aktier,
+            kontekstgrundlag = AfledPar37Til40KontekstFraPersonskat,
+            indberetning = AktieavancePar39Indberetning(
+                oplysninger_efter_skattekontrollov_par2 = AblPar39RettidigOrdinærFrist,
+                beholdningsoversigt_efter_par39a = AblPar39RettidigOrdinærFrist
+            ),
+            bopæl = AktieavancePar39Bopæl(
+                oprindeligt_fraflytningsland = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                aktuelt_land = AblPar39LandOmfattetAfNordiskOverenskomstEllerEuDirektiv,
+                frigivelse_af_sikkerhed_anmodet = Falskt
+            ),
+            sikkerhed = AblPar39IngenSikkerhedStillet
+        ),
+        hændelsesposter = [],
+        tilflytning = IngenTilflytningEfterPar39B
+    )),
+    markedsstatus = AblIkkeOptagetTilHandel
+)
+
+= par38_klassifikation_blandet_input = PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [par38_klassifikation_fraflytningskilde("blandet-fraflytning", par38_klassifikation_blandet_aktier)],
+    udbytter = []
+)
+= par38_klassifikation_blandet_resultat = personskat_aktieavance_resultat(par38_klassifikation_blandet_input, 2026)
+= par38_klassifikation_blandet_saerligt_resultat = head(par38_klassifikation_blandet_resultat.særlige_resultater)
+
+= par38_klassifikation_ikke_understoettet_input = PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [par38_klassifikation_fraflytningskilde("ikke-understoettet", [
+        par38_klassifikation_aktiepost("par20-gevinst", 1, 125000, 100000, par38_klassifikation_ikke_understoettet_par20, AblPar23Lagerprincip),
+    ])],
+    udbytter = []
+)
+= par38_klassifikation_ikke_understoettet_resultat = personskat_aktieavance_resultat(par38_klassifikation_ikke_understoettet_input, 2026)
+
+= par38_klassifikation_historisk_andel_resultat = personskat_aktieavance_resultat(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [par38_klassifikation_fraflytningskilde("historisk-andel", [
+        par38_klassifikation_aktiepost("historisk-andel", 1, 120000, 100000, par38_klassifikation_historisk_andelsbevis, AblPar23Realisationsprincip),
+    ])],
+    udbytter = []
+), 2026)
+= par38_klassifikation_par22_bagatel_resultat = personskat_aktieavance_resultat(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [par38_klassifikation_fraflytningskilde("par22-bagatel", [
+        par38_klassifikation_aktiepost("par22-bagatel", 1, 101500, 100000, par38_klassifikation_par22_under_bagatelgraense, AblPar23Lagerprincip),
+    ])],
+    udbytter = []
+), 2026)
+
+| par38_klassifikation_lovlig_nulbehandling(resultat: PersonskatAktieavanceResultat, forventet_aktiv: AktieavancebeskatningslovAktiv) -> resultat.alle_input_gyldige && resultat.personlig_indkomst_kroner == 0 && resultat.kapitalindkomst_kroner == 0 && resultat.aktieindkomst_kroner == 0 && match head(resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> forløb.fraflytningsresultat.par38_resultat.input_gyldigt && length(forløb.fraflytningsresultat.par38_resultat.aktieavancebeskatningslov_resultater) == 0 && head(forløb.fraflytningsresultat.par38_resultat.klassifikationsresultater).resultat.effektiv_aktiv == forventet_aktiv && head(forløb.fraflytningsresultat.par38_resultat.klassifikationsresultater).resultat.medregnes_i_skattepligtig_indkomst == Falskt
+    | None -> Falskt
+}
+
+| par38_klassifikation_blandet_portefolje_bevarer_tre_kategorier: par38_klassifikation_blandet_saerligt_resultat -> par38_klassifikation_blandet_saerligt_resultat.input_gyldigt && length(par38_klassifikation_blandet_saerligt_resultat.resultater) == 3 && length(filter(par38_klassifikation_blandet_saerligt_resultat.resultater, |resultat: AktieavancebeskatningslovResultat| resultat.personskattelov_kategori == AblAktieindkomstEfterPslPar4a)) == 1 && length(filter(par38_klassifikation_blandet_saerligt_resultat.resultater, |resultat: AktieavancebeskatningslovResultat| resultat.personskattelov_kategori == AblPersonligIndkomstEfterPslUndtagelse)) == 1 && length(filter(par38_klassifikation_blandet_saerligt_resultat.resultater, |resultat: AktieavancebeskatningslovResultat| resultat.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5)) == 1
+| par38_klassifikation_blandet_portefolje_foedes_til_aarskurvene: par38_klassifikation_blandet_resultat -> par38_klassifikation_blandet_resultat.alle_input_gyldige && par38_klassifikation_blandet_resultat.aktieindkomst_kroner == 50000 && par38_klassifikation_blandet_resultat.personlig_indkomst_kroner == 30000 && par38_klassifikation_blandet_resultat.kapitalindkomst_kroner == 20000
+| par38_klassifikation_oplysningsmangel_afskaerer_tabet: par38_klassifikation_blandet_saerligt_resultat -> match par38_klassifikation_blandet_saerligt_resultat.par37_til40_forløbsresultat { | Some(forløb) -> forløb.fraflytningsresultat.par38_resultat.samlede_gevinster_kroner == 100000 && forløb.fraflytningsresultat.par38_resultat.fradragsberettigede_tab_kroner == 0 && forløb.fraflytningsresultat.par38_resultat.afskårne_tab_kroner == 10000 && forløb.fraflytningsresultat.par38_resultat.nettogevinst_til_skatteberegning_efter_stk5_kroner == 100000 | None -> Falskt }
+| par38_klassifikation_blandet_livscyklusskat_falder_ikke_tilbage_til_par8a: par38_klassifikation_blandet_saerligt_resultat -> match par38_klassifikation_blandet_saerligt_resultat.par37_til40_forløbsresultat { | Some(forløb) -> forløb.fraflytningsresultat.fraflytterskatteberegning_understøttet == Falskt && forløb.fraflytningsresultat.input_gyldigt == Falskt && forløb.årets_beregnede_fraflytterskat_kroner == 0 | None -> Falskt }
+| par38_klassifikation_ikke_understoettet_aktiv_afvises: par38_klassifikation_ikke_understoettet_resultat -> par38_klassifikation_ikke_understoettet_resultat.alle_input_gyldige == Falskt && par38_klassifikation_ikke_understoettet_resultat.personlig_indkomst_kroner == 0 && par38_klassifikation_ikke_understoettet_resultat.kapitalindkomst_kroner == 0 && par38_klassifikation_ikke_understoettet_resultat.aktieindkomst_kroner == 0
+| par38_klassifikation_historisk_andelsgevinst_er_lovlig_nulbehandling: par38_klassifikation_historisk_andel_resultat -> par38_klassifikation_lovlig_nulbehandling(par38_klassifikation_historisk_andel_resultat, AblAndelsbevisPar18)
+| par38_klassifikation_par22_bagatelgevinst_er_lovlig_nulbehandling: par38_klassifikation_par22_bagatel_resultat -> par38_klassifikation_lovlig_nulbehandling(par38_klassifikation_par22_bagatel_resultat, AblMinimumsbevis22)
+
+? par38_klassifikation_blandet_portefolje_bevarer_tre_kategorier
+? par38_klassifikation_blandet_portefolje_foedes_til_aarskurvene
+? par38_klassifikation_oplysningsmangel_afskaerer_tabet
+? par38_klassifikation_blandet_livscyklusskat_falder_ikke_tilbage_til_par8a
+? par38_klassifikation_ikke_understoettet_aktiv_afvises
+? par38_klassifikation_historisk_andelsgevinst_er_lovlig_nulbehandling
+? par38_klassifikation_par22_bagatelgevinst_er_lovlig_nulbehandling
+
+@ print("ABL § 38: 7 kildeafledte klassifikations- og årsfordelingsscenarier kontrolleret")

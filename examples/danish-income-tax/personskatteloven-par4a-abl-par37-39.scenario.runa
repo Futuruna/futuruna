@@ -6,6 +6,32 @@
 
 = abl_par37_faktisk_dato = AktieavancePar23Dato(år = 2018, måned = 5, dag = 17)
 
+= abl_par38_par5a_uden_tabsreduktion = AblOrdinærPar5AKildefakta(fakta = AktieavancePar5AFakta(
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+    ejertidsudbytter = [],
+    præferenceposition = AktieavancePar5APræferenceposition(modtaget_tilsvarende_udbytte_kroner = 0, allerede_anvendt_til_tabsreduktion_kroner = 0),
+    koncernbeløb = []
+))
+= abl_par38_ordinaert_aktivgrundlag = AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Falskt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+))
+= abl_par38_ordinaert_tabsgrundlag = AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Falskt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = abl_par38_par5a_uden_tabsreduktion
+))
+= abl_par38_markedsaktie_uden_oplysning = AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    har_tidligere_været_optaget_til_handel = Sandt,
+    oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt,
+    par5a_kildefakta = abl_par38_par5a_uden_tabsreduktion
+))
+
 = abl_par37_direkte_indtræden = aktieavance_par37_resultat(input = AktieavancePar37Input(
     faktisk_anskaffelsestidspunkt = abl_par37_faktisk_dato,
     hidtidig_anskaffelsessum_kroner = 80000,
@@ -38,7 +64,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 50000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -50,7 +76,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = -20000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_tabsgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -62,7 +88,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 30000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -74,7 +100,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 60000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -86,7 +112,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [AblPar38AktieErhvervetEfterLl7P],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 40000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -98,7 +124,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -110,7 +136,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [AblPar38ØvrigAktieISammeSelskabSomLl7P],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -122,7 +148,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [AblPar38ErhvervetFraÆgtefælleDerOpfylderSyvårskravet],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 20000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -134,7 +160,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [AblPar38SuccessionEfterPar34Til35A],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 30000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -146,7 +172,7 @@
     par44_status = AblPar38Par44AktieEjetUnderTreÅrVedOphør,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = 40000),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
@@ -158,7 +184,7 @@
     par44_status = AblPar38IkkeHistoriskPar44Aktie,
     egenskaber = [],
     opgørelsesgrundlag = AblPar38OpgjortEfterPar23Til29Og46(nettogevinst_kroner = -30000),
-    tabsstatus = AblPar38TabIkkeFradragsberettigetVedAfståelse,
+    aktivgrundlag = abl_par38_markedsaktie_uden_oplysning,
     princip = AblPar23Realisationsprincip
 )
 
@@ -174,71 +200,82 @@
         udnyttelseskurs_pr_aktie_kroner = 500,
         markedskurs_pr_aktie_ved_ophør_kroner = 700
     ),
-    tabsstatus = AblPar38TabFradragsberettigetEfterStk4,
+    aktivgrundlag = abl_par38_ordinaert_aktivgrundlag,
     princip = AblPar23Realisationsprincip
 )
 
 = abl_par38_normal_fraflytning = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_almindelig_gevinst, abl_par38_fradragsberettiget_tab]
 ))
 
 = abl_par38_almindelig_beholdning_under_100000 = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_under_beløbsgrænsen]
 ))
 
 = abl_par38_negativ_basis_under_100000 = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_negativ_anskaffelsessum]
 ))
 
 = abl_par38_under_syv_år_med_ll7p = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_ll7p_aktie, abl_par38_uafhængig_aktie]
 ))
 
 = abl_par38_under_syv_år_med_øvrig_selskabsaktie = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_ll7p_aktie, abl_par38_øvrig_aktie_i_ll7p_selskab]
 ))
 
 = abl_par38_under_syv_år_med_ægtefælleaktie = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_ægtefælleaktie]
 ))
 
 = abl_par38_under_syv_år_med_succession = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38UnderSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_successionsaktie]
 ))
 
 = abl_par38_ophør_ved_død = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørVedDød,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_almindelig_gevinst]
 ))
 
 = abl_par38_historisk_par44_undtagelse = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_historisk_par44_under_tre_år]
 ))
 
 = abl_par38_tab_uden_fradragsret = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_almindelig_gevinst, abl_par38_afskåret_tab]
 ))
 
 = abl_par38_tegningsretsvalg = aktieavance_par38_resultat(input = AktieavancePar38Input(
+    indkomstår = 2026,
     ophørsgrund = AblPar38OphørAfSkattepligtEfterKildeskattelovPar1,
     tilknytning = AblPar38MindstSyvÅrIndenForSenesteTiÅr,
     aktier = [abl_par38_tegningsret]

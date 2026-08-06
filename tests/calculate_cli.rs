@@ -7952,8 +7952,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("AblPar37Til40OpgørelseEfterPar23Til29Og46".to_string()),
             ),
             (
-                "tabsstatus",
-                Data::String("AblPar38TabFradragsberettigetEfterStk4".to_string()),
+                "aktivgrundlag.$variant",
+                Data::String("AblPar38OrdinærAktieEfterPar12Til15".to_string()),
+            ),
+            (
+                "aktivgrundlag.AblPar38OrdinærAktieEfterPar12Til15.fakta.markedsstatus",
+                Data::String("AblIkkeOptagetTilHandel".to_string()),
+            ),
+            (
+                "aktivgrundlag.AblPar38OrdinærAktieEfterPar12Til15.fakta.har_tidligere_været_optaget_til_handel",
+                Data::Bool(false),
+            ),
+            (
+                "aktivgrundlag.AblPar38OrdinærAktieEfterPar12Til15.fakta.oplysningsstatus",
+                Data::String("AblOplysningsbetingelseIkkeOpfyldt".to_string()),
+            ),
+            (
+                "aktivgrundlag.AblPar38OrdinærAktieEfterPar12Til15.fakta.par5a_kildefakta.$variant",
+                Data::String("AblOrdinærIngenPar5AFaktaPåkrævet".to_string()),
             ),
             (
                 "princip",
@@ -10138,8 +10154,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "opgørelseskilde": {
                             "$variant": "AblPar37Til40OpgørelseEfterPar23Til29Og46"
                         },
-                        "tabsstatus": {
-                            "$variant": "AblPar38TabFradragsberettigetEfterStk4"
+                        "aktivgrundlag": {
+                            "$variant": "AblPar38OrdinærAktieEfterPar12Til15",
+                            "fakta": {
+                                "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" },
+                                "har_tidligere_været_optaget_til_handel": false,
+                                "oplysningsstatus": {
+                                    "$variant": "AblOplysningsbetingelseIkkeOpfyldt"
+                                },
+                                "par5a_kildefakta": {
+                                    "$variant": "AblOrdinærIngenPar5AFaktaPåkrævet"
+                                }
+                            }
                         },
                         "princip": { "$variant": "AblPar23Realisationsprincip" },
                         "henstandsvalg": {
