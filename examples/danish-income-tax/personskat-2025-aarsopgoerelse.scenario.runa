@@ -29,6 +29,16 @@ Ekstra pensionsfradrag: 495
 Aktieindkomst: 14.967
 ----
 
+----
+Afgrænsning:
+
+Dette scenarie er et resultatbaseret afstemningsorakel. Dets lokale
+sammenfatninger må ikke bruges som rå felter i den kanoniske Personskat-kontrakt.
+Den typede grænse mellem årsopgørelsens linjer og beregningens kildefakta ligger
+i `personskat-aarsopgoerelse-kildemapping.runa`; den afviser eller efterspørger
+supplerende fakta, når en linje kun viser et beregnet eller aggregeret resultat.
+----
+
 # Årsopgørelse2025PersonligFakta(løn_før_am_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, gruppeliv_og_ydelser_kroner: Heltal, arbejdsgiverpension_efter_am_kroner: Heltal, privat_livrente_kroner: Heltal, virksomhedsunderskud_kroner: Heltal)
 # Årsopgørelse2025KapitalFakta(renteindtægt_kroner: Heltal, investeringsudlodning_kroner: Heltal, investeringsgevinst_kroner: Heltal, realkreditrenter_kroner: Heltal, bankrenter_kroner: Heltal)
 # Årsopgørelse2025Fradragsfakta(fagforening_kroner: Heltal, a_kasse_mv_kroner: Heltal, gaver_kroner: Heltal, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, pensionsgrundlag_kroner: Heltal, ekstra_pensionsfradrag_basispoint: Heltal)

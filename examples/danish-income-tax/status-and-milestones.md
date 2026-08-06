@@ -4,6 +4,7 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-03
 TD epic: `td-56cf8d`
 Current implementation slice: `td-5beddd` (Personskats resterende rå KGL-årsnetto er erstattet af typede fordrings-, obligations- og ABL § 22-forløb; klassifikation, opgørelse, fælles bagatelgrænse og resultat afledes gennem reglerne; afventer uafhængig gennemgang)
+Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste årsopgørelseslinjer bevarer dokumentproveniens og eksakte ørebeløb; kun retligt tilstrækkelige linjer peger på typede beregningsfelter)
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
 Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
@@ -13,6 +14,9 @@ Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, f
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
+Planned ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren)
+Planned common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne Ligningslovsregler)
+Planned exact-credit completion: `td-6fe980` (bevar ørepræcision i årsopgørelsens foreløbige skatter)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
@@ -192,6 +196,34 @@ afstemning. Slutbeløbet genberegnes fra det reducerede skattegrundlag. Det kan
 afvige med en krone fra at trække flere allerede afrundede delvirkninger fra
 en allerede afrundet baseline, så afstemninger skal fastholde lovens enhed og
 afrundingstrin gennem hele beregningskæden.
+
+Latest source-document mapping: `personskat-aarsopgoerelse-kildemapping.runa`
+modellerer den grænse, som et AI-interview eller en manuel udfyldelse af
+arbejdsbogen skal følge. Hver årsopgørelseslinje bærer stabil dokument- og
+linjeidentifikation, indkomstår, den originale etiket og det eksakte beløb i
+øre. Direkte beløb peger med `refof(...)` på et eksisterende, kompileringstjekket
+kildeinput; flere linjer må kun summeres, når dokument og år er ens, og samme
+linjeidentifikation kan ikke tælles to gange. Renter bevarer samtidig et
+udtrykkeligt krav om næringsstatus og særregler i stedet for at gøre den
+omgivende klassifikation tavs.
+
+Årsopgørelsens beregnede AM-bidrag, beskæftigelsesfradrag, jobfradrag og ekstra
+pensionsfradrag er kontrolresultater, ikke input. Pensionsbeløb,
+investeringsudlodninger, investeringsgevinster og ægtefælleoverførsler kræver de
+underliggende pensions-, depot- eller ægtefællefakta. Det eksisterende
+afstemningsscenarie er derfor nu eksplicit mærket som et resultatbaseret orakel;
+det er ikke en alternativ beregningskontrakt. Der er fortsat intet PDF-, OCR-
+eller dokumentimporttrin: en AI eller et menneske læser kilden og udfylder de
+typede fakta, hvorefter Futuruna validerer og beregner.
+
+Trykprøven gør tre resterende korpusgab målbare. Ordinære personlige
+indkomstjusteringer og virksomhedsresultater mangler endnu en fuld kanonisk
+kildegren (`td-1306f6`). Fagforening, A-kasse mv. og gaver mangler deres egne
+Ligningslovsregler og arbejdsbogsfelter (`td-a47465`). Den modregningsberettigede
+udbytteskat på 4.353,14 kr. kan ikke føres tabsfrit ind i
+`KildeskatPar60Kreditter`, som aktuelt kun accepterer hele kroner; mappet afviser
+derfor værdien i stedet for at afkorte den (`td-6fe980`, koordineret med
+`td-24963d`). Tolv fokuserede invariants passerer både fortolket og kompileret.
 
 Latest property-tax integration: Ejendomsskattelovens §§ 23-27 og §§ 35-45
 er nu forbundet med den kanoniske Personskat-beregning. Reglerne afleder

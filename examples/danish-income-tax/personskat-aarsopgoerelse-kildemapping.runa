@@ -1,0 +1,271 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+# PersonskatÅrsopgørelseKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# PersonskatÅrsopgørelseMappingAdvarsel(besked: Tekst)
+
+= personskat_aarsopgoerelse_skat_dk_kilde = PersonskatÅrsopgørelseKildeInfo(
+    url = "https://skat.dk/borger/aarsopgoerelse",
+    identifier = "Skattestyrelsen: Årsopgørelse",
+    hentet_dato = "2026-08-03"
+)
+= personskat_aarsopgoerelse_investeringskilde = PersonskatÅrsopgørelseKildeInfo(
+    url = "https://skat.dk/borger/aktier-og-andre-vaerdipapirer/skat-af-investeringsbeviser-udstedt-af-investeringsforeninger-og-investeringsselskaber",
+    identifier = "Skattestyrelsen: Skat af investeringsforeninger og -selskaber",
+    hentet_dato = "2026-08-03"
+)
+= personskat_aarsopgoerelse_fagforening_akasse_kilde = PersonskatÅrsopgørelseKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-fagforening-a-kasse-efterloen-og-fleksydelse",
+    identifier = "Skattestyrelsen: Fradrag for fagforening, A-kasse, efterløn og fleksydelse",
+    hentet_dato = "2026-08-03"
+)
+= personskat_aarsopgoerelse_gavekilde = PersonskatÅrsopgørelseKildeInfo(
+    url = "https://skat.dk/borger/fradrag/fradrag-for-gaver-og-bidrag-til-velgoerende-foreninger",
+    identifier = "Skattestyrelsen: Fradrag for gaver og bidrag",
+    hentet_dato = "2026-08-03"
+)
+= personskat_aarsopgoerelse_kildemapping_advarsel = PersonskatÅrsopgørelseMappingAdvarsel(
+    besked = "En årsopgørelseslinje er dokumentation, ikke en rå genvej forbi de retlige klassifikationsregler."
+)
+= personskat_aarsopgoerelse_kildemapping_metadata = Metadata(
+    attachments = (
+        Guidance(value = personskat_aarsopgoerelse_skat_dk_kilde),
+        Guidance(value = personskat_aarsopgoerelse_investeringskilde),
+        Guidance(value = personskat_aarsopgoerelse_fagforening_akasse_kilde),
+        Guidance(value = personskat_aarsopgoerelse_gavekilde),
+        Warning(value = personskat_aarsopgoerelse_kildemapping_advarsel),
+    )
+)
+
+--@label:personskat_aarsopgoerelse_kildemapping::meta:personskat_aarsopgoerelse_kildemapping_metadata--
+----
+Dokumentgrænse, ikke lovtekst:
+
+En AI eller et menneske læser årsopgørelsen og registrerer hver relevant linje
+med dokumentidentifikation, indkomstår, linjeidentifikation, original etiket og
+det eksakte beløb i øre. Futuruna parser ikke dokumentet.
+
+En linje må kun blive til et beregningsinput, når årsopgørelsen indeholder de
+fakta, som det pågældende input betyder. Beregnede fradrag og overførsler er kun
+kontrolresultater. Aggregerede pensions-, virksomheds- og værdipapirlinjer skal
+suppleres med deres underliggende fakta. En manglende kanonisk lovgren er en
+synlig korpusmangel, ikke et frit beløbsfelt.
+----
+
+--@begin:personskat_aarsopgoerelse_kildemapping--
+# PersonskatÅrsopgørelseKildelinje(dokument_identifikation: Tekst, indkomstår: Heltal, linje_identifikation: Tekst, linje_label: Tekst, beløb_øre: Heltal)
+
+# PersonskatÅrsopgørelseSupplerendeKilde = EIndkomstEllerLønspecifikation | PensionsoversigtMedOrdningsvilkår | VirksomhedsregnskabOgSkatteordning | DepotOgVærdipapirtransaktioner | BidragsEllerKontingentopgørelse | ÆgtefællensEgneKildedokumenter
+
+# PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FradragsmodtagerBetalingOgGodkendelsesgrundlag | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta
+
+# PersonskatÅrsopgørelseKorpusgren = OrdinærePersonligeIndkomstjusteringer | VirksomhedsresultatIPersonligIndkomst | Fagforeningsfradrag | AkasseEfterlønOgFleksydelsesfradrag | Gavefradrag
+
+# PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | KorpusgrenMangler(gren: PersonskatÅrsopgørelseKorpusgren, kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
+
+# PersonskatÅrsopgørelseMapping(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), anvendelse: PersonskatÅrsopgørelseMappingAnvendelse)
+
+# PersonskatÅrsopgørelseMappingkategori = DirekteMapping | KontrolMapping | SupplerendeKildeMapping | KorpusmangelMapping | ØrepræcisionMapping | UgyldigMapping
+
+| personskat_aarsopgoerelse_kildelinje_gyldig(linje: PersonskatÅrsopgørelseKildelinje) -> linje.dokument_identifikation != "" && linje.indkomstår > 0 && linje.linje_identifikation != "" && linje.linje_label != ""
+| personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> length(kildelinjer) > 0 && all(kildelinjer, personskat_aarsopgoerelse_kildelinje_gyldig) && length(distinct(map(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.dokument_identifikation))) == 1 && length(distinct(map(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.indkomstår))) == 1 && length(distinct(map(kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.linje_identifikation))) == length(kildelinjer)
+| personskat_aarsopgoerelse_kildelinjer_beløb_øre(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> foldl(kildelinjer, 0, |sum_øre: Heltal, linje: PersonskatÅrsopgørelseKildelinje| sum_øre + linje.beløb_øre)
+
+| personskat_aarsopgoerelse_direkte_kronemapping(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), mål: ProgramReference, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) -> {
+    = beløb_øre = personskat_aarsopgoerelse_kildelinjer_beløb_øre(kildelinjer)
+    hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) == Falskt {
+        PersonskatÅrsopgørelseMapping(
+            kildelinjer = kildelinjer,
+            anvendelse = UgyldigeKildelinjer
+        )
+    } ellers hvis beløb_øre % 100 != 0 {
+        PersonskatÅrsopgørelseMapping(
+            kildelinjer = kildelinjer,
+            anvendelse = ØrepræcisionKanIkkeBevares(
+                mål = mål,
+                beløb_øre = beløb_øre,
+                resterende_faktakrav = resterende_faktakrav
+            )
+        )
+    } ellers {
+        PersonskatÅrsopgørelseMapping(
+            kildelinjer = kildelinjer,
+            anvendelse = DirekteKildebeløb(
+                mål = mål,
+                beløb_kroner = beløb_øre / 100,
+                resterende_faktakrav = resterende_faktakrav
+            )
+        )
+    }
+}
+
+| personskat_aarsopgoerelse_kontrolmapping(linje: PersonskatÅrsopgørelseKildelinje, mål: ProgramReference) -> hvis personskat_aarsopgoerelse_kildelinje_gyldig(linje) {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = Kontrolresultat(
+            mål = mål,
+            beløb_øre = linje.beløb_øre
+        )
+    )
+} ellers {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = UgyldigeKildelinjer
+    )
+}
+
+| personskat_aarsopgoerelse_supplerende_kildemapping(linje: PersonskatÅrsopgørelseKildelinje, kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) -> hvis personskat_aarsopgoerelse_kildelinje_gyldig(linje) {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = KræverSupplerendeKilde(
+            kilde = kilde,
+            faktakrav = faktakrav
+        )
+    )
+} ellers {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = UgyldigeKildelinjer
+    )
+}
+
+| personskat_aarsopgoerelse_korpusmangelmapping(linje: PersonskatÅrsopgørelseKildelinje, gren: PersonskatÅrsopgørelseKorpusgren, kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) -> hvis personskat_aarsopgoerelse_kildelinje_gyldig(linje) {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = KorpusgrenMangler(
+            gren = gren,
+            kilde = kilde,
+            faktakrav = faktakrav
+        )
+    )
+} ellers {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = [linje],
+        anvendelse = UgyldigeKildelinjer
+    )
+}
+
+| personskat_aarsopgoerelse_mappingkategori(mapping: PersonskatÅrsopgørelseMapping) -> match mapping.anvendelse {
+    | DirekteKildebeløb(_, _, _) -> DirekteMapping
+    | Kontrolresultat(_, _) -> KontrolMapping
+    | KræverSupplerendeKilde(_, _) -> SupplerendeKildeMapping
+    | KorpusgrenMangler(_, _, _) -> KorpusmangelMapping
+    | ØrepræcisionKanIkkeBevares(_, _, _) -> ØrepræcisionMapping
+    | UgyldigeKildelinjer -> UgyldigMapping
+}
+
+| personskat_aarsopgoerelse_kortlaeg_bruttoløn(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    [linje],
+    refof(PersonskatLønmodtagerInput::bruttoløn_kroner),
+    []
+)
+| personskat_aarsopgoerelse_kortlaeg_renteindtægter(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    [linje],
+    refof(PersonskatRenteInput::renteindtægter_kroner),
+    [RenteNæringsstatusOgSærregler]
+)
+| personskat_aarsopgoerelse_kortlaeg_renteudgifter(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    kildelinjer,
+    refof(PersonskatRenteInput::renteudgifter_kroner),
+    [RenteNæringsstatusOgSærregler]
+)
+
+| personskat_aarsopgoerelse_kortlaeg_gruppeliv_og_ydelser(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+    linje,
+    OrdinærePersonligeIndkomstjusteringer,
+    EIndkomstEllerLønspecifikation,
+    [YdelsensRetligeArtOgAmStatus]
+)
+| personskat_aarsopgoerelse_kortlaeg_arbejdsgiverpension(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
+    linje,
+    PensionsoversigtMedOrdningsvilkår,
+    [PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger]
+)
+| personskat_aarsopgoerelse_kortlaeg_privat_livrente(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
+    linje,
+    PensionsoversigtMedOrdningsvilkår,
+    [PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger]
+)
+| personskat_aarsopgoerelse_kortlaeg_virksomhedsunderskud(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+    linje,
+    VirksomhedsresultatIPersonligIndkomst,
+    VirksomhedsregnskabOgSkatteordning,
+    [VirksomhedsindkomstAktivitetOgUnderskudshistorik]
+)
+
+| personskat_aarsopgoerelse_kortlaeg_investeringsudlodning(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
+    linje,
+    DepotOgVærdipapirtransaktioner,
+    [InstrumentidentitetKlassifikationOgOpgørelsesforløb]
+)
+| personskat_aarsopgoerelse_kortlaeg_investeringsgevinst(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_supplerende_kildemapping(
+    linje,
+    DepotOgVærdipapirtransaktioner,
+    [InstrumentidentitetKlassifikationOgOpgørelsesforløb]
+)
+
+| personskat_aarsopgoerelse_kortlaeg_fagforeningsfradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+    linje,
+    Fagforeningsfradrag,
+    BidragsEllerKontingentopgørelse,
+    [FradragsmodtagerBetalingOgGodkendelsesgrundlag]
+)
+| personskat_aarsopgoerelse_kortlaeg_akassefradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+    linje,
+    AkasseEfterlønOgFleksydelsesfradrag,
+    BidragsEllerKontingentopgørelse,
+    [FradragsmodtagerBetalingOgGodkendelsesgrundlag]
+)
+| personskat_aarsopgoerelse_kortlaeg_gavefradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_korpusmangelmapping(
+    linje,
+    Gavefradrag,
+    BidragsEllerKontingentopgørelse,
+    [FradragsmodtagerBetalingOgGodkendelsesgrundlag]
+)
+
+| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    kildelinjer,
+    refof(KildeskatPar60Kreditter::a_skat_og_am_indeholdt_kroner),
+    []
+)
+| personskat_aarsopgoerelse_kortlaeg_modregningsberettiget_udbytteskat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    [linje],
+    refof(KildeskatPar60Kreditter::udbytteskat_modregningsberettiget_kroner),
+    [UdbytteskattensEndelighedOgModregningsret]
+)
+| personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+    [linje],
+    refof(KildeskatPar60Kreditter::tilbagebetalt_par55_kroner),
+    []
+)
+
+| personskat_aarsopgoerelse_kortlaeg_beregnet_arbejdsmarkedsbidrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_kontrolmapping(
+    linje,
+    refof(LønmodtagerBreakdown::arbejdsmarkedsbidrag_kroner)
+)
+| personskat_aarsopgoerelse_kortlaeg_beskæftigelsesfradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_kontrolmapping(
+    linje,
+    refof(LønmodtagerBreakdown::beskæftigelsesfradrag_kroner)
+)
+| personskat_aarsopgoerelse_kortlaeg_jobfradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_kontrolmapping(
+    linje,
+    refof(LønmodtagerBreakdown::jobfradrag_kroner)
+)
+| personskat_aarsopgoerelse_kortlaeg_ekstra_pensionsfradrag(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_kontrolmapping(
+    linje,
+    refof(LønmodtagerBreakdown::ekstra_pensionsfradrag_kroner)
+)
+| personskat_aarsopgoerelse_kortlaeg_ægtefælleunderskud(linje: PersonskatÅrsopgørelseKildelinje) -> PersonskatÅrsopgørelseMapping(
+    kildelinjer = [linje],
+    anvendelse = hvis personskat_aarsopgoerelse_kildelinje_gyldig(linje) {
+        KræverSupplerendeKilde(
+            kilde = ÆgtefællensEgneKildedokumenter,
+            faktakrav = [ÆgtefællensSamledeIndkomstOgFradragsfakta]
+        )
+    } ellers {
+        UgyldigeKildelinjer
+    }
+)
+--@end:personskat_aarsopgoerelse_kildemapping--
