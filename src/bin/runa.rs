@@ -26352,18 +26352,14 @@ impl RustCodegen {
         // themselves be produced by value-returning rules. Resolve both sides together
         // so an otherwise known global record type is not lost at the field projection.
         for _ in 0..stmts.len().max(1) {
-            let before_binding_types = self.binary_global_binding_types.clone();
-            let before_fn_types = self.types.fn_types.clone();
-            let before_return_types = self.fn_return_types.clone();
-
-            self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
-            self.binary_global_binding_types =
+            let signatures_changed =
+                self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
+            let next_binding_types =
                 self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+            let binding_types_changed = next_binding_types != self.binary_global_binding_types;
+            self.binary_global_binding_types = next_binding_types;
 
-            if self.binary_global_binding_types == before_binding_types
-                && self.types.fn_types == before_fn_types
-                && self.fn_return_types == before_return_types
-            {
+            if !signatures_changed && !binding_types_changed {
                 break;
             }
         }
@@ -27484,14 +27480,17 @@ impl RustCodegen {
         &mut self,
         stmts: &[Stmt],
         rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
-    ) {
+    ) -> bool {
+        let mut any_changed = false;
         for _ in 0..stmts.len().max(1) {
             let scope_changed = self.register_rule_scope_member_signatures(stmts);
             let rule_changed = self.register_value_returning_rule_signatures(rule_groups);
+            any_changed |= scope_changed || rule_changed;
             if !scope_changed && !rule_changed {
                 break;
             }
         }
+        any_changed
     }
 
     fn rule_value_and_condition_exprs<'a>(rule: &'a Rule, out: &mut Vec<&'a Expr>) {
@@ -28776,9 +28775,24 @@ impl RustCodegen {
             }
         }
 
-        let saved_fn_types = self.types.fn_types.clone();
-        let saved_fn_types_by_arity = self.types.fn_types_by_arity.clone();
-        let saved_call_params = self.types.call_params.clone();
+        let saved_fn_types =
+            snapshot_btree_map_entries(&self.types.fn_types, method_param_tys.keys().cloned());
+        let saved_fn_types_by_arity = snapshot_btree_map_entries(
+            &self.types.fn_types_by_arity,
+            method_param_tys
+                .iter()
+                .map(|(method, param_tys)| (method.clone(), param_tys.len())),
+        );
+        let saved_call_params = snapshot_btree_map_entries(
+            &self.types.call_params,
+            method_params
+                .keys()
+                .cloned()
+                .chain(value_methods.iter().filter_map(|method| match method {
+                    Defn::Fn { name, .. } => Some(name.clone()),
+                    _ => None,
+                })),
+        );
         for (method, param_tys) in &method_param_tys {
             let ret_ty = method_return_tys
                 .get(method)
@@ -28866,9 +28880,9 @@ impl RustCodegen {
 
         self.current_rule_scope_methods = prev_methods;
         self.current_rule_scope_name = prev_scope_name;
-        self.types.fn_types = saved_fn_types;
-        self.types.fn_types_by_arity = saved_fn_types_by_arity;
-        self.types.call_params = saved_call_params;
+        restore_btree_map_entries(&mut self.types.fn_types, saved_fn_types);
+        restore_btree_map_entries(&mut self.types.fn_types_by_arity, saved_fn_types_by_arity);
+        restore_btree_map_entries(&mut self.types.call_params, saved_call_params);
         out
     }
 
@@ -28909,15 +28923,17 @@ impl RustCodegen {
 
         let prev_local_bindings = self.local_bindings.clone();
         let prev_copy_vars = self.copy_vars.clone();
-        let prev_var_use_counts = self.var_use_counts.clone();
-        let prev_var_consuming_counts = self.var_consuming_counts.clone();
         let prev_in_self_method = self.in_self_method;
         let method_ownership = self.analyze_rule_group_ownership(rules);
         // RuleScope bodies can introduce block-local values. Install the full
         // method analysis so those locals receive the same value-semantics
         // clone decisions as locals in ordinary rules.
-        self.var_use_counts = method_ownership.var_uses.clone();
-        self.var_consuming_counts = method_ownership.consuming_uses.clone();
+        let prev_var_use_counts =
+            std::mem::replace(&mut self.var_use_counts, method_ownership.var_uses);
+        let prev_var_consuming_counts = std::mem::replace(
+            &mut self.var_consuming_counts,
+            method_ownership.consuming_uses,
+        );
         for (name, ty) in all_names.iter().zip(all_tys.iter()) {
             self.local_bindings.insert(name.clone());
             if Self::fir_ty_is_copy(ty) {
