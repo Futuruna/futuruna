@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-04
 TD epic: `td-56cf8d`
-Current implementation slice: `td-302f8e` (sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er typede beskæftigelsesfakta med valg, betingelser, undtagelser, delårsfordeling og kanonisk samordning med LL §§ 9 B-9 D og 13 samt PBL §§ 49-49 B; implementeret og verificeret, afventer uafhængig gennemgang)
+Current implementation slice: `td-2a827d` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 B-9 D og 13 samt PBL § 49, stk. 1, ud fra typede kilde- og arbejdstilknytninger; blandede arbejdsår er verificeret uden dobbelt forholdsmæssig fordeling)
+Previous seafarer-deduction slice: `td-302f8e` (sømandsfradraget efter Sømandsbeskatningslovens §§ 3-4 er typede beskæftigelsesfakta med valg, betingelser, undtagelser, delårsfordeling og kanonisk samordning; godkendt)
 Previous implementation slice: `td-292327` (Personskattelovens § 13-fremførsel er et typet årsledger med kildeproveniens, sammenhængende indkomstår, afledt egen anvendelse, ægtefælleoverførsel og ultimo; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous ordinary-benefit slice: `td-9e236a` (erstatninger og ydelser fra faglige foreninger samt udbetalinger fra arbejdsløshedsforsikring er typede kildefakta; Ligningslovens §§ 13, 30 og 31 samt Pensionsbeskatningslovens §§ 49, stk. 2, og 55 afledes i den kanoniske Personskat-graf; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous common-deduction slice: `td-a47465` (faglige kontingenter, A-kasse/arbejdsløshedsforsikring, efterløn, fleksydelse og gaver er typede kildefakta; Ligningslovens §§ 8 A, 8 H, 12 og 13 samt Pensionsbeskatningslovens §§ 49-49 B afledes i den kanoniske Personskat-graf; godkendt)
@@ -322,9 +323,19 @@ allerede når personen kan foretage sømandsfradraget, også ved fravalg.
 Den almindelige rejsegodtgørelses- og fradragsgren efter LL § 9 A, stk. 1-9,
 er endnu ikke et kanonisk Personskat-input; implementeringen og den direkte
 samordning med dette § 4, stk. 2-resultat spores i `td-d17087`.
-Delårsbeløb fordeles i denne slice efter de fuldtidsomregnede sødage. En senere
-udvidelse med faktisk periode- eller beskæftigelsestilknytning for hver udgift og
-godtgørelse spores i `td-2a827d`, så beløb fra andet arbejde ikke dobbeltfordeles.
+
+Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
+LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;
+LL §§ 9 C-9 D og det loftsberegnede LL § 13-årsfradrag har hver sin entydige
+kildegren. Kilden knyttes til en navngiven kvalificerende sømandsbeskæftigelse,
+et andet navngivet arbejdsforhold eller, kun hvor kilden reelt er et årsbeløb,
+en udtrykkelig årsfordeling. LL § 9 B kan ikke bruge årsfordelingen, fordi hver
+kørselssag skal henføres til sit faktiske arbejde. Ukendte, dublerede eller
+manglende tilknytninger gør beregningen ugyldig og får fradragsaggregatet til at
+fejle lukket i stedet for at gætte. Et kompileret blandet-år-scenarie bevarer
+7.880 kr. i skattefri kørselsgodtgørelse fra andet arbejde, omklassificerer
+3.940 kr. fra sømandsperioden og bevarer LL §§ 9 C-9 D, LL § 13 og PBL § 49,
+stk. 1, præcis én gang uden endnu en sødagsfordeling.
 Den særskilte DIS-lempelse af selve søindkomsten efter Sømandsbeskatningslovens
 §§ 5-8 er ikke en del af §§ 3-4-samordningen; dens kanoniske lønvirkning spores
 i `td-80c439`.
@@ -2495,8 +2506,13 @@ Current § 4 and § 13 amendment/dependency sources:
   - LOV nr. 333 af 09/04/2024 was reviewed; it does not amend §§ 3-4.
   - The § 3 implementation also uses BEK nr. 940 af 20/06/2022 § 3 and the
     2026-1 legal guidance for full-time-equivalent sea days and § 4 composition.
+  - Den juridiske vejledning om sømandsfradraget og Skattestyrelsens offentlige
+    vejledning om perioder med andet arbejde understøtter den typede
+    arbejdstilknytning: `https://info.skat.dk/data.aspx?oid=1976791` og
+    `https://skat.dk/borger/udlandsforhold/fradrag-for-soefarende-soemaend`.
   - SKM2025.442.LSR supports reclassifying LL § 9 B reimbursement for transport
-    in the same seafarer period from tax-free reimbursement to taxable pay.
+    in the same seafarer period from tax-free reimbursement to taxable pay:
+    `https://info.skat.dk/data.aspx?oid=2459127`.
   - §§ 5-8 are the seamen relief exception in § 13, stk. 5.
 
 Current AM-contribution dependency sources:

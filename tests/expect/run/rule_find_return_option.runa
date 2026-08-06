@@ -1,0 +1,19 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 42000,0
+
+# Entry(reference: String, amount: Int)
+
+| find_entry(entries: List(Entry), reference: String) -> find(
+    entries,
+    |entry: Entry| entry.reference == reference
+)
+
+| entry_amount(entries: List(Entry), reference: String) -> match find_entry(entries, reference) {
+    | Some(entry) -> entry.amount
+    | None -> 0
+}
+
+= entries = [Entry(reference = "tax", amount = 42000)]
+
+@ print(show(entry_amount(entries, "tax")) + "," + show(entry_amount(entries, "missing")))

@@ -1413,6 +1413,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human SØBL § 3 input label {expected} on {seafarer_employments_sheet}"
             );
         }
+        let seafarer_source_links_path =
+            "lønmodtager.ligningsfradrag.sømandsbeskatningslov4.kildetilknytninger";
+        let seafarer_source_links_sheet =
+            workbook_collection_sheet_name(&mut workbook, seafarer_source_links_path);
+        let seafarer_source_link_paths =
+            workbook_column_paths(&mut workbook, &seafarer_source_links_sheet);
+        for expected in [
+            "kilde.$variant",
+            "kilde.Søbl4Ligningslov9BErhvervsbefordring.kildeidentifikation",
+            "kilde.Søbl4Pensionsbeskatningslov49Stk1Bidrag.kildeidentifikation",
+            "arbejdstilknytning.$variant",
+            "arbejdstilknytning.Søbl4Sømandsbeskæftigelsesperiode.beskæftigelsesidentifikation",
+            "arbejdstilknytning.Søbl4AndetArbejdsforhold.arbejdsforhold_identifikation",
+        ] {
+            assert!(
+                seafarer_source_link_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical SØBL § 4 source-link path {expected} on {seafarer_source_links_sheet}"
+            );
+        }
+        let seafarer_source_link_headers =
+            workbook_headers(&mut workbook, &seafarer_source_links_sheet);
+        for expected in [
+            "Fradragskilde omfattet af § 4",
+            "Identifikation for § 9 B-kørselssagen",
+            "Identifikation for § 49, stk. 1-bidraget",
+            "Arbejdsperiodens faktiske tilknytning",
+            "Tilknyttet sømandsbeskæftigelse",
+            "Tilknyttet andet arbejdsforhold",
+        ] {
+            assert!(
+                seafarer_source_link_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human SØBL § 4 source-link label {expected} on {seafarer_source_links_sheet}"
+            );
+        }
         let union_dues_path = "lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter";
         let union_dues_sheet = workbook_collection_sheet_name(&mut workbook, union_dues_path);
         let union_dues_paths = workbook_column_paths(&mut workbook, &union_dues_sheet);
@@ -8898,6 +8936,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "valg": { "$variant": "FravælgSømandsfradrag" },
                     "beskæftigelser": []
                 },
+                "sømandsbeskatningslov4": { "kildetilknytninger": [] },
                 "befordring": { "$variant": "UdenBefordringsfradrag" },
                 "faglige_kontingenter": {
                     "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
@@ -10352,6 +10391,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "valg": { "$variant": "FravælgSømandsfradrag" },
                         "beskæftigelser": []
                     },
+                    "sømandsbeskatningslov4": { "kildetilknytninger": [] },
                     "befordring": { "$variant": "UdenBefordringsfradrag" },
                     "faglige_kontingenter": {
                         "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },

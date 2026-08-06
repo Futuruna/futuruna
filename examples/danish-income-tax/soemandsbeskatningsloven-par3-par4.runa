@@ -225,8 +225,43 @@ Stk. 2. Personer, som kan foretage fradrag efter § 3, er ikke omfattet af ligni
 ----
 
 --@begin::sømandsbeskatningsloven_par4--
+# Sømandsbeskatningslov4Fradragskilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Søbl4Ligningslov9COg9DBefordringsfradrag | Søbl4Ligningslov13Årsfradrag | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst)
+# Sømandsbeskatningslov4Arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation: Tekst) | Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation: Tekst) | Søbl4ÅrsbeløbUdenPeriodeopdeling
+# Sømandsbeskatningslov4Kildetilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning)
+# Sømandsbeskatningslov4Årsinput(kildetilknytninger: List(Sømandsbeskatningslov4Kildetilknytning))
+
+| sømandsbeskatningslov4_intet_årsinput() -> Sømandsbeskatningslov4Årsinput(kildetilknytninger = [])
 | sømandsbeskatningslov4_stk1_samordning_aktiv(resultat: Sømandsbeskatningslov3Årsresultat) -> resultat.fradrag_foretaget_efter_par3
+| sømandsbeskatningslov4_kildeidentifikation_gyldig(kilde: Sømandsbeskatningslov4Fradragskilde) -> match kilde {
+    | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation) -> kildeidentifikation != ""
+    | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> kildeidentifikation != ""
+    | _ -> Sandt
+}
+| sømandsbeskatningslov4_kilde_kan_fordeles_som_årsbeløb(kilde: Sømandsbeskatningslov4Fradragskilde) -> match kilde {
+    | Søbl4Ligningslov9BErhvervsbefordring(_) -> Falskt
+    | _ -> Sandt
+}
+| sømandsbeskatningslov4_sømandsbeskæftigelse_omfattet(resultat: Sømandsbeskatningslov3Årsresultat, beskæftigelsesidentifikation: Tekst) -> beskæftigelsesidentifikation != "" && any(resultat.beskæftigelsesresultater, |beskæftigelse: Sømandsbeskatningslov3Beskæftigelsesresultat| beskæftigelse.fakta.identifikation == beskæftigelsesidentifikation && beskæftigelse.fradragsbetingelser_opfyldt && beskæftigelse.fakta.fuldtidsomregnede_sødage_hundrededele > 0)
+| sømandsbeskatningslov4_andet_arbejdsforhold_gyldigt(resultat: Sømandsbeskatningslov3Årsresultat, arbejdsforhold_identifikation: Tekst) -> arbejdsforhold_identifikation != "" && all(resultat.beskæftigelsesresultater, |beskæftigelse: Sømandsbeskatningslov3Beskæftigelsesresultat| beskæftigelse.fakta.identifikation != arbejdsforhold_identifikation)
+| sømandsbeskatningslov4_arbejdstilknytning_gyldig(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning, resultat: Sømandsbeskatningslov3Årsresultat) -> sømandsbeskatningslov4_kildeidentifikation_gyldig(kilde = kilde) && match arbejdstilknytning {
+    | Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation) -> sømandsbeskatningslov4_sømandsbeskæftigelse_omfattet(resultat = resultat, beskæftigelsesidentifikation = beskæftigelsesidentifikation)
+    | Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation) -> sømandsbeskatningslov4_andet_arbejdsforhold_gyldigt(resultat = resultat, arbejdsforhold_identifikation = arbejdsforhold_identifikation)
+    | Søbl4ÅrsbeløbUdenPeriodeopdeling -> sømandsbeskatningslov4_kilde_kan_fordeles_som_årsbeløb(kilde = kilde)
+}
 | sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> hvis sømandsbeskatningslov4_stk1_samordning_aktiv(resultat = resultat) { beløb_før_par4_kroner * resultat.almindelige_fradragsdage_hundrededele / 36500 } ellers { beløb_før_par4_kroner }
+| sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner: Heltal, kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning, resultat: Sømandsbeskatningslov3Årsresultat) -> hvis sømandsbeskatningslov4_stk1_samordning_aktiv(resultat = resultat) {
+    hvis sømandsbeskatningslov4_arbejdstilknytning_gyldig(kilde = kilde, arbejdstilknytning = arbejdstilknytning, resultat = resultat) {
+        match arbejdstilknytning {
+            | Søbl4Sømandsbeskæftigelsesperiode(_) -> 0
+            | Søbl4AndetArbejdsforhold(_) -> beløb_før_par4_kroner
+            | Søbl4ÅrsbeløbUdenPeriodeopdeling -> sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner = beløb_før_par4_kroner, resultat = resultat)
+        }
+    } ellers {
+        0
+    }
+} ellers {
+    beløb_før_par4_kroner
+}
 | sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> sømandsbeskatningslov4_beløb_uden_for_sømandsperioder_kroner(beløb_før_par4_kroner = fradrag_før_par4_kroner, resultat = resultat)
 | sømandsbeskatningslov4_almindeligt_fradrag_afskåret_kroner(fradrag_før_par4_kroner: Heltal, resultat: Sømandsbeskatningslov3Årsresultat) -> fradrag_før_par4_kroner - sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = fradrag_før_par4_kroner, resultat = resultat)
 --@end::sømandsbeskatningsloven_par4--

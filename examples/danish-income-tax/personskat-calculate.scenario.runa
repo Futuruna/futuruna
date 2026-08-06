@@ -93,6 +93,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
     ligningsfradrag = PersonskatLigningsfradragInput(
         sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+        sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
         befordring = MedBefordringsfradrag(fakta = fakta),
         faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
         arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
@@ -1166,6 +1167,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ligningsfradrag_2025 = PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     befordring = UdenBefordringsfradrag,
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,

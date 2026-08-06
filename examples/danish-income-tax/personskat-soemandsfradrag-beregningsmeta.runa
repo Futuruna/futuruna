@@ -138,3 +138,75 @@
 )
 
 --@label:Sømandsbeskatningslov3Årsinput::meta:personskat_sømandsfradrag_beregningsmeta--
+
+= personskat_søbl4_felt_kildetilknytninger = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger),
+    label = "Arbejdsperioder for almindelige fradrag",
+    question = Some("Hvilket arbejdsforhold eller hvilken årsfordeling vedrører hvert fradrag, som kan blive berørt af sømandsfradraget?"),
+    help = Some("Opret én række pr. fradragskilde. En § 9 B-kørsel skal være opdelt pr. arbejdsperiode; årsfordeling må kun bruges til kilder, der reelt foreligger som et samlet årsbeløb."),
+    unit = None
+)
+= personskat_søbl4_felt_kilde = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::$variant),
+    label = "Fradragskilde omfattet af § 4",
+    question = Some("Er kilden en § 9 B-kørsel, det samlede §§ 9 C-9 D-befordringsfradrag, årets § 13-kontingentfradrag eller et § 49, stk. 1-bidrag?"),
+    help = Some("Kildetypen bruges kun til at forbinde allerede oplyste kildefakta med det arbejdsforhold, de vedrører."),
+    unit = None
+)
+= personskat_søbl4_felt_ll9b_kildeidentifikation = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Ligningslov9BErhvervsbefordring::kildeidentifikation),
+    label = "Identifikation for § 9 B-kørselssagen",
+    question = Some("Hvilken oplyst § 9 B-kørselssag vedrører denne arbejdsperiode?"),
+    help = Some("Identifikationen skal svare præcist til kørselssagens identifikation. Del en kørselssag op, hvis kørslerne vedrører forskellige arbejdsperioder."),
+    unit = None
+)
+= personskat_søbl4_felt_pbl49_kildeidentifikation = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::kilde::Søbl4Pensionsbeskatningslov49Stk1Bidrag::kildeidentifikation),
+    label = "Identifikation for § 49, stk. 1-bidraget",
+    question = Some("Hvilket oplyst A-kasse- eller arbejdsløshedsforsikringsbidrag vedrører denne arbejdsperiode?"),
+    help = Some("Identifikationen skal svare præcist til bidragets identifikation. Efterløns- og fleksydelsesbidrag efter §§ 49 A-49 B skal ikke henføres her."),
+    unit = None
+)
+= personskat_søbl4_felt_arbejdstilknytning = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::$variant),
+    label = "Arbejdsperiodens faktiske tilknytning",
+    question = Some("Vedrører kilden en oplyst sømandsbeskæftigelse, et andet navngivet arbejdsforhold eller et årsbeløb uden periodeopdeling?"),
+    help = Some("Vælg ud fra bilaget og arbejdsperioden. Futuruna udleder selv, om beløbet bevares, afskæres eller fordeles efter sødage."),
+    unit = None
+)
+= personskat_søbl4_felt_sømandsbeskæftigelse = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::Søbl4Sømandsbeskæftigelsesperiode::beskæftigelsesidentifikation),
+    label = "Tilknyttet sømandsbeskæftigelse",
+    question = Some("Hvilken oplyst sømandsbeskæftigelse vedrører kilden?"),
+    help = Some("Identifikationen skal svare præcist til en beskæftigelse, der opfylder betingelserne for sømandsfradrag."),
+    unit = None
+)
+= personskat_søbl4_felt_andet_arbejdsforhold = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov4Årsinput::kildetilknytninger::arbejdstilknytning::Søbl4AndetArbejdsforhold::arbejdsforhold_identifikation),
+    label = "Tilknyttet andet arbejdsforhold",
+    question = Some("Hvilket andet arbejdsforhold vedrører kilden?"),
+    help = Some("Brug en stabil arbejdsgiver- eller ansættelsesreference, som ikke også er brugt som sømandsbeskæftigelsens identifikation."),
+    unit = None
+)
+
+= personskat_søbl4_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_søbl4_felt_kildetilknytninger,
+        personskat_søbl4_felt_kilde,
+        personskat_søbl4_felt_ll9b_kildeidentifikation,
+        personskat_søbl4_felt_pbl49_kildeidentifikation,
+        personskat_søbl4_felt_arbejdstilknytning,
+        personskat_søbl4_felt_sømandsbeskæftigelse,
+        personskat_søbl4_felt_andet_arbejdsforhold
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
+        Guidance(value = skat_sømandsfradrag_vejledning),
+        Practice(value = landsskatteretten_skm2025_442_lsr),
+    )
+)
+
+--@label:Sømandsbeskatningslov4Årsinput::meta:personskat_søbl4_beregningsmeta--

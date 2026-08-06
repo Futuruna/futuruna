@@ -17549,6 +17549,22 @@ impl<'a> LoweringCtx<'a> {
                             };
                         }
                     }
+                    if fn_name == "find"
+                        && !self.types.user_functions.contains(fn_name)
+                        && !fir_args.is_empty()
+                    {
+                        let elem_ty = match &fir_args[0].ty {
+                            FirTy::List(elem) | FirTy::Set(elem) => Some((**elem).clone()),
+                            _ => None,
+                        };
+                        if let Some(elem_ty) = elem_ty {
+                            return FirExpr {
+                                kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                                span: expr.span,
+                                ty: FirTy::Option(Box::new(elem_ty)),
+                            };
+                        }
+                    }
                     if fn_name == "concat" && fir_args.len() >= 2 {
                         let list_ty = match (&fir_args[0].ty, &fir_args[1].ty) {
                             (FirTy::List(left), FirTy::List(right)) => {

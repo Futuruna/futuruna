@@ -111,14 +111,14 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse = Sandt,
     eventuel_godtgørelse_valgt_medregnet_i_indkomsten = Falskt
 )
-| personskat_sømandsfradrag_erhvervsbefordring(identifikation: Tekst, rækkefølge: Heltal, arbejdsgiver: Tekst, udbetalt_godtgørelse_kroner: Heltal, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> PersonskatErhvervsbefordringFakta(
+| personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(identifikation: Tekst, rækkefølge: Heltal, arbejdsgiver: Tekst, kilometer: Heltal, udbetalt_godtgørelse_kroner: Heltal, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> PersonskatErhvervsbefordringFakta(
     identifikation = identifikation,
     rækkefølge_i_indkomståret = rækkefølge,
     godtgørende_arbejdsgiver_identifikation = arbejdsgiver,
     køretøj = Ll9BEgenBil,
     befordring = PersonskatErhvervsbefordring(
         art = Ll9BMellemArbejdspladser,
-        kilometer_i_sagen = 1000,
+        kilometer_i_sagen = kilometer,
         tres_dages_forhold = personskat_sømandsfradrag_tres_dages_forhold()
     ),
     udgifter = Ligningslov9BUdgifter(
@@ -132,6 +132,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
         udbetalt_godtgørelse_kroner = udbetalt_godtgørelse_kroner
     )
 )
+| personskat_sømandsfradrag_erhvervsbefordring(identifikation: Tekst, rækkefølge: Heltal, arbejdsgiver: Tekst, udbetalt_godtgørelse_kroner: Heltal, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(identifikation = identifikation, rækkefølge = rækkefølge, arbejdsgiver = arbejdsgiver, kilometer = 1000, udbetalt_godtgørelse_kroner = udbetalt_godtgørelse_kroner, kundeopsøgende = kundeopsøgende, antal_arbejdsgivere = antal_arbejdsgivere)
 | personskat_sømandsfradrag_befordringsfakta() -> PersonskatBefordringsfradragFakta(
     arbejdsdage = 203,
     daglige_befordringskilometer = 60,
@@ -175,16 +176,10 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     indberettet_efter_skatteindberetningslov26 = Sandt,
     art = Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
 )
-| personskat_sømandsfradrag_ligningsfradrag() -> PersonskatLigningsfradragInput(
-    sømandsfradrag = Sømandsbeskatningslov3Årsinput(
-        valg = AnvendSømandsfradrag,
-        beskæftigelser = [personskat_sømandsfradrag_beskæftigelse(
-            identifikation = "kanonisk-fragtskib",
-            bruttotonnage = 500,
-            anvendelse = ErhvervsmæssigBefordringAfGods,
-            sødage_hundrededele = 36500
-        )]
-    ),
+| personskat_sømandsfradrag_kildetilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning) -> Sømandsbeskatningslov4Kildetilknytning(kilde = kilde, arbejdstilknytning = arbejdstilknytning)
+| personskat_sømandsfradrag_fælles_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput) -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsfradrag,
+    sømandsbeskatningslov4 = sømandsbeskatningslov4,
     befordring = MedBefordringsfradrag(fakta = personskat_sømandsfradrag_befordringsfakta()),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
@@ -222,6 +217,91 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     ),
     gaver = LigningslovGaveÅrsinput(gaver = [personskat_sømandsfradrag_gave()])
 )
+| personskat_sømandsfradrag_ligningsfradrag() -> personskat_sømandsfradrag_fælles_ligningsfradrag(
+    sømandsfradrag = Sømandsbeskatningslov3Årsinput(
+        valg = AnvendSømandsfradrag,
+        beskæftigelser = [personskat_sømandsfradrag_beskæftigelse(
+            identifikation = "kanonisk-fragtskib",
+            bruttotonnage = 500,
+            anvendelse = ErhvervsmæssigBefordringAfGods,
+            sødage_hundrededele = 36500
+        )]
+    ),
+    sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = [
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "direkte-fradrag-2026"),
+            arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "kanonisk-fragtskib")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "godtgørelse-2026"),
+            arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "kanonisk-fragtskib")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9COg9DBefordringsfradrag,
+            arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "kanonisk-fragtskib")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov13Årsfradrag,
+            arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "a-kasse-2026"),
+            arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling
+        ),
+    ])
+)
+| personskat_sømandsfradrag_blandet_ligningsfradrag() -> personskat_sømandsfradrag_fælles_ligningsfradrag(
+    sømandsfradrag = Sømandsbeskatningslov3Årsinput(
+        valg = AnvendSømandsfradrag,
+        beskæftigelser = [personskat_sømandsfradrag_beskæftigelse(
+            identifikation = "blandet-fragtskib",
+            bruttotonnage = 500,
+            anvendelse = ErhvervsmæssigBefordringAfGods,
+            sødage_hundrededele = 18250
+        )]
+    ),
+    sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = [
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "godtgørelse-sømandsperiode"),
+            arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "blandet-fragtskib")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "godtgørelse-andet-arbejde"),
+            arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "nul-kørsel-andet-arbejde"),
+            arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov9COg9DBefordringsfradrag,
+            arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Ligningslov13Årsfradrag,
+            arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a")
+        ),
+        personskat_sømandsfradrag_kildetilknytning(
+            kilde = Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "a-kasse-2026"),
+            arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a")
+        ),
+    ])
+)
+| personskat_sømandsfradrag_blandet_ligningsfradrag_uden_fagforeningstilknytning() -> {
+    = fuldt_input = personskat_sømandsfradrag_blandet_ligningsfradrag()
+    = kildetilknytninger = filter(
+        fuldt_input.sømandsbeskatningslov4.kildetilknytninger,
+        |tilknytning: Sømandsbeskatningslov4Kildetilknytning| tilknytning.kilde != Søbl4Ligningslov13Årsfradrag
+    )
+    PersonskatLigningsfradragInput(
+        sømandsfradrag = fuldt_input.sømandsfradrag,
+        sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
+        befordring = fuldt_input.befordring,
+        faglige_kontingenter = fuldt_input.faglige_kontingenter,
+        arbejdsløshed_efterløn_og_fleksydelse = fuldt_input.arbejdsløshed_efterløn_og_fleksydelse,
+        gaver = fuldt_input.gaver
+    )
+}
 | personskat_sømandsfradrag_kanonisk_input() -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
@@ -261,15 +341,75 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| personskat_sømandsfradrag_blandet_input() -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = PersonskatErhvervsbefordringInput(sager = [
+            personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(
+                identifikation = "godtgørelse-sømandsperiode",
+                rækkefølge = 1,
+                arbejdsgiver = "Rederi A",
+                kilometer = 1000,
+                udbetalt_godtgørelse_kroner = 3940,
+                kundeopsøgende = Falskt,
+                antal_arbejdsgivere = 1
+            ),
+            personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(
+                identifikation = "godtgørelse-andet-arbejde",
+                rækkefølge = 2,
+                arbejdsgiver = "Arbejdsgiver B",
+                kilometer = 2000,
+                udbetalt_godtgørelse_kroner = 7880,
+                kundeopsøgende = Falskt,
+                antal_arbejdsgivere = 1
+            ),
+            personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(
+                identifikation = "nul-kørsel-andet-arbejde",
+                rækkefølge = 3,
+                arbejdsgiver = "Arbejdsgiver B",
+                kilometer = 0,
+                udbetalt_godtgørelse_kroner = 0,
+                kundeopsøgende = Falskt,
+                antal_arbejdsgivere = 1
+            ),
+        ]),
+        ligningsfradrag = personskat_sømandsfradrag_blandet_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    årsopgørelse = UdenÅrsopgørelse
+)
 
 = personskat_sømandsfradrag_kanonisk_resultat = beregn_personskat(personskat_sømandsfradrag_kanonisk_input())
+= personskat_sømandsfradrag_blandet_resultat = beregn_personskat(personskat_sømandsfradrag_blandet_input())
+= personskat_sømandsfradrag_blandet_ufuldstændig_resultat = personskat_ligningsfradrag_resultat(
+    input = personskat_sømandsfradrag_blandet_ligningsfradrag_uden_fagforeningstilknytning(),
+    lønmodtager = personskat_sømandsfradrag_blandet_input().lønmodtager,
+    erhvervsbefordring = personskat_sømandsfradrag_blandet_resultat.erhvervsbefordring,
+    personlig_indkomst = personskat_sømandsfradrag_blandet_resultat.personlig_indkomst,
+    ligningslov12_indkomstgrundlag = personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.gaver.indkomstgrundlag
+)
 
 | personskat_sømandsfradrag_almindeligt_helår: personskat_sømandsfradrag_helår_almindeligt_resultat -> personskat_sømandsfradrag_helår_almindeligt_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_almindeligt_resultat.samlet_fradrag_kroner == 56900
 | personskat_sømandsfradrag_forhøjet_helår: personskat_sømandsfradrag_helår_forhøjet_resultat -> personskat_sømandsfradrag_helår_forhøjet_resultat.alle_input_gyldige && personskat_sømandsfradrag_helår_forhøjet_resultat.samlet_fradrag_kroner == 105000
-| personskat_sømandsfradrag_forhøjet_halvår: personskat_sømandsfradrag_halvår_forhøjet_resultat -> personskat_sømandsfradrag_halvår_forhøjet_resultat.samlet_fradrag_kroner == 52500 && personskat_sømandsfradrag_halvår_forhøjet_resultat.almindelige_fradragsdage_hundrededele == 18250 && sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = 10000, resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 5000
+| personskat_sømandsfradrag_forhøjet_halvår: personskat_sømandsfradrag_halvår_forhøjet_resultat -> personskat_sømandsfradrag_halvår_forhøjet_resultat.samlet_fradrag_kroner == 52500 && personskat_sømandsfradrag_halvår_forhøjet_resultat.almindelige_fradragsdage_hundrededele == 18250 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling, resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 5000 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation = "landarbejde-a"), resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 10000 && sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(beløb_før_par4_kroner = 10000, kilde = Søbl4Ligningslov13Årsfradrag, arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation = "fragtskib-halvår"), resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == 0 && sømandsbeskatningslov4_arbejdstilknytning_gyldig(kilde = Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation = "kørsel-a"), arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling, resultat = personskat_sømandsfradrag_halvår_forhøjet_resultat) == Falskt
 | personskat_sømandsfradrag_par3a_afskærer_tredjelandsstatsborger: personskat_sømandsfradrag_forkert_statsborgerskab_resultat -> personskat_sømandsfradrag_forkert_statsborgerskab_resultat.alle_input_gyldige && personskat_sømandsfradrag_forkert_statsborgerskab_resultat.kan_foretage_fradrag_efter_par3 == Falskt && personskat_sømandsfradrag_forkert_statsborgerskab_resultat.samlet_fradrag_kroner == 0 && head(personskat_sømandsfradrag_forkert_statsborgerskab_resultat.beskæftigelsesresultater).par3a_opfyldt == Falskt
 | personskat_sømandsfradrag_fravalg_bevarer_stk1_fradrag: personskat_sømandsfradrag_fravalgt_resultat -> personskat_sømandsfradrag_fravalgt_resultat.kan_foretage_fradrag_efter_par3 && personskat_sømandsfradrag_fravalgt_resultat.fradrag_foretaget_efter_par3 == Falskt && personskat_sømandsfradrag_fravalgt_resultat.samlet_fradrag_kroner == 0 && personskat_sømandsfradrag_fravalgt_resultat.ligningslov9a_stk1_til9_afskåret && sømandsbeskatningslov4_almindeligt_fradrag_anvendt_kroner(fradrag_før_par4_kroner = 10000, resultat = personskat_sømandsfradrag_fravalgt_resultat) == 10000
-| personskat_sømandsfradrag_par4_sammensætter_kanonisk: personskat_sømandsfradrag_kanonisk_resultat -> personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.alle_input_gyldige && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.sømandsfradrag.samlet_fradrag_kroner == 105000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner == personskat_sømandsfradrag_kanonisk_resultat.erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner + personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_fradrag_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.befordring_fradrag_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.befordring_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 7000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.faglige_kontingenter_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49_stk1_fradrag_før_par4_kroner == 5988 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49_stk1_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49a_og_49b_fradrag_anvendt_kroner == 5400 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.gaver.samlet_fradrag_kroner == 1000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 111400 && personskat_sømandsfradrag_kanonisk_resultat.skat.bruttoløn_kroner == 600000 + personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner
+| personskat_sømandsfradrag_par4_sammensætter_kanonisk: personskat_sømandsfradrag_kanonisk_resultat -> personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.alle_input_gyldige && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.sømandsbeskatningslov4_kildetilknytninger_gyldige && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.sømandsbeskatningslov4_påkrævede_kilder_tilknyttet && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.sømandsfradrag.samlet_fradrag_kroner == 105000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner == personskat_sømandsfradrag_kanonisk_resultat.erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner + personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_fradrag_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.befordring_fradrag_før_par4_kroner > 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.befordring_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 7000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.faglige_kontingenter_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49_stk1_fradrag_før_par4_kroner == 5988 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49_stk1_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.pbl49a_og_49b_fradrag_anvendt_kroner == 5400 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.gaver.samlet_fradrag_kroner == 1000 && personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 111400 && personskat_sømandsfradrag_kanonisk_resultat.skat.bruttoløn_kroner == 600000 + personskat_sømandsfradrag_kanonisk_resultat.ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner
+| personskat_sømandsfradrag_par4_blandet_år_bruger_kildetilknytning: personskat_sømandsfradrag_blandet_resultat -> personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.alle_input_gyldige && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.sømandsbeskatningslov4_kildetilknytninger_gyldige && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.sømandsbeskatningslov4_påkrævede_kilder_tilknyttet && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.sømandsfradrag.samlet_fradrag_kroner == 52500 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner == 11820 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner == 7880 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner == 3940 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.befordring_fradrag_anvendt_kroner == personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.befordring_fradrag_før_par4_kroner && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.faglige_kontingenter_fradrag_anvendt_kroner == 7000 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.pbl49_stk1_fradrag_anvendt_kroner == 5988 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.pbl49a_og_49b_fradrag_anvendt_kroner == 5400 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 0 && personskat_sømandsfradrag_blandet_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 95054 && personskat_sømandsfradrag_blandet_resultat.skat.bruttoløn_kroner == 603940
+| personskat_sømandsfradrag_par4_manglende_kildetilknytning_afvises: personskat_sømandsfradrag_blandet_ufuldstændig_resultat -> personskat_sømandsfradrag_blandet_ufuldstændig_resultat.sømandsbeskatningslov4_kildetilknytninger_gyldige && personskat_sømandsfradrag_blandet_ufuldstændig_resultat.sømandsbeskatningslov4_påkrævede_kilder_tilknyttet == Falskt && personskat_sømandsfradrag_blandet_ufuldstændig_resultat.alle_input_gyldige == Falskt && personskat_sømandsfradrag_blandet_ufuldstændig_resultat.faglige_kontingenter_fradrag_anvendt_kroner == 0 && personskat_sømandsfradrag_blandet_ufuldstændig_resultat.samlet_ligningsfradrag_kroner == 0
 
 ? personskat_sømandsfradrag_almindeligt_helår
 ? personskat_sømandsfradrag_forhøjet_helår
@@ -277,3 +417,5 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 ? personskat_sømandsfradrag_par3a_afskærer_tredjelandsstatsborger
 ? personskat_sømandsfradrag_fravalg_bevarer_stk1_fradrag
 ? personskat_sømandsfradrag_par4_sammensætter_kanonisk
+? personskat_sømandsfradrag_par4_blandet_år_bruger_kildetilknytning
+? personskat_sømandsfradrag_par4_manglende_kildetilknytning_afvises
