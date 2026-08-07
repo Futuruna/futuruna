@@ -7,6 +7,8 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 § 38. Scenarierne er ikke lovtekst.
 ----
 
+# FraflytterSlutskatPersonscenarie(aktieavance: PersonskatAktieavanceInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta)
+
 | fraflytter_slutskat_ordinaert_aktivgrundlag() -> AblPar38OrdinærAktieEfterPar12Til15(fakta = AktieavancePar38OrdinærtAktivgrundlag(
     markedsstatus = AblIkkeOptagetTilHandel,
     har_tidligere_været_optaget_til_handel = Falskt,
@@ -120,10 +122,19 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
+| fraflytter_slutskat_aktieavance(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = særlige_aktiver,
+    udbytter = []
+)
+| fraflytter_slutskat_personscenarie(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> FraflytterSlutskatPersonscenarie(
+    aktieavance = fraflytter_slutskat_aktieavance(særlige_aktiver),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
 | fraflytter_slutskat_input(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatInput(
     lønmodtager = fraflytter_slutskat_loenmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = særlige_aktiver, udbytter = []),
+    aktieavance = fraflytter_slutskat_aktieavance(særlige_aktiver),
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
@@ -133,31 +144,49 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
-| fraflytter_slutskat_personfakta(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatPersonFakta(
+| fraflytter_slutskat_personfakta_fra_scenarie(scenarie: FraflytterSlutskatPersonscenarie) -> PersonskatPersonFakta(
     lønmodtager = fraflytter_slutskat_loenmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = særlige_aktiver, udbytter = []),
+    aktieavance = scenarie.aktieavance,
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
-    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+    ejendomsskatter = scenarie.ejendomsskatter
 )
-| fraflytter_slutskat_parinput(hovedpersons_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), ægtefælles_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatInput(
+| fraflytter_slutskat_personfakta(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> fraflytter_slutskat_personfakta_fra_scenarie(fraflytter_slutskat_personscenarie(særlige_aktiver))
+| fraflytter_slutskat_parinput_med_personer(hovedperson: FraflytterSlutskatPersonscenarie, ægtefælle: FraflytterSlutskatPersonscenarie) -> PersonskatInput(
     lønmodtager = fraflytter_slutskat_loenmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = hovedpersons_særlige_aktiver, udbytter = []),
+    aktieavance = hovedperson.aktieavance,
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
-        fakta = fraflytter_slutskat_personfakta(ægtefælles_særlige_aktiver),
+        fakta = fraflytter_slutskat_personfakta_fra_scenarie(ægtefælle),
         samlevende_ved_indkomstårets_udløb = Sandt
     ),
-    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    ejendomsskatter = hovedperson.ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
+)
+| fraflytter_slutskat_parinput(hovedpersons_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), ægtefælles_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> fraflytter_slutskat_parinput_med_personer(
+    hovedperson = fraflytter_slutskat_personscenarie(hovedpersons_særlige_aktiver),
+    ægtefælle = fraflytter_slutskat_personscenarie(ægtefælles_særlige_aktiver)
+)
+| fraflytter_slutskat_parinput_med_fremførsel(input: PersonskatInput, fremførsel: PersonskatNegativAktieskatFremførselsparInput) -> PersonskatInput(
+    lønmodtager = input.lønmodtager,
+    kapitalindkomst = input.kapitalindkomst,
+    aktieavance = input.aktieavance,
+    udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag,
+    cfc = input.cfc,
+    skatteforhold = input.skatteforhold,
+    underskudsforhold = input.underskudsforhold,
+    ægtefælle = input.ægtefælle,
+    ejendomsskatter = input.ejendomsskatter,
+    negativ_aktieskat_fremførsel = fremførsel,
+    årsopgørelse = input.årsopgørelse
 )
 | fraflytter_slutskat_for_særligt_resultat(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.årets_beregnede_fraflytterskat_kroner
@@ -173,7 +202,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     | BeregnetÆgtefælle(_, grundlag, _, _) -> fraflytter_slutskat_for_aktieavance(grundlag.aktieavance)
 }
 | fraflytter_slutskat_for_par(resultat: PersonskatBeregningResultat) -> fraflytter_slutskat_for_aktieavance(resultat.aktieavance) + fraflytter_slutskat_for_ægtefælle(resultat)
-| fraflytter_slutskat_parrets_samlede_skat(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner + personskat_ægtefælles_slutskat_kroner(resultat)
+| fraflytter_slutskat_parrets_samlede_skat(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner + personskat_ægtefælles_slutskat_kroner(resultat)
 
 = fraflytter_slutskat_blandet_aktier = [
     fraflytter_slutskat_aktiepost("ordinaer-gevinst", 1, 50000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
@@ -204,6 +233,190 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 | fraflytter_slutskat_gevinstkilde(fraflytningsdato: Dato) -> fraflytter_slutskat_kilde_med_fraflytningsforhold("tabsmodregning", fraflytningsdato, AblPar38MindstSyvÅrIndenForSenesteTiÅr, [
     fraflytter_slutskat_aktiepost("gevinst-100000", 1, 100000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
 ])
+
+= fraflytter_slutskat_ejendomsskat_tabsposition = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-EJENDOMSSKAT-PROJEKTION-TAB",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    anskaffelsessum_kroner = 560000
+)
+= fraflytter_slutskat_ejendomsskat_tabsafståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    afståelsessum_kroner = 0,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(fakta = AktieavancePar5AFakta(
+        anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+        skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+        ejertidsudbytter = [],
+        præferenceposition = AktieavancePar5APræferenceposition(
+            modtaget_tilsvarende_udbytte_kroner = 0,
+            allerede_anvendt_til_tabsreduktion_kroner = 0
+        ),
+        koncernbeløb = []
+    ))
+)
+= fraflytter_slutskat_ejendomsskat_tabsår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = fraflytter_slutskat_ejendomsskat_tabsposition,
+        hændelser = [fraflytter_slutskat_ejendomsskat_tabsafståelse]
+    )],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= fraflytter_slutskat_ejendomsskat_gevinstkilde = fraflytter_slutskat_kilde("ejendomsskat-projektion", [
+    fraflytter_slutskat_aktiepost("ejendomsskat-projektion-gevinst", 1, 100000, fraflytter_slutskat_ordinaert_aktivgrundlag(), AblPar23Realisationsprincip, AblPar37Til40HenstandSøges),
+])
+= fraflytter_slutskat_ejendomsskat_aktieavance = PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = fraflytter_slutskat_ejendomsskat_tabsår),
+    særlige_aktiver = [fraflytter_slutskat_ejendomsskat_gevinstkilde],
+    udbytter = []
+)
+= fraflytter_slutskat_ejendomsskat_fakta = EjendomsskattelovPersonÅrsfakta(
+    person = ejendomsskattelov_ingen_person_kildefakta(),
+    ejendomme = [EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = EjendomsskattelovOrdinærPersonEjendomFakta(
+            identifikation = "fraflytter-projektion-ejerbolig",
+            kommune = København,
+            kategori = EjskEnBoligenhed,
+            beliggenhed = EjskDanmark,
+            erhvervsmæssigt_udlejet = Falskt,
+            særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+            ejendomsværdi_kroner = 3710000,
+            grundværdi_kroner = 3363000,
+            produktionsjord = Falskt,
+            ejendomsværdiskatteperiode = HeleEjendomsskatteåret,
+            grundskyldsperiode = HeleEjendomsskatteåret,
+            ejerandel_basispoint = 5000
+        ),
+        nedslagsfakta = EjendomsskattelovNedslagsfakta(
+            ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
+                oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2025, måned = 8, dag = 1),
+                ejerskifter = []
+            ),
+            boliganvendelse = EjskHelårsbolig,
+            selvstændige_boligenheder = 1,
+            ejendomsform = EjskIkkeEjerlejlighed,
+            fredet_og_omfattet_af_ligningslovens_par15k = Falskt,
+            par24_beregningsgrundlag = EjskPar24SammeVærdiSomPar13,
+            pensionistsuccession = EjskIngenPensionistsuccession,
+            udenlandske_ejendomsskatter = []
+        ),
+        overgangsomfang = EjendomsskattelovOvergangsomfang(
+            vurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1,
+            ejerkreds = EjskKunFysiskeEjere
+        ),
+        overgangsvurderinger = ejendomsskattelov_ingen_overgangsvurderinger()
+    )]
+)
+= fraflytter_slutskat_ejendomsskat_personscenarie = FraflytterSlutskatPersonscenarie(
+    aktieavance = fraflytter_slutskat_ejendomsskat_aktieavance,
+    ejendomsskatter = fraflytter_slutskat_ejendomsskat_fakta
+)
+= fraflytter_slutskat_ejendomsskat_neutral_personscenarie = fraflytter_slutskat_personscenarie([])
+= fraflytter_slutskat_ejendomsskat_hovedperson = beregn_personskat(fraflytter_slutskat_parinput_med_personer(
+    hovedperson = fraflytter_slutskat_ejendomsskat_personscenarie,
+    ægtefælle = fraflytter_slutskat_ejendomsskat_neutral_personscenarie
+))
+= fraflytter_slutskat_ejendomsskat_ægtefælle = beregn_personskat(fraflytter_slutskat_parinput_med_personer(
+    hovedperson = fraflytter_slutskat_ejendomsskat_neutral_personscenarie,
+    ægtefælle = fraflytter_slutskat_ejendomsskat_personscenarie
+))
+| fraflytter_slutskat_afledt_kontekst(resultat: PersonskatAktieavanceResultat) -> match head(resultat.særlige_resultater).par37_til40_forløbsresultat {
+    | Some(forløb) -> match forløb.fraflytningsresultat.skattekontekst {
+        | AblPar37Til40AfledtSlutskat(kontekst) -> Some(kontekst)
+        | AblPar37Til40LokalAktieindkomstskat -> None
+    }
+    | None -> None
+}
+| fraflytter_slutskat_ægtefælles_afledte_kontekst(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> fraflytter_slutskat_afledt_kontekst(grundlag.aktieavance)
+    | IngenÆgtefælleberegning -> None
+}
+| fraflytter_slutskat_ejendomsskat_rolleombytning() -> match fraflytter_slutskat_afledt_kontekst(fraflytter_slutskat_ejendomsskat_hovedperson.aktieavance) {
+    | Some(hovedkontekst) -> match fraflytter_slutskat_ægtefælles_afledte_kontekst(fraflytter_slutskat_ejendomsskat_ægtefælle) {
+        | Some(ægtefællekontekst) -> {
+            = hoved_ejendomsskat_kroner = fraflytter_slutskat_ejendomsskat_hovedperson.ejendomsskatter.samlet_ejendomsskat_kroner
+            = ægtefælle_ejendomsskat_kroner = personskat_ægtefælle_ejendomsskat_kroner(fraflytter_slutskat_ejendomsskat_ægtefælle.ægtefælles_ejendomsskatter)
+            = hoved_fraflytterskat_kroner = fraflytter_slutskat_for_par(fraflytter_slutskat_ejendomsskat_hovedperson)
+            = ægtefælle_fraflytterskat_kroner = fraflytter_slutskat_for_par(fraflytter_slutskat_ejendomsskat_ægtefælle)
+            @ print("ABL §§ 37-40 ejendomsskatteprojektion: ejendom=" + vis(hoved_ejendomsskat_kroner) + "/" + vis(ægtefælle_ejendomsskat_kroner) + ", uden=" + vis(hovedkontekst.skat_uden_fraflytterindkomst_kroner) + "/" + vis(ægtefællekontekst.skat_uden_fraflytterindkomst_kroner) + ", fuld=" + vis(hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner) + "/" + vis(ægtefællekontekst.skat_med_hele_fraflytterindkomsten_kroner) + ", fraflytterskat=" + vis(hoved_fraflytterskat_kroner) + "/" + vis(ægtefælle_fraflytterskat_kroner))
+            (hoved_ejendomsskat_kroner == 14428
+                && hoved_ejendomsskat_kroner == ægtefælle_ejendomsskat_kroner
+                && hovedkontekst.skat_uden_fraflytterindkomst_kroner == 220500
+                && hovedkontekst.skat_uden_fraflytterindkomst_kroner == ægtefællekontekst.skat_uden_fraflytterindkomst_kroner
+                && hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner == 262500
+                && hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner == ægtefællekontekst.skat_med_hele_fraflytterindkomsten_kroner
+                && hoved_fraflytterskat_kroner == 42000
+                && hoved_fraflytterskat_kroner == ægtefælle_fraflytterskat_kroner)
+        }
+        | None -> Falskt
+    }
+    | None -> Falskt
+}
+| fraflytter_slutskat_ejendomsskatteprojektion_er_rolleuafhængig: Sandt -> fraflytter_slutskat_ejendomsskat_rolleombytning()
+
+| fraflytter_slutskat_ekstern_fremførsel(ejer: PersonskatNegativAktieskatEjer) -> EksterntFastsatFremførtNegativAktieskat(
+    trancher = [PersonskatNegativAktieskatTranche(
+        ejer = ejer,
+        oprindelsesår = 2024,
+        resterende_negativ_skat_kroner = 440000
+    )],
+    proveniens = SkatteforvaltningensÅrsopgørelse(
+        dokumentreference = "fraflytterprojektion-fremførsel-2025"
+    )
+)
+= fraflytter_slutskat_fremførsel_personscenarie = fraflytter_slutskat_personscenarie([fraflytter_slutskat_ejendomsskat_gevinstkilde])
+= fraflytter_slutskat_fremførsel_hovedperson = beregn_personskat(fraflytter_slutskat_parinput_med_fremførsel(
+    input = fraflytter_slutskat_parinput_med_personer(
+        hovedperson = fraflytter_slutskat_fremførsel_personscenarie,
+        ægtefælle = fraflytter_slutskat_ejendomsskat_neutral_personscenarie
+    ),
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = fraflytter_slutskat_ekstern_fremførsel(HovedpersonensNegativAktieskat),
+        ægtefælle = UdenFremførtNegativAktieskat
+    )
+))
+= fraflytter_slutskat_fremførsel_ægtefælle = beregn_personskat(fraflytter_slutskat_parinput_med_fremførsel(
+    input = fraflytter_slutskat_parinput_med_personer(
+        hovedperson = fraflytter_slutskat_ejendomsskat_neutral_personscenarie,
+        ægtefælle = fraflytter_slutskat_fremførsel_personscenarie
+    ),
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = UdenFremførtNegativAktieskat,
+        ægtefælle = fraflytter_slutskat_ekstern_fremførsel(ÆgtefællensNegativAktieskat)
+    )
+))
+| fraflytter_slutskat_fremførselsprojektion_rolleombytning() -> match fraflytter_slutskat_afledt_kontekst(fraflytter_slutskat_fremførsel_hovedperson.aktieavance) {
+    | Some(hovedkontekst) -> match fraflytter_slutskat_ægtefælles_afledte_kontekst(fraflytter_slutskat_fremførsel_ægtefælle) {
+        | Some(ægtefællekontekst) -> {
+            = hoved_fraflytterskat_kroner = fraflytter_slutskat_for_par(fraflytter_slutskat_fremførsel_hovedperson)
+            = ægtefælle_fraflytterskat_kroner = fraflytter_slutskat_for_par(fraflytter_slutskat_fremførsel_ægtefælle)
+            @ print("ABL §§ 37-40 fremførselsprojektion: uden=" + vis(hovedkontekst.skat_uden_fraflytterindkomst_kroner) + "/" + vis(ægtefællekontekst.skat_uden_fraflytterindkomst_kroner) + ", fuld=" + vis(hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner) + "/" + vis(ægtefællekontekst.skat_med_hele_fraflytterindkomsten_kroner) + ", fraflytterskat=" + vis(hoved_fraflytterskat_kroner) + "/" + vis(ægtefælle_fraflytterskat_kroner))
+            (hovedkontekst.input_gyldigt
+                && ægtefællekontekst.input_gyldigt
+                && fraflytter_slutskat_fremførsel_hovedperson.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige
+                && fraflytter_slutskat_fremførsel_ægtefælle.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige
+                && hovedkontekst.skat_uden_fraflytterindkomst_kroner == 0
+                && hovedkontekst.skat_uden_fraflytterindkomst_kroner == ægtefællekontekst.skat_uden_fraflytterindkomst_kroner
+                && hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner == 4452
+                && hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner == ægtefællekontekst.skat_med_hele_fraflytterindkomsten_kroner
+                && hoved_fraflytterskat_kroner == hovedkontekst.skat_med_hele_fraflytterindkomsten_kroner
+                && hoved_fraflytterskat_kroner == ægtefælle_fraflytterskat_kroner)
+        }
+        | None -> Falskt
+    }
+    | None -> Falskt
+}
+| fraflytter_slutskat_fremførselsprojektion_er_rolleuafhængig: Sandt -> fraflytter_slutskat_fremførselsprojektion_rolleombytning()
+
 | fraflytter_slutskat_ægtefællemodregning_scenarier() -> {
     = samtidig_dato = Dato(år = 2026, måned = 7, dag = 1)
     = anden_dato = Dato(år = 2026, måned = 8, dag = 1)
@@ -307,5 +520,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 ? fraflytter_slutskat_ikke_positiv_netto_giver_ingen_skat
 ? fraflytter_slutskat_flere_kilder_teleskoperer_i_kildelisteorden
 ? fraflytter_slutskat_ægtefællemodregning_scenarier_består
+? fraflytter_slutskat_ejendomsskatteprojektion_er_rolleuafhængig
+? fraflytter_slutskat_fremførselsprojektion_er_rolleuafhængig
 
 @ print("ABL § 38 kanonisk blandet fraflytterskat: " + vis(fraflytter_slutskat_blandet.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - fraflytter_slutskat_basis.samlet_skat_inkl_endelig_aktieindkomstskat_kroner))

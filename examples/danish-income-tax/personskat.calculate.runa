@@ -12637,11 +12637,11 @@ fraflytningen."
 }
 | personskat_kgl_par32_parresultat_gyldigt(resultat: PersonskatKursgevinstPar32ParResultat) -> match resultat { | IntetPar32Kontraktforløb -> Sandt | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt }
 | personskat_ægtefælle_aktieavance_gyldig(resultat: PersonskatÆgtefælleAktieavanceResultat) -> match resultat { | IngenÆgtefælleAktieavance -> Sandt | BeregnetÆgtefælleAktieavance(aktieavance) -> aktieavance.alle_input_gyldige }
-| personskat_ægtefælles_slutskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.negativ_aktieindkomstskat.ægtefælles_slutskat_efter_negativ_skat_kroner
+| personskat_ægtefælles_slutskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.ægtefælles_slutskat_efter_fremført_negativ_skat_kroner
 | personskat_slutskat_parprojektion(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
     = resultat = personskat_beregning_resultat_fra_aktieavance_par(input, aktieavance_før_par32)
     PersonskatSlutskatParprojektion(
-        hovedperson_kroner = resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner,
+        hovedperson_kroner = resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner,
         ægtefælle_kroner = personskat_ægtefælles_slutskat_kroner(resultat),
         input_gyldigt = aktieavance_før_par32.par_gyldigt && resultat.aktieavance.alle_input_gyldige && personskat_ægtefælle_aktieavance_gyldig(aktieavance_før_par32.ægtefælle) && personskat_kgl_par32_parresultat_gyldigt(resultat.kursgevinst_par32)
     )

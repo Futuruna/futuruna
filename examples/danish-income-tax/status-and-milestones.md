@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-d85f63` (ægtefællens typede ejendomsskattekilder og beregningsresultat indgår nu i den komplette slutskat, som negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, kan modregnes i; rolleombytning og JSON/XLSX er verificeret)
+Current implementation slice: `td-44859f` (ABL §§ 37-40-projektionen bruger nu begge ægtefællers komplette slutskat efter modregning af årets og tidligere fremførte negative aktieindkomstskat samt ejendomsskatter; rolleombytning er verificeret fortolket og kompileret)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
@@ -35,8 +35,8 @@ Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkte
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
 Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parberegning føres nu til egen modregning, ægtefællemodregning, Kildeskattelovens § 60-kredit og eksplicit fremførsel uden at ændre det rå ABL-kildespor)
 Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi fører den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput; implementeret og verificeret, afventer uafhængig gennemgang)
-Current spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
-Planned exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner skal bruge komplet slutskat efter § 8 a inklusive ejendomsskatter)
+Previous spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
+Current exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner bruger komplet slutskat efter modregning af årets og tidligere fremførte § 8 a-skat inklusive ejendomsskatter)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
@@ -95,6 +95,17 @@ a, stk. 5-6. En rolleombyttet 2025-sag viser samme resultat i begge retninger:
 modregningskapacitet og reducerer fremførslen tilsvarende. De samme typede
 ejendomsfelter og danske etiketter genereres for begge personer, og den fulde
 JSON-til-XLSX-rundtur bevarer resultatet byteidentisk.
+
+Slutskatteprojektionen efter ABL §§ 37-40 er nu afstemt med denne komplette
+slutskat for begge ægtefæller. Før rettelsen gav en rolleombyttet 2026-sag med
+560.000 kr. i ordinært ABL § 5 A-tab, 100.000 kr. i fraflyttergevinst og
+14.428 kr. i ejendomsskatter henholdsvis 39.346 kr. og 42.000 kr. i
+fraflytterskat. Projektionen gav dermed et forskelligt resultat alene efter,
+hvem der stod som hovedperson. Begge retninger giver nu 42.000 kr. En særskilt
+rolleombyttet sag med 440.000 kr. i dokumenteret fremført negativ
+aktieindkomstskat giver 4.452 kr. i begge retninger. Scenarierne kontrollerer
+således både ejendomsskatternes og tidligere § 8 a-tranchers plads i den
+kanoniske slutskat fortolket og kompileret.
 
 Den uudnyttede negative aktieindkomstskat er nu også et kanonisk årsledger.
 Hver åbningstranche bevarer ejer og oprindelsesår og kommer enten fra det
