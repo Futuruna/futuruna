@@ -38,6 +38,7 @@ fn run_with_cache(args: &[&str], cache: &Path) -> Output {
         .args(args)
         .env("FUTURUNA_COMPILER_CACHE_DIR", cache)
         .env("FUTURUNA_COMPILER_CACHE_TRACE", "1")
+        .env_remove("FUTURUNA_RUSTC_INCREMENTAL_CHECK")
         .output()
         .expect("run runa with isolated compiler cache")
 }
@@ -74,9 +75,12 @@ fn check_cache_hits_and_invalidates_on_transitive_import_change() {
 
     let first = run_with_cache(&["check", source], &cache);
     assert_success(&first);
-    assert!(String::from_utf8_lossy(&first.stderr).contains("check miss"));
+    let first_stderr = String::from_utf8_lossy(&first.stderr);
+    assert!(first_stderr.contains("check miss"));
+    assert!(first_stderr.contains("rustc incremental disabled"));
     let first_workspaces = rustc_check_workspaces(&cache);
     assert_eq!(first_workspaces.len(), 1);
+    assert!(!first_workspaces[0].join("incremental").exists());
     assert!(
         std::fs::read_to_string(first_workspaces[0].join("check.rs"))
             .expect("read first generated Rust source")
@@ -130,6 +134,71 @@ fn check_cache_hits_and_invalidates_on_transitive_import_change() {
             .expect("read rewritten generated Rust source")
             .contains("43")
     );
+
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn check_can_opt_into_persistent_rustc_incremental_state() {
+    let (root, source, _dependency, cache) = fixture_paths("check-rustc-incremental");
+    std::fs::write(&source, "@ print(42)\n").expect("write incremental check source");
+    let source = source.to_str().expect("source path");
+
+    let output = Command::new(runa())
+        .args(["check", source])
+        .env("FUTURUNA_COMPILER_CACHE_DIR", &cache)
+        .env("FUTURUNA_COMPILER_CACHE_TRACE", "1")
+        .env("FUTURUNA_RUSTC_INCREMENTAL_CHECK", "1")
+        .output()
+        .expect("run check with rustc incremental state enabled");
+
+    assert_success(&output);
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("rustc incremental enabled by environment"));
+    let workspaces = rustc_check_workspaces(&cache);
+    assert_eq!(workspaces.len(), 1);
+    assert!(workspaces[0].join("incremental").is_dir());
+
+    std::fs::remove_dir_all(root).ok();
+}
+
+#[test]
+fn check_omits_pure_imported_metadata_from_generated_runtime() {
+    let (root, source, dependency, cache) = fixture_paths("check-metadata-pruning");
+    std::fs::write(
+        &source,
+        "@ import ./domain\n\
+@ calculate\n\
+| calculate(input: Input) -> Output(value = input.value)\n",
+    )
+    .expect("write metadata-pruning calculation source");
+    std::fs::write(
+        &dependency,
+        "# SourceInfo(url: String)\n\
+# ImportedMetadata(source: SourceInfo)\n\
+# impl Meta for ImportedMetadata {}\n\
+# Input(value: Int)\n\
+# Output(value: Int)\n\
+= imported_source = SourceInfo(url = \"https://example.invalid/law\")\n\
+= imported_metadata = ImportedMetadata(source = imported_source)\n\
+--@label:unrelated_law::meta:imported_metadata--\n",
+    )
+    .expect("write imported metadata dependency");
+    let source = source.to_str().expect("source path");
+
+    let output = run_with_cache(&["check", source], &cache);
+
+    assert_success(&output);
+    let workspaces = rustc_check_workspaces(&cache);
+    assert_eq!(workspaces.len(), 1);
+    let generated = std::fs::read_to_string(workspaces[0].join("check.rs"))
+        .expect("read metadata-pruned generated Rust");
+    assert!(!generated.contains("let imported_source ="), "{generated}");
+    assert!(
+        !generated.contains("let imported_metadata ="),
+        "{generated}"
+    );
+    assert!(generated.contains("fn calculate("), "{generated}");
 
     std::fs::remove_dir_all(root).ok();
 }

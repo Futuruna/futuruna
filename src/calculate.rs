@@ -623,7 +623,14 @@ pub fn extract_calculation_contracts(
     checker.infer_rule_return_types(stmts);
     checker.infer_top_level_binding_types(stmts);
 
-    extract_calculation_contracts_with_checker(stmts, source, source_dir, &checker)
+    extract_calculation_artifacts_with_checker(stmts, source, source_dir, &checker, false)
+        .map(|artifacts| artifacts.contracts)
+}
+
+#[derive(Default)]
+pub(crate) struct CalculationExtractionArtifacts {
+    pub contracts: Vec<CalculationContract>,
+    pub compile_time_metadata_bindings: BTreeSet<String>,
 }
 
 pub(crate) fn extract_calculation_contracts_with_checker(
@@ -632,11 +639,22 @@ pub(crate) fn extract_calculation_contracts_with_checker(
     source_dir: Option<String>,
     checker: &TypeChecker,
 ) -> Result<Vec<CalculationContract>, Vec<Diagnostic>> {
+    extract_calculation_artifacts_with_checker(stmts, source, source_dir, checker, false)
+        .map(|artifacts| artifacts.contracts)
+}
+
+pub(crate) fn extract_calculation_artifacts_with_checker(
+    stmts: &[Stmt],
+    source: &str,
+    source_dir: Option<String>,
+    checker: &TypeChecker,
+    collect_all_imported_metadata_bindings: bool,
+) -> Result<CalculationExtractionArtifacts, Vec<Diagnostic>> {
     if !stmts
         .iter()
         .any(|stmt| matches!(stmt, Stmt::Annot(name, _) if name == "calculate"))
     {
-        return Ok(Vec::new());
+        return Ok(CalculationExtractionArtifacts::default());
     }
     #[cfg(test)]
     CONTRACT_EXTRACTION_COUNT.with(|count| count.set(count.get() + 1));
@@ -725,6 +743,16 @@ pub(crate) fn extract_calculation_contracts_with_checker(
         &metadata_labels,
         checker,
     );
+    let mut compile_time_metadata_bindings = meta_index.resolved_binding_names.clone();
+    if collect_all_imported_metadata_bindings {
+        compile_time_metadata_bindings.extend(
+            collect_imported_resolved_meta_binding_names_with_checker(
+                stmts,
+                source_dir.as_deref(),
+                checker,
+            ),
+        );
+    }
     let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {
@@ -767,7 +795,10 @@ pub(crate) fn extract_calculation_contracts_with_checker(
         return Err(metadata_diagnostics);
     }
     contracts.sort_by(|left, right| left.entry.cmp(&right.entry));
-    Ok(contracts)
+    Ok(CalculationExtractionArtifacts {
+        contracts,
+        compile_time_metadata_bindings,
+    })
 }
 
 #[cfg(test)]

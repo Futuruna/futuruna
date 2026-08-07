@@ -881,6 +881,12 @@ fn trace_compiler_artifact_cache(message: &str) {
     }
 }
 
+fn trace_compiler_timing(phase: &str, elapsed: std::time::Duration) {
+    if cache_env_enabled("FUTURUNA_COMPILER_TIMING") {
+        eprintln!("compiler timing: {phase} {:.3}s", elapsed.as_secs_f64());
+    }
+}
+
 fn calculation_contract_cache_dir() -> Option<PathBuf> {
     if cache_env_enabled("FUTURUNA_DISABLE_CALCULATION_CACHE") {
         return None;
@@ -4740,11 +4746,32 @@ fn run_calculation_type_check(
 }
 
 fn type_check_artifacts(stmts: &[Stmt], source: &str, filename: &str) -> TypeCheckArtifacts {
+    type_check_artifacts_with_backend_metadata(stmts, source, filename, false)
+}
+
+fn backend_type_check_artifacts(
+    stmts: &[Stmt],
+    source: &str,
+    filename: &str,
+) -> TypeCheckArtifacts {
+    type_check_artifacts_with_backend_metadata(stmts, source, filename, true)
+}
+
+fn type_check_artifacts_with_backend_metadata(
+    stmts: &[Stmt],
+    source: &str,
+    filename: &str,
+    collect_backend_metadata: bool,
+) -> TypeCheckArtifacts {
     let source_dir = source_dir_for(filename);
     let source_name = std::path::Path::new(filename)
         .file_stem()
         .map(|s| s.to_string_lossy().to_string());
-    let mut artifacts = TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source);
+    let mut artifacts = if collect_backend_metadata {
+        TypeChecker::check_with_backend_artifacts(stmts, source_dir.clone(), source)
+    } else {
+        TypeChecker::check_with_artifacts(stmts, source_dir.clone(), source)
+    };
     if artifacts.diagnostics.is_empty() {
         artifacts
             .diagnostics
@@ -4803,11 +4830,13 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 user_stmts
             };
             // Pre-codegen type checking (M16)
-            if run_type_check(&stmts, source, filename) {
+            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
 
             let mut cg = RustCodegen::new();
+            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
@@ -12151,9 +12180,12 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
     let mut parser = Parser::new(tokens, source);
     match parser.parse_program() {
         Ok(user_stmts) => {
+            trace_compiler_timing("parse", start.elapsed());
+            let source_graph_start = Instant::now();
             let source_graph = compiler_artifact_cache_dir().and_then(|_| {
                 build_source_graph_snapshot(filename, source, &user_stmts, use_prelude)
             });
+            trace_compiler_timing("source graph", source_graph_start.elapsed());
             let stmts = if use_prelude {
                 prepend_prelude(parse_prelude(), &user_stmts)
             } else {
@@ -12170,7 +12202,14 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 .count();
 
             // Pre-codegen type checking (M16): catch errors before Rust codegen
-            if run_type_check(&stmts, source, filename) {
+            let type_check_start = Instant::now();
+            let type_check = if frontend_only {
+                type_check_artifacts(&stmts, source, filename)
+            } else {
+                backend_type_check_artifacts(&stmts, source, filename)
+            };
+            trace_compiler_timing("type check", type_check_start.elapsed());
+            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
                 std::process::exit(1);
             }
 
@@ -12187,13 +12226,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
             }
 
             let mut cg = RustCodegen::new();
+            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
             }
             cg.source_name = std::path::Path::new(filename)
                 .file_stem()
                 .map(|s| s.to_string_lossy().to_string());
+            let codegen_start = Instant::now();
             let code = cg.emit_program(&stmts);
+            trace_compiler_timing("Rust codegen", codegen_start.elapsed());
             let summary = CheckArtifactSummary {
                 statement_count: stmt_count,
                 function_count: fn_count,
@@ -12225,7 +12267,9 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 } else {
                     trace_compiler_artifact_cache("rustc validation disabled");
                 }
-                // No deps — type-check with rustc directly and retain its incremental state.
+                // No deps — type-check with rustc directly. Exact generated-Rust
+                // validation is already content-addressed; rustc incremental state is
+                // opt-in because creating it is slower for large generated programs.
                 let persistent_workspace = rustc_incremental_check_workspace(filename, use_prelude);
                 let check_workspace = persistent_workspace
                     .clone()
@@ -12235,8 +12279,6 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 write_file_if_changed(&rs_path, code.as_bytes()).ok();
                 let rustc_bin = find_rust_tool("rustc");
                 let meta_out = check_workspace.join("check-out");
-                let incremental_dir = check_workspace.join("incremental");
-                std::fs::create_dir_all(&incremental_dir).ok();
                 let mut rustc = Command::new(&rustc_bin);
                 rustc
                     .arg(&rs_path)
@@ -12248,10 +12290,22 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                         RUSTC_CHECK_EMIT_ARG,
                         "-o",
                     ])
-                    .arg(&meta_out)
-                    .arg("-C")
-                    .arg(format!("incremental={}", incremental_dir.display()));
+                    .arg(&meta_out);
+                if persistent_workspace.is_some()
+                    && cache_env_enabled("FUTURUNA_RUSTC_INCREMENTAL_CHECK")
+                {
+                    let incremental_dir = check_workspace.join("incremental");
+                    std::fs::create_dir_all(&incremental_dir).ok();
+                    rustc
+                        .arg("-C")
+                        .arg(format!("incremental={}", incremental_dir.display()));
+                    trace_compiler_artifact_cache("rustc incremental enabled by environment");
+                } else {
+                    trace_compiler_artifact_cache("rustc incremental disabled");
+                }
+                let rustc_start = Instant::now();
                 let output = rustc.output();
+                trace_compiler_timing("rustc validation", rustc_start.elapsed());
                 if persistent_workspace.is_none() {
                     let _ = std::fs::remove_dir_all(&check_workspace);
                 }
@@ -12329,10 +12383,12 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                 )
                 .ok();
                 let cargo_bin = find_rust_tool("cargo");
+                let cargo_start = Instant::now();
                 let output = Command::new(&cargo_bin)
                     .args(&["check"])
                     .current_dir(&build_dir)
                     .output();
+                trace_compiler_timing("cargo validation", cargo_start.elapsed());
                 let elapsed = start.elapsed();
                 match output {
                     Ok(o) if o.status.success() => {
@@ -12767,7 +12823,12 @@ fn emit_rust_source(source: &str, filename: &str, use_prelude: bool) {
             } else {
                 user_stmts
             };
+            let type_check = backend_type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&type_check.diagnostics, source, filename) {
+                std::process::exit(1);
+            }
             let mut cg = RustCodegen::new();
+            cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 cg.source_dir = Some(parent.to_string_lossy().to_string());
@@ -16707,6 +16768,9 @@ struct RustCodegen {
     lib_mode: bool,
     /// Top-level bindings that can be referenced through generated getter functions
     lib_static_names: BTreeSet<String>,
+    /// Pure ground metadata bindings validated during calculation-contract extraction.
+    /// Check/build codegen may omit members that executable code cannot reach.
+    compile_time_metadata_bindings: BTreeSet<String>,
     /// Emit getter calls for top-level bindings when direct local names are out of scope
     allow_global_getter_refs: bool,
     /// Stream bindings currently being exposed through generated getter functions
@@ -21675,6 +21739,7 @@ impl RustCodegen {
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
             lib_static_names: BTreeSet::new(),
+            compile_time_metadata_bindings: BTreeSet::new(),
             allow_global_getter_refs: false,
             getter_stream_bindings: BTreeSet::new(),
             binary_global_env_fns: BTreeSet::new(),
@@ -25849,7 +25914,9 @@ impl RustCodegen {
         // Header
         out.push_str("// Generated by runa --emit rust\n");
         out.push_str("// Futuruna: the language designed by measuring consciousness\n\n");
-        out.push_str("#![allow(unused, non_snake_case, non_camel_case_types)]\n");
+        out.push_str(
+            "#![allow(unused, non_snake_case, non_camel_case_types, non_shorthand_field_patterns)]\n",
+        );
         if self.wasm_mode {
             out.push_str("use wasm_bindgen::prelude::*;\n");
         }
@@ -26247,6 +26314,11 @@ impl RustCodegen {
         self.lib_static_names
             .extend(self.collect_rule_scope_top_level_binding_getter_names(&main_stmts, stmts));
         let duplicate_top_level_binds = Self::duplicate_top_level_binding_names(&main_stmts);
+        let omitted_compile_time_metadata = self.compile_time_metadata_bindings_to_omit(
+            stmts,
+            &main_stmts,
+            &duplicate_top_level_binds,
+        );
         (
             self.binary_global_env_fns,
             self.binary_global_env_fn_arities,
@@ -27032,6 +27104,10 @@ impl RustCodegen {
                         if matches!(stmt, Stmt::Expr(_)) {
                             continue;
                         }
+                    }
+                    if matches!(stmt, Stmt::Bind(Pat::Var(name), _, _) if omitted_compile_time_metadata.contains(name))
+                    {
+                        continue;
                     }
                     let prev_allow_comptime_binding_emit = cg.allow_comptime_binding_emit;
                     cg.allow_comptime_binding_emit = matches!(stmt, Stmt::Bind(_, _, _));
@@ -28290,6 +28366,79 @@ impl RustCodegen {
         }
 
         getter_names
+    }
+
+    fn compile_time_metadata_bindings_to_omit(
+        &self,
+        all_stmts: &[Stmt],
+        main_stmts: &[&Stmt],
+        duplicate_top_level_binds: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        if self.compile_time_metadata_bindings.is_empty() {
+            return BTreeSet::new();
+        }
+
+        let mut explicit_comptime_bindings = BTreeSet::new();
+        let mut pending_annotation = None::<&str>;
+        for stmt in all_stmts {
+            if let Stmt::Annot(name, _) = stmt {
+                pending_annotation = Some(name);
+                continue;
+            }
+            if pending_annotation == Some("comptime") {
+                if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                    explicit_comptime_bindings.insert(name.clone());
+                }
+            }
+            pending_annotation = None;
+        }
+
+        let mut binding_exprs = BTreeMap::<String, &Expr>::new();
+        for stmt in main_stmts {
+            if let Stmt::Bind(Pat::Var(name), _, expr) = stmt {
+                binding_exprs.insert(name.clone(), expr);
+            }
+        }
+        let top_level_names = binding_exprs.keys().cloned().collect::<BTreeSet<_>>();
+        let candidates = self
+            .compile_time_metadata_bindings
+            .intersection(&top_level_names)
+            .filter(|name| {
+                !duplicate_top_level_binds.contains(*name)
+                    && !explicit_comptime_bindings.contains(*name)
+            })
+            .cloned()
+            .collect::<BTreeSet<_>>();
+
+        let mut runtime_required = self
+            .lib_static_names
+            .intersection(&top_level_names)
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        for stmt in main_stmts {
+            if matches!(stmt, Stmt::Bind(Pat::Var(name), _, _) if candidates.contains(name)) {
+                continue;
+            }
+            let mut free = BTreeSet::new();
+            collect_true_free_vars_stmt(stmt, &mut free, &BTreeSet::new());
+            runtime_required.extend(free.intersection(&top_level_names).cloned());
+        }
+
+        let mut pending = runtime_required.iter().cloned().collect::<Vec<_>>();
+        while let Some(name) = pending.pop() {
+            let Some(expr) = binding_exprs.get(&name) else {
+                continue;
+            };
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(expr, &mut free, &BTreeSet::new());
+            for dependency in free.intersection(&top_level_names) {
+                if runtime_required.insert(dependency.clone()) {
+                    pending.push(dependency.clone());
+                }
+            }
+        }
+
+        candidates.difference(&runtime_required).cloned().collect()
     }
 
     fn duplicate_top_level_binding_names(main_stmts: &[&Stmt]) -> BTreeSet<String> {
@@ -51669,6 +51818,69 @@ for x in [1, 2] {
             "main should pass a shared globals reference into the free function: {}",
             rust
         );
+    }
+
+    #[test]
+    fn check_codegen_omits_unreachable_compile_time_metadata_bindings() {
+        let source = r#"
+= metadata_leaf = 40
+= metadata_root = metadata_leaf + 2
+= runtime_value = 7
+@ print(show(runtime_value))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        cg.compile_time_metadata_bindings =
+            BTreeSet::from(["metadata_leaf".to_string(), "metadata_root".to_string()]);
+
+        let rust = cg.emit_program(&stmts);
+
+        assert!(!rust.contains("let metadata_leaf ="), "{rust}");
+        assert!(!rust.contains("let metadata_root ="), "{rust}");
+        assert!(rust.contains("let runtime_value = 7i64;"), "{rust}");
+    }
+
+    #[test]
+    fn check_codegen_retains_metadata_reachable_from_runtime_bindings() {
+        let source = r#"
+= metadata_leaf = 40
+= metadata_root = metadata_leaf + 1
+= runtime_value = metadata_root + 1
+@ print(show(runtime_value))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        cg.compile_time_metadata_bindings =
+            BTreeSet::from(["metadata_leaf".to_string(), "metadata_root".to_string()]);
+
+        let rust = cg.emit_program(&stmts);
+
+        assert!(rust.contains("let metadata_leaf = 40i64;"), "{rust}");
+        assert!(
+            rust.contains("let metadata_root = (metadata_leaf + 1i64);"),
+            "{rust}"
+        );
+        assert!(
+            rust.contains("let runtime_value = (metadata_root + 1i64);"),
+            "{rust}"
+        );
+    }
+
+    #[test]
+    fn check_codegen_retains_metadata_reachable_from_functions() {
+        let source = r#"
+= metadata_leaf = 41
+= metadata_root = metadata_leaf + 1
+> read_metadata() -> Int { metadata_root }
+@ print(show(read_metadata()))
+"#;
+        let (mut cg, stmts) = scan_with_codegen(source);
+        cg.compile_time_metadata_bindings =
+            BTreeSet::from(["metadata_leaf".to_string(), "metadata_root".to_string()]);
+
+        let rust = cg.emit_program(&stmts);
+
+        assert!(rust.contains("let metadata_leaf = 41i64;"), "{rust}");
+        assert!(rust.contains("let metadata_root ="), "{rust}");
+        assert!(rust.contains("metadata_root: Option<i64>"), "{rust}");
     }
 
     #[test]

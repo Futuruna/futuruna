@@ -105,12 +105,13 @@ dependencies also retain their generated Cargo project under `.runa-build/` for
 Cargo's own incremental compilation.
 
 `runa check` uses the same graph validation and caches only successful checks.
-Its Rust metadata lane additionally fingerprints `rustc` and retains a
-persistent rustc incremental workspace for changed graphs. Set
+Its Rust metadata lane additionally fingerprints `rustc` and retains the
+generated source in a persistent validation workspace. Set
 `FUTURUNA_COMPILER_CACHE_DIR` to choose a cache root,
 `FUTURUNA_DISABLE_COMPILER_CACHE=1` to bypass it, or
 `FUTURUNA_COMPILER_CACHE_TRACE=1` to report cache hits and misses on standard
-error.
+error. `FUTURUNA_COMPILER_TIMING=1` reports parse, source-graph, type-check,
+Rust-generation, and backend-validation timings.
 
 For a shorter edit loop, `runa check --frontend file.runa` stops after parsing,
 import-aware type checking, calculation-contract checks, and Futuruna compiler
@@ -118,16 +119,16 @@ validation diagnostics. It deliberately skips complete Rust generation and
 `rustc` or Cargo validation, and reports that reduced assurance in its success
 message. Use ordinary `runa check` as the authoritative pre-commit and CI gate.
 
-`runa check` also keeps `rustc` incremental state per canonical source root,
-prelude mode, and Rust toolchain. Exact Futuruna check results still invalidate
-when the Futuruna compiler changes, while compatible Rust backend work is reused
-across compiler rebuilds. Byte-identical generated Rust is left untouched so its
-filesystem identity remains useful to `rustc` and Cargo's incremental engines.
-Successful backend validation is also cached by the complete generated Rust
-hash and Rust toolchain fingerprint. A compiler rebuild or source-only metadata
-change therefore reruns Futuruna analysis but does not ask `rustc` to prove an
-identical backend artifact again. Programs containing raw `@ rust` blocks do not
-use this content-only validation cache because those blocks may read external
+Successful backend validation is cached by the complete generated Rust hash and
+Rust toolchain fingerprint. Byte-identical generated Rust is left untouched, so
+a compiler rebuild or source-only metadata change reruns Futuruna analysis but
+does not ask `rustc` to prove an identical backend artifact again. For large
+generated single-crate programs, creating rustc incremental state costs more
+than a cold metadata-only validation, so it is disabled by default. Set
+`FUTURUNA_RUSTC_INCREMENTAL_CHECK=1` to opt into persistent rustc incremental
+state for a workload where repeated small backend changes benefit from it.
+Programs containing raw `@ rust` blocks do not use the content-only validation
+cache because those blocks may read external
 files or compile-time environment values.
 
 Cache validation includes the exact SHA-256 of the `runa` executable. That

@@ -1868,6 +1868,11 @@ pub struct MetaIndex {
     pub anchors: Vec<MetaAnchor>,
     pub spans: Vec<MetaCodeSpan>,
     pub diagnostics: Vec<MetaDiagnostic>,
+    /// Pure ground bindings needed to construct resolved metadata values.
+    ///
+    /// Compiler backends may treat these as compile-time data when none of
+    /// the bindings are also reachable from executable code.
+    pub resolved_binding_names: BTreeSet<String>,
 }
 
 impl MetaIndex {
@@ -2110,6 +2115,9 @@ fn collect_imported_meta_anchors_from_stmts(
             index.anchors.extend(imported_index.anchors);
             index.spans.extend(imported_index.spans);
             index.diagnostics.extend(imported_index.diagnostics);
+            index
+                .resolved_binding_names
+                .extend(imported_index.resolved_binding_names);
         }
 
         collect_imported_meta_anchors_from_stmts(
@@ -2119,6 +2127,72 @@ fn collect_imported_meta_anchors_from_stmts(
             visited,
             index,
             checker,
+        );
+    }
+}
+
+pub(crate) fn collect_imported_resolved_meta_binding_names_with_checker(
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+) -> BTreeSet<String> {
+    let mut resolved = BTreeSet::new();
+    collect_imported_resolved_meta_binding_names(
+        stmts,
+        source_dir,
+        checker,
+        &mut BTreeSet::new(),
+        &mut resolved,
+    );
+    resolved
+}
+
+fn collect_imported_resolved_meta_binding_names(
+    stmts: &[Stmt],
+    source_dir: Option<&str>,
+    checker: &TypeChecker,
+    visited: &mut BTreeSet<String>,
+    resolved: &mut BTreeSet<String>,
+) {
+    let Some(source_dir) = source_dir else {
+        return;
+    };
+
+    for stmt in stmts {
+        let Stmt::Import(import_path) = stmt else {
+            continue;
+        };
+        let Some(file_path) = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+        else {
+            continue;
+        };
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.clone());
+        if !visited.insert(canonical) {
+            continue;
+        }
+        let Ok(imported_module) = parse_source_module_file_cached(Path::new(&file_path)) else {
+            continue;
+        };
+        let imported_source = imported_module.source();
+        let imported_dir = Path::new(&file_path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| ".".to_string());
+        let imported_index = scan_meta_comments_with_dir_from_stmts_and_checker(
+            imported_source,
+            imported_module.statements(),
+            Some(imported_dir.clone()),
+            Some(checker),
+        );
+        resolved.extend(imported_index.resolved_binding_names);
+        collect_imported_resolved_meta_binding_names(
+            imported_module.statements(),
+            Some(&imported_dir),
+            checker,
+            visited,
+            resolved,
         );
     }
 }
@@ -2232,6 +2306,7 @@ fn scan_meta_comment_structure_with_rule_symbols(
         anchors,
         spans,
         diagnostics,
+        resolved_binding_names: BTreeSet::new(),
     }
 }
 
@@ -3283,6 +3358,19 @@ fn resolve_meta_references_with_stmts_and_checker(
             }
         }
     }
+
+    let resolved_roots = index
+        .anchors
+        .iter()
+        .flat_map(|anchor| anchor.references.iter())
+        .filter(|reference| reference.static_data.is_some())
+        .map(|reference| reference.binding_name.clone())
+        .collect::<BTreeSet<_>>();
+    index.resolved_binding_names.extend(
+        meta_binding_dependencies(&resolved_roots, &bindings, &checker.constructors)
+            .into_iter()
+            .filter(|name| bindings.contains_key(name)),
+    );
 }
 
 fn collect_invalid_meta_role_values(
@@ -3857,6 +3945,33 @@ Raw additions
         assert_eq!(warnings[0].value_path, "$.warnings[0]");
         assert_eq!(index.references_by_type("Shape"), vec![reference]);
         assert_eq!(index.references_by_type("AuditWarning"), vec![reference]);
+    }
+
+    #[test]
+    fn meta_index_tracks_transitive_pure_ground_binding_dependencies() {
+        let source = r#"
+# SourceInfo(url: String)
+# SourceBundle(source: SourceInfo)
+# impl Meta for SourceBundle {}
+
+= primary_source = SourceInfo(url = "https://example.invalid/source")
+= source_alias = primary_source
+= source_metadata = SourceBundle(source = source_alias)
+
+--@label:calculation::meta:source_metadata--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        assert_eq!(
+            index.resolved_binding_names,
+            BTreeSet::from([
+                "primary_source".to_string(),
+                "source_alias".to_string(),
+                "source_metadata".to_string(),
+            ])
+        );
     }
 
     #[test]
@@ -17098,6 +17213,7 @@ pub struct TypeChecker {
 pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
+    pub compile_time_metadata_bindings: BTreeSet<String>,
 }
 
 impl TypeChecker {
@@ -20928,6 +21044,25 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> TypeCheckArtifacts {
+        Self::check_with_artifact_options(stmts, source_dir, source, false)
+    }
+
+    /// Run type checking and additionally collect compile-time metadata from
+    /// the complete import graph for a Rust-emitting backend.
+    pub fn check_with_backend_artifacts(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+    ) -> TypeCheckArtifacts {
+        Self::check_with_artifact_options(stmts, source_dir, source, true)
+    }
+
+    fn check_with_artifact_options(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+        collect_all_imported_metadata_bindings: bool,
+    ) -> TypeCheckArtifacts {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
@@ -20936,20 +21071,26 @@ impl TypeChecker {
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
         let mut calculation_contracts = Vec::new();
+        let mut compile_time_metadata_bindings = BTreeSet::new();
         if tc.diagnostics.is_empty() {
-            match calculate::extract_calculation_contracts_with_checker(
+            match calculate::extract_calculation_artifacts_with_checker(
                 stmts,
                 source,
                 tc.source_dir.clone(),
                 &tc,
+                collect_all_imported_metadata_bindings,
             ) {
-                Ok(contracts) => calculation_contracts = contracts,
+                Ok(artifacts) => {
+                    calculation_contracts = artifacts.contracts;
+                    compile_time_metadata_bindings = artifacts.compile_time_metadata_bindings;
+                }
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
         TypeCheckArtifacts {
             diagnostics: tc.diagnostics,
             calculation_contracts,
+            compile_time_metadata_bindings,
         }
     }
 
