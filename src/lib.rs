@@ -2032,42 +2032,49 @@ fn collect_imported_meta_anchors_from_stmts(
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
 
-        let mut imported_index =
-            scan_meta_comment_structure_from_stmts(imported_source, imported_module.statements());
-        let targets_calculation = imported_index
-            .anchors
-            .iter()
-            .any(|anchor| labels.contains(&anchor.label))
-            || imported_source.lines().any(|line| {
-                line.trim_start().starts_with("--@")
-                    && labels
-                        .iter()
-                        .any(|label| line.contains(&format!(":{label}")))
-            });
-        imported_index
-            .comments
-            .retain(|comment| labels.contains(&comment.label));
-        imported_index
-            .anchors
-            .retain(|anchor| labels.contains(&anchor.label));
-        imported_index
-            .spans
-            .retain(|span| labels.contains(&span.label));
-        if !targets_calculation {
-            imported_index.diagnostics.clear();
+        if imported_source
+            .lines()
+            .any(|line| meta_comment_line_mentions_labels(line, labels))
+        {
+            let parsed_rule_symbols = imported_source
+                .lines()
+                .any(|line| {
+                    line.trim_start().starts_with("--@begin")
+                        && meta_comment_line_mentions_labels(line, labels)
+                })
+                .then(|| {
+                    let mut symbols = BTreeMap::new();
+                    collect_parsed_meta_rule_symbols(
+                        imported_module.statements(),
+                        imported_source,
+                        &mut symbols,
+                    );
+                    symbols
+                });
+            let mut imported_index =
+                scan_meta_comment_structure_with_rule_symbols(imported_source, parsed_rule_symbols);
+            imported_index
+                .comments
+                .retain(|comment| labels.contains(&comment.label));
+            imported_index
+                .anchors
+                .retain(|anchor| labels.contains(&anchor.label));
+            imported_index
+                .spans
+                .retain(|span| labels.contains(&span.label));
+            if !imported_index.anchors.is_empty() {
+                resolve_meta_references_from_stmts(
+                    imported_source,
+                    imported_module.statements(),
+                    Some(imported_dir.clone()),
+                    &mut imported_index,
+                );
+            }
+            index.comments.extend(imported_index.comments);
+            index.anchors.extend(imported_index.anchors);
+            index.spans.extend(imported_index.spans);
+            index.diagnostics.extend(imported_index.diagnostics);
         }
-        if !imported_index.anchors.is_empty() {
-            resolve_meta_references_from_stmts(
-                imported_source,
-                imported_module.statements(),
-                Some(imported_dir.clone()),
-                &mut imported_index,
-            );
-        }
-        index.comments.extend(imported_index.comments);
-        index.anchors.extend(imported_index.anchors);
-        index.spans.extend(imported_index.spans);
-        index.diagnostics.extend(imported_index.diagnostics);
 
         collect_imported_meta_anchors_from_stmts(
             imported_module.statements(),
@@ -2077,6 +2084,11 @@ fn collect_imported_meta_anchors_from_stmts(
             index,
         );
     }
+}
+
+fn meta_comment_line_mentions_labels(line: &str, labels: &BTreeSet<String>) -> bool {
+    let line = line.trim_start();
+    line.starts_with("--@") && labels.iter().any(|label| line.contains(label))
 }
 
 fn scan_meta_comment_structure(source: &str) -> MetaIndex {
@@ -2895,6 +2907,7 @@ fn collect_local_meta_bindings(
     bindings: &mut BTreeMap<String, MetaBindingDefinition>,
 ) {
     let definition_lines = index_meta_binding_definition_lines(source);
+    let line_starts = source_line_start_offsets(source);
     for stmt in stmts {
         if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
             bindings
@@ -2904,14 +2917,24 @@ fn collect_local_meta_bindings(
                     annotated_type: ty.as_ref().map(ToString::to_string),
                     definition_file: definition_file.map(str::to_string),
                     definition_line: meta_binding_definition_line(
-                        source,
                         name,
                         expr,
                         &definition_lines,
+                        &line_starts,
                     ),
                 });
         }
     }
+}
+
+fn source_line_start_offsets(source: &str) -> Vec<usize> {
+    let mut starts = vec![0];
+    for (offset, character) in source.chars().enumerate() {
+        if character == '\n' {
+            starts.push(offset + 1);
+        }
+    }
+    starts
 }
 
 fn index_meta_binding_definition_lines(source: &str) -> BTreeMap<String, Vec<usize>> {
@@ -2927,7 +2950,6 @@ fn index_meta_binding_definition_lines(source: &str) -> BTreeMap<String, Vec<usi
 fn collect_imported_meta_bindings(
     stmts: &[Stmt],
     source_dir: Option<&str>,
-    sought_bindings: &BTreeSet<String>,
     bindings: &mut BTreeMap<String, MetaBindingDefinition>,
     visited: &mut BTreeSet<String>,
 ) {
@@ -2936,12 +2958,6 @@ fn collect_imported_meta_bindings(
     };
 
     for stmt in stmts {
-        if sought_bindings
-            .iter()
-            .all(|name| bindings.contains_key(name))
-        {
-            break;
-        }
         let Stmt::Import(import_path) = stmt else {
             continue;
         };
@@ -2966,13 +2982,7 @@ fn collect_imported_meta_bindings(
             .parent()
             .map(|parent| parent.to_string_lossy().to_string())
             .unwrap_or_else(|| ".".to_string());
-        collect_imported_meta_bindings(
-            imported_stmts,
-            Some(&nested_dir),
-            sought_bindings,
-            bindings,
-            visited,
-        );
+        collect_imported_meta_bindings(imported_stmts, Some(&nested_dir), bindings, visited);
     }
 }
 
@@ -3101,26 +3111,18 @@ fn resolve_meta_references_with_stmts(
 
     let mut bindings = BTreeMap::new();
     collect_local_meta_bindings(source, stmts, None, &mut bindings);
-    loop {
-        let sought_bindings =
-            meta_binding_dependencies(&referenced_bindings, &bindings, &checker.constructors);
-        if sought_bindings
-            .iter()
-            .all(|name| bindings.contains_key(name))
-        {
-            break;
-        }
-        let previous_binding_count = bindings.len();
+    let sought_bindings =
+        meta_binding_dependencies(&referenced_bindings, &bindings, &checker.constructors);
+    if sought_bindings
+        .iter()
+        .any(|name| !bindings.contains_key(name))
+    {
         collect_imported_meta_bindings(
             stmts,
             source_dir.as_deref(),
-            &sought_bindings,
             &mut bindings,
             &mut BTreeSet::new(),
         );
-        if bindings.len() == previous_binding_count {
-            break;
-        }
     }
 
     let value_bindings: BTreeMap<String, &Expr> = bindings
@@ -3264,12 +3266,12 @@ fn collect_invalid_meta_role_values(
 }
 
 fn meta_binding_definition_line(
-    source: &str,
     name: &str,
     expr: &Expr,
     definition_lines: &BTreeMap<String, Vec<usize>>,
+    line_starts: &[usize],
 ) -> usize {
-    let (expr_line, _) = expr.span.start_line_col(source);
+    let expr_line = line_starts.partition_point(|start| *start <= expr.span.start);
     definition_lines
         .get(name)
         .into_iter()
