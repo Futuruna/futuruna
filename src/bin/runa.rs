@@ -450,6 +450,10 @@ fn main_inner() {
                 mode = "hashes";
                 i += 1;
             }
+            "interface" => {
+                mode = "interface";
+                i += 1;
+            }
             "registry" => {
                 mode = "registry";
                 i += 1;
@@ -709,6 +713,7 @@ fn main_inner() {
                 "run" => build_native(&source, path, true, use_prelude),
                 "lib" => emit_rust_lib(&source, path, use_prelude),
                 "hashes" => show_hashes(&source, path),
+                "interface" => print_semantic_interface_graph(&source, path, use_prelude),
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
                 "check" => check_source(&source, path, use_prelude, check_frontend_only),
@@ -12593,6 +12598,34 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
         }
         Err(e) => {
             display_error_in(source, &e, filename);
+            std::process::exit(1);
+        }
+    }
+}
+
+fn print_semantic_interface_graph(source: &str, filename: &str, use_prelude: bool) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let mut parser = Parser::new(tokens, source);
+    let user_stmts = match parser.parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    match semantic_interface::build_semantic_module_graph(
+        Path::new(filename),
+        source,
+        &user_stmts,
+        use_prelude,
+    ) {
+        Ok(graph) => println!(
+            "{}",
+            serde_json::to_string_pretty(&graph).expect("semantic module graph serializes")
+        ),
+        Err(diagnostics) => {
+            print_type_check_diagnostics(&diagnostics, source, filename);
             std::process::exit(1);
         }
     }

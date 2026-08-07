@@ -261,7 +261,8 @@
       "name": "Helper names, private generated layout, and internal compiler layouts",
       "stage": "unstable-internal",
       "docs": [
-        "docs/artifact-codegen-contracts.md"
+        "docs/artifact-codegen-contracts.md",
+        "docs/rfcs/semantic-module-interfaces.md"
       ]
     }
   ],
@@ -396,9 +397,22 @@
       "stage": "experimental",
       "surface": "internal-codegen-layout",
       "hidden": true
+    },
+    {
+      "name": "interface",
+      "stage": "unstable-internal",
+      "surface": "internal-codegen-layout",
+      "hidden": true
     }
   ],
   "documents": [
+    {
+      "path": "docs/rfcs/semantic-module-interfaces.md",
+      "stage": "unstable-internal",
+      "surfaces": [
+        "internal-codegen-layout"
+      ]
+    },
     {
       "path": "docs/rfcs/typed-program-references.md",
       "stage": "preview",

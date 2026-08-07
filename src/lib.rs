@@ -39,6 +39,7 @@ pub mod calculate;
 /// Lives in its own file so it can be audited in isolation.
 /// See `docs/proof-kernel.md` for the design spec.
 pub mod proof_kernel;
+pub mod semantic_interface;
 
 // ============================================================================
 // PART 1: TOKENS
