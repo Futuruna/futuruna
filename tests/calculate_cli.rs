@@ -1954,11 +1954,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "identifikation",
             "indkomstår",
+            "startdato.år",
+            "startdato.måned",
+            "startdato.dag",
             "rejseart",
             "arbejdssted_identifikation",
             "arbejdsstedskarakter.$variant",
             "overnatningsforhold.$variant",
-            "standardperiode.startgrund.$variant",
             "hverv",
             "varighed_minutter",
             "kost.dækning.$variant",
@@ -1980,11 +1982,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Rejsens identifikation",
             "Rejsens indkomstår",
+            "Rejsens startdato - år",
+            "Rejsens startdato - måned",
+            "Rejsens startdato - dag",
             "Rejsens art",
             "Arbejdsstedets identifikation",
             "Arbejdsstedets karakter",
             "Mulighed for at overnatte hjemme",
-            "Startgrund for 12-månedersperioden",
             "Hverv under rejsen",
             "Rejsens samlede varighed",
             "Arbejdsgiverens dækningsprincip for kost",
@@ -2002,6 +2006,107 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human LL § 9 A input label {expected} on {overnight_travel_sheet}"
+            );
+        }
+        let prior_period_travel_path =
+            "lønmodtager.ligningsfradrag.rejser.arbejdshistorik.tidligere_perioderejser";
+        let prior_period_travel_sheet =
+            workbook_collection_sheet_name(&mut workbook, prior_period_travel_path);
+        let prior_period_travel_paths =
+            workbook_column_paths(&mut workbook, &prior_period_travel_sheet);
+        for expected in [
+            "identifikation",
+            "startdato.år",
+            "startdato.måned",
+            "startdato.dag",
+            "arbejdssted_identifikation",
+        ] {
+            assert!(
+                prior_period_travel_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical LL § 9 A prior-period path {expected} on {prior_period_travel_sheet}"
+            );
+        }
+        let prior_period_travel_headers =
+            workbook_headers(&mut workbook, &prior_period_travel_sheet);
+        for expected in [
+            "Tidligere rejses identifikation",
+            "Tidligere rejses startdato - år",
+            "Tidligere rejses startdato - måned",
+            "Tidligere rejses startdato - dag",
+            "Tidligere rejses arbejdssted",
+        ] {
+            assert!(
+                prior_period_travel_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 9 A prior-period label {expected} on {prior_period_travel_sheet}"
+            );
+        }
+        let workday_path = "lønmodtager.ligningsfradrag.rejser.arbejdshistorik.arbejdsdage";
+        let workday_sheet = workbook_collection_sheet_name(&mut workbook, workday_path);
+        let workday_paths = workbook_column_paths(&mut workbook, &workday_sheet);
+        for expected in [
+            "dato.år",
+            "dato.måned",
+            "dato.dag",
+            "sted.$variant",
+            "sted.Ll9AArbejdePåReeltArbejdssted.arbejdssted_identifikation",
+        ] {
+            assert!(
+                workday_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 9 A workday path {expected} on {workday_sheet}"
+            );
+        }
+        let workday_headers = workbook_headers(&mut workbook, &workday_sheet);
+        for expected in [
+            "Arbejdsdagens dato - år",
+            "Arbejdsdagens dato - måned",
+            "Arbejdsdagens dato - dag",
+            "Arbejdsdagens stedstype",
+            "Arbejdsdagens reelle arbejdssted",
+        ] {
+            assert!(
+                workday_headers.iter().any(|header| header == expected),
+                "missing human LL § 9 A workday label {expected} on {workday_sheet}"
+            );
+        }
+        let workplace_distance_path =
+            "lønmodtager.ligningsfradrag.rejser.arbejdshistorik.arbejdsstedsafstande";
+        let workplace_distance_sheet =
+            workbook_collection_sheet_name(&mut workbook, workplace_distance_path);
+        let workplace_distance_paths =
+            workbook_column_paths(&mut workbook, &workplace_distance_sheet);
+        for expected in [
+            "fra_arbejdssted_identifikation",
+            "til_arbejdssted_identifikation",
+            "gældende_fra.år",
+            "gældende_fra.måned",
+            "gældende_fra.dag",
+            "afstand_ad_normal_transportvej_kilometer",
+        ] {
+            assert!(
+                workplace_distance_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical LL § 9 A workplace-distance path {expected} on {workplace_distance_sheet}"
+            );
+        }
+        let workplace_distance_headers = workbook_headers(&mut workbook, &workplace_distance_sheet);
+        for expected in [
+            "Afstand fra arbejdssted",
+            "Afstand til arbejdssted",
+            "Afstand gældende fra - år",
+            "Afstand gældende fra - måned",
+            "Afstand gældende fra - dag",
+            "Afstand ad normal transportvej",
+        ] {
+            assert!(
+                workplace_distance_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 9 A workplace-distance label {expected} on {workplace_distance_sheet}"
             );
         }
         let lodging_day_path = format!("{overnight_travel_path}.logidøgn");
@@ -9470,6 +9575,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "rejser": {
                     "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                     "rejser": [],
+                    "arbejdshistorik": {
+                        "tidligere_perioderejser": [],
+                        "arbejdsdage": [],
+                        "arbejdsstedsafstande": []
+                    },
                     "dobbelt_husførelse": {
                         "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
                     }
@@ -10941,6 +11051,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "rejser": {
                         "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                         "rejser": [],
+                        "arbejdshistorik": {
+                            "tidligere_perioderejser": [],
+                            "arbejdsdage": [],
+                            "arbejdsstedsafstande": []
+                        },
                         "dobbelt_husførelse": {
                             "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
                         }
@@ -14118,6 +14233,9 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
         for (path, value) in [
             ("identifikation", Data::String("xlsx-rejse".to_string())),
             ("indkomstår", Data::Int(2026)),
+            ("startdato.år", Data::Int(2026)),
+            ("startdato.måned", Data::Int(3)),
+            ("startdato.dag", Data::Int(1)),
             ("rejseart", Data::String("Ll9ATjenesterejse".to_string())),
             (
                 "arbejdssted_identifikation",
@@ -14145,11 +14263,6 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
                 "overnatningsforhold.Ll9AIngenMulighedForOvernatningPåSædvanligBopæl.korteste_transporttid_hver_vej_minutter",
                 Data::Int(240),
             ),
-            (
-                "standardperiode.startgrund.$variant",
-                Data::String("Ll9AFørstePeriodePåArbejdsstedet".to_string()),
-            ),
-            ("standardperiode.fulde_måneder_siden_periodestart", Data::Int(2)),
             ("hverv", Data::String("Ll9AAlmindeligtHverv".to_string())),
             ("varighed_minutter", Data::Int(2880)),
             (

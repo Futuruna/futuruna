@@ -14,6 +14,7 @@ personens valg om faktisk at anvende fradraget.
 | personskat_rejsefradrag_rejse() -> Ligningslov9ARejsefakta(
     identifikation = "kanonisk-rejse-2026",
     indkomstår = 2026,
+    startdato = Dato(år = 2026, måned = 3, dag = 1),
     rejseart = Ll9ATjenesterejse,
     arbejdssted_identifikation = "projektsted-a",
     arbejdsstedskarakter = Ll9AStedbundetArbejdssted(
@@ -22,10 +23,6 @@ personens valg om faktisk at anvende fradraget.
     overnatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(
         afstand_ad_normal_transportvej_kilometer = 350,
         korteste_transporttid_hver_vej_minutter = 240
-    ),
-    standardperiode = Ligningslov9AStandardperiodefakta(
-        startgrund = Ll9AFørstePeriodePåArbejdsstedet,
-        fulde_måneder_siden_periodestart = 2
     ),
     hverv = Ll9AAlmindeligtHverv,
     varighed_minutter = 2880,
@@ -62,6 +59,11 @@ personens valg om faktisk at anvende fradraget.
 | personskat_rejsefradrag_årsinput() -> Ligningslov9AÅrsinput(
     personrolle = Ll9AAlmindeligLønmodtager,
     rejser = [personskat_rejsefradrag_rejse()],
+    arbejdshistorik = Ligningslov9AArbejdshistorik(
+        tidligere_perioderejser = [],
+        arbejdsdage = [],
+        arbejdsstedsafstande = []
+    ),
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
 )
 

@@ -49,6 +49,13 @@
     }
 }
 | dato_plus_år(dato: Dato, år: Heltal) -> dato_plus_måneder(dato, år * 12)
+| dato_fulde_måneder_mellem(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) {
+    = rå_måneder = dato_månedsindeks(til_dato) - dato_månedsindeks(fra_dato)
+    = rå_månedsdag = dato_plus_måneder(fra_dato, rå_måneder)
+    hvis dato_efter(rå_månedsdag, til_dato) { rå_måneder - 1 } ellers { rå_måneder }
+} ellers {
+    0
+}
 | dato_næste_dag(dato: Dato) -> hvis dato_gyldig(dato) == Falskt {
     dato_ugyldig()
 } ellers hvis dato.dag < dato_dage_i_måned(dato.år, dato.måned) {

@@ -31,6 +31,27 @@
     help = None,
     unit = Some("år")
 )
+= personskat_ll9a_felt_startdato_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::startdato::år),
+    label = "Rejsens startdato - år",
+    question = Some("I hvilket år begyndte rejsen?"),
+    help = Some("Startdatoen bruges til at udlede den gældende 12-månedersperiode."),
+    unit = Some("år")
+)
+= personskat_ll9a_felt_startdato_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::startdato::måned),
+    label = "Rejsens startdato - måned",
+    question = Some("I hvilken måned begyndte rejsen?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_startdato_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::startdato::dag),
+    label = "Rejsens startdato - dag",
+    question = Some("På hvilken dag i måneden begyndte rejsen?"),
+    help = None,
+    unit = Some("dag")
+)
 = personskat_ll9a_felt_rejseart = TypetBeregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::rejseart),
     label = "Rejsens art",
@@ -87,33 +108,138 @@
     help = None,
     unit = Some("minutter")
 )
-= personskat_ll9a_felt_standardperiodestart = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::$variant),
-    label = "Startgrund for 12-månedersperioden",
-    question = Some("Hvorfor begynder en ny periode for koststandardsatsen?"),
-    help = Some("En ny periode begynder ved første arbejdsperiode, et nyt arbejdssted mindst 8 km væk eller tilbagevenden efter mindst 40 sammenhængende arbejdsdage på et andet sted."),
+= personskat_ll9a_felt_tidligere_perioderejser = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser),
+    label = "Tidligere rejser til perioderegistrering",
+    question = Some("Hvilke tidligere rejser er nødvendige for at fastlægge de aktuelle 12-månedersperioder?"),
+    help = Some("Medtag kun tidligere rejser, der begyndte før de aktuelle rejser, og som ikke var undtaget fra 12-månedersbegrænsningen."),
     unit = None
 )
-= personskat_ll9a_felt_nyt_arbejdssted_afstand = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::Ll9ANytArbejdsstedFraTidligere::afstand_ad_normal_transportvej_kilometer),
-    label = "Afstand til det nye arbejdssted",
-    question = Some("Hvor langt ligger det nye arbejdssted fra det tidligere arbejdssted ad normal transportvej?"),
-    help = Some("Afstanden skal være mindst 8 km for at starte en ny 12-månedersperiode."),
+= personskat_ll9a_felt_tidligere_perioderejse_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser::identifikation),
+    label = "Tidligere rejses identifikation",
+    question = Some("Hvilken entydig identifikation har den tidligere rejse?"),
+    help = Some("Identifikationen skal være forskellig fra alle aktuelle og øvrige tidligere rejser."),
+    unit = None
+)
+= personskat_ll9a_felt_tidligere_perioderejse_startår = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser::startdato::år),
+    label = "Tidligere rejses startdato - år",
+    question = Some("I hvilket år begyndte den tidligere rejse?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9a_felt_tidligere_perioderejse_startmåned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser::startdato::måned),
+    label = "Tidligere rejses startdato - måned",
+    question = Some("I hvilken måned begyndte den tidligere rejse?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_tidligere_perioderejse_startdag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser::startdato::dag),
+    label = "Tidligere rejses startdato - dag",
+    question = Some("På hvilken dag i måneden begyndte den tidligere rejse?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ll9a_felt_tidligere_perioderejse_arbejdssted = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::tidligere_perioderejser::arbejdssted_identifikation),
+    label = "Tidligere rejses arbejdssted",
+    question = Some("Hvilket arbejdssted vedrørte den tidligere rejse?"),
+    help = Some("Brug samme stabile arbejdsstedsidentifikation som på aktuelle rejser og arbejdsdage."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdsdage = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage),
+    label = "Daterede arbejdsdage mellem rejser",
+    question = Some("Hvilke arbejdsdage mellem rejserne er nødvendige for at vurdere en tilbagevenden?"),
+    help = Some("Arbejdsdage på en privat bopæl registreres særskilt og tæller ikke som arbejde på et andet arbejdssted."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdsdag_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::år),
+    label = "Arbejdsdagens dato - år",
+    question = Some("I hvilket år lå arbejdsdagen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9a_felt_arbejdsdag_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::måned),
+    label = "Arbejdsdagens dato - måned",
+    question = Some("I hvilken måned lå arbejdsdagen?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_arbejdsdag_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::dato::dag),
+    label = "Arbejdsdagens dato - dag",
+    question = Some("På hvilken dag i måneden lå arbejdsdagen?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ll9a_felt_arbejdsdag_stedstype = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::sted::$variant),
+    label = "Arbejdsdagens stedstype",
+    question = Some("Blev arbejdet udført på et reelt arbejdssted eller på den private bopæl?"),
+    help = Some("Kun arbejde på et reelt andet arbejdssted kan indgå i de 40 arbejdsdage."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdsdag_arbejdssted = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsdage::sted::Ll9AArbejdePåReeltArbejdssted::arbejdssted_identifikation),
+    label = "Arbejdsdagens reelle arbejdssted",
+    question = Some("På hvilket reelt arbejdssted blev arbejdet udført?"),
+    help = Some("Feltet udfyldes kun, når stedstypen er et reelt arbejdssted."),
+    unit = None
+)
+= personskat_ll9a_felt_arbejdsstedsafstande = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande),
+    label = "Afstande mellem arbejdssteder",
+    question = Some("Hvilke afstande ad normal transportvej gælder mellem de berørte arbejdssteder?"),
+    help = Some("Registrer en ny række, når en afstand ændrer sig; Futuruna anvender den seneste række, der var gældende på rejsens startdato."),
+    unit = None
+)
+= personskat_ll9a_felt_afstand_fra_arbejdssted = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::fra_arbejdssted_identifikation),
+    label = "Afstand fra arbejdssted",
+    question = Some("Hvilket arbejdssted måles afstanden fra?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9a_felt_afstand_til_arbejdssted = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::til_arbejdssted_identifikation),
+    label = "Afstand til arbejdssted",
+    question = Some("Hvilket arbejdssted måles afstanden til?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9a_felt_afstand_gældende_fra_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::år),
+    label = "Afstand gældende fra - år",
+    question = Some("Fra hvilket år gælder afstanden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9a_felt_afstand_gældende_fra_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::måned),
+    label = "Afstand gældende fra - måned",
+    question = Some("Fra hvilken måned gælder afstanden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_afstand_gældende_fra_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::gældende_fra::dag),
+    label = "Afstand gældende fra - dag",
+    question = Some("Fra hvilken dag i måneden gælder afstanden?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ll9a_felt_afstand_kilometer = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::arbejdshistorik::arbejdsstedsafstande::afstand_ad_normal_transportvej_kilometer),
+    label = "Afstand ad normal transportvej",
+    question = Some("Hvor mange kilometer er der mellem arbejdsstederne ad normal transportvej?"),
+    help = Some("Mindst 8 km starter en ny 12-månedersperiode ved skift til et nyt midlertidigt arbejdssted."),
     unit = Some("km")
-)
-= personskat_ll9a_felt_andet_arbejdssted_dage = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::startgrund::Ll9ATilbagevendenEfterAndetArbejdssted::sammenhængende_arbejdsdage),
-    label = "Arbejdsdage på et andet arbejdssted",
-    question = Some("Hvor mange sammenhængende arbejdsdage gik der på et andet arbejdssted før tilbagevenden?"),
-    help = Some("Mindst 40 sammenhængende arbejdsdage starter en ny 12-månedersperiode ved tilbagevenden."),
-    unit = Some("arbejdsdage")
-)
-= personskat_ll9a_felt_fulde_måneder = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::standardperiode::fulde_måneder_siden_periodestart),
-    label = "Fulde måneder siden periodestart",
-    question = Some("Hvor mange fulde måneder er gået siden den aktuelle standardperiodes start?"),
-    help = Some("Kost- og småfornødenhedssatsen ophører efter de første 12 måneder, medmindre arbejdsstedet er undtaget."),
-    unit = Some("måneder")
 )
 = personskat_ll9a_felt_hverv = TypetBeregningsfelt(
     path = refof(Ligningslov9AÅrsinput::rejser::hverv),
@@ -339,6 +465,9 @@
         personskat_ll9a_felt_rejser,
         personskat_ll9a_felt_identifikation,
         personskat_ll9a_felt_indkomstår,
+        personskat_ll9a_felt_startdato_år,
+        personskat_ll9a_felt_startdato_måned,
+        personskat_ll9a_felt_startdato_dag,
         personskat_ll9a_felt_rejseart,
         personskat_ll9a_felt_arbejdssted_identifikation,
         personskat_ll9a_felt_arbejdsstedskarakter,
@@ -347,10 +476,25 @@
         personskat_ll9a_felt_overnatningsforhold,
         personskat_ll9a_felt_bopælsafstand,
         personskat_ll9a_felt_transporttid,
-        personskat_ll9a_felt_standardperiodestart,
-        personskat_ll9a_felt_nyt_arbejdssted_afstand,
-        personskat_ll9a_felt_andet_arbejdssted_dage,
-        personskat_ll9a_felt_fulde_måneder,
+        personskat_ll9a_felt_tidligere_perioderejser,
+        personskat_ll9a_felt_tidligere_perioderejse_identifikation,
+        personskat_ll9a_felt_tidligere_perioderejse_startår,
+        personskat_ll9a_felt_tidligere_perioderejse_startmåned,
+        personskat_ll9a_felt_tidligere_perioderejse_startdag,
+        personskat_ll9a_felt_tidligere_perioderejse_arbejdssted,
+        personskat_ll9a_felt_arbejdsdage,
+        personskat_ll9a_felt_arbejdsdag_år,
+        personskat_ll9a_felt_arbejdsdag_måned,
+        personskat_ll9a_felt_arbejdsdag_dag,
+        personskat_ll9a_felt_arbejdsdag_stedstype,
+        personskat_ll9a_felt_arbejdsdag_arbejdssted,
+        personskat_ll9a_felt_arbejdsstedsafstande,
+        personskat_ll9a_felt_afstand_fra_arbejdssted,
+        personskat_ll9a_felt_afstand_til_arbejdssted,
+        personskat_ll9a_felt_afstand_gældende_fra_år,
+        personskat_ll9a_felt_afstand_gældende_fra_måned,
+        personskat_ll9a_felt_afstand_gældende_fra_dag,
+        personskat_ll9a_felt_afstand_kilometer,
         personskat_ll9a_felt_hverv,
         personskat_ll9a_felt_varighed,
         personskat_ll9a_felt_kostdækning,
@@ -387,6 +531,7 @@
     beløbsfelter = [],
     attachments = (
         Source(value = ligningsloven_lbk1500_par9a),
+        Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),
         DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
         RateSource(value = skatteforvaltningen_rejsesatser_2025),
         RateSource(value = skatteforvaltningen_rejsesatser_2026),
@@ -398,6 +543,8 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),
         Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
         Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+        Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
+        Practice(value = skatterådet_skm2021_130_sr),
     )
 )
 

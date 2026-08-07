@@ -4,7 +4,8 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
 Current implementation slice: `td-6fe980` (Kildeskattelovens § 60-kreditter og §§ 61-62-slutopgørelse har nu en ørepræcis kanonisk grænse; hele-krone-input bevares gennem en tabsfri kompatibilitetsadapter, og udbetaling/opkrævning afrundes først ved de udtrykkelige lovtrin)
-Current LL § 9 A granularity slice: `td-45f9fb` (kostprincippet gælder for hele rejsen, mens logidækning, godtgørelse og standard- eller dokumenteret fradrag afgøres pr. rejsedøgn; allerede lønopdelt overskud bevares som supplerende løn)
+Current LL § 9 A period slice: `td-3515b8` (12-månedersperioden udledes nu af rejsedatoer, tidligere perioderejser, daterede arbejdsdage og effektive afstande mellem arbejdssteder; 8 km, 40 arbejdsdage, privat hjemmearbejde og manglende afstande er verificeret i interpreter, compiler og XLSX)
+Previous LL § 9 A granularity slice: `td-45f9fb` (kostprincippet gælder for hele rejsen, mens logidækning, godtgørelse og standard- eller dokumenteret fradrag afgøres pr. rejsedøgn; allerede lønopdelt overskud bevares som supplerende løn)
 Previous ABL reporting slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
@@ -397,11 +398,12 @@ Den almindelige rejsegodtgørelses- og fradragsgren efter LL § 9 A, stk. 1-9,
 er nu implementeret i `td-d17087`. Korpusset bevarer den fulde gældende ordlyd
 af § 9 A, stk. 1-13, samt § 9, stk. 2 og 4, og bruger de officielle satser for
 2025 og 2026. Et `Ligningslov9AÅrsinput` samler personrollen, identificerede
-rejser og et eventuelt særskilt opgjort fradrag for dobbelt husførelse. Hver
-rejse bærer arbejdsstedets faktiske karakter, overnatningsforhold,
-12-månedersperiodens startgrund, hverv, varighed, måltider, arbejdsgiverkontrol,
+rejser, en dateret arbejdshistorik og et eventuelt særskilt opgjort fradrag for
+dobbelt husførelse. Hver rejse bærer startdato, arbejdsstedets faktiske
+karakter, overnatningsforhold, hverv, varighed, måltider, arbejdsgiverkontrol,
 lønomlægning, udbetalt godtgørelse, egne udgifter, fradragsvalg og
-indkomstforhold. Reglerne udleder rejsebetingelserne, standardsatserne,
+indkomstforhold. Reglerne udleder rejsebetingelserne, 12-månedersperioden,
+standardsatserne,
 måltidsreduktionen, 25 pct.-satsen, skattefri og skattepligtig godtgørelse,
 faktisk eller standardiseret fradrag, udlandsindkomstloftet og det fælles
 årsloft. Ugyldige fakta fejler lukket, mens en udbetalt godtgørelse bevares som
@@ -436,15 +438,26 @@ genbruges pr. rejserække. Det særskilt opgjorte fradrag for dobbelt husførels
 reducerer allerede det fælles loft, men selve fradragsretten og det kanonisk
 anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
 fiskerfradrag følges fortsat i henholdsvis `td-80c439` og `td-5759f5`.
-Den tidsmæssige 12-månedersperiode valideres aktuelt ud fra hver rejses typede
-startgrund og antal forløbne måneder; afledning fra dateret arbejdsstedshistorik
-og beskyttelse mod gentagne førstegangsperioder spores i `td-3515b8`.
+Afledning af undtagelsen for enkeltstående kortvarige tjenesterejser fra
+observerbare rejsefakta frem for en klassifikationsvariant spores i
+`td-bc07c9`.
+Den tidsmæssige 12-månedersperiode er nu kildeafledt i `td-3515b8`. Et årligt
+forløb sorterer aktuelle og tidligere perioderejser efter startdato, bærer den
+aktive periodestart mellem gentagne rejser og udleder en ny periode ved mindst
+8 km til et nyt arbejdssted eller ved tilbagevenden efter mindst 40 daterede
+arbejdsdage på et reelt andet arbejdssted. 39 dage fortsætter den gamle
+periode, arbejde på privat bopæl tæller ikke, og en manglende eller tvetydig
+effektiv afstand fejler lukket. Resultatet bevarer overgangsgrund,
+periodestart, udløbsdato, fulde måneder og aktiv status som auditdata; ingen
+rejserække kan længere erklære sin egen førstegangs- eller resetstatus.
 
 Den fokuserede grænse
 `@ calculate("Rejseopgørelse efter ligningslovens § 9 A")` genererer en
 relationel XLSX-arbejdsbog med danske etiketter, interviewspørgsmål, dropdowns,
-enheder og typede kildespor. Logidøgn ligger i en underordnet relationel tabel,
-så hvert døgns dækning, afregning og fradragsprincip kan udfyldes særskilt. En
+enheder og typede kildespor. Ud over logidøgnstabellen genereres særskilte
+relationelle tabeller for tidligere perioderejser, daterede arbejdsdage og
+effektivt daterede afstande mellem arbejdssteder. Arbejdsbogen spørger dermed
+kun efter observerbare fakta og ikke efter juridiske periodekonklusioner. En
 JSON-hydreret rejserække er læst tilbage fra XLSX og beregnet til 800 kr.
 skattefri godtgørelse, 0 kr. skattepligtig godtgørelse og 986 kr.
 rejsefradrag uden diagnostikker; en fokuseret arbejdsbogstest bevarer desuden

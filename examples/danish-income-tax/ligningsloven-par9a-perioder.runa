@@ -1,0 +1,198 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./kalenderdato
+
+# Ligningslov9APeriodeKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ligningsloven_lbk1500_par9a_stk5_og_stk6 = Ligningslov9APeriodeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 9 A, stk. 5-6, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 06/08/2026 gennemgået; stk. 5-6 er uændrede"
+)
+= juridisk_vejledning_ligningslov9a_standardperioder = Ligningslov9APeriodeKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976865",
+    identifier = "Den juridiske vejledning C.A.7.2.5.1: Rejsegodtgørelse med standardsats for kost og småfornødenheder",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende vejledning om 12-månedersperioder, arbejdsstedsskift og 40 arbejdsdage kontrolleret 06/08/2026"
+)
+= skatterådet_skm2021_130_sr = Ligningslov9APeriodeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2021/9321",
+    identifier = "SKM2021.130.SR: Afbrydelse af 12-månedersgrænsen i ligningslovens § 9 A, stk. 6",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Gældende bindende svar om, at arbejde på den private bopæl ikke er arbejde på et andet arbejdssted"
+)
+= ligningslov9a_standardperiodemetadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),
+        Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
+        Practice(value = skatterådet_skm2021_130_sr),
+    )
+)
+
+--@label:ligningsloven_par9a_standardperioder::meta:ligningslov9a_standardperiodemetadata--
+----
+Stk. 5. Stk. 1-4 finder kun anvendelse, når rejsen varer mindst 24 timer. Det
+enkelte arbejdssted, jf. stk. 1, kan ved anvendelsen af standardsatserne i stk.
+2, nr. 1-3, og stk. 4 højst anses for midlertidigt i de første 12 måneder. 2.
+pkt. finder ikke anvendelse, når arbejdsstedet er mobilt eller i takt med
+arbejdets udførelse eller færdiggørelse flytter sig over en strækning på mindst
+8 km. 2. pkt. finder endvidere ikke anvendelse i forhold til godtgørelser, der
+udbetales i forbindelse med enkeltstående kortvarige tjenesterejser til samme
+midlertidige arbejdssted.
+
+Stk. 6. En ny 12-måneders-periode påbegyndes, når lønmodtageren skifter til et
+nyt midlertidigt arbejdssted, der ligger mindst 8 km ad normal transportvej fra
+det tidligere arbejdssted, eller når lønmodtageren har arbejdet i en
+sammenhængende periode på mindst 40 arbejdsdage på et andet arbejdssted før
+tilbagevenden til det tidligere midlertidige arbejdssted.
+----
+
+--@begin:ligningsloven_par9a_standardperioder--
+
+# Ligningslov9AArbejdsdagssted = Ll9AArbejdePåReeltArbejdssted(arbejdssted_identifikation: Tekst) | Ll9AArbejdePåPrivatBopæl
+# Ligningslov9AArbejdsdag(dato: Dato, sted: Ligningslov9AArbejdsdagssted)
+# Ligningslov9AArbejdsstedsafstand(fra_arbejdssted_identifikation: Tekst, til_arbejdssted_identifikation: Tekst, gældende_fra: Dato, afstand_ad_normal_transportvej_kilometer: Heltal)
+# Ligningslov9APerioderejse(identifikation: Tekst, startdato: Dato, arbejdssted_identifikation: Tekst)
+# Ligningslov9AArbejdshistorik(tidligere_perioderejser: List(Ligningslov9APerioderejse), arbejdsdage: List(Ligningslov9AArbejdsdag), arbejdsstedsafstande: List(Ligningslov9AArbejdsstedsafstand))
+# Ligningslov9APeriodeovergang = Ll9AFørsteRegistreredeRejse | Ll9ASammeArbejdsstedFortsætter | Ll9ANytArbejdsstedStarterPeriode(afstand_ad_normal_transportvej_kilometer: Heltal) | Ll9ANytArbejdsstedDelerPeriode(afstand_ad_normal_transportvej_kilometer: Heltal) | Ll9ATilbagevendenStarterPeriode(sammenhængende_arbejdsdage: Heltal) | Ll9ATilbagevendenFortsætterPeriode(sammenhængende_arbejdsdage: Heltal) | Ll9AUgyldigPeriodeovergang
+# Ligningslov9AStandardperioderesultat(rejse: Ligningslov9APerioderejse, input_gyldigt: Boolsk, overgang: Ligningslov9APeriodeovergang, periodestart_dato: Dato, periodeudløb_dato: Dato, fulde_måneder_siden_periodestart: Heltal, aktiv_for_kost: Boolsk)
+# Ligningslov9AStandardperiodeforløb(resultater: List(Ligningslov9AStandardperioderesultat), alle_input_gyldige: Boolsk)
+# Ligningslov9AAfstandsopslag = Ll9AAfstandFundet(fakta: Ligningslov9AArbejdsstedsafstand) | Ll9AAfstandMangler | Ll9AAfstandTvetydig
+
+| ligningslov9a_arbejdsdagssted_gyldigt(sted: Ligningslov9AArbejdsdagssted) -> match sted {
+    | Ll9AArbejdePåReeltArbejdssted(arbejdssted_identifikation) -> arbejdssted_identifikation != ""
+    | Ll9AArbejdePåPrivatBopæl -> Sandt
+}
+| ligningslov9a_arbejdsdag_gyldig(arbejdsdag: Ligningslov9AArbejdsdag) -> dato_gyldig(arbejdsdag.dato) && ligningslov9a_arbejdsdagssted_gyldigt(arbejdsdag.sted)
+| ligningslov9a_arbejdsdag_sorteringsnøgle(arbejdsdag: Ligningslov9AArbejdsdag) -> dato_nøgle(arbejdsdag.dato)
+| ligningslov9a_arbejdsdage_sorteret(arbejdsdage: List(Ligningslov9AArbejdsdag)) -> sort_by(arbejdsdage, ligningslov9a_arbejdsdag_sorteringsnøgle)
+| ligningslov9a_arbejdsdage_har_entydige_datoer(arbejdsdage: List(Ligningslov9AArbejdsdag)) -> length(distinct(map(arbejdsdage, |arbejdsdag: Ligningslov9AArbejdsdag| dato_nøgle(arbejdsdag.dato)))) == length(arbejdsdage)
+| ligningslov9a_arbejdsstedsafstand_gyldig(afstand: Ligningslov9AArbejdsstedsafstand) -> afstand.fra_arbejdssted_identifikation != "" && afstand.til_arbejdssted_identifikation != "" && afstand.fra_arbejdssted_identifikation != afstand.til_arbejdssted_identifikation && dato_gyldig(afstand.gældende_fra) && afstand.afstand_ad_normal_transportvej_kilometer >= 0
+| ligningslov9a_arbejdshistorik_grunddata_gyldige(historik: Ligningslov9AArbejdshistorik) -> ligningslov9a_arbejdsdage_har_entydige_datoer(historik.arbejdsdage) && all(historik.arbejdsdage, ligningslov9a_arbejdsdag_gyldig) && all(historik.arbejdsstedsafstande, ligningslov9a_arbejdsstedsafstand_gyldig)
+
+| ligningslov9a_perioderejse_gyldig(rejse: Ligningslov9APerioderejse) -> rejse.identifikation != "" && dato_gyldig(rejse.startdato) && rejse.arbejdssted_identifikation != ""
+| ligningslov9a_perioderejse_sorteringsnøgle(rejse: Ligningslov9APerioderejse) -> dato_nøgle(rejse.startdato)
+| ligningslov9a_perioderejser_sorteret(rejser: List(Ligningslov9APerioderejse)) -> sort_by(rejser, ligningslov9a_perioderejse_sorteringsnøgle)
+| ligningslov9a_perioderejser_entydige(rejser: List(Ligningslov9APerioderejse)) -> length(distinct(map(rejser, |rejse: Ligningslov9APerioderejse| rejse.identifikation))) == length(rejser) && length(distinct(map(rejser, |rejse: Ligningslov9APerioderejse| dato_nøgle(rejse.startdato)))) == length(rejser)
+| ligningslov9a_tidligere_perioderejser_ligger_før_aktuelle(historik: Ligningslov9AArbejdshistorik, aktuelle_rejser: List(Ligningslov9APerioderejse)) -> hvis length(historik.tidligere_perioderejser) == 0 || length(aktuelle_rejser) == 0 {
+    Sandt
+} ellers {
+    = første_aktuelle_dato = head(ligningslov9a_perioderejser_sorteret(aktuelle_rejser)).startdato
+    all(historik.tidligere_perioderejser, |rejse: Ligningslov9APerioderejse| dato_før(rejse.startdato, første_aktuelle_dato))
+}
+
+| ligningslov9a_afstand_matcher_arbejdssteder(afstand: Ligningslov9AArbejdsstedsafstand, første: Tekst, andet: Tekst) -> afstand.fra_arbejdssted_identifikation == første && afstand.til_arbejdssted_identifikation == andet || afstand.fra_arbejdssted_identifikation == andet && afstand.til_arbejdssted_identifikation == første
+| ligningslov9a_afstandsopslag(historik: Ligningslov9AArbejdshistorik, første: Tekst, andet: Tekst, på_dato: Dato) -> hvis første == andet {
+    Ll9AAfstandFundet(fakta = Ligningslov9AArbejdsstedsafstand(
+        fra_arbejdssted_identifikation = første,
+        til_arbejdssted_identifikation = andet,
+        gældende_fra = på_dato,
+        afstand_ad_normal_transportvej_kilometer = 0
+    ))
+} ellers {
+    = kandidater = sort_by(
+        filter(historik.arbejdsstedsafstande, |afstand: Ligningslov9AArbejdsstedsafstand| ligningslov9a_afstand_matcher_arbejdssteder(afstand, første, andet) && dato_før_eller_lig_med(afstand.gældende_fra, på_dato)),
+        |afstand: Ligningslov9AArbejdsstedsafstand| dato_nøgle(afstand.gældende_fra)
+    )
+    hvis length(kandidater) == 0 {
+        Ll9AAfstandMangler
+    } ellers {
+        = seneste_dato = last(kandidater).gældende_fra
+        = seneste = filter(kandidater, |afstand: Ligningslov9AArbejdsstedsafstand| afstand.gældende_fra == seneste_dato)
+        hvis length(seneste) == 1 { Ll9AAfstandFundet(fakta = head(seneste)) } ellers { Ll9AAfstandTvetydig }
+    }
+}
+| ligningslov9a_afstandsopslag_gyldigt(opslag: Ligningslov9AAfstandsopslag) -> match opslag {
+    | Ll9AAfstandFundet(_) -> Sandt
+    | _ -> Falskt
+}
+| ligningslov9a_afstandsopslag_kilometer(opslag: Ligningslov9AAfstandsopslag) -> match opslag {
+    | Ll9AAfstandFundet(fakta) -> fakta.afstand_ad_normal_transportvej_kilometer
+    | _ -> 0
+}
+
+| ligningslov9a_resultater_på_arbejdssted(resultater: List(Ligningslov9AStandardperioderesultat), arbejdssted_identifikation: Tekst) -> filter(resultater, |resultat: Ligningslov9AStandardperioderesultat| resultat.rejse.arbejdssted_identifikation == arbejdssted_identifikation)
+| ligningslov9a_seneste_resultat_på_arbejdssted(resultater: List(Ligningslov9AStandardperioderesultat), arbejdssted_identifikation: Tekst) -> {
+    = stedresultater = ligningslov9a_resultater_på_arbejdssted(resultater, arbejdssted_identifikation)
+    hvis length(stedresultater) == 0 { None } ellers { Some(last(stedresultater)) }
+}
+| ligningslov9a_arbejdsdag_er_på_arbejdssted(arbejdsdag: Ligningslov9AArbejdsdag, arbejdssted_identifikation: Tekst) -> match arbejdsdag.sted {
+    | Ll9AArbejdePåReeltArbejdssted(identifikation) -> identifikation == arbejdssted_identifikation
+    | Ll9AArbejdePåPrivatBopæl -> Falskt
+}
+| ligningslov9a_arbejdsdag_er_på_reelt_andet_arbejdssted(arbejdsdag: Ligningslov9AArbejdsdag, arbejdssted_identifikation: Tekst) -> match arbejdsdag.sted {
+    | Ll9AArbejdePåReeltArbejdssted(identifikation) -> identifikation != arbejdssted_identifikation
+    | Ll9AArbejdePåPrivatBopæl -> Falskt
+}
+| ligningslov9a_seneste_målarbejdsdato_før_rejse(historik: Ligningslov9AArbejdshistorik, tidligere_resultat: Ligningslov9AStandardperioderesultat, rejse: Ligningslov9APerioderejse) -> {
+    = tidligere_målarbejdsdage = ligningslov9a_arbejdsdage_sorteret(filter(historik.arbejdsdage, |arbejdsdag: Ligningslov9AArbejdsdag| dato_før(arbejdsdag.dato, rejse.startdato) && ligningslov9a_arbejdsdag_er_på_arbejdssted(arbejdsdag, rejse.arbejdssted_identifikation)))
+    hvis length(tidligere_målarbejdsdage) == 0 || dato_efter(tidligere_resultat.rejse.startdato, last(tidligere_målarbejdsdage).dato) { tidligere_resultat.rejse.startdato } ellers { last(tidligere_målarbejdsdage).dato }
+}
+| ligningslov9a_arbejdsdage_andetsteds_siden_sidste_mål(historik: Ligningslov9AArbejdshistorik, tidligere_resultat: Ligningslov9AStandardperioderesultat, rejse: Ligningslov9APerioderejse) -> {
+    = fra_dato = ligningslov9a_seneste_målarbejdsdato_før_rejse(historik, tidligere_resultat, rejse)
+    length(filter(historik.arbejdsdage, |arbejdsdag: Ligningslov9AArbejdsdag| dato_efter(arbejdsdag.dato, fra_dato) && dato_før(arbejdsdag.dato, rejse.startdato) && ligningslov9a_arbejdsdag_er_på_reelt_andet_arbejdssted(arbejdsdag, rejse.arbejdssted_identifikation)))
+}
+
+| ligningslov9a_standardperiodetrin(historik: Ligningslov9AArbejdshistorik, forløb: Ligningslov9AStandardperiodeforløb, rejse: Ligningslov9APerioderejse) -> {
+    = tidligere_resultat = hvis length(forløb.resultater) == 0 { None } ellers { Some(last(forløb.resultater)) }
+    = tidligere_på_sted = ligningslov9a_seneste_resultat_på_arbejdssted(forløb.resultater, rejse.arbejdssted_identifikation)
+    = arbejdsdage_andetsteds = match tidligere_på_sted {
+        | Some(resultat) -> ligningslov9a_arbejdsdage_andetsteds_siden_sidste_mål(historik, resultat, rejse)
+        | None -> 0
+    }
+    = afstandsopslag = match tidligere_resultat {
+        | Some(resultat) -> hvis resultat.rejse.arbejdssted_identifikation == rejse.arbejdssted_identifikation || tidligere_på_sted != None { ligningslov9a_afstandsopslag(historik, rejse.arbejdssted_identifikation, rejse.arbejdssted_identifikation, rejse.startdato) } ellers { ligningslov9a_afstandsopslag(historik, resultat.rejse.arbejdssted_identifikation, rejse.arbejdssted_identifikation, rejse.startdato) }
+        | None -> ligningslov9a_afstandsopslag(historik, rejse.arbejdssted_identifikation, rejse.arbejdssted_identifikation, rejse.startdato)
+    }
+    = afstand_kilometer = ligningslov9a_afstandsopslag_kilometer(afstandsopslag)
+    = overgang = match tidligere_resultat {
+        | None -> Ll9AFørsteRegistreredeRejse
+        | Some(seneste) -> hvis seneste.rejse.arbejdssted_identifikation == rejse.arbejdssted_identifikation {
+            Ll9ASammeArbejdsstedFortsætter
+        } ellers { match tidligere_på_sted {
+            | Some(_) -> hvis arbejdsdage_andetsteds >= 40 { Ll9ATilbagevendenStarterPeriode(sammenhængende_arbejdsdage = arbejdsdage_andetsteds) } ellers { Ll9ATilbagevendenFortsætterPeriode(sammenhængende_arbejdsdage = arbejdsdage_andetsteds) }
+            | None -> hvis ligningslov9a_afstandsopslag_gyldigt(afstandsopslag) == Falskt { Ll9AUgyldigPeriodeovergang } ellers hvis afstand_kilometer >= 8 { Ll9ANytArbejdsstedStarterPeriode(afstand_ad_normal_transportvej_kilometer = afstand_kilometer) } ellers { Ll9ANytArbejdsstedDelerPeriode(afstand_ad_normal_transportvej_kilometer = afstand_kilometer) }
+        } }
+    }
+    = input_gyldigt = forløb.alle_input_gyldige && ligningslov9a_perioderejse_gyldig(rejse) && overgang != Ll9AUgyldigPeriodeovergang
+    = periodestart_dato = hvis input_gyldigt == Falskt {
+        dato_ugyldig()
+    } ellers { match overgang {
+        | Ll9AFørsteRegistreredeRejse -> rejse.startdato
+        | Ll9ANytArbejdsstedStarterPeriode(_) -> rejse.startdato
+        | Ll9ATilbagevendenStarterPeriode(_) -> rejse.startdato
+        | Ll9ASammeArbejdsstedFortsætter -> match tidligere_resultat { | Some(resultat) -> resultat.periodestart_dato | None -> dato_ugyldig() }
+        | Ll9ANytArbejdsstedDelerPeriode(_) -> match tidligere_resultat { | Some(resultat) -> resultat.periodestart_dato | None -> dato_ugyldig() }
+        | Ll9ATilbagevendenFortsætterPeriode(_) -> match tidligere_på_sted { | Some(resultat) -> resultat.periodestart_dato | None -> dato_ugyldig() }
+        | Ll9AUgyldigPeriodeovergang -> dato_ugyldig()
+    } }
+    = periodeudløb_dato = hvis input_gyldigt { dato_plus_måneder(periodestart_dato, 12) } ellers { dato_ugyldig() }
+    = resultat = Ligningslov9AStandardperioderesultat(
+        rejse = rejse,
+        input_gyldigt = input_gyldigt,
+        overgang = overgang,
+        periodestart_dato = periodestart_dato,
+        periodeudløb_dato = periodeudløb_dato,
+        fulde_måneder_siden_periodestart = hvis input_gyldigt { dato_fulde_måneder_mellem(periodestart_dato, rejse.startdato) } ellers { 0 },
+        aktiv_for_kost = input_gyldigt && dato_før(rejse.startdato, periodeudløb_dato)
+    )
+    Ligningslov9AStandardperiodeforløb(
+        resultater = concat(forløb.resultater, [resultat]),
+        alle_input_gyldige = input_gyldigt
+    )
+}
+
+| ligningslov9a_standardperiodeforløb(rejser: List(Ligningslov9APerioderejse), historik: Ligningslov9AArbejdshistorik) -> {
+    = alle_rejser = concat(historik.tidligere_perioderejser, rejser)
+    = grunddata_gyldige = ligningslov9a_arbejdshistorik_grunddata_gyldige(historik) && ligningslov9a_perioderejser_entydige(alle_rejser) && all(alle_rejser, ligningslov9a_perioderejse_gyldig) && ligningslov9a_tidligere_perioderejser_ligger_før_aktuelle(historik, rejser)
+    foldl(
+        ligningslov9a_perioderejser_sorteret(alle_rejser),
+        Ligningslov9AStandardperiodeforløb(resultater = [], alle_input_gyldige = grunddata_gyldige),
+        |forløb: Ligningslov9AStandardperiodeforløb, rejse: Ligningslov9APerioderejse| ligningslov9a_standardperiodetrin(historik, forløb, rejse)
+    )
+}
+| ligningslov9a_standardperioderesultater_for_rejse(forløb: Ligningslov9AStandardperiodeforløb, rejseidentifikation: Tekst) -> filter(forløb.resultater, |resultat: Ligningslov9AStandardperioderesultat| resultat.rejse.identifikation == rejseidentifikation)
+
+--@end:ligningsloven_par9a_standardperioder--

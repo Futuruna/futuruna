@@ -22,8 +22,9 @@
 
 | ll9a_scenarie_rejse(
     identifikation: Tekst,
+    arbejdssted_identifikation: Tekst,
     arbejdsstedskarakter: Ligningslov9AArbejdsstedskarakter,
-    standardperiode: Ligningslov9AStandardperiodefakta,
+    startdato: Dato,
     hverv: Ligningslov9AHverv,
     varighed_minutter: Heltal,
     godtgørelse: Ll9AScenarieGodtgørelse,
@@ -33,14 +34,14 @@
 ) -> Ligningslov9ARejsefakta(
     identifikation = identifikation,
     indkomstår = 2026,
+    startdato = startdato,
     rejseart = Ll9ATjenesterejse,
-    arbejdssted_identifikation = "projektsted-a",
+    arbejdssted_identifikation = arbejdssted_identifikation,
     arbejdsstedskarakter = arbejdsstedskarakter,
     overnatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(
         afstand_ad_normal_transportvej_kilometer = 350,
         korteste_transporttid_hver_vej_minutter = 240
     ),
-    standardperiode = standardperiode,
     hverv = hverv,
     varighed_minutter = varighed_minutter,
     kost = Ligningslov9AKostfakta(
@@ -66,11 +67,11 @@
 | ll9a_scenarie_rejse_i_indkomstår(fakta: Ligningslov9ARejsefakta, indkomstår: Heltal) -> Ligningslov9ARejsefakta(
     identifikation = fakta.identifikation,
     indkomstår = indkomstår,
+    startdato = Dato(år = indkomstår, måned = fakta.startdato.måned, dag = fakta.startdato.dag),
     rejseart = fakta.rejseart,
     arbejdssted_identifikation = fakta.arbejdssted_identifikation,
     arbejdsstedskarakter = fakta.arbejdsstedskarakter,
     overnatningsforhold = fakta.overnatningsforhold,
-    standardperiode = fakta.standardperiode,
     hverv = fakta.hverv,
     varighed_minutter = fakta.varighed_minutter,
     kost = fakta.kost,
@@ -80,37 +81,71 @@
     indkomstforhold = fakta.indkomstforhold
 )
 
-| ll9a_scenarie_årsresultat(rejser: List(Ligningslov9ARejsefakta), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ligningslov9a_årsresultat(
+| ll9a_scenarie_tom_arbejdshistorik() -> Ligningslov9AArbejdshistorik(
+    tidligere_perioderejser = [],
+    arbejdsdage = [],
+    arbejdsstedsafstande = []
+)
+| ll9a_scenarie_årsresultat_med_historik(rejser: List(Ligningslov9ARejsefakta), arbejdshistorik: Ligningslov9AArbejdshistorik, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ligningslov9a_årsresultat(
     indkomstår = 2026,
     input = Ligningslov9AÅrsinput(
         personrolle = Ll9AAlmindeligLønmodtager,
         rejser = rejser,
+        arbejdshistorik = arbejdshistorik,
         dobbelt_husførelse = dobbelt_husførelse
     ),
     ekstern_udelukkelse = ekstern_udelukkelse
 )
+| ll9a_scenarie_årsresultat(rejser: List(Ligningslov9ARejsefakta), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ll9a_scenarie_årsresultat_med_historik(
+    rejser = rejser,
+    arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
+    dobbelt_husførelse = dobbelt_husførelse,
+    ekstern_udelukkelse = ekstern_udelukkelse
+)
 
-= ll9a_scenarie_første_periode = Ligningslov9AStandardperiodefakta(
-    startgrund = Ll9AFørstePeriodePåArbejdsstedet,
-    fulde_måneder_siden_periodestart = 2
+= ll9a_scenarie_almindelig_startdato = Dato(år = 2026, måned = 3, dag = 1)
+= ll9a_scenarie_efter_tolv_måneder_startdato = Dato(år = 2026, måned = 1, dag = 15)
+= ll9a_scenarie_tilbagevending_startdato = Dato(år = 2026, måned = 2, dag = 1)
+= ll9a_scenarie_efter_tolv_måneder_historik = Ligningslov9AArbejdshistorik(
+    tidligere_perioderejser = [Ligningslov9APerioderejse(
+        identifikation = "periode-start-2025",
+        startdato = Dato(år = 2025, måned = 1, dag = 15),
+        arbejdssted_identifikation = "projektsted-a"
+    )],
+    arbejdsdage = [],
+    arbejdsstedsafstande = []
 )
-= ll9a_scenarie_efter_tolv_måneder = Ligningslov9AStandardperiodefakta(
-    startgrund = Ll9AFørstePeriodePåArbejdsstedet,
-    fulde_måneder_siden_periodestart = 12
+= ll9a_scenarie_fyrre_arbejdsdage_historik = Ligningslov9AArbejdshistorik(
+    tidligere_perioderejser = [
+        Ligningslov9APerioderejse(identifikation = "a-før", startdato = Dato(år = 2025, måned = 1, dag = 1), arbejdssted_identifikation = "projektsted-a"),
+        Ligningslov9APerioderejse(identifikation = "b-mellem", startdato = Dato(år = 2025, måned = 2, dag = 1), arbejdssted_identifikation = "projektsted-b")
+    ],
+    arbejdsdage = map(range(0, 40), |dagnummer: Heltal| Ligningslov9AArbejdsdag(
+        dato = dato_plus_dage(Dato(år = 2025, måned = 3, dag = 1), dagnummer),
+        sted = Ll9AArbejdePåReeltArbejdssted(arbejdssted_identifikation = "projektsted-b")
+    )),
+    arbejdsstedsafstande = [Ligningslov9AArbejdsstedsafstand(
+        fra_arbejdssted_identifikation = "projektsted-a",
+        til_arbejdssted_identifikation = "projektsted-b",
+        gældende_fra = Dato(år = 2025, måned = 1, dag = 1),
+        afstand_ad_normal_transportvej_kilometer = 20
+    )]
 )
-= ll9a_scenarie_ny_periode_efter_fyrre_dage = Ligningslov9AStandardperiodefakta(
-    startgrund = Ll9ATilbagevendenEfterAndetArbejdssted(sammenhængende_arbejdsdage = 40),
-    fulde_måneder_siden_periodestart = 0
-)
-= ll9a_scenarie_ugyldig_ny_periode = Ligningslov9AStandardperiodefakta(
-    startgrund = Ll9ANytArbejdsstedFraTidligere(afstand_ad_normal_transportvej_kilometer = 7),
-    fulde_måneder_siden_periodestart = 0
+= ll9a_scenarie_manglende_afstand_historik = Ligningslov9AArbejdshistorik(
+    tidligere_perioderejser = [Ligningslov9APerioderejse(
+        identifikation = "a-før-manglende-afstand",
+        startdato = Dato(år = 2025, måned = 1, dag = 1),
+        arbejdssted_identifikation = "projektsted-a"
+    )],
+    arbejdsdage = [],
+    arbejdsstedsafstande = []
 )
 
 = ll9a_scenarie_almindelig_rejse = ll9a_scenarie_rejse(
     identifikation = "almindelig",
+    arbejdssted_identifikation = "projektsted-a",
     arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse),
-    standardperiode = ll9a_scenarie_første_periode,
+    startdato = ll9a_scenarie_almindelig_startdato,
     hverv = Ll9AAlmindeligtHverv,
     varighed_minutter = 2880,
     godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
@@ -127,8 +162,9 @@
 = ll9a_scenarie_faktiske_udgifter_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "faktiske-udgifter",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_første_periode,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
@@ -143,8 +179,9 @@
 = ll9a_scenarie_over_sats_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "over-sats",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_første_periode,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(1300, 0, Ll9AArbejdsgiverkontrolUdført),
@@ -159,8 +196,9 @@
 = ll9a_scenarie_uden_kontrol_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "uden-kontrol",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_første_periode,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolIkkeUdført),
@@ -172,11 +210,12 @@
     Ll9AIngenEksternUdelukkelse
 )
 
-= ll9a_scenarie_efter_tolv_måneder_resultat = ll9a_scenarie_årsresultat(
-    [ll9a_scenarie_rejse(
+= ll9a_scenarie_efter_tolv_måneder_resultat = ll9a_scenarie_årsresultat_med_historik(
+    rejser = [ll9a_scenarie_rejse(
         identifikation = "efter-tolv-måneder",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse),
-        standardperiode = ll9a_scenarie_efter_tolv_måneder,
+        startdato = ll9a_scenarie_efter_tolv_måneder_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
@@ -184,15 +223,17 @@
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
-    Ll9AIntetFradragForDobbeltHusførelse,
-    Ll9AIngenEksternUdelukkelse
+    arbejdshistorik = ll9a_scenarie_efter_tolv_måneder_historik,
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
-= ll9a_scenarie_ny_periode_resultat = ll9a_scenarie_årsresultat(
-    [ll9a_scenarie_rejse(
+= ll9a_scenarie_ny_periode_resultat = ll9a_scenarie_årsresultat_med_historik(
+    rejser = [ll9a_scenarie_rejse(
         identifikation = "ny-periode",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_ny_periode_efter_fyrre_dage,
+        startdato = ll9a_scenarie_tilbagevending_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
@@ -200,15 +241,17 @@
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
-    Ll9AIntetFradragForDobbeltHusførelse,
-    Ll9AIngenEksternUdelukkelse
+    arbejdshistorik = ll9a_scenarie_fyrre_arbejdsdage_historik,
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
 = ll9a_scenarie_transport_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "transport",
+        arbejdssted_identifikation = "mobilt-arbejdssted",
         arbejdsstedskarakter = Ll9AMobiltArbejdssted,
-        standardperiode = ll9a_scenarie_efter_tolv_måneder,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9ATransportAfVarerEllerPersoner,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 300, Ll9AArbejdsgiverkontrolUdført),
@@ -223,8 +266,9 @@
 = ll9a_scenarie_årsloft_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "årsloft",
+        arbejdssted_identifikation = "mobilt-arbejdssted",
         arbejdsstedskarakter = Ll9AMobiltArbejdssted,
-        standardperiode = ll9a_scenarie_efter_tolv_måneder,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 86400,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
@@ -239,8 +283,9 @@
 = ll9a_scenarie_udlandsloft_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
         identifikation = "udlandsloft",
+        arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_første_periode,
+        startdato = ll9a_scenarie_almindelig_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
@@ -258,11 +303,12 @@
     Ll9AUdelukketEfterSømandsbeskatningslov4Stk2
 )
 
-= ll9a_scenarie_ugyldig_reset_resultat = ll9a_scenarie_årsresultat(
-    [ll9a_scenarie_rejse(
+= ll9a_scenarie_ugyldig_reset_resultat = ll9a_scenarie_årsresultat_med_historik(
+    rejser = [ll9a_scenarie_rejse(
         identifikation = "ugyldig-reset",
+        arbejdssted_identifikation = "projektsted-b",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
-        standardperiode = ll9a_scenarie_ugyldig_ny_periode,
+        startdato = ll9a_scenarie_tilbagevending_startdato,
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
@@ -270,8 +316,9 @@
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
-    Ll9AIntetFradragForDobbeltHusførelse,
-    Ll9AIngenEksternUdelukkelse
+    arbejdshistorik = ll9a_scenarie_manglende_afstand_historik,
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
 = ll9a_scenarie_ikke_understøttet_år_resultat = ligningslov9a_årsresultat(
@@ -279,6 +326,7 @@
     input = Ligningslov9AÅrsinput(
         personrolle = Ll9AAlmindeligLønmodtager,
         rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, 2024)],
+        arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
         dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
     ),
     ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
@@ -287,6 +335,7 @@
 | ll9a_scenarie_rejse_med_kost_og_logidøgn(identifikation: Tekst, varighed_minutter: Heltal, kost: Ligningslov9AKostfakta, logidøgn: List(Ligningslov9ALogidøgn)) -> Ligningslov9ARejsefakta(
     identifikation = identifikation,
     indkomstår = 2026,
+    startdato = ll9a_scenarie_almindelig_startdato,
     rejseart = Ll9ATjenesterejse,
     arbejdssted_identifikation = "projektsted-a",
     arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
@@ -294,7 +343,6 @@
         afstand_ad_normal_transportvej_kilometer = 350,
         korteste_transporttid_hver_vej_minutter = 240
     ),
-    standardperiode = ll9a_scenarie_første_periode,
     hverv = Ll9AAlmindeligtHverv,
     varighed_minutter = varighed_minutter,
     kost = kost,
