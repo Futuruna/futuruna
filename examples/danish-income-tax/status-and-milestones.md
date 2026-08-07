@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-aac8d3` (Kursgevinstlovens delafdrag og gentagne realisationer opgøres nu fra typede mængder, fordringsgrupper, tidsordnede anskaffelsestrancher og videreførte restpositioner; § 26, stk. 4-5, vælger henholdsvis gennemsnitsmetoden og FIFO, mens hver realisation bevarer sit eget KGL-resultat under årets fælles § 14-grænse)
+Current implementation slice: `td-51358b` (KGL § 32-modregning i blandede ABL-gevinster fordeles nu efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
 Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
 Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
 Current LL § 9 foreign-income slice: `td-c61f53` (identificerede udenlandske lønindkomstkilder deles nu strukturelt af alle tilknyttede rejser; samme § 9, stk. 2-loft kan kun bruges én gang, mens manglende, dublerede, modstridende eller uanvendte kilder fejler lukket i regler og arbejdsbog)
@@ -3022,8 +3022,15 @@ encoded as a temporal rule on top of the consolidation.
   the 2024 MTF transition for both contracts and share gains, and real-estate
   seller/buyer basis adjustments. The typed share-gain basis covers ABL § 12
   and § 25, § 20, stk. 2, § 21, §§ 19 B-19 C and § 22, including ABL § 3,
-  § 19 D, exclusions and spouse ordering. Twenty-six focused scenarios cover
-  these branches in both runtimes.
+  § 19 D, exclusions and spouse ordering. Den kanoniske Personskat-bro bevarer
+  nu hver kvalificeret kildes identifikation, ABL-klasse, disponible gevinst og
+  Personskattelov-kategori. En automatisk fordeling tillades kun, når alle
+  berørte gevinster har samme indkomstkategori; ellers angiver skatteyderens
+  beløbsvalg en ordnet liste af eksisterende kildereferencer, mens reglerne
+  fortsat afleder alle retlige klassifikationer og beløb. ABL § 22 nås gennem
+  det typede KGL-årsnettoforløb og §§ 19 B-19 C gennem de identificerede
+  aktieaktiver. Scenarierne passerer i begge runtimes, og den kanoniske JSON- og
+  XLSX-kontrakt giver byteidentiske resultater for en blandet fordeling.
 - `aktieavancebeskatningsloven.runa` exists and checks/runs with `runa run`;
   it covers the ordinary ABL §§ 12-15/23/24/26 nominal-share calculation path
   consumed by Personskatteloven § 4 a, plus the §§ 17/18/19 B/19 C/21/22
@@ -4085,8 +4092,19 @@ Review candidates to revisit deliberately, not as broad churn:
   kontrakter, ABL-aktiver og ordnet årshistorik afleder årets gevinst, tab,
   aktiemodregning, ægtefællevirkning og fremførsel præcis én gang. De samme
   kildedata og fulde resultater afstemmes mellem den relationelle XLSX-kontrakt
-  og JSON-kontrakten. Blandede ABL-klasser kræver fortsat en særskilt,
-  kildebelagt allokeringsregel og fejler derfor lukket.
+  og JSON-kontrakten. Blandede ABL-klasser fordeles efter en ordnet liste af
+  stabile kildereferencer. Den valgte rækkefølge er et faktisk valg, men ABL-
+  klassen, den disponible gevinst og ruten til aktie- eller kapitalindkomst
+  afledes fra kilderne. Et 30.000 kr. kontrakttab er verificeret mod § 19 C,
+  § 22 og § 19 B i den valgte rækkefølge med henholdsvis 12.000 kr., 8.000 kr.
+  og 10.000 kr.; samme blandede grundlag uden rækkefølge afvises. Den
+  kanoniske beregningskontrakt udstiller valget og kildelisten med danske
+  spørgsmål, og en særskilt § 19 B/§ 19 C-sag giver identiske JSON- og
+  XLSX-resultater. ABL § 22's kildekapacitet bruger samme fælles § 14/§ 23-
+  bagatelgrundlag som den endelige KGL-beregning, inklusive typede gælds- og
+  sælgerpantebrevsresultater. Et fokusscenarie viser derfor, at en ABL § 22-
+  gevinst på 1.500 kr. medregnes, når en valutagældsgevinst på 1.000 kr. bringer
+  årets fælles netto op på 2.500 kr.
 - Kursgevinstlovens § 33 bevarer nu signerede primo-, ultimo-, anskaffelses- og
   afståelsesværdier uden at føre dem gennem en positiv-beløbsnormalisering. En
   kontrakt fra 4.000 kr. til -6.000 kr. giver derfor et tab på 10.000 kr., mens

@@ -3891,6 +3891,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human post-EBL KGL disposition label {expected} on {kgl_disposition_sheet}"
             );
         }
+        let kgl_par32_case_paths = workbook_column_paths(&mut workbook, "cases");
+        let kgl_par32_distribution_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsfordeling.$variant";
+        assert!(
+            kgl_par32_case_paths
+                .iter()
+                .any(|path| path == kgl_par32_distribution_path),
+            "missing current-year KGL §32 allocation choice"
+        );
+        assert!(
+            case_headers
+                .iter()
+                .any(|header| header == "Fordeling af kontrakttab på aktiegevinster"),
+            "missing human KGL §32 allocation label"
+        );
+        let kgl_par32_allocation_sources_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsfordeling.KglPar32FordelEfterKilder.kilder";
+        let kgl_par32_allocation_sources_sheet =
+            workbook_collection_sheet_name(&mut workbook, kgl_par32_allocation_sources_path);
+        assert!(
+            workbook_title(&mut workbook, &kgl_par32_allocation_sources_sheet)
+                .contains("Kilder til aktiemodregning i valgt rækkefølge"),
+            "missing human KGL §32 allocation-source table title"
+        );
+        let kgl_par32_allocation_source_paths =
+            workbook_column_paths(&mut workbook, &kgl_par32_allocation_sources_sheet);
+        for expected in [
+            "$variant",
+            "KglPar32SupplerendeAblKilde.kildeidentifikation",
+        ] {
+            assert!(
+                kgl_par32_allocation_source_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing KGL §32 allocation source path {expected} on {kgl_par32_allocation_sources_sheet}"
+            );
+        }
+        let kgl_par32_allocation_source_headers =
+            workbook_headers(&mut workbook, &kgl_par32_allocation_sources_sheet);
+        for expected in ["Aktiegevinstkildens art", "ABL-kilde til aktiemodregning"] {
+            assert!(
+                kgl_par32_allocation_source_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human KGL §32 allocation source label {expected} on {kgl_par32_allocation_sources_sheet}"
+            );
+        }
         let kgl_par32_current_contracts_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.kontrakter";
         let kgl_par32_current_contracts_sheet =
             workbook_collection_sheet_name(&mut workbook, kgl_par32_current_contracts_path);
@@ -3963,6 +4008,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "fakta.valg.fast_ejendomstabsprioritet",
             "fakta.valg.aktiemodregningsvalg.omfang",
             "fakta.valg.aktiemodregningsvalg.beløb.$variant",
+            "fakta.valg.aktiemodregningsfordeling.$variant",
+            "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+            "øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
             "gift_og_samlevende_ved_indkomstårets_udgang",
         ] {
             assert!(
@@ -5350,6 +5398,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsvalg.beløb.$variant",
                     Data::String("KglPar32MaksimalAktiemodregning".to_string()),
                 ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.par32_kontraktforløb.MedPar32Kontraktforløb.aktuelt_år.valg.aktiemodregningsfordeling.$variant",
+                    Data::String("KglPar32AfledEntydigFordeling".to_string()),
+                ),
             ] {
                 set_workbook_cell_by_header(sheets, "cases", row, header, value);
             }
@@ -5505,6 +5557,34 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "fakta.valg.aktiemodregningsvalg.beløb.$variant",
                 Data::String("KglPar32MaksimalAktiemodregning".to_string()),
+            ),
+            (
+                "fakta.valg.aktiemodregningsfordeling.$variant",
+                Data::String("KglPar32AfledEntydigFordeling".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+                Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.aktuelt_princip",
+                Data::String("KglRealisationsprincip".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.ændringstilladelse.$variant",
+                Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
+                Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.valutakursændringer.aktuelt_princip",
+                Data::String("KglRealisationsprincip".to_string()),
+            ),
+            (
+                "øvrige_instrumenter.par25_valg.valutakursændringer.ændringstilladelse.$variant",
+                Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
             ),
             (
                 "aktieavance.ordinært_aktieår.$variant",
@@ -12324,6 +12404,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktiemodregningsvalg": {
                 "omfang": { "$variant": "KglPar32IngenAktiemodregning" },
                 "beløb": { "$variant": "KglPar32MaksimalAktiemodregning" }
+            },
+            "aktiemodregningsfordeling": {
+                "$variant": "KglPar32AfledEntydigFordeling"
             }
         })
     };
@@ -12403,6 +12486,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
             "særlige_aktiver": [],
             "udbytter": []
+        },
+        "øvrige_instrumenter": {
+            "par25_valg": kgl_par25_choices(),
+            "fordringer": [],
+            "valutainstrumenter": [],
+            "obligationsbaserede_minimumsbeviser": []
         },
         "gift_og_samlevende_ved_indkomstårets_udgang": false
     });
@@ -12494,6 +12583,170 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(par32_abl17_case);
+
+    let par19_classification = |aktiebaseret: bool| {
+        let (meddelelse, direkte_aktiver, oplysninger) = if aktiebaseret {
+            (
+                serde_json::json!({
+                    "$variant": "AblPar19BOrdinærMeddelelse",
+                    "virkningsår": 2026,
+                    "indsendelsesdato": { "år": 2025, "måned": 11, "dag": 1 }
+                }),
+                serde_json::json!([
+                    {
+                        "$variant": "AblDirekteInvesteringsaktiv",
+                        "art": { "$variant": "AblKvalificerendeAktieaktiv" },
+                        "gennemsnitlig_værdi_kroner": 60_000
+                    },
+                    {
+                        "$variant": "AblDirekteInvesteringsaktiv",
+                        "art": { "$variant": "AblAndetVærdipapir" },
+                        "gennemsnitlig_værdi_kroner": 40_000
+                    }
+                ]),
+                serde_json::json!({
+                    "$variant": "AblPar19BOplysningerIndsendt",
+                    "indsendelsesdato": { "år": 2027, "måned": 7, "dag": 1 }
+                }),
+            )
+        } else {
+            (
+                serde_json::json!({ "$variant": "AblIngenPar19BMeddelelse" }),
+                serde_json::json!([
+                    {
+                        "$variant": "AblDirekteInvesteringsaktiv",
+                        "art": { "$variant": "AblKvalificerendeAktieaktiv" },
+                        "gennemsnitlig_værdi_kroner": 20_000
+                    },
+                    {
+                        "$variant": "AblDirekteInvesteringsaktiv",
+                        "art": { "$variant": "AblAndetVærdipapir" },
+                        "gennemsnitlig_værdi_kroner": 80_000
+                    }
+                ]),
+                serde_json::json!({ "$variant": "AblPar19BOplysningerIkkeIndsendt" }),
+            )
+        };
+        serde_json::json!({
+            "$variant": "AblPar19BPar19CKlassifikation",
+            "input": {
+                "indkomstår": 2026,
+                "meddelelse": meddelelse,
+                "aktivmasse": {
+                    "indkomstår": 2026,
+                    "direkte_aktiver": direkte_aktiver,
+                    "ejerposter": []
+                },
+                "oplysninger": oplysninger
+            }
+        })
+    };
+    let par19_asset = |identifikation: &str,
+                       afståelsessum_kroner: i64,
+                       anskaffelsessum_kroner: i64,
+                       instrument: &str,
+                       klassifikation: Value| {
+        serde_json::json!({
+            "identifikation": identifikation,
+            "kilde": {
+                "$variant": "PersonskatØvrigtAktieaktiv",
+                "input": {
+                    "indkomstår": 2026,
+                    "aktiv": { "$variant": "AblInvesteringsselskabPar19TilKlassifikation" },
+                    "afståelsessum_kroner": afståelsessum_kroner,
+                    "anskaffelsessum_kroner": anskaffelsessum_kroner,
+                    "koncernintern_konvertibel_eller_tegningsret": false,
+                    "andelsforening_stiftet_før_22_maj_1987": false,
+                    "afståelse_sker_for_at_undgå_likvidationsbeskatning": false,
+                    "investeringsklassifikation": klassifikation
+                },
+                "par17_modprøvekilde": {
+                    "$variant": "MedPar17Modprøvekilde",
+                    "fakta": {
+                        "indkomstår": 2026,
+                        "skattepligtsgrundlag": {
+                            "$variant": "AblPar7PersonEfterKildeskatteloven"
+                        },
+                        "næringsstatus": {
+                            "$variant": "AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier"
+                        },
+                        "instrument": { "$variant": instrument },
+                        "erhvervelsesstatus": {
+                            "$variant": "AblPar17IkkeErhvervetSomLedINæringsvej"
+                        },
+                        "afståelsessum_kroner": afståelsessum_kroner,
+                        "anskaffelsessum_kroner": anskaffelsessum_kroner
+                    }
+                }
+            },
+            "markedsstatus": {
+                "$variant": "AblOptagetTilHandelPåReguleretMarked"
+            }
+        })
+    };
+    let mut par32_mixed_case = json_input["cases"][0].clone();
+    par32_mixed_case["case_id"] =
+        Value::String("personskat-kgl-par32-blandet-fordeling-2026".into());
+    par32_mixed_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [
+            par19_asset(
+                "par32-json-abl19b",
+                50_000,
+                30_000,
+                "AblPar17UndtagetEfterPar19B",
+                par19_classification(true)
+            ),
+            par19_asset(
+                "par32-json-abl19c",
+                42_000,
+                30_000,
+                "AblPar17UndtagetEfterPar19C",
+                par19_classification(false)
+            )
+        ],
+        "udbytter": []
+    });
+    let mut par32_mixed_kursgevinst = par32_kursgevinst(
+        "par32-blandet-person",
+        vec![],
+        vec![par32_contract(
+            "par32-blandet-tab-2026",
+            1,
+            35_000,
+            10_000,
+            false,
+            serde_json::json!({ "$variant": "KglPar32KildeUdenSærligRelation" }),
+            serde_json::json!({
+                "$variant": "KglPar32KildeEnkeltaktie",
+                "markedsstatus": {
+                    "$variant": "AblOptagetTilHandelPåReguleretMarked"
+                }
+            }),
+        )],
+    );
+    par32_mixed_kursgevinst["fakta"]["par32_kontraktforløb"]["aktuelt_år"]["valg"]
+        ["aktiemodregningsvalg"]["omfang"] =
+        serde_json::json!({ "$variant": "KglPar32KunEgneAktiegevinster" });
+    par32_mixed_kursgevinst["fakta"]["par32_kontraktforløb"]["aktuelt_år"]["valg"]
+        ["aktiemodregningsfordeling"] = serde_json::json!({
+        "$variant": "KglPar32FordelEfterKilder",
+        "kilder": [
+            {
+                "$variant": "KglPar32SupplerendeAblKilde",
+                "kildeidentifikation": "par32-json-abl19c"
+            },
+            {
+                "$variant": "KglPar32SupplerendeAblKilde",
+                "kildeidentifikation": "par32-json-abl19b"
+            }
+        ]
+    });
+    par32_mixed_case["input"]["kapitalindkomst"]["kursgevinst"] = par32_mixed_kursgevinst;
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(par32_mixed_case);
 
     let mut external_deficit_case = json_input["cases"][0].clone();
     external_deficit_case["case_id"] = Value::String("personskat-underskud-ekstern-2026".into());
@@ -12724,6 +12977,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-2026")
         .expect("DIS JSON case")
         .clone();
+    let par32_mixed_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-blandet-fordeling-2026")
+        .expect("mixed-class KGL §32 JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case,
@@ -12736,6 +12996,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         prior_deficit_result_case,
         negative_share_tax_carry_case,
         dis_case,
+        par32_mixed_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -13172,6 +13433,61 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 .as_i64()
                 .expect("tax after prior negative share-tax carry"),
         1_000
+    );
+    let json_par32_mixed_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-blandet-fordeling-2026")
+        .expect("JSON mixed-class KGL §32 result");
+    let hydrated_par32_mixed_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-par32-blandet-fordeling-2026")
+        .expect("hydrated XLSX mixed-class KGL §32 result");
+    assert_eq!(
+        hydrated_par32_mixed_result["result"],
+        json_par32_mixed_result["result"]
+    );
+    let par32_mixed_result = &json_par32_mixed_result["result"];
+    let par32_mixed_trace = &par32_mixed_result["kursgevinst_par32"];
+    assert_eq!(par32_mixed_trace["input_gyldigt"], true);
+    let par32_mixed_distribution =
+        &par32_mixed_trace["aktuelt_årsresultat"]["venstre_aktiemodregningsfordeling"];
+    assert_eq!(par32_mixed_distribution["input_gyldigt"], true);
+    assert_eq!(par32_mixed_distribution["modregning_i_alt_kroner"], 25_000);
+    assert_eq!(par32_mixed_distribution["fordelt_i_alt_kroner"], 25_000);
+    let par32_mixed_applications = par32_mixed_distribution["anvendelser"]
+        .as_array()
+        .expect("mixed-class KGL §32 applications");
+    assert_eq!(par32_mixed_applications.len(), 2);
+    assert_eq!(
+        par32_mixed_applications[0]["kilde"]["mål"]["kildeidentifikation"],
+        "par32-json-abl19c"
+    );
+    assert_eq!(
+        par32_mixed_applications[0]["kilde"]["personskattelov_kategori"]["$variant"],
+        "AblKapitalindkomstEfterPslPar4Nr5"
+    );
+    assert_eq!(par32_mixed_applications[0]["modregnet_kroner"], 12_000);
+    assert_eq!(
+        par32_mixed_applications[1]["kilde"]["mål"]["kildeidentifikation"],
+        "par32-json-abl19b"
+    );
+    assert_eq!(
+        par32_mixed_applications[1]["kilde"]["personskattelov_kategori"]["$variant"],
+        "AblAktieindkomstEfterPslPar4a"
+    );
+    assert_eq!(par32_mixed_applications[1]["modregnet_kroner"], 13_000);
+    assert_eq!(
+        par32_mixed_result["aktieavance"]["aktieindkomst_kroner"],
+        7_000
+    );
+    assert_eq!(
+        par32_mixed_result["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        0
     );
     let xlsx_par32_history_result = result["results"]
         .as_array()

@@ -139,7 +139,7 @@
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), egne_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
 # PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), egne_skadegenopførelsesresultater: List(EblPar10Resultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_skadegenopførelsesresultater: List(EblPar10Resultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
-# PersonskatKursgevinstPar32Historikår(fakta: KursgevinstPar32PersonKildeårsfakta, aktieavance: PersonskatAktieavanceInput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
+# PersonskatKursgevinstPar32Historikår(fakta: KursgevinstPar32PersonKildeårsfakta, aktieavance: PersonskatAktieavanceInput, øvrige_instrumenter: KursgevinstlovÅrsnettoInput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatKursgevinstPar32Forløb = UdenPar32Kontraktforløb | MedPar32Kontraktforløb(tidligere_år: List(PersonskatKursgevinstPar32Historikår), aktuelt_år: KursgevinstPar32PersonKildeårsfakta)
 # PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), gældsposter: List(KursgevinstlovGældFakta), øvrige_instrumenter: KursgevinstlovÅrsnettoInput, par32_kontraktforløb: PersonskatKursgevinstPar32Forløb)
 # PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
@@ -183,9 +183,13 @@
 # PersonskatAktieavanceResultat(input: PersonskatAktieavanceInput, ordinært_aktieår: PersonskatOrdinærtAktieårResultat, særlige_resultater: List(PersonskatSærligtAktieaktivResultat), udbytter: List(PersonskatUdbytteResultat), alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost), kapitalindkomst_resultat: Par4KapitalindkomstResultat, aktieindkomst_resultat: Par4aAktieindkomstResultat, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal)
 # PersonskatÆgtefælleAktieavanceResultat = IngenÆgtefælleAktieavance | BeregnetÆgtefælleAktieavance(resultat: PersonskatAktieavanceResultat)
 # PersonskatAktieavanceParResultat(par_gyldigt: Boolsk, hovedperson: PersonskatAktieavanceResultat, ægtefælle: PersonskatÆgtefælleAktieavanceResultat)
+# PersonskatKglPar32Aktiegevinstkilde(mål: KursgevinstPar32Aktiemodregningsmål, klasser: List(KursgevinstPar32Aktiegevinstklasse), personskattelov_kategori: AktieavancebeskatningslovPslKategori, gevinstkapacitet_kroner: Heltal, input_gyldigt: Boolsk)
+# PersonskatKglPar32Aktiemodregningsanvendelse(kilde: PersonskatKglPar32Aktiegevinstkilde, modregnet_kroner: Heltal)
+# PersonskatKglPar32Aktiemodregningstilstand(resterende_modregning_kroner: Heltal, anvendelser: List(PersonskatKglPar32Aktiemodregningsanvendelse))
+# PersonskatKglPar32Aktiemodregningsfordeling(fordelingsvalg: KursgevinstPar32Aktiemodregningsfordeling, kilder: List(PersonskatKglPar32Aktiegevinstkilde), anvendelser: List(PersonskatKglPar32Aktiemodregningsanvendelse), modregning_i_alt_kroner: Heltal, fordelt_i_alt_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32Historikpar(venstre: PersonskatKursgevinstPar32Historikår, højre: PersonskatKursgevinstPar32Historikår)
 # PersonskatKursgevinstPar32Historikparring(årspar: List(PersonskatKursgevinstPar32Historikpar), input_gyldigt: Boolsk)
-# PersonskatKursgevinstPar32Årsparresultat(venstre_afledning: KursgevinstPar32PersonKildeårsafledning, højre_afledning: KursgevinstPar32PersonKildeårsafledning, aktieavance: PersonskatAktieavanceParResultat, kursgevinst: KursgevinstPar32ÆgtefælleparResultat, input_gyldigt: Boolsk)
+# PersonskatKursgevinstPar32Årsparresultat(venstre_afledning: KursgevinstPar32PersonKildeårsafledning, højre_afledning: KursgevinstPar32PersonKildeårsafledning, venstre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, højre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, aktieavance: PersonskatAktieavanceParResultat, kursgevinst: KursgevinstPar32ÆgtefælleparResultat, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32Forløbstilstand(seneste_årsresultat: Option(PersonskatKursgevinstPar32Årsparresultat), årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), næste_indkomstår: Heltal, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32PersonKontekst = UdenPar32Årsresultat | MedPar32Årsresultat(afledning: KursgevinstPar32PersonKildeårsafledning, årsresultat: KursgevinstPar32PersonÅrsresultat, personskattelov_resultat: Par4Stk1Nr2Årsresultat, forløb_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32ParResultat = IntetPar32Kontraktforløb | BeregnetPar32Kontraktforløb(historiske_årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), aktuelt_årsresultat: PersonskatKursgevinstPar32Årsparresultat, hovedperson: PersonskatKursgevinstPar32PersonKontekst, ægtefælle: PersonskatKursgevinstPar32PersonKontekst, input_gyldigt: Boolsk)
@@ -5503,6 +5507,34 @@
     help = Some("Udfyldes kun ved et begrænset beløbsvalg."),
     unit = Some("kr.")
 )
+= personskat_felt_kgl_par32_aktiemodregningsfordeling = TypetBeregningsfelt(
+    path = refof(KursgevinstPar32Kildeårsvalg::aktiemodregningsfordeling::$variant),
+    label = "Fordeling af kontrakttab på aktiegevinster",
+    question = Some("Kan fordelingen af kontrakttabet afledes entydigt, eller skal de konkrete aktiegevinstkilder vælges i rækkefølge?"),
+    help = Some("Vælg kilder i rækkefølge, når de kvalificerede gevinster beskattes i forskellige indkomstarter. Futuruna afleder selv hver kildes ABL-klasse, indkomsttype og disponible gevinst."),
+    unit = None
+)
+= personskat_felt_kgl_par32_aktiemodregningskilder = TypetBeregningsfelt(
+    path = refof(KursgevinstPar32Aktiemodregningsfordeling::KglPar32FordelEfterKilder::kilder),
+    label = "Kilder til aktiemodregning i valgt rækkefølge",
+    question = Some("Hvilke aktiegevinstkilder skal kontrakttabet modregnes i, og i hvilken rækkefølge?"),
+    help = Some("Tilføj kun stabile referencer til de indtastede ABL-kilder. Beløb og skatteklasse beregnes fra kilderne."),
+    unit = None
+)
+= personskat_felt_kgl_par32_aktiemodregningskilde_art = TypetBeregningsfelt(
+    path = refof(KursgevinstPar32Aktiemodregningsmål::$variant),
+    label = "Aktiegevinstkildens art",
+    question = Some("Skal modregningen anvendes på årets ordinære ABL § 13 A-grundlag eller på en konkret supplerende ABL-kilde?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_par32_aktiemodregningskilde_reference = TypetBeregningsfelt(
+    path = refof(KursgevinstPar32Aktiemodregningsmål::KglPar32SupplerendeAblKilde::kildeidentifikation),
+    label = "ABL-kilde til aktiemodregning",
+    question = Some("Hvilken stabil identifikation har den konkrete ABL-kilde, som skal anvendes på dette trin?"),
+    help = Some("Identifikationen skal svare entydigt til et aktieaktiv eller minimumsbevis i beregningsgrundlaget."),
+    unit = None
+)
 = personskat_felt_ordinært_aktieår = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.$variant",
     label = "Ordinært aktieår",
@@ -10336,6 +10368,10 @@
         Field(value = personskat_felt_kgl_par32_aktiemodregningsomfang),
         Field(value = personskat_felt_kgl_par32_aktiemodregningsbeløb),
         Field(value = personskat_felt_kgl_par32_aktiemodregningsloft),
+        Field(value = personskat_felt_kgl_par32_aktiemodregningsfordeling),
+        Field(value = personskat_felt_kgl_par32_aktiemodregningskilder),
+        Field(value = personskat_felt_kgl_par32_aktiemodregningskilde_art),
+        Field(value = personskat_felt_kgl_par32_aktiemodregningskilde_reference),
         Source(value = kursgevinstloven_lbk1176_par32),
         Guidance(value = kursgevinstloven_juridisk_vejledning_par32),
         AmendmentSource(value = kursgevinstloven_lov1563_par4_par8),
@@ -12188,7 +12224,8 @@ fraflytningen."
 | personskat_kgl_par32_tomt_årsvalg() -> KursgevinstPar32Kildeårsvalg(
     tabsprioritet = KglPar32AlmindeligeTabFørst,
     fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
-    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning()
+    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning(),
+    aktiemodregningsfordeling = kgl_par32_afled_entydig_aktiemodregningsfordeling()
 )
 | personskat_kgl_par32_tomt_kildeår(indkomstår: Heltal) -> KursgevinstPar32PersonKildeårsfakta(
     indkomstår = indkomstår,
@@ -12202,6 +12239,7 @@ fraflytningen."
 | personskat_kgl_par32_tomt_historikår(fra: PersonskatKursgevinstPar32Historikår) -> PersonskatKursgevinstPar32Historikår(
     fakta = personskat_kgl_par32_tomt_kildeår(fra.fakta.indkomstår),
     aktieavance = personskat_ingen_aktieavance(),
+    øvrige_instrumenter = kgl_årsnetto_tomt_input(),
     gift_og_samlevende_ved_indkomstårets_udgang = fra.gift_og_samlevende_ved_indkomstårets_udgang
 )
 | personskat_kgl_par32_historikparring(venstre: List(PersonskatKursgevinstPar32Historikår), højre: List(PersonskatKursgevinstPar32Historikår)) -> hvis length(venstre) == 0 && length(højre) == 0 {
@@ -12276,9 +12314,22 @@ fraflytningen."
 }
 | personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> map(kilderesultater, personskat_kgl_par32_supplerende_aktieårsresultat)
 | personskat_kgl_par32_supplerende_aktieårsresultater(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(resultat.kilderesultater)
-| personskat_kgl_par32_aktieårsgrundlag(resultat: PersonskatAktieavanceResultat, indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(
+| personskat_kgl_par32_årsnetto_abl22_kilderesultat(resultat: KglÅrsnettoAbl22Resultat) -> AktieavancebeskatningslovKilderesultat(
+    kildeidentifikation = resultat.fakta.identifikation,
+    resultat = resultat.aktieavancebeskatningslov_resultat,
+    kildegrundlag = AblSærligtAktiekildegrundlag(markedsstatus = AblIkkeOptagetTilHandel),
+    input_gyldigt = resultat.input_gyldigt && resultat.forløb.har_opgørelse
+)
+| personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat: KursgevinstlovÅrsnettoResultat) -> map(filter(resultat.obligationsbevisresultater, |bevisresultat: KglÅrsnettoAbl22Resultat| bevisresultat.forløb.har_opgørelse), personskat_kgl_par32_årsnetto_abl22_kilderesultat)
+| personskat_kgl_par32_årsnetto_supplerende_aktieårsresultater(resultat: KursgevinstlovÅrsnettoResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat))
+| personskat_kgl_par32_øvrige_instrumenter(input: PersonskatKursgevinstInput) -> match input {
+    | UdenKursgevinst -> kgl_årsnetto_tomt_input()
+    | MedKursgevinst(fakta) -> fakta.øvrige_instrumenter
+}
+| personskat_kgl_par32_årsnetto_resultat(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> kursgevinstlov_årsnetto_resultat(input, indkomstår, årets_samlede_netto_kroner)
+| personskat_kgl_par32_aktieårsgrundlag(resultat: PersonskatAktieavanceResultat, årsnetto: KursgevinstlovÅrsnettoResultat, indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(
     par13a_årsresultat = personskat_kgl_par32_ordinært_aktieårsresultat(resultat, indkomstår),
-    supplerende_årsresultater = foldl(resultat.særlige_resultater, [], |samlet: List(KursgevinstPar32SupplerendeAktieårsresultat), særligt_resultat: PersonskatSærligtAktieaktivResultat| concat(samlet, personskat_kgl_par32_supplerende_aktieårsresultater(særligt_resultat)))
+    supplerende_årsresultater = concat(foldl(resultat.særlige_resultater, [], |samlet: List(KursgevinstPar32SupplerendeAktieårsresultat), særligt_resultat: PersonskatSærligtAktieaktivResultat| concat(samlet, personskat_kgl_par32_supplerende_aktieårsresultater(særligt_resultat))), personskat_kgl_par32_årsnetto_supplerende_aktieårsresultater(årsnetto))
 )
 | personskat_kgl_par32_kilderesultat_har_markedsstatus(kilderesultat: AktieavancebeskatningslovKilderesultat, forventet: AktieavanceOrdinærMarkedsstatus) -> match aktieavancebeskatningslov_kildegrundlag_markedsstatus(kilderesultat.kildegrundlag) { | Some(markedsstatus) -> markedsstatus == forventet | None -> Falskt }
 | personskat_kgl_par32_alle_kilderesultater_har_markedsstatus(kilderesultater: List(AktieavancebeskatningslovKilderesultat), forventet: AktieavanceOrdinærMarkedsstatus) -> length(kilderesultater) > 0 && all(kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat) && personskat_kgl_par32_kilderesultat_har_markedsstatus(kilderesultat, forventet))
@@ -12307,18 +12358,123 @@ fraflytningen."
     | BeregnetÆgtefælleAktieavance(resultat) -> resultat
 }
 | personskat_kgl_par32_aktiemodregning_i_persons_gevinster_kroner(resultat: KursgevinstPar32PersonÅrsresultat) -> resultat.tab_modregnet_i_egne_aktiegevinster_kroner + resultat.ægtefælles_kontrakttab_modtaget_i_egne_aktiegevinster_kroner
-| personskat_kgl_par32_aktieklasse_er_ordinær_aktieindkomst(klasse: KursgevinstPar32Aktiegevinstklasse) -> klasse == KglPar32Abl12OrdinæreAktierOgRettigheder
-| personskat_kgl_par32_aktiemodregning_kan_rutes_til_aktieindkomst(resultat: KursgevinstPar32PersonÅrsresultat) -> personskat_kgl_par32_aktiemodregning_i_persons_gevinster_kroner(resultat) == 0 || all(resultat.aktiegevinstgrundlag.klasser, personskat_kgl_par32_aktieklasse_er_ordinær_aktieindkomst)
-| personskat_kgl_par32_aktiepost(resultat: KursgevinstPar32PersonÅrsresultat) -> Par4aAktiepost(
+| personskat_kgl_par32_aktieklasse_er_ordinær_aktieindkomst(klasse: KursgevinstPar32Aktiegevinstklasse) -> klasse == KglPar32Abl12OrdinæreAktierOgRettigheder || klasse == KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis || klasse == KglPar32Abl21AktiebaseretMinimumsbevis
+| personskat_kgl_par32_aktieklasse_psl_kategori_matcher(klasse: KursgevinstPar32Aktiegevinstklasse, kategori: AktieavancebeskatningslovPslKategori) -> match klasse {
+    | KglPar32Abl12OrdinæreAktierOgRettigheder -> kategori == AblAktieindkomstEfterPslPar4a
+    | KglPar32Abl19BInvesteringsselskab -> kategori == AblAktieindkomstEfterPslPar4a
+    | KglPar32Abl19CInvesteringsselskab -> kategori == AblKapitalindkomstEfterPslPar4Nr5
+    | KglPar32Abl20Stk2AkkumulerendeInvesteringsbevis -> kategori == AblAktieindkomstEfterPslPar4a
+    | KglPar32Abl21AktiebaseretMinimumsbevis -> kategori == AblAktieindkomstEfterPslPar4a
+    | KglPar32Abl22ObligationsbaseretMinimumsbevis -> kategori == AblKapitalindkomstEfterPslPar4Nr5
+    | KglPar32AndenIkkeKvalificeretAktieklasse -> Falskt
+}
+| personskat_kgl_par32_ordinære_aktieklasser(resultat: KursgevinstPar32PersonÅrsresultat) -> filter(resultat.aktiegevinstgrundlag.klasser, personskat_kgl_par32_aktieklasse_er_ordinær_aktieindkomst)
+| personskat_kgl_par32_ordinær_aktiegevinstkapacitet_kroner(resultat: KursgevinstPar32PersonÅrsresultat) -> penge_positivt_beløb(
+    resultat.aktiegevinstgrundlag.par13a_gevinster_på_reguleret_marked_kroner
+    + hvis resultat.indkomstår >= 2024 { resultat.aktiegevinstgrundlag.par13a_gevinster_på_multilateral_handelsfacilitet_kroner } ellers { 0 }
+    - resultat.aktiegevinstgrundlag.årets_par13a_tab_kroner
+    - resultat.ægtefælles_par13a_tab_modtaget_før_kontrakttab_kroner
+)
+| personskat_kgl_par32_ordinær_aktiegevinstkilde(resultat: KursgevinstPar32PersonÅrsresultat) -> PersonskatKglPar32Aktiegevinstkilde(
+    mål = KglPar32OrdinærtPar13AÅrsgrundlag,
+    klasser = personskat_kgl_par32_ordinære_aktieklasser(resultat),
+    personskattelov_kategori = AblAktieindkomstEfterPslPar4a,
+    gevinstkapacitet_kroner = personskat_kgl_par32_ordinær_aktiegevinstkapacitet_kroner(resultat),
+    input_gyldigt = length(personskat_kgl_par32_ordinære_aktieklasser(resultat)) > 0
+)
+| personskat_kgl_par32_ordinære_aktiegevinstkilder(resultat: KursgevinstPar32PersonÅrsresultat) -> hvis personskat_kgl_par32_ordinær_aktiegevinstkapacitet_kroner(resultat) > 0 { [personskat_kgl_par32_ordinær_aktiegevinstkilde(resultat)] } ellers { [] }
+| personskat_kgl_par32_supplerende_aktiegevinstkilde(kilderesultat: AktieavancebeskatningslovKilderesultat, indkomstår: Heltal) -> {
+    = supplerende = personskat_kgl_par32_supplerende_aktieårsresultat(kilderesultat)
+    = klassificeret = kgl_par32_klassificer_supplerende_aktieårsresultat(supplerende, indkomstår)
+    PersonskatKglPar32Aktiegevinstkilde(
+        mål = KglPar32SupplerendeAblKilde(kildeidentifikation = kilderesultat.kildeidentifikation),
+        klasser = [klassificeret.klasse],
+        personskattelov_kategori = kilderesultat.resultat.personskattelov_kategori,
+        gevinstkapacitet_kroner = penge_positivt_beløb(klassificeret.medregnet_nettoaktiegevinst_kroner),
+        input_gyldigt = kilderesultat.kildeidentifikation != "" && aktieavancebeskatningslov_kilderesultat_gyldigt(kilderesultat) && klassificeret.strukturelt_gyldigt && klassificeret.kvalificerer_til_par32_stk3 && personskat_kgl_par32_aktieklasse_psl_kategori_matcher(klassificeret.klasse, kilderesultat.resultat.personskattelov_kategori)
+    )
+}
+| personskat_kgl_par32_aktiegevinstkilde_har_kapacitet(kilde: PersonskatKglPar32Aktiegevinstkilde) -> kilde.gevinstkapacitet_kroner > 0
+| personskat_kgl_par32_supplerende_aktiegevinstkilder_fra_kilderesultater(kilderesultater: List(AktieavancebeskatningslovKilderesultat), indkomstår: Heltal) -> filter(map(kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| personskat_kgl_par32_supplerende_aktiegevinstkilde(kilderesultat, indkomstår)), personskat_kgl_par32_aktiegevinstkilde_har_kapacitet)
+| personskat_kgl_par32_supplerende_aktiegevinstkilder(resultat: PersonskatAktieavanceResultat, indkomstår: Heltal) -> foldl(resultat.særlige_resultater, [], |kilder: List(PersonskatKglPar32Aktiegevinstkilde), særligt_resultat: PersonskatSærligtAktieaktivResultat| concat(kilder, personskat_kgl_par32_supplerende_aktiegevinstkilder_fra_kilderesultater(særligt_resultat.kilderesultater, indkomstår)))
+| personskat_kgl_par32_årsnetto_aktiegevinstkilder(resultat: KursgevinstlovÅrsnettoResultat, indkomstår: Heltal) -> personskat_kgl_par32_supplerende_aktiegevinstkilder_fra_kilderesultater(personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat), indkomstår)
+| personskat_kgl_par32_aktiegevinstkilder(aktieavance: PersonskatAktieavanceResultat, årsnetto: KursgevinstlovÅrsnettoResultat, resultat: KursgevinstPar32PersonÅrsresultat) -> concat(concat(personskat_kgl_par32_ordinære_aktiegevinstkilder(resultat), personskat_kgl_par32_supplerende_aktiegevinstkilder(aktieavance, resultat.indkomstår)), personskat_kgl_par32_årsnetto_aktiegevinstkilder(årsnetto, resultat.indkomstår))
+| personskat_kgl_par32_mål_matcher_kilde(mål: KursgevinstPar32Aktiemodregningsmål, kilde: PersonskatKglPar32Aktiegevinstkilde) -> mål == kilde.mål
+| personskat_kgl_par32_matchende_aktiegevinstkilder(mål: KursgevinstPar32Aktiemodregningsmål, kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> filter(kilder, |kilde: PersonskatKglPar32Aktiegevinstkilde| personskat_kgl_par32_mål_matcher_kilde(mål, kilde))
+| personskat_kgl_par32_ugyldig_aktiegevinstkilde(mål: KursgevinstPar32Aktiemodregningsmål) -> PersonskatKglPar32Aktiegevinstkilde(mål = mål, klasser = [], personskattelov_kategori = AblIkkeMedregnetISlice, gevinstkapacitet_kroner = 0, input_gyldigt = Falskt)
+| personskat_kgl_par32_aktiegevinstkilde_fra_mål(mål: KursgevinstPar32Aktiemodregningsmål, kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> {
+    = matchende = personskat_kgl_par32_matchende_aktiegevinstkilder(mål, kilder)
+    hvis length(matchende) == 1 { head(matchende) } ellers { personskat_kgl_par32_ugyldig_aktiegevinstkilde(mål) }
+}
+| personskat_kgl_par32_aktiegevinstkilder_entydige(kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> {
+    = mål = map(kilder, |kilde: PersonskatKglPar32Aktiegevinstkilde| kilde.mål)
+    length(mål) == length(distinct(mål))
+}
+| personskat_kgl_par32_kildekategori_understøttet(kilde: PersonskatKglPar32Aktiegevinstkilde) -> kilde.personskattelov_kategori == AblAktieindkomstEfterPslPar4a || kilde.personskattelov_kategori == AblKapitalindkomstEfterPslPar4Nr5
+| personskat_kgl_par32_kildekategorier(kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> distinct(map(kilder, |kilde: PersonskatKglPar32Aktiegevinstkilde| kilde.personskattelov_kategori))
+| personskat_kgl_par32_valgte_aktiegevinstkilder(fordelingsvalg: KursgevinstPar32Aktiemodregningsfordeling, kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> match fordelingsvalg {
+    | KglPar32AfledEntydigFordeling -> kilder
+    | KglPar32FordelEfterKilder(mål) -> map(mål, |enkelt_mål: KursgevinstPar32Aktiemodregningsmål| personskat_kgl_par32_aktiegevinstkilde_fra_mål(enkelt_mål, kilder))
+}
+| personskat_kgl_par32_valgte_mål_gyldige(mål: List(KursgevinstPar32Aktiemodregningsmål), kilder: List(PersonskatKglPar32Aktiegevinstkilde), modregning_kroner: Heltal) -> (modregning_kroner == 0 || length(mål) > 0) && length(mål) == length(distinct(mål)) && all(mål, |enkelt_mål: KursgevinstPar32Aktiemodregningsmål| length(personskat_kgl_par32_matchende_aktiegevinstkilder(enkelt_mål, kilder)) == 1)
+| personskat_kgl_par32_fordelingsvalg_gyldigt(fordelingsvalg: KursgevinstPar32Aktiemodregningsfordeling, kilder: List(PersonskatKglPar32Aktiegevinstkilde), modregning_kroner: Heltal) -> match fordelingsvalg {
+    | KglPar32AfledEntydigFordeling -> modregning_kroner == 0 || length(personskat_kgl_par32_kildekategorier(kilder)) <= 1
+    | KglPar32FordelEfterKilder(mål) -> personskat_kgl_par32_valgte_mål_gyldige(mål, kilder, modregning_kroner)
+}
+| personskat_kgl_par32_aktiegevinstkapacitet_i_alt_kroner(kilder: List(PersonskatKglPar32Aktiegevinstkilde)) -> foldl(kilder, 0, |sum: Heltal, kilde: PersonskatKglPar32Aktiegevinstkilde| sum + kilde.gevinstkapacitet_kroner)
+| personskat_kgl_par32_aktiemodregningstrin(tilstand: PersonskatKglPar32Aktiemodregningstilstand, kilde: PersonskatKglPar32Aktiegevinstkilde) -> {
+    = anvendt_kroner = penge_mindste_beløb(tilstand.resterende_modregning_kroner, kilde.gevinstkapacitet_kroner)
+    PersonskatKglPar32Aktiemodregningstilstand(
+        resterende_modregning_kroner = tilstand.resterende_modregning_kroner - anvendt_kroner,
+        anvendelser = hvis anvendt_kroner > 0 { concat(tilstand.anvendelser, [PersonskatKglPar32Aktiemodregningsanvendelse(kilde = kilde, modregnet_kroner = anvendt_kroner)]) } ellers { tilstand.anvendelser }
+    )
+}
+| personskat_kgl_par32_aktiemodregningsfordeling(aktieavance: PersonskatAktieavanceResultat, årsnetto: KursgevinstlovÅrsnettoResultat, resultat: KursgevinstPar32PersonÅrsresultat, fordelingsvalg: KursgevinstPar32Aktiemodregningsfordeling) -> {
+    = modregning_kroner = personskat_kgl_par32_aktiemodregning_i_persons_gevinster_kroner(resultat)
+    = kilder = personskat_kgl_par32_aktiegevinstkilder(aktieavance, årsnetto, resultat)
+    = valgte_kilder = personskat_kgl_par32_valgte_aktiegevinstkilder(fordelingsvalg, kilder)
+    = sluttilstand = foldl(valgte_kilder, PersonskatKglPar32Aktiemodregningstilstand(resterende_modregning_kroner = modregning_kroner, anvendelser = []), personskat_kgl_par32_aktiemodregningstrin)
+    = fordelt_kroner = modregning_kroner - sluttilstand.resterende_modregning_kroner
+    PersonskatKglPar32Aktiemodregningsfordeling(
+        fordelingsvalg = fordelingsvalg,
+        kilder = kilder,
+        anvendelser = sluttilstand.anvendelser,
+        modregning_i_alt_kroner = modregning_kroner,
+        fordelt_i_alt_kroner = fordelt_kroner,
+        input_gyldigt = resultat.input_gyldigt && aktieavance.alle_input_gyldige && modregning_kroner >= 0 && personskat_kgl_par32_aktiegevinstkilder_entydige(kilder) && all(kilder, |kilde: PersonskatKglPar32Aktiegevinstkilde| kilde.input_gyldigt && personskat_kgl_par32_kildekategori_understøttet(kilde)) && personskat_kgl_par32_fordelingsvalg_gyldigt(fordelingsvalg, kilder, modregning_kroner) && personskat_kgl_par32_aktiegevinstkapacitet_i_alt_kroner(valgte_kilder) >= modregning_kroner && sluttilstand.resterende_modregning_kroner == 0 && fordelt_kroner == modregning_kroner
+    )
+}
+| personskat_kgl_par32_aktiemodregning_i_kategori_kroner(fordeling: PersonskatKglPar32Aktiemodregningsfordeling, kategori: AktieavancebeskatningslovPslKategori) -> foldl(fordeling.anvendelser, 0, |sum: Heltal, anvendelse: PersonskatKglPar32Aktiemodregningsanvendelse| sum + hvis anvendelse.kilde.personskattelov_kategori == kategori { anvendelse.modregnet_kroner } ellers { 0 })
+| personskat_kgl_par32_aktiemodregning_i_aktieindkomst_kroner(fordeling: PersonskatKglPar32Aktiemodregningsfordeling) -> personskat_kgl_par32_aktiemodregning_i_kategori_kroner(fordeling, AblAktieindkomstEfterPslPar4a)
+| personskat_kgl_par32_aktiemodregning_i_kapitalindkomst_kroner(fordeling: PersonskatKglPar32Aktiemodregningsfordeling) -> personskat_kgl_par32_aktiemodregning_i_kategori_kroner(fordeling, AblKapitalindkomstEfterPslPar4Nr5)
+| personskat_kgl_par32_aktiepost(modregning_kroner: Heltal) -> Par4aAktiepost(
     art = KursgevinstlovPar32Kontrakttabsmodregning,
-    beløb_kroner = 0 - personskat_kgl_par32_aktiemodregning_i_persons_gevinster_kroner(resultat),
+    beløb_kroner = 0 - modregning_kroner,
     afgrænsning = AktiepostOmfattetAfStk1,
     personlig_reklassifikation = IngenAktieTilPersonligUndtagelse
 )
-| personskat_aktieavance_med_kgl_par32_årsresultat(aktieavance: PersonskatAktieavanceResultat, par32: KursgevinstPar32PersonÅrsresultat, par32_gyldigt: Boolsk) -> {
-    = modregning_kroner = personskat_kgl_par32_aktiemodregning_i_persons_gevinster_kroner(par32)
-    hvis par32_gyldigt && modregning_kroner > 0 {
-        = aktieposter = concat(aktieavance.aktieposter, [personskat_kgl_par32_aktiepost(par32)])
+| personskat_kgl_par32_kapitalpost(modregning_kroner: Heltal) -> Par4Kapitalpost(
+    art = AktieavanceIkkeAktieindkomst,
+    beløb_kroner = 0 - modregning_kroner,
+    personlig_reklassifikation = IngenPersonligReklassifikation,
+    personlig_indkomst_tillæg_kroner = 0
+)
+| personskat_kgl_par32_aktiemodregningsaktieposter(fordeling: PersonskatKglPar32Aktiemodregningsfordeling) -> {
+    = modregning_kroner = personskat_kgl_par32_aktiemodregning_i_aktieindkomst_kroner(fordeling)
+    hvis modregning_kroner > 0 { [personskat_kgl_par32_aktiepost(modregning_kroner)] } ellers { [] }
+}
+| personskat_kgl_par32_aktiemodregningskapitalposter(fordeling: PersonskatKglPar32Aktiemodregningsfordeling) -> {
+    = modregning_kroner = personskat_kgl_par32_aktiemodregning_i_kapitalindkomst_kroner(fordeling)
+    hvis modregning_kroner > 0 { [personskat_kgl_par32_kapitalpost(modregning_kroner)] } ellers { [] }
+}
+| personskat_aktieavance_med_kgl_par32_årsresultat(aktieavance: PersonskatAktieavanceResultat, par32: KursgevinstPar32PersonÅrsresultat, fordeling: PersonskatKglPar32Aktiemodregningsfordeling, par32_gyldigt: Boolsk) -> {
+    hvis par32_gyldigt && fordeling.input_gyldigt && fordeling.fordelt_i_alt_kroner > 0 {
+        = kapitalposter = concat(aktieavance.kapitalposter, personskat_kgl_par32_aktiemodregningskapitalposter(fordeling))
+        = aktieposter = concat(aktieavance.aktieposter, personskat_kgl_par32_aktiemodregningsaktieposter(fordeling))
+        = kapitalindkomst_resultat = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
+            poster = kapitalposter,
+            omkostninger = []
+        ))
         = aktieindkomst_resultat = par4a_aktieindkomst_resultat(Par4aAktieindkomstInput(
             poster = aktieposter,
             pbl15a_grundlag = IntetPbl15AFradragsgrundlag,
@@ -12330,24 +12486,24 @@ fraflytningen."
             særlige_resultater = aktieavance.særlige_resultater,
             udbytter = aktieavance.udbytter,
             alle_input_gyldige = aktieavance.alle_input_gyldige,
-            kapitalposter = aktieavance.kapitalposter,
+            kapitalposter = kapitalposter,
             aktieposter = aktieposter,
-            kapitalindkomst_resultat = aktieavance.kapitalindkomst_resultat,
+            kapitalindkomst_resultat = kapitalindkomst_resultat,
             aktieindkomst_resultat = aktieindkomst_resultat,
-            personlig_indkomst_kroner = aktieavance.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner,
-            kapitalindkomst_kroner = aktieavance.kapitalindkomst_kroner,
+            personlig_indkomst_kroner = kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner,
+            kapitalindkomst_kroner = kapitalindkomst_resultat.nettokapitalindkomst_kroner,
             aktieindkomst_kroner = aktieindkomst_resultat.aktieindkomst_efter_pensionsfradrag_kroner
         )
     } ellers {
         aktieavance
     }
 }
-| personskat_aktieavance_par_med_kgl_par32(aktieavance: PersonskatAktieavanceParResultat, par32: KursgevinstPar32ÆgtefælleparResultat, par32_gyldigt: Boolsk) -> {
+| personskat_aktieavance_par_med_kgl_par32(aktieavance: PersonskatAktieavanceParResultat, par32: KursgevinstPar32ÆgtefælleparResultat, venstre_fordeling: PersonskatKglPar32Aktiemodregningsfordeling, højre_fordeling: PersonskatKglPar32Aktiemodregningsfordeling, par32_gyldigt: Boolsk) -> {
     = højre = personskat_kgl_par32_ægtefælle_aktieavance_resultat(aktieavance, par32.højre.indkomstår)
     PersonskatAktieavanceParResultat(
         par_gyldigt = aktieavance.par_gyldigt && par32_gyldigt,
-        hovedperson = personskat_aktieavance_med_kgl_par32_årsresultat(aktieavance.hovedperson, par32.venstre, par32_gyldigt),
-        ægtefælle = BeregnetÆgtefælleAktieavance(resultat = personskat_aktieavance_med_kgl_par32_årsresultat(højre, par32.højre, par32_gyldigt))
+        hovedperson = personskat_aktieavance_med_kgl_par32_årsresultat(aktieavance.hovedperson, par32.venstre, venstre_fordeling, par32_gyldigt),
+        ægtefælle = BeregnetÆgtefælleAktieavance(resultat = personskat_aktieavance_med_kgl_par32_årsresultat(højre, par32.højre, højre_fordeling, par32_gyldigt))
     )
 }
 | personskat_kgl_par32_venstre_fremførsel(seneste: Option(PersonskatKursgevinstPar32Årsparresultat)) -> match seneste {
@@ -12358,20 +12514,22 @@ fraflytningen."
     | None -> KglPar32IngenFremførsel
     | Some(resultat) -> KglPar32FremførselFraForrigeIndkomstår(resultat = resultat.kursgevinst.højre)
 }
-| personskat_kgl_par32_årsparresultat(venstre_identifikation: Tekst, højre_identifikation: Tekst, venstre_fakta: KursgevinstPar32PersonKildeårsfakta, højre_fakta: KursgevinstPar32PersonKildeårsfakta, aktieavance: PersonskatAktieavanceParResultat, venstre_fremførsel: KursgevinstPar32Fremførsel, højre_fremførsel: KursgevinstPar32Fremførsel, gift_og_samlevende: Boolsk) -> {
+| personskat_kgl_par32_årsparresultat(venstre_identifikation: Tekst, højre_identifikation: Tekst, venstre_fakta: KursgevinstPar32PersonKildeårsfakta, højre_fakta: KursgevinstPar32PersonKildeårsfakta, venstre_årsnetto_input: KursgevinstlovÅrsnettoInput, højre_årsnetto_input: KursgevinstlovÅrsnettoInput, venstre_årets_samlede_netto_kroner: Heltal, højre_årets_samlede_netto_kroner: Heltal, aktieavance: PersonskatAktieavanceParResultat, venstre_fremførsel: KursgevinstPar32Fremførsel, højre_fremførsel: KursgevinstPar32Fremførsel, gift_og_samlevende: Boolsk) -> {
     = højre_aktieavance = personskat_kgl_par32_ægtefælle_aktieavance_resultat(aktieavance, højre_fakta.indkomstår)
+    = venstre_årsnetto = personskat_kgl_par32_årsnetto_resultat(venstre_årsnetto_input, venstre_fakta.indkomstår, venstre_årets_samlede_netto_kroner)
+    = højre_årsnetto = personskat_kgl_par32_årsnetto_resultat(højre_årsnetto_input, højre_fakta.indkomstår, højre_årets_samlede_netto_kroner)
     = venstre_afledning = kgl_par32_person_kildeårsafledning(
         skatteyder_identifikation = venstre_identifikation,
         fakta = venstre_fakta,
         referencer = personskat_kgl_par32_abl_referencer(aktieavance.hovedperson),
-        aktieårsgrundlag = personskat_kgl_par32_aktieårsgrundlag(aktieavance.hovedperson, venstre_fakta.indkomstår),
+        aktieårsgrundlag = personskat_kgl_par32_aktieårsgrundlag(aktieavance.hovedperson, venstre_årsnetto, venstre_fakta.indkomstår),
         fremførsel = venstre_fremførsel
     )
     = højre_afledning = kgl_par32_person_kildeårsafledning(
         skatteyder_identifikation = højre_identifikation,
         fakta = højre_fakta,
         referencer = personskat_kgl_par32_abl_referencer(højre_aktieavance),
-        aktieårsgrundlag = personskat_kgl_par32_aktieårsgrundlag(højre_aktieavance, højre_fakta.indkomstår),
+        aktieårsgrundlag = personskat_kgl_par32_aktieårsgrundlag(højre_aktieavance, højre_årsnetto, højre_fakta.indkomstår),
         fremførsel = højre_fremførsel
     )
     = kursgevinst = kursgevinst_par32_ægtefællepar_resultat(KursgevinstPar32ÆgtefælleparInput(
@@ -12379,12 +12537,16 @@ fraflytningen."
         højre = højre_afledning.årsinput,
         gift_og_samlevende_ved_indkomstårets_udgang = gift_og_samlevende
     ))
-    = rute_gyldig = personskat_kgl_par32_aktiemodregning_kan_rutes_til_aktieindkomst(kursgevinst.venstre) && personskat_kgl_par32_aktiemodregning_kan_rutes_til_aktieindkomst(kursgevinst.højre)
+    = venstre_fordeling = personskat_kgl_par32_aktiemodregningsfordeling(aktieavance.hovedperson, venstre_årsnetto, kursgevinst.venstre, venstre_fakta.valg.aktiemodregningsfordeling)
+    = højre_fordeling = personskat_kgl_par32_aktiemodregningsfordeling(højre_aktieavance, højre_årsnetto, kursgevinst.højre, højre_fakta.valg.aktiemodregningsfordeling)
+    = rute_gyldig = venstre_fordeling.input_gyldigt && højre_fordeling.input_gyldigt
     = samlet_gyldig = aktieavance.par_gyldigt && venstre_afledning.input_gyldigt && højre_afledning.input_gyldigt && kursgevinst.venstre.input_gyldigt && kursgevinst.højre.input_gyldigt && rute_gyldig
     PersonskatKursgevinstPar32Årsparresultat(
         venstre_afledning = venstre_afledning,
         højre_afledning = højre_afledning,
-        aktieavance = personskat_aktieavance_par_med_kgl_par32(aktieavance, kursgevinst, samlet_gyldig),
+        venstre_aktiemodregningsfordeling = venstre_fordeling,
+        højre_aktiemodregningsfordeling = højre_fordeling,
+        aktieavance = personskat_aktieavance_par_med_kgl_par32(aktieavance, kursgevinst, venstre_fordeling, højre_fordeling, samlet_gyldig),
         kursgevinst = kursgevinst,
         input_gyldigt = samlet_gyldig
     )
@@ -12404,6 +12566,10 @@ fraflytningen."
         højre_identifikation,
         årspar.venstre.fakta,
         årspar.højre.fakta,
+        årspar.venstre.øvrige_instrumenter,
+        årspar.højre.øvrige_instrumenter,
+        kgl_årsnetto_rå_netto_kroner(årspar.venstre.øvrige_instrumenter, årspar.venstre.fakta.indkomstår),
+        kgl_årsnetto_rå_netto_kroner(årspar.højre.øvrige_instrumenter, årspar.højre.fakta.indkomstår),
         aktieavance,
         personskat_kgl_par32_venstre_fremførsel(tilstand.seneste_årsresultat),
         personskat_kgl_par32_højre_fremførsel(tilstand.seneste_årsresultat),
@@ -12424,6 +12590,11 @@ fraflytningen."
     personskattelov_resultat = par4_stk1_nr2_årsresultat(årsresultat),
     forløb_gyldigt = forløb_gyldigt
 )
+| personskat_kgl_par32_årets_samlede_netto_kroner(input: PersonskatKursgevinstInput, skatteår: Heltal, ejendomsavance_resultat: PersonskatEjendomsavanceResultat) -> PersonskatKursgevinstSag(input, skatteår, ejendomsavance_resultat, UdenPar32Årsresultat).årets_samlede_netto_efter_par14_kroner()
+| personskat_kgl_par32_ægtefælles_ejendomsavance_resultat(input: PersonskatÆgtefælleInput, skatteår: Heltal) -> match input {
+    | UdenÆgtefælle -> IngenEjendomsavance
+    | MedÆgtefælle(fakta, _) -> personskat_ejendomsavance_resultat(fakta.kapitalindkomst.ejendomsavance, skatteår)
+}
 | personskat_kgl_par32_parresultat(input: PersonskatInput, aktieavance: PersonskatAktieavanceParResultat) -> {
     = hovedpersons_kursgevinst = input.kapitalindkomst.kursgevinst
     = ægtefælles_kursgevinst = personskat_kgl_par32_ægtefælles_input(input.ægtefælle)
@@ -12440,11 +12611,17 @@ fraflytningen."
             |tilstand: PersonskatKursgevinstPar32Forløbstilstand, årspar: PersonskatKursgevinstPar32Historikpar| personskat_kgl_par32_historiktrin(hovedperson_identifikation, modpart_identifikation, tilstand, årspar)
         )
         = skatteår = input.lønmodtager.skatteår
+        = hovedpersons_ejendomsavance = personskat_ejendomsavance_resultat(input.kapitalindkomst.ejendomsavance, skatteår)
+        = ægtefælles_ejendomsavance = personskat_kgl_par32_ægtefælles_ejendomsavance_resultat(input.ægtefælle, skatteår)
         = aktuelt_årsresultat = personskat_kgl_par32_årsparresultat(
             hovedperson_identifikation,
             modpart_identifikation,
             personskat_kgl_par32_aktuelt_kildeår(hovedpersons_kursgevinst, skatteår),
             personskat_kgl_par32_aktuelt_kildeår(ægtefælles_kursgevinst, skatteår),
+            personskat_kgl_par32_øvrige_instrumenter(hovedpersons_kursgevinst),
+            personskat_kgl_par32_øvrige_instrumenter(ægtefælles_kursgevinst),
+            personskat_kgl_par32_årets_samlede_netto_kroner(hovedpersons_kursgevinst, skatteår, hovedpersons_ejendomsavance),
+            personskat_kgl_par32_årets_samlede_netto_kroner(ægtefælles_kursgevinst, skatteår, ægtefælles_ejendomsavance),
             aktieavance,
             personskat_kgl_par32_venstre_fremførsel(historiktilstand.seneste_årsresultat),
             personskat_kgl_par32_højre_fremførsel(historiktilstand.seneste_årsresultat),

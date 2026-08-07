@@ -105,6 +105,8 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32Aktiemodregningsomfang = KglPar32IngenAktiemodregning | KglPar32KunEgneAktiegevinster | KglPar32EgneOgÆgtefællesAktiegevinster
 # KursgevinstPar32Aktiemodregningsbeløb = KglPar32MaksimalAktiemodregning | KglPar32AktiemodregningOpTil(beløb_kroner: Heltal)
 # KursgevinstPar32Aktiemodregningsvalg(omfang: KursgevinstPar32Aktiemodregningsomfang, beløb: KursgevinstPar32Aktiemodregningsbeløb)
+# KursgevinstPar32Aktiemodregningsmål = KglPar32OrdinærtPar13AÅrsgrundlag | KglPar32SupplerendeAblKilde(kildeidentifikation: Tekst)
+# KursgevinstPar32Aktiemodregningsfordeling = KglPar32AfledEntydigFordeling | KglPar32FordelEfterKilder(kilder: List(KursgevinstPar32Aktiemodregningsmål))
 # KursgevinstPar32Tabsaldo(almindelige_tab_kroner: Heltal, aktiebaserede_tab_kroner: Heltal)
 # KursgevinstPar32FastEjendomstabsaldo(sælgertab_kroner: Heltal, købertab_kroner: Heltal)
 # KursgevinstPar32Gevinstsaldo(øvrige_kontraktgevinster_kroner: Heltal, fast_ejendomskontraktgevinster_kroner: Heltal)
@@ -131,7 +133,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 # KursgevinstPar32AblKontraktreference(aktieaktiv_identifikation: Tekst, relation: KursgevinstPar32Kontraktrelation, markedsstatus: AktieavanceOrdinærMarkedsstatus, input_gyldigt: Boolsk)
 # KursgevinstPar32KildekontraktFakta(identifikation: Tekst, rækkefølge_i_indkomståret: Heltal, kontrakt: KursgevinstlovKontraktKildeFakta, relationsfakta: KursgevinstPar32Kontraktrelationsfakta, underliggende: KursgevinstPar32Underliggendefakta)
 # KursgevinstPar32KildekontraktResultat(fakta: KursgevinstPar32KildekontraktFakta, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, relation: KursgevinstPar32Kontraktrelation, aktiegrundlag: KursgevinstPar32Aktiegrundlag, abl_reference_entydig: Boolsk, relation_gyldig: Boolsk, underliggende_gyldigt: Boolsk, input_gyldigt: Boolsk, kontraktpost: KursgevinstPar32Kontraktpost)
-# KursgevinstPar32Kildeårsvalg(tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg)
+# KursgevinstPar32Kildeårsvalg(tabsprioritet: KursgevinstPar32Tabsprioritet, fast_ejendomstabsprioritet: KursgevinstPar32FastEjendomstabsprioritet, aktiemodregningsvalg: KursgevinstPar32Aktiemodregningsvalg, aktiemodregningsfordeling: KursgevinstPar32Aktiemodregningsfordeling)
 # KursgevinstPar32PersonKildeårsfakta(indkomstår: Heltal, kontrakter: List(KursgevinstPar32KildekontraktFakta), valg: KursgevinstPar32Kildeårsvalg)
 # KursgevinstPar32PersonKildeårsafledning(skatteyder_identifikation: Tekst, fakta: KursgevinstPar32PersonKildeårsfakta, kontraktresultater: List(KursgevinstPar32KildekontraktResultat), årsinput: KursgevinstPar32PersonÅrsinput, input_gyldigt: Boolsk)
 
@@ -530,6 +532,7 @@ Stk. 1. Loven træder i kraft den 1. januar 2024.
 | kgl_par32_tomt_par13a_aktieårsresultat(indkomstår: Heltal) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(indkomstår = indkomstår, skatteposter = [], fremført_tab_efter_par13a_kroner = 0, modregningsgrundlag = kgl_par32_tomt_aktie_modregningsgrundlag()))
 | kgl_par32_tomt_aktieårsgrundlag(indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(par13a_årsresultat = kgl_par32_tomt_par13a_aktieårsresultat(indkomstår), supplerende_årsresultater = [])
 | kgl_par32_ingen_aktiemodregning() -> KursgevinstPar32Aktiemodregningsvalg(omfang = KglPar32IngenAktiemodregning, beløb = KglPar32MaksimalAktiemodregning)
+| kgl_par32_afled_entydig_aktiemodregningsfordeling() -> KglPar32AfledEntydigFordeling
 
 # KursgevinstPar32AktiemodregningsforberedelseSag(egen: KursgevinstPar32EgenÅrsopgørelsesresultat, udgående_kontraktmodregning: KursgevinstPar32Kontraktmodregningsresultat, ægtefælles_par13a_tab_overført_kroner: Heltal) {
     | aktiebaseret_tab_til_aktiemodregning_kroner() -> udgående_kontraktmodregning.resterende_tab.aktiebaserede_tab_kroner

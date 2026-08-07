@@ -40,7 +40,8 @@ markedsværdien på afviklingsdagen.
 | kgl_par33_scenarie_årsvalg() -> KursgevinstPar32Kildeårsvalg(
     tabsprioritet = KglPar32AlmindeligeTabFørst,
     fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
-    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning()
+    aktiemodregningsvalg = kgl_par32_ingen_aktiemodregning(),
+    aktiemodregningsfordeling = KglPar32AfledEntydigFordeling
 )
 | kgl_par33_scenarie_tom_person() -> KursgevinstPar32PersonÅrsinput(
     identifikation = "tom-modpart",
