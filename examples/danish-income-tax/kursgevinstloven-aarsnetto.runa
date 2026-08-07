@@ -8,8 +8,20 @@
 
 = kursgevinstloven_lbk1176_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1176",
-    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12-18 og 25-26",
+    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 1, 12-18, 23, 25-26 og 42",
     hentet_dato = "2026-08-03"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par25 = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946022",
+    identifier = "Den juridiske vejledning 2026-1, C.B.1.7.1: KGL § 25, stk. 2",
+    hentet_dato = "2026-08-06"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par42 = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948970",
+    identifier = "Den juridiske vejledning 2026-1, C.B.1.7.10: KGL § 42, stk. 9",
+    hentet_dato = "2026-08-06"
 )
 
 = kursgevinstloven_årsnetto_afgrænsning_metadata = Metadata(
@@ -95,7 +107,7 @@ opgørelse af den skattepligtige indkomst.
 # KglÅrsnettoNæringsforhold = KglÅrsnettoIkkeNæringsdrivende | KglÅrsnettoFordringsEllerFinansieringsnæring | KglÅrsnettoDokumenteretErhvervetUdenForNæring
 # KglÅrsnettoErhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse | KglÅrsnettoVederlagINæring | KglÅrsnettoTilknyttetErhvervsdrift
 # KglÅrsnettoDbaStatus = KglÅrsnettoIngenDbaBegrænsning | KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
-# KglÅrsnettoFordringskilde(fordringsart: KglÅrsnettoFordringsart, markedsfakta: KglÅrsnettoMarkedsfakta, debitorrelation: KglÅrsnettoDebitorrelation, næringsforhold: KglÅrsnettoNæringsforhold, erhvervelsesgrundlag: KglÅrsnettoErhvervelsesgrundlag, dba_status: KglÅrsnettoDbaStatus, opgørelsesprincip: KursgevinstlovOpgørelsesprincip)
+# KglÅrsnettoFordringskilde(fordringsart: KglÅrsnettoFordringsart, markedsfakta: KglÅrsnettoMarkedsfakta, debitorrelation: KglÅrsnettoDebitorrelation, næringsforhold: KglÅrsnettoNæringsforhold, erhvervelsesgrundlag: KglÅrsnettoErhvervelsesgrundlag, dba_status: KglÅrsnettoDbaStatus)
 
 | kgl_årsnetto_par1_afgrænsning(kilde: KglÅrsnettoFordringskilde) -> match kilde.fordringsart {
     | KglÅrsnettoFordringIFastEjendomsNæring -> KglFastEjendomNæringUndtaget
@@ -115,14 +127,14 @@ opgørelse af den skattepligtige indkomst.
 | exception kgl_årsnetto_par18_dba kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabDbaAfskåret under kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba
 | exception kgl_årsnetto_par14_stk2_kontrol kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabKontrolEllerNærtstående under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kilde.debitorrelation != KglÅrsnettoUafhængigDebitor
 | exception kgl_årsnetto_par15_manglende_oplysning kgl_årsnetto_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde) -> KglFordringstabReguleretMarkedUdenOplysning under kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt
-| kgl_årsnetto_lagerprincip_gyldigt(kilde: KglÅrsnettoFordringskilde) -> kilde.opgørelsesprincip == KglRealisationsprincip || kilde.fordringsart == KglÅrsnettoObligation && kgl_årsnetto_markedsnoteret(kilde.markedsfakta)
-| kgl_årsnetto_fordringskilde_gyldig(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_lagerprincip_gyldigt(kilde)
 | kgl_årsnetto_fordring_i_par14_bagatelgrundlag(kilde: KglÅrsnettoFordringskilde) -> kgl_årsnetto_par1_afgrænsning(kilde) == KglPar1Omfattet && kgl_årsnetto_fordring_omfattet_af_par13(kilde) == Falskt && kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt
 --@end:kursgevinstloven_årsnetto_afgrænsning--
 
 = kursgevinstloven_årsnetto_opgørelse_metadata = Metadata(
     attachments = (
         Source(value = kursgevinstloven_lbk1176_årsnetto),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par25),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par42),
     )
 )
 
@@ -152,9 +164,184 @@ Stk. 2. Gevinst eller tab på fordringer opgøres som forskellen mellem
 anskaffelsessummen og afståelsessummen. Som anskaffelsessum anvendes kursværdien
 på erhvervelsestidspunktet, medmindre den skattepligtige godtgør at have
 erhvervet fordringen for et højere beløb.
+
+§ 42.
+
+Stk. 9. Personer og dødsboer, som for indkomståret 1998 eller senere skifter
+fra lagerprincippet til realisationsprincippet i henhold til § 25, skal anvende
+ultimoværdien for fordringer og gæld for det seneste indkomstår før ændring af
+opgørelsesmåden som henholdsvis anskaffelsessum for fordringen eller
+forpligtelsens værdi for gælden ved en senere opgørelse af gevinst og tab på de
+pågældende fordringer og gæld. Ved ændring fra realisationsprincippet til
+lagerprincippet anvendes fordringens anskaffelsessum eller forpligtelsens værdi
+ved stiftelsen, jf. dog stk. 11-15, som værdien primo for det første indkomstår,
+hvor ændringen har virkning fra.
 ----
 
 --@begin:kursgevinstloven_årsnetto_opgørelse--
+# KglÅrsnettoPar25ValgPrimo = KglÅrsnettoIntetPar25ValgPrimo | KglÅrsnettoVidereførtPar25Valg(fra_indkomstår: Heltal, princip: KursgevinstlovOpgørelsesprincip)
+# KglÅrsnettoPar25Ændringstilladelse = KglÅrsnettoIngenPar25Ændringstilladelse | KglÅrsnettoPar25ÆndringTilladt(afgørelsesreference: Tekst)
+# KglÅrsnettoPar25KategoriÅrsvalg(position_primo: KglÅrsnettoPar25ValgPrimo, aktuelt_princip: KursgevinstlovOpgørelsesprincip, ændringstilladelse: KglÅrsnettoPar25Ændringstilladelse)
+# KglÅrsnettoPar25Årsvalg(obligationer_på_reguleret_marked: KglÅrsnettoPar25KategoriÅrsvalg, valutakursændringer: KglÅrsnettoPar25KategoriÅrsvalg)
+# KglÅrsnettoPar25Valgposition(indkomstår: Heltal, princip: KursgevinstlovOpgørelsesprincip)
+# KglÅrsnettoPar25Valgresultat(input: KglÅrsnettoPar25Årsvalg, input_gyldigt: Boolsk, obligationsvalg_ultimo: KglÅrsnettoPar25Valgposition, valutavalg_ultimo: KglÅrsnettoPar25Valgposition)
+
+| kgl_årsnetto_par25_tilladelse_angivet(tilladelse: KglÅrsnettoPar25Ændringstilladelse) -> match tilladelse { | KglÅrsnettoPar25ÆndringTilladt(reference) -> reference != "" | _ -> Falskt }
+| kgl_årsnetto_par25_lager_til_realisation(position_primo: KglÅrsnettoPar25ValgPrimo, aktuelt_princip: KursgevinstlovOpgørelsesprincip) -> match position_primo { | KglÅrsnettoVidereførtPar25Valg(_, princip) -> princip == KglLagerprincip && aktuelt_princip == KglRealisationsprincip | _ -> Falskt }
+| kgl_årsnetto_par25_kategorivalg_gyldigt(valg: KglÅrsnettoPar25KategoriÅrsvalg, indkomstår: Heltal) -> match valg.position_primo {
+    | KglÅrsnettoIntetPar25ValgPrimo -> kgl_årsnetto_par25_tilladelse_angivet(valg.ændringstilladelse) == Falskt
+    | KglÅrsnettoVidereførtPar25Valg(fra_indkomstår, _) -> fra_indkomstår == indkomstår - 1 && kgl_årsnetto_par25_tilladelse_angivet(valg.ændringstilladelse) == kgl_årsnetto_par25_lager_til_realisation(valg.position_primo, valg.aktuelt_princip)
+}
+| kgl_årsnetto_par25_valutaårsvalg_gyldigt(valg: KglÅrsnettoPar25KategoriÅrsvalg, indkomstår: Heltal) -> kgl_årsnetto_par25_kategorivalg_gyldigt(valg, indkomstår) && (valg.aktuelt_princip != KglLagerprincip || indkomstår >= 2016)
+| kgl_årsnetto_par25_valgresultat(input: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> KglÅrsnettoPar25Valgresultat(
+    input = input,
+    input_gyldigt = indkomstår > 0 && kgl_årsnetto_par25_kategorivalg_gyldigt(input.obligationer_på_reguleret_marked, indkomstår) && kgl_årsnetto_par25_valutaårsvalg_gyldigt(input.valutakursændringer, indkomstår),
+    obligationsvalg_ultimo = KglÅrsnettoPar25Valgposition(indkomstår = indkomstår, princip = input.obligationer_på_reguleret_marked.aktuelt_princip),
+    valutavalg_ultimo = KglÅrsnettoPar25Valgposition(indkomstår = indkomstår, princip = input.valutakursændringer.aktuelt_princip)
+)
+| kgl_årsnetto_tomt_par25_kategorivalg() -> KglÅrsnettoPar25KategoriÅrsvalg(position_primo = KglÅrsnettoIntetPar25ValgPrimo, aktuelt_princip = KglRealisationsprincip, ændringstilladelse = KglÅrsnettoIngenPar25Ændringstilladelse)
+| kgl_årsnetto_tomt_par25_årsvalg() -> KglÅrsnettoPar25Årsvalg(obligationer_på_reguleret_marked = kgl_årsnetto_tomt_par25_kategorivalg(), valutakursændringer = kgl_årsnetto_tomt_par25_kategorivalg())
+| kgl_årsnetto_par25_primo_anvendte_lager(position: KglÅrsnettoPar25ValgPrimo) -> match position { | KglÅrsnettoVidereførtPar25Valg(_, princip) -> princip == KglLagerprincip | _ -> Falskt }
+
+# KglÅrsnettoValuta(iso_4217_kode: Tekst)
+# KglÅrsnettoValutakurs(dkk_øre_tæller: Heltal, valuta_hundreddele_nævner: Heltal)
+# KglÅrsnettoValutaværdi(beløb_hundreddele: Heltal, kurs: KglÅrsnettoValutakurs)
+# KglÅrsnettoValutaaktiv = KglÅrsnettoValutafordring(kilde: KglÅrsnettoFordringskilde) | KglÅrsnettoValutagældEfterPar23
+# KglÅrsnettoValutaposition(indkomstår: Heltal, erhvervelsesår: Heltal, valuta: KglÅrsnettoValuta, anskaffelsesværdi: KglÅrsnettoValutaværdi, seneste_værdi: KglÅrsnettoValutaværdi, kredit_eller_pris_tidligere_medregnet_øre: Heltal, valutakurs_tidligere_medregnet_øre: Heltal)
+# KglÅrsnettoValutapositionPrimo = KglÅrsnettoIngenValutapositionPrimo | KglÅrsnettoVidereførtValutapositionPrimo(position: KglÅrsnettoValutaposition)
+# KglÅrsnettoValutaÅrsændring = KglÅrsnettoValutaAnskaffetOgUltimoværdi(anskaffelsesværdi: KglÅrsnettoValutaværdi, ultimoværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaAnskaffetOgAfstået(anskaffelsesværdi: KglÅrsnettoValutaværdi, afståelsesværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaUltimoværdi(ultimoværdi: KglÅrsnettoValutaværdi) | KglÅrsnettoValutaAfstået(afståelsesværdi: KglÅrsnettoValutaværdi)
+# KglÅrsnettoValutaforløb(identifikation: Tekst, valuta: KglÅrsnettoValuta, aktiv: KglÅrsnettoValutaaktiv, position_primo: KglÅrsnettoValutapositionPrimo, årsændring: KglÅrsnettoValutaÅrsændring)
+# KglÅrsnettoValutakomponentart = KglÅrsnettoKreditEllerPriskomponent | KglÅrsnettoValutakurskomponent
+# KglÅrsnettoValutakomponentresultat(art: KglÅrsnettoValutakomponentart, opgørelsesprincip: KursgevinstlovOpgørelsesprincip, kumulativ_rå_netto_øre: Heltal, tidligere_medregnet_øre: Heltal, årets_rå_netto_øre: Heltal, årets_rå_netto_kroner: Heltal)
+# KglÅrsnettoValutaforløbsresultat(fakta: KglÅrsnettoValutaforløb, input_gyldigt: Boolsk, kredit_eller_pris: KglÅrsnettoValutakomponentresultat, valutakurs: KglÅrsnettoValutakomponentresultat, årets_rå_netto_kroner: Heltal, position_ultimo: Option(KglÅrsnettoValutaposition), kursgevinstlov_resultater: List(KursgevinstlovResultat))
+
+| kgl_årsnetto_valuta_gyldig(valuta: KglÅrsnettoValuta) -> string_length(valuta.iso_4217_kode) == 3 && valuta.iso_4217_kode != "DKK"
+| kgl_årsnetto_valutakurs_gyldig(kurs: KglÅrsnettoValutakurs) -> kurs.dkk_øre_tæller > 0 && kurs.valuta_hundreddele_nævner > 0
+| kgl_årsnetto_valutaværdi_gyldig(værdi: KglÅrsnettoValutaværdi) -> værdi.beløb_hundreddele >= 0 && kgl_årsnetto_valutakurs_gyldig(værdi.kurs)
+| kgl_årsnetto_valutaværdi_ved_kurs_øre(beløb_hundreddele: Heltal, kurs: KglÅrsnettoValutakurs) -> beløb_hundreddele * kurs.dkk_øre_tæller / kurs.valuta_hundreddele_nævner
+| kgl_årsnetto_valutaværdi_dkk_øre(værdi: KglÅrsnettoValutaværdi) -> kgl_årsnetto_valutaværdi_ved_kurs_øre(værdi.beløb_hundreddele, værdi.kurs)
+| kgl_årsnetto_valutaaktiv_fortegn(aktiv: KglÅrsnettoValutaaktiv) -> match aktiv { | KglÅrsnettoValutafordring(_) -> 1 | KglÅrsnettoValutagældEfterPar23 -> -1 }
+| kgl_årsnetto_valutaaktiv_er_markedsnoteret_obligation(aktiv: KglÅrsnettoValutaaktiv) -> match aktiv { | KglÅrsnettoValutafordring(kilde) -> kilde.fordringsart == KglÅrsnettoObligation && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) | _ -> Falskt }
+| kgl_årsnetto_valutaaktiv_gyldigt(aktiv: KglÅrsnettoValutaaktiv) -> match aktiv { | KglÅrsnettoValutafordring(kilde) -> kgl_årsnetto_par1_afgrænsning(kilde) == KglPar1Omfattet | KglÅrsnettoValutagældEfterPar23 -> Sandt }
+| kgl_årsnetto_valuta_kredit_eller_pris_princip(aktiv: KglÅrsnettoValutaaktiv, valg: KglÅrsnettoPar25Årsvalg) -> hvis kgl_årsnetto_valutaaktiv_er_markedsnoteret_obligation(aktiv) && valg.obligationer_på_reguleret_marked.aktuelt_princip == KglLagerprincip { KglLagerprincip } ellers { KglRealisationsprincip }
+| kgl_årsnetto_valutakurs_princip(aktiv: KglÅrsnettoValutaaktiv, valg: KglÅrsnettoPar25Årsvalg) -> hvis valg.valutakursændringer.aktuelt_princip == KglLagerprincip || kgl_årsnetto_valutaaktiv_er_markedsnoteret_obligation(aktiv) && valg.obligationer_på_reguleret_marked.aktuelt_princip == KglLagerprincip { KglLagerprincip } ellers { KglRealisationsprincip }
+| kgl_årsnetto_valuta_kredit_eller_pris_primo_lager(aktiv: KglÅrsnettoValutaaktiv, valg: KglÅrsnettoPar25Årsvalg) -> kgl_årsnetto_valutaaktiv_er_markedsnoteret_obligation(aktiv) && kgl_årsnetto_par25_primo_anvendte_lager(valg.obligationer_på_reguleret_marked.position_primo)
+| kgl_årsnetto_valutakurs_primo_lager(aktiv: KglÅrsnettoValutaaktiv, valg: KglÅrsnettoPar25Årsvalg) -> kgl_årsnetto_par25_primo_anvendte_lager(valg.valutakursændringer.position_primo) || kgl_årsnetto_valutaaktiv_er_markedsnoteret_obligation(aktiv) && kgl_årsnetto_par25_primo_anvendte_lager(valg.obligationer_på_reguleret_marked.position_primo)
+
+| kgl_årsnetto_valuta_tom_værdi() -> KglÅrsnettoValutaværdi(beløb_hundreddele = 0, kurs = KglÅrsnettoValutakurs(dkk_øre_tæller = 1, valuta_hundreddele_nævner = 1))
+| kgl_årsnetto_valuta_årsændring_matcher_position(position: KglÅrsnettoValutapositionPrimo, ændring: KglÅrsnettoValutaÅrsændring) -> match position {
+    | KglÅrsnettoIngenValutapositionPrimo -> match ændring { | KglÅrsnettoValutaAnskaffetOgUltimoværdi(_, _) -> Sandt | KglÅrsnettoValutaAnskaffetOgAfstået(_, _) -> Sandt | _ -> Falskt }
+    | KglÅrsnettoVidereførtValutapositionPrimo(_) -> match ændring { | KglÅrsnettoValutaUltimoværdi(_) -> Sandt | KglÅrsnettoValutaAfstået(_) -> Sandt | _ -> Falskt }
+}
+| kgl_årsnetto_valuta_årsændring_afstået(ændring: KglÅrsnettoValutaÅrsændring) -> match ændring { | KglÅrsnettoValutaAnskaffetOgAfstået(_, _) -> Sandt | KglÅrsnettoValutaAfstået(_) -> Sandt | _ -> Falskt }
+| kgl_årsnetto_valuta_årsændring_anskaffelsesværdi(ændring: KglÅrsnettoValutaÅrsændring) -> match ændring { | KglÅrsnettoValutaAnskaffetOgUltimoværdi(anskaffelse, _) -> anskaffelse | KglÅrsnettoValutaAnskaffetOgAfstået(anskaffelse, _) -> anskaffelse | _ -> kgl_årsnetto_valuta_tom_værdi() }
+| kgl_årsnetto_valuta_årsændring_slutværdi(ændring: KglÅrsnettoValutaÅrsændring) -> match ændring { | KglÅrsnettoValutaAnskaffetOgUltimoværdi(_, ultimo) -> ultimo | KglÅrsnettoValutaAnskaffetOgAfstået(_, afståelse) -> afståelse | KglÅrsnettoValutaUltimoværdi(ultimo) -> ultimo | KglÅrsnettoValutaAfstået(afståelse) -> afståelse }
+| kgl_årsnetto_valuta_position_primo_gyldig(position: KglÅrsnettoValutapositionPrimo, valuta: KglÅrsnettoValuta, indkomstår: Heltal) -> match position {
+    | KglÅrsnettoIngenValutapositionPrimo -> Sandt
+    | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.indkomstår == indkomstår - 1 && værdi.erhvervelsesår > 0 && værdi.erhvervelsesår <= værdi.indkomstår && værdi.valuta == valuta && kgl_årsnetto_valutaværdi_gyldig(værdi.anskaffelsesværdi) && værdi.anskaffelsesværdi.beløb_hundreddele > 0 && kgl_årsnetto_valutaværdi_gyldig(værdi.seneste_værdi)
+}
+| kgl_årsnetto_valuta_anskaffelsesværdi(position: KglÅrsnettoValutapositionPrimo, ændring: KglÅrsnettoValutaÅrsændring) -> match position { | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.anskaffelsesværdi | _ -> kgl_årsnetto_valuta_årsændring_anskaffelsesværdi(ændring) }
+| kgl_årsnetto_valuta_erhvervelsesår(position: KglÅrsnettoValutapositionPrimo, indkomstår: Heltal) -> match position { | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.erhvervelsesår | _ -> indkomstår }
+| kgl_årsnetto_valuta_tidligere_kredit_eller_pris_medregnet_øre(position: KglÅrsnettoValutapositionPrimo) -> match position { | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.kredit_eller_pris_tidligere_medregnet_øre | _ -> 0 }
+| kgl_årsnetto_valuta_tidligere_valutakurs_medregnet_øre(position: KglÅrsnettoValutapositionPrimo) -> match position { | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.valutakurs_tidligere_medregnet_øre | _ -> 0 }
+| kgl_årsnetto_valuta_forrige_værdi(position: KglÅrsnettoValutapositionPrimo, ændring: KglÅrsnettoValutaÅrsændring) -> match position { | KglÅrsnettoVidereførtValutapositionPrimo(værdi) -> værdi.seneste_værdi | _ -> kgl_årsnetto_valuta_årsændring_anskaffelsesværdi(ændring) }
+
+| kgl_årsnetto_valuta_kumulativ_kredit_eller_pris_øre(aktiv: KglÅrsnettoValutaaktiv, anskaffelse: KglÅrsnettoValutaværdi, aktuel: KglÅrsnettoValutaværdi) -> kgl_årsnetto_valutaaktiv_fortegn(aktiv) * (kgl_årsnetto_valutaværdi_ved_kurs_øre(aktuel.beløb_hundreddele, anskaffelse.kurs) - kgl_årsnetto_valutaværdi_dkk_øre(anskaffelse))
+| kgl_årsnetto_valuta_kumulativ_total_øre(aktiv: KglÅrsnettoValutaaktiv, anskaffelse: KglÅrsnettoValutaværdi, aktuel: KglÅrsnettoValutaværdi) -> kgl_årsnetto_valutaaktiv_fortegn(aktiv) * (kgl_årsnetto_valutaværdi_dkk_øre(aktuel) - kgl_årsnetto_valutaværdi_dkk_øre(anskaffelse))
+| kgl_årsnetto_valuta_kumulativ_valutakurs_øre(aktiv: KglÅrsnettoValutaaktiv, anskaffelse: KglÅrsnettoValutaværdi, aktuel: KglÅrsnettoValutaværdi) -> kgl_årsnetto_valuta_kumulativ_total_øre(aktiv, anskaffelse, aktuel) - kgl_årsnetto_valuta_kumulativ_kredit_eller_pris_øre(aktiv, anskaffelse, aktuel)
+| kgl_årsnetto_valuta_årets_komponent_øre(kumulativ_øre: Heltal, tidligere_medregnet_øre: Heltal, princip: KursgevinstlovOpgørelsesprincip, afstået: Boolsk) -> hvis princip == KglLagerprincip || afstået { kumulativ_øre - tidligere_medregnet_øre } ellers { 0 }
+| kgl_årsnetto_valuta_komponentresultat(art: KglÅrsnettoValutakomponentart, princip: KursgevinstlovOpgørelsesprincip, kumulativ_øre: Heltal, tidligere_medregnet_øre: Heltal, afstået: Boolsk) -> {
+    = årets_rå_netto_øre = kgl_årsnetto_valuta_årets_komponent_øre(kumulativ_øre, tidligere_medregnet_øre, princip, afstået)
+    KglÅrsnettoValutakomponentresultat(art = art, opgørelsesprincip = princip, kumulativ_rå_netto_øre = kumulativ_øre, tidligere_medregnet_øre = tidligere_medregnet_øre, årets_rå_netto_øre = årets_rå_netto_øre, årets_rå_netto_kroner = årets_rå_netto_øre / 100)
+}
+| kgl_årsnetto_valuta_forrige_kumulative_kredit_eller_pris_øre(fakta: KglÅrsnettoValutaforløb) -> {
+    = anskaffelse = kgl_årsnetto_valuta_anskaffelsesværdi(fakta.position_primo, fakta.årsændring)
+    kgl_årsnetto_valuta_kumulativ_kredit_eller_pris_øre(fakta.aktiv, anskaffelse, kgl_årsnetto_valuta_forrige_værdi(fakta.position_primo, fakta.årsændring))
+}
+| kgl_årsnetto_valuta_forrige_kumulative_valutakurs_øre(fakta: KglÅrsnettoValutaforløb) -> {
+    = anskaffelse = kgl_årsnetto_valuta_anskaffelsesværdi(fakta.position_primo, fakta.årsændring)
+    kgl_årsnetto_valuta_kumulativ_valutakurs_øre(fakta.aktiv, anskaffelse, kgl_årsnetto_valuta_forrige_værdi(fakta.position_primo, fakta.årsændring))
+}
+| kgl_årsnetto_valuta_tidligere_medregning_konsistent(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg) -> match fakta.position_primo {
+    | KglÅrsnettoIngenValutapositionPrimo -> Sandt
+    | KglÅrsnettoVidereførtValutapositionPrimo(position) -> (kgl_årsnetto_valuta_kredit_eller_pris_primo_lager(fakta.aktiv, valg) == Falskt || position.kredit_eller_pris_tidligere_medregnet_øre == kgl_årsnetto_valuta_forrige_kumulative_kredit_eller_pris_øre(fakta)) && (kgl_årsnetto_valutakurs_primo_lager(fakta.aktiv, valg) == Falskt || position.valutakurs_tidligere_medregnet_øre == kgl_årsnetto_valuta_forrige_kumulative_valutakurs_øre(fakta))
+}
+
+| kgl_årsnetto_valuta_tabsbegrænsning_uden_par14_stk2(kilde: KglÅrsnettoFordringskilde) -> hvis kilde.dba_status == KglÅrsnettoRenterEllerGevinsterUndtagetEfterDba { KglFordringstabDbaAfskåret } ellers { hvis kgl_årsnetto_fordring_omfattet_af_par17(kilde) == Falskt && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && kgl_årsnetto_oplyst_rettidigt(kilde.markedsfakta) == Falskt { KglFordringstabReguleretMarkedUdenOplysning } ellers { KglFordringstabIkkeAfskåret } }
+| kgl_årsnetto_valuta_fordring_tabsbegrænsning(kilde: KglÅrsnettoFordringskilde, art: KglÅrsnettoValutakomponentart) -> hvis art == KglÅrsnettoKreditEllerPriskomponent { kgl_årsnetto_fordring_tabsbegrænsning(kilde) } ellers { kgl_årsnetto_valuta_tabsbegrænsning_uden_par14_stk2(kilde) }
+| kgl_årsnetto_valuta_fordringsopgørelse(kilde: KglÅrsnettoFordringskilde, art: KglÅrsnettoValutakomponentart, rå_netto_kroner: Heltal) -> KursgevinstlovFordringOpgørelse(
+    tabsgrundlag = kgl_årsnetto_fordring_tabsgrundlag(kilde),
+    tabsbegrænsning = kgl_årsnetto_valuta_fordring_tabsbegrænsning(kilde, art),
+    anskaffelsessum_kroner = hvis rå_netto_kroner < 0 { 0 - rå_netto_kroner } ellers { 0 },
+    afståelsessum_kroner = hvis rå_netto_kroner > 0 { rå_netto_kroner } ellers { 0 }
+)
+| kgl_årsnetto_valuta_fordringsinput(fakta: KglÅrsnettoValutaforløb, kilde: KglÅrsnettoFordringskilde, komponent: KglÅrsnettoValutakomponentresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> KursgevinstlovInput(
+    indkomstår = indkomstår,
+    rolle = KglPersonEfterKildeskatteloven,
+    aktiv = KglFordring,
+    par1_afgrænsning = kgl_årsnetto_par1_afgrænsning(kilde),
+    bagatelgrundlag = KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner = årets_samlede_netto_kroner),
+    fordring = kgl_årsnetto_valuta_fordringsopgørelse(kilde, komponent.art, komponent.årets_rå_netto_kroner),
+    gæld = kgl_tom_gæld(),
+    kontrakt = kgl_tom_kontrakt(),
+    udøver_fordrings_eller_kontraktnæring = kgl_årsnetto_udøver_næring(kilde.næringsforhold),
+    fordring_erhvervet_udenfor_næring = kgl_årsnetto_fordring_erhvervet_udenfor_næring(kilde.næringsforhold),
+    anvender_lagerprincip_efter_par25 = komponent.opgørelsesprincip == KglLagerprincip
+)
+| kgl_årsnetto_valuta_gældsbeløb(rå_netto_kroner: Heltal) -> KursgevinstlovGældBeløb(
+    gældens_værdi_ved_påtagelse_kroner = hvis rå_netto_kroner > 0 { rå_netto_kroner } ellers { 0 },
+    gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = hvis rå_netto_kroner < 0 { 0 - rå_netto_kroner } ellers { 0 },
+    fordringens_værdi_for_kreditor_kroner = hvis rå_netto_kroner < 0 { 0 - rå_netto_kroner } ellers { 0 }
+)
+| kgl_årsnetto_valuta_gældsinput(fakta: KglÅrsnettoValutaforløb, komponent: KglÅrsnettoValutakomponentresultat, indkomstår: Heltal) -> kursgevinstlov_gæld_input(indkomstår, KursgevinstlovGældFakta(
+    identifikation = fakta.identifikation + hvis komponent.art == KglÅrsnettoKreditEllerPriskomponent { ":kredit" } ellers { ":valuta" },
+    beløb = kgl_årsnetto_valuta_gældsbeløb(komponent.årets_rå_netto_kroner),
+    frigørelsesart = KglGældOrdinærIndfrielse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = KglIngenDokumenteretGældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+))
+
+# KglÅrsnettoValutaforløbssag(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) {
+    | anskaffelsesværdi() -> kgl_årsnetto_valuta_anskaffelsesværdi(fakta.position_primo, fakta.årsændring)
+    | slutværdi() -> kgl_årsnetto_valuta_årsændring_slutværdi(fakta.årsændring)
+    | afstået() -> kgl_årsnetto_valuta_årsændring_afstået(fakta.årsændring)
+    | kredit_eller_pris_princip() -> kgl_årsnetto_valuta_kredit_eller_pris_princip(fakta.aktiv, valg)
+    | valutakurs_princip() -> kgl_årsnetto_valutakurs_princip(fakta.aktiv, valg)
+    | kumulativ_kredit_eller_pris_øre() -> kgl_årsnetto_valuta_kumulativ_kredit_eller_pris_øre(fakta.aktiv, anskaffelsesværdi(), slutværdi())
+    | kumulativ_valutakurs_øre() -> kgl_årsnetto_valuta_kumulativ_valutakurs_øre(fakta.aktiv, anskaffelsesværdi(), slutværdi())
+    | kredit_eller_pris() -> kgl_årsnetto_valuta_komponentresultat(KglÅrsnettoKreditEllerPriskomponent, kredit_eller_pris_princip(), kumulativ_kredit_eller_pris_øre(), kgl_årsnetto_valuta_tidligere_kredit_eller_pris_medregnet_øre(fakta.position_primo), afstået())
+    | valutakurs() -> kgl_årsnetto_valuta_komponentresultat(KglÅrsnettoValutakurskomponent, valutakurs_princip(), kumulativ_valutakurs_øre(), kgl_årsnetto_valuta_tidligere_valutakurs_medregnet_øre(fakta.position_primo), afstået())
+    | input_gyldigt() -> fakta.identifikation != "" && kgl_årsnetto_valuta_gyldig(fakta.valuta) && kgl_årsnetto_valutaaktiv_gyldigt(fakta.aktiv) && kgl_årsnetto_valuta_position_primo_gyldig(fakta.position_primo, fakta.valuta, indkomstår) && kgl_årsnetto_valuta_årsændring_matcher_position(fakta.position_primo, fakta.årsændring) && kgl_årsnetto_valutaværdi_gyldig(anskaffelsesværdi()) && anskaffelsesværdi().beløb_hundreddele > 0 && kgl_årsnetto_valutaværdi_gyldig(slutværdi()) && kgl_årsnetto_valuta_tidligere_medregning_konsistent(fakta, valg)
+    | position_ultimo() -> hvis input_gyldigt() && afstået() == Falskt { Some(KglÅrsnettoValutaposition(
+        indkomstår = indkomstår,
+        erhvervelsesår = kgl_årsnetto_valuta_erhvervelsesår(fakta.position_primo, indkomstår),
+        valuta = fakta.valuta,
+        anskaffelsesværdi = anskaffelsesværdi(),
+        seneste_værdi = slutværdi(),
+        kredit_eller_pris_tidligere_medregnet_øre = kgl_årsnetto_valuta_tidligere_kredit_eller_pris_medregnet_øre(fakta.position_primo) + kredit_eller_pris().årets_rå_netto_øre,
+        valutakurs_tidligere_medregnet_øre = kgl_årsnetto_valuta_tidligere_valutakurs_medregnet_øre(fakta.position_primo) + valutakurs().årets_rå_netto_øre
+    )) } ellers { None }
+    | komponentresultat(komponent: KglÅrsnettoValutakomponentresultat) -> match fakta.aktiv {
+        | KglÅrsnettoValutafordring(kilde) -> kursgevinstlov_resultat(kgl_årsnetto_valuta_fordringsinput(fakta, kilde, komponent, indkomstår, årets_samlede_netto_kroner))
+        | KglÅrsnettoValutagældEfterPar23 -> kursgevinstlov_resultat_fra_gæld(kgl_årsnetto_valuta_gældsinput(fakta, komponent, indkomstår), årets_samlede_netto_kroner)
+    }
+    | kursgevinstlov_resultater() -> hvis input_gyldigt() { concat(hvis kredit_eller_pris().årets_rå_netto_kroner != 0 { [komponentresultat(kredit_eller_pris())] } ellers { [] }, hvis valutakurs().årets_rå_netto_kroner != 0 { [komponentresultat(valutakurs())] } ellers { [] }) } ellers { [] }
+    | resultat() -> KglÅrsnettoValutaforløbsresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt(),
+        kredit_eller_pris = kredit_eller_pris(),
+        valutakurs = valutakurs(),
+        årets_rå_netto_kroner = kredit_eller_pris().årets_rå_netto_kroner + valutakurs().årets_rå_netto_kroner,
+        position_ultimo = position_ultimo(),
+        kursgevinstlov_resultater = kursgevinstlov_resultater()
+    )
+}
+| kgl_årsnetto_valutaforløbsresultat(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> KglÅrsnettoValutaforløbssag(fakta, valg, indkomstår, årets_samlede_netto_kroner).resultat()
+
 # KglÅrsnettoPositionPrimo = KglÅrsnettoIngenPositionPrimo | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal)
 # KglÅrsnettoPositionUltimo = KglÅrsnettoIngenPositionUltimo | KglÅrsnettoAktivPositionUltimo(indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal)
 # KglÅrsnettoHændelse = KglÅrsnettoAnskaffelse(anskaffelsessum_kroner: Heltal) | KglÅrsnettoAfståelse(afståelsessum_kroner: Heltal) | KglÅrsnettoUltimoværdi(værdi_kroner: Heltal)
@@ -262,15 +449,17 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 # KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
 # KglÅrsnettoAbl22Kilde(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve)
 # KglÅrsnettoAbl22Forløb(identifikation: Tekst, kilde: KglÅrsnettoAbl22Kilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
-# KursgevinstlovÅrsnettoInput(fordringer: List(KglÅrsnettoFordringsforløb), obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb))
-# KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, kilde_gyldig: Boolsk, omfattet_af_par14_bagatelgrundlag: Boolsk, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, input_gyldigt: Boolsk)
+# KursgevinstlovÅrsnettoInput(par25_valg: KglÅrsnettoPar25Årsvalg, fordringer: List(KglÅrsnettoFordringsforløb), valutainstrumenter: List(KglÅrsnettoValutaforløb), obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb))
+# KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, omfattet_af_par14_bagatelgrundlag: Boolsk, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, input_gyldigt: Boolsk)
 # KglÅrsnettoAbl22Resultat(fakta: KglÅrsnettoAbl22Forløb, forløb: KglÅrsnettoForløbsresultat, klassifikationsresultat: AktieavancePar21Par22Resultat, effektivt_obligationsbaseret_efter_par22: Boolsk, omfattet_af_par22_bagatelgrundlag: Boolsk, aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk)
-# KursgevinstlovÅrsnettoResultat(input: KursgevinstlovÅrsnettoInput, input_gyldigt: Boolsk, rå_netto_til_par14_og_abl22_kroner: Heltal, fordringsresultater: List(KglÅrsnettoFordringsresultat), obligationsbevisresultater: List(KglÅrsnettoAbl22Resultat), kursgevinstlov_resultater: List(KursgevinstlovResultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
+# KursgevinstlovÅrsnettoResultat(input: KursgevinstlovÅrsnettoInput, input_gyldigt: Boolsk, par25_valgresultat: KglÅrsnettoPar25Valgresultat, rå_netto_til_par14_og_abl22_kroner: Heltal, fordringsresultater: List(KglÅrsnettoFordringsresultat), valutainstrumentresultater: List(KglÅrsnettoValutaforløbsresultat), obligationsbevisresultater: List(KglÅrsnettoAbl22Resultat), kursgevinstlov_resultater: List(KursgevinstlovResultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
 
-| kgl_årsnetto_tomt_input() -> KursgevinstlovÅrsnettoInput(fordringer = [], obligationsbaserede_minimumsbeviser = [])
-| kgl_årsnetto_fordringsforløbsresultat(fakta: KglÅrsnettoFordringsforløb, indkomstår: Heltal) -> kgl_årsnetto_forløbsresultat(indkomstår, fakta.position_primo, fakta.hændelser, fakta.kilde.opgørelsesprincip)
-| kgl_årsnetto_fordringsinput(fakta: KglÅrsnettoFordringsforløb, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
-    = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, indkomstår)
+| kgl_årsnetto_tomt_input() -> KursgevinstlovÅrsnettoInput(par25_valg = kgl_årsnetto_tomt_par25_årsvalg(), fordringer = [], valutainstrumenter = [], obligationsbaserede_minimumsbeviser = [])
+| kgl_årsnetto_fordringsprincip(kilde: KglÅrsnettoFordringskilde, valg: KglÅrsnettoPar25Årsvalg) -> hvis kilde.fordringsart == KglÅrsnettoObligation && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && valg.obligationer_på_reguleret_marked.aktuelt_princip == KglLagerprincip { KglLagerprincip } ellers { KglRealisationsprincip }
+| kgl_årsnetto_fordringsforløbsresultat(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> kgl_årsnetto_forløbsresultat(indkomstår, fakta.position_primo, fakta.hændelser, kgl_årsnetto_fordringsprincip(fakta.kilde, valg))
+| kgl_årsnetto_fordringsinput(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
+    = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, valg, indkomstår)
+    = princip = kgl_årsnetto_fordringsprincip(fakta.kilde, valg)
     KursgevinstlovInput(
         indkomstår = indkomstår,
         rolle = KglPersonEfterKildeskatteloven,
@@ -282,25 +471,23 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
         kontrakt = kgl_tom_kontrakt(),
         udøver_fordrings_eller_kontraktnæring = kgl_årsnetto_udøver_næring(fakta.kilde.næringsforhold),
         fordring_erhvervet_udenfor_næring = kgl_årsnetto_fordring_erhvervet_udenfor_næring(fakta.kilde.næringsforhold),
-        anvender_lagerprincip_efter_par25 = fakta.kilde.opgørelsesprincip == KglLagerprincip
+        anvender_lagerprincip_efter_par25 = princip == KglLagerprincip
     )
 }
-| kgl_årsnetto_fordringsresultat(fakta: KglÅrsnettoFordringsforløb, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
-    = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, indkomstår)
-    = kilde_gyldig = kgl_årsnetto_fordringskilde_gyldig(fakta.kilde)
-    = kgl_input = kgl_årsnetto_fordringsinput(fakta, indkomstår, årets_samlede_netto_kroner)
+| kgl_årsnetto_fordringsresultat(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
+    = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, valg, indkomstår)
+    = kgl_input = kgl_årsnetto_fordringsinput(fakta, valg, indkomstår, årets_samlede_netto_kroner)
     KglÅrsnettoFordringsresultat(
         fakta = fakta,
         forløb = forløb,
-        kilde_gyldig = kilde_gyldig,
         omfattet_af_par14_bagatelgrundlag = kgl_årsnetto_fordring_i_par14_bagatelgrundlag(fakta.kilde),
         kursgevinstlov_input = kgl_input,
         kursgevinstlov_resultat = kursgevinstlov_resultat(kgl_input),
-        input_gyldigt = fakta.identifikation != "" && kilde_gyldig && forløb.input_gyldigt
+        input_gyldigt = fakta.identifikation != "" && forløb.input_gyldigt
     )
 }
-| kgl_årsnetto_fordring_rå_netto_kroner(fakta: KglÅrsnettoFordringsforløb, indkomstår: Heltal) -> {
-    = resultat = kgl_årsnetto_fordringsresultat(fakta, indkomstår, 0)
+| kgl_årsnetto_fordring_rå_netto_kroner(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> {
+    = resultat = kgl_årsnetto_fordringsresultat(fakta, valg, indkomstår, 0)
     hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse && resultat.omfattet_af_par14_bagatelgrundlag { resultat.forløb.rå_netto_kroner } ellers { 0 }
 }
 
@@ -344,27 +531,38 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse && resultat.omfattet_af_par22_bagatelgrundlag { resultat.forløb.rå_netto_kroner } ellers { 0 }
 }
 
-| kgl_årsnetto_identifikationer(input: KursgevinstlovÅrsnettoInput) -> concat(map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| fakta.identifikation), map(input.obligationsbaserede_minimumsbeviser, |fakta: KglÅrsnettoAbl22Forløb| fakta.identifikation))
+| kgl_årsnetto_identifikationer(input: KursgevinstlovÅrsnettoInput) -> concat(concat(map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| fakta.identifikation), map(input.valutainstrumenter, |fakta: KglÅrsnettoValutaforløb| fakta.identifikation)), map(input.obligationsbaserede_minimumsbeviser, |fakta: KglÅrsnettoAbl22Forløb| fakta.identifikation))
 | kgl_årsnetto_identifikationer_unikke(input: KursgevinstlovÅrsnettoInput) -> all(kgl_årsnetto_identifikationer(input), |identifikation: Tekst| identifikation != "" && length(filter(kgl_årsnetto_identifikationer(input), |anden: Tekst| anden == identifikation)) == 1)
-| kgl_årsnetto_rå_netto_kroner(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal) -> foldl(input.fordringer, foldl(input.obligationsbaserede_minimumsbeviser, 0, |sum: Heltal, fakta: KglÅrsnettoAbl22Forløb| sum + kgl_årsnetto_abl22_rå_netto_kroner(fakta, indkomstår)), |sum: Heltal, fakta: KglÅrsnettoFordringsforløb| sum + kgl_årsnetto_fordring_rå_netto_kroner(fakta, indkomstår))
-| kgl_årsnetto_fordringsresultater(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| kgl_årsnetto_fordringsresultat(fakta, indkomstår, årets_samlede_netto_kroner))
+| kgl_årsnetto_valutainstrument_rå_netto_kroner(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> {
+    = resultat = kgl_årsnetto_valutaforløbsresultat(fakta, valg, indkomstår, 0)
+    hvis resultat.input_gyldigt { resultat.årets_rå_netto_kroner } ellers { 0 }
+}
+| kgl_årsnetto_rå_netto_kroner(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal) -> foldl(input.fordringer, foldl(input.valutainstrumenter, foldl(input.obligationsbaserede_minimumsbeviser, 0, |sum: Heltal, fakta: KglÅrsnettoAbl22Forløb| sum + kgl_årsnetto_abl22_rå_netto_kroner(fakta, indkomstår)), |sum: Heltal, fakta: KglÅrsnettoValutaforløb| sum + kgl_årsnetto_valutainstrument_rå_netto_kroner(fakta, input.par25_valg, indkomstår)), |sum: Heltal, fakta: KglÅrsnettoFordringsforløb| sum + kgl_årsnetto_fordring_rå_netto_kroner(fakta, input.par25_valg, indkomstår))
+| kgl_årsnetto_fordringsresultater(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| kgl_årsnetto_fordringsresultat(fakta, input.par25_valg, indkomstår, årets_samlede_netto_kroner))
+| kgl_årsnetto_valutainstrumentresultater(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(input.valutainstrumenter, |fakta: KglÅrsnettoValutaforløb| kgl_årsnetto_valutaforløbsresultat(fakta, input.par25_valg, indkomstår, årets_samlede_netto_kroner))
 | kgl_årsnetto_abl22_resultater(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(input.obligationsbaserede_minimumsbeviser, |fakta: KglÅrsnettoAbl22Forløb| kgl_årsnetto_abl22_resultat(fakta, indkomstår, årets_samlede_netto_kroner))
 | kgl_årsnetto_alle_fordringsresultater_gyldige(resultater: List(KglÅrsnettoFordringsresultat)) -> all(resultater, |resultat: KglÅrsnettoFordringsresultat| resultat.input_gyldigt)
+| kgl_årsnetto_alle_valutainstrumentresultater_gyldige(resultater: List(KglÅrsnettoValutaforløbsresultat)) -> all(resultater, |resultat: KglÅrsnettoValutaforløbsresultat| resultat.input_gyldigt)
 | kgl_årsnetto_alle_abl22_resultater_gyldige(resultater: List(KglÅrsnettoAbl22Resultat)) -> all(resultater, |resultat: KglÅrsnettoAbl22Resultat| resultat.input_gyldigt)
 | kgl_årsnetto_kursgevinstlov_resultater(resultater: List(KglÅrsnettoFordringsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoFordringsresultat| hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse { [resultat.kursgevinstlov_resultat] } ellers { [] })
+| kgl_årsnetto_valuta_kursgevinstlov_resultater(resultater: List(KglÅrsnettoValutaforløbsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoValutaforløbsresultat| resultat.kursgevinstlov_resultater)
 | kgl_årsnetto_aktieavancebeskatningslov_resultater(resultater: List(KglÅrsnettoAbl22Resultat)) -> flat_map(resultater, |resultat: KglÅrsnettoAbl22Resultat| hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse { [resultat.aktieavancebeskatningslov_resultat] } ellers { [] })
 
 # KursgevinstlovÅrsnettoSag(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) {
+    | par25_valgresultat() -> kgl_årsnetto_par25_valgresultat(input.par25_valg, indkomstår)
     | fordringsresultater() -> kgl_årsnetto_fordringsresultater(input, indkomstår, årets_samlede_netto_kroner)
+    | valutainstrumentresultater() -> kgl_årsnetto_valutainstrumentresultater(input, indkomstår, årets_samlede_netto_kroner)
     | obligationsbevisresultater() -> kgl_årsnetto_abl22_resultater(input, indkomstår, årets_samlede_netto_kroner)
-    | input_gyldigt() -> indkomstår > 0 && kgl_årsnetto_identifikationer_unikke(input) && kgl_årsnetto_alle_fordringsresultater_gyldige(fordringsresultater()) && kgl_årsnetto_alle_abl22_resultater_gyldige(obligationsbevisresultater())
-    | kursgevinstlov_resultater() -> hvis input_gyldigt() { kgl_årsnetto_kursgevinstlov_resultater(fordringsresultater()) } ellers { [] }
+    | input_gyldigt() -> indkomstår > 0 && par25_valgresultat().input_gyldigt && kgl_årsnetto_identifikationer_unikke(input) && kgl_årsnetto_alle_fordringsresultater_gyldige(fordringsresultater()) && kgl_årsnetto_alle_valutainstrumentresultater_gyldige(valutainstrumentresultater()) && kgl_årsnetto_alle_abl22_resultater_gyldige(obligationsbevisresultater())
+    | kursgevinstlov_resultater() -> hvis input_gyldigt() { concat(kgl_årsnetto_kursgevinstlov_resultater(fordringsresultater()), kgl_årsnetto_valuta_kursgevinstlov_resultater(valutainstrumentresultater())) } ellers { [] }
     | aktieavancebeskatningslov_resultater() -> hvis input_gyldigt() { kgl_årsnetto_aktieavancebeskatningslov_resultater(obligationsbevisresultater()) } ellers { [] }
     | resultat() -> KursgevinstlovÅrsnettoResultat(
         input = input,
         input_gyldigt = input_gyldigt(),
+        par25_valgresultat = par25_valgresultat(),
         rå_netto_til_par14_og_abl22_kroner = kgl_årsnetto_rå_netto_kroner(input, indkomstår),
         fordringsresultater = fordringsresultater(),
+        valutainstrumentresultater = valutainstrumentresultater(),
         obligationsbevisresultater = obligationsbevisresultater(),
         kursgevinstlov_resultater = kursgevinstlov_resultater(),
         aktieavancebeskatningslov_resultater = aktieavancebeskatningslov_resultater()

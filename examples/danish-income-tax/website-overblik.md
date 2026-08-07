@@ -147,6 +147,32 @@ også en frivillig ordning med fem relaterede kreditorrækker: Reglerne afleder 
 deltagelsesandel på 82,08 pct., anvender § 24 og medregner 50.000 kr. efter
 fordringens værdi for kreditor.
 
+Fordringer, obligationer og gæld i fremmed valuta har nu samme kildefaktabårne
+årsforløb. Arbejdsbogen oplyser beløbet i valutaens mindste enhed, ISO-koden og
+en rational kurs ved anskaffelse, primo, ultimo eller realisation. Futuruna
+opgør derfra kredit- eller prisændringen ved anskaffelseskursen og lader den
+resterende kroneændring være valutakomponenten. Dermed kan § 14, stk. 2,
+afskære et tab på en fordring mellem nærtstående uden samtidig at fjerne en
+selvstændig valutagevinst.
+
+De kollektive valg efter § 25 for regulerede obligationer og
+valutakursændringer er vedvarende årsoplysninger, ikke et valg på den enkelte
+post. Et skift fra lager- til realisationsprincippet kræver den foreskrevne
+tilladelse, og lagerreglerne medregner kun ændringen siden den allerede
+beskattede primoposition. Overgangspositioner efter § 42, stk. 9, bevares på
+samme måde.
+
+Et verificeret eksempel følger en fordring mellem nærtstående fra 10.000 USD
+ved kurs 5 til 8.000 USD ved kurs 8. Kreditkomponenten er et tab på 10.000 kr.,
+som § 14, stk. 2, afskærer, mens valutakomponenten er en skattepligtig gevinst
+på 24.000 kr. Den samlede markedsændring er 14.000 kr., men den afledte
+kapitalindkomst er 24.000 kr. De samme udfyldte kildefakta og det samme fulde
+Personskat-resultat passerer både den genererede XLSX-arbejdsbog og den typede
+JSON-grænse. Kilderne er
+[Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176)
+og
+[Den juridiske vejledning C.B.1.7.1](https://info.skat.dk/data.aspx?oid=1946022).
+
 Pensionsgrenen viser samspillet i praksis. Borgeren eller AI-interviewet
 oplyser de faktiske indbetalinger, ordningstyper, betalingsår og relevante
 valg. Futuruna afleder årets fradrag efter Pensionsbeskatningslovens § 18,

@@ -27,8 +27,7 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
     debitorrelation = KglÅrsnettoUafhængigDebitor,
     næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
     erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
-    dba_status = KglÅrsnettoIngenDbaBegrænsning,
-    opgørelsesprincip = KglRealisationsprincip
+    dba_status = KglÅrsnettoIngenDbaBegrænsning
 )
 
 | personskat_kgl_årsnetto_overlappende_par17_kilde(dba_status: KglÅrsnettoDbaStatus) -> KglÅrsnettoFordringskilde(
@@ -37,8 +36,7 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
     debitorrelation = KglÅrsnettoKontrolleretSelskab,
     næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
     erhvervelsesgrundlag = KglÅrsnettoVederlagINæring,
-    dba_status = dba_status,
-    opgørelsesprincip = KglRealisationsprincip
+    dba_status = dba_status
 )
 
 | personskat_kgl_årsnetto_fordringsforløb(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoFordringsforløb(
@@ -107,7 +105,9 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
         sælgerpantebreve = [],
         gældsposter = gældsposter,
         øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+            par25_valg = kgl_årsnetto_tomt_par25_årsvalg(),
             fordringer = fordringer,
+            valutainstrumenter = [],
             obligationsbaserede_minimumsbeviser = obligationsbeviser
         ),
         par32_kontraktforløb = UdenPar32Kontraktforløb

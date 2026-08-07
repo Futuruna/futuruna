@@ -3084,10 +3084,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kapitalindkomst.kursgevinst.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.skatteyder_identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.ægtefælles_skatteyder_identifikation",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.aktuelt_princip",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.ændringstilladelse.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.aktuelt_princip",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.ændringstilladelse.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.identifikation",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.kilde.fordringsart",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.position_primo.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.fordringer.hændelser.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter.identifikation",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter.valuta.iso_4217_kode",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter.aktiv.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter.position_primo.$variant",
+            "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter.årsændring.$variant",
             "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.obligationsbaserede_minimumsbeviser.identifikation",
             "kapitalindkomst.fremleje.$variant",
             "kapitalindkomst.fremleje.MedFremlejeEfterLigningslov15Q.fakta.metode",
@@ -3590,7 +3601,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.næringsforhold",
             "kilde.erhvervelsesgrundlag",
             "kilde.dba_status",
-            "kilde.opgørelsesprincip",
             "position_primo.$variant",
             "position_primo.KglÅrsnettoVidereførtPositionPrimo.fra_indkomstår",
             "position_primo.KglÅrsnettoVidereførtPositionPrimo.skattemæssig_værdi_kroner",
@@ -3615,7 +3625,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fordrings- eller finansieringsnæring",
             "Hvordan fordringen blev erhvervet",
             "Dobbeltbeskatningsoverenskomst",
-            "Opgørelsesprincip for fordringen",
             "Fordringens position ved årets begyndelse",
             "Skattemæssig værdi ved årets begyndelse",
         ] {
@@ -3657,6 +3666,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human annual KGL event label {expected} on {kgl_annual_claim_events_sheet}"
+            );
+        }
+        let kgl_currency_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.valutainstrumenter";
+        let kgl_currency_sheet = workbook_collection_sheet_name(&mut workbook, kgl_currency_path);
+        let kgl_currency_paths = workbook_column_paths(&mut workbook, &kgl_currency_sheet);
+        for expected in [
+            "identifikation",
+            "valuta.iso_4217_kode",
+            "aktiv.$variant",
+            "aktiv.KglÅrsnettoValutafordring.kilde.fordringsart",
+            "aktiv.KglÅrsnettoValutafordring.kilde.debitorrelation",
+            "position_primo.$variant",
+            "årsændring.$variant",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.anskaffelsesværdi.beløb_hundreddele",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.anskaffelsesværdi.kurs.dkk_øre_tæller",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.anskaffelsesværdi.kurs.valuta_hundreddele_nævner",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.afståelsesværdi.beløb_hundreddele",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.afståelsesværdi.kurs.dkk_øre_tæller",
+            "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.afståelsesværdi.kurs.valuta_hundreddele_nævner",
+        ] {
+            assert!(
+                kgl_currency_paths.iter().any(|path| path == expected),
+                "missing foreign-currency KGL source path {expected} on {kgl_currency_sheet}"
+            );
+        }
+        for forbidden in ["kredit_eller_pris", "valutakurs", "årets_rå_netto_kroner"] {
+            assert!(
+                !kgl_currency_paths.iter().any(|path| path == forbidden),
+                "derived foreign-currency KGL field {forbidden} leaked into {kgl_currency_sheet}"
+            );
+        }
+        let kgl_currency_headers = workbook_headers(&mut workbook, &kgl_currency_sheet);
+        for expected in [
+            "Valutainstrumentets identifikation",
+            "Valutaens ISO 4217-kode",
+            "Valutainstrumentets art",
+            "Valutafordringens art",
+            "Valutafordringens relation til debitor",
+            "Valutainstrumentets position ved årets begyndelse",
+            "Valutainstrumentets ændring i året",
+            "Afstået positions valutamængde ved anskaffelsen",
+            "Afstået positions anskaffelseskurs i DKK-øre",
+            "Afstået positions anskaffelseskurs i valutahundreddele",
+            "Valutamængden ved afståelsen",
+            "Afståelseskursen i DKK-øre",
+            "Afståelseskursen i valutahundreddele",
+        ] {
+            assert!(
+                kgl_currency_headers.iter().any(|header| header == expected),
+                "missing human foreign-currency KGL label {expected} on {kgl_currency_sheet}"
             );
         }
         let kgl_abl22_path = "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.obligationsbaserede_minimumsbeviser";
@@ -5042,6 +5101,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     set_workbook_cell_by_header(sheets, "cases", row, header, value);
                 }
         };
+        let fill_kgl_choices = |sheets: &mut [(String, Vec<Vec<Data>>)], row: usize| {
+            for (header, value) in [
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+                    Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.aktuelt_princip",
+                    Data::String("KglRealisationsprincip".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.ændringstilladelse.$variant",
+                    Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
+                    Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.aktuelt_princip",
+                    Data::String("KglRealisationsprincip".to_string()),
+                ),
+                (
+                    "kapitalindkomst.kursgevinst.MedKursgevinst.fakta.øvrige_instrumenter.par25_valg.valutakursændringer.ændringstilladelse.$variant",
+                    Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(sheets, "cases", row, header, value);
+            }
+        };
 
         fill_wage_case(sheets, 1, "personskat-årsopgørelse-2026");
         fill_wage_case(sheets, 2, "personskat-abl-personlig-2026");
@@ -5093,6 +5182,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         fill_wage_case(sheets, 25, "personskat-underskud-årsresultat-2026");
         fill_wage_case(sheets, 26, "personskat-soemandsfradrag-2026");
+        for row in [5, 14, 15, 20, 21] {
+            fill_kgl_choices(sheets, row);
+        }
         set_workbook_cell_by_header(
             sheets,
             "cases",
@@ -9557,6 +9649,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         &std::fs::read(&json_input_path).expect("read generated Personskat JSON template"),
     )
     .expect("Personskat JSON template");
+    let kgl_par25_choices = || {
+        serde_json::json!({
+            "obligationer_på_reguleret_marked": {
+                "position_primo": { "$variant": "KglÅrsnettoIntetPar25ValgPrimo" },
+                "aktuelt_princip": { "$variant": "KglRealisationsprincip" },
+                "ændringstilladelse": {
+                    "$variant": "KglÅrsnettoIngenPar25Ændringstilladelse"
+                }
+            },
+            "valutakursændringer": {
+                "position_primo": { "$variant": "KglÅrsnettoIntetPar25ValgPrimo" },
+                "aktuelt_princip": { "$variant": "KglRealisationsprincip" },
+                "ændringstilladelse": {
+                    "$variant": "KglÅrsnettoIngenPar25Ændringstilladelse"
+                }
+            }
+        })
+    };
     json_input["cases"][0]["case_id"] = Value::String("personskat-abl-personlig-2026".into());
     json_input["cases"][0]["input"] = serde_json::json!({
         "lønmodtager": {
@@ -10341,7 +10451,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }],
                 "gældsposter": [],
                 "øvrige_instrumenter": {
+                    "par25_valg": kgl_par25_choices(),
                     "fordringer": [],
+                    "valutainstrumenter": [],
                     "obligationsbaserede_minimumsbeviser": []
                 },
                 "par32_kontraktforløb": {
@@ -11348,7 +11460,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
             "øvrige_instrumenter": {
+                "par25_valg": kgl_par25_choices(),
                 "fordringer": [],
+                "valutainstrumenter": [],
                 "obligationsbaserede_minimumsbeviser": []
             },
             "par32_kontraktforløb": {
@@ -11375,6 +11489,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "sælgerpantebreve": [],
             "gældsposter": [],
             "øvrige_instrumenter": {
+                "par25_valg": kgl_par25_choices(),
                 "fordringer": [{
                     "identifikation": "privat-fordring-2026",
                     "kilde": {
@@ -11387,8 +11502,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "erhvervelsesgrundlag": {
                             "$variant": "KglÅrsnettoAlmindeligErhvervelse"
                         },
-                        "dba_status": { "$variant": "KglÅrsnettoIngenDbaBegrænsning" },
-                        "opgørelsesprincip": { "$variant": "KglRealisationsprincip" }
+                        "dba_status": { "$variant": "KglÅrsnettoIngenDbaBegrænsning" }
                     },
                     "position_primo": { "$variant": "KglÅrsnettoIngenPositionPrimo" },
                     "hændelser": [
@@ -11402,6 +11516,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         }
                     ]
                 }],
+                "valutainstrumenter": [],
                 "obligationsbaserede_minimumsbeviser": []
             },
             "par32_kontraktforløb": {
@@ -11418,6 +11533,79 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(annual_claim_case);
+    let mut currency_claim_case = json_input["cases"][0].clone();
+    currency_claim_case["case_id"] = Value::String("personskat-kgl-valutakomponenter-2026".into());
+    currency_claim_case["input"]["kapitalindkomst"]["kursgevinst"] = serde_json::json!({
+        "$variant": "MedKursgevinst",
+        "fakta": {
+            "skatteyder_identifikation": "Borger",
+            "ægtefælles_skatteyder_identifikation": null,
+            "sælgerpantebreve": [],
+            "gældsposter": [],
+            "øvrige_instrumenter": {
+                "par25_valg": kgl_par25_choices(),
+                "fordringer": [],
+                "valutainstrumenter": [{
+                    "identifikation": "nærtstående-usd-2026",
+                    "valuta": { "iso_4217_kode": "USD" },
+                    "aktiv": {
+                        "$variant": "KglÅrsnettoValutafordring",
+                        "kilde": {
+                            "fordringsart": { "$variant": "KglÅrsnettoPengefordring" },
+                            "markedsfakta": {
+                                "$variant": "KglÅrsnettoIkkeOptagetPåReguleretMarked"
+                            },
+                            "debitorrelation": {
+                                "$variant": "KglÅrsnettoNærtståendePerson"
+                            },
+                            "næringsforhold": {
+                                "$variant": "KglÅrsnettoIkkeNæringsdrivende"
+                            },
+                            "erhvervelsesgrundlag": {
+                                "$variant": "KglÅrsnettoAlmindeligErhvervelse"
+                            },
+                            "dba_status": {
+                                "$variant": "KglÅrsnettoIngenDbaBegrænsning"
+                            }
+                        }
+                    },
+                    "position_primo": {
+                        "$variant": "KglÅrsnettoIngenValutapositionPrimo"
+                    },
+                    "årsændring": {
+                        "$variant": "KglÅrsnettoValutaAnskaffetOgAfstået",
+                        "anskaffelsesværdi": {
+                            "beløb_hundreddele": 1_000_000,
+                            "kurs": {
+                                "dkk_øre_tæller": 500,
+                                "valuta_hundreddele_nævner": 100
+                            }
+                        },
+                        "afståelsesværdi": {
+                            "beløb_hundreddele": 800_000,
+                            "kurs": {
+                                "dkk_øre_tæller": 800,
+                                "valuta_hundreddele_nævner": 100
+                            }
+                        }
+                    }
+                }],
+                "obligationsbaserede_minimumsbeviser": []
+            },
+            "par32_kontraktforløb": {
+                "$variant": "UdenPar32Kontraktforløb"
+            }
+        }
+    });
+    currency_claim_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(currency_claim_case);
     let mut voluntary_arrangement_case = json_input["cases"][0].clone();
     voluntary_arrangement_case["case_id"] =
         Value::String("personskat-kgl-frivillig-ordning-2026".into());
@@ -11513,7 +11701,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
             }],
             "øvrige_instrumenter": {
+                "par25_valg": kgl_par25_choices(),
                 "fordringer": [],
+                "valutainstrumenter": [],
                 "obligationsbaserede_minimumsbeviser": []
             },
             "par32_kontraktforløb": {
@@ -12021,7 +12211,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "sælgerpantebreve": [],
                 "gældsposter": [],
                 "øvrige_instrumenter": {
+                    "par25_valg": kgl_par25_choices(),
                     "fordringer": [],
+                    "valutainstrumenter": [],
                     "obligationsbaserede_minimumsbeviser": []
                 },
                 "par32_kontraktforløb": {
@@ -12335,6 +12527,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-kgl-aarsnetto-fordring-2026")
         .expect("annual KGL claim JSON case")
         .clone();
+    let currency_claim_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutakomponenter-2026")
+        .expect("foreign-currency KGL claim JSON case")
+        .clone();
     let external_deficit_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -12369,6 +12568,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ordinary_share_loss_case,
         spouse_property_credit_case,
         annual_claim_case,
+        currency_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
         negative_share_tax_carry_case,
@@ -12550,6 +12750,52 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         hydrated_annual_claim_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         3_000
+    );
+    let json_currency_claim_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutakomponenter-2026")
+        .expect("JSON foreign-currency KGL claim result");
+    let hydrated_currency_claim_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutakomponenter-2026")
+        .expect("hydrated XLSX foreign-currency KGL claim result");
+    assert_eq!(
+        hydrated_currency_claim_result["result"],
+        json_currency_claim_result["result"]
+    );
+    let currency_claim_trace =
+        &hydrated_currency_claim_result["result"]["kapitalindkomst"]["kursgevinst_resultat"];
+    assert_eq!(currency_claim_trace["input_gyldigt"], true);
+    assert_eq!(
+        currency_claim_trace["årets_samlede_netto_efter_par14_kroner"],
+        14_000
+    );
+    assert_eq!(
+        currency_claim_trace["øvrige_instrumentresultat"]["valutainstrumentresultater"][0]
+            ["kredit_eller_pris"]["årets_rå_netto_kroner"],
+        -10_000
+    );
+    assert_eq!(
+        currency_claim_trace["øvrige_instrumentresultat"]["valutainstrumentresultater"][0]
+            ["valutakurs"]["årets_rå_netto_kroner"],
+        24_000
+    );
+    assert_eq!(
+        currency_claim_trace["kursgevinstlov_resultater"][0]["tab_afskåret_kroner"],
+        10_000
+    );
+    assert_eq!(
+        currency_claim_trace["kursgevinstlov_resultater"][1]["skattepligtig_gevinst_kroner"],
+        24_000
+    );
+    assert_eq!(
+        hydrated_currency_claim_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
+            ["nettokapitalindkomst_kroner"],
+        24_000
     );
     let json_dis_result = json_result["results"]
         .as_array()

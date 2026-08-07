@@ -4463,6 +4463,13 @@
     help = Some("Tilføj ét årsforløb pr. instrument. Angiv observerbare kildefakta og hændelser; Futuruna afleder KGL §§ 1 og 12-18, opgørelsen efter §§ 25-26 og den fælles 2.000-kr.-grænse."),
     unit = None
 )
+= personskat_felt_kgl_valutainstrumenter = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter),
+    label = "Fordringer og gæld i fremmed valuta",
+    question = Some("Hvilke fordringer eller gældsposter i fremmed valuta skal opgøres efter KGL §§ 14, 23 og 25?"),
+    help = Some("Tilføj ét årsforløb pr. instrument. Beløb angives i hundreddele af den udenlandske valuta sammen med dokumenterede valutakurser; Futuruna adskiller kredit- eller prisændringen fra valutakursændringen."),
+    unit = None
+)
 = personskat_felt_kgl_øvrige_obligationsbeviser = Beregningsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser),
     label = "Obligationsbaserede minimumsbeviser",
@@ -4517,12 +4524,329 @@
     help = Some("Et sådant forhold kan afskære tabsfradrag efter KGL § 18."),
     unit = None
 )
-= personskat_felt_kgl_årsnetto_opgørelsesprincip = Beregningsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::kilde::opgørelsesprincip),
-    label = "Opgørelsesprincip for fordringen",
-    question = Some("Skal fordringen opgøres efter realisationsprincippet eller et gyldigt valg af lagerprincippet?"),
-    help = Some("Lagerprincippet accepteres her kun for en obligation optaget til handel på et reguleret marked efter KGL § 25, stk. 2."),
+= personskat_felt_kgl_par25_obligationsvalg_primo = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::position_primo::$variant),
+    label = "Tidligere valg for noterede obligationer",
+    question = Some("Videreføres et valg af opgørelsesprincip for obligationer på et reguleret marked fra sidste indkomstår?"),
+    help = Some("Et tidligere valg videreføres med indkomstår og princip. Futuruna kontrollerer, at et valgt lagerprincip ikke ophører uden tilladelse."),
     unit = None
+)
+= personskat_felt_kgl_par25_obligationsvalg_aktuelt = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::aktuelt_princip),
+    label = "Princip for noterede obligationer",
+    question = Some("Skal alle obligationer på et reguleret marked opgøres efter realisations- eller lagerprincippet?"),
+    help = Some("Valget træffes samlet efter KGL § 25, stk. 2, og omfatter både pris- og valutakursændringer på de berørte obligationer."),
+    unit = None
+)
+= personskat_felt_kgl_par25_obligationsvalg_tilladelse = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::ændringstilladelse::$variant),
+    label = "Tilladelse til ændring af obligationsprincip",
+    question = Some("Har Skatteforvaltningen tilladt et skift fra lager- til realisationsprincippet for noterede obligationer?"),
+    help = Some("Vælg kun en tilladelse ved et faktisk skift fra lager- til realisationsprincippet."),
+    unit = None
+)
+= personskat_felt_kgl_par25_valutavalg_primo = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::position_primo::$variant),
+    label = "Tidligere valg for valutakursændringer",
+    question = Some("Videreføres et valg af opgørelsesprincip for valutakursændringer fra sidste indkomstår?"),
+    help = Some("Valget gælder samlet for valutakursændringer på alle fordringer og al gæld i fremmed valuta."),
+    unit = None
+)
+= personskat_felt_kgl_par25_valutavalg_aktuelt = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::aktuelt_princip),
+    label = "Princip for valutakursændringer",
+    question = Some("Skal valutakursændringer på alle fordringer og al gæld i fremmed valuta opgøres efter realisations- eller lagerprincippet?"),
+    help = Some("Et lagerprincip her gælder kollektivt efter KGL § 25, stk. 2, også for udenlandske noterede obligationer."),
+    unit = None
+)
+= personskat_felt_kgl_par25_valutavalg_tilladelse = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::ændringstilladelse::$variant),
+    label = "Tilladelse til ændring af valutaprincip",
+    question = Some("Har Skatteforvaltningen tilladt et skift fra lager- til realisationsprincippet for valutakursændringer?"),
+    help = Some("Vælg kun en tilladelse ved et faktisk skift fra lager- til realisationsprincippet."),
+    unit = None
+)
+= personskat_felt_kgl_par25_obligationsvalg_primo_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::position_primo::KglÅrsnettoVidereførtPar25Valg::fra_indkomstår),
+    label = "Året for det tidligere obligationsvalg",
+    question = "Fra hvilket indkomstår videreføres opgørelsesprincippet for noterede obligationer?",
+    unit = "år"
+)
+= personskat_felt_kgl_par25_obligationsvalg_primo_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::position_primo::KglÅrsnettoVidereførtPar25Valg::princip),
+    label = "Det tidligere obligationsprincip",
+    question = Some("Hvilket opgørelsesprincip blev anvendt på noterede obligationer i det foregående indkomstår?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_par25_obligationsvalg_tilladelsesreference = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::ændringstilladelse::KglÅrsnettoPar25ÆndringTilladt::afgørelsesreference),
+    label = "Afgørelsen om ændring af obligationsprincip",
+    question = "Hvilken afgørelse tillader skiftet fra lager- til realisationsprincippet for noterede obligationer?"
+)
+= personskat_felt_kgl_par25_valutavalg_primo_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::position_primo::KglÅrsnettoVidereførtPar25Valg::fra_indkomstår),
+    label = "Året for det tidligere valutavalg",
+    question = "Fra hvilket indkomstår videreføres opgørelsesprincippet for valutakursændringer?",
+    unit = "år"
+)
+= personskat_felt_kgl_par25_valutavalg_primo_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::position_primo::KglÅrsnettoVidereførtPar25Valg::princip),
+    label = "Det tidligere valutaprincip",
+    question = Some("Hvilket opgørelsesprincip blev anvendt på valutakursændringer i det foregående indkomstår?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_par25_valutavalg_tilladelsesreference = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::valutakursændringer::ændringstilladelse::KglÅrsnettoPar25ÆndringTilladt::afgørelsesreference),
+    label = "Afgørelsen om ændring af valutaprincip",
+    question = "Hvilken afgørelse tillader skiftet fra lager- til realisationsprincippet for valutakursændringer?"
+)
+= personskat_felt_kgl_valuta_identifikation = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::identifikation),
+    label = "Valutainstrumentets identifikation",
+    question = "Hvilken stabil og entydig identifikation skal fordringen, obligationen eller gælden have?"
+)
+= personskat_felt_kgl_valuta_iso_kode = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::valuta::iso_4217_kode),
+    label = "Valutaens ISO 4217-kode",
+    question = "Hvilken trebogstavskode har instrumentets udenlandske valuta?"
+)
+= personskat_felt_kgl_valuta_aktiv = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::$variant),
+    label = "Valutainstrumentets art",
+    question = Some("Er instrumentet en fordring eller gæld i fremmed valuta?"),
+    help = Some("En fordring klassificeres yderligere efter KGL §§ 1 og 12-18. Almindelig gæld i fremmed valuta behandles efter KGL § 23."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_fordringsart = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::fordringsart),
+    label = "Valutafordringens art",
+    question = Some("Er valutafordringen en pengefordring, obligation eller en type, som KGL § 1 undtager?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_valuta_markedsfakta = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::markedsfakta::$variant),
+    label = "Valutafordringens handel på reguleret marked",
+    question = Some("Var valutafordringen optaget til handel på et reguleret marked?"),
+    help = Some("Markedsstatus afgør både oplysningskravet efter KGL § 15 og rækkevidden af det kollektive obligationsvalg efter KGL § 25, stk. 2."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_debitorrelation = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::debitorrelation),
+    label = "Valutafordringens relation til debitor",
+    question = Some("Er debitor uafhængig, et kontrolleret selskab eller en nærtstående person?"),
+    help = Some("KGL § 14, stk. 2, kan afskære kreditdelen af et tab uden at afskære valutakursdelen."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_næringsforhold = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::næringsforhold),
+    label = "Valutafordringens næringsforhold",
+    question = Some("Indgik valutafordringen i næring ved handel med fordringer eller finansiering?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_valuta_erhvervelsesgrundlag = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::erhvervelsesgrundlag),
+    label = "Valutafordringens erhvervelsesgrundlag",
+    question = Some("Blev valutafordringen erhvervet almindeligt, som vederlag i næring eller i tilknytning til erhvervsdriften?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_valuta_dba_status = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::aktiv::KglÅrsnettoValutafordring::kilde::dba_status),
+    label = "Valutafordringens dobbeltbeskatningsstatus",
+    question = Some("Er renter eller gevinster på valutafordringen undtaget efter en dobbeltbeskatningsoverenskomst?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_valuta_position_primo = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::$variant),
+    label = "Valutainstrumentets position ved årets begyndelse",
+    question = Some("Er valutainstrumentet anskaffet eller stiftet i året, eller videreføres det fra det foregående indkomstår?"),
+    help = Some("En videreført position bevarer anskaffelsesværdien, seneste værdi og allerede medregnede pris- og valutakomponenter."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_årsændring = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::$variant),
+    label = "Valutainstrumentets ændring i året",
+    question = Some("Blev instrumentet anskaffet, værdiansat ved årets udgang eller afstået i indkomståret?"),
+    help = Some("Vælg den overgang, som forbinder årets begyndelsesposition med den dokumenterede slutværdi."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_primo_indkomstår = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::indkomstår),
+    label = "Valutapositionens foregående indkomstår",
+    question = "Hvilket indkomstår stammer den videreførte valutaposition fra?",
+    unit = "år"
+)
+= personskat_felt_kgl_valuta_primo_erhvervelsesår = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::erhvervelsesår),
+    label = "Valutainstrumentets erhvervelsesår",
+    question = "I hvilket indkomstår blev det videreførte valutainstrument oprindeligt anskaffet eller stiftet?",
+    unit = "år"
+)
+= personskat_felt_kgl_valuta_primo_iso_kode = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::valuta::iso_4217_kode),
+    label = "Den videreførte positions ISO 4217-kode",
+    question = "Hvilken valuta blev videreført fra det foregående indkomstår?"
+)
+= personskat_felt_kgl_valuta_primo_anskaffelsesbeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::anskaffelsesværdi::beløb_hundreddele),
+    label = "Den oprindelige valutamængde",
+    question = "Hvor mange hundreddele af den udenlandske valuta omfattede instrumentet ved anskaffelsen eller stiftelsen?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_primo_anskaffelseskurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::anskaffelsesværdi::kurs::dkk_øre_tæller),
+    label = "Anskaffelseskursens DKK-øre",
+    question = "Hvor mange danske øre er tælleren i den dokumenterede anskaffelseskurs?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_primo_anskaffelseskurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::anskaffelsesværdi::kurs::valuta_hundreddele_nævner),
+    label = "Anskaffelseskursens valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i den dokumenterede anskaffelseskurs?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_primo_seneste_beløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::seneste_værdi::beløb_hundreddele),
+    label = "Valutamængden ved sidste årsafslutning",
+    question = "Hvor mange valutahundreddele indgik i instrumentets seneste skattemæssige værdi?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_primo_seneste_kurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::seneste_værdi::kurs::dkk_øre_tæller),
+    label = "Sidste årsafslutningskurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i kursen ved sidste årsafslutning?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_primo_seneste_kurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::seneste_værdi::kurs::valuta_hundreddele_nævner),
+    label = "Sidste årsafslutningskurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i kursen ved sidste årsafslutning?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_primo_kredit_medregnet = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::kredit_eller_pris_tidligere_medregnet_øre),
+    label = "Tidligere medregnet kredit- eller prisændring",
+    question = "Hvor mange danske øre af den kumulative kredit- eller prisændring er allerede medregnet?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_primo_valutakurs_medregnet = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::valutakurs_tidligere_medregnet_øre),
+    label = "Tidligere medregnet valutakursændring",
+    question = "Hvor mange danske øre af den kumulative valutakursændring er allerede medregnet?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelsesbeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::anskaffelsesværdi::beløb_hundreddele),
+    label = "Ny positions valutamængde ved anskaffelsen",
+    question = "Hvor mange valutahundreddele blev anskaffet eller stiftet i indkomståret?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelseskurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::anskaffelsesværdi::kurs::dkk_øre_tæller),
+    label = "Ny positions anskaffelseskurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i anskaffelseskursen for den nye position?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelseskurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::anskaffelsesværdi::kurs::valuta_hundreddele_nævner),
+    label = "Ny positions anskaffelseskurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i anskaffelseskursen for den nye position?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_ultimobeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::ultimoværdi::beløb_hundreddele),
+    label = "Ny positions valutamængde ved årets udgang",
+    question = "Hvor mange valutahundreddele indgik i den nye positions ultimoværdi?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_ultimokurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::ultimoværdi::kurs::dkk_øre_tæller),
+    label = "Ny positions ultimokurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i den nye positions ultimokurs?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_ny_ultimokurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgUltimoværdi::ultimoværdi::kurs::valuta_hundreddele_nævner),
+    label = "Ny positions ultimokurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i den nye positions ultimokurs?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_afstået_anskaffelsesbeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::anskaffelsesværdi::beløb_hundreddele),
+    label = "Afstået positions valutamængde ved anskaffelsen",
+    question = "Hvor mange valutahundreddele blev anskaffet eller stiftet før afståelsen i indkomståret?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_afstået_anskaffelseskurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::anskaffelsesværdi::kurs::dkk_øre_tæller),
+    label = "Afstået positions anskaffelseskurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i anskaffelseskursen for den afståede position?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_ny_afstået_anskaffelseskurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::anskaffelsesværdi::kurs::valuta_hundreddele_nævner),
+    label = "Afstået positions anskaffelseskurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i anskaffelseskursen for den afståede position?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_afståelsesbeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::afståelsesværdi::beløb_hundreddele),
+    label = "Valutamængden ved afståelsen",
+    question = "Hvor mange valutahundreddele indgik i afståelses- eller indfrielsesværdien?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_ny_afståelseskurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::afståelsesværdi::kurs::dkk_øre_tæller),
+    label = "Afståelseskursen i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i afståelses- eller indfrielseskursen?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_ny_afståelseskurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAnskaffetOgAfstået::afståelsesværdi::kurs::valuta_hundreddele_nævner),
+    label = "Afståelseskursen i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i afståelses- eller indfrielseskursen?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_videreført_ultimobeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaUltimoværdi::ultimoværdi::beløb_hundreddele),
+    label = "Videreført positions valutamængde ved årets udgang",
+    question = "Hvor mange valutahundreddele indgår i den videreførte positions ultimoværdi?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_videreført_ultimokurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaUltimoværdi::ultimoværdi::kurs::dkk_øre_tæller),
+    label = "Videreført positions ultimokurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i den videreførte positions ultimokurs?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_videreført_ultimokurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaUltimoværdi::ultimoværdi::kurs::valuta_hundreddele_nævner),
+    label = "Videreført positions ultimokurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i den videreførte positions ultimokurs?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_videreført_afståelsesbeløb = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAfstået::afståelsesværdi::beløb_hundreddele),
+    label = "Videreført positions valutamængde ved afståelsen",
+    question = "Hvor mange valutahundreddele indgik ved afståelsen eller indfrielsen af den videreførte position?",
+    unit = "valutahundreddele"
+)
+= personskat_felt_kgl_valuta_videreført_afståelseskurs_tæller = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAfstået::afståelsesværdi::kurs::dkk_øre_tæller),
+    label = "Videreført positions afståelseskurs i DKK-øre",
+    question = "Hvor mange danske øre er tælleren i kursen ved afståelsen eller indfrielsen?",
+    unit = "øre"
+)
+= personskat_felt_kgl_valuta_videreført_afståelseskurs_nævner = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::årsændring::KglÅrsnettoValutaAfstået::afståelsesværdi::kurs::valuta_hundreddele_nævner),
+    label = "Videreført positions afståelseskurs i valutahundreddele",
+    question = "Hvor mange valutahundreddele er nævneren i kursen ved afståelsen eller indfrielsen?",
+    unit = "valutahundreddele"
 )
 = personskat_felt_kgl_årsnetto_position_primo = Beregningsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::$variant),
@@ -9710,6 +10034,7 @@
         personskat_felt_kgl_sælgerpantebreve,
         personskat_felt_kgl_gældsposter,
         personskat_felt_kgl_øvrige_fordringer,
+        personskat_felt_kgl_valutainstrumenter,
         personskat_felt_kgl_øvrige_obligationsbeviser,
         personskat_felt_kgl_årsnetto_fordringsart,
         personskat_felt_kgl_årsnetto_markedsfakta,
@@ -9717,7 +10042,23 @@
         personskat_felt_kgl_årsnetto_næringsforhold,
         personskat_felt_kgl_årsnetto_erhvervelsesgrundlag,
         personskat_felt_kgl_årsnetto_dba_status,
-        personskat_felt_kgl_årsnetto_opgørelsesprincip,
+        personskat_felt_kgl_par25_obligationsvalg_primo,
+        personskat_felt_kgl_par25_obligationsvalg_primo_princip,
+        personskat_felt_kgl_par25_obligationsvalg_aktuelt,
+        personskat_felt_kgl_par25_obligationsvalg_tilladelse,
+        personskat_felt_kgl_par25_valutavalg_primo,
+        personskat_felt_kgl_par25_valutavalg_primo_princip,
+        personskat_felt_kgl_par25_valutavalg_aktuelt,
+        personskat_felt_kgl_par25_valutavalg_tilladelse,
+        personskat_felt_kgl_valuta_aktiv,
+        personskat_felt_kgl_valuta_fordringsart,
+        personskat_felt_kgl_valuta_markedsfakta,
+        personskat_felt_kgl_valuta_debitorrelation,
+        personskat_felt_kgl_valuta_næringsforhold,
+        personskat_felt_kgl_valuta_erhvervelsesgrundlag,
+        personskat_felt_kgl_valuta_dba_status,
+        personskat_felt_kgl_valuta_position_primo,
+        personskat_felt_kgl_valuta_årsændring,
         personskat_felt_kgl_årsnetto_position_primo,
         personskat_felt_kgl_årsnetto_hændelser,
         personskat_felt_kgl_årsnetto_abl22_position_primo,
@@ -9747,6 +10088,11 @@
     ],
     spørgsmål = [
         personskat_felt_kgl_skatteyder_identifikation,
+        personskat_felt_kgl_par25_obligationsvalg_tilladelsesreference,
+        personskat_felt_kgl_par25_valutavalg_tilladelsesreference,
+        personskat_felt_kgl_valuta_identifikation,
+        personskat_felt_kgl_valuta_iso_kode,
+        personskat_felt_kgl_valuta_primo_iso_kode,
         personskat_felt_kgl_årsnetto_fordring_identifikation,
         personskat_felt_kgl_årsnetto_abl22_identifikation,
         personskat_felt_kgl_gæld_identifikation,
@@ -9759,6 +10105,36 @@
         personskat_felt_kgl_oprindelig_skatteyder
     ],
     beløbsfelter = [
+        personskat_felt_kgl_par25_obligationsvalg_primo_år,
+        personskat_felt_kgl_par25_valutavalg_primo_år,
+        personskat_felt_kgl_valuta_primo_indkomstår,
+        personskat_felt_kgl_valuta_primo_erhvervelsesår,
+        personskat_felt_kgl_valuta_primo_anskaffelsesbeløb,
+        personskat_felt_kgl_valuta_primo_anskaffelseskurs_tæller,
+        personskat_felt_kgl_valuta_primo_anskaffelseskurs_nævner,
+        personskat_felt_kgl_valuta_primo_seneste_beløb,
+        personskat_felt_kgl_valuta_primo_seneste_kurs_tæller,
+        personskat_felt_kgl_valuta_primo_seneste_kurs_nævner,
+        personskat_felt_kgl_valuta_primo_kredit_medregnet,
+        personskat_felt_kgl_valuta_primo_valutakurs_medregnet,
+        personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelsesbeløb,
+        personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelseskurs_tæller,
+        personskat_felt_kgl_valuta_ny_ultimoværdi_anskaffelseskurs_nævner,
+        personskat_felt_kgl_valuta_ny_ultimobeløb,
+        personskat_felt_kgl_valuta_ny_ultimokurs_tæller,
+        personskat_felt_kgl_valuta_ny_ultimokurs_nævner,
+        personskat_felt_kgl_valuta_ny_afstået_anskaffelsesbeløb,
+        personskat_felt_kgl_valuta_ny_afstået_anskaffelseskurs_tæller,
+        personskat_felt_kgl_valuta_ny_afstået_anskaffelseskurs_nævner,
+        personskat_felt_kgl_valuta_ny_afståelsesbeløb,
+        personskat_felt_kgl_valuta_ny_afståelseskurs_tæller,
+        personskat_felt_kgl_valuta_ny_afståelseskurs_nævner,
+        personskat_felt_kgl_valuta_videreført_ultimobeløb,
+        personskat_felt_kgl_valuta_videreført_ultimokurs_tæller,
+        personskat_felt_kgl_valuta_videreført_ultimokurs_nævner,
+        personskat_felt_kgl_valuta_videreført_afståelsesbeløb,
+        personskat_felt_kgl_valuta_videreført_afståelseskurs_tæller,
+        personskat_felt_kgl_valuta_videreført_afståelseskurs_nævner,
         personskat_felt_kgl_årsnetto_position_primo_værdi,
         personskat_felt_kgl_årsnetto_anskaffelsessum,
         personskat_felt_kgl_årsnetto_afståelsessum,
@@ -10888,6 +11264,10 @@
 | personskat_kgl_gæld_rå_netto_kroner(gæld: KursgevinstlovGældFakta, skatteår: Heltal) -> hvis personskat_kgl_gældsfakta_gyldige(gæld, skatteår) { kgl_gæld_rå_netto_til_par14_23_kroner(gæld) } ellers { 0 }
 | personskat_kgl_gældsposters_rå_netto_kroner(gældsposter: List(KursgevinstlovGældFakta), skatteår: Heltal) -> foldl(gældsposter, 0, |sum: Heltal, gæld: KursgevinstlovGældFakta| sum + personskat_kgl_gæld_rå_netto_kroner(gæld, skatteår))
 | personskat_kgl_gældsresultater(gældsposter: List(KursgevinstlovGældFakta), skatteår: Heltal, årets_samlede_netto_kroner: Heltal) -> map(gældsposter, |gæld: KursgevinstlovGældFakta| kursgevinstlov_resultat_fra_gæld(personskat_kgl_gældsinput(gæld, skatteår), årets_samlede_netto_kroner))
+| personskat_kgl_gældsidentifikation_adskilt_fra_årsnetto(gæld: KursgevinstlovGældFakta, øvrige_instrumenter: KursgevinstlovÅrsnettoInput) -> all(kgl_årsnetto_identifikationer(øvrige_instrumenter), |identifikation: Tekst| identifikation != gæld.identifikation)
+| personskat_kgl_gældsposter_adskilt_fra_årsnetto(gældsposter: List(KursgevinstlovGældFakta), øvrige_instrumenter: KursgevinstlovÅrsnettoInput) -> all(gældsposter, |gæld: KursgevinstlovGældFakta| personskat_kgl_gældsidentifikation_adskilt_fra_årsnetto(gæld, øvrige_instrumenter))
+| personskat_kgl_legacy_gæld_matcher_valutavalg(gæld: KursgevinstlovGældFakta, valg: KglÅrsnettoPar25Årsvalg) -> valg.valutakursændringer.aktuelt_princip != KglLagerprincip || kgl_gæld_behandles_som_fremmed_valuta(gæld.valuta) == Falskt
+| personskat_kgl_alle_legacy_gældsposter_matcher_valutavalg(gældsposter: List(KursgevinstlovGældFakta), valg: KglÅrsnettoPar25Årsvalg) -> all(gældsposter, |gæld: KursgevinstlovGældFakta| personskat_kgl_legacy_gæld_matcher_valutavalg(gæld, valg))
 | personskat_kgl_resultater_i_indkomstår(resultat: KglEblPar6DSælgerpantebrevsresultat, skatteår: Heltal, skatteyder_identifikation: Tekst, årets_samlede_netto_kroner: Heltal) -> map(kgl_sælgerpantebrev_personrealiseringer_for_skatteyder_i_indkomstår(resultat.kursgevinstresultat, skatteår, skatteyder_identifikation), |disposition: KglSælgerpantebrevDispositionsresultat| kgl_sælgerpantebrev_kursgevinstlov_resultat(disposition, årets_samlede_netto_kroner, resultat.skatteforhold))
 | personskat_kgl_alle_resultater_i_indkomstår(resultater: List(KglEblPar6DSælgerpantebrevsresultat), skatteår: Heltal, skatteyder_identifikation: Tekst, årets_samlede_netto_kroner: Heltal) -> flat_map(resultater, |resultat: KglEblPar6DSælgerpantebrevsresultat| personskat_kgl_resultater_i_indkomstår(resultat, skatteår, skatteyder_identifikation, årets_samlede_netto_kroner))
 | personskat_kgl_kapitalpost(resultat: KursgevinstlovResultat) -> par4_stk1_nr2_kapitalpost(Par4Stk1Nr2Input(kursgevinstlov_resultat = resultat))
@@ -10925,7 +11305,7 @@
         | UdenKursgevinst -> kgl_årsnetto_tomt_input()
         | MedKursgevinst(fakta) -> fakta.øvrige_instrumenter
     }
-    | øvrige_instrumenter_har_fakta() -> length(øvrige_instrumenter().fordringer) > 0 || length(øvrige_instrumenter().obligationsbaserede_minimumsbeviser) > 0
+    | øvrige_instrumenter_har_fakta() -> length(øvrige_instrumenter().fordringer) > 0 || length(øvrige_instrumenter().valutainstrumenter) > 0 || length(øvrige_instrumenter().obligationsbaserede_minimumsbeviser) > 0
     | øvrige_instrumenter_forberedelse() -> kursgevinstlov_årsnetto_resultat(øvrige_instrumenter(), skatteår, 0)
     | skatteyder_identifikation() -> match input {
         | UdenKursgevinst -> ""
@@ -10945,10 +11325,11 @@
     | sælgerpantebrevsresultater() -> personskat_kgl_sælgerpantebrevsresultater(sælgerpantebrevsfakta(), par6d_resultater())
     | alle_sælgerpantebrevsresultater_gyldige() -> all(sælgerpantebrevsresultater(), |resultat: KglEblPar6DSælgerpantebrevsresultat| resultat.input_gyldigt)
     | alle_gældsfakta_gyldige() -> personskat_kgl_alle_gældsfakta_gyldige(gældsposter(), skatteår)
+    | gældsposter_matcher_årsnetto() -> personskat_kgl_gældsposter_adskilt_fra_årsnetto(gældsposter(), øvrige_instrumenter()) && personskat_kgl_alle_legacy_gældsposter_matcher_valutavalg(gældsposter(), øvrige_instrumenter().par25_valg)
     | skatteyderidentifikationer_gyldige() -> skatteyder_identifikation() != "" && (ægtefælles_skatteyder_identifikation() == "" || ægtefælles_skatteyder_identifikation() != skatteyder_identifikation())
     | fortjenestefordeling_dækker_beregning() -> all(personskat_kgl_fortjenestemedregninger(sælgerpantebrevsresultater()), |medregning: KglEblPar6DFortjenestemedregning| personskat_kgl_fortjenestemedregning_tilhører_beregning(medregning, skatteyder_identifikation(), ægtefælles_skatteyder_identifikation()))
     | par32_gyldigt() -> personskat_kgl_par32_kontekst_matcher_input(input, par32) && personskat_kgl_par32_kontekst_gyldig(par32, skatteyder_identifikation(), skatteår)
-    | input_gyldigt() -> skatteår > 0 && inputvariant_matcher_ebl() && match input { | UdenKursgevinst -> Sandt | MedKursgevinst(_) -> skatteyderidentifikationer_gyldige() } && alle_sælgerpantebrevsresultater_gyldige() && alle_gældsfakta_gyldige() && øvrige_instrumenter_forberedelse().input_gyldigt && fortjenestefordeling_dækker_beregning() && par32_gyldigt()
+    | input_gyldigt() -> skatteår > 0 && inputvariant_matcher_ebl() && match input { | UdenKursgevinst -> Sandt | MedKursgevinst(_) -> skatteyderidentifikationer_gyldige() } && alle_sælgerpantebrevsresultater_gyldige() && alle_gældsfakta_gyldige() && gældsposter_matcher_årsnetto() && øvrige_instrumenter_forberedelse().input_gyldigt && fortjenestefordeling_dækker_beregning() && par32_gyldigt()
     | gældsposters_rå_netto_kroner() -> personskat_kgl_gældsposters_rå_netto_kroner(gældsposter(), skatteår)
     | årets_samlede_netto_efter_par14_kroner() -> personskat_kgl_årets_samlede_netto_kroner(sælgerpantebrevsresultater(), skatteår, skatteyder_identifikation(), øvrige_instrumenter_forberedelse().rå_netto_til_par14_og_abl22_kroner + gældsposters_rå_netto_kroner())
     | gældsresultater() -> personskat_kgl_gældsresultater(gældsposter(), skatteår, årets_samlede_netto_efter_par14_kroner())

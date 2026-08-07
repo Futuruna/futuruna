@@ -1,0 +1,188 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= kursgevinstloven_valuta_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_årsnetto),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par25),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par42),
+    )
+)
+
+--@label:kursgevinstloven_valuta_scenarier::meta:kursgevinstloven_valuta_scenarier_metadata--
+----
+Fokuserede regressionsscenarier for den typed opdeling af et instrument i
+fremmed valuta mellem kredit- eller prisændringen ved anskaffelseskursen og den
+resterende valutakursændring.
+
+Scenarierne er ikke lovtekst. De fastholder de kollektive valg efter KGL § 25,
+stk. 2, overgangsgrundlaget efter § 42, stk. 9, og tabsbegrænsningen efter § 14,
+stk. 2, gennem den kanoniske Personskat-beregning.
+----
+
+--@begin:kursgevinstloven_valuta_scenarier--
+| kgl_valuta_scenarie_kurs(dkk_øre_pr_valutahundrededel: Heltal) -> KglÅrsnettoValutakurs(dkk_øre_tæller = dkk_øre_pr_valutahundrededel, valuta_hundreddele_nævner = 1)
+| kgl_valuta_scenarie_værdi(beløb_hundreddele: Heltal, dkk_øre_pr_valutahundrededel: Heltal) -> KglÅrsnettoValutaværdi(beløb_hundreddele = beløb_hundreddele, kurs = kgl_valuta_scenarie_kurs(dkk_øre_pr_valutahundrededel))
+| kgl_valuta_scenarie_usd() -> KglÅrsnettoValuta(iso_4217_kode = "USD")
+
+| kgl_valuta_scenarie_fordringskilde(fordringsart: KglÅrsnettoFordringsart, markedsfakta: KglÅrsnettoMarkedsfakta, debitorrelation: KglÅrsnettoDebitorrelation) -> KglÅrsnettoFordringskilde(
+    fordringsart = fordringsart,
+    markedsfakta = markedsfakta,
+    debitorrelation = debitorrelation,
+    næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
+    erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
+    dba_status = KglÅrsnettoIngenDbaBegrænsning
+)
+
+| kgl_valuta_scenarie_kategorivalg(position_primo: KglÅrsnettoPar25ValgPrimo, princip: KursgevinstlovOpgørelsesprincip, tilladelse: KglÅrsnettoPar25Ændringstilladelse) -> KglÅrsnettoPar25KategoriÅrsvalg(position_primo = position_primo, aktuelt_princip = princip, ændringstilladelse = tilladelse)
+| kgl_valuta_scenarie_første_årsvalg(obligationsprincip: KursgevinstlovOpgørelsesprincip, valutaprincip: KursgevinstlovOpgørelsesprincip) -> KglÅrsnettoPar25Årsvalg(
+    obligationer_på_reguleret_marked = kgl_valuta_scenarie_kategorivalg(KglÅrsnettoIntetPar25ValgPrimo, obligationsprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
+    valutakursændringer = kgl_valuta_scenarie_kategorivalg(KglÅrsnettoIntetPar25ValgPrimo, valutaprincip, KglÅrsnettoIngenPar25Ændringstilladelse)
+)
+| kgl_valuta_scenarie_videreført_årsvalg(fra_indkomstår: Heltal, tidligere_obligationsprincip: KursgevinstlovOpgørelsesprincip, aktuelt_obligationsprincip: KursgevinstlovOpgørelsesprincip, tidligere_valutaprincip: KursgevinstlovOpgørelsesprincip, aktuelt_valutaprincip: KursgevinstlovOpgørelsesprincip, valutatilladelse: KglÅrsnettoPar25Ændringstilladelse) -> KglÅrsnettoPar25Årsvalg(
+    obligationer_på_reguleret_marked = kgl_valuta_scenarie_kategorivalg(KglÅrsnettoVidereførtPar25Valg(fra_indkomstår = fra_indkomstår, princip = tidligere_obligationsprincip), aktuelt_obligationsprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
+    valutakursændringer = kgl_valuta_scenarie_kategorivalg(KglÅrsnettoVidereførtPar25Valg(fra_indkomstår = fra_indkomstår, princip = tidligere_valutaprincip), aktuelt_valutaprincip, valutatilladelse)
+)
+
+| kgl_valuta_scenarie_ny_fordring(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, afstået: Boolsk) -> KglÅrsnettoValutaforløb(
+    identifikation = identifikation,
+    valuta = kgl_valuta_scenarie_usd(),
+    aktiv = KglÅrsnettoValutafordring(kilde = kilde),
+    position_primo = KglÅrsnettoIngenValutapositionPrimo,
+    årsændring = hvis afstået {
+        KglÅrsnettoValutaAnskaffetOgAfstået(
+            anskaffelsesværdi = kgl_valuta_scenarie_værdi(1000000, 5),
+            afståelsesværdi = kgl_valuta_scenarie_værdi(800000, 8)
+        )
+    } ellers {
+        KglÅrsnettoValutaAnskaffetOgUltimoværdi(
+            anskaffelsesværdi = kgl_valuta_scenarie_værdi(1000000, 5),
+            ultimoværdi = kgl_valuta_scenarie_værdi(800000, 8)
+        )
+    }
+)
+| kgl_valuta_scenarie_ny_gæld(identifikation: Tekst) -> KglÅrsnettoValutaforløb(
+    identifikation = identifikation,
+    valuta = kgl_valuta_scenarie_usd(),
+    aktiv = KglÅrsnettoValutagældEfterPar23,
+    position_primo = KglÅrsnettoIngenValutapositionPrimo,
+    årsændring = KglÅrsnettoValutaAnskaffetOgAfstået(
+        anskaffelsesværdi = kgl_valuta_scenarie_værdi(1000000, 5),
+        afståelsesværdi = kgl_valuta_scenarie_værdi(1000000, 8)
+    )
+)
+| kgl_valuta_scenarie_legacy_valutagæld(identifikation: Tekst) -> KursgevinstlovGældFakta(
+    identifikation = identifikation,
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = 50000,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = 80000,
+        fordringens_værdi_for_kreditor_kroner = 80000
+    ),
+    frigørelsesart = KglGældOrdinærIndfrielse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = KglIngenPar21Stk2Selskabsgæld,
+    gældsordning = KglIngenDokumenteretGældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+| kgl_valuta_scenarie_videreført_fordring(identifikation: Tekst, position: KglÅrsnettoValutaposition, slutkurs: Heltal) -> KglÅrsnettoValutaforløb(
+    identifikation = identifikation,
+    valuta = kgl_valuta_scenarie_usd(),
+    aktiv = KglÅrsnettoValutafordring(kilde = kgl_valuta_scenarie_fordringskilde(KglÅrsnettoPengefordring, KglÅrsnettoIkkeOptagetPåReguleretMarked, KglÅrsnettoUafhængigDebitor)),
+    position_primo = KglÅrsnettoVidereførtValutapositionPrimo(position = position),
+    årsændring = KglÅrsnettoValutaUltimoværdi(ultimoværdi = kgl_valuta_scenarie_værdi(800000, slutkurs))
+)
+| kgl_valuta_scenarie_position(resultat: PersonskatKursgevinstResultat) -> match resultat.øvrige_instrumentresultat.valutainstrumentresultater[0].position_ultimo { | Some(position) -> position | None -> KglÅrsnettoValutaposition(indkomstår = 0, erhvervelsesår = 0, valuta = kgl_valuta_scenarie_usd(), anskaffelsesværdi = kgl_valuta_scenarie_værdi(0, 1), seneste_værdi = kgl_valuta_scenarie_værdi(0, 1), kredit_eller_pris_tidligere_medregnet_øre = 0, valutakurs_tidligere_medregnet_øre = 0) }
+
+| kgl_valuta_scenarie_personskat(indkomstår: Heltal, valg: KglÅrsnettoPar25Årsvalg, instrumenter: List(KglÅrsnettoValutaforløb)) -> personskat_kursgevinst_resultat(
+    MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "valuta-scenarie-person",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = [],
+        øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+            par25_valg = valg,
+            fordringer = [],
+            valutainstrumenter = instrumenter,
+            obligationsbaserede_minimumsbeviser = []
+        ),
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    )),
+    indkomstår,
+    IngenEjendomsavance
+)
+
+= kgl_valuta_scenarie_nærtstående_realisation = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglRealisationsprincip),
+    [kgl_valuta_scenarie_ny_fordring("nærtstående-usd", kgl_valuta_scenarie_fordringskilde(KglÅrsnettoPengefordring, KglÅrsnettoIkkeOptagetPåReguleretMarked, KglÅrsnettoNærtståendePerson), Sandt)]
+)
+= kgl_valuta_scenarie_obligationsvalg = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_første_årsvalg(KglLagerprincip, KglRealisationsprincip),
+    [kgl_valuta_scenarie_ny_fordring("noteret-usd", kgl_valuta_scenarie_fordringskilde(KglÅrsnettoObligation, KglÅrsnettoOptagetPåReguleretMarked(oplysningsstatus = KglÅrsnettoOplystRettidigt), KglÅrsnettoUafhængigDebitor), Falskt)]
+)
+= kgl_valuta_scenarie_valutavalg = kgl_valuta_scenarie_personskat(
+    2025,
+    kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglLagerprincip),
+    [kgl_valuta_scenarie_ny_fordring("valutavalg-usd", kgl_valuta_scenarie_fordringskilde(KglÅrsnettoPengefordring, KglÅrsnettoIkkeOptagetPåReguleretMarked, KglÅrsnettoUafhængigDebitor), Falskt)]
+)
+= kgl_valuta_scenarie_valutavalg_2026 = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_videreført_årsvalg(2025, KglRealisationsprincip, KglRealisationsprincip, KglLagerprincip, KglLagerprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
+    [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg), 9)]
+)
+= kgl_valuta_scenarie_skift_uden_tilladelse = kgl_valuta_scenarie_personskat(
+    2027,
+    kgl_valuta_scenarie_videreført_årsvalg(2026, KglRealisationsprincip, KglRealisationsprincip, KglLagerprincip, KglRealisationsprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
+    [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg_2026), 10)]
+)
+= kgl_valuta_scenarie_skift_med_tilladelse = kgl_valuta_scenarie_personskat(
+    2027,
+    kgl_valuta_scenarie_videreført_årsvalg(2026, KglRealisationsprincip, KglRealisationsprincip, KglLagerprincip, KglRealisationsprincip, KglÅrsnettoPar25ÆndringTilladt(afgørelsesreference = "SKTST-VALUTA-2027")),
+    [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg_2026), 10)]
+)
+= kgl_valuta_scenarie_gæld = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglRealisationsprincip),
+    [kgl_valuta_scenarie_ny_gæld("gæld-usd")]
+)
+= kgl_valuta_scenarie_legacy_gæld_med_valutavalg = personskat_kursgevinst_resultat(
+    MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "legacy-valutagæld-person",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = [kgl_valuta_scenarie_legacy_valutagæld("legacy-gæld-usd")],
+        øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+            par25_valg = kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglLagerprincip),
+            fordringer = [],
+            valutainstrumenter = [],
+            obligationsbaserede_minimumsbeviser = []
+        ),
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    )),
+    2026,
+    IngenEjendomsavance
+)
+
+| kgl_valuta_nærtstående_tab_afskærer_kun_kreditkomponenten: kgl_valuta_scenarie_nærtstående_realisation -> kgl_valuta_scenarie_nærtstående_realisation.input_gyldigt && kgl_valuta_scenarie_nærtstående_realisation.årets_samlede_netto_efter_par14_kroner == 14000 && kgl_valuta_scenarie_nærtstående_realisation.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.årets_rå_netto_kroner == -10000 && kgl_valuta_scenarie_nærtstående_realisation.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 24000 && kgl_valuta_scenarie_nærtstående_realisation.kursgevinstlov_resultater[0].tab_afskåret_kroner == 10000 && kgl_valuta_scenarie_nærtstående_realisation.kursgevinstlov_resultater[1].skattepligtig_gevinst_kroner == 24000
+| kgl_valuta_obligationsvalg_lagerbeskatter_begge_komponenter: kgl_valuta_scenarie_obligationsvalg -> kgl_valuta_scenarie_obligationsvalg.input_gyldigt && kgl_valuta_scenarie_obligationsvalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.opgørelsesprincip == KglLagerprincip && kgl_valuta_scenarie_obligationsvalg.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.opgørelsesprincip == KglLagerprincip && kgl_valuta_scenarie_obligationsvalg.årets_samlede_netto_efter_par14_kroner == 14000
+| kgl_valuta_særskilt_valutavalg_lader_kreditkomponenten_urealiseret: kgl_valuta_scenarie_valutavalg -> kgl_valuta_scenarie_valutavalg.input_gyldigt && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.opgørelsesprincip == KglRealisationsprincip && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.årets_rå_netto_kroner == 0 && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 24000
+| kgl_valuta_lagerposition_videreføres_uden_dobbeltbeskatning: kgl_valuta_scenarie_valutavalg_2026 -> kgl_valuta_scenarie_valutavalg_2026.input_gyldigt && kgl_valuta_scenarie_valutavalg_2026.årets_samlede_netto_efter_par14_kroner == 8000 && kgl_valuta_scenarie_valutavalg_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.kumulativ_rå_netto_øre == 3200000 && kgl_valuta_scenarie_valutavalg_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.tidligere_medregnet_øre == 2400000
+| kgl_valuta_lager_til_realisation_kræver_tilladelse: kgl_valuta_scenarie_skift_uden_tilladelse -> kgl_valuta_scenarie_skift_uden_tilladelse.input_gyldigt == Falskt && kgl_valuta_scenarie_skift_uden_tilladelse.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt
+| kgl_valuta_lager_til_realisation_med_tilladelse_udskyder_ny_bevægelse: kgl_valuta_scenarie_skift_med_tilladelse -> kgl_valuta_scenarie_skift_med_tilladelse.input_gyldigt && kgl_valuta_scenarie_skift_med_tilladelse.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 0 && kgl_valuta_scenarie_position(kgl_valuta_scenarie_skift_med_tilladelse).valutakurs_tidligere_medregnet_øre == 3200000
+| kgl_valuta_gæld_vender_fortegnet_for_valutakursændringen: kgl_valuta_scenarie_gæld -> kgl_valuta_scenarie_gæld.input_gyldigt && kgl_valuta_scenarie_gæld.årets_samlede_netto_efter_par14_kroner == -30000 && kgl_valuta_scenarie_gæld.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == -30000 && kgl_valuta_scenarie_gæld.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 30000
+| kgl_valuta_kollektivt_valg_kræver_typed_årsforløb_for_valutagæld: kgl_valuta_scenarie_legacy_gæld_med_valutavalg -> kgl_valuta_scenarie_legacy_gæld_med_valutavalg.input_gyldigt == Falskt && length(kgl_valuta_scenarie_legacy_gæld_med_valutavalg.kursgevinstlov_resultater) == 0
+--@end:kursgevinstloven_valuta_scenarier--
+
+? kgl_valuta_nærtstående_tab_afskærer_kun_kreditkomponenten
+? kgl_valuta_obligationsvalg_lagerbeskatter_begge_komponenter
+? kgl_valuta_særskilt_valutavalg_lader_kreditkomponenten_urealiseret
+? kgl_valuta_lagerposition_videreføres_uden_dobbeltbeskatning
+? kgl_valuta_lager_til_realisation_kræver_tilladelse
+? kgl_valuta_lager_til_realisation_med_tilladelse_udskyder_ny_bevægelse
+? kgl_valuta_gæld_vender_fortegnet_for_valutakursændringen
+? kgl_valuta_kollektivt_valg_kræver_typed_årsforløb_for_valutagæld
