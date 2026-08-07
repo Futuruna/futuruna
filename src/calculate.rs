@@ -10,6 +10,8 @@ use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Instant;
 
 #[cfg(test)]
 thread_local! {
@@ -19,6 +21,8 @@ thread_local! {
 pub const CONTRACT_SCHEMA: &str = "futuruna.calculate.v1";
 pub const INPUT_SCHEMA: &str = "futuruna.calculate.input.v1";
 pub const OUTPUT_SCHEMA: &str = "futuruna.calculate.output.v1";
+const CALCULATION_WORKER_STACK_BYTES: usize = 64 * 1024 * 1024;
+const DEFAULT_MAX_CALCULATION_WORKERS: usize = 8;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -3457,14 +3461,172 @@ pub fn validate_input_envelope(
     }
 }
 
-/// Decode, invoke, and encode a batch. The pure program is initialized once,
-/// while each case receives an isolated environment and runtime state.
-pub fn invoke_calculation_cases(
+enum CalculationCaseOutcome {
+    Result(CalculationResultCase),
+    Diagnostic(CalculationCaseDiagnostic),
+}
+
+struct CalculationWorker {
+    interpreter: Interpreter,
+    base_env: Env,
+    base_actor_instances: BTreeMap<String, (Value, String)>,
+    base_rng_state: u64,
+}
+
+impl CalculationWorker {
+    fn new(entry: &str, stmts: &[Stmt], source_dir: Option<String>) -> Self {
+        let mut interpreter = Interpreter::new();
+        interpreter.suppress_output = true;
+        interpreter.source_dir = source_dir;
+        let mut base_env = interpreter.default_env();
+        interpreter.initialize_calculation_program(entry, stmts, &mut base_env);
+        let base_actor_instances = interpreter.actor_instances.clone();
+        let base_rng_state = interpreter.rng_state;
+        Self {
+            interpreter,
+            base_env,
+            base_actor_instances,
+            base_rng_state,
+        }
+    }
+
+    fn invoke(
+        &mut self,
+        contract: &CalculationContract,
+        case: &CalculationInputCase,
+    ) -> CalculationCaseOutcome {
+        let started = Instant::now();
+        let input = match contract.decode_input(&case.input) {
+            Ok(input) => input,
+            Err(error) => {
+                let outcome = CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: error.path,
+                    message: error.message,
+                });
+                trace_calculation_case(&case.case_id, started);
+                return outcome;
+            }
+        };
+
+        self.interpreter.active_rule_scopes.clear();
+        self.interpreter.output.clear();
+        self.interpreter.handler_stack.clear();
+        self.interpreter.actor_instances = self.base_actor_instances.clone();
+        self.interpreter.step_count = 0;
+        self.interpreter.budget_exceeded = false;
+        self.interpreter.rng_state = self.base_rng_state;
+
+        let mut runtime_env = self.base_env.clone();
+        let input_binding = "__futuruna_calculation_input".to_string();
+        runtime_env.set(input_binding.clone(), input);
+        let call: Expr = ExprKind::App(
+            Box::new(ExprKind::Var(contract.entry.clone()).into()),
+            vec![ExprKind::Var(input_binding).into()],
+        )
+        .into();
+        let result = self.interpreter.eval(&call, &runtime_env);
+        let outcome = match contract.encode_output(&result) {
+            Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
+                case_id: case.case_id.clone(),
+                result,
+            }),
+            Err(error) => CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
+                case_id: case.case_id.clone(),
+                path: error.path,
+                message: error.message,
+            }),
+        };
+        trace_calculation_case(&case.case_id, started);
+        outcome
+    }
+}
+
+fn calculation_trace_enabled() -> bool {
+    std::env::var("FUTURUNA_CALCULATION_TRACE")
+        .ok()
+        .is_some_and(|value| !value.is_empty() && value != "0" && value != "false")
+}
+
+fn trace_calculation_case(case_id: &str, started: Instant) {
+    if calculation_trace_enabled() {
+        eprintln!(
+            "runa calculation case {:?}: {:.3}s",
+            case_id,
+            started.elapsed().as_secs_f64()
+        );
+    }
+}
+
+fn requested_calculation_jobs() -> Option<usize> {
+    std::env::var("FUTURUNA_CALCULATION_JOBS")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .filter(|jobs| *jobs > 0)
+}
+
+fn calculation_worker_count(case_count: usize, requested_jobs: Option<usize>) -> usize {
+    if case_count <= 1 {
+        return case_count;
+    }
+    if let Some(jobs) = requested_jobs {
+        return jobs.clamp(1, case_count);
+    }
+    if case_count < 4 {
+        return 1;
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::thread::available_parallelism()
+            .map(usize::from)
+            .unwrap_or(1)
+            .min(DEFAULT_MAX_CALCULATION_WORKERS)
+            .clamp(1, case_count)
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        1
+    }
+}
+
+fn invoke_calculation_case_stride(
+    worker: &mut CalculationWorker,
+    contract: &CalculationContract,
+    cases: &[CalculationInputCase],
+    start: usize,
+    step: usize,
+) -> Vec<(usize, CalculationCaseOutcome)> {
+    (start..cases.len())
+        .step_by(step)
+        .map(|index| (index, worker.invoke(contract, &cases[index])))
+        .collect()
+}
+
+fn invoke_calculation_case_queue(
+    worker: &mut CalculationWorker,
+    contract: &CalculationContract,
+    cases: &[CalculationInputCase],
+    next_case: &AtomicUsize,
+) -> Vec<(usize, CalculationCaseOutcome)> {
+    let mut outcomes = Vec::new();
+    loop {
+        let index = next_case.fetch_add(1, Ordering::Relaxed);
+        let Some(case) = cases.get(index) else {
+            return outcomes;
+        };
+        outcomes.push((index, worker.invoke(contract, case)));
+    }
+}
+
+fn invoke_calculation_cases_with_jobs(
     contract: &CalculationContract,
     stmts: &[Stmt],
     source_dir: Option<String>,
     envelope: &CalculationInputEnvelope,
+    requested_jobs: Option<usize>,
 ) -> CalculationOutputEnvelope {
+    let started = Instant::now();
+    let worker_count = calculation_worker_count(envelope.cases.len(), requested_jobs);
     let mut output = CalculationOutputEnvelope {
         futuruna: CalculationEnvelopeMetadata {
             schema: OUTPUT_SCHEMA.to_string(),
@@ -3478,56 +3640,169 @@ pub fn invoke_calculation_cases(
         output.diagnostics = diagnostics;
         return output;
     }
+    if worker_count == 0 {
+        return output;
+    }
 
-    let mut interpreter = Interpreter::new();
-    interpreter.suppress_output = true;
-    interpreter.source_dir = source_dir;
-    let mut base_env = interpreter.default_env();
-    interpreter.initialize_calculation_program(&contract.entry, stmts, &mut base_env);
-    let base_actor_instances = interpreter.actor_instances.clone();
-    let base_rng_state = interpreter.rng_state;
+    // Prime the shared parsed-module cache before peers initialize their own
+    // isolated interpreters. The primary worker also serves the serial path.
+    let mut primary = CalculationWorker::new(&contract.entry, stmts, source_dir.clone());
+    let initialized_after = started.elapsed();
+    let mut outcomes = if worker_count == 1 {
+        invoke_calculation_case_stride(&mut primary, contract, &envelope.cases, 0, 1)
+    } else {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let next_case = AtomicUsize::new(0);
+            std::thread::scope(|scope| {
+                let mut handles = Vec::with_capacity(worker_count - 1);
+                for worker_index in 1..worker_count {
+                    let worker_source_dir = source_dir.clone();
+                    let next_case = &next_case;
+                    handles.push(
+                        std::thread::Builder::new()
+                            .name(format!("futuruna-calculation-{worker_index}"))
+                            .stack_size(CALCULATION_WORKER_STACK_BYTES)
+                            .spawn_scoped(scope, move || {
+                                let mut worker = CalculationWorker::new(
+                                    &contract.entry,
+                                    stmts,
+                                    worker_source_dir,
+                                );
+                                invoke_calculation_case_queue(
+                                    &mut worker,
+                                    contract,
+                                    &envelope.cases,
+                                    next_case,
+                                )
+                            })
+                            .expect("start calculation worker"),
+                    );
+                }
+                let mut outcomes = invoke_calculation_case_queue(
+                    &mut primary,
+                    contract,
+                    &envelope.cases,
+                    &next_case,
+                );
+                for handle in handles {
+                    outcomes.extend(handle.join().expect("calculation worker panicked"));
+                }
+                outcomes
+            })
+        }
+        #[cfg(target_arch = "wasm32")]
+        {
+            unreachable!("WASM calculation batches always use one worker")
+        }
+    };
 
-    for case in &envelope.cases {
-        let input = match contract.decode_input(&case.input) {
-            Ok(input) => input,
-            Err(error) => {
-                output.diagnostics.push(CalculationCaseDiagnostic {
-                    case_id: case.case_id.clone(),
-                    path: error.path,
-                    message: error.message,
-                });
-                continue;
-            }
-        };
-
-        interpreter.active_rule_scopes.clear();
-        interpreter.output.clear();
-        interpreter.handler_stack.clear();
-        interpreter.actor_instances = base_actor_instances.clone();
-        interpreter.step_count = 0;
-        interpreter.budget_exceeded = false;
-        interpreter.rng_state = base_rng_state;
-
-        let mut runtime_env = base_env.clone();
-        let input_binding = "__futuruna_calculation_input".to_string();
-        runtime_env.set(input_binding.clone(), input);
-        let call: Expr = ExprKind::App(
-            Box::new(ExprKind::Var(contract.entry.clone()).into()),
-            vec![ExprKind::Var(input_binding).into()],
-        )
-        .into();
-        let result = interpreter.eval(&call, &runtime_env);
-        match contract.encode_output(&result) {
-            Ok(result) => output.results.push(CalculationResultCase {
-                case_id: case.case_id.clone(),
-                result,
-            }),
-            Err(error) => output.diagnostics.push(CalculationCaseDiagnostic {
-                case_id: case.case_id.clone(),
-                path: error.path,
-                message: error.message,
-            }),
+    outcomes.sort_by_key(|(index, _)| *index);
+    for (_, outcome) in outcomes {
+        match outcome {
+            CalculationCaseOutcome::Result(result) => output.results.push(result),
+            CalculationCaseOutcome::Diagnostic(diagnostic) => output.diagnostics.push(diagnostic),
         }
     }
+    if calculation_trace_enabled() {
+        eprintln!(
+            "runa calculation: {} case(s), {} worker(s), initialization {:.3}s, total {:.3}s",
+            envelope.cases.len(),
+            worker_count,
+            initialized_after.as_secs_f64(),
+            started.elapsed().as_secs_f64()
+        );
+    }
     output
+}
+
+/// Decode, invoke, and encode a batch. Cases are isolated and retain input
+/// order. Larger batches use independent workers unless explicitly serialized.
+pub fn invoke_calculation_cases(
+    contract: &CalculationContract,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    envelope: &CalculationInputEnvelope,
+) -> CalculationOutputEnvelope {
+    invoke_calculation_cases_with_jobs(
+        contract,
+        stmts,
+        source_dir,
+        envelope,
+        requested_calculation_jobs(),
+    )
+}
+
+#[cfg(test)]
+mod calculation_execution_tests {
+    use super::*;
+
+    fn batch_fixture() -> (Vec<Stmt>, CalculationContract, CalculationInputEnvelope) {
+        let source = r#"
+# BatchInput(value: Int)
+# BatchResult(doubled: Int)
+
+@ calculate("Batch calculation")
+| calculate_batch(input: BatchInput) -> BatchResult(doubled = input.value * 2)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse batch calculation");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("extract batch calculation")
+            .pop()
+            .expect("batch contract");
+        let cases = (0..12)
+            .map(|index| CalculationInputCase {
+                case_id: format!("case-{index:02}"),
+                input: if index == 7 {
+                    serde_json::json!({"value": "invalid"})
+                } else {
+                    serde_json::json!({"value": index})
+                },
+            })
+            .collect();
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases,
+        };
+        (stmts, contract, envelope)
+    }
+
+    #[test]
+    fn parallel_calculation_cases_match_serial_results_and_order() {
+        let (stmts, contract, envelope) = batch_fixture();
+        let serial =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
+        let parallel =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(4));
+
+        assert_eq!(parallel, serial);
+        assert_eq!(
+            parallel
+                .results
+                .iter()
+                .map(|result| result.case_id.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "case-00", "case-01", "case-02", "case-03", "case-04", "case-05", "case-06",
+                "case-08", "case-09", "case-10", "case-11"
+            ]
+        );
+        assert_eq!(parallel.diagnostics[0].case_id, "case-07");
+    }
+
+    #[test]
+    fn automatic_calculation_workers_avoid_small_batch_overhead() {
+        assert_eq!(calculation_worker_count(0, None), 0);
+        assert_eq!(calculation_worker_count(1, None), 1);
+        assert_eq!(calculation_worker_count(3, None), 1);
+        assert_eq!(calculation_worker_count(8, Some(3)), 3);
+        assert_eq!(calculation_worker_count(2, Some(8)), 2);
+    }
 }

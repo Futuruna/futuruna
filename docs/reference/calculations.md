@@ -213,6 +213,23 @@ The default cache is under the operating system's user cache directory. Set
 standard error. The cache contains contracts only; calculation inputs and
 results are not stored.
 
+Calculation batches with at least four cases run independent cases concurrently
+and retain their original result and diagnostic order. Each worker initializes
+its own interpreter and each case still receives isolated environment, actor,
+handler, rule-scope, step-budget, and random state. Set
+`FUTURUNA_CALCULATION_JOBS=1` for a serial parity or debugging run, or set an
+explicit positive worker count. Zero and an unset value select the available
+machine parallelism, capped at eight workers by default.
+`FUTURUNA_CALCULATION_TRACE=1` reports per-case timings, the selected worker
+count, initialization time, and total calculation time on standard error.
+
+For repeated work on a large calculation corpus, `scripts/runa-corpus.sh`
+builds and reuses an optimized `target/corpus/runa` without changing the normal
+debug profile. `scripts/test-corpus.sh` builds and runs selected Rust tests under
+the same persistent optimized profile. This keeps ordinary compiler edits quick
+to rebuild while making repeated schema, workbook, and calculation gates
+substantially faster.
+
 ## Audit Calculation Reachability
 
 ```sh

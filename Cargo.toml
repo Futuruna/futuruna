@@ -33,6 +33,15 @@ opt-level = 3
 [profile.test.package.sha2]
 opt-level = 3
 
+# Large Futuruna corpora spend far more time executing the compiler and
+# interpreter than rebuilding dependencies. Keep ordinary dev/test builds fast
+# to compile, while offering a persistent optimized binary for corpus work.
+[profile.corpus]
+inherits = "dev"
+
+[profile.corpus.package.futuruna]
+opt-level = 2
+
 [[bin]]
 name = "runa"
 path = "src/bin/runa.rs"

@@ -44,6 +44,20 @@ Before a semantic change is submitted for review:
    If you leave a shortcut, workaround, or known gap behind, file a `td-*` task
    before merge. Do not leave semantic debt implicit.
 
+## Large Corpus Loop
+
+For repeated checks of large `.runa` corpora, use the persistent optimized
+compiler profile:
+
+```bash
+./scripts/runa-corpus.sh check path/to/model.calculate.runa
+./scripts/test-corpus.sh --test calculate_cli test_name
+```
+
+Ordinary `cargo test` remains the right loop while changing the Rust compiler.
+The corpus profile deliberately trades a slower one-time compiler build for
+faster repeated compiler and interpreter execution.
+
 ## Review Expectations
 
 Semantic/compiler/runtime pull requests should be reviewable without guesswork.

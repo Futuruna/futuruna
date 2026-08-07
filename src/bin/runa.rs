@@ -383,6 +383,12 @@ fn main_inner() {
                 eprintln!(
                     "  FUTURUNA_CALCULATION_CACHE_TRACE  Report contract cache hits and misses"
                 );
+                eprintln!(
+                    "  FUTURUNA_CALCULATION_JOBS       Calculation case workers (1=serial, 0/unset=auto)"
+                );
+                eprintln!(
+                    "  FUTURUNA_CALCULATION_TRACE      Report calculation worker and timing details"
+                );
                 eprintln!();
                 eprintln!("Feature stages:");
                 eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
