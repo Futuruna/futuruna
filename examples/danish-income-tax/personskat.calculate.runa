@@ -505,6 +505,27 @@
     help = Some("Angiv beløbet på det valgte løngrundlag. Kvalificerende DIS-indkomst indgår i progressionen, men ikke i AM-bidragsgrundlaget."),
     unit = Some("kr.")
 )
+= personskat_felt_andre_ligningslov7u_indkomster = TypetBeregningsfelt(
+    path = refof(PersonskatInput::lønmodtager::personlig_indkomst::sømandsbeskatning::andre_ligningslov7u_indkomster),
+    label = "Andre indkomster omfattet af ligningslovens § 7 U",
+    question = Some("Har du modtaget anden indkomst efter ligningslovens § 7 U end de ydelser, der er oplyst med direkte tilknytning til DIS-arbejde?"),
+    help = Some("Tilføj én række pr. anden § 7 U-indkomst. Beløbene bruges til at fordele årets bundfradrag forholdsmæssigt mellem direkte DIS-tilknyttet nettoløn og øvrig § 7 U-indkomst."),
+    unit = None
+)
+= personskat_felt_anden_ligningslov7u_identifikation = TypetBeregningsfelt(
+    path = refof(Søbl5Til8AndenLigningslov7UIndkomstfakta::identifikation),
+    label = "Den anden § 7 U-indkomsts identifikation",
+    question = Some("Hvilken entydig identifikation skal denne anden § 7 U-indkomst have?"),
+    help = Some("Identifikationen skal være forskellig fra alle identifikationer i tabellen med sømandsindkomster."),
+    unit = None
+)
+= personskat_felt_anden_ligningslov7u_beløb = TypetBeregningsfelt(
+    path = refof(Søbl5Til8AndenLigningslov7UIndkomstfakta::beløb_kroner),
+    label = "Anden indkomst efter ligningslovens § 7 U",
+    question = Some("Hvor stort var beløbet før fordeling af årets § 7 U-bundfradrag?"),
+    help = Some("Angiv hele beløbet. Futuruna fordeler bundfradraget og fører den resterende anden indkomst til det ordinære AM-bidragsgrundlag."),
+    unit = Some("kr.")
+)
 = personskat_felt_ægtefælle = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::$variant),
     label = "Ægtefælle",
@@ -9231,6 +9252,19 @@
         Practice(value = søbl5_til8_skm2020_75),
     )
 )
+= personskat_meta_andre_ligningslov7u_indkomster = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_andre_ligningslov7u_indkomster,
+        personskat_felt_anden_ligningslov7u_identifikation,
+        personskat_felt_anden_ligningslov7u_beløb
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = søbl5_til8_ligningslov7u_lbk1500),
+        DependencySource(value = søbl5_til8_bek940),
+    )
+)
 = personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ægtefælle),
@@ -10728,6 +10762,7 @@
         personskat_metadata_kommune,
         personskat_metadata_bruttoløn,
         personskat_meta_dis_indkomster,
+        personskat_meta_andre_ligningslov7u_indkomster,
         personskat_metadata_ægtefællegrundlag,
         personskat_metadata_underskudsforhold,
         personskat_metadata_befordring,

@@ -50,7 +50,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
-| personskat_dis_fakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
+| personskat_dis_fakta_med_indkomsttype(identifikation: Tekst, registrering: Søbl5Til8Registrering, indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
     identifikation = identifikation,
     indkomstår = 2025,
     person = Søbl5Til8Personfakta(
@@ -71,10 +71,17 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         par8_valg = SøblAnvendPar10RefusionEllerAlmindeligBeskatning
     ),
     løn = Søbl5Til8Lønfakta(
-        indkomsttype = SøblLønVedArbejdeOmBord,
+        indkomsttype = indkomsttype,
         løngrundlag = løngrundlag,
         beløb_kroner = beløb_kroner
     )
+)
+| personskat_dis_fakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> personskat_dis_fakta_med_indkomsttype(
+    identifikation = identifikation,
+    registrering = registrering,
+    indkomsttype = SøblLønVedArbejdeOmBord,
+    løngrundlag = løngrundlag,
+    beløb_kroner = beløb_kroner
 )
 
 = personskat_dis_kanonisk_input = personskat_dis_input(
@@ -84,7 +91,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         registrering = SøblDanskSkibRegistreretIDIS,
         løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
         beløb_kroner = 500000
-    )])
+        )], andre_ligningslov7u_indkomster = [])
 )
 = personskat_dis_kanonisk_resultat = beregn_personskat(personskat_dis_kanonisk_input)
 = personskat_dis_ordinær_baseline = beregn_personskat(personskat_dis_input(
@@ -98,6 +105,50 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 | personskat_dis_afskærer_ligningslov9a: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 && personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.stk1_til_stk9_udelukket
 | personskat_dis_afleder_par13_stk5: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar5
 
+= personskat_dis_ligningslov7u_blandet_resultat = beregn_personskat(personskat_dis_input(
+    bruttoløn_kroner = 300000,
+    sømandsbeskatning = Søbl5Til8Årsinput(
+        indkomster = [
+            personskat_dis_fakta(
+                identifikation = "kanonisk-dis-ordinær-nettoløn",
+                registrering = SøblDanskSkibRegistreretIDIS,
+                løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+                beløb_kroner = 500000
+            ),
+            personskat_dis_fakta_med_indkomsttype(
+                identifikation = "kanonisk-dis-ligningslov7u",
+                registrering = SøblDanskSkibRegistreretIDIS,
+                indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+                løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+                beløb_kroner = 20000
+            ),
+        ],
+        andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+            identifikation = "kanonisk-anden-ligningslov7u",
+            beløb_kroner = 60000
+        )]
+    )
+))
+= personskat_dis_ligningslov7u_cap_resultat = beregn_personskat(personskat_dis_input(
+    bruttoløn_kroner = 0,
+    sømandsbeskatning = Søbl5Til8Årsinput(
+        indkomster = [personskat_dis_fakta_med_indkomsttype(
+            identifikation = "kanonisk-dis-ligningslov7u-cap",
+            registrering = SøblDanskSkibRegistreretIDIS,
+            indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 3000
+        )],
+        andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+            identifikation = "kanonisk-anden-ligningslov7u-cap",
+            beløb_kroner = 1000
+        )]
+    )
+))
+
+| personskat_dis_ligningslov7u_fordeling_føres_til_skat_og_lempelse: personskat_dis_ligningslov7u_blandet_resultat -> personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 518000 && personskat_dis_ligningslov7u_blandet_resultat.sømandsbeskatning.dis_personlig_indkomst_kroner == 518000 && personskat_dis_ligningslov7u_blandet_resultat.skat.bruttoløn_kroner == 354000 && personskat_dis_ligningslov7u_blandet_resultat.skat.arbejdsmarkedsbidrag_kroner == 28320 && personskat_dis_ligningslov7u_blandet_resultat.skat.personlig_indkomst_efter_am_kroner == 843680
+| personskat_dis_ligningslov7u_bundfradrag_skaber_ikke_negativ_indkomst: personskat_dis_ligningslov7u_cap_resultat -> personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner == 4000 && personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.sømandsbeskatning.dis_personlig_indkomst_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.skat.bruttoløn_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.skat.arbejdsmarkedsbidrag_kroner == 0
+
 = personskat_das_kanonisk_resultat = beregn_personskat(personskat_dis_input(
     bruttoløn_kroner = 0,
     sømandsbeskatning = Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta(
@@ -105,7 +156,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         registrering = SøblDanskSkibRegistreretIDAS,
         løngrundlag = SøblOrdinærBruttoløn,
         beløb_kroner = 400000
-    )])
+        )], andre_ligningslov7u_indkomster = [])
 ))
 
 | personskat_das_føres_til_ordinær_am_løn: personskat_das_kanonisk_resultat -> personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.kan_anvende_par5_til8 == Falskt && personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.samlet_ordinær_bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 32000 && personskat_das_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner == 0
@@ -115,6 +166,8 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 ? personskat_dis_bevarer_progression
 ? personskat_dis_afskærer_ligningslov9a
 ? personskat_dis_afleder_par13_stk5
+? personskat_dis_ligningslov7u_fordeling_føres_til_skat_og_lempelse
+? personskat_dis_ligningslov7u_bundfradrag_skaber_ikke_negativ_indkomst
 ? personskat_das_føres_til_ordinær_am_løn
 
 @ print("Personskat: DIS-lempelse og ordinær DAS-løn er sammensat i den kanoniske slutskat")

@@ -25,6 +25,12 @@
     hentet_dato = "2026-08-04",
     ændringsstatus = "Gældende bekendtgørelse kontrolleret 04/08/2026"
 )
+= søbl5_til8_ligningslov7u_lbk1500 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 7 U, LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-06",
+    ændringsstatus = "Bundfradraget på 8.000 kr. gælder for de understøttede indkomstår 2025 og 2026"
+)
 = søbl5_til8_tonnageskattelov = Søbl5Til8KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2021/500",
     identifier = "Tonnageskatteloven §§ 6, 8 og 8 a, LBK nr. 500 af 22/03/2021 med senere ændringer",
@@ -154,17 +160,19 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 # Søbl5Til8Indkomsttype = SøblLønVedArbejdeOmBord | SøblLigningslov7UYdelseMedDirekteTilknytning | SøblLigningslov7UYdelseUdenDirekteTilknytning | SøblAndenIndkomsttype
 # Søbl5Til8Løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen | SøblOrdinærBruttoløn | SøblNettolønUdenDokumenteretFastsættelse
 # Søbl5Til8Lønfakta(indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal)
+# Søbl5Til8AndenLigningslov7UIndkomstfakta(identifikation: Tekst, beløb_kroner: Heltal)
 # Søbl8Beskatningsvalg = SøblAnvendPar8DIS | SøblAnvendPar10RefusionEllerAlmindeligBeskatning
 # Søbl5Til8Personfakta(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab, relation: Søbl5Til8Personrelation)
 # Søbl5Til8Arbejdsfakta(anvendelse: Søbl5Til8Anvendelsesforløb, arbejdsområde: Søbl5Til8Arbejdsområde, passagerrute: Søbl5Til8Passagerrute, arbejdsrolle: Søbl5Til8Arbejdsrolle, par8_valg: Søbl8Beskatningsvalg)
 # Søbl5Til8Indkomstfakta(identifikation: Tekst, indkomstår: Heltal, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta)
-# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta))
+# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta))
 # Søbl5Til8Beskatningsvirkning = SøblIngenDISVirkning | SøblNedsættelseAfSamletIndkomstskat | SøblIngenDanskSkatEfterPar5Stk2 | SøblKulbrinteskattelov21Stk2Virkning
 # Søbl5Til8Retsgrundlag = SøblIntetRetsgrundlag | SøblPar5Stk1 | SøblPar5Stk2 | SøblPar5B | SøblPar6 | SøblPar7 | SøblPar8
 # Søbl5Til8Indkomstresultat(fakta: Søbl5Til8Indkomstfakta, input_gyldigt: Boolsk, arbejdsrolle_omfattet: Boolsk, aflønningsbetingelse_opfyldt: Boolsk, indkomsttype_omfattet: Boolsk, nettolønsbetingelse_opfyldt: Boolsk, tonnageskatteaktivitet_opfyldt: Boolsk, par5_opfyldt: Boolsk, par5b_opfyldt: Boolsk, par6_opfyldt: Boolsk, par7_opfyldt: Boolsk, par8_opfyldt: Boolsk, kan_anvende_par5_til8: Boolsk, retsgrundlag: Søbl5Til8Retsgrundlag, beskatningsvirkning: Søbl5Til8Beskatningsvirkning, dis_personlig_indkomst_kroner: Heltal, ordinær_bruttoløn_kroner: Heltal, uafklaret_nettoløn_kroner: Heltal, arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
-# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, indkomstresultater: List(Søbl5Til8Indkomstresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
+# Søbl5Til8Ligningslov7UBundfradragsresultat(indkomstår: Heltal, andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), input_gyldigt: Boolsk, andre_indkomstidentifikationer_entydige: Boolsk, direkte_dis_nettoløn_før_bundfradrag_kroner: Heltal, anden_indkomst_før_bundfradrag_kroner: Heltal, samlet_indkomst_før_bundfradrag_kroner: Heltal, fuldt_bundfradrag_kroner: Heltal, anvendt_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, bundfradrag_fordelt_til_anden_indkomst_kroner: Heltal, direkte_dis_nettoløn_efter_bundfradrag_kroner: Heltal, anden_indkomst_efter_bundfradrag_kroner: Heltal)
+# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner: Heltal, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 
-| søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [])
+| søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [], andre_ligningslov7u_indkomster = [])
 | søbl5_til8_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
 | søbl5_til8_identifikationer_entydige(indkomster: List(Søbl5Til8Indkomstfakta)) -> length(distinct(map(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation))) == length(indkomster) && all(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation != "")
 | søbl5_til8_registrering_har_eu_eøs_hjemsted(registrering: Søbl5Til8Registrering) -> match registrering {
@@ -304,6 +312,7 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
     attachments = (
         Source(value = søbl5_til8_bek940),
         DependencySource(value = søbl5_til8_lbk1181),
+        DependencySource(value = søbl5_til8_ligningslov7u_lbk1500),
     )
 )
 
@@ -331,6 +340,11 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 ----
 
 --@begin::søbl5_til8_bek940_par4_til7--
+| søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 0
+| exception søbl5_til8_ligningslov7u_bundfradrag_2025 søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under indkomstår == 2025
+| exception søbl5_til8_ligningslov7u_bundfradrag_2026 søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under indkomstår == 2026
+| søbl5_til8_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
+
 # Søbl5Til8Indkomstsag(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) {
     | input_gyldigt() -> fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta)
     | arbejdsrolle_omfattet() -> søbl5_til8_arbejdsrolle_omfattet(fakta.arbejde.arbejdsrolle)
@@ -385,6 +399,51 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 
 | søbl5_til8_indkomstresultat(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) -> Søbl5Til8Indkomstsag(indkomstår = indkomstår, fakta = fakta).resultat()
 | søbl5_til8_sum(resultater: List(Søbl5Til8Indkomstresultat), udtræk: Søbl5Til8Indkomstresultat -> Heltal) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Søbl5Til8Indkomstresultat| sum_kroner + udtræk(resultat))
+| søbl5_til8_direkte_ligningslov7u_dis_nettoløn_kroner(resultat: Søbl5Til8Indkomstresultat) -> hvis resultat.input_gyldigt && resultat.beskatningsvirkning == SøblNedsættelseAfSamletIndkomstskat && resultat.fakta.løn.indkomsttype == SøblLigningslov7UYdelseMedDirekteTilknytning { resultat.dis_personlig_indkomst_kroner } ellers { 0 }
+| søbl5_til8_andre_ligningslov7u_identifikationer_entydige(indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> length(distinct(map(indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.identifikation))) == length(indkomster) && all(indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.identifikation != "")
+| søbl5_til8_andre_ligningslov7u_input_gyldige(indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> søbl5_til8_andre_ligningslov7u_identifikationer_entydige(indkomster) && all(indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.beløb_kroner >= 0)
+| søbl5_til8_alle_årsidentifikationer_entydige(input: Søbl5Til8Årsinput) -> {
+    = indkomstidentifikationer = concat(
+        map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation),
+        map(input.andre_ligningslov7u_indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.identifikation)
+    )
+    length(distinct(indkomstidentifikationer)) == length(indkomstidentifikationer) && all(indkomstidentifikationer, |identifikation: Tekst| identifikation != "")
+}
+
+# Søbl5Til8Ligningslov7UBundfradragssag(indkomstår: Heltal, indkomstresultater: List(Søbl5Til8Indkomstresultat), andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) {
+    | direkte_dis_nettoløn_før_bundfradrag_kroner() -> søbl5_til8_sum(indkomstresultater, søbl5_til8_direkte_ligningslov7u_dis_nettoløn_kroner)
+    | anden_indkomst_før_bundfradrag_kroner() -> foldl(andre_indkomster, 0, |sum_kroner: Heltal, fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| sum_kroner + fakta.beløb_kroner)
+    | samlet_indkomst_før_bundfradrag_kroner() -> direkte_dis_nettoløn_før_bundfradrag_kroner() + anden_indkomst_før_bundfradrag_kroner()
+    | fuldt_bundfradrag_kroner() -> søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår)
+    | anvendt_bundfradrag_kroner() -> søbl5_til8_mindste_beløb(fuldt_bundfradrag_kroner(), samlet_indkomst_før_bundfradrag_kroner())
+    | bundfradrag_fordelt_til_dis_kroner() -> hvis samlet_indkomst_før_bundfradrag_kroner() > 0 { anvendt_bundfradrag_kroner() * direkte_dis_nettoløn_før_bundfradrag_kroner() / samlet_indkomst_før_bundfradrag_kroner() } ellers { 0 }
+    | bundfradrag_fordelt_til_anden_indkomst_kroner() -> anvendt_bundfradrag_kroner() - bundfradrag_fordelt_til_dis_kroner()
+    | andre_indkomstidentifikationer_entydige() -> søbl5_til8_andre_ligningslov7u_identifikationer_entydige(andre_indkomster)
+    | input_gyldigt() -> (samlet_indkomst_før_bundfradrag_kroner() == 0 || søbl5_til8_skatteår_understøttet(indkomstår)) && søbl5_til8_andre_ligningslov7u_input_gyldige(andre_indkomster)
+    | direkte_dis_nettoløn_efter_bundfradrag_kroner() -> hvis input_gyldigt() { direkte_dis_nettoløn_før_bundfradrag_kroner() - bundfradrag_fordelt_til_dis_kroner() } ellers { 0 }
+    | anden_indkomst_efter_bundfradrag_kroner() -> hvis input_gyldigt() { anden_indkomst_før_bundfradrag_kroner() - bundfradrag_fordelt_til_anden_indkomst_kroner() } ellers { 0 }
+    | resultat() -> Søbl5Til8Ligningslov7UBundfradragsresultat(
+        indkomstår = indkomstår,
+        andre_indkomster = andre_indkomster,
+        input_gyldigt = input_gyldigt(),
+        andre_indkomstidentifikationer_entydige = andre_indkomstidentifikationer_entydige(),
+        direkte_dis_nettoløn_før_bundfradrag_kroner = direkte_dis_nettoløn_før_bundfradrag_kroner(),
+        anden_indkomst_før_bundfradrag_kroner = anden_indkomst_før_bundfradrag_kroner(),
+        samlet_indkomst_før_bundfradrag_kroner = samlet_indkomst_før_bundfradrag_kroner(),
+        fuldt_bundfradrag_kroner = fuldt_bundfradrag_kroner(),
+        anvendt_bundfradrag_kroner = anvendt_bundfradrag_kroner(),
+        bundfradrag_fordelt_til_dis_kroner = bundfradrag_fordelt_til_dis_kroner(),
+        bundfradrag_fordelt_til_anden_indkomst_kroner = bundfradrag_fordelt_til_anden_indkomst_kroner(),
+        direkte_dis_nettoløn_efter_bundfradrag_kroner = direkte_dis_nettoløn_efter_bundfradrag_kroner(),
+        anden_indkomst_efter_bundfradrag_kroner = anden_indkomst_efter_bundfradrag_kroner()
+    )
+}
+
+| søbl5_til8_ligningslov7u_bundfradragsresultat(indkomstår: Heltal, indkomstresultater: List(Søbl5Til8Indkomstresultat), andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> Søbl5Til8Ligningslov7UBundfradragssag(
+    indkomstår = indkomstår,
+    indkomstresultater = indkomstresultater,
+    andre_indkomster = andre_indkomster
+).resultat()
 | søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> IngenPar13Lempelse
 | exception søbl8_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar8 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar8)
 | exception søbl7_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar7 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar7)
@@ -392,24 +451,30 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 | exception søbl5_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar5 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8)
 | søbl5_til8_årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput) -> {
     = indkomstresultater = map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl5_til8_indkomstresultat(indkomstår = indkomstår, fakta = fakta))
-    = skatteår_understøttet = length(input.indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
-    = identifikationer_entydige = søbl5_til8_identifikationer_entydige(input.indkomster)
-    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
-    = samlet_dis_personlig_indkomst_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.dis_personlig_indkomst_kroner)
+    = ligningslov7u_bundfradrag = søbl5_til8_ligningslov7u_bundfradragsresultat(indkomstår, indkomstresultater, input.andre_ligningslov7u_indkomster)
+    = skatteår_understøttet = length(input.indkomster) == 0 && length(input.andre_ligningslov7u_indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = søbl5_til8_alle_årsidentifikationer_entydige(input)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && ligningslov7u_bundfradrag.input_gyldigt && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
+    = samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.dis_personlig_indkomst_kroner)
+    = samlet_dis_personlig_indkomst_kroner = hvis alle_input_gyldige { samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner - ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner } ellers { 0 }
     = samlet_ordinær_bruttoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ordinær_bruttoløn_kroner)
+    = samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner = hvis alle_input_gyldige { ligningslov7u_bundfradrag.anden_indkomst_efter_bundfradrag_kroner } ellers { 0 }
     = samlet_uafklaret_nettoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.uafklaret_nettoløn_kroner)
     Søbl5Til8Årsresultat(
         indkomstår = indkomstår,
         input = input,
         indkomstresultater = indkomstresultater,
+        ligningslov7u_bundfradrag = ligningslov7u_bundfradrag,
         skatteår_understøttet = skatteår_understøttet,
         identifikationer_entydige = identifikationer_entydige,
         alle_input_gyldige = alle_input_gyldige,
         beregningsklar = alle_input_gyldige && samlet_uafklaret_nettoløn_kroner == 0,
         kanonisk_fuld_skattepligt_understøttet = all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.beskatningsvirkning == SøblIngenDISVirkning || resultat.beskatningsvirkning == SøblNedsættelseAfSamletIndkomstskat),
         kan_anvende_par5_til8 = any(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8),
+        samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner = samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner,
         samlet_dis_personlig_indkomst_kroner = samlet_dis_personlig_indkomst_kroner,
         samlet_ordinær_bruttoløn_kroner = samlet_ordinær_bruttoløn_kroner,
+        samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner = samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
         samlet_uafklaret_nettoløn_kroner = samlet_uafklaret_nettoløn_kroner,
         samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner = 0,
         ligningslov9a_stk1_til9_afskåret = any(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ligningslov9a_stk1_til9_afskåret),

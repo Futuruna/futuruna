@@ -19,11 +19,12 @@
     arbejdsrolle = SøblNormalDriftsbesætning,
     par8_valg = par8_valg
 )
-| søbl_scenarie_løn(løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Lønfakta(
-    indkomsttype = SøblLønVedArbejdeOmBord,
+| søbl_scenarie_løn_med_indkomsttype(indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Lønfakta(
+    indkomsttype = indkomsttype,
     løngrundlag = løngrundlag,
     beløb_kroner = beløb_kroner
 )
+| søbl_scenarie_løn(løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> søbl_scenarie_løn_med_indkomsttype(SøblLønVedArbejdeOmBord, løngrundlag, beløb_kroner)
 | søbl_scenarie_indkomst(identifikation: Tekst, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta) -> Søbl5Til8Indkomstfakta(
     identifikation = identifikation,
     indkomstår = 2025,
@@ -51,7 +52,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 500000)
 )
-= søbl_scenarie_dansk_dis_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_dansk_dis_fakta]))
+= søbl_scenarie_dansk_dis_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_dansk_dis_fakta], andre_ligningslov7u_indkomster = []))
 = søbl_scenarie_dansk_dis_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl_scenarie_dansk_dis_år))
 = søbl_scenarie_dansk_dis_lempelse = søbl5_lempelsesresultat(søbl_scenarie_dansk_dis_model, søbl_scenarie_dansk_dis_år)
 = søbl_scenarie_kun_ordinær_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl5_til8_årsresultat(2025, søbl5_til8_intet_årsinput())))
@@ -60,6 +61,73 @@
 | søbl_scenarie_dis_er_uden_am: søbl_scenarie_dansk_dis_model -> søbl_scenarie_dansk_dis_model.indkomstgrundlag.arbejdsmarkedsbidrag_kroner == 24000 && søbl_scenarie_dansk_dis_model.indkomstgrundlag.personlig_indkomst_efter_am_kroner == 776000
 | søbl_scenarie_lempelse_med_progression: søbl_scenarie_dansk_dis_lempelse -> søbl_scenarie_dansk_dis_lempelse.input_gyldigt && søbl_scenarie_dansk_dis_lempelse.samlet_lempelse_kroner > 0 && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner > søbl_scenarie_kun_ordinær_model.slutskat.samlet_indkomstskat_kroner && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner < søbl_scenarie_dansk_dis_model.slutskat.samlet_indkomstskat_kroner
 
+= søbl_scenarie_ligningslov7u_dis_fakta = søbl_scenarie_indkomst(
+    identifikation = "dis-ligningslov7u",
+    person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib(SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn_med_indkomsttype(
+        indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+        løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+        beløb_kroner = 20000
+    )
+)
+= søbl_scenarie_ligningslov7u_blandet_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_ligningslov7u_dis_fakta],
+    andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+        identifikation = "anden-ligningslov7u",
+        beløb_kroner = 60000
+    )]
+))
+= søbl_scenarie_ligningslov7u_cap_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [Søbl5Til8Indkomstfakta(
+        identifikation = "dis-ligningslov7u-cap",
+        indkomstår = 2025,
+        person = søbl_scenarie_ligningslov7u_dis_fakta.person,
+        skib = søbl_scenarie_ligningslov7u_dis_fakta.skib,
+        arbejde = søbl_scenarie_ligningslov7u_dis_fakta.arbejde,
+        løn = søbl_scenarie_løn_med_indkomsttype(
+            indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 3000
+        )
+    )],
+    andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+        identifikation = "anden-ligningslov7u-cap",
+        beløb_kroner = 1000
+    )]
+))
+= søbl_scenarie_ligningslov7u_afrunding_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [Søbl5Til8Indkomstfakta(
+        identifikation = "dis-ligningslov7u-afrunding",
+        indkomstår = 2025,
+        person = søbl_scenarie_ligningslov7u_dis_fakta.person,
+        skib = søbl_scenarie_ligningslov7u_dis_fakta.skib,
+        arbejde = søbl_scenarie_ligningslov7u_dis_fakta.arbejde,
+        løn = søbl_scenarie_løn_med_indkomsttype(
+            indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 10000
+        )
+    )],
+    andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+        identifikation = "anden-ligningslov7u-afrunding",
+        beløb_kroner = 20001
+    )]
+))
+= søbl_scenarie_ligningslov7u_dobbelt_identifikation_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_ligningslov7u_dis_fakta],
+    andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+        identifikation = "dis-ligningslov7u",
+        beløb_kroner = 60000
+    )]
+))
+
+| søbl_scenarie_ligningslov7u_fordeles_forholdsmæssigt: søbl_scenarie_ligningslov7u_blandet_år -> søbl_scenarie_ligningslov7u_blandet_år.alle_input_gyldige && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.fuldt_bundfradrag_kroner == 8000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner == 8000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner == 20000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_dis_personlig_indkomst_kroner == 18000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 54000
+| søbl_scenarie_ligningslov7u_bundfradrag_begrænses_til_indkomst: søbl_scenarie_ligningslov7u_cap_år -> søbl_scenarie_ligningslov7u_cap_år.alle_input_gyldige && søbl_scenarie_ligningslov7u_cap_år.ligningslov7u_bundfradrag.fuldt_bundfradrag_kroner == 8000 && søbl_scenarie_ligningslov7u_cap_år.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner == 4000 && søbl_scenarie_ligningslov7u_cap_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 3000 && søbl_scenarie_ligningslov7u_cap_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 1000 && søbl_scenarie_ligningslov7u_cap_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_ligningslov7u_cap_år.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 0
+| søbl_scenarie_ligningslov7u_afrunding_bevarer_bundfradraget: søbl_scenarie_ligningslov7u_afrunding_år -> søbl_scenarie_ligningslov7u_afrunding_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2666 && søbl_scenarie_ligningslov7u_afrunding_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 5334 && søbl_scenarie_ligningslov7u_afrunding_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner + søbl_scenarie_ligningslov7u_afrunding_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == søbl_scenarie_ligningslov7u_afrunding_år.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner && søbl_scenarie_ligningslov7u_afrunding_år.samlet_dis_personlig_indkomst_kroner + søbl_scenarie_ligningslov7u_afrunding_år.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 22001
+| søbl_scenarie_ligningslov7u_identifikationer_er_globale: søbl_scenarie_ligningslov7u_dobbelt_identifikation_år -> søbl_scenarie_ligningslov7u_dobbelt_identifikation_år.identifikationer_entydige == Falskt && søbl_scenarie_ligningslov7u_dobbelt_identifikation_år.alle_input_gyldige == Falskt && søbl_scenarie_ligningslov7u_dobbelt_identifikation_år.beregningsklar == Falskt && søbl_scenarie_ligningslov7u_dobbelt_identifikation_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_ligningslov7u_dobbelt_identifikation_år.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 0
+
 = søbl_scenarie_udenlandsk_ikke_godkendt_fakta = søbl_scenarie_indkomst(
     identifikation = "udenlandsk-ikke-godkendt",
     person = søbl_scenarie_person(SøblFuldtSkattepligtigEfterKsl1, SøblStatsborgerIEUEØS),
@@ -67,7 +135,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblNettolønUdenDokumenteretFastsættelse, 400000)
 )
-= søbl_scenarie_udenlandsk_ikke_godkendt_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_udenlandsk_ikke_godkendt_fakta]))
+= søbl_scenarie_udenlandsk_ikke_godkendt_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_udenlandsk_ikke_godkendt_fakta], andre_ligningslov7u_indkomster = []))
 
 | søbl_scenarie_udenlandsk_ikke_godkendt_afvises: søbl_scenarie_udenlandsk_ikke_godkendt_år -> søbl_scenarie_udenlandsk_ikke_godkendt_år.alle_input_gyldige && søbl_scenarie_udenlandsk_ikke_godkendt_år.beregningsklar == Falskt && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_uafklaret_nettoløn_kroner == 400000
 
@@ -78,7 +146,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeIndenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblOrdinærBruttoløn, 400000)
 )
-= søbl_scenarie_das_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_das_fakta]))
+= søbl_scenarie_das_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_das_fakta], andre_ligningslov7u_indkomster = []))
 
 | søbl_scenarie_das_forbliver_ordinær_løn: søbl_scenarie_das_år -> søbl_scenarie_das_år.beregningsklar && søbl_scenarie_das_år.kan_anvende_par5_til8 == Falskt && søbl_scenarie_das_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_das_år.samlet_ordinær_bruttoløn_kroner == 400000
 
@@ -120,7 +188,7 @@
     løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
 )
 = søbl_scenarie_par8 = søbl5_til8_indkomstresultat(2025, søbl_scenarie_par8_fakta)
-= søbl_scenarie_par8_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_par8_fakta]))
+= søbl_scenarie_par8_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_par8_fakta], andre_ligningslov7u_indkomster = []))
 = søbl_scenarie_par13_stk5 = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
     skatteår = 2025,
     ønsket_overførsel_kroner = 100000,
@@ -138,6 +206,10 @@
 ? søbl_scenarie_dansk_dis_klassificeres
 ? søbl_scenarie_dis_er_uden_am
 ? søbl_scenarie_lempelse_med_progression
+? søbl_scenarie_ligningslov7u_fordeles_forholdsmæssigt
+? søbl_scenarie_ligningslov7u_bundfradrag_begrænses_til_indkomst
+? søbl_scenarie_ligningslov7u_afrunding_bevarer_bundfradraget
+? søbl_scenarie_ligningslov7u_identifikationer_er_globale
 ? søbl_scenarie_udenlandsk_ikke_godkendt_afvises
 ? søbl_scenarie_das_forbliver_ordinær_løn
 ? søbl_scenarie_bugser_halvdelsgrænse

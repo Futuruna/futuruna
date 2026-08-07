@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
+Current implementation slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler nu ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
+Previous historical KGL § 32 slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
 Previous KGL § 32 allocation slice: `td-51358b` (modregning i blandede ABL-gevinster fordeles efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
 Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
 Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
@@ -4007,9 +4008,18 @@ Review candidates to revisit deliberately, not as broad churn:
   i personlig indkomst og progression uden AM-bidrag; lempelsen fordeles på
   skattekomponenterne før personfradrag og trækkes fra den kanoniske slutskat.
   PSL § 13, stk. 5, og LL § 9 A-udelukkelsen afledes fra samme resultat.
-  Fortolkede og kompilerede fokusscenarier passerer, og den komplette
-  JSON/XLSX-rundtur bevarer en 500.000-kr.-DIS-post og giver samme resultat på
-  begge grænser.
+  Bekendtgørelsens § 4, stk. 2 er desuden et særskilt årsresultat: direkte
+  DIS-tilknyttede § 7 U-ydelser udledes fra lønfakta, anden § 7 U-indkomst
+  oplyses som identificerede kildeposter, og bundfradraget på 8.000 kr. fordeles
+  forholdsmæssigt og begrænses til årets samlede § 7 U-indkomst. En eventuel
+  afrundingsrest placeres på den anden indkomst, så hele bundfradraget bevares.
+  Det korrigerede DIS-beløb bruges identisk i skattepligtig personlig indkomst
+  og lempelsesnumeratoren; resten af den anden indkomst går til det ordinære
+  AM-grundlag. Fortolkede og kompilerede fokus- og Personskat-scenarier passerer.
+  Den komplette JSON/XLSX-rundtur bevarer 500.000 kr. almindelig DIS-nettoløn,
+  20.000 kr. direkte § 7 U-ydelse og 60.000 kr. anden § 7 U-indkomst og giver
+  samme fulde resultat på begge grænser: 518.000 kr. DIS-indkomst efter
+  allokering og 54.000 kr. anden AM-pligtig indkomst.
 - Validerede `@ calculate`-kontrakter har nu en vedvarende,
   indholdsadresseret cache. Nøglen omfatter compilerbinæren, prelude-valget,
   rodfilen og alle transitive almindelige, kvalificerede og hash-baserede
@@ -4790,10 +4800,9 @@ Review candidates to revisit deliberately, not as broad churn:
 
 - Færdiggør de afgrænsede SØBL-rester uden at svække den nye
   kildefaktamodel: `td-00b484` erstatter 92/184-dages tilnærmelser med eksakte
-  kalendermåneder, `td-b874c0` samler § 6-driftstid pr. skib og indkomstår,
-  `td-a97df7` fordeler LL § 7 U-bundfradraget, og `td-44eb29` giver dødsboer,
-  begrænset skattepligtige og kulbrinteskattesager deres egne kanoniske
-  beløbsresultater.
+  kalendermåneder, `td-b874c0` samler § 6-driftstid pr. skib og indkomstår, og
+  `td-44eb29` giver dødsboer, begrænset skattepligtige og kulbrinteskattesager
+  deres egne kanoniske beløbsresultater.
 - Udskyd næste performance-lag, indtil de væsentlige resterende lovregler er
   implementeret. Når fokus vender tilbage til målt latenstid, ejer `td-60a9d6`
   genbrug af parsede og typede moduler, mens `td-783a9c` ejer en resident

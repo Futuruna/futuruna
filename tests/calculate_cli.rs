@@ -1689,6 +1689,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human SØBL §§ 5-8 input label {expected} on {dis_income_sheet}"
             );
         }
+        let other_ligningslov7u_path =
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.andre_ligningslov7u_indkomster";
+        let other_ligningslov7u_sheet =
+            workbook_collection_sheet_name(&mut workbook, other_ligningslov7u_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &other_ligningslov7u_sheet),
+            "Dansk personskat - Andre indkomster omfattet af ligningslovens § 7 U"
+        );
+        let other_ligningslov7u_paths =
+            workbook_column_paths(&mut workbook, &other_ligningslov7u_sheet);
+        for expected in ["identifikation", "beløb_kroner"] {
+            assert!(
+                other_ligningslov7u_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical other LL § 7 U source-fact path {expected} on {other_ligningslov7u_sheet}"
+            );
+        }
+        let other_ligningslov7u_headers =
+            workbook_headers(&mut workbook, &other_ligningslov7u_sheet);
+        for expected in [
+            "Den anden § 7 U-indkomsts identifikation",
+            "Anden indkomst efter ligningslovens § 7 U",
+        ] {
+            assert!(
+                other_ligningslov7u_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human other LL § 7 U input label {expected} on {other_ligningslov7u_sheet}"
+            );
+        }
         let union_dues_path = "lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter";
         let union_dues_sheet = workbook_collection_sheet_name(&mut workbook, union_dues_path);
         let union_dues_paths = workbook_column_paths(&mut workbook, &union_dues_sheet);
@@ -10080,7 +10111,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                "sømandsbeskatning": { "indkomster": [] },
+                "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
                     "virksomheder_uden_virksomhedsordning": [],
@@ -11560,7 +11591,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                    "sømandsbeskatning": { "indkomster": [] },
+                    "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
                         "virksomheder_uden_virksomhedsordning": [],
@@ -12265,7 +12296,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
         },
-        "sømandsbeskatning": { "indkomster": [] },
+        "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
             "virksomheder_uden_virksomhedsordning": [],
@@ -13184,8 +13215,23 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 },
                 "beløb_kroner": 500_000
             }
+        }],
+        "andre_ligningslov7u_indkomster": [{
+            "identifikation": "anden-ligningslov7u-2026",
+            "beløb_kroner": 60_000
         }]
     });
+    let mut dis_ligningslov7u_income = dis_case["input"]["lønmodtager"]["personlig_indkomst"]
+        ["sømandsbeskatning"]["indkomster"][0]
+        .clone();
+    dis_ligningslov7u_income["identifikation"] = Value::String("dis-ligningslov7u-2026".into());
+    dis_ligningslov7u_income["løn"]["indkomsttype"] =
+        serde_json::json!({ "$variant": "SøblLigningslov7UYdelseMedDirekteTilknytning" });
+    dis_ligningslov7u_income["løn"]["beløb_kroner"] = serde_json::json!(20_000);
+    dis_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]["indkomster"]
+        .as_array_mut()
+        .expect("DIS source incomes")
+        .push(dis_ligningslov7u_income);
     dis_case["input"]["aktieavance"] = serde_json::json!({
         "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
         "særlige_aktiver": [],
@@ -13628,22 +13674,52 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-2026")
         .expect("hydrated XLSX DIS result");
     assert_eq!(hydrated_dis_result["result"], json_dis_result["result"]);
+    let dis_annual_result =
+        &hydrated_dis_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    let ligningslov7u_allocation = &dis_annual_result["ligningslov7u_bundfradrag"];
     assert_eq!(
-        hydrated_dis_result["result"]["personlig_indkomst"]["sømandsbeskatning"]
-            ["samlet_dis_personlig_indkomst_kroner"],
-        500_000
+        ligningslov7u_allocation["direkte_dis_nettoløn_før_bundfradrag_kroner"],
+        20_000
+    );
+    assert_eq!(
+        ligningslov7u_allocation["anden_indkomst_før_bundfradrag_kroner"],
+        60_000
+    );
+    assert_eq!(
+        ligningslov7u_allocation["bundfradrag_fordelt_til_dis_kroner"],
+        2_000
+    );
+    assert_eq!(
+        ligningslov7u_allocation["bundfradrag_fordelt_til_anden_indkomst_kroner"],
+        6_000
+    );
+    assert_eq!(
+        dis_annual_result["samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner"],
+        520_000
+    );
+    assert_eq!(
+        dis_annual_result["samlet_dis_personlig_indkomst_kroner"],
+        518_000
+    );
+    assert_eq!(
+        dis_annual_result["samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner"],
+        54_000
     );
     assert_eq!(
         hydrated_dis_result["result"]["skat"]["bruttoløn_kroner"],
-        300_000
+        354_000
     );
     assert_eq!(
         hydrated_dis_result["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
-        24_000
+        28_320
     );
     assert_eq!(
         hydrated_dis_result["result"]["skat"]["personlig_indkomst_efter_am_kroner"],
-        776_000
+        843_680
+    );
+    assert_eq!(
+        hydrated_dis_result["result"]["sømandsbeskatning"]["dis_personlig_indkomst_kroner"],
+        518_000
     );
     assert_eq!(
         hydrated_dis_result["result"]["sømandsbeskatning"]["input_gyldigt"],

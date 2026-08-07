@@ -31,6 +31,8 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+        DependencySource(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_ligningslov7u_lbk1500),
         Guidance(value = skat_gruppeliv_vejledning),
     )
 )
@@ -362,7 +364,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         ordinære_forhold = ordinære_forhold(),
         sømandsbeskatning = sømandsbeskatning(),
         alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige && sømandsbeskatning().alle_input_gyldige && sømandsbeskatning().beregningsklar && sømandsbeskatning().kanonisk_fuld_skattepligt_understøttet,
-        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner,
+        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner + sømandsbeskatning().samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + sømandsbeskatning().samlet_dis_personlig_indkomst_kroner,
         fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()),
         ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto())
