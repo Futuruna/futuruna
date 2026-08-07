@@ -107,6 +107,7 @@ etableringskontoloven.runa og kapitel-01-indkomst.runa.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 

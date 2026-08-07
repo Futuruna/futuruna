@@ -92,6 +92,7 @@
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_ingen_kildeskattekreditter() -> KildeskatPar60Kreditter(
@@ -118,6 +119,7 @@
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 0,
         øvrig_pensionsbeskatningsafgift_kroner = 0,
@@ -134,6 +136,7 @@
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 

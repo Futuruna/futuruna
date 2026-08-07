@@ -32,6 +32,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
@@ -46,6 +47,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
@@ -58,6 +60,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_lønmodtager(lønmodtager: PersonskatLønmodtagerInput) -> PersonskatInput(
@@ -70,6 +73,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
@@ -945,6 +949,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         samlevende_ved_indkomstårets_udløb = Sandt
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_udbytte_ægtefælle_resultat = beregn_personskat(personskat_calculate_udbytte_ægtefælle_input)
@@ -959,6 +964,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
         øvrig_pensionsbeskatningsafgift_kroner = 500,
@@ -989,6 +995,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = input.underskudsforhold,
     ægtefælle = input.ægtefælle,
     ejendomsskatter = input.ejendomsskatter,
+    negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel,
     årsopgørelse = årsopgørelse
 )
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
@@ -1017,7 +1024,18 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         oplysningsstatus = AblOplystRettidigt,
         boligret = AblUdenBoligret
     ),
-    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(
+        fakta = AktieavancePar5AFakta(
+            anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+            skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+            ejertidsudbytter = [],
+            præferenceposition = AktieavancePar5APræferenceposition(
+                modtaget_tilsvarende_udbytte_kroner = 0,
+                allerede_anvendt_til_tabsreduktion_kroner = 0
+            ),
+            koncernbeløb = []
+        )
+    )
 )
 = personskat_calculate_stort_ordinært_tabsår = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
@@ -1057,6 +1075,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         samlevende_ved_indkomstårets_udløb = Sandt
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_calculate_med_årsopgørelse_input.negativ_aktieskat_fremførsel,
     årsopgørelse = personskat_calculate_med_årsopgørelse_input.årsopgørelse
 )
 = personskat_calculate_stort_eget_aktietab_resultat = beregn_personskat(personskat_calculate_par_med_aktieavancer(
@@ -1124,6 +1143,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             overgangsvurderinger = ejendomsskattelov_ingen_overgangsvurderinger()
         )]
     ),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 0,
         øvrig_pensionsbeskatningsafgift_kroner = 0,
@@ -1154,6 +1174,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = input.underskudsforhold,
     ægtefælle = input.ægtefælle,
     ejendomsskatter = input.ejendomsskatter,
+    negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel,
     årsopgørelse = input.årsopgørelse
 )
 = personskat_calculate_stort_ordinært_tabsår_2025 = AktieavanceOrdinærPersonÅrsinput(
@@ -1247,6 +1268,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(fakta = personskat_calculate_par13a_ægtefællefakta, samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_par13a_ægtefælleoverførsel_resultat = beregn_personskat(personskat_calculate_par13a_parinput(Sandt))

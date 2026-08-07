@@ -1,0 +1,314 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet er ikke lovtekst. Det fastholder den kanoniske årskæde for negativ
+skat efter personskattelovens § 8 a, stk. 5-6, herunder ejer, oprindelsesår,
+myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
+----
+
+| negativ_aktieskat_ledger_lønmodtager(skatteår: Heltal) -> PersonskatLønmodtagerInput(
+    skatteår = skatteår,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+| negativ_aktieskat_ledger_personfakta(skatteår: Heltal) -> PersonskatPersonFakta(
+    lønmodtager = negativ_aktieskat_ledger_lønmodtager(skatteår),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold
+)
+
+| negativ_aktieskat_ledger_kreditter(angivet_par8a_beløb_kroner: Heltal) -> KildeskatPar60Kreditter(
+    a_skat_og_am_indeholdt_kroner = 0,
+    par68_indbetalt_kroner = 0,
+    b_skat_betalt_kroner = 0,
+    udbytteskat_modregningsberettiget_kroner = 0,
+    frivillig_indbetaling_par59_kroner = 0,
+    virksomhedsordning_beløb_kroner = 0,
+    personskattelov_par8a_stk5_beløb_kroner = angivet_par8a_beløb_kroner,
+    afskrivningslov_acontoskat_kroner = 0,
+    am_lov_par6_beløb_kroner = 0,
+    seniornedslag_kroner = 0,
+    energiafgiftskompensation_kroner = 0,
+    tilbagebetalt_par55_kroner = 0
+)
+
+| negativ_aktieskat_ledger_årsopgørelse(angivet_par8a_beløb_kroner: Heltal) -> MedÅrsopgørelse(
+    overført_restskat_mv_kroner = 0,
+    øvrig_pensionsbeskatningsafgift_kroner = 0,
+    kreditter = negativ_aktieskat_ledger_kreditter(angivet_par8a_beløb_kroner)
+)
+
+| negativ_aktieskat_ledger_input(
+    skatteår: Heltal,
+    aktieavance: PersonskatAktieavanceInput,
+    ægtefælle: PersonskatÆgtefælleInput,
+    fremførsel: PersonskatNegativAktieskatFremførselsparInput,
+    angivet_par8a_beløb_kroner: Heltal
+) -> PersonskatInput(
+    lønmodtager = negativ_aktieskat_ledger_lønmodtager(skatteår),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = aktieavance,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = ægtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = fremførsel,
+    årsopgørelse = negativ_aktieskat_ledger_årsopgørelse(angivet_par8a_beløb_kroner)
+)
+
+= negativ_aktieskat_ledger_tabsposition = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-NEGATIV-AKTIESKAT-LEDGER",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    anskaffelsessum_kroner = 1500000
+)
+
+= negativ_aktieskat_ledger_tabsafståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    afståelsessum_kroner = 0,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Falskt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærPar5AKildefakta(
+        fakta = AktieavancePar5AFakta(
+            anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+            skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+            ejertidsudbytter = [],
+            præferenceposition = AktieavancePar5APræferenceposition(
+                modtaget_tilsvarende_udbytte_kroner = 0,
+                allerede_anvendt_til_tabsreduktion_kroner = 0
+            ),
+            koncernbeløb = []
+        )
+    )
+)
+
+| negativ_aktieskat_ledger_tabsaktieinput(skatteår: Heltal) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = AktieavanceOrdinærPersonÅrsinput(
+        indkomstår = skatteår,
+        hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+            position_primo = negativ_aktieskat_ledger_tabsposition,
+            hændelser = [negativ_aktieskat_ledger_tabsafståelse]
+        )],
+        investeringsbeviser = [],
+        fremført_tab_efter_par13a_kroner = 0
+    )),
+    særlige_aktiver = [],
+    udbytter = []
+)
+
+= negativ_aktieskat_ledger_2024 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2024,
+    aktieavance = negativ_aktieskat_ledger_tabsaktieinput(2024),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_2025 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2025,
+    aktieavance = negativ_aktieskat_ledger_tabsaktieinput(2025),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2025,
+    aktieavance = negativ_aktieskat_ledger_tabsaktieinput(2025),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = FremførtNegativAktieskatFraForrigePersonskatÅr(
+            resultat = negativ_aktieskat_ledger_2024.negativ_aktieskat_fremførselsår.hovedperson
+        ),
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_2026 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = FremførtNegativAktieskatFraForrigePersonskatÅr(
+            resultat = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson
+        ),
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+| negativ_aktieskat_ledger_parinput(hovedpersons_fremførsel: PersonskatNegativAktieskatFremførselsinput, ægtefælles_fremførsel: PersonskatNegativAktieskatFremførselsinput) -> PersonskatInput(
+    lønmodtager = negativ_aktieskat_ledger_lønmodtager(2026),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = negativ_aktieskat_ledger_personfakta(2026),
+        samlevende_ved_indkomstårets_udløb = Sandt
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = hovedpersons_fremførsel,
+        ægtefælle = ægtefælles_fremførsel
+    ),
+    årsopgørelse = negativ_aktieskat_ledger_årsopgørelse(0)
+)
+
+= negativ_aktieskat_ledger_forrige_hovedperson = FremførtNegativAktieskatFraForrigePersonskatÅr(
+    resultat = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson
+)
+
+= negativ_aktieskat_ledger_forrige_hovedperson_2024 = FremførtNegativAktieskatFraForrigePersonskatÅr(
+    resultat = negativ_aktieskat_ledger_2024.negativ_aktieskat_fremførselsår.hovedperson
+)
+
+= negativ_aktieskat_ledger_par_hovedperson_2026 = beregn_personskat(negativ_aktieskat_ledger_parinput(
+    hovedpersons_fremførsel = negativ_aktieskat_ledger_forrige_hovedperson,
+    ægtefælles_fremførsel = UdenFremførtNegativAktieskat
+))
+
+= negativ_aktieskat_ledger_par_ægtefælle_2026 = beregn_personskat(negativ_aktieskat_ledger_parinput(
+    hovedpersons_fremførsel = UdenFremførtNegativAktieskat,
+    ægtefælles_fremførsel = negativ_aktieskat_ledger_forrige_hovedperson
+))
+
+= negativ_aktieskat_ledger_uden_ægtefælle_med_ægtefælleåbning = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = UdenFremførtNegativAktieskat,
+        ægtefælle = negativ_aktieskat_ledger_forrige_hovedperson
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_ekstern_2026 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = EksterntFastsatFremførtNegativAktieskat(
+            trancher = [PersonskatNegativAktieskatTranche(
+                ejer = HovedpersonensNegativAktieskat,
+                oprindelsesår = 2024,
+                resterende_negativ_skat_kroner = 1000
+            )],
+            proveniens = SkatteforvaltningensÅrsopgørelse(
+                dokumentreference = "årsopgørelse-2025-version-1"
+            )
+        ),
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_ubalanceret_2025 = PersonskatNegativAktieskatPersonÅrsresultat(
+    ejer = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.ejer,
+    indkomstår = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.indkomstår,
+    åbningsgrundlag_gyldigt = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.åbningsgrundlag_gyldigt,
+    fremført_negativ_skat_primo = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo,
+    årets_negative_skat = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.årets_negative_skat,
+    tidligere_fremført_negativ_skat_anvendelser = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.tidligere_fremført_negativ_skat_anvendelser,
+    fremført_negativ_skat_ultimo = []
+)
+
+= negativ_aktieskat_ledger_sprunget_år = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = negativ_aktieskat_ledger_forrige_hovedperson_2024,
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_ubalanceret_2026 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = FremførtNegativAktieskatFraForrigePersonskatÅr(
+            resultat = negativ_aktieskat_ledger_ubalanceret_2025
+        ),
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 0
+))
+
+= negativ_aktieskat_ledger_angivet_kredit_2026 = beregn_personskat(negativ_aktieskat_ledger_input(
+    skatteår = 2026,
+    aktieavance = personskat_ingen_aktieavance(),
+    ægtefælle = UdenÆgtefælle,
+    fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = negativ_aktieskat_ledger_forrige_hovedperson,
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    angivet_par8a_beløb_kroner = 123
+))
+
+| negativ_aktieskat_ledger_kildeskattekredit(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> 0
+    | BeregnetÅrsopgørelse(input, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_kroner
+}
+
+| negativ_aktieskat_ledger_ægtefælleårsresultat(resultat: PersonskatBeregningResultat) -> match resultat.negativ_aktieskat_fremførselsår.ægtefælle {
+    | None -> resultat.negativ_aktieskat_fremførselsår.hovedperson
+    | Some(årsresultat) -> årsresultat
+}
+
+| negativ_aktieskat_ledger_2025_danner_årets_tranche: negativ_aktieskat_ledger_2025 -> negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && personskat_negativ_aktieskat_årsresultat_konsistent(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson) && length(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo) == 0 && length(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo) == 1 && head(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo).ejer == HovedpersonensNegativAktieskat && head(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo).oprindelsesår == 2025 && head(negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo).resterende_negativ_skat_kroner == negativ_aktieskat_ledger_2025.negativ_aktieindkomstskat.egen.fremført_kroner && negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_2025) == negativ_aktieskat_ledger_2025.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner
+
+| negativ_aktieskat_ledger_årets_skat_anvendes_før_tidligere_fremførsel: negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel -> negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner > 0 && negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieindkomstskat.egen_slutskat_efter_negativ_skat_kroner == 0 && head(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egne_anvendelser).modregnet_i_egen_slutskat_kroner == 0 && head(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egne_anvendelser).fremført_kroner == head(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo).resterende_negativ_skat_kroner && head(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo).oprindelsesår == 2024 && head(tail(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo)).oprindelsesår == 2025 && negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel) == negativ_aktieskat_ledger_2025_med_årets_tab_og_tidligere_fremførsel.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner
+
+| negativ_aktieskat_ledger_2026_bruger_tidligere_fremførsel: negativ_aktieskat_ledger_2026 -> negativ_aktieskat_ledger_2026.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && personskat_negativ_aktieskat_årsresultat_konsistent(negativ_aktieskat_ledger_2026.negativ_aktieskat_fremførselsår.hovedperson) && negativ_aktieskat_ledger_2026.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 0 && negativ_aktieskat_ledger_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_modregnet_kroner > 0 && negativ_aktieskat_ledger_2026.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner == negativ_aktieskat_ledger_2026.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner - negativ_aktieskat_ledger_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_modregnet_kroner && negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_2026) == negativ_aktieskat_ledger_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_modregnet_kroner
+
+| negativ_aktieskat_ledger_rolleombytning_bevarer_parresultatet: negativ_aktieskat_ledger_par_ægtefælle_2026 -> negativ_aktieskat_ledger_par_hovedperson_2026.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && negativ_aktieskat_ledger_par_ægtefælle_2026.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && head(negativ_aktieskat_ledger_par_hovedperson_2026.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo).ejer == HovedpersonensNegativAktieskat && head(negativ_aktieskat_ledger_ægtefælleårsresultat(negativ_aktieskat_ledger_par_ægtefælle_2026).fremført_negativ_skat_primo).ejer == ÆgtefællensNegativAktieskat && negativ_aktieskat_ledger_par_hovedperson_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_modregnet_kroner == negativ_aktieskat_ledger_par_ægtefælle_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_modregnet_kroner && negativ_aktieskat_ledger_par_hovedperson_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_fremført_kroner == negativ_aktieskat_ledger_par_ægtefælle_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_fremført_kroner && negativ_aktieskat_ledger_par_hovedperson_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_slutskat_efter_fremført_negativ_skat_kroner == negativ_aktieskat_ledger_par_ægtefælle_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_slutskat_efter_fremført_negativ_skat_kroner
+
+| negativ_aktieskat_ledger_ægtefælleåbning_kræver_ægtefælle: negativ_aktieskat_ledger_uden_ægtefælle_med_ægtefælleåbning -> negativ_aktieskat_ledger_uden_ægtefælle_med_ægtefælleåbning.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige == Falskt && negativ_aktieskat_ledger_uden_ægtefælle_med_ægtefælleåbning.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_modregnet_kroner == 0
+
+| negativ_aktieskat_ledger_ekstern_proveniens_accepteres: negativ_aktieskat_ledger_ekstern_2026 -> negativ_aktieskat_ledger_ekstern_2026.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige && head(negativ_aktieskat_ledger_ekstern_2026.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo).oprindelsesår == 2024 && negativ_aktieskat_ledger_ekstern_2026.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.samlet_negativ_skat_primo_kroner == 1000
+
+| negativ_aktieskat_ledger_sprunget_år_afvises: negativ_aktieskat_ledger_sprunget_år -> negativ_aktieskat_ledger_sprunget_år.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige == Falskt && length(negativ_aktieskat_ledger_sprunget_år.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo) == 0
+
+| negativ_aktieskat_ledger_ubalanceret_resultat_afvises: negativ_aktieskat_ledger_ubalanceret_2026 -> personskat_negativ_aktieskat_årsresultat_konsistent(negativ_aktieskat_ledger_ubalanceret_2025) == Falskt && negativ_aktieskat_ledger_ubalanceret_2026.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige == Falskt && length(negativ_aktieskat_ledger_ubalanceret_2026.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo) == 0
+
+| negativ_aktieskat_ledger_afledt_kredit_kan_ikke_angives: negativ_aktieskat_ledger_angivet_kredit_2026 -> negativ_aktieskat_ledger_angivet_kredit_2026.kildeskat_par8a_kredit_input_gyldigt == Falskt && negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_angivet_kredit_2026) == negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_2026) && negativ_aktieskat_ledger_kildeskattekredit(negativ_aktieskat_ledger_angivet_kredit_2026) != 123
+
+? negativ_aktieskat_ledger_2025_danner_årets_tranche
+? negativ_aktieskat_ledger_årets_skat_anvendes_før_tidligere_fremførsel
+? negativ_aktieskat_ledger_2026_bruger_tidligere_fremførsel
+? negativ_aktieskat_ledger_rolleombytning_bevarer_parresultatet
+? negativ_aktieskat_ledger_ægtefælleåbning_kræver_ægtefælle
+? negativ_aktieskat_ledger_ekstern_proveniens_accepteres
+? negativ_aktieskat_ledger_sprunget_år_afvises
+? negativ_aktieskat_ledger_ubalanceret_resultat_afvises
+? negativ_aktieskat_ledger_afledt_kredit_kan_ikke_angives
+
+@ print("§ 8 a-ledger: årskæde, rolleombytning, proveniens og KSL § 60-kredit valideret")

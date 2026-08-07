@@ -84,6 +84,7 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
         samlevende_ved_indkomstårets_udløb = Sandt
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 

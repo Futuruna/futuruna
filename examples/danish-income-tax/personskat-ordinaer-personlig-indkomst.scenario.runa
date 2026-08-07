@@ -183,6 +183,7 @@
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_ordinaer_scenario_beregn(input: PersonskatOrdinærPersonligIndkomstInput) -> beregn_personskat(personskat_ordinaer_scenario_personskat(input, personskat_ingen_ligningsfradrag()))

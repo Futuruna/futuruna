@@ -34,7 +34,7 @@
 @ importer ./aktieavancebeskatningsloven - par37 - 40 - forloeb
 
 # PersonskatMetadata(a) = PersonskatMetadata(attachments: a)
-# PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, årsopgørelse: årsopgørelse)
+# PersonskatBeregningsmetadata(k, p, e, g, kapital, ejendom, kurs, aktie, negativ_aktieskat, årsopgørelse) = PersonskatBeregningsmetadata(kilder: k, pension: p, erhvervsbefordring: e, grundforhold: g, kapitalindkomst: kapital, ejendomsavance: ejendom, kursgevinst: kurs, aktieavance: aktie, negativ_aktieskat: negativ_aktieskat, årsopgørelse: årsopgørelse)
 # impl Meta for PersonskatMetadata {}
 # impl Meta for PersonskatBeregningsmetadata {}
 
@@ -123,9 +123,9 @@
 # PersonskatLønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstInput, erhvervsbefordring: PersonskatErhvervsbefordringInput, ligningsfradrag: PersonskatLigningsfradragInput, pension: PersonskatPensionsInput, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # PersonskatSupplerendeSkatteforhold(par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # PersonskatSkatteforholdInput = StandardSkatteforhold | SærligeSkatteforhold(forhold: PersonskatSupplerendeSkatteforhold)
-# PersonskatUnderskudsproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
+# PersonskatFastsættelsesproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
 # PersonskatUnderskudsårsresultat(indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_underskud_primo_kroner: Heltal, årets_skattepligtige_indkomst_før_fremførsel_kroner: Heltal, fremført_underskud_anvendt_i_egen_indkomst_kroner: Heltal, årets_nye_underskud_kroner: Heltal, dækket_ved_egen_skattemodregning_kroner: Heltal, fradraget_i_ægtefælles_indkomst_kroner: Heltal, dækket_ved_ægtefælles_skattemodregning_kroner: Heltal, fremført_underskud_ultimo_kroner: Heltal)
-# PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatUnderskudsproveniens)
+# PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatFastsættelsesproveniens)
 # PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
@@ -189,15 +189,21 @@
 # PersonskatKursgevinstPar32Forløbstilstand(seneste_årsresultat: Option(PersonskatKursgevinstPar32Årsparresultat), årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), næste_indkomstår: Heltal, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32PersonKontekst = UdenPar32Årsresultat | MedPar32Årsresultat(afledning: KursgevinstPar32PersonKildeårsafledning, årsresultat: KursgevinstPar32PersonÅrsresultat, personskattelov_resultat: Par4Stk1Nr2Årsresultat, forløb_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32ParResultat = IntetPar32Kontraktforløb | BeregnetPar32Kontraktforløb(historiske_årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), aktuelt_årsresultat: PersonskatKursgevinstPar32Årsparresultat, hovedperson: PersonskatKursgevinstPar32PersonKontekst, ægtefælle: PersonskatKursgevinstPar32PersonKontekst, input_gyldigt: Boolsk)
+# PersonskatNegativAktieskatEjer = HovedpersonensNegativAktieskat | ÆgtefællensNegativAktieskat
+# PersonskatNegativAktieskatTranche(ejer: PersonskatNegativAktieskatEjer, oprindelsesår: Heltal, resterende_negativ_skat_kroner: Heltal)
+# PersonskatNegativAktieskatPersonÅrsresultat(ejer: PersonskatNegativAktieskatEjer, indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_negativ_skat_primo: List(PersonskatNegativAktieskatTranche), årets_negative_skat: AktieindkomstNegativSkatPersonResultat, tidligere_fremført_negativ_skat_anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), fremført_negativ_skat_ultimo: List(PersonskatNegativAktieskatTranche))
+# PersonskatNegativAktieskatFremførselsinput = UdenFremførtNegativAktieskat | FremførtNegativAktieskatFraForrigePersonskatÅr(resultat: PersonskatNegativAktieskatPersonÅrsresultat) | EksterntFastsatFremførtNegativAktieskat(trancher: List(PersonskatNegativAktieskatTranche), proveniens: PersonskatFastsættelsesproveniens)
+# PersonskatNegativAktieskatFremførselsparInput(hovedperson: PersonskatNegativAktieskatFremførselsinput, ægtefælle: PersonskatNegativAktieskatFremførselsinput)
+# PersonskatNegativAktieskatParÅrsresultat(indkomstår: Heltal, hovedperson: PersonskatNegativAktieskatPersonÅrsresultat, ægtefælle: Option(PersonskatNegativAktieskatPersonÅrsresultat), tidligere_fremført_negativ_skat: AktieindkomstNegativSkatFremførselsparResultat, alle_åbningsgrundlag_gyldige: Boolsk)
 # PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput)
 # PersonskatÆgtefælleInput = UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat)
-# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, årsopgørelse: PersonskatÅrsopgørelseInput)
+# PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -609,6 +615,104 @@
     label = "Anden myndigheds afgørelsesreference",
     question = Some("Hvilken entydig reference har den anden myndigheds afgørelse?"),
     help = Some("Brug afgørelsens sags-, versions- eller journalreference. Feltet må ikke være tomt."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_hovedperson = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::hovedperson::$variant),
+    label = "Hovedpersonens fremførte negative aktieskat",
+    question = Some("Har hovedpersonen negativ skat af aktieindkomst til fremførsel fra tidligere indkomstår?"),
+    help = Some("Brug det umiddelbart foregående Futuruna-årsresultat eller en dokumenteret ekstern fastsættelse. Futuruna validerer ejer, oprindelsesår og ledgerbalance."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_ægtefælle = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::ægtefælle::$variant),
+    label = "Ægtefællens fremførte negative aktieskat",
+    question = Some("Har ægtefællen negativ skat af aktieindkomst til fremførsel fra tidligere indkomstår?"),
+    help = Some("Feltet anvendes kun, når en ægtefælle indgår i beregningen. Ejerrollen normaliseres og kontrolleres ved rolleombytning."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_hovedperson_forrige_år = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::hovedperson::FremførtNegativAktieskatFraForrigePersonskatÅr::resultat::indkomstår),
+    label = "Hovedpersonens foregående ledgerår",
+    question = Some("Hvilket indkomstår dækker hovedpersonens tidligere Futuruna-årsresultat?"),
+    help = Some("Årsresultatet skal ligge umiddelbart før det år, der nu beregnes."),
+    unit = Some("år")
+)
+= personskat_felt_negativ_aktieskat_ægtefælle_forrige_år = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::ægtefælle::FremførtNegativAktieskatFraForrigePersonskatÅr::resultat::indkomstår),
+    label = "Ægtefællens foregående ledgerår",
+    question = Some("Hvilket indkomstår dækker ægtefællens tidligere Futuruna-årsresultat?"),
+    help = Some("Årsresultatet skal ligge umiddelbart før det år, der nu beregnes."),
+    unit = Some("år")
+)
+= personskat_felt_negativ_aktieskat_hovedperson_trancher = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::hovedperson::EksterntFastsatFremførtNegativAktieskat::trancher),
+    label = "Hovedpersonens eksternt fastsatte negative aktieskat",
+    question = Some("Hvilke årstrancher er eksternt fastsat for hovedpersonen?"),
+    help = Some("Tilføj én tranche pr. oprindelsesår. Ældste tranche anvendes først."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_ægtefælle_trancher = Beregningsfelt(
+    path = pathof(PersonskatInput::negativ_aktieskat_fremførsel::ægtefælle::EksterntFastsatFremførtNegativAktieskat::trancher),
+    label = "Ægtefællens eksternt fastsatte negative aktieskat",
+    question = Some("Hvilke årstrancher er eksternt fastsat for ægtefællen?"),
+    help = Some("Tilføj én tranche pr. oprindelsesår. Ældste tranche anvendes først."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_tranche_ejer = TypetBeregningsfelt(
+    path = refof(PersonskatNegativAktieskatTranche::ejer),
+    label = "Ejer af den negative aktieskat",
+    question = Some("Tilhører tranchens negative aktieskat hovedpersonen eller ægtefællen?"),
+    help = Some("Ejerrollen skal svare til den person, hvis åbningsledger tranchens tabel tilhører."),
+    unit = None
+)
+= personskat_felt_negativ_aktieskat_tranche_oprindelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatNegativAktieskatTranche::oprindelsesår),
+    label = "Negativ aktieskats oprindelsesår",
+    question = Some("I hvilket indkomstår opstod den negative aktieskat?"),
+    help = Some("Oprindelsesåret skal ligge før beregningsåret og må kun forekomme én gang pr. ejer."),
+    unit = Some("år")
+)
+= personskat_felt_negativ_aktieskat_tranche_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatNegativAktieskatTranche::resterende_negativ_skat_kroner),
+    label = "Resterende negativ aktieskat",
+    question = Some("Hvor meget negativ skat er endnu ikke modregnet for denne årstranche?"),
+    help = Some("Angiv den resterende negative skat, ikke det oprindelige aktietab."),
+    unit = Some("kr.")
+)
+= personskat_felt_fastsættelsesproveniens = TypetBeregningsfelt(
+    path = refof(PersonskatFastsættelsesproveniens::$variant),
+    label = "Myndighedskildens type",
+    question = Some("Hvilken myndighedskilde dokumenterer den eksterne fastsættelse?"),
+    help = Some("Vælg årsopgørelse, afgørelse fra Skatteforvaltningen eller en anden myndighedsafgørelse."),
+    unit = None
+)
+= personskat_felt_fastsættelsesproveniens_årsopgørelse = TypetBeregningsfelt(
+    path = refof(PersonskatFastsættelsesproveniens::SkatteforvaltningensÅrsopgørelse::dokumentreference),
+    label = "Årsopgørelsens reference",
+    question = Some("Hvilken entydig reference har årsopgørelsen?"),
+    help = Some("Brug dokumentets sags-, versions- eller journalreference."),
+    unit = None
+)
+= personskat_felt_fastsættelsesproveniens_skatteafgørelse = TypetBeregningsfelt(
+    path = refof(PersonskatFastsættelsesproveniens::SkatteforvaltningensAfgørelse::dokumentreference),
+    label = "Skatteforvaltningens afgørelsesreference",
+    question = Some("Hvilken entydig reference har Skatteforvaltningens afgørelse?"),
+    help = Some("Brug afgørelsens sags-, versions- eller journalreference."),
+    unit = None
+)
+= personskat_felt_fastsættelsesproveniens_anden_myndighed = TypetBeregningsfelt(
+    path = refof(PersonskatFastsættelsesproveniens::AndenMyndighedsafgørelse::myndighed),
+    label = "Fastsættende myndighed",
+    question = Some("Hvilken anden myndighed har truffet afgørelsen?"),
+    help = Some("Myndighedens navn må ikke være tomt."),
+    unit = None
+)
+= personskat_felt_fastsættelsesproveniens_anden_reference = TypetBeregningsfelt(
+    path = refof(PersonskatFastsættelsesproveniens::AndenMyndighedsafgørelse::dokumentreference),
+    label = "Anden myndigheds afgørelsesreference",
+    question = Some("Hvilken entydig reference har den anden myndigheds afgørelse?"),
+    help = Some("Brug afgørelsens sags-, versions- eller journalreference."),
     unit = None
 )
 = personskat_felt_erhvervsbefordring = Beregningsfelt(
@@ -8411,6 +8515,26 @@
         Source(value = personskatteloven_2021_1284),
     )
 )
+= personskat_metadata_negativ_aktieskat = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_negativ_aktieskat_hovedperson),
+        Field(value = personskat_felt_negativ_aktieskat_ægtefælle),
+        Field(value = personskat_felt_negativ_aktieskat_hovedperson_forrige_år),
+        Field(value = personskat_felt_negativ_aktieskat_ægtefælle_forrige_år),
+        Field(value = personskat_felt_negativ_aktieskat_hovedperson_trancher),
+        Field(value = personskat_felt_negativ_aktieskat_ægtefælle_trancher),
+        Field(value = personskat_felt_negativ_aktieskat_tranche_ejer),
+        Field(value = personskat_felt_negativ_aktieskat_tranche_oprindelsesår),
+        Field(value = personskat_felt_negativ_aktieskat_tranche_beløb),
+        Field(value = personskat_felt_fastsættelsesproveniens),
+        Field(value = personskat_felt_fastsættelsesproveniens_årsopgørelse),
+        Field(value = personskat_felt_fastsættelsesproveniens_skatteafgørelse),
+        Field(value = personskat_felt_fastsættelsesproveniens_anden_myndighed),
+        Field(value = personskat_felt_fastsættelsesproveniens_anden_reference),
+        Source(value = personskatteloven_2021_1284),
+        DependencySource(value = kildeskatteloven_2024_460),
+    )
+)
 = personskat_metadata_befordring = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_befordring),
@@ -9820,6 +9944,7 @@
         personskat_metadata_aktie_boligret_udsteder,
         personskat_metadata_aktie_boligret_værdipapir,
     ),
+    negativ_aktieskat = personskat_metadata_negativ_aktieskat,
     årsopgørelse = personskat_metadata_årsopgørelse
 )
 
@@ -9855,7 +9980,7 @@
         | SærligeSkatteforhold(forhold) -> personskat_ligningslov8m_kildeskattepligt_forenelig_med_personfradrag(fakta.kildeskattepligt, forhold.personfradrag_skattepligt)
     }
 }
-| personskat_underskudsproveniens_gyldig(proveniens: PersonskatUnderskudsproveniens) -> match proveniens {
+| personskat_fastsættelsesproveniens_gyldig(proveniens: PersonskatFastsættelsesproveniens) -> match proveniens {
     | SkatteforvaltningensÅrsopgørelse(dokumentreference) -> dokumentreference != ""
     | SkatteforvaltningensAfgørelse(dokumentreference) -> dokumentreference != ""
     | AndenMyndighedsafgørelse(myndighed, dokumentreference) -> myndighed != "" && dokumentreference != ""
@@ -9866,7 +9991,7 @@
 | personskat_underskudsforhold_gyldigt(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> match input {
     | StandardUnderskudsforhold -> Sandt
     | FremførtUnderskudFraForrigePersonskatÅr(resultat) -> personskat_underskudsårsresultat_konsistent(resultat) && resultat.indkomstår + 1 == skatteår
-    | EksterntFastsatFremførtUnderskud(fra_indkomstår, underskud_kroner, proveniens) -> fra_indkomstår > 0 && fra_indkomstår + 1 == skatteår && underskud_kroner >= 0 && personskat_underskudsproveniens_gyldig(proveniens)
+    | EksterntFastsatFremførtUnderskud(fra_indkomstår, underskud_kroner, proveniens) -> fra_indkomstår > 0 && fra_indkomstår + 1 == skatteår && underskud_kroner >= 0 && personskat_fastsættelsesproveniens_gyldig(proveniens)
 }
 | personskat_angivet_tidligere_underskud_kroner(input: PersonskatUnderskudsforholdInput) -> match input {
     | StandardUnderskudsforhold -> 0
@@ -9875,6 +10000,78 @@
 }
 | personskat_egne_tidligere_underskud_kroner(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> hvis personskat_underskudsforhold_gyldigt(input, skatteår) { personskat_angivet_tidligere_underskud_kroner(input) } ellers { 0 }
 | personskat_aktuelt_underskud_ikke_rummet_i_tidligere_indkomst_eller_skat(input: PersonskatUnderskudsforholdInput, skatteår: Heltal) -> personskat_underskudsforhold_gyldigt(input, skatteår)
+
+| personskat_ingen_fremført_negativ_aktieskat() -> PersonskatNegativAktieskatFremførselsparInput(
+    hovedperson = UdenFremførtNegativAktieskat,
+    ægtefælle = UdenFremførtNegativAktieskat
+)
+| personskat_negativ_aktieskat_tranche_med_ejer(tranche: PersonskatNegativAktieskatTranche, ejer: PersonskatNegativAktieskatEjer) -> PersonskatNegativAktieskatTranche(
+    ejer = ejer,
+    oprindelsesår = tranche.oprindelsesår,
+    resterende_negativ_skat_kroner = tranche.resterende_negativ_skat_kroner
+)
+| personskat_negativ_aktieskat_generisk_tranche(tranche: PersonskatNegativAktieskatTranche) -> AktieindkomstNegativSkatFremførselstranche(
+    oprindelsesår = tranche.oprindelsesår,
+    resterende_negativ_skat_kroner = tranche.resterende_negativ_skat_kroner
+)
+| personskat_negativ_aktieskat_generiske_trancher(trancher: List(PersonskatNegativAktieskatTranche)) -> map(
+    trancher,
+    personskat_negativ_aktieskat_generisk_tranche
+)
+| personskat_negativ_aktieskat_trancher_sorteret(trancher: List(PersonskatNegativAktieskatTranche)) -> sort_by(
+    trancher,
+    |tranche: PersonskatNegativAktieskatTranche| tranche.oprindelsesår
+)
+| personskat_negativ_aktieskat_trancher_med_ejer(trancher: List(PersonskatNegativAktieskatTranche), ejer: PersonskatNegativAktieskatEjer) -> map(
+    personskat_negativ_aktieskat_trancher_sorteret(trancher),
+    |tranche: PersonskatNegativAktieskatTranche| personskat_negativ_aktieskat_tranche_med_ejer(tranche, ejer)
+)
+| personskat_negativ_aktieskat_trancher_gyldige_for_ejer(trancher: List(PersonskatNegativAktieskatTranche), ejer: PersonskatNegativAktieskatEjer, seneste_oprindelsesår: Heltal) -> all(
+    trancher,
+    |tranche: PersonskatNegativAktieskatTranche| tranche.ejer == ejer && tranche.oprindelsesår > 0 && tranche.oprindelsesår <= seneste_oprindelsesår && tranche.resterende_negativ_skat_kroner > 0
+) && aktieindkomst_negativ_skat_fremførselstrancher_gyldige(personskat_negativ_aktieskat_generiske_trancher(trancher))
+| personskat_negativ_aktieskat_anvendelse_gyldig(anvendelse: AktieindkomstNegativSkatFremførselsanvendelse, seneste_oprindelsesår: Heltal) -> anvendelse.tranche.oprindelsesår > 0 && anvendelse.tranche.oprindelsesår <= seneste_oprindelsesår && anvendelse.tranche.resterende_negativ_skat_kroner > 0 && anvendelse.modregnet_i_egen_slutskat_kroner >= 0 && anvendelse.modregnet_i_ægtefælles_slutskat_kroner >= 0 && anvendelse.fremført_kroner >= 0 && anvendelse.modregnet_i_egen_slutskat_kroner + anvendelse.modregnet_i_ægtefælles_slutskat_kroner + anvendelse.fremført_kroner == anvendelse.tranche.resterende_negativ_skat_kroner
+| personskat_negativ_aktieskat_anvendelser_gyldige(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), seneste_oprindelsesår: Heltal) -> all(
+    anvendelser,
+    |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| personskat_negativ_aktieskat_anvendelse_gyldig(anvendelse, seneste_oprindelsesår)
+)
+| personskat_negativ_aktieskat_årets_resultat_konsistent(resultat: AktieindkomstNegativSkatPersonResultat) -> resultat.negativ_skat_kroner >= 0 && resultat.modregnet_i_egen_slutskat_kroner >= 0 && resultat.modregnet_i_ægtefælles_slutskat_kroner >= 0 && resultat.fremført_kroner >= 0 && resultat.modregnet_i_egen_slutskat_kroner + resultat.modregnet_i_ægtefælles_slutskat_kroner + resultat.fremført_kroner == resultat.negativ_skat_kroner
+| personskat_negativ_aktieskat_fremført_tranche_fra_anvendelse(ejer: PersonskatNegativAktieskatEjer, anvendelse: AktieindkomstNegativSkatFremførselsanvendelse) -> PersonskatNegativAktieskatTranche(
+    ejer = ejer,
+    oprindelsesår = anvendelse.tranche.oprindelsesår,
+    resterende_negativ_skat_kroner = anvendelse.fremført_kroner
+)
+| personskat_negativ_aktieskat_tidligere_trancher_ultimo(ejer: PersonskatNegativAktieskatEjer, anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> map(
+    filter(anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.fremført_kroner > 0),
+    |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| personskat_negativ_aktieskat_fremført_tranche_fra_anvendelse(ejer, anvendelse)
+)
+| personskat_negativ_aktieskat_trancher_ultimo(ejer: PersonskatNegativAktieskatEjer, indkomstår: Heltal, anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), årets_resultat: AktieindkomstNegativSkatPersonResultat) -> {
+    = tidligere = personskat_negativ_aktieskat_tidligere_trancher_ultimo(ejer, anvendelser)
+    hvis årets_resultat.fremført_kroner > 0 {
+        concat(tidligere, [PersonskatNegativAktieskatTranche(
+            ejer = ejer,
+            oprindelsesår = indkomstår,
+            resterende_negativ_skat_kroner = årets_resultat.fremført_kroner
+        )])
+    } ellers {
+        tidligere
+    }
+}
+| personskat_negativ_aktieskat_årsresultat_konsistent(resultat: PersonskatNegativAktieskatPersonÅrsresultat) -> resultat.åbningsgrundlag_gyldigt && resultat.indkomstår > 0 && personskat_negativ_aktieskat_trancher_gyldige_for_ejer(resultat.fremført_negativ_skat_primo, resultat.ejer, resultat.indkomstår - 1) && personskat_negativ_aktieskat_anvendelser_gyldige(resultat.tidligere_fremført_negativ_skat_anvendelser, resultat.indkomstår - 1) && personskat_negativ_aktieskat_generiske_trancher(resultat.fremført_negativ_skat_primo) == map(resultat.tidligere_fremført_negativ_skat_anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.tranche) && personskat_negativ_aktieskat_årets_resultat_konsistent(resultat.årets_negative_skat) && resultat.fremført_negativ_skat_ultimo == personskat_negativ_aktieskat_trancher_ultimo(resultat.ejer, resultat.indkomstår, resultat.tidligere_fremført_negativ_skat_anvendelser, resultat.årets_negative_skat)
+| personskat_negativ_aktieskat_fremførselsinput_gyldigt(input: PersonskatNegativAktieskatFremførselsinput, skatteår: Heltal, ejer: PersonskatNegativAktieskatEjer) -> match input {
+    | UdenFremførtNegativAktieskat -> Sandt
+    | FremførtNegativAktieskatFraForrigePersonskatÅr(resultat) -> personskat_negativ_aktieskat_årsresultat_konsistent(resultat) && resultat.indkomstår + 1 == skatteår
+    | EksterntFastsatFremførtNegativAktieskat(trancher, proveniens) -> personskat_fastsættelsesproveniens_gyldig(proveniens) && personskat_negativ_aktieskat_trancher_gyldige_for_ejer(trancher, ejer, skatteår - 1)
+}
+| personskat_negativ_aktieskat_trancher_primo(input: PersonskatNegativAktieskatFremførselsinput, skatteår: Heltal, ejer: PersonskatNegativAktieskatEjer) -> hvis personskat_negativ_aktieskat_fremførselsinput_gyldigt(input, skatteår, ejer) {
+    match input {
+        | UdenFremførtNegativAktieskat -> []
+        | FremførtNegativAktieskatFraForrigePersonskatÅr(resultat) -> personskat_negativ_aktieskat_trancher_med_ejer(resultat.fremført_negativ_skat_ultimo, ejer)
+        | EksterntFastsatFremførtNegativAktieskat(trancher, _) -> personskat_negativ_aktieskat_trancher_sorteret(trancher)
+    }
+} ellers {
+    []
+}
 
 | personskat_ingen_erhvervsbefordring() -> PersonskatErhvervsbefordringInput(sager = [])
 | personskat_ll9b_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
@@ -12178,28 +12375,32 @@ fraflytningen."
     }
 }
 | personskat_parberegning(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælle_aktieavance: PersonskatÆgtefælleAktieavanceResultat) -> personskat_parberegning_med_par32(hovedgrundlag, ægtefælle_input, ægtefælle_aktieavance, UdenPar32Årsresultat)
-| personskat_kreditter_med_negativ_aktieindkomstskat(kreditter: KildeskatPar60Kreditter, negativ_aktieindkomstskat_kroner: Heltal) -> KildeskatPar60Kreditter(
+| personskat_kildeskat_par8a_kredit_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
+    | UdenÅrsopgørelse -> Sandt
+    | MedÅrsopgørelse(_, _, kreditter) -> kreditter.personskattelov_par8a_stk5_beløb_kroner == 0
+}
+| personskat_kreditter_med_negativ_aktieindkomstskat(kreditter: KildeskatPar60Kreditter, negativ_aktieindkomstskat_modregnet_kroner: Heltal) -> KildeskatPar60Kreditter(
     a_skat_og_am_indeholdt_kroner = kreditter.a_skat_og_am_indeholdt_kroner,
     par68_indbetalt_kroner = kreditter.par68_indbetalt_kroner,
     b_skat_betalt_kroner = kreditter.b_skat_betalt_kroner,
     udbytteskat_modregningsberettiget_kroner = kreditter.udbytteskat_modregningsberettiget_kroner,
     frivillig_indbetaling_par59_kroner = kreditter.frivillig_indbetaling_par59_kroner,
     virksomhedsordning_beløb_kroner = kreditter.virksomhedsordning_beløb_kroner,
-    personskattelov_par8a_stk5_beløb_kroner = kreditter.personskattelov_par8a_stk5_beløb_kroner + negativ_aktieindkomstskat_kroner,
+    personskattelov_par8a_stk5_beløb_kroner = negativ_aktieindkomstskat_modregnet_kroner,
     afskrivningslov_acontoskat_kroner = kreditter.afskrivningslov_acontoskat_kroner,
     am_lov_par6_beløb_kroner = kreditter.am_lov_par6_beløb_kroner,
     seniornedslag_kroner = kreditter.seniornedslag_kroner,
     energiafgiftskompensation_kroner = kreditter.energiafgiftskompensation_kroner,
     tilbagebetalt_par55_kroner = kreditter.tilbagebetalt_par55_kroner
 )
-| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, pension: PersonskatPensionsResultat, negativ_aktieindkomstskat_kroner: Heltal) -> match input {
+| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, slutskat_før_negativ_aktieindkomstskat_kroner: Heltal, pension: PersonskatPensionsResultat, negativ_aktieindkomstskat_modregnet_kroner: Heltal) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter) -> {
         = årsopgørelsesinput = KildeskatSlutopgørelseInput(
-            slutskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
+            slutskat_kroner = slutskat_før_negativ_aktieindkomstskat_kroner,
             overført_restskat_mv_kroner = overført_restskat_mv_kroner,
             pensionsbeskatningsafgift_kroner = øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner,
-            kreditter = personskat_kreditter_med_negativ_aktieindkomstskat(kreditter, negativ_aktieindkomstskat_kroner)
+            kreditter = personskat_kreditter_med_negativ_aktieindkomstskat(kreditter, negativ_aktieindkomstskat_modregnet_kroner)
         )
         BeregnetÅrsopgørelse(
             input = årsopgørelsesinput,
@@ -12283,6 +12484,78 @@ fraflytningen."
     samlevende_ved_årets_udløb = parberegning.aktieindkomst_parår.input.samlevende_ved_årets_udløb
 ))
 | personskat_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner(resultat: AktieindkomstNegativSkatParResultat) -> resultat.egen.modregnet_i_egen_slutskat_kroner + resultat.ægtefælle.modregnet_i_ægtefælles_slutskat_kroner
+| personskat_negativ_aktieskat_har_ægtefælle(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
+    | IngenÆgtefælleberegning -> Falskt
+    | BeregnetÆgtefælle(_, _, _, _) -> Sandt
+}
+| personskat_negativ_aktieskat_ægtefælleåbning_gyldig(input: PersonskatNegativAktieskatFremførselsinput, skatteår: Heltal, parberegning: PersonskatParberegningResultat) -> hvis personskat_negativ_aktieskat_har_ægtefælle(parberegning) {
+    personskat_negativ_aktieskat_fremførselsinput_gyldigt(input, skatteår, ÆgtefællensNegativAktieskat)
+} ellers {
+    input == UdenFremførtNegativAktieskat
+}
+| personskat_negativ_aktieskat_tidligere_fremførsel_resultat(input: PersonskatInput, parberegning: PersonskatParberegningResultat, årets_negative_skat: AktieindkomstNegativSkatParResultat) -> {
+    = skatteår = input.lønmodtager.skatteår
+    = hovedpersons_trancher = personskat_negativ_aktieskat_trancher_primo(input.negativ_aktieskat_fremførsel.hovedperson, skatteår, HovedpersonensNegativAktieskat)
+    = ægtefælles_trancher = hvis personskat_negativ_aktieskat_har_ægtefælle(parberegning) {
+        personskat_negativ_aktieskat_trancher_primo(input.negativ_aktieskat_fremførsel.ægtefælle, skatteår, ÆgtefællensNegativAktieskat)
+    } ellers {
+        []
+    }
+    aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+        egne_trancher = personskat_negativ_aktieskat_generiske_trancher(hovedpersons_trancher),
+        ægtefælles_trancher = personskat_negativ_aktieskat_generiske_trancher(ægtefælles_trancher),
+        egen_slutskat_før_fremført_negativ_skat_kroner = årets_negative_skat.egen_slutskat_efter_negativ_skat_kroner,
+        ægtefælles_slutskat_før_fremført_negativ_skat_kroner = årets_negative_skat.ægtefælles_slutskat_efter_negativ_skat_kroner,
+        samlevende_ved_årets_udløb = parberegning.aktieindkomst_parår.input.samlevende_ved_årets_udløb
+    ))
+}
+| personskat_negativ_aktieskat_personårsresultat(ejer: PersonskatNegativAktieskatEjer, skatteår: Heltal, åbningsinput: PersonskatNegativAktieskatFremførselsinput, årets_negative_skat: AktieindkomstNegativSkatPersonResultat, tidligere_anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> {
+    = åbningsgrundlag_gyldigt = personskat_negativ_aktieskat_fremførselsinput_gyldigt(åbningsinput, skatteår, ejer)
+    = fremført_negativ_skat_primo = personskat_negativ_aktieskat_trancher_primo(åbningsinput, skatteår, ejer)
+    PersonskatNegativAktieskatPersonÅrsresultat(
+        ejer = ejer,
+        indkomstår = skatteår,
+        åbningsgrundlag_gyldigt = åbningsgrundlag_gyldigt,
+        fremført_negativ_skat_primo = fremført_negativ_skat_primo,
+        årets_negative_skat = årets_negative_skat,
+        tidligere_fremført_negativ_skat_anvendelser = tidligere_anvendelser,
+        fremført_negativ_skat_ultimo = personskat_negativ_aktieskat_trancher_ultimo(ejer, skatteår, tidligere_anvendelser, årets_negative_skat)
+    )
+}
+| personskat_negativ_aktieskat_ægtefælleårsresultat(input: PersonskatInput, parberegning: PersonskatParberegningResultat, årets_negative_skat: AktieindkomstNegativSkatParResultat, tidligere_fremført_negativ_skat: AktieindkomstNegativSkatFremførselsparResultat) -> match parberegning.ægtefælle {
+    | IngenÆgtefælleberegning -> None
+    | BeregnetÆgtefælle(_, _, _, _) -> Some(personskat_negativ_aktieskat_personårsresultat(
+        ÆgtefællensNegativAktieskat,
+        input.lønmodtager.skatteår,
+        input.negativ_aktieskat_fremførsel.ægtefælle,
+        årets_negative_skat.ægtefælle,
+        tidligere_fremført_negativ_skat.ægtefælles_anvendelser
+    ))
+}
+| personskat_negativ_aktieskat_option_årsresultat_konsistent(resultat: Option(PersonskatNegativAktieskatPersonÅrsresultat)) -> match resultat {
+    | None -> Sandt
+    | Some(årsresultat) -> personskat_negativ_aktieskat_årsresultat_konsistent(årsresultat)
+}
+| personskat_negativ_aktieskat_parårsresultat(input: PersonskatInput, parberegning: PersonskatParberegningResultat, årets_negative_skat: AktieindkomstNegativSkatParResultat) -> {
+    = skatteår = input.lønmodtager.skatteår
+    = tidligere_fremført_negativ_skat = personskat_negativ_aktieskat_tidligere_fremførsel_resultat(input, parberegning, årets_negative_skat)
+    = hovedperson = personskat_negativ_aktieskat_personårsresultat(
+        HovedpersonensNegativAktieskat,
+        skatteår,
+        input.negativ_aktieskat_fremførsel.hovedperson,
+        årets_negative_skat.egen,
+        tidligere_fremført_negativ_skat.egne_anvendelser
+    )
+    = ægtefælle = personskat_negativ_aktieskat_ægtefælleårsresultat(input, parberegning, årets_negative_skat, tidligere_fremført_negativ_skat)
+    = alle_åbningsgrundlag_gyldige = årets_negative_skat.input_gyldigt && tidligere_fremført_negativ_skat.input_gyldigt && hovedperson.åbningsgrundlag_gyldigt && personskat_negativ_aktieskat_ægtefælleåbning_gyldig(input.negativ_aktieskat_fremførsel.ægtefælle, skatteår, parberegning) && personskat_negativ_aktieskat_årsresultat_konsistent(hovedperson) && personskat_negativ_aktieskat_option_årsresultat_konsistent(ægtefælle)
+    PersonskatNegativAktieskatParÅrsresultat(
+        indkomstår = skatteår,
+        hovedperson = hovedperson,
+        ægtefælle = ægtefælle,
+        tidligere_fremført_negativ_skat = tidligere_fremført_negativ_skat,
+        alle_åbningsgrundlag_gyldige = alle_åbningsgrundlag_gyldige
+    )
+}
 | personskat_beregning_resultat_fra_aktieavance_par(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
     = kursgevinst_par32 = personskat_kgl_par32_parresultat(input, aktieavance_før_par32)
     = aktieavance_par = personskat_kgl_par32_justeret_aktieavance(aktieavance_før_par32, kursgevinst_par32)
@@ -12299,6 +12572,10 @@ fraflytningen."
     = negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = personskat_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner(negativ_aktieindkomstskat)
     = samlet_skat_efter_negativ_aktieindkomstskat_kroner = penge_positivt_beløb(samlet_skat_inkl_endelig_aktieindkomstskat_kroner - negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner)
     = samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner = negativ_aktieindkomstskat.egen_slutskat_efter_negativ_skat_kroner
+    = negativ_aktieskat_fremførselsår = personskat_negativ_aktieskat_parårsresultat(input, parberegning, negativ_aktieindkomstskat)
+    = samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner = negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_efter_fremført_negativ_skat_kroner
+    = fremført_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_modregnet_kroner
+    = samlet_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner + fremført_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner
     PersonskatBeregningResultat(
         skat = skat,
         sømandsbeskatning = sømandsbeskatning,
@@ -12308,12 +12585,15 @@ fraflytningen."
         aktieindkomst_parår = parberegning.aktieindkomst_parår,
         positiv_aktieindkomstskat = positiv_aktieindkomstskat,
         negativ_aktieindkomstskat = negativ_aktieindkomstskat,
+        negativ_aktieskat_fremførselsår = negativ_aktieskat_fremførselsår,
         endelig_aktieindkomstskat_kroner = positiv_aktieindkomstskat.endelig_skat_kroner,
         samlet_skat_inkl_endelig_aktieindkomstskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
         samlet_skat_efter_negativ_aktieindkomstskat_kroner = samlet_skat_efter_negativ_aktieindkomstskat_kroner,
         ejendomsskatter = ejendomsskatter,
         samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_ejendomsskatter_kroner,
         samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner = samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner,
+        samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner = samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner,
+        kildeskat_par8a_kredit_input_gyldigt = personskat_kildeskat_par8a_kredit_input_gyldigt(input.årsopgørelse),
         personlig_indkomst = hovedgrundlag.personlig_indkomst,
         pension = hovedgrundlag.pension,
         erhvervsbefordring = hovedgrundlag.erhvervsbefordring,
@@ -12327,7 +12607,7 @@ fraflytningen."
             input.årsopgørelse,
             samlet_skat_inkl_ejendomsskatter_kroner,
             hovedgrundlag.pension,
-            negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner
+            samlet_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner
         )
     )
 }

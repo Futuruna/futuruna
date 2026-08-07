@@ -153,6 +153,7 @@
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_par6d_scenarie_input(skatteår: Heltal, skatteyder_identifikation: Tekst, ejendommens_afståelsesår: Heltal, årsforhold: List(EblPar6DÅrsforhold)) -> personskat_par6d_scenarie_input_med_ægtefælleidentifikation(skatteår, skatteyder_identifikation, Some(hvis skatteyder_identifikation == "Sælger" { "Ægtefælle" } ellers { "Sælger" }), ejendommens_afståelsesår, årsforhold)

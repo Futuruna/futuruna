@@ -1419,6 +1419,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Årsopgørelsens reference for underskuddet",
             "Skatteforvaltningens afgørelsesreference",
             "Anden myndigheds afgørelsesreference",
+            "Hovedpersonens fremførte negative aktieskat",
+            "Ægtefællens fremførte negative aktieskat",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -2894,6 +2896,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.SkatteforvaltningensAfgørelse.dokumentreference",
             "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.AndenMyndighedsafgørelse.myndighed",
             "underskudsforhold.EksterntFastsatFremførtUnderskud.proveniens.AndenMyndighedsafgørelse.dokumentreference",
+            "negativ_aktieskat_fremførsel.hovedperson.$variant",
+            "negativ_aktieskat_fremførsel.hovedperson.FremførtNegativAktieskatFraForrigePersonskatÅr.resultat.indkomstår",
+            "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.proveniens.$variant",
+            "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.proveniens.SkatteforvaltningensÅrsopgørelse.dokumentreference",
+            "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.trancher.ejer",
+            "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.trancher.oprindelsesår",
+            "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.trancher.resterende_negativ_skat_kroner",
+            "negativ_aktieskat_fremførsel.ægtefælle.$variant",
             "ægtefælle.$variant",
             "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
             "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
@@ -4731,6 +4741,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "underskudsforhold.$variant",
                         Data::String("StandardUnderskudsforhold".to_string()),
+                    ),
+                    (
+                        "negativ_aktieskat_fremførsel.hovedperson.$variant",
+                        Data::String("UdenFremførtNegativAktieskat".to_string()),
+                    ),
+                    (
+                        "negativ_aktieskat_fremførsel.ægtefælle.$variant",
+                        Data::String("UdenFremførtNegativAktieskat".to_string()),
                     ),
                     (
                         "ægtefælle.$variant",
@@ -9395,6 +9413,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         },
         "skatteforhold": { "$variant": "StandardSkatteforhold" },
         "underskudsforhold": { "$variant": "StandardUnderskudsforhold" },
+        "negativ_aktieskat_fremførsel": {
+            "hovedperson": { "$variant": "UdenFremførtNegativAktieskat" },
+            "ægtefælle": { "$variant": "UdenFremførtNegativAktieskat" }
+        },
         "ægtefælle": { "$variant": "UdenÆgtefælle" },
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
     });
@@ -11787,6 +11809,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(prior_deficit_result_case);
+
+    let mut negative_share_tax_carry_case = json_input["cases"][0].clone();
+    negative_share_tax_carry_case["case_id"] =
+        Value::String("personskat-negativ-aktieskat-fremførsel-2026".into());
+    negative_share_tax_carry_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    negative_share_tax_carry_case["input"]["negativ_aktieskat_fremførsel"] = serde_json::json!({
+        "hovedperson": {
+            "$variant": "EksterntFastsatFremførtNegativAktieskat",
+            "trancher": [{
+                "ejer": { "$variant": "HovedpersonensNegativAktieskat" },
+                "oprindelsesår": 2024,
+                "resterende_negativ_skat_kroner": 1_000
+            }],
+            "proveniens": {
+                "$variant": "SkatteforvaltningensÅrsopgørelse",
+                "dokumentreference": "årsopgørelse-2024-test"
+            }
+        },
+        "ægtefælle": { "$variant": "UdenFremførtNegativAktieskat" }
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(negative_share_tax_carry_case);
+
     let mut dis_case = json_input["cases"][0].clone();
     dis_case["case_id"] = Value::String("personskat-dis-2026".into());
     dis_case["input"]["lønmodtager"]["bruttoløn_kroner"] = serde_json::json!(300_000);
@@ -11904,6 +11955,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-underskud-årsresultat-2026")
         .expect("prior deficit result JSON case")
         .clone();
+    let negative_share_tax_carry_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-negativ-aktieskat-fremførsel-2026")
+        .expect("negative share-tax carry JSON case")
+        .clone();
     let dis_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -11918,6 +11976,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         annual_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
+        negative_share_tax_carry_case,
         dis_case,
     ]);
     std::fs::write(
@@ -12156,6 +12215,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         );
         assert_eq!(annual_result["fremført_underskud_ultimo_kroner"], 0);
     }
+    let json_negative_share_tax_carry = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-negativ-aktieskat-fremførsel-2026")
+        .expect("JSON negative share-tax carry result");
+    let hydrated_negative_share_tax_carry = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-negativ-aktieskat-fremførsel-2026")
+        .expect("hydrated XLSX negative share-tax carry result");
+    assert_eq!(
+        hydrated_negative_share_tax_carry["result"],
+        json_negative_share_tax_carry["result"]
+    );
+    let carry_result = &json_negative_share_tax_carry["result"];
+    assert_eq!(
+        carry_result["negativ_aktieskat_fremførselsår"]["alle_åbningsgrundlag_gyldige"],
+        true
+    );
+    assert_eq!(
+        carry_result["negativ_aktieskat_fremførselsår"]["hovedperson"]
+            ["fremført_negativ_skat_primo"][0]["oprindelsesår"],
+        2024
+    );
+    assert_eq!(
+        carry_result["negativ_aktieskat_fremførselsår"]["tidligere_fremført_negativ_skat"]
+            ["egen_slutskat_modregnet_kroner"],
+        1_000
+    );
+    assert_eq!(
+        carry_result["negativ_aktieskat_fremførselsår"]["hovedperson"]
+            ["fremført_negativ_skat_ultimo"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        carry_result["samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner"]
+            .as_i64()
+            .expect("tax before prior negative share-tax carry")
+            - carry_result["samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner"]
+                .as_i64()
+                .expect("tax after prior negative share-tax carry"),
+        1_000
+    );
     let xlsx_par32_history_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")

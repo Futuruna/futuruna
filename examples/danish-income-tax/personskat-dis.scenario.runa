@@ -47,6 +47,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_dis_fakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(

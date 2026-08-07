@@ -130,6 +130,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | fraflytter_slutskat_personfakta(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatPersonFakta(
@@ -154,6 +155,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         samlevende_ved_indkomstårets_udløb = Sandt
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | fraflytter_slutskat_for_særligt_resultat(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {

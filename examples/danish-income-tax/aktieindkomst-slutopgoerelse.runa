@@ -50,6 +50,19 @@ skattepligtiges slutskat, modregnes i ægtefællens slutskat.
 ----
 
 ----
+Kilde: Retsinformation, Kildeskatteloven, LBK nr. 460 af 03/05/2024,
+§ 60, stk. 1, litra g.
+Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
+
+§ 60. I den slutskat, der for et år udskrives for den skattepligtige, med
+tillæg af eventuel overført restskat m.v. efter § 61, stk. 3, og afgiften
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, modregnes nedennævnte
+beløb vedrørende samme år:
+
+g) Beløb efter personskattelovens § 8 a, stk. 5.
+----
+
+----
 Kilde: Retsinformation, Kildeskatteloven, LBK nr. 460 af 03/05/2024, § 67.
 Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
 
@@ -92,6 +105,11 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
 # AktieindkomstNegativSkatParInput(egen_negativ_skat_kroner: Heltal, ægtefælles_negativ_skat_kroner: Heltal, egen_slutskat_før_negativ_skat_kroner: Heltal, ægtefælles_slutskat_før_negativ_skat_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
 # AktieindkomstNegativSkatPersonResultat(negativ_skat_kroner: Heltal, modregnet_i_egen_slutskat_kroner: Heltal, modregnet_i_ægtefælles_slutskat_kroner: Heltal, fremført_kroner: Heltal)
 # AktieindkomstNegativSkatParResultat(input: AktieindkomstNegativSkatParInput, egen: AktieindkomstNegativSkatPersonResultat, ægtefælle: AktieindkomstNegativSkatPersonResultat, egen_slutskat_efter_negativ_skat_kroner: Heltal, ægtefælles_slutskat_efter_negativ_skat_kroner: Heltal, samlet_negativ_skat_kroner: Heltal, samlet_negativ_skat_modregnet_kroner: Heltal, samlet_negativ_skat_fremført_kroner: Heltal, samlet_slutskat_før_negativ_skat_kroner: Heltal, samlet_slutskat_efter_negativ_skat_kroner: Heltal, input_gyldigt: Boolsk)
+# AktieindkomstNegativSkatFremførselstranche(oprindelsesår: Heltal, resterende_negativ_skat_kroner: Heltal)
+# AktieindkomstNegativSkatFremførselsanvendelse(tranche: AktieindkomstNegativSkatFremførselstranche, modregnet_i_egen_slutskat_kroner: Heltal, modregnet_i_ægtefælles_slutskat_kroner: Heltal, fremført_kroner: Heltal)
+# AktieindkomstNegativSkatFremførselstilstand(resterende_slutskat_kroner: Heltal, anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse))
+# AktieindkomstNegativSkatFremførselsparInput(egne_trancher: List(AktieindkomstNegativSkatFremførselstranche), ægtefælles_trancher: List(AktieindkomstNegativSkatFremførselstranche), egen_slutskat_før_fremført_negativ_skat_kroner: Heltal, ægtefælles_slutskat_før_fremført_negativ_skat_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk)
+# AktieindkomstNegativSkatFremførselsparResultat(input: AktieindkomstNegativSkatFremførselsparInput, egne_anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), ægtefælles_anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), egen_slutskat_efter_fremført_negativ_skat_kroner: Heltal, ægtefælles_slutskat_efter_fremført_negativ_skat_kroner: Heltal, egen_slutskat_modregnet_kroner: Heltal, ægtefælles_slutskat_modregnet_kroner: Heltal, samlet_negativ_skat_primo_kroner: Heltal, samlet_negativ_skat_modregnet_kroner: Heltal, samlet_negativ_skat_fremført_kroner: Heltal, samlet_slutskat_før_fremført_negativ_skat_kroner: Heltal, samlet_slutskat_efter_fremført_negativ_skat_kroner: Heltal, input_gyldigt: Boolsk)
 
 # AktieindkomstSlutopgørelseCase(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal, aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, indeholdt_udbytteskat_kroner: Heltal) {
     | årlig_a_skat_kroner() -> a_skat_månedligt_kroner * 12
@@ -248,6 +266,88 @@ LOV nr. 482 af 22/05/2024, § 8, stk. 4.
 }
 
 | aktieindkomst_negativ_skat_par_resultat(input: AktieindkomstNegativSkatParInput) -> AktieindkomstNegativSkatParSag(input).resultat()
+
+| aktieindkomst_negativ_skat_fremførselstranche_gyldig(tranche: AktieindkomstNegativSkatFremførselstranche) -> tranche.oprindelsesår > 0 && tranche.resterende_negativ_skat_kroner > 0
+| aktieindkomst_negativ_skat_fremførselstrancher_entydige(trancher: List(AktieindkomstNegativSkatFremførselstranche)) -> all(trancher, |tranche: AktieindkomstNegativSkatFremførselstranche| length(filter(trancher, |anden: AktieindkomstNegativSkatFremførselstranche| anden.oprindelsesår == tranche.oprindelsesår)) == 1)
+| aktieindkomst_negativ_skat_fremførselstrancher_gyldige(trancher: List(AktieindkomstNegativSkatFremførselstranche)) -> all(trancher, aktieindkomst_negativ_skat_fremførselstranche_gyldig) && aktieindkomst_negativ_skat_fremførselstrancher_entydige(trancher)
+| aktieindkomst_negativ_skat_fremførselstrancher_sorteret(trancher: List(AktieindkomstNegativSkatFremførselstranche)) -> sort_by(trancher, |tranche: AktieindkomstNegativSkatFremførselstranche| tranche.oprindelsesår)
+| aktieindkomst_negativ_skat_fremførsel_egen_trin(tilstand: AktieindkomstNegativSkatFremførselstilstand, tranche: AktieindkomstNegativSkatFremførselstranche) -> {
+    = modregnet_kroner = penge_mindste_beløb(tranche.resterende_negativ_skat_kroner, tilstand.resterende_slutskat_kroner)
+    = anvendelse = AktieindkomstNegativSkatFremførselsanvendelse(
+        tranche = tranche,
+        modregnet_i_egen_slutskat_kroner = modregnet_kroner,
+        modregnet_i_ægtefælles_slutskat_kroner = 0,
+        fremført_kroner = tranche.resterende_negativ_skat_kroner - modregnet_kroner
+    )
+    AktieindkomstNegativSkatFremførselstilstand(
+        resterende_slutskat_kroner = tilstand.resterende_slutskat_kroner - modregnet_kroner,
+        anvendelser = concat(tilstand.anvendelser, [anvendelse])
+    )
+}
+| aktieindkomst_negativ_skat_fremførsel_egen_fase(trancher: List(AktieindkomstNegativSkatFremførselstranche), slutskat_kroner: Heltal) -> foldl(
+    aktieindkomst_negativ_skat_fremførselstrancher_sorteret(trancher),
+    AktieindkomstNegativSkatFremførselstilstand(resterende_slutskat_kroner = penge_positivt_beløb(slutskat_kroner), anvendelser = []),
+    aktieindkomst_negativ_skat_fremførsel_egen_trin
+)
+| aktieindkomst_negativ_skat_fremførsel_ægtefælle_trin(tilstand: AktieindkomstNegativSkatFremførselstilstand, anvendelse: AktieindkomstNegativSkatFremførselsanvendelse) -> {
+    = modregnet_kroner = penge_mindste_beløb(anvendelse.fremført_kroner, tilstand.resterende_slutskat_kroner)
+    = opdateret = AktieindkomstNegativSkatFremførselsanvendelse(
+        tranche = anvendelse.tranche,
+        modregnet_i_egen_slutskat_kroner = anvendelse.modregnet_i_egen_slutskat_kroner,
+        modregnet_i_ægtefælles_slutskat_kroner = modregnet_kroner,
+        fremført_kroner = anvendelse.fremført_kroner - modregnet_kroner
+    )
+    AktieindkomstNegativSkatFremførselstilstand(
+        resterende_slutskat_kroner = tilstand.resterende_slutskat_kroner - modregnet_kroner,
+        anvendelser = concat(tilstand.anvendelser, [opdateret])
+    )
+}
+| aktieindkomst_negativ_skat_fremførsel_ægtefælle_fase(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse), ægtefælles_slutskat_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk) -> hvis samlevende_ved_årets_udløb {
+    foldl(
+        anvendelser,
+        AktieindkomstNegativSkatFremførselstilstand(resterende_slutskat_kroner = penge_positivt_beløb(ægtefælles_slutskat_kroner), anvendelser = []),
+        aktieindkomst_negativ_skat_fremførsel_ægtefælle_trin
+    )
+} ellers {
+    AktieindkomstNegativSkatFremførselstilstand(resterende_slutskat_kroner = penge_positivt_beløb(ægtefælles_slutskat_kroner), anvendelser = anvendelser)
+}
+| aktieindkomst_negativ_skat_fremførselsanvendelser_primo_kroner(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> sum_list(map(anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.tranche.resterende_negativ_skat_kroner))
+| aktieindkomst_negativ_skat_fremførselsanvendelser_egen_kroner(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> sum_list(map(anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.modregnet_i_egen_slutskat_kroner))
+| aktieindkomst_negativ_skat_fremførselsanvendelser_ægtefælle_kroner(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> sum_list(map(anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.modregnet_i_ægtefælles_slutskat_kroner))
+| aktieindkomst_negativ_skat_fremførselsanvendelser_fremført_kroner(anvendelser: List(AktieindkomstNegativSkatFremførselsanvendelse)) -> sum_list(map(anvendelser, |anvendelse: AktieindkomstNegativSkatFremførselsanvendelse| anvendelse.fremført_kroner))
+| aktieindkomst_negativ_skat_fremførselspar_resultat(input: AktieindkomstNegativSkatFremførselsparInput) -> {
+    = input_gyldigt = input.egen_slutskat_før_fremført_negativ_skat_kroner >= 0 && input.ægtefælles_slutskat_før_fremført_negativ_skat_kroner >= 0 && aktieindkomst_negativ_skat_fremførselstrancher_gyldige(input.egne_trancher) && aktieindkomst_negativ_skat_fremførselstrancher_gyldige(input.ægtefælles_trancher)
+    = egne_trancher = hvis input_gyldigt { input.egne_trancher } ellers { [] }
+    = ægtefælles_trancher = hvis input_gyldigt { input.ægtefælles_trancher } ellers { [] }
+    = egen_egen_fase = aktieindkomst_negativ_skat_fremførsel_egen_fase(egne_trancher, input.egen_slutskat_før_fremført_negativ_skat_kroner)
+    = ægtefælles_egen_fase = aktieindkomst_negativ_skat_fremførsel_egen_fase(ægtefælles_trancher, input.ægtefælles_slutskat_før_fremført_negativ_skat_kroner)
+    = egen_ægtefælle_fase = aktieindkomst_negativ_skat_fremførsel_ægtefælle_fase(egen_egen_fase.anvendelser, ægtefælles_egen_fase.resterende_slutskat_kroner, input.samlevende_ved_årets_udløb)
+    = ægtefælles_ægtefælle_fase = aktieindkomst_negativ_skat_fremførsel_ægtefælle_fase(ægtefælles_egen_fase.anvendelser, egen_egen_fase.resterende_slutskat_kroner, input.samlevende_ved_årets_udløb)
+    = egne_anvendelser = egen_ægtefælle_fase.anvendelser
+    = ægtefælles_anvendelser = ægtefælles_ægtefælle_fase.anvendelser
+    = egen_slutskat_modregnet_kroner = aktieindkomst_negativ_skat_fremførselsanvendelser_egen_kroner(egne_anvendelser) + aktieindkomst_negativ_skat_fremførselsanvendelser_ægtefælle_kroner(ægtefælles_anvendelser)
+    = ægtefælles_slutskat_modregnet_kroner = aktieindkomst_negativ_skat_fremførselsanvendelser_egen_kroner(ægtefælles_anvendelser) + aktieindkomst_negativ_skat_fremførselsanvendelser_ægtefælle_kroner(egne_anvendelser)
+    = samlet_negativ_skat_primo_kroner = aktieindkomst_negativ_skat_fremførselsanvendelser_primo_kroner(egne_anvendelser) + aktieindkomst_negativ_skat_fremførselsanvendelser_primo_kroner(ægtefælles_anvendelser)
+    = samlet_negativ_skat_modregnet_kroner = egen_slutskat_modregnet_kroner + ægtefælles_slutskat_modregnet_kroner
+    = samlet_negativ_skat_fremført_kroner = aktieindkomst_negativ_skat_fremførselsanvendelser_fremført_kroner(egne_anvendelser) + aktieindkomst_negativ_skat_fremførselsanvendelser_fremført_kroner(ægtefælles_anvendelser)
+    = samlet_slutskat_før_fremført_negativ_skat_kroner = penge_positivt_beløb(input.egen_slutskat_før_fremført_negativ_skat_kroner) + penge_positivt_beløb(input.ægtefælles_slutskat_før_fremført_negativ_skat_kroner)
+    = samlet_slutskat_efter_fremført_negativ_skat_kroner = egen_ægtefælle_fase.resterende_slutskat_kroner + ægtefælles_ægtefælle_fase.resterende_slutskat_kroner
+    AktieindkomstNegativSkatFremførselsparResultat(
+        input = input,
+        egne_anvendelser = egne_anvendelser,
+        ægtefælles_anvendelser = ægtefælles_anvendelser,
+        egen_slutskat_efter_fremført_negativ_skat_kroner = ægtefælles_ægtefælle_fase.resterende_slutskat_kroner,
+        ægtefælles_slutskat_efter_fremført_negativ_skat_kroner = egen_ægtefælle_fase.resterende_slutskat_kroner,
+        egen_slutskat_modregnet_kroner = egen_slutskat_modregnet_kroner,
+        ægtefælles_slutskat_modregnet_kroner = ægtefælles_slutskat_modregnet_kroner,
+        samlet_negativ_skat_primo_kroner = samlet_negativ_skat_primo_kroner,
+        samlet_negativ_skat_modregnet_kroner = samlet_negativ_skat_modregnet_kroner,
+        samlet_negativ_skat_fremført_kroner = samlet_negativ_skat_fremført_kroner,
+        samlet_slutskat_før_fremført_negativ_skat_kroner = samlet_slutskat_før_fremført_negativ_skat_kroner,
+        samlet_slutskat_efter_fremført_negativ_skat_kroner = samlet_slutskat_efter_fremført_negativ_skat_kroner,
+        input_gyldigt = input_gyldigt
+    )
+}
 
 # AktieindkomstNegativSlutopgørelseCase(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal, negativ_aktieindkomst_kroner: Heltal, ægtefælle_positiv_aktieindkomst_kroner: Heltal, ægtefælle_slutskat_kroner: Heltal, samlevende_ved_årets_udløb: Boolsk, indeholdt_udbytteskat_kroner: Heltal) {
     | årlig_a_skat_kroner() -> a_skat_månedligt_kroner * 12

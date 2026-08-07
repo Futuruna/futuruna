@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-b95e35` (resterende negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, modregnes først i egen slutskat, derefter i en samlevende ægtefælles disponible slutskat, og resten fremføres eksplicit; den kanoniske Personskat-beregning bevarer både det signerede aktieindkomstspor og fordelingen gennem JSON/XLSX)
+Current implementation slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
 Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
@@ -33,7 +33,7 @@ Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovb
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
 Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parberegning føres nu til egen modregning, ægtefællemodregning, Kildeskattelovens § 60-kredit og eksplicit fremførsel uden at ændre det rå ABL-kildespor)
-Planned negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi skal føre den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput)
+Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi fører den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput; implementeret og verificeret, afventer uafhængig gennemgang)
 Planned spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder skal indgå i den komplette slutskat, som en § 8 a-overførsel kan modregnes i)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
@@ -82,6 +82,19 @@ ABL-resultater og ABL §§ 37-40-kilder ændres ikke. Rolleombytning, manglende
 samliv, ABL § 5 A-tab, ejendomsskat og samtidig fraflytning er verificeret
 fortolket og kompileret; de ordinære ABL- og fraflytningskilder krydser desuden
 samme JSON/XLSX-beregningsgrænse.
+
+Den uudnyttede negative aktieindkomstskat er nu også et kanonisk årsledger.
+Hver åbningstranche bevarer ejer og oprindelsesår og kommer enten fra det
+umiddelbart foregående, konsistente Futuruna-årsresultat eller fra en typet
+myndighedsfastsættelse med dokumentreference. Reglerne afviser forkert ejer,
+fremtidige år, dublerede oprindelsesår, oversprungne Futuruna-årsresultater og
+ubalancerede åbninger. Årets § 8 a-skat anvendes først; derefter anvendes
+tidligere trancher ældst først i egen og, ved samliv, ægtefællens disponible
+slutskat. Primo er altid lig anvendt plus ultimo. Kildeskattelovens § 60-kredit
+afledes af den aktuelle anvendelse og kan ikke indsendes som et konkurrerende
+beregnet input. Fortolkede og kompilerede årskæder samt en
+JSON-til-XLSX-til-`runa call`-rundtur bevarer proveniens og modregner en
+dokumenteret 2024-tranche på 1.000 kr. fuldt i 2026.
 
 Futurunas metadataindeks bygger nu på sprogets almindelige typesystem. En kort
 `--@label:<label>::meta:<binding>--`-kommentar er kun forbindelsen mellem et
@@ -3795,6 +3808,16 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Personskattelovens § 8 a, stk. 5-6, har nu et typet flerårsledger for
+  negativ aktieindkomstskat. Åbningen bevarer ejer, oprindelsesår og enten et
+  valideret foregående Personskat-resultat eller myndighedsproveniens; årets
+  negative skat anvendes før tidligere fremførsel, og ældste tranche anvendes
+  først. Single-, ægtefælle- og rolleombytningsforløb samt ugyldige år,
+  dubletter og ubalancerede resultater er dækket i interpreter og compiler.
+  Beregningsmetadata giver danske labels til åbningsvalg, trancher og
+  dokumentreferencer. En vedvarende JSON/XLSX-regression viser, at en ekstern
+  1.000-kr.-tranche fra 2024 reducerer 2026-skatten med præcis 1.000 kr. og
+  efterlader en tom ultimoliste.
 - Ligningslovens § 9, stk. 1, er nu et typet årsdomæne for dokumenterede
   lønmodtagerudgifter. Hver udgift har stabil identitet, arbejdsforhold,
   indkomstår, egenbetaling og en kildefaktabåret art; reglerne klassificerer
@@ -4957,6 +4980,15 @@ M4 - Ordinary taxpayer calculator
   share income is first offset against a 900.000 kr. negative-share case, the
   remaining negative tax offsets 208.726 kr. in own slutskat and 71.005 kr. in
   spouse slutskat, and 11.449 kr. is carried forward.
+  The residual amount now continues through a typed annual ledger. Opening and
+  closing tranches preserve owner and origin year, current-year negative tax is
+  used before old carry, old tranches are consumed oldest first, and every
+  opening amount is conserved as use plus closing carry. A prior Futuruna
+  result must be balanced and exactly one year old; older externally assessed
+  tranches require typed authority provenance. Single, married and role-swapped
+  cases pass interpreted and compiled execution, while the calculation CLI
+  round-trips an external 2024 tranche through JSON and XLSX and derives the
+  corresponding Kildeskatteloven § 60 credit rather than accepting it as input.
   Personskatteloven § 8 c now computes the municipal-equivalent tax for covered
   limited-taxpayer postures, using the Skatteministeriet-published 25 pct.
   2026 rate and the same personfradrag reduction posture as § 10 stk. 5.

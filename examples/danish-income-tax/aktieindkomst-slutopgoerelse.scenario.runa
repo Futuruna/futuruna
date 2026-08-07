@@ -102,6 +102,42 @@
     ægtefælles_slutskat_før_negativ_skat_kroner = 200,
     samlevende_ved_årets_udløb = Falskt
 ))
+= fremført_negativ_aktieskat_parfordeling = aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+    egne_trancher = [
+        AktieindkomstNegativSkatFremførselstranche(oprindelsesår = 2024, resterende_negativ_skat_kroner = 80),
+        AktieindkomstNegativSkatFremførselstranche(oprindelsesår = 2023, resterende_negativ_skat_kroner = 100)
+    ],
+    ægtefælles_trancher = [
+        AktieindkomstNegativSkatFremførselstranche(oprindelsesår = 2022, resterende_negativ_skat_kroner = 70)
+    ],
+    egen_slutskat_før_fremført_negativ_skat_kroner = 120,
+    ægtefælles_slutskat_før_fremført_negativ_skat_kroner = 100,
+    samlevende_ved_årets_udløb = Sandt
+))
+= fremført_negativ_aktieskat_parfordeling_ombyttet = aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+    egne_trancher = fremført_negativ_aktieskat_parfordeling.input.ægtefælles_trancher,
+    ægtefælles_trancher = fremført_negativ_aktieskat_parfordeling.input.egne_trancher,
+    egen_slutskat_før_fremført_negativ_skat_kroner = fremført_negativ_aktieskat_parfordeling.input.ægtefælles_slutskat_før_fremført_negativ_skat_kroner,
+    ægtefælles_slutskat_før_fremført_negativ_skat_kroner = fremført_negativ_aktieskat_parfordeling.input.egen_slutskat_før_fremført_negativ_skat_kroner,
+    samlevende_ved_årets_udløb = Sandt
+))
+= fremført_negativ_aktieskat_ikke_samlevende = aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+    egne_trancher = fremført_negativ_aktieskat_parfordeling.input.egne_trancher,
+    ægtefælles_trancher = fremført_negativ_aktieskat_parfordeling.input.ægtefælles_trancher,
+    egen_slutskat_før_fremført_negativ_skat_kroner = 120,
+    ægtefælles_slutskat_før_fremført_negativ_skat_kroner = 100,
+    samlevende_ved_årets_udløb = Falskt
+))
+= fremført_negativ_aktieskat_dobbelt_oprindelsesår = aktieindkomst_negativ_skat_fremførselspar_resultat(AktieindkomstNegativSkatFremførselsparInput(
+    egne_trancher = [
+        AktieindkomstNegativSkatFremførselstranche(oprindelsesår = 2024, resterende_negativ_skat_kroner = 80),
+        AktieindkomstNegativSkatFremførselstranche(oprindelsesår = 2024, resterende_negativ_skat_kroner = 100)
+    ],
+    ægtefælles_trancher = [],
+    egen_slutskat_før_fremført_negativ_skat_kroner = 120,
+    ægtefælles_slutskat_før_fremført_negativ_skat_kroner = 100,
+    samlevende_ved_årets_udløb = Sandt
+))
 
 | scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.effektivt_grundbeløb_kroner == 158800 && scenarie1_mand_aktie_slutopgørelse.aktieskat.højt_grundlag_kroner == 0
 | scenarie1_aktie_lav_skat_er_endelig: scenarie1_mand_aktie_slutopgørelse -> scenarie1_mand_aktie_slutopgørelse.endelig_aktieskat_kroner == 40500 && scenarie1_mand_aktie_slutopgørelse.udbytteskat_modregningsberettiget_kroner == 0
@@ -125,6 +161,11 @@
 | negativ_aktieskat_parfordeling_bevarer_skat_og_fremførsel: negativ_aktieskat_parfordeling -> negativ_aktieskat_parfordeling.input_gyldigt && negativ_aktieskat_parfordeling.samlet_negativ_skat_kroner == 350 && negativ_aktieskat_parfordeling.samlet_negativ_skat_modregnet_kroner == 300 && negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner == 50 && negativ_aktieskat_parfordeling.samlet_slutskat_før_negativ_skat_kroner == 300 && negativ_aktieskat_parfordeling.samlet_slutskat_efter_negativ_skat_kroner == 0
 | negativ_aktieskat_parfordeling_er_symmetrisk_ved_rolleombytning: negativ_aktieskat_parfordeling_ombyttet -> negativ_aktieskat_parfordeling_ombyttet.egen == negativ_aktieskat_parfordeling.ægtefælle && negativ_aktieskat_parfordeling_ombyttet.ægtefælle == negativ_aktieskat_parfordeling.egen && negativ_aktieskat_parfordeling_ombyttet.samlet_negativ_skat_modregnet_kroner == negativ_aktieskat_parfordeling.samlet_negativ_skat_modregnet_kroner && negativ_aktieskat_parfordeling_ombyttet.samlet_negativ_skat_fremført_kroner == negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner && negativ_aktieskat_parfordeling_ombyttet.samlet_slutskat_efter_negativ_skat_kroner == negativ_aktieskat_parfordeling.samlet_slutskat_efter_negativ_skat_kroner
 | negativ_aktieskat_kræver_samliv_for_ægtefællemodregning: negativ_aktieskat_ikke_samlevende -> negativ_aktieskat_ikke_samlevende.egen.modregnet_i_egen_slutskat_kroner == 100 && negativ_aktieskat_ikke_samlevende.egen.modregnet_i_ægtefælles_slutskat_kroner == 0 && negativ_aktieskat_ikke_samlevende.egen.fremført_kroner == 200 && negativ_aktieskat_ikke_samlevende.ægtefælles_slutskat_efter_negativ_skat_kroner == 200
+| fremført_negativ_aktieskat_bruger_ældste_tranche_først: fremført_negativ_aktieskat_parfordeling -> fremført_negativ_aktieskat_parfordeling.input_gyldigt && head(fremført_negativ_aktieskat_parfordeling.egne_anvendelser).tranche.oprindelsesår == 2023 && head(fremført_negativ_aktieskat_parfordeling.egne_anvendelser).modregnet_i_egen_slutskat_kroner == 100 && head(tail(fremført_negativ_aktieskat_parfordeling.egne_anvendelser)).tranche.oprindelsesår == 2024 && head(tail(fremført_negativ_aktieskat_parfordeling.egne_anvendelser)).modregnet_i_egen_slutskat_kroner == 20 && head(tail(fremført_negativ_aktieskat_parfordeling.egne_anvendelser)).modregnet_i_ægtefælles_slutskat_kroner == 30 && head(tail(fremført_negativ_aktieskat_parfordeling.egne_anvendelser)).fremført_kroner == 30
+| fremført_negativ_aktieskat_bevarer_primo_anvendelse_og_ultimo: fremført_negativ_aktieskat_parfordeling -> fremført_negativ_aktieskat_parfordeling.samlet_negativ_skat_primo_kroner == 250 && fremført_negativ_aktieskat_parfordeling.samlet_negativ_skat_modregnet_kroner == 220 && fremført_negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner == 30 && fremført_negativ_aktieskat_parfordeling.egen_slutskat_modregnet_kroner == 120 && fremført_negativ_aktieskat_parfordeling.ægtefælles_slutskat_modregnet_kroner == 100 && fremført_negativ_aktieskat_parfordeling.samlet_slutskat_efter_fremført_negativ_skat_kroner == 0
+| fremført_negativ_aktieskat_er_symmetrisk_ved_rolleombytning: fremført_negativ_aktieskat_parfordeling_ombyttet -> fremført_negativ_aktieskat_parfordeling_ombyttet.egne_anvendelser == fremført_negativ_aktieskat_parfordeling.ægtefælles_anvendelser && fremført_negativ_aktieskat_parfordeling_ombyttet.ægtefælles_anvendelser == fremført_negativ_aktieskat_parfordeling.egne_anvendelser && fremført_negativ_aktieskat_parfordeling_ombyttet.egen_slutskat_modregnet_kroner == fremført_negativ_aktieskat_parfordeling.ægtefælles_slutskat_modregnet_kroner && fremført_negativ_aktieskat_parfordeling_ombyttet.ægtefælles_slutskat_modregnet_kroner == fremført_negativ_aktieskat_parfordeling.egen_slutskat_modregnet_kroner && fremført_negativ_aktieskat_parfordeling_ombyttet.samlet_negativ_skat_fremført_kroner == fremført_negativ_aktieskat_parfordeling.samlet_negativ_skat_fremført_kroner
+| fremført_negativ_aktieskat_kræver_samliv_for_ægtefællemodregning: fremført_negativ_aktieskat_ikke_samlevende -> fremført_negativ_aktieskat_ikke_samlevende.egen_slutskat_modregnet_kroner == 120 && fremført_negativ_aktieskat_ikke_samlevende.ægtefælles_slutskat_modregnet_kroner == 70 && fremført_negativ_aktieskat_ikke_samlevende.samlet_negativ_skat_fremført_kroner == 60 && fremført_negativ_aktieskat_ikke_samlevende.ægtefælles_slutskat_efter_fremført_negativ_skat_kroner == 30
+| fremført_negativ_aktieskat_afviser_dobbelt_oprindelsesår: fremført_negativ_aktieskat_dobbelt_oprindelsesår -> fremført_negativ_aktieskat_dobbelt_oprindelsesår.input_gyldigt == Falskt && fremført_negativ_aktieskat_dobbelt_oprindelsesår.samlet_negativ_skat_primo_kroner == 0 && fremført_negativ_aktieskat_dobbelt_oprindelsesår.samlet_negativ_skat_modregnet_kroner == 0 && fremført_negativ_aktieskat_dobbelt_oprindelsesår.samlet_slutskat_efter_fremført_negativ_skat_kroner == 220
 
 ? scenarie1_aktie_ægtefællegrundbeløb_fjerner_høj_skat
 ? scenarie1_aktie_lav_skat_er_endelig
@@ -148,6 +189,11 @@
 ? negativ_aktieskat_parfordeling_bevarer_skat_og_fremførsel
 ? negativ_aktieskat_parfordeling_er_symmetrisk_ved_rolleombytning
 ? negativ_aktieskat_kræver_samliv_for_ægtefællemodregning
+? fremført_negativ_aktieskat_bruger_ældste_tranche_først
+? fremført_negativ_aktieskat_bevarer_primo_anvendelse_og_ultimo
+? fremført_negativ_aktieskat_er_symmetrisk_ved_rolleombytning
+? fremført_negativ_aktieskat_kræver_samliv_for_ægtefællemodregning
+? fremført_negativ_aktieskat_afviser_dobbelt_oprindelsesår
 
 @ print("scenarie1 mand aktieindkomst med aegtefaelles ubrugt grundbeloeb: samlet skat inkl. endelig aktieskat " + vis(scenarie1_mand_aktie_slutopgørelse.samlet_skat_inkl_endelig_aktieskat_kroner))
 @ print("scenarie1 mand aktieindkomst med hoej aktieskat: restskat " + vis(scenarie1_mand_aktie_høj_skat_slutopgørelse.slutopgørelse.restskat_kroner))
