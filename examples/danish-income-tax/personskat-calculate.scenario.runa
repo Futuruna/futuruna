@@ -862,6 +862,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         sikkerhed = AblPar39IngenSikkerhedStillet
     ),
     hændelsesposter = [],
+    kildehistorik = AktieavancePar39AKildehistorik(
+        opgjort_pr = Dato(år = 2026, måned = 12, dag = 31),
+        fristudsættelser = []
+    ),
     tilflytning = IngenTilflytningEfterPar39B
 )
 = personskat_calculate_par37_til40_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(

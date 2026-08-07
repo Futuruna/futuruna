@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./kalenderdato
 @ importer ./aktieavancebeskatningsloven
 @ importer ./aktieavancebeskatningsloven - par23 - 27
 @ importer ./aktieavancebeskatningsloven - par37 - 39
@@ -209,6 +210,8 @@ finder tilsvarende anvendelse.
 # AktieavancePar39ALånedata(hændelsesidentifikation: Tekst, skatteår: Heltal, beholdningsselskabsidentifikation: Tekst, låneprovenu_kroner: Heltal, låntager: AktieavancePar39ALåntager, långiverrelation: AktieavancePar39ALångiverrelation, långivende_selskab_ejer_hele_låntagerselskabet: Boolsk, långivende_selskab_er_pengeinstitut: Boolsk, personens_ejerandel_i_långivende_selskab_basispoint: Heltal, beskattes_efter_ligningslov_par16e: Boolsk)
 # AktieavancePar39AÅrsoplysningsfrist = AblPar39ARettidig1Juli | AblPar39ARettidigFørstkommendeHverdagKl9 | AblPar39ARettidigUdsatFrist | AblPar39AÅrsoplysningerForSent
 # AktieavancePar39AÅrsoplysninger(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39AÅrsoplysningsfrist, adresse_oplyst: Boolsk)
+# AktieavancePar39AFristudsættelse(indkomstår: Heltal, udsat_oplysningsfrist: Dato)
+# AktieavancePar39AKildehistorik(opgjort_pr: Dato, fristudsættelser: List(AktieavancePar39AFristudsættelse))
 # AktieavancePar39ADokumentationsfrist = AblPar39ADokumentationRettidig | AblPar39ADokumentationForSent | AblPar39ADokumentationFristoverskridelseTilsidesat
 # AktieavancePar39ADokumentation(hændelsesidentifikation: Tekst, indkomstår: Heltal, friststatus: AktieavancePar39ADokumentationsfrist)
 # AktieavancePar39AForfaldsgrund = AblPar39AForfaldAfståelsesgevinstStk3 | AblPar39AForfaldUdenlandskTabsfradragStk3 | AblPar39AForfaldUdenlandskTabsfradragStk4 | AblPar39AForfaldUdbytteStk5 | AblPar39AForfaldAndenUdlodningStk6 | AblPar39AForfaldLånStk7 | AblPar39AForfaldDødStk9 | AblPar39AForfaldManglendeÅrsoplysningerStk11 | AblPar39AForfaldManglendeDokumentationStk13
@@ -464,6 +467,23 @@ finder tilsvarende anvendelse.
 
 | aktieavance_par39a_låneresultat(tilstand: AktieavancePar39ATilstand, data: AktieavancePar39ALånedata) -> AktieavancePar39ALåneSag(tilstand, data).resultat()
 
+| aktieavance_par39a_ordinær_oplysningsfrist_basis(indkomstår: Heltal) -> Dato(år = indkomstår + 1, måned = 7, dag = 1)
+| aktieavance_par39a_ordinær_oplysningsfrist(indkomstår: Heltal) -> dato_fristdag_efter_fredag_eller_weekend(aktieavance_par39a_ordinær_oplysningsfrist_basis(indkomstår))
+| aktieavance_par39a_fristudsættelser_for_år(historik: AktieavancePar39AKildehistorik, indkomstår: Heltal) -> filter(historik.fristudsættelser, |udsættelse: AktieavancePar39AFristudsættelse| udsættelse.indkomstår == indkomstår)
+| aktieavance_par39a_fristudsættelse_gyldig(udsættelse: AktieavancePar39AFristudsættelse) -> udsættelse.indkomstår > 0 && dato_gyldig(udsættelse.udsat_oplysningsfrist) && dato_efter(udsættelse.udsat_oplysningsfrist, aktieavance_par39a_ordinær_oplysningsfrist(udsættelse.indkomstår))
+| aktieavance_par39a_fristudsættelser_entydige(udsættelser: List(AktieavancePar39AFristudsættelse)) -> all(udsættelser, |udsættelse: AktieavancePar39AFristudsættelse| length(filter(udsættelser, |anden: AktieavancePar39AFristudsættelse| anden.indkomstår == udsættelse.indkomstår)) == 1)
+| aktieavance_par39a_kildehistorik_gyldig(historik: AktieavancePar39AKildehistorik, fraflytningsår: Heltal, opgørelsesår: Heltal) -> fraflytningsår > 0 && opgørelsesår >= fraflytningsår && dato_gyldig(historik.opgjort_pr) && historik.opgjort_pr.år >= opgørelsesår && aktieavance_par39a_fristudsættelser_entydige(historik.fristudsættelser) && all(historik.fristudsættelser, |udsættelse: AktieavancePar39AFristudsættelse| aktieavance_par39a_fristudsættelse_gyldig(udsættelse) && udsættelse.indkomstår >= fraflytningsår && udsættelse.indkomstår <= opgørelsesår)
+| aktieavance_par39a_effektiv_oplysningsfrist(historik: AktieavancePar39AKildehistorik, indkomstår: Heltal) -> {
+    = udsættelser = aktieavance_par39a_fristudsættelser_for_år(historik, indkomstår)
+    hvis length(udsættelser) == 1 { head(udsættelser).udsat_oplysningsfrist } ellers { aktieavance_par39a_ordinær_oplysningsfrist(indkomstår) }
+}
+| aktieavance_par39a_oplysningsfrist_udløbet(historik: AktieavancePar39AKildehistorik, indkomstår: Heltal) -> dato_efter(historik.opgjort_pr, aktieavance_par39a_effektiv_oplysningsfrist(historik, indkomstår))
+| aktieavance_par39a_årsoplysningsfrist_matcher_historik(data: AktieavancePar39AÅrsoplysninger, historik: AktieavancePar39AKildehistorik) -> match data.friststatus {
+    | AblPar39ARettidig1Juli -> Sandt
+    | AblPar39ARettidigFørstkommendeHverdagKl9 -> aktieavance_par39a_ordinær_oplysningsfrist(data.indkomstår) != aktieavance_par39a_ordinær_oplysningsfrist_basis(data.indkomstår)
+    | AblPar39ARettidigUdsatFrist -> length(aktieavance_par39a_fristudsættelser_for_år(historik, data.indkomstår)) == 1
+    | AblPar39AÅrsoplysningerForSent -> aktieavance_par39a_oplysningsfrist_udløbet(historik, data.indkomstår)
+}
 | aktieavance_par39a_årsoplysninger_rettidige(data: AktieavancePar39AÅrsoplysninger) -> data.adresse_oplyst && (data.friststatus == AblPar39ARettidig1Juli || data.friststatus == AblPar39ARettidigFørstkommendeHverdagKl9 || data.friststatus == AblPar39ARettidigUdsatFrist)
 
 # AktieavancePar39AÅrsoplysningsSag(tilstand: AktieavancePar39ATilstand, data: AktieavancePar39AÅrsoplysninger) {

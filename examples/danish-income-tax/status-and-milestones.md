@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-85ed17` (ABL § 44 har nu en typet beholdning med lukket fondsaktielinje, dateret statusforløb og kursværdien som anskaffelsessum; statusskiftet føder den ordinære gennemsnitsbeholdning og den kanoniske Personskat-beregning)
+Current implementation slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
@@ -3832,6 +3832,18 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- ABL § 39 A's årlige oplysningspligt kan nu skelne mellem en manglende
+  indgivelse og en kildehistorik, der endnu ikke rækker forbi fristen. En typet
+  opgørelsesdato og højst én dokumenteret fristudsættelse pr. indkomstår
+  bestemmer den effektive frist; fredag, lørdag og søndag flyttes efter lovens
+  kalenderregel. Forløbet kontrolleres år for år, så den første manglende
+  indgivelse udløser det eksisterende § 39 A-forfald, før senere hændelser
+  genafspilles. Den afledte hændelse og årets kontrol bevares i resultatsporet,
+  mens selve fristudløbet eller en juridisk konklusion ikke kan indsendes som
+  input. Fjorten fokusscenarier dækker blandt andet fristdagen, dagen efter,
+  individuel udsættelse, eksplicit for sen indgivelse, flerårshuller,
+  tilbageflytning og dødsfald. Den kanoniske JSON/XLSX-grænse udstiller
+  opgørelsesdatoen og et særskilt underark for fristudsættelser.
 - Personskattelovens § 8 a, stk. 5-6, har nu et typet flerårsledger for
   negativ aktieindkomstskat. Åbningen bevarer ejer, oprindelsesår og enten et
   valideret foregående Personskat-resultat eller myndighedsproveniens; årets
@@ -4376,6 +4388,12 @@ Review candidates to revisit deliberately, not as broad churn:
   not a tax amount or mutable opening ledger. Invalid identifiers, years or
   ordering fail closed without advancing the state; a negative acquisition
   basis remains a valid statutory fact.
+  The lifecycle also carries a typed source-history cutoff and documented
+  deadline extensions. It checks active deferral year by year and derives a
+  missing annual report only after the effective § 39 A deadline has passed;
+  the deadline day and an incomplete current year remain pending. The derived
+  default is retained as an explicit event result and therefore remains
+  traceable without asking the caller to submit a legal conclusion.
   The departure-year gain enters share income exactly once, while new
   deferral, amounts falling due, payments and balance lapse remain separate
   collection-state outputs. In the canonical 2026 example, a 100.000 kr.
@@ -4387,10 +4405,10 @@ Review candidates to revisit deliberately, not as broad churn:
   re-entry tables. One populated XLSX case and the equivalent direct JSON case
   produce identical complete results, including the 30.090 kr. deferral, and
   the workbook metadata preserves the official sources and guidance for
-  §§ 37-40. Nine focused lifecycle scenarios pass in both the interpreter and
-  generated Rust, including security denial, spouse threshold transfer,
-  negative basis, ordered multi-year replay, late reporting, re-entry and
-  death. The persistent multi-period state remains a separate typed module
+  §§ 37-40. Fourteen focused lifecycle scenarios cover security denial, spouse
+  threshold transfer, negative basis, ordered multi-year replay, explicit and
+  missing late reporting, ordinary and extended deadlines, re-entry and death.
+  The persistent multi-period state remains a separate typed module
   instead of being folded into § 39's one-time eligibility decision.
   Under `td-aea204` no longer repeats current-year own or spouse share income
   inside that lifecycle input. The canonical Personskat graph first derives
@@ -4604,10 +4622,10 @@ Review candidates to revisit deliberately, not as broad churn:
   source-derived under `td-7469fc`. The mixed-category annual final-tax delta
   and realization-only henstand are derived under `td-8e8561`, and
   per-holding market provenance through § 13 A and KGL § 32 is derived under
-  `td-4e42fd`. Next, `td-3f2ee9` makes a missing annual § 39 A report
-  detectable rather than requiring an explicit late-reporting event. These
-  are bounded fidelity follow-ups, not a reason to replace the derived ledger
-  with caller-supplied conclusions.
+  `td-4e42fd`. Under `td-3f2ee9`, a source-history cutoff and documented
+  extensions now make a missing annual § 39 A report detectable without an
+  explicit late-reporting event. These are bounded fidelity improvements, not
+  a reason to replace the derived ledger with caller-supplied conclusions.
 - Deepen the first-pass full-statute corpus from structural coverage into
   calculation coverage where official fixtures and dependent statutes make that
   safe. As those inputs become complete, extend the canonical calculation

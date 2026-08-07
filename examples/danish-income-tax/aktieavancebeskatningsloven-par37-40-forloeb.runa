@@ -220,9 +220,11 @@ til mindre end 0 kr.
 # AktieavancePar37Til40Hændelsespost(identifikation: Tekst, indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal, hændelse: AktieavancePar39AHændelse)
 # AktieavancePar37Til40Hændelsespostresultat(post: AktieavancePar37Til40Hændelsespost, post_strukturelt_gyldig: Boolsk, hændelsesresultat: AktieavancePar39AHændelsesresultat, hændelse_gyldig: Boolsk, tilstand_før: AktieavancePar39ATilstand, tilstand_efter: AktieavancePar39ATilstand)
 # AktieavancePar37Til40Forløbstilstand(tilstand: AktieavancePar39ATilstand, resultater: List(AktieavancePar37Til40Hændelsespostresultat), alle_hændelser_gyldige: Boolsk)
+# AktieavancePar37Til40Årskontrolresultat(indkomstår: Heltal, årsoplysninger_påkrævet: Boolsk, antal_årsoplysningshændelser: Heltal, effektiv_oplysningsfrist: Dato, frist_udløbet_ved_kildegrænsen: Boolsk, manglende_årsoplysninger: Boolsk, kontrol_gyldig: Boolsk, afledt_hændelsesresultat: Option(AktieavancePar37Til40Hændelsespostresultat), tilstand_efter: AktieavancePar39ATilstand)
+# AktieavancePar37Til40Årsforløbstilstand(tilstand: AktieavancePar39ATilstand, hændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), årskontrolresultater: List(AktieavancePar37Til40Årskontrolresultat), alle_hændelser_gyldige: Boolsk)
 # AktieavancePar37Til40Tilflytning = IngenTilflytningEfterPar39B | TilflytningEfterPar39B(identifikation: Tekst, indkomstår: Heltal, rækkefølge_i_indkomståret: Heltal, tilflytningsværdier: List(AktieavancePar39BTilflytningsværdi), får_på_ny_skattemæssigt_hjemsted_i_danmark: Boolsk, samlevende_med_ægtefælle_ved_indkomstårets_udløb: Boolsk)
-# AktieavancePar37Til40Forløbsinput(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: AktieavancePar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), tilflytning: AktieavancePar37Til40Tilflytning)
-# AktieavancePar37Til40Forløbsresultat(input: AktieavancePar37Til40Forløbsinput, fraflytningsresultat: AktieavancePar37Til40Fraflytningsresultat, hændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), tilstand_før_tilflytning: AktieavancePar39ATilstand, tilflytningsresultat: Option(AktieavancePar39BResultat), input_gyldigt: Boolsk, årets_beregnede_fraflytterskat_kroner: Heltal, årets_nye_henstand_kroner: Heltal, årets_skat_til_betaling_ved_fraflytning_kroner: Heltal, årets_nye_forfald_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_straksnedskrivning_kroner: Heltal, årets_saldobortfald_kroner: Heltal, tilstand_ultimo: AktieavancePar39ATilstand, aktieavancebeskatningslov_kilderesultater: List(AktieavancebeskatningslovKilderesultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat), aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
+# AktieavancePar37Til40Forløbsinput(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: AktieavancePar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), kildehistorik: AktieavancePar39AKildehistorik, tilflytning: AktieavancePar37Til40Tilflytning)
+# AktieavancePar37Til40Forløbsresultat(input: AktieavancePar37Til40Forløbsinput, fraflytningsresultat: AktieavancePar37Til40Fraflytningsresultat, hændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), årskontrolresultater: List(AktieavancePar37Til40Årskontrolresultat), tilstand_før_tilflytning: AktieavancePar39ATilstand, tilflytningsresultat: Option(AktieavancePar39BResultat), input_gyldigt: Boolsk, årets_beregnede_fraflytterskat_kroner: Heltal, årets_nye_henstand_kroner: Heltal, årets_skat_til_betaling_ved_fraflytning_kroner: Heltal, årets_nye_forfald_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_straksnedskrivning_kroner: Heltal, årets_saldobortfald_kroner: Heltal, tilstand_ultimo: AktieavancePar39ATilstand, aktieavancebeskatningslov_kilderesultater: List(AktieavancebeskatningslovKilderesultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat), aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 
 | aktieavance_par37_til40_hændelse_matcher_post(post: AktieavancePar37Til40Hændelsespost) -> match post.hændelse {
     | AblPar39AAfståelse(data) -> data.hændelsesidentifikation == post.identifikation && data.skatteår == post.indkomstår
@@ -241,7 +243,11 @@ til mindre end 0 kr.
 | aktieavance_par37_til40_hændelsespost_efter(post: AktieavancePar37Til40Hændelsespost, forrige_indkomstår: Heltal, forrige_rækkefølge: Heltal) -> post.indkomstår > forrige_indkomstår || (post.indkomstår == forrige_indkomstår && post.rækkefølge_i_indkomståret > forrige_rækkefølge)
 | aktieavance_par37_til40_hændelsesposter_sorteret_fra(poster: List(AktieavancePar37Til40Hændelsespost), forrige_indkomstår: Heltal, forrige_rækkefølge: Heltal) -> hvis length(poster) == 0 { Sandt } ellers { aktieavance_par37_til40_hændelsespost_efter(head(poster), forrige_indkomstår, forrige_rækkefølge) && aktieavance_par37_til40_hændelsesposter_sorteret_fra(tail(poster), head(poster).indkomstår, head(poster).rækkefølge_i_indkomståret) }
 | aktieavance_par37_til40_hændelsespost_intrinsisk_gyldig(post: AktieavancePar37Til40Hændelsespost, fraflytningsår: Heltal, opgørelsesår: Heltal) -> post.identifikation != "" && post.indkomstår >= fraflytningsår && post.indkomstår <= opgørelsesår && post.rækkefølge_i_indkomståret > 0 && post.rækkefølge_i_indkomståret < 1000000 && aktieavance_par37_til40_hændelse_matcher_post(post)
-| aktieavance_par37_til40_hændelsesposter_strukturelt_gyldige(poster: List(AktieavancePar37Til40Hændelsespost), fraflytningsår: Heltal, opgørelsesår: Heltal) -> aktieavance_par37_til40_hændelsesposter_sorteret_fra(poster, fraflytningsår - 1, 0) && all(poster, |post: AktieavancePar37Til40Hændelsespost| aktieavance_par37_til40_hændelsespost_intrinsisk_gyldig(post, fraflytningsår, opgørelsesår) && aktieavance_par37_til40_hændelsesidentifikation_unik(poster, post))
+| aktieavance_par37_til40_årsoplysningspost_matcher_kildehistorik(post: AktieavancePar37Til40Hændelsespost, historik: AktieavancePar39AKildehistorik) -> match post.hændelse {
+    | AblPar39AÅrsoplysninger(data) -> aktieavance_par39a_årsoplysningsfrist_matcher_historik(data, historik)
+    | _ -> Sandt
+}
+| aktieavance_par37_til40_hændelsesposter_strukturelt_gyldige(poster: List(AktieavancePar37Til40Hændelsespost), historik: AktieavancePar39AKildehistorik, fraflytningsår: Heltal, opgørelsesår: Heltal) -> aktieavance_par37_til40_hændelsesposter_sorteret_fra(poster, fraflytningsår - 1, 0) && all(poster, |post: AktieavancePar37Til40Hændelsespost| aktieavance_par37_til40_hændelsespost_intrinsisk_gyldig(post, fraflytningsår, opgørelsesår) && aktieavance_par37_til40_hændelsesidentifikation_unik(poster, post) && aktieavance_par37_til40_årsoplysningspost_matcher_kildehistorik(post, historik))
 | aktieavance_par37_til40_hændelsespostresultat(tilstand: AktieavancePar39ATilstand, post: AktieavancePar37Til40Hændelsespost, forløb_strukturelt_gyldigt: Boolsk, fraflytningsår: Heltal, opgørelsesår: Heltal) -> {
     = post_strukturelt_gyldig = forløb_strukturelt_gyldigt && aktieavance_par37_til40_hændelsespost_intrinsisk_gyldig(post, fraflytningsår, opgørelsesår)
     = hændelsesresultat = aktieavance_par39a_hændelsesresultat(tilstand, post.hændelse)
@@ -251,6 +257,80 @@ til mindre end 0 kr.
 | aktieavance_par37_til40_forløbstrin(forløb: AktieavancePar37Til40Forløbstilstand, post: AktieavancePar37Til40Hændelsespost, forløb_strukturelt_gyldigt: Boolsk, fraflytningsår: Heltal, opgørelsesår: Heltal) -> {
     = resultat = aktieavance_par37_til40_hændelsespostresultat(forløb.tilstand, post, forløb_strukturelt_gyldigt, fraflytningsår, opgørelsesår)
     AktieavancePar37Til40Forløbstilstand(tilstand = resultat.tilstand_efter, resultater = concat(forløb.resultater, [resultat]), alle_hændelser_gyldige = forløb.alle_hændelser_gyldige && resultat.hændelse_gyldig)
+}
+| aktieavance_par37_til40_er_årsoplysningspost(post: AktieavancePar37Til40Hændelsespost) -> match post.hændelse { | AblPar39AÅrsoplysninger(_) -> Sandt | _ -> Falskt }
+| aktieavance_par37_til40_årets_hændelsesposter(poster: List(AktieavancePar37Til40Hændelsespost), indkomstår: Heltal) -> filter(poster, |post: AktieavancePar37Til40Hændelsespost| post.indkomstår == indkomstår)
+| aktieavance_par37_til40_årets_årsoplysningsresultater(resultater: List(AktieavancePar37Til40Hændelsespostresultat)) -> filter(resultater, |resultat: AktieavancePar37Til40Hændelsespostresultat| aktieavance_par37_til40_er_årsoplysningspost(resultat.post))
+| aktieavance_par37_til40_tilflytning_i_år(tilflytning: AktieavancePar37Til40Tilflytning, indkomstår: Heltal) -> match tilflytning { | TilflytningEfterPar39B(_, tilflytningsår, _, _, _, _) -> tilflytningsår == indkomstår | _ -> Falskt }
+| aktieavance_par37_til40_afledt_årsoplysningsidentifikation(forløbsidentifikation: Tekst) -> forløbsidentifikation + ":manglende-årsoplysninger"
+| aktieavance_par37_til40_afledt_årsoplysningsidentifikation_ledig(forløbsidentifikation: Tekst, poster: List(AktieavancePar37Til40Hændelsespost)) -> all(poster, |post: AktieavancePar37Til40Hændelsespost| post.identifikation != aktieavance_par37_til40_afledt_årsoplysningsidentifikation(forløbsidentifikation))
+| aktieavance_par37_til40_afledt_årsoplysningspost(forløbsidentifikation: Tekst, indkomstår: Heltal) -> {
+    = identifikation = aktieavance_par37_til40_afledt_årsoplysningsidentifikation(forløbsidentifikation)
+    AktieavancePar37Til40Hændelsespost(
+        identifikation = identifikation,
+        indkomstår = indkomstår,
+        rækkefølge_i_indkomståret = 999999,
+        hændelse = AblPar39AÅrsoplysninger(data = AktieavancePar39AÅrsoplysninger(
+            hændelsesidentifikation = identifikation,
+            indkomstår = indkomstår,
+            friststatus = AblPar39AÅrsoplysningerForSent,
+            adresse_oplyst = Falskt
+        ))
+    )
+}
+| aktieavance_par37_til40_afledt_årsoplysningspostresultat(tilstand: AktieavancePar39ATilstand, forløbsidentifikation: Tekst, indkomstår: Heltal, identifikation_ledig: Boolsk) -> {
+    = post = aktieavance_par37_til40_afledt_årsoplysningspost(forløbsidentifikation, indkomstår)
+    = hændelsesresultat = aktieavance_par39a_hændelsesresultat(tilstand, post.hændelse)
+    = hændelse_gyldig = identifikation_ledig && hændelsesresultat.hændelse_gyldig
+    AktieavancePar37Til40Hændelsespostresultat(
+        post = post,
+        post_strukturelt_gyldig = identifikation_ledig,
+        hændelsesresultat = hændelsesresultat,
+        hændelse_gyldig = hændelse_gyldig,
+        tilstand_før = tilstand,
+        tilstand_efter = hvis hændelse_gyldig { hændelsesresultat.tilstand_efter } ellers { tilstand }
+    )
+}
+| aktieavance_par37_til40_årskontrolresultat(tilstand_efter_kildehændelser: AktieavancePar39ATilstand, kildehændelsesresultater: List(AktieavancePar37Til40Hændelsespostresultat), alle_kildeposter: List(AktieavancePar37Til40Hændelsespost), historik: AktieavancePar39AKildehistorik, tilflytning: AktieavancePar37Til40Tilflytning, forløbsidentifikation: Tekst, indkomstår: Heltal) -> {
+    = årsoplysningsresultater = aktieavance_par37_til40_årets_årsoplysningsresultater(kildehændelsesresultater)
+    = antal_årsoplysningshændelser = length(årsoplysningsresultater)
+    = tilstand_før_årsoplysninger = hvis antal_årsoplysningshændelser == 1 { head(årsoplysningsresultater).tilstand_før } ellers { tilstand_efter_kildehændelser }
+    = årsoplysninger_påkrævet = tilstand_før_årsoplysninger.henstand_aktiv && tilstand_før_årsoplysninger.henstandssaldo_kroner > 0 && aktieavance_par37_til40_tilflytning_i_år(tilflytning, indkomstår) == Falskt
+    = effektiv_oplysningsfrist = aktieavance_par39a_effektiv_oplysningsfrist(historik, indkomstår)
+    = frist_udløbet = aktieavance_par39a_oplysningsfrist_udløbet(historik, indkomstår)
+    = manglende_årsoplysninger = årsoplysninger_påkrævet && antal_årsoplysningshændelser == 0 && frist_udløbet
+    = identifikation_ledig = aktieavance_par37_til40_afledt_årsoplysningsidentifikation_ledig(forløbsidentifikation, alle_kildeposter)
+    = afledt_resultat = hvis manglende_årsoplysninger { Some(aktieavance_par37_til40_afledt_årsoplysningspostresultat(tilstand_efter_kildehændelser, forløbsidentifikation, indkomstår, identifikation_ledig)) } ellers { None }
+    = afledt_resultat_gyldigt = match afledt_resultat { | Some(resultat) -> resultat.hændelse_gyldig | None -> Sandt }
+    = kontrol_gyldig = antal_årsoplysningshændelser <= 1 && (manglende_årsoplysninger == Falskt || identifikation_ledig) && afledt_resultat_gyldigt
+    = tilstand_efter = match afledt_resultat { | Some(resultat) -> hvis kontrol_gyldig { resultat.tilstand_efter } ellers { tilstand_efter_kildehændelser } | None -> tilstand_efter_kildehændelser }
+    AktieavancePar37Til40Årskontrolresultat(
+        indkomstår = indkomstår,
+        årsoplysninger_påkrævet = årsoplysninger_påkrævet,
+        antal_årsoplysningshændelser = antal_årsoplysningshændelser,
+        effektiv_oplysningsfrist = effektiv_oplysningsfrist,
+        frist_udløbet_ved_kildegrænsen = frist_udløbet,
+        manglende_årsoplysninger = manglende_årsoplysninger,
+        kontrol_gyldig = kontrol_gyldig,
+        afledt_hændelsesresultat = afledt_resultat,
+        tilstand_efter = tilstand_efter
+    )
+}
+| aktieavance_par37_til40_årsforløbstrin(forløb: AktieavancePar37Til40Årsforløbstilstand, indkomstår: Heltal, input: AktieavancePar37Til40Forløbsinput, forløb_strukturelt_gyldigt: Boolsk) -> {
+    = årets_poster = aktieavance_par37_til40_årets_hændelsesposter(input.hændelsesposter, indkomstår)
+    = kildeforløb = foldl(årets_poster, AktieavancePar37Til40Forløbstilstand(
+        tilstand = forløb.tilstand,
+        resultater = [],
+        alle_hændelser_gyldige = Sandt
+        ), |årsforløb: AktieavancePar37Til40Forløbstilstand, post: AktieavancePar37Til40Hændelsespost| aktieavance_par37_til40_forløbstrin(årsforløb, post, forløb_strukturelt_gyldigt && forløb.alle_hændelser_gyldige, input.fraflytning.fraflytningsår, input.opgørelsesår))
+    = årskontrol = aktieavance_par37_til40_årskontrolresultat(kildeforløb.tilstand, kildeforløb.resultater, input.hændelsesposter, input.kildehistorik, input.tilflytning, input.identifikation, indkomstår)
+    = afledte_resultater = match årskontrol.afledt_hændelsesresultat { | Some(resultat) -> [resultat] | None -> [] }
+    AktieavancePar37Til40Årsforløbstilstand(
+        tilstand = årskontrol.tilstand_efter,
+        hændelsesresultater = concat(forløb.hændelsesresultater, concat(kildeforløb.resultater, afledte_resultater)),
+        årskontrolresultater = concat(forløb.årskontrolresultater, [årskontrol]),
+        alle_hændelser_gyldige = forløb.alle_hændelser_gyldige && kildeforløb.alle_hændelser_gyldige && årskontrol.kontrol_gyldig
+    )
 }
 | aktieavance_par37_til40_tilflytning_efter_hændelsespost(tilflytningsår: Heltal, tilflytningsrækkefølge: Heltal, post: AktieavancePar37Til40Hændelsespost) -> tilflytningsår > post.indkomstår || (tilflytningsår == post.indkomstår && tilflytningsrækkefølge > post.rækkefølge_i_indkomståret)
 | aktieavance_par37_til40_tilflytningsresultat(tilflytning: AktieavancePar37Til40Tilflytning, tilstand: AktieavancePar39ATilstand, oprindeligt_nettotab_kroner: Heltal) -> match tilflytning {
@@ -266,26 +346,27 @@ til mindre end 0 kr.
 
 # AktieavancePar37Til40ForløbsSag(input: AktieavancePar37Til40Forløbsinput, skattekontekst: AktieavancePar37Til40Skattekontekst) {
     | fraflytningsresultat() -> aktieavance_par37_til40_fraflytningsresultat_med_skattekontekst(input.fraflytning, skattekontekst)
-    | hændelsesforløb_strukturelt_gyldigt() -> aktieavance_par37_til40_hændelsesposter_strukturelt_gyldige(input.hændelsesposter, input.fraflytning.fraflytningsår, input.opgørelsesår)
-    | initialt_forløb() -> AktieavancePar37Til40Forløbstilstand(tilstand = fraflytningsresultat().tilstand_primo, resultater = [], alle_hændelser_gyldige = hændelsesforløb_strukturelt_gyldigt())
-    | slutforløb() -> foldl(input.hændelsesposter, initialt_forløb(), |forløb: AktieavancePar37Til40Forløbstilstand, post: AktieavancePar37Til40Hændelsespost| aktieavance_par37_til40_forløbstrin(forløb, post, hændelsesforløb_strukturelt_gyldigt(), input.fraflytning.fraflytningsår, input.opgørelsesår))
+    | kildehistorik_gyldig() -> aktieavance_par39a_kildehistorik_gyldig(input.kildehistorik, input.fraflytning.fraflytningsår, input.opgørelsesår)
+    | hændelsesforløb_strukturelt_gyldigt() -> kildehistorik_gyldig() && aktieavance_par37_til40_hændelsesposter_strukturelt_gyldige(input.hændelsesposter, input.kildehistorik, input.fraflytning.fraflytningsår, input.opgørelsesår)
+    | initialt_forløb() -> AktieavancePar37Til40Årsforløbstilstand(tilstand = fraflytningsresultat().tilstand_primo, hændelsesresultater = [], årskontrolresultater = [], alle_hændelser_gyldige = hændelsesforløb_strukturelt_gyldigt())
+    | slutforløb() -> foldl(range(input.fraflytning.fraflytningsår, input.opgørelsesår + 1), initialt_forløb(), |forløb: AktieavancePar37Til40Årsforløbstilstand, indkomstår: Heltal| aktieavance_par37_til40_årsforløbstrin(forløb, indkomstår, input, hændelsesforløb_strukturelt_gyldigt()))
     | tilflytning_strukturelt_gyldig() -> aktieavance_par37_til40_tilflytning_strukturelt_gyldig(input.tilflytning, input.hændelsesposter, input.fraflytning.fraflytningsår, input.opgørelsesår)
     | tilflytningsresultat() -> aktieavance_par37_til40_tilflytningsresultat(input.tilflytning, slutforløb().tilstand, fraflytningsresultat().par38_resultat.overskydende_tab_kroner)
     | input_gyldigt() -> input.identifikation != "" && input.opgørelsesår >= input.fraflytning.fraflytningsår && fraflytningsresultat().input_gyldigt && slutforløb().alle_hændelser_gyldige && tilflytning_strukturelt_gyldig() && aktieavance_par37_til40_tilflytningsresultat_gyldigt(tilflytningsresultat())
     | årets_beregnede_fraflytterskat_kroner() -> hvis input_gyldigt() && input.opgørelsesår == input.fraflytning.fraflytningsår { fraflytningsresultat().beregnet_fraflytterskat_kroner } ellers { 0 }
     | årets_nye_henstand_kroner() -> hvis input_gyldigt() && input.opgørelsesår == input.fraflytning.fraflytningsår { fraflytningsresultat().par39_resultat.henstandsbeløb_kroner } ellers { 0 }
     | årets_skat_til_betaling_ved_fraflytning_kroner() -> hvis input_gyldigt() && input.opgørelsesår == input.fraflytning.fraflytningsår { fraflytningsresultat().skat_til_betaling_ved_fraflytning_kroner } ellers { 0 }
-    | årets_nye_forfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.nyt_forfald_kroner } ellers { 0 }) } ellers { 0 }
-    | årets_betalte_fraflytterskat_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.betalt_kroner } ellers { 0 }) } ellers { 0 }
-    | årets_straksnedskrivning_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.straksnedskrivning_kroner } ellers { 0 }) } ellers { 0 }
-    | årets_hændelsessaldobortfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().resultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.saldobortfald_efter_stk10_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_nye_forfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().hændelsesresultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.nyt_forfald_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_betalte_fraflytterskat_kroner() -> hvis input_gyldigt() { foldl(slutforløb().hændelsesresultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.betalt_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_straksnedskrivning_kroner() -> hvis input_gyldigt() { foldl(slutforløb().hændelsesresultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.straksnedskrivning_kroner } ellers { 0 }) } ellers { 0 }
+    | årets_hændelsessaldobortfald_kroner() -> hvis input_gyldigt() { foldl(slutforløb().hændelsesresultater, 0, |sum: Heltal, resultat: AktieavancePar37Til40Hændelsespostresultat| sum + hvis resultat.post.indkomstår == input.opgørelsesår { resultat.hændelsesresultat.saldobortfald_efter_stk10_kroner } ellers { 0 }) } ellers { 0 }
     | årets_tilflytningssaldobortfald_kroner() -> match tilflytningsresultat() { | Some(værdi) -> hvis input_gyldigt() && værdi.input.skatteår == input.opgørelsesår { værdi.resterende_henstandssaldo_bortfalder_kroner } ellers { 0 } | None -> 0 }
     | årets_saldobortfald_kroner() -> årets_hændelsessaldobortfald_kroner() + årets_tilflytningssaldobortfald_kroner()
     | tilstand_ultimo() -> hvis input_gyldigt() { aktieavance_par37_til40_tilstand_efter_tilflytning(tilflytningsresultat(), slutforløb().tilstand) } ellers { fraflytningsresultat().tilstand_primo }
     | aktieavancebeskatningslov_kilderesultater() -> hvis input.opgørelsesår == input.fraflytning.fraflytningsår && fraflytningsresultat().par38_resultat.input_gyldigt { fraflytningsresultat().aktieavancebeskatningslov_kilderesultater } ellers { [] }
     | aktieavancebeskatningslov_resultater() -> hvis input.opgørelsesår == input.fraflytning.fraflytningsår && fraflytningsresultat().par38_resultat.input_gyldigt { fraflytningsresultat().aktieavancebeskatningslov_resultater } ellers { [] }
     | aktieavancebeskatningslov_resultat() -> hvis input_gyldigt() && input.opgørelsesår == input.fraflytning.fraflytningsår { fraflytningsresultat().aktieavancebeskatningslov_resultat } ellers { aktieavance_par37_til40_tomt_personskattelov_resultat(input.opgørelsesår) }
-    | resultat() -> AktieavancePar37Til40Forløbsresultat(input = input, fraflytningsresultat = fraflytningsresultat(), hændelsesresultater = slutforløb().resultater, tilstand_før_tilflytning = slutforløb().tilstand, tilflytningsresultat = tilflytningsresultat(), input_gyldigt = input_gyldigt(), årets_beregnede_fraflytterskat_kroner = årets_beregnede_fraflytterskat_kroner(), årets_nye_henstand_kroner = årets_nye_henstand_kroner(), årets_skat_til_betaling_ved_fraflytning_kroner = årets_skat_til_betaling_ved_fraflytning_kroner(), årets_nye_forfald_kroner = årets_nye_forfald_kroner(), årets_betalte_fraflytterskat_kroner = årets_betalte_fraflytterskat_kroner(), årets_straksnedskrivning_kroner = årets_straksnedskrivning_kroner(), årets_saldobortfald_kroner = årets_saldobortfald_kroner(), tilstand_ultimo = tilstand_ultimo(), aktieavancebeskatningslov_kilderesultater = aktieavancebeskatningslov_kilderesultater(), aktieavancebeskatningslov_resultater = aktieavancebeskatningslov_resultater(), aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat())
+    | resultat() -> AktieavancePar37Til40Forløbsresultat(input = input, fraflytningsresultat = fraflytningsresultat(), hændelsesresultater = slutforløb().hændelsesresultater, årskontrolresultater = slutforløb().årskontrolresultater, tilstand_før_tilflytning = slutforløb().tilstand, tilflytningsresultat = tilflytningsresultat(), input_gyldigt = input_gyldigt(), årets_beregnede_fraflytterskat_kroner = årets_beregnede_fraflytterskat_kroner(), årets_nye_henstand_kroner = årets_nye_henstand_kroner(), årets_skat_til_betaling_ved_fraflytning_kroner = årets_skat_til_betaling_ved_fraflytning_kroner(), årets_nye_forfald_kroner = årets_nye_forfald_kroner(), årets_betalte_fraflytterskat_kroner = årets_betalte_fraflytterskat_kroner(), årets_straksnedskrivning_kroner = årets_straksnedskrivning_kroner(), årets_saldobortfald_kroner = årets_saldobortfald_kroner(), tilstand_ultimo = tilstand_ultimo(), aktieavancebeskatningslov_kilderesultater = aktieavancebeskatningslov_kilderesultater(), aktieavancebeskatningslov_resultater = aktieavancebeskatningslov_resultater(), aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat())
 }
 
 | aktieavance_par37_til40_forløbsresultat_med_skattekontekst(input: AktieavancePar37Til40Forløbsinput, skattekontekst: AktieavancePar37Til40Skattekontekst) -> AktieavancePar37Til40ForløbsSag(input, skattekontekst).resultat()

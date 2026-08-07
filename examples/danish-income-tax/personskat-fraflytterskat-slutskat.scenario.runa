@@ -100,6 +100,10 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
             sikkerhed = AblPar39IngenSikkerhedStillet
         ),
         hændelsesposter = [],
+        kildehistorik = AktieavancePar39AKildehistorik(
+            opgjort_pr = Dato(år = 2026, måned = 12, dag = 31),
+            fristudsættelser = []
+        ),
         tilflytning = IngenTilflytningEfterPar39B
     )),
     markedsstatus = AblIkkeOptagetTilHandel

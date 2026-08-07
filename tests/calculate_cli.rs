@@ -3718,6 +3718,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.fraflytningsdato.dag",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.ophørsgrund",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.fraflytning.kontekstgrundlag.$variant",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.år",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.måned",
+            "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.dag",
             "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.$variant",
             "markedsstatus",
         ] {
@@ -3770,6 +3773,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fraflytningsdatoens dag",
             "Grund til ophør af dansk beskatningsret",
             "Grundlag for fraflytningsårets aktieindkomstkontekst",
+            "Kildehistorikkens opgørelsesdato, år",
+            "Kildehistorikkens opgørelsesdato, måned",
+            "Kildehistorikkens opgørelsesdato, dag",
             "Tilbageflytning efter ABL § 39 B",
             "Det særlige aktivs markedsstatus",
         ] {
@@ -3884,6 +3890,39 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 par37_event_headers.iter().any(|header| header == expected),
                 "missing human § 37-40 event label {expected} on {par37_events_sheet}"
+            );
+        }
+        let par37_extensions_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.fristudsættelser";
+        let par37_extensions_sheet =
+            workbook_collection_sheet_name(&mut workbook, par37_extensions_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &par37_extensions_sheet),
+            "Dansk personskat - Udsatte frister for årlige oplysninger"
+        );
+        let par37_extension_paths = workbook_column_paths(&mut workbook, &par37_extensions_sheet);
+        for expected in [
+            "indkomstår",
+            "udsat_oplysningsfrist.år",
+            "udsat_oplysningsfrist.måned",
+            "udsat_oplysningsfrist.dag",
+        ] {
+            assert!(
+                par37_extension_paths.iter().any(|path| path == expected),
+                "missing § 39 A deadline-extension path {expected} on {par37_extensions_sheet}"
+            );
+        }
+        let par37_extension_headers = workbook_headers(&mut workbook, &par37_extensions_sheet);
+        for expected in [
+            "Indkomstår for den udsatte oplysningsfrist",
+            "Den udsatte oplysningsfrists år",
+            "Den udsatte oplysningsfrists måned",
+            "Den udsatte oplysningsfrists dag",
+        ] {
+            assert!(
+                par37_extension_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human § 39 A deadline-extension label {expected} on {par37_extensions_sheet}"
             );
         }
         let par39b_values_path = "aktieavance.særlige_aktiver.kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.TilflytningEfterPar39B.tilflytningsværdier";
@@ -8928,6 +8967,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("AblPar39IngenSikkerhedStillet".to_string()),
             ),
             (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.år",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.måned",
+                Data::Int(12),
+            ),
+            (
+                "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.kildehistorik.opgjort_pr.dag",
+                Data::Int(31),
+            ),
+            (
                 "kilde.PersonskatFraflytteraktierEfterPar37Til40.fakta.tilflytning.$variant",
                 Data::String("IngenTilflytningEfterPar39B".to_string()),
             ),
@@ -11514,6 +11565,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "sikkerhed": { "$variant": "AblPar39IngenSikkerhedStillet" }
                 },
                 "hændelsesposter": [],
+                "kildehistorik": {
+                    "opgjort_pr": { "år": 2026, "måned": 12, "dag": 31 },
+                    "fristudsættelser": []
+                },
                 "tilflytning": { "$variant": "IngenTilflytningEfterPar39B" }
             }
         },

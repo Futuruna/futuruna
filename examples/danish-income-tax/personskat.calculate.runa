@@ -163,7 +163,7 @@
 # PersonskatØvrigtSærligtAktieaktivInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation)
 # PersonskatPar37Til40Kontekstgrundlag = AfledPar37Til40KontekstFraPersonskat | HistoriskPar37Til40Aktieindkomstkontekst(kontekst: AktieavancePar37Til40Aktieindkomstkontekst)
 # PersonskatPar37Til40Fraflytningsfakta(fraflytningsdato: Dato, fraflytningsår: Heltal, ophørsgrund: AktieavancePar38Ophørsgrund, tilknytning: AktieavancePar38Tilknytning, aktier: List(AktieavancePar37Til40AktiepostFakta), kontekstgrundlag: PersonskatPar37Til40Kontekstgrundlag, indberetning: AktieavancePar39Indberetning, bopæl: AktieavancePar39Bopæl, sikkerhed: AktieavancePar39Sikkerhed)
-# PersonskatPar37Til40Forløbsfakta(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: PersonskatPar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), tilflytning: AktieavancePar37Til40Tilflytning)
+# PersonskatPar37Til40Forløbsfakta(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: PersonskatPar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), kildehistorik: AktieavancePar39AKildehistorik, tilflytning: AktieavancePar37Til40Tilflytning)
 # PersonskatPar37Til40Årskontekst(egen_aktieindkomst_kroner: Heltal, ægtefælles_aktieindkomst_kroner: Heltal, samlevende_ved_indkomstårets_udløb: Boolsk, afledning_tilladt: Boolsk)
 # PersonskatPar37Til40Kontekstafledning(kontekst: AktieavancePar37Til40Aktieindkomstkontekst, input_gyldigt: Boolsk)
 # PersonskatPar37Til40Skatteprojektion = UdenAktuelFraflytterindkomst | MedAktuelUmiddelbarFraflytterindkomst | MedAktuelFuldFraflytterindkomst
@@ -5673,6 +5673,62 @@
     help = None,
     unit = None
 )
+= personskat_felt_par37_til40_kildehistorik_opgjort_pr_år = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AKildehistorik::opgjort_pr::år),
+    label = "Kildehistorikkens opgørelsesdato, år",
+    question = Some("Til og med hvilket kalenderår er fraflytterskatteforløbets kilder undersøgt?"),
+    help = Some("Datoen afgør, om en oplysningsfrist er udløbet; brug datoen for den seneste fuldstændige kildekontrol."),
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_kildehistorik_opgjort_pr_måned = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AKildehistorik::opgjort_pr::måned),
+    label = "Kildehistorikkens opgørelsesdato, måned",
+    question = Some("Til og med hvilken kalendermåned er fraflytterskatteforløbets kilder undersøgt?"),
+    help = Some("Angiv måned 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_par37_til40_kildehistorik_opgjort_pr_dag = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AKildehistorik::opgjort_pr::dag),
+    label = "Kildehistorikkens opgørelsesdato, dag",
+    question = Some("Til og med hvilken kalenderdag er fraflytterskatteforløbets kilder undersøgt?"),
+    help = Some("Futuruna validerer datoen efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_par37_til40_fristudsættelser = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AKildehistorik::fristudsættelser),
+    label = "Udsatte frister for årlige oplysninger",
+    question = Some("Har Skatteforvaltningen udsat fristen for et eller flere års oplysninger efter ABL § 39 A?"),
+    help = Some("Tilføj kun dokumenterede individuelle fristudsættelser og én frist pr. indkomstår."),
+    unit = None
+)
+= personskat_felt_par37_til40_fristudsættelse_indkomstår = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AFristudsættelse::indkomstår),
+    label = "Indkomstår for den udsatte oplysningsfrist",
+    question = Some("Hvilket indkomstårs årlige oplysninger vedrører fristudsættelsen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_fristudsættelse_år = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AFristudsættelse::udsat_oplysningsfrist::år),
+    label = "Den udsatte oplysningsfrists år",
+    question = Some("I hvilket kalenderår udløber den udsatte oplysningsfrist?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par37_til40_fristudsættelse_måned = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AFristudsættelse::udsat_oplysningsfrist::måned),
+    label = "Den udsatte oplysningsfrists måned",
+    question = Some("I hvilken kalendermåned udløber den udsatte oplysningsfrist?"),
+    help = Some("Angiv måned 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_par37_til40_fristudsættelse_dag = TypetBeregningsfelt(
+    path = refof(AktieavancePar39AFristudsættelse::udsat_oplysningsfrist::dag),
+    label = "Den udsatte oplysningsfrists dag",
+    question = Some("På hvilken kalenderdag udløber den udsatte oplysningsfrist?"),
+    help = Some("Fristen skal ligge efter den ordinære oplysningsfrist for indkomståret."),
+    unit = Some("dag")
+)
 = personskat_felt_par37_til40_hændelser = TypetBeregningsfelt(
     path = refof(PersonskatPar37Til40Forløbsfakta::hændelsesposter),
     label = "Hændelser i fraflytterskatteforløbet",
@@ -9786,6 +9842,14 @@
         Field(value = personskat_felt_par37_til40_bopæl_frigivelse),
         Field(value = personskat_felt_par37_til40_sikkerhed),
         Field(value = personskat_felt_par37_til40_sikkerhedsform),
+        Field(value = personskat_felt_par37_til40_kildehistorik_opgjort_pr_år),
+        Field(value = personskat_felt_par37_til40_kildehistorik_opgjort_pr_måned),
+        Field(value = personskat_felt_par37_til40_kildehistorik_opgjort_pr_dag),
+        Field(value = personskat_felt_par37_til40_fristudsættelser),
+        Field(value = personskat_felt_par37_til40_fristudsættelse_indkomstår),
+        Field(value = personskat_felt_par37_til40_fristudsættelse_år),
+        Field(value = personskat_felt_par37_til40_fristudsættelse_måned),
+        Field(value = personskat_felt_par37_til40_fristudsættelse_dag),
         Field(value = personskat_felt_par37_til40_hændelser),
         Field(value = personskat_felt_par37_til40_hændelse_identifikation),
         Field(value = personskat_felt_par37_til40_hændelse_indkomstår),
@@ -11071,6 +11135,7 @@
     opgørelsesår = fakta.opgørelsesår,
     fraflytning = personskat_par37_til40_fraflytningsfakta(fakta.fraflytning, kontekst),
     hændelsesposter = fakta.hændelsesposter,
+    kildehistorik = fakta.kildehistorik,
     tilflytning = fakta.tilflytning
 )
 | personskat_særligt_aktieaktiv_resultat_med_par37_kontekst(fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal, årskontekst: PersonskatPar37Til40Årskontekst) -> match fakta.kilde {

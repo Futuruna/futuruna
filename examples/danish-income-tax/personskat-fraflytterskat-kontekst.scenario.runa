@@ -54,6 +54,10 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
             sikkerhed = AblPar39IngenSikkerhedStillet
         ),
         hændelsesposter = [],
+        kildehistorik = AktieavancePar39AKildehistorik(
+            opgjort_pr = Dato(år = opgørelsesår, måned = 7, dag = 1),
+            fristudsættelser = []
+        ),
         tilflytning = IngenTilflytningEfterPar39B
     )),
     markedsstatus = AblIkkeOptagetTilHandel

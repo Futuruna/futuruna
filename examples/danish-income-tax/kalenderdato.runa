@@ -1,6 +1,7 @@
 @ sprog da
 
 # Dato(år: Heltal, måned: Heltal, dag: Heltal)
+# Ugedag = Mandag | Tirsdag | Onsdag | Torsdag | Fredag | Lørdag | Søndag
 # Datoperiodegrænser = EfterStartTilOgMedSlut | FraOgMedStartTilFørSlut | FraOgMedBeggeDatoer | UdenBeggeDatoer
 # Kalenderdagskonvention = FaktiskeGregorianskeDage | TrediveDagesMåneder
 # Årsdagskonvention = FaktiskeDageIReferenceåret | Fast365Dage | Fast360Dage
@@ -48,6 +49,42 @@
     }
 }
 | dato_plus_år(dato: Dato, år: Heltal) -> dato_plus_måneder(dato, år * 12)
+| dato_næste_dag(dato: Dato) -> hvis dato_gyldig(dato) == Falskt {
+    dato_ugyldig()
+} ellers hvis dato.dag < dato_dage_i_måned(dato.år, dato.måned) {
+    Dato(år = dato.år, måned = dato.måned, dag = dato.dag + 1)
+} ellers hvis dato.måned < 12 {
+    Dato(år = dato.år, måned = dato.måned + 1, dag = 1)
+} ellers {
+    Dato(år = dato.år + 1, måned = 1, dag = 1)
+}
+| dato_plus_dage(dato: Dato, dage: Heltal) -> hvis dato_gyldig(dato) == Falskt || dage < 0 {
+    dato_ugyldig()
+} ellers hvis dage == 0 {
+    dato
+} ellers {
+    dato_plus_dage(dato_næste_dag(dato), dage - 1)
+}
+| dato_ugedag(dato: Dato) -> hvis dato_gyldig(dato) {
+    Some(match (dato_ordinal(dato) - 1) % 7 {
+            | 0 -> Mandag
+            | 1 -> Tirsdag
+            | 2 -> Onsdag
+            | 3 -> Torsdag
+            | 4 -> Fredag
+            | 5 -> Lørdag
+            | _ -> Søndag
+        })
+} ellers {
+    None
+}
+| dato_fristdag_efter_fredag_eller_weekend(dato: Dato) -> match dato_ugedag(dato) {
+    | Some(Fredag) -> dato_plus_dage(dato, 3)
+    | Some(Lørdag) -> dato_plus_dage(dato, 2)
+    | Some(Søndag) -> dato_plus_dage(dato, 1)
+    | Some(_) -> dato
+    | None -> dato_ugyldig()
+}
 | dato_månedsstart_dagnummer(måned: Heltal) -> match måned {
     | 1 -> 0
     | 2 -> 31
