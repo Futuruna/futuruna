@@ -9585,6 +9585,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "arbejdsdage": [],
                         "arbejdsstedsafstande": []
                     },
+                    "ølogi": { "$variant": "UdenØlogifradrag" },
                     "dobbelt_husførelse": {
                         "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
                     }
@@ -11062,6 +11063,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "arbejdsdage": [],
                             "arbejdsstedsafstande": []
                         },
+                        "ølogi": { "$variant": "UdenØlogifradrag" },
                         "dobbelt_husførelse": {
                             "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
                         }
@@ -14545,6 +14547,7 @@ fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
                 "arbejdsdage": [],
                 "arbejdsstedsafstande": []
             },
+            "ølogi": { "$variant": "UdenØlogifradrag" },
             "dobbelt_husførelse": { "$variant": "Ll9AIntetFradragForDobbeltHusførelse" }
         },
         "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
@@ -14640,6 +14643,200 @@ fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
         500
     );
     assert_eq!(annual["samlet_rejsefradrag_efter_årsloft_kroner"], 1400);
+}
+
+#[test]
+fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+    let json_path = temp_path("json");
+    let xlsx_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let mut input: Value =
+        serde_json::from_slice(&std::fs::read(&json_path).expect("JSON template"))
+            .expect("travel JSON template");
+    input["cases"][0]["case_id"] = Value::String("ll9a-island-lodging".into());
+    input["cases"][0]["input"] = serde_json::json!({
+        "indkomstår": 2026,
+        "årsinput": {
+            "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+            "rejser": [],
+            "udenlandske_indkomstkilder": [],
+            "arbejdshistorik": {
+                "tidligere_rejser": [],
+                "arbejdsdage": [],
+                "arbejdsstedsafstande": []
+            },
+            "ølogi": {
+                "$variant": "MedØlogifradrag",
+                "bopæl": {
+                    "kommune": { "$variant": "Samsø" },
+                    "ø": {
+                        "$variant": "Ll9AAndenDanskØ",
+                        "navn": "Samsø"
+                    },
+                    "vejforbindelse": {
+                        "$variant": "Ll9AIngenFastVejforbindelseFraØen"
+                    }
+                },
+                "arbejdsforhold": [{
+                    "arbejdssted_identifikation": "fast-arbejdssted-fra-samsø",
+                    "arbejdsstedskarakter": {
+                        "$variant": "Ll9AØlogiFastArbejdssted"
+                    },
+                    "overnatningsforhold": {
+                        "$variant": "Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl",
+                        "afstand_ad_normal_transportvej_kilometer": 95,
+                        "korteste_transporttid_hver_vej_minutter": 180
+                    },
+                    "hverv": { "$variant": "Ll9AAlmindeligtHverv" },
+                    "ophold": [{
+                        "identifikation": "samsø-fire-døgn",
+                        "startdato": { "år": 2026, "måned": 6, "dag": 1 },
+                        "varighed_minutter": 5760,
+                        "udgiftsforhold": {
+                            "$variant": "Ll9AØlogiEgenUdgiftAfholdt"
+                        }
+                    }]
+                }]
+            },
+            "dobbelt_husførelse": {
+                "$variant": "Ll9AIntetFradragForDobbeltHusførelse"
+            }
+        },
+        "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
+    });
+    std::fs::write(
+        &json_path,
+        serde_json::to_vec_pretty(&input).expect("encode island lodging input"),
+    )
+    .expect("write island lodging input");
+
+    let direct_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        direct_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&direct_call.stderr),
+        String::from_utf8_lossy(&direct_call.stdout)
+    );
+    let direct_result = parse_stdout(&direct_call);
+
+    let hydrate = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+        "--format",
+        "xlsx",
+        "--output",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    assert!(
+        hydrate.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrate.stderr),
+        String::from_utf8_lossy(&hydrate.stdout)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&xlsx_path).expect("hydrated island workbook");
+        let work_sheet = workbook_collection_sheet_name(
+            &mut workbook,
+            "årsinput.ølogi.MedØlogifradrag.arbejdsforhold",
+        );
+        let stay_sheet = workbook_collection_sheet_name(
+            &mut workbook,
+            "årsinput.ølogi.MedØlogifradrag.arbejdsforhold.ophold",
+        );
+        let work_headers = workbook_headers(&mut workbook, &work_sheet);
+        assert!(work_headers
+            .iter()
+            .any(|header| header == "Arbejdsstedets identifikation for ølogi"));
+        let stay_headers = workbook_headers(&mut workbook, &stay_sheet);
+        assert!(stay_headers
+            .iter()
+            .any(|header| header == "Ølogiopholdets samlede varighed"));
+        assert!(workbook
+            .worksheet_range(&stay_sheet)
+            .expect("island lodging stays")
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "samsø-fire-døgn"));
+
+        let column_metadata = workbook
+            .worksheet_range("_columns")
+            .expect("island column metadata");
+        let metadata_headers = column_metadata.rows().next().expect("metadata headers");
+        let input_path_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "input_path")
+            .expect("input path metadata column");
+        let sources_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "sources")
+            .expect("sources metadata column");
+        let duration_metadata = column_metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some(
+                        "årsinput.ølogi.MedØlogifradrag.arbejdsforhold.ophold.varighed_minutter",
+                    )
+            })
+            .expect("island lodging duration metadata");
+        assert!(duration_metadata
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("island lodging sources")
+            .contains("https://info.skat.dk/data.aspx?oid=2289990"));
+    }
+
+    let xlsx_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    std::fs::remove_file(&json_path).ok();
+    std::fs::remove_file(&xlsx_path).ok();
+    assert!(
+        xlsx_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&xlsx_call.stderr),
+        String::from_utf8_lossy(&xlsx_call.stdout)
+    );
+    let xlsx_result = parse_stdout(&xlsx_call);
+    assert_eq!(xlsx_result["diagnostics"], serde_json::json!([]));
+    assert_eq!(
+        xlsx_result["results"][0]["result"],
+        direct_result["results"][0]["result"]
+    );
+    let annual = &xlsx_result["results"][0]["result"];
+    assert_eq!(annual["alle_input_gyldige"], true);
+    assert_eq!(annual["ølogi"]["bopæl_omfattet_af_par9c_stk3"], true);
+    assert_eq!(annual["ølogi"]["fradrag_før_fælles_årsloft_kroner"], 1072);
+    assert_eq!(annual["samlet_ll9a_fradrag_efter_årsloft_kroner"], 1072);
 }
 
 #[test]

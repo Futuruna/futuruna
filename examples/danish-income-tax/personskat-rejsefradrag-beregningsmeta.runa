@@ -472,6 +472,139 @@
     help = Some("Beløbet reserverer den del af indkomstloftet, der allerede bruges af andre fradrag vedrørende samme udenlandske arbejde."),
     unit = Some("kr.")
 )
+= personskat_ll9a_felt_ølogi = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::$variant),
+    label = "Logifradrag for bopæl på ikkebrofast ø",
+    question = Some("Skal der opgøres logifradrag for arbejde fra en sædvanlig bopæl på en ikkebrofast ø?"),
+    help = Some("Vælg kun fradraget, når bopælen er omfattet af ligningslovens § 9 C, stk. 3, og logiet vedrører et fast arbejdssted, hvor afstanden gør hjemmeovernatning umulig."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_kommune = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::kommune),
+    label = "Bopælskommunen for øboeren",
+    question = Some("I hvilken kommune ligger den sædvanlige bopæl på øen?"),
+    help = Some("Kommunen bruges sammen med øen til at afgøre, om bopælen er omfattet af § 9 C, stk. 3."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_ø = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::ø::$variant),
+    label = "Øen med den sædvanlige bopæl",
+    question = Some("På hvilken ø ligger den sædvanlige bopæl?"),
+    help = Some("Baagø, Egholm, Endelave, Hjarnø, Mandø, Nekselø, Orø, Sejerø, Tunø og Aarø er særskilt omfattet; andre øer vurderes via kommunen."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_anden_ø_navn = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::ø::Ll9AAndenDanskØ::navn),
+    label = "Navn på anden dansk ø",
+    question = Some("Hvad hedder øen?"),
+    help = Some("Udfyldes, når øen ikke vælges blandt de særskilt nævnte småøer."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_vejforbindelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::bopæl::vejforbindelse),
+    label = "Fast vejforbindelse fra øen",
+    question = Some("Har øen en fast vejforbindelse til fastlandet eller en brofast ø?"),
+    help = Some("Fradraget kræver, at bopælen ligger på en ikkebrofast ø."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_arbejdsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold),
+    label = "Arbejdsforhold med logi fra øbopælen",
+    question = Some("Hvilke arbejdsforhold har medført logi væk fra øbopælen?"),
+    help = Some("Opret én række pr. arbejdssted og registrer de tilhørende ophold særskilt."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_arbejdssted_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::arbejdssted_identifikation),
+    label = "Arbejdsstedets identifikation for ølogi",
+    question = Some("Hvilken entydig identifikation har arbejdsstedet?"),
+    help = Some("Brug en stabil identifikation, så ophold ved samme arbejdssted samles og arbejdssteder ikke medregnes dobbelt."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_arbejdsstedskarakter = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::arbejdsstedskarakter),
+    label = "Fast eller midlertidigt arbejdssted for ølogi",
+    question = Some("Er arbejdsstedet fast eller midlertidigt?"),
+    help = Some("Denne særregel gælder et fast arbejdssted; midlertidige arbejdssteder vurderes efter de almindelige rejseregler."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_overnatningsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::$variant),
+    label = "Mulighed for hjemmeovernatning fra arbejdsstedet",
+    question = Some("Gjorde afstanden mellem arbejdsstedet og øbopælen det umuligt at overnatte hjemme?"),
+    help = Some("Vurderingen skal bygge på normal transportvej, realistisk transporttid og arbejdsforholdene."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_bopælsafstand = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl::afstand_ad_normal_transportvej_kilometer),
+    label = "Afstand mellem øbopæl og fast arbejdssted",
+    question = Some("Hvor lang er afstanden ad normal transportvej mellem øbopælen og arbejdsstedet?"),
+    help = None,
+    unit = Some("km")
+)
+= personskat_ll9a_felt_ølogi_transporttid = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::overnatningsforhold::Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl::korteste_transporttid_hver_vej_minutter),
+    label = "Korteste transporttid fra øbopælen hver vej",
+    question = Some("Hvor lang var den korteste realistiske transporttid hver vej?"),
+    help = None,
+    unit = Some("minutter")
+)
+= personskat_ll9a_felt_ølogi_hverv = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::hverv),
+    label = "Hverv under ølogiopholdene",
+    question = Some("Hvilket hverv blev udført ved arbejdsstedet?"),
+    help = Some("Transport-, skibs-, luftfarts- og naturforekomsthverv kan ikke anvende logisatsen."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_ophold = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold),
+    label = "Logiophold ved det faste arbejdssted",
+    question = Some("Hvilke sammenhængende logiophold vedrører arbejdsstedet?"),
+    help = Some("Opret én række pr. sammenhængende ophold. Overlappende ophold afvises."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_ophold_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::identifikation),
+    label = "Ølogiopholdets identifikation",
+    question = Some("Hvilken entydig identifikation har logiopholdet?"),
+    help = Some("Brug en stabil reference fra logidokumentationen."),
+    unit = None
+)
+= personskat_ll9a_felt_ølogi_ophold_startår = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::år),
+    label = "Ølogiopholdets startdato - år",
+    question = Some("I hvilket år begyndte logiopholdet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ll9a_felt_ølogi_ophold_startmåned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::måned),
+    label = "Ølogiopholdets startdato - måned",
+    question = Some("I hvilken måned begyndte logiopholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_ølogi_ophold_startdag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::dag),
+    label = "Ølogiopholdets startdato - dag",
+    question = Some("På hvilken dag i måneden begyndte logiopholdet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ll9a_felt_ølogi_ophold_varighed = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::varighed_minutter),
+    label = "Ølogiopholdets samlede varighed",
+    question = Some("Hvor mange minutter varede logiopholdet?"),
+    help = Some("Fradraget beregnes kun for fulde døgn; resterende timer udløser ikke et yderligere beløb."),
+    unit = Some("minutter")
+)
+= personskat_ll9a_felt_ølogi_ophold_udgift = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::udgiftsforhold),
+    label = "Egen logiudgift under øopholdet",
+    question = Some("Har personen selv afholdt en logiudgift under opholdet?"),
+    help = Some("Standardsatsfradraget kræver en egen logiudgift; arbejdsgiverbetalt eller frit logi giver ikke fradrag."),
+    unit = None
+)
 = personskat_ll9a_felt_dobbelt_husførelse = TypetBeregningsfelt(
     path = refof(Ligningslov9AÅrsinput::dobbelt_husførelse::$variant),
     label = "Fradrag for dobbelt husførelse",
@@ -563,6 +696,25 @@
         personskat_ll9a_felt_udlandsindkomstkilde_identifikation,
         personskat_ll9a_felt_udlandsløn,
         personskat_ll9a_felt_udlandsøvrige_fradrag,
+        personskat_ll9a_felt_ølogi,
+        personskat_ll9a_felt_ølogi_kommune,
+        personskat_ll9a_felt_ølogi_ø,
+        personskat_ll9a_felt_ølogi_anden_ø_navn,
+        personskat_ll9a_felt_ølogi_vejforbindelse,
+        personskat_ll9a_felt_ølogi_arbejdsforhold,
+        personskat_ll9a_felt_ølogi_arbejdssted_identifikation,
+        personskat_ll9a_felt_ølogi_arbejdsstedskarakter,
+        personskat_ll9a_felt_ølogi_overnatningsforhold,
+        personskat_ll9a_felt_ølogi_bopælsafstand,
+        personskat_ll9a_felt_ølogi_transporttid,
+        personskat_ll9a_felt_ølogi_hverv,
+        personskat_ll9a_felt_ølogi_ophold,
+        personskat_ll9a_felt_ølogi_ophold_identifikation,
+        personskat_ll9a_felt_ølogi_ophold_startår,
+        personskat_ll9a_felt_ølogi_ophold_startmåned,
+        personskat_ll9a_felt_ølogi_ophold_startdag,
+        personskat_ll9a_felt_ølogi_ophold_varighed,
+        personskat_ll9a_felt_ølogi_ophold_udgift,
         personskat_ll9a_felt_dobbelt_husførelse,
         personskat_ll9a_felt_dobbelt_husførelse_kilde,
         personskat_ll9a_felt_dobbelt_husførelse_beløb
@@ -572,6 +724,7 @@
     attachments = (
         Source(value = ligningsloven_lbk1500_par9a),
         Source(value = ligningsloven_lbk1500_par9a_stk5_og_stk6),
+        DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
         AmendmentSource(value = lovforslag_l196_2010_2011_ligningslov9a_korte_tjenesterejser),
         DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
         RateSource(value = skatteforvaltningen_rejsesatser_2025),
@@ -586,6 +739,7 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
         Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
         Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
+        Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
         Practice(value = skatterådet_skm2021_130_sr),
     )
 )

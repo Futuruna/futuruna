@@ -83,6 +83,17 @@ personen har fravalgt selve sømandsfradraget. Satserne kommer fra
 [Skatteforvaltningens 2026-meddelelse](https://info.skat.dk/data.aspx?oid=2460063),
 ikke fra arbejdsbogen eller AI'en.
 
+Samme § 9 A-årsforløb omfatter nu stk. 12 for skatteydere med sædvanlig bopæl
+på en ikkebrofast ø. AI'en oplyser kommune, ø og vejforbindelse samt det faste
+arbejdssted, afstanden, transporttiden og hvert dokumenteret logiophold.
+Futuruna afleder selv, om bopælen er omfattet af § 9 C, stk. 3, om
+hjemmeovernatning var umulig, om stk. 11 afskærer fradraget, og hvor mange fulde
+døgn der giver standardsats. Et fire døgns ophold fra Samsø giver 1.072 kr. i
+2026 og deler det regulerede årsloft med de øvrige § 9 A-fradrag. JSON og den
+genererede relationelle XLSX-arbejdsbog giver samme resultat. Kilderne er
+[Ligningslovens § 9 A, stk. 12](https://www.retsinformation.dk/eli/lta/2025/1500)
+og [Skatteforvaltningens juridiske vejledning C.A.7.3.4.3](https://info.skat.dk/data.aspx?oid=2289990).
+
 Ordinære udbytter er nu et konkret eksempel på denne arbejdsdeling. AI'en
 oplyser en entydig kildepost med udlodder, modtagerstatus, aktivtype og beløb;
 den vælger ikke selv "aktieindkomst" som skattekategori. Futuruna afleder

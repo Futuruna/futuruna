@@ -4,6 +4,7 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
 Current implementation slice: `td-6fe980` (Kildeskattelovens § 60-kreditter og §§ 61-62-slutopgørelse har nu en ørepræcis kanonisk grænse; hele-krone-input bevares gennem en tabsfri kompatibilitetsadapter, og udbetaling/opkrævning afrundes først ved de udtrykkelige lovtrin)
+Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
 Current LL § 9 foreign-income slice: `td-c61f53` (identificerede udenlandske lønindkomstkilder deles nu strukturelt af alle tilknyttede rejser; samme § 9, stk. 2-loft kan kun bruges én gang, mens manglende, dublerede, modstridende eller uanvendte kilder fejler lukket i regler og arbejdsbog)
 Current LL § 9 A period slice: `td-3515b8` (12-månedersperioden udledes nu af rejsedatoer, tidligere perioderejser, daterede arbejdsdage og effektive afstande mellem arbejdssteder; 8 km, 40 arbejdsdage, privat hjemmearbejde og manglende afstande er verificeret i interpreter, compiler og XLSX)
 Current LL § 9 A short-service slice: `td-bc07c9` (undtagelsen for enkeltstående kortvarige tjenesterejser udledes nu af rejseart, arbejdssted, dato, varighed og månedens øvrige rejser; godtgørelses- og fradragsperioder føres særskilt, og arbejdsbogen spørger ikke længere brugeren om en retlig konklusion)
@@ -440,10 +441,26 @@ satsdel og supplerende løn. Reglerne udleder virkningen uden
 fradragsberettigelsesflag fra kalderen og er verificeret i både interpreter,
 compiler og den relationelle XLSX-grænse.
 
-Den særskilte ø-logigren i § 9 A, stk. 12, spores i `td-e53d8f`. Det fælles,
-identificerede indkomstgrundlag for flere rejser knyttet til samme udenlandske
-løn efter § 9, stk. 2, er implementeret i `td-c61f53`; hver kilde har én løn,
-ét beløb for øvrige relaterede fradrag og én samlet rest, som rejserne deler.
+Den særskilte ø-logigren i § 9 A, stk. 12, er implementeret i `td-e53d8f`.
+Typede fakta beskriver bopælskommune, ø, fast vejforbindelse, arbejdssted,
+afstand og transporttid, hverv samt identificerede logiophold med dato,
+varighed og egenudgift. Reglerne genkender både kommunerne i § 9 C, stk. 3, og
+de ti særskilt nævnte småøer, kræver en ikkebrofast ø, et fast arbejdssted og
+umulig hjemmeovernatning og genbruger stk. 11's person- og erhvervsudelukkelser.
+Kun fulde døgn med egen logiudgift giver standardsats. Ugyldige, dublerede
+eller overlappende ophold fejler lukket.
+
+Ø-logifradraget tildeles efter dobbelt husførelse og almindeligt rejsefradrag
+inden for det samme regulerede årsloft. Det kanoniske Personskat-resultat bruger
+nu det samlede § 9 A-fradrag både før og efter Sømandsbeskatningslovens § 4,
+stk. 2. Skatteforvaltningens Samsø-eksempel med fire fulde døgn giver 1.072 kr.
+i 2026; en sømandsberettiget person får beløbet synligt før udelukkelsen og 0
+kr. efter. Begge forløb passerer i interpreter og compiler.
+
+Det fælles, identificerede indkomstgrundlag for flere rejser knyttet til samme
+udenlandske løn efter § 9, stk. 2, er implementeret i `td-c61f53`; hver kilde
+har én løn, ét beløb for øvrige relaterede fradrag og én samlet rest, som
+rejserne deler.
 Det særskilt opgjorte fradrag for dobbelt husførelse
 reducerer allerede det fælles loft, men selve fradragsretten og det kanonisk
 anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
@@ -462,14 +479,16 @@ periodestart, udløbsdato, fulde måneder og aktiv status som auditdata; ingen
 rejserække kan længere erklære sin egen førstegangs- eller resetstatus.
 
 Den fokuserede grænse
-`@ calculate("Rejseopgørelse efter ligningslovens § 9 A")` genererer en
+`@ calculate("Rejse- og logiopgørelse efter ligningslovens § 9 A")` genererer en
 relationel XLSX-arbejdsbog med danske etiketter, interviewspørgsmål, dropdowns,
 enheder og typede kildespor. Ud over logidøgnstabellen genereres særskilte
 relationelle tabeller for tidligere perioderejser, daterede arbejdsdage og
 effektivt daterede afstande mellem arbejdssteder. Udenlandske
 lønindkomstkilder har deres egen relationelle tabel, og rejserne henviser til
-den stabile kildeidentifikation. Arbejdsbogen spørger dermed kun efter
-observerbare fakta og ikke efter juridiske periodekonklusioner. En
+den stabile kildeidentifikation. Ø-logi har tilsvarende en arbejdsstedstabel og
+en underliggende opholdstabel, mens bopæl, ø og vejforbindelse er typede
+variantfelter. Arbejdsbogen spørger dermed kun efter observerbare fakta og ikke
+efter juridiske periode- eller fradragskonklusioner. En
 JSON-hydreret rejserække er læst tilbage fra XLSX og beregnet til 800 kr.
 skattefri godtgørelse, 0 kr. skattepligtig godtgørelse og 986 kr.
 rejsefradrag uden diagnostikker; en fokuseret arbejdsbogstest bevarer desuden
@@ -477,7 +496,9 @@ den lønopdelte kostgodtgørelse og de forskellige logidøgnsresultater. En ande
 fokuseret grænsetest hydrerer tre udenlandsrejser og to indkomstkilder fra JSON
 til XLSX og tilbage: to rejser deler 900 kr. som 893 kr. og 7 kr., mens den
 tredje beholder sit særskilte loft på 500 kr.; XLSX- og JSON-resultaterne er
-identiske.
+identiske. En tredje fokuseret grænsetest hydrerer Samsø-fakta og et fire døgns
+logiophold til de relationelle XLSX-tabeller, læser dem tilbage og får samme
+1.072 kr. som den direkte JSON-beregning.
 
 Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
 LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;

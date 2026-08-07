@@ -10654,8 +10654,8 @@
     = sømandsbeskatningslov4_påkrævede_kilder_tilknyttet = personskat_søbl4_påkrævede_kilder_tilknyttet(input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag, påkrævede_kilder = sømandsbeskatningslov4_påkrævede_kilder)
     = erhvervsbefordring_fradrag_før_par4_kroner = personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring)
     = erhvervsbefordring_fradrag_anvendt_kroner = personskat_søbl4_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring = erhvervsbefordring, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
-    = rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner = rejser_før_sømandsbeskatningslov4_stk2.samlet_rejsefradrag_efter_årsloft_kroner
-    = rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner = rejser.samlet_rejsefradrag_efter_årsloft_kroner
+    = rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner = rejser_før_sømandsbeskatningslov4_stk2.samlet_ll9a_fradrag_efter_årsloft_kroner
+    = rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner = rejser.samlet_ll9a_fradrag_efter_årsloft_kroner
     = lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner = øvrige_lønmodtagerudgifter.samlet_fradragsgrundlag_før_bundgrænse_kroner
     = lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner = personskat_søbl4_lønmodtagerudgifter_fradragsgrundlag_anvendt_kroner(lønmodtagerudgifter = øvrige_lønmodtagerudgifter, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
     = lønmodtagerudgifter_fradrag_før_par4_kroner = øvrige_lønmodtagerudgifter.samlet_fradrag_kroner

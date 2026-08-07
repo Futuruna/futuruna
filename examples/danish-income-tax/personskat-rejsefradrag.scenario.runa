@@ -6,9 +6,11 @@
 Kanoniske integrationsscenarier for rejser efter ligningslovens § 9 A.
 
 Scenarierne er ikke lovtekst. De fastholder, at en almindelig rejse fordeles
-mellem skattefri godtgørelse og ligningsmæssigt fradrag, og at udelukkelsen i
-sømandsbeskatningslovens § 4, stk. 2, følger retten til sømandsfradrag frem for
-personens valg om faktisk at anvende fradraget.
+mellem skattefri godtgørelse og ligningsmæssigt fradrag, at logi ved et fast
+arbejdssted for en skatteyder bosat på en ikkebrofast ø indgår i samme § 9 A-
+fradrag, og at udelukkelsen i sømandsbeskatningslovens § 4, stk. 2, følger
+retten til sømandsfradrag frem for personens valg om faktisk at anvende
+fradraget.
 ----
 
 | personskat_rejsefradrag_rejse() -> Ligningslov9ARejsefakta(
@@ -56,16 +58,46 @@ personens valg om faktisk at anvende fradraget.
     indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
 )
 
-| personskat_rejsefradrag_årsinput() -> Ligningslov9AÅrsinput(
+| personskat_rejsefradrag_årsinput_med_rejser_og_ølogi(rejser: List(Ligningslov9ARejsefakta), ølogi: Ligningslov9AØlogiInput) -> Ligningslov9AÅrsinput(
     personrolle = Ll9AAlmindeligLønmodtager,
-    rejser = [personskat_rejsefradrag_rejse()],
+    rejser = rejser,
     udenlandske_indkomstkilder = [],
     arbejdshistorik = Ligningslov9AArbejdshistorik(
         tidligere_rejser = [],
         arbejdsdage = [],
         arbejdsstedsafstande = []
     ),
+    ølogi = ølogi,
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+)
+| personskat_rejsefradrag_årsinput() -> personskat_rejsefradrag_årsinput_med_rejser_og_ølogi(
+    rejser = [personskat_rejsefradrag_rejse()],
+    ølogi = UdenØlogifradrag
+)
+| personskat_ølogifradrag_årsinput() -> personskat_rejsefradrag_årsinput_med_rejser_og_ølogi(
+    rejser = [],
+    ølogi = MedØlogifradrag(
+        bopæl = Ligningslov9AØbopæl(
+            kommune = Samsø,
+            ø = Ll9AAndenDanskØ(navn = "Samsø"),
+            vejforbindelse = Ll9AIngenFastVejforbindelseFraØen
+        ),
+        arbejdsforhold = [Ligningslov9AØlogiArbejdsforhold(
+            arbejdssted_identifikation = "fast-arbejdssted-fra-samsø",
+            arbejdsstedskarakter = Ll9AØlogiFastArbejdssted,
+            overnatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(
+                afstand_ad_normal_transportvej_kilometer = 95,
+                korteste_transporttid_hver_vej_minutter = 180
+            ),
+            hverv = Ll9AAlmindeligtHverv,
+            ophold = [Ligningslov9AØlogiophold(
+                identifikation = "samsø-fire-døgn",
+                startdato = Dato(år = 2026, måned = 6, dag = 1),
+                varighed_minutter = 5760,
+                udgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt
+            )]
+        )]
+    )
 )
 
 | personskat_rejsefradrag_berettiget_sømandsinput() -> Sømandsbeskatningslov3Årsinput(
@@ -104,12 +136,12 @@ personens valg om faktisk at anvende fradraget.
     | _ -> 0
 }
 
-| personskat_rejsefradrag_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> PersonskatLigningsfradragInput(
+| personskat_rejsefradrag_ligningsfradrag_med_ll9a(sømandsfradrag: Sømandsbeskatningslov3Årsinput, rejser: Ligningslov9AÅrsinput) -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = personskat_rejsefradrag_nul_befordringsfradrag(),
-    rejser = personskat_rejsefradrag_årsinput(),
+    rejser = rejser,
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
         kontingenter = []
@@ -120,15 +152,22 @@ personens valg om faktisk at anvende fradraget.
     ),
     gaver = LigningslovGaveÅrsinput(gaver = [])
 )
+| personskat_rejsefradrag_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> personskat_rejsefradrag_ligningsfradrag_med_ll9a(
+    sømandsfradrag = sømandsfradrag,
+    rejser = personskat_rejsefradrag_årsinput()
+)
 
-| personskat_rejsefradrag_input(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> PersonskatInput(
+| personskat_rejsefradrag_input_med_ll9a(sømandsfradrag: Sømandsbeskatningslov3Årsinput, rejser: Ligningslov9AÅrsinput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
         kommune = København,
         bruttoløn_kroner = 600000,
         personlig_indkomst = personskat_ingen_personlig_indkomst(),
         erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
-        ligningsfradrag = personskat_rejsefradrag_ligningsfradrag(sømandsfradrag),
+        ligningsfradrag = personskat_rejsefradrag_ligningsfradrag_med_ll9a(
+            sømandsfradrag = sømandsfradrag,
+            rejser = rejser
+        ),
         pension = personskat_ingen_pension(),
         personfradrag_alder_status = Fyldt18EllerGift,
         betaler_kirkeskat = Falskt
@@ -144,13 +183,31 @@ personens valg om faktisk at anvende fradraget.
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| personskat_rejsefradrag_input(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> personskat_rejsefradrag_input_med_ll9a(
+    sømandsfradrag = sømandsfradrag,
+    rejser = personskat_rejsefradrag_årsinput()
+)
 
 = personskat_rejsefradrag_almindeligt_resultat = beregn_personskat(personskat_rejsefradrag_input(sømandsbeskatningslov3_intet_årsinput()))
 = personskat_rejsefradrag_sømandsberettiget_resultat = beregn_personskat(personskat_rejsefradrag_input(personskat_rejsefradrag_berettiget_sømandsinput()))
+= personskat_ølogifradrag_almindeligt_resultat = beregn_personskat(personskat_rejsefradrag_input_med_ll9a(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    rejser = personskat_ølogifradrag_årsinput()
+))
+= personskat_ølogifradrag_sømandsberettiget_resultat = beregn_personskat(personskat_rejsefradrag_input_med_ll9a(
+    sømandsfradrag = personskat_rejsefradrag_berettiget_sømandsinput(),
+    rejser = personskat_ølogifradrag_årsinput()
+))
 
 | personskat_rejsefradrag_almindelig_rejse_fordeles_kanonisk: personskat_rejsefradrag_almindeligt_resultat -> personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.alle_input_gyldige && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AIngenEksternUdelukkelse && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner == 800 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 986 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 986 && personskat_rejsefradrag_ll9c_aftrapningsindkomst_kroner(personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.befordring) == 600000 && personskat_rejsefradrag_almindeligt_resultat.skat.bruttoløn_kroner == 600000 && personskat_rejsefradrag_almindeligt_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 
 | personskat_rejsefradrag_sømandsudelukkelse_følger_ret_frem_for_valg: personskat_rejsefradrag_sømandsberettiget_resultat -> personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.alle_input_gyldige && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.sømandsfradrag.kan_foretage_fradrag_efter_par3 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.sømandsfradrag.fradrag_foretaget_efter_par3 == Falskt && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejsegodtgørelse_skattefri_før_sømandsbeskatningslov4_stk2_kroner == 800 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner == 800 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner == 986 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 986 && personskat_rejsefradrag_ll9c_aftrapningsindkomst_kroner(personskat_rejsefradrag_sømandsberettiget_resultat.ligningsfradrag.befordring) == 600800 && personskat_rejsefradrag_sømandsberettiget_resultat.skat.bruttoløn_kroner == 600800 && personskat_rejsefradrag_sømandsberettiget_resultat.skat.arbejdsmarkedsbidrag_kroner == 48064
 
+| personskat_ølogifradrag_indgår_i_kanonisk_ligningsfradrag: personskat_ølogifradrag_almindeligt_resultat -> personskat_ølogifradrag_almindeligt_resultat.ligningsfradrag.alle_input_gyldige && personskat_ølogifradrag_almindeligt_resultat.ligningsfradrag.rejser.ølogi.fradrag_før_fælles_årsloft_kroner == 1072 && personskat_ølogifradrag_almindeligt_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 1072 && personskat_ølogifradrag_almindeligt_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 1072
+
+| personskat_ølogifradrag_følger_sømandsudelukkelsen: personskat_ølogifradrag_sømandsberettiget_resultat -> personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.alle_input_gyldige && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejser_før_sømandsbeskatningslov4_stk2.ølogi.fradrag_efter_fælles_årsloft_kroner == 1072 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejser.ølogi.stk11_udelukket && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner == 1072 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 1072
+
 ? personskat_rejsefradrag_almindelig_rejse_fordeles_kanonisk
 ? personskat_rejsefradrag_sømandsudelukkelse_følger_ret_frem_for_valg
+? personskat_ølogifradrag_indgår_i_kanonisk_ligningsfradrag
+? personskat_ølogifradrag_følger_sømandsudelukkelsen
