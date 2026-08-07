@@ -434,21 +434,42 @@
     path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::$variant),
     label = "Arbejdsindkomstens danske skatteforhold",
     question = Some("Er arbejdsindkomsten dansk skattepligtig, udenlandsk arbejde med dansk skattepligtig løn eller undtaget fra dansk skattepligt?"),
-    help = Some("Fradrag ved udenlandsk arbejde kan ikke overstige den udenlandske løn, som medregnes i Danmark, efter øvrige fradrag vedrørende samme indkomst."),
+    help = Some("En rejse ved udenlandsk arbejde skal henvise til en identificeret årlig indkomstkilde, så flere rejser ikke kan genbruge samme indkomstloft."),
+    unit = None
+)
+= personskat_ll9a_felt_udlandsindkomstkilde_reference = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::indkomstkilde_identifikation),
+    label = "Indkomstkilde for den udenlandske rejse",
+    question = Some("Hvilken identificeret udenlandsk indkomstkilde vedrører rejsen?"),
+    help = Some("Brug samme identifikation på alle rejser, der vedrører samme udenlandske lønindkomst."),
+    unit = None
+)
+= personskat_ll9a_felt_udlandsindkomstkilder = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder),
+    label = "Udenlandske lønindkomstkilder",
+    question = Some("Hvilke udenlandske lønindkomstkilder vedrører årets rejser?"),
+    help = Some("Opret én række pr. udenlandsk lønindkomstkilde og henvis til dens identifikation fra de berørte rejser."),
+    unit = None
+)
+= personskat_ll9a_felt_udlandsindkomstkilde_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::identifikation),
+    label = "Den udenlandske indkomstkildes identifikation",
+    question = Some("Hvilken entydig identifikation har den udenlandske lønindkomstkilde?"),
+    help = Some("Identifikationen forbinder kilden med én eller flere rejser."),
     unit = None
 )
 = personskat_ll9a_felt_udlandsløn = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::lønindkomst_medregnet_i_danmark_kroner),
+    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::lønindkomst_medregnet_i_danmark_kroner),
     label = "Udenlandsk løn medregnet i Danmark",
-    question = Some("Hvor stor en løn fra det udenlandske arbejde medregnes i den danske indkomstopgørelse?"),
+    question = Some("Hvor stor en løn fra denne udenlandske indkomstkilde medregnes i den danske indkomstopgørelse?"),
     help = None,
     unit = Some("kr.")
 )
 = personskat_ll9a_felt_udlandsøvrige_fradrag = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::indkomstforhold::Ll9AUdenlandskSkattepligtigArbejdsindkomst::øvrige_fradrag_vedrørende_indkomsten_kroner),
+    path = refof(Ligningslov9AÅrsinput::udenlandske_indkomstkilder::øvrige_fradrag_vedrørende_indkomsten_kroner),
     label = "Øvrige fradrag vedrørende den udenlandske løn",
-    question = Some("Hvor store øvrige fradrag vedrører samme udenlandske lønindkomst?"),
-    help = Some("Beløbet reducerer det resterende indkomstloft for rejsefradraget."),
+    question = Some("Hvor store øvrige fradrag vedrører denne udenlandske lønindkomst?"),
+    help = Some("Beløbet reserverer den del af indkomstloftet, der allerede bruges af andre fradrag vedrørende samme udenlandske arbejde."),
     unit = Some("kr.")
 )
 = personskat_ll9a_felt_dobbelt_husførelse = TypetBeregningsfelt(
@@ -537,6 +558,9 @@
         personskat_ll9a_felt_egne_logiudgifter,
         personskat_ll9a_felt_logifradragsprincip,
         personskat_ll9a_felt_indkomstforhold,
+        personskat_ll9a_felt_udlandsindkomstkilde_reference,
+        personskat_ll9a_felt_udlandsindkomstkilder,
+        personskat_ll9a_felt_udlandsindkomstkilde_identifikation,
         personskat_ll9a_felt_udlandsløn,
         personskat_ll9a_felt_udlandsøvrige_fradrag,
         personskat_ll9a_felt_dobbelt_husførelse,
@@ -555,6 +579,7 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
         Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
         Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+        Guidance(value = juridisk_vejledning_ligningslov9_udlandsfradrag),
         Guidance(value = juridisk_vejledning_ligningslov9a_kostgodtgørelse),
         Guidance(value = juridisk_vejledning_ligningslov9a_logigodtgørelse),
         Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),

@@ -59,6 +59,7 @@ personens valg om faktisk at anvende fradraget.
 | personskat_rejsefradrag_årsinput() -> Ligningslov9AÅrsinput(
     personrolle = Ll9AAlmindeligLønmodtager,
     rejser = [personskat_rejsefradrag_rejse()],
+    udenlandske_indkomstkilder = [],
     arbejdshistorik = Ligningslov9AArbejdshistorik(
         tidligere_rejser = [],
         arbejdsdage = [],

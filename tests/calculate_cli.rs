@@ -9579,6 +9579,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "rejser": {
                     "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                     "rejser": [],
+                    "udenlandske_indkomstkilder": [],
                     "arbejdshistorik": {
                         "tidligere_rejser": [],
                         "arbejdsdage": [],
@@ -11055,6 +11056,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "rejser": {
                         "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                         "rejser": [],
+                        "udenlandske_indkomstkilder": [],
                         "arbejdshistorik": {
                             "tidligere_rejser": [],
                             "arbejdsdage": [],
@@ -14195,6 +14197,31 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
         String::from_utf8_lossy(&template.stderr)
     );
 
+    {
+        let mut workbook = open_workbook_auto(&input_path).expect("travel workbook");
+        let foreign_income_sheet =
+            workbook_collection_sheet_name(&mut workbook, "årsinput.udenlandske_indkomstkilder");
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &foreign_income_sheet),
+            [
+                "identifikation",
+                "lønindkomst_medregnet_i_danmark_kroner",
+                "øvrige_fradrag_vedrørende_indkomsten_kroner",
+            ]
+        );
+        assert_eq!(
+            workbook_headers(&mut workbook, &foreign_income_sheet),
+            [
+                "case_id",
+                "item_id",
+                "position",
+                "Den udenlandske indkomstkildes identifikation",
+                "Udenlandsk løn medregnet i Danmark",
+                "Øvrige fradrag vedrørende den udenlandske løn",
+            ]
+        );
+    }
+
     edit_workbook(&input_path, |sheets| {
         let travel_sheet = workbook_collection_sheet_name_from_rows(sheets, "årsinput.rejser");
         let lodging_sheet =
@@ -14421,6 +14448,198 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     assert_eq!(annual["samlet_skattefri_godtgørelse_kroner"], 1400);
     assert_eq!(annual["samlet_skattepligtig_godtgørelse_kroner"], 200);
     assert_eq!(annual["samlet_rejsefradrag_efter_årsloft_kroner"], 418);
+}
+
+#[test]
+fn ligningslov9a_xlsx_round_trips_grouped_foreign_income_ceiling() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+    let json_path = temp_path("json");
+    let xlsx_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let foreign_trip = |identifikation: &str, dag: i64, indkomstkilde: &str| {
+        serde_json::json!({
+            "identifikation": identifikation,
+            "indkomstår": 2026,
+            "startdato": { "år": 2026, "måned": 3, "dag": dag },
+            "rejseart": { "$variant": "Ll9ATjenesterejse" },
+            "arbejdssted_identifikation": identifikation,
+            "arbejdsstedskarakter": { "$variant": "Ll9AMobiltArbejdssted" },
+            "overnatningsforhold": {
+                "$variant": "Ll9AIngenMulighedForOvernatningPåSædvanligBopæl",
+                "afstand_ad_normal_transportvej_kilometer": 350,
+                "korteste_transporttid_hver_vej_minutter": 240
+            },
+            "hverv": { "$variant": "Ll9AAlmindeligtHverv" },
+            "varighed_minutter": 1440,
+            "kost": {
+                "dækning": { "$variant": "Ll9AKostIkkeDækketEfterRegning" },
+                "godtgørelsesudbetaling": {
+                    "$variant": "Ll9AUopdeltGodtgørelse",
+                    "udbetalt_kroner": 0
+                },
+                "fri_morgenmad_antal": 0,
+                "fri_frokost_antal": 0,
+                "fri_aftensmad_antal": 0,
+                "dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner": 0,
+                "fradragsprincip": { "$variant": "Ll9AKostfradragMedStandardsats" }
+            },
+            "logidøgn": [{
+                "rejsedøgnsnummer": 1,
+                "dækning": { "$variant": "Ll9ALogiIkkeDækketAfArbejdsgiver" },
+                "godtgørelsesudbetaling": {
+                    "$variant": "Ll9AUopdeltGodtgørelse",
+                    "udbetalt_kroner": 0
+                },
+                "dokumenteret_logiudgift_betalt_før_refusion_kroner": 0,
+                "fradragsprincip": { "$variant": "Ll9ALogifradragMedStandardsats" }
+            }],
+            "kontrol": { "$variant": "Ll9AArbejdsgiverkontrolUdført" },
+            "lønomlægning": { "$variant": "Ll9AGodtgørelseUdenLønomlægning" },
+            "indkomstforhold": {
+                "$variant": "Ll9AUdenlandskSkattepligtigArbejdsindkomst",
+                "indkomstkilde_identifikation": indkomstkilde
+            }
+        })
+    };
+    let mut input: Value =
+        serde_json::from_slice(&std::fs::read(&json_path).expect("JSON template"))
+            .expect("travel JSON template");
+    input["cases"][0]["case_id"] = Value::String("ll9a-grouped-foreign-income".into());
+    input["cases"][0]["input"] = serde_json::json!({
+        "indkomstår": 2026,
+        "årsinput": {
+            "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+            "rejser": [
+                foreign_trip("foreign-a-1", 1, "foreign-income-a"),
+                foreign_trip("foreign-a-2", 5, "foreign-income-a"),
+                foreign_trip("foreign-b-1", 10, "foreign-income-b")
+            ],
+            "udenlandske_indkomstkilder": [
+                {
+                    "identifikation": "foreign-income-a",
+                    "lønindkomst_medregnet_i_danmark_kroner": 1000,
+                    "øvrige_fradrag_vedrørende_indkomsten_kroner": 100
+                },
+                {
+                    "identifikation": "foreign-income-b",
+                    "lønindkomst_medregnet_i_danmark_kroner": 600,
+                    "øvrige_fradrag_vedrørende_indkomsten_kroner": 100
+                }
+            ],
+            "arbejdshistorik": {
+                "tidligere_rejser": [],
+                "arbejdsdage": [],
+                "arbejdsstedsafstande": []
+            },
+            "dobbelt_husførelse": { "$variant": "Ll9AIntetFradragForDobbeltHusførelse" }
+        },
+        "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
+    });
+    std::fs::write(
+        &json_path,
+        serde_json::to_vec_pretty(&input).expect("encode populated travel input"),
+    )
+    .expect("write populated travel input");
+
+    let direct_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        direct_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&direct_call.stderr),
+        String::from_utf8_lossy(&direct_call.stdout)
+    );
+    let direct_result = parse_stdout(&direct_call);
+
+    let hydrate = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+        "--format",
+        "xlsx",
+        "--output",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    assert!(
+        hydrate.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrate.stderr),
+        String::from_utf8_lossy(&hydrate.stdout)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&xlsx_path).expect("hydrated travel workbook");
+        let foreign_income_sheet =
+            workbook_collection_sheet_name(&mut workbook, "årsinput.udenlandske_indkomstkilder");
+        let travel_sheet = workbook_collection_sheet_name(&mut workbook, "årsinput.rejser");
+        assert!(workbook
+            .worksheet_range(&foreign_income_sheet)
+            .expect("foreign income sheet")
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "foreign-income-a"));
+        assert!(workbook
+            .worksheet_range(&travel_sheet)
+            .expect("travel sheet")
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "foreign-income-a"));
+    }
+
+    let xlsx_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    std::fs::remove_file(&json_path).ok();
+    std::fs::remove_file(&xlsx_path).ok();
+    assert!(
+        xlsx_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&xlsx_call.stderr),
+        String::from_utf8_lossy(&xlsx_call.stdout)
+    );
+    let xlsx_result = parse_stdout(&xlsx_call);
+    assert_eq!(xlsx_result["diagnostics"], serde_json::json!([]));
+    assert_eq!(
+        xlsx_result["results"][0]["result"],
+        direct_result["results"][0]["result"]
+    );
+    let annual = &xlsx_result["results"][0]["result"];
+    assert_eq!(annual["udlandsindkomstkilder_gyldige"], true);
+    assert_eq!(
+        annual["rejseresultater"][0]["fradrag_før_årsloft_kroner"],
+        893
+    );
+    assert_eq!(
+        annual["rejseresultater"][1]["fradrag_før_årsloft_kroner"],
+        7
+    );
+    assert_eq!(
+        annual["rejseresultater"][2]["fradrag_før_årsloft_kroner"],
+        500
+    );
+    assert_eq!(annual["samlet_rejsefradrag_efter_årsloft_kroner"], 1400);
 }
 
 #[test]

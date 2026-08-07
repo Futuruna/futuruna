@@ -114,18 +114,33 @@
     arbejdsdage = [],
     arbejdsstedsafstande = []
 )
-| ll9a_scenarie_årsresultat_med_historik(rejser: List(Ligningslov9ARejsefakta), arbejdshistorik: Ligningslov9AArbejdshistorik, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ligningslov9a_årsresultat(
+| ll9a_scenarie_årsresultat_med_historik_og_indkomstkilder(rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), arbejdshistorik: Ligningslov9AArbejdshistorik, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ligningslov9a_årsresultat(
     indkomstår = 2026,
     input = Ligningslov9AÅrsinput(
         personrolle = Ll9AAlmindeligLønmodtager,
         rejser = rejser,
+        udenlandske_indkomstkilder = udenlandske_indkomstkilder,
         arbejdshistorik = arbejdshistorik,
         dobbelt_husførelse = dobbelt_husførelse
     ),
     ekstern_udelukkelse = ekstern_udelukkelse
 )
+| ll9a_scenarie_årsresultat_med_historik(rejser: List(Ligningslov9ARejsefakta), arbejdshistorik: Ligningslov9AArbejdshistorik, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ll9a_scenarie_årsresultat_med_historik_og_indkomstkilder(
+    rejser = rejser,
+    udenlandske_indkomstkilder = [],
+    arbejdshistorik = arbejdshistorik,
+    dobbelt_husførelse = dobbelt_husførelse,
+    ekstern_udelukkelse = ekstern_udelukkelse
+)
 | ll9a_scenarie_årsresultat(rejser: List(Ligningslov9ARejsefakta), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ll9a_scenarie_årsresultat_med_historik(
     rejser = rejser,
+    arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
+    dobbelt_husførelse = dobbelt_husførelse,
+    ekstern_udelukkelse = ekstern_udelukkelse
+)
+| ll9a_scenarie_årsresultat_med_indkomstkilder(rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ll9a_scenarie_årsresultat_med_historik_og_indkomstkilder(
+    rejser = rejser,
+    udenlandske_indkomstkilder = udenlandske_indkomstkilder,
     arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
     dobbelt_husførelse = dobbelt_husførelse,
     ekstern_udelukkelse = ekstern_udelukkelse
@@ -332,8 +347,8 @@
     Ll9AIngenEksternUdelukkelse
 )
 
-= ll9a_scenarie_udlandsloft_resultat = ll9a_scenarie_årsresultat(
-    [ll9a_scenarie_rejse(
+= ll9a_scenarie_udlandsloft_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
+    rejser = [ll9a_scenarie_rejse(
         identifikation = "udlandsloft",
         arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
@@ -343,10 +358,66 @@
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
         kostfradragsprincip = Ll9AKostfradragMedStandardsats,
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
-        indkomstforhold = Ll9AUdenlandskSkattepligtigArbejdsindkomst(lønindkomst_medregnet_i_danmark_kroner = 1000, øvrige_fradrag_vedrørende_indkomsten_kroner = 200)
+        indkomstforhold = Ll9AUdenlandskSkattepligtigArbejdsindkomst(indkomstkilde_identifikation = "udlandsløn-a")
     )],
-    Ll9AIntetFradragForDobbeltHusførelse,
-    Ll9AIngenEksternUdelukkelse
+    udenlandske_indkomstkilder = [Ligningslov9AUdenlandskIndkomstkilde(identifikation = "udlandsløn-a", lønindkomst_medregnet_i_danmark_kroner = 1000, øvrige_fradrag_vedrørende_indkomsten_kroner = 200)],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+
+| ll9a_scenarie_udlandsrejse(identifikation: Tekst, startdato: Dato, indkomstkilde_identifikation: Tekst) -> ll9a_scenarie_rejse(
+    identifikation = identifikation,
+    arbejdssted_identifikation = identifikation,
+    arbejdsstedskarakter = Ll9AMobiltArbejdssted,
+    startdato = startdato,
+    hverv = Ll9AAlmindeligtHverv,
+    varighed_minutter = 2880,
+    godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
+    kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+    logifradragsprincip = Ll9ALogifradragMedStandardsats,
+    indkomstforhold = Ll9AUdenlandskSkattepligtigArbejdsindkomst(indkomstkilde_identifikation = indkomstkilde_identifikation)
+)
+
+= ll9a_scenarie_udlandskilde_a = Ligningslov9AUdenlandskIndkomstkilde(
+    identifikation = "udlandsløn-a",
+    lønindkomst_medregnet_i_danmark_kroner = 2000,
+    øvrige_fradrag_vedrørende_indkomsten_kroner = 200
+)
+= ll9a_scenarie_udlandskilde_b = Ligningslov9AUdenlandskIndkomstkilde(
+    identifikation = "udlandsløn-b",
+    lønindkomst_medregnet_i_danmark_kroner = 1000,
+    øvrige_fradrag_vedrørende_indkomsten_kroner = 200
+)
+= ll9a_scenarie_fælles_udlandsloft_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
+    rejser = [
+        ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-a-1", startdato = Dato(år = 2026, måned = 3, dag = 1), indkomstkilde_identifikation = "udlandsløn-a"),
+        ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-a-2", startdato = Dato(år = 2026, måned = 3, dag = 5), indkomstkilde_identifikation = "udlandsløn-a"),
+        ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-b-1", startdato = Dato(år = 2026, måned = 3, dag = 10), indkomstkilde_identifikation = "udlandsløn-b")
+    ],
+    udenlandske_indkomstkilder = [ll9a_scenarie_udlandskilde_a, ll9a_scenarie_udlandskilde_b],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+= ll9a_scenarie_manglende_udlandskilde_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
+    rejser = [ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-ukendt", startdato = Dato(år = 2026, måned = 4, dag = 1), indkomstkilde_identifikation = "ukendt-udlandsløn")],
+    udenlandske_indkomstkilder = [],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+= ll9a_scenarie_modstridende_udlandskilder_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
+    rejser = [ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-dublet", startdato = Dato(år = 2026, måned = 4, dag = 2), indkomstkilde_identifikation = "udlandsløn-a")],
+    udenlandske_indkomstkilder = [
+        ll9a_scenarie_udlandskilde_a,
+        Ligningslov9AUdenlandskIndkomstkilde(identifikation = "udlandsløn-a", lønindkomst_medregnet_i_danmark_kroner = 5000, øvrige_fradrag_vedrørende_indkomsten_kroner = 0)
+    ],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+= ll9a_scenarie_uanvendt_udlandskilde_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
+    rejser = [ll9a_scenarie_udlandsrejse(identifikation = "udlandsrejse-kun-a", startdato = Dato(år = 2026, måned = 4, dag = 3), indkomstkilde_identifikation = "udlandsløn-a")],
+    udenlandske_indkomstkilder = [ll9a_scenarie_udlandskilde_a, ll9a_scenarie_udlandskilde_b],
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
 = ll9a_scenarie_sømandsudelukket_resultat = ll9a_scenarie_årsresultat(
@@ -378,6 +449,7 @@
     input = Ligningslov9AÅrsinput(
         personrolle = Ll9AAlmindeligLønmodtager,
         rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, 2024)],
+        udenlandske_indkomstkilder = [],
         arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
         dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
     ),
@@ -497,6 +569,10 @@
 | ll9a_scenarie_transportarbejde_afskærer_logisats: ll9a_scenarie_transport_resultat -> head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_kostgodtgørelse_efter_dækning_kroner == 1250 && head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_logi_kroner == 0 && ll9a_scenarie_transport_resultat.samlet_skattepligtig_godtgørelse_kroner == 300
 | ll9a_scenarie_dobbelt_husførelse_deler_årsloft: ll9a_scenarie_årsloft_resultat -> ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_før_årsloft_kroner > 34400 && ll9a_scenarie_årsloft_resultat.dobbelt_husførelse_før_fælles_loft_kroner == 10000 && ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 24400
 | ll9a_scenarie_udlandsindkomst_begrænser_fradrag: ll9a_scenarie_udlandsloft_resultat -> head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).fradrag_før_indkomstloft_kroner == 1786 && head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).indkomstloft_kroner == 800 && ll9a_scenarie_udlandsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 800
+| ll9a_scenarie_rejser_deler_udlandsindkomstloft_pr_kilde: ll9a_scenarie_fælles_udlandsloft_resultat -> ll9a_scenarie_fælles_udlandsloft_resultat.alle_input_gyldige && ll9a_scenarie_fælles_udlandsloft_resultat.udlandsindkomstkilder_gyldige && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[0].fradrag_før_årsloft_kroner == 1786 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[1].indkomstloft_kroner == 14 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[1].fradrag_før_årsloft_kroner == 14 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[2].fradrag_før_årsloft_kroner == 800 && ll9a_scenarie_fælles_udlandsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 2600
+| ll9a_scenarie_manglende_udlandskilde_fejler_lukket: ll9a_scenarie_manglende_udlandskilde_resultat -> ll9a_scenarie_manglende_udlandskilde_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_manglende_udlandskilde_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_manglende_udlandskilde_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_modstridende_udlandskilder_fejler_lukket: ll9a_scenarie_modstridende_udlandskilder_resultat -> ll9a_scenarie_modstridende_udlandskilder_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_modstridende_udlandskilder_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_modstridende_udlandskilder_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_uanvendt_udlandskilde_fejler_lukket: ll9a_scenarie_uanvendt_udlandskilde_resultat -> ll9a_scenarie_uanvendt_udlandskilde_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_uanvendt_udlandskilde_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_uanvendt_udlandskilde_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer: ll9a_scenarie_sømandsudelukket_resultat -> ll9a_scenarie_sømandsudelukket_resultat.stk1_til_stk9_udelukket && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_sømandsudelukket_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ugyldig_reset_fejler_lukket: ll9a_scenarie_ugyldig_reset_resultat -> ll9a_scenarie_ugyldig_reset_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ugyldig_reset_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ikke_understøttet_år_fejler_lukket: ll9a_scenarie_ikke_understøttet_år_resultat -> ll9a_scenarie_ikke_understøttet_år_resultat.skatteår_understøttet == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
@@ -521,6 +597,10 @@
 ? ll9a_scenarie_transportarbejde_afskærer_logisats
 ? ll9a_scenarie_dobbelt_husførelse_deler_årsloft
 ? ll9a_scenarie_udlandsindkomst_begrænser_fradrag
+? ll9a_scenarie_rejser_deler_udlandsindkomstloft_pr_kilde
+? ll9a_scenarie_manglende_udlandskilde_fejler_lukket
+? ll9a_scenarie_modstridende_udlandskilder_fejler_lukket
+? ll9a_scenarie_uanvendt_udlandskilde_fejler_lukket
 ? ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer
 ? ll9a_scenarie_ugyldig_reset_fejler_lukket
 ? ll9a_scenarie_ikke_understøttet_år_fejler_lukket
