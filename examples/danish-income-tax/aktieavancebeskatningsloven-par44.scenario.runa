@@ -17,53 +17,292 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
     investeringsklassifikation = AblIngenInvesteringsklassifikation
 )
 
-| abl_par44_scenarie_input(egen_kursværdi_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_kroner: Heltal, har_statusændring: Boolsk) -> AktieavancePar44Input(
-    identifikation = "historisk-aktie",
+| abl_par44_scenarie_direkte_input(identifikation: Tekst, selskabsidentifikation: Tekst, egen_kursværdi_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_kroner: Heltal, børsstatus: AktieavancePar44Børsstatus2005, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus, statusforløb: AktieavancePar44Statusforløb) -> AktieavancePar44Input(
+    identifikation = identifikation,
+    selskabsidentifikation = selskabsidentifikation,
     indkomstår = 2026,
-    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1)),
-    børsstatus_pr_31_december_2005 = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
-    beholdningsfakta = AktieavancePar44Beholdningsfakta(
-        egen_kursværdi_pr_31_december_2005_kroner = egen_kursværdi_kroner,
-        ægtefællestatus = ægtefællestatus,
-        ægtefælles_kursværdi_pr_31_december_2005_kroner = ægtefælles_kursværdi_kroner
-    ),
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(kildegrundlag = AktieavancePar44Stk1Kildegrundlag(
+        erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1),
+        børsstatus_pr_31_december_2005 = børsstatus,
+        beholdningsfakta = AktieavancePar44Beholdningsfakta(
+            egen_kursværdi_pr_31_december_2005_kroner = egen_kursværdi_kroner,
+            ægtefællestatus = ægtefællestatus,
+            ægtefælles_kursværdi_pr_31_december_2005_kroner = ægtefælles_kursværdi_kroner
+        ),
+        historisk_undtagelsesstatus = historisk_undtagelsesstatus
+    )),
     aktivklassifikation = abl_par44_scenarie_aktivklassifikation(2026),
-    har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked = har_statusændring,
-    historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E
+    statusforløb = statusforløb
 )
 
-| abl_par44_scenarie_input_med_børs_og_historik(børsstatus: AktieavancePar44Børsstatus2005, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus) -> AktieavancePar44Input(
+| abl_par44_scenarie_input(egen_kursværdi_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_kroner: Heltal, statusforløb: AktieavancePar44Statusforløb) -> abl_par44_scenarie_direkte_input(
     identifikation = "historisk-aktie",
-    indkomstår = 2026,
-    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1)),
-    børsstatus_pr_31_december_2005 = børsstatus,
-    beholdningsfakta = AktieavancePar44Beholdningsfakta(
-        egen_kursværdi_pr_31_december_2005_kroner = 100000,
-        ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
-        ægtefælles_kursværdi_pr_31_december_2005_kroner = 0
-    ),
-    aktivklassifikation = abl_par44_scenarie_aktivklassifikation(2026),
-    har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked = Falskt,
-    historisk_undtagelsesstatus = historisk_undtagelsesstatus
+    selskabsidentifikation = "DK-PAR44",
+    egen_kursværdi_kroner = egen_kursværdi_kroner,
+    ægtefællestatus = ægtefællestatus,
+    ægtefælles_kursværdi_kroner = ægtefælles_kursværdi_kroner,
+    børsstatus = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
+    historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E,
+    statusforløb = statusforløb
 )
 
-= abl_par44_enlig_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136600, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt))
-= abl_par44_enlig_over_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136601, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt))
-= abl_par44_ægtefæller_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefællerHelePerioden, 143100, Falskt))
-= abl_par44_ægtefælle_død_i_perioden = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefælleDødIPerioden, 143100, Falskt))
-= abl_par44_statusændret = aktieavance_par44_resultat(abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, Sandt))
+| abl_par44_scenarie_input_med_børs_og_historik(børsstatus: AktieavancePar44Børsstatus2005, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus) -> abl_par44_scenarie_direkte_input(
+    identifikation = "historisk-aktie",
+    selskabsidentifikation = "DK-PAR44",
+    egen_kursværdi_kroner = 100000,
+    ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
+    ægtefælles_kursværdi_kroner = 0,
+    børsstatus = børsstatus,
+    historisk_undtagelsesstatus = historisk_undtagelsesstatus,
+    statusforløb = AblPar44FortsatOptagetTilHandelPåReguleretMarked
+)
+
+| abl_par44_scenarie_fondsaktie(identifikation: Tekst, selskabsidentifikation: Tekst, grundaktiens_identifikation: Tekst, tildelingsdato: AktieavanceInvesteringsdato, statusforløb: AktieavancePar44Statusforløb) -> AktieavancePar44Input(
+    identifikation = identifikation,
+    selskabsidentifikation = selskabsidentifikation,
+    indkomstår = 2026,
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 25),
+    erhvervelsesgrundlag = AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(
+        grundaktiens_identifikation = grundaktiens_identifikation,
+        tildelingsdato = tildelingsdato
+    ),
+    aktivklassifikation = abl_par44_scenarie_aktivklassifikation(2026),
+    statusforløb = statusforløb
+)
+
+| abl_par44_scenarie_afståelsesvilkår() -> AktieavanceOrdinærAfståelsesvilkår(
+    markedsstatus = AblIkkeOptagetTilHandel,
+    har_tidligere_været_optaget_til_handel = Sandt,
+    hovedaktionæraktier = Falskt,
+    afståede_aktiers_handelsværdi_kroner = 0,
+    beholdte_aktiers_handelsværdi_kroner = 0,
+    oplysningsstatus = AblOplystRettidigt,
+    boligret = AblUdenBoligret
+)
+
+| abl_par44_scenarie_par5a_fakta() -> AblOrdinærPar5AKildefakta(fakta = AktieavancePar5AFakta(
+    anvendelsesgrundlag = AblPar5AAfståelseDen24November2010EllerSenere,
+    skatteydergrundlag = AblPar5APersonSkattepligtigEfterPar7,
+    ejertidsudbytter = [],
+    præferenceposition = AktieavancePar5APræferenceposition(
+        modtaget_tilsvarende_udbytte_kroner = 0,
+        allerede_anvendt_til_tabsreduktion_kroner = 0
+    ),
+    koncernbeløb = []
+))
+
+| abl_par44_scenarie_delafståelse(antal_aktier: Heltal, afståelsessum_kroner: Heltal, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta) -> AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal_aktier),
+    afståelsessum_kroner = afståelsessum_kroner,
+    vilkår = abl_par44_scenarie_afståelsesvilkår(),
+    par5a_kildefakta = par5a_kildefakta
+)
+| abl_par44_scenarie_afståelse(afståelsessum_kroner: Heltal, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta) -> abl_par44_scenarie_delafståelse(100, afståelsessum_kroner, par5a_kildefakta)
+| abl_par44_scenarie_aktieresultat(beholdningsresultat: AktieavancePar44Beholdningsresultat, identifikation: Tekst) -> head(filter(beholdningsresultat.aktieresultater, |resultat: AktieavancePar44Resultat| resultat.input.identifikation == identifikation))
+| abl_par44_scenarie_statusændring_matcher(resultat: AktieavanceOrdinærHændelsesresultat, anskaffelsessum_kroner: Heltal) -> match resultat.par44_statusændringsresultat {
+    | Some(par44_resultat) -> par44_resultat.statusændret_efter_stk3 && par44_resultat.anskaffelsessum_efter_stk3_kroner == anskaffelsessum_kroner
+    | None -> Falskt
+}
+
+= abl_par44_fortsat_status = AblPar44FortsatOptagetTilHandelPåReguleretMarked
+= abl_par44_statusændringsforløb = AblPar44StatusændretTilIkkeReguleretMarked(
+    statusændringsdato = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1),
+    kursværdi_på_statusændringstidspunktet_kroner = 150000
+)
+= abl_par44_tidligere_statusændringsforløb = AblPar44StatusændretTilIkkeReguleretMarked(
+    statusændringsdato = AktieavanceInvesteringsdato(år = 2025, måned = 7, dag = 1),
+    kursværdi_på_statusændringstidspunktet_kroner = 150000
+)
+
+= abl_par44_enlig_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136600, AblPar44UdenSamlevendeÆgtefælle, 0, abl_par44_fortsat_status))
+= abl_par44_enlig_over_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(136601, AblPar44UdenSamlevendeÆgtefælle, 0, abl_par44_fortsat_status))
+= abl_par44_ægtefæller_under_grænsen = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefællerHelePerioden, 143100, abl_par44_fortsat_status))
+= abl_par44_ægtefælle_død_i_perioden = aktieavance_par44_resultat(abl_par44_scenarie_input(130000, AblPar44SamlevendeÆgtefælleDødIPerioden, 143100, abl_par44_fortsat_status))
+= abl_par44_statusændret_input = abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, abl_par44_statusændringsforløb)
+= abl_par44_statusændret = aktieavance_par44_resultat(abl_par44_statusændret_input)
 = abl_par44_nasdaq_uden_valg = aktieavance_par44_resultat(abl_par44_scenarie_input_med_børs_og_historik(AblPar44KunNasdaqUdenRettidigtHelhedsvalg, AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E))
 = abl_par44_historisk_par2c = aktieavance_par44_resultat(abl_par44_scenarie_input_med_børs_og_historik(AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2, AblPar44OmfattetAfHistoriskPar2C))
-= abl_par44_udbyttekilde = aktieavance_par13a_udbytte_kilderesultat(AblPar13AUdbytteForAktieOmfattetAfPar44(par44_input = abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, Falskt)))
+= abl_par44_udbyttebeholdning = AktieavancePar44Beholdningsinput(aktier = [abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, abl_par44_fortsat_status)])
+= abl_par44_udbyttekilde = aktieavance_par13a_udbytte_kilderesultat(AblPar13AUdbytteForAktieOmfattetAfPar44(
+    beholdning = abl_par44_udbyttebeholdning,
+    aktie_identifikation = "historisk-aktie"
+))
+
+= abl_par44_grundaktie = abl_par44_scenarie_direkte_input(
+    identifikation = "grundaktie",
+    selskabsidentifikation = "DK-PAR44",
+    egen_kursværdi_kroner = 100000,
+    ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
+    ægtefælles_kursværdi_kroner = 0,
+    børsstatus = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
+    historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E,
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_fondsaktie = abl_par44_scenarie_fondsaktie(
+    identifikation = "fondsaktie",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "grundaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2020, måned = 1, dag = 15),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_fondsaktiebeholdning = AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_fondsaktie])
+= abl_par44_fondsaktiebeholdningsresultat = aktieavance_par44_beholdningsresultat(abl_par44_fondsaktiebeholdning)
+= abl_par44_fondsaktieresultat = abl_par44_scenarie_aktieresultat(abl_par44_fondsaktiebeholdningsresultat, "fondsaktie")
+= abl_par44_fondsaktieudbyttekilde = aktieavance_par13a_udbytte_kilderesultat(AblPar13AUdbytteForAktieOmfattetAfPar44(
+    beholdning = abl_par44_fondsaktiebeholdning,
+    aktie_identifikation = "fondsaktie"
+))
+
+= abl_par44_manglende_grundaktie = abl_par44_scenarie_fondsaktie(
+    identifikation = "manglende-grundlag",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "findes-ikke",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2020, måned = 1, dag = 15),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_manglende_grundaktiebeholdningsresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_manglende_grundaktie]))
+= abl_par44_selvreference = abl_par44_scenarie_fondsaktie(
+    identifikation = "selvreference",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "selvreference",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2020, måned = 1, dag = 15),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_selvreferenceresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_selvreference]))
+= abl_par44_fondsaktie_i_andet_selskab = abl_par44_scenarie_fondsaktie(
+    identifikation = "andet-selskab",
+    selskabsidentifikation = "DK-ANDET",
+    grundaktiens_identifikation = "grundaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2020, måned = 1, dag = 15),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_krydsselskabsresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_fondsaktie_i_andet_selskab]))
+= abl_par44_fondsaktie_på_fondsaktie = abl_par44_scenarie_fondsaktie(
+    identifikation = "fondsaktie-paa-fondsaktie",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "fondsaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2021, måned = 1, dag = 15),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_fondsaktiekæderesultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_fondsaktie, abl_par44_fondsaktie_på_fondsaktie]))
+= abl_par44_dobbelt_identifikationsresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_grundaktie]))
+= abl_par44_fondsaktie_før_grundaktien = abl_par44_scenarie_fondsaktie(
+    identifikation = "fondsaktie-foer-grundaktie",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "grundaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2005, måned = 1, dag = 1),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_tildeling_før_grundaktieresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_fondsaktie_før_grundaktien]))
+= abl_par44_fremtidig_fondsaktie = abl_par44_scenarie_fondsaktie(
+    identifikation = "fremtidig-fondsaktie",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "grundaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2027, måned = 1, dag = 1),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_fremtidig_tildelingsresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_grundaktie, abl_par44_fremtidig_fondsaktie]))
+= abl_par44_statusændret_grundaktie = abl_par44_scenarie_direkte_input(
+    identifikation = "statusaendret-grundaktie",
+    selskabsidentifikation = "DK-PAR44",
+    egen_kursværdi_kroner = 100000,
+    ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
+    ægtefælles_kursværdi_kroner = 0,
+    børsstatus = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
+    historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E,
+    statusforløb = AblPar44StatusændretTilIkkeReguleretMarked(
+        statusændringsdato = AktieavanceInvesteringsdato(år = 2019, måned = 1, dag = 1),
+        kursværdi_på_statusændringstidspunktet_kroner = 125000
+    )
+)
+= abl_par44_fondsaktie_efter_grundaktiens_statusændring = abl_par44_scenarie_fondsaktie(
+    identifikation = "fondsaktie-efter-statusaendring",
+    selskabsidentifikation = "DK-PAR44",
+    grundaktiens_identifikation = "statusaendret-grundaktie",
+    tildelingsdato = AktieavanceInvesteringsdato(år = 2020, måned = 1, dag = 1),
+    statusforløb = abl_par44_fortsat_status
+)
+= abl_par44_tildeling_efter_statusændringsresultat = aktieavance_par44_beholdningsresultat(AktieavancePar44Beholdningsinput(aktier = [abl_par44_statusændret_grundaktie, abl_par44_fondsaktie_efter_grundaktiens_statusændring]))
+
+= abl_par44_statusbeholdning = AktieavancePar44Beholdningsinput(aktier = [abl_par44_statusændret_input])
+= abl_par44_tom_ordinær_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-PAR44",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 0),
+    anskaffelsessum_kroner = 0
+)
+= abl_par44_statusændringshændelse = AblPar44Statusændring(
+    beholdning = abl_par44_statusbeholdning,
+    aktie_identifikation = "historisk-aktie"
+)
+= abl_par44_statusgevinstforløb = aktieavance_ordinaer_hændelsesforløb(
+    abl_par44_tom_ordinær_position,
+    [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(210000, AblOrdinærIngenPar5AFaktaPåkrævet)]
+)
+= abl_par44_statustabforløb = aktieavance_ordinaer_hændelsesforløb(
+    abl_par44_tom_ordinær_position,
+    [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(120000, abl_par44_scenarie_par5a_fakta())]
+)
+= abl_par44_statusgevinstår = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(210000, AblOrdinærIngenPar5AFaktaPåkrævet)])],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+))
+= abl_par44_statustabår = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(120000, abl_par44_scenarie_par5a_fakta())])],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+))
+= abl_par44_blandet_position = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-PAR44",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 50),
+    anskaffelsessum_kroner = 50000
+)
+= abl_par44_blandet_forløb = aktieavance_ordinaer_hændelsesforløb(
+    abl_par44_blandet_position,
+    [abl_par44_statusændringshændelse, abl_par44_scenarie_delafståelse(75, 180000, AblOrdinærIngenPar5AFaktaPåkrævet)]
+)
+= abl_par44_dobbelt_statusændringsforløb = aktieavance_ordinaer_hændelsesforløb(
+    abl_par44_tom_ordinær_position,
+    [abl_par44_statusændringshændelse, abl_par44_statusændringshændelse]
+)
+= abl_par44_tidligere_statusændret_input = abl_par44_scenarie_input(100000, AblPar44UdenSamlevendeÆgtefælle, 0, abl_par44_tidligere_statusændringsforløb)
+= abl_par44_tidligere_statusændringshændelse = AblPar44Statusændring(
+    beholdning = AktieavancePar44Beholdningsinput(aktier = [abl_par44_tidligere_statusændret_input]),
+    aktie_identifikation = "historisk-aktie"
+)
+= abl_par44_tidligere_statusændring_i_aktuelt_år = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_tidligere_statusændringshændelse])],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+))
 
 | scenarie_abl_par44_enlig_på_grænsen_omfattes: abl_par44_enlig_under_grænsen -> abl_par44_enlig_under_grænsen.input_gyldigt && abl_par44_enlig_under_grænsen.beholdningsgrænse_pr_31_december_2005_kroner == 136600 && abl_par44_enlig_under_grænsen.omfattet_af_par44
 | scenarie_abl_par44_enlig_over_grænsen_afvises: abl_par44_enlig_over_grænsen -> abl_par44_enlig_over_grænsen.input_gyldigt && abl_par44_enlig_over_grænsen.beholdningsbetingelse_opfyldt == Falskt && abl_par44_enlig_over_grænsen.omfattet_af_par44 == Falskt
 | scenarie_abl_par44_ægtefæller_bruger_fælles_grænse: abl_par44_ægtefæller_under_grænsen -> abl_par44_ægtefæller_under_grænsen.samlet_kursværdi_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefæller_under_grænsen.beholdningsgrænse_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefæller_under_grænsen.omfattet_af_par44
 | scenarie_abl_par44_ægtefælles_dødsfald_bevarer_fælles_grænse_i_perioden: abl_par44_ægtefælle_død_i_perioden -> abl_par44_ægtefælle_død_i_perioden.samlet_kursværdi_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefælle_død_i_perioden.beholdningsgrænse_pr_31_december_2005_kroner == 273100 && abl_par44_ægtefælle_død_i_perioden.omfattet_af_par44
-| scenarie_abl_par44_statusændring_afskærer: abl_par44_statusændret -> abl_par44_statusændret.input_gyldigt && abl_par44_statusændret.omfattet_af_par44 == Falskt
+| scenarie_abl_par44_statusændring_afskærer: abl_par44_statusændret -> abl_par44_statusændret.input_gyldigt && abl_par44_statusændret.grundbetingelser_før_statusændring_opfyldt && abl_par44_statusændret.statusændret_efter_stk3 && abl_par44_statusændret.anskaffelsessum_efter_stk3_kroner == 150000 && abl_par44_statusændret.omfattet_af_par44 == Falskt
 | scenarie_abl_par44_nasdaq_uden_rettidigt_valg_afskærer: abl_par44_nasdaq_uden_valg -> abl_par44_nasdaq_uden_valg.input_gyldigt && abl_par44_nasdaq_uden_valg.børsbetingelse_opfyldt == Falskt && abl_par44_nasdaq_uden_valg.omfattet_af_par44 == Falskt
 | scenarie_abl_par44_historisk_par2c_afskærer: abl_par44_historisk_par2c -> abl_par44_historisk_par2c.input_gyldigt && abl_par44_historisk_par2c.børsbetingelse_opfyldt && abl_par44_historisk_par2c.beholdningsbetingelse_opfyldt && abl_par44_historisk_par2c.omfattet_af_par44 == Falskt
 | scenarie_abl_par44_udbytte_føder_par13a: abl_par44_udbyttekilde -> abl_par44_udbyttekilde.input_gyldigt && abl_par44_udbyttekilde.udbytte_for_aktie_omfattet_af_par44 && abl_par44_udbyttekilde.udbytte_for_aktie_med_gevinst_efter_par12 == Falskt
+| scenarie_abl_par44_fondsaktie_arver_stk1: abl_par44_fondsaktieresultat -> abl_par44_fondsaktiebeholdningsresultat.alle_input_gyldige && abl_par44_fondsaktieresultat.fondsaktielinje_gyldig && abl_par44_fondsaktieresultat.grundbetingelser_før_statusændring_opfyldt && abl_par44_fondsaktieresultat.omfattet_af_par44 && abl_par44_fondsaktieudbyttekilde.input_gyldigt && abl_par44_fondsaktieudbyttekilde.udbytte_for_aktie_omfattet_af_par44
+| scenarie_abl_par44_manglende_grundaktie_afvises: abl_par44_manglende_grundaktiebeholdningsresultat -> abl_par44_manglende_grundaktiebeholdningsresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_manglende_grundaktiebeholdningsresultat, "manglende-grundlag").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_selvreference_afvises: abl_par44_selvreferenceresultat -> abl_par44_selvreferenceresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_selvreferenceresultat, "selvreference").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_krydsselskab_afvises: abl_par44_krydsselskabsresultat -> abl_par44_krydsselskabsresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_krydsselskabsresultat, "andet-selskab").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_fondsaktiekæde_afvises: abl_par44_fondsaktiekæderesultat -> abl_par44_fondsaktiekæderesultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_fondsaktiekæderesultat, "fondsaktie-paa-fondsaktie").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_dobbelt_identifikation_afvises: abl_par44_dobbelt_identifikationsresultat -> abl_par44_dobbelt_identifikationsresultat.identifikationer_entydige == Falskt && abl_par44_dobbelt_identifikationsresultat.alle_input_gyldige == Falskt
+| scenarie_abl_par44_tildeling_før_grundaktien_afvises: abl_par44_tildeling_før_grundaktieresultat -> abl_par44_tildeling_før_grundaktieresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_tildeling_før_grundaktieresultat, "fondsaktie-foer-grundaktie").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_fremtidig_tildeling_afvises: abl_par44_fremtidig_tildelingsresultat -> abl_par44_fremtidig_tildelingsresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_fremtidig_tildelingsresultat, "fremtidig-fondsaktie").input_gyldigt == Falskt
+| scenarie_abl_par44_tildeling_efter_grundaktiens_statusændring_afvises: abl_par44_tildeling_efter_statusændringsresultat -> abl_par44_tildeling_efter_statusændringsresultat.alle_input_gyldige == Falskt && abl_par44_scenarie_aktieresultat(abl_par44_tildeling_efter_statusændringsresultat, "fondsaktie-efter-statusaendring").fondsaktielinje_gyldig == Falskt
+| scenarie_abl_par44_statusgrundlag_føder_ordinær_gevinst: abl_par44_statusgevinstforløb -> abl_par44_statusgevinstforløb.alle_hændelser_gyldige && abl_par44_scenarie_statusændring_matcher(head(abl_par44_statusgevinstforløb.hændelsesresultater), 150000) && head(abl_par44_statusgevinstforløb.hændelsesresultater).position_efter.anskaffelsessum_kroner == 150000 && head(tail(abl_par44_statusgevinstforløb.hændelsesresultater)).anskaffelsessum_henført_til_afståelse_kroner == 150000 && head(tail(abl_par44_statusgevinstforløb.hændelsesresultater)).skattepligtig_gevinst_efter_par12_kroner == 60000
+| scenarie_abl_par44_statusgrundlag_føder_ordinært_tab: abl_par44_statustabforløb -> abl_par44_statustabforløb.alle_hændelser_gyldige && head(tail(abl_par44_statustabforløb.hændelsesresultater)).bruttotab_kroner == 30000 && head(tail(abl_par44_statustabforløb.hændelsesresultater)).tabsreduktion_efter_par5a_kroner == 0 && head(tail(abl_par44_statustabforløb.hændelsesresultater)).tab_til_modregning_efter_par13a_kroner == 30000
+| scenarie_abl_par44_statusgrundlag_aggregeres_i_ordinært_år: abl_par44_statusgevinstår -> abl_par44_statusgevinstår.alle_input_gyldige && abl_par44_statusgevinstår.årsresultat.skattepligtige_gevinster_efter_par12_kroner == 60000 && abl_par44_statusgevinstår.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 60000 && abl_par44_statustabår.alle_input_gyldige && abl_par44_statustabår.årsresultat.årets_tab_efter_par13a_kroner == 30000 && abl_par44_statustabår.årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 30000
+| scenarie_abl_par44_statusgrundlag_indgår_i_gennemsnit: abl_par44_blandet_forløb -> abl_par44_blandet_forløb.alle_hændelser_gyldige && head(abl_par44_blandet_forløb.hændelsesresultater).position_efter.anskaffelsessum_kroner == 200000 && head(tail(abl_par44_blandet_forløb.hændelsesresultater)).anskaffelsessum_henført_til_afståelse_kroner == 100000 && head(tail(abl_par44_blandet_forløb.hændelsesresultater)).skattepligtig_gevinst_efter_par12_kroner == 80000 && abl_par44_blandet_forløb.position_ultimo.anskaffelsessum_kroner == 100000
+| scenarie_abl_par44_dobbelt_statusændring_afvises: abl_par44_dobbelt_statusændringsforløb -> abl_par44_dobbelt_statusændringsforløb.par44_statusændringsidentifikationer_entydige == Falskt && abl_par44_dobbelt_statusændringsforløb.alle_hændelser_gyldige == Falskt
+| scenarie_abl_par44_tidligere_statusændring_genafspilles_ikke_i_aktuelt_år: abl_par44_tidligere_statusændring_i_aktuelt_år -> abl_par44_tidligere_statusændring_i_aktuelt_år.alle_input_gyldige == Falskt && abl_par44_tidligere_statusændring_i_aktuelt_år.årsresultat.skattepligtige_gevinster_efter_par12_kroner == 0
 
 ? scenarie_abl_par44_enlig_på_grænsen_omfattes
 ? scenarie_abl_par44_enlig_over_grænsen_afvises
@@ -73,3 +312,18 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
 ? scenarie_abl_par44_nasdaq_uden_rettidigt_valg_afskærer
 ? scenarie_abl_par44_historisk_par2c_afskærer
 ? scenarie_abl_par44_udbytte_føder_par13a
+? scenarie_abl_par44_fondsaktie_arver_stk1
+? scenarie_abl_par44_manglende_grundaktie_afvises
+? scenarie_abl_par44_selvreference_afvises
+? scenarie_abl_par44_krydsselskab_afvises
+? scenarie_abl_par44_fondsaktiekæde_afvises
+? scenarie_abl_par44_dobbelt_identifikation_afvises
+? scenarie_abl_par44_tildeling_før_grundaktien_afvises
+? scenarie_abl_par44_fremtidig_tildeling_afvises
+? scenarie_abl_par44_tildeling_efter_grundaktiens_statusændring_afvises
+? scenarie_abl_par44_statusgrundlag_føder_ordinær_gevinst
+? scenarie_abl_par44_statusgrundlag_føder_ordinært_tab
+? scenarie_abl_par44_statusgrundlag_aggregeres_i_ordinært_år
+? scenarie_abl_par44_statusgrundlag_indgår_i_gennemsnit
+? scenarie_abl_par44_dobbelt_statusændring_afvises
+? scenarie_abl_par44_tidligere_statusændring_genafspilles_ikke_i_aktuelt_år

@@ -2018,9 +2018,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.aktiv",
             "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.par17_modprøve.næringsstatus",
             "par13a_kildefakta.AblPar13AUdbytteForMarkedsaktieEfterPar12.aktivklassifikation.investeringsklassifikation.$variant",
-            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.identifikation",
-            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.beholdningsfakta.egen_kursværdi_pr_31_december_2005_kroner",
-            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.par44_input.historisk_undtagelsesstatus",
+            "par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.aktie_identifikation",
         ] {
             assert!(
                 dividend_paths.iter().any(|path| path == expected),
@@ -2044,13 +2042,61 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Aktivets ABL-kategori",
             "Næring med køb og salg af aktier",
             "Investeringsaktivets klassifikationsgrundlag",
-            "Den historiske akties identifikation",
-            "Egen børsnoteret beholdning den 31. december 2005",
-            "Historisk undtagelse efter § 2 c eller § 2 e",
+            "§ 44-aktie bag udbyttet",
         ] {
             assert!(
                 dividend_headers.iter().any(|header| header == expected),
                 "missing human dividend input label {expected} on {dividend_sheet}"
+            );
+        }
+        let par44_holdings_path = "aktieavance.udbytter.par13a_kildefakta.AblPar13AUdbytteForAktieOmfattetAfPar44.beholdning.aktier";
+        let par44_holdings_sheet =
+            workbook_collection_sheet_name(&mut workbook, par44_holdings_path);
+        let par44_holding_paths = workbook_column_paths(&mut workbook, &par44_holdings_sheet);
+        for expected in [
+            "identifikation",
+            "selskabsidentifikation",
+            "indkomstår",
+            "kapitalmængde.$variant",
+            "kapitalmængde.AblAktiekapitalUdenPålydendeVærdi.antal_aktier",
+            "erhvervelsesgrundlag.$variant",
+            "erhvervelsesgrundlag.AblPar44AktieErhvervetFør2006.kildegrundlag.erhvervelsesdato.år",
+            "erhvervelsesgrundlag.AblPar44AktieErhvervetFør2006.kildegrundlag.børsstatus_pr_31_december_2005",
+            "erhvervelsesgrundlag.AblPar44AktieErhvervetFør2006.kildegrundlag.beholdningsfakta.egen_kursværdi_pr_31_december_2005_kroner",
+            "erhvervelsesgrundlag.AblPar44AktieErhvervetFør2006.kildegrundlag.historisk_undtagelsesstatus",
+            "erhvervelsesgrundlag.AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie.grundaktiens_identifikation",
+            "erhvervelsesgrundlag.AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie.tildelingsdato.år",
+            "statusforløb.$variant",
+            "statusforløb.AblPar44StatusændretTilIkkeReguleretMarked.statusændringsdato.år",
+            "statusforløb.AblPar44StatusændretTilIkkeReguleretMarked.kursværdi_på_statusændringstidspunktet_kroner",
+        ] {
+            assert!(
+                par44_holding_paths.iter().any(|path| path == expected),
+                "missing canonical ABL § 44 holding path {expected} on {par44_holdings_sheet}"
+            );
+        }
+        let par44_holding_headers = workbook_headers(&mut workbook, &par44_holdings_sheet);
+        for expected in [
+            "Den historiske akties identifikation",
+            "Selskabet bag § 44-aktien",
+            "Indkomstår for § 44-vurderingen",
+            "Kapitalmængde for § 44-aktien",
+            "Erhvervelsesgrundlag efter ABL § 44",
+            "Aktiens erhvervelsesår",
+            "Børsstatus den 31. december 2005",
+            "Egen børsnoteret beholdning den 31. december 2005",
+            "Historisk undtagelse efter § 2 c eller § 2 e",
+            "Fondsaktiens grundaktie",
+            "Fondsaktiens tildelingsår",
+            "§ 44-aktiens statusforløb",
+            "Statusændringens år",
+            "Kursværdi ved § 44-statusændringen",
+        ] {
+            assert!(
+                par44_holding_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human ABL § 44 holding label {expected} on {par44_holdings_sheet}"
             );
         }
         let property_tax_path = "ejendomsskatter.ejendomme";

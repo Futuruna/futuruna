@@ -1,0 +1,123 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet validerer, at en statusændring efter ABL § 44, stk. 3, føder den
+ordinære gennemsnitsbeholdning med kursværdien som anskaffelsessum og derefter
+når den kanoniske personskatteberegning. Scenariet er ikke lovtekst.
+----
+
+= personskat_par44_aktivklassifikation = AktieavanceAktivklassifikationInput(
+    indkomstår = 2026,
+    aktiv = AblOrdinærAktiePar12Til15,
+    par17_modprøve = AktieavancePar17Modprøve(
+        næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+        erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+    ),
+    investeringsklassifikation = AblIngenInvesteringsklassifikation
+)
+= personskat_par44_historisk_aktie = AktieavancePar44Input(
+    identifikation = "historisk-aktie",
+    selskabsidentifikation = "DK-PAR44",
+    indkomstår = 2026,
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(kildegrundlag = AktieavancePar44Stk1Kildegrundlag(
+        erhvervelsesdato = AktieavanceInvesteringsdato(år = 2005, måned = 6, dag = 1),
+        børsstatus_pr_31_december_2005 = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2,
+        beholdningsfakta = AktieavancePar44Beholdningsfakta(
+            egen_kursværdi_pr_31_december_2005_kroner = 100000,
+            ægtefællestatus = AblPar44UdenSamlevendeÆgtefælle,
+            ægtefælles_kursværdi_pr_31_december_2005_kroner = 0
+        ),
+        historisk_undtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E
+    )),
+    aktivklassifikation = personskat_par44_aktivklassifikation,
+    statusforløb = AblPar44StatusændretTilIkkeReguleretMarked(
+        statusændringsdato = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1),
+        kursværdi_på_statusændringstidspunktet_kroner = 150000
+    )
+)
+= personskat_par44_beholdning = AktieavancePar44Beholdningsinput(aktier = [personskat_par44_historisk_aktie])
+= personskat_par44_position_primo = AktieavanceOrdinærPosition(
+    selskabsidentifikation = "DK-PAR44",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 0),
+    anskaffelsessum_kroner = 0
+)
+= personskat_par44_statusændring = AblPar44Statusændring(
+    beholdning = personskat_par44_beholdning,
+    aktie_identifikation = "historisk-aktie"
+)
+= personskat_par44_afståelse = AblOrdinærAfståelse(
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 100),
+    afståelsessum_kroner = 210000,
+    vilkår = AktieavanceOrdinærAfståelsesvilkår(
+        markedsstatus = AblIkkeOptagetTilHandel,
+        har_tidligere_været_optaget_til_handel = Sandt,
+        hovedaktionæraktier = Falskt,
+        afståede_aktiers_handelsværdi_kroner = 0,
+        beholdte_aktiers_handelsværdi_kroner = 0,
+        oplysningsstatus = AblOplystRettidigt,
+        boligret = AblUdenBoligret
+    ),
+    par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+)
+= personskat_par44_ordinært_aktieår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = personskat_par44_position_primo,
+        hændelser = [personskat_par44_statusændring, personskat_par44_afståelse]
+    )],
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= personskat_par44_lønmodtager = PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= personskat_par44_input = PersonskatInput(
+    lønmodtager = personskat_par44_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = PersonskatAktieavanceInput(
+        ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par44_ordinært_aktieår),
+        særlige_aktiver = [],
+        udbytter = []
+    ),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+= personskat_par44_resultat = beregn_personskat(personskat_par44_input)
+
+| personskat_par44_statusspor_gyldigt(resultat: PersonskatBeregningResultat) -> match resultat.aktieavance.ordinært_aktieår {
+    | BeregnetOrdinærtAktieår(årsresultat) -> {
+        = forløb = head(årsresultat.hændelsesforløbsresultater)
+        = statusresultat = head(forløb.hændelsesresultater)
+        = afståelsesresultat = head(tail(forløb.hændelsesresultater))
+        (årsresultat.alle_input_gyldige
+            && årsresultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 60000
+            && (match statusresultat.par44_statusændringsresultat {
+                    | Some(par44_resultat) -> par44_resultat.statusændret_efter_stk3 && par44_resultat.anskaffelsessum_efter_stk3_kroner == 150000
+                    | None -> Falskt
+                })
+            && afståelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 150000
+            && afståelsesresultat.skattepligtig_gevinst_efter_par12_kroner == 60000)
+    }
+    | _ -> Falskt
+}
+
+| scenarie_personskat_par44_statusgrundlag_når_slutskatten: personskat_par44_resultat -> personskat_par44_resultat.aktieavance.alle_input_gyldige && personskat_par44_statusspor_gyldigt(personskat_par44_resultat) && personskat_par44_resultat.aktieavance.aktieindkomst_kroner == 60000 && personskat_par44_resultat.endelig_aktieindkomstskat_kroner == 16200
+
+? scenarie_personskat_par44_statusgrundlag_når_slutskatten

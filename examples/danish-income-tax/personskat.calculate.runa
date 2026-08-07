@@ -5974,6 +5974,13 @@
     help = Some("Ved § 19 B skal meddelelse, aktivmasse og oplysninger dokumenteres, så Futuruna kan aflede den effektive status."),
     unit = None
 )
+= personskat_felt_par44_aktier = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Beholdningsinput::aktier),
+    label = "Historiske aktier efter ABL § 44",
+    question = Some("Hvilke historiske aktier og eventuelle fondsaktier indgår i § 44-beholdningen?"),
+    help = Some("Tilføj én række pr. aktie. Fondsaktier forbindes med en entydig grundaktie i samme beholdning."),
+    unit = None
+)
 = personskat_felt_par44_identifikation = TypetBeregningsfelt(
     path = refof(AktieavancePar44Input::identifikation),
     label = "Den historiske akties identifikation",
@@ -5981,12 +5988,26 @@
     help = Some("For en fondsaktie bruges identifikationen også til at forbinde den med den dokumenterede grundaktie."),
     unit = None
 )
+= personskat_felt_par44_selskab = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Input::selskabsidentifikation),
+    label = "Selskabet bag § 44-aktien",
+    question = Some("Hvilket selskab er den historiske aktie udstedt af?"),
+    help = Some("Brug samme stabile selskabsidentifikation som for den ordinære aktiebeholdning. En fondsaktie skal tilhøre samme selskab som sin grundaktie."),
+    unit = None
+)
 = personskat_felt_par44_indkomstår = TypetBeregningsfelt(
     path = refof(AktieavancePar44Input::indkomstår),
     label = "Indkomstår for § 44-vurderingen",
-    question = Some("Hvilket indkomstår gælder udbyttet fra den historiske aktie for?"),
+    question = Some("Hvilket indkomstår gælder § 44-vurderingen for?"),
     help = Some("Året skal være det samme som personskatteberegningens skatteår."),
     unit = Some("år")
+)
+= personskat_felt_par44_kapitalmængde = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Input::kapitalmængde::$variant),
+    label = "Kapitalmængde for § 44-aktien",
+    question = Some("Hvordan er aktiens kapitalmængde dokumenteret?"),
+    help = Some("Kapitalmængden bruges, når en statusændring fører aktien ind i den ordinære gennemsnitsbeholdning."),
+    unit = None
 )
 = personskat_felt_par44_erhvervelsesgrundlag = TypetBeregningsfelt(
     path = refof(AktieavancePar44Input::erhvervelsesgrundlag::$variant),
@@ -5996,21 +6017,21 @@
     unit = None
 )
 = personskat_felt_par44_erhvervelsesår = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::erhvervelsesdato::år),
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::kildegrundlag::erhvervelsesdato::år),
     label = "Aktiens erhvervelsesår",
     question = Some("I hvilket år blev den historiske aktie erhvervet?"),
     help = Some("Den almindelige § 44-gren kræver en gyldig dato før 1. januar 2006."),
     unit = Some("år")
 )
 = personskat_felt_par44_erhvervelsesmåned = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::erhvervelsesdato::måned),
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::kildegrundlag::erhvervelsesdato::måned),
     label = "Aktiens erhvervelsesmåned",
     question = Some("I hvilken måned blev den historiske aktie erhvervet?"),
     help = Some("Måneden indgår i den validerede erhvervelsesdato."),
     unit = Some("måned")
 )
 = personskat_felt_par44_erhvervelsesdag = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::erhvervelsesdato::dag),
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44AktieErhvervetFør2006::kildegrundlag::erhvervelsesdato::dag),
     label = "Aktiens erhvervelsesdag",
     question = Some("På hvilken dag blev den historiske aktie erhvervet?"),
     help = Some("Dagen indgår i den validerede erhvervelsesdato."),
@@ -6023,46 +6044,109 @@
     help = Some("Brug grundaktiens stabile identifikation."),
     unit = None
 )
+= personskat_felt_par44_tildelingsår = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie::tildelingsdato::år),
+    label = "Fondsaktiens tildelingsår",
+    question = Some("I hvilket år blev fondsaktien tildelt?"),
+    help = Some("Tildelingsdatoen skal ligge i den periode, hvor grundaktien fortsat var omfattet af § 44."),
+    unit = Some("år")
+)
+= personskat_felt_par44_tildelingsmåned = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie::tildelingsdato::måned),
+    label = "Fondsaktiens tildelingsmåned",
+    question = Some("I hvilken måned blev fondsaktien tildelt?"),
+    help = Some("Måneden indgår i den validerede tildelingsdato."),
+    unit = Some("måned")
+)
+= personskat_felt_par44_tildelingsdag = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Erhvervelsesgrundlag::AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie::tildelingsdato::dag),
+    label = "Fondsaktiens tildelingsdag",
+    question = Some("På hvilken dag blev fondsaktien tildelt?"),
+    help = Some("Dagen indgår i den validerede tildelingsdato."),
+    unit = Some("dag")
+)
 = personskat_felt_par44_børsstatus = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::børsstatus_pr_31_december_2005),
+    path = refof(AktieavancePar44Stk1Kildegrundlag::børsstatus_pr_31_december_2005),
     label = "Børsstatus den 31. december 2005",
     question = Some("Var aktien børsnoteret efter de dagældende regler, kun omsat på NASDAQ med eller uden rettidigt helhedsvalg, eller ikke børsnoteret?"),
     help = Some("NASDAQ-aktier regnes kun med, når et rettidigt skriftligt valg omfattede hele beholdningen."),
     unit = None
 )
 = personskat_felt_par44_egen_kursværdi = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::beholdningsfakta::egen_kursværdi_pr_31_december_2005_kroner),
+    path = refof(AktieavancePar44Stk1Kildegrundlag::beholdningsfakta::egen_kursværdi_pr_31_december_2005_kroner),
     label = "Egen børsnoteret beholdning den 31. december 2005",
     question = Some("Hvad var kursværdien af personens samlede omfattede børsnoterede aktiebeholdning den 31. december 2005?"),
     help = Some("Beløbet prøves mod den regulerede enlige- eller ægtefællegrænse for 2005."),
     unit = Some("kr.")
 )
 = personskat_felt_par44_ægtefællestatus = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::beholdningsfakta::ægtefællestatus),
+    path = refof(AktieavancePar44Stk1Kildegrundlag::beholdningsfakta::ægtefællestatus),
     label = "Ægtefælleforhold i 2005",
     question = Some("Var personen uden samlevende ægtefælle, samlevende hele perioden eller ramt af ægtefællens dødsfald i perioden frem til 31. december 2005?"),
     help = Some("Status afgør, om ægtefællens beholdning og den fælles grænse på 273.100 kr. anvendes."),
     unit = None
 )
 = personskat_felt_par44_ægtefælles_kursværdi = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::beholdningsfakta::ægtefælles_kursværdi_pr_31_december_2005_kroner),
+    path = refof(AktieavancePar44Stk1Kildegrundlag::beholdningsfakta::ægtefælles_kursværdi_pr_31_december_2005_kroner),
     label = "Ægtefællens børsnoterede beholdning den 31. december 2005",
     question = Some("Hvad var den omfattede ægtefælles samlede beholdningsværdi den 31. december 2005?"),
     help = Some("Angiv 0, når der ikke var en omfattet samlevende ægtefælle."),
     unit = Some("kr.")
 )
 = personskat_felt_par44_statusændring = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked),
-    label = "Senere statusændring væk fra reguleret marked",
-    question = Some("Har aktien senest på afståelsestidspunktet ændret skattemæssig status, så den ikke længere er optaget til handel på et reguleret marked?"),
-    help = Some("En sådan statusændring afskærer skattefritagelsen efter ABL § 44, stk. 3."),
+    path = refof(AktieavancePar44Input::statusforløb::$variant),
+    label = "§ 44-aktiens statusforløb",
+    question = Some("Er aktien fortsat optaget til handel på et reguleret marked, eller er dens status ændret?"),
+    help = Some("Ved statusændring afskæres skattefritagelsen, og kursværdien på ændringstidspunktet bliver aktiens anskaffelsessum efter ABL § 44, stk. 3."),
     unit = None
 )
+= personskat_felt_par44_statusændringsår = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Statusforløb::AblPar44StatusændretTilIkkeReguleretMarked::statusændringsdato::år),
+    label = "Statusændringens år",
+    question = Some("I hvilket år ophørte aktien med at være optaget til handel på et reguleret marked?"),
+    help = Some("Datoen skal ligge efter erhvervelsen eller fondsaktietildelingen og senest i vurderingsåret."),
+    unit = Some("år")
+)
+= personskat_felt_par44_statusændringsmåned = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Statusforløb::AblPar44StatusændretTilIkkeReguleretMarked::statusændringsdato::måned),
+    label = "Statusændringens måned",
+    question = Some("I hvilken måned skete statusændringen?"),
+    help = Some("Måneden indgår i den validerede statusændringsdato."),
+    unit = Some("måned")
+)
+= personskat_felt_par44_statusændringsdag = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Statusforløb::AblPar44StatusændretTilIkkeReguleretMarked::statusændringsdato::dag),
+    label = "Statusændringens dag",
+    question = Some("På hvilken dag skete statusændringen?"),
+    help = Some("Dagen indgår i den validerede statusændringsdato."),
+    unit = Some("dag")
+)
+= personskat_felt_par44_statusændringskursværdi = TypetBeregningsfelt(
+    path = refof(AktieavancePar44Statusforløb::AblPar44StatusændretTilIkkeReguleretMarked::kursværdi_på_statusændringstidspunktet_kroner),
+    label = "Kursværdi ved § 44-statusændringen",
+    question = Some("Hvad var aktiens kursværdi på statusændringstidspunktet?"),
+    help = Some("Beløbet bliver den lovbestemte anskaffelsessum for den efterfølgende ordinære avanceopgørelse."),
+    unit = Some("kr.")
+)
 = personskat_felt_par44_historisk_undtagelse = TypetBeregningsfelt(
-    path = refof(AktieavancePar44Input::historisk_undtagelsesstatus),
+    path = refof(AktieavancePar44Stk1Kildegrundlag::historisk_undtagelsesstatus),
     label = "Historisk undtagelse efter § 2 c eller § 2 e",
     question = Some("Ville aktien have været omfattet af den dagældende ABL § 2 c eller § 2 e ved en afståelse den 31. december 2005?"),
     help = Some("En af de to historiske kategorier afskærer § 44 efter stk. 5."),
+    unit = None
+)
+= personskat_felt_par44_statushændelse_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærHændelse::AblPar44Statusændring::aktie_identifikation),
+    label = "Aktie for § 44-statusændringen",
+    question = Some("Hvilken aktie i § 44-beholdningen skal føres ind i den ordinære aktiebeholdning?"),
+    help = Some("Brug aktiens stabile identifikation. Den må kun statusændres én gang i samme hændelsesforløb."),
+    unit = None
+)
+= personskat_felt_par44_udbytte_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AUdbytteKildefakta::AblPar13AUdbytteForAktieOmfattetAfPar44::aktie_identifikation),
+    label = "§ 44-aktie bag udbyttet",
+    question = Some("Hvilken aktie i § 44-beholdningen blev udbyttet modtaget fra?"),
+    help = Some("Brug aktiens stabile identifikation, så § 44-betingelserne kan efterprøves i den samlede beholdning."),
     unit = None
 )
 = personskat_felt_aktiebeholdninger = Beregningsfelt(
@@ -9734,19 +9818,31 @@
         Field(value = personskat_felt_abl_aktivklassifikation_næringsstatus),
         Field(value = personskat_felt_abl_aktivklassifikation_erhvervelsesstatus),
         Field(value = personskat_felt_abl_investeringsklassifikation),
+        Field(value = personskat_felt_par44_aktier),
         Field(value = personskat_felt_par44_identifikation),
+        Field(value = personskat_felt_par44_selskab),
         Field(value = personskat_felt_par44_indkomstår),
+        Field(value = personskat_felt_par44_kapitalmængde),
         Field(value = personskat_felt_par44_erhvervelsesgrundlag),
         Field(value = personskat_felt_par44_erhvervelsesår),
         Field(value = personskat_felt_par44_erhvervelsesmåned),
         Field(value = personskat_felt_par44_erhvervelsesdag),
         Field(value = personskat_felt_par44_grundaktie),
+        Field(value = personskat_felt_par44_tildelingsår),
+        Field(value = personskat_felt_par44_tildelingsmåned),
+        Field(value = personskat_felt_par44_tildelingsdag),
         Field(value = personskat_felt_par44_børsstatus),
         Field(value = personskat_felt_par44_egen_kursværdi),
         Field(value = personskat_felt_par44_ægtefællestatus),
         Field(value = personskat_felt_par44_ægtefælles_kursværdi),
         Field(value = personskat_felt_par44_statusændring),
+        Field(value = personskat_felt_par44_statusændringsår),
+        Field(value = personskat_felt_par44_statusændringsmåned),
+        Field(value = personskat_felt_par44_statusændringsdag),
+        Field(value = personskat_felt_par44_statusændringskursværdi),
         Field(value = personskat_felt_par44_historisk_undtagelse),
+        Field(value = personskat_felt_par44_statushændelse_identifikation),
+        Field(value = personskat_felt_par44_udbytte_identifikation),
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
@@ -10790,7 +10886,10 @@
     | AblPar13AUdbytteUdenForModregningsgrundlag -> Sandt
     | AblPar13AUdbytteForMarkedsaktieEfterPar12(_, klassifikation) -> klassifikation.indkomstår == skatteår
     | AblPar13AUdbytteForMarkedsaktieEfterPar19B(_, klassifikation) -> klassifikation.indkomstår == skatteår
-    | AblPar13AUdbytteForAktieOmfattetAfPar44(par44_input) -> par44_input.indkomstår == skatteår
+    | AblPar13AUdbytteForAktieOmfattetAfPar44(beholdning, aktie_identifikation) -> match aktieavance_par44_resultat_fra_beholdning(beholdning, aktie_identifikation) {
+        | Some(par44_resultat) -> par44_resultat.input.indkomstår == skatteår
+        | None -> Falskt
+    }
 }
 | personskat_udbytte_par13a_kildefakta_og_aktiv_forenelige(fakta: PersonskatUdbytteFakta, kilderesultat: AktieavancePar13AUdbytteKilderesultat, skatteår: Heltal) -> kilderesultat.input_gyldigt && personskat_udbytte_par13a_kildefakta_indkomstår_gyldigt(fakta.par13a_kildefakta, skatteår) && (fakta.par13a_kildefakta == AblPar13AUdbytteUdenForModregningsgrundlag || fakta.aktiv == PersonskatAlmindeligAktie)
 | personskat_udbytte_ligningslov16a_fakta(fakta: PersonskatUdbytteFakta, skatteår: Heltal) -> Ligningslov16AOrdinærUdlodningsfakta(

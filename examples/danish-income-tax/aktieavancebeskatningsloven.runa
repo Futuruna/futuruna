@@ -64,8 +64,13 @@ EndDate: 2026-07-29
 )
 = aktieavancebeskatningsloven_juridisk_vejledning_par44 = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946320",
-    identifier = "Den juridiske vejledning 2026-1, C.B.2.2.3.1.1: regulerede beholdningsgrænser pr. 31. december 2005 på 136.600 kr. og 273.100 kr.",
+    identifier = "Den juridiske vejledning 2026-1, C.B.2.2.3.1.1: regulerede beholdningsgrænser pr. 31. december 2005 på 136.600 kr. og 273.100 kr. samt kursværdien som anskaffelsessum ved statusskifte",
     hentet_dato = "2026-08-01"
+)
+= aktieavancebeskatningsloven_l78_par44_bemærkninger = AktieavancebeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/200512L00078",
+    identifier = "2005/1 LSF 78, bemærkningerne til ABL § 44: overgangsreglens formål og afgrænsning",
+    hentet_dato = "2026-08-05"
 )
 = aktieavancebeskatningsloven_lbk1098_par23_par24_par26 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
@@ -311,10 +316,10 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 # AktieavanceOrdinærStykkapitaldel(antal_aktier: Heltal, kapitalvægt: AktieavanceOrdinærKapitalvægt)
 # AktieavanceOrdinærKapitalmængde = AblPålydendeAktiekapital(antal_aktier: Heltal, samlet_pålydende_kroner: Heltal) | AblAktiekapitalUdenPålydendeVærdi(antal_aktier: Heltal) | AblDokumenteretStykkapital(stykkapital_del: AktieavanceOrdinærStykkapitaldel) | AblBlandetAktiekapital(pålydende_del: AktieavanceOrdinærPålydendeKapitaldel, stykkapital_del: AktieavanceOrdinærStykkapitaldel)
 # AktieavanceOrdinærPosition(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal)
-# AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
-# AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, par5a_resultat: Option(AktieavancePar5AResultat), par5a_kildefakta_gyldige: Boolsk, tabsreduktion_efter_par5a_kroner: Heltal, tab_efter_par5a_kroner: Heltal, par15_resultat: AktieavanceOrdinærPar15Resultat, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
+# AktieavanceOrdinærHændelse = AblOrdinærAnskaffelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsessum_kroner: Heltal) | AblPar44Statusændring(beholdning: AktieavancePar44Beholdningsinput, aktie_identifikation: Tekst) | AblOrdinærAfståelse(kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, vilkår: AktieavanceOrdinærAfståelsesvilkår, par5a_kildefakta: AktieavanceOrdinærPar5AKildefakta)
+# AktieavanceOrdinærHændelsesresultat(position_før: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse, position_gyldig: Boolsk, hændelse_gyldig: Boolsk, par44_statusændringsresultat: Option(AktieavancePar44Resultat), anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, par5a_resultat: Option(AktieavancePar5AResultat), par5a_kildefakta_gyldige: Boolsk, tabsreduktion_efter_par5a_kroner: Heltal, tab_efter_par5a_kroner: Heltal, par15_resultat: AktieavanceOrdinærPar15Resultat, skattefri_efter_par15: Boolsk, tab_behandles_efter_par13a: Boolsk, oplysningsbetingelse_efter_par14_opfyldt: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavanceOrdinærPosition)
 # AktieavanceOrdinærHændelsesforløbstilstand(position: AktieavanceOrdinærPosition, hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), alle_hændelser_gyldige: Boolsk)
-# AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, alle_hændelser_gyldige: Boolsk)
+# AktieavanceOrdinærHændelsesforløbResultat(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat), position_ultimo: AktieavanceOrdinærPosition, par44_statusændringsidentifikationer_entydige: Boolsk, alle_hændelser_gyldige: Boolsk)
 # AktieavanceSkattepostArt = AblSkattepostOrdinærAktie | AblSkattepostAktieretEfterPar25 | AblSkattepostTegningsretEfterPar25 | AblSkattepostAkkumulerendeInvesteringsbevisEfterPar20Stk2 | AblSkattepostAktiebaseretMinimumsbevisEfterPar21
 # AktieavanceSkattepost(art: AktieavanceSkattepostArt, markedsstatus: AktieavanceOrdinærMarkedsstatus, skattepligtig_gevinst_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, fradragsberettiget_tab_efter_par13_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, gevinst_i_modregningsgrundlag_efter_par13a_kroner: Heltal)
 # AktieavancePar13AInvesteringsbevisArt = AblPar20Stk2AkkumulerendeInvesteringsbevis | AblPar21AktiebaseretMinimumsbevis
@@ -417,12 +422,14 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 | aktieavance_ordinaer_position_antal_aktier(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_antal_aktier(position.kapitalmængde)
 | aktieavance_ordinaer_position_pålydende_kroner(position: AktieavanceOrdinærPosition) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(position.kapitalmængde)
 | aktieavance_ordinaer_position_gyldig(position: AktieavanceOrdinærPosition) -> position.selskabsidentifikation != "" && aktieavance_ordinaer_kapitalmængde_gyldig(position.kapitalmængde) && position.anskaffelsessum_kroner >= 0 && ((aktieavance_ordinaer_position_antal_aktier(position) == 0 && position.anskaffelsessum_kroner == 0) || aktieavance_ordinaer_position_antal_aktier(position) > 0)
-| aktieavance_ordinaer_er_anskaffelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, _) -> Sandt | _ -> Falskt }
+| aktieavance_ordinaer_er_ordinær_anskaffelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, _) -> Sandt | _ -> Falskt }
+| aktieavance_ordinaer_er_par44_statusændring(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblPar44Statusændring(_, _) -> Sandt | _ -> Falskt }
+| aktieavance_ordinaer_er_anskaffelse(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_er_ordinær_anskaffelse(hændelse) || aktieavance_ordinaer_er_par44_statusændring(hændelse)
 | aktieavance_ordinaer_er_afståelse(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, _, _) -> Sandt | _ -> Falskt }
-| aktieavance_ordinaer_kapitalmængde(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(kapitalmængde, _) -> kapitalmængde | AblOrdinærAfståelse(kapitalmængde, _, _, _) -> kapitalmængde }
+| aktieavance_ordinaer_kapitalmængde(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(kapitalmængde, _) -> kapitalmængde | AblPar44Statusændring(beholdning, identifikation) -> aktieavance_par44_statusændringskapitalmængde(beholdning, identifikation) | AblOrdinærAfståelse(kapitalmængde, _, _, _) -> kapitalmængde }
 | aktieavance_ordinaer_antal_aktier(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_kapitalmængde_antal_aktier(aktieavance_ordinaer_kapitalmængde(hændelse))
 | aktieavance_ordinaer_pålydende_kroner(hændelse: AktieavanceOrdinærHændelse) -> aktieavance_ordinaer_kapitalmængde_pålydende_kroner(aktieavance_ordinaer_kapitalmængde(hændelse))
-| aktieavance_ordinaer_anskaffelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, anskaffelsessum_kroner) -> anskaffelsessum_kroner | _ -> 0 }
+| aktieavance_ordinaer_anskaffelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAnskaffelse(_, anskaffelsessum_kroner) -> anskaffelsessum_kroner | AblPar44Statusændring(beholdning, identifikation) -> aktieavance_par44_statusændringsanskaffelsessum_kroner(beholdning, identifikation) | _ -> 0 }
 | aktieavance_ordinaer_afståelsessum_kroner(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, afståelsessum_kroner, _, _) -> afståelsessum_kroner | _ -> 0 }
 | aktieavance_ordinaer_afståelsesvilkår(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, vilkår, _) -> vilkår | _ -> AktieavanceOrdinærAfståelsesvilkår(markedsstatus = AblIkkeOptagetTilHandel, har_tidligere_været_optaget_til_handel = Falskt, hovedaktionæraktier = Falskt, afståede_aktiers_handelsværdi_kroner = 0, beholdte_aktiers_handelsværdi_kroner = 0, oplysningsstatus = AblOplysningsbetingelseIkkeOpfyldt, boligret = AblUdenBoligret) }
 | aktieavance_ordinaer_par5a_kildefakta(hændelse: AktieavanceOrdinærHændelse) -> match hændelse { | AblOrdinærAfståelse(_, _, _, par5a_kildefakta) -> par5a_kildefakta | _ -> AblOrdinærIngenPar5AFaktaPåkrævet }
@@ -517,6 +524,14 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 
 # AktieavanceOrdinærHændelsesSag(position: AktieavanceOrdinærPosition, hændelse: AktieavanceOrdinærHændelse) {
     | position_gyldig() -> aktieavance_ordinaer_position_gyldig(position)
+    | par44_statusændringsresultat() -> match hændelse {
+        | AblPar44Statusændring(beholdning, identifikation) -> aktieavance_par44_resultat_fra_beholdning(beholdning, identifikation)
+        | _ -> None
+    }
+    | par44_statusændring_gyldig() -> match par44_statusændringsresultat() {
+        | Some(resultat) -> resultat.statusændret_efter_stk3 && resultat.input.selskabsidentifikation == position.selskabsidentifikation
+        | None -> Falskt
+    }
     | kapitalmængde() -> aktieavance_ordinaer_kapitalmængde(hændelse)
     | antal_aktier() -> aktieavance_ordinaer_antal_aktier(hændelse)
     | pålydende_kroner() -> aktieavance_ordinaer_pålydende_kroner(hændelse)
@@ -528,7 +543,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     | har_sammenlignelig_kapitalvægt() -> aktieavance_ordinaer_kapitalmængder_har_sammenlignelig_kapitalvægt(position.kapitalmængde, kapitalmængde())
     | beholdningens_kapitalvægt() -> aktieavance_ordinaer_kapitalmængde_før_kapitalvægt(position.kapitalmængde, kapitalmængde())
     | afstået_kapitalvægt() -> aktieavance_ordinaer_kapitalmængde_afstået_kapitalvægt(position.kapitalmængde, kapitalmængde())
-    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && anskaffelseskapital_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0
+    | anskaffelse_gyldig() -> aktieavance_ordinaer_er_anskaffelse(hændelse) && anskaffelseskapital_sammenhængende() && aktieavance_ordinaer_kapitalmængde_gyldig(kapitalmængde()) && antal_aktier() > 0 && aktieavance_ordinaer_anskaffelsessum_kroner(hændelse) >= 0 && (aktieavance_ordinaer_er_par44_statusændring(hændelse) == Falskt || par44_statusændring_gyldig())
     | hovedaktionærfordeling_gyldig() -> afståelsesvilkår().hovedaktionæraktier == Falskt || afstår_hele_beholdningen_efter_mængde() || (afståelsesvilkår().afståede_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner >= 0 && afståelsesvilkår().afståede_aktiers_handelsværdi_kroner + afståelsesvilkår().beholdte_aktiers_handelsværdi_kroner > 0)
     | boligret_input_gyldigt() -> aktieavance_ordinaer_boligret_input_gyldigt(afståelsesvilkår().boligret)
     | afståelsesgrundlag_gyldigt() -> aktieavance_ordinaer_er_afståelse(hændelse) && afståelseskapital_sammenhængende() && aktieavance_ordinaer_afståelsessum_kroner(hændelse) >= 0 && hovedaktionærfordeling_gyldig() && boligret_input_gyldigt()
@@ -588,6 +603,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
         hændelse = hændelse,
         position_gyldig = position_gyldig(),
         hændelse_gyldig = hændelse_gyldig(),
+        par44_statusændringsresultat = par44_statusændringsresultat(),
         anskaffelsessum_henført_til_afståelse_kroner = anskaffelsessum_henført_til_afståelse_kroner(),
         bruttogevinst_kroner = bruttogevinst_kroner(),
         bruttotab_kroner = bruttotab_kroner(),
@@ -626,12 +642,15 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
         hændelsesresultater = [],
         alle_hændelser_gyldige = aktieavance_ordinaer_position_gyldig(position_primo)
         ), aktieavance_ordinaer_hændelsesforløbstrin)
+    | par44_statusændringsidentifikationer() -> flat_map(hændelser, |hændelse: AktieavanceOrdinærHændelse| match hændelse { | AblPar44Statusændring(_, identifikation) -> [identifikation] | _ -> [] })
+    | par44_statusændringsidentifikationer_entydige() -> length(par44_statusændringsidentifikationer()) == length(distinct(par44_statusændringsidentifikationer()))
     | resultat() -> AktieavanceOrdinærHændelsesforløbResultat(
         position_primo = position_primo,
         hændelser = hændelser,
         hændelsesresultater = sluttilstand().hændelsesresultater,
         position_ultimo = sluttilstand().position,
-        alle_hændelser_gyldige = sluttilstand().alle_hændelser_gyldige
+        par44_statusændringsidentifikationer_entydige = par44_statusændringsidentifikationer_entydige(),
+        alle_hændelser_gyldige = sluttilstand().alle_hændelser_gyldige && par44_statusændringsidentifikationer_entydige()
     )
 }
 
@@ -718,13 +737,24 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 
 | aktieavance_ordinaer_årsparresultat(hovedperson: AktieavanceOrdinærÅrsinput, ægtefælle: AktieavanceOrdinærÅrsinput, gift_og_samlevende_ved_årets_udgang: Boolsk) -> AktieavanceOrdinærÅrsparSag(hovedperson, ægtefælle, gift_og_samlevende_ved_årets_udgang).resultat()
 | aktieavance_ordinaer_tomt_par13a_modregningsgrundlag() -> AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner = 0, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner = 0, udbytter_for_aktier_omfattet_af_par44_kroner = 0)
+| aktieavance_ordinaer_par44_statusændring_matcher_indkomstår(hændelse: AktieavanceOrdinærHændelse, indkomstår: Heltal) -> match hændelse {
+    | AblPar44Statusændring(beholdning, aktie_identifikation) -> match aktieavance_par44_resultat_fra_beholdning(beholdning, aktie_identifikation) {
+        | Some(par44_resultat) -> par44_resultat.input.indkomstår == indkomstår && match par44_resultat.input.statusforløb {
+            | AblPar44StatusændretTilIkkeReguleretMarked(statusændringsdato, _) -> statusændringsdato.år == indkomstår
+            | _ -> Falskt
+        }
+        | None -> Falskt
+    }
+    | _ -> Sandt
+}
 
 # AktieavanceOrdinærPersonÅrssag(input: AktieavanceOrdinærPersonÅrsinput, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag) {
     | hændelsesforløbsresultater() -> map(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| aktieavance_ordinaer_hændelsesforløb(forløb.position_primo, forløb.hændelser))
     | investeringsbevis_resultater() -> map(input.investeringsbeviser, aktieavance_par13a_investeringsbevis_resultat)
     | hændelsesforløb_gyldige() -> all(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| resultat.alle_hændelser_gyldige)
+    | par44_statusændringer_matcher_indkomstår() -> all(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| all(forløb.hændelser, |hændelse: AktieavanceOrdinærHændelse| aktieavance_ordinaer_par44_statusændring_matcher_indkomstår(hændelse, input.indkomstår)))
     | investeringsbeviser_gyldige() -> all(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.input_gyldigt && resultat.input.indkomstår == input.indkomstår)
-    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && investeringsbeviser_gyldige()
+    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && par44_statusændringer_matcher_indkomstår() && investeringsbeviser_gyldige()
     | hændelsesskatteposter() -> flat_map(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultat.hændelsesresultater))
     | investeringsbevis_skatteposter() -> map(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.skattepost)
     | skatteposter() -> hvis alle_input_gyldige() { concat(hændelsesskatteposter(), investeringsbevis_skatteposter()) } ellers { [] }
@@ -1513,6 +1543,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
         Source(value = aktieavancebeskatningsloven_lbk1098_par44),
         DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        PreparatorySource(value = aktieavancebeskatningsloven_l78_par44_bemærkninger),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
         AmendmentSource(value = aktieavancebeskatningsloven_lov1755),
         AmendmentSource(value = aktieavancebeskatningsloven_lov615),
@@ -1582,46 +1613,153 @@ personskattelovens § 20.
 # AktieavancePar44Børsstatus2005 = AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2 | AblPar44KunNasdaqMedRettidigtHelhedsvalg | AblPar44KunNasdaqUdenRettidigtHelhedsvalg | AblPar44IkkeBørsnoteret
 # AktieavancePar44Ægtefællestatus2005 = AblPar44UdenSamlevendeÆgtefælle | AblPar44SamlevendeÆgtefællerHelePerioden | AblPar44SamlevendeÆgtefælleDødIPerioden
 # AktieavancePar44Beholdningsfakta(egen_kursværdi_pr_31_december_2005_kroner: Heltal, ægtefællestatus: AktieavancePar44Ægtefællestatus2005, ægtefælles_kursværdi_pr_31_december_2005_kroner: Heltal)
-# AktieavancePar44Erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(erhvervelsesdato: AktieavanceInvesteringsdato) | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(grundaktiens_identifikation: Tekst)
 # AktieavancePar44HistoriskUndtagelsesstatus = AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E | AblPar44OmfattetAfHistoriskPar2C | AblPar44OmfattetAfHistoriskPar2E
-# AktieavancePar44Input(identifikation: Tekst, indkomstår: Heltal, erhvervelsesgrundlag: AktieavancePar44Erhvervelsesgrundlag, børsstatus_pr_31_december_2005: AktieavancePar44Børsstatus2005, beholdningsfakta: AktieavancePar44Beholdningsfakta, aktivklassifikation: AktieavanceAktivklassifikationInput, har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked: Boolsk, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus)
-# AktieavancePar44Resultat(input: AktieavancePar44Input, input_gyldigt: Boolsk, erhvervelsesgrundlag_opfyldt: Boolsk, børsbetingelse_opfyldt: Boolsk, samlet_kursværdi_pr_31_december_2005_kroner: Heltal, beholdningsgrænse_pr_31_december_2005_kroner: Heltal, beholdningsbetingelse_opfyldt: Boolsk, aktivklassifikation_omfattet: Boolsk, omfattet_af_par44: Boolsk)
+# AktieavancePar44Stk1Kildegrundlag(erhvervelsesdato: AktieavanceInvesteringsdato, børsstatus_pr_31_december_2005: AktieavancePar44Børsstatus2005, beholdningsfakta: AktieavancePar44Beholdningsfakta, historisk_undtagelsesstatus: AktieavancePar44HistoriskUndtagelsesstatus)
+# AktieavancePar44Erhvervelsesgrundlag = AblPar44AktieErhvervetFør2006(kildegrundlag: AktieavancePar44Stk1Kildegrundlag) | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(grundaktiens_identifikation: Tekst, tildelingsdato: AktieavanceInvesteringsdato)
+# AktieavancePar44Statusforløb = AblPar44FortsatOptagetTilHandelPåReguleretMarked | AblPar44StatusændretTilIkkeReguleretMarked(statusændringsdato: AktieavanceInvesteringsdato, kursværdi_på_statusændringstidspunktet_kroner: Heltal)
+# AktieavancePar44Input(identifikation: Tekst, selskabsidentifikation: Tekst, indkomstår: Heltal, kapitalmængde: AktieavanceOrdinærKapitalmængde, erhvervelsesgrundlag: AktieavancePar44Erhvervelsesgrundlag, aktivklassifikation: AktieavanceAktivklassifikationInput, statusforløb: AktieavancePar44Statusforløb)
+# AktieavancePar44Stk1Prøvelse(kildefakta_gyldige: Boolsk, erhvervet_før_2006: Boolsk, børsbetingelse_opfyldt: Boolsk, samlet_kursværdi_pr_31_december_2005_kroner: Heltal, beholdningsgrænse_pr_31_december_2005_kroner: Heltal, beholdningsbetingelse_opfyldt: Boolsk, aktivklassifikation_omfattet: Boolsk, historisk_undtagelse: Boolsk, omfattet_af_stk1_før_statusændring: Boolsk)
+# AktieavancePar44Resultat(input: AktieavancePar44Input, input_gyldigt: Boolsk, fondsaktielinje_gyldig: Boolsk, erhvervelsesgrundlag_opfyldt: Boolsk, børsbetingelse_opfyldt: Boolsk, samlet_kursværdi_pr_31_december_2005_kroner: Heltal, beholdningsgrænse_pr_31_december_2005_kroner: Heltal, beholdningsbetingelse_opfyldt: Boolsk, aktivklassifikation_omfattet: Boolsk, grundbetingelser_før_statusændring_opfyldt: Boolsk, statusforløb_gyldigt: Boolsk, statusændret_efter_stk3: Boolsk, anskaffelsessum_efter_stk3_kroner: Heltal, omfattet_af_par44: Boolsk)
+# AktieavancePar44Beholdningsinput(aktier: List(AktieavancePar44Input))
+# AktieavancePar44Beholdningsresultat(input: AktieavancePar44Beholdningsinput, aktieresultater: List(AktieavancePar44Resultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk)
 
-| aktieavance_par44_erhvervelsesgrundlag_gyldigt(grundlag: AktieavancePar44Erhvervelsesgrundlag) -> match grundlag { | AblPar44AktieErhvervetFør2006(dato) -> aktieavance_investerings_dato_gyldig(dato) | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(identifikation) -> identifikation != "" }
-| aktieavance_par44_erhvervelsesgrundlag_opfyldt(grundlag: AktieavancePar44Erhvervelsesgrundlag) -> match grundlag { | AblPar44AktieErhvervetFør2006(dato) -> aktieavance_investerings_dato_gyldig(dato) && aktieavance_investerings_dato_nøgle(dato) < 20060101 | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(identifikation) -> identifikation != "" }
+| aktieavance_par44_stk1_kildegrundlag_gyldigt(kildegrundlag: AktieavancePar44Stk1Kildegrundlag) -> aktieavance_investerings_dato_gyldig(kildegrundlag.erhvervelsesdato) && aktieavance_par44_beholdningsfakta_gyldige(kildegrundlag.beholdningsfakta)
+| aktieavance_par44_erhvervelsesgrundlag_gyldigt(grundlag: AktieavancePar44Erhvervelsesgrundlag) -> match grundlag {
+    | AblPar44AktieErhvervetFør2006(kildegrundlag) -> aktieavance_par44_stk1_kildegrundlag_gyldigt(kildegrundlag)
+    | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(identifikation, tildelingsdato) -> identifikation != "" && aktieavance_investerings_dato_gyldig(tildelingsdato)
+}
+| aktieavance_par44_erhvervelsesdato(grundlag: AktieavancePar44Erhvervelsesgrundlag) -> match grundlag {
+    | AblPar44AktieErhvervetFør2006(kildegrundlag) -> kildegrundlag.erhvervelsesdato
+    | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(_, tildelingsdato) -> tildelingsdato
+}
+| aktieavance_par44_erhvervelse_senest_i_indkomstår(input: AktieavancePar44Input) -> aktieavance_par44_erhvervelsesdato(input.erhvervelsesgrundlag).år <= input.indkomstår
 | aktieavance_par44_børsbetingelse_opfyldt(status: AktieavancePar44Børsstatus2005) -> status == AblPar44BørsnoteretEfterDagældendePar3Nr1Eller2 || status == AblPar44KunNasdaqMedRettidigtHelhedsvalg
 | aktieavance_par44_beholdningsfakta_gyldige(fakta: AktieavancePar44Beholdningsfakta) -> fakta.egen_kursværdi_pr_31_december_2005_kroner >= 0 && fakta.ægtefælles_kursværdi_pr_31_december_2005_kroner >= 0 && (fakta.ægtefællestatus != AblPar44UdenSamlevendeÆgtefælle || fakta.ægtefælles_kursværdi_pr_31_december_2005_kroner == 0)
 | aktieavance_par44_samlet_kursværdi_kroner(fakta: AktieavancePar44Beholdningsfakta) -> fakta.egen_kursværdi_pr_31_december_2005_kroner + hvis fakta.ægtefællestatus == AblPar44UdenSamlevendeÆgtefælle { 0 } ellers { fakta.ægtefælles_kursværdi_pr_31_december_2005_kroner }
 | aktieavance_par44_beholdningsgrænse_kroner(fakta: AktieavancePar44Beholdningsfakta) -> hvis fakta.ægtefællestatus == AblPar44UdenSamlevendeÆgtefælle { 136600 } ellers { 273100 }
 | aktieavance_par44_historisk_undtagelse(status: AktieavancePar44HistoriskUndtagelsesstatus) -> status != AblPar44IkkeOmfattetAfHistoriskPar2CEllerPar2E
 | aktieavance_par44_aktivklassifikation_omfattet(resultat: AktieavanceAktivklassifikationResultat) -> resultat.input_gyldigt && resultat.effektiv_aktiv == AblOrdinærAktiePar12Til15 && resultat.ville_være_omfattet_af_par17_uden_investeringsstatus == Falskt
+| aktieavance_par44_tom_stk1_prøvelse() -> AktieavancePar44Stk1Prøvelse(kildefakta_gyldige = Falskt, erhvervet_før_2006 = Falskt, børsbetingelse_opfyldt = Falskt, samlet_kursværdi_pr_31_december_2005_kroner = 0, beholdningsgrænse_pr_31_december_2005_kroner = 0, beholdningsbetingelse_opfyldt = Falskt, aktivklassifikation_omfattet = Falskt, historisk_undtagelse = Falskt, omfattet_af_stk1_før_statusændring = Falskt)
+| aktieavance_par44_stk1_prøvelse(input: AktieavancePar44Input) -> match input.erhvervelsesgrundlag {
+    | AblPar44AktieErhvervetFør2006(kildegrundlag) -> {
+        = aktivklassifikation = aktieavance_aktivklassifikation_resultat(input.aktivklassifikation)
+        = kildefakta_gyldige = input.identifikation != "" && input.selskabsidentifikation != "" && input.indkomstår > 0 && input.aktivklassifikation.indkomstår == input.indkomstår && aktieavance_ordinaer_kapitalmængde_gyldig(input.kapitalmængde) && aktieavance_ordinaer_kapitalmængde_antal_aktier(input.kapitalmængde) > 0 && aktieavance_par44_stk1_kildegrundlag_gyldigt(kildegrundlag) && aktivklassifikation.input_gyldigt
+        = erhvervet_før_2006 = kildefakta_gyldige && aktieavance_investerings_dato_nøgle(kildegrundlag.erhvervelsesdato) < 20060101
+        = børsbetingelse_opfyldt = kildefakta_gyldige && aktieavance_par44_børsbetingelse_opfyldt(kildegrundlag.børsstatus_pr_31_december_2005)
+        = samlet_kursværdi_kroner = hvis kildefakta_gyldige { aktieavance_par44_samlet_kursværdi_kroner(kildegrundlag.beholdningsfakta) } ellers { 0 }
+        = beholdningsgrænse_kroner = hvis kildefakta_gyldige { aktieavance_par44_beholdningsgrænse_kroner(kildegrundlag.beholdningsfakta) } ellers { 0 }
+        = beholdningsbetingelse_opfyldt = kildefakta_gyldige && samlet_kursværdi_kroner <= beholdningsgrænse_kroner
+        = aktivklassifikation_omfattet = aktieavance_par44_aktivklassifikation_omfattet(aktivklassifikation)
+        = historisk_undtagelse = aktieavance_par44_historisk_undtagelse(kildegrundlag.historisk_undtagelsesstatus)
+        AktieavancePar44Stk1Prøvelse(
+            kildefakta_gyldige = kildefakta_gyldige,
+            erhvervet_før_2006 = erhvervet_før_2006,
+            børsbetingelse_opfyldt = børsbetingelse_opfyldt,
+            samlet_kursværdi_pr_31_december_2005_kroner = samlet_kursværdi_kroner,
+            beholdningsgrænse_pr_31_december_2005_kroner = beholdningsgrænse_kroner,
+            beholdningsbetingelse_opfyldt = beholdningsbetingelse_opfyldt,
+            aktivklassifikation_omfattet = aktivklassifikation_omfattet,
+            historisk_undtagelse = historisk_undtagelse,
+            omfattet_af_stk1_før_statusændring = kildefakta_gyldige && erhvervet_før_2006 && børsbetingelse_opfyldt && beholdningsbetingelse_opfyldt && aktivklassifikation_omfattet && historisk_undtagelse == Falskt
+        )
+    }
+    | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(_, _) -> aktieavance_par44_tom_stk1_prøvelse()
+}
+| aktieavance_par44_statusforløb_gyldigt(input: AktieavancePar44Input) -> match input.statusforløb {
+    | AblPar44FortsatOptagetTilHandelPåReguleretMarked -> Sandt
+    | AblPar44StatusændretTilIkkeReguleretMarked(statusændringsdato, kursværdi_kroner) -> aktieavance_investerings_dato_gyldig(statusændringsdato) && aktieavance_investerings_dato_nøgle(statusændringsdato) > aktieavance_investerings_dato_nøgle(aktieavance_par44_erhvervelsesdato(input.erhvervelsesgrundlag)) && statusændringsdato.år <= input.indkomstår && kursværdi_kroner >= 0
+}
+| aktieavance_par44_status_omfatter_dato(statusforløb: AktieavancePar44Statusforløb, dato: AktieavanceInvesteringsdato) -> match statusforløb {
+    | AblPar44FortsatOptagetTilHandelPåReguleretMarked -> Sandt
+    | AblPar44StatusændretTilIkkeReguleretMarked(statusændringsdato, _) -> aktieavance_investerings_dato_nøgle(statusændringsdato) > aktieavance_investerings_dato_nøgle(dato)
+}
+| aktieavance_par44_identifikationer_entydige(aktier: List(AktieavancePar44Input)) -> all(aktier, |aktie: AktieavancePar44Input| aktie.identifikation != "" && length(filter(aktier, |anden: AktieavancePar44Input| anden.identifikation == aktie.identifikation)) == 1)
+| aktieavance_par44_matchende_grundaktier(aktier: List(AktieavancePar44Input), identifikation: Tekst) -> filter(aktier, |aktie: AktieavancePar44Input| aktie.identifikation == identifikation)
+| aktieavance_par44_fondsaktielinje_gyldig(input: AktieavancePar44Input, aktier: List(AktieavancePar44Input)) -> match input.erhvervelsesgrundlag {
+    | AblPar44AktieErhvervetFør2006(_) -> Sandt
+    | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(grundaktiens_identifikation, tildelingsdato) -> {
+        = matchende_grundaktier = aktieavance_par44_matchende_grundaktier(aktier, grundaktiens_identifikation)
+        hvis length(matchende_grundaktier) == 1 {
+            = grundaktie = head(matchende_grundaktier)
+            = grundprøvelse = aktieavance_par44_stk1_prøvelse(grundaktie)
+            (grundaktie.identifikation != input.identifikation
+                && grundaktie.selskabsidentifikation == input.selskabsidentifikation
+                && grundaktie.indkomstår == input.indkomstår
+                && match grundaktie.erhvervelsesgrundlag { | AblPar44AktieErhvervetFør2006(_) -> Sandt | _ -> Falskt }
+                && grundprøvelse.omfattet_af_stk1_før_statusændring
+                && aktieavance_investerings_dato_nøgle(aktieavance_par44_erhvervelsesdato(grundaktie.erhvervelsesgrundlag)) <= aktieavance_investerings_dato_nøgle(tildelingsdato)
+                && aktieavance_par44_status_omfatter_dato(grundaktie.statusforløb, tildelingsdato))
+        } ellers { Falskt }
+    }
+}
+| aktieavance_par44_arvet_stk1_prøvelse(input: AktieavancePar44Input, aktier: List(AktieavancePar44Input)) -> match input.erhvervelsesgrundlag {
+    | AblPar44AktieErhvervetFør2006(_) -> aktieavance_par44_stk1_prøvelse(input)
+    | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(grundaktiens_identifikation, _) -> {
+        = matchende_grundaktier = aktieavance_par44_matchende_grundaktier(aktier, grundaktiens_identifikation)
+        hvis length(matchende_grundaktier) == 1 { aktieavance_par44_stk1_prøvelse(head(matchende_grundaktier)) } ellers { aktieavance_par44_tom_stk1_prøvelse() }
+    }
+}
 
-# AktieavancePar44Sag(input: AktieavancePar44Input) {
+# AktieavancePar44Sag(input: AktieavancePar44Input, aktier: List(AktieavancePar44Input)) {
     | aktivklassifikation() -> aktieavance_aktivklassifikation_resultat(input.aktivklassifikation)
-    | input_gyldigt() -> input.identifikation != "" && input.indkomstår > 0 && input.aktivklassifikation.indkomstår == input.indkomstår && aktieavance_par44_erhvervelsesgrundlag_gyldigt(input.erhvervelsesgrundlag) && aktieavance_par44_beholdningsfakta_gyldige(input.beholdningsfakta) && aktivklassifikation().input_gyldigt
-    | erhvervelsesgrundlag_opfyldt() -> input_gyldigt() && aktieavance_par44_erhvervelsesgrundlag_opfyldt(input.erhvervelsesgrundlag)
-    | børsbetingelse_opfyldt() -> input_gyldigt() && aktieavance_par44_børsbetingelse_opfyldt(input.børsstatus_pr_31_december_2005)
-    | samlet_kursværdi_pr_31_december_2005_kroner() -> hvis input_gyldigt() { aktieavance_par44_samlet_kursværdi_kroner(input.beholdningsfakta) } ellers { 0 }
-    | beholdningsgrænse_pr_31_december_2005_kroner() -> hvis input_gyldigt() { aktieavance_par44_beholdningsgrænse_kroner(input.beholdningsfakta) } ellers { 0 }
-    | beholdningsbetingelse_opfyldt() -> input_gyldigt() && samlet_kursværdi_pr_31_december_2005_kroner() <= beholdningsgrænse_pr_31_december_2005_kroner()
+    | arvet_stk1_prøvelse() -> aktieavance_par44_arvet_stk1_prøvelse(input, aktier)
+    | fondsaktielinje_gyldig() -> aktieavance_par44_fondsaktielinje_gyldig(input, aktier)
+    | statusforløb_gyldigt() -> aktieavance_par44_erhvervelsesgrundlag_gyldigt(input.erhvervelsesgrundlag) && aktieavance_par44_statusforløb_gyldigt(input)
+    | input_gyldigt() -> input.identifikation != "" && input.selskabsidentifikation != "" && input.indkomstår > 0 && input.aktivklassifikation.indkomstår == input.indkomstår && aktieavance_ordinaer_kapitalmængde_gyldig(input.kapitalmængde) && aktieavance_ordinaer_kapitalmængde_antal_aktier(input.kapitalmængde) > 0 && aktieavance_par44_erhvervelsesgrundlag_gyldigt(input.erhvervelsesgrundlag) && aktieavance_par44_erhvervelse_senest_i_indkomstår(input) && aktivklassifikation().input_gyldigt && statusforløb_gyldigt() && aktieavance_par44_identifikationer_entydige(aktier) && fondsaktielinje_gyldig()
+    | erhvervelsesgrundlag_opfyldt() -> match input.erhvervelsesgrundlag {
+        | AblPar44AktieErhvervetFør2006(_) -> input_gyldigt() && arvet_stk1_prøvelse().erhvervet_før_2006
+        | AblPar44FondsaktieTildeltPåGrundlagAfPar44Aktie(_, _) -> input_gyldigt() && fondsaktielinje_gyldig()
+    }
+    | børsbetingelse_opfyldt() -> input_gyldigt() && arvet_stk1_prøvelse().børsbetingelse_opfyldt
+    | samlet_kursværdi_pr_31_december_2005_kroner() -> hvis input_gyldigt() { arvet_stk1_prøvelse().samlet_kursværdi_pr_31_december_2005_kroner } ellers { 0 }
+    | beholdningsgrænse_pr_31_december_2005_kroner() -> hvis input_gyldigt() { arvet_stk1_prøvelse().beholdningsgrænse_pr_31_december_2005_kroner } ellers { 0 }
+    | beholdningsbetingelse_opfyldt() -> input_gyldigt() && arvet_stk1_prøvelse().beholdningsbetingelse_opfyldt
     | aktivklassifikation_omfattet() -> aktieavance_par44_aktivklassifikation_omfattet(aktivklassifikation())
-    | omfattet_af_par44() -> input_gyldigt() && erhvervelsesgrundlag_opfyldt() && børsbetingelse_opfyldt() && beholdningsbetingelse_opfyldt() && aktivklassifikation_omfattet() && input.har_ændret_status_så_aktien_ikke_længere_er_optaget_til_handel_på_reguleret_marked == Falskt && aktieavance_par44_historisk_undtagelse(input.historisk_undtagelsesstatus) == Falskt
+    | grundbetingelser_før_statusændring_opfyldt() -> input_gyldigt() && erhvervelsesgrundlag_opfyldt() && børsbetingelse_opfyldt() && beholdningsbetingelse_opfyldt() && aktivklassifikation_omfattet() && arvet_stk1_prøvelse().historisk_undtagelse == Falskt
+    | statusændret_efter_stk3() -> grundbetingelser_før_statusændring_opfyldt() && match input.statusforløb { | AblPar44StatusændretTilIkkeReguleretMarked(_, _) -> Sandt | _ -> Falskt }
+    | anskaffelsessum_efter_stk3_kroner() -> hvis statusændret_efter_stk3() { match input.statusforløb { | AblPar44StatusændretTilIkkeReguleretMarked(_, kursværdi_kroner) -> kursværdi_kroner | _ -> 0 } } ellers { 0 }
+    | omfattet_af_par44() -> grundbetingelser_før_statusændring_opfyldt() && statusændret_efter_stk3() == Falskt
     | resultat() -> AktieavancePar44Resultat(
         input = input,
         input_gyldigt = input_gyldigt(),
+        fondsaktielinje_gyldig = fondsaktielinje_gyldig(),
         erhvervelsesgrundlag_opfyldt = erhvervelsesgrundlag_opfyldt(),
         børsbetingelse_opfyldt = børsbetingelse_opfyldt(),
         samlet_kursværdi_pr_31_december_2005_kroner = samlet_kursværdi_pr_31_december_2005_kroner(),
         beholdningsgrænse_pr_31_december_2005_kroner = beholdningsgrænse_pr_31_december_2005_kroner(),
         beholdningsbetingelse_opfyldt = beholdningsbetingelse_opfyldt(),
         aktivklassifikation_omfattet = aktivklassifikation_omfattet(),
+        grundbetingelser_før_statusændring_opfyldt = grundbetingelser_før_statusændring_opfyldt(),
+        statusforløb_gyldigt = statusforløb_gyldigt(),
+        statusændret_efter_stk3 = statusændret_efter_stk3(),
+        anskaffelsessum_efter_stk3_kroner = anskaffelsessum_efter_stk3_kroner(),
         omfattet_af_par44 = omfattet_af_par44()
     )
 }
 
-| aktieavance_par44_resultat(input: AktieavancePar44Input) -> AktieavancePar44Sag(input).resultat()
+| aktieavance_par44_resultat(input: AktieavancePar44Input) -> AktieavancePar44Sag(input, [input]).resultat()
+| aktieavance_par44_beholdningsresultat(input: AktieavancePar44Beholdningsinput) -> {
+    = aktieresultater = map(input.aktier, |aktie: AktieavancePar44Input| AktieavancePar44Sag(aktie, input.aktier).resultat())
+    = identifikationer_entydige = aktieavance_par44_identifikationer_entydige(input.aktier)
+    AktieavancePar44Beholdningsresultat(
+        input = input,
+        aktieresultater = aktieresultater,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = identifikationer_entydige && all(aktieresultater, |resultat: AktieavancePar44Resultat| resultat.input_gyldigt)
+    )
+}
+| aktieavance_par44_resultat_fra_beholdning(input: AktieavancePar44Beholdningsinput, identifikation: Tekst) -> {
+    = beholdningsresultat = aktieavance_par44_beholdningsresultat(input)
+    = matchende_resultater = filter(beholdningsresultat.aktieresultater, |resultat: AktieavancePar44Resultat| resultat.input.identifikation == identifikation)
+    hvis beholdningsresultat.alle_input_gyldige && length(matchende_resultater) == 1 { Some(head(matchende_resultater)) } ellers { None }
+}
+| aktieavance_par44_statusændringskapitalmængde(input: AktieavancePar44Beholdningsinput, identifikation: Tekst) -> match aktieavance_par44_resultat_fra_beholdning(input, identifikation) {
+    | Some(resultat) -> hvis resultat.statusændret_efter_stk3 { resultat.input.kapitalmængde } ellers { AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 0) }
+    | None -> AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 0)
+}
+| aktieavance_par44_statusændringsanskaffelsessum_kroner(input: AktieavancePar44Beholdningsinput, identifikation: Tekst) -> match aktieavance_par44_resultat_fra_beholdning(input, identifikation) { | Some(resultat) -> resultat.anskaffelsessum_efter_stk3_kroner | None -> 0 }
 
-# AktieavancePar13AUdbytteKildefakta = AblPar13AUdbytteUdenForModregningsgrundlag | AblPar13AUdbytteForMarkedsaktieEfterPar12(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForMarkedsaktieEfterPar19B(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForAktieOmfattetAfPar44(par44_input: AktieavancePar44Input)
+# AktieavancePar13AUdbytteKildefakta = AblPar13AUdbytteUdenForModregningsgrundlag | AblPar13AUdbytteForMarkedsaktieEfterPar12(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForMarkedsaktieEfterPar19B(markedsstatus: AktieavanceOrdinærMarkedsstatus, aktivklassifikation: AktieavanceAktivklassifikationInput) | AblPar13AUdbytteForAktieOmfattetAfPar44(beholdning: AktieavancePar44Beholdningsinput, aktie_identifikation: Tekst)
 # AktieavancePar13AUdbytteKilderesultat(kildefakta: AktieavancePar13AUdbytteKildefakta, input_gyldigt: Boolsk, udbytte_for_aktie_med_gevinst_efter_par12: Boolsk, udbytte_for_aktie_med_gevinst_efter_par19b: Boolsk, udbytte_for_aktie_omfattet_af_par44: Boolsk)
 
 | aktieavance_par13a_markedsstatus_omfattet(markedsstatus: AktieavanceOrdinærMarkedsstatus) -> aktieavance_ordinaer_er_optaget_til_handel(markedsstatus)
@@ -1637,9 +1775,9 @@ personskattelovens § 20.
         = kvalificerer = aktieavance_par13a_markedsstatus_omfattet(markedsstatus) && klassifikation.input_gyldigt && klassifikation.effektiv_aktiv == AblInvesteringsselskab19B && klassifikation.ville_være_omfattet_af_par17_uden_investeringsstatus == Falskt
         AktieavancePar13AUdbytteKilderesultat(kildefakta = kildefakta, input_gyldigt = kvalificerer, udbytte_for_aktie_med_gevinst_efter_par12 = Falskt, udbytte_for_aktie_med_gevinst_efter_par19b = kvalificerer, udbytte_for_aktie_omfattet_af_par44 = Falskt)
     }
-    | AblPar13AUdbytteForAktieOmfattetAfPar44(par44_input) -> {
-        = par44_resultat = aktieavance_par44_resultat(par44_input)
-        AktieavancePar13AUdbytteKilderesultat(kildefakta = kildefakta, input_gyldigt = par44_resultat.input_gyldigt && par44_resultat.omfattet_af_par44, udbytte_for_aktie_med_gevinst_efter_par12 = Falskt, udbytte_for_aktie_med_gevinst_efter_par19b = Falskt, udbytte_for_aktie_omfattet_af_par44 = par44_resultat.omfattet_af_par44)
+    | AblPar13AUdbytteForAktieOmfattetAfPar44(beholdning, aktie_identifikation) -> match aktieavance_par44_resultat_fra_beholdning(beholdning, aktie_identifikation) {
+        | Some(par44_resultat) -> AktieavancePar13AUdbytteKilderesultat(kildefakta = kildefakta, input_gyldigt = par44_resultat.omfattet_af_par44, udbytte_for_aktie_med_gevinst_efter_par12 = Falskt, udbytte_for_aktie_med_gevinst_efter_par19b = Falskt, udbytte_for_aktie_omfattet_af_par44 = par44_resultat.omfattet_af_par44)
+        | None -> AktieavancePar13AUdbytteKilderesultat(kildefakta = kildefakta, input_gyldigt = Falskt, udbytte_for_aktie_med_gevinst_efter_par12 = Falskt, udbytte_for_aktie_med_gevinst_efter_par19b = Falskt, udbytte_for_aktie_omfattet_af_par44 = Falskt)
     }
 }
 --@end:aktieavancebeskatningsloven_par44--

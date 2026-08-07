@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-44859f` (ABL §§ 37-40-projektionen bruger nu begge ægtefællers komplette slutskat efter modregning af årets og tidligere fremførte negative aktieindkomstskat samt ejendomsskatter; rolleombytning er verificeret fortolket og kompileret)
+Current implementation slice: `td-85ed17` (ABL § 44 har nu en typet beholdning med lukket fondsaktielinje, dateret statusforløb og kursværdien som anskaffelsessum; statusskiftet føder den ordinære gennemsnitsbeholdning og den kanoniske Personskat-beregning)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
@@ -32,7 +32,7 @@ Planned exact-credit completion: `td-6fe980` (bevar ørepræcision i årsopgøre
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
-Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
+Current ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag, typet fondsaktielinje, årsvalidering og kanonisk Personskat-komposition er verificeret fortolket, kompileret og gennem XLSX-kontrakten)
 Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parberegning føres nu til egen modregning, ægtefællemodregning, Kildeskattelovens § 60-kredit og eksplicit fremførsel uden at ændre det rå ABL-kildespor)
 Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi fører den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
@@ -4310,9 +4310,22 @@ Review candidates to revisit deliberately, not as broad churn:
   § 44 source facts with Danish labels and related child sheets, and the same
   married case produces identical XLSX and JSON results. Focused § 44,
   ordinary-share, KGL § 32, pension and debt-restructuring scenarios all pass.
-  `td-85ed17` separately tracks § 44, stk. 3's deemed acquisition basis after a
-  status change and the typed lineage for bonus shares under stk. 2; this slice
-  does not claim those gain/loss mechanics are complete.
+- `td-85ed17` lukker den resterende § 44-grænse. Direkte aktier og fondsaktier
+  ligger i en typet beholdning; en fondsaktie skal pege på præcis én direkte
+  grundaktie i samme selskab og år, og selvreference, manglende eller duplikeret
+  identifikation, krydsselskabsreference og fondsaktie-på-fondsaktie afvises.
+  Den lukkede linje følger stk. 2's ordlyd: grundaktien skal være omfattet af
+  stk. 1; en tidligere fondsaktie er alene omfattet gennem stk. 2. Den oprindelige
+  L 78-kilde er knyttet til regelblokkens typede proveniens.
+  Stk. 3 er et dateret statusforløb, hvor kursværdien på ændringstidspunktet
+  bliver en afledt anskaffelsessum i den ordinære ABL-beholdning. Efterfølgende
+  hel- og delsalg bruger derfor den eksisterende gennemsnitsmetode og §§ 5 A,
+  12-14 uden et særskilt beregningsspor. Årsledgeren afviser genafspilning af en
+  statusændring fra et tidligere år; den værdi hører i stedet til primo-
+  positionen. Et kanonisk Personskat-scenarie fører 150.000 kr. i statusgrundlag
+  og et salg på 210.000 kr. til 60.000 kr. aktieindkomst og 16.200 kr. skat efter
+  PSL § 8 a. De nye beholdnings-, linje-, dato- og kursværdifelter har typede,
+  danske beregningsmetadata til JSON/TOML/XLSX-grænsen.
 - Den typede ABL § 17-model er nu ført gennem den kanoniske Personskat-grænse
   under `td-699438`. Den direkte gren modtager år, et kildegrundlag efter ABL
   §§ 6-7, næringsstatus, instrument, erhvervelsesstatus og beløb. Reglerne
