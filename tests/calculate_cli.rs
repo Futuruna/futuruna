@@ -1606,17 +1606,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "person.relation.$variant",
             "person.relation.SøblEjerPartrederEllerInteressent.sammenligning",
             "person.relation.SøblBestemmendeIndflydelseEllerNærtstående.sammenligning",
+            "skib.identifikation",
             "skib.registrering.$variant",
             "skib.registrering.SøblUdenlandskSkibRegistreretIEUEØS.flag",
             "skib.registrering.SøblSkibRegistreretUdenForEUEØS.flag",
             "skib.bruttotonnage",
             "skib.arbejdsgiverstatus",
             "arbejde.anvendelse.$variant",
-            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.$variant",
-            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.søtransport_minutter",
-            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.mobilisering_til_søs_minutter",
-            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.andre_aktiviteter_minutter",
-            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet.SøblBugseringOgBjærgning.driftstid.ventetid_minutter",
+            "arbejde.anvendelse.SøblUdelukkendeAnvendtTil.aktivitet",
             "arbejde.arbejdsområde",
             "arbejde.passagerrute",
             "arbejde.arbejdsrolle.$variant",
@@ -1652,6 +1649,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Relation til skibet eller rederiet",
             "Aflønning som ejer, partreder eller interessent",
             "Aflønning ved bestemmende indflydelse eller nærtstående relation",
+            "Skibets identifikation",
             "Skibets registrering",
             "Flag for udenlandsk EU/EØS-skib",
             "Flag for skib registreret uden for EU/EØS",
@@ -1659,10 +1657,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Arbejdsgiverens status efter sømandsbeskatningsloven",
             "Skibets anvendelsesforløb",
             "Skibets udelukkende aktivitet",
-            "Søtransporttid ved bugsering og bjærgning",
-            "Mobiliseringstid til søs ved bugsering og bjærgning",
-            "Anden aktivitetstid ved bugsering og bjærgning",
-            "Ventetid ved bugsering og bjærgning",
             "Arbejdsområde inden for eller uden for EU/EØS",
             "Passagersejladsens rute",
             "Arbejdsrolle om bord",
@@ -1687,6 +1681,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 dis_income_headers.iter().any(|header| header == expected),
                 "missing human SØBL §§ 5-8 input label {expected} on {dis_income_sheet}"
+            );
+        }
+        let dis_annual_ship_path =
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.skibsårsdrifter";
+        let dis_annual_ship_sheet =
+            workbook_collection_sheet_name(&mut workbook, dis_annual_ship_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &dis_annual_ship_sheet),
+            "Dansk personskat - Årsdrift for bugser- og bjærgningsfartøjer"
+        );
+        let dis_annual_ship_paths = workbook_column_paths(&mut workbook, &dis_annual_ship_sheet);
+        for expected in [
+            "skibsidentifikation",
+            "indkomstår",
+            "driftstid.søtransport_minutter",
+            "driftstid.mobilisering_til_søs_minutter",
+            "driftstid.andre_aktiviteter_minutter",
+            "driftstid.ventetid_minutter",
+        ] {
+            assert!(
+                dis_annual_ship_paths.iter().any(|path| path == expected),
+                "missing canonical SØBL § 6 annual-vessel path {expected} on {dis_annual_ship_sheet}"
+            );
+        }
+        let dis_annual_ship_headers = workbook_headers(&mut workbook, &dis_annual_ship_sheet);
+        for expected in [
+            "Skibsidentifikation for årsdriften",
+            "Indkomstår for skibets årsdrift",
+            "Søtransporttid ved bugsering og bjærgning",
+            "Mobiliseringstid til søs ved bugsering og bjærgning",
+            "Anden aktivitetstid ved bugsering og bjærgning",
+            "Ventetid ved bugsering og bjærgning",
+        ] {
+            assert!(
+                dis_annual_ship_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human SØBL § 6 annual-vessel label {expected} on {dis_annual_ship_sheet}"
             );
         }
         let other_ligningslov7u_path =
@@ -10111,7 +10143,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
+                "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
                     "virksomheder_uden_virksomhedsordning": [],
@@ -11591,7 +11623,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                    "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
+                    "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
                         "virksomheder_uden_virksomhedsordning": [],
@@ -12296,7 +12328,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
         },
-        "sømandsbeskatning": { "indkomster": [], "andre_ligningslov7u_indkomster": [] },
+        "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
             "virksomheder_uden_virksomhedsordning": [],
@@ -13190,6 +13222,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "relation": { "$variant": "SøblAlmindeligLønmodtager" }
             },
             "skib": {
+                "identifikation": "dis-skib-2026",
                 "registrering": { "$variant": "SøblDanskSkibRegistreretIDIS" },
                 "bruttotonnage": 12_000,
                 "arbejdsgiverstatus": { "$variant": "SøblDanskArbejdsgiver" }
@@ -13198,10 +13231,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "anvendelse": {
                     "$variant": "SøblUdelukkendeAnvendtTil",
                     "aktivitet": {
-                        "$variant": "SøblTransportAfGodsMellemForskelligeDestinationer"
+                        "$variant": "SøblBugseringOgBjærgning"
                     }
                 },
-                "arbejdsområde": { "$variant": "SøblArbejdeUdenForEUEØS" },
+                "arbejdsområde": { "$variant": "SøblArbejdeIndenForEUEØS" },
                 "passagerrute": { "$variant": "SøblIngenPassagersejlads" },
                 "arbejdsrolle": { "$variant": "SøblNormalDriftsbesætning" },
                 "par8_valg": {
@@ -13214,6 +13247,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen"
                 },
                 "beløb_kroner": 500_000
+            }
+        }],
+        "skibsårsdrifter": [{
+            "skibsidentifikation": "dis-skib-2026",
+            "indkomstår": 2026,
+            "driftstid": {
+                "søtransport_minutter": 4_500,
+                "mobilisering_til_søs_minutter": 500,
+                "andre_aktiviteter_minutter": 5_000,
+                "ventetid_minutter": 2_000
             }
         }],
         "andre_ligningslov7u_indkomster": [{
@@ -13676,6 +13719,43 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(hydrated_dis_result["result"], json_dis_result["result"]);
     let dis_annual_result =
         &hydrated_dis_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"]
+            .as_array()
+            .expect("SØBL § 6 annual-vessel results")
+            .len(),
+        1
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"][0]["søtransportminutter_før_ventetid"],
+        5_000
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"][0]["ventetid_til_søtransport_tæller"],
+        10_000_000
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"][0]["ventetidsfordeling_nævner"],
+        10_000
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"][0]
+            ["søtransport_inkl_fordelt_ventetid_tæller"],
+        60_000_000
+    );
+    assert_eq!(
+        dis_annual_result["årsdriftsgrundlag"]["resultater"][0]["samlet_driftstid_tæller"],
+        120_000_000
+    );
+    assert!(dis_annual_result["indkomstresultater"]
+        .as_array()
+        .expect("SØBL income results")
+        .iter()
+        .all(|result| result["årsdriftsrelation"]["$variant"] == "Søbl6ÅrsdriftTilknyttet"));
     let ligningslov7u_allocation = &dis_annual_result["ligningslov7u_bundfradrag"];
     assert_eq!(
         ligningslov7u_allocation["direkte_dis_nettoløn_før_bundfradrag_kroner"],
@@ -13734,7 +13814,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         hydrated_dis_result["result"]["sømandsbeskatning"]["par13_stk5_lempelsesgrundlag"]
             ["$variant"],
-        "SømandsbeskatningslovPar5"
+        "SømandsbeskatningslovPar6"
     );
     assert_eq!(
         hydrated_dis_result["result"]["samlet_skat_inkl_endelig_aktieindkomstskat_kroner"]

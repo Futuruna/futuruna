@@ -253,6 +253,13 @@
     help = Some("Indkomståret skal svare til skatteåret i den samlede beregning."),
     unit = Some("år")
 )
+= personskat_felt_dis_skibsidentifikation = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Indkomstfakta::skib::identifikation),
+    label = "Skibets identifikation",
+    question = Some("Hvilken stabil identifikation har skibet for denne indkomstperiode?"),
+    help = Some("Brug samme identifikation på alle indkomstperioder og årsdriftsoplysninger, der vedrører det samme skib."),
+    unit = None
+)
 = personskat_felt_dis_skattepligt = TypetBeregningsfelt(
     path = refof(Søbl5Til8Indkomstfakta::person::skattepligt::$variant),
     label = "Skattepligtsposition for sømandsindkomsten",
@@ -337,32 +344,53 @@
     help = Some("Aktiviteten prøves mod tonnageskattelovens område og særreglerne i §§ 6 og 8."),
     unit = None
 )
+= personskat_felt_dis_skibsårsdrifter = TypetBeregningsfelt(
+    path = refof(PersonskatInput::lønmodtager::personlig_indkomst::sømandsbeskatning::skibsårsdrifter),
+    label = "Årsdrift for bugser- og bjærgningsfartøjer",
+    question = Some("Har et bugser- eller bjærgningsfartøj været knyttet til en oplyst sømandsindkomst?"),
+    help = Some("Tilføj præcis én række pr. skib og indkomstår. Futuruna knytter årsdriften til alle lønperioder for skibet og afviser manglende eller modstridende oplysninger."),
+    unit = None
+)
+= personskat_felt_dis_årsdrift_skibsidentifikation = TypetBeregningsfelt(
+    path = refof(Søbl6Skibsårsdriftfakta::skibsidentifikation),
+    label = "Skibsidentifikation for årsdriften",
+    question = Some("Hvilket skib vedrører årsdriften?"),
+    help = Some("Identifikationen skal svare til skibsidentifikationen i alle relevante sømandsindkomstperioder."),
+    unit = None
+)
+= personskat_felt_dis_årsdrift_indkomstår = TypetBeregningsfelt(
+    path = refof(Søbl6Skibsårsdriftfakta::indkomstår),
+    label = "Indkomstår for skibets årsdrift",
+    question = Some("Hvilket indkomstår vedrører skibets samlede driftstid?"),
+    help = Some("Opgørelsen skal dække hele den tid, skibet var i drift i det angivne indkomstår."),
+    unit = Some("år")
+)
 = personskat_felt_dis_bugsering_søtransport = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::søtransport_minutter),
+    path = refof(Søbl6Skibsårsdriftfakta::driftstid::søtransport_minutter),
     label = "Søtransporttid ved bugsering og bjærgning",
     question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på søtransport ved bugsering eller bjærgning?"),
-    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Søtransporttid indgår i 50-procentprøven efter § 6."),
+    help = Some("Søtransporttid indgår i 50-procentprøven efter § 6. Lønperioderne henviser til denne ene årsopgørelse gennem skibsidentifikationen."),
     unit = Some("minutter")
 )
 = personskat_felt_dis_bugsering_mobilisering = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::mobilisering_til_søs_minutter),
+    path = refof(Søbl6Skibsårsdriftfakta::driftstid::mobilisering_til_søs_minutter),
     label = "Mobiliseringstid til søs ved bugsering og bjærgning",
     question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på mobilisering til søs?"),
-    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Mobilisering til søs medregnes som søtransporttid i 50-procentprøven."),
+    help = Some("Mobilisering til søs medregnes som søtransporttid i 50-procentprøven."),
     unit = Some("minutter")
 )
 = personskat_felt_dis_bugsering_andre_aktiviteter = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::andre_aktiviteter_minutter),
+    path = refof(Søbl6Skibsårsdriftfakta::driftstid::andre_aktiviteter_minutter),
     label = "Anden aktivitetstid ved bugsering og bjærgning",
     question = Some("Hvor mange minutter i hele indkomståret blev skibet brugt på andre aktiviteter end søtransport og mobilisering til søs?"),
-    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Andre aktive minutter indgår i nævneren for 50-procentprøven."),
+    help = Some("Andre aktive minutter indgår i nævneren for 50-procentprøven."),
     unit = Some("minutter")
 )
 = personskat_felt_dis_bugsering_ventetid = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Aktivitet::SøblBugseringOgBjærgning::driftstid::ventetid_minutter),
+    path = refof(Søbl6Skibsårsdriftfakta::driftstid::ventetid_minutter),
     label = "Ventetid ved bugsering og bjærgning",
     question = Some("Hvor mange minutter i hele indkomståret var skibet i ventetid?"),
-    help = Some("Angiv skibets samlede årstid, også hvis personens løn er opdelt på flere rækker. Ventetiden fordeles forholdsmæssigt og ændrer derfor ikke den aktive 50-procentandel."),
+    help = Some("Ventetiden fordeles forholdsmæssigt og ændrer derfor ikke den aktive 50-procentandel."),
     unit = Some("minutter")
 )
 = personskat_felt_dis_arbejdsområde = TypetBeregningsfelt(
@@ -9203,6 +9231,7 @@
         personskat_felt_dis_indkomster,
         personskat_felt_dis_identifikation,
         personskat_felt_dis_indkomstår,
+        personskat_felt_dis_skibsidentifikation,
         personskat_felt_dis_skattepligt,
         personskat_felt_dis_statsborgerskab,
         personskat_felt_dis_personrelation,
@@ -9215,10 +9244,6 @@
         personskat_felt_dis_arbejdsgiverstatus,
         personskat_felt_dis_anvendelsesforløb,
         personskat_felt_dis_aktivitet,
-        personskat_felt_dis_bugsering_søtransport,
-        personskat_felt_dis_bugsering_mobilisering,
-        personskat_felt_dis_bugsering_andre_aktiviteter,
-        personskat_felt_dis_bugsering_ventetid,
         personskat_felt_dis_arbejdsområde,
         personskat_felt_dis_passagerrute,
         personskat_felt_dis_arbejdsrolle,
@@ -9250,6 +9275,24 @@
         Guidance(value = søbl5_til8_juridisk_vejledning),
         Practice(value = søbl5_til8_skm2019_141),
         Practice(value = søbl5_til8_skm2020_75),
+    )
+)
+= personskat_meta_dis_skibsårsdrifter = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_dis_skibsårsdrifter,
+        personskat_felt_dis_årsdrift_skibsidentifikation,
+        personskat_felt_dis_årsdrift_indkomstår,
+        personskat_felt_dis_bugsering_søtransport,
+        personskat_felt_dis_bugsering_mobilisering,
+        personskat_felt_dis_bugsering_andre_aktiviteter,
+        personskat_felt_dis_bugsering_ventetid
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = søbl5_til8_bek940),
+        DependencySource(value = søbl5_til8_tonnageskattelov),
     )
 )
 = personskat_meta_andre_ligningslov7u_indkomster = TypetBeregningsmeta(
@@ -10762,6 +10805,7 @@
         personskat_metadata_kommune,
         personskat_metadata_bruttoløn,
         personskat_meta_dis_indkomster,
+        personskat_meta_dis_skibsårsdrifter,
         personskat_meta_andre_ligningslov7u_indkomster,
         personskat_metadata_ægtefællegrundlag,
         personskat_metadata_underskudsforhold,

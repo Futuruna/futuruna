@@ -59,6 +59,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         relation = SøblAlmindeligLønmodtager
     ),
     skib = Søbl5Til8Skibsfakta(
+        identifikation = "skib-" + identifikation,
         registrering = registrering,
         bruttotonnage = 12000,
         arbejdsgiverstatus = SøblDanskArbejdsgiver
@@ -91,7 +92,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         registrering = SøblDanskSkibRegistreretIDIS,
         løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
         beløb_kroner = 500000
-        )], andre_ligningslov7u_indkomster = [])
+        )], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [])
 )
 = personskat_dis_kanonisk_resultat = beregn_personskat(personskat_dis_kanonisk_input)
 = personskat_dis_ordinær_baseline = beregn_personskat(personskat_dis_input(
@@ -123,6 +124,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
                 beløb_kroner = 20000
             ),
         ],
+        skibsårsdrifter = [],
         andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
             identifikation = "kanonisk-anden-ligningslov7u",
             beløb_kroner = 60000
@@ -139,6 +141,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
             løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
             beløb_kroner = 3000
         )],
+        skibsårsdrifter = [],
         andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
             identifikation = "kanonisk-anden-ligningslov7u-cap",
             beløb_kroner = 1000
@@ -156,7 +159,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         registrering = SøblDanskSkibRegistreretIDAS,
         løngrundlag = SøblOrdinærBruttoløn,
         beløb_kroner = 400000
-        )], andre_ligningslov7u_indkomster = [])
+        )], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [])
 ))
 
 | personskat_das_føres_til_ordinær_am_løn: personskat_das_kanonisk_resultat -> personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.kan_anvende_par5_til8 == Falskt && personskat_das_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.samlet_ordinær_bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.bruttoløn_kroner == 400000 && personskat_das_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 32000 && personskat_das_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner == 0

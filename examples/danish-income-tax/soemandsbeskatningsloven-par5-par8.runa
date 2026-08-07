@@ -151,11 +151,12 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 # Søbl5Til8Flag = SøblEUEØSFlag | SøblFlagUdenForEUEØS
 # Søbl5Til8Registrering = SøblDanskSkibRegistreretIDIS | SøblDanskSkibRegistreretIDAS | SøblUdenlandskSkibRegistreretIEUEØS(flag: Søbl5Til8Flag) | SøblSkibRegistreretUdenForEUEØS(flag: Søbl5Til8Flag)
 # Søbl5Til8Arbejdsgiverstatus = SøblDanskArbejdsgiver | SøblUdenlandskArbejdsgiverGodkendtEfterPar11A | SøblUdenlandskArbejdsgiverIkkeGodkendtEfterPar11A
-# Søbl5Til8Skibsfakta(registrering: Søbl5Til8Registrering, bruttotonnage: Heltal, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus)
+# Søbl5Til8Skibsfakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, bruttotonnage: Heltal, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus)
 # Søbl5Til8Arbejdsområde = SøblArbejdeIndenForEUEØS | SøblArbejdeUdenForEUEØS
 # Søbl5Til8Passagerrute = SøblIngenPassagersejlads | SøblIkkeRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemEUEØSHavne | SøblRegelmæssigPassagersejladsMellemDanskeHavne | SøblPassagersejladsMellemDanskeHavneTilFraHavanlæg | SøblAndenPassagersejladsMellemDanskeHavne
 # Søbl6Driftstid(søtransport_minutter: Heltal, mobilisering_til_søs_minutter: Heltal, andre_aktiviteter_minutter: Heltal, ventetid_minutter: Heltal)
-# Søbl5Til8Aktivitet = SøblTransportAfGodsMellemForskelligeDestinationer | SøblTransportAfPassagererMellemForskelligeDestinationer | SøblVagttjeneste | SøblStøtteOgServicefunktion | SøblBygningReparationEllerNedtagningAfHavanlæg | SøblRørledningEllerKabelPåHavbunden | SøblIshåndtering | SøblHusningVedOffshorearbejde | SøblBugseringOgBjærgning(driftstid: Søbl6Driftstid) | SøblStenfiskeriEllerSandsugning | SøblAndenSkibsaktivitet
+# Søbl6Skibsårsdriftfakta(skibsidentifikation: Tekst, indkomstår: Heltal, driftstid: Søbl6Driftstid)
+# Søbl5Til8Aktivitet = SøblTransportAfGodsMellemForskelligeDestinationer | SøblTransportAfPassagererMellemForskelligeDestinationer | SøblVagttjeneste | SøblStøtteOgServicefunktion | SøblBygningReparationEllerNedtagningAfHavanlæg | SøblRørledningEllerKabelPåHavbunden | SøblIshåndtering | SøblHusningVedOffshorearbejde | SøblBugseringOgBjærgning | SøblStenfiskeriEllerSandsugning | SøblAndenSkibsaktivitet
 # Søbl5Til8Anvendelsesforløb = SøblUdelukkendeAnvendtTil(aktivitet: Søbl5Til8Aktivitet) | SøblPeriodeMedFlereEllerUoplysteAnvendelser
 # Søbl5Til8Indkomsttype = SøblLønVedArbejdeOmBord | SøblLigningslov7UYdelseMedDirekteTilknytning | SøblLigningslov7UYdelseUdenDirekteTilknytning | SøblAndenIndkomsttype
 # Søbl5Til8Løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen | SøblOrdinærBruttoløn | SøblNettolønUdenDokumenteretFastsættelse
@@ -165,14 +166,17 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 # Søbl5Til8Personfakta(skattepligt: Søbl5Til8Skattepligt, statsborgerskab: Søbl5Til8Statsborgerskab, relation: Søbl5Til8Personrelation)
 # Søbl5Til8Arbejdsfakta(anvendelse: Søbl5Til8Anvendelsesforløb, arbejdsområde: Søbl5Til8Arbejdsområde, passagerrute: Søbl5Til8Passagerrute, arbejdsrolle: Søbl5Til8Arbejdsrolle, par8_valg: Søbl8Beskatningsvalg)
 # Søbl5Til8Indkomstfakta(identifikation: Tekst, indkomstår: Heltal, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta)
-# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta))
+# Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta), skibsårsdrifter: List(Søbl6Skibsårsdriftfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta))
 # Søbl5Til8Beskatningsvirkning = SøblIngenDISVirkning | SøblNedsættelseAfSamletIndkomstskat | SøblIngenDanskSkatEfterPar5Stk2 | SøblKulbrinteskattelov21Stk2Virkning
 # Søbl5Til8Retsgrundlag = SøblIntetRetsgrundlag | SøblPar5Stk1 | SøblPar5Stk2 | SøblPar5B | SøblPar6 | SøblPar7 | SøblPar8
-# Søbl5Til8Indkomstresultat(fakta: Søbl5Til8Indkomstfakta, input_gyldigt: Boolsk, arbejdsrolle_omfattet: Boolsk, aflønningsbetingelse_opfyldt: Boolsk, indkomsttype_omfattet: Boolsk, nettolønsbetingelse_opfyldt: Boolsk, tonnageskatteaktivitet_opfyldt: Boolsk, par5_opfyldt: Boolsk, par5b_opfyldt: Boolsk, par6_opfyldt: Boolsk, par7_opfyldt: Boolsk, par8_opfyldt: Boolsk, kan_anvende_par5_til8: Boolsk, retsgrundlag: Søbl5Til8Retsgrundlag, beskatningsvirkning: Søbl5Til8Beskatningsvirkning, dis_personlig_indkomst_kroner: Heltal, ordinær_bruttoløn_kroner: Heltal, uafklaret_nettoløn_kroner: Heltal, arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
+# Søbl6Skibsårsdriftresultat(fakta: Søbl6Skibsårsdriftfakta, input_gyldigt: Boolsk, søtransportminutter_før_ventetid: Heltal, aktive_minutter_før_ventetid: Heltal, ventetid_til_søtransport_tæller: Heltal, ventetid_til_andre_aktiviteter_tæller: Heltal, ventetidsfordeling_nævner: Heltal, søtransport_inkl_fordelt_ventetid_tæller: Heltal, samlet_driftstid_tæller: Heltal, samlet_driftstid_minutter: Heltal, søtransportandel_mindst_halvdelen: Boolsk)
+# Søbl6IndkomstÅrsdriftsrelation = Søbl6ÅrsdriftIkkePåkrævet | Søbl6ÅrsdriftMangler | Søbl6ÅrsdriftFlertydig | Søbl6ÅrsdriftUgyldig(resultat: Søbl6Skibsårsdriftresultat) | Søbl6ÅrsdriftTilknyttet(resultat: Søbl6Skibsårsdriftresultat)
+# Søbl6Årsdriftsgrundlagsresultat(indkomstår: Heltal, resultater: List(Søbl6Skibsårsdriftresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, alle_fakta_anvendt: Boolsk, skibsfakta_konsistente: Boolsk, alle_bugserindkomster_tilknyttet: Boolsk, input_gyldigt: Boolsk)
+# Søbl5Til8Indkomstresultat(fakta: Søbl5Til8Indkomstfakta, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation, input_gyldigt: Boolsk, arbejdsrolle_omfattet: Boolsk, aflønningsbetingelse_opfyldt: Boolsk, indkomsttype_omfattet: Boolsk, nettolønsbetingelse_opfyldt: Boolsk, tonnageskatteaktivitet_opfyldt: Boolsk, par5_opfyldt: Boolsk, par5b_opfyldt: Boolsk, par6_opfyldt: Boolsk, par7_opfyldt: Boolsk, par8_opfyldt: Boolsk, kan_anvende_par5_til8: Boolsk, retsgrundlag: Søbl5Til8Retsgrundlag, beskatningsvirkning: Søbl5Til8Beskatningsvirkning, dis_personlig_indkomst_kroner: Heltal, ordinær_bruttoløn_kroner: Heltal, uafklaret_nettoløn_kroner: Heltal, arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
 # Søbl5Til8Ligningslov7UBundfradragsresultat(indkomstår: Heltal, andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), input_gyldigt: Boolsk, andre_indkomstidentifikationer_entydige: Boolsk, direkte_dis_nettoløn_før_bundfradrag_kroner: Heltal, anden_indkomst_før_bundfradrag_kroner: Heltal, samlet_indkomst_før_bundfradrag_kroner: Heltal, fuldt_bundfradrag_kroner: Heltal, anvendt_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, bundfradrag_fordelt_til_anden_indkomst_kroner: Heltal, direkte_dis_nettoløn_efter_bundfradrag_kroner: Heltal, anden_indkomst_efter_bundfradrag_kroner: Heltal)
-# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner: Heltal, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
+# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, årsdriftsgrundlag: Søbl6Årsdriftsgrundlagsresultat, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner: Heltal, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 
-| søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [], andre_ligningslov7u_indkomster = [])
+| søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [])
 | søbl5_til8_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
 | søbl5_til8_identifikationer_entydige(indkomster: List(Søbl5Til8Indkomstfakta)) -> length(distinct(map(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation))) == length(indkomster) && all(indkomster, |fakta: Søbl5Til8Indkomstfakta| fakta.identifikation != "")
 | søbl5_til8_registrering_har_eu_eøs_hjemsted(registrering: Søbl5Til8Registrering) -> match registrering {
@@ -196,12 +200,12 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 | søbl5_til8_nettolønsbetingelse_opfyldt(løngrundlag: Søbl5Til8Løngrundlag) -> løngrundlag == SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen
 | søbl5_til8_passagerrute_forenelig(aktivitet: Søbl5Til8Aktivitet, passagerrute: Søbl5Til8Passagerrute) -> hvis aktivitet == SøblTransportAfPassagererMellemForskelligeDestinationer { passagerrute != SøblIngenPassagersejlads } ellers { passagerrute == SøblIngenPassagersejlads }
 | søbl5_til8_driftstid_gyldig(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter >= 0 && driftstid.mobilisering_til_søs_minutter >= 0 && driftstid.andre_aktiviteter_minutter >= 0 && driftstid.ventetid_minutter >= 0 && driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter + driftstid.andre_aktiviteter_minutter > 0
-| søbl5_til8_fakta_gyldige(fakta: Søbl5Til8Indkomstfakta) -> fakta.identifikation != "" && fakta.indkomstår >= 1900 && fakta.skib.bruttotonnage >= 0 && fakta.løn.beløb_kroner >= 0 && match fakta.arbejde.anvendelse {
-    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(driftstid)) -> søbl5_til8_driftstid_gyldig(driftstid) && søbl5_til8_passagerrute_forenelig(SøblBugseringOgBjærgning(driftstid), fakta.arbejde.passagerrute)
+| søbl5_til8_fakta_gyldige(fakta: Søbl5Til8Indkomstfakta) -> fakta.identifikation != "" && fakta.indkomstår >= 1900 && fakta.skib.identifikation != "" && fakta.skib.bruttotonnage >= 0 && fakta.løn.beløb_kroner >= 0 && match fakta.arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning) -> søbl5_til8_passagerrute_forenelig(SøblBugseringOgBjærgning, fakta.arbejde.passagerrute)
     | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_passagerrute_forenelig(aktivitet, fakta.arbejde.passagerrute)
     | SøblPeriodeMedFlereEllerUoplysteAnvendelser -> fakta.arbejde.passagerrute == SøblIngenPassagersejlads
 }
-| søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet: Søbl5Til8Aktivitet) -> match aktivitet {
+| søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet: Søbl5Til8Aktivitet, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation) -> match aktivitet {
     | SøblTransportAfGodsMellemForskelligeDestinationer -> Sandt
     | SøblTransportAfPassagererMellemForskelligeDestinationer -> Sandt
     | SøblVagttjeneste -> Sandt
@@ -210,11 +214,11 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
     | SøblRørledningEllerKabelPåHavbunden -> Sandt
     | SøblIshåndtering -> Sandt
     | SøblHusningVedOffshorearbejde -> Sandt
-    | SøblBugseringOgBjærgning(driftstid) -> søbl6_søtransportandel_mindst_halvdelen(driftstid)
+    | SøblBugseringOgBjærgning -> søbl6_årsdriftsrelation_opfylder_halvdelskravet(årsdriftsrelation)
     | _ -> Falskt
 }
-| søbl5_til8_tonnageskatteaktivitet_opfyldt(arbejde: Søbl5Til8Arbejdsfakta) -> match arbejde.anvendelse {
-    | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet)
+| søbl5_til8_tonnageskatteaktivitet_opfyldt(arbejde: Søbl5Til8Arbejdsfakta, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation) -> match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_aktivitet_kan_omfattes_af_tonnageskatteloven(aktivitet, årsdriftsrelation)
     | SøblPeriodeMedFlereEllerUoplysteAnvendelser -> Falskt
 }
 | søbl5_til8_fuldt_eller_begrænset_skattepligtig(skattepligt: Søbl5Til8Skattepligt) -> skattepligt == SøblFuldtSkattepligtigEfterKsl1 || skattepligt == SøblBegrænsetSkattepligtigEfterKsl2Stk2
@@ -251,15 +255,83 @@ Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den 
 --@begin::søbl5_til8_par6--
 | søbl6_søtransportminutter_før_ventetid(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter
 | søbl6_aktive_minutter_før_ventetid(driftstid: Søbl6Driftstid) -> søbl6_søtransportminutter_før_ventetid(driftstid) + driftstid.andre_aktiviteter_minutter
-| søbl6_søtransportandel_mindst_halvdelen(driftstid: Søbl6Driftstid) -> søbl5_til8_driftstid_gyldig(driftstid) && søbl6_søtransportminutter_før_ventetid(driftstid) * 2 >= søbl6_aktive_minutter_før_ventetid(driftstid)
-| søbl6_finder_anvendelse(arbejde: Søbl5Til8Arbejdsfakta) -> arbejde.arbejdsområde == SøblArbejdeIndenForEUEØS && match arbejde.anvendelse {
-    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(_)) -> Sandt
+| søbl6_ventetid_til_søtransport_tæller(driftstid: Søbl6Driftstid) -> driftstid.ventetid_minutter * søbl6_søtransportminutter_før_ventetid(driftstid)
+| søbl6_ventetid_til_andre_aktiviteter_tæller(driftstid: Søbl6Driftstid) -> driftstid.ventetid_minutter * driftstid.andre_aktiviteter_minutter
+| søbl6_søtransport_inkl_fordelt_ventetid_tæller(driftstid: Søbl6Driftstid) -> søbl6_søtransportminutter_før_ventetid(driftstid) * søbl6_aktive_minutter_før_ventetid(driftstid) + søbl6_ventetid_til_søtransport_tæller(driftstid)
+| søbl6_samlet_driftstid_tæller(driftstid: Søbl6Driftstid) -> (søbl6_aktive_minutter_før_ventetid(driftstid) + driftstid.ventetid_minutter) * søbl6_aktive_minutter_før_ventetid(driftstid)
+| søbl6_søtransportandel_mindst_halvdelen(driftstid: Søbl6Driftstid) -> søbl5_til8_driftstid_gyldig(driftstid) && søbl6_søtransport_inkl_fordelt_ventetid_tæller(driftstid) * 2 >= søbl6_samlet_driftstid_tæller(driftstid)
+| søbl6_skibsårsdriftresultat(fakta: Søbl6Skibsårsdriftfakta) -> {
+    = søtransportminutter_før_ventetid = søbl6_søtransportminutter_før_ventetid(fakta.driftstid)
+    = aktive_minutter_før_ventetid = søbl6_aktive_minutter_før_ventetid(fakta.driftstid)
+    = input_gyldigt = fakta.skibsidentifikation != "" && fakta.indkomstår >= 1900 && søbl5_til8_driftstid_gyldig(fakta.driftstid)
+    Søbl6Skibsårsdriftresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        søtransportminutter_før_ventetid = søtransportminutter_før_ventetid,
+        aktive_minutter_før_ventetid = aktive_minutter_før_ventetid,
+        ventetid_til_søtransport_tæller = søbl6_ventetid_til_søtransport_tæller(fakta.driftstid),
+        ventetid_til_andre_aktiviteter_tæller = søbl6_ventetid_til_andre_aktiviteter_tæller(fakta.driftstid),
+        ventetidsfordeling_nævner = aktive_minutter_før_ventetid,
+        søtransport_inkl_fordelt_ventetid_tæller = søbl6_søtransport_inkl_fordelt_ventetid_tæller(fakta.driftstid),
+        samlet_driftstid_tæller = søbl6_samlet_driftstid_tæller(fakta.driftstid),
+        samlet_driftstid_minutter = aktive_minutter_før_ventetid + fakta.driftstid.ventetid_minutter,
+        søtransportandel_mindst_halvdelen = input_gyldigt && søbl6_søtransportandel_mindst_halvdelen(fakta.driftstid)
+    )
+}
+| søbl6_indkomst_kræver_årsdrift(fakta: Søbl5Til8Indkomstfakta) -> match fakta.arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning) -> Sandt
     | _ -> Falskt
 }
-| søbl6_betingelser_opfyldt(skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta) -> hvis søbl6_finder_anvendelse(arbejde) { søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && match arbejde.anvendelse {
-    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning(driftstid)) -> søbl6_søtransportandel_mindst_halvdelen(driftstid)
+| søbl6_indkomst_årsdriftsrelation(fakta: Søbl5Til8Indkomstfakta, resultater: List(Søbl6Skibsårsdriftresultat)) -> hvis søbl6_indkomst_kræver_årsdrift(fakta) == Falskt {
+    Søbl6ÅrsdriftIkkePåkrævet
+} ellers {
+    = matchende = filter(resultater, |resultat: Søbl6Skibsårsdriftresultat| resultat.fakta.skibsidentifikation == fakta.skib.identifikation && resultat.fakta.indkomstår == fakta.indkomstår)
+    hvis length(matchende) == 0 {
+        Søbl6ÅrsdriftMangler
+    } ellers hvis length(matchende) > 1 {
+        Søbl6ÅrsdriftFlertydig
+    } ellers hvis head(matchende).input_gyldigt {
+        Søbl6ÅrsdriftTilknyttet(resultat = head(matchende))
+    } ellers {
+        Søbl6ÅrsdriftUgyldig(resultat = head(matchende))
+    }
+}
+| søbl6_årsdriftsrelation_gyldig(relation: Søbl6IndkomstÅrsdriftsrelation) -> match relation {
+    | Søbl6ÅrsdriftIkkePåkrævet -> Sandt
+    | Søbl6ÅrsdriftTilknyttet(_) -> Sandt
     | _ -> Falskt
-} } ellers { Sandt }
+}
+| søbl6_årsdriftsrelation_opfylder_halvdelskravet(relation: Søbl6IndkomstÅrsdriftsrelation) -> match relation {
+    | Søbl6ÅrsdriftTilknyttet(resultat) -> resultat.input_gyldigt && resultat.søtransportandel_mindst_halvdelen
+    | _ -> Falskt
+}
+| søbl6_skibsidentitet_svarer_til_hinanden(a: Søbl5Til8Skibsfakta, b: Søbl5Til8Skibsfakta) -> a.identifikation == b.identifikation && a.registrering == b.registrering && a.bruttotonnage == b.bruttotonnage
+| søbl6_skibsfakta_konsistente(indkomster: List(Søbl5Til8Indkomstfakta)) -> all(indkomster, |fakta: Søbl5Til8Indkomstfakta| all(indkomster, |anden: Søbl5Til8Indkomstfakta| fakta.skib.identifikation != anden.skib.identifikation || søbl6_skibsidentitet_svarer_til_hinanden(fakta.skib, anden.skib)))
+| søbl6_årsdriftsidentifikationer_entydige(indkomstår: Heltal, resultater: List(Søbl6Skibsårsdriftresultat)) -> all(resultater, |resultat: Søbl6Skibsårsdriftresultat| resultat.fakta.skibsidentifikation != "" && resultat.fakta.indkomstår == indkomstår && length(filter(resultater, |andet: Søbl6Skibsårsdriftresultat| andet.fakta.skibsidentifikation == resultat.fakta.skibsidentifikation && andet.fakta.indkomstår == resultat.fakta.indkomstår)) == 1)
+| søbl6_alle_årsdriftsfakta_anvendt(indkomster: List(Søbl5Til8Indkomstfakta), resultater: List(Søbl6Skibsårsdriftresultat)) -> all(resultater, |resultat: Søbl6Skibsårsdriftresultat| any(indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl6_indkomst_kræver_årsdrift(fakta) && fakta.skib.identifikation == resultat.fakta.skibsidentifikation && fakta.indkomstår == resultat.fakta.indkomstår))
+| søbl6_årsdriftsgrundlagsresultat(indkomstår: Heltal, indkomster: List(Søbl5Til8Indkomstfakta), skibsårsdrifter: List(Søbl6Skibsårsdriftfakta)) -> {
+    = resultater = map(skibsårsdrifter, søbl6_skibsårsdriftresultat)
+    = identifikationer_entydige = søbl6_årsdriftsidentifikationer_entydige(indkomstår, resultater)
+    = alle_input_gyldige = all(resultater, |resultat: Søbl6Skibsårsdriftresultat| resultat.input_gyldigt)
+    = alle_fakta_anvendt = søbl6_alle_årsdriftsfakta_anvendt(indkomster, resultater)
+    = skibsfakta_konsistente = søbl6_skibsfakta_konsistente(indkomster)
+    = alle_bugserindkomster_tilknyttet = all(indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl6_årsdriftsrelation_gyldig(søbl6_indkomst_årsdriftsrelation(fakta, resultater)))
+    Søbl6Årsdriftsgrundlagsresultat(
+        indkomstår = indkomstår,
+        resultater = resultater,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        alle_fakta_anvendt = alle_fakta_anvendt,
+        skibsfakta_konsistente = skibsfakta_konsistente,
+        alle_bugserindkomster_tilknyttet = alle_bugserindkomster_tilknyttet,
+        input_gyldigt = identifikationer_entydige && alle_input_gyldige && alle_fakta_anvendt && skibsfakta_konsistente && alle_bugserindkomster_tilknyttet
+    )
+}
+| søbl6_finder_anvendelse(arbejde: Søbl5Til8Arbejdsfakta) -> arbejde.arbejdsområde == SøblArbejdeIndenForEUEØS && match arbejde.anvendelse {
+    | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning) -> Sandt
+    | _ -> Falskt
+}
+| søbl6_betingelser_opfyldt(skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation) -> hvis søbl6_finder_anvendelse(arbejde) { søbl5_til8_registrering_har_eu_eøs_hjemsted(skib.registrering) && søbl6_årsdriftsrelation_opfylder_halvdelskravet(årsdriftsrelation) } ellers { Sandt }
 --@end::søbl5_til8_par6--
 
 = søbl5_til8_par7_metadata = Metadata(
@@ -345,17 +417,18 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 | exception søbl5_til8_ligningslov7u_bundfradrag_2026 søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under indkomstår == 2026
 | søbl5_til8_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
 
-# Søbl5Til8Indkomstsag(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) {
-    | input_gyldigt() -> fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta)
+# Søbl5Til8Indkomstsag(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta, årsdriftsresultater: List(Søbl6Skibsårsdriftresultat)) {
+    | årsdriftsrelation() -> søbl6_indkomst_årsdriftsrelation(fakta, årsdriftsresultater)
+    | input_gyldigt() -> fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta) && søbl6_årsdriftsrelation_gyldig(årsdriftsrelation())
     | arbejdsrolle_omfattet() -> søbl5_til8_arbejdsrolle_omfattet(fakta.arbejde.arbejdsrolle)
     | aflønningsbetingelse_opfyldt() -> søbl5_til8_aflønningsbetingelse_opfyldt(fakta.person.relation)
     | indkomsttype_omfattet() -> søbl5_til8_indkomsttype_omfattet(fakta.løn.indkomsttype)
     | nettolønsbetingelse_opfyldt() -> søbl5_til8_nettolønsbetingelse_opfyldt(fakta.løn.løngrundlag)
-    | tonnageskatteaktivitet_opfyldt() -> søbl5_til8_tonnageskatteaktivitet_opfyldt(fakta.arbejde)
-    | par6_opfyldt() -> søbl6_finder_anvendelse(fakta.arbejde) && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde)
+    | tonnageskatteaktivitet_opfyldt() -> søbl5_til8_tonnageskatteaktivitet_opfyldt(fakta.arbejde, årsdriftsrelation())
+    | par6_opfyldt() -> søbl6_finder_anvendelse(fakta.arbejde) && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde, årsdriftsrelation())
     | par7_opfyldt() -> søbl7_regelmæssig_passagersejlads(fakta.arbejde.passagerrute) && søbl7_betingelser_opfyldt(fakta.person, fakta.skib, fakta.arbejde.passagerrute)
     | par8_opfyldt() -> søbl8_betingelser_opfyldt(fakta.skib, fakta.arbejde)
-    | fælles_betingelser_opfyldt() -> input_gyldigt() && arbejdsrolle_omfattet() && aflønningsbetingelse_opfyldt() && indkomsttype_omfattet() && nettolønsbetingelse_opfyldt() && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde) && søbl7_betingelser_opfyldt(fakta.person, fakta.skib, fakta.arbejde.passagerrute)
+    | fælles_betingelser_opfyldt() -> input_gyldigt() && arbejdsrolle_omfattet() && aflønningsbetingelse_opfyldt() && indkomsttype_omfattet() && nettolønsbetingelse_opfyldt() && søbl6_betingelser_opfyldt(fakta.skib, fakta.arbejde, årsdriftsrelation()) && søbl7_betingelser_opfyldt(fakta.person, fakta.skib, fakta.arbejde.passagerrute)
     | par5_opfyldt() -> fælles_betingelser_opfyldt() && søbl5_til8_fuldt_eller_begrænset_skattepligtig(fakta.person.skattepligt) && søbl5_til8_dansk_dis_skib(fakta.skib) && tonnageskatteaktivitet_opfyldt()
     | par5b_opfyldt() -> fælles_betingelser_opfyldt() && søbl5b_skattepligt_opfyldt(fakta.person.skattepligt) && søbl5b_skibs_og_arbejdsgiverbetingelser_opfyldt(fakta.skib, fakta.arbejde.passagerrute) && tonnageskatteaktivitet_opfyldt()
     | kan_anvende_par5_til8() -> par5_opfyldt() || par5b_opfyldt() || fælles_betingelser_opfyldt() && par8_opfyldt()
@@ -375,6 +448,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     | uafklaret_nettoløn_kroner() -> hvis fakta.løn.løngrundlag != SøblOrdinærBruttoløn && kan_anvende_par5_til8() == Falskt { fakta.løn.beløb_kroner } ellers { 0 }
     | resultat() -> Søbl5Til8Indkomstresultat(
         fakta = fakta,
+        årsdriftsrelation = årsdriftsrelation(),
         input_gyldigt = input_gyldigt(),
         arbejdsrolle_omfattet = arbejdsrolle_omfattet(),
         aflønningsbetingelse_opfyldt = aflønningsbetingelse_opfyldt(),
@@ -397,7 +471,8 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     )
 }
 
-| søbl5_til8_indkomstresultat(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) -> Søbl5Til8Indkomstsag(indkomstår = indkomstår, fakta = fakta).resultat()
+| søbl5_til8_indkomstresultat_med_årsdrifter(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta, årsdriftsresultater: List(Søbl6Skibsårsdriftresultat)) -> Søbl5Til8Indkomstsag(indkomstår = indkomstår, fakta = fakta, årsdriftsresultater = årsdriftsresultater).resultat()
+| søbl5_til8_indkomstresultat(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta) -> søbl5_til8_indkomstresultat_med_årsdrifter(indkomstår = indkomstår, fakta = fakta, årsdriftsresultater = [])
 | søbl5_til8_sum(resultater: List(Søbl5Til8Indkomstresultat), udtræk: Søbl5Til8Indkomstresultat -> Heltal) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Søbl5Til8Indkomstresultat| sum_kroner + udtræk(resultat))
 | søbl5_til8_direkte_ligningslov7u_dis_nettoløn_kroner(resultat: Søbl5Til8Indkomstresultat) -> hvis resultat.input_gyldigt && resultat.beskatningsvirkning == SøblNedsættelseAfSamletIndkomstskat && resultat.fakta.løn.indkomsttype == SøblLigningslov7UYdelseMedDirekteTilknytning { resultat.dis_personlig_indkomst_kroner } ellers { 0 }
 | søbl5_til8_andre_ligningslov7u_identifikationer_entydige(indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> length(distinct(map(indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.identifikation))) == length(indkomster) && all(indkomster, |fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| fakta.identifikation != "")
@@ -450,11 +525,12 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 | exception søbl6_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar6 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar6)
 | exception søbl5_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar5 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8)
 | søbl5_til8_årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput) -> {
-    = indkomstresultater = map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl5_til8_indkomstresultat(indkomstår = indkomstår, fakta = fakta))
+    = årsdriftsgrundlag = søbl6_årsdriftsgrundlagsresultat(indkomstår, input.indkomster, input.skibsårsdrifter)
+    = indkomstresultater = map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl5_til8_indkomstresultat_med_årsdrifter(indkomstår = indkomstår, fakta = fakta, årsdriftsresultater = årsdriftsgrundlag.resultater))
     = ligningslov7u_bundfradrag = søbl5_til8_ligningslov7u_bundfradragsresultat(indkomstår, indkomstresultater, input.andre_ligningslov7u_indkomster)
-    = skatteår_understøttet = length(input.indkomster) == 0 && length(input.andre_ligningslov7u_indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
+    = skatteår_understøttet = length(input.indkomster) == 0 && length(input.skibsårsdrifter) == 0 && length(input.andre_ligningslov7u_indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
     = identifikationer_entydige = søbl5_til8_alle_årsidentifikationer_entydige(input)
-    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && ligningslov7u_bundfradrag.input_gyldigt && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && årsdriftsgrundlag.input_gyldigt && ligningslov7u_bundfradrag.input_gyldigt && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
     = samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.dis_personlig_indkomst_kroner)
     = samlet_dis_personlig_indkomst_kroner = hvis alle_input_gyldige { samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner - ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner } ellers { 0 }
     = samlet_ordinær_bruttoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ordinær_bruttoløn_kroner)
@@ -463,6 +539,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     Søbl5Til8Årsresultat(
         indkomstår = indkomstår,
         input = input,
+        årsdriftsgrundlag = årsdriftsgrundlag,
         indkomstresultater = indkomstresultater,
         ligningslov7u_bundfradrag = ligningslov7u_bundfradrag,
         skatteår_understøttet = skatteår_understøttet,

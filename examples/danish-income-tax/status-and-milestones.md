@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler nu ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
+Current implementation slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses nu én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
+Previous DIS § 7 U slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
 Previous historical KGL § 32 slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
 Previous KGL § 32 allocation slice: `td-51358b` (modregning i blandede ABL-gevinster fordeles efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
 Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
@@ -4019,7 +4020,16 @@ Review candidates to revisit deliberately, not as broad churn:
   Den komplette JSON/XLSX-rundtur bevarer 500.000 kr. almindelig DIS-nettoløn,
   20.000 kr. direkte § 7 U-ydelse og 60.000 kr. anden § 7 U-indkomst og giver
   samme fulde resultat på begge grænser: 518.000 kr. DIS-indkomst efter
-  allokering og 54.000 kr. anden AM-pligtig indkomst.
+  allokering og 54.000 kr. anden AM-pligtig indkomst. § 6-driftstiden ligger
+  samtidig i en særskilt årsrelation med stabil skibsidentifikation i stedet for
+  at blive gentaget på hver lønrække. Søtransport, mobilisering, andre
+  aktiviteter og ventetid oplyses én gang pr. skib og indkomstår; reglerne
+  bevarer den forholdsmæssige ventetidsfordeling som eksakte tællere og nævner.
+  To lønperioder på samme bugserfartøj deler derfor ét 50-procentresultat, mens
+  manglende, dublerede, ugyldige, modstridende og uanvendte årsdriftsfakta samt
+  modstridende statiske skibsfakta afvises. Fokusprøverne dækker 49/50-procent-
+  grænsen, mobilisering og ventetidsbevarelse, og den komplette JSON/XLSX-rundtur
+  udfylder det særskilte årsdriftsark og bevarer begge lønrelationer.
 - Validerede `@ calculate`-kontrakter har nu en vedvarende,
   indholdsadresseret cache. Nøglen omfatter compilerbinæren, prelude-valget,
   rodfilen og alle transitive almindelige, kvalificerede og hash-baserede
@@ -4800,9 +4810,8 @@ Review candidates to revisit deliberately, not as broad churn:
 
 - Færdiggør de afgrænsede SØBL-rester uden at svække den nye
   kildefaktamodel: `td-00b484` erstatter 92/184-dages tilnærmelser med eksakte
-  kalendermåneder, `td-b874c0` samler § 6-driftstid pr. skib og indkomstår, og
-  `td-44eb29` giver dødsboer, begrænset skattepligtige og kulbrinteskattesager
-  deres egne kanoniske beløbsresultater.
+  kalendermåneder, og `td-44eb29` giver dødsboer, begrænset skattepligtige og
+  kulbrinteskattesager deres egne kanoniske beløbsresultater.
 - Udskyd næste performance-lag, indtil de væsentlige resterende lovregler er
   implementeret. Når fokus vender tilbage til målt latenstid, ejer `td-60a9d6`
   genbrug af parsede og typede moduler, mens `td-783a9c` ejer en resident
