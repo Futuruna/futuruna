@@ -80,9 +80,37 @@
     lønomlægning = fakta.lønomlægning,
     indkomstforhold = fakta.indkomstforhold
 )
+| ll9a_scenarie_rejse_med_art(fakta: Ligningslov9ARejsefakta, rejseart: Ligningslov9ARejseart) -> Ligningslov9ARejsefakta(
+    identifikation = fakta.identifikation,
+    indkomstår = fakta.indkomstår,
+    startdato = fakta.startdato,
+    rejseart = rejseart,
+    arbejdssted_identifikation = fakta.arbejdssted_identifikation,
+    arbejdsstedskarakter = fakta.arbejdsstedskarakter,
+    overnatningsforhold = fakta.overnatningsforhold,
+    hverv = fakta.hverv,
+    varighed_minutter = fakta.varighed_minutter,
+    kost = fakta.kost,
+    logidøgn = fakta.logidøgn,
+    kontrol = fakta.kontrol,
+    lønomlægning = fakta.lønomlægning,
+    indkomstforhold = fakta.indkomstforhold
+)
+| ll9a_scenarie_kort_tjenesterejse(identifikation: Tekst, startdato: Dato) -> ll9a_scenarie_rejse(
+    identifikation = identifikation,
+    arbejdssted_identifikation = "projektsted-a",
+    arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse),
+    startdato = startdato,
+    hverv = Ll9AAlmindeligtHverv,
+    varighed_minutter = 2880,
+    godtgørelse = ll9a_scenarie_godtgørelse(500, 0, Ll9AArbejdsgiverkontrolUdført),
+    kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+    logifradragsprincip = Ll9AIntetLogifradrag,
+    indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
+)
 
 | ll9a_scenarie_tom_arbejdshistorik() -> Ligningslov9AArbejdshistorik(
-    tidligere_perioderejser = [],
+    tidligere_rejser = [],
     arbejdsdage = [],
     arbejdsstedsafstande = []
 )
@@ -107,18 +135,20 @@
 = ll9a_scenarie_efter_tolv_måneder_startdato = Dato(år = 2026, måned = 1, dag = 15)
 = ll9a_scenarie_tilbagevending_startdato = Dato(år = 2026, måned = 2, dag = 1)
 = ll9a_scenarie_efter_tolv_måneder_historik = Ligningslov9AArbejdshistorik(
-    tidligere_perioderejser = [Ligningslov9APerioderejse(
+    tidligere_rejser = [Ligningslov9APerioderejse(
         identifikation = "periode-start-2025",
         startdato = Dato(år = 2025, måned = 1, dag = 15),
-        arbejdssted_identifikation = "projektsted-a"
+        arbejdssted_identifikation = "projektsted-a",
+        rejseart = Ll9APeriodeTjenesterejse,
+        varighed_minutter = 86400
     )],
     arbejdsdage = [],
     arbejdsstedsafstande = []
 )
 = ll9a_scenarie_fyrre_arbejdsdage_historik = Ligningslov9AArbejdshistorik(
-    tidligere_perioderejser = [
-        Ligningslov9APerioderejse(identifikation = "a-før", startdato = Dato(år = 2025, måned = 1, dag = 1), arbejdssted_identifikation = "projektsted-a"),
-        Ligningslov9APerioderejse(identifikation = "b-mellem", startdato = Dato(år = 2025, måned = 2, dag = 1), arbejdssted_identifikation = "projektsted-b")
+    tidligere_rejser = [
+        Ligningslov9APerioderejse(identifikation = "a-før", startdato = Dato(år = 2025, måned = 1, dag = 1), arbejdssted_identifikation = "projektsted-a", rejseart = Ll9APeriodeTjenesterejse, varighed_minutter = 86400),
+        Ligningslov9APerioderejse(identifikation = "b-mellem", startdato = Dato(år = 2025, måned = 2, dag = 1), arbejdssted_identifikation = "projektsted-b", rejseart = Ll9APeriodeTjenesterejse, varighed_minutter = 86400)
     ],
     arbejdsdage = map(range(0, 40), |dagnummer: Heltal| Ligningslov9AArbejdsdag(
         dato = dato_plus_dage(Dato(år = 2025, måned = 3, dag = 1), dagnummer),
@@ -132,10 +162,12 @@
     )]
 )
 = ll9a_scenarie_manglende_afstand_historik = Ligningslov9AArbejdshistorik(
-    tidligere_perioderejser = [Ligningslov9APerioderejse(
+    tidligere_rejser = [Ligningslov9APerioderejse(
         identifikation = "a-før-manglende-afstand",
         startdato = Dato(år = 2025, måned = 1, dag = 1),
-        arbejdssted_identifikation = "projektsted-a"
+        arbejdssted_identifikation = "projektsted-a",
+        rejseart = Ll9APeriodeTjenesterejse,
+        varighed_minutter = 86400
     )],
     arbejdsdage = [],
     arbejdsstedsafstande = []
@@ -211,7 +243,7 @@
 )
 
 = ll9a_scenarie_efter_tolv_måneder_resultat = ll9a_scenarie_årsresultat_med_historik(
-    rejser = [ll9a_scenarie_rejse(
+    rejser = [ll9a_scenarie_rejse_med_art(ll9a_scenarie_rejse(
         identifikation = "efter-tolv-måneder",
         arbejdssted_identifikation = "projektsted-a",
         arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse),
@@ -222,7 +254,27 @@
         kostfradragsprincip = Ll9AKostfradragMedStandardsats,
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
-    )],
+        ), Ll9ASelvvalgtRejse)],
+    arbejdshistorik = ll9a_scenarie_efter_tolv_måneder_historik,
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+
+= ll9a_scenarie_to_korte_tjenesterejser_resultat = ll9a_scenarie_årsresultat_med_historik(
+    rejser = [
+        ll9a_scenarie_kort_tjenesterejse("kort-januar-1", Dato(år = 2026, måned = 1, dag = 20)),
+        ll9a_scenarie_kort_tjenesterejse("kort-januar-2", Dato(år = 2026, måned = 1, dag = 27))
+    ],
+    arbejdshistorik = ll9a_scenarie_efter_tolv_måneder_historik,
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
+= ll9a_scenarie_tre_korte_tjenesterejser_resultat = ll9a_scenarie_årsresultat_med_historik(
+    rejser = [
+        ll9a_scenarie_kort_tjenesterejse("hyppig-januar-1", Dato(år = 2026, måned = 1, dag = 18)),
+        ll9a_scenarie_kort_tjenesterejse("hyppig-januar-2", Dato(år = 2026, måned = 1, dag = 23)),
+        ll9a_scenarie_kort_tjenesterejse("hyppig-januar-3", Dato(år = 2026, måned = 1, dag = 28))
+    ],
     arbejdshistorik = ll9a_scenarie_efter_tolv_måneder_historik,
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
     ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
@@ -438,9 +490,11 @@
 | ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning: ll9a_scenarie_faktiske_udgifter_resultat -> ll9a_scenarie_faktiske_udgifter_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_faktiske_udgifter_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1700
 | ll9a_scenarie_over_sats_gør_hele_kostgodtgørelsen_skattepligtig: ll9a_scenarie_over_sats_resultat -> ll9a_scenarie_over_sats_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_over_sats_resultat.samlet_skattepligtig_godtgørelse_kroner == 1300 && ll9a_scenarie_over_sats_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
 | ll9a_scenarie_manglende_kontrol_bevarer_muligt_fradrag: ll9a_scenarie_uden_kontrol_resultat -> ll9a_scenarie_uden_kontrol_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_uden_kontrol_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_uden_kontrol_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
-| ll9a_scenarie_tolv_måneder_afskærer_kost_men_ikke_logi: ll9a_scenarie_efter_tolv_måneder_resultat -> head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardperiode_aktiv_for_kost == Falskt && head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardsats_kost_efter_dækning_kroner == 0 && head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardsats_logi_kroner == 536 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_skattefri_godtgørelse_kroner == 300 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_skattepligtig_godtgørelse_kroner == 500 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 236
-| ll9a_scenarie_fyrre_arbejdsdage_starter_ny_periode: ll9a_scenarie_ny_periode_resultat -> head(ll9a_scenarie_ny_periode_resultat.rejseresultater).standardperiode_aktiv_for_kost && ll9a_scenarie_ny_periode_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
-| ll9a_scenarie_transportarbejde_afskærer_logisats: ll9a_scenarie_transport_resultat -> head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_kost_efter_dækning_kroner == 1250 && head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_logi_kroner == 0 && ll9a_scenarie_transport_resultat.samlet_skattepligtig_godtgørelse_kroner == 300
+| ll9a_scenarie_tolv_måneder_afskærer_kost_men_ikke_logi: ll9a_scenarie_efter_tolv_måneder_resultat -> head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardperiode_aktiv_for_kostgodtgørelse == Falskt && head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardperiode_aktiv_for_kostfradrag == Falskt && head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardsats_kostgodtgørelse_efter_dækning_kroner == 0 && head(ll9a_scenarie_efter_tolv_måneder_resultat.rejseresultater).standardsats_logi_kroner == 536 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_skattefri_godtgørelse_kroner == 300 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_skattepligtig_godtgørelse_kroner == 500 && ll9a_scenarie_efter_tolv_måneder_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 236
+| ll9a_scenarie_to_korte_tjenesterejser_undtager_kun_godtgørelsen: ll9a_scenarie_to_korte_tjenesterejser_resultat -> all(ll9a_scenarie_to_korte_tjenesterejser_resultat.rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.kort_tjenesterejsevurdering == Ll9AEnkeltståendeKortvarigEfterPraksiseksempel(antal_rejser_til_arbejdsstedet_i_måneden = 2) && resultat.standardperiode_aktiv_for_kostgodtgørelse && resultat.standardperiode_aktiv_for_kostfradrag == Falskt && resultat.standardsats_kostfradrag_efter_dækning_kroner == 0) && ll9a_scenarie_to_korte_tjenesterejser_resultat.samlet_skattefri_godtgørelse_kroner == 1000 && ll9a_scenarie_to_korte_tjenesterejser_resultat.samlet_skattepligtig_godtgørelse_kroner == 0 && ll9a_scenarie_to_korte_tjenesterejser_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_tredje_rejse_i_måneden_falder_uden_for_undtagelsen: ll9a_scenarie_tre_korte_tjenesterejser_resultat -> all(ll9a_scenarie_tre_korte_tjenesterejser_resultat.rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.kort_tjenesterejsevurdering == Ll9ARejsemønsterForHyppigt(antal_rejser_til_arbejdsstedet_i_måneden = 3) && resultat.standardperiode_aktiv_for_kostgodtgørelse == Falskt) && ll9a_scenarie_tre_korte_tjenesterejser_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_tre_korte_tjenesterejser_resultat.samlet_skattepligtig_godtgørelse_kroner == 1500
+| ll9a_scenarie_fyrre_arbejdsdage_starter_ny_periode: ll9a_scenarie_ny_periode_resultat -> head(ll9a_scenarie_ny_periode_resultat.rejseresultater).standardperiode_aktiv_for_kostgodtgørelse && head(ll9a_scenarie_ny_periode_resultat.rejseresultater).standardperiode_aktiv_for_kostfradrag && ll9a_scenarie_ny_periode_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
+| ll9a_scenarie_transportarbejde_afskærer_logisats: ll9a_scenarie_transport_resultat -> head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_kostgodtgørelse_efter_dækning_kroner == 1250 && head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_logi_kroner == 0 && ll9a_scenarie_transport_resultat.samlet_skattepligtig_godtgørelse_kroner == 300
 | ll9a_scenarie_dobbelt_husførelse_deler_årsloft: ll9a_scenarie_årsloft_resultat -> ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_før_årsloft_kroner > 34400 && ll9a_scenarie_årsloft_resultat.dobbelt_husførelse_før_fælles_loft_kroner == 10000 && ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 24400
 | ll9a_scenarie_udlandsindkomst_begrænser_fradrag: ll9a_scenarie_udlandsloft_resultat -> head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).fradrag_før_indkomstloft_kroner == 1786 && head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).indkomstloft_kroner == 800 && ll9a_scenarie_udlandsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 800
 | ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer: ll9a_scenarie_sømandsudelukket_resultat -> ll9a_scenarie_sømandsudelukket_resultat.stk1_til_stk9_udelukket && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_sømandsudelukket_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
@@ -453,7 +507,7 @@
 | ll9a_scenarie_opdelt_overskud_bevarer_satsdelen_skattefri: ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat -> ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.alle_input_gyldige && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_udbetalt_godtgørelse_kroner == 1450 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_supplerende_løn_kroner == 200 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_skattefri_godtgørelse_kroner == 1250 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_skattepligtig_godtgørelse_kroner == 200 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 536
 | ll9a_scenarie_kostprincip_gælder_for_hele_rejsen: ll9a_scenarie_kost_efter_regning_resultat -> {
     = rejse = head(ll9a_scenarie_kost_efter_regning_resultat.rejseresultater)
-    rejse.input_gyldigt && rejse.standardsats_kost_før_dækning_kroner == 1250 && rejse.standardsats_kost_efter_dækning_kroner == 312 && rejse.kostfradrag_kroner == 312 && rejse.logifradrag_kroner == 0
+    rejse.input_gyldigt && rejse.standardsats_kostgodtgørelse_før_dækning_kroner == 1250 && rejse.standardsats_kostgodtgørelse_efter_dækning_kroner == 312 && rejse.standardsats_kostfradrag_efter_dækning_kroner == 312 && rejse.kostfradrag_kroner == 312 && rejse.logifradrag_kroner == 0
 }
 
 ? ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag
@@ -461,6 +515,8 @@
 ? ll9a_scenarie_over_sats_gør_hele_kostgodtgørelsen_skattepligtig
 ? ll9a_scenarie_manglende_kontrol_bevarer_muligt_fradrag
 ? ll9a_scenarie_tolv_måneder_afskærer_kost_men_ikke_logi
+? ll9a_scenarie_to_korte_tjenesterejser_undtager_kun_godtgørelsen
+? ll9a_scenarie_tredje_rejse_i_måneden_falder_uden_for_undtagelsen
 ? ll9a_scenarie_fyrre_arbejdsdage_starter_ny_periode
 ? ll9a_scenarie_transportarbejde_afskærer_logisats
 ? ll9a_scenarie_dobbelt_husførelse_deler_årsloft

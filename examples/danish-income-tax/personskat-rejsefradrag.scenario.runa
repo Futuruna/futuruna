@@ -60,7 +60,7 @@ personens valg om faktisk at anvende fradraget.
     personrolle = Ll9AAlmindeligLønmodtager,
     rejser = [personskat_rejsefradrag_rejse()],
     arbejdshistorik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = [],
         arbejdsstedsafstande = []
     ),

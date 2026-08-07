@@ -2009,7 +2009,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             );
         }
         let prior_period_travel_path =
-            "lønmodtager.ligningsfradrag.rejser.arbejdshistorik.tidligere_perioderejser";
+            "lønmodtager.ligningsfradrag.rejser.arbejdshistorik.tidligere_rejser";
         let prior_period_travel_sheet =
             workbook_collection_sheet_name(&mut workbook, prior_period_travel_path);
         let prior_period_travel_paths =
@@ -2020,6 +2020,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "startdato.måned",
             "startdato.dag",
             "arbejdssted_identifikation",
+            "rejseart",
+            "varighed_minutter",
         ] {
             assert!(
                 prior_period_travel_paths
@@ -2036,6 +2038,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Tidligere rejses startdato - måned",
             "Tidligere rejses startdato - dag",
             "Tidligere rejses arbejdssted",
+            "Tidligere rejses art",
+            "Tidligere rejses samlede varighed",
         ] {
             assert!(
                 prior_period_travel_headers
@@ -9576,7 +9580,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                     "rejser": [],
                     "arbejdshistorik": {
-                        "tidligere_perioderejser": [],
+                        "tidligere_rejser": [],
                         "arbejdsdage": [],
                         "arbejdsstedsafstande": []
                     },
@@ -11052,7 +11056,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
                         "rejser": [],
                         "arbejdshistorik": {
-                            "tidligere_perioderejser": [],
+                            "tidligere_rejser": [],
                             "arbejdsdage": [],
                             "arbejdsstedsafstande": []
                         },

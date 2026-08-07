@@ -5,7 +5,16 @@
 | ll9a_periode_scenarie_rejse(identifikation: Tekst, startdato: Dato, arbejdssted_identifikation: Tekst) -> Ligningslov9APerioderejse(
     identifikation = identifikation,
     startdato = startdato,
-    arbejdssted_identifikation = arbejdssted_identifikation
+    arbejdssted_identifikation = arbejdssted_identifikation,
+    rejseart = Ll9APeriodeTjenesterejse,
+    varighed_minutter = 2880
+)
+| ll9a_periode_scenarie_rejse_med_mønsterfakta(identifikation: Tekst, startdato: Dato, arbejdssted_identifikation: Tekst, rejseart: Ligningslov9APerioderejseart, varighed_minutter: Heltal) -> Ligningslov9APerioderejse(
+    identifikation = identifikation,
+    startdato = startdato,
+    arbejdssted_identifikation = arbejdssted_identifikation,
+    rejseart = rejseart,
+    varighed_minutter = varighed_minutter
 )
 | ll9a_periode_scenarie_afstand(fra: Tekst, til: Tekst, gældende_fra: Dato, kilometer: Heltal) -> Ligningslov9AArbejdsstedsafstand(
     fra_arbejdssted_identifikation = fra,
@@ -29,14 +38,14 @@
 )
 
 = ll9a_periode_scenarie_tom_historik = Ligningslov9AArbejdshistorik(
-    tidligere_perioderejser = [],
+    tidligere_rejser = [],
     arbejdsdage = [],
     arbejdsstedsafstande = []
 )
 = ll9a_periode_scenarie_første_og_udløbet = ligningslov9a_standardperiodeforløb(
     rejser = [ll9a_periode_scenarie_rejse("a-udløbet", Dato(år = 2026, måned = 1, dag = 15), "arbejdssted-a")],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [ll9a_periode_scenarie_rejse("a-første", Dato(år = 2025, måned = 1, dag = 15), "arbejdssted-a")],
+        tidligere_rejser = [ll9a_periode_scenarie_rejse("a-første", Dato(år = 2025, måned = 1, dag = 15), "arbejdssted-a")],
         arbejdsdage = [],
         arbejdsstedsafstande = []
     )
@@ -49,7 +58,7 @@
         ll9a_periode_scenarie_rejse("c", Dato(år = 2025, måned = 9, dag = 1), "arbejdssted-c")
     ],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = [],
         arbejdsstedsafstande = [
             ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 8),
@@ -65,7 +74,7 @@
         ll9a_periode_scenarie_rejse("a-efter", Dato(år = 2026, måned = 2, dag = 1), "arbejdssted-a")
     ],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = ll9a_periode_scenarie_arbejdsdage("arbejdssted-b", Dato(år = 2025, måned = 3, dag = 1), 40),
         arbejdsstedsafstande = [ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 20)]
     )
@@ -77,7 +86,7 @@
         ll9a_periode_scenarie_rejse("a-efter", Dato(år = 2026, måned = 2, dag = 1), "arbejdssted-a")
     ],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = ll9a_periode_scenarie_arbejdsdage("arbejdssted-b", Dato(år = 2025, måned = 3, dag = 1), 39),
         arbejdsstedsafstande = [ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 20)]
     )
@@ -89,7 +98,7 @@
         ll9a_periode_scenarie_rejse("a-efter", Dato(år = 2026, måned = 2, dag = 1), "arbejdssted-a")
     ],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = ll9a_periode_scenarie_hjemmearbejdsdage(Dato(år = 2025, måned = 3, dag = 1), 40),
         arbejdsstedsafstande = [ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 20)]
     )
@@ -101,7 +110,7 @@
         ll9a_periode_scenarie_rejse("b", Dato(år = 2025, måned = 7, dag = 1), "arbejdssted-b")
     ],
     historik = Ligningslov9AArbejdshistorik(
-        tidligere_perioderejser = [],
+        tidligere_rejser = [],
         arbejdsdage = [],
         arbejdsstedsafstande = [
             ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 7),
@@ -117,6 +126,40 @@
     historik = ll9a_periode_scenarie_tom_historik
 )
 
+= ll9a_periode_scenarie_to_korte_rejser = [
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("kort-1", Dato(år = 2026, måned = 1, dag = 5), "arbejdssted-a", Ll9APeriodeTjenesterejse, 2880),
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("kort-2", Dato(år = 2026, måned = 1, dag = 20), "arbejdssted-a", Ll9APeriodeTjenesterejse, 7200)
+]
+= ll9a_periode_scenarie_tre_korte_rejser = concat(
+    ll9a_periode_scenarie_to_korte_rejser,
+    [ll9a_periode_scenarie_rejse_med_mønsterfakta("kort-3", Dato(år = 2026, måned = 1, dag = 27), "arbejdssted-a", Ll9APeriodeTjenesterejse, 2880)]
+)
+= ll9a_periode_scenarie_seks_dages_rejse = ll9a_periode_scenarie_rejse_med_mønsterfakta("seks-dage", Dato(år = 2026, måned = 2, dag = 1), "arbejdssted-a", Ll9APeriodeTjenesterejse, 8640)
+= ll9a_periode_scenarie_selvvalgt_rejse = ll9a_periode_scenarie_rejse_med_mønsterfakta("selvvalgt", Dato(år = 2026, måned = 3, dag = 1), "arbejdssted-a", Ll9APeriodeSelvvalgtRejse, 2880)
+
+= ll9a_periode_scenarie_korte_rejser_mellem_arbejdsperioder = [
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("arbejdssted-b", Dato(år = 2026, måned = 1, dag = 1), "arbejdssted-b", Ll9APeriodeTjenesterejse, 86400),
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("kort-a-januar", Dato(år = 2026, måned = 1, dag = 25), "arbejdssted-a", Ll9APeriodeTjenesterejse, 2880),
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("kort-a-februar", Dato(år = 2026, måned = 2, dag = 25), "arbejdssted-a", Ll9APeriodeTjenesterejse, 2880),
+    ll9a_periode_scenarie_rejse_med_mønsterfakta("lang-a-marts", Dato(år = 2026, måned = 3, dag = 1), "arbejdssted-a", Ll9APeriodeTjenesterejse, 86400)
+]
+= ll9a_periode_scenarie_korte_rejser_historik = Ligningslov9AArbejdshistorik(
+    tidligere_rejser = [ll9a_periode_scenarie_rejse_med_mønsterfakta("lang-a-før", Dato(år = 2025, måned = 1, dag = 1), "arbejdssted-a", Ll9APeriodeTjenesterejse, 86400)],
+    arbejdsdage = concat(
+        ll9a_periode_scenarie_arbejdsdage("arbejdssted-b", Dato(år = 2026, måned = 1, dag = 1), 20),
+        ll9a_periode_scenarie_arbejdsdage("arbejdssted-b", Dato(år = 2026, måned = 2, dag = 1), 20)
+    ),
+    arbejdsstedsafstande = [ll9a_periode_scenarie_afstand("arbejdssted-a", "arbejdssted-b", Dato(år = 2025, måned = 1, dag = 1), 20)]
+)
+= ll9a_periode_scenarie_fradragsforløb_med_korte_rejser = ligningslov9a_standardperiodeforløb(
+    ll9a_periode_scenarie_korte_rejser_mellem_arbejdsperioder,
+    ll9a_periode_scenarie_korte_rejser_historik
+)
+= ll9a_periode_scenarie_godtgørelsesforløb_med_korte_rejser = ligningslov9a_godtgørelsesstandardperiodeforløb(
+    ll9a_periode_scenarie_korte_rejser_mellem_arbejdsperioder,
+    ll9a_periode_scenarie_korte_rejser_historik
+)
+
 | ll9a_periode_scenarie_første_dag_starter_og_årsdagen_udløber: ll9a_periode_scenarie_første_og_udløbet -> ll9a_periode_scenarie_første_og_udløbet.alle_input_gyldige && ll9a_periode_scenarie_første_og_udløbet.resultater[0].overgang == Ll9AFørsteRegistreredeRejse && ll9a_periode_scenarie_første_og_udløbet.resultater[0].aktiv_for_kost && ll9a_periode_scenarie_første_og_udløbet.resultater[1].fulde_måneder_siden_periodestart == 12 && ll9a_periode_scenarie_første_og_udløbet.resultater[1].aktiv_for_kost == Falskt
 | ll9a_periode_scenarie_otte_kilometer_starter_mens_syva_deler: ll9a_periode_scenarie_nyt_arbejdssted -> ll9a_periode_scenarie_nyt_arbejdssted.alle_input_gyldige && ll9a_periode_scenarie_nyt_arbejdssted.resultater[1].overgang == Ll9ANytArbejdsstedStarterPeriode(afstand_ad_normal_transportvej_kilometer = 8) && ll9a_periode_scenarie_nyt_arbejdssted.resultater[1].periodestart_dato == Dato(år = 2025, måned = 6, dag = 1) && ll9a_periode_scenarie_nyt_arbejdssted.resultater[2].overgang == Ll9ANytArbejdsstedDelerPeriode(afstand_ad_normal_transportvej_kilometer = 7) && ll9a_periode_scenarie_nyt_arbejdssted.resultater[2].periodestart_dato == Dato(år = 2025, måned = 6, dag = 1)
 | ll9a_periode_scenarie_fyrre_reelle_arbejdsdage_starter_ny_periode: ll9a_periode_scenarie_fyrre_dage -> ll9a_periode_scenarie_fyrre_dage.alle_input_gyldige && ll9a_periode_scenarie_fyrre_dage.resultater[2].overgang == Ll9ATilbagevendenStarterPeriode(sammenhængende_arbejdsdage = 40) && ll9a_periode_scenarie_fyrre_dage.resultater[2].periodestart_dato == Dato(år = 2026, måned = 2, dag = 1) && ll9a_periode_scenarie_fyrre_dage.resultater[2].aktiv_for_kost
@@ -124,6 +167,11 @@
 | ll9a_periode_scenarie_hjemmearbejde_tæller_ikke_som_andet_arbejdssted: ll9a_periode_scenarie_hjemmearbejde -> ll9a_periode_scenarie_hjemmearbejde.alle_input_gyldige && ll9a_periode_scenarie_hjemmearbejde.resultater[2].overgang == Ll9ATilbagevendenFortsætterPeriode(sammenhængende_arbejdsdage = 0) && ll9a_periode_scenarie_hjemmearbejde.resultater[2].aktiv_for_kost == Falskt
 | ll9a_periode_scenarie_seneste_effektive_afstand_anvendes: ll9a_periode_scenarie_afstandsændring -> ll9a_periode_scenarie_afstandsændring.alle_input_gyldige && ll9a_periode_scenarie_afstandsændring.resultater[1].overgang == Ll9ANytArbejdsstedStarterPeriode(afstand_ad_normal_transportvej_kilometer = 9)
 | ll9a_periode_scenarie_manglende_afstand_fejler_lukket: ll9a_periode_scenarie_manglende_afstand -> ll9a_periode_scenarie_manglende_afstand.alle_input_gyldige == Falskt && ll9a_periode_scenarie_manglende_afstand.resultater[1].input_gyldigt == Falskt && ll9a_periode_scenarie_manglende_afstand.resultater[1].aktiv_for_kost == Falskt
+| ll9a_periode_scenarie_en_til_to_korte_tjenesterejser_følger_praksiseksemplet: ll9a_periode_scenarie_to_korte_rejser -> all(ll9a_periode_scenarie_to_korte_rejser, |rejse: Ligningslov9APerioderejse| ligningslov9a_kort_tjenesterejsevurdering(ll9a_periode_scenarie_to_korte_rejser, rejse) == Ll9AEnkeltståendeKortvarigEfterPraksiseksempel(antal_rejser_til_arbejdsstedet_i_måneden = 2))
+| ll9a_periode_scenarie_tredje_rejse_i_måneden_falder_uden_for_praksiseksemplet: ll9a_periode_scenarie_tre_korte_rejser -> all(ll9a_periode_scenarie_tre_korte_rejser, |rejse: Ligningslov9APerioderejse| ligningslov9a_kort_tjenesterejsevurdering(ll9a_periode_scenarie_tre_korte_rejser, rejse) == Ll9ARejsemønsterForHyppigt(antal_rejser_til_arbejdsstedet_i_måneden = 3))
+| ll9a_periode_scenarie_varighed_ud_over_fem_dage_kræver_konkret_vurdering: ll9a_periode_scenarie_seks_dages_rejse -> ligningslov9a_kort_tjenesterejsevurdering([ll9a_periode_scenarie_seks_dages_rejse], ll9a_periode_scenarie_seks_dages_rejse) == Ll9AKortvarighedKræverKonkretVurdering
+| ll9a_periode_scenarie_selvvalgt_rejse_er_ikke_tjenesterejse: ll9a_periode_scenarie_selvvalgt_rejse -> ligningslov9a_kort_tjenesterejsevurdering([ll9a_periode_scenarie_selvvalgt_rejse], ll9a_periode_scenarie_selvvalgt_rejse) == Ll9AIkkeTjenesterejse
+| ll9a_periode_scenarie_korte_rejser_afbryder_ikke_godtgørelsens_fyrre_dage: ll9a_periode_scenarie_godtgørelsesforløb_med_korte_rejser -> ll9a_periode_scenarie_fradragsforløb_med_korte_rejser.alle_input_gyldige && ll9a_periode_scenarie_godtgørelsesforløb_med_korte_rejser.alle_input_gyldige && last(ll9a_periode_scenarie_fradragsforløb_med_korte_rejser.resultater).aktiv_for_kost == Falskt && last(ll9a_periode_scenarie_godtgørelsesforløb_med_korte_rejser.resultater).overgang == Ll9ATilbagevendenStarterPeriode(sammenhængende_arbejdsdage = 40) && last(ll9a_periode_scenarie_godtgørelsesforløb_med_korte_rejser.resultater).aktiv_for_kost
 
 ? ll9a_periode_scenarie_første_dag_starter_og_årsdagen_udløber
 ? ll9a_periode_scenarie_otte_kilometer_starter_mens_syva_deler
@@ -132,3 +180,8 @@
 ? ll9a_periode_scenarie_hjemmearbejde_tæller_ikke_som_andet_arbejdssted
 ? ll9a_periode_scenarie_seneste_effektive_afstand_anvendes
 ? ll9a_periode_scenarie_manglende_afstand_fejler_lukket
+? ll9a_periode_scenarie_en_til_to_korte_tjenesterejser_følger_praksiseksemplet
+? ll9a_periode_scenarie_tredje_rejse_i_måneden_falder_uden_for_praksiseksemplet
+? ll9a_periode_scenarie_varighed_ud_over_fem_dage_kræver_konkret_vurdering
+? ll9a_periode_scenarie_selvvalgt_rejse_er_ikke_tjenesterejse
+? ll9a_periode_scenarie_korte_rejser_afbryder_ikke_godtgørelsens_fyrre_dage
