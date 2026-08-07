@@ -112,6 +112,12 @@ persistent rustc incremental workspace for changed graphs. Set
 `FUTURUNA_COMPILER_CACHE_TRACE=1` to report cache hits and misses on standard
 error.
 
+For a shorter edit loop, `runa check --frontend file.runa` stops after parsing,
+import-aware type checking, calculation-contract checks, and Futuruna compiler
+validation diagnostics. It deliberately skips complete Rust generation and
+`rustc` or Cargo validation, and reports that reduced assurance in its success
+message. Use ordinary `runa check` as the authoritative pre-commit and CI gate.
+
 `runa check` also keeps `rustc` incremental state per canonical source root,
 prelude mode, and Rust toolchain. Exact Futuruna check results still invalidate
 when the Futuruna compiler changes, while compatible Rust backend work is reused

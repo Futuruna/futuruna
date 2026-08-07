@@ -132,7 +132,8 @@ runa run program.runa       # Compile + execute
 runa emit program.runa      # Show generated Rust
 runa build program.runa     # Compile to native binary
 runa wasm program.runa      # Compile to WebAssembly (via wasm-pack)
-runa check program.runa     # Parse + type-check (fast feedback)
+runa check program.runa     # Full frontend + generated Rust validation
+runa check --frontend program.runa # Fast frontend-only feedback
 runa verify program.runa    # Verify invariants via Z3
 runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)

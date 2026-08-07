@@ -74,7 +74,8 @@ This updates `runa.toml` and generates `runa.lock` for reproducible builds.
 ```bash
 runa run src/main.runa     # Compile + execute
 runa build src/main.runa   # Compile to native binary → ./main
-runa check src/main.runa   # Type-check without running
+runa check src/main.runa   # Full frontend + generated Rust validation
+runa check --frontend src/main.runa # Fast frontend-only feedback
 runa emit src/main.runa    # Show generated Rust
 runa test                  # Run all tests/*.runa
 ```

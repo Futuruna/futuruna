@@ -76,6 +76,7 @@ fn main_inner() {
     let mut test_compile = false; // --run flag for `runa test --run`
     let mut verify_mode = false; // --verify flag for `runa from-rust --verify`
     let mut fmt_check = false; // --check flag for `runa fmt --check`
+    let mut check_frontend_only = false; // --frontend flag for `runa check --frontend`
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut emit_imports = false; // --imports flag for `runa emit --imports`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
@@ -120,6 +121,10 @@ fn main_inner() {
             }
             "--check" if mode == "fmt" => {
                 fmt_check = true;
+                i += 1;
+            }
+            "--frontend" if mode == "check" => {
+                check_frontend_only = true;
                 i += 1;
             }
             "--fir" if mode == "emit" => {
@@ -318,7 +323,8 @@ fn main_inner() {
                 eprintln!("  lib           Emit Rust library source (no main)");
                 eprintln!("  hashes        Show content hashes for all definitions");
                 eprintln!("  wasm          Compile to WebAssembly (via wasm-pack)");
-                eprintln!("  check         Parse and type-check without running");
+                eprintln!("  check         Parse, type-check, generate, and validate Rust");
+                eprintln!("  check --frontend  Skip Rust generation and backend validation");
                 eprintln!("  schema        Emit a typed @ calculate contract as JSON");
                 eprintln!(
                     "  template      Generate or hydrate JSON, TOML, or XLSX calculation input"
@@ -348,6 +354,7 @@ fn main_inner() {
                 eprintln!("Options:");
                 eprintln!("  --version     Show version");
                 eprintln!("  --no-prelude  Don't auto-import standard prelude");
+                eprintln!("  check --frontend  Run frontend validation only");
                 eprintln!("  meta --type TYPE   Select meta references by Futuruna type");
                 eprintln!("  meta --role ROLE   Select meta references by role");
                 eprintln!("  meta --json        Emit a structured metadata index");
@@ -390,6 +397,7 @@ fn main_inner() {
                 eprintln!("  runa program.runa           Interpret");
                 eprintln!("  runa run program.runa       Compile + execute");
                 eprintln!("  runa check program.runa     Type-check without running");
+                eprintln!("  runa check --frontend program.runa  Run the fast frontend gate");
                 eprintln!("  runa meta program.runa      Show typed meta/source/span index");
                 eprintln!("  runa meta --type Warning program.runa  Sweep metadata by type");
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
@@ -703,7 +711,7 @@ fn main_inner() {
                 "hashes" => show_hashes(&source, path),
                 "registry" => update_registry(&source, path),
                 "wasm" => build_wasm(&source, path, use_prelude),
-                "check" => check_source(&source, path, use_prelude),
+                "check" => check_source(&source, path, use_prelude, check_frontend_only),
                 "meta" => print_meta_index(
                     &source,
                     path,
@@ -12335,32 +12343,36 @@ fn parse_simple_json_registry(data: &str) -> Option<BTreeMap<String, BTreeMap<St
     Some(result)
 }
 
-/// Parse + codegen + type-check without running. Fast feedback loop.
-fn check_source(source: &str, filename: &str, use_prelude: bool) {
+/// Parse and type-check without running, optionally skipping Rust backend validation.
+fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: bool) {
     use std::process::Command;
     use std::time::Instant;
 
     let start = Instant::now();
-    if let Some(summary) = load_check_artifact_cache(filename, source, use_prelude) {
-        trace_compiler_artifact_cache("check hit");
-        let dependency_text = if summary.cargo_dependency_count == 0 {
-            String::new()
-        } else {
-            format!(", {} deps", summary.cargo_dependency_count)
-        };
-        eprintln!(
-            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types{}, {} lines of Rust, cached) \x1b[2m[{:.1}s]\x1b[0m",
-            filename,
-            summary.statement_count,
-            summary.function_count,
-            summary.type_count,
-            dependency_text,
-            summary.rust_line_count,
-            start.elapsed().as_secs_f64()
-        );
-        return;
+    if !frontend_only {
+        if let Some(summary) = load_check_artifact_cache(filename, source, use_prelude) {
+            trace_compiler_artifact_cache("check hit");
+            let dependency_text = if summary.cargo_dependency_count == 0 {
+                String::new()
+            } else {
+                format!(", {} deps", summary.cargo_dependency_count)
+            };
+            eprintln!(
+                "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types{}, {} lines of Rust, cached) \x1b[2m[{:.1}s]\x1b[0m",
+                filename,
+                summary.statement_count,
+                summary.function_count,
+                summary.type_count,
+                dependency_text,
+                summary.rust_line_count,
+                start.elapsed().as_secs_f64()
+            );
+            return;
+        }
     }
-    if compiler_artifact_cache_dir().is_some() {
+    if frontend_only {
+        trace_compiler_artifact_cache("frontend check bypasses backend artifact cache");
+    } else if compiler_artifact_cache_dir().is_some() {
         trace_compiler_artifact_cache("check miss");
     } else {
         trace_compiler_artifact_cache("check disabled");
@@ -12392,6 +12404,18 @@ fn check_source(source: &str, filename: &str, use_prelude: bool) {
             // Pre-codegen type checking (M16): catch errors before Rust codegen
             if run_type_check(&stmts, source, filename) {
                 std::process::exit(1);
+            }
+
+            if frontend_only {
+                eprintln!(
+                    "\x1b[1;32mfrontend check ok\x1b[0m: {} ({} stmts, {} fns, {} types; Rust backend not validated) \x1b[2m[{:.1}s]\x1b[0m",
+                    filename,
+                    stmt_count,
+                    fn_count,
+                    type_count,
+                    start.elapsed().as_secs_f64()
+                );
+                return;
             }
 
             let mut cg = RustCodegen::new();

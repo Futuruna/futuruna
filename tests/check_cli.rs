@@ -65,3 +65,67 @@ fn concurrent_checks_do_not_share_generated_rust_files() {
 
     fs::remove_dir_all(&workspace).expect("remove check CLI workspace");
 }
+
+#[test]
+fn frontend_check_succeeds_without_rust_toolchain() {
+    let workspace = test_workspace();
+    fs::create_dir_all(&workspace).expect("create frontend check workspace");
+    let empty_path = workspace.join("empty-path");
+    let empty_home = workspace.join("empty-home");
+    fs::create_dir_all(&empty_path).expect("create empty PATH directory");
+    fs::create_dir_all(&empty_home).expect("create empty HOME directory");
+    let source = workspace.join("frontend.runa");
+    fs::write(
+        &source,
+        "# Answer(value: Int)\n| answer(value: Int) -> Answer(value = value)\n= result = answer(42)\n",
+    )
+    .expect("write frontend check fixture");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(["check", "--frontend"])
+        .arg(&source)
+        .env("PATH", &empty_path)
+        .env("HOME", &empty_home)
+        .env("FUTURUNA_DISABLE_COMPILER_CACHE", "1")
+        .output()
+        .expect("run frontend check");
+
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("frontend check ok"));
+    assert!(stderr.contains("Rust backend not validated"));
+    assert!(!stderr.contains("lines of Rust"));
+
+    fs::remove_dir_all(&workspace).expect("remove frontend check workspace");
+}
+
+#[test]
+fn frontend_check_includes_compiler_validation() {
+    let workspace = test_workspace();
+    fs::create_dir_all(&workspace).expect("create frontend validation workspace");
+    let source = workspace.join("invalid-named-argument.runa");
+    fs::write(
+        &source,
+        "> taxable(base: Int, active: Bool) -> Int {\n    if active { base } else { 0 }\n}\n\n= bad = taxable(missing = 1, active = True)\n",
+    )
+    .expect("write invalid frontend fixture");
+
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .args(["check", "--frontend"])
+        .arg(&source)
+        .env("FUTURUNA_DISABLE_COMPILER_CACHE", "1")
+        .output()
+        .expect("run invalid frontend check");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("has no parameter `missing`"), "{stderr}");
+    assert!(!stderr.contains("frontend check ok"));
+
+    fs::remove_dir_all(&workspace).expect("remove frontend validation workspace");
+}
