@@ -4935,28 +4935,28 @@
     path = refof(KursgevinstlovKontraktKildeFakta::værdi_primo_kroner),
     label = "Kontraktens værdi ved årets begyndelse",
     question = Some("Hvad var kontraktens dokumenterede værdi ved indkomstårets begyndelse?"),
-    help = Some("Angiv 0, hvis kontrakten blev anskaffet i indkomståret."),
+    help = Some("Værdien kan være positiv, nul eller negativ. Angiv 0, hvis kontrakten blev anskaffet i indkomståret."),
     unit = Some("kr.")
 )
 = personskat_felt_kgl_par32_værdi_ultimo = TypetBeregningsfelt(
     path = refof(KursgevinstlovKontraktKildeFakta::værdi_ultimo_kroner),
     label = "Kontraktens værdi ved årets udgang",
     question = Some("Hvad var kontraktens dokumenterede værdi ved indkomstårets udgang?"),
-    help = Some("Angiv 0, hvis kontrakten blev realiseret i indkomståret."),
+    help = Some("Værdien kan være positiv, nul eller negativ. Angiv 0, hvis kontrakten blev realiseret i indkomståret."),
     unit = Some("kr.")
 )
 = personskat_felt_kgl_par32_anskaffelsessum = TypetBeregningsfelt(
     path = refof(KursgevinstlovKontraktKildeFakta::anskaffelsessum_kroner),
     label = "Kontraktens anskaffelsessum",
     question = Some("Hvad var kontraktens anskaffelsessum, hvis den blev anskaffet i indkomståret?"),
-    help = Some("Angiv 0 for en kontrakt, der var anskaffet før indkomståret."),
+    help = Some("Anskaffelsessummen kan være positiv, nul eller negativ. Angiv 0 for en kontrakt, der var anskaffet før indkomståret."),
     unit = Some("kr.")
 )
 = personskat_felt_kgl_par32_afståelsesværdi = TypetBeregningsfelt(
     path = refof(KursgevinstlovKontraktKildeFakta::afståelsesværdi_kroner),
     label = "Kontraktens afståelsesværdi",
     question = Some("Hvad var kontraktens afståelsesværdi, hvis den blev realiseret i indkomståret?"),
-    help = Some("Angiv 0 for en kontrakt, der ikke blev realiseret i indkomståret."),
+    help = Some("Afståelsesværdien kan være positiv, nul eller negativ. Angiv 0 for en kontrakt, der ikke blev realiseret i indkomståret."),
     unit = Some("kr.")
 )
 = personskat_felt_kgl_par32_anskaffet_i_året = TypetBeregningsfelt(

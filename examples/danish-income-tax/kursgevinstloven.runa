@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./kursgevinstloven - gaeld
 
@@ -168,6 +169,28 @@ på den anden side indfrielsessummen.
 | kgl_absolut_beløb(beløb_kroner: Heltal) -> penge_største_beløb(beløb_kroner, 0 - beløb_kroner)
 | kgl_par14_23_bagatelgrænse_overskredet(netto_kroner: Heltal) -> kgl_absolut_beløb(netto_kroner) > 2000
 
+# KursgevinstlovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kursgevinstloven_lbk1176_par29_par30_par33 = KursgevinstlovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1176",
+    identifier = "LBK nr. 1176 af 19/09/2025: Kursgevinstlovens §§ 29, 30 og 33",
+    hentet_dato = "2026-08-06"
+)
+
+= kursgevinstloven_juridisk_vejledning_par33 = KursgevinstlovKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1946051",
+    identifier = "Den juridiske vejledning C.B.1.8.5: Opgørelse af gevinst og tab på finansielle kontrakter",
+    hentet_dato = "2026-08-06"
+)
+
+= kursgevinstloven_par29_par30_par33_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_par29_par30_par33),
+        Guidance(value = kursgevinstloven_juridisk_vejledning_par33),
+    )
+)
+
+--@label:kursgevinstloven_par29_par30_par33::meta:kursgevinstloven_par29_par30_par33_metadata--
 ----
 § 29. Skattepligtige omfattet af § 2 eller § 12 skal medregne gevinst og tab på
 terminskontrakter og aftaler om køberetter og salgsretter ved opgørelsen af den
@@ -214,6 +237,7 @@ eller passiv for erhvervet henholdsvis afstået på afviklingsdagen og til
 markedsværdien på afviklingsdagen.
 ----
 
+--@begin:kursgevinstloven_par29_par30_par33--
 # KursgevinstlovPar30FastEjendomFakta(løbetid_kan_overskride_12_måneder: Boolsk, parterne_er_nærtstående_efter_boafgiftslovens_par22: Boolsk)
 # KursgevinstlovPar30Aftaleart = KglPar30IngenUndtagelsesaftale | KglPar30FastEjendomsaftale(fakta: KursgevinstlovPar30FastEjendomFakta) | KglPar30TegningsretTilAktier | KglPar30KurssikringVedLånMedSærligSikkerhed | KglPar30KonverteringsretKnyttetTilFordring | KglPar30AftaleOmKøbEllerSalgAfAktier | KglPar30ValutakontraktVedVærdipapirhandelMedSædvanligAfvikling | KglPar30SædvanligLeveringsaftale(optaget_til_handel_på_reguleret_marked: Boolsk) | KglPar30AftaleOmVirksomhedsafståelse
 # KursgevinstlovKontraktKildeFakta(aftaleart: KursgevinstlovPar30Aftaleart, har_modgående_kontrakt_eller_forretning: Boolsk, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessum_kroner: Heltal, afståelsesværdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, realiseret_i_indkomståret: Boolsk, udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter: Boolsk)
@@ -248,7 +272,7 @@ markedsværdien på afviklingsdagen.
         }
     }
 }
-| kursgevinstlov_kontrakt_kildefakta_gyldige(fakta: KursgevinstlovKontraktKildeFakta) -> fakta.værdi_primo_kroner >= 0 && fakta.værdi_ultimo_kroner >= 0 && fakta.anskaffelsessum_kroner >= 0 && fakta.afståelsesværdi_kroner >= 0 && (fakta.anskaffet_i_indkomståret == Falskt || fakta.værdi_primo_kroner == 0) && (fakta.anskaffet_i_indkomståret || fakta.anskaffelsessum_kroner == 0) && (fakta.realiseret_i_indkomståret == Falskt || fakta.værdi_ultimo_kroner == 0) && (fakta.realiseret_i_indkomståret || fakta.afståelsesværdi_kroner == 0)
+| kursgevinstlov_kontraktopgørelse_gyldig(kontrakt: KursgevinstlovKontraktOpgørelse) -> (kontrakt.anskaffet_i_indkomståret == Falskt || kontrakt.værdi_primo_kroner == 0) && (kontrakt.anskaffet_i_indkomståret || kontrakt.anskaffelsessum_kroner == 0) && (kontrakt.realiseret_i_indkomståret == Falskt || kontrakt.værdi_ultimo_kroner == 0) && (kontrakt.realiseret_i_indkomståret || kontrakt.afståelsesværdi_kroner == 0)
 | kursgevinstlov_kontraktopgørelse_fra_kildefakta(fakta: KursgevinstlovKontraktKildeFakta) -> KursgevinstlovKontraktOpgørelse(
     kontrakt_art = kursgevinstlov_kontrakt_art_fra_kildefakta(fakta),
     værdi_primo_kroner = fakta.værdi_primo_kroner,
@@ -258,6 +282,7 @@ markedsværdien på afviklingsdagen.
     anskaffet_i_indkomståret = fakta.anskaffet_i_indkomståret,
     realiseret_i_indkomståret = fakta.realiseret_i_indkomståret
 )
+| kursgevinstlov_kontrakt_kildefakta_gyldige(fakta: KursgevinstlovKontraktKildeFakta) -> kursgevinstlov_kontraktopgørelse_gyldig(kursgevinstlov_kontraktopgørelse_fra_kildefakta(fakta))
 | kursgevinstlov_personinput_fra_kontrakt_kildefakta(indkomstår: Heltal, fakta: KursgevinstlovKontraktKildeFakta) -> KursgevinstlovInput(
     indkomstår = indkomstår,
     rolle = KglPersonEfterKildeskatteloven,
@@ -276,12 +301,17 @@ markedsværdien på afviklingsdagen.
 | exception kgl_kontrakt_ordinært_omfattet kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktOmfattetPar29
 | exception kgl_kontrakt_modgående kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktUndtagetMenModgåendePar30Stk4
 | exception kgl_kontrakt_næring kgl_kontrakt_omfattet_af_par29(art: KursgevinstlovKontraktArt) -> Sandt under art == KglKontraktUndtagetMenNæringPar30Stk5
+| kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.værdi_ultimo_kroner - kontrakt.værdi_primo_kroner
+| exception kgl_par33_kontrakt_anskaffet_og_realiseret kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.afståelsesværdi_kroner - kontrakt.anskaffelsessum_kroner under kontrakt.anskaffet_i_indkomståret && kontrakt.realiseret_i_indkomståret
+| exception kgl_par33_kontrakt_anskaffet kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.værdi_ultimo_kroner - kontrakt.anskaffelsessum_kroner under kontrakt.anskaffet_i_indkomståret && kontrakt.realiseret_i_indkomståret == Falskt
+| exception kgl_par33_kontrakt_realiseret kursgevinstlov_par33_kontrakt_resultat_kroner(kontrakt: KursgevinstlovKontraktOpgørelse) -> kontrakt.afståelsesværdi_kroner - kontrakt.værdi_primo_kroner under kontrakt.anskaffet_i_indkomståret == Falskt && kontrakt.realiseret_i_indkomståret
+--@end:kursgevinstloven_par29_par30_par33--
 
 # KursgevinstlovSag(input: KursgevinstlovInput) {
     | person_eller_dødsbo_efter_par12() -> kgl_person_eller_dødsbo_efter_par12(input.rolle)
     | kontrakt_omfattet_af_par29() -> kgl_kontrakt_omfattet_af_par29(input.kontrakt.kontrakt_art)
     | omfattet_af_par1() -> kgl_par1_afgrænsning_omfattet(input.par1_afgrænsning) && (input.aktiv != KglFinansielKontrakt || kontrakt_omfattet_af_par29())
-    | input_gyldigt() -> input.indkomstår > 0 && (input.aktiv != KglGæld || input.gæld.indkomstår == input.indkomstår && gældsresultat().input_gyldigt)
+    | input_gyldigt() -> input.indkomstår > 0 && (input.aktiv != KglGæld || input.gæld.indkomstår == input.indkomstår && gældsresultat().input_gyldigt) && (input.aktiv != KglFinansielKontrakt || kursgevinstlov_kontraktopgørelse_gyldig(input.kontrakt))
     | grundlag_opfyldt() -> input_gyldigt() && person_eller_dødsbo_efter_par12() && omfattet_af_par1()
     | fordringsnæring_efter_par13() -> input.aktiv == KglFordring && input.udøver_fordrings_eller_kontraktnæring && input.fordring_erhvervet_udenfor_næring == Falskt
     | kontraktnæring_efter_par30_stk5() -> input.aktiv == KglFinansielKontrakt && input.udøver_fordrings_eller_kontraktnæring
@@ -291,10 +321,7 @@ markedsværdien på afviklingsdagen.
     | exception kgl_par25_lagerprincip_valgt opgørelsesprincip() -> KglLagerprincip under input.anvender_lagerprincip_efter_par25
     | exception kgl_par33_kontrakt_lagerprincip opgørelsesprincip() -> KglLagerprincip under input.aktiv == KglFinansielKontrakt && kontrakt_omfattet_af_par29()
     | fordring_resultat_kroner() -> penge_positivt_beløb(input.fordring.afståelsessum_kroner) - penge_positivt_beløb(input.fordring.anskaffelsessum_kroner)
-    | kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.værdi_ultimo_kroner) - penge_positivt_beløb(input.kontrakt.værdi_primo_kroner)
-    | exception kgl_par33_kontrakt_anskaffet_og_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret
-    | exception kgl_par33_kontrakt_anskaffet kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.værdi_ultimo_kroner) - penge_positivt_beløb(input.kontrakt.anskaffelsessum_kroner) under input.kontrakt.anskaffet_i_indkomståret && input.kontrakt.realiseret_i_indkomståret == Falskt
-    | exception kgl_par33_kontrakt_realiseret kontrakt_resultat_kroner() -> penge_positivt_beløb(input.kontrakt.afståelsesværdi_kroner) - penge_positivt_beløb(input.kontrakt.værdi_primo_kroner) under input.kontrakt.anskaffet_i_indkomståret == Falskt && input.kontrakt.realiseret_i_indkomståret
+    | kontrakt_resultat_kroner() -> kursgevinstlov_par33_kontrakt_resultat_kroner(input.kontrakt)
     | fordring_bagatelgrænse_relevant() -> input.aktiv == KglFordring && fordringsnæring_efter_par13() == Falskt && input.fordring.tabsgrundlag != KglFordringstabEfterPar17Statsskattelov6A
     | bagatelgrænse_afskærer() -> (fordring_bagatelgrænse_relevant() && kgl_par14_23_bagatelgrænse_overskredet(input.bagatelgrundlag.årets_netto_fordringer_valutagæld_investbeviser_kroner) == Falskt) || (input.aktiv == KglGæld && gældsresultat().bagatelgrænse_afskærer)
     | aktiv_resultat_kroner() -> 0

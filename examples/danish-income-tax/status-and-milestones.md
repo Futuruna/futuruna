@@ -4,6 +4,7 @@ Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
 Current implementation slice: `td-6fe980` (Kildeskattelovens § 60-kreditter og §§ 61-62-slutopgørelse har nu en ørepræcis kanonisk grænse; hele-krone-input bevares gennem en tabsfri kompatibilitetsadapter, og udbetaling/opkrævning afrundes først ved de udtrykkelige lovtrin)
+Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
 Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
 Current LL § 9 foreign-income slice: `td-c61f53` (identificerede udenlandske lønindkomstkilder deles nu strukturelt af alle tilknyttede rejser; samme § 9, stk. 2-loft kan kun bruges én gang, mens manglende, dublerede, modstridende eller uanvendte kilder fejler lukket i regler og arbejdsbog)
 Current LL § 9 A period slice: `td-3515b8` (12-månedersperioden udledes nu af rejsedatoer, tidligere perioderejser, daterede arbejdsdage og effektive afstande mellem arbejdssteder; 8 km, 40 arbejdsdage, privat hjemmearbejde og manglende afstande er verificeret i interpreter, compiler og XLSX)
@@ -43,7 +44,7 @@ Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parbere
 Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi fører den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput; implementeret og verificeret, afventer uafhængig gennemgang)
 Previous spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
 Current exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner bruger komplet slutskat efter modregning af årets og tidligere fremførte § 8 a-skat inklusive ejendomsskatter)
-Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
+Current KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb kan krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
@@ -4081,9 +4082,18 @@ Review candidates to revisit deliberately, not as broad churn:
   aktiemodregning, ægtefællevirkning og fremførsel præcis én gang. De samme
   kildedata og fulde resultater afstemmes mellem den relationelle XLSX-kontrakt
   og JSON-kontrakten. Blandede ABL-klasser kræver fortsat en særskilt,
-  kildebelagt allokeringsregel og fejler derfor lukket. Det samme gælder KGL
-  § 33-kontrakter med negative dagsværdier, indtil `td-89a28a` har erstattet
-  den nuværende ikke-negative kildeadapters afgrænsning.
+  kildebelagt allokeringsregel og fejler derfor lukket.
+- Kursgevinstlovens § 33 bevarer nu signerede primo-, ultimo-, anskaffelses- og
+  afståelsesværdier uden at føre dem gennem en positiv-beløbsnormalisering. En
+  kontrakt fra 4.000 kr. til -6.000 kr. giver derfor et tab på 10.000 kr., mens
+  -5.000 kr. til 7.000 kr. giver en gevinst på 12.000 kr. Anskaffelsesårets og
+  realisationsårets særregler bruger samme signerede domæne; uændrede negative
+  værdier giver nul. Livscyklussen er ikke svækket: primo skal være nul i
+  anskaffelsesåret, ultimo skal være nul i realisationsåret, og felter uden for
+  deres relevante år skal være nul. Det fokuserede scenarie passerer i både
+  interpreter og compiler, og et blandet forløb føres præcis én gang gennem
+  § 32 til 2.000 kr. netto. Den kanoniske Personskat-rundtur bruger nu også
+  negative kontraktværdier i både XLSX- og JSON-kildedata med uændret resultat.
 - Ejendomsavancebeskatningslovens § 10, stk. 5-9 bruger nu identificerede
   genopførelsesejendomme frem for et løst antal. Reglerne validerer grund,
   meddelelse, entydige identifikationer og positive udgifter, fordeler

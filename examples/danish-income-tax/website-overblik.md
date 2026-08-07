@@ -504,11 +504,18 @@ sager bliver opdelt, når fordelingen er entydig; ellers bliver den tværgående
 årsfordeling stående som et udtrykkeligt uallokeret beløb, der ikke kan medregnes
 som kapitalindkomst. Ni fokuserede § 4-scenarier kører ens i begge backends.
 Den rå enkeltkontraktbro er fortsat tilgængelig og mærket som før
-årsopgørelsen. Kilderne er
+årsopgørelsen. § 33's primo-, ultimo-, anskaffelses- og afståelsesværdier er nu
+signerede. En kontrakt kan derfor krydse nul uden at få den negative værdi
+beskåret, mens felter uden for kontraktens faktiske livscyklustrin fortsat skal
+være nul. Syv fokuserede forløb dækker alle fire opgørelsesgrene og fører en
+gevinst på 12.000 kr. og et tab på 10.000 kr. præcis én gang gennem § 32 til
+2.000 kr. netto. Den kanoniske XLSX/JSON-rundtur bruger de samme signerede
+kildedata. Kilderne er
 [Kursgevinstloven, LBK nr. 1176/2025](https://www.retsinformation.dk/eli/lta/2025/1176),
 [Aktieavancebeskatningsloven, LBK nr. 1098/2025](https://www.retsinformation.dk/eli/lta/2025/1098),
 [LOV nr. 1563/2023, § 4 og § 8](https://www.retsinformation.dk/eli/lta/2023/1563)
-og [Skattestyrelsens juridiske vejledning C.B.1.8.4.2](https://info.skat.dk/data.aspx?oid=1946050).
+og [Skattestyrelsens juridiske vejledning C.B.1.8.4.2](https://info.skat.dk/data.aspx?oid=1946050)
+samt [C.B.1.8.5](https://info.skat.dk/data.aspx?oid=1946051).
 
 Personskatteloven § 13 a er nu også en lukket, typet regelkaskade. Ved
 gældssanering eller akkord kan modellen kun modtage fremførte tab gennem de
