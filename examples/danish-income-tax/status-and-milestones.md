@@ -1,9 +1,10 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-05
+Last updated: 2026-08-06
 TD epic: `td-56cf8d`
 Current implementation slice: `td-6fe980` (Kildeskattelovens § 60-kreditter og §§ 61-62-slutopgørelse har nu en ørepræcis kanonisk grænse; hele-krone-input bevares gennem en tabsfri kompatibilitetsadapter, og udbetaling/opkrævning afrundes først ved de udtrykkelige lovtrin)
+Current LL § 9 A granularity slice: `td-45f9fb` (kostprincippet gælder for hele rejsen, mens logidækning, godtgørelse og standard- eller dokumenteret fradrag afgøres pr. rejsedøgn; allerede lønopdelt overskud bevares som supplerende løn)
 Previous ABL reporting slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
@@ -49,6 +50,7 @@ Latest approved interpreter performance slice: `td-38f074` (uforanderlige runtim
 Current typed-rule performance slice: `td-440cd4` (fortolkeren genbruger den parsede type for hvert særskilt typet regelhoved; en varm 26-sagers Personskat-XLSX-kørsel faldt fra 54,96 s til 27,89 s med byteidentisk JSON-resultat)
 Current indexed-miss performance slice: `td-f18b54` (fortolkeren klassificerer nu hver regelfamilies resultat ved registrering i stedet for at gennemløbe hele korpusset to gange efter et mislykket regelmatch; en varm 50-sagers Personskat-kørsel faldt fra 21,88 s til 16,99-18,01 s med byteidentisk JSON-resultat)
 Current compiler-fingerprint performance slice: `td-941594` (det eksakte SHA-256-fingeraftryk af `runa` genbruges på tværs af CLI-processer bag filidentitet og tidsstempler; en varm Personskat-kørsel faldt fra 7,94 s ved tvungen genberegning til 6,47 s ved cache-hit)
+Current batch/corpus performance slice: `td-8f1f24` (uafhængige `@ calculate`-sager køres deterministisk på isolerede workers, og en vedvarende optimeret corpus-profil holder den almindelige compilerudvikling hurtig; den varme komplette Personskat-XLSX-regression faldt fra 189,69 s til 50,54 s)
 Planned interpreter dispatch slice: `td-a42ade` (forudberegn aritet, prioritet, head-bindinger og oprydningsplaner pr. regel uden effektrisikoen ved generel resultatmemoisering)
 Previous compiler correctness slice: `td-75f6ca` (kompilerede synkrone programmer bruger en afgrænset 64 MiB-workerstack; afventer uafhængig gennemgang)
 Previous language support slice: `td-8a34e0` (`refof`-referencer er implementeret, verificeret og godkendt)
@@ -416,14 +418,23 @@ almindelig lønmodtager; en sømandsberettiget person, der fravælger sit
 sømandsfradrag, får 0 kr. skattefrit, 800 kr. skattepligtigt og 0 kr. i
 rejsefradrag.
 
+Kost og logi er nu adskilt strukturelt i `td-45f9fb`. Én typet kostpost bærer
+hele rejsens dæknings-, godtgørelses- og fradragsprincip, mens nummererede
+logidøgn hver bærer arbejdsgiverens faktiske dækning, godtgørelsesafregning,
+dokumenterede egenudgift og valg mellem standardsats, dokumenterede udgifter
+eller intet fradrag. Fri logi eller dækning efter regning afskærer derfor kun
+det berørte døgn. Godtgørelse over satsen kan enten stå uopdelt og blive fuldt
+skattepligtig eller være endeligt opdelt af arbejdsgiveren i en skattefri
+satsdel og supplerende løn. Reglerne udleder virkningen uden
+fradragsberettigelsesflag fra kalderen og er verificeret i både interpreter,
+compiler og den relationelle XLSX-grænse.
+
 Den særskilte ø-logigren i § 9 A, stk. 12, spores i `td-e53d8f`. Et fælles,
 identificeret indkomstgrundlag for flere rejser knyttet til samme udenlandske
 løn efter § 9, stk. 2, spores i `td-c61f53`, så samme indkomstloft ikke kan
-genbruges pr. rejserække. Fødevareprincippet for hele rejsen, skift mellem
-standard- og faktisk logifradrag pr. rejsedøgn samt delvis eller fri
-logidækning spores i `td-45f9fb`. Det særskilt opgjorte fradrag for dobbelt
-husførelse reducerer allerede det fælles loft, men selve fradragsretten og det
-kanonisk anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
+genbruges pr. rejserække. Det særskilt opgjorte fradrag for dobbelt husførelse
+reducerer allerede det fælles loft, men selve fradragsretten og det kanonisk
+anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
 fiskerfradrag følges fortsat i henholdsvis `td-80c439` og `td-5759f5`.
 Den tidsmæssige 12-månedersperiode valideres aktuelt ud fra hver rejses typede
 startgrund og antal forløbne måneder; afledning fra dateret arbejdsstedshistorik
@@ -432,9 +443,12 @@ og beskyttelse mod gentagne førstegangsperioder spores i `td-3515b8`.
 Den fokuserede grænse
 `@ calculate("Rejseopgørelse efter ligningslovens § 9 A")` genererer en
 relationel XLSX-arbejdsbog med danske etiketter, interviewspørgsmål, dropdowns,
-enheder og typede kildespor. En JSON-hydreret rejserække er læst tilbage fra
-XLSX og beregnet til 800 kr. skattefri godtgørelse, 0 kr. skattepligtig
-godtgørelse og 986 kr. rejsefradrag uden diagnostikker.
+enheder og typede kildespor. Logidøgn ligger i en underordnet relationel tabel,
+så hvert døgns dækning, afregning og fradragsprincip kan udfyldes særskilt. En
+JSON-hydreret rejserække er læst tilbage fra XLSX og beregnet til 800 kr.
+skattefri godtgørelse, 0 kr. skattepligtig godtgørelse og 986 kr.
+rejsefradrag uden diagnostikker; en fokuseret arbejdsbogstest bevarer desuden
+den lønopdelte kostgodtgørelse og de forskellige logidøgnsresultater.
 
 Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
 LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;
@@ -3906,6 +3920,14 @@ Review candidates to revisit deliberately, not as broad churn:
   Næste målte trin er modulvis frontendcache for ændrede grafer i `td-60a9d6`
   og sikker memoisering af rene globale værdier i interpreterens rodevaluering
   i `td-38f074`.
+- Store beregningsbatches udfører nu uafhængige sager på isolerede workers og
+  samler resultater og diagnostik i den oprindelige rækkefølge. En særskilt
+  vedvarende `corpus`-profil optimerer compiler, interpreter og valgte
+  integrationstests uden at gøre den almindelige Rust-udviklingsprofil dyrere
+  at genbygge. På den kanoniske Personskat-rod faldt en ukachet frontendkontrol
+  fra 8,91 s til 2,20 s internt, og den varme komplette XLSX-regression faldt
+  fra 189,69 s til 50,54 s. Det næste strukturelle trin er fortsat modulvise
+  FIR/Rust-enheder for ændrede importgrafer i `td-170e07` og `td-60a9d6`.
 - Personskattelovens § 13-fremførsel modtager ikke længere et råt beløb sammen
   med skatteyderens egen juridiske konklusion om, at underskuddet ikke kunne
   rummes tidligere. Åbningsgrundlaget er nu enten neutralt, det konsistente

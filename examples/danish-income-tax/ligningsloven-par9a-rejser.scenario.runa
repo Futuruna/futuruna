@@ -2,17 +2,23 @@
 
 @ importer ./ligningsloven - par9a - rejser
 
-| ll9a_scenarie_godtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol) -> Ligningslov9AGodtgørelsesfakta(
-    kost_og_småfornødenheder_udbetalt_kroner = kost_kroner,
-    logi_udbetalt_kroner = logi_kroner,
-    kostudgifter_afholdt_efter_regning_kroner = 0,
-    logiudgifter_afholdt_efter_regning_kroner = 0,
-    fri_morgenmad_antal = 0,
-    fri_frokost_antal = 0,
-    fri_aftensmad_antal = 0,
-    kontrol = kontrol,
-    lønomlægning = Ll9AGodtgørelseUdenLønomlægning
+# Ll9AScenarieGodtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol)
+
+| ll9a_scenarie_godtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol) -> Ll9AScenarieGodtgørelse(
+    kost_kroner = kost_kroner,
+    logi_kroner = logi_kroner,
+    kontrol = kontrol
 )
+
+| ll9a_scenarie_logidøgn(antal_døgn: Heltal, samlet_logigodtgørelse_kroner: Heltal, samlede_dokumenterede_logiudgifter_kroner: Heltal, fradragsprincip: Ligningslov9ALogifradragsprincip) -> hvis antal_døgn > 0 { map(range(1, antal_døgn + 1), |rejsedøgnsnummer: Heltal| Ligningslov9ALogidøgn(
+    rejsedøgnsnummer = rejsedøgnsnummer,
+    dækning = Ll9ALogiIkkeDækketAfArbejdsgiver,
+    godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(
+        udbetalt_kroner = samlet_logigodtgørelse_kroner / antal_døgn + hvis rejsedøgnsnummer <= samlet_logigodtgørelse_kroner % antal_døgn { 1 } ellers { 0 }
+    ),
+    dokumenteret_logiudgift_betalt_før_refusion_kroner = samlede_dokumenterede_logiudgifter_kroner / antal_døgn + hvis rejsedøgnsnummer <= samlede_dokumenterede_logiudgifter_kroner % antal_døgn { 1 } ellers { 0 },
+    fradragsprincip = fradragsprincip
+)) } ellers { [] }
 
 | ll9a_scenarie_rejse(
     identifikation: Tekst,
@@ -20,8 +26,9 @@
     standardperiode: Ligningslov9AStandardperiodefakta,
     hverv: Ligningslov9AHverv,
     varighed_minutter: Heltal,
-    godtgørelse: Ligningslov9AGodtgørelsesfakta,
-    fradragsvalg: Ligningslov9AFradragsvalg,
+    godtgørelse: Ll9AScenarieGodtgørelse,
+    kostfradragsprincip: Ligningslov9AKostfradragsprincip,
+    logifradragsprincip: Ligningslov9ALogifradragsprincip,
     indkomstforhold: Ligningslov9AIndkomstforhold
 ) -> Ligningslov9ARejsefakta(
     identifikation = identifikation,
@@ -36,10 +43,23 @@
     standardperiode = standardperiode,
     hverv = hverv,
     varighed_minutter = varighed_minutter,
-    godtgørelse = godtgørelse,
-    dokumenterede_egne_kostudgifter_kroner = 1600,
-    dokumenterede_egne_logiudgifter_kroner = 900,
-    fradragsvalg = fradragsvalg,
+    kost = Ligningslov9AKostfakta(
+        dækning = Ll9AKostIkkeDækketEfterRegning,
+        godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = godtgørelse.kost_kroner),
+        fri_morgenmad_antal = 0,
+        fri_frokost_antal = 0,
+        fri_aftensmad_antal = 0,
+        dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 1600,
+        fradragsprincip = kostfradragsprincip
+    ),
+    logidøgn = ll9a_scenarie_logidøgn(
+        antal_døgn = ligningslov9a_fulde_døgn(varighed_minutter),
+        samlet_logigodtgørelse_kroner = godtgørelse.logi_kroner,
+        samlede_dokumenterede_logiudgifter_kroner = 900,
+        fradragsprincip = logifradragsprincip
+    ),
+    kontrol = godtgørelse.kontrol,
+    lønomlægning = Ll9AGodtgørelseUdenLønomlægning,
     indkomstforhold = indkomstforhold
 )
 
@@ -53,10 +73,10 @@
     standardperiode = fakta.standardperiode,
     hverv = fakta.hverv,
     varighed_minutter = fakta.varighed_minutter,
-    godtgørelse = fakta.godtgørelse,
-    dokumenterede_egne_kostudgifter_kroner = fakta.dokumenterede_egne_kostudgifter_kroner,
-    dokumenterede_egne_logiudgifter_kroner = fakta.dokumenterede_egne_logiudgifter_kroner,
-    fradragsvalg = fakta.fradragsvalg,
+    kost = fakta.kost,
+    logidøgn = fakta.logidøgn,
+    kontrol = fakta.kontrol,
+    lønomlægning = fakta.lønomlægning,
     indkomstforhold = fakta.indkomstforhold
 )
 
@@ -94,7 +114,8 @@
     hverv = Ll9AAlmindeligtHverv,
     varighed_minutter = 2880,
     godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
-    fradragsvalg = Ll9AFradragMedStandardsatser,
+    kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+    logifradragsprincip = Ll9ALogifradragMedStandardsats,
     indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
 )
 = ll9a_scenarie_almindeligt_resultat = ll9a_scenarie_årsresultat(
@@ -111,7 +132,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedFaktiskeUdgifter,
+        kostfradragsprincip = Ll9AKostfradragMedDokumenteredeUdgifter,
+        logifradragsprincip = Ll9ALogifradragMedDokumenteredeUdgifter,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -126,7 +148,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(1300, 0, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -141,7 +164,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolIkkeUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -156,7 +180,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -171,7 +196,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -186,7 +212,8 @@
         hverv = Ll9ATransportAfVarerEllerPersoner,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 300, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -201,7 +228,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 86400,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation = "dobbelt-husførelse", fradrag_før_fælles_loft_kroner = 10000),
@@ -216,7 +244,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(0, 0, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9AUdenlandskSkattepligtigArbejdsindkomst(lønindkomst_medregnet_i_danmark_kroner = 1000, øvrige_fradrag_vedrørende_indkomsten_kroner = 200)
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -237,7 +266,8 @@
         hverv = Ll9AAlmindeligtHverv,
         varighed_minutter = 2880,
         godtgørelse = ll9a_scenarie_godtgørelse(500, 300, Ll9AArbejdsgiverkontrolUdført),
-        fradragsvalg = Ll9AFradragMedStandardsatser,
+        kostfradragsprincip = Ll9AKostfradragMedStandardsats,
+        logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
     Ll9AIntetFradragForDobbeltHusførelse,
@@ -254,6 +284,108 @@
     ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
+| ll9a_scenarie_rejse_med_kost_og_logidøgn(identifikation: Tekst, varighed_minutter: Heltal, kost: Ligningslov9AKostfakta, logidøgn: List(Ligningslov9ALogidøgn)) -> Ligningslov9ARejsefakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    rejseart = Ll9ATjenesterejse,
+    arbejdssted_identifikation = "projektsted-a",
+    arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilBestemtPeriode),
+    overnatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(
+        afstand_ad_normal_transportvej_kilometer = 350,
+        korteste_transporttid_hver_vej_minutter = 240
+    ),
+    standardperiode = ll9a_scenarie_første_periode,
+    hverv = Ll9AAlmindeligtHverv,
+    varighed_minutter = varighed_minutter,
+    kost = kost,
+    logidøgn = logidøgn,
+    kontrol = Ll9AArbejdsgiverkontrolUdført,
+    lønomlægning = Ll9AGodtgørelseUdenLønomlægning,
+    indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
+)
+
+= ll9a_scenarie_blandede_logidøgn_resultat = ll9a_scenarie_årsresultat(
+    [ll9a_scenarie_rejse_med_kost_og_logidøgn(
+        identifikation = "blandede-logidøgn",
+        varighed_minutter = 4320,
+        kost = Ligningslov9AKostfakta(
+            dækning = Ll9AKostIkkeDækketEfterRegning,
+            godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 0),
+            fri_morgenmad_antal = 0,
+            fri_frokost_antal = 0,
+            fri_aftensmad_antal = 0,
+            dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 0,
+            fradragsprincip = Ll9AIntetKostfradrag
+        ),
+        logidøgn = [
+            Ligningslov9ALogidøgn(
+                rejsedøgnsnummer = 1,
+                dækning = Ll9ALogiIkkeDækketAfArbejdsgiver,
+                godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 0),
+                dokumenteret_logiudgift_betalt_før_refusion_kroner = 300,
+                fradragsprincip = Ll9ALogifradragMedStandardsats
+            ),
+            Ligningslov9ALogidøgn(
+                rejsedøgnsnummer = 2,
+                dækning = Ll9ALogiHeltEllerDelvistDækketEfterRegning(arbejdsgiverbetalt_kroner = 400),
+                godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 0),
+                dokumenteret_logiudgift_betalt_før_refusion_kroner = 700,
+                fradragsprincip = Ll9ALogifradragMedDokumenteredeUdgifter
+            ),
+            Ligningslov9ALogidøgn(
+                rejsedøgnsnummer = 3,
+                dækning = Ll9AHeltEllerDelvistFritLogi,
+                godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 0),
+                dokumenteret_logiudgift_betalt_før_refusion_kroner = 150,
+                fradragsprincip = Ll9ALogifradragMedDokumenteredeUdgifter
+            )
+        ]
+    )],
+    Ll9AIntetFradragForDobbeltHusførelse,
+    Ll9AIngenEksternUdelukkelse
+)
+
+= ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat = ll9a_scenarie_årsresultat(
+    [ll9a_scenarie_rejse_med_kost_og_logidøgn(
+        identifikation = "opdelt-overskydende-godtgørelse",
+        varighed_minutter = 2880,
+        kost = Ligningslov9AKostfakta(
+            dækning = Ll9AKostIkkeDækketEfterRegning,
+            godtgørelsesudbetaling = Ll9AEndeligtOpdeltGodtgørelse(
+                godtgørelse_efter_sats_kroner = 1250,
+                supplerende_løn_kroner = 200
+            ),
+            fri_morgenmad_antal = 0,
+            fri_frokost_antal = 0,
+            fri_aftensmad_antal = 0,
+            dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 1600,
+            fradragsprincip = Ll9AKostfradragMedStandardsats
+        ),
+        logidøgn = ll9a_scenarie_logidøgn(2, 0, 900, Ll9ALogifradragMedStandardsats)
+    )],
+    Ll9AIntetFradragForDobbeltHusførelse,
+    Ll9AIngenEksternUdelukkelse
+)
+
+= ll9a_scenarie_kost_efter_regning_resultat = ll9a_scenarie_årsresultat(
+    [ll9a_scenarie_rejse_med_kost_og_logidøgn(
+        identifikation = "kost-efter-regning",
+        varighed_minutter = 2880,
+        kost = Ligningslov9AKostfakta(
+            dækning = Ll9AKostHeltEllerDelvistDækketEfterRegning(arbejdsgiverbetalt_kroner = 800),
+            godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 0),
+            fri_morgenmad_antal = 0,
+            fri_frokost_antal = 0,
+            fri_aftensmad_antal = 0,
+            dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 1600,
+            fradragsprincip = Ll9AKostfradragMedStandardsats
+        ),
+        logidøgn = ll9a_scenarie_logidøgn(2, 0, 900, Ll9AIntetLogifradrag)
+    )],
+    Ll9AIntetFradragForDobbeltHusførelse,
+    Ll9AIngenEksternUdelukkelse
+)
+
 | ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag: ll9a_scenarie_almindeligt_resultat -> ll9a_scenarie_almindeligt_resultat.alle_input_gyldige && ll9a_scenarie_almindeligt_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_almindeligt_resultat.samlet_skattepligtig_godtgørelse_kroner == 0 && ll9a_scenarie_almindeligt_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 986
 | ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning: ll9a_scenarie_faktiske_udgifter_resultat -> ll9a_scenarie_faktiske_udgifter_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_faktiske_udgifter_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1700
 | ll9a_scenarie_over_sats_gør_hele_kostgodtgørelsen_skattepligtig: ll9a_scenarie_over_sats_resultat -> ll9a_scenarie_over_sats_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_over_sats_resultat.samlet_skattepligtig_godtgørelse_kroner == 1300 && ll9a_scenarie_over_sats_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
@@ -266,6 +398,15 @@
 | ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer: ll9a_scenarie_sømandsudelukket_resultat -> ll9a_scenarie_sømandsudelukket_resultat.stk1_til_stk9_udelukket && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_sømandsudelukket_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ugyldig_reset_fejler_lukket: ll9a_scenarie_ugyldig_reset_resultat -> ll9a_scenarie_ugyldig_reset_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ugyldig_reset_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ikke_understøttet_år_fejler_lukket: ll9a_scenarie_ikke_understøttet_år_resultat -> ll9a_scenarie_ikke_understøttet_år_resultat.skatteår_understøttet == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn: ll9a_scenarie_blandede_logidøgn_resultat -> {
+    = rejse = head(ll9a_scenarie_blandede_logidøgn_resultat.rejseresultater)
+    rejse.input_gyldigt && rejse.standardsats_logi_kroner == 268 && rejse.logifradrag_kroner == 718 && rejse.logidøgnresultater[0].fradrag_kroner == 268 && rejse.logidøgnresultater[1].standardsats_logi_kroner == 0 && rejse.logidøgnresultater[1].fradrag_kroner == 300 && rejse.logidøgnresultater[2].standardsats_logi_kroner == 0 && rejse.logidøgnresultater[2].fradrag_kroner == 150
+}
+| ll9a_scenarie_opdelt_overskud_bevarer_satsdelen_skattefri: ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat -> ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.alle_input_gyldige && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_udbetalt_godtgørelse_kroner == 1450 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_supplerende_løn_kroner == 200 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_skattefri_godtgørelse_kroner == 1250 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_skattepligtig_godtgørelse_kroner == 200 && ll9a_scenarie_opdelt_overskydende_godtgørelse_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 536
+| ll9a_scenarie_kostprincip_gælder_for_hele_rejsen: ll9a_scenarie_kost_efter_regning_resultat -> {
+    = rejse = head(ll9a_scenarie_kost_efter_regning_resultat.rejseresultater)
+    rejse.input_gyldigt && rejse.standardsats_kost_før_dækning_kroner == 1250 && rejse.standardsats_kost_efter_dækning_kroner == 312 && rejse.kostfradrag_kroner == 312 && rejse.logifradrag_kroner == 0
+}
 
 ? ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag
 ? ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning
@@ -279,3 +420,6 @@
 ? ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer
 ? ll9a_scenarie_ugyldig_reset_fejler_lukket
 ? ll9a_scenarie_ikke_understøttet_år_fejler_lukket
+? ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn
+? ll9a_scenarie_opdelt_overskud_bevarer_satsdelen_skattefri
+? ll9a_scenarie_kostprincip_gælder_for_hele_rejsen

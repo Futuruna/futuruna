@@ -29,20 +29,33 @@ personens valg om faktisk at anvende fradraget.
     ),
     hverv = Ll9AAlmindeligtHverv,
     varighed_minutter = 2880,
-    godtgørelse = Ligningslov9AGodtgørelsesfakta(
-        kost_og_småfornødenheder_udbetalt_kroner = 500,
-        logi_udbetalt_kroner = 300,
-        kostudgifter_afholdt_efter_regning_kroner = 0,
-        logiudgifter_afholdt_efter_regning_kroner = 0,
+    kost = Ligningslov9AKostfakta(
+        dækning = Ll9AKostIkkeDækketEfterRegning,
+        godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 500),
         fri_morgenmad_antal = 0,
         fri_frokost_antal = 0,
         fri_aftensmad_antal = 0,
-        kontrol = Ll9AArbejdsgiverkontrolUdført,
-        lønomlægning = Ll9AGodtgørelseUdenLønomlægning
+        dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 1600,
+        fradragsprincip = Ll9AKostfradragMedStandardsats
     ),
-    dokumenterede_egne_kostudgifter_kroner = 1600,
-    dokumenterede_egne_logiudgifter_kroner = 900,
-    fradragsvalg = Ll9AFradragMedStandardsatser,
+    logidøgn = [
+        Ligningslov9ALogidøgn(
+            rejsedøgnsnummer = 1,
+            dækning = Ll9ALogiIkkeDækketAfArbejdsgiver,
+            godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 150),
+            dokumenteret_logiudgift_betalt_før_refusion_kroner = 450,
+            fradragsprincip = Ll9ALogifradragMedStandardsats
+        ),
+        Ligningslov9ALogidøgn(
+            rejsedøgnsnummer = 2,
+            dækning = Ll9ALogiIkkeDækketAfArbejdsgiver,
+            godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 150),
+            dokumenteret_logiudgift_betalt_før_refusion_kroner = 450,
+            fradragsprincip = Ll9ALogifradragMedStandardsats
+        )
+    ],
+    kontrol = Ll9AArbejdsgiverkontrolUdført,
+    lønomlægning = Ll9AGodtgørelseUdenLønomlægning,
     indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
 )
 

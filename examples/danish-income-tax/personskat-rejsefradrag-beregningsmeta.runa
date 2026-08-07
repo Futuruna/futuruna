@@ -129,88 +129,165 @@
     help = Some("Rejsen skal vare mindst 24 timer; efter fulde døgn beregnes kostsatsen pr. påbegyndt time."),
     unit = Some("minutter")
 )
-= personskat_ll9a_felt_kostgodtgørelse = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kost_og_småfornødenheder_udbetalt_kroner),
-    label = "Udbetalt godtgørelse til kost og småfornødenheder",
-    question = Some("Hvor meget udbetalte arbejdsgiveren som satsgodtgørelse til kost og småfornødenheder?"),
-    help = Some("Angiv kun satsgodtgørelsen; udgifter betalt efter regning oplyses særskilt."),
+= personskat_ll9a_felt_kostdækning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::dækning::$variant),
+    label = "Arbejdsgiverens dækningsprincip for kost",
+    question = Some("Blev rejsens kost dækket efter regning, eller blev den ikke dækket efter regning?"),
+    help = Some("Samme dækningsprincip skal gælde for alle udgifter til kost og småfornødenheder på den enkelte rejse."),
+    unit = None
+)
+= personskat_ll9a_felt_kost_efter_regning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::dækning::Ll9AKostHeltEllerDelvistDækketEfterRegning::arbejdsgiverbetalt_kroner),
+    label = "Kost dækket efter regning",
+    question = Some("Hvor meget af rejsens kost dækkede arbejdsgiveren efter regning?"),
+    help = Some("Hel eller delvis dækning efter regning begrænser standardsatsen til 25 pct.-beløbet for hele rejsen."),
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_logigodtgørelse = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::logi_udbetalt_kroner),
-    label = "Udbetalt logigodtgørelse",
-    question = Some("Hvor meget udbetalte arbejdsgiveren som satsgodtgørelse til logi?"),
+= personskat_ll9a_felt_kostudbetaling = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::$variant),
+    label = "Afregning af kostgodtgørelsen",
+    question = Some("Blev kostgodtgørelsen udbetalt som ét uopdelt beløb eller rettidigt opdelt i satsgodtgørelse og supplerende løn?"),
+    help = Some("En efterfølgende opdeling er ikke tilstrækkelig; valget om opdelt afregning forudsætter, at arbejdsgiveren foretog opdelingen ved den endelige opgørelse."),
+    unit = None
+)
+= personskat_ll9a_felt_kostudbetaling_uopdelt = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AUopdeltGodtgørelse::udbetalt_kroner),
+    label = "Uopdelt kostgodtgørelse",
+    question = Some("Hvor meget blev udbetalt som uopdelt kostgodtgørelse?"),
+    help = Some("Overstiger et uopdelt beløb satsen, er hele beløbet skattepligtigt."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_kostudbetaling_satsdel = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::godtgørelse_efter_sats_kroner),
+    label = "Kostgodtgørelse opgjort efter sats",
+    question = Some("Hvor stor en del blev ved den endelige afregning specificeret som godtgørelse efter sats?"),
+    help = Some("Denne del kan være skattefri, hvis den ikke overstiger den beregnede sats og de øvrige betingelser er opfyldt."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_kostudbetaling_løntillæg = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::supplerende_løn_kroner),
+    label = "Supplerende løn ved kostafregningen",
+    question = Some("Hvor stort et overskydende beløb blev behandlet som supplerende løn med A-skat og arbejdsmarkedsbidrag?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_kost_efter_regning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kostudgifter_afholdt_efter_regning_kroner),
-    label = "Kost betalt af arbejdsgiveren efter regning",
-    question = Some("Hvor mange kostudgifter afholdt arbejdsgiveren efter regning?"),
-    help = Some("Når arbejdsgiveren dækker kost efter regning, kan kun 25 pct.-satsen til småfornødenheder anvendes som standardsats."),
-    unit = Some("kr.")
-)
-= personskat_ll9a_felt_logi_efter_regning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::logiudgifter_afholdt_efter_regning_kroner),
-    label = "Logi betalt af arbejdsgiveren efter regning",
-    question = Some("Hvor mange logiudgifter afholdt arbejdsgiveren efter regning?"),
-    help = Some("Logisatsen kan ikke anvendes for logi, som arbejdsgiveren har betalt efter regning."),
-    unit = Some("kr.")
-)
 = personskat_ll9a_felt_fri_morgenmad = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_morgenmad_antal),
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_morgenmad_antal),
     label = "Antal måltider med fri morgenmad",
     question = Some("Hvor mange morgenmåltider blev stillet gratis til rådighed?"),
     help = None,
     unit = Some("måltider")
 )
 = personskat_ll9a_felt_fri_frokost = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_frokost_antal),
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_frokost_antal),
     label = "Antal måltider med fri frokost",
     question = Some("Hvor mange frokostmåltider blev stillet gratis til rådighed?"),
     help = None,
     unit = Some("måltider")
 )
 = personskat_ll9a_felt_fri_aftensmad = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::fri_aftensmad_antal),
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::fri_aftensmad_antal),
     label = "Antal måltider med fri aftensmad",
     question = Some("Hvor mange aftensmåltider blev stillet gratis til rådighed?"),
     help = None,
     unit = Some("måltider")
 )
 = personskat_ll9a_felt_kontrol = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::kontrol),
+    path = refof(Ligningslov9AÅrsinput::rejser::kontrol),
     label = "Arbejdsgiverens kontrol af rejseafregningen",
     question = Some("Har arbejdsgiveren kontrolleret rejsens formål, mål, varighed, satser og beregning?"),
     help = Some("Manglende arbejdsgiverkontrol gør den udbetalte godtgørelse skattepligtig."),
     unit = None
 )
 = personskat_ll9a_felt_lønomlægning = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::godtgørelse::lønomlægning),
+    path = refof(Ligningslov9AÅrsinput::rejser::lønomlægning),
     label = "Godtgørelse og lønomlægning",
     question = Some("Er godtgørelsen finansieret ved en løbende nedgang i kontantlønnen?"),
     help = Some("Godtgørelse mod løbende lønnedgang skal medregnes i indkomsten."),
     unit = None
 )
 = personskat_ll9a_felt_egne_kostudgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::dokumenterede_egne_kostudgifter_kroner),
-    label = "Dokumenterede egne kostudgifter",
-    question = Some("Hvor store dokumenterede kostudgifter betalte personen selv?"),
-    help = Some("Beløbet bruges kun ved valg af fradrag for faktiske udgifter."),
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner),
+    label = "Dokumenterede kostudgifter før arbejdsgiverdækning",
+    question = Some("Hvor store dokumenterede kostudgifter betalte personen før refusion eller anden arbejdsgiverdækning?"),
+    help = Some("Futuruna fratrækker dækning efter regning og skattefri godtgørelse ved valg af dokumenterede udgifter."),
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_kostfradragsprincip = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::kost::fradragsprincip),
+    label = "Fradragsprincip for rejsens kost",
+    question = Some("Skal alle kostudgifter på rejsen opgøres uden fradrag, med standardsats eller med dokumenterede udgifter?"),
+    help = Some("Det valgte princip gælder for alle kostudgifter på den enkelte rejse."),
+    unit = None
+)
+= personskat_ll9a_felt_logidøgn = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn),
+    label = "Logi pr. fuldt rejsedøgn",
+    question = Some("Hvordan blev logiet dækket og fradraget for hvert fuldt rejsedøgn?"),
+    help = Some("Opret én række for hvert fuldt døgn. Dæknings- og fradragsprincip kan skifte fra døgn til døgn."),
+    unit = None
+)
+= personskat_ll9a_felt_logidøgnsnummer = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::rejsedøgnsnummer),
+    label = "Rejsedøgnets nummer",
+    question = Some("Hvilket fuldt døgn i rejsen beskriver rækken?"),
+    help = Some("Nummerér de fulde rejsedøgn fortløbende fra 1."),
+    unit = Some("døgn")
+)
+= personskat_ll9a_felt_logidækning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dækning::$variant),
+    label = "Arbejdsgiverens dækning af logidøgnet",
+    question = Some("Var logiet udækket, dækket efter regning eller helt eller delvist stillet frit til rådighed dette døgn?"),
+    help = Some("Hel eller delvis dækning efter regning eller frit logi afskærer standardsatsen for det pågældende døgn."),
+    unit = None
+)
+= personskat_ll9a_felt_logi_efter_regning = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dækning::Ll9ALogiHeltEllerDelvistDækketEfterRegning::arbejdsgiverbetalt_kroner),
+    label = "Logi dækket efter regning dette døgn",
+    question = Some("Hvor meget af logiudgiften dækkede arbejdsgiveren efter regning dette døgn?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_logiudbetaling = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::$variant),
+    label = "Afregning af logigodtgørelsen dette døgn",
+    question = Some("Blev logigodtgørelsen udbetalt uopdelt eller rettidigt opdelt i satsgodtgørelse og supplerende løn?"),
+    help = None,
+    unit = None
+)
+= personskat_ll9a_felt_logiudbetaling_uopdelt = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AUopdeltGodtgørelse::udbetalt_kroner),
+    label = "Uopdelt logigodtgørelse dette døgn",
+    question = Some("Hvor meget blev udbetalt som uopdelt logigodtgørelse dette døgn?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_logiudbetaling_satsdel = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::godtgørelse_efter_sats_kroner),
+    label = "Logigodtgørelse opgjort efter sats dette døgn",
+    question = Some("Hvor meget blev ved den endelige afregning specificeret som logigodtgørelse efter sats dette døgn?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_ll9a_felt_logiudbetaling_løntillæg = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::godtgørelsesudbetaling::Ll9AEndeligtOpdeltGodtgørelse::supplerende_løn_kroner),
+    label = "Supplerende løn ved logiafregningen dette døgn",
+    question = Some("Hvor meget blev behandlet som supplerende løn med A-skat og arbejdsmarkedsbidrag dette døgn?"),
+    help = None,
     unit = Some("kr.")
 )
 = personskat_ll9a_felt_egne_logiudgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::dokumenterede_egne_logiudgifter_kroner),
-    label = "Dokumenterede egne logiudgifter",
-    question = Some("Hvor store dokumenterede logiudgifter betalte personen selv?"),
-    help = Some("Beløbet bruges kun ved valg af fradrag for faktiske udgifter."),
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::dokumenteret_logiudgift_betalt_før_refusion_kroner),
+    label = "Dokumenteret logiudgift før refusion dette døgn",
+    question = Some("Hvor stor en dokumenteret logiudgift betalte personen før refusion dette døgn?"),
+    help = Some("Futuruna fratrækker dækning efter regning og skattefri logigodtgørelse ved valg af dokumenterede udgifter."),
     unit = Some("kr.")
 )
-= personskat_ll9a_felt_fradragsvalg = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::rejser::fradragsvalg),
-    label = "Valg af rejsefradrag",
-    question = Some("Skal rejsen beregnes uden fradrag, med standardsatser eller med faktiske udgifter?"),
-    help = Some("Skattefri godtgørelse modregnes i fradraget, og samme udgift kan ikke fradrages efter begge metoder."),
+= personskat_ll9a_felt_logifradragsprincip = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::rejser::logidøgn::fradragsprincip),
+    label = "Fradragsprincip for logidøgnet",
+    question = Some("Skal dette døgn opgøres uden logifradrag, med standardsats eller med dokumenterede udgifter?"),
+    help = Some("Fradragsprincippet kan vælges særskilt for hvert fuldt rejsedøgn."),
     unit = None
 )
 = personskat_ll9a_felt_indkomstforhold = TypetBeregningsfelt(
@@ -276,18 +353,29 @@
         personskat_ll9a_felt_fulde_måneder,
         personskat_ll9a_felt_hverv,
         personskat_ll9a_felt_varighed,
-        personskat_ll9a_felt_kostgodtgørelse,
-        personskat_ll9a_felt_logigodtgørelse,
+        personskat_ll9a_felt_kostdækning,
         personskat_ll9a_felt_kost_efter_regning,
-        personskat_ll9a_felt_logi_efter_regning,
+        personskat_ll9a_felt_kostudbetaling,
+        personskat_ll9a_felt_kostudbetaling_uopdelt,
+        personskat_ll9a_felt_kostudbetaling_satsdel,
+        personskat_ll9a_felt_kostudbetaling_løntillæg,
         personskat_ll9a_felt_fri_morgenmad,
         personskat_ll9a_felt_fri_frokost,
         personskat_ll9a_felt_fri_aftensmad,
         personskat_ll9a_felt_kontrol,
         personskat_ll9a_felt_lønomlægning,
         personskat_ll9a_felt_egne_kostudgifter,
+        personskat_ll9a_felt_kostfradragsprincip,
+        personskat_ll9a_felt_logidøgn,
+        personskat_ll9a_felt_logidøgnsnummer,
+        personskat_ll9a_felt_logidækning,
+        personskat_ll9a_felt_logi_efter_regning,
+        personskat_ll9a_felt_logiudbetaling,
+        personskat_ll9a_felt_logiudbetaling_uopdelt,
+        personskat_ll9a_felt_logiudbetaling_satsdel,
+        personskat_ll9a_felt_logiudbetaling_løntillæg,
         personskat_ll9a_felt_egne_logiudgifter,
-        personskat_ll9a_felt_fradragsvalg,
+        personskat_ll9a_felt_logifradragsprincip,
         personskat_ll9a_felt_indkomstforhold,
         personskat_ll9a_felt_udlandsløn,
         personskat_ll9a_felt_udlandsøvrige_fradrag,
@@ -305,6 +393,10 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_rejsebegreb),
         Guidance(value = juridisk_vejledning_ligningslov9a_midlertidigt_arbejdssted),
         Guidance(value = juridisk_vejledning_ligningslov9a_fradrag),
+        Guidance(value = juridisk_vejledning_ligningslov9a_kostgodtgørelse),
+        Guidance(value = juridisk_vejledning_ligningslov9a_logigodtgørelse),
+        Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),
+        Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
         Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
     )
 )

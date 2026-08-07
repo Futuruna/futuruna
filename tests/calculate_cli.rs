@@ -1961,11 +1961,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "standardperiode.startgrund.$variant",
             "hverv",
             "varighed_minutter",
-            "godtgørelse.kost_og_småfornødenheder_udbetalt_kroner",
-            "godtgørelse.logi_udbetalt_kroner",
-            "godtgørelse.kontrol",
-            "godtgørelse.lønomlægning",
-            "fradragsvalg",
+            "kost.dækning.$variant",
+            "kost.godtgørelsesudbetaling.$variant",
+            "kost.godtgørelsesudbetaling.Ll9AUopdeltGodtgørelse.udbetalt_kroner",
+            "kost.godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.godtgørelse_efter_sats_kroner",
+            "kost.godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.supplerende_løn_kroner",
+            "kost.fradragsprincip",
+            "kontrol",
+            "lønomlægning",
             "indkomstforhold.$variant",
         ] {
             assert!(
@@ -1984,11 +1987,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Startgrund for 12-månedersperioden",
             "Hverv under rejsen",
             "Rejsens samlede varighed",
-            "Udbetalt godtgørelse til kost og småfornødenheder",
-            "Udbetalt logigodtgørelse",
+            "Arbejdsgiverens dækningsprincip for kost",
+            "Afregning af kostgodtgørelsen",
+            "Uopdelt kostgodtgørelse",
+            "Kostgodtgørelse opgjort efter sats",
+            "Supplerende løn ved kostafregningen",
+            "Fradragsprincip for rejsens kost",
             "Arbejdsgiverens kontrol af rejseafregningen",
             "Godtgørelse og lønomlægning",
-            "Valg af rejsefradrag",
             "Arbejdsindkomstens danske skatteforhold",
         ] {
             assert!(
@@ -1996,6 +2002,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|header| header == expected),
                 "missing human LL § 9 A input label {expected} on {overnight_travel_sheet}"
+            );
+        }
+        let lodging_day_path = format!("{overnight_travel_path}.logidøgn");
+        let lodging_day_sheet = workbook_collection_sheet_name(&mut workbook, &lodging_day_path);
+        let lodging_day_paths = workbook_column_paths(&mut workbook, &lodging_day_sheet);
+        for expected in [
+            "rejsedøgnsnummer",
+            "dækning.$variant",
+            "dækning.Ll9ALogiHeltEllerDelvistDækketEfterRegning.arbejdsgiverbetalt_kroner",
+            "godtgørelsesudbetaling.$variant",
+            "godtgørelsesudbetaling.Ll9AUopdeltGodtgørelse.udbetalt_kroner",
+            "godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.godtgørelse_efter_sats_kroner",
+            "godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.supplerende_løn_kroner",
+            "dokumenteret_logiudgift_betalt_før_refusion_kroner",
+            "fradragsprincip",
+        ] {
+            assert!(
+                lodging_day_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 9 A lodging-day path {expected} on {lodging_day_sheet}"
+            );
+        }
+        let lodging_day_headers = workbook_headers(&mut workbook, &lodging_day_sheet);
+        for expected in [
+            "Rejsedøgnets nummer",
+            "Arbejdsgiverens dækning af logidøgnet",
+            "Logi dækket efter regning dette døgn",
+            "Afregning af logigodtgørelsen dette døgn",
+            "Uopdelt logigodtgørelse dette døgn",
+            "Logigodtgørelse opgjort efter sats dette døgn",
+            "Supplerende løn ved logiafregningen dette døgn",
+            "Dokumenteret logiudgift før refusion dette døgn",
+            "Fradragsprincip for logidøgnet",
+        ] {
+            assert!(
+                lodging_day_headers.iter().any(|header| header == expected),
+                "missing human LL § 9 A lodging-day label {expected} on {lodging_day_sheet}"
             );
         }
         let dividend_path = "aktieavance.udbytter";
@@ -13306,11 +13348,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "BeregnetÅrsopgørelse"
     );
     assert_eq!(
-        result["results"][0]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_kroner"],
-        210_226
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_øre"],
+        21_022_600
     );
     assert_eq!(
-        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_kroner"],
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_opkræves_kroner"],
         210_226
     );
     assert_eq!(
@@ -14013,6 +14055,255 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ["nettokapitalindkomst_kroner"],
         14_940
     );
+}
+
+#[test]
+fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+    let input_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "xlsx",
+        "--output",
+        input_path.to_str().expect("input path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    edit_workbook(&input_path, |sheets| {
+        let travel_sheet = workbook_collection_sheet_name_from_rows(sheets, "årsinput.rejser");
+        let lodging_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, "årsinput.rejser.logidøgn");
+
+        set_workbook_cell(sheets, "cases", 1, 0, Data::String("ll9a-xlsx".to_string()));
+        for (path, value) in [
+            ("indkomstår", Data::Int(2026)),
+            (
+                "årsinput.personrolle",
+                Data::String("Ll9AAlmindeligLønmodtager".to_string()),
+            ),
+            (
+                "årsinput.dobbelt_husførelse.$variant",
+                Data::String("Ll9AIntetFradragForDobbeltHusførelse".to_string()),
+            ),
+            (
+                "ekstern_udelukkelse",
+                Data::String("Ll9AIngenEksternUdelukkelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, "cases", 1, path, value);
+        }
+
+        set_workbook_cell(
+            sheets,
+            &travel_sheet,
+            1,
+            0,
+            Data::String("ll9a-xlsx".to_string()),
+        );
+        set_workbook_cell(
+            sheets,
+            &travel_sheet,
+            1,
+            1,
+            Data::String("rejse-1".to_string()),
+        );
+        set_workbook_cell(sheets, &travel_sheet, 1, 2, Data::Int(1));
+        for (path, value) in [
+            ("identifikation", Data::String("xlsx-rejse".to_string())),
+            ("indkomstår", Data::Int(2026)),
+            ("rejseart", Data::String("Ll9ATjenesterejse".to_string())),
+            (
+                "arbejdssted_identifikation",
+                Data::String("xlsx-projektsted".to_string()),
+            ),
+            (
+                "arbejdsstedskarakter.$variant",
+                Data::String("Ll9AStedbundetArbejdssted".to_string()),
+            ),
+            (
+                "arbejdsstedskarakter.Ll9AStedbundetArbejdssted.tidsbegrænsning",
+                Data::String("Ll9ATidsbegrænsetTilBestemtPeriode".to_string()),
+            ),
+            (
+                "overnatningsforhold.$variant",
+                Data::String(
+                    "Ll9AIngenMulighedForOvernatningPåSædvanligBopæl".to_string(),
+                ),
+            ),
+            (
+                "overnatningsforhold.Ll9AIngenMulighedForOvernatningPåSædvanligBopæl.afstand_ad_normal_transportvej_kilometer",
+                Data::Int(350),
+            ),
+            (
+                "overnatningsforhold.Ll9AIngenMulighedForOvernatningPåSædvanligBopæl.korteste_transporttid_hver_vej_minutter",
+                Data::Int(240),
+            ),
+            (
+                "standardperiode.startgrund.$variant",
+                Data::String("Ll9AFørstePeriodePåArbejdsstedet".to_string()),
+            ),
+            ("standardperiode.fulde_måneder_siden_periodestart", Data::Int(2)),
+            ("hverv", Data::String("Ll9AAlmindeligtHverv".to_string())),
+            ("varighed_minutter", Data::Int(2880)),
+            (
+                "kost.dækning.$variant",
+                Data::String("Ll9AKostIkkeDækketEfterRegning".to_string()),
+            ),
+            (
+                "kost.godtgørelsesudbetaling.$variant",
+                Data::String("Ll9AEndeligtOpdeltGodtgørelse".to_string()),
+            ),
+            (
+                "kost.godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.godtgørelse_efter_sats_kroner",
+                Data::Int(1250),
+            ),
+            (
+                "kost.godtgørelsesudbetaling.Ll9AEndeligtOpdeltGodtgørelse.supplerende_løn_kroner",
+                Data::Int(200),
+            ),
+            ("kost.fri_morgenmad_antal", Data::Int(0)),
+            ("kost.fri_frokost_antal", Data::Int(0)),
+            ("kost.fri_aftensmad_antal", Data::Int(0)),
+            (
+                "kost.dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner",
+                Data::Int(1600),
+            ),
+            (
+                "kost.fradragsprincip",
+                Data::String("Ll9AKostfradragMedStandardsats".to_string()),
+            ),
+            (
+                "kontrol",
+                Data::String("Ll9AArbejdsgiverkontrolUdført".to_string()),
+            ),
+            (
+                "lønomlægning",
+                Data::String("Ll9AGodtgørelseUdenLønomlægning".to_string()),
+            ),
+            (
+                "indkomstforhold.$variant",
+                Data::String("Ll9ADanskSkattepligtigArbejdsindkomst".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &travel_sheet, 1, path, value);
+        }
+
+        for (row, item_id, position) in [(1, "logi-1", 1), (2, "logi-2", 2)] {
+            set_workbook_cell(
+                sheets,
+                &lodging_sheet,
+                row,
+                0,
+                Data::String("ll9a-xlsx".to_string()),
+            );
+            set_workbook_cell(
+                sheets,
+                &lodging_sheet,
+                row,
+                1,
+                Data::String("rejse-1".to_string()),
+            );
+            set_workbook_cell(
+                sheets,
+                &lodging_sheet,
+                row,
+                2,
+                Data::String(item_id.to_string()),
+            );
+            set_workbook_cell(sheets, &lodging_sheet, row, 3, Data::Int(position));
+            set_workbook_cell_by_header(
+                sheets,
+                &lodging_sheet,
+                row,
+                "rejsedøgnsnummer",
+                Data::Int(position),
+            );
+        }
+        for (path, value) in [
+            (
+                "dækning.$variant",
+                Data::String("Ll9ALogiIkkeDækketAfArbejdsgiver".to_string()),
+            ),
+            (
+                "godtgørelsesudbetaling.$variant",
+                Data::String("Ll9AUopdeltGodtgørelse".to_string()),
+            ),
+            (
+                "godtgørelsesudbetaling.Ll9AUopdeltGodtgørelse.udbetalt_kroner",
+                Data::Int(150),
+            ),
+            (
+                "dokumenteret_logiudgift_betalt_før_refusion_kroner",
+                Data::Int(450),
+            ),
+            (
+                "fradragsprincip",
+                Data::String("Ll9ALogifradragMedStandardsats".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &lodging_sheet, 1, path, value);
+        }
+        for (path, value) in [
+            (
+                "dækning.$variant",
+                Data::String("Ll9ALogiHeltEllerDelvistDækketEfterRegning".to_string()),
+            ),
+            (
+                "dækning.Ll9ALogiHeltEllerDelvistDækketEfterRegning.arbejdsgiverbetalt_kroner",
+                Data::Int(400),
+            ),
+            (
+                "godtgørelsesudbetaling.$variant",
+                Data::String("Ll9AUopdeltGodtgørelse".to_string()),
+            ),
+            (
+                "godtgørelsesudbetaling.Ll9AUopdeltGodtgørelse.udbetalt_kroner",
+                Data::Int(0),
+            ),
+            (
+                "dokumenteret_logiudgift_betalt_før_refusion_kroner",
+                Data::Int(700),
+            ),
+            (
+                "fradragsprincip",
+                Data::String("Ll9ALogifradragMedDokumenteredeUdgifter".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &lodging_sheet, 2, path, value);
+        }
+    });
+
+    let output = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        input_path.to_str().expect("input path"),
+    ]);
+    std::fs::remove_file(&input_path).ok();
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result = parse_stdout(&output);
+    assert!(result["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .is_empty());
+    let annual = &result["results"][0]["result"];
+    assert_eq!(annual["samlet_udbetalt_godtgørelse_kroner"], 1600);
+    assert_eq!(annual["samlet_supplerende_løn_kroner"], 200);
+    assert_eq!(annual["samlet_skattefri_godtgørelse_kroner"], 1400);
+    assert_eq!(annual["samlet_skattepligtig_godtgørelse_kroner"], 200);
+    assert_eq!(annual["samlet_rejsefradrag_efter_årsloft_kroner"], 418);
 }
 
 #[test]
