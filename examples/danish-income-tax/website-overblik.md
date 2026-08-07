@@ -101,13 +101,18 @@ dækning. Futuruna afleder fradragsretten efter
 [statsskattelovens § 6, litra a](https://www.retsinformation.dk/eli/lta/1922/149)
 og [Den juridiske vejledning C.A.7.4](https://info.skat.dk/data.aspx?oid=2061802),
 beregner enten 400 kr. pr. hel uge eller dokumenterede merudgifter og håndhæver
-den almindelige toårsgrænse. Samme ophold kan ikke samtidig give LL § 9 A-
+den almindelige toårsgrænse. Udenlandske familieboliger bærer dokumentation for
+familieforbindelse, bopæl og boligudgifter, og særlige konfigurationer med begge
+parter i Danmark eller flere hustruer afgøres efter C.A.7.4. Ferie og lignende
+hjemlandsophold over to måneder fjerner kun deres eget datospand. Samme ophold
+kan ikke samtidig give LL § 9 A-
 fradrag, skattefri rejsegodtgørelse eller ø-logifradrag. Grenene deler det
 regulerede årsloft, men Sømandsbeskatningslovens § 4-udelukkelse af LL § 9 A
-afskærer ikke det selvstændige SL § 6-fradrag. Et verificeret 10-ugers forløb
-giver 4.000 kr. fra både typet JSON og den genererede relationelle
-XLSX-arbejdsbog; perioder, dokumenterede udgifter, menneskelige etiketter og
-kildespor bevares i begge retninger.
+afskærer ikke det selvstændige SL § 6-fradrag. Et verificeret udenlandsk forløb
+med 17 standarduger og et 61-dages afbrudt hjemlandsophold giver 3.200 kr. fra
+både typet JSON og den genererede relationelle XLSX-arbejdsbog; perioder,
+dokumenterede udgifter, menneskelige etiketter og kildespor bevares i begge
+retninger.
 
 Ordinære udbytter er nu et konkret eksempel på denne arbejdsdeling. AI'en
 oplyser en entydig kildepost med udlodder, modtagerstatus, aktivtype og beløb;

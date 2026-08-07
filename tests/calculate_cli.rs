@@ -14892,7 +14892,7 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
                         "arbejdssted_identifikation": "xlsx-projektsted",
                         "oprindelig_startdato": { "år": 2026, "måned": 1, "dag": 1 },
                         "fradragsperiode_fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
-                        "fradragsperiode_til_dato": { "år": 2026, "måned": 3, "dag": 11 },
+                        "fradragsperiode_til_dato": { "år": 2026, "måned": 4, "dag": 30 },
                         "erhvervsårsag": { "$variant": "Sl6DhSkatteydersEgetArbejdsforhold" },
                         "midlertidighed": {
                             "$variant": "Sl6DhMidlertidigtArbejde",
@@ -14908,7 +14908,22 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
                             "samlet_transporttid_pr_dag_minutter": 360,
                             "arbejdstid_pr_dag_minutter": 480
                         },
-                        "hjemmebolig": { "$variant": "Sl6DhDanskFamilieboligOpretholdt" },
+                        "hjemmebolig": {
+                            "$variant": "Sl6DhUdenlandskFamilieboligOpretholdt",
+                            "familieplacering": {
+                                "$variant": "Sl6DhSkatteyderIDanmarkFamilieIHjemlandet"
+                            },
+                            "dokumentation": {
+                                "familieforbindelse_kildeidentifikation": "xlsx-vielsesdokument",
+                                "bopælsregistrering_kildeidentifikation": "xlsx-bopælsregister",
+                                "boligudgifter_kildeidentifikation": "xlsx-huslejekvitteringer"
+                            }
+                        },
+                        "hjemlandsophold": [{
+                            "identifikation": "xlsx-langt-hjemlandsophold",
+                            "fra_dato": { "år": 2026, "måned": 1, "dag": 15 },
+                            "til_dato": { "år": 2026, "måned": 3, "dag": 16 }
+                        }],
                         "arbejdsboligform": { "$variant": "Sl6DhPrivatIndkvartering" },
                         "merudgiftsforhold": {
                             "$variant": "Sl6DhMerudgifterTilKostEllerBoligAfholdt"
@@ -14916,7 +14931,7 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
                         "arbejdsgiverdækning": { "$variant": "Sl6DhIngenArbejdsgiverdækning" },
                         "opgørelsesmetode": {
                             "$variant": "Sl6DhStandardbeløb",
-                            "antal_hele_uger": 10
+                            "antal_hele_uger": 17
                         },
                         "toårsgrænse": { "$variant": "Sl6DhAlmindeligToårsgrænse" }
                     }]
@@ -14969,6 +14984,8 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
         let stay_sheet = workbook_collection_sheet_name(&mut workbook, stay_path);
         let expense_path = "årsinput.dobbelt_husførelse.Ll9ADobbeltHusførelseEfterStatsskattelov6.input.ophold.opgørelsesmetode.Sl6DhDokumenteredeMerudgifter.udgifter";
         let expense_sheet = workbook_collection_sheet_name(&mut workbook, expense_path);
+        let home_stay_path = "årsinput.dobbelt_husførelse.Ll9ADobbeltHusførelseEfterStatsskattelov6.input.ophold.hjemlandsophold";
+        let home_stay_sheet = workbook_collection_sheet_name(&mut workbook, home_stay_path);
         let stay_headers = workbook_headers(&mut workbook, &stay_sheet);
         assert!(stay_headers
             .iter()
@@ -14980,12 +14997,25 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
         assert!(expense_headers
             .iter()
             .any(|header| header == "Dokumenteret merudgift"));
+        assert!(expense_headers
+            .iter()
+            .any(|header| header == "Merudgiftens periode fra - år"));
+        let home_stay_headers = workbook_headers(&mut workbook, &home_stay_sheet);
+        assert!(home_stay_headers
+            .iter()
+            .any(|header| header == "Hjemlandsopholdets identifikation"));
         assert!(workbook
             .worksheet_range(&stay_sheet)
             .expect("double household stays")
             .rows()
             .flatten()
             .any(|cell| cell.to_string() == "xlsx-dobbelt-husførelse"));
+        assert!(workbook
+            .worksheet_range(&home_stay_sheet)
+            .expect("double household home-country stays")
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "xlsx-langt-hjemlandsophold"));
 
         let column_metadata = workbook
             .worksheet_range("_columns")
@@ -15038,10 +15068,10 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
     );
     let annual = &xlsx_result["results"][0]["result"];
     assert_eq!(annual["alle_input_gyldige"], true);
-    assert_eq!(annual["dobbelt_husførelse_før_fælles_loft_kroner"], 4000);
-    assert_eq!(annual["dobbelt_husførelse_efter_fælles_loft_kroner"], 4000);
+    assert_eq!(annual["dobbelt_husførelse_før_fælles_loft_kroner"], 3200);
+    assert_eq!(annual["dobbelt_husførelse_efter_fælles_loft_kroner"], 3200);
     assert_eq!(annual["samlet_ll9a_fradrag_efter_årsloft_kroner"], 0);
-    assert_eq!(annual["samlet_fradrag_under_fælles_årsloft_kroner"], 4000);
+    assert_eq!(annual["samlet_fradrag_under_fælles_årsloft_kroner"], 3200);
 }
 
 #[test]

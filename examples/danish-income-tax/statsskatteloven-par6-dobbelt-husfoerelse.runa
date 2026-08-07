@@ -67,18 +67,22 @@ Afskrivninger;
 # Statsskattelov6DobbeltHusførelseMidlertidighed = Sl6DhMidlertidigtArbejde(art: Statsskattelov6DobbeltHusførelseMidlertidighedsart, aftalt_fra_dato: Dato, aftalt_til_dato: Dato) | Sl6DhFastVarigStilling
 # Statsskattelov6DobbeltHusførelseDagligTransportvurdering = Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering | Sl6DhDagligTransportMulig
 # Statsskattelov6DobbeltHusførelseDagligTransport(vurdering: Statsskattelov6DobbeltHusførelseDagligTransportvurdering, afstand_mellem_boliger_kilometer: Heltal, samlet_transporttid_pr_dag_minutter: Heltal, arbejdstid_pr_dag_minutter: Heltal)
-# Statsskattelov6DobbeltHusførelseHjemmebolig = Sl6DhDanskFamilieboligOpretholdt | Sl6DhUdenlandskFamilieboligOpretholdt(dokumentationsidentifikation: Tekst) | Sl6DhFamilieboligIkkeOpretholdt
+# Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation(familieforbindelse_kildeidentifikation: Tekst, bopælsregistrering_kildeidentifikation: Tekst, boligudgifter_kildeidentifikation: Tekst)
+# Statsskattelov6DobbeltHusførelseParopholdIDanmark(fra_dato: Dato, forventet_til_dato: Dato, dokumentationsidentifikation: Tekst)
+# Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet | Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold: Statsskattelov6DobbeltHusførelseParopholdIDanmark) | Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet | Sl6DhFlereHustruerKunIHjemlandet(antal_hustruer: Heltal)
+# Statsskattelov6DobbeltHusførelseHjemmebolig = Sl6DhDanskFamilieboligOpretholdt | Sl6DhUdenlandskFamilieboligOpretholdt(familieplacering: Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering, dokumentation: Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation) | Sl6DhFamilieboligIkkeOpretholdt
+# Statsskattelov6DobbeltHusførelseHjemlandsophold(identifikation: Tekst, fra_dato: Dato, til_dato: Dato)
 # Statsskattelov6DobbeltHusførelseArbejdsboligform = Sl6DhPensionat | Sl6DhPrivatIndkvartering | Sl6DhTilsvarendeArbejdsbolig | Sl6DhAndenArbejdsbolig
 # Statsskattelov6DobbeltHusførelseMerudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt | Sl6DhIngenMerudgifter
 # Statsskattelov6DobbeltHusførelseArbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning | Sl6DhFriKost | Sl6DhFritLogi | Sl6DhFriKostOgLogi | Sl6DhSkattefriRejsegodtgørelse | Sl6DhUdgifterDækketEfterRegning
 # Statsskattelov6DobbeltHusførelseUdgiftsart = Sl6DhDokumenteretKostmerudgift | Sl6DhDokumenteretLogimerudgift
-# Statsskattelov6DobbeltHusførelseUdgift(identifikation: Tekst, art: Statsskattelov6DobbeltHusførelseUdgiftsart, beløb_kroner: Heltal)
+# Statsskattelov6DobbeltHusførelseUdgift(identifikation: Tekst, art: Statsskattelov6DobbeltHusførelseUdgiftsart, fra_dato: Dato, til_dato: Dato, beløb_kroner: Heltal)
 # Statsskattelov6DobbeltHusførelseOpgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger: Heltal) | Sl6DhDokumenteredeMerudgifter(udgifter: List(Statsskattelov6DobbeltHusførelseUdgift))
 # Statsskattelov6DobbeltHusførelseToårsgrænse = Sl6DhAlmindeligToårsgrænse | Sl6DhSærligeOmstændighederUdOverToÅr(kildeidentifikation: Tekst)
-# Statsskattelov6DobbeltHusførelseOphold(identifikation: Tekst, arbejdssted_identifikation: Tekst, oprindelig_startdato: Dato, fradragsperiode_fra_dato: Dato, fradragsperiode_til_dato: Dato, erhvervsårsag: Statsskattelov6DobbeltHusførelseErhvervsårsag, midlertidighed: Statsskattelov6DobbeltHusførelseMidlertidighed, daglig_transport: Statsskattelov6DobbeltHusførelseDagligTransport, hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig, arbejdsboligform: Statsskattelov6DobbeltHusførelseArbejdsboligform, merudgiftsforhold: Statsskattelov6DobbeltHusførelseMerudgiftsforhold, arbejdsgiverdækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning, opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse)
+# Statsskattelov6DobbeltHusførelseOphold(identifikation: Tekst, arbejdssted_identifikation: Tekst, oprindelig_startdato: Dato, fradragsperiode_fra_dato: Dato, fradragsperiode_til_dato: Dato, erhvervsårsag: Statsskattelov6DobbeltHusførelseErhvervsårsag, midlertidighed: Statsskattelov6DobbeltHusførelseMidlertidighed, daglig_transport: Statsskattelov6DobbeltHusførelseDagligTransport, hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold), arbejdsboligform: Statsskattelov6DobbeltHusførelseArbejdsboligform, merudgiftsforhold: Statsskattelov6DobbeltHusførelseMerudgiftsforhold, arbejdsgiverdækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning, opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse)
 # Statsskattelov6DobbeltHusførelseÅrsinput(personkreds: Statsskattelov6DobbeltHusførelsePersonkreds, ophold: List(Statsskattelov6DobbeltHusførelseOphold))
 # Statsskattelov6DobbeltHusførelseAndenDækning(kildeidentifikation: Tekst, fra_dato: Dato, til_dato: Dato)
-# Statsskattelov6DobbeltHusførelseOpholdsresultat(fakta: Statsskattelov6DobbeltHusførelseOphold, input_gyldigt: Boolsk, personkreds_omfattet: Boolsk, erhvervsmæssig_årsag: Boolsk, arbejde_midlertidigt: Boolsk, daglig_transport_ikke_rimelig: Boolsk, familiebolig_opretholdt: Boolsk, merudgifter_afholdt: Boolsk, arbejdsgiverdækning_udelukker: Boolsk, toårsgrænse_overholdt: Boolsk, samme_ophold_har_anden_dækning: Boolsk, antal_dage_i_fradragsperioden: Heltal, antal_standarduger: Heltal, fradragsbetingelser_opfyldt: Boolsk, fradrag_før_fælles_årsloft_kroner: Heltal)
+# Statsskattelov6DobbeltHusførelseOpholdsresultat(fakta: Statsskattelov6DobbeltHusførelseOphold, input_gyldigt: Boolsk, personkreds_omfattet: Boolsk, erhvervsmæssig_årsag: Boolsk, arbejde_midlertidigt: Boolsk, daglig_transport_ikke_rimelig: Boolsk, familiebolig_opretholdt: Boolsk, udenlandsk_familiekonfiguration_berettiget: Boolsk, merudgifter_afholdt: Boolsk, arbejdsgiverdækning_udelukker: Boolsk, toårsgrænse_overholdt: Boolsk, samme_ophold_har_anden_dækning: Boolsk, antal_dage_i_fradragsperioden: Heltal, antal_afbrudte_dage: Heltal, antal_fradragsberettigede_dage: Heltal, antal_standarduger: Heltal, fradragsbetingelser_opfyldt: Boolsk, fradrag_før_fælles_årsloft_kroner: Heltal)
 # Statsskattelov6DobbeltHusførelseÅrsresultat(indkomstår: Heltal, input: Statsskattelov6DobbeltHusførelseÅrsinput, erhvervsstatus: Statsskattelov6DobbeltHusførelseErhvervsstatus, opholdsresultater: List(Statsskattelov6DobbeltHusførelseOpholdsresultat), identifikationer_entydige: Boolsk, perioder_ikke_overlappende: Boolsk, alle_input_gyldige: Boolsk, samlet_fradrag_før_fælles_årsloft_kroner: Heltal)
 
 | statsskattelov6_dobbelt_husførelse_intet_årsinput() -> Statsskattelov6DobbeltHusførelseÅrsinput(
@@ -130,19 +134,43 @@ Afskrivninger;
 }
 | statsskattelov6_dobbelt_husførelse_daglig_transport_input_gyldig(transport: Statsskattelov6DobbeltHusførelseDagligTransport) -> transport.afstand_mellem_boliger_kilometer >= 0 && transport.samlet_transporttid_pr_dag_minutter >= 0 && transport.arbejdstid_pr_dag_minutter >= 0
 | statsskattelov6_dobbelt_husførelse_daglig_transport_ikke_rimelig(transport: Statsskattelov6DobbeltHusførelseDagligTransport) -> transport.vurdering == Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering
+| statsskattelov6_dobbelt_husførelse_udenlandsk_boligdokumentation_gyldig(dokumentation: Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation) -> dokumentation.familieforbindelse_kildeidentifikation != "" && dokumentation.bopælsregistrering_kildeidentifikation != "" && dokumentation.boligudgifter_kildeidentifikation != ""
+| statsskattelov6_dobbelt_husførelse_parophold_input_gyldigt(parophold: Statsskattelov6DobbeltHusførelseParopholdIDanmark) -> dato_før_eller_lig_med(parophold.fra_dato, parophold.forventet_til_dato) && parophold.dokumentationsidentifikation != ""
+| statsskattelov6_dobbelt_husførelse_udenlandsk_familieplacering_input_gyldig(familieplacering: Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering) -> match familieplacering {
+    | Sl6DhSkatteyderIDanmarkFamilieIHjemlandet -> Sandt
+    | Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold) -> statsskattelov6_dobbelt_husførelse_parophold_input_gyldigt(parophold)
+    | Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet -> Sandt
+    | Sl6DhFlereHustruerKunIHjemlandet(antal_hustruer) -> antal_hustruer >= 2
+}
 | statsskattelov6_dobbelt_husførelse_hjemmebolig_input_gyldig(hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig) -> match hjemmebolig {
-    | Sl6DhUdenlandskFamilieboligOpretholdt(dokumentationsidentifikation) -> dokumentationsidentifikation != ""
+    | Sl6DhUdenlandskFamilieboligOpretholdt(familieplacering, dokumentation) -> statsskattelov6_dobbelt_husførelse_udenlandsk_familieplacering_input_gyldig(familieplacering) && statsskattelov6_dobbelt_husførelse_udenlandsk_boligdokumentation_gyldig(dokumentation)
     | _ -> Sandt
+}
+| statsskattelov6_dobbelt_husførelse_personkreds_er_par(personkreds: Statsskattelov6DobbeltHusførelsePersonkreds) -> match personkreds {
+    | Sl6DhGift -> Sandt
+    | Sl6DhUgiftSamlevende(_, _) -> Sandt
+    | _ -> Falskt
+}
+| statsskattelov6_dobbelt_husførelse_udenlandsk_familiekonfiguration_berettiget(personkreds: Statsskattelov6DobbeltHusførelsePersonkreds, hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig, fra_dato: Dato, til_dato: Dato) -> match hjemmebolig {
+    | Sl6DhDanskFamilieboligOpretholdt -> Sandt
+    | Sl6DhUdenlandskFamilieboligOpretholdt(familieplacering, _) -> match familieplacering {
+        | Sl6DhSkatteyderIDanmarkFamilieIHjemlandet -> Sandt
+        | Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold) -> statsskattelov6_dobbelt_husførelse_personkreds_er_par(personkreds) && dato_før_eller_lig_med(parophold.fra_dato, fra_dato) && dato_før_eller_lig_med(til_dato, parophold.forventet_til_dato)
+        | Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet -> Falskt
+        | Sl6DhFlereHustruerKunIHjemlandet(_) -> personkreds == Sl6DhGift
+    }
+    | Sl6DhFamilieboligIkkeOpretholdt -> Falskt
 }
 | statsskattelov6_dobbelt_husførelse_familiebolig_opretholdt(hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig) -> hjemmebolig != Sl6DhFamilieboligIkkeOpretholdt
 | statsskattelov6_dobbelt_husførelse_arbejdsgiverdækning_udelukker(dækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning) -> dækning != Sl6DhIngenArbejdsgiverdækning
-| statsskattelov6_dobbelt_husførelse_udgift_gyldig(udgift: Statsskattelov6DobbeltHusførelseUdgift) -> udgift.identifikation != "" && udgift.beløb_kroner >= 0
+| statsskattelov6_dobbelt_husførelse_udgift_gyldig(udgift: Statsskattelov6DobbeltHusførelseUdgift) -> udgift.identifikation != "" && dato_før_eller_lig_med(udgift.fra_dato, udgift.til_dato) && udgift.beløb_kroner >= 0
 | statsskattelov6_dobbelt_husførelse_udgifter_entydige(udgifter: List(Statsskattelov6DobbeltHusførelseUdgift)) -> length(distinct(map(udgifter, |udgift: Statsskattelov6DobbeltHusførelseUdgift| udgift.identifikation))) == length(udgifter)
 | statsskattelov6_dobbelt_husførelse_arbejdsbolig_kan_anvende_standard(boligform: Statsskattelov6DobbeltHusførelseArbejdsboligform) -> boligform == Sl6DhPensionat || boligform == Sl6DhPrivatIndkvartering || boligform == Sl6DhTilsvarendeArbejdsbolig
 | statsskattelov6_dobbelt_husførelse_antal_dage(fra_dato: Dato, til_dato: Dato) -> dato_dage_fra_og_med_til_og_med(fra_dato, til_dato)
-| statsskattelov6_dobbelt_husførelse_opgørelsesmetode_input_gyldig(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, boligform: Statsskattelov6DobbeltHusførelseArbejdsboligform, antal_dage: Heltal) -> match opgørelse {
-    | Sl6DhStandardbeløb(antal_hele_uger) -> antal_hele_uger >= 0 && antal_hele_uger * 7 <= antal_dage && statsskattelov6_dobbelt_husførelse_arbejdsbolig_kan_anvende_standard(boligform)
-    | Sl6DhDokumenteredeMerudgifter(udgifter) -> statsskattelov6_dobbelt_husførelse_udgifter_entydige(udgifter) && all(udgifter, statsskattelov6_dobbelt_husførelse_udgift_gyldig)
+| statsskattelov6_dobbelt_husførelse_udgift_i_fradragsperiode(udgift: Statsskattelov6DobbeltHusførelseUdgift, fra_dato: Dato, til_dato: Dato) -> dato_før_eller_lig_med(fra_dato, udgift.fra_dato) && dato_før_eller_lig_med(udgift.til_dato, til_dato)
+| statsskattelov6_dobbelt_husførelse_opgørelsesmetode_input_gyldig(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, boligform: Statsskattelov6DobbeltHusførelseArbejdsboligform, fra_dato: Dato, til_dato: Dato, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> match opgørelse {
+    | Sl6DhStandardbeløb(antal_hele_uger) -> antal_hele_uger >= 0 && antal_hele_uger * 7 <= statsskattelov6_dobbelt_husførelse_antal_dage(fra_dato, til_dato) && statsskattelov6_dobbelt_husførelse_arbejdsbolig_kan_anvende_standard(boligform)
+    | Sl6DhDokumenteredeMerudgifter(udgifter) -> statsskattelov6_dobbelt_husførelse_udgifter_entydige(udgifter) && all(udgifter, |udgift: Statsskattelov6DobbeltHusførelseUdgift| statsskattelov6_dobbelt_husførelse_udgift_gyldig(udgift) && statsskattelov6_dobbelt_husførelse_udgift_i_fradragsperiode(udgift, fra_dato, til_dato) && statsskattelov6_dobbelt_husførelse_udgift_har_entydig_afbrydelsestilknytning(udgift, hjemlandsophold))
 }
 | statsskattelov6_dobbelt_husførelse_toårsgrænse_input_gyldig(grænse: Statsskattelov6DobbeltHusførelseToårsgrænse) -> match grænse {
     | Sl6DhAlmindeligToårsgrænse -> Sandt
@@ -154,20 +182,75 @@ Afskrivninger;
 }
 | statsskattelov6_dobbelt_husførelse_anden_dækning_gyldig(dækning: Statsskattelov6DobbeltHusførelseAndenDækning) -> dækning.kildeidentifikation != "" && dato_før_eller_lig_med(dækning.fra_dato, dækning.til_dato)
 | statsskattelov6_dobbelt_husførelse_perioder_overlapper(første_fra: Dato, første_til: Dato, anden_fra: Dato, anden_til: Dato) -> dato_før_eller_lig_med(første_fra, anden_til) && dato_før_eller_lig_med(anden_fra, første_til)
+| statsskattelov6_dobbelt_husførelse_periode_indeholder(ydre_fra: Dato, ydre_til: Dato, indre_fra: Dato, indre_til: Dato) -> dato_før_eller_lig_med(ydre_fra, indre_fra) && dato_før_eller_lig_med(indre_til, ydre_til)
+| statsskattelov6_dobbelt_husførelse_hjemlandsophold_input_gyldigt(ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold, fradragsperiode_fra_dato: Dato, fradragsperiode_til_dato: Dato) -> ophold.identifikation != "" && dato_før_eller_lig_med(ophold.fra_dato, ophold.til_dato) && statsskattelov6_dobbelt_husførelse_perioder_overlapper(ophold.fra_dato, ophold.til_dato, fradragsperiode_fra_dato, fradragsperiode_til_dato)
+| statsskattelov6_dobbelt_husførelse_hjemlandsophold_langt(ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold) -> dato_efter(ophold.til_dato, dato_plus_måneder(ophold.fra_dato, 2))
+| statsskattelov6_dobbelt_husførelse_hjemlandsophold_overlapper(a: Statsskattelov6DobbeltHusførelseHjemlandsophold, b: Statsskattelov6DobbeltHusførelseHjemlandsophold) -> a.identifikation != b.identifikation && statsskattelov6_dobbelt_husførelse_perioder_overlapper(a.fra_dato, a.til_dato, b.fra_dato, b.til_dato)
+| statsskattelov6_dobbelt_husførelse_hjemlandsophold_ikke_overlappende(hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> all(hjemlandsophold, |a: Statsskattelov6DobbeltHusførelseHjemlandsophold| all(hjemlandsophold, |b: Statsskattelov6DobbeltHusførelseHjemlandsophold| statsskattelov6_dobbelt_husførelse_hjemlandsophold_overlapper(a, b) == Falskt))
+| statsskattelov6_dobbelt_husførelse_hjemlandsopholdsliste_input_gyldig(hjemmebolig: Statsskattelov6DobbeltHusførelseHjemmebolig, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold), fradragsperiode_fra_dato: Dato, fradragsperiode_til_dato: Dato) -> {
+    = identifikationer_entydige = length(distinct(map(hjemlandsophold, |ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold| ophold.identifikation))) == length(hjemlandsophold)
+    = hjemmebolig_i_udlandet = match hjemmebolig {
+        | Sl6DhUdenlandskFamilieboligOpretholdt(_, _) -> Sandt
+        | _ -> Falskt
+    }
+    identifikationer_entydige && statsskattelov6_dobbelt_husførelse_hjemlandsophold_ikke_overlappende(hjemlandsophold) && all(hjemlandsophold, |ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold| statsskattelov6_dobbelt_husførelse_hjemlandsophold_input_gyldigt(ophold, fradragsperiode_fra_dato, fradragsperiode_til_dato)) && (length(hjemlandsophold) == 0 || hjemmebolig_i_udlandet)
+}
+| statsskattelov6_dobbelt_husførelse_overlap_fra_dato(første_fra: Dato, anden_fra: Dato) -> hvis dato_efter(første_fra, anden_fra) { første_fra } ellers { anden_fra }
+| statsskattelov6_dobbelt_husførelse_overlap_til_dato(første_til: Dato, anden_til: Dato) -> hvis dato_før(første_til, anden_til) { første_til } ellers { anden_til }
+| statsskattelov6_dobbelt_husførelse_overlapdage(første_fra: Dato, første_til: Dato, anden_fra: Dato, anden_til: Dato) -> hvis statsskattelov6_dobbelt_husførelse_perioder_overlapper(første_fra, første_til, anden_fra, anden_til) {
+    dato_dage_fra_og_med_til_og_med(
+        statsskattelov6_dobbelt_husførelse_overlap_fra_dato(første_fra, anden_fra),
+        statsskattelov6_dobbelt_husførelse_overlap_til_dato(første_til, anden_til)
+    )
+} ellers {
+    0
+}
+| statsskattelov6_dobbelt_husførelse_antal_afbrudte_dage(fra_dato: Dato, til_dato: Dato, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> foldl(
+    hjemlandsophold,
+    0,
+    |sum_dage: Heltal, ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold| sum_dage + hvis statsskattelov6_dobbelt_husførelse_hjemlandsophold_langt(ophold) {
+        statsskattelov6_dobbelt_husførelse_overlapdage(fra_dato, til_dato, ophold.fra_dato, ophold.til_dato)
+    } ellers {
+        0
+    }
+)
+| statsskattelov6_dobbelt_husførelse_udgift_overlapper_langt_hjemlandsophold(udgift: Statsskattelov6DobbeltHusførelseUdgift, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> any(hjemlandsophold, |ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold| statsskattelov6_dobbelt_husførelse_hjemlandsophold_langt(ophold) && statsskattelov6_dobbelt_husførelse_perioder_overlapper(udgift.fra_dato, udgift.til_dato, ophold.fra_dato, ophold.til_dato))
+| statsskattelov6_dobbelt_husførelse_udgift_helt_i_langt_hjemlandsophold(udgift: Statsskattelov6DobbeltHusførelseUdgift, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> any(hjemlandsophold, |ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold| statsskattelov6_dobbelt_husførelse_hjemlandsophold_langt(ophold) && statsskattelov6_dobbelt_husførelse_periode_indeholder(ophold.fra_dato, ophold.til_dato, udgift.fra_dato, udgift.til_dato))
+| statsskattelov6_dobbelt_husførelse_udgift_har_entydig_afbrydelsestilknytning(udgift: Statsskattelov6DobbeltHusførelseUdgift, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> statsskattelov6_dobbelt_husførelse_udgift_overlapper_langt_hjemlandsophold(udgift, hjemlandsophold) == Falskt || statsskattelov6_dobbelt_husførelse_udgift_helt_i_langt_hjemlandsophold(udgift, hjemlandsophold)
+| statsskattelov6_dobbelt_husførelse_hjemlandsophold_sorteringsnøgle(ophold: Statsskattelov6DobbeltHusførelseHjemlandsophold) -> dato_ordinal(ophold.fra_dato)
+| statsskattelov6_dobbelt_husførelse_lange_hjemlandsophold_sorteret(hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> sort_by(
+    filter(hjemlandsophold, statsskattelov6_dobbelt_husførelse_hjemlandsophold_langt),
+    statsskattelov6_dobbelt_husførelse_hjemlandsophold_sorteringsnøgle
+)
+| statsskattelov6_dobbelt_husførelse_hele_standarduger_i_spand(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) { dato_dage_fra_og_med_til_og_med(fra_dato, til_dato) / 7 } ellers { 0 }
+| statsskattelov6_dobbelt_husførelse_hele_standarduger_uden_afbrydelser(fra_dato: Dato, til_dato: Dato, sorterede_lange_hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) == Falskt {
+    0
+} ellers hvis length(sorterede_lange_hjemlandsophold) == 0 {
+    statsskattelov6_dobbelt_husførelse_hele_standarduger_i_spand(fra_dato, til_dato)
+} ellers {
+    = første_afbrydelse = head(sorterede_lange_hjemlandsophold)
+    = afbrydelse_fra = statsskattelov6_dobbelt_husførelse_overlap_fra_dato(fra_dato, første_afbrydelse.fra_dato)
+    = afbrydelse_til = statsskattelov6_dobbelt_husførelse_overlap_til_dato(til_dato, første_afbrydelse.til_dato)
+    = hele_uger_før_afbrydelsen = dato_faktiske_dage_mellem(fra_dato, afbrydelse_fra) / 7
+    hele_uger_før_afbrydelsen + statsskattelov6_dobbelt_husførelse_hele_standarduger_uden_afbrydelser(dato_næste_dag(afbrydelse_til), til_dato, tail(sorterede_lange_hjemlandsophold))
+}
 | statsskattelov6_dobbelt_husførelse_ophold_overlapper(a: Statsskattelov6DobbeltHusførelseOphold, b: Statsskattelov6DobbeltHusførelseOphold) -> a.identifikation != b.identifikation && statsskattelov6_dobbelt_husførelse_perioder_overlapper(a.fradragsperiode_fra_dato, a.fradragsperiode_til_dato, b.fradragsperiode_fra_dato, b.fradragsperiode_til_dato)
 | statsskattelov6_dobbelt_husførelse_ophold_ikke_overlappende(ophold: List(Statsskattelov6DobbeltHusførelseOphold)) -> all(ophold, |a: Statsskattelov6DobbeltHusførelseOphold| all(ophold, |b: Statsskattelov6DobbeltHusførelseOphold| statsskattelov6_dobbelt_husførelse_ophold_overlapper(a, b) == Falskt))
 | statsskattelov6_dobbelt_husførelse_samme_ophold_har_anden_dækning(fakta: Statsskattelov6DobbeltHusførelseOphold, andre_dækninger: List(Statsskattelov6DobbeltHusførelseAndenDækning)) -> any(andre_dækninger, |dækning: Statsskattelov6DobbeltHusførelseAndenDækning| statsskattelov6_dobbelt_husførelse_perioder_overlapper(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, dækning.fra_dato, dækning.til_dato))
 | statsskattelov6_dobbelt_husførelse_ophold_input_gyldigt(indkomstår: Heltal, fakta: Statsskattelov6DobbeltHusførelseOphold) -> {
-    = antal_dage = statsskattelov6_dobbelt_husførelse_antal_dage(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato)
-    fakta.identifikation != "" && fakta.arbejdssted_identifikation != "" && dato_gyldig(fakta.oprindelig_startdato) && dato_før_eller_lig_med(fakta.oprindelig_startdato, fakta.fradragsperiode_fra_dato) && dato_før_eller_lig_med(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato) && fakta.fradragsperiode_fra_dato.år == indkomstår && fakta.fradragsperiode_til_dato.år == indkomstår && statsskattelov6_dobbelt_husførelse_erhvervsårsag_input_gyldig(fakta.erhvervsårsag) && statsskattelov6_dobbelt_husførelse_midlertidighed_input_gyldig(fakta.midlertidighed) && statsskattelov6_dobbelt_husførelse_daglig_transport_input_gyldig(fakta.daglig_transport) && statsskattelov6_dobbelt_husførelse_hjemmebolig_input_gyldig(fakta.hjemmebolig) && statsskattelov6_dobbelt_husførelse_opgørelsesmetode_input_gyldig(fakta.opgørelsesmetode, fakta.arbejdsboligform, antal_dage) && statsskattelov6_dobbelt_husførelse_toårsgrænse_input_gyldig(fakta.toårsgrænse)
+    fakta.identifikation != "" && fakta.arbejdssted_identifikation != "" && dato_gyldig(fakta.oprindelig_startdato) && dato_før_eller_lig_med(fakta.oprindelig_startdato, fakta.fradragsperiode_fra_dato) && dato_før_eller_lig_med(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato) && fakta.fradragsperiode_fra_dato.år == indkomstår && fakta.fradragsperiode_til_dato.år == indkomstår && statsskattelov6_dobbelt_husførelse_erhvervsårsag_input_gyldig(fakta.erhvervsårsag) && statsskattelov6_dobbelt_husførelse_midlertidighed_input_gyldig(fakta.midlertidighed) && statsskattelov6_dobbelt_husførelse_daglig_transport_input_gyldig(fakta.daglig_transport) && statsskattelov6_dobbelt_husførelse_hjemmebolig_input_gyldig(fakta.hjemmebolig) && statsskattelov6_dobbelt_husførelse_hjemlandsopholdsliste_input_gyldig(fakta.hjemmebolig, fakta.hjemlandsophold, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato) && statsskattelov6_dobbelt_husførelse_opgørelsesmetode_input_gyldig(fakta.opgørelsesmetode, fakta.arbejdsboligform, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, fakta.hjemlandsophold) && statsskattelov6_dobbelt_husførelse_toårsgrænse_input_gyldig(fakta.toårsgrænse)
 }
-| statsskattelov6_dobbelt_husførelse_opgjort_fradrag_kroner(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode) -> match opgørelse {
-    | Sl6DhStandardbeløb(antal_hele_uger) -> penge_positivt_beløb(antal_hele_uger) * 400
-    | Sl6DhDokumenteredeMerudgifter(udgifter) -> foldl(udgifter, 0, |sum_kroner: Heltal, udgift: Statsskattelov6DobbeltHusførelseUdgift| sum_kroner + penge_positivt_beløb(udgift.beløb_kroner))
-}
-| statsskattelov6_dobbelt_husførelse_antal_standarduger(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode) -> match opgørelse {
-    | Sl6DhStandardbeløb(antal_hele_uger) -> penge_positivt_beløb(antal_hele_uger)
+| statsskattelov6_dobbelt_husførelse_fradragsberettigede_dage(fra_dato: Dato, til_dato: Dato, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> penge_positivt_beløb(statsskattelov6_dobbelt_husførelse_antal_dage(fra_dato, til_dato) - statsskattelov6_dobbelt_husførelse_antal_afbrudte_dage(fra_dato, til_dato, hjemlandsophold))
+| statsskattelov6_dobbelt_husførelse_antal_standarduger(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, fra_dato: Dato, til_dato: Dato, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> match opgørelse {
+    | Sl6DhStandardbeløb(antal_hele_uger) -> {
+        = højeste_antal_uger = statsskattelov6_dobbelt_husførelse_hele_standarduger_uden_afbrydelser(fra_dato, til_dato, statsskattelov6_dobbelt_husførelse_lange_hjemlandsophold_sorteret(hjemlandsophold))
+        hvis antal_hele_uger < højeste_antal_uger { penge_positivt_beløb(antal_hele_uger) } ellers { højeste_antal_uger }
+    }
     | Sl6DhDokumenteredeMerudgifter(_) -> 0
+}
+| statsskattelov6_dobbelt_husførelse_opgjort_fradrag_kroner(opgørelse: Statsskattelov6DobbeltHusførelseOpgørelsesmetode, fra_dato: Dato, til_dato: Dato, hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold)) -> match opgørelse {
+    | Sl6DhStandardbeløb(_) -> statsskattelov6_dobbelt_husførelse_antal_standarduger(opgørelse, fra_dato, til_dato, hjemlandsophold) * 400
+    | Sl6DhDokumenteredeMerudgifter(udgifter) -> foldl(udgifter, 0, |sum_kroner: Heltal, udgift: Statsskattelov6DobbeltHusførelseUdgift| sum_kroner + hvis statsskattelov6_dobbelt_husførelse_udgift_overlapper_langt_hjemlandsophold(udgift, hjemlandsophold) { 0 } ellers { penge_positivt_beløb(udgift.beløb_kroner) })
 }
 | statsskattelov6_dobbelt_husførelse_opholdsresultat(indkomstår: Heltal, personkreds: Statsskattelov6DobbeltHusførelsePersonkreds, erhvervsstatus: Statsskattelov6DobbeltHusførelseErhvervsstatus, andre_dækninger: List(Statsskattelov6DobbeltHusførelseAndenDækning), fakta: Statsskattelov6DobbeltHusførelseOphold) -> {
     = input_gyldigt = statsskattelov6_dobbelt_husførelse_ophold_input_gyldigt(indkomstår, fakta)
@@ -176,11 +259,14 @@ Afskrivninger;
     = arbejde_midlertidigt = statsskattelov6_dobbelt_husførelse_arbejde_midlertidigt_i_perioden(fakta.midlertidighed, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato)
     = daglig_transport_ikke_rimelig = statsskattelov6_dobbelt_husførelse_daglig_transport_ikke_rimelig(fakta.daglig_transport)
     = familiebolig_opretholdt = statsskattelov6_dobbelt_husførelse_familiebolig_opretholdt(fakta.hjemmebolig)
+    = udenlandsk_familiekonfiguration_berettiget = statsskattelov6_dobbelt_husførelse_udenlandsk_familiekonfiguration_berettiget(personkreds, fakta.hjemmebolig, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato)
     = merudgifter_afholdt = fakta.merudgiftsforhold == Sl6DhMerudgifterTilKostEllerBoligAfholdt
     = arbejdsgiverdækning_udelukker = statsskattelov6_dobbelt_husførelse_arbejdsgiverdækning_udelukker(fakta.arbejdsgiverdækning)
     = toårsgrænse_overholdt = statsskattelov6_dobbelt_husførelse_toårsgrænse_overholdt(fakta)
     = samme_ophold_har_anden_dækning = statsskattelov6_dobbelt_husførelse_samme_ophold_har_anden_dækning(fakta, andre_dækninger)
-    = fradragsbetingelser_opfyldt = input_gyldigt && personkreds_omfattet && erhvervsmæssig_årsag && arbejde_midlertidigt && daglig_transport_ikke_rimelig && familiebolig_opretholdt && merudgifter_afholdt && arbejdsgiverdækning_udelukker == Falskt && toårsgrænse_overholdt && samme_ophold_har_anden_dækning == Falskt
+    = antal_afbrudte_dage = statsskattelov6_dobbelt_husførelse_antal_afbrudte_dage(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, fakta.hjemlandsophold)
+    = antal_fradragsberettigede_dage = statsskattelov6_dobbelt_husførelse_fradragsberettigede_dage(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, fakta.hjemlandsophold)
+    = fradragsbetingelser_opfyldt = input_gyldigt && personkreds_omfattet && erhvervsmæssig_årsag && arbejde_midlertidigt && daglig_transport_ikke_rimelig && familiebolig_opretholdt && udenlandsk_familiekonfiguration_berettiget && merudgifter_afholdt && arbejdsgiverdækning_udelukker == Falskt && toårsgrænse_overholdt && samme_ophold_har_anden_dækning == Falskt
     Statsskattelov6DobbeltHusførelseOpholdsresultat(
         fakta = fakta,
         input_gyldigt = input_gyldigt,
@@ -189,14 +275,17 @@ Afskrivninger;
         arbejde_midlertidigt = arbejde_midlertidigt,
         daglig_transport_ikke_rimelig = daglig_transport_ikke_rimelig,
         familiebolig_opretholdt = familiebolig_opretholdt,
+        udenlandsk_familiekonfiguration_berettiget = udenlandsk_familiekonfiguration_berettiget,
         merudgifter_afholdt = merudgifter_afholdt,
         arbejdsgiverdækning_udelukker = arbejdsgiverdækning_udelukker,
         toårsgrænse_overholdt = toårsgrænse_overholdt,
         samme_ophold_har_anden_dækning = samme_ophold_har_anden_dækning,
         antal_dage_i_fradragsperioden = statsskattelov6_dobbelt_husførelse_antal_dage(fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato),
-        antal_standarduger = statsskattelov6_dobbelt_husførelse_antal_standarduger(fakta.opgørelsesmetode),
+        antal_afbrudte_dage = antal_afbrudte_dage,
+        antal_fradragsberettigede_dage = antal_fradragsberettigede_dage,
+        antal_standarduger = statsskattelov6_dobbelt_husførelse_antal_standarduger(fakta.opgørelsesmetode, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, fakta.hjemlandsophold),
         fradragsbetingelser_opfyldt = fradragsbetingelser_opfyldt,
-        fradrag_før_fælles_årsloft_kroner = hvis fradragsbetingelser_opfyldt { statsskattelov6_dobbelt_husførelse_opgjort_fradrag_kroner(fakta.opgørelsesmetode) } ellers { 0 }
+        fradrag_før_fælles_årsloft_kroner = hvis fradragsbetingelser_opfyldt { statsskattelov6_dobbelt_husførelse_opgjort_fradrag_kroner(fakta.opgørelsesmetode, fakta.fradragsperiode_fra_dato, fakta.fradragsperiode_til_dato, fakta.hjemlandsophold) } ellers { 0 }
     )
 }
 | statsskattelov6_dobbelt_husførelse_årsresultat(indkomstår: Heltal, erhvervsstatus: Statsskattelov6DobbeltHusførelseErhvervsstatus, input: Statsskattelov6DobbeltHusførelseÅrsinput, andre_dækninger: List(Statsskattelov6DobbeltHusførelseAndenDækning)) -> {

@@ -27,6 +27,7 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
     midlertidighed = midlertidighed,
     daglig_transport = daglig_transport,
     hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+    hjemlandsophold = [],
     arbejdsboligform = Sl6DhPrivatIndkvartering,
     merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
     arbejdsgiverdækning = arbejdsgiverdækning,
@@ -69,6 +70,7 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
     ),
     daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
     hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+    hjemlandsophold = [],
     arbejdsboligform = Sl6DhPrivatIndkvartering,
     merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
     arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
@@ -84,6 +86,39 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
     ),
     andre_dækninger = andre_dækninger
 )
+| sl6dh_scenarie_udenlandsk_boligdokumentation() -> Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation(
+    familieforbindelse_kildeidentifikation = "vielses-og-fødselsdokumenter",
+    bopælsregistrering_kildeidentifikation = "udenlandsk-bopælsregistrering",
+    boligudgifter_kildeidentifikation = "huslejekvitteringer"
+)
+| sl6dh_scenarie_udenlandsk_ophold(
+    identifikation: Tekst,
+    fra_dato: Dato,
+    til_dato: Dato,
+    familieplacering: Statsskattelov6DobbeltHusførelseUdenlandskFamilieplacering,
+    dokumentation: Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation,
+    hjemlandsophold: List(Statsskattelov6DobbeltHusførelseHjemlandsophold),
+    opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode
+) -> Statsskattelov6DobbeltHusførelseOphold(
+    identifikation = identifikation,
+    arbejdssted_identifikation = "dansk-projektsted",
+    oprindelig_startdato = Dato(år = 2026, måned = 1, dag = 1),
+    fradragsperiode_fra_dato = fra_dato,
+    fradragsperiode_til_dato = til_dato,
+    erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+    midlertidighed = sl6dh_scenarie_midlertidigt_arbejde(),
+    daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+    hjemmebolig = Sl6DhUdenlandskFamilieboligOpretholdt(
+        familieplacering = familieplacering,
+        dokumentation = dokumentation
+    ),
+    hjemlandsophold = hjemlandsophold,
+    arbejdsboligform = Sl6DhPrivatIndkvartering,
+    merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
+    arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+    opgørelsesmetode = opgørelsesmetode,
+    toårsgrænse = Sl6DhAlmindeligToårsgrænse
+)
 
 = sl6dh_scenarie_gift_standard = sl6dh_scenarie_årsresultat(
     personkreds = Sl6DhGift,
@@ -95,8 +130,8 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
     ophold = [sl6dh_scenarie_grundophold(
         "dokumenteret",
         Sl6DhDokumenteredeMerudgifter(udgifter = [
-            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "kost", art = Sl6DhDokumenteretKostmerudgift, beløb_kroner = 1200),
-            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "logi", art = Sl6DhDokumenteretLogimerudgift, beløb_kroner = 800)
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "kost", art = Sl6DhDokumenteretKostmerudgift, fra_dato = Dato(år = 2026, måned = 1, dag = 1), til_dato = Dato(år = 2026, måned = 1, dag = 31), beløb_kroner = 1200),
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "logi", art = Sl6DhDokumenteretLogimerudgift, fra_dato = Dato(år = 2026, måned = 2, dag = 1), til_dato = Dato(år = 2026, måned = 2, dag = 28), beløb_kroner = 800)
         ])
     )],
     andre_dækninger = []
@@ -196,6 +231,176 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
     )],
     andre_dækninger = []
 )
+= sl6dh_scenarie_familie_i_hjemlandet = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "familie-i-hjemlandet",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_begge_parter_i_danmark = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "begge-parter-i-danmark",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        familieplacering = Sl6DhBeggeParterIDanmarkBørnIHjemlandet(
+            parophold = Statsskattelov6DobbeltHusførelseParopholdIDanmark(
+                fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+                forventet_til_dato = Dato(år = 2026, måned = 12, dag = 31),
+                dokumentationsidentifikation = "begge-midlertidige-ophold"
+            )
+        ),
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_begge_parter_uden_udgiftsdokumentation = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "manglende-udgiftsdokumentation",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        familieplacering = Sl6DhBeggeParterIDanmarkBørnIHjemlandet(parophold = Statsskattelov6DobbeltHusførelseParopholdIDanmark(
+            fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+            forventet_til_dato = Dato(år = 2026, måned = 12, dag = 31),
+            dokumentationsidentifikation = "begge-midlertidige-ophold"
+        )),
+        dokumentation = Statsskattelov6DobbeltHusførelseUdenlandskBoligdokumentation(
+            familieforbindelse_kildeidentifikation = "vielses-og-fødselsdokumenter",
+            bopælsregistrering_kildeidentifikation = "udenlandsk-bopælsregistrering",
+            boligudgifter_kildeidentifikation = ""
+        ),
+        hjemlandsophold = [],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_flere_hustruer_én_i_danmark = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "én-hustru-i-danmark",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        familieplacering = Sl6DhFlereHustruerÉnIDanmarkAndreIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "alle-hustruer-i-hjemlandet",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        familieplacering = Sl6DhFlereHustruerKunIHjemlandet(antal_hustruer = 3),
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_hjemlandsophold_præcis_to_måneder = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "præcis-to-måneder",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 4, dag = 30),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [Statsskattelov6DobbeltHusførelseHjemlandsophold(
+            identifikation = "kort-hjemlandsophold",
+            fra_dato = Dato(år = 2026, måned = 1, dag = 15),
+            til_dato = Dato(år = 2026, måned = 3, dag = 15)
+        )],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 17)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_hjemlandsophold_over_to_måneder = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "over-to-måneder",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 4, dag = 30),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [Statsskattelov6DobbeltHusførelseHjemlandsophold(
+            identifikation = "langt-hjemlandsophold",
+            fra_dato = Dato(år = 2026, måned = 1, dag = 15),
+            til_dato = Dato(år = 2026, måned = 3, dag = 16)
+        )],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 17)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_adskilte_restdage_danner_ikke_en_uge = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "adskilte-restdage",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 9),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [Statsskattelov6DobbeltHusførelseHjemlandsophold(
+            identifikation = "afbrydelse-mellem-restdage",
+            fra_dato = Dato(år = 2026, måned = 1, dag = 4),
+            til_dato = Dato(år = 2026, måned = 3, dag = 5)
+        )],
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 9)
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_dokumenterede_udgifter_omkring_afbrydelse = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "daterede-udgifter",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 4, dag = 30),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [Statsskattelov6DobbeltHusførelseHjemlandsophold(
+            identifikation = "langt-hjemlandsophold-med-udgifter",
+            fra_dato = Dato(år = 2026, måned = 1, dag = 15),
+            til_dato = Dato(år = 2026, måned = 3, dag = 16)
+        )],
+        opgørelsesmetode = Sl6DhDokumenteredeMerudgifter(udgifter = [
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "før", art = Sl6DhDokumenteretLogimerudgift, fra_dato = Dato(år = 2026, måned = 1, dag = 1), til_dato = Dato(år = 2026, måned = 1, dag = 14), beløb_kroner = 1200),
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "under", art = Sl6DhDokumenteretLogimerudgift, fra_dato = Dato(år = 2026, måned = 1, dag = 15), til_dato = Dato(år = 2026, måned = 3, dag = 16), beløb_kroner = 800),
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "efter", art = Sl6DhDokumenteretKostmerudgift, fra_dato = Dato(år = 2026, måned = 3, dag = 17), til_dato = Dato(år = 2026, måned = 4, dag = 30), beløb_kroner = 600)
+        ])
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_udgift_krydser_afbrydelse = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_udenlandsk_ophold(
+        identifikation = "uklar-udgiftsperiode",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 4, dag = 30),
+        familieplacering = Sl6DhSkatteyderIDanmarkFamilieIHjemlandet,
+        dokumentation = sl6dh_scenarie_udenlandsk_boligdokumentation(),
+        hjemlandsophold = [Statsskattelov6DobbeltHusførelseHjemlandsophold(
+            identifikation = "langt-hjemlandsophold-med-kryds",
+            fra_dato = Dato(år = 2026, måned = 1, dag = 15),
+            til_dato = Dato(år = 2026, måned = 3, dag = 16)
+        )],
+        opgørelsesmetode = Sl6DhDokumenteredeMerudgifter(udgifter = [
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "krydser", art = Sl6DhDokumenteretLogimerudgift, fra_dato = Dato(år = 2026, måned = 1, dag = 1), til_dato = Dato(år = 2026, måned = 1, dag = 31), beløb_kroner = 1200)
+        ])
+    )],
+    andre_dækninger = []
+)
 
 | sl6dh_scenarie_standardbeløb_er_400_kroner_pr_uge: sl6dh_scenarie_gift_standard -> sl6dh_scenarie_gift_standard.alle_input_gyldige && head(sl6dh_scenarie_gift_standard.opholdsresultater).fradragsbetingelser_opfyldt && sl6dh_scenarie_gift_standard.samlet_fradrag_før_fælles_årsloft_kroner == 4000
 | sl6dh_scenarie_dokumenterede_merudgifter_summeres: sl6dh_scenarie_dokumenterede_merudgifter -> sl6dh_scenarie_dokumenterede_merudgifter.alle_input_gyldige && sl6dh_scenarie_dokumenterede_merudgifter.samlet_fradrag_før_fælles_årsloft_kroner == 2000
@@ -208,6 +413,25 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
 | sl6dh_scenarie_samme_ophold_kan_ikke_dobbeltfradrages: sl6dh_scenarie_samme_ophold_ll9a -> head(sl6dh_scenarie_samme_ophold_ll9a.opholdsresultater).samme_ophold_har_anden_dækning && sl6dh_scenarie_samme_ophold_ll9a.samlet_fradrag_før_fælles_årsloft_kroner == 0
 | sl6dh_scenarie_almindelig_toårsgrænse_afskærer: sl6dh_scenarie_almindelig_toårsgrænse -> sl6dh_scenarie_almindelig_toårsgrænse.alle_input_gyldige && head(sl6dh_scenarie_almindelig_toårsgrænse.opholdsresultater).toårsgrænse_overholdt == Falskt && sl6dh_scenarie_almindelig_toårsgrænse.samlet_fradrag_før_fælles_årsloft_kroner == 0
 | sl6dh_scenarie_særlige_omstændigheder_kan_forlænge_toårsgrænsen: sl6dh_scenarie_særlige_omstændigheder_efter_to_år -> sl6dh_scenarie_særlige_omstændigheder_efter_to_år.alle_input_gyldige && head(sl6dh_scenarie_særlige_omstændigheder_efter_to_år.opholdsresultater).toårsgrænse_overholdt && sl6dh_scenarie_særlige_omstændigheder_efter_to_år.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_familie_i_hjemlandet_med_dokumentation_er_omfattet: sl6dh_scenarie_familie_i_hjemlandet -> sl6dh_scenarie_familie_i_hjemlandet.alle_input_gyldige && head(sl6dh_scenarie_familie_i_hjemlandet.opholdsresultater).udenlandsk_familiekonfiguration_berettiget && sl6dh_scenarie_familie_i_hjemlandet.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_begge_parter_i_danmark_med_dokumentation_er_omfattet: sl6dh_scenarie_begge_parter_i_danmark -> sl6dh_scenarie_begge_parter_i_danmark.alle_input_gyldige && head(sl6dh_scenarie_begge_parter_i_danmark.opholdsresultater).udenlandsk_familiekonfiguration_berettiget && sl6dh_scenarie_begge_parter_i_danmark.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_begge_parter_i_danmark_uden_boligudgifter_afvises: sl6dh_scenarie_begge_parter_uden_udgiftsdokumentation -> sl6dh_scenarie_begge_parter_uden_udgiftsdokumentation.alle_input_gyldige == Falskt && sl6dh_scenarie_begge_parter_uden_udgiftsdokumentation.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_flere_hustruer_med_én_i_danmark_afskæres: sl6dh_scenarie_flere_hustruer_én_i_danmark -> sl6dh_scenarie_flere_hustruer_én_i_danmark.alle_input_gyldige && head(sl6dh_scenarie_flere_hustruer_én_i_danmark.opholdsresultater).udenlandsk_familiekonfiguration_berettiget == Falskt && sl6dh_scenarie_flere_hustruer_én_i_danmark.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet_giver_ét_fradrag: sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet -> sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet.alle_input_gyldige && head(sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet.opholdsresultater).udenlandsk_familiekonfiguration_berettiget && sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_hjemlandsophold_på_præcis_to_måneder_afbryder_ikke: sl6dh_scenarie_hjemlandsophold_præcis_to_måneder -> {
+    = resultat = head(sl6dh_scenarie_hjemlandsophold_præcis_to_måneder.opholdsresultater)
+    sl6dh_scenarie_hjemlandsophold_præcis_to_måneder.alle_input_gyldige && resultat.antal_afbrudte_dage == 0 && resultat.antal_standarduger == 17 && sl6dh_scenarie_hjemlandsophold_præcis_to_måneder.samlet_fradrag_før_fælles_årsloft_kroner == 6800
+}
+| sl6dh_scenarie_hjemlandsophold_over_to_måneder_afbryder_sit_eget_spand: sl6dh_scenarie_hjemlandsophold_over_to_måneder -> {
+    = resultat = head(sl6dh_scenarie_hjemlandsophold_over_to_måneder.opholdsresultater)
+    sl6dh_scenarie_hjemlandsophold_over_to_måneder.alle_input_gyldige && resultat.antal_afbrudte_dage == 61 && resultat.antal_fradragsberettigede_dage == 59 && resultat.antal_standarduger == 8 && sl6dh_scenarie_hjemlandsophold_over_to_måneder.samlet_fradrag_før_fælles_årsloft_kroner == 3200
+}
+| sl6dh_scenarie_adskilte_restdage_danner_ikke_en_standarduge: sl6dh_scenarie_adskilte_restdage_danner_ikke_en_uge -> {
+    = resultat = head(sl6dh_scenarie_adskilte_restdage_danner_ikke_en_uge.opholdsresultater)
+    sl6dh_scenarie_adskilte_restdage_danner_ikke_en_uge.alle_input_gyldige && resultat.antal_afbrudte_dage == 61 && resultat.antal_fradragsberettigede_dage == 7 && resultat.antal_standarduger == 0 && sl6dh_scenarie_adskilte_restdage_danner_ikke_en_uge.samlet_fradrag_før_fælles_årsloft_kroner == 0
+}
+| sl6dh_scenarie_dokumenterede_udgifter_fordeles_om_afbrydelsen: sl6dh_scenarie_dokumenterede_udgifter_omkring_afbrydelse -> sl6dh_scenarie_dokumenterede_udgifter_omkring_afbrydelse.alle_input_gyldige && sl6dh_scenarie_dokumenterede_udgifter_omkring_afbrydelse.samlet_fradrag_før_fælles_årsloft_kroner == 1800
+| sl6dh_scenarie_udgift_skal_splittes_ved_afbrydelsesgrænsen: sl6dh_scenarie_udgift_krydser_afbrydelse -> sl6dh_scenarie_udgift_krydser_afbrydelse.alle_input_gyldige == Falskt && sl6dh_scenarie_udgift_krydser_afbrydelse.samlet_fradrag_før_fælles_årsloft_kroner == 0
 
 ? sl6dh_scenarie_standardbeløb_er_400_kroner_pr_uge
 ? sl6dh_scenarie_dokumenterede_merudgifter_summeres
@@ -220,3 +444,13 @@ husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
 ? sl6dh_scenarie_samme_ophold_kan_ikke_dobbeltfradrages
 ? sl6dh_scenarie_almindelig_toårsgrænse_afskærer
 ? sl6dh_scenarie_særlige_omstændigheder_kan_forlænge_toårsgrænsen
+? sl6dh_scenarie_familie_i_hjemlandet_med_dokumentation_er_omfattet
+? sl6dh_scenarie_begge_parter_i_danmark_med_dokumentation_er_omfattet
+? sl6dh_scenarie_begge_parter_i_danmark_uden_boligudgifter_afvises
+? sl6dh_scenarie_flere_hustruer_med_én_i_danmark_afskæres
+? sl6dh_scenarie_flere_hustruer_kun_i_hjemlandet_giver_ét_fradrag
+? sl6dh_scenarie_hjemlandsophold_på_præcis_to_måneder_afbryder_ikke
+? sl6dh_scenarie_hjemlandsophold_over_to_måneder_afbryder_sit_eget_spand
+? sl6dh_scenarie_adskilte_restdage_danner_ikke_en_standarduge
+? sl6dh_scenarie_dokumenterede_udgifter_fordeles_om_afbrydelsen
+? sl6dh_scenarie_udgift_skal_splittes_ved_afbrydelsesgrænsen

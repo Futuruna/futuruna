@@ -879,12 +879,145 @@
     help = Some("En udenlandsk familiebolig kræver dokumentation for familieforbindelse, bopæl og afholdte udgifter."),
     unit = None
 )
-= personskat_sl6dh_felt_udenlandsk_boligdokumentation = TypetBeregningsfelt(
-    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentationsidentifikation),
-    label = "Dokumentation for udenlandsk familiebolig",
-    question = Some("Hvilken dokumentation sandsynliggør den opretholdte familiebolig i udlandet?"),
-    help = Some("Brug en stabil reference til offentlige dokumenter, bopælsoplysninger og udgiftsbilag."),
+= personskat_sl6dh_felt_udenlandsk_familieplacering = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::$variant),
+    label = "Familiens placering ved udenlandsk familiebolig",
+    question = Some("Opholder personen sig alene i Danmark, er begge parter i Danmark, eller foreligger der flere ægtefæller?"),
+    help = Some("Placeringen afgør, hvilke supplerende fakta der kræves efter C.A.7.4."),
     unit = None
+)
+= personskat_sl6dh_felt_udenlandsk_familiedokumentation = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::familieforbindelse_kildeidentifikation),
+    label = "Dokumentation for familieforbindelsen i hjemlandet",
+    question = Some("Hvilke dokumenter viser forbindelsen og det fortsatte samliv med familien i hjemlandet?"),
+    help = Some("Brug en stabil reference til fx vielses-, samlivs- eller fødselsdokumenter."),
+    unit = None
+)
+= personskat_sl6dh_felt_udenlandsk_bopælsregistrering = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::bopælsregistrering_kildeidentifikation),
+    label = "Dokumentation for bopælen i hjemlandet",
+    question = Some("Hvilken registrering viser den opretholdte familiebolig i hjemlandet?"),
+    help = Some("Brug en stabil reference til offentlige bopælsoplysninger eller tilsvarende dokumentation."),
+    unit = None
+)
+= personskat_sl6dh_felt_udenlandske_boligudgifter = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::dokumentation::boligudgifter_kildeidentifikation),
+    label = "Dokumentation for boligudgifter i hjemlandet",
+    question = Some("Hvilke bilag viser personens udgifter til at opretholde familieboligen i hjemlandet?"),
+    help = Some("Brug en stabil reference til fx huslejekvitteringer eller tilsvarende udgiftsbilag."),
+    unit = None
+)
+= personskat_sl6dh_felt_parophold_fra_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::år),
+    label = "Begge parters midlertidige ophold i Danmark fra - år",
+    question = Some("I hvilket år begyndte begge parters ophold i Danmark?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_parophold_fra_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::måned),
+    label = "Begge parters midlertidige ophold i Danmark fra - måned",
+    question = Some("I hvilken måned begyndte begge parters ophold i Danmark?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_parophold_fra_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::fra_dato::dag),
+    label = "Begge parters midlertidige ophold i Danmark fra - dag",
+    question = Some("På hvilken dag begyndte begge parters ophold i Danmark?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_sl6dh_felt_parophold_til_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::år),
+    label = "Begge parters midlertidige ophold i Danmark til - år",
+    question = Some("I hvilket år forventes begge parters ophold i Danmark afsluttet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_parophold_til_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::måned),
+    label = "Begge parters midlertidige ophold i Danmark til - måned",
+    question = Some("I hvilken måned forventes begge parters ophold i Danmark afsluttet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_parophold_til_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::forventet_til_dato::dag),
+    label = "Begge parters midlertidige ophold i Danmark til - dag",
+    question = Some("På hvilken dag forventes begge parters ophold i Danmark afsluttet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_sl6dh_felt_parophold_dokumentation = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhBeggeParterIDanmarkBørnIHjemlandet::parophold::dokumentationsidentifikation),
+    label = "Dokumentation for begge parters midlertidige ophold",
+    question = Some("Hvilken dokumentation viser, at begge parters ophold i Danmark er midlertidigt?"),
+    help = Some("Brug en stabil reference til de tidsbegrænsede opholdsforhold."),
+    unit = None
+)
+= personskat_sl6dh_felt_antal_hustruer_i_hjemlandet = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemmebolig::Sl6DhUdenlandskFamilieboligOpretholdt::familieplacering::Sl6DhFlereHustruerKunIHjemlandet::antal_hustruer),
+    label = "Antal hustruer, som kun opholder sig i hjemlandet",
+    question = Some("Hvor mange hustruer opholder sig i hjemlandet, når ingen hustru opholder sig i Danmark?"),
+    help = Some("Praksis tillader højst ét fradrag uanset antallet."),
+    unit = Some("personer")
+)
+= personskat_sl6dh_felt_hjemlandsophold = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold),
+    label = "Ferie og lignende ophold i hjemlandet",
+    question = Some("Hvilke ferieophold eller lignende ophold i hjemlandet ligger i fradragsperioden?"),
+    help = Some("Opret én række pr. ophold. Et ophold over to kalendermåneder afbryder fradraget for sit eget datospand."),
+    unit = None
+)
+= personskat_sl6dh_felt_hjemlandsophold_identifikation = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::identifikation),
+    label = "Hjemlandsopholdets identifikation",
+    question = Some("Hvilken entydig reference har hjemlandsopholdet?"),
+    help = None,
+    unit = None
+)
+= personskat_sl6dh_felt_hjemlandsophold_fra_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::år),
+    label = "Hjemlandsophold fra - år",
+    question = Some("I hvilket år begyndte hjemlandsopholdet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_hjemlandsophold_fra_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::måned),
+    label = "Hjemlandsophold fra - måned",
+    question = Some("I hvilken måned begyndte hjemlandsopholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_hjemlandsophold_fra_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::fra_dato::dag),
+    label = "Hjemlandsophold fra - dag",
+    question = Some("På hvilken dag begyndte hjemlandsopholdet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_sl6dh_felt_hjemlandsophold_til_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::år),
+    label = "Hjemlandsophold til - år",
+    question = Some("I hvilket år sluttede hjemlandsopholdet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_hjemlandsophold_til_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::måned),
+    label = "Hjemlandsophold til - måned",
+    question = Some("I hvilken måned sluttede hjemlandsopholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_hjemlandsophold_til_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::hjemlandsophold::til_dato::dag),
+    label = "Hjemlandsophold til - dag",
+    question = Some("På hvilken dag sluttede hjemlandsopholdet?"),
+    help = None,
+    unit = Some("dag")
 )
 = personskat_sl6dh_felt_arbejdsboligform = TypetBeregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::arbejdsboligform),
@@ -941,6 +1074,48 @@
     question = Some("Er posten en dokumenteret kost- eller logimerudgift?"),
     help = None,
     unit = None
+)
+= personskat_sl6dh_felt_udgift_fra_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::år),
+    label = "Merudgiftens periode fra - år",
+    question = Some("I hvilket år begynder den periode, merudgiften vedrører?"),
+    help = Some("En post, der krydser grænsen til et afbrudt hjemlandsophold, skal opdeles i entydige perioder."),
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_udgift_fra_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::måned),
+    label = "Merudgiftens periode fra - måned",
+    question = Some("I hvilken måned begynder den periode, merudgiften vedrører?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_udgift_fra_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::fra_dato::dag),
+    label = "Merudgiftens periode fra - dag",
+    question = Some("På hvilken dag begynder den periode, merudgiften vedrører?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_sl6dh_felt_udgift_til_år = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::år),
+    label = "Merudgiftens periode til - år",
+    question = Some("I hvilket år slutter den periode, merudgiften vedrører?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_sl6dh_felt_udgift_til_måned = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::måned),
+    label = "Merudgiftens periode til - måned",
+    question = Some("I hvilken måned slutter den periode, merudgiften vedrører?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sl6dh_felt_udgift_til_dag = TypetBeregningsfelt(
+    path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::til_dato::dag),
+    label = "Merudgiftens periode til - dag",
+    question = Some("På hvilken dag slutter den periode, merudgiften vedrører?"),
+    help = None,
+    unit = Some("dag")
 )
 = personskat_sl6dh_felt_udgiftsbeløb = TypetBeregningsfelt(
     path = refof(Statsskattelov6DobbeltHusførelseÅrsinput::ophold::opgørelsesmetode::Sl6DhDokumenteredeMerudgifter::udgifter::beløb_kroner),
@@ -1004,7 +1179,26 @@
         personskat_sl6dh_felt_daglig_transporttid,
         personskat_sl6dh_felt_arbejdstid,
         personskat_sl6dh_felt_hjemmebolig,
-        personskat_sl6dh_felt_udenlandsk_boligdokumentation,
+        personskat_sl6dh_felt_udenlandsk_familieplacering,
+        personskat_sl6dh_felt_udenlandsk_familiedokumentation,
+        personskat_sl6dh_felt_udenlandsk_bopælsregistrering,
+        personskat_sl6dh_felt_udenlandske_boligudgifter,
+        personskat_sl6dh_felt_parophold_fra_år,
+        personskat_sl6dh_felt_parophold_fra_måned,
+        personskat_sl6dh_felt_parophold_fra_dag,
+        personskat_sl6dh_felt_parophold_til_år,
+        personskat_sl6dh_felt_parophold_til_måned,
+        personskat_sl6dh_felt_parophold_til_dag,
+        personskat_sl6dh_felt_parophold_dokumentation,
+        personskat_sl6dh_felt_antal_hustruer_i_hjemlandet,
+        personskat_sl6dh_felt_hjemlandsophold,
+        personskat_sl6dh_felt_hjemlandsophold_identifikation,
+        personskat_sl6dh_felt_hjemlandsophold_fra_år,
+        personskat_sl6dh_felt_hjemlandsophold_fra_måned,
+        personskat_sl6dh_felt_hjemlandsophold_fra_dag,
+        personskat_sl6dh_felt_hjemlandsophold_til_år,
+        personskat_sl6dh_felt_hjemlandsophold_til_måned,
+        personskat_sl6dh_felt_hjemlandsophold_til_dag,
         personskat_sl6dh_felt_arbejdsboligform,
         personskat_sl6dh_felt_merudgiftsforhold,
         personskat_sl6dh_felt_arbejdsgiverdækning,
@@ -1013,6 +1207,12 @@
         personskat_sl6dh_felt_udgifter,
         personskat_sl6dh_felt_udgift_identifikation,
         personskat_sl6dh_felt_udgiftsart,
+        personskat_sl6dh_felt_udgift_fra_år,
+        personskat_sl6dh_felt_udgift_fra_måned,
+        personskat_sl6dh_felt_udgift_fra_dag,
+        personskat_sl6dh_felt_udgift_til_år,
+        personskat_sl6dh_felt_udgift_til_måned,
+        personskat_sl6dh_felt_udgift_til_dag,
         personskat_sl6dh_felt_udgiftsbeløb,
         personskat_sl6dh_felt_toårsgrænse,
         personskat_sl6dh_felt_toårsundtagelse_kilde

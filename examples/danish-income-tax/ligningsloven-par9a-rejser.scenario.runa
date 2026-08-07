@@ -182,6 +182,7 @@
             arbejdstid_pr_dag_minutter = 480
         ),
         hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+        hjemlandsophold = [],
         arbejdsboligform = Sl6DhPrivatIndkvartering,
         merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
         arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,

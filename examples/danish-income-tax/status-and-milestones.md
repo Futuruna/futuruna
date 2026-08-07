@@ -479,10 +479,24 @@ ikke statsskattelovens driftsomkostningsregel. Et 10-ugers scenarie giver derfor
 4.000 kr. både før og efter sømandsudelukkelsen, mens de eksisterende LL § 9 A-
 grene fortsat afskæres.
 
-Den resterende C.A.7.4-praksis om hjemlandsophold over to måneder og særlige
-udenlandske familiekonfigurationer er afgrænset i `td-c977ca`. Disse forhold kan
-endnu ikke repræsenteres fuldt og må derfor ikke behandles som understøttede
-beregningssager.
+Den resterende C.A.7.4-praksis er implementeret i `td-c977ca`. En udenlandsk
+familiebolig bærer nu særskilt dokumentation for familieforbindelse,
+bopælsregistrering og boligudgifter samt en typet beskrivelse af, hvem der
+opholder sig i Danmark og hjemlandet. Hvis begge ægtefæller eller samlevende er
+i Danmark, skal deres fælles midlertidige ophold dække fradragsperioden, mens
+børnene og den dokumenterede bolig er i hjemlandet. Én af flere hustruer i
+Danmark afskærer fradraget; er alle hustruer i hjemlandet, beregnes fortsat kun
+ét fradrag.
+
+Ferie og lignende hjemlandsophold er identificerede datoperioder. Et ophold på
+præcis to kalendermåneder ændrer ikke fradraget, mens et længere ophold fjerner
+kun de dage, der overlapper fradragsperioden. Standardsatsen begrænses til hele
+uger i hvert sammenhængende resterende datospand, så restdage på hver side af
+en afbrydelse ikke lægges sammen. Dokumenterede udgiftsposter har egne fra- og
+til-datoer; poster helt i afbrydelsen bortfalder, og en post, der krydser
+afbrydelsesgrænsen, fejler lukket, indtil den er opdelt i entydigt henførbare
+perioder. De udenlandske konfigurationer og datoafgrænsningen er verificeret i
+både interpreter og compiler.
 
 Det fælles, identificerede indkomstgrundlag for flere rejser knyttet til samme
 udenlandske løn efter § 9, stk. 2, er implementeret i `td-c61f53`; hver kilde
@@ -523,9 +537,12 @@ tredje beholder sit særskilte loft på 500 kr.; XLSX- og JSON-resultaterne er
 identiske. En tredje fokuseret grænsetest hydrerer Samsø-fakta og et fire døgns
 logiophold til de relationelle XLSX-tabeller, læser dem tilbage og får samme
 1.072 kr. som den direkte JSON-beregning. En fjerde hydrerer typede fakta for
-dobbelt husførelse med en relationel periodetabel og en underliggende tabel for
-dokumenterede merudgifter. De menneskelige etiketter og Statsskattelovens
-kildespor bevares, og JSON samt XLSX giver samme fradrag på 4.000 kr.
+dobbelt husførelse med en relationel periodetabel, en underliggende tabel for
+hjemlandsophold og en underliggende tabel for daterede dokumenterede
+merudgifter. De menneskelige etiketter og Statsskattelovens kildespor bevares.
+Et udenlandsk familieforløb med 17 oplyste standarduger og et 61-dages
+hjemlandsophold over to-månedersgrænsen giver samme fradrag på 3.200 kr. i JSON
+og XLSX.
 
 Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
 LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;
