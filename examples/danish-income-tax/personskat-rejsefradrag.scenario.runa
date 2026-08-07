@@ -10,7 +10,8 @@ mellem skattefri godtgørelse og ligningsmæssigt fradrag, at logi ved et fast
 arbejdssted for en skatteyder bosat på en ikkebrofast ø indgår i samme § 9 A-
 fradrag, og at udelukkelsen i sømandsbeskatningslovens § 4, stk. 2, følger
 retten til sømandsfradrag frem for personens valg om faktisk at anvende
-fradraget.
+fradraget. Fradrag for dobbelt husførelse efter statsskattelovens § 6, litra a,
+indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
 ----
 
 | personskat_rejsefradrag_rejse() -> Ligningslov9ARejsefakta(
@@ -58,7 +59,7 @@ fradraget.
     indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
 )
 
-| personskat_rejsefradrag_årsinput_med_rejser_og_ølogi(rejser: List(Ligningslov9ARejsefakta), ølogi: Ligningslov9AØlogiInput) -> Ligningslov9AÅrsinput(
+| personskat_rejsefradrag_årsinput_med_rejser_ølogi_og_dobbelt_husførelse(rejser: List(Ligningslov9ARejsefakta), ølogi: Ligningslov9AØlogiInput, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse) -> Ligningslov9AÅrsinput(
     personrolle = Ll9AAlmindeligLønmodtager,
     rejser = rejser,
     udenlandske_indkomstkilder = [],
@@ -67,6 +68,11 @@ fradraget.
         arbejdsdage = [],
         arbejdsstedsafstande = []
     ),
+    ølogi = ølogi,
+    dobbelt_husførelse = dobbelt_husførelse
+)
+| personskat_rejsefradrag_årsinput_med_rejser_og_ølogi(rejser: List(Ligningslov9ARejsefakta), ølogi: Ligningslov9AØlogiInput) -> personskat_rejsefradrag_årsinput_med_rejser_ølogi_og_dobbelt_husførelse(
+    rejser = rejser,
     ølogi = ølogi,
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
 )
@@ -98,6 +104,38 @@ fradraget.
             )]
         )]
     )
+)
+| personskat_dobbelt_husførelse_årsinput() -> personskat_rejsefradrag_årsinput_med_rejser_ølogi_og_dobbelt_husførelse(
+    rejser = [],
+    ølogi = UdenØlogifradrag,
+    dobbelt_husførelse = Ll9ADobbeltHusførelseEfterStatsskattelov6(input = Statsskattelov6DobbeltHusførelseÅrsinput(
+        personkreds = Sl6DhGift,
+        ophold = [Statsskattelov6DobbeltHusførelseOphold(
+            identifikation = "kanonisk-dobbelt-husførelse-2026",
+            arbejdssted_identifikation = "tidsbegrænset-projektsted",
+            oprindelig_startdato = Dato(år = 2026, måned = 1, dag = 1),
+            fradragsperiode_fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+            fradragsperiode_til_dato = Dato(år = 2026, måned = 3, dag = 11),
+            erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+            midlertidighed = Sl6DhMidlertidigtArbejde(
+                art = Sl6DhTidsbegrænsetAnsættelse,
+                aftalt_fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+                aftalt_til_dato = Dato(år = 2026, måned = 12, dag = 31)
+            ),
+            daglig_transport = Statsskattelov6DobbeltHusførelseDagligTransport(
+                vurdering = Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering,
+                afstand_mellem_boliger_kilometer = 250,
+                samlet_transporttid_pr_dag_minutter = 360,
+                arbejdstid_pr_dag_minutter = 480
+            ),
+            hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+            arbejdsboligform = Sl6DhPrivatIndkvartering,
+            merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
+            arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+            opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+            toårsgrænse = Sl6DhAlmindeligToårsgrænse
+        )]
+    ))
 )
 
 | personskat_rejsefradrag_berettiget_sømandsinput() -> Sømandsbeskatningslov3Årsinput(
@@ -198,6 +236,14 @@ fradraget.
     sømandsfradrag = personskat_rejsefradrag_berettiget_sømandsinput(),
     rejser = personskat_ølogifradrag_årsinput()
 ))
+= personskat_dobbelt_husførelse_almindeligt_resultat = beregn_personskat(personskat_rejsefradrag_input_med_ll9a(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    rejser = personskat_dobbelt_husførelse_årsinput()
+))
+= personskat_dobbelt_husførelse_sømandsberettiget_resultat = beregn_personskat(personskat_rejsefradrag_input_med_ll9a(
+    sømandsfradrag = personskat_rejsefradrag_berettiget_sømandsinput(),
+    rejser = personskat_dobbelt_husførelse_årsinput()
+))
 
 | personskat_rejsefradrag_almindelig_rejse_fordeles_kanonisk: personskat_rejsefradrag_almindeligt_resultat -> personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.alle_input_gyldige && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AIngenEksternUdelukkelse && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner == 800 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 986 && personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 986 && personskat_rejsefradrag_ll9c_aftrapningsindkomst_kroner(personskat_rejsefradrag_almindeligt_resultat.ligningsfradrag.befordring) == 600000 && personskat_rejsefradrag_almindeligt_resultat.skat.bruttoløn_kroner == 600000 && personskat_rejsefradrag_almindeligt_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 
@@ -207,7 +253,13 @@ fradraget.
 
 | personskat_ølogifradrag_følger_sømandsudelukkelsen: personskat_ølogifradrag_sømandsberettiget_resultat -> personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.alle_input_gyldige && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejser_før_sømandsbeskatningslov4_stk2.ølogi.fradrag_efter_fælles_årsloft_kroner == 1072 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejser.ølogi.stk11_udelukket && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner == 1072 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_ølogifradrag_sømandsberettiget_resultat.ligningsfradrag.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 1072
 
+| personskat_dobbelt_husførelse_indgår_i_kanonisk_ligningsfradrag: personskat_dobbelt_husførelse_almindeligt_resultat -> personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.alle_input_gyldige && personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.rejser.dobbelt_husførelse_før_fælles_loft_kroner == 4000 && personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.rejser.dobbelt_husførelse_efter_fælles_loft_kroner == 4000 && personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner == 4000 && personskat_dobbelt_husførelse_almindeligt_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 4000
+
+| personskat_dobbelt_husførelse_afskæres_ikke_af_sømandsbeskatningsloven: personskat_dobbelt_husførelse_sømandsberettiget_resultat -> personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.alle_input_gyldige && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.rejser_før_sømandsbeskatningslov4_stk2.dobbelt_husførelse_efter_fælles_loft_kroner == 4000 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.rejser.dobbelt_husførelse_efter_fælles_loft_kroner == 4000 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner == 0 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.dobbelt_husførelse_før_sømandsbeskatningslov4_stk2_kroner == 4000 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner == 4000 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 0 && personskat_dobbelt_husførelse_sømandsberettiget_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 4000
+
 ? personskat_rejsefradrag_almindelig_rejse_fordeles_kanonisk
 ? personskat_rejsefradrag_sømandsudelukkelse_følger_ret_frem_for_valg
 ? personskat_ølogifradrag_indgår_i_kanonisk_ligningsfradrag
 ? personskat_ølogifradrag_følger_sømandsudelukkelsen
+? personskat_dobbelt_husførelse_indgår_i_kanonisk_ligningsfradrag
+? personskat_dobbelt_husførelse_afskæres_ikke_af_sømandsbeskatningsloven

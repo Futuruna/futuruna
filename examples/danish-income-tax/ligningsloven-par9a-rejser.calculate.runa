@@ -9,7 +9,7 @@
 = ligningslov9a_beregning_felt_indkomstår = TypetBeregningsfelt(
     path = refof(Ligningslov9ABeregningsinput::indkomstår),
     label = "Indkomstår for § 9 A-opgørelsen",
-    question = Some("Hvilket indkomstår skal rejsegodtgørelse, rejsefradrag og logifradrag for ikkebrofaste øer beregnes for?"),
+    question = Some("Hvilket indkomstår skal rejsegodtgørelse, rejsefradrag, logifradrag for ikkebrofaste øer og fradrag for dobbelt husførelse beregnes for?"),
     help = Some("Satserne og det fælles årsloft afhænger af indkomståret."),
     unit = Some("år")
 )
@@ -31,15 +31,18 @@
         Source(value = ligningsloven_lbk1500_par9a),
         DependencySource(value = ligningsloven_lbk1500_par9c_stk3),
         DependencySource(value = ligningsloven_lbk1500_par9_stk2_og_stk4),
+        DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
         RateSource(value = skatteforvaltningen_rejsesatser_2025),
         RateSource(value = skatteforvaltningen_rejsesatser_2026),
         Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
+        Practice(value = statsskattedirektoratets_cirkulære_18254_dobbelt_husførelse),
+        Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
     )
 )
 
 --@label:Ligningslov9ABeregningsinput::meta:ligningslov9a_beregningsmeta--
 
-@ calculate("Rejse- og logiopgørelse efter ligningslovens § 9 A")
+@ calculate("Rejse-, logi- og dobbelt-husførelsesopgørelse")
 | beregn_ligningslov9a_rejser(input: Ligningslov9ABeregningsinput) -> ligningslov9a_årsresultat(
     indkomstår = input.indkomstår,
     input = input.årsinput,

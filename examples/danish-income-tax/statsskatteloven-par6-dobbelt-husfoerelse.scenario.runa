@@ -1,0 +1,222 @@
+@ sprog da
+
+@ importer ./statsskatteloven - par6 - dobbelt - husfoerelse
+
+----
+Scenarier for den praksisbaserede opgørelse af fradrag for dobbelt
+husførelse efter statsskattelovens § 6, litra a. Scenarierne er ikke lovtekst.
+----
+
+| sl6dh_scenarie_ophold(
+    identifikation: Tekst,
+    fra_dato: Dato,
+    til_dato: Dato,
+    erhvervsårsag: Statsskattelov6DobbeltHusførelseErhvervsårsag,
+    midlertidighed: Statsskattelov6DobbeltHusførelseMidlertidighed,
+    daglig_transport: Statsskattelov6DobbeltHusførelseDagligTransport,
+    arbejdsgiverdækning: Statsskattelov6DobbeltHusførelseArbejdsgiverdækning,
+    opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode,
+    toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse
+) -> Statsskattelov6DobbeltHusførelseOphold(
+    identifikation = identifikation,
+    arbejdssted_identifikation = "projektsted",
+    oprindelig_startdato = Dato(år = 2026, måned = 1, dag = 1),
+    fradragsperiode_fra_dato = fra_dato,
+    fradragsperiode_til_dato = til_dato,
+    erhvervsårsag = erhvervsårsag,
+    midlertidighed = midlertidighed,
+    daglig_transport = daglig_transport,
+    hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+    arbejdsboligform = Sl6DhPrivatIndkvartering,
+    merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
+    arbejdsgiverdækning = arbejdsgiverdækning,
+    opgørelsesmetode = opgørelsesmetode,
+    toårsgrænse = toårsgrænse
+)
+| sl6dh_scenarie_midlertidigt_arbejde() -> Sl6DhMidlertidigtArbejde(
+    art = Sl6DhTidsbegrænsetAnsættelse,
+    aftalt_fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+    aftalt_til_dato = Dato(år = 2026, måned = 12, dag = 31)
+)
+| sl6dh_scenarie_umulig_daglig_transport() -> Statsskattelov6DobbeltHusførelseDagligTransport(
+    vurdering = Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering,
+    afstand_mellem_boliger_kilometer = 250,
+    samlet_transporttid_pr_dag_minutter = 360,
+    arbejdstid_pr_dag_minutter = 480
+)
+| sl6dh_scenarie_grundophold(identifikation: Tekst, opgørelsesmetode: Statsskattelov6DobbeltHusførelseOpgørelsesmetode) -> sl6dh_scenarie_ophold(
+    identifikation = identifikation,
+    fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+    til_dato = Dato(år = 2026, måned = 3, dag = 11),
+    erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+    midlertidighed = sl6dh_scenarie_midlertidigt_arbejde(),
+    daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+    arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+    opgørelsesmetode = opgørelsesmetode,
+    toårsgrænse = Sl6DhAlmindeligToårsgrænse
+)
+| sl6dh_scenarie_ophold_efter_to_år(identifikation: Tekst, toårsgrænse: Statsskattelov6DobbeltHusførelseToårsgrænse) -> Statsskattelov6DobbeltHusførelseOphold(
+    identifikation = identifikation,
+    arbejdssted_identifikation = "langvarigt-projektsted",
+    oprindelig_startdato = Dato(år = 2023, måned = 1, dag = 1),
+    fradragsperiode_fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+    fradragsperiode_til_dato = Dato(år = 2026, måned = 3, dag = 11),
+    erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+    midlertidighed = Sl6DhMidlertidigtArbejde(
+        art = Sl6DhTidsbegrænsetAnsættelse,
+        aftalt_fra_dato = Dato(år = 2023, måned = 1, dag = 1),
+        aftalt_til_dato = Dato(år = 2026, måned = 12, dag = 31)
+    ),
+    daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+    hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+    arbejdsboligform = Sl6DhPrivatIndkvartering,
+    merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
+    arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+    opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+    toårsgrænse = toårsgrænse
+)
+| sl6dh_scenarie_årsresultat(personkreds: Statsskattelov6DobbeltHusførelsePersonkreds, ophold: List(Statsskattelov6DobbeltHusførelseOphold), andre_dækninger: List(Statsskattelov6DobbeltHusførelseAndenDækning)) -> statsskattelov6_dobbelt_husførelse_årsresultat(
+    indkomstår = 2026,
+    erhvervsstatus = Sl6DhLønmodtager,
+    input = Statsskattelov6DobbeltHusførelseÅrsinput(
+        personkreds = personkreds,
+        ophold = ophold
+    ),
+    andre_dækninger = andre_dækninger
+)
+
+= sl6dh_scenarie_gift_standard = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_grundophold("gift-standard", Sl6DhStandardbeløb(antal_hele_uger = 10))],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_dokumenterede_merudgifter = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_grundophold(
+        "dokumenteret",
+        Sl6DhDokumenteredeMerudgifter(udgifter = [
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "kost", art = Sl6DhDokumenteretKostmerudgift, beløb_kroner = 1200),
+            Statsskattelov6DobbeltHusførelseUdgift(identifikation = "logi", art = Sl6DhDokumenteretLogimerudgift, beløb_kroner = 800)
+        ])
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_fast_stilling = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold(
+        identifikation = "fast-stilling",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+        midlertidighed = Sl6DhFastVarigStilling,
+        daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+        arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_ægtefælles_arbejde = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold(
+        identifikation = "ægtefælles-arbejde",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        erhvervsårsag = Sl6DhÆgtefællesEllerSamleversArbejdsforhold,
+        midlertidighed = sl6dh_scenarie_midlertidigt_arbejde(),
+        daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+        arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_daglig_transport_mulig = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold(
+        identifikation = "pendling-mulig",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+        midlertidighed = sl6dh_scenarie_midlertidigt_arbejde(),
+        daglig_transport = Statsskattelov6DobbeltHusførelseDagligTransport(vurdering = Sl6DhDagligTransportMulig, afstand_mellem_boliger_kilometer = 15, samlet_transporttid_pr_dag_minutter = 40, arbejdstid_pr_dag_minutter = 480),
+        arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_enlig_forsørger = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhEnligForsørger(børn = [Statsskattelov6DobbeltHusførelseBarn(identifikation = "barn", fødselsdato = Dato(år = 2016, måned = 6, dag = 1))]),
+    ophold = [sl6dh_scenarie_grundophold("enlig", Sl6DhStandardbeløb(antal_hele_uger = 10))],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_kort_samliv_uden_vurdering = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhUgiftSamlevende(samliv_startdato = Dato(år = 2025, måned = 9, dag = 1), kort_samlivsvurdering = Sl6DhIntetKortSamliv),
+    ophold = [sl6dh_scenarie_grundophold("kort-samliv", Sl6DhStandardbeløb(antal_hele_uger = 10))],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_frit_logi = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold(
+        identifikation = "frit-logi",
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 11),
+        erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+        midlertidighed = sl6dh_scenarie_midlertidigt_arbejde(),
+        daglig_transport = sl6dh_scenarie_umulig_daglig_transport(),
+        arbejdsgiverdækning = Sl6DhFritLogi,
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = 10),
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_samme_ophold_ll9a = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_grundophold("samme-ophold", Sl6DhStandardbeløb(antal_hele_uger = 10))],
+    andre_dækninger = [Statsskattelov6DobbeltHusførelseAndenDækning(
+        kildeidentifikation = "ll9a-rejse",
+        fra_dato = Dato(år = 2026, måned = 2, dag = 1),
+        til_dato = Dato(år = 2026, måned = 2, dag = 7)
+    )]
+)
+= sl6dh_scenarie_almindelig_toårsgrænse = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold_efter_to_år(
+        identifikation = "almindelig-toårsgrænse",
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )],
+    andre_dækninger = []
+)
+= sl6dh_scenarie_særlige_omstændigheder_efter_to_år = sl6dh_scenarie_årsresultat(
+    personkreds = Sl6DhGift,
+    ophold = [sl6dh_scenarie_ophold_efter_to_år(
+        identifikation = "særlige-omstændigheder",
+        toårsgrænse = Sl6DhSærligeOmstændighederUdOverToÅr(kildeidentifikation = "konkret-afgørelse-2026")
+    )],
+    andre_dækninger = []
+)
+
+| sl6dh_scenarie_standardbeløb_er_400_kroner_pr_uge: sl6dh_scenarie_gift_standard -> sl6dh_scenarie_gift_standard.alle_input_gyldige && head(sl6dh_scenarie_gift_standard.opholdsresultater).fradragsbetingelser_opfyldt && sl6dh_scenarie_gift_standard.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_dokumenterede_merudgifter_summeres: sl6dh_scenarie_dokumenterede_merudgifter -> sl6dh_scenarie_dokumenterede_merudgifter.alle_input_gyldige && sl6dh_scenarie_dokumenterede_merudgifter.samlet_fradrag_før_fælles_årsloft_kroner == 2000
+| sl6dh_scenarie_fast_stilling_er_ikke_midlertidig: sl6dh_scenarie_fast_stilling -> head(sl6dh_scenarie_fast_stilling.opholdsresultater).arbejde_midlertidigt == Falskt && sl6dh_scenarie_fast_stilling.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_ægtefælles_arbejde_er_ikke_skatteyders_erhvervsårsag: sl6dh_scenarie_ægtefælles_arbejde -> head(sl6dh_scenarie_ægtefælles_arbejde.opholdsresultater).erhvervsmæssig_årsag == Falskt && sl6dh_scenarie_ægtefælles_arbejde.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_mulig_daglig_transport_afskærer: sl6dh_scenarie_daglig_transport_mulig -> head(sl6dh_scenarie_daglig_transport_mulig.opholdsresultater).daglig_transport_ikke_rimelig == Falskt && sl6dh_scenarie_daglig_transport_mulig.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_enlig_forsørger_med_barn_under_18_er_omfattet: sl6dh_scenarie_enlig_forsørger -> head(sl6dh_scenarie_enlig_forsørger.opholdsresultater).personkreds_omfattet && sl6dh_scenarie_enlig_forsørger.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+| sl6dh_scenarie_kort_samliv_kræver_konkret_vurdering: sl6dh_scenarie_kort_samliv_uden_vurdering -> head(sl6dh_scenarie_kort_samliv_uden_vurdering.opholdsresultater).personkreds_omfattet == Falskt && sl6dh_scenarie_kort_samliv_uden_vurdering.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_frit_logi_afskærer: sl6dh_scenarie_frit_logi -> head(sl6dh_scenarie_frit_logi.opholdsresultater).arbejdsgiverdækning_udelukker && sl6dh_scenarie_frit_logi.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_samme_ophold_kan_ikke_dobbeltfradrages: sl6dh_scenarie_samme_ophold_ll9a -> head(sl6dh_scenarie_samme_ophold_ll9a.opholdsresultater).samme_ophold_har_anden_dækning && sl6dh_scenarie_samme_ophold_ll9a.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_almindelig_toårsgrænse_afskærer: sl6dh_scenarie_almindelig_toårsgrænse -> sl6dh_scenarie_almindelig_toårsgrænse.alle_input_gyldige && head(sl6dh_scenarie_almindelig_toårsgrænse.opholdsresultater).toårsgrænse_overholdt == Falskt && sl6dh_scenarie_almindelig_toårsgrænse.samlet_fradrag_før_fælles_årsloft_kroner == 0
+| sl6dh_scenarie_særlige_omstændigheder_kan_forlænge_toårsgrænsen: sl6dh_scenarie_særlige_omstændigheder_efter_to_år -> sl6dh_scenarie_særlige_omstændigheder_efter_to_år.alle_input_gyldige && head(sl6dh_scenarie_særlige_omstændigheder_efter_to_år.opholdsresultater).toårsgrænse_overholdt && sl6dh_scenarie_særlige_omstændigheder_efter_to_år.samlet_fradrag_før_fælles_årsloft_kroner == 4000
+
+? sl6dh_scenarie_standardbeløb_er_400_kroner_pr_uge
+? sl6dh_scenarie_dokumenterede_merudgifter_summeres
+? sl6dh_scenarie_fast_stilling_er_ikke_midlertidig
+? sl6dh_scenarie_ægtefælles_arbejde_er_ikke_skatteyders_erhvervsårsag
+? sl6dh_scenarie_mulig_daglig_transport_afskærer
+? sl6dh_scenarie_enlig_forsørger_med_barn_under_18_er_omfattet
+? sl6dh_scenarie_kort_samliv_kræver_konkret_vurdering
+? sl6dh_scenarie_frit_logi_afskærer
+? sl6dh_scenarie_samme_ophold_kan_ikke_dobbeltfradrages
+? sl6dh_scenarie_almindelig_toårsgrænse_afskærer
+? sl6dh_scenarie_særlige_omstændigheder_kan_forlænge_toårsgrænsen

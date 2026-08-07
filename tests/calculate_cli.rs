@@ -4872,6 +4872,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("Ll9AAlmindeligLønmodtager".to_string()),
                     ),
                     (
+                        "lønmodtager.ligningsfradrag.rejser.ølogi.$variant",
+                        Data::String("UdenØlogifradrag".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.rejser.dobbelt_husførelse.$variant",
                         Data::String("Ll9AIntetFradragForDobbeltHusførelse".to_string()),
                     ),
@@ -5634,6 +5638,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.rejser.personrolle",
                 Data::String("Ll9AAlmindeligLønmodtager".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.rejser.ølogi.$variant",
+                Data::String("UdenØlogifradrag".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.rejser.dobbelt_husførelse.$variant",
@@ -14837,6 +14845,203 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
     assert_eq!(annual["ølogi"]["bopæl_omfattet_af_par9c_stk3"], true);
     assert_eq!(annual["ølogi"]["fradrag_før_fælles_årsloft_kroner"], 1072);
     assert_eq!(annual["samlet_ll9a_fradrag_efter_årsloft_kroner"], 1072);
+}
+
+#[test]
+fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
+    let json_path = temp_path("json");
+    let xlsx_path = temp_path("xlsx");
+    let template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&template.stderr)
+    );
+
+    let mut input: Value =
+        serde_json::from_slice(&std::fs::read(&json_path).expect("JSON template"))
+            .expect("travel JSON template");
+    input["cases"][0]["case_id"] = Value::String("ll9a-double-household".into());
+    input["cases"][0]["input"] = serde_json::json!({
+        "indkomstår": 2026,
+        "årsinput": {
+            "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+            "rejser": [],
+            "udenlandske_indkomstkilder": [],
+            "arbejdshistorik": {
+                "tidligere_rejser": [],
+                "arbejdsdage": [],
+                "arbejdsstedsafstande": []
+            },
+            "ølogi": { "$variant": "UdenØlogifradrag" },
+            "dobbelt_husførelse": {
+                "$variant": "Ll9ADobbeltHusførelseEfterStatsskattelov6",
+                "input": {
+                    "personkreds": { "$variant": "Sl6DhGift" },
+                    "ophold": [{
+                        "identifikation": "xlsx-dobbelt-husførelse",
+                        "arbejdssted_identifikation": "xlsx-projektsted",
+                        "oprindelig_startdato": { "år": 2026, "måned": 1, "dag": 1 },
+                        "fradragsperiode_fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
+                        "fradragsperiode_til_dato": { "år": 2026, "måned": 3, "dag": 11 },
+                        "erhvervsårsag": { "$variant": "Sl6DhSkatteydersEgetArbejdsforhold" },
+                        "midlertidighed": {
+                            "$variant": "Sl6DhMidlertidigtArbejde",
+                            "art": { "$variant": "Sl6DhTidsbegrænsetAnsættelse" },
+                            "aftalt_fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
+                            "aftalt_til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+                        },
+                        "daglig_transport": {
+                            "vurdering": {
+                                "$variant": "Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering"
+                            },
+                            "afstand_mellem_boliger_kilometer": 250,
+                            "samlet_transporttid_pr_dag_minutter": 360,
+                            "arbejdstid_pr_dag_minutter": 480
+                        },
+                        "hjemmebolig": { "$variant": "Sl6DhDanskFamilieboligOpretholdt" },
+                        "arbejdsboligform": { "$variant": "Sl6DhPrivatIndkvartering" },
+                        "merudgiftsforhold": {
+                            "$variant": "Sl6DhMerudgifterTilKostEllerBoligAfholdt"
+                        },
+                        "arbejdsgiverdækning": { "$variant": "Sl6DhIngenArbejdsgiverdækning" },
+                        "opgørelsesmetode": {
+                            "$variant": "Sl6DhStandardbeløb",
+                            "antal_hele_uger": 10
+                        },
+                        "toårsgrænse": { "$variant": "Sl6DhAlmindeligToårsgrænse" }
+                    }]
+                }
+            }
+        },
+        "ekstern_udelukkelse": { "$variant": "Ll9AIngenEksternUdelukkelse" }
+    });
+    std::fs::write(
+        &json_path,
+        serde_json::to_vec_pretty(&input).expect("encode double household input"),
+    )
+    .expect("write double household input");
+
+    let direct_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+    ]);
+    assert!(
+        direct_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&direct_call.stderr),
+        String::from_utf8_lossy(&direct_call.stdout)
+    );
+    let direct_result = parse_stdout(&direct_call);
+
+    let hydrate = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        json_path.to_str().expect("JSON path"),
+        "--format",
+        "xlsx",
+        "--output",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    assert!(
+        hydrate.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrate.stderr),
+        String::from_utf8_lossy(&hydrate.stdout)
+    );
+
+    {
+        let mut workbook = open_workbook_auto(&xlsx_path).expect("double household workbook");
+        let stay_path =
+            "årsinput.dobbelt_husførelse.Ll9ADobbeltHusførelseEfterStatsskattelov6.input.ophold";
+        let stay_sheet = workbook_collection_sheet_name(&mut workbook, stay_path);
+        let expense_path = "årsinput.dobbelt_husførelse.Ll9ADobbeltHusførelseEfterStatsskattelov6.input.ophold.opgørelsesmetode.Sl6DhDokumenteredeMerudgifter.udgifter";
+        let expense_sheet = workbook_collection_sheet_name(&mut workbook, expense_path);
+        let stay_headers = workbook_headers(&mut workbook, &stay_sheet);
+        assert!(stay_headers
+            .iter()
+            .any(|header| header == "Periodens identifikation"));
+        assert!(stay_headers
+            .iter()
+            .any(|header| header == "Hele uger med standardbeløb"));
+        let expense_headers = workbook_headers(&mut workbook, &expense_sheet);
+        assert!(expense_headers
+            .iter()
+            .any(|header| header == "Dokumenteret merudgift"));
+        assert!(workbook
+            .worksheet_range(&stay_sheet)
+            .expect("double household stays")
+            .rows()
+            .flatten()
+            .any(|cell| cell.to_string() == "xlsx-dobbelt-husførelse"));
+
+        let column_metadata = workbook
+            .worksheet_range("_columns")
+            .expect("double household column metadata");
+        let metadata_headers = column_metadata.rows().next().expect("metadata headers");
+        let input_path_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "input_path")
+            .expect("input path metadata column");
+        let sources_column = metadata_headers
+            .iter()
+            .position(|cell| cell.to_string() == "sources")
+            .expect("sources metadata column");
+        let period_metadata = column_metadata
+            .rows()
+            .skip(1)
+            .find(|row| {
+                row.get(input_path_column)
+                    .map(ToString::to_string)
+                    .as_deref()
+                    == Some(&format!("{stay_path}.oprindelig_startdato.år"))
+            })
+            .expect("double household period metadata");
+        assert!(period_metadata
+            .get(sources_column)
+            .map(ToString::to_string)
+            .expect("double household sources")
+            .contains("https://www.retsinformation.dk/eli/lta/1922/149"));
+    }
+
+    let xlsx_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        xlsx_path.to_str().expect("XLSX path"),
+    ]);
+    std::fs::remove_file(&json_path).ok();
+    std::fs::remove_file(&xlsx_path).ok();
+    assert!(
+        xlsx_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&xlsx_call.stderr),
+        String::from_utf8_lossy(&xlsx_call.stdout)
+    );
+    let xlsx_result = parse_stdout(&xlsx_call);
+    assert_eq!(xlsx_result["diagnostics"], serde_json::json!([]));
+    assert_eq!(
+        xlsx_result["results"][0]["result"],
+        direct_result["results"][0]["result"]
+    );
+    let annual = &xlsx_result["results"][0]["result"];
+    assert_eq!(annual["alle_input_gyldige"], true);
+    assert_eq!(annual["dobbelt_husførelse_før_fælles_loft_kroner"], 4000);
+    assert_eq!(annual["dobbelt_husførelse_efter_fælles_loft_kroner"], 4000);
+    assert_eq!(annual["samlet_ll9a_fradrag_efter_årsloft_kroner"], 0);
+    assert_eq!(annual["samlet_fradrag_under_fælles_årsloft_kroner"], 4000);
 }
 
 #[test]

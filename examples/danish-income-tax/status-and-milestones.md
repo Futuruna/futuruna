@@ -403,7 +403,7 @@ er nu implementeret i `td-d17087`. Korpusset bevarer den fulde gældende ordlyd
 af § 9 A, stk. 1-13, samt § 9, stk. 2 og 4, og bruger de officielle satser for
 2025 og 2026. Et `Ligningslov9AÅrsinput` samler personrollen, identificerede
 rejser, identificerede udenlandske lønindkomstkilder, en dateret
-arbejdshistorik og et eventuelt særskilt opgjort fradrag for dobbelt
+arbejdshistorik og typede årsforhold for et eventuelt fradrag for dobbelt
 husførelse. Hver rejse bærer startdato, arbejdsstedets faktiske
 karakter, overnatningsforhold, hverv, varighed, måltider, arbejdsgiverkontrol,
 lønomlægning, udbetalt godtgørelse, egne udgifter, fradragsvalg og
@@ -457,14 +457,38 @@ stk. 2. Skatteforvaltningens Samsø-eksempel med fire fulde døgn giver 1.072 kr
 i 2026; en sømandsberettiget person får beløbet synligt før udelukkelsen og 0
 kr. efter. Begge forløb passerer i interpreter og compiler.
 
+Fradrag for dobbelt husførelse efter statsskattelovens § 6, litra a, er
+implementeret og kanonisk samordnet i `td-18836f`. Et særskilt typet domæne
+afleder personkreds, skatteyderens egen erhvervsårsag, arbejdets objektive
+midlertidighed, den konkrete mulighed for daglig transport, opretholdt
+familiebolig, egne merudgifter, arbejdsgiverdækning og den almindelige
+toårsgrænse. Standardsatsen er 400 kr. pr. hel uge ved pensionat, privat
+indkvartering eller tilsvarende forhold; alternativt summeres identificerede,
+dokumenterede kost- og logimerudgifter. En undtagelse efter to år kræver en
+stabil kilde til den konkrete vurdering. Ugyldige, dublerede eller overlappende
+perioder fejler lukket.
+
+LL § 9 A-resultater og ø-logiresultater danner automatisk daterede
+dækningsperioder. Et overlappende ophold kan derfor ikke samtidig give fradrag
+for dobbelt husførelse. Dobbelt husførelse tildeles først inden for det fælles
+regulerede årsloft, derefter almindeligt rejsefradrag og til sidst ø-logi; det
+samlede beløb er uafhængigt af den synlige fordelingsprioritet. Den kanoniske
+Personskat-graf bevarer samtidig SL § 6-fradraget ved udelukkelse efter
+Sømandsbeskatningslovens § 4, stk. 2, fordi denne udelukkelse rammer LL § 9 A og
+ikke statsskattelovens driftsomkostningsregel. Et 10-ugers scenarie giver derfor
+4.000 kr. både før og efter sømandsudelukkelsen, mens de eksisterende LL § 9 A-
+grene fortsat afskæres.
+
+Den resterende C.A.7.4-praksis om hjemlandsophold over to måneder og særlige
+udenlandske familiekonfigurationer er afgrænset i `td-c977ca`. Disse forhold kan
+endnu ikke repræsenteres fuldt og må derfor ikke behandles som understøttede
+beregningssager.
+
 Det fælles, identificerede indkomstgrundlag for flere rejser knyttet til samme
 udenlandske løn efter § 9, stk. 2, er implementeret i `td-c61f53`; hver kilde
 har én løn, ét beløb for øvrige relaterede fradrag og én samlet rest, som
-rejserne deler.
-Det særskilt opgjorte fradrag for dobbelt husførelse
-reducerer allerede det fælles loft, men selve fradragsretten og det kanonisk
-anvendte beløb spores i `td-18836f`. Udelukkelserne for DIS og
-fiskerfradrag følges fortsat i henholdsvis `td-80c439` og `td-5759f5`.
+rejserne deler. Udelukkelserne for DIS og fiskerfradrag følges fortsat i
+henholdsvis `td-80c439` og `td-5759f5`.
 Afledning af undtagelsen for enkeltstående kortvarige tjenesterejser fra
 observerbare rejsefakta frem for en klassifikationsvariant spores i
 `td-bc07c9`.
@@ -479,7 +503,7 @@ periodestart, udløbsdato, fulde måneder og aktiv status som auditdata; ingen
 rejserække kan længere erklære sin egen førstegangs- eller resetstatus.
 
 Den fokuserede grænse
-`@ calculate("Rejse- og logiopgørelse efter ligningslovens § 9 A")` genererer en
+`@ calculate("Rejse-, logi- og dobbelt-husførelsesopgørelse")` genererer en
 relationel XLSX-arbejdsbog med danske etiketter, interviewspørgsmål, dropdowns,
 enheder og typede kildespor. Ud over logidøgnstabellen genereres særskilte
 relationelle tabeller for tidligere perioderejser, daterede arbejdsdage og
@@ -498,7 +522,10 @@ til XLSX og tilbage: to rejser deler 900 kr. som 893 kr. og 7 kr., mens den
 tredje beholder sit særskilte loft på 500 kr.; XLSX- og JSON-resultaterne er
 identiske. En tredje fokuseret grænsetest hydrerer Samsø-fakta og et fire døgns
 logiophold til de relationelle XLSX-tabeller, læser dem tilbage og får samme
-1.072 kr. som den direkte JSON-beregning.
+1.072 kr. som den direkte JSON-beregning. En fjerde hydrerer typede fakta for
+dobbelt husførelse med en relationel periodetabel og en underliggende tabel for
+dokumenterede merudgifter. De menneskelige etiketter og Statsskattelovens
+kildespor bevares, og JSON samt XLSX giver samme fradrag på 4.000 kr.
 
 Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
 LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;

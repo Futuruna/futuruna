@@ -94,6 +94,21 @@ genererede relationelle XLSX-arbejdsbog giver samme resultat. Kilderne er
 [Ligningslovens § 9 A, stk. 12](https://www.retsinformation.dk/eli/lta/2025/1500)
 og [Skatteforvaltningens juridiske vejledning C.A.7.3.4.3](https://info.skat.dk/data.aspx?oid=2289990).
 
+Fradrag for dobbelt husførelse er ikke længere et beløb, som brugeren selv skal
+konkludere. AI'en oplyser familieforhold, arbejds- og boligperioder, arbejdets
+midlertidighed, den konkrete transportvurdering, egne merudgifter og eventuel
+dækning. Futuruna afleder fradragsretten efter
+[statsskattelovens § 6, litra a](https://www.retsinformation.dk/eli/lta/1922/149)
+og [Den juridiske vejledning C.A.7.4](https://info.skat.dk/data.aspx?oid=2061802),
+beregner enten 400 kr. pr. hel uge eller dokumenterede merudgifter og håndhæver
+den almindelige toårsgrænse. Samme ophold kan ikke samtidig give LL § 9 A-
+fradrag, skattefri rejsegodtgørelse eller ø-logifradrag. Grenene deler det
+regulerede årsloft, men Sømandsbeskatningslovens § 4-udelukkelse af LL § 9 A
+afskærer ikke det selvstændige SL § 6-fradrag. Et verificeret 10-ugers forløb
+giver 4.000 kr. fra både typet JSON og den genererede relationelle
+XLSX-arbejdsbog; perioder, dokumenterede udgifter, menneskelige etiketter og
+kildespor bevares i begge retninger.
+
 Ordinære udbytter er nu et konkret eksempel på denne arbejdsdeling. AI'en
 oplyser en entydig kildepost med udlodder, modtagerstatus, aktivtype og beløb;
 den vælger ikke selv "aktieindkomst" som skattekategori. Futuruna afleder

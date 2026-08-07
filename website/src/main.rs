@@ -3415,6 +3415,13 @@ fn ResearchPersonskatteloven() -> Element {
                                 a { href: "https://info.skat.dk/data.aspx?oid=2289990", "Den juridiske vejledning C.A.7.3.4.3" }
                                 "."
                             }
+                            p {
+                                "Fradrag for dobbelt husførelse afledes nu af typede familie-, arbejds-, transport-, bolig-, udgifts- og dækningsfakta frem for et beløb valgt af brugeren. Reglerne beregner 400 kr. pr. hel uge eller dokumenterede merudgifter, håndhæver den almindelige toårsgrænse og afviser automatisk samme ophold, når LL § 9 A allerede giver fradrag eller dækning. Fradraget deler årsloft med rejse- og ø-logifradrag, men bevares ved Sømandsbeskatningslovens § 4-udelukkelse, fordi hjemlen er statsskattelovens § 6, litra a. Et verificeret 10-ugers forløb giver 4.000 kr. fra både JSON og den relationelle XLSX-arbejdsbog. Kilder: "
+                                a { href: "https://www.retsinformation.dk/eli/lta/1922/149", "Statsskattelovens § 6, litra a" }
+                                " og "
+                                a { href: "https://info.skat.dk/data.aspx?oid=2061802", "Den juridiske vejledning C.A.7.4" }
+                                "."
+                            }
                         }
                         div { class: "tax-status-item research",
                             span { class: "tax-status-label", "Form" }

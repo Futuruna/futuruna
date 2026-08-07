@@ -160,6 +160,35 @@
 )
 
 = ll9a_scenarie_almindelig_startdato = Dato(år = 2026, måned = 3, dag = 1)
+
+| ll9a_scenarie_dobbelt_husførelse(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, antal_hele_uger: Heltal) -> Ll9ADobbeltHusførelseEfterStatsskattelov6(input = Statsskattelov6DobbeltHusførelseÅrsinput(
+    personkreds = Sl6DhGift,
+    ophold = [Statsskattelov6DobbeltHusførelseOphold(
+        identifikation = identifikation,
+        arbejdssted_identifikation = "tidsbegrænset-arbejdssted",
+        oprindelig_startdato = fra_dato,
+        fradragsperiode_fra_dato = fra_dato,
+        fradragsperiode_til_dato = til_dato,
+        erhvervsårsag = Sl6DhSkatteydersEgetArbejdsforhold,
+        midlertidighed = Sl6DhMidlertidigtArbejde(
+            art = Sl6DhTidsbegrænsetAnsættelse,
+            aftalt_fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+            aftalt_til_dato = Dato(år = 2026, måned = 12, dag = 31)
+        ),
+        daglig_transport = Statsskattelov6DobbeltHusførelseDagligTransport(
+            vurdering = Sl6DhDagligTransportIkkeRimeligEfterKonkretVurdering,
+            afstand_mellem_boliger_kilometer = 250,
+            samlet_transporttid_pr_dag_minutter = 360,
+            arbejdstid_pr_dag_minutter = 480
+        ),
+        hjemmebolig = Sl6DhDanskFamilieboligOpretholdt,
+        arbejdsboligform = Sl6DhPrivatIndkvartering,
+        merudgiftsforhold = Sl6DhMerudgifterTilKostEllerBoligAfholdt,
+        arbejdsgiverdækning = Sl6DhIngenArbejdsgiverdækning,
+        opgørelsesmetode = Sl6DhStandardbeløb(antal_hele_uger = antal_hele_uger),
+        toårsgrænse = Sl6DhAlmindeligToårsgrænse
+    )]
+))
 = ll9a_scenarie_efter_tolv_måneder_startdato = Dato(år = 2026, måned = 1, dag = 15)
 = ll9a_scenarie_tilbagevending_startdato = Dato(år = 2026, måned = 2, dag = 1)
 = ll9a_scenarie_efter_tolv_måneder_historik = Ligningslov9AArbejdshistorik(
@@ -356,8 +385,23 @@
         logifradragsprincip = Ll9ALogifradragMedStandardsats,
         indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
     )],
-    Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation = "dobbelt-husførelse", fradrag_før_fælles_loft_kroner = 10000),
+    ll9a_scenarie_dobbelt_husførelse(
+        identifikation = "dobbelt-husførelse",
+        fra_dato = Dato(år = 2026, måned = 5, dag = 1),
+        til_dato = Dato(år = 2026, måned = 10, dag = 22),
+        antal_hele_uger = 25
+    ),
     Ll9AIngenEksternUdelukkelse
+)
+= ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat = ll9a_scenarie_årsresultat(
+    rejser = [ll9a_scenarie_almindelig_rejse],
+    dobbelt_husførelse = ll9a_scenarie_dobbelt_husførelse(
+        identifikation = "samme-ophold-som-rejse",
+        fra_dato = Dato(år = 2026, måned = 3, dag = 1),
+        til_dato = Dato(år = 2026, måned = 3, dag = 7),
+        antal_hele_uger = 1
+    ),
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
 = ll9a_scenarie_udlandsloft_resultat = ll9a_scenarie_årsresultat_med_indkomstkilder(
@@ -748,7 +792,8 @@
 | ll9a_scenarie_tredje_rejse_i_måneden_falder_uden_for_undtagelsen: ll9a_scenarie_tre_korte_tjenesterejser_resultat -> all(ll9a_scenarie_tre_korte_tjenesterejser_resultat.rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.kort_tjenesterejsevurdering == Ll9ARejsemønsterForHyppigt(antal_rejser_til_arbejdsstedet_i_måneden = 3) && resultat.standardperiode_aktiv_for_kostgodtgørelse == Falskt) && ll9a_scenarie_tre_korte_tjenesterejser_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_tre_korte_tjenesterejser_resultat.samlet_skattepligtig_godtgørelse_kroner == 1500
 | ll9a_scenarie_fyrre_arbejdsdage_starter_ny_periode: ll9a_scenarie_ny_periode_resultat -> head(ll9a_scenarie_ny_periode_resultat.rejseresultater).standardperiode_aktiv_for_kostgodtgørelse && head(ll9a_scenarie_ny_periode_resultat.rejseresultater).standardperiode_aktiv_for_kostfradrag && ll9a_scenarie_ny_periode_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
 | ll9a_scenarie_transportarbejde_afskærer_logisats: ll9a_scenarie_transport_resultat -> head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_kostgodtgørelse_efter_dækning_kroner == 1250 && head(ll9a_scenarie_transport_resultat.rejseresultater).standardsats_logi_kroner == 0 && ll9a_scenarie_transport_resultat.samlet_skattepligtig_godtgørelse_kroner == 300
-| ll9a_scenarie_dobbelt_husførelse_deler_årsloft: ll9a_scenarie_årsloft_resultat -> ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_før_årsloft_kroner > 34400 && ll9a_scenarie_årsloft_resultat.dobbelt_husførelse_før_fælles_loft_kroner == 10000 && ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 24400
+| ll9a_scenarie_dobbelt_husførelse_deler_årsloft: ll9a_scenarie_årsloft_resultat -> ll9a_scenarie_årsloft_resultat.alle_input_gyldige && ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_før_årsloft_kroner > 34400 && ll9a_scenarie_årsloft_resultat.dobbelt_husførelse_før_fælles_loft_kroner == 10000 && ll9a_scenarie_årsloft_resultat.dobbelt_husførelse_efter_fælles_loft_kroner == 10000 && ll9a_scenarie_årsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 24400 && ll9a_scenarie_årsloft_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 24400 && ll9a_scenarie_årsloft_resultat.samlet_fradrag_under_fælles_årsloft_kroner == 34400
+| ll9a_scenarie_samme_ophold_giver_ikke_dobbelt_fradrag: ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat -> ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat.alle_input_gyldige && head(ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat.dobbelt_husførelse.opholdsresultater).samme_ophold_har_anden_dækning && ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat.dobbelt_husførelse_før_fælles_loft_kroner == 0 && ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 986 && ll9a_scenarie_samme_ophold_dobbelt_husførelse_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 986
 | ll9a_scenarie_udlandsindkomst_begrænser_fradrag: ll9a_scenarie_udlandsloft_resultat -> head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).fradrag_før_indkomstloft_kroner == 1786 && head(ll9a_scenarie_udlandsloft_resultat.rejseresultater).indkomstloft_kroner == 800 && ll9a_scenarie_udlandsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 800
 | ll9a_scenarie_rejser_deler_udlandsindkomstloft_pr_kilde: ll9a_scenarie_fælles_udlandsloft_resultat -> ll9a_scenarie_fælles_udlandsloft_resultat.alle_input_gyldige && ll9a_scenarie_fælles_udlandsloft_resultat.udlandsindkomstkilder_gyldige && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[0].fradrag_før_årsloft_kroner == 1786 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[1].indkomstloft_kroner == 14 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[1].fradrag_før_årsloft_kroner == 14 && ll9a_scenarie_fælles_udlandsloft_resultat.rejseresultater[2].fradrag_før_årsloft_kroner == 800 && ll9a_scenarie_fælles_udlandsloft_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 2600
 | ll9a_scenarie_manglende_udlandskilde_fejler_lukket: ll9a_scenarie_manglende_udlandskilde_resultat -> ll9a_scenarie_manglende_udlandskilde_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_manglende_udlandskilde_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_manglende_udlandskilde_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
@@ -787,6 +832,7 @@
 ? ll9a_scenarie_fyrre_arbejdsdage_starter_ny_periode
 ? ll9a_scenarie_transportarbejde_afskærer_logisats
 ? ll9a_scenarie_dobbelt_husførelse_deler_årsloft
+? ll9a_scenarie_samme_ophold_giver_ikke_dobbelt_fradrag
 ? ll9a_scenarie_udlandsindkomst_begrænser_fradrag
 ? ll9a_scenarie_rejser_deler_udlandsindkomstloft_pr_kilde
 ? ll9a_scenarie_manglende_udlandskilde_fejler_lukket

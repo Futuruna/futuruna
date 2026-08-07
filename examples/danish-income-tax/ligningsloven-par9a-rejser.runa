@@ -4,6 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./kommunale - parametre
 @ importer ./ligningsloven - par9a - perioder
+@ importer ./statsskatteloven - par6 - dobbelt - husfoerelse
 
 # Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -273,7 +274,7 @@ kronebeløb.
 # Ligningslov9AØlogiophold(identifikation: Tekst, startdato: Dato, varighed_minutter: Heltal, udgiftsforhold: Ligningslov9AØlogiUdgiftsforhold)
 # Ligningslov9AØlogiArbejdsforhold(arbejdssted_identifikation: Tekst, arbejdsstedskarakter: Ligningslov9AØlogiArbejdsstedskarakter, overnatningsforhold: Ligningslov9AØlogiOvernatningsforhold, hverv: Ligningslov9AHverv, ophold: List(Ligningslov9AØlogiophold))
 # Ligningslov9AØlogiInput = UdenØlogifradrag | MedØlogifradrag(bopæl: Ligningslov9AØbopæl, arbejdsforhold: List(Ligningslov9AØlogiArbejdsforhold))
-# Ligningslov9ADobbeltHusførelse = Ll9AIntetFradragForDobbeltHusførelse | Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation: Tekst, fradrag_før_fælles_loft_kroner: Heltal)
+# Ligningslov9ADobbeltHusførelse = Ll9AIntetFradragForDobbeltHusførelse | Ll9ADobbeltHusførelseEfterStatsskattelov6(input: Statsskattelov6DobbeltHusførelseÅrsinput)
 # Ligningslov9AÅrsinput(personrolle: Ligningslov9APersonrolle, rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), arbejdshistorik: Ligningslov9AArbejdshistorik, ølogi: Ligningslov9AØlogiInput, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse)
 # Ligningslov9ASatser(indkomstår: Heltal, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal)
 # Ligningslov9ALogidøgnresultat(fakta: Ligningslov9ALogidøgn, input_gyldigt: Boolsk, standardsats_logi_kroner: Heltal, udbetalt_godtgørelse_kroner: Heltal, supplerende_løn_kroner: Heltal, skattefri_godtgørelse_kroner: Heltal, skattepligtigt_rejsebeløb_kroner: Heltal, fradrag_kroner: Heltal)
@@ -284,7 +285,7 @@ kronebeløb.
 # Ligningslov9ARejseresultat(fakta: Ligningslov9ARejsefakta, kort_tjenesterejsevurdering: Ligningslov9AKortTjenesterejsevurdering, standardperiode_for_kostgodtgørelse: Ligningslov9AStandardperiodevurdering, standardperiode_for_kostfradrag: Ligningslov9AStandardperiodevurdering, logidøgnresultater: List(Ligningslov9ALogidøgnresultat), input_gyldigt: Boolsk, rejsebetingelser_opfyldt: Boolsk, standardperiode_aktiv_for_kostgodtgørelse: Boolsk, standardperiode_aktiv_for_kostfradrag: Boolsk, standardsats_kostgodtgørelse_før_dækning_kroner: Heltal, standardsats_kostgodtgørelse_efter_dækning_kroner: Heltal, standardsats_kostfradrag_efter_dækning_kroner: Heltal, standardsats_logi_kroner: Heltal, kostfradrag_kroner: Heltal, logifradrag_kroner: Heltal, udbetalt_godtgørelse_kroner: Heltal, supplerende_løn_kroner: Heltal, skattefri_godtgørelse_kroner: Heltal, skattepligtig_godtgørelse_kroner: Heltal, fradrag_før_indkomstloft_kroner: Heltal, indkomstloft_kroner: Heltal, fradrag_før_årsloft_kroner: Heltal)
 # Ligningslov9ARejseberegningskontekst(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, udlandsindkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), udlandsindkomstkilder_gyldige: Boolsk, standardperiodeforløb: Ligningslov9AStandardperiodeforløb, godtgørelsesstandardperiodeforløb: Ligningslov9AStandardperiodeforløb, alle_perioderejser: List(Ligningslov9APerioderejse), stk1_til_stk9_udelukket: Boolsk)
 # Ligningslov9ARejseberegningsforløb(resultater: List(Ligningslov9ARejseresultat))
-# Ligningslov9AÅrsresultat(indkomstår: Heltal, input: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse, standardperiodeforløb: Ligningslov9AStandardperiodeforløb, godtgørelsesstandardperiodeforløb: Ligningslov9AStandardperiodeforløb, rejseresultater: List(Ligningslov9ARejseresultat), ølogi: Ligningslov9AØlogiÅrsresultat, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, udlandsindkomstkilder_gyldige: Boolsk, alle_input_gyldige: Boolsk, stk1_til_stk9_udelukket: Boolsk, samlet_udbetalt_godtgørelse_kroner: Heltal, samlet_supplerende_løn_kroner: Heltal, samlet_skattefri_godtgørelse_kroner: Heltal, samlet_skattepligtig_godtgørelse_kroner: Heltal, samlet_rejsefradrag_før_årsloft_kroner: Heltal, dobbelt_husførelse_før_fælles_loft_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal, samlet_rejsefradrag_efter_årsloft_kroner: Heltal, samlet_ll9a_fradrag_efter_årsloft_kroner: Heltal)
+# Ligningslov9AÅrsresultat(indkomstår: Heltal, input: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse, standardperiodeforløb: Ligningslov9AStandardperiodeforløb, godtgørelsesstandardperiodeforløb: Ligningslov9AStandardperiodeforløb, rejseresultater: List(Ligningslov9ARejseresultat), dobbelt_husførelse: Statsskattelov6DobbeltHusførelseÅrsresultat, ølogi: Ligningslov9AØlogiÅrsresultat, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, udlandsindkomstkilder_gyldige: Boolsk, alle_input_gyldige: Boolsk, stk1_til_stk9_udelukket: Boolsk, samlet_udbetalt_godtgørelse_kroner: Heltal, samlet_supplerende_løn_kroner: Heltal, samlet_skattefri_godtgørelse_kroner: Heltal, samlet_skattepligtig_godtgørelse_kroner: Heltal, samlet_rejsefradrag_før_årsloft_kroner: Heltal, dobbelt_husførelse_før_fælles_loft_kroner: Heltal, dobbelt_husførelse_efter_fælles_loft_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal, samlet_rejsefradrag_efter_årsloft_kroner: Heltal, samlet_ll9a_fradrag_efter_årsloft_kroner: Heltal, samlet_fradrag_under_fælles_årsloft_kroner: Heltal)
 
 | ligningslov9a_intet_årsinput() -> Ligningslov9AÅrsinput(
     personrolle = Ll9AAlmindeligLønmodtager,
@@ -713,17 +714,48 @@ kronebeløb.
         fakta = fakta
     )
 ).resultater
-| ligningslov9a_dobbelt_husførelse_input_gyldigt(input: Ligningslov9ADobbeltHusførelse) -> match input {
-    | Ll9AIntetFradragForDobbeltHusførelse -> Sandt
-    | Ll9AOpgjortFradragForDobbeltHusførelse(kildeidentifikation, fradrag_kroner) -> kildeidentifikation != "" && fradrag_kroner >= 0
+| ligningslov9a_dobbelt_husførelse_anvendes(input: Ligningslov9ADobbeltHusførelse) -> input != Ll9AIntetFradragForDobbeltHusførelse
+| ligningslov9a_ølogi_anvendes(input: Ligningslov9AØlogiInput) -> input != UdenØlogifradrag
+| ligningslov9a_dobbelt_husførelse_input(input: Ligningslov9ADobbeltHusførelse) -> match input {
+    | Ll9AIntetFradragForDobbeltHusførelse -> statsskattelov6_dobbelt_husførelse_intet_årsinput()
+    | Ll9ADobbeltHusførelseEfterStatsskattelov6(årsinput) -> årsinput
 }
-| ligningslov9a_dobbelt_husførelse_før_fælles_loft_kroner(input: Ligningslov9ADobbeltHusførelse) -> match input {
-    | Ll9AIntetFradragForDobbeltHusførelse -> 0
-    | Ll9AOpgjortFradragForDobbeltHusførelse(_, fradrag_kroner) -> penge_positivt_beløb(fradrag_kroner)
+| ligningslov9a_dobbelt_husførelse_erhvervsstatus(personrolle: Ligningslov9APersonrolle) -> hvis personrolle == Ll9AAlmindeligLønmodtager { Sl6DhLønmodtager } ellers { Sl6DhIkkeLønmodtager }
+| ligningslov9a_rejsedækning_berørte_dage(varighed_minutter: Heltal) -> hvis varighed_minutter > 0 { (varighed_minutter + 1439) / 1440 } ellers { 0 }
+| ligningslov9a_logidækning_udelukker_dobbelt_husførelse(dækning: Ligningslov9ALogidækning) -> match dækning {
+    | Ll9ALogiIkkeDækketAfArbejdsgiver -> Falskt
+    | Ll9ALogiHeltEllerDelvistDækketEfterRegning(arbejdsgiverbetalt_kroner) -> arbejdsgiverbetalt_kroner > 0
+    | Ll9AHeltEllerDelvistFritLogi -> Sandt
 }
+| ligningslov9a_rejseresultat_udelukker_dobbelt_husførelse(resultat: Ligningslov9ARejseresultat) -> resultat.input_gyldigt && resultat.rejsebetingelser_opfyldt && (resultat.skattefri_godtgørelse_kroner > 0 || resultat.fradrag_før_årsloft_kroner > 0 || ligningslov9a_kost_dækket_efter_regning_kroner(resultat.fakta.kost.dækning) > 0 || resultat.fakta.kost.fri_morgenmad_antal + resultat.fakta.kost.fri_frokost_antal + resultat.fakta.kost.fri_aftensmad_antal > 0 || any(resultat.fakta.logidøgn, |logidøgn: Ligningslov9ALogidøgn| ligningslov9a_logidækning_udelukker_dobbelt_husførelse(logidøgn.dækning)))
+| ligningslov9a_rejseresultat_dobbelt_husførelse_dækning(resultat: Ligningslov9ARejseresultat) -> {
+    = berørte_dage = ligningslov9a_rejsedækning_berørte_dage(resultat.fakta.varighed_minutter)
+    Statsskattelov6DobbeltHusførelseAndenDækning(
+        kildeidentifikation = resultat.fakta.identifikation,
+        fra_dato = resultat.fakta.startdato,
+        til_dato = dato_plus_dage(resultat.fakta.startdato, berørte_dage - 1)
+    )
+}
+| ligningslov9a_rejsedækninger_til_dobbelt_husførelse(resultater: List(Ligningslov9ARejseresultat)) -> map(
+    filter(resultater, ligningslov9a_rejseresultat_udelukker_dobbelt_husførelse),
+    ligningslov9a_rejseresultat_dobbelt_husførelse_dækning
+)
+| ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning(resultat: Ligningslov9AØlogiopholdsresultat) -> Statsskattelov6DobbeltHusførelseAndenDækning(
+    kildeidentifikation = resultat.fakta.identifikation,
+    fra_dato = resultat.fakta.startdato,
+    til_dato = dato_plus_dage(resultat.fakta.startdato, ligningslov9a_ølogi_påbegyndte_kalenderdage(resultat.fakta) - 1)
+)
+| ligningslov9a_ølogidækninger_til_dobbelt_husførelse(resultat: Ligningslov9AØlogiÅrsresultat) -> flat_map(
+    resultat.arbejdsforholdsresultater,
+    |arbejdsforhold: Ligningslov9AØlogiArbejdsforholdsresultat| map(
+        filter(arbejdsforhold.opholdsresultater, |ophold: Ligningslov9AØlogiopholdsresultat| ophold.fradrag_før_fælles_årsloft_kroner > 0),
+        ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning
+    )
+)
 | ligningslov9a_identifikationer_entydige(rejser: List(Ligningslov9ARejsefakta)) -> length(distinct(map(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation))) == length(rejser) && all(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation != "")
 | ligningslov9a_årsresultat(indkomstår: Heltal, input: Ligningslov9AÅrsinput, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> {
-    = skatteår_understøttet = length(input.rejser) == 0 || ligningslov9a_skatteår_understøttet(indkomstår)
+    = har_fradrag_under_fælles_loft = length(input.rejser) > 0 || ligningslov9a_dobbelt_husførelse_anvendes(input.dobbelt_husførelse) || ligningslov9a_ølogi_anvendes(input.ølogi)
+    = skatteår_understøttet = har_fradrag_under_fælles_loft == Falskt || ligningslov9a_skatteår_understøttet(indkomstår)
     = identifikationer_entydige = ligningslov9a_identifikationer_entydige(input.rejser)
     = stk1_til_stk9_udelukket = ligningslov9a_stk1_til_stk9_udelukket(input.personrolle, ekstern_udelukkelse)
     = perioderejser = ligningslov9a_perioderejser(input.rejser)
@@ -745,15 +777,35 @@ kronebeløb.
         kontekst = rejseberegningskontekst,
         rejser = input.rejser
     )
-    = almindelige_rejseinput_gyldige = skatteår_understøttet && identifikationer_entydige && udlandsindkomstkilder_gyldige && standardperiodeforløb.alle_input_gyldige && godtgørelsesstandardperiodeforløb.alle_input_gyldige && ligningslov9a_dobbelt_husførelse_input_gyldigt(input.dobbelt_husførelse) && all(rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.input_gyldigt)
+    = almindelige_rejseinput_gyldige = skatteår_understøttet && identifikationer_entydige && udlandsindkomstkilder_gyldige && standardperiodeforløb.alle_input_gyldige && godtgørelsesstandardperiodeforløb.alle_input_gyldige && all(rejseresultater, |resultat: Ligningslov9ARejseresultat| resultat.input_gyldigt)
     = samlet_udbetalt_godtgørelse_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.udbetalt_godtgørelse_kroner)
     = samlet_supplerende_løn_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.supplerende_løn_kroner)
     = samlet_skattefri_godtgørelse_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.skattefri_godtgørelse_kroner)
     = samlet_rejsefradrag_før_årsloft_kroner = foldl(rejseresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9ARejseresultat| sum_kroner + resultat.fradrag_før_årsloft_kroner)
-    = dobbelt_husførelse_før_fælles_loft_kroner = ligningslov9a_dobbelt_husførelse_før_fælles_loft_kroner(input.dobbelt_husførelse)
     = årligt_fælles_fradragsloft_kroner = hvis ligningslov9a_skatteår_understøttet(indkomstår) { ligningslov9a_satser(indkomstår).årligt_fælles_fradragsloft_kroner } ellers { 0 }
-    = tilgængeligt_rejsefradragsloft_kroner = penge_positivt_beløb(årligt_fælles_fradragsloft_kroner - dobbelt_husførelse_før_fælles_loft_kroner)
-    = foreløbigt_rejsefradrag_efter_årsloft_kroner = hvis almindelige_rejseinput_gyldige { penge_mindste_beløb(samlet_rejsefradrag_før_årsloft_kroner, tilgængeligt_rejsefradragsloft_kroner) } ellers { 0 }
+    = foreløbigt_ølogi_til_samordning = ligningslov9a_ølogi_årsresultat(
+        indkomstår = indkomstår,
+        personrolle = input.personrolle,
+        ekstern_udelukkelse = ekstern_udelukkelse,
+        input = input.ølogi,
+        tilgængeligt_fælles_årsloft_kroner = årligt_fælles_fradragsloft_kroner,
+        fælles_årsgrundlag_gyldigt = almindelige_rejseinput_gyldige
+    )
+    = andre_opholdsdækninger = concat(
+        ligningslov9a_rejsedækninger_til_dobbelt_husførelse(rejseresultater),
+        ligningslov9a_ølogidækninger_til_dobbelt_husførelse(foreløbigt_ølogi_til_samordning)
+    )
+    = dobbelt_husførelse = statsskattelov6_dobbelt_husførelse_årsresultat(
+        indkomstår = indkomstår,
+        erhvervsstatus = ligningslov9a_dobbelt_husførelse_erhvervsstatus(input.personrolle),
+        input = ligningslov9a_dobbelt_husførelse_input(input.dobbelt_husførelse),
+        andre_dækninger = andre_opholdsdækninger
+    )
+    = fælles_årsgrundlag_gyldigt = almindelige_rejseinput_gyldige && dobbelt_husførelse.alle_input_gyldige
+    = dobbelt_husførelse_før_fælles_loft_kroner = dobbelt_husførelse.samlet_fradrag_før_fælles_årsloft_kroner
+    = dobbelt_husførelse_efter_fælles_loft_kroner = hvis fælles_årsgrundlag_gyldigt { penge_mindste_beløb(dobbelt_husførelse_før_fælles_loft_kroner, årligt_fælles_fradragsloft_kroner) } ellers { 0 }
+    = tilgængeligt_rejsefradragsloft_kroner = penge_positivt_beløb(årligt_fælles_fradragsloft_kroner - dobbelt_husførelse_efter_fælles_loft_kroner)
+    = foreløbigt_rejsefradrag_efter_årsloft_kroner = hvis fælles_årsgrundlag_gyldigt { penge_mindste_beløb(samlet_rejsefradrag_før_årsloft_kroner, tilgængeligt_rejsefradragsloft_kroner) } ellers { 0 }
     = tilgængeligt_ølogiloft_kroner = penge_positivt_beløb(tilgængeligt_rejsefradragsloft_kroner - foreløbigt_rejsefradrag_efter_årsloft_kroner)
     = ølogi = ligningslov9a_ølogi_årsresultat(
         indkomstår = indkomstår,
@@ -761,9 +813,9 @@ kronebeløb.
         ekstern_udelukkelse = ekstern_udelukkelse,
         input = input.ølogi,
         tilgængeligt_fælles_årsloft_kroner = tilgængeligt_ølogiloft_kroner,
-        fælles_årsgrundlag_gyldigt = almindelige_rejseinput_gyldige
+        fælles_årsgrundlag_gyldigt = fælles_årsgrundlag_gyldigt
     )
-    = alle_input_gyldige = almindelige_rejseinput_gyldige && ølogi.egne_input_gyldige
+    = alle_input_gyldige = fælles_årsgrundlag_gyldigt && ølogi.egne_input_gyldige
     Ligningslov9AÅrsresultat(
         indkomstår = indkomstår,
         input = input,
@@ -771,6 +823,7 @@ kronebeløb.
         standardperiodeforløb = standardperiodeforløb,
         godtgørelsesstandardperiodeforløb = godtgørelsesstandardperiodeforløb,
         rejseresultater = rejseresultater,
+        dobbelt_husførelse = dobbelt_husførelse,
         ølogi = ølogi,
         skatteår_understøttet = skatteår_understøttet,
         identifikationer_entydige = identifikationer_entydige,
@@ -783,9 +836,11 @@ kronebeløb.
         samlet_skattepligtig_godtgørelse_kroner = samlet_udbetalt_godtgørelse_kroner - samlet_skattefri_godtgørelse_kroner,
         samlet_rejsefradrag_før_årsloft_kroner = samlet_rejsefradrag_før_årsloft_kroner,
         dobbelt_husførelse_før_fælles_loft_kroner = dobbelt_husførelse_før_fælles_loft_kroner,
+        dobbelt_husførelse_efter_fælles_loft_kroner = dobbelt_husførelse_efter_fælles_loft_kroner,
         årligt_fælles_fradragsloft_kroner = årligt_fælles_fradragsloft_kroner,
         samlet_rejsefradrag_efter_årsloft_kroner = hvis alle_input_gyldige { foreløbigt_rejsefradrag_efter_årsloft_kroner } ellers { 0 },
-        samlet_ll9a_fradrag_efter_årsloft_kroner = hvis alle_input_gyldige { foreløbigt_rejsefradrag_efter_årsloft_kroner + ølogi.fradrag_efter_fælles_årsloft_kroner } ellers { 0 }
+        samlet_ll9a_fradrag_efter_årsloft_kroner = hvis alle_input_gyldige { foreløbigt_rejsefradrag_efter_årsloft_kroner + ølogi.fradrag_efter_fælles_årsloft_kroner } ellers { 0 },
+        samlet_fradrag_under_fælles_årsloft_kroner = hvis alle_input_gyldige { dobbelt_husførelse_efter_fælles_loft_kroner + foreløbigt_rejsefradrag_efter_årsloft_kroner + ølogi.fradrag_efter_fælles_årsloft_kroner } ellers { 0 }
     )
 }
 --@end:ligningsloven_par9a_rejser--
