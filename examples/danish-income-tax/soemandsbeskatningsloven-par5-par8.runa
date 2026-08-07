@@ -4,6 +4,7 @@
 @ importer ./source - status
 @ importer ./kapitel - 03 - personfradrag
 @ importer ./soemandsbeskatningsloven - par3 - par4
+@ importer ./kalenderdato
 
 # Søbl5Til8KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
@@ -105,16 +106,68 @@ Stk. 3. Nødvendige rejsedage i forbindelse med påmønstring og afmønstring an
 ----
 
 --@begin::søbl5_til8_bek940_par1--
-# Søbl5Til8Arbejdsrolle = SøblNormalDriftsbesætning | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift: Boolsk, del_af_sikkerheds_eller_driftsbesætning: Boolsk, kan_umiddelbart_udføres_af_landpersonale: Boolsk) | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning | SøblArbejdePåMidlertidigtUdeAfDriftSkib(varighed_dage: Heltal, umiddelbart_før_omfattet: Boolsk, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift: Boolsk) | SøblNybygningstilsyn(varighed_dage: Heltal, skibet_opfylder_betingelser_efter_færdiggørelse: Boolsk, påmønstres_umiddelbart_efter_færdiggørelse: Boolsk) | SøblKursusophold(varighed_dage_i_12_måneder: Heltal, umiddelbart_før_omfattet: Boolsk, fortsat_ansat_af_rederiet: Boolsk) | SøblNødvendigeRejsedage(dage_i_12_måneder: Heltal) | SøblAndetArbejde
+# Søbl5Til8Datoperiode(startdato: Dato, slutdato: Dato)
+# SøblKursus12Månedersopgørelse(opgørelsesperiode: Søbl5Til8Datoperiode, kursusperioder: List(Søbl5Til8Datoperiode))
+# SøblKursus12Månedersresultat(opgørelse: SøblKursus12Månedersopgørelse, input_gyldigt: Boolsk, første_kursusdag: Dato, samlede_kursusdage: Heltal, tremånedersudløb_dato: Dato, tremånedersmaksimum_dage: Heltal, tremånedersgrænse_opfyldt: Boolsk)
+# SøblRejsedage12Månedersopgørelse(opgørelsesperiode: Søbl5Til8Datoperiode, rejsedatoer: List(Dato))
+# SøblRejsedage12Månedersresultat(opgørelse: SøblRejsedage12Månedersopgørelse, input_gyldigt: Boolsk, antal_rejsedage: Heltal, fjortendagesgrænse_opfyldt: Boolsk)
+# Søbl5Til8Arbejdsrolle = SøblNormalDriftsbesætning | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift: Boolsk, del_af_sikkerheds_eller_driftsbesætning: Boolsk, kan_umiddelbart_udføres_af_landpersonale: Boolsk) | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning | SøblArbejdePåMidlertidigtUdeAfDriftSkib(periode: Søbl5Til8Datoperiode, umiddelbart_før_omfattet: Boolsk, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift: Boolsk) | SøblNybygningstilsyn(periode: Søbl5Til8Datoperiode, skibet_opfylder_betingelser_efter_færdiggørelse: Boolsk, påmønstres_umiddelbart_efter_færdiggørelse: Boolsk) | SøblKursusophold(opgørelse: SøblKursus12Månedersopgørelse, umiddelbart_før_omfattet: Boolsk, fortsat_ansat_af_rederiet: Boolsk) | SøblNødvendigeRejsedage(opgørelse: SøblRejsedage12Månedersopgørelse) | SøblAndetArbejde
+
+| søbl5_til8_datoperiode_gyldig(periode: Søbl5Til8Datoperiode) -> dato_før_eller_lig_med(periode.startdato, periode.slutdato)
+| søbl5_til8_datoperiode_dage(periode: Søbl5Til8Datoperiode) -> hvis søbl5_til8_datoperiode_gyldig(periode) { dato_dage_fra_og_med_til_og_med(periode.startdato, periode.slutdato) } ellers { 0 }
+| søbl5_til8_datoperiode_højst_kalendermåneder(periode: Søbl5Til8Datoperiode, måneder: Heltal) -> måneder >= 0 && søbl5_til8_datoperiode_gyldig(periode) && dato_før(periode.slutdato, dato_plus_måneder(periode.startdato, måneder))
+| søbl5_til8_tolv_månedersperiode_gyldig(periode: Søbl5Til8Datoperiode) -> søbl5_til8_datoperiode_gyldig(periode) && dato_næste_dag(periode.slutdato) == dato_plus_måneder(periode.startdato, 12)
+| søbl5_til8_datoperiode_inden_for(periode: Søbl5Til8Datoperiode, opgørelsesperiode: Søbl5Til8Datoperiode) -> søbl5_til8_datoperiode_gyldig(periode) && søbl5_til8_tolv_månedersperiode_gyldig(opgørelsesperiode) && dato_efter_eller_lig_med(periode.startdato, opgørelsesperiode.startdato) && dato_før_eller_lig_med(periode.slutdato, opgørelsesperiode.slutdato)
+| søbl5_til8_datoperioder_overlapper(a: Søbl5Til8Datoperiode, b: Søbl5Til8Datoperiode) -> dato_før_eller_lig_med(a.startdato, b.slutdato) && dato_før_eller_lig_med(b.startdato, a.slutdato)
+| søbl5_til8_datoperioder_entydige_uden_overlap(perioder: List(Søbl5Til8Datoperiode)) -> length(distinct(perioder)) == length(perioder) && all(perioder, |periode: Søbl5Til8Datoperiode| all(perioder, |anden: Søbl5Til8Datoperiode| periode == anden || søbl5_til8_datoperioder_overlapper(periode, anden) == Falskt))
+| søbl5_til8_kursusperioder_sorteret(perioder: List(Søbl5Til8Datoperiode)) -> sort_by(perioder, |periode: Søbl5Til8Datoperiode| dato_nøgle(periode.startdato))
+| søbl5_til8_første_kursusdag(perioder: List(Søbl5Til8Datoperiode)) -> hvis length(perioder) > 0 { head(søbl5_til8_kursusperioder_sorteret(perioder)).startdato } ellers { dato_ugyldig() }
+| søbl5_til8_samlede_kursusdage(perioder: List(Søbl5Til8Datoperiode)) -> foldl(perioder, 0, |dage: Heltal, periode: Søbl5Til8Datoperiode| dage + søbl5_til8_datoperiode_dage(periode))
+| søbl5_til8_kursusopgørelse_input_gyldig(opgørelse: SøblKursus12Månedersopgørelse) -> length(opgørelse.kursusperioder) > 0 && søbl5_til8_tolv_månedersperiode_gyldig(opgørelse.opgørelsesperiode) && all(opgørelse.kursusperioder, |periode: Søbl5Til8Datoperiode| søbl5_til8_datoperiode_inden_for(periode, opgørelse.opgørelsesperiode)) && søbl5_til8_datoperioder_entydige_uden_overlap(opgørelse.kursusperioder)
+| søbl5_til8_kursus12_månedersresultat(opgørelse: SøblKursus12Månedersopgørelse) -> {
+    = input_gyldigt = søbl5_til8_kursusopgørelse_input_gyldig(opgørelse)
+    = første_kursusdag = søbl5_til8_første_kursusdag(opgørelse.kursusperioder)
+    = samlede_kursusdage = søbl5_til8_samlede_kursusdage(opgørelse.kursusperioder)
+    = tremånedersudløb_dato = hvis input_gyldigt { dato_plus_måneder(første_kursusdag, 3) } ellers { dato_ugyldig() }
+    = tremånedersmaksimum_dage = hvis input_gyldigt { dato_faktiske_dage_mellem(første_kursusdag, tremånedersudløb_dato) } ellers { 0 }
+    SøblKursus12Månedersresultat(
+        opgørelse = opgørelse,
+        input_gyldigt = input_gyldigt,
+        første_kursusdag = første_kursusdag,
+        samlede_kursusdage = samlede_kursusdage,
+        tremånedersudløb_dato = tremånedersudløb_dato,
+        tremånedersmaksimum_dage = tremånedersmaksimum_dage,
+        tremånedersgrænse_opfyldt = input_gyldigt && samlede_kursusdage <= tremånedersmaksimum_dage
+    )
+}
+| søbl5_til8_rejsedato_inden_for(dato: Dato, opgørelsesperiode: Søbl5Til8Datoperiode) -> dato_gyldig(dato) && søbl5_til8_tolv_månedersperiode_gyldig(opgørelsesperiode) && dato_efter_eller_lig_med(dato, opgørelsesperiode.startdato) && dato_før_eller_lig_med(dato, opgørelsesperiode.slutdato)
+| søbl5_til8_rejsedageopgørelse_input_gyldig(opgørelse: SøblRejsedage12Månedersopgørelse) -> length(opgørelse.rejsedatoer) > 0 && søbl5_til8_tolv_månedersperiode_gyldig(opgørelse.opgørelsesperiode) && length(distinct(opgørelse.rejsedatoer)) == length(opgørelse.rejsedatoer) && all(opgørelse.rejsedatoer, |dato: Dato| søbl5_til8_rejsedato_inden_for(dato, opgørelse.opgørelsesperiode))
+| søbl5_til8_rejsedage12_månedersresultat(opgørelse: SøblRejsedage12Månedersopgørelse) -> {
+    = input_gyldigt = søbl5_til8_rejsedageopgørelse_input_gyldig(opgørelse)
+    = antal_rejsedage = length(opgørelse.rejsedatoer)
+    SøblRejsedage12Månedersresultat(
+        opgørelse = opgørelse,
+        input_gyldigt = input_gyldigt,
+        antal_rejsedage = antal_rejsedage,
+        fjortendagesgrænse_opfyldt = input_gyldigt && antal_rejsedage <= 14
+    )
+}
+| søbl5_til8_arbejdsrolle_input_gyldig(rolle: Søbl5Til8Arbejdsrolle) -> match rolle {
+    | SøblArbejdePåMidlertidigtUdeAfDriftSkib(periode, _, _) -> søbl5_til8_datoperiode_gyldig(periode)
+    | SøblNybygningstilsyn(periode, _, _) -> søbl5_til8_datoperiode_gyldig(periode)
+    | SøblKursusophold(opgørelse, _, _) -> søbl5_til8_kursusopgørelse_input_gyldig(opgørelse)
+    | SøblNødvendigeRejsedage(opgørelse) -> søbl5_til8_rejsedageopgørelse_input_gyldig(opgørelse)
+    | _ -> Sandt
+}
 
 | søbl5_til8_arbejdsrolle_omfattet(rolle: Søbl5Til8Arbejdsrolle) -> match rolle {
     | SøblNormalDriftsbesætning -> Sandt
     | SøblMidlertidigtVedligeholdEllerReparation(skib_i_almindelig_drift, del_af_sikkerheds_eller_driftsbesætning, kan_umiddelbart_udføres_af_landpersonale) -> skib_i_almindelig_drift && del_af_sikkerheds_eller_driftsbesætning && kan_umiddelbart_udføres_af_landpersonale == Falskt
     | SøblSærligTilrigningLastOpgaveEllerSejladsSomDriftsbesætning -> Sandt
-    | SøblArbejdePåMidlertidigtUdeAfDriftSkib(varighed_dage, umiddelbart_før_omfattet, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift) -> varighed_dage >= 0 && varighed_dage <= 184 && umiddelbart_før_omfattet && kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift == Falskt
-    | SøblNybygningstilsyn(varighed_dage, skibet_opfylder_betingelser_efter_færdiggørelse, påmønstres_umiddelbart_efter_færdiggørelse) -> varighed_dage >= 0 && varighed_dage <= 184 && skibet_opfylder_betingelser_efter_færdiggørelse && påmønstres_umiddelbart_efter_færdiggørelse
-    | SøblKursusophold(varighed_dage_i_12_måneder, umiddelbart_før_omfattet, fortsat_ansat_af_rederiet) -> varighed_dage_i_12_måneder >= 0 && varighed_dage_i_12_måneder <= 92 && umiddelbart_før_omfattet && fortsat_ansat_af_rederiet
-    | SøblNødvendigeRejsedage(dage_i_12_måneder) -> dage_i_12_måneder >= 0 && dage_i_12_måneder <= 14
+    | SøblArbejdePåMidlertidigtUdeAfDriftSkib(periode, umiddelbart_før_omfattet, kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift) -> søbl5_til8_datoperiode_højst_kalendermåneder(periode, 6) && umiddelbart_før_omfattet && kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift == Falskt
+    | SøblNybygningstilsyn(periode, skibet_opfylder_betingelser_efter_færdiggørelse, påmønstres_umiddelbart_efter_færdiggørelse) -> søbl5_til8_datoperiode_højst_kalendermåneder(periode, 6) && skibet_opfylder_betingelser_efter_færdiggørelse && påmønstres_umiddelbart_efter_færdiggørelse
+    | SøblKursusophold(opgørelse, umiddelbart_før_omfattet, fortsat_ansat_af_rederiet) -> søbl5_til8_kursus12_månedersresultat(opgørelse).tremånedersgrænse_opfyldt && umiddelbart_før_omfattet && fortsat_ansat_af_rederiet
+    | SøblNødvendigeRejsedage(opgørelse) -> søbl5_til8_rejsedage12_månedersresultat(opgørelse).fjortendagesgrænse_opfyldt
     | SøblAndetArbejde -> Falskt
 }
 --@end::søbl5_til8_bek940_par1--
@@ -200,7 +253,7 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 | søbl5_til8_nettolønsbetingelse_opfyldt(løngrundlag: Søbl5Til8Løngrundlag) -> løngrundlag == SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen
 | søbl5_til8_passagerrute_forenelig(aktivitet: Søbl5Til8Aktivitet, passagerrute: Søbl5Til8Passagerrute) -> hvis aktivitet == SøblTransportAfPassagererMellemForskelligeDestinationer { passagerrute != SøblIngenPassagersejlads } ellers { passagerrute == SøblIngenPassagersejlads }
 | søbl5_til8_driftstid_gyldig(driftstid: Søbl6Driftstid) -> driftstid.søtransport_minutter >= 0 && driftstid.mobilisering_til_søs_minutter >= 0 && driftstid.andre_aktiviteter_minutter >= 0 && driftstid.ventetid_minutter >= 0 && driftstid.søtransport_minutter + driftstid.mobilisering_til_søs_minutter + driftstid.andre_aktiviteter_minutter > 0
-| søbl5_til8_fakta_gyldige(fakta: Søbl5Til8Indkomstfakta) -> fakta.identifikation != "" && fakta.indkomstår >= 1900 && fakta.skib.identifikation != "" && fakta.skib.bruttotonnage >= 0 && fakta.løn.beløb_kroner >= 0 && match fakta.arbejde.anvendelse {
+| søbl5_til8_fakta_gyldige(fakta: Søbl5Til8Indkomstfakta) -> fakta.identifikation != "" && fakta.indkomstår >= 1900 && fakta.skib.identifikation != "" && fakta.skib.bruttotonnage >= 0 && fakta.løn.beløb_kroner >= 0 && søbl5_til8_arbejdsrolle_input_gyldig(fakta.arbejde.arbejdsrolle) && match fakta.arbejde.anvendelse {
     | SøblUdelukkendeAnvendtTil(SøblBugseringOgBjærgning) -> søbl5_til8_passagerrute_forenelig(SøblBugseringOgBjærgning, fakta.arbejde.passagerrute)
     | SøblUdelukkendeAnvendtTil(aktivitet) -> søbl5_til8_passagerrute_forenelig(aktivitet, fakta.arbejde.passagerrute)
     | SøblPeriodeMedFlereEllerUoplysteAnvendelser -> fakta.arbejde.passagerrute == SøblIngenPassagersejlads

@@ -36,6 +36,10 @@
         ventetid_minutter = ventetid_minutter
     )
 )
+| søbl_scenarie_periode(startår: Heltal, startmåned: Heltal, startdag: Heltal, slutår: Heltal, slutmåned: Heltal, slutdag: Heltal) -> Søbl5Til8Datoperiode(
+    startdato = Dato(år = startår, måned = startmåned, dag = startdag),
+    slutdato = Dato(år = slutår, måned = slutmåned, dag = slutdag)
+)
 | søbl_scenarie_indkomst(identifikation: Tekst, person: Søbl5Til8Personfakta, skib: Søbl5Til8Skibsfakta, arbejde: Søbl5Til8Arbejdsfakta, løn: Søbl5Til8Lønfakta) -> Søbl5Til8Indkomstfakta(
     identifikation = identifikation,
     indkomstår = 2025,
@@ -55,6 +59,110 @@
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
+
+= søbl_scenarie_ude_af_drift_januar_grænse = SøblArbejdePåMidlertidigtUdeAfDriftSkib(
+    periode = søbl_scenarie_periode(2025, 1, 31, 2025, 7, 30),
+    umiddelbart_før_omfattet = Sandt,
+    kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift = Falskt
+)
+= søbl_scenarie_ude_af_drift_januar_over_grænse = SøblArbejdePåMidlertidigtUdeAfDriftSkib(
+    periode = søbl_scenarie_periode(2025, 1, 31, 2025, 7, 31),
+    umiddelbart_før_omfattet = Sandt,
+    kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift = Falskt
+)
+= søbl_scenarie_nybygning_skudår_grænse = SøblNybygningstilsyn(
+    periode = søbl_scenarie_periode(2023, 8, 31, 2024, 2, 28),
+    skibet_opfylder_betingelser_efter_færdiggørelse = Sandt,
+    påmønstres_umiddelbart_efter_færdiggørelse = Sandt
+)
+= søbl_scenarie_nybygning_skudår_over_grænse = SøblNybygningstilsyn(
+    periode = søbl_scenarie_periode(2023, 8, 31, 2024, 2, 29),
+    skibet_opfylder_betingelser_efter_færdiggørelse = Sandt,
+    påmønstres_umiddelbart_efter_færdiggørelse = Sandt
+)
+
+| søbl_scenarie_seks_kalendermåneder_er_eksakte: søbl_scenarie_ude_af_drift_januar_grænse -> søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_ude_af_drift_januar_grænse) && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_ude_af_drift_januar_grænse) && søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_ude_af_drift_januar_over_grænse) && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_ude_af_drift_januar_over_grænse) == Falskt && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_nybygning_skudår_grænse) && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_nybygning_skudår_over_grænse) == Falskt
+
+= søbl_scenarie_2024_tolv_måneder = søbl_scenarie_periode(2024, 1, 1, 2024, 12, 31)
+= søbl_scenarie_2025_tolv_måneder = søbl_scenarie_periode(2025, 1, 1, 2025, 12, 31)
+= søbl_scenarie_kursus_skudår_opgørelse = SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2024_tolv_måneder,
+    kursusperioder = [
+        søbl_scenarie_periode(2024, 1, 1, 2024, 1, 31),
+        søbl_scenarie_periode(2024, 2, 1, 2024, 2, 29),
+        søbl_scenarie_periode(2024, 3, 1, 2024, 3, 31),
+    ]
+)
+= søbl_scenarie_kursus_skudår_resultat = søbl5_til8_kursus12_månedersresultat(søbl_scenarie_kursus_skudår_opgørelse)
+= søbl_scenarie_kursus_skudår_over_grænse = søbl5_til8_kursus12_månedersresultat(SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2024_tolv_måneder,
+    kursusperioder = concat(søbl_scenarie_kursus_skudår_opgørelse.kursusperioder, [søbl_scenarie_periode(2024, 4, 1, 2024, 4, 1)])
+))
+= søbl_scenarie_kursus_kortere_måneder = søbl5_til8_kursus12_månedersresultat(SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    kursusperioder = [
+        søbl_scenarie_periode(2025, 2, 1, 2025, 2, 28),
+        søbl_scenarie_periode(2025, 3, 1, 2025, 3, 31),
+        søbl_scenarie_periode(2025, 4, 1, 2025, 4, 30),
+    ]
+))
+= søbl_scenarie_kursus_længere_måneder = søbl5_til8_kursus12_månedersresultat(SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    kursusperioder = [
+        søbl_scenarie_periode(2025, 7, 1, 2025, 7, 31),
+        søbl_scenarie_periode(2025, 8, 1, 2025, 8, 31),
+        søbl_scenarie_periode(2025, 9, 1, 2025, 9, 30),
+    ]
+))
+= søbl_scenarie_kursus_overlap = søbl5_til8_kursus12_månedersresultat(SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    kursusperioder = [
+        søbl_scenarie_periode(2025, 1, 1, 2025, 1, 31),
+        søbl_scenarie_periode(2025, 1, 31, 2025, 2, 28),
+    ]
+))
+= søbl_scenarie_kursus_ugyldig_tolv_månedersperiode = søbl5_til8_kursus12_månedersresultat(SøblKursus12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_periode(2024, 1, 1, 2025, 1, 1),
+    kursusperioder = [søbl_scenarie_periode(2024, 1, 1, 2024, 1, 31)]
+))
+= søbl_scenarie_kursusrolle_skudår = SøblKursusophold(
+    opgørelse = søbl_scenarie_kursus_skudår_opgørelse,
+    umiddelbart_før_omfattet = Sandt,
+    fortsat_ansat_af_rederiet = Sandt
+)
+= søbl_scenarie_kursusrolle_over_grænse = SøblKursusophold(
+    opgørelse = søbl_scenarie_kursus_skudår_over_grænse.opgørelse,
+    umiddelbart_før_omfattet = Sandt,
+    fortsat_ansat_af_rederiet = Sandt
+)
+= søbl_scenarie_kursusrolle_med_overlap = SøblKursusophold(
+    opgørelse = søbl_scenarie_kursus_overlap.opgørelse,
+    umiddelbart_før_omfattet = Sandt,
+    fortsat_ansat_af_rederiet = Sandt
+)
+
+| søbl_scenarie_tre_kalendermåneder_aggregeres_eksakt: søbl_scenarie_kursus_skudår_resultat -> søbl_scenarie_kursus_skudår_resultat.input_gyldigt && søbl_scenarie_kursus_skudår_resultat.samlede_kursusdage == 91 && søbl_scenarie_kursus_skudår_resultat.tremånedersmaksimum_dage == 91 && søbl_scenarie_kursus_skudår_resultat.tremånedersudløb_dato == Dato(år = 2024, måned = 4, dag = 1) && søbl_scenarie_kursus_skudår_resultat.tremånedersgrænse_opfyldt && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_kursusrolle_skudår) && søbl_scenarie_kursus_skudår_over_grænse.input_gyldigt && søbl_scenarie_kursus_skudår_over_grænse.samlede_kursusdage == 92 && søbl_scenarie_kursus_skudår_over_grænse.tremånedersgrænse_opfyldt == Falskt && søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_kursusrolle_over_grænse) && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_kursusrolle_over_grænse) == Falskt
+| søbl_scenarie_tre_måneders_længde_følger_kalenderen: søbl_scenarie_kursus_kortere_måneder -> søbl_scenarie_kursus_kortere_måneder.input_gyldigt && søbl_scenarie_kursus_kortere_måneder.samlede_kursusdage == 89 && søbl_scenarie_kursus_kortere_måneder.tremånedersmaksimum_dage == 89 && søbl_scenarie_kursus_kortere_måneder.tremånedersgrænse_opfyldt && søbl_scenarie_kursus_længere_måneder.input_gyldigt && søbl_scenarie_kursus_længere_måneder.samlede_kursusdage == 92 && søbl_scenarie_kursus_længere_måneder.tremånedersmaksimum_dage == 92 && søbl_scenarie_kursus_længere_måneder.tremånedersgrænse_opfyldt
+| søbl_scenarie_kursusopgørelser_fejler_lukket: søbl_scenarie_kursus_overlap -> søbl_scenarie_kursus_overlap.input_gyldigt == Falskt && søbl_scenarie_kursus_overlap.tremånedersgrænse_opfyldt == Falskt && søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_kursusrolle_med_overlap) == Falskt && søbl_scenarie_kursus_ugyldig_tolv_månedersperiode.input_gyldigt == Falskt && søbl_scenarie_kursus_ugyldig_tolv_månedersperiode.tremånedersgrænse_opfyldt == Falskt
+
+= søbl_scenarie_fjorten_rejsedatoer = map(range(0, 14), |dagnummer: Heltal| dato_plus_dage(Dato(år = 2025, måned = 1, dag = 1), dagnummer))
+= søbl_scenarie_femten_rejsedatoer = map(range(0, 15), |dagnummer: Heltal| dato_plus_dage(Dato(år = 2025, måned = 1, dag = 1), dagnummer))
+= søbl_scenarie_fjorten_rejsedage = søbl5_til8_rejsedage12_månedersresultat(SøblRejsedage12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    rejsedatoer = søbl_scenarie_fjorten_rejsedatoer
+))
+= søbl_scenarie_femten_rejsedage = søbl5_til8_rejsedage12_månedersresultat(SøblRejsedage12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    rejsedatoer = søbl_scenarie_femten_rejsedatoer
+))
+= søbl_scenarie_dobbelt_rejsedato = søbl5_til8_rejsedage12_månedersresultat(SøblRejsedage12Månedersopgørelse(
+    opgørelsesperiode = søbl_scenarie_2025_tolv_måneder,
+    rejsedatoer = concat(søbl_scenarie_fjorten_rejsedatoer, [head(søbl_scenarie_fjorten_rejsedatoer)])
+))
+= søbl_scenarie_femten_rejsedagesrolle = SøblNødvendigeRejsedage(opgørelse = søbl_scenarie_femten_rejsedage.opgørelse)
+= søbl_scenarie_dobbelt_rejsedatorolle = SøblNødvendigeRejsedage(opgørelse = søbl_scenarie_dobbelt_rejsedato.opgørelse)
+
+| søbl_scenarie_rejsedage_aggregeres_i_tolv_måneder: søbl_scenarie_fjorten_rejsedage -> søbl_scenarie_fjorten_rejsedage.input_gyldigt && søbl_scenarie_fjorten_rejsedage.antal_rejsedage == 14 && søbl_scenarie_fjorten_rejsedage.fjortendagesgrænse_opfyldt && søbl_scenarie_femten_rejsedage.input_gyldigt && søbl_scenarie_femten_rejsedage.antal_rejsedage == 15 && søbl_scenarie_femten_rejsedage.fjortendagesgrænse_opfyldt == Falskt && søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_femten_rejsedagesrolle) && søbl5_til8_arbejdsrolle_omfattet(søbl_scenarie_femten_rejsedagesrolle) == Falskt && søbl_scenarie_dobbelt_rejsedato.input_gyldigt == Falskt && søbl_scenarie_dobbelt_rejsedato.fjortendagesgrænse_opfyldt == Falskt && søbl5_til8_arbejdsrolle_input_gyldig(søbl_scenarie_dobbelt_rejsedatorolle) == Falskt
 
 = søbl_scenarie_dansk_dis_fakta = søbl_scenarie_indkomst(
     identifikation = "dansk-dis-gods",
@@ -306,6 +414,11 @@
 | søbl_scenarie_par13_stk5_afledes_fra_par8: søbl_scenarie_par13_stk5 -> søbl_scenarie_par8_år.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar8 && søbl_scenarie_par13_stk5.overførbart_underskud_kroner == 100000 && søbl_scenarie_par13_stk5.samlet_afskåret_kroner == 0
 
 ? søbl_scenarie_dansk_dis_klassificeres
+? søbl_scenarie_seks_kalendermåneder_er_eksakte
+? søbl_scenarie_tre_kalendermåneder_aggregeres_eksakt
+? søbl_scenarie_tre_måneders_længde_følger_kalenderen
+? søbl_scenarie_kursusopgørelser_fejler_lukket
+? søbl_scenarie_rejsedage_aggregeres_i_tolv_måneder
 ? søbl_scenarie_dis_er_uden_am
 ? søbl_scenarie_lempelse_med_progression
 ? søbl_scenarie_ligningslov7u_fordeles_forholdsmæssigt

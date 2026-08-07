@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses nu én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
+Current implementation slice: `td-00b484` (bekendtgørelse nr. 940 § 1 bruger nu typede start- og slutdatoer til seks- og tremånedersgrænserne; kursusperioder og nødvendige rejsedatoer aggregeres i eksplicitte 12-månedersopgørelser, og Personskat-arbejdsbogen bevarer de gentagne datofakta i relationstabeller med ISO-rækkefølge)
+Previous SØBL § 6 slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
 Previous DIS § 7 U slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
 Previous historical KGL § 32 slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
 Previous KGL § 32 allocation slice: `td-51358b` (modregning i blandede ABL-gevinster fordeles efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
@@ -4030,6 +4031,18 @@ Review candidates to revisit deliberately, not as broad churn:
   modstridende statiske skibsfakta afvises. Fokusprøverne dækker 49/50-procent-
   grænsen, mobilisering og ventetidsbevarelse, og den komplette JSON/XLSX-rundtur
   udfylder det særskilte årsdriftsark og bevarer begge lønrelationer.
+  Arbejdsrollegrænserne i bekendtgørelsens § 1 er tilsvarende flyttet fra
+  184/92-dages tilnærmelser til den fælles gregorianske `Dato`-model. Arbejde på
+  et midlertidigt ude af drift-skib og nybygningstilsyn prøves mod seks eksakte
+  kalendermåneder. Kursusophold angives som ikke-overlappende datoperioder i en
+  eksplicit 12-månedersopgørelse; den samlede varighed sammenholdes med de 89,
+  90, 91 eller 92 faktiske dage, som de første tre kalendermåneder indeholder.
+  Nødvendige rejsedage angives som entydige datoer i samme slags opgørelse.
+  Ugyldige, overlappende datoer eller datoer uden for opgørelsesperioden fejler
+  som ugyldige kildefakta, mens en gyldig overskridelse af tre måneder eller 14
+  dage forbliver et gyldigt kildeinput med en ikke-omfattet arbejdsrolle. Den
+  kanoniske JSON/XLSX-prøve udfylder
+  tre kursusperioder i relationstabellen og bevarer samme § 5-resultat.
 - Validerede `@ calculate`-kontrakter har nu en vedvarende,
   indholdsadresseret cache. Nøglen omfatter compilerbinæren, prelude-valget,
   rodfilen og alle transitive almindelige, kvalificerede og hash-baserede
@@ -4808,9 +4821,8 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Færdiggør de afgrænsede SØBL-rester uden at svække den nye
-  kildefaktamodel: `td-00b484` erstatter 92/184-dages tilnærmelser med eksakte
-  kalendermåneder, og `td-44eb29` giver dødsboer, begrænset skattepligtige og
+- Færdiggør den sidste afgrænsede SØBL-rest uden at svække den nye
+  kildefaktamodel: `td-44eb29` giver dødsboer, begrænset skattepligtige og
   kulbrinteskattesager deres egne kanoniske beløbsresultater.
 - Udskyd næste performance-lag, indtil de væsentlige resterende lovregler er
   implementeret. Når fokus vender tilbage til målt latenstid, ejer `td-60a9d6`

@@ -1620,16 +1620,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.skib_i_almindelig_drift",
             "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.del_af_sikkerheds_eller_driftsbesætning",
             "arbejde.arbejdsrolle.SøblMidlertidigtVedligeholdEllerReparation.kan_umiddelbart_udføres_af_landpersonale",
-            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.varighed_dage",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.startdato.år",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.startdato.måned",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.startdato.dag",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.slutdato.år",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.slutdato.måned",
+            "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.periode.slutdato.dag",
             "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.umiddelbart_før_omfattet",
             "arbejde.arbejdsrolle.SøblArbejdePåMidlertidigtUdeAfDriftSkib.kun_ansat_til_arbejde_mens_skibet_er_ude_af_drift",
-            "arbejde.arbejdsrolle.SøblNybygningstilsyn.varighed_dage",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.startdato.år",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.startdato.måned",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.startdato.dag",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.slutdato.år",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.slutdato.måned",
+            "arbejde.arbejdsrolle.SøblNybygningstilsyn.periode.slutdato.dag",
             "arbejde.arbejdsrolle.SøblNybygningstilsyn.skibet_opfylder_betingelser_efter_færdiggørelse",
             "arbejde.arbejdsrolle.SøblNybygningstilsyn.påmønstres_umiddelbart_efter_færdiggørelse",
-            "arbejde.arbejdsrolle.SøblKursusophold.varighed_dage_i_12_måneder",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.startdato.år",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.startdato.måned",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.startdato.dag",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.slutdato.år",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.slutdato.måned",
+            "arbejde.arbejdsrolle.SøblKursusophold.opgørelse.opgørelsesperiode.slutdato.dag",
             "arbejde.arbejdsrolle.SøblKursusophold.umiddelbart_før_omfattet",
             "arbejde.arbejdsrolle.SøblKursusophold.fortsat_ansat_af_rederiet",
-            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.dage_i_12_måneder",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.startdato.år",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.startdato.måned",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.startdato.dag",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.slutdato.år",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.slutdato.måned",
+            "arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.opgørelsesperiode.slutdato.dag",
             "arbejde.par8_valg",
             "løn.indkomsttype",
             "løn.løngrundlag",
@@ -1663,16 +1683,36 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Skibet i almindelig drift under vedligeholdelsen",
             "Del af sikkerheds- eller driftsbesætningen",
             "Arbejdet kunne umiddelbart udføres af landpersonale",
-            "Dage på midlertidigt ude af drift-skib",
+            "Driftsophørets startdato (ISO 8601) - år",
+            "Driftsophørets startdato (ISO 8601) - måned",
+            "Driftsophørets startdato (ISO 8601) - dag",
+            "Driftsophørets slutdato (ISO 8601) - år",
+            "Driftsophørets slutdato (ISO 8601) - måned",
+            "Driftsophørets slutdato (ISO 8601) - dag",
             "Omfattet umiddelbart før driftsophøret",
             "Kun ansat til arbejde under driftsophøret",
-            "Dage med tilsyn ved nybygning",
+            "Nybygningstilsynets startdato (ISO 8601) - år",
+            "Nybygningstilsynets startdato (ISO 8601) - måned",
+            "Nybygningstilsynets startdato (ISO 8601) - dag",
+            "Nybygningstilsynets slutdato (ISO 8601) - år",
+            "Nybygningstilsynets slutdato (ISO 8601) - måned",
+            "Nybygningstilsynets slutdato (ISO 8601) - dag",
             "Nybygningen opfylder betingelserne efter færdiggørelse",
             "Påmønstring umiddelbart efter færdiggørelse",
-            "Kursusdage inden for 12 måneder",
+            "Kursusopgørelsens startdato (ISO 8601) - år",
+            "Kursusopgørelsens startdato (ISO 8601) - måned",
+            "Kursusopgørelsens startdato (ISO 8601) - dag",
+            "Kursusopgørelsens slutdato (ISO 8601) - år",
+            "Kursusopgørelsens slutdato (ISO 8601) - måned",
+            "Kursusopgørelsens slutdato (ISO 8601) - dag",
             "Omfattet umiddelbart før kursusopholdet",
             "Fortsat ansat af rederiet under kurset",
-            "Nødvendige rejsedage inden for 12 måneder",
+            "Rejsedagsopgørelsens startdato (ISO 8601) - år",
+            "Rejsedagsopgørelsens startdato (ISO 8601) - måned",
+            "Rejsedagsopgørelsens startdato (ISO 8601) - dag",
+            "Rejsedagsopgørelsens slutdato (ISO 8601) - år",
+            "Rejsedagsopgørelsens slutdato (ISO 8601) - måned",
+            "Rejsedagsopgørelsens slutdato (ISO 8601) - dag",
             "Valg for arbejde uden for EU/EØS efter § 8",
             "Sømandsindkomstens retlige type",
             "Sømandsindkomstens løngrundlag",
@@ -1681,6 +1721,73 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 dis_income_headers.iter().any(|header| header == expected),
                 "missing human SØBL §§ 5-8 input label {expected} on {dis_income_sheet}"
+            );
+        }
+        let dis_course_period_path = "lønmodtager.personlig_indkomst.sømandsbeskatning.indkomster.arbejde.arbejdsrolle.SøblKursusophold.opgørelse.kursusperioder";
+        let dis_course_period_sheet =
+            workbook_collection_sheet_name(&mut workbook, dis_course_period_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &dis_course_period_sheet),
+            "Dansk personskat - Kursusperioder i 12-månedersopgørelsen"
+        );
+        let dis_course_period_paths =
+            workbook_column_paths(&mut workbook, &dis_course_period_sheet);
+        for expected in [
+            "startdato.år",
+            "startdato.måned",
+            "startdato.dag",
+            "slutdato.år",
+            "slutdato.måned",
+            "slutdato.dag",
+        ] {
+            assert!(
+                dis_course_period_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical dated SØBL course-period path {expected} on {dis_course_period_sheet}"
+            );
+        }
+        let dis_course_period_headers = workbook_headers(&mut workbook, &dis_course_period_sheet);
+        for expected in [
+            "Kursusperiodens startdato (ISO 8601) - år",
+            "Kursusperiodens startdato (ISO 8601) - måned",
+            "Kursusperiodens startdato (ISO 8601) - dag",
+            "Kursusperiodens slutdato (ISO 8601) - år",
+            "Kursusperiodens slutdato (ISO 8601) - måned",
+            "Kursusperiodens slutdato (ISO 8601) - dag",
+        ] {
+            assert!(
+                dis_course_period_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human dated SØBL course-period label {expected} on {dis_course_period_sheet}"
+            );
+        }
+        let dis_travel_date_path = "lønmodtager.personlig_indkomst.sømandsbeskatning.indkomster.arbejde.arbejdsrolle.SøblNødvendigeRejsedage.opgørelse.rejsedatoer";
+        let dis_travel_date_sheet =
+            workbook_collection_sheet_name(&mut workbook, dis_travel_date_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &dis_travel_date_sheet),
+            "Dansk personskat - Nødvendige rejsedatoer i 12-månedersopgørelsen"
+        );
+        let dis_travel_date_paths = workbook_column_paths(&mut workbook, &dis_travel_date_sheet);
+        for expected in ["år", "måned", "dag"] {
+            assert!(
+                dis_travel_date_paths.iter().any(|path| path == expected),
+                "missing canonical dated SØBL travel-day path {expected} on {dis_travel_date_sheet}"
+            );
+        }
+        let dis_travel_date_headers = workbook_headers(&mut workbook, &dis_travel_date_sheet);
+        for expected in [
+            "Nødvendig rejsedato (ISO 8601) - år",
+            "Nødvendig rejsedato (ISO 8601) - måned",
+            "Nødvendig rejsedato (ISO 8601) - dag",
+        ] {
+            assert!(
+                dis_travel_date_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human dated SØBL travel-day label {expected} on {dis_travel_date_sheet}"
             );
         }
         let dis_annual_ship_path =
@@ -13280,10 +13387,55 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "særlige_aktiver": [],
         "udbytter": []
     });
+    let mut dis_course_case = dis_case.clone();
+    dis_course_case["case_id"] = Value::String("personskat-dis-kursus-2026".into());
+    let mut dis_course_income = dis_course_case["input"]["lønmodtager"]["personlig_indkomst"]
+        ["sømandsbeskatning"]["indkomster"][0]
+        .clone();
+    dis_course_income["identifikation"] = Value::String("dis-kursus-2026".into());
+    dis_course_income["arbejde"]["anvendelse"]["aktivitet"] =
+        serde_json::json!({ "$variant": "SøblTransportAfGodsMellemForskelligeDestinationer" });
+    dis_course_income["arbejde"]["arbejdsområde"] =
+        serde_json::json!({ "$variant": "SøblArbejdeUdenForEUEØS" });
+    dis_course_income["arbejde"]["arbejdsrolle"] = serde_json::json!({
+        "$variant": "SøblKursusophold",
+        "opgørelse": {
+            "opgørelsesperiode": {
+                "startdato": { "år": 2026, "måned": 1, "dag": 1 },
+                "slutdato": { "år": 2026, "måned": 12, "dag": 31 }
+            },
+            "kursusperioder": [
+                {
+                    "startdato": { "år": 2026, "måned": 1, "dag": 1 },
+                    "slutdato": { "år": 2026, "måned": 1, "dag": 31 }
+                },
+                {
+                    "startdato": { "år": 2026, "måned": 2, "dag": 1 },
+                    "slutdato": { "år": 2026, "måned": 2, "dag": 28 }
+                },
+                {
+                    "startdato": { "år": 2026, "måned": 3, "dag": 1 },
+                    "slutdato": { "år": 2026, "måned": 3, "dag": 31 }
+                }
+            ]
+        },
+        "umiddelbart_før_omfattet": true,
+        "fortsat_ansat_af_rederiet": true
+    });
+    dis_course_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+        ["indkomster"] = Value::Array(vec![dis_course_income]);
+    dis_course_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+        ["skibsårsdrifter"] = Value::Array(vec![]);
+    dis_course_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+        ["andre_ligningslov7u_indkomster"] = Value::Array(vec![]);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(dis_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(dis_course_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -13387,6 +13539,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-2026")
         .expect("DIS JSON case")
         .clone();
+    let dis_course_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kursus-2026")
+        .expect("DIS course JSON case")
+        .clone();
     let par32_mixed_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -13406,6 +13565,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         prior_deficit_result_case,
         negative_share_tax_carry_case,
         dis_case,
+        dis_course_case,
         par32_mixed_case,
     ]);
     std::fs::write(
@@ -13717,6 +13877,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-2026")
         .expect("hydrated XLSX DIS result");
     assert_eq!(hydrated_dis_result["result"], json_dis_result["result"]);
+    let json_dis_course_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kursus-2026")
+        .expect("JSON DIS course result");
+    let hydrated_dis_course_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kursus-2026")
+        .expect("hydrated XLSX DIS course result");
+    assert_eq!(
+        hydrated_dis_course_result["result"],
+        json_dis_course_result["result"]
+    );
+    let dis_course_income_result = &hydrated_dis_course_result["result"]["personlig_indkomst"]
+        ["sømandsbeskatning"]["indkomstresultater"][0];
+    assert_eq!(dis_course_income_result["input_gyldigt"], true);
+    assert_eq!(dis_course_income_result["arbejdsrolle_omfattet"], true);
+    assert_eq!(
+        dis_course_income_result["fakta"]["arbejde"]["arbejdsrolle"]["opgørelse"]["kursusperioder"]
+            .as_array()
+            .expect("hydrated dated DIS course periods")
+            .len(),
+        3
+    );
+    assert_eq!(
+        dis_course_income_result["retsgrundlag"]["$variant"],
+        "SøblPar5Stk1"
+    );
     let dis_annual_result =
         &hydrated_dis_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
     assert_eq!(

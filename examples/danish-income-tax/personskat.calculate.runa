@@ -435,12 +435,47 @@
     help = Some("Oplysningen indgår i den konkrete afgrænsning af besætningsarbejde efter bekendtgørelsens § 4."),
     unit = None
 )
-= personskat_felt_dis_udafdrift_varighed = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::varighed_dage),
-    label = "Dage på midlertidigt ude af drift-skib",
-    question = Some("Hvor mange dage varede arbejdet, mens skibet midlertidigt var ude af drift?"),
-    help = Some("Varigheden prøves mod seksmånedersgrænsen i bekendtgørelsens § 5."),
-    unit = Some("dage")
+= personskat_felt_dis_udafdrift_startår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::startdato::år),
+    label = "Driftsophørets startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte arbejdet, mens skibet var ude af drift?"),
+    help = Some("Start- og slutdatoen bruges til den eksakte grænse på seks kalendermåneder."),
+    unit = Some("år")
+)
+= personskat_felt_dis_udafdrift_startmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::startdato::måned),
+    label = "Driftsophørets startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte arbejdet, mens skibet var ude af drift?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_udafdrift_startdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::startdato::dag),
+    label = "Driftsophørets startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte arbejdet, mens skibet var ude af drift?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_udafdrift_slutår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::slutdato::år),
+    label = "Driftsophørets slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede arbejdet, mens skibet var ude af drift?"),
+    help = Some("Slutdatoen er den sidste dag, der skal omfattes af perioden."),
+    unit = Some("år")
+)
+= personskat_felt_dis_udafdrift_slutmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::slutdato::måned),
+    label = "Driftsophørets slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede arbejdet, mens skibet var ude af drift?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_udafdrift_slutdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::periode::slutdato::dag),
+    label = "Driftsophørets slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede arbejdet, mens skibet var ude af drift?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
 )
 = personskat_felt_dis_udafdrift_før = TypetBeregningsfelt(
     path = refof(Søbl5Til8Arbejdsrolle::SøblArbejdePåMidlertidigtUdeAfDriftSkib::umiddelbart_før_omfattet),
@@ -456,12 +491,47 @@
     help = Some("En sådan særskilt ansættelse falder uden for udvidelsen i bekendtgørelsens § 5."),
     unit = None
 )
-= personskat_felt_dis_nybygning_varighed = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::varighed_dage),
-    label = "Dage med tilsyn ved nybygning",
-    question = Some("Hvor mange dage varede tilsynet ved nybygningen?"),
-    help = Some("Varigheden prøves mod seksmånedersgrænsen i bekendtgørelsens § 6."),
-    unit = Some("dage")
+= personskat_felt_dis_nybygning_startår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::startdato::år),
+    label = "Nybygningstilsynets startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte tilsynet ved nybygningen?"),
+    help = Some("Start- og slutdatoen bruges til den eksakte grænse på seks kalendermåneder."),
+    unit = Some("år")
+)
+= personskat_felt_dis_nybygning_startmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::startdato::måned),
+    label = "Nybygningstilsynets startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte tilsynet ved nybygningen?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_nybygning_startdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::startdato::dag),
+    label = "Nybygningstilsynets startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte tilsynet ved nybygningen?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_nybygning_slutår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::slutdato::år),
+    label = "Nybygningstilsynets slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede tilsynet ved nybygningen?"),
+    help = Some("Slutdatoen er den sidste dag, der skal omfattes af perioden."),
+    unit = Some("år")
+)
+= personskat_felt_dis_nybygning_slutmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::slutdato::måned),
+    label = "Nybygningstilsynets slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede tilsynet ved nybygningen?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_nybygning_slutdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::periode::slutdato::dag),
+    label = "Nybygningstilsynets slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede tilsynet ved nybygningen?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
 )
 = personskat_felt_dis_nybygning_betingelser = TypetBeregningsfelt(
     path = refof(Søbl5Til8Arbejdsrolle::SøblNybygningstilsyn::skibet_opfylder_betingelser_efter_færdiggørelse),
@@ -477,12 +547,96 @@
     help = Some("Påmønstringen forbinder tilsynet med efterfølgende arbejde om bord efter bekendtgørelsens § 6."),
     unit = None
 )
-= personskat_felt_dis_kursus_varighed = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::varighed_dage_i_12_måneder),
-    label = "Kursusdage inden for 12 måneder",
-    question = Some("Hvor mange kursusdage havde personen inden for den relevante 12-månedersperiode?"),
-    help = Some("Kursusophold kan højst medregnes i tre måneder inden for 12 måneder efter bekendtgørelsens § 7."),
-    unit = Some("dage")
+= personskat_felt_dis_kursus_opgørelsesstartår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::startdato::år),
+    label = "Kursusopgørelsens startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte den relevante 12-månedersperiode for kursusophold?"),
+    help = Some("Opgørelsesperioden skal være præcis 12 kalendermåneder."),
+    unit = Some("år")
+)
+= personskat_felt_dis_kursus_opgørelsesstartmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::startdato::måned),
+    label = "Kursusopgørelsens startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte 12-månedersperioden for kursusophold?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_kursus_opgørelsesstartdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::startdato::dag),
+    label = "Kursusopgørelsens startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte 12-månedersperioden for kursusophold?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_kursus_opgørelsesslutår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::slutdato::år),
+    label = "Kursusopgørelsens slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede 12-månedersperioden for kursusophold?"),
+    help = Some("Slutdatoen er den sidste dag i den oplyste 12-månedersperiode."),
+    unit = Some("år")
+)
+= personskat_felt_dis_kursus_opgørelsesslutmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::slutdato::måned),
+    label = "Kursusopgørelsens slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede 12-månedersperioden for kursusophold?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_kursus_opgørelsesslutdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::opgørelsesperiode::slutdato::dag),
+    label = "Kursusopgørelsens slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede 12-månedersperioden for kursusophold?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_kursus_perioder = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder),
+    label = "Kursusperioder i 12-månedersopgørelsen",
+    question = Some("Hvilke kursusperioder indgår i den relevante 12-månedersopgørelse?"),
+    help = Some("Tilføj alle perioder. Futuruna afviser overlap og udleder de samlede dage og den eksakte tremånedersgrænse."),
+    unit = None
+)
+= personskat_felt_dis_kursusperiode_startår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::startdato::år),
+    label = "Kursusperiodens startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte kursusperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_dis_kursusperiode_startmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::startdato::måned),
+    label = "Kursusperiodens startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte kursusperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_kursusperiode_startdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::startdato::dag),
+    label = "Kursusperiodens startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte kursusperioden?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_dis_kursusperiode_slutår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::slutdato::år),
+    label = "Kursusperiodens slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede kursusperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_dis_kursusperiode_slutmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::slutdato::måned),
+    label = "Kursusperiodens slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede kursusperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_kursusperiode_slutdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::opgørelse::kursusperioder::slutdato::dag),
+    label = "Kursusperiodens slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede kursusperioden?"),
+    help = None,
+    unit = Some("dag")
 )
 = personskat_felt_dis_kursus_før = TypetBeregningsfelt(
     path = refof(Søbl5Til8Arbejdsrolle::SøblKursusophold::umiddelbart_før_omfattet),
@@ -498,12 +652,75 @@
     help = Some("Fortsat ansættelse er en betingelse for at behandle kurset som arbejde om bord."),
     unit = None
 )
-= personskat_felt_dis_rejsedage = TypetBeregningsfelt(
-    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::dage_i_12_måneder),
-    label = "Nødvendige rejsedage inden for 12 måneder",
-    question = Some("Hvor mange nødvendige rejsedage til eller fra skibet havde personen inden for 12 måneder?"),
-    help = Some("Nødvendige rejsedage registreres særskilt efter bekendtgørelsens § 7."),
-    unit = Some("dage")
+= personskat_felt_dis_rejse_opgørelsesstartår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::startdato::år),
+    label = "Rejsedagsopgørelsens startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Opgørelsesperioden skal være præcis 12 kalendermåneder."),
+    unit = Some("år")
+)
+= personskat_felt_dis_rejse_opgørelsesstartmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::startdato::måned),
+    label = "Rejsedagsopgørelsens startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_rejse_opgørelsesstartdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::startdato::dag),
+    label = "Rejsedagsopgørelsens startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_rejse_opgørelsesslutår = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::slutdato::år),
+    label = "Rejsedagsopgørelsens slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Slutdatoen er den sidste dag i den oplyste 12-månedersperiode."),
+    unit = Some("år")
+)
+= personskat_felt_dis_rejse_opgørelsesslutmåned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::slutdato::måned),
+    label = "Rejsedagsopgørelsens slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Angiv måneden som 1-12."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_rejse_opgørelsesslutdag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::opgørelsesperiode::slutdato::dag),
+    label = "Rejsedagsopgørelsens slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede 12-månedersperioden for nødvendige rejsedage?"),
+    help = Some("Datoen valideres efter den gregorianske kalender."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_rejsedatoer = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::rejsedatoer),
+    label = "Nødvendige rejsedatoer i 12-månedersopgørelsen",
+    question = Some("På hvilke datoer fandt de nødvendige rejser til eller fra skibet sted?"),
+    help = Some("Tilføj hver dato én gang. Futuruna validerer 12-månedersperioden og udleder selv 14-dagesgrænsen."),
+    unit = None
+)
+= personskat_felt_dis_rejsedato_år = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::rejsedatoer::år),
+    label = "Nødvendig rejsedato (ISO 8601) - år",
+    question = Some("I hvilket år fandt den nødvendige rejse sted?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_dis_rejsedato_måned = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::rejsedatoer::måned),
+    label = "Nødvendig rejsedato (ISO 8601) - måned",
+    question = Some("I hvilken måned fandt den nødvendige rejse sted?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_rejsedato_dag = TypetBeregningsfelt(
+    path = refof(Søbl5Til8Arbejdsrolle::SøblNødvendigeRejsedage::opgørelse::rejsedatoer::dag),
+    label = "Nødvendig rejsedato (ISO 8601) - dag",
+    question = Some("På hvilken dag fandt den nødvendige rejse sted?"),
+    help = None,
+    unit = Some("dag")
 )
 = personskat_felt_dis_par8_valg = TypetBeregningsfelt(
     path = refof(Søbl5Til8Indkomstfakta::arbejde::par8_valg::$variant),
@@ -9250,16 +9467,47 @@
         personskat_felt_dis_vedligehold_drift,
         personskat_felt_dis_vedligehold_besætning,
         personskat_felt_dis_vedligehold_landpersonale,
-        personskat_felt_dis_udafdrift_varighed,
+        personskat_felt_dis_udafdrift_startår,
+        personskat_felt_dis_udafdrift_startmåned,
+        personskat_felt_dis_udafdrift_startdag,
+        personskat_felt_dis_udafdrift_slutår,
+        personskat_felt_dis_udafdrift_slutmåned,
+        personskat_felt_dis_udafdrift_slutdag,
         personskat_felt_dis_udafdrift_før,
         personskat_felt_dis_udafdrift_kun_ansat,
-        personskat_felt_dis_nybygning_varighed,
+        personskat_felt_dis_nybygning_startår,
+        personskat_felt_dis_nybygning_startmåned,
+        personskat_felt_dis_nybygning_startdag,
+        personskat_felt_dis_nybygning_slutår,
+        personskat_felt_dis_nybygning_slutmåned,
+        personskat_felt_dis_nybygning_slutdag,
         personskat_felt_dis_nybygning_betingelser,
         personskat_felt_dis_nybygning_påmønstring,
-        personskat_felt_dis_kursus_varighed,
+        personskat_felt_dis_kursus_opgørelsesstartår,
+        personskat_felt_dis_kursus_opgørelsesstartmåned,
+        personskat_felt_dis_kursus_opgørelsesstartdag,
+        personskat_felt_dis_kursus_opgørelsesslutår,
+        personskat_felt_dis_kursus_opgørelsesslutmåned,
+        personskat_felt_dis_kursus_opgørelsesslutdag,
+        personskat_felt_dis_kursus_perioder,
+        personskat_felt_dis_kursusperiode_startår,
+        personskat_felt_dis_kursusperiode_startmåned,
+        personskat_felt_dis_kursusperiode_startdag,
+        personskat_felt_dis_kursusperiode_slutår,
+        personskat_felt_dis_kursusperiode_slutmåned,
+        personskat_felt_dis_kursusperiode_slutdag,
         personskat_felt_dis_kursus_før,
         personskat_felt_dis_kursus_ansat,
-        personskat_felt_dis_rejsedage,
+        personskat_felt_dis_rejse_opgørelsesstartår,
+        personskat_felt_dis_rejse_opgørelsesstartmåned,
+        personskat_felt_dis_rejse_opgørelsesstartdag,
+        personskat_felt_dis_rejse_opgørelsesslutår,
+        personskat_felt_dis_rejse_opgørelsesslutmåned,
+        personskat_felt_dis_rejse_opgørelsesslutdag,
+        personskat_felt_dis_rejsedatoer,
+        personskat_felt_dis_rejsedato_år,
+        personskat_felt_dis_rejsedato_måned,
+        personskat_felt_dis_rejsedato_dag,
         personskat_felt_dis_par8_valg,
         personskat_felt_dis_indkomsttype,
         personskat_felt_dis_løngrundlag,
