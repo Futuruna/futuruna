@@ -1947,8 +1947,17 @@ fn scan_meta_comments_with_dir_from_stmts(
     stmts: &[Stmt],
     source_dir: Option<String>,
 ) -> MetaIndex {
+    scan_meta_comments_with_dir_from_stmts_and_checker(source, stmts, source_dir, None)
+}
+
+fn scan_meta_comments_with_dir_from_stmts_and_checker(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    checker: Option<&TypeChecker>,
+) -> MetaIndex {
     let mut index = scan_meta_comment_structure_from_stmts(source, stmts);
-    resolve_meta_references_from_stmts(source, stmts, source_dir, &mut index);
+    resolve_meta_references_from_stmts_and_checker(source, stmts, source_dir, &mut index, checker);
     index
 }
 
@@ -1969,7 +1978,23 @@ pub fn scan_meta_comments_with_imported_labels(
     let Ok(stmts) = parser.parse_program() else {
         return scan_meta_comments_with_dir(source, source_dir);
     };
-    scan_meta_comments_with_imported_labels_from_stmts(source, &stmts, source_dir, labels)
+    scan_meta_comments_with_imported_labels_from_stmts(source, &stmts, source_dir, labels, None)
+}
+
+pub(crate) fn scan_meta_comments_with_imported_labels_and_checker(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    labels: &BTreeSet<String>,
+    checker: &TypeChecker,
+) -> MetaIndex {
+    scan_meta_comments_with_imported_labels_from_stmts(
+        source,
+        stmts,
+        source_dir,
+        labels,
+        Some(checker),
+    )
 }
 
 fn scan_meta_comments_with_imported_labels_from_stmts(
@@ -1977,8 +2002,14 @@ fn scan_meta_comments_with_imported_labels_from_stmts(
     stmts: &[Stmt],
     source_dir: Option<String>,
     labels: &BTreeSet<String>,
+    checker: Option<&TypeChecker>,
 ) -> MetaIndex {
-    let mut index = scan_meta_comments_with_dir_from_stmts(source, stmts, source_dir.clone());
+    let mut index = scan_meta_comments_with_dir_from_stmts_and_checker(
+        source,
+        stmts,
+        source_dir.clone(),
+        checker,
+    );
     let mut target_labels = labels.clone();
     for span in &index.spans {
         if span
@@ -1995,6 +2026,7 @@ fn scan_meta_comments_with_imported_labels_from_stmts(
         &target_labels,
         &mut BTreeSet::new(),
         &mut index,
+        checker,
     );
     index
 }
@@ -2005,6 +2037,7 @@ fn collect_imported_meta_anchors_from_stmts(
     labels: &BTreeSet<String>,
     visited: &mut BTreeSet<String>,
     index: &mut MetaIndex,
+    checker: Option<&TypeChecker>,
 ) {
     let Some(source_dir) = source_dir else {
         return;
@@ -2045,9 +2078,10 @@ fn collect_imported_meta_anchors_from_stmts(
                 })
                 .then(|| {
                     let mut symbols = BTreeMap::new();
+                    let line_starts = source_line_start_offsets(imported_source);
                     collect_parsed_meta_rule_symbols(
                         imported_module.statements(),
-                        imported_source,
+                        &line_starts,
                         &mut symbols,
                     );
                     symbols
@@ -2064,11 +2098,12 @@ fn collect_imported_meta_anchors_from_stmts(
                 .spans
                 .retain(|span| labels.contains(&span.label));
             if !imported_index.anchors.is_empty() {
-                resolve_meta_references_from_stmts(
+                resolve_meta_references_from_stmts_and_checker(
                     imported_source,
                     imported_module.statements(),
                     Some(imported_dir.clone()),
                     &mut imported_index,
+                    checker,
                 );
             }
             index.comments.extend(imported_index.comments);
@@ -2083,6 +2118,7 @@ fn collect_imported_meta_anchors_from_stmts(
             labels,
             visited,
             index,
+            checker,
         );
     }
 }
@@ -2098,7 +2134,8 @@ fn scan_meta_comment_structure(source: &str) -> MetaIndex {
 
 fn scan_meta_comment_structure_from_stmts(source: &str, stmts: &[Stmt]) -> MetaIndex {
     let mut symbols = BTreeMap::new();
-    collect_parsed_meta_rule_symbols(stmts, source, &mut symbols);
+    let line_starts = source_line_start_offsets(source);
+    collect_parsed_meta_rule_symbols(stmts, &line_starts, &mut symbols);
     scan_meta_comment_structure_with_rule_symbols(source, Some(symbols))
 }
 
@@ -2938,6 +2975,10 @@ fn source_line_start_offsets(source: &str) -> Vec<usize> {
     starts
 }
 
+fn source_line_for_offset(line_starts: &[usize], offset: usize) -> usize {
+    line_starts.partition_point(|start| *start <= offset)
+}
+
 fn index_meta_binding_definition_lines(source: &str) -> BTreeMap<String, Vec<usize>> {
     let mut lines = BTreeMap::<String, Vec<usize>>::new();
     for (index, line) in source.lines().enumerate() {
@@ -3043,7 +3084,17 @@ fn resolve_meta_references_from_stmts(
     source_dir: Option<String>,
     index: &mut MetaIndex,
 ) {
-    resolve_meta_references_with_stmts(source, Some(stmts), source_dir, index);
+    resolve_meta_references_from_stmts_and_checker(source, stmts, source_dir, index, None);
+}
+
+fn resolve_meta_references_from_stmts_and_checker(
+    source: &str,
+    stmts: &[Stmt],
+    source_dir: Option<String>,
+    index: &mut MetaIndex,
+    checker: Option<&TypeChecker>,
+) {
+    resolve_meta_references_with_stmts_and_checker(source, Some(stmts), source_dir, index, checker);
 }
 
 fn resolve_meta_references_with_stmts(
@@ -3051,6 +3102,16 @@ fn resolve_meta_references_with_stmts(
     stmts: Option<&[Stmt]>,
     source_dir: Option<String>,
     index: &mut MetaIndex,
+) {
+    resolve_meta_references_with_stmts_and_checker(source, stmts, source_dir, index, None);
+}
+
+fn resolve_meta_references_with_stmts_and_checker(
+    source: &str,
+    stmts: Option<&[Stmt]>,
+    source_dir: Option<String>,
+    index: &mut MetaIndex,
+    checker: Option<&TypeChecker>,
 ) {
     let mut has_valid_reference = false;
     let mut referenced_bindings = BTreeSet::new();
@@ -3102,13 +3163,21 @@ fn resolve_meta_references_with_stmts(
         &parsed_stmts
     };
 
-    let checked_stmts = prepend_prelude(parse_prelude(), stmts);
-    let mut checker = TypeChecker::new();
-    checker.source_dir = source_dir.clone();
-    checker.source_text = source.to_string();
-    checker.collect_declarations(&checked_stmts);
-    checker.infer_rule_return_types(&checked_stmts);
-    checker.infer_top_level_binding_types(&checked_stmts);
+    // Calculation extraction resolves many imported anchors. Reuse the checked
+    // graph instead of rebuilding the same declarations for every anchor.
+    let owned_checker = checker.is_none().then(|| {
+        let checked_stmts = prepend_prelude(parse_prelude(), stmts);
+        let mut checker = TypeChecker::new();
+        checker.source_dir = source_dir.clone();
+        checker.source_text = source.to_string();
+        checker.collect_declarations(&checked_stmts);
+        checker.infer_rule_return_types(&checked_stmts);
+        checker.infer_top_level_binding_types(&checked_stmts);
+        checker
+    });
+    let checker = checker
+        .or(owned_checker.as_ref())
+        .expect("metadata resolution has a type checker");
 
     let mut bindings = BTreeMap::new();
     collect_local_meta_bindings(source, stmts, None, &mut bindings);
@@ -3272,7 +3341,7 @@ fn meta_binding_definition_line(
     definition_lines: &BTreeMap<String, Vec<usize>>,
     line_starts: &[usize],
 ) -> usize {
-    let expr_line = line_starts.partition_point(|start| *start <= expr.span.start);
+    let expr_line = source_line_for_offset(line_starts, expr.span.start);
     definition_lines
         .get(name)
         .into_iter()
@@ -3440,13 +3509,14 @@ fn parsed_meta_rule_symbols(source: &str) -> Option<BTreeMap<usize, Vec<String>>
     let mut parser = Parser::new(tokens, source);
     let stmts = parser.parse_program().ok()?;
     let mut symbols = BTreeMap::new();
-    collect_parsed_meta_rule_symbols(&stmts, source, &mut symbols);
+    let line_starts = source_line_start_offsets(source);
+    collect_parsed_meta_rule_symbols(&stmts, &line_starts, &mut symbols);
     Some(symbols)
 }
 
 fn collect_parsed_meta_rule_symbols(
     stmts: &[Stmt],
-    source: &str,
+    line_starts: &[usize],
     symbols: &mut BTreeMap<usize, Vec<String>>,
 ) {
     for stmt in stmts {
@@ -3463,7 +3533,7 @@ fn collect_parsed_meta_rule_symbols(
                     | Rule::Exception { head, .. } => head,
                     Rule::ReactiveScope { .. } => unreachable!(),
                 };
-                let (line, _) = head.span.start_line_col(source);
+                let line = source_line_for_offset(line_starts, head.span.start);
                 symbols.entry(line).or_default().push(name);
             }
             Stmt::Rule(Rule::ReactiveScope { body, .. })
@@ -3471,7 +3541,7 @@ fn collect_parsed_meta_rule_symbols(
             | Stmt::Defn(Defn::Module { body, .. })
             | Stmt::For(_, _, body)
             | Stmt::While(_, body) => {
-                collect_parsed_meta_rule_symbols(body, source, symbols);
+                collect_parsed_meta_rule_symbols(body, line_starts, symbols);
             }
             Stmt::Prove {
                 pass_block,
@@ -3479,10 +3549,10 @@ fn collect_parsed_meta_rule_symbols(
                 ..
             } => {
                 if let Some(body) = pass_block {
-                    collect_parsed_meta_rule_symbols(body, source, symbols);
+                    collect_parsed_meta_rule_symbols(body, line_starts, symbols);
                 }
                 if let Some(body) = else_block {
-                    collect_parsed_meta_rule_symbols(body, source, symbols);
+                    collect_parsed_meta_rule_symbols(body, line_starts, symbols);
                 }
             }
             _ => {}
@@ -21917,6 +21987,20 @@ mod tests {
         let source = "æøå\nKildeskatRestskatOpkrævningInput";
         let offset = source.chars().position(|c| c == 'K').unwrap();
         assert_eq!(char_offset_to_line_col(source, offset), (2, 1));
+    }
+
+    #[test]
+    fn indexed_source_lines_match_unicode_span_conversion() {
+        let source = "æøå\nfirst\n日本語\nlast";
+        let line_starts = source_line_start_offsets(source);
+
+        for offset in 0..=source.chars().count() {
+            assert_eq!(
+                source_line_for_offset(&line_starts, offset),
+                char_offset_to_line_col(source, offset).0,
+                "character offset {offset}"
+            );
+        }
     }
 
     #[test]

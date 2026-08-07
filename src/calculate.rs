@@ -714,8 +714,13 @@ pub(crate) fn extract_calculation_contracts_with_checker(
     for candidate in &candidates {
         collect_reachable_type_names(&candidate.input, &catalog, &mut metadata_labels);
     }
-    let meta_index =
-        scan_meta_comments_with_imported_labels(source, source_dir.clone(), &metadata_labels);
+    let meta_index = scan_meta_comments_with_imported_labels_and_checker(
+        source,
+        stmts,
+        source_dir.clone(),
+        &metadata_labels,
+        checker,
+    );
     let mut contracts = Vec::new();
     let mut metadata_diagnostics = Vec::new();
     for candidate in candidates {

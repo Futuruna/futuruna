@@ -25,6 +25,14 @@ toml = "1.1"
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
+# Calculation contracts can be large. Hashing them is compiler runtime work, so
+# keep SHA-256 optimized without hiding Futuruna stack frames in dev/test builds.
+[profile.dev.package.sha2]
+opt-level = 3
+
+[profile.test.package.sha2]
+opt-level = 3
+
 [[bin]]
 name = "runa"
 path = "src/bin/runa.rs"

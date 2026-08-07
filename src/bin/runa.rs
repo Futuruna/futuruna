@@ -16889,6 +16889,44 @@ impl TypeRegistry {
     }
 }
 
+type RuleScopeMethodInference = (
+    BTreeMap<String, Vec<String>>,
+    BTreeMap<String, Vec<FirTy>>,
+    BTreeMap<String, FirTy>,
+);
+
+#[derive(Clone, Default)]
+struct RuleInferenceDependencies {
+    functions: BTreeSet<String>,
+    member_methods: BTreeSet<String>,
+}
+
+#[derive(Clone)]
+struct RuleScopeInferenceCacheEntry {
+    dependencies: RuleInferenceDependencies,
+    function_versions: BTreeMap<String, u64>,
+    member_versions: BTreeMap<String, u64>,
+    global_binding_revision: u64,
+    result: RuleScopeMethodInference,
+}
+
+#[derive(Clone)]
+struct RuleSignatureInference {
+    params: Vec<String>,
+    param_tys: Vec<FirTy>,
+    return_type: Option<String>,
+}
+
+#[derive(Clone)]
+struct RuleSignatureInferenceCacheEntry {
+    dependencies: RuleInferenceDependencies,
+    function_versions: BTreeMap<String, u64>,
+    member_versions: BTreeMap<String, u64>,
+    global_binding_revision: u64,
+    environment_revision: u64,
+    result: RuleSignatureInference,
+}
+
 struct RustCodegen {
     indent: usize,
     /// Shared type metadata
@@ -16991,6 +17029,18 @@ struct RustCodegen {
     current_rule_scope_methods: BTreeMap<String, usize>,
     /// RuleScope type currently being emitted, for hidden-global member calls.
     current_rule_scope_name: Option<String>,
+    /// Per-callable signature revisions used to invalidate dependent inference units.
+    rule_signature_versions: BTreeMap<String, u64>,
+    /// Per-method revisions across RuleScope types, keyed conservatively by method name.
+    rule_scope_member_signature_versions: BTreeMap<String, u64>,
+    /// Revision for top-level binding types visible while inferring rule bodies.
+    global_binding_type_revision: u64,
+    /// Finalized RuleScope method inference reused until a dependency changes.
+    rule_scope_inference_cache: BTreeMap<String, RuleScopeInferenceCacheEntry>,
+    /// Finalized top-level rule signatures reused until a dependency changes.
+    rule_signature_inference_cache: BTreeMap<String, RuleSignatureInferenceCacheEntry>,
+    /// Coarse revision for inference registries populated between compiler phases.
+    rule_inference_environment_revision: u64,
     /// Stored invariants for ? verification: name -> (subject_expr, predicate_expr)
     codegen_invariants: BTreeMap<String, (Expr, Expr)>,
     /// Actor handle variables: var_name -> actor_name (for qualifying __Ask in ask())
@@ -21418,7 +21468,10 @@ fn collect_called_targets(
     call_signatures: &mut BTreeSet<(String, usize)>,
 ) {
     match stmt {
-        Stmt::Expr(expr) | Stmt::Bind(_, _, expr) => {
+        Stmt::Expr(expr)
+        | Stmt::Bind(_, _, expr)
+        | Stmt::MonadicBind(_, _, expr)
+        | Stmt::StreamBind(_, expr) => {
             collect_called_targets_expr(expr, called, member_calls, call_signatures)
         }
         Stmt::For(_, iter, body) | Stmt::While(iter, body) => {
@@ -21426,6 +21479,47 @@ fn collect_called_targets(
             for s in body {
                 collect_called_targets(s, called, member_calls, call_signatures);
             }
+        }
+        Stmt::Send(target, message) => {
+            collect_called_targets_expr(target, called, member_calls, call_signatures);
+            collect_called_targets_expr(message, called, member_calls, call_signatures);
+        }
+        Stmt::StreamSub(expr, arms) => {
+            collect_called_targets_expr(expr, called, member_calls, call_signatures);
+            for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_called_targets_expr(guard, called, member_calls, call_signatures);
+                }
+                collect_called_targets_expr(&arm.body, called, member_calls, call_signatures);
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            collect_called_targets_expr(subject, called, member_calls, call_signatures);
+            collect_called_targets_expr(predicate, called, member_calls, call_signatures);
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            for stmt in pass_block.iter().chain(else_block).flatten() {
+                collect_called_targets(stmt, called, member_calls, call_signatures);
+            }
+        }
+        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+            for stmt in body {
+                collect_called_targets(stmt, called, member_calls, call_signatures);
+            }
+        }
+        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            for arg in args {
+                collect_called_targets_expr(arg, called, member_calls, call_signatures);
+            }
+        }
+        Stmt::Defn(Defn::Fn { body, .. }) => {
+            collect_called_targets_expr(body, called, member_calls, call_signatures);
         }
         _ => {}
     }
@@ -21474,6 +21568,9 @@ fn collect_called_targets_expr(
         ExprKind::Match(scrutinee, arms) => {
             collect_called_targets_expr(scrutinee, called, member_calls, call_signatures);
             for arm in arms {
+                if let Some(guard) = &arm.guard {
+                    collect_called_targets_expr(guard, called, member_calls, call_signatures);
+                }
                 collect_called_targets_expr(&arm.body, called, member_calls, call_signatures);
             }
         }
@@ -21855,6 +21952,12 @@ impl RustCodegen {
             scope_stream_bindings: BTreeMap::new(),
             current_rule_scope_methods: BTreeMap::new(),
             current_rule_scope_name: None,
+            rule_signature_versions: BTreeMap::new(),
+            rule_scope_member_signature_versions: BTreeMap::new(),
+            global_binding_type_revision: 0,
+            rule_scope_inference_cache: BTreeMap::new(),
+            rule_signature_inference_cache: BTreeMap::new(),
+            rule_inference_environment_revision: 0,
             codegen_invariants: BTreeMap::new(),
             actor_handle_vars: BTreeMap::new(),
             actor_message_site_tys: BTreeMap::new(),
@@ -26402,8 +26505,9 @@ impl RustCodegen {
             }
         }
 
-        self.binary_global_binding_types =
+        let initial_binding_types =
             self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+        self.set_binary_global_binding_types(initial_binding_types);
 
         // Rule bodies can project fields from top-level values, while those values can
         // themselves be produced by value-returning rules. Resolve both sides together
@@ -26413,8 +26517,7 @@ impl RustCodegen {
                 self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
             let next_binding_types =
                 self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
-            let binding_types_changed = next_binding_types != self.binary_global_binding_types;
-            self.binary_global_binding_types = next_binding_types;
+            let binding_types_changed = self.set_binary_global_binding_types(next_binding_types);
 
             if !signatures_changed && !binding_types_changed {
                 break;
@@ -26596,10 +26699,12 @@ impl RustCodegen {
             // This lets `| a(x) -> b(x)` and `| rate() -> params().rate`
             // infer through the same FIR function type path as ordinary
             // `>` functions instead of falling back to predicate/bool codegen.
+            self.rule_inference_environment_revision += 1;
             self.register_value_returning_rule_signatures(&rule_groups);
 
-            self.binary_global_binding_types =
+            let final_binding_types =
                 self.collect_top_level_binding_rust_types(&main_stmts, &self.lib_static_names);
+            self.set_binary_global_binding_types(final_binding_types);
 
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
@@ -27399,6 +27504,104 @@ impl RustCodegen {
         }
     }
 
+    fn bump_rule_signature_version(&mut self, name: &str) {
+        *self
+            .rule_signature_versions
+            .entry(name.to_string())
+            .or_default() += 1;
+    }
+
+    fn bump_rule_scope_member_signature_version(&mut self, method: &str) {
+        *self
+            .rule_scope_member_signature_versions
+            .entry(method.to_string())
+            .or_default() += 1;
+    }
+
+    fn set_binary_global_binding_types(&mut self, types: BTreeMap<String, String>) -> bool {
+        if self.binary_global_binding_types == types {
+            return false;
+        }
+        self.binary_global_binding_types = types;
+        self.global_binding_type_revision += 1;
+        true
+    }
+
+    fn collect_rule_signature_dependencies(
+        fn_name: &str,
+        rules: &[&Rule],
+        params: &[String],
+    ) -> RuleInferenceDependencies {
+        let bound: BTreeSet<String> = params.iter().cloned().collect();
+        let mut dependencies = RuleInferenceDependencies::default();
+        for rule in rules {
+            let mut exprs = Vec::new();
+            Self::rule_value_and_condition_exprs(rule, &mut exprs);
+            for expr in exprs {
+                collect_true_free_vars(expr, &mut dependencies.functions, &bound);
+                let mut called = BTreeSet::new();
+                let mut member_calls = BTreeSet::new();
+                let mut call_signatures = BTreeSet::new();
+                collect_called_targets_expr(
+                    expr,
+                    &mut called,
+                    &mut member_calls,
+                    &mut call_signatures,
+                );
+                dependencies.functions.extend(called);
+                dependencies.member_methods.extend(member_calls);
+            }
+        }
+        dependencies.functions.remove(fn_name);
+        dependencies
+    }
+
+    fn infer_rule_signature_cached(
+        &mut self,
+        fn_name: &str,
+        rules: &[&Rule],
+    ) -> RuleSignatureInference {
+        let params = Self::rule_params(rules);
+        let dependencies = self
+            .rule_signature_inference_cache
+            .get(fn_name)
+            .map(|entry| entry.dependencies.clone())
+            .unwrap_or_else(|| Self::collect_rule_signature_dependencies(fn_name, rules, &params));
+        let (function_versions, member_versions) =
+            self.rule_inference_dependency_versions(&dependencies);
+        if let Some(entry) = self.rule_signature_inference_cache.get(fn_name) {
+            if entry.function_versions == function_versions
+                && entry.member_versions == member_versions
+                && entry.global_binding_revision == self.global_binding_type_revision
+                && entry.environment_revision == self.rule_inference_environment_revision
+            {
+                return entry.result.clone();
+            }
+        }
+
+        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
+        let return_type = self
+            .infer_rule_return_type(rules, &params, &param_tys)
+            .map(|ty| Self::normalize_rule_rust_type(&ty));
+        let result = RuleSignatureInference {
+            params,
+            param_tys,
+            return_type,
+        };
+        self.rule_signature_inference_cache.insert(
+            fn_name.to_string(),
+            RuleSignatureInferenceCacheEntry {
+                dependencies,
+                function_versions,
+                member_versions,
+                global_binding_revision: self.global_binding_type_revision,
+                environment_revision: self.rule_inference_environment_revision,
+                result: result.clone(),
+            },
+        );
+        result
+    }
+
     fn register_value_returning_rule_signatures<'a>(
         &mut self,
         rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
@@ -27407,33 +27610,45 @@ impl RustCodegen {
         for _ in 0..rule_groups.len().max(1) {
             let mut changed = false;
             for (fn_name, rules) in rule_groups {
-                let params = Self::rule_params(rules);
+                let inference = self.infer_rule_signature_cached(fn_name, rules);
+                let params = inference.params;
                 if !params.is_empty() || Self::rule_arity(rules) == 0 {
                     self.types
                         .call_params
                         .entry(fn_name.clone())
                         .or_insert(params.clone());
                 }
-                let param_tys = self.infer_rule_param_fir_tys(&params, rules);
-                let Some(ret_type) = self.infer_rule_return_type(rules, &params, &param_tys) else {
+                let param_tys = inference.param_tys;
+                let Some(ret_type) = inference.return_type else {
                     continue;
                 };
-                let ret_type = Self::normalize_rule_rust_type(&ret_type);
                 let mut fn_ty = Self::rust_type_to_fir(&ret_type);
                 for param_ty in param_tys.iter().rev() {
                     fn_ty = FirTy::Arrow(Box::new(param_ty.clone()), Box::new(fn_ty));
                 }
+                let mut signature_changed = false;
                 if self.types.fn_types.get(fn_name.as_str()) != Some(&fn_ty) {
                     self.types.fn_types.insert(fn_name.clone(), fn_ty.clone());
-                    changed = true;
-                    any_changed = true;
+                    signature_changed = true;
                 }
-                self.types
+                if self
+                    .types
                     .fn_types_by_arity
-                    .insert((fn_name.clone(), params.len()), fn_ty);
+                    .get(&(fn_name.clone(), params.len()))
+                    != Some(&fn_ty)
+                {
+                    self.types
+                        .fn_types_by_arity
+                        .insert((fn_name.clone(), params.len()), fn_ty);
+                    signature_changed = true;
+                }
                 if self.fn_return_types.get(fn_name.as_str()) != Some(&ret_type) {
                     self.fn_return_types
                         .insert(fn_name.clone(), ret_type.clone());
+                    signature_changed = true;
+                }
+                if signature_changed {
+                    self.bump_rule_signature_version(fn_name);
                     changed = true;
                     any_changed = true;
                 }
@@ -27467,6 +27682,9 @@ impl RustCodegen {
         self.types
             .rule_scope_member_fn_types
             .insert(rust_key, fn_ty);
+        if changed {
+            self.bump_rule_scope_member_signature_version(method);
+        }
         changed
     }
 
@@ -27479,7 +27697,7 @@ impl RustCodegen {
         let rust_name = self.rust_type_name(scope_name);
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
         let (_method_params, method_param_tys, method_return_tys) =
-            self.infer_rule_scope_method_types(scope_name, &rust_name, params, &rule_groups);
+            self.infer_rule_scope_method_types(scope_name, &rust_name, params, body, &rule_groups);
         let mut changed = false;
 
         for (method, param_tys) in &method_param_tys {
@@ -28466,17 +28684,134 @@ impl RustCodegen {
         ))
     }
 
+    fn collect_rule_scope_inference_dependencies(
+        scope_params: &[Param],
+        body: &[Stmt],
+        rule_groups: &BTreeMap<String, Vec<&Rule>>,
+    ) -> RuleInferenceDependencies {
+        let local_rule_methods: BTreeSet<String> = rule_groups.keys().cloned().collect();
+        let local_value_methods: BTreeSet<String> = Self::rule_scope_defn_methods(body)
+            .into_iter()
+            .filter_map(|method| match method {
+                Defn::Fn { name, .. } => Some(name.clone()),
+                _ => None,
+            })
+            .collect();
+        let scope_bound: BTreeSet<String> = scope_params
+            .iter()
+            .map(|param| param.name.clone())
+            .collect();
+        let mut dependencies = RuleInferenceDependencies::default();
+
+        let mut collect_expr = |expr: &Expr, bound: &BTreeSet<String>| {
+            let mut free = BTreeSet::new();
+            collect_true_free_vars(expr, &mut free, bound);
+            for name in free {
+                if local_value_methods.contains(&name) {
+                    dependencies.member_methods.insert(name);
+                } else if !local_rule_methods.contains(&name) {
+                    dependencies.functions.insert(name);
+                }
+            }
+
+            let mut called = BTreeSet::new();
+            let mut member_calls = BTreeSet::new();
+            let mut call_signatures = BTreeSet::new();
+            collect_called_targets_expr(expr, &mut called, &mut member_calls, &mut call_signatures);
+            for name in called {
+                if local_value_methods.contains(&name) {
+                    dependencies.member_methods.insert(name);
+                } else if !local_rule_methods.contains(&name) {
+                    dependencies.functions.insert(name);
+                }
+            }
+            dependencies.member_methods.extend(member_calls);
+        };
+
+        for rules in rule_groups.values() {
+            let mut bound = scope_bound.clone();
+            bound.extend(Self::rule_params(rules));
+            for rule in rules {
+                let mut exprs = Vec::new();
+                Self::rule_value_and_condition_exprs(rule, &mut exprs);
+                for expr in exprs {
+                    collect_expr(expr, &bound);
+                }
+            }
+        }
+
+        for method in Self::rule_scope_defn_methods(body) {
+            let Defn::Fn { params, body, .. } = method else {
+                continue;
+            };
+            let mut bound = scope_bound.clone();
+            bound.extend(params.iter().map(|param| param.name.clone()));
+            bound.insert("self".to_string());
+            collect_expr(body, &bound);
+        }
+
+        dependencies
+    }
+
+    fn rule_inference_dependency_versions(
+        &self,
+        dependencies: &RuleInferenceDependencies,
+    ) -> (BTreeMap<String, u64>, BTreeMap<String, u64>) {
+        let function_versions = dependencies
+            .functions
+            .iter()
+            .map(|name| {
+                (
+                    name.clone(),
+                    self.rule_signature_versions
+                        .get(name.as_str())
+                        .copied()
+                        .unwrap_or_default(),
+                )
+            })
+            .collect();
+        let member_versions = dependencies
+            .member_methods
+            .iter()
+            .map(|method| {
+                (
+                    method.clone(),
+                    self.rule_scope_member_signature_versions
+                        .get(method.as_str())
+                        .copied()
+                        .unwrap_or_default(),
+                )
+            })
+            .collect();
+        (function_versions, member_versions)
+    }
+
     fn infer_rule_scope_method_types(
         &mut self,
         scope_name: &str,
         rust_name: &str,
         scope_params: &[Param],
+        body: &[Stmt],
         rule_groups: &BTreeMap<String, Vec<&Rule>>,
-    ) -> (
-        BTreeMap<String, Vec<String>>,
-        BTreeMap<String, Vec<FirTy>>,
-        BTreeMap<String, FirTy>,
-    ) {
+    ) -> RuleScopeMethodInference {
+        let dependencies = self
+            .rule_scope_inference_cache
+            .get(scope_name)
+            .map(|entry| entry.dependencies.clone())
+            .unwrap_or_else(|| {
+                Self::collect_rule_scope_inference_dependencies(scope_params, body, rule_groups)
+            });
+        let (function_versions, member_versions) =
+            self.rule_inference_dependency_versions(&dependencies);
+        if let Some(entry) = self.rule_scope_inference_cache.get(scope_name) {
+            if entry.function_versions == function_versions
+                && entry.member_versions == member_versions
+                && entry.global_binding_revision == self.global_binding_type_revision
+            {
+                return entry.result.clone();
+            }
+        }
+
         let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
         let mut method_params = BTreeMap::new();
         let mut method_param_tys = BTreeMap::new();
@@ -28581,7 +28916,18 @@ impl RustCodegen {
             }
         }
 
-        (method_params, method_param_tys, method_return_tys)
+        let result = (method_params, method_param_tys, method_return_tys);
+        self.rule_scope_inference_cache.insert(
+            scope_name.to_string(),
+            RuleScopeInferenceCacheEntry {
+                dependencies,
+                function_versions,
+                member_versions,
+                global_binding_revision: self.global_binding_type_revision,
+                result: result.clone(),
+            },
+        );
+        result
     }
 
     fn emit_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) -> String {
@@ -28602,7 +28948,7 @@ impl RustCodegen {
             }
         }
         let (method_params, method_param_tys, method_return_tys) =
-            self.infer_rule_scope_method_types(name, &rust_name, params, &rule_groups);
+            self.infer_rule_scope_method_types(name, &rust_name, params, body, &rule_groups);
         let mut method_arities: BTreeMap<String, usize> = method_params
             .iter()
             .map(|(method, params)| (method.clone(), params.len()))
@@ -32897,10 +33243,9 @@ impl RustCodegen {
 
         // --- Original Catala-style codegen ---
 
-        // Extract params from the first rule's head
-        let params = Self::rule_params(rules);
-
-        let inferred_param_tys = self.infer_rule_param_fir_tys(&params, rules);
+        let inference = self.infer_rule_signature_cached(fn_name, rules);
+        let params = inference.params;
+        let inferred_param_tys = inference.param_tys;
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
             .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
@@ -32923,9 +33268,7 @@ impl RustCodegen {
         };
 
         // Infer return type from FIR, seeded with inferred rule param types.
-        let ret_type = self
-            .infer_rule_return_type(rules, &params, &inferred_param_tys)
-            .unwrap_or_else(|| "bool".to_string());
+        let ret_type = inference.return_type.unwrap_or_else(|| "bool".to_string());
         let ret_fir_ty = Self::rust_type_to_fir(&ret_type);
 
         // Mark non-Copy rule params for .clone() at each use site
