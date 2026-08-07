@@ -1409,7 +1409,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Samordning med langtidsudlejning",
             "Personen, som beregningen vedrører",
             "Din ægtefælles identifikation",
-            "Din folkepensionsalder",
+            "Ejendomsejerens folkepensionsalder",
             "Samlevende ægtefælles folkepensionsalder",
             "Skattemæssigt hjemsted for pensionistnedslag",
             "Årsopgørelse",
@@ -2079,6 +2079,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing canonical property-tax source-fact path {expected} on {property_tax_sheet}"
             );
         }
+        let spouse_property_tax_path = "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.ejendomme";
+        let spouse_property_tax_sheet =
+            workbook_collection_sheet_name(&mut workbook, spouse_property_tax_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &spouse_property_tax_sheet),
+            "Dansk personskat - Ejendomme med ejendomsskatter"
+        );
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &spouse_property_tax_sheet),
+            property_tax_paths,
+            "spouse property table must expose the same typed source facts"
+        );
         let residence_municipality_choices =
             workbook_column_choices(&mut workbook, "cases", "lønmodtager.kommune");
         let property_municipality_choices = workbook_column_choices(
@@ -2128,6 +2140,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human property-tax input label {expected} on {property_tax_sheet}"
             );
         }
+        assert_eq!(
+            workbook_headers(&mut workbook, &spouse_property_tax_sheet),
+            property_tax_headers,
+            "spouse property table must reuse the human property-tax labels"
+        );
         let cfc_path = "cfc.poster";
         let cfc_sheet = workbook_collection_sheet_name(&mut workbook, cfc_path);
         assert_eq!(
@@ -2907,6 +2924,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ægtefælle.$variant",
             "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
             "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
+            "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.ejer_folkepensionsalder.$variant",
             "ægtefælle.MedÆgtefælle.samlevende_ved_indkomstårets_udløb",
             "årsopgørelse.$variant",
             "årsopgørelse.MedÅrsopgørelse.kreditter.a_skat_og_am_indeholdt_kroner",
@@ -5502,6 +5520,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.underskudsforhold.$variant",
                 Data::String("StandardUnderskudsforhold".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.ejer_folkepensionsalder.$variant",
+                Data::String("EjskFolkepensionsalderIkkeOpnået".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.samlevende_ægtefælles_folkepensionsalder.$variant",
+                Data::String("EjskFolkepensionsalderIkkeOpnået".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.skattemæssigt_hjemsted.$variant",
+                Data::String("EjskFuldtSkattepligtigEfterKildeskattelovensPar1".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.egen_udbytteindkomst_kroner",
+                Data::String("0".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.ejendomsskatter.person.ægtefælles_udbytteindkomst_kroner",
+                Data::String("0".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.samlevende_ved_indkomstårets_udløb",
@@ -10879,6 +10917,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         },
         "samlevende_ved_indkomstårets_udløb": true
     });
+    spouse_case["input"]["ægtefælle"]["fakta"]["ejendomsskatter"] =
+        spouse_case["input"]["ejendomsskatter"].clone();
     let par37_spouse_relationship = spouse_case["input"]["ægtefælle"].clone();
     json_input["cases"]
         .as_array_mut()
@@ -10940,7 +10980,80 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
-        .push(property_tax_case);
+        .push(property_tax_case.clone());
+    let mut spouse_property_credit_case = property_tax_case.clone();
+    spouse_property_credit_case["case_id"] =
+        Value::String("personskat-par8a-aegtefaelle-ejendomsskatter-2025".into());
+    spouse_property_credit_case["input"]["ejendomsskatter"] =
+        json_input["cases"][0]["input"]["ejendomsskatter"].clone();
+    spouse_property_credit_case["input"]["ægtefælle"] = par37_spouse_relationship.clone();
+    spouse_property_credit_case["input"]["ægtefælle"]["fakta"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    spouse_property_credit_case["input"]["ægtefælle"]["fakta"]["ejendomsskatter"] =
+        property_tax_case["input"]["ejendomsskatter"].clone();
+    spouse_property_credit_case["input"]["aktieavance"] = serde_json::json!({
+        "ordinært_aktieår": {
+            "$variant": "MedOrdinærtAktieår",
+            "input": {
+                "indkomstår": 2025,
+                "hændelsesforløb": [{
+                    "position_primo": {
+                        "selskabsidentifikation": "DK-PAR8A-AEGTEFAELLE-EJENDOM",
+                        "kapitalmængde": {
+                            "$variant": "AblAktiekapitalUdenPålydendeVærdi",
+                            "antal_aktier": 100
+                        },
+                        "anskaffelsessum_kroner": 1_500_000
+                    },
+                    "hændelser": [{
+                        "$variant": "AblOrdinærAfståelse",
+                        "kapitalmængde": {
+                            "$variant": "AblAktiekapitalUdenPålydendeVærdi",
+                            "antal_aktier": 100
+                        },
+                        "afståelsessum_kroner": 0,
+                        "par5a_kildefakta": {
+                            "$variant": "AblOrdinærPar5AKildefakta",
+                            "fakta": {
+                                "anvendelsesgrundlag": {
+                                    "$variant": "AblPar5AAfståelseDen24November2010EllerSenere"
+                                },
+                                "skatteydergrundlag": {
+                                    "$variant": "AblPar5APersonSkattepligtigEfterPar7"
+                                },
+                                "ejertidsudbytter": [],
+                                "præferenceposition": {
+                                    "modtaget_tilsvarende_udbytte_kroner": 0,
+                                    "allerede_anvendt_til_tabsreduktion_kroner": 0
+                                },
+                                "koncernbeløb": []
+                            }
+                        },
+                        "vilkår": {
+                            "markedsstatus": { "$variant": "AblIkkeOptagetTilHandel" },
+                            "har_tidligere_været_optaget_til_handel": false,
+                            "hovedaktionæraktier": false,
+                            "afståede_aktiers_handelsværdi_kroner": 0,
+                            "beholdte_aktiers_handelsværdi_kroner": 0,
+                            "oplysningsstatus": { "$variant": "AblOplystRettidigt" },
+                            "boligret": { "$variant": "AblUdenBoligret" }
+                        }
+                    }]
+                }],
+                "investeringsbeviser": [],
+                "fremført_tab_efter_par13a_kroner": 0
+            }
+        },
+        "særlige_aktiver": [],
+        "udbytter": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(spouse_property_credit_case);
     let mut debt_case = json_input["cases"][0].clone();
     debt_case["case_id"] = Value::String("personskat-kgl-gaeld-2026".into());
     debt_case["input"]["kapitalindkomst"]["kursgevinst"] = serde_json::json!({
@@ -11934,6 +12047,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-renter-befordring-2026")
         .expect("ordinary ABL share-loss JSON case")
         .clone();
+    let spouse_property_credit_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par8a-aegtefaelle-ejendomsskatter-2025")
+        .expect("spouse property-tax credit JSON case")
+        .clone();
     let annual_claim_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -11973,6 +12093,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         mixed_case,
         simultaneous_spouse_case,
         ordinary_share_loss_case,
+        spouse_property_credit_case,
         annual_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
@@ -12081,6 +12202,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .as_i64()
             .expect("gross tax before negative share-income tax")
             - 4_860
+    );
+    let json_spouse_property_credit_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par8a-aegtefaelle-ejendomsskatter-2025")
+        .expect("JSON spouse property-tax credit result");
+    let hydrated_spouse_property_credit_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-par8a-aegtefaelle-ejendomsskatter-2025")
+        .expect("hydrated XLSX spouse property-tax credit result");
+    assert_eq!(
+        hydrated_spouse_property_credit_result["result"],
+        json_spouse_property_credit_result["result"]
+    );
+    let spouse_property_credit_result = &json_spouse_property_credit_result["result"];
+    assert_eq!(
+        spouse_property_credit_result["ægtefælles_ejendomsskatter"]["$variant"],
+        "BeregnedeÆgtefælleEjendomsskatter"
+    );
+    assert_eq!(
+        spouse_property_credit_result["ægtefælles_ejendomsskatter"]["resultat"]
+            ["samlet_ejendomsskat_kroner"],
+        6_012
+    );
+    assert_eq!(
+        spouse_property_credit_result["negativ_aktieindkomstskat"]["input"]
+            ["ægtefælles_slutskat_før_negativ_skat_kroner"],
+        6_012
+    );
+    assert_eq!(
+        spouse_property_credit_result["negativ_aktieindkomstskat"]["egen"]
+            ["modregnet_i_ægtefælles_slutskat_kroner"],
+        6_012
     );
     let json_annual_claim_result = json_result["results"]
         .as_array()

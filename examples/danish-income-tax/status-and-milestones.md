@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
+Current implementation slice: `td-d85f63` (ægtefællens typede ejendomsskattekilder og beregningsresultat indgår nu i den komplette slutskat, som negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, kan modregnes i; rolleombytning og JSON/XLSX er verificeret)
+Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
 Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
@@ -34,7 +35,8 @@ Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkte
 Planned ABL § 44 completion: `td-85ed17` (statusændringens anskaffelsesgrundlag og typet fondsaktielinje)
 Current residual share-tax completion: `td-b95e35` (den signerede § 8 a-parberegning føres nu til egen modregning, ægtefællemodregning, Kildeskattelovens § 60-kredit og eksplicit fremførsel uden at ændre det rå ABL-kildespor)
 Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssaldi fører den uudnyttede § 8 a-skat videre mellem indkomstår uden afledte skatteinput; implementeret og verificeret, afventer uafhængig gennemgang)
-Planned spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder skal indgå i den komplette slutskat, som en § 8 a-overførsel kan modregnes i)
+Current spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
+Planned exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner skal bruge komplet slutskat efter § 8 a inklusive ejendomsskatter)
 Planned KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb skal kunne krydse nul uden at blive afvist eller beskåret)
 Planned KGL foreign-currency completion: `td-1e2380` (adskil kredit- og valutakomponenter efter KGL §§ 14 og 25)
 Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
@@ -82,6 +84,17 @@ ABL-resultater og ABL §§ 37-40-kilder ændres ikke. Rolleombytning, manglende
 samliv, ABL § 5 A-tab, ejendomsskat og samtidig fraflytning er verificeret
 fortolket og kompileret; de ordinære ABL- og fraflytningskilder krydser desuden
 samme JSON/XLSX-beregningsgrænse.
+
+Ægtefællens ejendomsskatter er nu en del af det samme kildedrevne
+persondomæne som løn, kapital- og aktieindkomst. Beregningen bevarer både de
+indsendte `EjendomsskattelovPersonÅrsfakta` og det afledte årsresultat for
+ægtefællen. Den komplette ejendomsværdiskat og grundskyld lægges til
+ægtefællens disponible slutskat før modregning efter Personskattelovens § 8
+a, stk. 5-6. En rolleombyttet 2025-sag viser samme resultat i begge retninger:
+6.012 kr. i ejendomsskatter giver præcis 6.012 kr. yderligere
+modregningskapacitet og reducerer fremførslen tilsvarende. De samme typede
+ejendomsfelter og danske etiketter genereres for begge personer, og den fulde
+JSON-til-XLSX-rundtur bevarer resultatet byteidentisk.
 
 Den uudnyttede negative aktieindkomstskat er nu også et kanonisk årsledger.
 Hver åbningstranche bevarer ejer og oprindelsesår og kommer enten fra det

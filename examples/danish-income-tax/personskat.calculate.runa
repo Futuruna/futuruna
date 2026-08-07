@@ -195,15 +195,16 @@
 # PersonskatNegativAktieskatFremførselsinput = UdenFremførtNegativAktieskat | FremførtNegativAktieskatFraForrigePersonskatÅr(resultat: PersonskatNegativAktieskatPersonÅrsresultat) | EksterntFastsatFremførtNegativAktieskat(trancher: List(PersonskatNegativAktieskatTranche), proveniens: PersonskatFastsættelsesproveniens)
 # PersonskatNegativAktieskatFremførselsparInput(hovedperson: PersonskatNegativAktieskatFremførselsinput, ægtefælle: PersonskatNegativAktieskatFremførselsinput)
 # PersonskatNegativAktieskatParÅrsresultat(indkomstår: Heltal, hovedperson: PersonskatNegativAktieskatPersonÅrsresultat, ægtefælle: Option(PersonskatNegativAktieskatPersonÅrsresultat), tidligere_fremført_negativ_skat: AktieindkomstNegativSkatFremførselsparResultat, alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput)
+# PersonskatPersonFakta(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta)
 # PersonskatÆgtefælleInput = UdenÆgtefælle | MedÆgtefælle(fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk)
 # PersonskatPersonGrundlagResultat(fakta: PersonskatPersonFakta, personlig_indkomst: PersonskatPersonligIndkomstResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, pension: PersonskatPensionsResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, lønmodtager_input: LønmodtagerInput, individuelle_skatteforhold: LønmodtagerSkatteforhold)
 # PersonskatÆgtefælleBeregningResultat = IngenÆgtefælleberegning | BeregnetÆgtefælle(fakta: PersonskatPersonFakta, grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, samlevende_ved_indkomstårets_udløb: Boolsk)
+# PersonskatÆgtefælleEjendomsskatterResultat = IngenÆgtefælleEjendomsskatter | BeregnedeÆgtefælleEjendomsskatter(fakta: EjendomsskattelovPersonÅrsfakta, resultat: EjendomsskattelovPersonÅrsresultat)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -1052,21 +1053,21 @@
     unit = None
 )
 = personskat_felt_ejendomsskat_ejer_folkepensionsalder = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::person::ejer_folkepensionsalder::$variant),
-    label = "Din folkepensionsalder",
-    question = Some("Har du nået folkepensionsalderen inden udgangen af skatteåret, og på hvilken dato skete det i givet fald?"),
+    path = refof(EjendomsskattelovPersonKildeFakta::ejer_folkepensionsalder::$variant),
+    label = "Ejendomsejerens folkepensionsalder",
+    question = Some("Har ejendomsejeren nået folkepensionsalderen inden udgangen af skatteåret, og på hvilken dato skete det i givet fald?"),
     help = Some("Datoen bruges til at udlede pensionistnedslaget efter ejendomsskattelovens § 25; feltet er ikke et valg af selve nedslaget."),
     unit = None
 )
 = personskat_felt_ejendomsskat_aegtefaelle_folkepensionsalder = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::person::samlevende_ægtefælles_folkepensionsalder::$variant),
+    path = refof(EjendomsskattelovPersonKildeFakta::samlevende_ægtefælles_folkepensionsalder::$variant),
     label = "Samlevende ægtefælles folkepensionsalder",
     question = Some("Har din samlevende ægtefælle nået folkepensionsalderen inden udgangen af skatteåret, og på hvilken dato skete det i givet fald?"),
     help = Some("Feltet bruges kun for en ægtefælle, som du er gift og samlevende med ved skatteårets udgang."),
     unit = None
 )
 = personskat_felt_ejendomsskat_hjemsted = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::person::skattemæssigt_hjemsted::$variant),
+    path = refof(EjendomsskattelovPersonKildeFakta::skattemæssigt_hjemsted::$variant),
     label = "Skattemæssigt hjemsted for pensionistnedslag",
     question = Some("Er du fuldt skattepligtig efter kildeskattelovens § 1 eller skattemæssigt hjemmehørende uden for Danmark?"),
     help = Some("Ved udenlandsk hjemsted skal både meddelte indkomstoplysninger og mulighed for administrativ udveksling fremgå af kildefakta."),
@@ -1241,7 +1242,7 @@
     unit = Some("basispoint")
 )
 = personskat_felt_ejendomsskat_oprindelig_erhvervelse = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::oprindelig_erhvervelsesdato::år),
+    path = refof(EjendomsskattelovEjerskabshistorik::oprindelig_erhvervelsesdato::år),
     label = "Oprindeligt erhvervelsesår i ejerforløbet",
     question = Some("I hvilket år begyndte det ejerforløb, som din nuværende ret til ejendommen bygger på?"),
     help = Some("Datoen og efterfølgende ejerskifter afgør rettigheder efter §§ 23-24 og overgangsrabatten; indtast ikke en berettigelsesvurdering."),
@@ -1255,14 +1256,14 @@
     unit = None
 )
 = personskat_felt_ejendomsskat_ejerskiftedato = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::ejerskifter::dato::år),
+    path = refof(EjendomsskattelovEjerskifte::dato::år),
     label = "Ejerskiftets år",
     question = Some("I hvilket år blev ejerskiftet registreret?"),
     help = Some("Ejerskifter skal stå i kronologisk rækkefølge efter den oprindelige erhvervelse."),
     unit = None
 )
 = personskat_felt_ejendomsskat_ejerskifteart = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::ejerskabshistorik::ejerskifter::art::$variant),
+    path = refof(EjendomsskattelovEjerskifte::art::$variant),
     label = "Ejerskiftets faktiske relation",
     question = Some("Var overdragelsen almindelig, mellem ægtefæller, til længstlevende, ved skilsmisse før bodeling eller mellem medejere?"),
     help = Some("Relationen styrer lovens udtrykkelige undtagelser til bortfald; den er ikke et felt for ønsket skattemæssig behandling."),
@@ -1297,14 +1298,14 @@
     unit = None
 )
 = personskat_felt_ejendomsskat_par24_grundlag = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::par24_beregningsgrundlag::$variant),
+    path = refof(EjendomsskattelovNedslagsfakta::par24_beregningsgrundlag::$variant),
     label = "Værdigrundlag for tofamilieshus efter § 24",
     question = Some("Skal § 24 anvende samme ejendomsværdi som § 13 eller hele ejendomsværdien for et tofamilieshus?"),
     help = Some("Ved tofamilieshuse angives den offentlige ejendomsværdi for hele ejendommen; Futuruna beregner selv 80-procentsgrundlaget."),
     unit = None
 )
 = personskat_felt_ejendomsskat_pensionistsuccession = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::nedslagsfakta::pensionistsuccession::$variant),
+    path = refof(EjendomsskattelovNedslagsfakta::pensionistsuccession::$variant),
     label = "Længstlevendes rådighed over ejendommen",
     question = Some("Bevarer en længstlevende ægtefælle rådigheden efter dødsfald eller flytning på plejehjem?"),
     help = Some("Hændelsesdato, separation, bevaret rådighed og eventuelt nyt ægteskab bruges til at udlede succession efter § 25, stk. 3."),
@@ -1353,14 +1354,14 @@
     unit = None
 )
 = personskat_felt_ejendomsskat_rabatvurderinger = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::overgangsvurderinger::rabat::$variant),
+    path = refof(EjendomsskattelovOvergangsvurderinger::rabat::$variant),
     label = "Kildegrundlag for skatterabat",
     question = Some("Foreligger vurderingerne og de historiske kildeoplysninger, som er nødvendige for at opgøre skatterabatten fra 2024?"),
     help = Some("Vælg kun oplyst, når kildefakta kan udfyldes. Futuruna beregner forskelsbeløb og rabat; indtast ikke et færdigt rabatbeløb."),
     unit = None
 )
 = personskat_felt_ejendomsskat_stigningsvurderinger = TypetBeregningsfelt(
-    path = refof(PersonskatInput::ejendomsskatter::ejendomme::overgangsvurderinger::stigningsbegrænsning::$variant),
+    path = refof(EjendomsskattelovOvergangsvurderinger::stigningsbegrænsning::$variant),
     label = "Kildegrundlag for stigningsbegrænsning",
     question = Some("Foreligger de historiske grundværdier, som er nødvendige for at opgøre stigningsbegrænsningen i grundskyld?"),
     help = Some("Vælg kun oplyst, når hvert kalenderårs kildefakta kan udfyldes. Futuruna udleder selv loftet efter § 45."),
@@ -12101,7 +12102,8 @@ fraflytningen."
     udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag,
     cfc = input.cfc,
     skatteforhold = input.skatteforhold,
-    underskudsforhold = input.underskudsforhold
+    underskudsforhold = input.underskudsforhold,
+    ejendomsskatter = input.ejendomsskatter
 )
 
 # PersonskatPersonGrundlagSag(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) {
@@ -12428,6 +12430,26 @@ fraflytningen."
     ægtefælles_indkomst = personskat_ejendomsskat_ægtefælle_indkomstkomponenter(parberegning.ægtefælle),
     gift_og_samlevende_ved_indkomstårets_udgang = personskat_ejendomsskat_gift_og_samlevende(parberegning.ægtefælle)
 )
+| personskat_ægtefælle_ejendomsskatter(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat) -> match ægtefælle {
+    | IngenÆgtefælleberegning -> IngenÆgtefælleEjendomsskatter
+    | BeregnetÆgtefælle(fakta, grundlag, _, samlevende) -> {
+        = kontekst = EjendomsskattelovPersonÅrskontekst(
+            indkomstår = grundlag.lønmodtager_input.skatteår,
+            kildefakta = fakta.ejendomsskatter.person,
+            egen_indkomst = personskat_ejendomsskat_indkomstkomponenter(grundlag),
+            ægtefælles_indkomst = personskat_ejendomsskat_indkomstkomponenter(hovedgrundlag),
+            gift_og_samlevende_ved_indkomstårets_udgang = samlevende
+        )
+        BeregnedeÆgtefælleEjendomsskatter(
+            fakta = fakta.ejendomsskatter,
+            resultat = ejendomsskattelov_person_årsresultat(kontekst, fakta.ejendomsskatter.ejendomme)
+        )
+    }
+}
+| personskat_ægtefælle_ejendomsskat_kroner(resultat: PersonskatÆgtefælleEjendomsskatterResultat) -> match resultat {
+    | IngenÆgtefælleEjendomsskatter -> 0
+    | BeregnedeÆgtefælleEjendomsskatter(_, ejendomsskatter) -> ejendomsskatter.samlet_ejendomsskat_kroner
+}
 | personskat_kgl_par32_justeret_aktieavance(før_par32: PersonskatAktieavanceParResultat, par32: PersonskatKursgevinstPar32ParResultat) -> match par32 {
     | IntetPar32Kontraktforløb -> før_par32
     | BeregnetPar32Kontraktforløb(_, aktuelt_årsresultat, _, _, _) -> aktuelt_årsresultat.aktieavance
@@ -12464,7 +12486,7 @@ fraflytningen."
     ægtefælle = personskat_ægtefælle_underskudsårsresultat(parberegning.ægtefælle),
     alle_åbningsgrundlag_gyldige = personskat_underskudsforhold_gyldigt(input.underskudsforhold, input.lønmodtager.skatteår) && personskat_ægtefælle_underskudsgrundlag_gyldigt(parberegning.ægtefælle, input.lønmodtager.skatteår)
 )
-| personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_kroner(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
+| personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_kroner(parberegning: PersonskatParberegningResultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat) -> match parberegning.ægtefælle {
     | IngenÆgtefælleberegning -> 0
     | BeregnetÆgtefælle(_, grundlag, skat, _) -> {
         = positiv_aktieindkomstskat = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
@@ -12473,14 +12495,14 @@ fraflytningen."
             effektivt_grundbeløb_kroner = parberegning.aktieindkomst_parår.ægtefælles_effektive_grundbeløb_kroner
         ))
         = sømandsbeskatning = søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning)
-        sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
+        sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner + personskat_ægtefælle_ejendomsskat_kroner(ægtefælles_ejendomsskatter)
     }
 }
-| personskat_negativ_aktieindkomstskat_resultat(parberegning: PersonskatParberegningResultat, hovedpersons_slutskat_før_negativ_aktieindkomstskat_kroner: Heltal) -> aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+| personskat_negativ_aktieindkomstskat_resultat(parberegning: PersonskatParberegningResultat, hovedpersons_slutskat_før_negativ_aktieindkomstskat_kroner: Heltal, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat) -> aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
     egen_negativ_skat_kroner = penge_positivt_beløb(0 - parberegning.aktieindkomst_parår.egen_skat_kroner),
     ægtefælles_negativ_skat_kroner = penge_positivt_beløb(0 - parberegning.aktieindkomst_parår.ægtefælles_skat_kroner),
     egen_slutskat_før_negativ_skat_kroner = hovedpersons_slutskat_før_negativ_aktieindkomstskat_kroner,
-    ægtefælles_slutskat_før_negativ_skat_kroner = personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_kroner(parberegning),
+    ægtefælles_slutskat_før_negativ_skat_kroner = personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_kroner(parberegning, ægtefælles_ejendomsskatter),
     samlevende_ved_årets_udløb = parberegning.aktieindkomst_parår.input.samlevende_ved_årets_udløb
 ))
 | personskat_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner(resultat: AktieindkomstNegativSkatParResultat) -> resultat.egen.modregnet_i_egen_slutskat_kroner + resultat.ægtefælle.modregnet_i_ægtefælles_slutskat_kroner
@@ -12567,8 +12589,9 @@ fraflytningen."
     = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
     = ejendomsskatteårskontekst = personskat_ejendomsskat_årskontekst(hovedgrundlag, parberegning, input.ejendomsskatter)
     = ejendomsskatter = ejendomsskattelov_person_årsresultat(ejendomsskatteårskontekst, input.ejendomsskatter.ejendomme)
+    = ægtefælles_ejendomsskatter = personskat_ægtefælle_ejendomsskatter(hovedgrundlag, parberegning.ægtefælle)
     = samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner + ejendomsskatter.samlet_ejendomsskat_kroner
-    = negativ_aktieindkomstskat = personskat_negativ_aktieindkomstskat_resultat(parberegning, samlet_skat_inkl_ejendomsskatter_kroner)
+    = negativ_aktieindkomstskat = personskat_negativ_aktieindkomstskat_resultat(parberegning, samlet_skat_inkl_ejendomsskatter_kroner, ægtefælles_ejendomsskatter)
     = negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = personskat_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner(negativ_aktieindkomstskat)
     = samlet_skat_efter_negativ_aktieindkomstskat_kroner = penge_positivt_beløb(samlet_skat_inkl_endelig_aktieindkomstskat_kroner - negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner)
     = samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner = negativ_aktieindkomstskat.egen_slutskat_efter_negativ_skat_kroner
@@ -12590,6 +12613,7 @@ fraflytningen."
         samlet_skat_inkl_endelig_aktieindkomstskat_kroner = samlet_skat_inkl_endelig_aktieindkomstskat_kroner,
         samlet_skat_efter_negativ_aktieindkomstskat_kroner = samlet_skat_efter_negativ_aktieindkomstskat_kroner,
         ejendomsskatter = ejendomsskatter,
+        ægtefælles_ejendomsskatter = ægtefælles_ejendomsskatter,
         samlet_skat_inkl_ejendomsskatter_kroner = samlet_skat_inkl_ejendomsskatter_kroner,
         samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner = samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner,
         samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner = samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner,

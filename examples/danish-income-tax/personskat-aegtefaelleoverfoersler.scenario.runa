@@ -42,7 +42,8 @@
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
-    underskudsforhold = StandardUnderskudsforhold
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
 )
 
 | personskat_ægtefælle_scenarie_input(ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(

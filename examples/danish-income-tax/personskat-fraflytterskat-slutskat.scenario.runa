@@ -140,7 +140,8 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
-    underskudsforhold = StandardUnderskudsforhold
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
 )
 | fraflytter_slutskat_parinput(hovedpersons_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), ægtefælles_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatInput(
     lønmodtager = fraflytter_slutskat_loenmodtager,

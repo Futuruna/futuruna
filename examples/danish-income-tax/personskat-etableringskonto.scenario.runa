@@ -95,7 +95,8 @@ etableringskontoloven.runa og kapitel-01-indkomst.runa.
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
-    underskudsforhold = StandardUnderskudsforhold
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
 )
 | personskat_etbl_input(personlig_indkomst: PersonskatPersonligIndkomstInput, ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
     lønmodtager = personskat_etbl_lønmodtager(600000, personlig_indkomst),

@@ -27,7 +27,8 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
-    underskudsforhold = StandardUnderskudsforhold
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
 )
 
 | negativ_aktieskat_ledger_kreditter(angivet_par8a_beløb_kroner: Heltal) -> KildeskatPar60Kreditter(
