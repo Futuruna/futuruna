@@ -139,7 +139,8 @@
 # PersonskatEjendomsavanceÅrsfakta(egne_afståelser: List(PersonskatEjendomsavanceFakta), egne_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), eget_fremført_tab: PersonskatEjendomsavanceFremførsel, ægtefælles_afståelser: List(PersonskatEjendomsavanceFakta), ægtefælles_skadegenopførelser: List(PersonskatEjendomsavanceSkadefakta), ægtefælles_fremførte_tab: PersonskatEjendomsavanceFremførsel, gift_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatEjendomsavanceInput = UdenEjendomsavance | MedEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta)
 # PersonskatEjendomsavanceResultat = IngenEjendomsavance | UgyldigtEjendomsavancegrundlag(fakta: PersonskatEjendomsavanceÅrsfakta, grundfakta_gyldige: Boolsk, fortjenesteafgrænsninger_understøttet: Boolsk, årsforløb_dækker_skatteår: Boolsk, fremførsler_gyldige: Boolsk, ægtefælledata_relevant: Boolsk) | BeregnetEjendomsavance(fakta: PersonskatEjendomsavanceÅrsfakta, egne_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), egne_skadegenopførelsesresultater: List(EblPar10Resultat), ægtefælles_afståelsesresultater: List(EjendomsavancebeskatningslovResultat), ægtefælles_skadegenopførelsesresultater: List(EblPar10Resultat), eget_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, ægtefælles_tabsårsresultat: EjendomsavancePar6Tabsårsresultat, par4_resultat: Par4Stk1Nr14Årsresultat)
-# PersonskatKursgevinstPar32Historikår(fakta: KursgevinstPar32PersonKildeårsfakta, aktieavance: PersonskatAktieavanceInput, øvrige_instrumenter: KursgevinstlovÅrsnettoInput, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
+# PersonskatKursgevinstÅrsgrundlag(ejendomsavance: PersonskatEjendomsavanceInput, sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), gældsposter: List(KursgevinstlovGældFakta), øvrige_instrumenter: KursgevinstlovÅrsnettoInput)
+# PersonskatKursgevinstPar32Historikår(fakta: KursgevinstPar32PersonKildeårsfakta, aktieavance: PersonskatAktieavanceInput, årsgrundlag: PersonskatKursgevinstÅrsgrundlag, gift_og_samlevende_ved_indkomstårets_udgang: Boolsk)
 # PersonskatKursgevinstPar32Forløb = UdenPar32Kontraktforløb | MedPar32Kontraktforløb(tidligere_år: List(PersonskatKursgevinstPar32Historikår), aktuelt_år: KursgevinstPar32PersonKildeårsfakta)
 # PersonskatKursgevinstÅrsfakta(skatteyder_identifikation: Tekst, ægtefælles_skatteyder_identifikation: Option(Tekst), sælgerpantebreve: List(KglEblPar6DSælgerpantebrevsfakta), gældsposter: List(KursgevinstlovGældFakta), øvrige_instrumenter: KursgevinstlovÅrsnettoInput, par32_kontraktforløb: PersonskatKursgevinstPar32Forløb)
 # PersonskatKursgevinstInput = UdenKursgevinst | MedKursgevinst(fakta: PersonskatKursgevinstÅrsfakta)
@@ -187,9 +188,10 @@
 # PersonskatKglPar32Aktiemodregningsanvendelse(kilde: PersonskatKglPar32Aktiegevinstkilde, modregnet_kroner: Heltal)
 # PersonskatKglPar32Aktiemodregningstilstand(resterende_modregning_kroner: Heltal, anvendelser: List(PersonskatKglPar32Aktiemodregningsanvendelse))
 # PersonskatKglPar32Aktiemodregningsfordeling(fordelingsvalg: KursgevinstPar32Aktiemodregningsfordeling, kilder: List(PersonskatKglPar32Aktiegevinstkilde), anvendelser: List(PersonskatKglPar32Aktiemodregningsanvendelse), modregning_i_alt_kroner: Heltal, fordelt_i_alt_kroner: Heltal, input_gyldigt: Boolsk)
+# PersonskatKursgevinstÅrsgrundlagsafledning(årsgrundlag: PersonskatKursgevinstÅrsgrundlag, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32Historikpar(venstre: PersonskatKursgevinstPar32Historikår, højre: PersonskatKursgevinstPar32Historikår)
 # PersonskatKursgevinstPar32Historikparring(årspar: List(PersonskatKursgevinstPar32Historikpar), input_gyldigt: Boolsk)
-# PersonskatKursgevinstPar32Årsparresultat(venstre_afledning: KursgevinstPar32PersonKildeårsafledning, højre_afledning: KursgevinstPar32PersonKildeårsafledning, venstre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, højre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, aktieavance: PersonskatAktieavanceParResultat, kursgevinst: KursgevinstPar32ÆgtefælleparResultat, input_gyldigt: Boolsk)
+# PersonskatKursgevinstPar32Årsparresultat(venstre_årsgrundlag: PersonskatKursgevinstÅrsgrundlagsafledning, højre_årsgrundlag: PersonskatKursgevinstÅrsgrundlagsafledning, venstre_afledning: KursgevinstPar32PersonKildeårsafledning, højre_afledning: KursgevinstPar32PersonKildeårsafledning, venstre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, højre_aktiemodregningsfordeling: PersonskatKglPar32Aktiemodregningsfordeling, aktieavance: PersonskatAktieavanceParResultat, kursgevinst: KursgevinstPar32ÆgtefælleparResultat, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32Forløbstilstand(seneste_årsresultat: Option(PersonskatKursgevinstPar32Årsparresultat), årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), næste_indkomstår: Heltal, input_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32PersonKontekst = UdenPar32Årsresultat | MedPar32Årsresultat(afledning: KursgevinstPar32PersonKildeårsafledning, årsresultat: KursgevinstPar32PersonÅrsresultat, personskattelov_resultat: Par4Stk1Nr2Årsresultat, forløb_gyldigt: Boolsk)
 # PersonskatKursgevinstPar32ParResultat = IntetPar32Kontraktforløb | BeregnetPar32Kontraktforløb(historiske_årsresultater: List(PersonskatKursgevinstPar32Årsparresultat), aktuelt_årsresultat: PersonskatKursgevinstPar32Årsparresultat, hovedperson: PersonskatKursgevinstPar32PersonKontekst, ægtefælle: PersonskatKursgevinstPar32PersonKontekst, input_gyldigt: Boolsk)
@@ -5308,7 +5310,35 @@
     path = refof(PersonskatKursgevinstPar32Forløb::MedPar32Kontraktforløb::tidligere_år),
     label = "Tidligere år i kontraktforløbet",
     question = Some("Hvilke tidligere, sammenhængende indkomstår skal genberegnes for at fastslå årets § 32-saldi?"),
-    help = Some("Tilføj årene kronologisk uden huller. Indtast kildefakta for hvert år, ikke et beregnet fremførselsbeløb."),
+    help = Some("Tilføj årene kronologisk uden huller. Indtast kontrakter, aktiver, ejendomsafståelser, sælgerpantebreve, gæld og øvrige KGL-kilder for hvert år, ikke beregnede netto- eller fremførselsbeløb."),
+    unit = None
+)
+= personskat_felt_kgl_par32_historisk_ejendomsavance = TypetBeregningsfelt(
+    path = refof(PersonskatKursgevinstÅrsgrundlag::ejendomsavance::$variant),
+    label = "Historikårets ejendomsafståelser",
+    question = Some("Var der ejendomsafståelser eller skadegenopførelser i historikåret, som knytter sig til et sælgerpantebrev?"),
+    help = Some("Ejendomsfakta bruges til at kontrollere og beregne historikårets sælgerpantebreve. Vælg ingen ejendomsavance, hvis året ikke havde sådanne forhold."),
+    unit = None
+)
+= personskat_felt_kgl_par32_historiske_sælgerpantebreve = TypetBeregningsfelt(
+    path = refof(PersonskatKursgevinstÅrsgrundlag::sælgerpantebreve),
+    label = "Historikårets sælgerpantebreve",
+    question = Some("Hvilke sælgerpantebreve fra historikårets ejendomsafståelser indgik i KGL-opgørelsen?"),
+    help = Some("Hvert sælgerpantebrev skal have en entydig identifikation, som matcher præcis ét EBL § 6 D-forløb i samme historikår."),
+    unit = None
+)
+= personskat_felt_kgl_par32_historiske_gældsposter = TypetBeregningsfelt(
+    path = refof(PersonskatKursgevinstÅrsgrundlag::gældsposter),
+    label = "Historikårets gældsposter",
+    question = Some("Hvilke gældsgevinster eller gældstab indgik i historikårets fælles KGL-årsnetto?"),
+    help = Some("Gældsposterne indgår sammen med fordringer, sælgerpantebreve og ABL § 22-beviser i den fælles bagatelgrænse efter KGL §§ 14 og 23."),
+    unit = None
+)
+= personskat_felt_kgl_par32_historiske_øvrige_instrumenter = TypetBeregningsfelt(
+    path = refof(PersonskatKursgevinstÅrsgrundlag::øvrige_instrumenter),
+    label = "Historikårets øvrige KGL-instrumenter",
+    question = Some("Hvilke fordringer, valutainstrumenter eller obligationsbaserede minimumsbeviser indgik i historikåret?"),
+    help = Some("Futuruna udleder selv instrumenternes rå årsnetto, KGL-klassifikation og ABL § 22-behandling."),
     unit = None
 )
 = personskat_felt_kgl_par32_historisk_samliv = TypetBeregningsfelt(
@@ -12232,6 +12262,12 @@ fraflytningen."
     kontrakter = [],
     valg = personskat_kgl_par32_tomt_årsvalg()
 )
+| personskat_kgl_par32_tomt_årsgrundlag() -> PersonskatKursgevinstÅrsgrundlag(
+    ejendomsavance = UdenEjendomsavance,
+    sælgerpantebreve = [],
+    gældsposter = [],
+    øvrige_instrumenter = kgl_årsnetto_tomt_input()
+)
 | personskat_kgl_par32_aktuelt_kildeår(input: PersonskatKursgevinstInput, indkomstår: Heltal) -> match personskat_kgl_par32_forløb(input) {
     | UdenPar32Kontraktforløb -> personskat_kgl_par32_tomt_kildeår(indkomstår)
     | MedPar32Kontraktforløb(_, aktuelt_år) -> aktuelt_år
@@ -12239,7 +12275,7 @@ fraflytningen."
 | personskat_kgl_par32_tomt_historikår(fra: PersonskatKursgevinstPar32Historikår) -> PersonskatKursgevinstPar32Historikår(
     fakta = personskat_kgl_par32_tomt_kildeår(fra.fakta.indkomstår),
     aktieavance = personskat_ingen_aktieavance(),
-    øvrige_instrumenter = kgl_årsnetto_tomt_input(),
+    årsgrundlag = personskat_kgl_par32_tomt_årsgrundlag(),
     gift_og_samlevende_ved_indkomstårets_udgang = fra.gift_og_samlevende_ved_indkomstårets_udgang
 )
 | personskat_kgl_par32_historikparring(venstre: List(PersonskatKursgevinstPar32Historikår), højre: List(PersonskatKursgevinstPar32Historikår)) -> hvis length(venstre) == 0 && length(højre) == 0 {
@@ -12281,6 +12317,10 @@ fraflytningen."
     | UdenÆgtefælle -> UdenKursgevinst
     | MedÆgtefælle(fakta, _) -> fakta.kapitalindkomst.kursgevinst
 }
+| personskat_kgl_par32_ægtefælles_ejendomsavance_input(input: PersonskatÆgtefælleInput) -> match input {
+    | UdenÆgtefælle -> UdenEjendomsavance
+    | MedÆgtefælle(fakta, _) -> fakta.kapitalindkomst.ejendomsavance
+}
 | personskat_kgl_par32_samlevende(input: PersonskatÆgtefælleInput) -> match input {
     | UdenÆgtefælle -> Falskt
     | MedÆgtefælle(_, samlevende) -> samlevende
@@ -12295,6 +12335,49 @@ fraflytningen."
     } ellers {
         hovedperson != "" && personskat_kgl_ægtefælles_identifikation(hovedpersons_kursgevinst) == ""
     }
+}
+| personskat_kgl_par32_årsgrundlag_fra_input(kursgevinst: PersonskatKursgevinstInput, ejendomsavance: PersonskatEjendomsavanceInput) -> match kursgevinst {
+    | UdenKursgevinst -> PersonskatKursgevinstÅrsgrundlag(
+        ejendomsavance = ejendomsavance,
+        sælgerpantebreve = [],
+        gældsposter = [],
+        øvrige_instrumenter = kgl_årsnetto_tomt_input()
+    )
+    | MedKursgevinst(fakta) -> PersonskatKursgevinstÅrsgrundlag(
+        ejendomsavance = ejendomsavance,
+        sælgerpantebreve = fakta.sælgerpantebreve,
+        gældsposter = fakta.gældsposter,
+        øvrige_instrumenter = fakta.øvrige_instrumenter
+    )
+}
+| personskat_kgl_par32_årsgrundlag_har_kgl_fakta(årsgrundlag: PersonskatKursgevinstÅrsgrundlag) -> length(årsgrundlag.sælgerpantebreve) > 0 || length(årsgrundlag.gældsposter) > 0 || length(årsgrundlag.øvrige_instrumenter.fordringer) > 0 || length(årsgrundlag.øvrige_instrumenter.valutainstrumenter) > 0 || length(årsgrundlag.øvrige_instrumenter.obligationsbaserede_minimumsbeviser) > 0
+| personskat_kgl_par32_årsgrundlag_til_kursgevinstinput(årsgrundlag: PersonskatKursgevinstÅrsgrundlag, skatteyder_identifikation: Tekst, ægtefælles_identifikation: Option(Tekst), ejendomsavance_resultat: PersonskatEjendomsavanceResultat) -> hvis personskat_kgl_par32_årsgrundlag_har_kgl_fakta(årsgrundlag) || length(personskat_alle_par6d_sælgerpantebrevsresultater(ejendomsavance_resultat)) > 0 {
+    MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = skatteyder_identifikation,
+        ægtefælles_skatteyder_identifikation = ægtefælles_identifikation,
+        sælgerpantebreve = årsgrundlag.sælgerpantebreve,
+        gældsposter = årsgrundlag.gældsposter,
+        øvrige_instrumenter = årsgrundlag.øvrige_instrumenter,
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    ))
+} ellers {
+    UdenKursgevinst
+}
+| personskat_kgl_par32_ægtefælleidentifikation(har_ægtefælle: Boolsk, identifikation: Tekst) -> hvis har_ægtefælle { Some(identifikation) } ellers { None }
+| personskat_kgl_par32_ægtefælleidentifikation_gyldig(skatteyder_identifikation: Tekst, ægtefælles_identifikation: Option(Tekst)) -> match ægtefælles_identifikation {
+    | Some(identifikation) -> identifikation != "" && identifikation != skatteyder_identifikation
+    | None -> Sandt
+}
+| personskat_kgl_par32_årsgrundlagsafledning(årsgrundlag: PersonskatKursgevinstÅrsgrundlag, skatteyder_identifikation: Tekst, ægtefælles_identifikation: Option(Tekst), indkomstår: Heltal) -> {
+    = ejendomsavance_resultat = personskat_ejendomsavance_resultat(årsgrundlag.ejendomsavance, indkomstår)
+    = kursgevinst_input = personskat_kgl_par32_årsgrundlag_til_kursgevinstinput(årsgrundlag, skatteyder_identifikation, ægtefælles_identifikation, ejendomsavance_resultat)
+    = kursgevinst_resultat = personskat_kursgevinst_resultat(kursgevinst_input, indkomstår, ejendomsavance_resultat)
+    PersonskatKursgevinstÅrsgrundlagsafledning(
+        årsgrundlag = årsgrundlag,
+        ejendomsavance_resultat = ejendomsavance_resultat,
+        kursgevinst_resultat = kursgevinst_resultat,
+        input_gyldigt = indkomstår > 0 && skatteyder_identifikation != "" && personskat_kgl_par32_ægtefælleidentifikation_gyldig(skatteyder_identifikation, ægtefælles_identifikation) && personskat_ejendomsavance_input_gyldigt(ejendomsavance_resultat) && kursgevinst_resultat.input_gyldigt
+    )
 }
 | personskat_kgl_par32_ordinært_aktieårsresultat(resultat: PersonskatAktieavanceResultat, indkomstår: Heltal) -> match resultat.ordinært_aktieår {
     | IntetOrdinærtAktieår -> kgl_par32_tomt_par13a_aktieårsresultat(indkomstår)
@@ -12322,11 +12405,6 @@ fraflytningen."
 )
 | personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat: KursgevinstlovÅrsnettoResultat) -> map(filter(resultat.obligationsbevisresultater, |bevisresultat: KglÅrsnettoAbl22Resultat| bevisresultat.forløb.har_opgørelse), personskat_kgl_par32_årsnetto_abl22_kilderesultat)
 | personskat_kgl_par32_årsnetto_supplerende_aktieårsresultater(resultat: KursgevinstlovÅrsnettoResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat))
-| personskat_kgl_par32_øvrige_instrumenter(input: PersonskatKursgevinstInput) -> match input {
-    | UdenKursgevinst -> kgl_årsnetto_tomt_input()
-    | MedKursgevinst(fakta) -> fakta.øvrige_instrumenter
-}
-| personskat_kgl_par32_årsnetto_resultat(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> kursgevinstlov_årsnetto_resultat(input, indkomstår, årets_samlede_netto_kroner)
 | personskat_kgl_par32_aktieårsgrundlag(resultat: PersonskatAktieavanceResultat, årsnetto: KursgevinstlovÅrsnettoResultat, indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(
     par13a_årsresultat = personskat_kgl_par32_ordinært_aktieårsresultat(resultat, indkomstår),
     supplerende_årsresultater = concat(foldl(resultat.særlige_resultater, [], |samlet: List(KursgevinstPar32SupplerendeAktieårsresultat), særligt_resultat: PersonskatSærligtAktieaktivResultat| concat(samlet, personskat_kgl_par32_supplerende_aktieårsresultater(særligt_resultat))), personskat_kgl_par32_årsnetto_supplerende_aktieårsresultater(årsnetto))
@@ -12514,10 +12592,10 @@ fraflytningen."
     | None -> KglPar32IngenFremførsel
     | Some(resultat) -> KglPar32FremførselFraForrigeIndkomstår(resultat = resultat.kursgevinst.højre)
 }
-| personskat_kgl_par32_årsparresultat(venstre_identifikation: Tekst, højre_identifikation: Tekst, venstre_fakta: KursgevinstPar32PersonKildeårsfakta, højre_fakta: KursgevinstPar32PersonKildeårsfakta, venstre_årsnetto_input: KursgevinstlovÅrsnettoInput, højre_årsnetto_input: KursgevinstlovÅrsnettoInput, venstre_årets_samlede_netto_kroner: Heltal, højre_årets_samlede_netto_kroner: Heltal, aktieavance: PersonskatAktieavanceParResultat, venstre_fremførsel: KursgevinstPar32Fremførsel, højre_fremførsel: KursgevinstPar32Fremførsel, gift_og_samlevende: Boolsk) -> {
+| personskat_kgl_par32_årsparresultat(venstre_identifikation: Tekst, højre_identifikation: Tekst, venstre_fakta: KursgevinstPar32PersonKildeårsfakta, højre_fakta: KursgevinstPar32PersonKildeårsfakta, venstre_årsgrundlag: PersonskatKursgevinstÅrsgrundlagsafledning, højre_årsgrundlag: PersonskatKursgevinstÅrsgrundlagsafledning, aktieavance: PersonskatAktieavanceParResultat, venstre_fremførsel: KursgevinstPar32Fremførsel, højre_fremførsel: KursgevinstPar32Fremførsel, gift_og_samlevende: Boolsk) -> {
     = højre_aktieavance = personskat_kgl_par32_ægtefælle_aktieavance_resultat(aktieavance, højre_fakta.indkomstår)
-    = venstre_årsnetto = personskat_kgl_par32_årsnetto_resultat(venstre_årsnetto_input, venstre_fakta.indkomstår, venstre_årets_samlede_netto_kroner)
-    = højre_årsnetto = personskat_kgl_par32_årsnetto_resultat(højre_årsnetto_input, højre_fakta.indkomstår, højre_årets_samlede_netto_kroner)
+    = venstre_årsnetto = venstre_årsgrundlag.kursgevinst_resultat.øvrige_instrumentresultat
+    = højre_årsnetto = højre_årsgrundlag.kursgevinst_resultat.øvrige_instrumentresultat
     = venstre_afledning = kgl_par32_person_kildeårsafledning(
         skatteyder_identifikation = venstre_identifikation,
         fakta = venstre_fakta,
@@ -12540,8 +12618,10 @@ fraflytningen."
     = venstre_fordeling = personskat_kgl_par32_aktiemodregningsfordeling(aktieavance.hovedperson, venstre_årsnetto, kursgevinst.venstre, venstre_fakta.valg.aktiemodregningsfordeling)
     = højre_fordeling = personskat_kgl_par32_aktiemodregningsfordeling(højre_aktieavance, højre_årsnetto, kursgevinst.højre, højre_fakta.valg.aktiemodregningsfordeling)
     = rute_gyldig = venstre_fordeling.input_gyldigt && højre_fordeling.input_gyldigt
-    = samlet_gyldig = aktieavance.par_gyldigt && venstre_afledning.input_gyldigt && højre_afledning.input_gyldigt && kursgevinst.venstre.input_gyldigt && kursgevinst.højre.input_gyldigt && rute_gyldig
+    = samlet_gyldig = venstre_årsgrundlag.input_gyldigt && højre_årsgrundlag.input_gyldigt && aktieavance.par_gyldigt && venstre_afledning.input_gyldigt && højre_afledning.input_gyldigt && kursgevinst.venstre.input_gyldigt && kursgevinst.højre.input_gyldigt && rute_gyldig
     PersonskatKursgevinstPar32Årsparresultat(
+        venstre_årsgrundlag = venstre_årsgrundlag,
+        højre_årsgrundlag = højre_årsgrundlag,
         venstre_afledning = venstre_afledning,
         højre_afledning = højre_afledning,
         venstre_aktiemodregningsfordeling = venstre_fordeling,
@@ -12551,7 +12631,7 @@ fraflytningen."
         input_gyldigt = samlet_gyldig
     )
 }
-| personskat_kgl_par32_historiktrin(venstre_identifikation: Tekst, højre_identifikation: Tekst, tilstand: PersonskatKursgevinstPar32Forløbstilstand, årspar: PersonskatKursgevinstPar32Historikpar) -> {
+| personskat_kgl_par32_historiktrin(venstre_identifikation: Tekst, højre_identifikation: Tekst, har_ægtefælle: Boolsk, tilstand: PersonskatKursgevinstPar32Forløbstilstand, årspar: PersonskatKursgevinstPar32Historikpar) -> {
     = venstre_år = årspar.venstre.fakta.indkomstår
     = højre_år = årspar.højre.fakta.indkomstår
     = aktieavance = personskat_aktieavance_parresultat_fra_personer(
@@ -12561,15 +12641,15 @@ fraflytningen."
         højre_år,
         årspar.venstre.gift_og_samlevende_ved_indkomstårets_udgang
     )
+    = venstre_årsgrundlag = personskat_kgl_par32_årsgrundlagsafledning(årspar.venstre.årsgrundlag, venstre_identifikation, personskat_kgl_par32_ægtefælleidentifikation(har_ægtefælle, højre_identifikation), venstre_år)
+    = højre_årsgrundlag = personskat_kgl_par32_årsgrundlagsafledning(årspar.højre.årsgrundlag, højre_identifikation, personskat_kgl_par32_ægtefælleidentifikation(har_ægtefælle, venstre_identifikation), højre_år)
     = årsresultat = personskat_kgl_par32_årsparresultat(
         venstre_identifikation,
         højre_identifikation,
         årspar.venstre.fakta,
         årspar.højre.fakta,
-        årspar.venstre.øvrige_instrumenter,
-        årspar.højre.øvrige_instrumenter,
-        kgl_årsnetto_rå_netto_kroner(årspar.venstre.øvrige_instrumenter, årspar.venstre.fakta.indkomstår),
-        kgl_årsnetto_rå_netto_kroner(årspar.højre.øvrige_instrumenter, årspar.højre.fakta.indkomstår),
+        venstre_årsgrundlag,
+        højre_årsgrundlag,
         aktieavance,
         personskat_kgl_par32_venstre_fremførsel(tilstand.seneste_årsresultat),
         personskat_kgl_par32_højre_fremførsel(tilstand.seneste_årsresultat),
@@ -12590,11 +12670,6 @@ fraflytningen."
     personskattelov_resultat = par4_stk1_nr2_årsresultat(årsresultat),
     forløb_gyldigt = forløb_gyldigt
 )
-| personskat_kgl_par32_årets_samlede_netto_kroner(input: PersonskatKursgevinstInput, skatteår: Heltal, ejendomsavance_resultat: PersonskatEjendomsavanceResultat) -> PersonskatKursgevinstSag(input, skatteår, ejendomsavance_resultat, UdenPar32Årsresultat).årets_samlede_netto_efter_par14_kroner()
-| personskat_kgl_par32_ægtefælles_ejendomsavance_resultat(input: PersonskatÆgtefælleInput, skatteår: Heltal) -> match input {
-    | UdenÆgtefælle -> IngenEjendomsavance
-    | MedÆgtefælle(fakta, _) -> personskat_ejendomsavance_resultat(fakta.kapitalindkomst.ejendomsavance, skatteår)
-}
 | personskat_kgl_par32_parresultat(input: PersonskatInput, aktieavance: PersonskatAktieavanceParResultat) -> {
     = hovedpersons_kursgevinst = input.kapitalindkomst.kursgevinst
     = ægtefælles_kursgevinst = personskat_kgl_par32_ægtefælles_input(input.ægtefælle)
@@ -12604,24 +12679,33 @@ fraflytningen."
     } ellers {
         = hovedperson_identifikation = personskat_kgl_skatteyder_identifikation(hovedpersons_kursgevinst)
         = modpart_identifikation = personskat_kgl_par32_modpartsidentifikation(hovedperson_identifikation, input.ægtefælle, ægtefælles_kursgevinst)
+        = har_ægtefælle = personskat_kgl_par32_har_ægtefælle(input.ægtefælle)
         = historikparring = personskat_kgl_par32_historikparring(personskat_kgl_par32_historik(hovedpersons_kursgevinst), personskat_kgl_par32_historik(ægtefælles_kursgevinst))
         = historiktilstand = foldl(
             historikparring.årspar,
             personskat_kgl_par32_tom_forløbstilstand(),
-            |tilstand: PersonskatKursgevinstPar32Forløbstilstand, årspar: PersonskatKursgevinstPar32Historikpar| personskat_kgl_par32_historiktrin(hovedperson_identifikation, modpart_identifikation, tilstand, årspar)
+            |tilstand: PersonskatKursgevinstPar32Forløbstilstand, årspar: PersonskatKursgevinstPar32Historikpar| personskat_kgl_par32_historiktrin(hovedperson_identifikation, modpart_identifikation, har_ægtefælle, tilstand, årspar)
         )
         = skatteår = input.lønmodtager.skatteår
-        = hovedpersons_ejendomsavance = personskat_ejendomsavance_resultat(input.kapitalindkomst.ejendomsavance, skatteår)
-        = ægtefælles_ejendomsavance = personskat_kgl_par32_ægtefælles_ejendomsavance_resultat(input.ægtefælle, skatteår)
+        = hovedpersons_årsgrundlag = personskat_kgl_par32_årsgrundlagsafledning(
+            personskat_kgl_par32_årsgrundlag_fra_input(hovedpersons_kursgevinst, input.kapitalindkomst.ejendomsavance),
+            hovedperson_identifikation,
+            personskat_kgl_par32_ægtefælleidentifikation(har_ægtefælle, modpart_identifikation),
+            skatteår
+        )
+        = ægtefælles_årsgrundlag = personskat_kgl_par32_årsgrundlagsafledning(
+            personskat_kgl_par32_årsgrundlag_fra_input(ægtefælles_kursgevinst, personskat_kgl_par32_ægtefælles_ejendomsavance_input(input.ægtefælle)),
+            modpart_identifikation,
+            personskat_kgl_par32_ægtefælleidentifikation(har_ægtefælle, hovedperson_identifikation),
+            skatteår
+        )
         = aktuelt_årsresultat = personskat_kgl_par32_årsparresultat(
             hovedperson_identifikation,
             modpart_identifikation,
             personskat_kgl_par32_aktuelt_kildeår(hovedpersons_kursgevinst, skatteår),
             personskat_kgl_par32_aktuelt_kildeår(ægtefælles_kursgevinst, skatteår),
-            personskat_kgl_par32_øvrige_instrumenter(hovedpersons_kursgevinst),
-            personskat_kgl_par32_øvrige_instrumenter(ægtefælles_kursgevinst),
-            personskat_kgl_par32_årets_samlede_netto_kroner(hovedpersons_kursgevinst, skatteår, hovedpersons_ejendomsavance),
-            personskat_kgl_par32_årets_samlede_netto_kroner(ægtefælles_kursgevinst, skatteår, ægtefælles_ejendomsavance),
+            hovedpersons_årsgrundlag,
+            ægtefælles_årsgrundlag,
             aktieavance,
             personskat_kgl_par32_venstre_fremførsel(historiktilstand.seneste_årsresultat),
             personskat_kgl_par32_højre_fremførsel(historiktilstand.seneste_årsresultat),

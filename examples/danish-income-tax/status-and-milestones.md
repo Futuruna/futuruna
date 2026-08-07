@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-51358b` (KGL § 32-modregning i blandede ABL-gevinster fordeles nu efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
+Current implementation slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
+Previous KGL § 32 allocation slice: `td-51358b` (modregning i blandede ABL-gevinster fordeles efter stabile kildereferencer; Futuruna afleder selv § 19 B-, § 19 C- og § 22-klassen, gevinstkapaciteten og ruten til aktie- eller kapitalindkomst, mens en blandet fordeling uden udtrykkelig kilderækkefølge fejler lukket)
 Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
 Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
 Current LL § 9 foreign-income slice: `td-c61f53` (identificerede udenlandske lønindkomstkilder deles nu strukturelt af alle tilknyttede rejser; samme § 9, stk. 2-loft kan kun bruges én gang, mens manglende, dublerede, modstridende eller uanvendte kilder fejler lukket i regler og arbejdsbog)
@@ -4104,7 +4105,22 @@ Review candidates to revisit deliberately, not as broad churn:
   bagatelgrundlag som den endelige KGL-beregning, inklusive typede gælds- og
   sælgerpantebrevsresultater. Et fokusscenarie viser derfor, at en ABL § 22-
   gevinst på 1.500 kr. medregnes, når en valutagældsgevinst på 1.000 kr. bringer
-  årets fælles netto op på 2.500 kr.
+  årets fælles netto op på 2.500 kr. Historikårene bruger nu samme fulde
+  årsgrundlag i stedet for kun en løs liste af øvrige instrumenter. Hvert år
+  bevarer EBL-ejendomsfakta, de dertil entydigt afstemte sælgerpantebreve,
+  gældsposter og øvrige KGL-forløb, hvorefter den kanoniske
+  `PersonskatKursgevinstSag` afleder årets netto og resultater uden et
+  indtastet nettobeløb. En historisk ABL § 22-gevinst på 1.500 kr. bliver
+  derfor aktiv ved 1.000 kr. samtidig valutagældsgevinst og modregner et
+  kontrakttab før fremførsel. Omvendt falder en gevinst på 3.000 kr. under
+  bagatelgrænsen, når et gældstab på 1.500 kr. reducerer fællesnettoen til
+  1.500 kr.; kontrakttabet fremføres da. Et sælgerpantebrev uden præcis én
+  matchende EBL § 6 D-ejendomskilde afvises. De ti fokuserede invarianter
+  passerer i både fortolker og compiler. Den kanoniske arbejdsbog fører desuden
+  et historisk år med kontrakt, gæld, ABL § 22-aktivmasse og ordnede
+  anskaffelses-/afståelseshændelser gennem relationelle ark og giver samme
+  fulde resultat som JSON: 2.500 kr. fællesnetto, 1.500 kr. modregning og
+  8.500 kr. fremført tab til det aktuelle år.
 - Kursgevinstlovens § 33 bevarer nu signerede primo-, ultimo-, anskaffelses- og
   afståelsesværdier uden at føre dem gennem en positiv-beløbsnormalisering. En
   kontrakt fra 4.000 kr. til -6.000 kr. giver derfor et tab på 10.000 kr., mens

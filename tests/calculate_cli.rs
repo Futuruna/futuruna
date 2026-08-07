@@ -4009,8 +4009,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "fakta.valg.aktiemodregningsvalg.omfang",
             "fakta.valg.aktiemodregningsvalg.beløb.$variant",
             "fakta.valg.aktiemodregningsfordeling.$variant",
-            "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
-            "øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
+            "årsgrundlag.ejendomsavance.$variant",
+            "årsgrundlag.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+            "årsgrundlag.øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
             "gift_og_samlevende_ved_indkomstårets_udgang",
         ] {
             assert!(
@@ -4027,6 +4028,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             kgl_par32_history_contract_paths, kgl_par32_current_contract_paths,
             "current and historical KGL §32 contracts must expose the same source-fact columns"
         );
+        let kgl_par32_history_debt_path =
+            format!("{kgl_par32_history_path}.årsgrundlag.gældsposter");
+        let kgl_par32_history_debt_sheet =
+            workbook_collection_sheet_name(&mut workbook, &kgl_par32_history_debt_path);
+        let kgl_par32_history_debt_paths =
+            workbook_column_paths(&mut workbook, &kgl_par32_history_debt_sheet);
+        for expected in [
+            "identifikation",
+            "beløb.gældens_værdi_ved_påtagelse_kroner",
+            "beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+            "valuta",
+            "gældsordning.$variant",
+        ] {
+            assert!(
+                kgl_par32_history_debt_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing historical KGL §32 debt path {expected} on {kgl_par32_history_debt_sheet}"
+            );
+        }
         let special_asset_paths =
             workbook_column_paths(&mut workbook, "aktieavance_særlige_aktiver");
         for expected in [
@@ -5552,7 +5573,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
             (
                 "fakta.valg.aktiemodregningsvalg.omfang",
-                Data::String("KglPar32IngenAktiemodregning".to_string()),
+                Data::String("KglPar32KunEgneAktiegevinster".to_string()),
             ),
             (
                 "fakta.valg.aktiemodregningsvalg.beløb.$variant",
@@ -5563,27 +5584,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("KglPar32AfledEntydigFordeling".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
+                "årsgrundlag.ejendomsavance.$variant",
+                Data::String("UdenEjendomsavance".to_string()),
+            ),
+            (
+                "årsgrundlag.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.position_primo.$variant",
                 Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.aktuelt_princip",
+                "årsgrundlag.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.aktuelt_princip",
                 Data::String("KglRealisationsprincip".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.ændringstilladelse.$variant",
+                "årsgrundlag.øvrige_instrumenter.par25_valg.obligationer_på_reguleret_marked.ændringstilladelse.$variant",
                 Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
+                "årsgrundlag.øvrige_instrumenter.par25_valg.valutakursændringer.position_primo.$variant",
                 Data::String("KglÅrsnettoIntetPar25ValgPrimo".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.valutakursændringer.aktuelt_princip",
+                "årsgrundlag.øvrige_instrumenter.par25_valg.valutakursændringer.aktuelt_princip",
                 Data::String("KglRealisationsprincip".to_string()),
             ),
             (
-                "øvrige_instrumenter.par25_valg.valutakursændringer.ændringstilladelse.$variant",
+                "årsgrundlag.øvrige_instrumenter.par25_valg.valutakursændringer.ændringstilladelse.$variant",
                 Data::String("KglÅrsnettoIngenPar25Ændringstilladelse".to_string()),
             ),
             (
@@ -5596,6 +5621,225 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ),
         ] {
             set_workbook_cell_by_header(sheets, &par32_history_sheet, 1, header, value);
+        }
+        let par32_history_debt_path = format!("{par32_history_path}.årsgrundlag.gældsposter");
+        let par32_history_debt_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &par32_history_debt_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-par32-historik-2026".to_string()),
+            ),
+            ("parent_id", Data::String("par32-historik-2025".to_string())),
+            (
+                "item_id",
+                Data::String("par32-historisk-usd-laan".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("par32-historisk-usd-laan".to_string()),
+            ),
+            (
+                "beløb.gældens_værdi_ved_påtagelse_kroner",
+                Data::Int(10_000),
+            ),
+            (
+                "beløb.gældens_værdi_ved_frigørelse_eller_indfrielse_kroner",
+                Data::Int(9_000),
+            ),
+            (
+                "beløb.fordringens_værdi_for_kreditor_kroner",
+                Data::Int(9_000),
+            ),
+            (
+                "frigørelsesart",
+                Data::String("KglGældOrdinærIndfrielse".to_string()),
+            ),
+            (
+                "erhvervsforhold",
+                Data::String("KglGældUdenFinansieringsnæring".to_string()),
+            ),
+            ("valuta", Data::String("KglGældFremmedValuta".to_string())),
+            (
+                "selskabsfakta.$variant",
+                Data::String("KglIngenPar21Stk2Selskabsgæld".to_string()),
+            ),
+            (
+                "gældsordning.$variant",
+                Data::String("KglIngenDokumenteretGældsordning".to_string()),
+            ),
+            ("vedrører_ikke_indbetalt_selskabskapital", Data::Bool(false)),
+            (
+                "par22_hændelse.$variant",
+                Data::String("KglIngenPar22Hændelse".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &par32_history_debt_sheet, 1, header, value);
+        }
+        let par32_history_abl22_path = format!(
+            "{par32_history_path}.årsgrundlag.øvrige_instrumenter.obligationsbaserede_minimumsbeviser"
+        );
+        let par32_history_abl22_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &par32_history_abl22_path);
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-kgl-par32-historik-2026".to_string()),
+            ),
+            (
+                "parent_id",
+                Data::String("par32-historik-2025".to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("par32-historisk-abl22".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("par32-historisk-abl22".to_string()),
+            ),
+            ("kilde.klassifikation.indkomstår", Data::Int(2025)),
+            (
+                "kilde.klassifikation.aktivmasse.indkomstår",
+                Data::Int(2025),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.$variant",
+                Data::String("AblPar21OplysningerIndsendt".to_string()),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.frist.år",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.frist.måned",
+                Data::Int(7),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.frist.dag",
+                Data::Int(1),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.indsendelsesdato.år",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.indsendelsesdato.måned",
+                Data::Int(7),
+            ),
+            (
+                "kilde.klassifikation.oplysninger.AblPar21OplysningerIndsendt.indsendelsesdato.dag",
+                Data::Int(1),
+            ),
+            (
+                "kilde.par17_modprøve.næringsstatus",
+                Data::String("AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier".to_string()),
+            ),
+            (
+                "kilde.par17_modprøve.erhvervelsesstatus",
+                Data::String("AblPar17IkkeErhvervetSomLedINæringsvej".to_string()),
+            ),
+            (
+                "position_primo.$variant",
+                Data::String("KglÅrsnettoIngenPositionPrimo".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &par32_history_abl22_sheet, 1, header, value);
+        }
+        let par32_history_abl22_assets_path =
+            format!("{par32_history_abl22_path}.kilde.klassifikation.aktivmasse.direkte_aktiver");
+        let par32_history_abl22_assets_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &par32_history_abl22_assets_path);
+        for (row, item_id, art, value) in [
+            (
+                1,
+                "par32-historisk-abl22-aktiv-1",
+                "AblKvalificerendeAktieaktiv",
+                20_000,
+            ),
+            (
+                2,
+                "par32-historisk-abl22-aktiv-2",
+                "AblAndetVærdipapir",
+                80_000,
+            ),
+        ] {
+            for (header, cell) in [
+                (
+                    "case_id",
+                    Data::String("personskat-kgl-par32-historik-2026".to_string()),
+                ),
+                (
+                    "parent_id",
+                    Data::String("par32-historisk-abl22".to_string()),
+                ),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(row as i64)),
+                (
+                    "$variant",
+                    Data::String("AblDirekteInvesteringsaktiv".to_string()),
+                ),
+                (
+                    "AblDirekteInvesteringsaktiv.art",
+                    Data::String(art.to_string()),
+                ),
+                (
+                    "AblDirekteInvesteringsaktiv.gennemsnitlig_værdi_kroner",
+                    Data::Int(value),
+                ),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &par32_history_abl22_assets_sheet,
+                    row,
+                    header,
+                    cell,
+                );
+            }
+        }
+        let par32_history_abl22_events_path = format!("{par32_history_abl22_path}.hændelser");
+        let par32_history_abl22_events_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &par32_history_abl22_events_path);
+        for (row, item_id, variant, header, value) in [
+            (
+                1,
+                "par32-historisk-abl22-anskaffelse",
+                "KglÅrsnettoAnskaffelse",
+                "KglÅrsnettoAnskaffelse.anskaffelsessum_kroner",
+                10_000,
+            ),
+            (
+                2,
+                "par32-historisk-abl22-afståelse",
+                "KglÅrsnettoAfståelse",
+                "KglÅrsnettoAfståelse.afståelsessum_kroner",
+                11_500,
+            ),
+        ] {
+            for (column, cell) in [
+                (
+                    "case_id",
+                    Data::String("personskat-kgl-par32-historik-2026".to_string()),
+                ),
+                (
+                    "parent_id",
+                    Data::String("par32-historisk-abl22".to_string()),
+                ),
+                ("item_id", Data::String(item_id.to_string())),
+                ("position", Data::Int(row as i64)),
+                ("$variant", Data::String(variant.to_string())),
+                (header, Data::Int(value)),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &par32_history_abl22_events_sheet,
+                    row,
+                    column,
+                    cell,
+                );
+            }
         }
         let par32_history_contracts_path = format!("{par32_history_path}.fakta.kontrakter");
         let par32_history_contracts_sheet =
@@ -5613,7 +5857,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             false,
             "KglPar32KildeUdenSærligRelation",
             None,
-            "KglPar32KildeIkkeAktiebaseret",
+            "KglPar32KildeEnkeltaktie",
+        );
+        set_workbook_cell_by_header(
+            sheets,
+            &par32_history_contracts_sheet,
+            1,
+            "underliggende.KglPar32KildeEnkeltaktie.markedsstatus",
+            Data::String("AblOptagetTilHandelPåReguleretMarked".to_string()),
         );
 
         for (header, value) in [
@@ -12474,24 +12725,94 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         -5_000,
         false,
         serde_json::json!({ "$variant": "KglPar32KildeUdenSærligRelation" }),
-        serde_json::json!({ "$variant": "KglPar32KildeIkkeAktiebaseret" }),
+        serde_json::json!({
+            "$variant": "KglPar32KildeEnkeltaktie",
+            "markedsstatus": {
+                "$variant": "AblOptagetTilHandelPåReguleretMarked"
+            }
+        }),
     );
+    let mut historiske_par32_choices = par32_choices();
+    historiske_par32_choices["aktiemodregningsvalg"]["omfang"] =
+        serde_json::json!({ "$variant": "KglPar32KunEgneAktiegevinster" });
     let par32_historikår = serde_json::json!({
         "fakta": {
             "indkomstår": 2025,
             "kontrakter": [historisk_par32_tab],
-            "valg": par32_choices()
+            "valg": historiske_par32_choices
         },
         "aktieavance": {
             "ordinært_aktieår": { "$variant": "UdenOrdinærtAktieår" },
             "særlige_aktiver": [],
             "udbytter": []
         },
-        "øvrige_instrumenter": {
-            "par25_valg": kgl_par25_choices(),
-            "fordringer": [],
-            "valutainstrumenter": [],
-            "obligationsbaserede_minimumsbeviser": []
+        "årsgrundlag": {
+            "ejendomsavance": { "$variant": "UdenEjendomsavance" },
+            "sælgerpantebreve": [],
+            "gældsposter": [{
+                "identifikation": "par32-historisk-usd-laan",
+                "beløb": {
+                    "gældens_værdi_ved_påtagelse_kroner": 10_000,
+                    "gældens_værdi_ved_frigørelse_eller_indfrielse_kroner": 9_000,
+                    "fordringens_værdi_for_kreditor_kroner": 9_000
+                },
+                "frigørelsesart": { "$variant": "KglGældOrdinærIndfrielse" },
+                "erhvervsforhold": { "$variant": "KglGældUdenFinansieringsnæring" },
+                "valuta": { "$variant": "KglGældFremmedValuta" },
+                "selskabsfakta": { "$variant": "KglIngenPar21Stk2Selskabsgæld" },
+                "gældsordning": { "$variant": "KglIngenDokumenteretGældsordning" },
+                "vedrører_ikke_indbetalt_selskabskapital": false,
+                "par22_hændelse": { "$variant": "KglIngenPar22Hændelse" }
+            }],
+            "øvrige_instrumenter": {
+                "par25_valg": kgl_par25_choices(),
+                "fordringer": [],
+                "valutainstrumenter": [],
+                "obligationsbaserede_minimumsbeviser": [{
+                    "identifikation": "par32-historisk-abl22",
+                    "kilde": {
+                        "klassifikation": {
+                            "indkomstår": 2025,
+                            "aktivmasse": {
+                                "indkomstår": 2025,
+                                "direkte_aktiver": [
+                                    {
+                                        "$variant": "AblDirekteInvesteringsaktiv",
+                                        "art": { "$variant": "AblKvalificerendeAktieaktiv" },
+                                        "gennemsnitlig_værdi_kroner": 20_000
+                                    },
+                                    {
+                                        "$variant": "AblDirekteInvesteringsaktiv",
+                                        "art": { "$variant": "AblAndetVærdipapir" },
+                                        "gennemsnitlig_værdi_kroner": 80_000
+                                    }
+                                ],
+                                "ejerposter": []
+                            },
+                            "oplysninger": {
+                                "$variant": "AblPar21OplysningerIndsendt",
+                                "frist": { "år": 2026, "måned": 7, "dag": 1 },
+                                "indsendelsesdato": { "år": 2026, "måned": 7, "dag": 1 }
+                            }
+                        },
+                        "par17_modprøve": {
+                            "næringsstatus": { "$variant": "AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier" },
+                            "erhvervelsesstatus": { "$variant": "AblPar17IkkeErhvervetSomLedINæringsvej" }
+                        }
+                    },
+                    "position_primo": { "$variant": "KglÅrsnettoIngenPositionPrimo" },
+                    "hændelser": [
+                        {
+                            "$variant": "KglÅrsnettoAnskaffelse",
+                            "anskaffelsessum_kroner": 10_000
+                        },
+                        {
+                            "$variant": "KglÅrsnettoAfståelse",
+                            "afståelsessum_kroner": 11_500
+                        }
+                    ]
+                }]
+            }
         },
         "gift_og_samlevende_ved_indkomstårets_udgang": false
     });
@@ -13518,19 +13839,54 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .len(),
         1
     );
+    let par32_historical_year = &par32_history_trace["historiske_årsresultater"][0];
+    assert_eq!(
+        par32_historical_year["venstre_årsgrundlag"]["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        par32_historical_year["venstre_årsgrundlag"]["kursgevinst_resultat"]
+            ["årets_samlede_netto_efter_par14_kroner"],
+        2_500
+    );
+    assert_eq!(
+        par32_historical_year["venstre_årsgrundlag"]["kursgevinst_resultat"]["gældsresultater"]
+            .as_array()
+            .expect("historical KGL §32 debt results")
+            .len(),
+        1
+    );
+    let par32_historical_abl22 = &par32_historical_year["venstre_årsgrundlag"]
+        ["kursgevinst_resultat"]["øvrige_instrumentresultat"]["obligationsbevisresultater"][0];
+    assert_eq!(par32_historical_abl22["input_gyldigt"], true);
+    assert_eq!(
+        par32_historical_abl22["aktieavancebeskatningslov_resultat"]
+            ["netto_efter_aktieavancebeskatningsloven_kroner"],
+        1_500
+    );
+    assert_eq!(
+        par32_historical_year["kursgevinst"]["venstre"]
+            ["tab_modregnet_i_egne_aktiegevinster_kroner"],
+        1_500
+    );
+    assert_eq!(
+        par32_historical_year["kursgevinst"]["venstre"]
+            ["aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner"],
+        8_500
+    );
     let par32_history_current =
         &par32_history_trace["aktuelt_årsresultat"]["kursgevinst"]["venstre"];
     assert_eq!(
-        par32_history_current["gyldigt_fremførte_almindelige_tab_kroner"],
-        10_000
+        par32_history_current["gyldigt_fremførte_aktiebaserede_tab_kroner"],
+        8_500
     );
     assert_eq!(
         par32_history_current["tab_modregnet_i_egne_indkomstårsgevinster_kroner"],
         6_000
     );
     assert_eq!(
-        par32_history_current["almindelige_tab_fremført_til_følgende_indkomstår_kroner"],
-        4_000
+        par32_history_current["aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner"],
+        2_500
     );
     assert_eq!(
         par32_history_current["netto_kontraktindkomst_efter_par32_kroner"],
