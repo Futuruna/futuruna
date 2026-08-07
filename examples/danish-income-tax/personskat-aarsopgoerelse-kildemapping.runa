@@ -61,7 +61,7 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 # PersonskatÅrsopgørelseFaktakrav = YdelsensRetligeArtOgAmStatus | PensionsordningstypeIndbetalingskildeBetalingOgBegrænsninger | VirksomhedsindkomstAktivitetOgUnderskudshistorik | InstrumentidentitetKlassifikationOgOpgørelsesforløb | FagforeningsbetalingForeningsformålOgIndberetning | BidragsartMedlemskabUdlandsfradragOgOrdning | GavebetalingModtagergodkendelseIndberetningOgAftale | RenteNæringsstatusOgSærregler | UdbytteskattensEndelighedOgModregningsret | ÆgtefællensSamledeIndkomstOgFradragsfakta
 
-# PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
+# PersonskatÅrsopgørelseMappingAnvendelse = DirekteKildebeløb(mål: ProgramReference, beløb_kroner: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | DirekteKildebeløbØre(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | Kontrolresultat(mål: ProgramReference, beløb_øre: Heltal) | KræverSupplerendeKilde(kilde: PersonskatÅrsopgørelseSupplerendeKilde, faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | ØrepræcisionKanIkkeBevares(mål: ProgramReference, beløb_øre: Heltal, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) | UgyldigeKildelinjer
 
 # PersonskatÅrsopgørelseMapping(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), anvendelse: PersonskatÅrsopgørelseMappingAnvendelse)
 
@@ -99,6 +99,22 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     }
 }
 
+| personskat_aarsopgoerelse_direkte_øremapping(kildelinjer: List(PersonskatÅrsopgørelseKildelinje), mål: ProgramReference, resterende_faktakrav: List(PersonskatÅrsopgørelseFaktakrav)) -> hvis personskat_aarsopgoerelse_kildelinjer_gyldige(kildelinjer) {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = kildelinjer,
+        anvendelse = DirekteKildebeløbØre(
+            mål = mål,
+            beløb_øre = personskat_aarsopgoerelse_kildelinjer_beløb_øre(kildelinjer),
+            resterende_faktakrav = resterende_faktakrav
+        )
+    )
+} ellers {
+    PersonskatÅrsopgørelseMapping(
+        kildelinjer = kildelinjer,
+        anvendelse = UgyldigeKildelinjer
+    )
+}
+
 | personskat_aarsopgoerelse_kontrolmapping(linje: PersonskatÅrsopgørelseKildelinje, mål: ProgramReference) -> hvis personskat_aarsopgoerelse_kildelinje_gyldig(linje) {
     PersonskatÅrsopgørelseMapping(
         kildelinjer = [linje],
@@ -131,6 +147,7 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
 
 | personskat_aarsopgoerelse_mappingkategori(mapping: PersonskatÅrsopgørelseMapping) -> match mapping.anvendelse {
     | DirekteKildebeløb(_, _, _) -> DirekteMapping
+    | DirekteKildebeløbØre(_, _, _) -> DirekteMapping
     | Kontrolresultat(_, _) -> KontrolMapping
     | KræverSupplerendeKilde(_, _) -> SupplerendeKildeMapping
     | ØrepræcisionKanIkkeBevares(_, _, _) -> ØrepræcisionMapping
@@ -201,19 +218,19 @@ linjebeløb må ikke anvendes som et frit fradragsbeløb.
     [GavebetalingModtagergodkendelseIndberetningOgAftale]
 )
 
-| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_kronemapping(
+| personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am(kildelinjer: List(PersonskatÅrsopgørelseKildelinje)) -> personskat_aarsopgoerelse_direkte_øremapping(
     kildelinjer,
-    refof(KildeskatPar60Kreditter::a_skat_og_am_indeholdt_kroner),
+    refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
     []
 )
-| personskat_aarsopgoerelse_kortlaeg_modregningsberettiget_udbytteskat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+| personskat_aarsopgoerelse_kortlaeg_modregningsberettiget_udbytteskat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_øremapping(
     [linje],
-    refof(KildeskatPar60Kreditter::udbytteskat_modregningsberettiget_kroner),
+    refof(KildeskatPar60KreditterØre::udbytteskat_modregningsberettiget_øre),
     [UdbytteskattensEndelighedOgModregningsret]
 )
-| personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_kronemapping(
+| personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(linje: PersonskatÅrsopgørelseKildelinje) -> personskat_aarsopgoerelse_direkte_øremapping(
     [linje],
-    refof(KildeskatPar60Kreditter::tilbagebetalt_par55_kroner),
+    refof(KildeskatPar60KreditterØre::tilbagebetalt_par55_øre),
     []
 )
 

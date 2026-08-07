@@ -4860,6 +4860,548 @@ pub enum Rule {
     },
 }
 
+#[derive(Debug, Clone, Default)]
+struct FreeSymbolUses {
+    values: BTreeSet<String>,
+    calls: BTreeSet<String>,
+}
+
+fn collect_true_free_symbol_uses_stmt(
+    stmt: &Stmt,
+    uses: &mut FreeSymbolUses,
+    bound: &BTreeSet<String>,
+) {
+    match stmt {
+        Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) => {
+            collect_true_free_symbol_uses(expr, uses, bound);
+        }
+        Stmt::Expr(expr) | Stmt::StreamBind(_, expr) => {
+            collect_true_free_symbol_uses(expr, uses, bound);
+        }
+        Stmt::Send(target, msg) => {
+            collect_true_free_symbol_uses(target, uses, bound);
+            collect_true_free_symbol_uses(msg, uses, bound);
+        }
+        Stmt::For(var, iter, body_stmts) => {
+            collect_true_free_symbol_uses(iter, uses, bound);
+            let mut for_bound = bound.clone();
+            for_bound.insert(var.clone());
+            for body_stmt in body_stmts {
+                collect_true_free_symbol_uses_stmt(body_stmt, uses, &for_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut for_bound);
+                }
+            }
+        }
+        Stmt::While(cond, body_stmts) => {
+            collect_true_free_symbol_uses(cond, uses, bound);
+            let mut while_bound = bound.clone();
+            for body_stmt in body_stmts {
+                collect_true_free_symbol_uses_stmt(body_stmt, uses, &while_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut while_bound);
+                }
+            }
+        }
+        Stmt::StreamSub(expr, arms) => {
+            collect_true_free_symbol_uses(expr, uses, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                collect_pattern_names(&arm.pat, &mut arm_bound);
+                if let Some(guard) = &arm.guard {
+                    collect_true_free_symbol_uses(guard, uses, &arm_bound);
+                }
+                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound);
+            }
+        }
+        Stmt::Invariant {
+            subject, predicate, ..
+        } => {
+            collect_true_free_symbol_uses(subject, uses, bound);
+            collect_true_free_symbol_uses(predicate, uses, bound);
+        }
+        Stmt::Prove {
+            pass_block,
+            else_block,
+            ..
+        } => {
+            if let Some(pass_block) = pass_block {
+                let mut pass_bound = bound.clone();
+                for pass_stmt in pass_block {
+                    collect_true_free_symbol_uses_stmt(pass_stmt, uses, &pass_bound);
+                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = pass_stmt {
+                        collect_pattern_names(pat, &mut pass_bound);
+                    }
+                }
+            }
+            if let Some(else_block) = else_block {
+                let mut else_bound = bound.clone();
+                for else_stmt in else_block {
+                    collect_true_free_symbol_uses_stmt(else_stmt, uses, &else_bound);
+                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = else_stmt {
+                        collect_pattern_names(pat, &mut else_bound);
+                    }
+                }
+            }
+        }
+        Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
+            let mut scope_bound = bound.clone();
+            for body_stmt in body {
+                collect_true_free_symbol_uses_stmt(body_stmt, uses, &scope_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
+                    collect_pattern_names(pat, &mut scope_bound);
+                }
+            }
+        }
+        Stmt::Rule(_) => {}
+        Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
+            for arg in args {
+                collect_true_free_symbol_uses(arg, uses, bound);
+            }
+        }
+        Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::Abort
+        | Stmt::Defn(_)
+        | Stmt::TypeDecl(_)
+        | Stmt::RustBlock(_) => {}
+    }
+}
+
+fn collect_true_free_symbol_uses(expr: &Expr, uses: &mut FreeSymbolUses, bound: &BTreeSet<String>) {
+    match &expr.kind {
+        ExprKind::Var(name) => {
+            if !bound.contains(name) {
+                uses.values.insert(name.clone());
+            }
+        }
+        ExprKind::Lit(_) | ExprKind::Unit => {}
+        ExprKind::BinOp(_, lhs, rhs) => {
+            collect_true_free_symbol_uses(lhs, uses, bound);
+            collect_true_free_symbol_uses(rhs, uses, bound);
+        }
+        ExprKind::UnOp(_, inner) | ExprKind::Try(inner) => {
+            collect_true_free_symbol_uses(inner, uses, bound)
+        }
+        ExprKind::App(func, args) => {
+            if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                if let Some(value) = args.get(1) {
+                    collect_true_free_symbol_uses(value, uses, bound);
+                }
+                return;
+            }
+            if let ExprKind::Var(fn_name) = &func.kind {
+                if (fn_name == "findall" || fn_name == "search") && args.len() >= 2 {
+                    let mut inner_bound = bound.clone();
+                    if let ExprKind::Var(qvar) = &args[0].kind {
+                        inner_bound.insert(qvar.clone());
+                    }
+                    for arg in &args[1..] {
+                        collect_true_free_symbol_uses(arg, uses, &inner_bound);
+                    }
+                    return;
+                }
+            }
+            if let ExprKind::Var(name) = &func.kind {
+                if !bound.contains(name) {
+                    uses.calls.insert(name.clone());
+                }
+            } else {
+                collect_true_free_symbol_uses(func, uses, bound);
+            }
+            for arg in args {
+                collect_true_free_symbol_uses(arg, uses, bound);
+            }
+        }
+        ExprKind::If(cond, then_expr, else_expr) => {
+            collect_true_free_symbol_uses(cond, uses, bound);
+            collect_true_free_symbol_uses(then_expr, uses, bound);
+            collect_true_free_symbol_uses(else_expr, uses, bound);
+        }
+        ExprKind::Field(object, _) => collect_true_free_symbol_uses(object, uses, bound),
+        ExprKind::Index(collection, index) => {
+            collect_true_free_symbol_uses(collection, uses, bound);
+            collect_true_free_symbol_uses(index, uses, bound);
+        }
+        ExprKind::Match(scrutinee, arms) => {
+            collect_true_free_symbol_uses(scrutinee, uses, bound);
+            for arm in arms {
+                let mut arm_bound = bound.clone();
+                collect_pattern_names(&arm.pat, &mut arm_bound);
+                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound);
+                if let Some(guard) = &arm.guard {
+                    collect_true_free_symbol_uses(guard, uses, &arm_bound);
+                }
+            }
+        }
+        ExprKind::Lambda(params, body) => {
+            let mut inner_bound = bound.clone();
+            inner_bound.extend(params.iter().map(|param| param.name.clone()));
+            collect_true_free_symbol_uses(body, uses, &inner_bound);
+        }
+        ExprKind::Block(stmts) => {
+            let mut block_bound = bound.clone();
+            for stmt in stmts {
+                collect_true_free_symbol_uses_stmt(stmt, uses, &block_bound);
+                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = stmt {
+                    collect_pattern_names(pat, &mut block_bound);
+                }
+            }
+        }
+        ExprKind::List(items) | ExprKind::Tuple(items) => {
+            for item in items {
+                collect_true_free_symbol_uses(item, uses, bound);
+            }
+        }
+        ExprKind::Effect(_, args) => {
+            for arg in args {
+                collect_true_free_symbol_uses(arg, uses, bound);
+            }
+        }
+        ExprKind::Handle { handlers, body, .. } => {
+            for handler in handlers {
+                let mut handler_bound = bound.clone();
+                handler_bound.extend(handler.params.iter().cloned());
+                collect_true_free_symbol_uses(&handler.body, uses, &handler_bound);
+            }
+            collect_true_free_symbol_uses(body, uses, bound);
+        }
+        ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
+            for goal in goals {
+                collect_true_free_symbol_uses(goal, uses, bound);
+            }
+        }
+        ExprKind::Pipe(input, transform) => {
+            collect_true_free_symbol_uses(input, uses, bound);
+            if let ExprKind::Var(name) = &transform.kind {
+                if !bound.contains(name) {
+                    uses.calls.insert(name.clone());
+                }
+            } else {
+                collect_true_free_symbol_uses(transform, uses, bound);
+            }
+        }
+    }
+}
+
+/// Collect truly free variables: referenced names minus names bound by local
+/// patterns, parameters, and query variables.
+pub fn collect_true_free_vars_stmt(
+    stmt: &Stmt,
+    free: &mut BTreeSet<String>,
+    bound: &BTreeSet<String>,
+) {
+    let mut uses = FreeSymbolUses::default();
+    collect_true_free_symbol_uses_stmt(stmt, &mut uses, bound);
+    free.extend(uses.values);
+    free.extend(uses.calls);
+}
+
+pub fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
+    let mut uses = FreeSymbolUses::default();
+    collect_true_free_symbol_uses(expr, &mut uses, bound);
+    free.extend(uses.values);
+    free.extend(uses.calls);
+}
+
+pub fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
+    match pat {
+        Pat::Var(name) => {
+            names.insert(name.clone());
+        }
+        Pat::Con(_, patterns) => {
+            for pattern in patterns {
+                collect_pattern_names(pattern, names);
+            }
+        }
+        Pat::NamedCon(_, fields) => {
+            for (_, pattern) in fields {
+                collect_pattern_names(pattern, names);
+            }
+        }
+        Pat::As(inner, alias) => {
+            collect_pattern_names(inner, names);
+            names.insert(alias.clone());
+        }
+        Pat::Wild | Pat::Lit(_) => {}
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TopLevelInitializationCycle {
+    pub path: Vec<String>,
+}
+
+impl fmt::Display for TopLevelInitializationCycle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "cyclic top-level value initialization: {}",
+            self.path.join(" -> ")
+        )
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct TopLevelBindingDependencyPlan {
+    binding_names: BTreeSet<String>,
+    dependencies: BTreeMap<String, BTreeSet<String>>,
+}
+
+impl TopLevelBindingDependencyPlan {
+    pub fn order_statement_refs<'a>(
+        &self,
+        stmts: &[&'a Stmt],
+    ) -> Result<Vec<&'a Stmt>, TopLevelInitializationCycle> {
+        fn append_binding<'a>(
+            name: &str,
+            plan: &TopLevelBindingDependencyPlan,
+            bindings: &BTreeMap<String, &'a Stmt>,
+            emitted: &mut BTreeSet<String>,
+            active: &mut Vec<String>,
+            ordered: &mut Vec<&'a Stmt>,
+        ) -> Result<(), TopLevelInitializationCycle> {
+            if emitted.contains(name) {
+                return Ok(());
+            }
+            if let Some(cycle_start) = active.iter().position(|active_name| active_name == name) {
+                let mut path = active[cycle_start..].to_vec();
+                path.push(name.to_string());
+                return Err(TopLevelInitializationCycle { path });
+            }
+
+            active.push(name.to_string());
+            if let Some(dependencies) = plan.dependencies.get(name) {
+                for dependency in dependencies {
+                    if bindings.contains_key(dependency) {
+                        append_binding(dependency, plan, bindings, emitted, active, ordered)?;
+                    }
+                }
+            }
+            active.pop();
+
+            if emitted.insert(name.to_string()) {
+                if let Some(stmt) = bindings.get(name) {
+                    ordered.push(*stmt);
+                }
+            }
+            Ok(())
+        }
+
+        let bindings = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Bind(Pat::Var(name), _, _) if self.binding_names.contains(name) => {
+                    Some((name.clone(), *stmt))
+                }
+                _ => None,
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut emitted = BTreeSet::new();
+        let mut active = Vec::new();
+        let mut ordered = Vec::with_capacity(stmts.len());
+
+        for stmt in stmts {
+            if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+                if self.binding_names.contains(name) {
+                    append_binding(
+                        name,
+                        self,
+                        &bindings,
+                        &mut emitted,
+                        &mut active,
+                        &mut ordered,
+                    )?;
+                    continue;
+                }
+            }
+            ordered.push(*stmt);
+        }
+
+        Ok(ordered)
+    }
+}
+
+fn rule_head_name(head: &Expr) -> Option<&str> {
+    match &head.kind {
+        ExprKind::Var(name) => Some(name),
+        ExprKind::App(function, _) => match &function.kind {
+            ExprKind::Var(name) => Some(name),
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+fn rule_head_bound_names(head: &Expr) -> BTreeSet<String> {
+    let ExprKind::App(_, args) = &head.kind else {
+        return BTreeSet::new();
+    };
+    args.iter()
+        .filter_map(|arg| {
+            let inner = match &arg.kind {
+                ExprKind::App(function, typed_args)
+                    if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") =>
+                {
+                    typed_args.first().unwrap_or(arg)
+                }
+                _ => arg,
+            };
+            match &inner.kind {
+                ExprKind::Var(name) => Some(name.clone()),
+                _ => None,
+            }
+        })
+        .collect()
+}
+
+pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBindingDependencyPlan {
+    let mut counts = BTreeMap::<String, usize>::new();
+    let mut binding_positions = BTreeMap::<String, usize>::new();
+    let mut comptime_bindings = BTreeSet::new();
+    let mut pending_annotation = None::<String>;
+
+    for (index, stmt) in stmts.iter().enumerate() {
+        if let Stmt::Annot(name, _) = stmt {
+            pending_annotation = Some(name.clone());
+            continue;
+        }
+        if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
+            *counts.entry(name.clone()).or_default() += 1;
+            binding_positions.entry(name.clone()).or_insert(index);
+            if pending_annotation.as_deref() == Some("comptime") {
+                comptime_bindings.insert(name.clone());
+            }
+        }
+        pending_annotation = None;
+    }
+
+    let binding_names = counts
+        .into_iter()
+        .filter_map(|(name, count)| {
+            (count == 1 && !comptime_bindings.contains(&name)).then_some(name)
+        })
+        .collect::<BTreeSet<_>>();
+
+    let mut callable_dependencies = BTreeMap::<String, FreeSymbolUses>::new();
+    for stmt in stmts {
+        match stmt {
+            Stmt::Defn(Defn::Fn {
+                name, params, body, ..
+            }) => {
+                let bound = params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<BTreeSet<_>>();
+                let uses = callable_dependencies.entry(name.clone()).or_default();
+                collect_true_free_symbol_uses(body, uses, &bound);
+            }
+            Stmt::Rule(rule) => {
+                let (head, expressions) = match rule {
+                    Rule::Clause {
+                        head,
+                        body: Some(body),
+                    } => (head, vec![body]),
+                    Rule::Default {
+                        head,
+                        value,
+                        condition,
+                    }
+                    | Rule::Exception {
+                        head,
+                        value,
+                        condition,
+                        ..
+                    } => {
+                        let mut expressions = vec![value];
+                        expressions.extend(condition.iter());
+                        (head, expressions)
+                    }
+                    Rule::Clause { head, body: None } => (head, Vec::new()),
+                    Rule::ReactiveScope { .. } => continue,
+                };
+                let Some(name) = rule_head_name(head) else {
+                    continue;
+                };
+                let bound = rule_head_bound_names(head);
+                let uses = callable_dependencies.entry(name.to_string()).or_default();
+                for expression in expressions {
+                    collect_true_free_symbol_uses(expression, uses, &bound);
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { variants, .. })
+            | Stmt::TypeDecl(TypeDecl::WhenType { variants, .. }) => {
+                for variant in variants {
+                    callable_dependencies
+                        .entry(variant.name.clone())
+                        .or_default();
+                }
+            }
+            _ => {}
+        }
+    }
+
+    let mut dependencies = BTreeMap::new();
+    for (statement_index, stmt) in stmts.iter().enumerate() {
+        let Stmt::Bind(Pat::Var(name), _, expression) = stmt else {
+            continue;
+        };
+        if !binding_names.contains(name) {
+            continue;
+        }
+
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expression, &mut uses, &BTreeSet::new());
+        let mut callable_stack = uses.calls.into_iter().collect::<Vec<_>>();
+        let mut visited_callables = BTreeSet::new();
+        let mut binding_dependencies = uses
+            .values
+            .into_iter()
+            .filter(|symbol| binding_names.contains(symbol))
+            .collect::<BTreeSet<_>>();
+
+        while let Some(symbol) = callable_stack.pop() {
+            if !visited_callables.insert(symbol.clone()) {
+                continue;
+            }
+            if binding_names.contains(&symbol)
+                && binding_positions
+                    .get(&symbol)
+                    .is_some_and(|position| *position < statement_index)
+            {
+                // An earlier value binding shadows a same-named static callable
+                // in the call-site environment. The binding being initialized
+                // does not shadow its own right-hand side.
+                binding_dependencies.insert(symbol);
+                continue;
+            }
+            if let Some(callable) = callable_dependencies.get(&symbol) {
+                binding_dependencies.extend(
+                    callable
+                        .values
+                        .iter()
+                        .filter(|name| binding_names.contains(*name))
+                        .cloned(),
+                );
+                callable_stack.extend(callable.calls.iter().cloned());
+            } else if binding_names.contains(&symbol) {
+                // A call without a static function, rule, or constructor resolves
+                // through a function-valued top-level binding.
+                binding_dependencies.insert(symbol);
+            }
+        }
+        dependencies.insert(name.clone(), binding_dependencies);
+    }
+
+    TopLevelBindingDependencyPlan {
+        binding_names,
+        dependencies,
+    }
+}
+
 /// Parsed source retained for the duration of a compiler process. Import-heavy
 /// programs have several semantic consumers, but a module's syntax tree is
 /// independent of the consumer that requested it.
@@ -10899,11 +11441,15 @@ impl Interpreter {
             &mut runtime_graph,
         );
         self.extend_calculation_runtime_demand(&runtime_graph);
-        self.run_program_internal(stmts, env, true)
+        self.run_program_internal(stmts, env, true, true)
     }
 
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
-        self.run_program_internal(stmts, env, false)
+        self.run_program_internal(stmts, env, false, true)
+    }
+
+    fn run_statement_block(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
+        self.run_program_internal(stmts, env, false, false)
     }
 
     fn run_program_internal(
@@ -10911,15 +11457,24 @@ impl Interpreter {
         stmts: &[Stmt],
         env: &mut Env,
         prune_top_level_bindings: bool,
+        order_value_bindings: bool,
     ) -> Value {
         if prune_top_level_bindings {
             self.extend_calculation_runtime_demand(stmts);
         }
+        let statement_refs = stmts.iter().collect::<Vec<_>>();
+        let ordered_stmts = if order_value_bindings {
+            analyze_top_level_binding_dependencies(stmts)
+                .order_statement_refs(&statement_refs)
+                .unwrap_or_else(|cycle| panic!("{cycle}"))
+        } else {
+            statement_refs
+        };
         let mut last = Value::Unit;
         let mut pending_annot: Option<String> = None;
         let mut static_declarations_registered = false;
 
-        for stmt in stmts {
+        for stmt in ordered_stmts {
             // Imports establish the dependency environment first. Once the local
             // module starts, hoist its static declarations before evaluating any
             // binding, matching codegen without reversing local import overrides.
@@ -10989,7 +11544,7 @@ impl Interpreter {
                     if let Rule::ReactiveScope { name, body } = rule {
                         let mut scope_env = env.child();
                         // Execute all body statements in the child environment
-                        let _scope_last = self.run_program(body, &mut scope_env);
+                        let _scope_last = self.run_statement_block(body, &mut scope_env);
                         // Store scope as a value so bindings are accessible via ScopeName.field
                         let scope_bindings = scope_env.bindings.clone();
                         env.set(
@@ -11078,6 +11633,7 @@ impl Interpreter {
                                             &defs,
                                             env,
                                             prune_top_level_bindings,
+                                            true,
                                         );
                                         self.source_dir = previous_source_dir;
                                     }
@@ -11159,6 +11715,7 @@ impl Interpreter {
                                         &defs,
                                         &mut mod_env,
                                         prune_top_level_bindings,
+                                        true,
                                     );
                                     self.source_dir = previous_source_dir;
                                     // Filter to only exported bindings
@@ -11323,12 +11880,12 @@ impl Interpreter {
                     if has_blocks {
                         if all_passed {
                             if let Some(block) = pass_block {
-                                self.run_program(block, env);
+                                self.run_statement_block(block, env);
                             }
                         } else {
                             if let Some(block) = else_block {
                                 // Custom fail block — user handles it, no halt
-                                self.run_program(block, env);
+                                self.run_statement_block(block, env);
                             } else {
                                 // Has pass block but no else → halt on failure
                                 let msg = format!("? {} FAILED", name);
@@ -11497,7 +12054,7 @@ impl Interpreter {
                     for item in items {
                         env.set(var.clone(), item);
                         let inner_stmts: Vec<Stmt> = body_stmts.clone();
-                        last = self.run_program(&inner_stmts, env);
+                        last = self.run_statement_block(&inner_stmts, env);
                     }
                 }
                 Stmt::While(cond, body_stmts) => {
@@ -11532,7 +12089,7 @@ impl Interpreter {
                                                     let v = self.eval(val, env);
                                                     env.set(name.clone(), v);
                                                 } else {
-                                                    self.run_program(&[s.clone()], env);
+                                                    self.run_statement_block(&[s.clone()], env);
                                                 }
                                             }
                                         } else {
@@ -11553,7 +12110,7 @@ impl Interpreter {
                                     }
                                 }
                                 other => {
-                                    last = self.run_program(&[other.clone()], env);
+                                    last = self.run_statement_block(&[other.clone()], env);
                                 }
                             }
                         }
@@ -11915,6 +12472,16 @@ impl Interpreter {
                     if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
                         return result;
                     }
+                    if let Some(local_callable) = env.get(fn_name).cloned() {
+                        if let Value::Closure { params, .. } = &local_callable {
+                            let arg_vals = self
+                                .eval_named_args_by_names(params, args, env)
+                                .unwrap_or_else(|| {
+                                    args.iter().map(|arg| self.eval(arg, env)).collect()
+                                });
+                            return self.apply(local_callable, arg_vals, env);
+                        }
+                    }
                     if self.constructor_signatures.contains_key(fn_name) {
                         if let Some(value) = self.eval_constructor_call(fn_name, args, env) {
                             return value;
@@ -12003,7 +12570,7 @@ impl Interpreter {
             }
             ExprKind::Block(stmts) => {
                 let mut block_env = env.child();
-                self.run_program(stmts, &mut block_env)
+                self.run_statement_block(stmts, &mut block_env)
             }
             ExprKind::Field(obj, field) => {
                 let obj_val = self.eval(obj, env);

@@ -85,6 +85,26 @@ overskydende skat efter § 62.
     systemdatoer = scenarie1_mand_lav_indeholdelse_systemdatoer
 ))
 = scenarie1_mand_lav_indeholdelse_plan = kildeskat_restskat_opkrævning_plan(scenarie1_mand_lav_indeholdelse_opkrævning_input)
+= slutopgørelse_eksakt_restskat_input = KildeskatSlutopgørelseEksaktInput(
+    slutskat_øre = 12000099,
+    overført_restskat_mv_øre = 0,
+    pensionsbeskatningsafgift_øre = 0,
+    kreditter = KildeskatPar60KreditterØre(
+        a_skat_og_am_indeholdt_øre = 0,
+        par68_indbetalt_øre = 0,
+        b_skat_betalt_øre = 0,
+        udbytteskat_modregningsberettiget_øre = 0,
+        frivillig_indbetaling_par59_øre = 0,
+        virksomhedsordning_beløb_øre = 0,
+        personskattelov_par8a_stk5_beløb_øre = 0,
+        afskrivningslov_acontoskat_øre = 0,
+        am_lov_par6_beløb_øre = 0,
+        seniornedslag_øre = 0,
+        energiafgiftskompensation_øre = 0,
+        tilbagebetalt_par55_øre = 0
+    )
+)
+= slutopgørelse_eksakt_restskat_resultat = kildeskat_slutopgørelse_eksakt_resultat(slutopgørelse_eksakt_restskat_input)
 
 | scenarie1_mand_genereret_slutopgørelse_overskydende: scenarie1_mand_slutopgørelse_genereret -> scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner == 2690 && scenarie1_mand_slutopgørelse_genereret.restskat_kroner == 0
 | scenarie1_ægtefælle_genereret_slutopgørelse_overskydende: scenarie1_ægtefælle_slutopgørelse_genereret -> scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner == 851 && scenarie1_ægtefælle_slutopgørelse_genereret.restskat_kroner == 0
@@ -95,6 +115,7 @@ overskydende skat efter § 62.
 | scenarie1_husholdning_genereret_udbetaling_beregnet: scenarie1_husholdning_genereret_udbetaling -> scenarie1_husholdning_genereret_udbetaling == 3541
 | scenarie1_lav_indeholdelse_restskat_tillæg: scenarie1_mand_lav_indeholdelse_tillæg -> scenarie1_mand_lav_indeholdelse_tillæg == 267
 | scenarie1_lav_indeholdelse_indregnes_i_følgende_år: scenarie1_mand_lav_indeholdelse_plan -> scenarie1_mand_lav_indeholdelse_plan.indregnes_i_følgende_år_kroner == 16726 && scenarie1_mand_lav_indeholdelse_plan.tre_rater_kroner == 0
+| slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner: slutopgørelse_eksakt_restskat_resultat -> slutopgørelse_eksakt_restskat_resultat.restskat_øre == 12000099 && slutopgørelse_eksakt_restskat_resultat.restskat_opkræves_kroner == 120000 && slutopgørelse_eksakt_restskat_resultat.restskat_ikke_opkrævet_øre == 99 && slutopgørelse_eksakt_restskat_resultat.art == Restskat
 
 ? scenarie1_mand_genereret_slutopgørelse_overskydende
 ? scenarie1_ægtefælle_genereret_slutopgørelse_overskydende
@@ -105,6 +126,7 @@ overskydende skat efter § 62.
 ? scenarie1_husholdning_genereret_udbetaling_beregnet
 ? scenarie1_lav_indeholdelse_restskat_tillæg
 ? scenarie1_lav_indeholdelse_indregnes_i_følgende_år
+? slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner
 
 @ print("scenarie1 mand slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner))
 @ print("scenarie1 aegtefaelle slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner))

@@ -20,6 +20,13 @@ EndDate: 2026-07-01
 ----
 
 ----
+Officiel statuskontrol hos Retsinformation den 5. august 2026:
+LBK nr. 460 af 03/05/2024 er fortsat markeret som gældende. Den officielle
+udskrift oplister efterfølgende ændringslove til og med lov nr. 615 af
+30/06/2026.
+----
+
+----
 § 58. B-skat og foreløbigt arbejdsmarkedsbidrag forfalder til betaling i 10
 rater den 1. i hver af månederne januar, februar, marts, april, maj, juli,
 august, september, oktober og november med sidste rettidige betalingsdag for
@@ -106,16 +113,43 @@ henholdsvis udbetales efter reglerne i § 62.
 
 # KildeskatSlutopgørelseArt = IngenSlutopgørelsesDifference | Restskat | OverskydendeSkat
 # KildeskatPar60Kreditter(a_skat_og_am_indeholdt_kroner: Heltal, par68_indbetalt_kroner: Heltal, b_skat_betalt_kroner: Heltal, udbytteskat_modregningsberettiget_kroner: Heltal, frivillig_indbetaling_par59_kroner: Heltal, virksomhedsordning_beløb_kroner: Heltal, personskattelov_par8a_stk5_beløb_kroner: Heltal, afskrivningslov_acontoskat_kroner: Heltal, am_lov_par6_beløb_kroner: Heltal, seniornedslag_kroner: Heltal, energiafgiftskompensation_kroner: Heltal, tilbagebetalt_par55_kroner: Heltal)
+# KildeskatPar60KreditterØre(a_skat_og_am_indeholdt_øre: Heltal, par68_indbetalt_øre: Heltal, b_skat_betalt_øre: Heltal, udbytteskat_modregningsberettiget_øre: Heltal, frivillig_indbetaling_par59_øre: Heltal, virksomhedsordning_beløb_øre: Heltal, personskattelov_par8a_stk5_beløb_øre: Heltal, afskrivningslov_acontoskat_øre: Heltal, am_lov_par6_beløb_øre: Heltal, seniornedslag_øre: Heltal, energiafgiftskompensation_øre: Heltal, tilbagebetalt_par55_øre: Heltal)
 # KildeskatSlutopgørelseInput(slutskat_kroner: Heltal, overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # KildeskatSlutopgørelseResult(slutskat_med_tillæg_kroner: Heltal, modregnede_foreløbige_skatter_kroner: Heltal, restskat_kroner: Heltal, overskydende_skat_kroner: Heltal, art: KildeskatSlutopgørelseArt)
+# KildeskatSlutopgørelseEksaktInput(slutskat_øre: Heltal, overført_restskat_mv_øre: Heltal, pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre)
+# KildeskatSlutopgørelseEksaktResult(slutskat_med_tillæg_øre: Heltal, modregnede_foreløbige_skatter_øre: Heltal, restskat_øre: Heltal, restskat_opkræves_kroner: Heltal, restskat_ikke_opkrævet_øre: Heltal, overskydende_skat_øre: Heltal, overskydende_skat_udbetales_kroner: Heltal, overskydende_skat_ikke_udbetalt_øre: Heltal, art: KildeskatSlutopgørelseArt)
 # KildeskatÆgtefælleUdligningInput(person_a_restskat_kroner: Heltal, person_a_overskydende_skat_kroner: Heltal, person_b_restskat_kroner: Heltal, person_b_overskydende_skat_kroner: Heltal, samlevende_ved_årets_udgang: Boolsk, begge_indforstået: Boolsk)
 # KildeskatÆgtefælleUdligningResult(person_a_restskat_efter_udligning_kroner: Heltal, person_a_overskydende_skat_efter_udligning_kroner: Heltal, person_b_restskat_efter_udligning_kroner: Heltal, person_b_overskydende_skat_efter_udligning_kroner: Heltal, anvendt_a_til_b_kroner: Heltal, anvendt_b_til_a_kroner: Heltal)
 
 | kildeskat_slutopgørelse_positivt_beløb(beløb_kroner: Heltal) -> penge_positivt_beløb(beløb_kroner)
+| kildeskat_slutopgørelse_positivt_beløb_øre(beløb_øre: Heltal) -> penge_positivt_beløb(beløb_øre)
 | kildeskat_slutopgørelse_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> penge_mindste_beløb(a_kroner, b_kroner)
-| kildeskat_par60_modregning_brutto_kroner(kreditter: KildeskatPar60Kreditter) -> kreditter.a_skat_og_am_indeholdt_kroner + kreditter.par68_indbetalt_kroner + kreditter.b_skat_betalt_kroner + kreditter.udbytteskat_modregningsberettiget_kroner + kreditter.frivillig_indbetaling_par59_kroner + kreditter.virksomhedsordning_beløb_kroner + kreditter.personskattelov_par8a_stk5_beløb_kroner + kreditter.afskrivningslov_acontoskat_kroner + kreditter.am_lov_par6_beløb_kroner + kreditter.seniornedslag_kroner + kreditter.energiafgiftskompensation_kroner
-| kildeskat_par60_modregning_kroner(kreditter: KildeskatPar60Kreditter) -> kildeskat_slutopgørelse_positivt_beløb(kildeskat_par60_modregning_brutto_kroner(kreditter) - kreditter.tilbagebetalt_par55_kroner)
-| kildeskat_slutskat_med_tillæg_kroner(input: KildeskatSlutopgørelseInput) -> input.slutskat_kroner + input.overført_restskat_mv_kroner + input.pensionsbeskatningsafgift_kroner
+| kildeskat_par60_kreditter_øre_fra_kroner(kreditter: KildeskatPar60Kreditter) -> KildeskatPar60KreditterØre(
+    a_skat_og_am_indeholdt_øre = kreditter.a_skat_og_am_indeholdt_kroner * 100,
+    par68_indbetalt_øre = kreditter.par68_indbetalt_kroner * 100,
+    b_skat_betalt_øre = kreditter.b_skat_betalt_kroner * 100,
+    udbytteskat_modregningsberettiget_øre = kreditter.udbytteskat_modregningsberettiget_kroner * 100,
+    frivillig_indbetaling_par59_øre = kreditter.frivillig_indbetaling_par59_kroner * 100,
+    virksomhedsordning_beløb_øre = kreditter.virksomhedsordning_beløb_kroner * 100,
+    personskattelov_par8a_stk5_beløb_øre = kreditter.personskattelov_par8a_stk5_beløb_kroner * 100,
+    afskrivningslov_acontoskat_øre = kreditter.afskrivningslov_acontoskat_kroner * 100,
+    am_lov_par6_beløb_øre = kreditter.am_lov_par6_beløb_kroner * 100,
+    seniornedslag_øre = kreditter.seniornedslag_kroner * 100,
+    energiafgiftskompensation_øre = kreditter.energiafgiftskompensation_kroner * 100,
+    tilbagebetalt_par55_øre = kreditter.tilbagebetalt_par55_kroner * 100
+)
+| kildeskat_par60_modregning_brutto_øre(kreditter: KildeskatPar60KreditterØre) -> kreditter.a_skat_og_am_indeholdt_øre + kreditter.par68_indbetalt_øre + kreditter.b_skat_betalt_øre + kreditter.udbytteskat_modregningsberettiget_øre + kreditter.frivillig_indbetaling_par59_øre + kreditter.virksomhedsordning_beløb_øre + kreditter.personskattelov_par8a_stk5_beløb_øre + kreditter.afskrivningslov_acontoskat_øre + kreditter.am_lov_par6_beløb_øre + kreditter.seniornedslag_øre + kreditter.energiafgiftskompensation_øre
+| kildeskat_par60_modregning_øre(kreditter: KildeskatPar60KreditterØre) -> kildeskat_slutopgørelse_positivt_beløb_øre(kildeskat_par60_modregning_brutto_øre(kreditter) - kreditter.tilbagebetalt_par55_øre)
+| kildeskat_par60_modregning_brutto_kroner(kreditter: KildeskatPar60Kreditter) -> kildeskat_par60_modregning_brutto_øre(kildeskat_par60_kreditter_øre_fra_kroner(kreditter)) / 100
+| kildeskat_par60_modregning_kroner(kreditter: KildeskatPar60Kreditter) -> kildeskat_par60_modregning_øre(kildeskat_par60_kreditter_øre_fra_kroner(kreditter)) / 100
+| kildeskat_slutopgørelse_eksakt_input_fra_kroner(input: KildeskatSlutopgørelseInput) -> KildeskatSlutopgørelseEksaktInput(
+    slutskat_øre = input.slutskat_kroner * 100,
+    overført_restskat_mv_øre = input.overført_restskat_mv_kroner * 100,
+    pensionsbeskatningsafgift_øre = input.pensionsbeskatningsafgift_kroner * 100,
+    kreditter = kildeskat_par60_kreditter_øre_fra_kroner(input.kreditter)
+)
+| kildeskat_slutskat_med_tillæg_øre(input: KildeskatSlutopgørelseEksaktInput) -> input.slutskat_øre + input.overført_restskat_mv_øre + input.pensionsbeskatningsafgift_øre
+| kildeskat_slutskat_med_tillæg_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutskat_med_tillæg_øre(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input)) / 100
 | kildeskat_ægtefælleudligning_tilladt(input: KildeskatÆgtefælleUdligningInput) -> input.samlevende_ved_årets_udgang && input.begge_indforstået
 | kildeskat_ægtefælleudligning_a_til_b_kroner(input: KildeskatÆgtefælleUdligningInput) -> 0
 | exception kildeskat_ægtefælle_a_overskydende_udligner_b_restskat kildeskat_ægtefælleudligning_a_til_b_kroner(input: KildeskatÆgtefælleUdligningInput) -> kildeskat_slutopgørelse_mindste_beløb(input.person_a_overskydende_skat_kroner, input.person_b_restskat_kroner) under kildeskat_ægtefælleudligning_tilladt(input) && input.person_a_overskydende_skat_kroner > 0 && input.person_b_restskat_kroner > 0
@@ -154,14 +188,36 @@ et procenttillæg af beløbet i godtgørelse.
 
 Stk. 4. Af det beløb, der efter foranstående skal udbetales den skattepligtige,
 udbetales kun det hele kronebeløb.
+
+§ 62 C. Stk. 4. Ved opkrævning af beløb efter denne lov opkræves kun hele
+kronebeløb. Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 ----
 
-| kildeskat_slutopgørelse_difference_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutskat_med_tillæg_kroner(input) - kildeskat_par60_modregning_kroner(input.kreditter)
-| kildeskat_restskat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(kildeskat_slutopgørelse_difference_kroner(input))
-| kildeskat_overskydende_skat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(0 - kildeskat_slutopgørelse_difference_kroner(input))
-| kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> IngenSlutopgørelsesDifference
-| exception kildeskat_slutopgørelse_er_restskat kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> Restskat under kildeskat_restskat_kroner(input) > 0
-| exception kildeskat_slutopgørelse_er_overskydende kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> OverskydendeSkat under kildeskat_overskydende_skat_kroner(input) > 0
+| kildeskat_slutopgørelse_difference_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_slutskat_med_tillæg_øre(input) - kildeskat_par60_modregning_øre(input.kreditter)
+| kildeskat_restskat_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_slutopgørelse_positivt_beløb_øre(kildeskat_slutopgørelse_difference_øre(input))
+| kildeskat_overskydende_skat_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_slutopgørelse_positivt_beløb_øre(0 - kildeskat_slutopgørelse_difference_øre(input))
+| kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> IngenSlutopgørelsesDifference
+| exception kildeskat_slutopgørelse_eksakt_er_restskat kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> Restskat under kildeskat_restskat_øre(input) > 0
+| exception kildeskat_slutopgørelse_eksakt_er_overskydende kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> OverskydendeSkat under kildeskat_overskydende_skat_øre(input) > 0
+| kildeskat_restskat_opkræves_kroner(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_restskat_øre(input) / 100
+| kildeskat_restskat_ikke_opkrævet_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_restskat_øre(input) % 100
+| kildeskat_overskydende_skat_udbetales_kroner(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_overskydende_skat_øre(input) / 100
+| kildeskat_overskydende_skat_ikke_udbetalt_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_overskydende_skat_øre(input) % 100
+| kildeskat_slutopgørelse_eksakt_resultat(input: KildeskatSlutopgørelseEksaktInput) -> KildeskatSlutopgørelseEksaktResult(
+    slutskat_med_tillæg_øre = kildeskat_slutskat_med_tillæg_øre(input),
+    modregnede_foreløbige_skatter_øre = kildeskat_par60_modregning_øre(input.kreditter),
+    restskat_øre = kildeskat_restskat_øre(input),
+    restskat_opkræves_kroner = kildeskat_restskat_opkræves_kroner(input),
+    restskat_ikke_opkrævet_øre = kildeskat_restskat_ikke_opkrævet_øre(input),
+    overskydende_skat_øre = kildeskat_overskydende_skat_øre(input),
+    overskydende_skat_udbetales_kroner = kildeskat_overskydende_skat_udbetales_kroner(input),
+    overskydende_skat_ikke_udbetalt_øre = kildeskat_overskydende_skat_ikke_udbetalt_øre(input),
+    art = kildeskat_slutopgørelse_eksakt_art(input)
+)
+| kildeskat_slutopgørelse_difference_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_difference_øre(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input)) / 100
+| kildeskat_restskat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_restskat_øre(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input)) / 100
+| kildeskat_overskydende_skat_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_overskydende_skat_øre(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input)) / 100
+| kildeskat_slutopgørelse_art(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_eksakt_art(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input))
 | kildeskat_slutopgørelse_resultat(input: KildeskatSlutopgørelseInput) -> KildeskatSlutopgørelseResult(
     slutskat_med_tillæg_kroner = kildeskat_slutskat_med_tillæg_kroner(input),
     modregnede_foreløbige_skatter_kroner = kildeskat_par60_modregning_kroner(input.kreditter),

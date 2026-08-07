@@ -52,6 +52,7 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
 = aarsopgoerelse_2025_indeholdt_am = personskat_aarsopgoerelse_2025_linje("indeholdt-am", "Indeholdt arbejdsmarkedsbidrag", 6536800)
 = aarsopgoerelse_2025_udbytteskat = personskat_aarsopgoerelse_2025_linje("udbytteskat", "Modregningsberettiget udbytteskat", 435314)
 = aarsopgoerelse_2025_tidligere_udbetalt = personskat_aarsopgoerelse_2025_linje("tidligere-udbetalt", "Tidligere udbetalt overskydende skat", 3708400)
+= aarsopgoerelse_2025_løn_med_ører = personskat_aarsopgoerelse_2025_linje("løn-med-ører", "Løn med ørepræcist kontrolbeløb", 81709701)
 
 = aarsopgoerelse_2025_løn_mapping = personskat_aarsopgoerelse_kortlaeg_bruttoløn(aarsopgoerelse_2025_løn)
 = aarsopgoerelse_2025_renteindtægt_mapping = personskat_aarsopgoerelse_kortlaeg_renteindtægter(aarsopgoerelse_2025_renteindtægt)
@@ -74,6 +75,7 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
 = aarsopgoerelse_2025_a_skat_am_mapping = personskat_aarsopgoerelse_kortlaeg_a_skat_og_indeholdt_am([aarsopgoerelse_2025_a_skat, aarsopgoerelse_2025_indeholdt_am])
 = aarsopgoerelse_2025_udbytteskat_mapping = personskat_aarsopgoerelse_kortlaeg_modregningsberettiget_udbytteskat(aarsopgoerelse_2025_udbytteskat)
 = aarsopgoerelse_2025_tidligere_udbetalt_mapping = personskat_aarsopgoerelse_kortlaeg_tidligere_udbetalt_overskydende_skat(aarsopgoerelse_2025_tidligere_udbetalt)
+= aarsopgoerelse_2025_løn_med_ører_mapping = personskat_aarsopgoerelse_kortlaeg_bruttoløn(aarsopgoerelse_2025_løn_med_ører)
 
 | aarsopgoerelse_2025_direkte_felter_bevarer_kilder: aarsopgoerelse_2025_løn_mapping -> match aarsopgoerelse_2025_løn_mapping.anvendelse {
     | DirekteKildebeløb(ProgramMemberReference(rodtype, sti), beløb_kroner, faktakrav) -> rodtype == "PersonskatLønmodtagerInput" && sti == "bruttoløn_kroner" && beløb_kroner == 817097 && length(faktakrav) == 0 && any(aarsopgoerelse_2025_løn_mapping.kildelinjer, |linje: PersonskatÅrsopgørelseKildelinje| linje.linje_identifikation == "løn-før-am" && linje.beløb_øre == 81709700)
@@ -113,15 +115,19 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
     | _ -> Falskt
 }
 | aarsopgoerelse_2025_forudbetalinger_kortlægges_uden_resultatoverstyring: aarsopgoerelse_2025_a_skat_am_mapping -> match aarsopgoerelse_2025_a_skat_am_mapping.anvendelse {
-    | DirekteKildebeløb(ProgramMemberReference(rodtype, sti), beløb_kroner, faktakrav) -> rodtype == "KildeskatPar60Kreditter" && sti == "a_skat_og_am_indeholdt_kroner" && beløb_kroner == 323404 && length(faktakrav) == 0 && length(aarsopgoerelse_2025_a_skat_am_mapping.kildelinjer) == 2
+    | DirekteKildebeløbØre(ProgramMemberReference(rodtype, sti), beløb_øre, faktakrav) -> rodtype == "KildeskatPar60KreditterØre" && sti == "a_skat_og_am_indeholdt_øre" && beløb_øre == 32340400 && length(faktakrav) == 0 && length(aarsopgoerelse_2025_a_skat_am_mapping.kildelinjer) == 2
     | _ -> Falskt
 }
 | aarsopgoerelse_2025_tidligere_udbetaling_er_par55_kreditmodpost: aarsopgoerelse_2025_tidligere_udbetalt_mapping -> match aarsopgoerelse_2025_tidligere_udbetalt_mapping.anvendelse {
-    | DirekteKildebeløb(ProgramMemberReference(rodtype, sti), beløb_kroner, _) -> rodtype == "KildeskatPar60Kreditter" && sti == "tilbagebetalt_par55_kroner" && beløb_kroner == 37084
+    | DirekteKildebeløbØre(ProgramMemberReference(rodtype, sti), beløb_øre, _) -> rodtype == "KildeskatPar60KreditterØre" && sti == "tilbagebetalt_par55_øre" && beløb_øre == 3708400
     | _ -> Falskt
 }
 | aarsopgoerelse_2025_udbytteskat_må_ikke_miste_ører: aarsopgoerelse_2025_udbytteskat_mapping -> match aarsopgoerelse_2025_udbytteskat_mapping.anvendelse {
-    | ØrepræcisionKanIkkeBevares(ProgramMemberReference(rodtype, sti), beløb_øre, faktakrav) -> rodtype == "KildeskatPar60Kreditter" && sti == "udbytteskat_modregningsberettiget_kroner" && beløb_øre == 435314 && faktakrav == [UdbytteskattensEndelighedOgModregningsret]
+    | DirekteKildebeløbØre(ProgramMemberReference(rodtype, sti), beløb_øre, faktakrav) -> rodtype == "KildeskatPar60KreditterØre" && sti == "udbytteskat_modregningsberettiget_øre" && beløb_øre == 435314 && faktakrav == [UdbytteskattensEndelighedOgModregningsret]
+    | _ -> Falskt
+}
+| aarsopgoerelse_2025_hele_kronefelter_afviser_fortsat_øretab: aarsopgoerelse_2025_løn_med_ører_mapping -> match aarsopgoerelse_2025_løn_med_ører_mapping.anvendelse {
+    | ØrepræcisionKanIkkeBevares(ProgramMemberReference(rodtype, sti), beløb_øre, faktakrav) -> rodtype == "PersonskatLønmodtagerInput" && sti == "bruttoløn_kroner" && beløb_øre == 81709701 && length(faktakrav) == 0
     | _ -> Falskt
 }
 
@@ -137,3 +143,4 @@ Tidligere udbetalt overskydende skat: 37.084 kr.
 ? aarsopgoerelse_2025_forudbetalinger_kortlægges_uden_resultatoverstyring
 ? aarsopgoerelse_2025_tidligere_udbetaling_er_par55_kreditmodpost
 ? aarsopgoerelse_2025_udbytteskat_må_ikke_miste_ører
+? aarsopgoerelse_2025_hele_kronefelter_afviser_fortsat_øretab

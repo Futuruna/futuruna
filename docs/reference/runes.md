@@ -291,6 +291,22 @@ Binds a name to a value. Ground truth at a point in time.
 = name: String = "hello"
 ```
 
+### Top-level initialization order
+
+Unique top-level bindings may refer to bindings declared later, directly or
+through functions and rules. Futuruna initializes the required dependencies
+first in both interpreted and compiled execution.
+
+```runa
+| answer() -> base + 1
+
+= result = answer()
+= base = 41
+```
+
+Rebound names keep source-order semantics. A cycle between unique top-level
+bindings is rejected with the complete initialization path.
+
 ### Monadic bind (early return)
 ```runa
 = value <- parse_int("42")

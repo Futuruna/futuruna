@@ -126,7 +126,7 @@
 # PersonskatFastsættelsesproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
 # PersonskatUnderskudsårsresultat(indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_underskud_primo_kroner: Heltal, årets_skattepligtige_indkomst_før_fremførsel_kroner: Heltal, fremført_underskud_anvendt_i_egen_indkomst_kroner: Heltal, årets_nye_underskud_kroner: Heltal, dækket_ved_egen_skattemodregning_kroner: Heltal, fradraget_i_ægtefælles_indkomst_kroner: Heltal, dækket_ved_ægtefælles_skattemodregning_kroner: Heltal, fremført_underskud_ultimo_kroner: Heltal)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatFastsættelsesproveniens)
-# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
+# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter) | MedEksaktÅrsopgørelse(overført_restskat_mv_øre: Heltal, øvrig_pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
@@ -202,7 +202,7 @@
 # PersonskatÆgtefælleEjendomsskatterResultat = IngenÆgtefælleEjendomsskatter | BeregnedeÆgtefælleEjendomsskatter(fakta: EjendomsskattelovPersonÅrsfakta, resultat: EjendomsskattelovPersonÅrsresultat)
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, årsopgørelse: PersonskatÅrsopgørelseInput)
-# PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseInput, resultat: KildeskatSlutopgørelseResult)
+# PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseEksaktInput, resultat: KildeskatSlutopgørelseEksaktResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
 # PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
@@ -1590,6 +1590,104 @@
     question = Some("Skal allerede betalt skat, restskat og kreditter indgå i resultatet?"),
     help = Some("Vælg årsopgørelse for at beregne slutskat efter indeholdt skat og øvrige kreditter."),
     unit = None
+)
+= personskat_felt_årsopgørelse_eksakt_overført_restskat = TypetBeregningsfelt(
+    path = refof(PersonskatÅrsopgørelseInput::MedEksaktÅrsopgørelse::overført_restskat_mv_øre),
+    label = "Overført restskat mv.",
+    question = Some("Hvor meget overført restskat mv. skal lægges til slutskatten?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_pensionsafgift = TypetBeregningsfelt(
+    path = refof(PersonskatÅrsopgørelseInput::MedEksaktÅrsopgørelse::øvrig_pensionsbeskatningsafgift_øre),
+    label = "Øvrig pensionsbeskatningsafgift",
+    question = Some("Hvor meget øvrig pensionsbeskatningsafgift skal indgå i årsopgørelsen?"),
+    help = Some("Angiv det eksakte beløb i øre. PBL § 29-afgift, som Futuruna selv beregner, lægges til automatisk."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_a_skat_og_am = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::a_skat_og_am_indeholdt_øre),
+    label = "Indeholdt A-skat og AM-bidrag",
+    question = Some("Hvor meget A-skat og arbejdsmarkedsbidrag er indeholdt for indkomståret?"),
+    help = Some("Angiv årsopgørelsens samlede eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par68 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::par68_indbetalt_øre),
+    label = "Indbetaling efter KSL § 68",
+    question = Some("Hvor meget foreløbig skat er indbetalt efter KSL § 68?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_b_skat = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::b_skat_betalt_øre),
+    label = "Betalt B-skat",
+    question = Some("Hvor meget B-skat er betalt for indkomståret?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_udbytteskat = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::udbytteskat_modregningsberettiget_øre),
+    label = "Modregningsberettiget udbytteskat",
+    question = Some("Hvor meget indeholdt udbytteskat kan modregnes i slutskatten?"),
+    help = Some("Angiv det eksakte beløb i øre efter afklaring af, at skatten ikke er endelig efter PSL § 8 a, stk. 1."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par59 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::frivillig_indbetaling_par59_øre),
+    label = "Frivillig indbetaling efter KSL § 59",
+    question = Some("Hvor meget forskudsskat er frivilligt indbetalt efter KSL § 59?"),
+    help = Some("Angiv det eksakte krediterede beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_virksomhedsordning = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::virksomhedsordning_beløb_øre),
+    label = "Kredit fra virksomhedsordningen",
+    question = Some("Hvor stort et beløb fra virksomhedsordningen skal modregnes efter KSL § 60?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par8a = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::personskattelov_par8a_stk5_beløb_øre),
+    label = "Kredit efter PSL § 8 a, stk. 5",
+    question = Some("Hvor stor negativ aktieindkomstskat skal krediteres efter PSL § 8 a, stk. 5?"),
+    help = Some("Angiv 0. Futuruna afleder selv årets kredit og afviser en konkurrerende inputkonklusion."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_acontoskat = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::afskrivningslov_acontoskat_øre),
+    label = "Acontoskat efter afskrivningsloven",
+    question = Some("Hvor meget acontoskat efter afskrivningslovens § 40 C er indbetalt?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_am_lov_par6 = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::am_lov_par6_beløb_øre),
+    label = "Beløb efter AM-bidragslovens § 6",
+    question = Some("Hvor stort et beløb efter arbejdsmarkedsbidragslovens § 6 skal modregnes?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_seniornedslag = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::seniornedslag_øre),
+    label = "Seniornedslag",
+    question = Some("Hvor stort et seniornedslag skal modregnes efter KSL § 60?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_energiafgiftskompensation = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::energiafgiftskompensation_øre),
+    label = "Energiafgiftskompensation",
+    question = Some("Hvor stor kompensation for forhøjede energi- og miljøafgifter skal modregnes?"),
+    help = Some("Angiv det eksakte beløb i øre."),
+    unit = Some("øre")
+)
+= personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt = TypetBeregningsfelt(
+    path = refof(KildeskatPar60KreditterØre::tilbagebetalt_par55_øre),
+    label = "Tidligere tilbagebetalt efter KSL § 55",
+    question = Some("Hvor meget skat er allerede tilbagebetalt efter KSL § 55?"),
+    help = Some("Angiv det eksakte beløb i øre. Beløbet trækkes fra § 60-kreditterne."),
+    unit = Some("øre")
 )
 = personskat_felt_egne_ejendomssalg = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser",
@@ -8866,6 +8964,20 @@
 = personskat_metadata_årsopgørelse = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_årsopgørelse),
+        Field(value = personskat_felt_årsopgørelse_eksakt_overført_restskat),
+        Field(value = personskat_felt_årsopgørelse_eksakt_pensionsafgift),
+        Field(value = personskat_felt_årsopgørelse_eksakt_a_skat_og_am),
+        Field(value = personskat_felt_årsopgørelse_eksakt_par68),
+        Field(value = personskat_felt_årsopgørelse_eksakt_b_skat),
+        Field(value = personskat_felt_årsopgørelse_eksakt_udbytteskat),
+        Field(value = personskat_felt_årsopgørelse_eksakt_par59),
+        Field(value = personskat_felt_årsopgørelse_eksakt_virksomhedsordning),
+        Field(value = personskat_felt_årsopgørelse_eksakt_par8a),
+        Field(value = personskat_felt_årsopgørelse_eksakt_acontoskat),
+        Field(value = personskat_felt_årsopgørelse_eksakt_am_lov_par6),
+        Field(value = personskat_felt_årsopgørelse_eksakt_seniornedslag),
+        Field(value = personskat_felt_årsopgørelse_eksakt_energiafgiftskompensation),
+        Field(value = personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt),
         Source(value = kildeskatteloven_2024_460),
     )
 )
@@ -12544,6 +12656,7 @@ fraflytningen."
 | personskat_kildeskat_par8a_kredit_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
     | UdenÅrsopgørelse -> Sandt
     | MedÅrsopgørelse(_, _, kreditter) -> kreditter.personskattelov_par8a_stk5_beløb_kroner == 0
+    | MedEksaktÅrsopgørelse(_, _, kreditter) -> kreditter.personskattelov_par8a_stk5_beløb_øre == 0
 }
 | personskat_kreditter_med_negativ_aktieindkomstskat(kreditter: KildeskatPar60Kreditter, negativ_aktieindkomstskat_modregnet_kroner: Heltal) -> KildeskatPar60Kreditter(
     a_skat_og_am_indeholdt_kroner = kreditter.a_skat_og_am_indeholdt_kroner,
@@ -12559,18 +12672,45 @@ fraflytningen."
     energiafgiftskompensation_kroner = kreditter.energiafgiftskompensation_kroner,
     tilbagebetalt_par55_kroner = kreditter.tilbagebetalt_par55_kroner
 )
+| personskat_kreditter_øre_med_negativ_aktieindkomstskat(kreditter: KildeskatPar60KreditterØre, negativ_aktieindkomstskat_modregnet_kroner: Heltal) -> KildeskatPar60KreditterØre(
+    a_skat_og_am_indeholdt_øre = kreditter.a_skat_og_am_indeholdt_øre,
+    par68_indbetalt_øre = kreditter.par68_indbetalt_øre,
+    b_skat_betalt_øre = kreditter.b_skat_betalt_øre,
+    udbytteskat_modregningsberettiget_øre = kreditter.udbytteskat_modregningsberettiget_øre,
+    frivillig_indbetaling_par59_øre = kreditter.frivillig_indbetaling_par59_øre,
+    virksomhedsordning_beløb_øre = kreditter.virksomhedsordning_beløb_øre,
+    personskattelov_par8a_stk5_beløb_øre = negativ_aktieindkomstskat_modregnet_kroner * 100,
+    afskrivningslov_acontoskat_øre = kreditter.afskrivningslov_acontoskat_øre,
+    am_lov_par6_beløb_øre = kreditter.am_lov_par6_beløb_øre,
+    seniornedslag_øre = kreditter.seniornedslag_øre,
+    energiafgiftskompensation_øre = kreditter.energiafgiftskompensation_øre,
+    tilbagebetalt_par55_øre = kreditter.tilbagebetalt_par55_øre
+)
 | personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, slutskat_før_negativ_aktieindkomstskat_kroner: Heltal, pension: PersonskatPensionsResultat, negativ_aktieindkomstskat_modregnet_kroner: Heltal) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
     | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter) -> {
-        = årsopgørelsesinput = KildeskatSlutopgørelseInput(
+        = årsopgørelsesinput_kroner = KildeskatSlutopgørelseInput(
             slutskat_kroner = slutskat_før_negativ_aktieindkomstskat_kroner,
             overført_restskat_mv_kroner = overført_restskat_mv_kroner,
             pensionsbeskatningsafgift_kroner = øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner,
             kreditter = personskat_kreditter_med_negativ_aktieindkomstskat(kreditter, negativ_aktieindkomstskat_modregnet_kroner)
         )
+        = årsopgørelsesinput = kildeskat_slutopgørelse_eksakt_input_fra_kroner(årsopgørelsesinput_kroner)
         BeregnetÅrsopgørelse(
             input = årsopgørelsesinput,
-            resultat = kildeskat_slutopgørelse_resultat(årsopgørelsesinput)
+            resultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelsesinput)
+        )
+    }
+    | MedEksaktÅrsopgørelse(overført_restskat_mv_øre, øvrig_pensionsbeskatningsafgift_øre, kreditter) -> {
+        = årsopgørelsesinput = KildeskatSlutopgørelseEksaktInput(
+            slutskat_øre = slutskat_før_negativ_aktieindkomstskat_kroner * 100,
+            overført_restskat_mv_øre = overført_restskat_mv_øre,
+            pensionsbeskatningsafgift_øre = øvrig_pensionsbeskatningsafgift_øre + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner * 100,
+            kreditter = personskat_kreditter_øre_med_negativ_aktieindkomstskat(kreditter, negativ_aktieindkomstskat_modregnet_kroner)
+        )
+        BeregnetÅrsopgørelse(
+            input = årsopgørelsesinput,
+            resultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelsesinput)
         )
     }
 }

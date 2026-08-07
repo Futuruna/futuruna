@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./loenmodtager_beregning
+@ importer ./slutopgoerelse
 
 -- Anonymiseret realitetstest mod en privat årsopgørelse for indkomståret 2025.
 -- Personnummer, navn, adresser og ejendomsidentifikationer er bevidst udeladt.
@@ -107,6 +108,20 @@ selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
     tidligere_udbetalt_overskydende_skat_øre = 3708400,
     afrunding_øre = 0 - 80
 )
+= årsopgørelse2025_par60_kreditter = KildeskatPar60KreditterØre(
+    a_skat_og_am_indeholdt_øre = årsopgørelse2025_forudbetaling.a_skat_kroner * 100 + årsopgørelse2025_forudbetaling.indeholdt_am_kroner * 100,
+    par68_indbetalt_øre = 0,
+    b_skat_betalt_øre = 0,
+    udbytteskat_modregningsberettiget_øre = årsopgørelse2025_forudbetaling.udbytteskat_øre,
+    frivillig_indbetaling_par59_øre = 0,
+    virksomhedsordning_beløb_øre = 0,
+    personskattelov_par8a_stk5_beløb_øre = 0,
+    afskrivningslov_acontoskat_øre = 0,
+    am_lov_par6_beløb_øre = 0,
+    seniornedslag_øre = 0,
+    energiafgiftskompensation_øre = 0,
+    tilbagebetalt_par55_øre = årsopgørelse2025_forudbetaling.tidligere_udbetalt_overskydende_skat_øre
+)
 = årsopgørelse2025_nationale_parametre = nationalparametre_for(2025)
 = årsopgørelse2025_kommunale_parametre = kommunale_parametre_for(2025, Frederiksberg)
 = årsopgørelse2025_personfradrag_kroner = personfradrag_beløb_for(2025, Fyldt18EllerGift)
@@ -135,6 +150,14 @@ selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
 | årsopgørelse2025_forudbetalt_skat_øre(fakta: Årsopgørelse2025Forudbetaling) -> fakta.a_skat_kroner * 100 + fakta.indeholdt_am_kroner * 100 + fakta.udbytteskat_øre
 | årsopgørelse2025_overskydende_skat_øre() -> årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) - årsopgørelse2025_beregnet_skat_øre()
 | årsopgørelse2025_udbetaling_nu_øre() -> årsopgørelse2025_overskydende_skat_øre() - årsopgørelse2025_forudbetaling.tidligere_udbetalt_overskydende_skat_øre + årsopgørelse2025_forudbetaling.afrunding_øre
+
+= årsopgørelse2025_slutopgørelsesinput = KildeskatSlutopgørelseEksaktInput(
+    slutskat_øre = årsopgørelse2025_beregnet_skat_øre(),
+    overført_restskat_mv_øre = 0,
+    pensionsbeskatningsafgift_øre = 0,
+    kreditter = årsopgørelse2025_par60_kreditter
+)
+= årsopgørelse2025_slutopgørelsesresultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelse2025_slutopgørelsesinput)
 
 = årsopgørelse2025_lønmodtagerinput = LønmodtagerInput(
     skatteår = 2025,
@@ -283,6 +306,7 @@ selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
 | årsopgørelse2025_ægtefælleoverførsel_forklarer_skattepligtig_indkomst: årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_overført_underskud_kroner) -> årsopgørelse2025_skattepligtig_indkomst_kroner(årsopgørelse2025_personlig, årsopgørelse2025_kapital, årsopgørelse2025_fradrag, årsopgørelse2025_overført_underskud_kroner) == 603259
 | årsopgørelse2025_ejendomsskatter_udledes_fra_vurdering_og_periode: årsopgørelse2025_ejendom_resultat -> årsopgørelse2025_ejendom_resultat.input_gyldigt && årsopgørelse2025_ejendom_resultat.regelgrundlag_understøttet && årsopgørelse2025_ejendom_resultat.ejendomsværdiskat.beskatningsgrundlag_kroner == 2968000 && årsopgørelse2025_ejendom_resultat.grundskyld.beskatningsgrundlag_kroner == 2690400 && årsopgørelse2025_ejendom_resultat.ejendomsværdiskat.periode.skattepligtige_dage == 150 && årsopgørelse2025_ejendom_resultat.ejendomsværdiskat.skat_øre == 315350 && årsopgørelse2025_ejendom_resultat.grundskyld.skat_øre == 285855
 | årsopgørelse2025_øreberegning_matcher: årsopgørelse2025_beregnet_skat_øre() -> årsopgørelse2025_beregnet_skat_øre() == 29059034 && årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) == 32775714 && årsopgørelse2025_overskydende_skat_øre() == 3716680 && årsopgørelse2025_udbetaling_nu_øre() == 8200
+| årsopgørelse2025_kildeskat_slutopgørelse_bevarer_ører: årsopgørelse2025_slutopgørelsesresultat -> årsopgørelse2025_slutopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelse2025_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner == 82 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_ikke_udbetalt_øre == 80 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner * 100 == årsopgørelse2025_udbetaling_nu_øre() && årsopgørelse2025_slutopgørelsesresultat.art == OverskydendeSkat
 
 ? årsopgørelse2025_indkomstgrundlag_matcher
 ? årsopgørelse2025_fradrag_matcher
@@ -294,7 +318,9 @@ selv udlede de tre beløb, som årsopgørelsen viser virkningen af.
 ? årsopgørelse2025_ægtefælleoverførsel_forklarer_skattepligtig_indkomst
 ? årsopgørelse2025_ejendomsskatter_udledes_fra_vurdering_og_periode
 ? årsopgørelse2025_øreberegning_matcher
+? årsopgørelse2025_kildeskat_slutopgørelse_bevarer_ører
 
 @ print("2025 årsopgørelse: beregnet skat i øre = " + vis(årsopgørelse2025_beregnet_skat_øre()))
-@ print("2025 årsopgørelse: overskydende skat i øre = " + vis(årsopgørelse2025_overskydende_skat_øre()))
+@ print("2025 årsopgørelse: overskydende skat før tidligere § 55-udbetaling i øre = " + vis(årsopgørelse2025_overskydende_skat_øre()))
 @ print("2025 årsopgørelse: udbetaling nu i øre = " + vis(årsopgørelse2025_udbetaling_nu_øre()))
+@ print("2025 årsopgørelse: lovbestemt udbetaling i hele kroner = " + vis(årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner))

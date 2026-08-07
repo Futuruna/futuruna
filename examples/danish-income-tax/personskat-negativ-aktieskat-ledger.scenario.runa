@@ -276,7 +276,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
 
 | negativ_aktieskat_ledger_kildeskattekredit(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
     | IngenÅrsopgørelse -> 0
-    | BeregnetÅrsopgørelse(input, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_kroner
+    | BeregnetÅrsopgørelse(input, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_øre / 100
 }
 
 | negativ_aktieskat_ledger_ægtefælleårsresultat(resultat: PersonskatBeregningResultat) -> match resultat.negativ_aktieskat_fremførselsår.ægtefælle {

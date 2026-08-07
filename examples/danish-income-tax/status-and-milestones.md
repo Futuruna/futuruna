@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-05
 TD epic: `td-56cf8d`
-Current implementation slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
+Current implementation slice: `td-6fe980` (Kildeskattelovens § 60-kreditter og §§ 61-62-slutopgørelse har nu en ørepræcis kanonisk grænse; hele-krone-input bevares gennem en tabsfri kompatibilitetsadapter, og udbetaling/opkrævning afrundes først ved de udtrykkelige lovtrin)
+Previous ABL reporting slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
 Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
@@ -28,7 +29,7 @@ Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er o
 Planned monetary audit: `td-24963d` (enheder, afrundingstrin og ikke-additive delvirkninger)
 Previous ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
 Current common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne kildefakta, lovregler, beregningsmetadata og kanonisk samordning)
-Planned exact-credit completion: `td-6fe980` (bevar ørepræcision i årsopgørelsens foreløbige skatter)
+Current exact-credit completion: `td-6fe980` (den typede dokumentmapping og den kanoniske Personskat-arbejdsbog kan føre foreløbige skatter i eksakte øre gennem hele § 60-modregningen)
 Planned result audit: `td-bf5e81` (trin-konsistens og bevarelsesinvarianter i sammensatte resultater)
 Planned date-domain work: `td-01c72e` (fælles typede datoer med særskilte lovbestemte kalenderkonventioner)
 Planned source-provenance audit: `td-091de2` (ændringslove, virkningstidspunkter og årsspecifikke regelhenvisninger)
@@ -457,11 +458,21 @@ Den tilsvarende, beskæftigelsesknyttede samordning med fiskerfradraget efter LL
 § 9 G er afgrænset i `td-5759f5`. Ingen af delene indføres som et løst flag i de
 almindelige kontingent- eller bidragsdomæner.
 
-Den modregningsberettigede udbytteskat på 4.353,14 kr. kan ikke føres tabsfrit
-ind i `KildeskatPar60Kreditter`, som aktuelt kun accepterer hele kroner; mappet
-afviser derfor værdien i stedet for at afkorte den (`td-6fe980`, koordineret
-med `td-24963d`). De fokuserede mappingscenarier passerer både fortolket og
-kompileret.
+Den modregningsberettigede udbytteskat på 4.353,14 kr. føres nu tabsfrit fra
+den typede dokumentlinje til `KildeskatPar60KreditterØre` og videre gennem den
+kanoniske Personskat-årsopgørelse. Den anonymiserede 2025-sag modregner
+32.775.714 øre i foreløbige skatter, fratrækker 3.708.400 øre, der allerede er
+tilbagebetalt efter § 55, og afstemmer 8.280 øre i overskydende skat. Først ved
+Kildeskattelovens § 62, stk. 4, bliver udbetalingen 82 hele kroner, mens de 80
+øre forbliver synlige i resultatet. § 62 C, stk. 4, er modelleret tilsvarende
+for opkrævning. Eksisterende hele-krone-kald går gennem en tabsfri adapter; den
+bredere revision af Personskats øvrige pengeenheder og afrundingstrin forbliver
+afgrænset i `td-24963d`.
+
+Fidelitetskontrollen afdækkede samtidig en generel Futuruna-fejl: en
+topniveauværdi, som gennem en nulargumentregel afhang af en senere værdi, blev
+tidligere initialiseret som `()`. Interpreter og compiler bruger nu samme
+afhængighedsorden, og cykliske værdiinitialiseringer afvises eksplicit.
 
 Latest property-tax integration: Ejendomsskattelovens §§ 23-27 og §§ 35-45
 er nu forbundet med den kanoniske Personskat-beregning. Reglerne afleder

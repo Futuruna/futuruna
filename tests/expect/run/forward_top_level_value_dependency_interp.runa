@@ -1,0 +1,28 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: direct=42
+-- expect-stdout: transitive=42
+-- expect-stdout: callable-before-shadow=42
+-- expect-stdout: same-name=42
+-- expect-stdout: callable-after-shadow=42
+
+# ForwardInput(value: Int)
+
+| computed() -> later_rule_value + 1
+| evaluate(value: Int) -> value + 1
+| shadowed(value: Int) -> value + 1
+
+= direct = later_direct_value + 1
+= early_input = ForwardInput(value = computed())
+= callable_before_shadow = evaluate(41)
+= evaluate = evaluate(41)
+= shadowed = |value: Int| value + 2
+= callable_after_shadow = shadowed(40)
+= later_direct_value = 41
+= later_rule_value = 41
+
+@ print("direct=" + show(direct))
+@ print("transitive=" + show(early_input.value))
+@ print("callable-before-shadow=" + show(callable_before_shadow))
+@ print("same-name=" + show(evaluate))
+@ print("callable-after-shadow=" + show(callable_after_shadow))

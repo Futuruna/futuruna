@@ -1,0 +1,8 @@
+-- expect-command: run
+-- expect-status: fail
+-- expect-stderr: cyclic top-level value initialization: first -> second -> first
+
+= first = second + 1
+= second = first + 1
+
+@ print(show(first))
