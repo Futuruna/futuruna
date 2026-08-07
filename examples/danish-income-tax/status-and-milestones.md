@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-1e2380` (Kursgevinstlovens kredit-/priskomponent og valutakomponent opgøres nu særskilt fra typede valutapositioner; §§ 14, 23, 25 og 42, stk. 9, afledes gennem vedvarende kollektive principvalg og den kanoniske Personskat-grænse)
+Current implementation slice: `td-aac8d3` (Kursgevinstlovens delafdrag og gentagne realisationer opgøres nu fra typede mængder, fordringsgrupper, tidsordnede anskaffelsestrancher og videreførte restpositioner; § 26, stk. 4-5, vælger henholdsvis gennemsnitsmetoden og FIFO, mens hver realisation bevarer sit eget KGL-resultat under årets fælles § 14-grænse)
 Current KGL § 33 signed-value slice: `td-89a28a` (finansielle kontrakters primo-, ultimo-, anskaffelses- og afståelsesværdier er signerede gennem kildefakta, lageropgørelse, § 32-årsfordeling og den kanoniske XLSX/JSON-grænse; kun livscyklussens inaktive felter skal fortsat være nul)
 Current LL § 9 A island-lodging slice: `td-e53d8f` (§ 9 A, stk. 12 er nu et typet årsforløb for bopæl på ikkebrofaste øer, faste arbejdssteder, umulig hjemmeovernatning og egne logiudgifter; fradraget bruger den officielle døgnsats, deler årsloft med rejser og dobbelt husførelse og føres gennem den kanoniske Personskat-beregning og XLSX-arbejdsbog)
 Current LL § 9 foreign-income slice: `td-c61f53` (identificerede udenlandske lønindkomstkilder deles nu strukturelt af alle tilknyttede rejser; samme § 9, stk. 2-loft kan kun bruges én gang, mens manglende, dublerede, modstridende eller uanvendte kilder fejler lukket i regler og arbejdsbog)
@@ -46,7 +46,7 @@ Previous spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendom
 Current exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner bruger komplet slutskat efter modregning af årets og tidligere fremførte § 8 a-skat inklusive ejendomsskatter)
 Current KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb kan krydse nul uden at blive afvist eller beskåret)
 Current KGL foreign-currency completion: `td-1e2380` (typede valutapositioner adskiller kredit-/priskomponent og valutakomponent efter KGL §§ 14, 23, 25 og 42, stk. 9; komponenterne føres gennem vedvarende principvalg, flerårige positioner og den kanoniske JSON/XLSX-grænse)
-Planned KGL partial-realization completion: `td-aac8d3` (typede delafdrag og gentagne realisationer uden rå årsnetto)
+Current KGL partial-realization completion: `td-aac8d3` (typede delafdrag, gentagne realisationer, FIFO/gennemsnitsmetode, flerårige restpositioner og separate KGL-resultater uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
 Latest compiler-artifact cache: `td-22e56f` (validerede `check`-resultater og native binære artefakter genbruges sikkert ud fra hele den transitive kildegraf; kanonisk Personskat-check falder fra cirka fire minutter koldt til 2,6 s varmt)
@@ -4682,10 +4682,28 @@ Review candidates to revisit deliberately, not as broad churn:
   passerer på 1.035,80 sekunder; målingen er ført på performanceopgaven
   `td-6659f1`.
   Den særskilte kredit-/priskomponent og valutakomponent efter §§ 14, 23, 25 og
-  42, stk. 9, er nu implementeret i `td-1e2380`. Den resterende afgrænsning mod
-  en fuld KGL-ledger er især delafdrag eller flere realisationer på samme
-  position, som ejes af `td-aac8d3`. Den må ikke løses ved at genindføre et
-  caller-beregnet årsnetto.
+  42, stk. 9, er implementeret i `td-1e2380`. Delafdrag og flere realisationer
+  på samme position er nu implementeret i `td-aac8d3` uden at genindføre et
+  caller-beregnet årsnetto. Hvert fordringsforløb har en typet gruppe efter
+  fondskode eller samme vilkår, ISO-kalenderdato og rækkefølge for hver
+  hændelse samt identificerede anskaffelsestrancher med restmængde og
+  resterende anskaffelsessum. Almindelige personfordringer frigiver grundlag
+  efter FIFO i § 26, stk. 5, mens fordrings- og finansieringsnæring bruger
+  gennemsnitsmetoden i stk. 4. Hver afståelse eller indfrielse danner sit eget
+  `KglÅrsnettoFordringsopgørelse` med hændelse, KGL-input og KGL-resultat;
+  dermed kan en skattepligtig gevinst ikke nettoføres med et tab, som §§ 14,
+  15 eller 18 afskærer, før de respektive regler er anvendt. Kun det fælles
+  rå årsgrundlag går til 2.000-kr.-grænsen.
+  En særskilt scenariofil verificerer FIFO, gennemsnitsmetode, gentagne
+  realisationer, heltalsafrunding med eksakt rest, flerårig videreførsel samt
+  lukket afvisning af overafståelse, tvetydig tidsorden, blandede
+  hændelsesmodeller og forkert allokeringsprincip i både fortolker og genereret
+  Rust. Den kanoniske arbejdsbog udstiller danske labels for gruppe,
+  mængdeenhed, tidspunkt, tranche og beløb. En udfyldt 2026-XLSX med en
+  videreført 2025-tranche, en ny 2026-tranche og to delafståelser giver
+  byteidentisk resultat med JSON: 2.500 kr. i rå årsnetto, to selvstændige
+  KGL-resultater og en ultimoposition på 50 enheder med 10.000 kr. i
+  resterende anskaffelsessum.
 - Aktieavancebeskatningsloven §§ 35 G-35 K er nu ført gennem den kanoniske
   Personskat-beregning under `td-0b0a4b`. Et `AktieavancePar35Forløbsinput`
   etablerer ordningen fra det oprindelige valg og genafspiller identificerede,
@@ -4747,12 +4765,13 @@ Review candidates to revisit deliberately, not as broad churn:
   genbrug af parsede og typede moduler, mens `td-783a9c` ejer en resident
   beregningsrunner. Ingen optimering må kræve cacheannotationer i lovkoden eller
   ændre effekter og reaktiv semantik.
-- Bevar den nu afledte KGL-årsnetto-grænse fra `td-5beddd` og den særskilte
-  kredit-/pris- og valutakomponent fra `td-1e2380`. Den næste KGL-udvidelse skal
-  fortsat komme fra kildefakta: `td-aac8d3` udvider positionen med delafdrag og
-  gentagne realisationer. Det må ikke genindføre et råt, caller-beregnet
-  årsnetto. Den eksisterende `td-6659f1` ejer fortsat den målte latenstid i den
-  komplette JSON/XLSX-rundtur.
+- Bevar den nu afledte KGL-årsnetto-grænse fra `td-5beddd`, den særskilte
+  kredit-/pris- og valutakomponent fra `td-1e2380` og de typede delrealisationer
+  fra `td-aac8d3`. Fremtidige KGL-udvidelser skal fortsat komme fra kildefakta
+  og videreførte resultater; de må ikke genindføre et råt, caller-beregnet
+  årsnetto eller samle juridisk forskellige realisationer før tabsreglerne.
+  Den eksisterende `td-6659f1` ejer fortsat den målte latenstid i den komplette
+  JSON/XLSX-rundtur.
 - Refine the completed ABL §§ 37-40 boundary without reopening its fact-first
   lifecycle design. Own/spouse share-income context is derived under
   `td-aea204`, and § 38's annual categories and ordinary loss eligibility are

@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./metadata
+@ importer ./kalenderdato
 @ importer ./kursgevinstloven
 @ importer ./aktieavancebeskatningsloven
 
@@ -21,6 +22,18 @@
 = kursgevinstloven_vejledning_årsnetto_par42 = KursgevinstlovÅrsnettoKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1948970",
     identifier = "Den juridiske vejledning 2026-1, C.B.1.7.10: KGL § 42, stk. 9",
+    hentet_dato = "2026-08-06"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par26_realisering = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948965",
+    identifier = "Den juridiske vejledning 2026-1, C.B.1.7.5: realisations- og lagerprincippet",
+    hentet_dato = "2026-08-06"
+)
+
+= kursgevinstloven_vejledning_årsnetto_par26_gennemsnit = KursgevinstlovÅrsnettoKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948966",
+    identifier = "Den juridiske vejledning 2026-1, C.B.1.7.6: gennemsnitsmetoden",
     hentet_dato = "2026-08-06"
 )
 
@@ -135,6 +148,8 @@ opgørelse af den skattepligtige indkomst.
         Source(value = kursgevinstloven_lbk1176_årsnetto),
         Guidance(value = kursgevinstloven_vejledning_årsnetto_par25),
         Guidance(value = kursgevinstloven_vejledning_årsnetto_par42),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit),
     )
 )
 
@@ -164,6 +179,21 @@ Stk. 2. Gevinst eller tab på fordringer opgøres som forskellen mellem
 anskaffelsessummen og afståelsessummen. Som anskaffelsessum anvendes kursværdien
 på erhvervelsestidspunktet, medmindre den skattepligtige godtgør at have
 erhvervet fordringen for et højere beløb.
+
+Stk. 4. Skattepligtige omfattet af §§ 2 eller 13 skal ved afståelse af
+fordringer, som er registreret i en værdipapircentral inden for samme fondskode,
+eller fordringer udstedt på samme vilkår af samme udsteder anvende den
+gennemsnitlige anskaffelsessum for samtlige disse fordringer. Tilsvarende
+anvendes for selskabers gæld og personers gæld omfattet af § 19, der er udstedt
+på samme vilkår af samme udsteder, den gennemsnitlige anskaffelsessum for
+samtlige disse gældsforhold.
+
+Stk. 5. Hvis en skattepligtig omfattet af § 12, der ikke driver
+næringsvirksomhed ved finansiering, jf. § 13, ejer fordringer, som er registreret
+i en værdipapircentral inden for samme fondskode eller er udstedt på samme
+vilkår af samme udsteder, anses de først erhvervede fordringer for de først
+afståede. Tilsvarende anses den gæld, der er optaget først, for først indfriet,
+hvis gælden er optaget på samme vilkår hos samme långiver.
 
 § 42.
 
@@ -342,60 +372,213 @@ hvor ændringen har virkning fra.
 }
 | kgl_årsnetto_valutaforløbsresultat(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> KglÅrsnettoValutaforløbssag(fakta, valg, indkomstår, årets_samlede_netto_kroner).resultat()
 
-# KglÅrsnettoPositionPrimo = KglÅrsnettoIngenPositionPrimo | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal)
-# KglÅrsnettoPositionUltimo = KglÅrsnettoIngenPositionUltimo | KglÅrsnettoAktivPositionUltimo(indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal)
-# KglÅrsnettoHændelse = KglÅrsnettoAnskaffelse(anskaffelsessum_kroner: Heltal) | KglÅrsnettoAfståelse(afståelsessum_kroner: Heltal) | KglÅrsnettoUltimoværdi(værdi_kroner: Heltal)
-# KglÅrsnettoHændelsesresultat(hændelse: KglÅrsnettoHændelse, hændelse_gyldig: Boolsk, rå_netto_kroner: Heltal, position_aktiv_efter: Boolsk, skattemæssig_værdi_efter_kroner: Heltal)
-# KglÅrsnettoForløbstilstand(position_aktiv: Boolsk, skattemæssig_værdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, afstået_i_indkomståret: Boolsk, ultimoværdi_angivet: Boolsk, har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), alle_hændelser_gyldige: Boolsk)
-# KglÅrsnettoForløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), opgørelsesprincip: KursgevinstlovOpgørelsesprincip, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, position_ultimo: KglÅrsnettoPositionUltimo, input_gyldigt: Boolsk)
+# KglÅrsnettoMængdeenhed = KglÅrsnettoAntalStyk | KglÅrsnettoNominelleHundreddele
+# KglÅrsnettoFordringsgruppe = KglÅrsnettoEnkeltfordring(mængdeenhed: KglÅrsnettoMængdeenhed) | KglÅrsnettoFondskode(fondskode: Tekst, mængdeenhed: KglÅrsnettoMængdeenhed) | KglÅrsnettoSammeVilkår(udsteder_identifikation: Tekst, vilkårsidentifikation: Tekst, mængdeenhed: KglÅrsnettoMængdeenhed)
+# KglÅrsnettoTidspunkt(dato: Dato, rækkefølge_på_dagen: Heltal)
+# KglÅrsnettoFordringstranche(identifikation: Tekst, anskaffelsestidspunkt: KglÅrsnettoTidspunkt, resterende_mængde: Heltal, resterende_anskaffelsessum_kroner: Heltal)
+# KglÅrsnettoAllokeringsprincip = KglÅrsnettoHelpositionsallokering | KglÅrsnettoGennemsnitsmetodeEfterPar26Stk4 | KglÅrsnettoFifoEfterPar26Stk5
+# KglÅrsnettoTranchefordeling(frigivet_anskaffelsessum_kroner: Heltal, afstået_mængde: Heltal, resterende_trancher: List(KglÅrsnettoFordringstranche))
+# KglÅrsnettoPositionPrimo = KglÅrsnettoIngenPositionPrimo | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal) | KglÅrsnettoVidereførtMængdepositionPrimo(fra_indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, trancher: List(KglÅrsnettoFordringstranche))
+# KglÅrsnettoPositionUltimo = KglÅrsnettoIngenPositionUltimo | KglÅrsnettoAktivPositionUltimo(indkomstår: Heltal, skattemæssig_værdi_kroner: Heltal) | KglÅrsnettoAktivMængdepositionUltimo(indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, trancher: List(KglÅrsnettoFordringstranche))
+# KglÅrsnettoMængdeafståelsesart = KglÅrsnettoSalg | KglÅrsnettoFuldIndfrielse | KglÅrsnettoDelafdrag
+# KglÅrsnettoHændelse = KglÅrsnettoAnskaffelse(anskaffelsessum_kroner: Heltal) | KglÅrsnettoAfståelse(afståelsessum_kroner: Heltal) | KglÅrsnettoUltimoværdi(værdi_kroner: Heltal) | KglÅrsnettoMængdeanskaffelse(tidspunkt: KglÅrsnettoTidspunkt, tranche_identifikation: Tekst, mængde: Heltal, anskaffelsessum_kroner: Heltal) | KglÅrsnettoMængdeafståelse(tidspunkt: KglÅrsnettoTidspunkt, afståelsesart: KglÅrsnettoMængdeafståelsesart, mængde: Heltal, afståelsessum_kroner: Heltal) | KglÅrsnettoMængdeultimoværdi(tidspunkt: KglÅrsnettoTidspunkt, værdi_kroner: Heltal)
+# KglÅrsnettoHændelsesresultat(hændelse: KglÅrsnettoHændelse, hændelse_gyldig: Boolsk, er_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, position_aktiv_efter: Boolsk, resterende_mængde_efter: Heltal, skattemæssig_værdi_efter_kroner: Heltal, trancher_efter: List(KglÅrsnettoFordringstranche))
+# KglÅrsnettoForløbstilstand(mængdeforløb: Boolsk, position_aktiv: Boolsk, trancher: List(KglÅrsnettoFordringstranche), tranche_identifikationer: List(Tekst), seneste_tidspunkt: Option(KglÅrsnettoTidspunkt), skattemæssig_værdi_kroner: Heltal, anskaffet_i_indkomståret: Boolsk, afstået_i_indkomståret: Boolsk, ultimoværdi_angivet: Boolsk, har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), alle_hændelser_gyldige: Boolsk)
+# KglÅrsnettoForløbsresultat(indkomstår: Heltal, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), opgørelsesprincip: KursgevinstlovOpgørelsesprincip, allokeringsprincip: KglÅrsnettoAllokeringsprincip, hændelsesresultater: List(KglÅrsnettoHændelsesresultat), har_opgørelse: Boolsk, opgørelsesgrundlag_kroner: Heltal, opgørelsesslutværdi_kroner: Heltal, rå_netto_kroner: Heltal, resterende_mængde: Heltal, position_ultimo: KglÅrsnettoPositionUltimo, input_gyldigt: Boolsk)
 
-| kgl_årsnetto_position_primo_gyldig(position: KglÅrsnettoPositionPrimo, indkomstår: Heltal) -> match position { | KglÅrsnettoIngenPositionPrimo -> Sandt | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår, værdi) -> fra_indkomstår == indkomstår - 1 && værdi >= 0 }
-| kgl_årsnetto_position_primo_aktiv(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoIngenPositionPrimo -> Falskt | KglÅrsnettoVidereførtPositionPrimo(_, _) -> Sandt }
-| kgl_årsnetto_position_primo_værdi_kroner(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoIngenPositionPrimo -> 0 | KglÅrsnettoVidereførtPositionPrimo(_, værdi) -> værdi }
-| kgl_årsnetto_hændelsesbeløb_kroner(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoAnskaffelse(beløb) -> beløb | KglÅrsnettoAfståelse(beløb) -> beløb | KglÅrsnettoUltimoværdi(beløb) -> beløb }
-| kgl_årsnetto_hændelse_gyldig(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip) -> kgl_årsnetto_hændelsesbeløb_kroner(hændelse) >= 0 && match hændelse {
+| kgl_årsnetto_tom_fordringsgruppe() -> KglÅrsnettoEnkeltfordring(mængdeenhed = KglÅrsnettoNominelleHundreddele)
+| kgl_årsnetto_fordringsgruppe_gyldig(gruppe: KglÅrsnettoFordringsgruppe) -> match gruppe {
+    | KglÅrsnettoEnkeltfordring(_) -> Sandt
+    | KglÅrsnettoFondskode(fondskode, _) -> fondskode != ""
+    | KglÅrsnettoSammeVilkår(udsteder, vilkår, _) -> udsteder != "" && vilkår != ""
+}
+| kgl_årsnetto_fordringsgruppe_tillader_flere_trancher(gruppe: KglÅrsnettoFordringsgruppe) -> match gruppe { | KglÅrsnettoEnkeltfordring(_) -> Falskt | _ -> Sandt }
+| kgl_årsnetto_tidspunkt_gyldigt(tidspunkt: KglÅrsnettoTidspunkt) -> dato_gyldig(tidspunkt.dato) && tidspunkt.rækkefølge_på_dagen > 0
+| kgl_årsnetto_tidspunkt_før(venstre: KglÅrsnettoTidspunkt, højre: KglÅrsnettoTidspunkt) -> dato_før(venstre.dato, højre.dato) || venstre.dato == højre.dato && venstre.rækkefølge_på_dagen < højre.rækkefølge_på_dagen
+| kgl_årsnetto_tidspunkt_i_indkomstår(tidspunkt: KglÅrsnettoTidspunkt, indkomstår: Heltal) -> kgl_årsnetto_tidspunkt_gyldigt(tidspunkt) && tidspunkt.dato.år == indkomstår
+| kgl_årsnetto_tidspunkt_er_ultimo(tidspunkt: KglÅrsnettoTidspunkt, indkomstår: Heltal) -> tidspunkt.dato == Dato(år = indkomstår, måned = 12, dag = 31)
+| kgl_årsnetto_tranche_gyldig(tranche: KglÅrsnettoFordringstranche, seneste_indkomstår: Heltal) -> tranche.identifikation != "" && kgl_årsnetto_tidspunkt_gyldigt(tranche.anskaffelsestidspunkt) && tranche.anskaffelsestidspunkt.dato.år <= seneste_indkomstår && tranche.resterende_mængde > 0 && tranche.resterende_anskaffelsessum_kroner >= 0
+| kgl_årsnetto_tranche_identifikationer(trancher: List(KglÅrsnettoFordringstranche)) -> map(trancher, |tranche: KglÅrsnettoFordringstranche| tranche.identifikation)
+| kgl_årsnetto_tranche_identifikationer_unikke(trancher: List(KglÅrsnettoFordringstranche)) -> length(kgl_årsnetto_tranche_identifikationer(trancher)) == length(distinct(kgl_årsnetto_tranche_identifikationer(trancher)))
+| kgl_årsnetto_trancher_tidsordnede(trancher: List(KglÅrsnettoFordringstranche)) -> hvis length(trancher) <= 1 { Sandt } ellers { kgl_årsnetto_tidspunkt_før(head(trancher).anskaffelsestidspunkt, head(tail(trancher)).anskaffelsestidspunkt) && kgl_årsnetto_trancher_tidsordnede(tail(trancher)) }
+| kgl_årsnetto_trancher_gyldige(trancher: List(KglÅrsnettoFordringstranche), seneste_indkomstår: Heltal, gruppe: KglÅrsnettoFordringsgruppe) -> length(trancher) > 0 && all(trancher, |tranche: KglÅrsnettoFordringstranche| kgl_årsnetto_tranche_gyldig(tranche, seneste_indkomstår)) && kgl_årsnetto_tranche_identifikationer_unikke(trancher) && kgl_årsnetto_trancher_tidsordnede(trancher) && (kgl_årsnetto_fordringsgruppe_tillader_flere_trancher(gruppe) || length(trancher) == 1)
+| kgl_årsnetto_trancher_mængde(trancher: List(KglÅrsnettoFordringstranche)) -> foldl(trancher, 0, |sum: Heltal, tranche: KglÅrsnettoFordringstranche| sum + tranche.resterende_mængde)
+| kgl_årsnetto_trancher_anskaffelsessum_kroner(trancher: List(KglÅrsnettoFordringstranche)) -> foldl(trancher, 0, |sum: Heltal, tranche: KglÅrsnettoFordringstranche| sum + tranche.resterende_anskaffelsessum_kroner)
+
+| kgl_årsnetto_position_primo_er_mængdeposition(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoVidereførtMængdepositionPrimo(_, _, _) -> Sandt | _ -> Falskt }
+| kgl_årsnetto_position_primo_gyldig_for_gruppe(position: KglÅrsnettoPositionPrimo, indkomstår: Heltal, gruppe: KglÅrsnettoFordringsgruppe) -> match position {
+    | KglÅrsnettoIngenPositionPrimo -> Sandt
+    | KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår, værdi) -> fra_indkomstår == indkomstår - 1 && værdi >= 0
+    | KglÅrsnettoVidereførtMængdepositionPrimo(fra_indkomstår, positionsgruppe, trancher) -> fra_indkomstår == indkomstår - 1 && positionsgruppe == gruppe && kgl_årsnetto_fordringsgruppe_gyldig(positionsgruppe) && kgl_årsnetto_trancher_gyldige(trancher, fra_indkomstår, positionsgruppe)
+}
+| kgl_årsnetto_position_primo_gyldig(position: KglÅrsnettoPositionPrimo, indkomstår: Heltal) -> kgl_årsnetto_position_primo_gyldig_for_gruppe(position, indkomstår, kgl_årsnetto_tom_fordringsgruppe())
+| kgl_årsnetto_position_primo_aktiv(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoIngenPositionPrimo -> Falskt | _ -> Sandt }
+| kgl_årsnetto_position_primo_trancher(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoVidereførtMængdepositionPrimo(_, _, trancher) -> trancher | _ -> [] }
+| kgl_årsnetto_position_primo_værdi_kroner(position: KglÅrsnettoPositionPrimo) -> match position { | KglÅrsnettoIngenPositionPrimo -> 0 | KglÅrsnettoVidereførtPositionPrimo(_, værdi) -> værdi | KglÅrsnettoVidereførtMængdepositionPrimo(_, _, trancher) -> kgl_årsnetto_trancher_anskaffelsessum_kroner(trancher) }
+| kgl_årsnetto_position_primo_fra_ultimo(position: KglÅrsnettoPositionUltimo) -> match position { | KglÅrsnettoIngenPositionUltimo -> KglÅrsnettoIngenPositionPrimo | KglÅrsnettoAktivPositionUltimo(indkomstår, værdi) -> KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår = indkomstår, skattemæssig_værdi_kroner = værdi) | KglÅrsnettoAktivMængdepositionUltimo(indkomstår, gruppe, trancher) -> KglÅrsnettoVidereførtMængdepositionPrimo(fra_indkomstår = indkomstår, fordringsgruppe = gruppe, trancher = trancher) }
+
+| kgl_årsnetto_tranche_med_beløb(tranche: KglÅrsnettoFordringstranche, mængde: Heltal, anskaffelsessum_kroner: Heltal) -> KglÅrsnettoFordringstranche(identifikation = tranche.identifikation, anskaffelsestidspunkt = tranche.anskaffelsestidspunkt, resterende_mængde = mængde, resterende_anskaffelsessum_kroner = anskaffelsessum_kroner)
+| kgl_årsnetto_trancher_med_samlet_værdi(trancher: List(KglÅrsnettoFordringstranche), samlet_værdi_kroner: Heltal) -> hvis length(trancher) == 0 { [] } ellers hvis length(trancher) == 1 { [kgl_årsnetto_tranche_med_beløb(head(trancher), head(trancher).resterende_mængde, samlet_værdi_kroner)] } ellers {
+    = første = head(trancher)
+    = samlet_mængde = kgl_årsnetto_trancher_mængde(trancher)
+    = første_værdi = samlet_værdi_kroner * første.resterende_mængde / samlet_mængde
+    concat([kgl_årsnetto_tranche_med_beløb(første, første.resterende_mængde, første_værdi)], kgl_årsnetto_trancher_med_samlet_værdi(tail(trancher), samlet_værdi_kroner - første_værdi))
+}
+| kgl_årsnetto_fifo_tranchefordeling(trancher: List(KglÅrsnettoFordringstranche), mængde: Heltal) -> hvis mængde <= 0 || length(trancher) == 0 { KglÅrsnettoTranchefordeling(frigivet_anskaffelsessum_kroner = 0, afstået_mængde = 0, resterende_trancher = trancher) } ellers {
+    = første = head(trancher)
+    = afstået_fra_første = hvis mængde < første.resterende_mængde { mængde } ellers { første.resterende_mængde }
+    = frigivet_fra_første = hvis afstået_fra_første == første.resterende_mængde { første.resterende_anskaffelsessum_kroner } ellers { første.resterende_anskaffelsessum_kroner * afstået_fra_første / første.resterende_mængde }
+    = første_restmængde = første.resterende_mængde - afstået_fra_første
+    = første_rest = hvis første_restmængde > 0 { [kgl_årsnetto_tranche_med_beløb(første, første_restmængde, første.resterende_anskaffelsessum_kroner - frigivet_fra_første)] } ellers { [] }
+    = restfordeling = kgl_årsnetto_fifo_tranchefordeling(tail(trancher), mængde - afstået_fra_første)
+    KglÅrsnettoTranchefordeling(
+        frigivet_anskaffelsessum_kroner = frigivet_fra_første + restfordeling.frigivet_anskaffelsessum_kroner,
+        afstået_mængde = afstået_fra_første + restfordeling.afstået_mængde,
+        resterende_trancher = concat(første_rest, restfordeling.resterende_trancher)
+    )
+}
+| kgl_årsnetto_gennemsnitlig_tranchefordeling(trancher: List(KglÅrsnettoFordringstranche), mængde: Heltal) -> {
+    = samlet_mængde = kgl_årsnetto_trancher_mængde(trancher)
+    = samlet_anskaffelsessum = kgl_årsnetto_trancher_anskaffelsessum_kroner(trancher)
+    = mængdefordeling = kgl_årsnetto_fifo_tranchefordeling(trancher, mængde)
+    = frigivet_anskaffelsessum = hvis mængde == samlet_mængde { samlet_anskaffelsessum } ellers { samlet_anskaffelsessum * mængde / samlet_mængde }
+    KglÅrsnettoTranchefordeling(
+        frigivet_anskaffelsessum_kroner = frigivet_anskaffelsessum,
+        afstået_mængde = mængdefordeling.afstået_mængde,
+        resterende_trancher = kgl_årsnetto_trancher_med_samlet_værdi(mængdefordeling.resterende_trancher, samlet_anskaffelsessum - frigivet_anskaffelsessum)
+    )
+}
+| kgl_årsnetto_tranchefordeling(trancher: List(KglÅrsnettoFordringstranche), mængde: Heltal, allokeringsprincip: KglÅrsnettoAllokeringsprincip) -> hvis allokeringsprincip == KglÅrsnettoGennemsnitsmetodeEfterPar26Stk4 { kgl_årsnetto_gennemsnitlig_tranchefordeling(trancher, mængde) } ellers { kgl_årsnetto_fifo_tranchefordeling(trancher, mængde) }
+
+| kgl_årsnetto_hændelse_er_mængdehændelse(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoMængdeanskaffelse(_, _, _, _) -> Sandt | KglÅrsnettoMængdeafståelse(_, _, _, _) -> Sandt | KglÅrsnettoMængdeultimoværdi(_, _) -> Sandt | _ -> Falskt }
+| kgl_årsnetto_hændelse_er_legacyhændelse(hændelse: KglÅrsnettoHændelse) -> kgl_årsnetto_hændelse_er_mængdehændelse(hændelse) == Falskt
+| kgl_årsnetto_forløbstype_gyldig(position: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse)) -> {
+    = har_mængdehændelse = any(hændelser, kgl_årsnetto_hændelse_er_mængdehændelse)
+    = har_legacyhændelse = any(hændelser, kgl_årsnetto_hændelse_er_legacyhændelse)
+    hvis har_mængdehændelse && har_legacyhændelse {
+        Falskt
+    } ellers hvis har_mængdehændelse {
+        match position { | KglÅrsnettoVidereførtPositionPrimo(_, _) -> Falskt | _ -> Sandt }
+    } ellers hvis har_legacyhændelse {
+        kgl_årsnetto_position_primo_er_mængdeposition(position) == Falskt
+    } ellers {
+        Sandt
+    }
+}
+| kgl_årsnetto_hændelsestidspunkt(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoMængdeanskaffelse(tidspunkt, _, _, _) -> Some(tidspunkt) | KglÅrsnettoMængdeafståelse(tidspunkt, _, _, _) -> Some(tidspunkt) | KglÅrsnettoMængdeultimoværdi(tidspunkt, _) -> Some(tidspunkt) | _ -> None }
+| kgl_årsnetto_hændelsesrækkefølge_gyldig(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, indkomstår: Heltal) -> match kgl_årsnetto_hændelsestidspunkt(hændelse) { | None -> tilstand.mængdeforløb == Falskt | Some(tidspunkt) -> tilstand.mængdeforløb && kgl_årsnetto_tidspunkt_i_indkomstår(tidspunkt, indkomstår) && match tilstand.seneste_tidspunkt { | None -> Sandt | Some(seneste) -> kgl_årsnetto_tidspunkt_før(seneste, tidspunkt) } }
+| kgl_årsnetto_hændelsesbeløb_kroner(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoAnskaffelse(beløb) -> beløb | KglÅrsnettoAfståelse(beløb) -> beløb | KglÅrsnettoUltimoværdi(beløb) -> beløb | KglÅrsnettoMængdeanskaffelse(_, _, _, beløb) -> beløb | KglÅrsnettoMængdeafståelse(_, _, _, beløb) -> beløb | KglÅrsnettoMængdeultimoværdi(_, beløb) -> beløb }
+| kgl_årsnetto_hændelsesmængde(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoMængdeanskaffelse(_, _, mængde, _) -> mængde | KglÅrsnettoMængdeafståelse(_, _, mængde, _) -> mængde | _ -> 0 }
+| kgl_årsnetto_hændelsestranche_identifikation(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoMængdeanskaffelse(_, identifikation, _, _) -> identifikation | _ -> "" }
+| kgl_årsnetto_mængdeafståelsesart_gyldig(art: KglÅrsnettoMængdeafståelsesart, mængde: Heltal, samlet_mængde: Heltal) -> match art { | KglÅrsnettoSalg -> Sandt | KglÅrsnettoFuldIndfrielse -> mængde == samlet_mængde | KglÅrsnettoDelafdrag -> mængde < samlet_mængde }
+| kgl_årsnetto_hændelse_gyldig(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip, indkomstår: Heltal, gruppe: KglÅrsnettoFordringsgruppe) -> kgl_årsnetto_hændelsesbeløb_kroner(hændelse) >= 0 && kgl_årsnetto_hændelsesrækkefølge_gyldig(tilstand, hændelse, indkomstår) && match hændelse {
     | KglÅrsnettoAnskaffelse(_) -> tilstand.position_aktiv == Falskt && tilstand.anskaffet_i_indkomståret == Falskt && tilstand.afstået_i_indkomståret == Falskt && tilstand.ultimoværdi_angivet == Falskt && tilstand.har_opgørelse == Falskt
     | KglÅrsnettoAfståelse(_) -> tilstand.position_aktiv && tilstand.afstået_i_indkomståret == Falskt && tilstand.ultimoværdi_angivet == Falskt && tilstand.har_opgørelse == Falskt
     | KglÅrsnettoUltimoværdi(_) -> tilstand.position_aktiv && princip == KglLagerprincip && tilstand.afstået_i_indkomståret == Falskt && tilstand.ultimoværdi_angivet == Falskt && tilstand.har_opgørelse == Falskt
+    | KglÅrsnettoMængdeanskaffelse(_, identifikation, mængde, _) -> identifikation != "" && contains(tilstand.tranche_identifikationer, identifikation) == Falskt && mængde > 0 && tilstand.ultimoværdi_angivet == Falskt && (kgl_årsnetto_fordringsgruppe_tillader_flere_trancher(gruppe) || length(tilstand.tranche_identifikationer) == 0)
+    | KglÅrsnettoMængdeafståelse(_, art, mængde, _) -> tilstand.position_aktiv && mængde > 0 && mængde <= kgl_årsnetto_trancher_mængde(tilstand.trancher) && kgl_årsnetto_mængdeafståelsesart_gyldig(art, mængde, kgl_årsnetto_trancher_mængde(tilstand.trancher)) && tilstand.ultimoværdi_angivet == Falskt
+    | KglÅrsnettoMængdeultimoværdi(tidspunkt, _) -> tilstand.position_aktiv && princip == KglLagerprincip && kgl_årsnetto_tidspunkt_er_ultimo(tidspunkt, indkomstår) && tilstand.ultimoværdi_angivet == Falskt
 }
-| kgl_årsnetto_hændelse_er_opgørelse(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoAnskaffelse(_) -> Falskt | _ -> Sandt }
-| kgl_årsnetto_position_aktiv_efter(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, gyldig: Boolsk) -> hvis gyldig == Falskt { tilstand.position_aktiv } ellers { match hændelse { | KglÅrsnettoAnskaffelse(_) -> Sandt | KglÅrsnettoAfståelse(_) -> Falskt | KglÅrsnettoUltimoværdi(_) -> Sandt } }
-| kgl_årsnetto_skattemæssig_værdi_efter_kroner(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, gyldig: Boolsk) -> hvis gyldig == Falskt { tilstand.skattemæssig_værdi_kroner } ellers { match hændelse { | KglÅrsnettoAnskaffelse(beløb) -> beløb | KglÅrsnettoAfståelse(_) -> 0 | KglÅrsnettoUltimoværdi(beløb) -> beløb } }
-| kgl_årsnetto_hændelse_rå_netto_kroner(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, gyldig: Boolsk) -> hvis gyldig && kgl_årsnetto_hændelse_er_opgørelse(hændelse) { kgl_årsnetto_hændelsesbeløb_kroner(hændelse) - tilstand.skattemæssig_værdi_kroner } ellers { 0 }
+| kgl_årsnetto_hændelse_er_opgørelse(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoAnskaffelse(_) -> Falskt | KglÅrsnettoMængdeanskaffelse(_, _, _, _) -> Falskt | _ -> Sandt }
+| kgl_årsnetto_ny_tranche(hændelse: KglÅrsnettoHændelse) -> match hændelse { | KglÅrsnettoMængdeanskaffelse(tidspunkt, identifikation, mængde, anskaffelsessum) -> KglÅrsnettoFordringstranche(identifikation = identifikation, anskaffelsestidspunkt = tidspunkt, resterende_mængde = mængde, resterende_anskaffelsessum_kroner = anskaffelsessum) | _ -> KglÅrsnettoFordringstranche(identifikation = "", anskaffelsestidspunkt = KglÅrsnettoTidspunkt(dato = dato_ugyldig(), rækkefølge_på_dagen = 0), resterende_mængde = 0, resterende_anskaffelsessum_kroner = 0) }
 
-# KglÅrsnettoHændelsessag(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip) {
-    | hændelse_gyldig() -> kgl_årsnetto_hændelse_gyldig(tilstand, hændelse, princip)
+# KglÅrsnettoHændelsessag(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip, allokeringsprincip: KglÅrsnettoAllokeringsprincip, indkomstår: Heltal, gruppe: KglÅrsnettoFordringsgruppe) {
+    | hændelse_gyldig() -> kgl_årsnetto_hændelse_gyldig(tilstand, hændelse, princip, indkomstår, gruppe)
     | er_opgørelse() -> hændelse_gyldig() && kgl_årsnetto_hændelse_er_opgørelse(hændelse)
-    | rå_netto_kroner() -> kgl_årsnetto_hændelse_rå_netto_kroner(tilstand, hændelse, hændelse_gyldig())
-    | position_aktiv_efter() -> kgl_årsnetto_position_aktiv_efter(tilstand, hændelse, hændelse_gyldig())
-    | skattemæssig_værdi_efter_kroner() -> kgl_årsnetto_skattemæssig_værdi_efter_kroner(tilstand, hændelse, hændelse_gyldig())
-    | hændelsesresultat() -> KglÅrsnettoHændelsesresultat(hændelse = hændelse, hændelse_gyldig = hændelse_gyldig(), rå_netto_kroner = rå_netto_kroner(), position_aktiv_efter = position_aktiv_efter(), skattemæssig_værdi_efter_kroner = skattemæssig_værdi_efter_kroner())
+    | tranchefordeling() -> match hændelse { | KglÅrsnettoMængdeafståelse(_, _, mængde, _) -> hvis hændelse_gyldig() { kgl_årsnetto_tranchefordeling(tilstand.trancher, mængde, allokeringsprincip) } ellers { KglÅrsnettoTranchefordeling(frigivet_anskaffelsessum_kroner = 0, afstået_mængde = 0, resterende_trancher = tilstand.trancher) } | _ -> KglÅrsnettoTranchefordeling(frigivet_anskaffelsessum_kroner = 0, afstået_mængde = 0, resterende_trancher = tilstand.trancher) }
+    | opgørelsesgrundlag_kroner() -> hvis er_opgørelse() { match hændelse { | KglÅrsnettoMængdeafståelse(_, _, _, _) -> tranchefordeling().frigivet_anskaffelsessum_kroner | _ -> tilstand.skattemæssig_værdi_kroner } } ellers { 0 }
+    | opgørelsesslutværdi_kroner() -> hvis er_opgørelse() { kgl_årsnetto_hændelsesbeløb_kroner(hændelse) } ellers { 0 }
+    | rå_netto_kroner() -> opgørelsesslutværdi_kroner() - opgørelsesgrundlag_kroner()
+    | trancher_efter() -> hvis hændelse_gyldig() == Falskt { tilstand.trancher } ellers { match hændelse {
+        | KglÅrsnettoMængdeanskaffelse(_, _, _, _) -> concat(tilstand.trancher, [kgl_årsnetto_ny_tranche(hændelse)])
+        | KglÅrsnettoMængdeafståelse(_, _, _, _) -> tranchefordeling().resterende_trancher
+        | KglÅrsnettoMængdeultimoværdi(_, værdi) -> kgl_årsnetto_trancher_med_samlet_værdi(tilstand.trancher, værdi)
+        | _ -> tilstand.trancher
+    } }
+    | position_aktiv_efter() -> hvis hændelse_gyldig() == Falskt { tilstand.position_aktiv } ellers hvis tilstand.mængdeforløb { length(trancher_efter()) > 0 } ellers { match hændelse { | KglÅrsnettoAnskaffelse(_) -> Sandt | KglÅrsnettoAfståelse(_) -> Falskt | KglÅrsnettoUltimoværdi(_) -> Sandt | _ -> tilstand.position_aktiv } }
+    | skattemæssig_værdi_efter_kroner() -> hvis hændelse_gyldig() == Falskt { tilstand.skattemæssig_værdi_kroner } ellers hvis tilstand.mængdeforløb { kgl_årsnetto_trancher_anskaffelsessum_kroner(trancher_efter()) } ellers { match hændelse { | KglÅrsnettoAnskaffelse(beløb) -> beløb | KglÅrsnettoAfståelse(_) -> 0 | KglÅrsnettoUltimoværdi(beløb) -> beløb | _ -> tilstand.skattemæssig_værdi_kroner } }
+    | seneste_tidspunkt_efter() -> {
+        = resultat: Option(KglÅrsnettoTidspunkt) = hvis hændelse_gyldig() { match kgl_årsnetto_hændelsestidspunkt(hændelse) { | Some(tidspunkt) -> Some(tidspunkt) | None -> tilstand.seneste_tidspunkt } } ellers { tilstand.seneste_tidspunkt }
+        resultat
+    }
+    | tranche_identifikationer_efter() -> hvis hændelse_gyldig() { match hændelse { | KglÅrsnettoMængdeanskaffelse(_, identifikation, _, _) -> concat(tilstand.tranche_identifikationer, [identifikation]) | _ -> tilstand.tranche_identifikationer } } ellers { tilstand.tranche_identifikationer }
+    | hændelsesresultat() -> KglÅrsnettoHændelsesresultat(
+        hændelse = hændelse,
+        hændelse_gyldig = hændelse_gyldig(),
+        er_opgørelse = er_opgørelse(),
+        opgørelsesgrundlag_kroner = opgørelsesgrundlag_kroner(),
+        opgørelsesslutværdi_kroner = opgørelsesslutværdi_kroner(),
+        rå_netto_kroner = rå_netto_kroner(),
+        position_aktiv_efter = position_aktiv_efter(),
+        resterende_mængde_efter = kgl_årsnetto_trancher_mængde(trancher_efter()),
+        skattemæssig_værdi_efter_kroner = skattemæssig_værdi_efter_kroner(),
+        trancher_efter = trancher_efter()
+    )
     | næste_tilstand() -> KglÅrsnettoForløbstilstand(
+        mængdeforløb = tilstand.mængdeforløb,
         position_aktiv = position_aktiv_efter(),
+        trancher = trancher_efter(),
+        tranche_identifikationer = tranche_identifikationer_efter(),
+        seneste_tidspunkt = seneste_tidspunkt_efter(),
         skattemæssig_værdi_kroner = skattemæssig_værdi_efter_kroner(),
-        anskaffet_i_indkomståret = tilstand.anskaffet_i_indkomståret || hændelse_gyldig() && match hændelse { | KglÅrsnettoAnskaffelse(_) -> Sandt | _ -> Falskt },
-        afstået_i_indkomståret = tilstand.afstået_i_indkomståret || hændelse_gyldig() && match hændelse { | KglÅrsnettoAfståelse(_) -> Sandt | _ -> Falskt },
-        ultimoværdi_angivet = tilstand.ultimoværdi_angivet || hændelse_gyldig() && match hændelse { | KglÅrsnettoUltimoværdi(_) -> Sandt | _ -> Falskt },
+        anskaffet_i_indkomståret = tilstand.anskaffet_i_indkomståret || hændelse_gyldig() && match hændelse { | KglÅrsnettoAnskaffelse(_) -> Sandt | KglÅrsnettoMængdeanskaffelse(_, _, _, _) -> Sandt | _ -> Falskt },
+        afstået_i_indkomståret = tilstand.afstået_i_indkomståret || hændelse_gyldig() && match hændelse { | KglÅrsnettoAfståelse(_) -> Sandt | KglÅrsnettoMængdeafståelse(_, _, _, _) -> Sandt | _ -> Falskt },
+        ultimoværdi_angivet = tilstand.ultimoværdi_angivet || hændelse_gyldig() && match hændelse { | KglÅrsnettoUltimoværdi(_) -> Sandt | KglÅrsnettoMængdeultimoværdi(_, _) -> Sandt | _ -> Falskt },
         har_opgørelse = tilstand.har_opgørelse || er_opgørelse(),
-        opgørelsesgrundlag_kroner = hvis er_opgørelse() { tilstand.skattemæssig_værdi_kroner } ellers { tilstand.opgørelsesgrundlag_kroner },
-        opgørelsesslutværdi_kroner = hvis er_opgørelse() { kgl_årsnetto_hændelsesbeløb_kroner(hændelse) } ellers { tilstand.opgørelsesslutværdi_kroner },
+        opgørelsesgrundlag_kroner = tilstand.opgørelsesgrundlag_kroner + opgørelsesgrundlag_kroner(),
+        opgørelsesslutværdi_kroner = tilstand.opgørelsesslutværdi_kroner + opgørelsesslutværdi_kroner(),
         rå_netto_kroner = tilstand.rå_netto_kroner + rå_netto_kroner(),
         hændelsesresultater = concat(tilstand.hændelsesresultater, [hændelsesresultat()]),
         alle_hændelser_gyldige = tilstand.alle_hændelser_gyldige && hændelse_gyldig()
     )
 }
-| kgl_årsnetto_hændelsestrin(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip) -> KglÅrsnettoHændelsessag(tilstand, hændelse, princip).næste_tilstand()
+| kgl_årsnetto_hændelsestrin(tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse, princip: KursgevinstlovOpgørelsesprincip, allokeringsprincip: KglÅrsnettoAllokeringsprincip, indkomstår: Heltal, gruppe: KglÅrsnettoFordringsgruppe) -> KglÅrsnettoHændelsessag(tilstand, hændelse, princip, allokeringsprincip, indkomstår, gruppe).næste_tilstand()
+| kgl_årsnetto_allokeringsprincip_gyldigt(mængdeforløb: Boolsk, allokeringsprincip: KglÅrsnettoAllokeringsprincip) -> mængdeforløb == Falskt || allokeringsprincip != KglÅrsnettoHelpositionsallokering
 
-# KglÅrsnettoForløbssag(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip) {
-    | starttilstand() -> KglÅrsnettoForløbstilstand(position_aktiv = kgl_årsnetto_position_primo_aktiv(position_primo), skattemæssig_værdi_kroner = kgl_årsnetto_position_primo_værdi_kroner(position_primo), anskaffet_i_indkomståret = Falskt, afstået_i_indkomståret = Falskt, ultimoværdi_angivet = Falskt, har_opgørelse = Falskt, opgørelsesgrundlag_kroner = 0, opgørelsesslutværdi_kroner = 0, rå_netto_kroner = 0, hændelsesresultater = [], alle_hændelser_gyldige = kgl_årsnetto_position_primo_gyldig(position_primo, indkomstår))
-    | sluttilstand() -> foldl(hændelser, starttilstand(), |tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse| kgl_årsnetto_hændelsestrin(tilstand, hændelse, princip))
+# KglÅrsnettoForløbssag(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip, fordringsgruppe: KglÅrsnettoFordringsgruppe, allokeringsprincip: KglÅrsnettoAllokeringsprincip) {
+    | mængdeforløb() -> kgl_årsnetto_position_primo_er_mængdeposition(position_primo) || any(hændelser, kgl_årsnetto_hændelse_er_mængdehændelse)
+    | starttrancher() -> kgl_årsnetto_position_primo_trancher(position_primo)
+    | starttilstand() -> KglÅrsnettoForløbstilstand(
+        mængdeforløb = mængdeforløb(),
+        position_aktiv = kgl_årsnetto_position_primo_aktiv(position_primo),
+        trancher = starttrancher(),
+        tranche_identifikationer = kgl_årsnetto_tranche_identifikationer(starttrancher()),
+        seneste_tidspunkt = None,
+        skattemæssig_værdi_kroner = kgl_årsnetto_position_primo_værdi_kroner(position_primo),
+        anskaffet_i_indkomståret = Falskt,
+        afstået_i_indkomståret = Falskt,
+        ultimoværdi_angivet = Falskt,
+        har_opgørelse = Falskt,
+        opgørelsesgrundlag_kroner = 0,
+        opgørelsesslutværdi_kroner = 0,
+        rå_netto_kroner = 0,
+        hændelsesresultater = [],
+        alle_hændelser_gyldige = kgl_årsnetto_fordringsgruppe_gyldig(fordringsgruppe) && kgl_årsnetto_position_primo_gyldig_for_gruppe(position_primo, indkomstår, fordringsgruppe) && kgl_årsnetto_forløbstype_gyldig(position_primo, hændelser) && kgl_årsnetto_allokeringsprincip_gyldigt(mængdeforløb(), allokeringsprincip)
+    )
+    | sluttilstand() -> foldl(hændelser, starttilstand(), |tilstand: KglÅrsnettoForløbstilstand, hændelse: KglÅrsnettoHændelse| kgl_årsnetto_hændelsestrin(tilstand, hændelse, princip, allokeringsprincip, indkomstår, fordringsgruppe))
     | har_position_eller_hændelse() -> kgl_årsnetto_position_primo_aktiv(position_primo) || length(hændelser) > 0
     | årsafslutning_gyldig() -> princip != KglLagerprincip || sluttilstand().position_aktiv == Falskt || sluttilstand().ultimoværdi_angivet
-    | position_ultimo() -> hvis sluttilstand().position_aktiv { KglÅrsnettoAktivPositionUltimo(indkomstår = indkomstår, skattemæssig_værdi_kroner = sluttilstand().skattemæssig_værdi_kroner) } ellers { KglÅrsnettoIngenPositionUltimo }
+    | position_ultimo() -> hvis sluttilstand().position_aktiv { hvis mængdeforløb() { KglÅrsnettoAktivMængdepositionUltimo(indkomstår = indkomstår, fordringsgruppe = fordringsgruppe, trancher = sluttilstand().trancher) } ellers { KglÅrsnettoAktivPositionUltimo(indkomstår = indkomstår, skattemæssig_værdi_kroner = sluttilstand().skattemæssig_værdi_kroner) } } ellers { KglÅrsnettoIngenPositionUltimo }
     | input_gyldigt() -> indkomstår > 0 && har_position_eller_hændelse() && sluttilstand().alle_hændelser_gyldige && årsafslutning_gyldig()
-    | resultat() -> KglÅrsnettoForløbsresultat(indkomstår = indkomstår, position_primo = position_primo, hændelser = hændelser, opgørelsesprincip = princip, hændelsesresultater = sluttilstand().hændelsesresultater, har_opgørelse = sluttilstand().har_opgørelse, opgørelsesgrundlag_kroner = sluttilstand().opgørelsesgrundlag_kroner, opgørelsesslutværdi_kroner = sluttilstand().opgørelsesslutværdi_kroner, rå_netto_kroner = sluttilstand().rå_netto_kroner, position_ultimo = position_ultimo(), input_gyldigt = input_gyldigt())
+    | resultat() -> KglÅrsnettoForløbsresultat(
+        indkomstår = indkomstår,
+        fordringsgruppe = fordringsgruppe,
+        position_primo = position_primo,
+        hændelser = hændelser,
+        opgørelsesprincip = princip,
+        allokeringsprincip = hvis mængdeforløb() { allokeringsprincip } ellers { KglÅrsnettoHelpositionsallokering },
+        hændelsesresultater = sluttilstand().hændelsesresultater,
+        har_opgørelse = sluttilstand().har_opgørelse,
+        opgørelsesgrundlag_kroner = sluttilstand().opgørelsesgrundlag_kroner,
+        opgørelsesslutværdi_kroner = sluttilstand().opgørelsesslutværdi_kroner,
+        rå_netto_kroner = sluttilstand().rå_netto_kroner,
+        resterende_mængde = kgl_årsnetto_trancher_mængde(sluttilstand().trancher),
+        position_ultimo = hvis input_gyldigt() { position_ultimo() } ellers { KglÅrsnettoIngenPositionUltimo },
+        input_gyldigt = input_gyldigt()
+    )
 }
-| kgl_årsnetto_forløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip) -> KglÅrsnettoForløbssag(indkomstår, position_primo, hændelser, princip).resultat()
+| kgl_årsnetto_grupperet_forløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip, fordringsgruppe: KglÅrsnettoFordringsgruppe, allokeringsprincip: KglÅrsnettoAllokeringsprincip) -> KglÅrsnettoForløbssag(indkomstår, position_primo, hændelser, princip, fordringsgruppe, allokeringsprincip).resultat()
+| kgl_årsnetto_forløbsresultat(indkomstår: Heltal, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse), princip: KursgevinstlovOpgørelsesprincip) -> kgl_årsnetto_grupperet_forløbsresultat(indkomstår, position_primo, hændelser, princip, kgl_årsnetto_tom_fordringsgruppe(), KglÅrsnettoFifoEfterPar26Stk5)
 --@end:kursgevinstloven_årsnetto_opgørelse--
 
 = aktieavancebeskatningsloven_lbk1098_par22_årsnetto = KursgevinstlovÅrsnettoKildeInfo(
@@ -446,27 +629,27 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 ----
 
 --@begin:kursgevinstloven_årsnetto_abl22--
-# KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
+# KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
 # KglÅrsnettoAbl22Kilde(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve)
 # KglÅrsnettoAbl22Forløb(identifikation: Tekst, kilde: KglÅrsnettoAbl22Kilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
 # KursgevinstlovÅrsnettoInput(par25_valg: KglÅrsnettoPar25Årsvalg, fordringer: List(KglÅrsnettoFordringsforløb), valutainstrumenter: List(KglÅrsnettoValutaforløb), obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb))
-# KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, omfattet_af_par14_bagatelgrundlag: Boolsk, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat, input_gyldigt: Boolsk)
+# KglÅrsnettoFordringsopgørelse(hændelsesresultat: KglÅrsnettoHændelsesresultat, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat)
+# KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, omfattet_af_par14_bagatelgrundlag: Boolsk, opgørelser: List(KglÅrsnettoFordringsopgørelse), input_gyldigt: Boolsk)
 # KglÅrsnettoAbl22Resultat(fakta: KglÅrsnettoAbl22Forløb, forløb: KglÅrsnettoForløbsresultat, klassifikationsresultat: AktieavancePar21Par22Resultat, effektivt_obligationsbaseret_efter_par22: Boolsk, omfattet_af_par22_bagatelgrundlag: Boolsk, aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk)
 # KursgevinstlovÅrsnettoResultat(input: KursgevinstlovÅrsnettoInput, input_gyldigt: Boolsk, par25_valgresultat: KglÅrsnettoPar25Valgresultat, rå_netto_til_par14_og_abl22_kroner: Heltal, fordringsresultater: List(KglÅrsnettoFordringsresultat), valutainstrumentresultater: List(KglÅrsnettoValutaforløbsresultat), obligationsbevisresultater: List(KglÅrsnettoAbl22Resultat), kursgevinstlov_resultater: List(KursgevinstlovResultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
 
 | kgl_årsnetto_tomt_input() -> KursgevinstlovÅrsnettoInput(par25_valg = kgl_årsnetto_tomt_par25_årsvalg(), fordringer = [], valutainstrumenter = [], obligationsbaserede_minimumsbeviser = [])
 | kgl_årsnetto_fordringsprincip(kilde: KglÅrsnettoFordringskilde, valg: KglÅrsnettoPar25Årsvalg) -> hvis kilde.fordringsart == KglÅrsnettoObligation && kgl_årsnetto_markedsnoteret(kilde.markedsfakta) && valg.obligationer_på_reguleret_marked.aktuelt_princip == KglLagerprincip { KglLagerprincip } ellers { KglRealisationsprincip }
-| kgl_årsnetto_fordringsforløbsresultat(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> kgl_årsnetto_forløbsresultat(indkomstår, fakta.position_primo, fakta.hændelser, kgl_årsnetto_fordringsprincip(fakta.kilde, valg))
-| kgl_årsnetto_fordringsinput(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
-    = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, valg, indkomstår)
-    = princip = kgl_årsnetto_fordringsprincip(fakta.kilde, valg)
+| kgl_årsnetto_fordringsallokeringsprincip(kilde: KglÅrsnettoFordringskilde) -> hvis kgl_årsnetto_fordring_omfattet_af_par13(kilde) { KglÅrsnettoGennemsnitsmetodeEfterPar26Stk4 } ellers { KglÅrsnettoFifoEfterPar26Stk5 }
+| kgl_årsnetto_fordringsforløbsresultat(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> kgl_årsnetto_grupperet_forløbsresultat(indkomstår, fakta.position_primo, fakta.hændelser, kgl_årsnetto_fordringsprincip(fakta.kilde, valg), fakta.fordringsgruppe, kgl_årsnetto_fordringsallokeringsprincip(fakta.kilde))
+| kgl_årsnetto_fordringsinput(fakta: KglÅrsnettoFordringsforløb, princip: KursgevinstlovOpgørelsesprincip, hændelsesresultat: KglÅrsnettoHændelsesresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
     KursgevinstlovInput(
         indkomstår = indkomstår,
         rolle = KglPersonEfterKildeskatteloven,
         aktiv = KglFordring,
         par1_afgrænsning = kgl_årsnetto_par1_afgrænsning(fakta.kilde),
         bagatelgrundlag = KursgevinstlovBagatelOpgørelse(årets_netto_fordringer_valutagæld_investbeviser_kroner = årets_samlede_netto_kroner),
-        fordring = KursgevinstlovFordringOpgørelse(tabsgrundlag = kgl_årsnetto_fordring_tabsgrundlag(fakta.kilde), tabsbegrænsning = kgl_årsnetto_fordring_tabsbegrænsning(fakta.kilde), anskaffelsessum_kroner = forløb.opgørelsesgrundlag_kroner, afståelsessum_kroner = forløb.opgørelsesslutværdi_kroner),
+        fordring = KursgevinstlovFordringOpgørelse(tabsgrundlag = kgl_årsnetto_fordring_tabsgrundlag(fakta.kilde), tabsbegrænsning = kgl_årsnetto_fordring_tabsbegrænsning(fakta.kilde), anskaffelsessum_kroner = hændelsesresultat.opgørelsesgrundlag_kroner, afståelsessum_kroner = hændelsesresultat.opgørelsesslutværdi_kroner),
         gæld = kgl_tom_gæld(),
         kontrakt = kgl_tom_kontrakt(),
         udøver_fordrings_eller_kontraktnæring = kgl_årsnetto_udøver_næring(fakta.kilde.næringsforhold),
@@ -474,15 +657,18 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
         anvender_lagerprincip_efter_par25 = princip == KglLagerprincip
     )
 }
+| kgl_årsnetto_fordringsopgørelse(fakta: KglÅrsnettoFordringsforløb, princip: KursgevinstlovOpgørelsesprincip, hændelsesresultat: KglÅrsnettoHændelsesresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
+    = kgl_input = kgl_årsnetto_fordringsinput(fakta, princip, hændelsesresultat, indkomstår, årets_samlede_netto_kroner)
+    KglÅrsnettoFordringsopgørelse(hændelsesresultat = hændelsesresultat, kursgevinstlov_input = kgl_input, kursgevinstlov_resultat = kursgevinstlov_resultat(kgl_input))
+}
+| kgl_årsnetto_fordringsopgørelser(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> flat_map(forløb.hændelsesresultater, |hændelsesresultat: KglÅrsnettoHændelsesresultat| hvis hændelsesresultat.er_opgørelse { [kgl_årsnetto_fordringsopgørelse(fakta, forløb.opgørelsesprincip, hændelsesresultat, indkomstår, årets_samlede_netto_kroner)] } ellers { [] })
 | kgl_årsnetto_fordringsresultat(fakta: KglÅrsnettoFordringsforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
     = forløb = kgl_årsnetto_fordringsforløbsresultat(fakta, valg, indkomstår)
-    = kgl_input = kgl_årsnetto_fordringsinput(fakta, valg, indkomstår, årets_samlede_netto_kroner)
     KglÅrsnettoFordringsresultat(
         fakta = fakta,
         forløb = forløb,
         omfattet_af_par14_bagatelgrundlag = kgl_årsnetto_fordring_i_par14_bagatelgrundlag(fakta.kilde),
-        kursgevinstlov_input = kgl_input,
-        kursgevinstlov_resultat = kursgevinstlov_resultat(kgl_input),
+        opgørelser = hvis forløb.input_gyldigt { kgl_årsnetto_fordringsopgørelser(fakta, forløb, indkomstår, årets_samlede_netto_kroner) } ellers { [] },
         input_gyldigt = fakta.identifikation != "" && forløb.input_gyldigt
     )
 }
@@ -544,7 +730,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | kgl_årsnetto_alle_fordringsresultater_gyldige(resultater: List(KglÅrsnettoFordringsresultat)) -> all(resultater, |resultat: KglÅrsnettoFordringsresultat| resultat.input_gyldigt)
 | kgl_årsnetto_alle_valutainstrumentresultater_gyldige(resultater: List(KglÅrsnettoValutaforløbsresultat)) -> all(resultater, |resultat: KglÅrsnettoValutaforløbsresultat| resultat.input_gyldigt)
 | kgl_årsnetto_alle_abl22_resultater_gyldige(resultater: List(KglÅrsnettoAbl22Resultat)) -> all(resultater, |resultat: KglÅrsnettoAbl22Resultat| resultat.input_gyldigt)
-| kgl_årsnetto_kursgevinstlov_resultater(resultater: List(KglÅrsnettoFordringsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoFordringsresultat| hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse { [resultat.kursgevinstlov_resultat] } ellers { [] })
+| kgl_årsnetto_kursgevinstlov_resultater(resultater: List(KglÅrsnettoFordringsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoFordringsresultat| hvis resultat.input_gyldigt { map(resultat.opgørelser, |opgørelse: KglÅrsnettoFordringsopgørelse| opgørelse.kursgevinstlov_resultat) } ellers { [] })
 | kgl_årsnetto_valuta_kursgevinstlov_resultater(resultater: List(KglÅrsnettoValutaforløbsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoValutaforløbsresultat| resultat.kursgevinstlov_resultater)
 | kgl_årsnetto_aktieavancebeskatningslov_resultater(resultater: List(KglÅrsnettoAbl22Resultat)) -> flat_map(resultater, |resultat: KglÅrsnettoAbl22Resultat| hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse { [resultat.aktieavancebeskatningslov_resultat] } ellers { [] })
 

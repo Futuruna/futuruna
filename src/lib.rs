@@ -17775,6 +17775,49 @@ impl TypeChecker {
         }
     }
 
+    fn applied_type_argument(
+        type_name: &str,
+        constructor_name: &str,
+        index: usize,
+    ) -> Option<String> {
+        let parsed = parse_type_annotation(type_name).ok()?;
+        match parsed {
+            Ty::App(constructor, arguments) if matches!(constructor.as_ref(), Ty::Name(name) if name == constructor_name) => {
+                arguments.get(index).and_then(Self::type_name_from_ty)
+            }
+            Ty::Optional(inner) if constructor_name == "Option" && index == 0 => {
+                Self::type_name_from_ty(&inner)
+            }
+            _ => None,
+        }
+    }
+
+    fn merge_inferred_type_names(left: &str, right: &str) -> Option<String> {
+        if left == right {
+            return Some(left.to_string());
+        }
+
+        fn application_has_parent(ty: &Ty, parent: &str) -> bool {
+            matches!(
+                ty,
+                Ty::App(constructor, _)
+                    if matches!(constructor.as_ref(), Ty::Name(name) if name == parent)
+            )
+        }
+
+        let left_ty = parse_type_annotation(left).ok()?;
+        let right_ty = parse_type_annotation(right).ok()?;
+        match (&left_ty, &right_ty) {
+            (Ty::Name(parent), applied) if application_has_parent(applied, parent) => {
+                Some(right.to_string())
+            }
+            (applied, Ty::Name(parent)) if application_has_parent(applied, parent) => {
+                Some(left.to_string())
+            }
+            _ => None,
+        }
+    }
+
     fn register_constructor_signature(
         &mut self,
         parent: &str,
@@ -18394,6 +18437,20 @@ impl TypeChecker {
         index: usize,
         parent: Option<&str>,
     ) -> Option<String> {
+        let generic_field = match (constructor, index) {
+            ("Some", 0) => Some(("Option", 0)),
+            ("Ok", 0) => Some(("Result", 0)),
+            ("Err", 0) => Some(("Result", 1)),
+            _ => None,
+        };
+        if let (Some(parent), Some((generic_parent, generic_index))) = (parent, generic_field) {
+            if let Some(field_type) =
+                Self::applied_type_argument(parent, generic_parent, generic_index)
+            {
+                return Some(field_type);
+            }
+        }
+
         self.constructor_signature_for_parent(constructor, parent)
             .and_then(|signature| signature.field_types.get(index).cloned().flatten())
             .or_else(|| {
@@ -18526,6 +18583,12 @@ impl TypeChecker {
                     if name == REFOF_MARKER {
                         return Some("ProgramReference".to_string());
                     }
+                    if name == "Some" && args.len() == 1 {
+                        if let Some(inner) = self.infer_expr_type_name_with_locals(&args[0], locals)
+                        {
+                            return Some(format!("Option({})", inner));
+                        }
+                    }
                     if let Some(parent) = self.constructor_parent_for_args(name, args) {
                         return Some(parent);
                     }
@@ -18554,24 +18617,26 @@ impl TypeChecker {
             ExprKind::If(_, then_expr, else_expr) => {
                 let then_ty = self.infer_expr_type_name_with_locals(then_expr, locals);
                 let else_ty = self.infer_expr_type_name_with_locals(else_expr, locals);
-                if then_ty == else_ty {
-                    then_ty
-                } else {
-                    None
+                match (then_ty, else_ty) {
+                    (Some(then_ty), Some(else_ty)) => {
+                        Self::merge_inferred_type_names(&then_ty, &else_ty)
+                    }
+                    _ => None,
                 }
             }
             ExprKind::Match(scrutinee, arms) => {
                 let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
-                let mut result_type = None;
+                let mut result_type: Option<String> = None;
                 for arm in arms {
                     let mut arm_locals = locals.clone();
                     arm_locals
                         .extend(self.pattern_type_bindings(&arm.pat, subject_type.as_deref()));
                     let arm_type = self.infer_expr_type_name_with_locals(&arm.body, &arm_locals)?;
-                    if result_type.as_ref().is_some_and(|known| known != &arm_type) {
-                        return None;
-                    }
-                    result_type = Some(arm_type);
+                    let merged = match result_type {
+                        Some(known) => Self::merge_inferred_type_names(&known, &arm_type),
+                        None => Some(arm_type),
+                    }?;
+                    result_type = Some(merged);
                 }
                 result_type
             }
@@ -20653,7 +20718,7 @@ impl TypeChecker {
                 self.check_expr(scrutinee, _in_fn);
                 let subject_type = self.infer_expr_type_name(scrutinee);
                 self.check_refined_variant_match(scrutinee, arms, subject_type.as_deref());
-                let mut first_arm_type = None;
+                let mut first_arm_type: Option<String> = None;
                 for (index, arm) in arms.iter().enumerate() {
                     self.check_pattern_constructor_arity(
                         &arm.pat,
@@ -20672,8 +20737,12 @@ impl TypeChecker {
                     }
                     self.check_expr(&arm.body, _in_fn);
                     if let Some(arm_type) = self.infer_expr_type_name(&arm.body) {
-                        if let Some(expected) = &first_arm_type {
-                            if expected != &arm_type {
+                        if let Some(expected) = first_arm_type.take() {
+                            if let Some(merged) =
+                                Self::merge_inferred_type_names(&expected, &arm_type)
+                            {
+                                first_arm_type = Some(merged);
+                            } else {
                                 self.error_at_expr(
                                     &arm.body,
                                     format!(
@@ -20683,6 +20752,7 @@ impl TypeChecker {
                                         arm_type
                                     ),
                                 );
+                                first_arm_type = Some(expected);
                             }
                         } else {
                             first_arm_type = Some(arm_type);
@@ -23014,6 +23084,37 @@ mod tests {
         assert!(
             diags.is_empty(),
             "generic variant fields should retain their full element type in match bindings, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_preserves_option_payload_through_match_return() {
+        let source = r#"
+# Stamp(value: Int)
+
+# Case(last: Option(Stamp)) {
+    | next(candidate: Option(Stamp)) -> {
+        = result: Option(Stamp) = match candidate {
+            | Some(stamp) -> Some(Stamp(value = stamp.value))
+            | None -> last
+        }
+        result
+    }
+}
+
+| normalize(candidate: Option(Stamp)) -> match candidate {
+    | None -> None
+    | Some(stamp) -> Some(Stamp(value = stamp.value))
+}
+
+= result = Case(last = None).next(Some(Stamp(value = 1)))
+= normalized = normalize(result)
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "Option payload bindings and constructors should retain their concrete type, got: {:?}",
             diags
         );
     }

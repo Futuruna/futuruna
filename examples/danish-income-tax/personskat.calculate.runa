@@ -4524,6 +4524,49 @@
     help = Some("Et sådant forhold kan afskære tabsfradrag efter KGL § 18."),
     unit = None
 )
+= personskat_felt_kgl_årsnetto_fordringsgruppe = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::$variant),
+    label = "Fordringer, som skal opgøres samlet",
+    question = Some("Er dette én fordring, værdipapirer med samme fondskode eller fordringer udstedt på samme vilkår?"),
+    help = Some("Grupperingen afgør, hvilke anskaffelser der indgår i FIFO- eller gennemsnitsberegningen efter KGL § 26, stk. 4-5."),
+    unit = None
+)
+= personskat_felt_kgl_årsnetto_enkeltfordring_mængdeenhed = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoEnkeltfordring::mængdeenhed),
+    label = "Mængdeenhed for enkeltfordringen",
+    question = Some("Angives fordringens mængde som antal styk eller nominelle hundreddele?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_årsnetto_fondskode_mængdeenhed = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoFondskode::mængdeenhed),
+    label = "Mængdeenhed for fondskoden",
+    question = Some("Angives beholdningen som antal styk eller nominelle hundreddele?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_årsnetto_samme_vilkår_mængdeenhed = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoSammeVilkår::mængdeenhed),
+    label = "Mængdeenhed for fordringer med samme vilkår",
+    question = Some("Angives fordringerne som antal styk eller nominelle hundreddele?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_kgl_årsnetto_fondskode = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoFondskode::fondskode),
+    label = "Fordringens fondskode",
+    question = "Hvilken fondskode identificerer de værdipapirer, der skal opgøres samlet?"
+)
+= personskat_felt_kgl_årsnetto_samme_vilkår_udsteder = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoSammeVilkår::udsteder_identifikation),
+    label = "Udsteder for fordringer med samme vilkår",
+    question = "Hvilken entydig identifikation har den fælles udsteder?"
+)
+= personskat_felt_kgl_årsnetto_samme_vilkår_identifikation = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::fordringsgruppe::KglÅrsnettoSammeVilkår::vilkårsidentifikation),
+    label = "Fælles vilkårsidentifikation",
+    question = "Hvilken stabil dokument- eller aftalereference identificerer de fælles udstedelsesvilkår?"
+)
 = personskat_felt_kgl_par25_obligationsvalg_primo = Beregningsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::par25_valg::obligationer_på_reguleret_marked::position_primo::$variant),
     label = "Tidligere valg for noterede obligationer",
@@ -4852,7 +4895,7 @@
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::$variant),
     label = "Fordringens position ved årets begyndelse",
     question = Some("Var fordringen ny i året, eller videreføres den fra det foregående indkomstår?"),
-    help = Some("En videreført position skal angive det umiddelbart foregående indkomstår og den skattemæssige åbningsværdi."),
+    help = Some("En videreført position skal angive det umiddelbart foregående indkomstår. Brug en mængdeposition til delvise eller gentagne realisationer."),
     unit = None
 )
 = personskat_felt_kgl_årsnetto_hændelser = Beregningsfelt(
@@ -4862,11 +4905,30 @@
     help = Some("Tilføj hændelserne i deres faktiske rækkefølge. En aktiv lagerbeskattet position kræver en ultimoværdi."),
     unit = None
 )
+= personskat_felt_kgl_årsnetto_position_primo_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtPositionPrimo::fra_indkomstår),
+    label = "Indkomstår for den videreførte åbningsværdi",
+    question = "Fra hvilket umiddelbart foregående indkomstår videreføres åbningsværdien?",
+    unit = "år"
+)
 = personskat_felt_kgl_årsnetto_position_primo_værdi = Beregningsbeløbsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtPositionPrimo::skattemæssig_værdi_kroner),
     label = "Skattemæssig værdi ved årets begyndelse",
     question = "Hvad var den videreførte skattemæssige værdi ved indkomstårets begyndelse?",
     unit = "kr."
+)
+= personskat_felt_kgl_årsnetto_mængdeposition_primo_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtMængdepositionPrimo::fra_indkomstår),
+    label = "Indkomstår for de videreførte trancher",
+    question = "Fra hvilket umiddelbart foregående indkomstår videreføres trancherne?",
+    unit = "år"
+)
+= personskat_felt_kgl_årsnetto_mængdeposition_trancher = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtMængdepositionPrimo::trancher),
+    label = "Trancher ved årets begyndelse",
+    question = Some("Hvilke resterende anskaffelsestrancher videreføres fra det foregående indkomstår?"),
+    help = Some("Bevar trancheidentifikation, anskaffelsestidspunkt, restmængde og resterende anskaffelsessum fra forrige års Futuruna-resultat."),
+    unit = None
 )
 = personskat_felt_kgl_årsnetto_anskaffelsessum = Beregningsbeløbsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoAnskaffelse::anskaffelsessum_kroner),
@@ -4885,6 +4947,66 @@
     label = "Fordringens værdi ved årets udgang",
     question = "Hvad var den dokumenterede ultimoværdi for den lagerbeskattede obligation?",
     unit = "kr."
+)
+= personskat_felt_kgl_årsnetto_mængdeanskaffelse_identifikation = Beregningsspørgsmål(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeanskaffelse::tranche_identifikation),
+    label = "Anskaffelsestranchens identifikation",
+    question = "Hvilken stabil og entydig identifikation har anskaffelsestranchen?"
+)
+= personskat_felt_kgl_årsnetto_mængdeanskaffelse_mængde = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeanskaffelse::mængde),
+    label = "Anskaffet mængde",
+    question = "Hvor stor en mængde blev anskaffet i denne tranche?",
+    unit = "valgt mængdeenhed"
+)
+= personskat_felt_kgl_årsnetto_mængdeanskaffelse_sum = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeanskaffelse::anskaffelsessum_kroner),
+    label = "Anskaffelsestranchens anskaffelsessum",
+    question = "Hvad var den dokumenterede anskaffelsessum for hele tranchen?",
+    unit = "kr."
+)
+= personskat_felt_kgl_årsnetto_mængdeafståelse_art = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeafståelse::afståelsesart),
+    label = "Hvordan fordringsmængden blev realiseret",
+    question = Some("Blev mængden solgt, fuldt indfriet eller delvist tilbagebetalt?"),
+    help = Some("En fuld indfrielse skal lukke hele den resterende position; et delafdrag skal efterlade en rest."),
+    unit = None
+)
+= personskat_felt_kgl_årsnetto_mængdeafståelse_mængde = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeafståelse::mængde),
+    label = "Afstået eller indfriet mængde",
+    question = "Hvor stor en mængde blev afstået, indfriet eller tilbagebetalt?",
+    unit = "valgt mængdeenhed"
+)
+= personskat_felt_kgl_årsnetto_mængdeafståelse_sum = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeafståelse::afståelsessum_kroner),
+    label = "Beløb ved afståelse eller indfrielse",
+    question = "Hvilket samlet beløb blev modtaget for den afståede, indfriede eller tilbagebetalte mængde?",
+    unit = "kr."
+)
+= personskat_felt_kgl_årsnetto_mængdeultimoværdi = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::hændelser::KglÅrsnettoMængdeultimoværdi::værdi_kroner),
+    label = "Resterende positions værdi ved årets udgang",
+    question = "Hvad var den dokumenterede ultimoværdi af den resterende lagerbeskattede position?",
+    unit = "kr."
+)
+= personskat_meta_kgl_årsnetto_mængdeforløb = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(KglÅrsnettoTidspunkt::dato::år), label = "År for hændelsen eller trancheanskaffelsen", question = Some("I hvilket år fandt hændelsen eller trancheanskaffelsen sted?"), help = None, unit = Some("år")),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoTidspunkt::dato::måned), label = "Måned for hændelsen eller trancheanskaffelsen", question = Some("I hvilken måned fandt hændelsen eller trancheanskaffelsen sted?"), help = None, unit = Some("måned")),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoTidspunkt::dato::dag), label = "Dag for hændelsen eller trancheanskaffelsen", question = Some("På hvilken dag fandt hændelsen eller trancheanskaffelsen sted?"), help = None, unit = Some("dag")),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoTidspunkt::rækkefølge_på_dagen), label = "Hændelsens rækkefølge på dagen", question = Some("Hvilket løbenummer har hændelsen blandt fordringens hændelser samme dag?"), help = Some("Brug 1 for den første hændelse, 2 for den næste og så videre."), unit = None),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoFordringstranche::identifikation), label = "Den videreførte tranches identifikation", question = Some("Hvilken stabil identifikation havde tranchen i forrige års resultat?"), help = None, unit = None),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoFordringstranche::resterende_mængde), label = "Tranchens resterende mængde", question = Some("Hvor stor en mængde resterer ved årets begyndelse?"), help = None, unit = Some("valgt mængdeenhed")),
+        TypetBeregningsfelt(path = refof(KglÅrsnettoFordringstranche::resterende_anskaffelsessum_kroner), label = "Tranchens resterende anskaffelsessum", question = Some("Hvor stor en skattemæssig anskaffelsessum resterer ved årets begyndelse?"), help = None, unit = Some("kr.")),
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_årsnetto),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit),
+    )
 )
 = personskat_felt_kgl_årsnetto_abl22_identifikation = Beregningsspørgsmål(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::identifikation),
@@ -10042,6 +10164,10 @@
         personskat_felt_kgl_årsnetto_næringsforhold,
         personskat_felt_kgl_årsnetto_erhvervelsesgrundlag,
         personskat_felt_kgl_årsnetto_dba_status,
+        personskat_felt_kgl_årsnetto_fordringsgruppe,
+        personskat_felt_kgl_årsnetto_enkeltfordring_mængdeenhed,
+        personskat_felt_kgl_årsnetto_fondskode_mængdeenhed,
+        personskat_felt_kgl_årsnetto_samme_vilkår_mængdeenhed,
         personskat_felt_kgl_par25_obligationsvalg_primo,
         personskat_felt_kgl_par25_obligationsvalg_primo_princip,
         personskat_felt_kgl_par25_obligationsvalg_aktuelt,
@@ -10060,7 +10186,9 @@
         personskat_felt_kgl_valuta_position_primo,
         personskat_felt_kgl_valuta_årsændring,
         personskat_felt_kgl_årsnetto_position_primo,
+        personskat_felt_kgl_årsnetto_mængdeposition_trancher,
         personskat_felt_kgl_årsnetto_hændelser,
+        personskat_felt_kgl_årsnetto_mængdeafståelse_art,
         personskat_felt_kgl_årsnetto_abl22_position_primo,
         personskat_felt_kgl_årsnetto_abl22_hændelser,
         personskat_felt_kgl_ægtefælles_skatteyder_identifikation,
@@ -10094,6 +10222,10 @@
         personskat_felt_kgl_valuta_iso_kode,
         personskat_felt_kgl_valuta_primo_iso_kode,
         personskat_felt_kgl_årsnetto_fordring_identifikation,
+        personskat_felt_kgl_årsnetto_fondskode,
+        personskat_felt_kgl_årsnetto_samme_vilkår_udsteder,
+        personskat_felt_kgl_årsnetto_samme_vilkår_identifikation,
+        personskat_felt_kgl_årsnetto_mængdeanskaffelse_identifikation,
         personskat_felt_kgl_årsnetto_abl22_identifikation,
         personskat_felt_kgl_gæld_identifikation,
         personskat_felt_kgl_frivillig_ordningsidentifikation,
@@ -10135,10 +10267,17 @@
         personskat_felt_kgl_valuta_videreført_afståelsesbeløb,
         personskat_felt_kgl_valuta_videreført_afståelseskurs_tæller,
         personskat_felt_kgl_valuta_videreført_afståelseskurs_nævner,
+        personskat_felt_kgl_årsnetto_position_primo_år,
         personskat_felt_kgl_årsnetto_position_primo_værdi,
+        personskat_felt_kgl_årsnetto_mængdeposition_primo_år,
         personskat_felt_kgl_årsnetto_anskaffelsessum,
         personskat_felt_kgl_årsnetto_afståelsessum,
         personskat_felt_kgl_årsnetto_ultimoværdi,
+        personskat_felt_kgl_årsnetto_mængdeanskaffelse_mængde,
+        personskat_felt_kgl_årsnetto_mængdeanskaffelse_sum,
+        personskat_felt_kgl_årsnetto_mængdeafståelse_mængde,
+        personskat_felt_kgl_årsnetto_mængdeafståelse_sum,
+        personskat_felt_kgl_årsnetto_mængdeultimoværdi,
         personskat_felt_kgl_årsnetto_abl22_position_primo_værdi,
         personskat_felt_kgl_årsnetto_abl22_anskaffelsessum,
         personskat_felt_kgl_årsnetto_abl22_afståelsessum,
@@ -10161,6 +10300,8 @@
         DependencySource(value = kgl_sælgerpantebrev_dødsboskattelov_lbk426),
         Guidance(value = kgl_ebl_par6d_vejledning_2026),
         Guidance(value = kursgevinstloven_vejledning_par24),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit),
     )
 )
 = personskat_metadata_kgl_par32 = PersonskatMetadata(
@@ -10581,6 +10722,7 @@
     ),
     kursgevinst = (
         personskat_meta_kursgevinst,
+        personskat_meta_kgl_årsnetto_mængdeforløb,
         personskat_metadata_kgl_par32,
     ),
     aktieavance = (

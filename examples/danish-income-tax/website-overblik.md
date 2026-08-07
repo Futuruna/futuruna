@@ -173,6 +173,26 @@ JSON-grænse. Kilderne er
 og
 [Den juridiske vejledning C.B.1.7.1](https://info.skat.dk/data.aspx?oid=1946022).
 
+Delafdrag og flere realisationer på samme fordring føres som ordnede
+hændelser, ikke som ét indtastet årsnetto. Hver anskaffelsestranche bevarer
+identifikation, dato, mængde og resterende anskaffelsessum. Futuruna anvender
+FIFO efter § 26, stk. 5, for almindelige personfordringer og
+gennemsnitsmetoden efter stk. 4 for fordrings- eller finansieringsnæring. Hver
+afståelse eller indfrielse får sit eget KGL-resultat, mens årets rå gevinster og
+tab kun samles til den fælles 2.000-kronersgrænse. Det er afgørende, når en
+gevinst er skattepligtig, men et tab på en anden realisation afskæres.
+
+Den genererede arbejdsbog kan videreføre en trancheret ultimoposition direkte
+til næste indkomstår. Et verificeret JSON/XLSX-eksempel starter med en
+2025-tranche på 100 enheder og 10.000 kr., anskaffer yderligere 100 enheder for
+20.000 kr. i 2026 og foretager to delafståelser. FIFO frigiver henholdsvis
+5.000 kr. og 15.000 kr. i anskaffelsessum; årets gevinst er 2.500 kr., og 50
+enheder med 10.000 kr. i anskaffelsessum videreføres. Overafståelser,
+tvetydige tidsrækkefølger og uforenelige hændelsesmodeller fejler lukket.
+Kilderne er [Kursgevinstlovens § 26](https://www.retsinformation.dk/eli/lta/2025/1176),
+[Den juridiske vejledning C.B.1.7.5](https://info.skat.dk/data.aspx?oid=1948965)
+og [C.B.1.7.6](https://info.skat.dk/data.aspx?oid=1948966).
+
 Pensionsgrenen viser samspillet i praksis. Borgeren eller AI-interviewet
 oplyser de faktiske indbetalinger, ordningstyper, betalingsår og relevante
 valg. Futuruna afleder årets fradrag efter Pensionsbeskatningslovens § 18,

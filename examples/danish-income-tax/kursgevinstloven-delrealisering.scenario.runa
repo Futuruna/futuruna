@@ -1,0 +1,257 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./kursgevinstloven - aarsnetto
+
+= kursgevinstloven_delrealisering_scenarier_metadata = Metadata(
+    attachments = (
+        Source(value = kursgevinstloven_lbk1176_årsnetto),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_realisering),
+        Guidance(value = kursgevinstloven_vejledning_årsnetto_par26_gennemsnit),
+    )
+)
+
+--@label:kursgevinstloven_delrealisering_scenarier::meta:kursgevinstloven_delrealisering_scenarier_metadata--
+----
+Fokuserede regressionsscenarier for delvise og gentagne realisationer efter
+kursgevinstlovens § 26, stk. 2, 4 og 5.
+
+Scenarierne er ikke lovtekst. De fastholder mængder, trancheidentitet,
+anskaffelsesrækkefølge, selvstændige realisationsresultater og videreførsel
+mellem indkomstår.
+----
+
+--@begin:kursgevinstloven_delrealisering_scenarier--
+| kgl_delrealisering_tidspunkt(år: Heltal, måned: Heltal, dag: Heltal, rækkefølge: Heltal) -> KglÅrsnettoTidspunkt(dato = Dato(år = år, måned = måned, dag = dag), rækkefølge_på_dagen = rækkefølge)
+| kgl_delrealisering_gruppe() -> KglÅrsnettoFondskode(fondskode = "DK0000000001", mængdeenhed = KglÅrsnettoAntalStyk)
+| kgl_delrealisering_samme_vilkår_gruppe(vilkårsidentifikation: Tekst) -> KglÅrsnettoSammeVilkår(udsteder_identifikation = "udsteder-1", vilkårsidentifikation = vilkårsidentifikation, mængdeenhed = KglÅrsnettoNominelleHundreddele)
+| kgl_delrealisering_almindelig_kilde(relation: KglÅrsnettoDebitorrelation) -> KglÅrsnettoFordringskilde(
+    fordringsart = KglÅrsnettoObligation,
+    markedsfakta = KglÅrsnettoIkkeOptagetPåReguleretMarked,
+    debitorrelation = relation,
+    næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
+    erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
+    dba_status = KglÅrsnettoIngenDbaBegrænsning
+)
+| kgl_delrealisering_næringskilde() -> KglÅrsnettoFordringskilde(
+    fordringsart = KglÅrsnettoObligation,
+    markedsfakta = KglÅrsnettoIkkeOptagetPåReguleretMarked,
+    debitorrelation = KglÅrsnettoUafhængigDebitor,
+    næringsforhold = KglÅrsnettoFordringsEllerFinansieringsnæring,
+    erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
+    dba_status = KglÅrsnettoIngenDbaBegrænsning
+)
+| kgl_delrealisering_par25_valg() -> kgl_årsnetto_tomt_par25_årsvalg()
+| kgl_delrealisering_fordring(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse)) -> KglÅrsnettoFordringsforløb(
+    identifikation = identifikation,
+    kilde = kilde,
+    fordringsgruppe = kgl_delrealisering_gruppe(),
+    position_primo = position_primo,
+    hændelser = hændelser
+)
+| kgl_delrealisering_årsresultat(fordringer: List(KglÅrsnettoFordringsforløb), indkomstår: Heltal) -> {
+    = input = KursgevinstlovÅrsnettoInput(
+        par25_valg = kgl_delrealisering_par25_valg(),
+        fordringer = fordringer,
+        valutainstrumenter = [],
+        obligationsbaserede_minimumsbeviser = []
+    )
+    kursgevinstlov_årsnetto_resultat(input, indkomstår, kgl_årsnetto_rå_netto_kroner(input, indkomstår))
+}
+
+= kgl_delrealisering_fifo_fordring = kgl_delrealisering_fordring(
+    identifikation = "fifo-delrealisering",
+    kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 1, 10, 1), tranche_identifikation = "fifo-a", mængde = 100, anskaffelsessum_kroner = 10000),
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 2, 10, 1), tranche_identifikation = "fifo-b", mængde = 100, anskaffelsessum_kroner = 20000),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 3, 10, 1), afståelsesart = KglÅrsnettoDelafdrag, mængde = 50, afståelsessum_kroner = 7500),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 4, 10, 1), afståelsesart = KglÅrsnettoSalg, mængde = 100, afståelsessum_kroner = 15000),
+    ]
+)
+= kgl_delrealisering_fifo_forløb = kgl_årsnetto_fordringsforløbsresultat(kgl_delrealisering_fifo_fordring, kgl_delrealisering_par25_valg(), 2026)
+= kgl_delrealisering_fifo_årsresultat = kgl_delrealisering_årsresultat([kgl_delrealisering_fifo_fordring], 2026)
+
+| kgl_delrealisering_fifo_frigiver_ældste_anskaffelsessum: kgl_delrealisering_fifo_forløb -> kgl_delrealisering_fifo_forløb.input_gyldigt && kgl_delrealisering_fifo_forløb.allokeringsprincip == KglÅrsnettoFifoEfterPar26Stk5 && kgl_delrealisering_fifo_forløb.hændelsesresultater[2].opgørelsesgrundlag_kroner == 5000 && kgl_delrealisering_fifo_forløb.hændelsesresultater[2].rå_netto_kroner == 2500 && kgl_delrealisering_fifo_forløb.hændelsesresultater[3].opgørelsesgrundlag_kroner == 15000
+| kgl_delrealisering_gentagne_realisationer_bevarer_skattemæssig_identitet: kgl_delrealisering_fifo_årsresultat -> kgl_delrealisering_fifo_årsresultat.input_gyldigt && kgl_delrealisering_fifo_årsresultat.rå_netto_til_par14_og_abl22_kroner == 2500 && length(kgl_delrealisering_fifo_årsresultat.fordringsresultater[0].opgørelser) == 2 && length(kgl_delrealisering_fifo_årsresultat.kursgevinstlov_resultater) == 2 && kgl_delrealisering_fifo_årsresultat.kursgevinstlov_resultater[0].skattepligtig_gevinst_kroner == 2500 && kgl_delrealisering_fifo_årsresultat.kursgevinstlov_resultater[1].netto_efter_kursgevinstloven_kroner == 0
+| kgl_delrealisering_fifo_bevarer_restpositionen: kgl_delrealisering_fifo_forløb -> kgl_delrealisering_fifo_forløb.resterende_mængde == 50 && match kgl_delrealisering_fifo_forløb.position_ultimo { | KglÅrsnettoAktivMængdepositionUltimo(2026, _, trancher) -> length(trancher) == 1 && trancher[0].identifikation == "fifo-b" && trancher[0].resterende_mængde == 50 && trancher[0].resterende_anskaffelsessum_kroner == 10000 | _ -> Falskt }
+
+= kgl_delrealisering_samme_vilkår_forløb = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = kgl_delrealisering_fifo_fordring.hændelser,
+    princip = KglRealisationsprincip,
+    fordringsgruppe = kgl_delrealisering_samme_vilkår_gruppe("låneaftale-2026-1"),
+    allokeringsprincip = KglÅrsnettoFifoEfterPar26Stk5
+)
+= kgl_delrealisering_samme_vilkår_uden_reference = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = kgl_delrealisering_fifo_fordring.hændelser,
+    princip = KglRealisationsprincip,
+    fordringsgruppe = kgl_delrealisering_samme_vilkår_gruppe(""),
+    allokeringsprincip = KglÅrsnettoFifoEfterPar26Stk5
+)
+
+| kgl_delrealisering_samme_vilkår_forankres_i_stabil_reference: kgl_delrealisering_samme_vilkår_forløb -> kgl_delrealisering_samme_vilkår_forløb.input_gyldigt && kgl_delrealisering_samme_vilkår_forløb.rå_netto_kroner == 2500
+| kgl_delrealisering_samme_vilkår_uden_reference_afvises: kgl_delrealisering_samme_vilkår_uden_reference -> kgl_delrealisering_samme_vilkår_uden_reference.input_gyldigt == Falskt
+
+= kgl_delrealisering_gennemsnit_fordring = kgl_delrealisering_fordring(
+    identifikation = "gennemsnit-delrealisering",
+    kilde = kgl_delrealisering_næringskilde(),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = kgl_delrealisering_fifo_fordring.hændelser
+)
+= kgl_delrealisering_gennemsnit_forløb = kgl_årsnetto_fordringsforløbsresultat(kgl_delrealisering_gennemsnit_fordring, kgl_delrealisering_par25_valg(), 2026)
+
+| kgl_delrealisering_næring_anvender_gennemsnitsmetoden: kgl_delrealisering_gennemsnit_forløb -> kgl_delrealisering_gennemsnit_forløb.input_gyldigt && kgl_delrealisering_gennemsnit_forløb.allokeringsprincip == KglÅrsnettoGennemsnitsmetodeEfterPar26Stk4 && kgl_delrealisering_gennemsnit_forløb.hændelsesresultater[2].opgørelsesgrundlag_kroner == 7500 && kgl_delrealisering_gennemsnit_forløb.hændelsesresultater[2].rå_netto_kroner == 0 && match kgl_delrealisering_gennemsnit_forløb.position_ultimo { | KglÅrsnettoAktivMængdepositionUltimo(_, _, trancher) -> length(trancher) == 1 && trancher[0].resterende_anskaffelsessum_kroner == 7500 | _ -> Falskt }
+
+= kgl_delrealisering_lager_forløb = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 1, 15, 1), tranche_identifikation = "lager-a", mængde = 100, anskaffelsessum_kroner = 10000),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 6, 15, 1), afståelsesart = KglÅrsnettoSalg, mængde = 40, afståelsessum_kroner = 5000),
+        KglÅrsnettoMængdeultimoværdi(tidspunkt = kgl_delrealisering_tidspunkt(2026, 12, 31, 1), værdi_kroner = 7200),
+    ],
+    princip = KglLagerprincip,
+    fordringsgruppe = kgl_delrealisering_gruppe(),
+    allokeringsprincip = KglÅrsnettoFifoEfterPar26Stk5
+)
+= kgl_delrealisering_lager_forkert_ultimodato = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 1, 15, 1), tranche_identifikation = "lager-forkert-a", mængde = 100, anskaffelsessum_kroner = 10000),
+        KglÅrsnettoMængdeultimoværdi(tidspunkt = kgl_delrealisering_tidspunkt(2026, 12, 30, 1), værdi_kroner = 12000),
+    ],
+    princip = KglLagerprincip,
+    fordringsgruppe = kgl_delrealisering_gruppe(),
+    allokeringsprincip = KglÅrsnettoFifoEfterPar26Stk5
+)
+
+| kgl_delrealisering_lager_opgør_realisation_og_ultimo_særskilt: kgl_delrealisering_lager_forløb -> kgl_delrealisering_lager_forløb.input_gyldigt && kgl_delrealisering_lager_forløb.rå_netto_kroner == 2200 && kgl_delrealisering_lager_forløb.hændelsesresultater[1].rå_netto_kroner == 1000 && kgl_delrealisering_lager_forløb.hændelsesresultater[2].rå_netto_kroner == 1200 && match kgl_delrealisering_lager_forløb.position_ultimo { | KglÅrsnettoAktivMængdepositionUltimo(_, _, trancher) -> trancher[0].resterende_mængde == 60 && trancher[0].resterende_anskaffelsessum_kroner == 7200 | _ -> Falskt }
+| kgl_delrealisering_lager_kræver_ultimoværdi_den_31_december: kgl_delrealisering_lager_forkert_ultimodato -> kgl_delrealisering_lager_forkert_ultimodato.input_gyldigt == Falskt && kgl_delrealisering_lager_forkert_ultimodato.hændelsesresultater[1].hændelse_gyldig == Falskt
+
+= kgl_delrealisering_kontrolleret_fordring = kgl_delrealisering_fordring(
+    identifikation = "kontrolleret-separate-resultater",
+    kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoKontrolleretSelskab),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 5, 1, 1), tranche_identifikation = "kontrol-a", mængde = 100, anskaffelsessum_kroner = 10000),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 5, 1, 2), afståelsesart = KglÅrsnettoSalg, mængde = 100, afståelsessum_kroner = 15000),
+        KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 5, 1, 3), tranche_identifikation = "kontrol-b", mængde = 100, anskaffelsessum_kroner = 10000),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 5, 1, 4), afståelsesart = KglÅrsnettoSalg, mængde = 100, afståelsessum_kroner = 9000),
+    ]
+)
+= kgl_delrealisering_kontrolleret_årsresultat = kgl_delrealisering_årsresultat([kgl_delrealisering_kontrolleret_fordring], 2026)
+
+| kgl_delrealisering_gevinst_og_afskåret_tab_nettoføres_ikke_før_reglerne: kgl_delrealisering_kontrolleret_årsresultat -> kgl_delrealisering_kontrolleret_årsresultat.input_gyldigt && kgl_delrealisering_kontrolleret_årsresultat.rå_netto_til_par14_og_abl22_kroner == 4000 && length(kgl_delrealisering_kontrolleret_årsresultat.kursgevinstlov_resultater) == 2 && kgl_delrealisering_kontrolleret_årsresultat.kursgevinstlov_resultater[0].skattepligtig_gevinst_kroner == 5000 && kgl_delrealisering_kontrolleret_årsresultat.kursgevinstlov_resultater[1].tab_afskåret_kroner == 1000
+
+= kgl_delrealisering_afrunding_forløb = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "eksakt-rest",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = KglÅrsnettoIngenPositionPrimo,
+        hændelser = [
+            KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 6, 1, 1), tranche_identifikation = "afrunding", mængde = 3, anskaffelsessum_kroner = 100),
+            KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 6, 1, 2), afståelsesart = KglÅrsnettoDelafdrag, mængde = 1, afståelsessum_kroner = 40),
+        ]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2026
+)
+| kgl_delrealisering_heltalsafrunding_bevarer_samlet_anskaffelsessum: kgl_delrealisering_afrunding_forløb -> kgl_delrealisering_afrunding_forløb.input_gyldigt && kgl_delrealisering_afrunding_forløb.hændelsesresultater[1].opgørelsesgrundlag_kroner == 33 && kgl_delrealisering_afrunding_forløb.hændelsesresultater[1].skattemæssig_værdi_efter_kroner == 67
+
+= kgl_delrealisering_2025_forløb = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "tværårig-fordring",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = KglÅrsnettoIngenPositionPrimo,
+        hændelser = [
+            KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2025, 1, 10, 1), tranche_identifikation = "tværårig-a", mængde = 100, anskaffelsessum_kroner = 10000),
+            KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2025, 6, 10, 1), afståelsesart = KglÅrsnettoDelafdrag, mængde = 40, afståelsessum_kroner = 6000),
+        ]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2025
+)
+= kgl_delrealisering_2026_forløb = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "tværårig-fordring",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = kgl_årsnetto_position_primo_fra_ultimo(kgl_delrealisering_2025_forløb.position_ultimo),
+        hændelser = [KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 2, 1, 1), afståelsesart = KglÅrsnettoFuldIndfrielse, mængde = 60, afståelsessum_kroner = 9000)]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2026
+)
+
+| kgl_delrealisering_position_videreføres_typed_mellem_indkomstår: kgl_delrealisering_2026_forløb -> kgl_delrealisering_2025_forløb.input_gyldigt && kgl_delrealisering_2026_forløb.input_gyldigt && kgl_delrealisering_2026_forløb.hændelsesresultater[0].opgørelsesgrundlag_kroner == 6000 && kgl_delrealisering_2026_forløb.hændelsesresultater[0].rå_netto_kroner == 3000 && kgl_delrealisering_2026_forløb.position_ultimo == KglÅrsnettoIngenPositionUltimo
+
+= kgl_delrealisering_overafståelse = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "overafståelse",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = KglÅrsnettoIngenPositionPrimo,
+        hændelser = [
+            KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 7, 1, 1), tranche_identifikation = "overafståelse-a", mængde = 10, anskaffelsessum_kroner = 1000),
+            KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 7, 1, 2), afståelsesart = KglÅrsnettoSalg, mængde = 11, afståelsessum_kroner = 1100),
+        ]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2026
+)
+= kgl_delrealisering_tvetydig_rækkefølge = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "tvetydig-rækkefølge",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = KglÅrsnettoIngenPositionPrimo,
+        hændelser = [
+            KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 8, 1, 1), tranche_identifikation = "tvetydig-a", mængde = 10, anskaffelsessum_kroner = 1000),
+            KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 8, 1, 1), afståelsesart = KglÅrsnettoSalg, mængde = 5, afståelsessum_kroner = 600),
+        ]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2026
+)
+= kgl_delrealisering_forkert_indfrielsesart = kgl_årsnetto_fordringsforløbsresultat(
+    kgl_delrealisering_fordring(
+        identifikation = "forkert-indfrielsesart",
+        kilde = kgl_delrealisering_almindelig_kilde(KglÅrsnettoUafhængigDebitor),
+        position_primo = KglÅrsnettoIngenPositionPrimo,
+        hændelser = [
+            KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 8, 2, 1), tranche_identifikation = "forkert-indfrielse-a", mængde = 10, anskaffelsessum_kroner = 1000),
+            KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 8, 2, 2), afståelsesart = KglÅrsnettoFuldIndfrielse, mængde = 5, afståelsessum_kroner = 600),
+        ]
+    ),
+    kgl_delrealisering_par25_valg(),
+    2026
+)
+= kgl_delrealisering_blandet_hændelsesmodel = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = 1000),
+        KglÅrsnettoMængdeafståelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 9, 1, 1), afståelsesart = KglÅrsnettoSalg, mængde = 5, afståelsessum_kroner = 600),
+    ],
+    princip = KglRealisationsprincip,
+    fordringsgruppe = kgl_delrealisering_gruppe(),
+    allokeringsprincip = KglÅrsnettoFifoEfterPar26Stk5
+)
+= kgl_delrealisering_helpositionsprincip_på_mængder = kgl_årsnetto_grupperet_forløbsresultat(
+    indkomstår = 2026,
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [KglÅrsnettoMængdeanskaffelse(tidspunkt = kgl_delrealisering_tidspunkt(2026, 10, 1, 1), tranche_identifikation = "forkert-princip", mængde = 10, anskaffelsessum_kroner = 1000)],
+    princip = KglRealisationsprincip,
+    fordringsgruppe = kgl_delrealisering_gruppe(),
+    allokeringsprincip = KglÅrsnettoHelpositionsallokering
+)
+
+| kgl_delrealisering_overafståelse_afvises: kgl_delrealisering_overafståelse -> kgl_delrealisering_overafståelse.input_gyldigt == Falskt && kgl_delrealisering_overafståelse.hændelsesresultater[1].hændelse_gyldig == Falskt && kgl_delrealisering_overafståelse.position_ultimo == KglÅrsnettoIngenPositionUltimo
+| kgl_delrealisering_tvetydig_tidsrækkefølge_afvises: kgl_delrealisering_tvetydig_rækkefølge -> kgl_delrealisering_tvetydig_rækkefølge.input_gyldigt == Falskt && kgl_delrealisering_tvetydig_rækkefølge.hændelsesresultater[1].hændelse_gyldig == Falskt
+| kgl_delrealisering_fuld_indfrielse_skal_lukke_positionen: kgl_delrealisering_forkert_indfrielsesart -> kgl_delrealisering_forkert_indfrielsesart.input_gyldigt == Falskt && kgl_delrealisering_forkert_indfrielsesart.hændelsesresultater[1].hændelse_gyldig == Falskt
+| kgl_delrealisering_legacy_og_mængdehændelser_kan_ikke_blandes: kgl_delrealisering_blandet_hændelsesmodel -> kgl_delrealisering_blandet_hændelsesmodel.input_gyldigt == Falskt
+| kgl_delrealisering_mængder_kræver_fifo_eller_gennemsnit: kgl_delrealisering_helpositionsprincip_på_mængder -> kgl_delrealisering_helpositionsprincip_på_mængder.input_gyldigt == Falskt && kgl_delrealisering_helpositionsprincip_på_mængder.position_ultimo == KglÅrsnettoIngenPositionUltimo
+--@end:kursgevinstloven_delrealisering_scenarier--
