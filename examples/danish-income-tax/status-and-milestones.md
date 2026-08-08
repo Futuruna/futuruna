@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-78ac4d` (befordring efter LL §§ 9 C-9 D er nu et årsdomæne med entydige forhold, typede transportformål og stabile arbejds- eller uddannelsesmål; LL § 9 G fjerner kun fiskeriets forhold og genberegner årets fælles lavindkomsttillæg, mens andet arbejde og uddannelsesbefordring bevares; samme relationelle input og resultat er verificeret identisk gennem JSON og XLSX)
+Current implementation slice: `td-f4f16f` (LL § 13-betalinger bærer nu både en entydig betalingsidentifikation og en stabil foreningsidentifikation; LL § 9 G kræver én arbejdstilknytning pr. forening, fjerner alle betalinger til samme fiskeritilknyttede forening og bevarer kun en reelt anden forening ved andet arbejde; modstridende foreningsfakta eller tilknytninger fejler lukket, og den relationelle JSON/XLSX-grænse er byteidentisk)
+Previous implementation slice: `td-78ac4d` (befordring efter LL §§ 9 C-9 D er nu et årsdomæne med entydige forhold, typede transportformål og stabile arbejds- eller uddannelsesmål; LL § 9 G fjerner kun fiskeriets forhold og genberegner årets fælles lavindkomsttillæg, mens andet arbejde og uddannelsesbefordring bevares; samme relationelle input og resultat er verificeret identisk gennem JSON og XLSX)
 Previous implementation slice: `td-5759f5` (Ligningslovens § 9 G er nu et kildedrevet årsdomæne med A-/B-registrering, eksakte arbejds- og fangstperioder, afledte påbegyndte havdage, årsvalg og loft; den kanoniske Personskat-graf afskærer kun fiskeriets LL §§ 9-9 D- og § 13-kilder, PBL § 49, stk. 1-bidrag og selvstændige udgifter, der typet er vurderet som sidestillet med lønmodtagerudgifter, mens andet arbejde og almindelige driftsudgifter bevares; hele inputfladen har danske XLSX-etiketter)
 Previous implementation slice: `td-0d02de` (den genererede Personskat-arbejdsbog kan nu udfyldes med hele den relationelle PBL § 15 A-graf for en virksomhedsafståelse: tre regnskabsperioder, selskabsregnskaber, direkte og indirekte ejerveje, underliggende indtægter og aktiver, kvalifikationsår samt en tilknyttet PBL § 18-indbetaling; det rekonstruerede input og resultat er identisk med JSON, og en forældreløs relation fejler lukket)
 Previous implementation slice: `td-d08000` (Sømandsbeskatningslovens § 3 a anvendes nu kun på regelmæssig EU/EØS-passagersejlads for ansættelsesforhold påbegyndt fra 1. januar 2022; den eksakte ansættelsesstart, den afledte overgangsgren og virkningen bevares gennem det kanoniske resultat og JSON/XLSX)
@@ -623,12 +624,26 @@ og en udfyldt relationel XLSX-arbejdsbog, og de to resultatdokumenter er
 identiske. Beregningsskemaet udstiller forhold, mål og § 9 G-kilder med danske
 etiketter for hovedperson og ægtefælle.
 
-To afgrænsede randtilfælde er fortsat åbne: `td-def72e` skal fastlægge den
-kilderigtige årsfordeling for en sammenhængende fangsttur over 31. december, og
-`td-f4f16f` skal håndhæve vejledningens skelnen mellem samme fiskeritilknyttede
-fagforening og en reelt anden fagforening ved andet arbejde. Den nuværende model
-fejler lukket på den første og forventer én usplittet kildepost pr. kontingent
-for den anden.
+`td-f4f16f` har efterfølgende gjort fagforeningsrelationen eksplicit. Hver
+LL § 13-betaling har fortsat sin egen identifikation og sit eget beløb, men alle
+betalinger til samme forening deler en stabil foreningsidentifikation. § 9 G
+kræver og anvender én kildetilknytning pr. forening, ikke pr. betaling. Derfor
+fjernes to delbetalinger til fiskeriets forening samlet, også når personen har
+andet arbejde uden medlemskab af en anden forening, mens et kontingent til en
+reelt anden forening ved det andet arbejde bevares. Årsloftet efter § 13
+genberegnes først efter filtreringen. Modstridende foreningsfakta på delbetalinger
+og to forskellige arbejdstilknytninger for samme forening fejler lukket.
+Beregningsskemaet og arbejdsbogen har særskilte danske etiketter for
+betalingsidentifikation, foreningsidentifikation og § 9 G-tilknytningen. En
+udfyldt sag med tre betalinger, hvoraf to deler forening, giver 12.000 kr. før
+årsloftet og 7.000 kr. efter loftet; JSON- og XLSX-resultaterne er byteidentiske.
+
+To afgrænsede tidsrandtilfælde er fortsat åbne. `td-def72e` skal fastlægge den
+kilderigtige årsfordeling for en sammenhængende fangsttur over 31. december;
+den nuværende model fejler lukket på dette forløb. `td-21293c` skal modellere
+vejledningens konkrete vurdering af kontingenter før registreringen som
+erhvervsfisker og efter et fuldstændigt ophør med fiskeriet uden at svække den
+nye foreningsidentitet eller § 13-årsloftet.
 
 Den modregningsberettigede udbytteskat på 4.353,14 kr. føres nu tabsfrit fra
 den typede dokumentlinje til `KildeskatPar60KreditterØre` og videre gennem den

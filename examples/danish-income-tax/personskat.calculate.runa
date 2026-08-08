@@ -11652,8 +11652,11 @@
         |forhold: PersonskatBefordringsfradragFakta| Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation = forhold.identifikation)
     )
     = ligningslov13_kilder = map(
-        lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter,
-        |kontingent: Ligningslov13KontingentFakta| Ll9GLigningslov13Kontingent(kildeidentifikation = kontingent.identifikation)
+        distinct(map(
+            lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter,
+            |kontingent: Ligningslov13KontingentFakta| kontingent.forening_identifikation
+        )),
+        |forening_identifikation: Tekst| Ll9GLigningslov13Forening(forening_identifikation = forening_identifikation)
     )
     = pensionsbeskatningslov49_stk1_kilder = map(
         filter(
@@ -11716,7 +11719,7 @@
     | Ll9GLigningslov9AØlogiophold(kildeidentifikation) -> personskat_ll9g_ølogiophold_findes(lønmodtager.ligningsfradrag.rejser.ølogi, kildeidentifikation)
     | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation) -> any(lønmodtager.erhvervsbefordring.sager, |sag: PersonskatErhvervsbefordringFakta| sag.identifikation == kildeidentifikation)
     | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation) -> any(lønmodtager.ligningsfradrag.befordring.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation == kildeidentifikation)
-    | Ll9GLigningslov13Kontingent(kildeidentifikation) -> any(lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter, |kontingent: Ligningslov13KontingentFakta| kontingent.identifikation == kildeidentifikation)
+    | Ll9GLigningslov13Forening(forening_identifikation) -> any(lønmodtager.ligningsfradrag.faglige_kontingenter.kontingenter, |kontingent: Ligningslov13KontingentFakta| kontingent.forening_identifikation == forening_identifikation)
     | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> any(lønmodtager.ligningsfradrag.arbejdsløshed_efterløn_og_fleksydelse.bidrag, |bidrag: Pbl49Til49BBidragsfakta| bidrag.identifikation == kildeidentifikation && personskat_ll9g_pbl49_stk1_kildetype(bidrag))
     | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation, kildeidentifikation) -> personskat_ll9g_selvstændig_driftsudgift_findes(lønmodtager.personlig_indkomst, virksomhedsidentifikation, kildeidentifikation) && personskat_ll9g_selvstændig_udgift_sidestillet_med_lønmodtagerudgift(lønmodtager.ligningsfradrag.fiskerfradrag, virksomhedsidentifikation, kildeidentifikation)
 }
@@ -11813,7 +11816,7 @@
         input.kontingenter,
         |kontingent: Ligningslov13KontingentFakta| personskat_ll9g_kilde_bevares(
             koordinering,
-            Ll9GLigningslov13Kontingent(kildeidentifikation = kontingent.identifikation)
+            Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
         )
     )
 )

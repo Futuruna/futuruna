@@ -1377,6 +1377,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         skatteyderstatus = Ll13Lønmodtager,
         kontingenter = [Ligningslov13KontingentFakta(
             identifikation = "fagforening-2025",
+            forening_identifikation = "fagforening-2025",
             indkomstår = 2025,
             foreningsart = Ll13Fagforening,
             betalt_kontingent_kroner = 8000,

@@ -2,25 +2,32 @@
 
 @ importer ./ligningsloven - kontingenter - gaver
 
-| ll_scenario_kontingent(identifikation: Tekst, beløb_kroner: Heltal, indberetningsstatus: Ligningslov13Indberetningsstatus) -> Ligningslov13KontingentFakta(
+| ll_scenario_kontingentfakta(identifikation: Tekst, forening_identifikation: Tekst, foreningsart: Ligningslov13Foreningsart, beløb_kroner: Heltal, faglig_økonomisk_andel_kroner: Heltal, indberetningsstatus: Ligningslov13Indberetningsstatus) -> Ligningslov13KontingentFakta(
     identifikation = identifikation,
+    forening_identifikation = forening_identifikation,
     indkomstår = 2025,
-    foreningsart = Ll13Fagforening,
-    betalt_kontingent_kroner = beløb_kroner,
-    foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = beløb_kroner,
-    foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
-    skatteyder_hører_til_erhvervsgruppen = Sandt,
-    indberetningsstatus = indberetningsstatus
-)
-
-| ll_scenario_blandet_kontingent(identifikation: Tekst, beløb_kroner: Heltal, faglig_økonomisk_andel_kroner: Heltal) -> Ligningslov13KontingentFakta(
-    identifikation = identifikation,
-    indkomstår = 2025,
-    foreningsart = Ll13AndenFagligSammenslutning,
+    foreningsart = foreningsart,
     betalt_kontingent_kroner = beløb_kroner,
     foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = faglig_økonomisk_andel_kroner,
     foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
     skatteyder_hører_til_erhvervsgruppen = Sandt,
+    indberetningsstatus = indberetningsstatus
+)
+| ll_scenario_kontingent(identifikation: Tekst, beløb_kroner: Heltal, indberetningsstatus: Ligningslov13Indberetningsstatus) -> ll_scenario_kontingentfakta(
+    identifikation = identifikation,
+    forening_identifikation = identifikation,
+    foreningsart = Ll13Fagforening,
+    beløb_kroner = beløb_kroner,
+    faglig_økonomisk_andel_kroner = beløb_kroner,
+    indberetningsstatus = indberetningsstatus
+)
+
+| ll_scenario_blandet_kontingent(identifikation: Tekst, beløb_kroner: Heltal, faglig_økonomisk_andel_kroner: Heltal) -> ll_scenario_kontingentfakta(
+    identifikation = identifikation,
+    forening_identifikation = identifikation,
+    foreningsart = Ll13AndenFagligSammenslutning,
+    beløb_kroner = beløb_kroner,
+    faglig_økonomisk_andel_kroner = faglig_økonomisk_andel_kroner,
     indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
 )
 
@@ -52,6 +59,27 @@
     kontingenter = [
         ll_scenario_kontingent("dublet", 1000, Ll13IndberettetEfterSkatteindberetningslov31),
         ll_scenario_kontingent("dublet", 2000, Ll13IndberettetEfterSkatteindberetningslov31),
+    ]
+))
+= ll13_modstridende_foreningsfakta = ligningslov13_årsresultat(2025, Ligningslov13Årsinput(
+    skatteyderstatus = Ll13Lønmodtager,
+    kontingenter = [
+        ll_scenario_kontingentfakta(
+            identifikation = "samme-forening-a",
+            forening_identifikation = "samme-forening",
+            foreningsart = Ll13Fagforening,
+            beløb_kroner = 1000,
+            faglig_økonomisk_andel_kroner = 1000,
+            indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
+        ),
+        ll_scenario_kontingentfakta(
+            identifikation = "samme-forening-b",
+            forening_identifikation = "samme-forening",
+            foreningsart = Ll13AndenFagligSammenslutning,
+            beløb_kroner = 1000,
+            faglig_økonomisk_andel_kroner = 1000,
+            indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
+        )
     ]
 ))
 = ll13_tomt_historisk_neutralresultat = ligningslov13_årsresultat(2024, Ligningslov13Årsinput(
@@ -205,6 +233,7 @@
 | ll13_blandet_forening_fradrager_kun_foreningens_faglige_økonomiske_andel: ll13_blandet_forening_fordeler_kontingentet -> ll13_blandet_forening_fordeler_kontingentet.alle_input_gyldige && ll13_blandet_forening_fordeler_kontingentet.fradrag_før_årsloft_kroner == 4000 && ll13_blandet_forening_fordeler_kontingentet.samlet_fradrag_kroner == 4000 && ll13_blandet_forening_fordeler_kontingentet.ikke_fradraget_kroner == 2000
 | ll13_foreningens_andel_skal_ligge_mellem_nul_og_betalingen: ll13_foreningsandel_over_betaling -> ll13_foreningsandel_over_betaling.alle_input_gyldige == Falskt && ll13_foreningsandel_over_betaling.samlet_fradrag_kroner == 0 && head(ll13_foreningsandel_over_betaling.kontingentresultater).foreningens_opgjorte_andel_gyldig == Falskt
 | ll13_dublet_fejler_lukket: ll13_dublet -> ll13_dublet.identifikationer_entydige == Falskt && ll13_dublet.alle_input_gyldige == Falskt && ll13_dublet.samlet_fradrag_kroner == 0
+| ll13_samme_forening_har_konsistente_foreningsfakta: ll13_modstridende_foreningsfakta -> ll13_modstridende_foreningsfakta.identifikationer_entydige && ll13_modstridende_foreningsfakta.foreningsfakta_konsistente == Falskt && ll13_modstridende_foreningsfakta.alle_input_gyldige == Falskt && ll13_modstridende_foreningsfakta.samlet_fradrag_kroner == 0
 | ll13_tomt_input_er_neutralt_uden_for_satsårene: ll13_tomt_historisk_neutralresultat -> ll13_tomt_historisk_neutralresultat.skatteår_understøttet && ll13_tomt_historisk_neutralresultat.alle_input_gyldige && ll13_tomt_historisk_neutralresultat.samlet_fradrag_kroner == 0
 | ll8a_2025_loft_og_ll8h_undtagelse_anvendes: ll_gaver_2025 -> ll_gaver_2025.alle_input_gyldige && ll_gaver_2025.par8a_fradrag_før_loft_kroner == 25000 && ll_gaver_2025.par8a_årsloft_kroner == 19000 && ll_gaver_2025.par8a_fradrag_kroner == 19000 && ll_gaver_2025.par8h_fradrag_kroner == 30000
 | ll12_bindende_gave_bruger_indkomstloftet_og_aftalebeløbet: ll_gaver_2025 -> ll_gaver_2025.par12_fradrag_før_loft_kroner == 20000 && ll_gaver_2025.par12_årsloft_kroner == 15000 && ll_gaver_2025.par12_fradrag_kroner == 15000 && ll_gaver_2025.samlet_fradrag_kroner == 64000 && ll_gaver_2025.ikke_fradraget_kroner == 25000
@@ -225,6 +254,7 @@
 ? ll13_blandet_forening_fradrager_kun_foreningens_faglige_økonomiske_andel
 ? ll13_foreningens_andel_skal_ligge_mellem_nul_og_betalingen
 ? ll13_dublet_fejler_lukket
+? ll13_samme_forening_har_konsistente_foreningsfakta
 ? ll13_tomt_input_er_neutralt_uden_for_satsårene
 ? ll8a_2025_loft_og_ll8h_undtagelse_anvendes
 ? ll12_bindende_gave_bruger_indkomstloftet_og_aftalebeløbet

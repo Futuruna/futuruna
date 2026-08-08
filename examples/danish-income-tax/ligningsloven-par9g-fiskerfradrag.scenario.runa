@@ -49,11 +49,11 @@
 ]
 = ll9g_scenarie_kildetilknytninger = [
     Ligningslov9GKildetilknytning(
-        kilde = Ll9GLigningslov13Kontingent(kildeidentifikation = "fiskerforbund"),
+        kilde = Ll9GLigningslov13Forening(forening_identifikation = "fiskerforbund"),
         arbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "fiskerarbejde-2026")
     ),
     Ligningslov9GKildetilknytning(
-        kilde = Ll9GLigningslov13Kontingent(kildeidentifikation = "andet-forbund"),
+        kilde = Ll9GLigningslov13Forening(forening_identifikation = "andet-forbund"),
         arbejdstilknytning = Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation = "landarbejde-2026")
     )
 ]
@@ -138,7 +138,7 @@
 | ll9g_scenarie_registrering_er_en_betingelse: ll9g_scenarie_uden_registrering -> ll9g_scenarie_uden_registrering.alle_input_gyldige && ll9g_scenarie_uden_registrering.registreret_som_erhvervsfisker_i_indkomståret == Falskt && ll9g_scenarie_uden_registrering.kan_vælge_fiskerfradrag == Falskt
 | ll9g_scenarie_overlap_fejler_lukket: ll9g_scenarie_overlap -> ll9g_scenarie_overlap.fangstture_ikke_overlappende == Falskt && ll9g_scenarie_overlap.alle_input_gyldige == Falskt && ll9g_scenarie_overlap.samlet_fradrag_kroner == 0
 | ll9g_scenarie_årsloftet_er_220_havdage: ll9g_scenarie_årsloft -> ll9g_scenarie_årsloft.påbegyndte_havdage_før_årsloft == 221 && ll9g_scenarie_årsloft.havdage_efter_årsloft == 220 && ll9g_scenarie_årsloft.samlet_fradrag_kroner == 41800
-| ll9g_scenarie_kilder_bevarer_arbejdstilknytning: ll9g_scenarie_valgt -> ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Kontingent(kildeidentifikation = "fiskerforbund")) && ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Kontingent(kildeidentifikation = "andet-forbund")) == Falskt
+| ll9g_scenarie_kilder_bevarer_arbejdstilknytning: ll9g_scenarie_valgt -> ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Forening(forening_identifikation = "fiskerforbund")) && ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Forening(forening_identifikation = "andet-forbund")) == Falskt
 | ll9g_scenarie_forældreløs_tilknytning_fejler_lukket: ll9g_scenarie_forældreløs_tilknytning -> ll9g_scenarie_forældreløs_tilknytning.kildetilknytninger_grundgyldige == Falskt && ll9g_scenarie_forældreløs_tilknytning.alle_input_gyldige == Falskt && ll9g_scenarie_forældreløs_tilknytning.samlet_fradrag_kroner == 0
 | ll9g_scenarie_modstridende_udgiftsvurdering_fejler_lukket: ll9g_scenarie_duplikeret_udgiftsvurdering -> ll9g_scenarie_duplikeret_udgiftsvurdering.selvstændige_udgiftsvurderinger_entydige == Falskt && ll9g_scenarie_duplikeret_udgiftsvurdering.alle_input_gyldige == Falskt && ll9g_scenarie_duplikeret_udgiftsvurdering.samlet_fradrag_kroner == 0
 

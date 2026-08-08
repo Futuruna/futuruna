@@ -175,6 +175,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 )
 | personskat_sømandsfradrag_kontingent() -> Ligningslov13KontingentFakta(
     identifikation = "fagforening-2026",
+    forening_identifikation = "søfolk-fagforening",
     indkomstår = 2026,
     foreningsart = Ll13Fagforening,
     betalt_kontingent_kroner = 8000,

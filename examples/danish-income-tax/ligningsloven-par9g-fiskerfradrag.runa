@@ -59,8 +59,11 @@ som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
 ----
 Den juridiske vejledning C.A.4.3.2.12 opgør en havdag som 24 timer, kræver at
 den enkelte fangsttur varer mindst 12 timer og anser turen for afbrudt ved ophold
-i havn eller på land. Den samme vejledning bevarer fradrag for et særskilt
-kontingent eller en særskilt udgift, der vedrører andet arbejde end fiskeriet.
+i havn eller på land. Andet arbejde eller arbejdsløshed bevarer ikke fradraget
+for kontingent til den samme fiskeritilknyttede fagforening. Er fiskeren medlem
+af en anden fagforening i forbindelse med andet arbejde, bevares fradraget til
+denne anden forening. Den samme vejledning bevarer også særskilte udgifter, der
+vedrører andet arbejde end fiskeriet.
 ----
 
 --@begin::ligningsloven_par9g_fiskerfradrag--
@@ -73,7 +76,7 @@ kontingent eller en særskilt udgift, der vedrører andet arbejde end fiskeriet.
 # Ligningslov9GSelvstændigUdgiftssammenlignelighed = Ll9GSidstillesMedLønmodtagerudgift | Ll9GSidstillesIkkeMedLønmodtagerudgift
 # Ligningslov9GSelvstændigUdgiftsnøgle(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
 # Ligningslov9GSelvstændigUdgiftsvurdering(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst, sammenlignelighed: Ligningslov9GSelvstændigUdgiftssammenlignelighed)
-# Ligningslov9GFradragskilde = Ll9GLigningslov9Stk1Udgift(kildeidentifikation: Tekst) | Ll9GLigningslov9ARejse(kildeidentifikation: Tekst) | Ll9GLigningslov9AØlogiophold(kildeidentifikation: Tekst) | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Ll9GLigningslov13Kontingent(kildeidentifikation: Tekst) | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst) | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
+# Ligningslov9GFradragskilde = Ll9GLigningslov9Stk1Udgift(kildeidentifikation: Tekst) | Ll9GLigningslov9ARejse(kildeidentifikation: Tekst) | Ll9GLigningslov9AØlogiophold(kildeidentifikation: Tekst) | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Ll9GLigningslov13Forening(forening_identifikation: Tekst) | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst) | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
 # Ligningslov9GArbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation: Tekst) | Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation: Tekst)
 # Ligningslov9GKildetilknytning(kilde: Ligningslov9GFradragskilde, arbejdstilknytning: Ligningslov9GArbejdstilknytning)
 # Ligningslov9GÅrsinput(valg: Ligningslov9GFradragsvalg, registreringer: List(Ligningslov9GRegistreringsperiode), arbejdsforhold: List(Ligningslov9GArbejdsforhold), fangstture: List(Ligningslov9GFangsttur), selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering), kildetilknytninger: List(Ligningslov9GKildetilknytning))
@@ -133,7 +136,7 @@ kontingent eller en særskilt udgift, der vedrører andet arbejde end fiskeriet.
     | Ll9GLigningslov9AØlogiophold(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation) -> kildeidentifikation != ""
-    | Ll9GLigningslov13Kontingent(kildeidentifikation) -> kildeidentifikation != ""
+    | Ll9GLigningslov13Forening(forening_identifikation) -> forening_identifikation != ""
     | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation, kildeidentifikation) -> virksomhedsidentifikation != "" && kildeidentifikation != ""
 }

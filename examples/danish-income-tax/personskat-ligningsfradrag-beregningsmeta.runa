@@ -195,6 +195,13 @@
     help = Some("Brug en stabil reference fra kontingentopgørelsen, så samme betaling ikke medregnes to gange."),
     unit = None
 )
+= personskat_ll13_felt_forening_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov13Årsinput::kontingenter::forening_identifikation),
+    label = "Den faglige forenings identifikation",
+    question = Some("Hvilken faglig forening er kontingentet betalt til?"),
+    help = Some("Brug samme stabile identifikation på alle betalinger til den samme forening. § 9 G samordner medlemskabets arbejdstilknytning på foreningsniveau."),
+    unit = None
+)
 = personskat_ll13_felt_indkomstår = TypetBeregningsfelt(
     path = refof(Ligningslov13Årsinput::kontingenter::indkomstår),
     label = "Kontingentets indkomstår",
@@ -250,6 +257,7 @@
         personskat_ll13_felt_skatteyderstatus,
         personskat_ll13_felt_kontingenter,
         personskat_ll13_felt_identifikation,
+        personskat_ll13_felt_forening_identifikation,
         personskat_ll13_felt_indkomstår,
         personskat_ll13_felt_foreningsart,
         personskat_ll13_felt_betalt,

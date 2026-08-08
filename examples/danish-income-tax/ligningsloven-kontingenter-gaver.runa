@@ -53,10 +53,10 @@ kontingentudgiften til told- og skatteforvaltningen.
 # Ligningslov13Skatteyderstatus = Ll13Lønmodtager | Ll13SelvstændigtErhvervsdrivende | Ll13JuridiskPerson
 # Ligningslov13Foreningsart = Ll13Arbejdsgiverforening | Ll13Fagforening | Ll13AndenFagligSammenslutning | Ll13AndenForening
 # Ligningslov13Indberetningsstatus = Ll13IkkeIndberetningspligtig | Ll13IndberettetEfterSkatteindberetningslov31 | Ll13IkkeIndberettetEfterSkatteindberetningslov31
-# Ligningslov13KontingentFakta(identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, betalt_kontingent_kroner: Heltal, foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, skatteyder_hører_til_erhvervsgruppen: Boolsk, indberetningsstatus: Ligningslov13Indberetningsstatus)
+# Ligningslov13KontingentFakta(identifikation: Tekst, forening_identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, betalt_kontingent_kroner: Heltal, foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, skatteyder_hører_til_erhvervsgruppen: Boolsk, indberetningsstatus: Ligningslov13Indberetningsstatus)
 # Ligningslov13Årsinput(skatteyderstatus: Ligningslov13Skatteyderstatus, kontingenter: List(Ligningslov13KontingentFakta))
 # Ligningslov13KontingentResultat(fakta: Ligningslov13KontingentFakta, input_gyldigt: Boolsk, foreningens_opgjorte_andel_gyldig: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, indberetningsbetingelse_opfyldt: Boolsk, fradragsberettiget: Boolsk, fradragsberettiget_før_årsloft_kroner: Heltal)
-# Ligningslov13Årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput, kontingentresultater: List(Ligningslov13KontingentResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, fradrag_før_årsloft_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+# Ligningslov13Årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput, kontingentresultater: List(Ligningslov13KontingentResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, foreningsfakta_konsistente: Boolsk, alle_input_gyldige: Boolsk, fradrag_før_årsloft_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 # Ligningslov13ForeningsydelseFakta(identifikation: Tekst, indkomstår: Heltal, foreningsart: Ligningslov13Foreningsart, beløb_kroner: Heltal, foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser: Boolsk, modtager_hører_til_erhvervsgruppen: Boolsk, modtager_er_medlem: Boolsk, undtagelse: Ligningslov30Og31Undtagelse)
 # Ligningslov13ForeningsydelseResultat(fakta: Ligningslov13ForeningsydelseFakta, input_gyldigt: Boolsk, foreningsart_omfattet: Boolsk, hovedformål_og_erhvervsgruppe_opfyldt: Boolsk, modtager_er_medlem: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
@@ -89,7 +89,7 @@ kontingentudgiften til told- og skatteforvaltningen.
 
 # Ligningslov13KontingentSag(indkomstår: Heltal, fakta: Ligningslov13KontingentFakta) {
     | foreningens_opgjorte_andel_gyldig() -> fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner >= 0 && fakta.foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner <= fakta.betalt_kontingent_kroner
-    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_kontingent_kroner >= 0 && foreningens_opgjorte_andel_gyldig()
+    | input_gyldigt() -> fakta.identifikation != "" && fakta.forening_identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_kontingent_kroner >= 0 && foreningens_opgjorte_andel_gyldig()
     | foreningsart_omfattet() -> ligningslov13_foreningsart_omfattet(fakta.foreningsart)
     | hovedformål_og_erhvervsgruppe_opfyldt() -> fakta.foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser && fakta.skatteyder_hører_til_erhvervsgruppen
     | indberetningsbetingelse_opfyldt() -> ligningslov13_indberetningsbetingelse_opfyldt(fakta.indberetningsstatus)
@@ -109,6 +109,8 @@ kontingentudgiften til told- og skatteforvaltningen.
 
 | ligningslov13_kontingent_resultat(indkomstår: Heltal, fakta: Ligningslov13KontingentFakta) -> Ligningslov13KontingentSag(indkomstår, fakta).resultat()
 | ligningslov13_identifikationer_entydige(kontingenter: List(Ligningslov13KontingentFakta)) -> length(distinct(map(kontingenter, |fakta: Ligningslov13KontingentFakta| fakta.identifikation))) == length(kontingenter) && all(kontingenter, |fakta: Ligningslov13KontingentFakta| fakta.identifikation != "")
+| ligningslov13_foreningsfakta_svarer(a: Ligningslov13KontingentFakta, b: Ligningslov13KontingentFakta) -> a.forening_identifikation != b.forening_identifikation || a.foreningsart == b.foreningsart && a.foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser == b.foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser && a.skatteyder_hører_til_erhvervsgruppen == b.skatteyder_hører_til_erhvervsgruppen
+| ligningslov13_foreningsfakta_konsistente(kontingenter: List(Ligningslov13KontingentFakta)) -> all(kontingenter, |a: Ligningslov13KontingentFakta| all(kontingenter, |b: Ligningslov13KontingentFakta| ligningslov13_foreningsfakta_svarer(a, b)))
 | ligningslov13_fradrag_før_årsloft_kroner(resultater: List(Ligningslov13KontingentResultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: Ligningslov13KontingentResultat| sum_kroner + resultat.fradragsberettiget_før_årsloft_kroner)
 | ligningslov13_betalt_kontingent_kroner(kontingenter: List(Ligningslov13KontingentFakta)) -> foldl(kontingenter, 0, |sum_kroner: Heltal, fakta: Ligningslov13KontingentFakta| sum_kroner + penge_positivt_beløb(fakta.betalt_kontingent_kroner))
 | ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 7000
@@ -121,7 +123,8 @@ kontingentudgiften til told- og skatteforvaltningen.
     = kontingentresultater = map(input.kontingenter, |fakta: Ligningslov13KontingentFakta| ligningslov13_kontingent_resultat(indkomstår, fakta))
     = skatteår_understøttet = length(input.kontingenter) == 0 || ligningslov13_skatteår_understøttet(indkomstår)
     = identifikationer_entydige = ligningslov13_identifikationer_entydige(input.kontingenter)
-    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(kontingentresultater, |resultat: Ligningslov13KontingentResultat| resultat.input_gyldigt)
+    = foreningsfakta_konsistente = ligningslov13_foreningsfakta_konsistente(input.kontingenter)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && foreningsfakta_konsistente && all(kontingentresultater, |resultat: Ligningslov13KontingentResultat| resultat.input_gyldigt)
     = fradrag_før_årsloft_kroner = ligningslov13_fradrag_før_årsloft_kroner(kontingentresultater)
     = samlet_fradrag_kroner = hvis alle_input_gyldige { ligningslov13_fradrag_efter_årsloft_kroner(input.skatteyderstatus, fradrag_før_årsloft_kroner) } ellers { 0 }
     Ligningslov13Årsresultat(
@@ -130,6 +133,7 @@ kontingentudgiften til told- og skatteforvaltningen.
         kontingentresultater = kontingentresultater,
         skatteår_understøttet = skatteår_understøttet,
         identifikationer_entydige = identifikationer_entydige,
+        foreningsfakta_konsistente = foreningsfakta_konsistente,
         alle_input_gyldige = alle_input_gyldige,
         fradrag_før_årsloft_kroner = fradrag_før_årsloft_kroner,
         årsloft_kroner = ligningslov13_årsloft_kroner(indkomstår, input.skatteyderstatus),
