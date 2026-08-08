@@ -1496,6 +1496,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "identifikation",
             "indkomstår",
+            "ansættelsesforhold_startdato.år",
+            "ansættelsesforhold_startdato.måned",
+            "ansættelsesforhold_startdato.dag",
             "arbejdssted.$variant",
             "arbejdssted.ArbejdePåSkib.bruttotonnage",
             "arbejdssted.ArbejdePåSkib.anvendelse.$variant",
@@ -1515,6 +1518,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Beskæftigelsens identifikation",
             "Sømandsbeskæftigelsens indkomstår",
+            "Ansættelsesforholdets startdato (ISO 8601) - år",
+            "Ansættelsesforholdets startdato (ISO 8601) - måned",
+            "Ansættelsesforholdets startdato (ISO 8601) - dag",
             "Arbejdssted til søs",
             "Skibets bruttotonnage",
             "Skibets udelukkende anvendelse",
@@ -6939,6 +6945,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 Data::String("fragtskib-over-500".to_string()),
             ),
             ("indkomstår", Data::Int(2026)),
+            ("ansættelsesforhold_startdato.år", Data::Int(2021)),
+            ("ansættelsesforhold_startdato.måned", Data::Int(12)),
+            ("ansættelsesforhold_startdato.dag", Data::Int(31)),
             (
                 "arbejdssted.$variant",
                 Data::String("ArbejdePåSkib".to_string()),
@@ -6946,7 +6955,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("arbejdssted.ArbejdePåSkib.bruttotonnage", Data::Int(500)),
             (
                 "arbejdssted.ArbejdePåSkib.anvendelse.$variant",
-                Data::String("ErhvervsmæssigBefordringAfGods".to_string()),
+                Data::String("ErhvervsmæssigBefordringAfPassagerer".to_string()),
+            ),
+            (
+                "arbejdssted.ArbejdePåSkib.anvendelse.ErhvervsmæssigBefordringAfPassagerer.rute.$variant",
+                Data::String("RegelmæssigPassagersejladsMellemEUEØSHavne".to_string()),
+            ),
+            (
+                "arbejdssted.ArbejdePåSkib.anvendelse.ErhvervsmæssigBefordringAfPassagerer.rute.RegelmæssigPassagersejladsMellemEUEØSHavne.skattepligt",
+                Data::String("SkattepligtigEfterKildeskattelov1".to_string()),
+            ),
+            (
+                "arbejdssted.ArbejdePåSkib.anvendelse.ErhvervsmæssigBefordringAfPassagerer.rute.RegelmæssigPassagersejladsMellemEUEØSHavne.statsborgerskab",
+                Data::String("AndetStatsborgerskab".to_string()),
             ),
             ("fart", Data::String("UdenForBegrænsetFart".to_string())),
             (
@@ -10255,11 +10276,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         xlsx_seafarer_result["result"]["ligningsfradrag"]["sømandsfradrag"]
             ["samlet_fradrag_kroner"],
-        105_000
+        56_900
     );
     assert_eq!(
         xlsx_seafarer_result["result"]["ligningsfradrag"]["samlet_ligningsfradrag_kroner"],
-        105_000
+        56_900
+    );
+    let seafarer_employment = &xlsx_seafarer_result["result"]["ligningsfradrag"]["sømandsfradrag"]
+        ["beskæftigelsesresultater"][0];
+    assert_eq!(
+        seafarer_employment["fakta"]["ansættelsesforhold_startdato"],
+        serde_json::json!({ "år": 2021, "måned": 12, "dag": 31 })
+    );
+    assert_eq!(
+        seafarer_employment["par3a_anvendelse"]["$variant"],
+        "Søbl3AAnsættelsesforholdPåbegyndtFør2022"
     );
 
     let json_input_path = temp_path("json");

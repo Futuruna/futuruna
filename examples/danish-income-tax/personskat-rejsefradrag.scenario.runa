@@ -150,6 +150,7 @@ indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
     beskæftigelser = [Sømandsbeskatningslov3Beskæftigelsesfakta(
         identifikation = "søarbejde-2026",
         indkomstår = 2026,
+        ansættelsesforhold_startdato = Dato(år = 2026, måned = 1, dag = 1),
         arbejdssted = ArbejdePåSkib(
             bruttotonnage = 1000,
             anvendelse = ErhvervsmæssigBefordringAfGods

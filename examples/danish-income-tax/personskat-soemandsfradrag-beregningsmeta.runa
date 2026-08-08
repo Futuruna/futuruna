@@ -31,6 +31,27 @@
     help = None,
     unit = Some("år")
 )
+= personskat_sømandsfradrag_felt_ansættelsesstart_år = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::år),
+    label = "Ansættelsesforholdets startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte ansættelsesforholdet?"),
+    help = Some("Startdatoen afgør overgangsreglen: § 3 a finder kun anvendelse på ansættelsesforhold, der begyndte den 1. januar 2022 eller senere."),
+    unit = Some("år")
+)
+= personskat_sømandsfradrag_felt_ansættelsesstart_måned = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::måned),
+    label = "Ansættelsesforholdets startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte ansættelsesforholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_sømandsfradrag_felt_ansættelsesstart_dag = TypetBeregningsfelt(
+    path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::ansættelsesforhold_startdato::dag),
+    label = "Ansættelsesforholdets startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag i måneden begyndte ansættelsesforholdet?"),
+    help = None,
+    unit = Some("dag")
+)
 = personskat_sømandsfradrag_felt_arbejdssted = TypetBeregningsfelt(
     path = refof(Sømandsbeskatningslov3Årsinput::beskæftigelser::arbejdssted::$variant),
     label = "Arbejdssted til søs",
@@ -115,6 +136,9 @@
         personskat_sømandsfradrag_felt_beskæftigelser,
         personskat_sømandsfradrag_felt_identifikation,
         personskat_sømandsfradrag_felt_indkomstår,
+        personskat_sømandsfradrag_felt_ansættelsesstart_år,
+        personskat_sømandsfradrag_felt_ansættelsesstart_måned,
+        personskat_sømandsfradrag_felt_ansættelsesstart_dag,
         personskat_sømandsfradrag_felt_arbejdssted,
         personskat_sømandsfradrag_felt_bruttotonnage,
         personskat_sømandsfradrag_felt_anvendelse,
@@ -131,6 +155,7 @@
     beløbsfelter = [],
     attachments = (
         Source(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        AmendmentSource(value = sømandsbeskatningsloven_lov2613_par3_stk3),
         DependencySource(value = sømandsbeskatningsbekendtgørelsen_bek940_par3),
         Guidance(value = juridisk_vejledning_sømandsfradrag_2026_1),
         Guidance(value = skat_sømandsfradrag_vejledning),

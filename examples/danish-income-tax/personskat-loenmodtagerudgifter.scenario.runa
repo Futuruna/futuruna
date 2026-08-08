@@ -22,6 +22,7 @@ Personskat-beregning.
 | personskat_ll9_stk1_scenarie_sømandsbeskæftigelse() -> Sømandsbeskatningslov3Beskæftigelsesfakta(
     identifikation = "sømandsarbejde-a",
     indkomstår = 2026,
+    ansættelsesforhold_startdato = Dato(år = 2026, måned = 1, dag = 1),
     arbejdssted = ArbejdePåSkib(
         bruttotonnage = 500,
         anvendelse = ErhvervsmæssigBefordringAfGods

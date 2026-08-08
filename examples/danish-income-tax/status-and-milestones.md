@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0ca3f2` (sammenhængende ø-logiophold efter LL § 9 A, stk. 12, bærer nu eksakte start- og sluttidspunkter; fulde 24-timers-døgn fordeles én gang på 2025 og 2026, hvert år bruger sin egen sats og sit eget loft, og tidsfakta bevares gennem JSON/XLSX)
+Current implementation slice: `td-d08000` (Sømandsbeskatningslovens § 3 a anvendes nu kun på regelmæssig EU/EØS-passagersejlads for ansættelsesforhold påbegyndt fra 1. januar 2022; den eksakte ansættelsesstart, den afledte overgangsgren og virkningen bevares gennem det kanoniske resultat og JSON/XLSX)
+Previous implementation slice: `td-0ca3f2` (sammenhængende ø-logiophold efter LL § 9 A, stk. 12, bærer nu eksakte start- og sluttidspunkter; fulde 24-timers-døgn fordeles én gang på 2025 og 2026, hvert år bruger sin egen sats og sit eget loft, og tidsfakta bevares gennem JSON/XLSX)
 Previous implementation slice: `td-44eb29` (Sømandsbeskatningslovens §§ 5 og 5 b giver nu dødsboer, begrænset skattepligtige efter KSL § 2, stk. 2, og kulbrinteskattepligtige efter § 21, stk. 2, særskilte beløbsresultater; de nødvendige årsgrundlag kommer fra typede Dødsboskattelov- og Kulbrinteskattelov-moduler og bevares gennem den genererede Personskat-arbejdsbog)
 Previous exact-period slice: `td-00b484` (bekendtgørelse nr. 940 § 1 bruger typede start- og slutdatoer til seks- og tremånedersgrænserne; kursusperioder og nødvendige rejsedatoer aggregeres i eksplicitte 12-månedersopgørelser, og Personskat-arbejdsbogen bevarer de gentagne datofakta i relationstabeller med ISO-rækkefølge)
 Previous SØBL § 6 slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
@@ -404,6 +405,16 @@ fradragsvalget. Den kanoniske beregning afskærer LL §§ 9 B-9 D, LL § 13 og P
 skattefrie LL § 9 B-godtgørelse til skattepligtig indkomst og bevarer PBL §§ 49
 A-49 B samt øvrige fradragsgrene. § 4, stk. 2, afskærer LL § 9 A, stk. 1-9,
 allerede når personen kan foretage sømandsfradraget, også ved fravalg.
+
+Virkningsbestemmelsen for § 3 a er implementeret i `td-d08000` efter § 3, stk.
+3, i LOV nr. 2613 af 28/12/2021. Hver beskæftigelse bærer
+ansættelsesforholdets typede startdato. Resultatet viser særskilt, om § 3 a ikke
+vedrører ruten, om ansættelsen fortsætter fra før 2022, eller om § 3 a finder
+anvendelse fra 2022. En fortsat tredjelandsansættelse fra 31. december 2021
+bevarer derfor det almindelige fradrag på 56.900 kr. i 2026, mens et ellers
+identisk forhold fra 1. januar 2022 afskæres. Overgangen er skrevet som en
+navngiven undtagelse til § 3 a-reglen og er verificeret i interpreter, compiler
+og den udfyldte kanoniske XLSX-arbejdsbog.
 
 Den almindelige rejsegodtgørelses- og fradragsgren efter LL § 9 A, stk. 1-9,
 er nu implementeret i `td-d17087`. Korpusset bevarer den fulde gældende ordlyd
@@ -2754,6 +2765,9 @@ Current § 4 and § 13 amendment/dependency sources:
   `https://www.retsinformation.dk/eli/lta/2023/1181`
   - XML status on 2026-07-18: `Valid`; §§ 3-4 were rechecked on 2026-08-04.
   - LOV nr. 333 af 09/04/2024 was reviewed; it does not amend §§ 3-4.
+  - LOV nr. 2613 af 28/12/2021 § 3, stk. 3, limits § 3 a to employment
+    relationships begun on or after 1 January 2022; the transition text and
+    source are attached directly to the corresponding rule span.
   - The § 3 implementation also uses BEK nr. 940 af 20/06/2022 § 3 and the
     2026-1 legal guidance for full-time-equivalent sea days and § 4 composition.
   - Den juridiske vejledning om sømandsfradraget og Skattestyrelsens offentlige

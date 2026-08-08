@@ -50,6 +50,7 @@
         Guidance(value = juridisk_vejledning_ligningslov9_stk1),
         Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
         DependencySource(value = sømandsbeskatningsloven_2023_1181),
+        AmendmentSource(value = sømandsbeskatningsloven_lov2613_par3_stk3),
         DependencySource(value = ligningsloven_par16a_lbk1500),
         DependencySource(value = etableringskontoloven_lbk1307_par1_par4),
         AmendmentSource(value = ligningsloven_par16a_lov1755),
