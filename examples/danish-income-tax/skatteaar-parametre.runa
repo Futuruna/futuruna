@@ -33,10 +33,48 @@ Topskat (topskattegrænse til og med 2025 efter am-bidrag er fratrukket): 588.90
 ----
 
 # NationalParametre(skatteår: Heltal, bundskat_basispoint: Heltal, topskat_basispoint: Heltal, topskattegrænse_efter_am_kroner: Heltal, mellemskat_basispoint: Heltal, mellemskattegrænse_efter_am_kroner: Heltal, toptopskat_basispoint: Heltal, toptopskattegrænse_efter_am_kroner: Heltal, am_bidrag_basispoint: Heltal, personfradrag_voksen_kroner: Heltal, personfradrag_under18_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_basispoint: Heltal, aktieindkomst_høj_basispoint: Heltal, positiv_nettokapital_progressiv_bundfradrag_kroner: Heltal, skatteloft_personlig_basispoint: Heltal, skatteloft_positiv_nettokapital_basispoint: Heltal)
-# NationalParametreKilde = SkattestyrelsenSatserSkat2024 | SkattestyrelsenSatserSkat2025 | SkattestyrelsenSatserSkat2026
+# NationalParametreKilde = SkatteministerietCentraleSatser2023 | SkattestyrelsenSatserSkat2024 | SkattestyrelsenSatserSkat2025 | SkattestyrelsenSatserSkat2026
 # NationalParametreResultat(skatteår: Heltal, kilde: NationalParametreKilde, parametre: NationalParametre)
-# SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleParametre)
+# SkatteårParameterpakke(nationale: NationalParametre, kommunale: KommunaleIndkomstskatteparametre)
 # SkatteårParameterpakkeResultat(skatteår: Heltal, kommune: Kommune, national_kilde: NationalParametreKilde, kommunal_kilde: KommunaleParametreKilde, pakke: SkatteårParameterpakke)
+
+----
+Skatteministeriet, "Centrale skattesatser i skattelovgivningen 2018-2024" og
+"Centrale beløbsgrænser i skattelovgivningen 2018-2024", indkomståret 2023:
+
+Bundskat: 12,06 pct.
+Topskat: 15 pct.
+Arbejdsmarkedsbidrag: 8 pct.
+Skatteloft for personlig indkomst: 52,07 pct.
+Skatteloft for positiv nettokapitalindkomst: 42 pct.
+Topskattegrænse efter arbejdsmarkedsbidrag: 568.900 kr.
+Personfradrag for voksne og personer under 18 år: 48.000 kr.
+Progressionsgrænse for aktieindkomst: 58.900 kr.
+Bundfradrag i positiv nettokapitalindkomst: 48.800 kr.
+
+https://skm.dk/tal-og-metode/satser/tidsserier/centrale-skattesatser-i-skattelovgivningen-2018-2024
+https://skm.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024
+----
+
+| nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
+    skatteår = 2023,
+    bundskat_basispoint = 1206,
+    topskat_basispoint = 1500,
+    topskattegrænse_efter_am_kroner = 568900,
+    mellemskat_basispoint = 0,
+    mellemskattegrænse_efter_am_kroner = 0,
+    toptopskat_basispoint = 0,
+    toptopskattegrænse_efter_am_kroner = 0,
+    am_bidrag_basispoint = 800,
+    personfradrag_voksen_kroner = 48000,
+    personfradrag_under18_kroner = 48000,
+    aktieindkomst_progressionsgrænse_kroner = 58900,
+    aktieindkomst_lav_basispoint = 2700,
+    aktieindkomst_høj_basispoint = 4200,
+    positiv_nettokapital_progressiv_bundfradrag_kroner = 48800,
+    skatteloft_personlig_basispoint = 5207,
+    skatteloft_positiv_nettokapital_basispoint = 4200
+) under skatteår == 2023
 
 | nationalparametre_værdi_for(skatteår: Heltal) -> NationalParametre(
     skatteår = 2024,
@@ -135,6 +173,7 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
     skatteloft_positiv_nettokapital_basispoint = 4200
 ) under skatteår == 2026
 
+| nationalparametre_kilde(skatteår: Heltal) -> SkatteministerietCentraleSatser2023 under skatteår == 2023
 | nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2024 under skatteår == 2024
 | nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2025 under skatteår == 2025
 | nationalparametre_kilde(skatteår: Heltal) -> SkattestyrelsenSatserSkat2026 under skatteår == 2026
@@ -146,6 +185,7 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 | nationalparametre_for(skatteår: Heltal) -> nationalparametre_resultat(skatteår).parametre
 
 | skatteår_understøttet(skatteår: Heltal) -> Falskt
+| exception skatteår_2023 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2023
 | exception skatteår_2024 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2024
 | exception skatteår_2025 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2025
 | exception skatteår_2026 skatteår_understøttet(skatteår: Heltal) -> Sandt under skatteår == 2026
@@ -154,16 +194,16 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
     skatteår = skatteår,
     kommune = kommune,
     national_kilde = nationalparametre_resultat(skatteår).kilde,
-    kommunal_kilde = kommunale_parametre_resultat(skatteår, kommune).kilde,
+    kommunal_kilde = kommunale_indkomstskatteparametre_resultat(skatteår, kommune).kilde,
     pakke = SkatteårParameterpakke(
         nationale = nationalparametre_for(skatteår),
-        kommunale = kommunale_parametre_for(skatteår, kommune)
+        kommunale = kommunale_indkomstskatteparametre_for(skatteår, kommune)
     )
 ) under parameterpakke_komplet(skatteår, kommune)
 | skatteår_parameterpakke_for(skatteår: Heltal, kommune: Kommune) -> skatteår_parameterpakke_resultat(skatteår, kommune).pakke
 
 | samlet_indkomstskatteprocent_basispoint(kommunale: KommunaleParametre) -> kommunale.kommuneskat_basispoint + kommunale.kirkeskat_basispoint + kommunale.sundhedsbidrag_basispoint + kommunale.bundskat_basispoint - kommunale.skatteloftsnedslag_basispoint
-| parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
+| parameterpakke_komplet(skatteår: Heltal, kommune: Kommune) -> skatteår_understøttet(skatteår) && kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
 
 = m3_2024_national_resultat = nationalparametre_resultat(2024)
 = m3_2026_national_resultat = nationalparametre_resultat(2026)
@@ -188,7 +228,7 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 = m3_2026_langeland_pakke_resultat = skatteår_parameterpakke_resultat(2026, Langeland)
 = m3_2026_understøttet = skatteår_understøttet(2026)
 = m3_2026_langeland_pakke_komplet = parameterpakke_komplet(2026, Langeland)
-= m3_2023_langeland_pakke_ikke_komplet = parameterpakke_komplet(2023, Langeland)
+= m3_2022_langeland_pakke_ikke_komplet = parameterpakke_komplet(2022, Langeland)
 
 | m3_2024_national_kilde_fra_skat: m3_2024_national_resultat -> m3_2024_national_resultat.kilde == SkattestyrelsenSatserSkat2024 && m3_2024_national_resultat.parametre.topskattegrænse_efter_am_kroner == 588900
 | m3_2026_national_kilde_fra_skat: m3_2026_national_resultat -> m3_2026_national_resultat.kilde == SkattestyrelsenSatserSkat2026 && m3_2026_national_resultat.parametre.mellemskat_basispoint == 750 && m3_2026_national_resultat.parametre.toptopskattegrænse_efter_am_kroner == 2592700
@@ -219,4 +259,4 @@ Toptopskat (fra 2026) / skattegrænse efter am-bidrag er fratrukket: 5 % / 2.592
 | m3_2026_langeland_pakke_bærer_kilder: m3_2026_langeland_pakke_resultat -> m3_2026_langeland_pakke_resultat.national_kilde == SkattestyrelsenSatserSkat2026 && m3_2026_langeland_pakke_resultat.kommunal_kilde == SkatteministerietKommuneskattesatser2026Xlsx && m3_2026_langeland_pakke_resultat.pakke.kommunale.kommunekode == 482
 | m3_2026_er_i_pakken: m3_2026_understøttet -> m3_2026_understøttet == Sandt
 | m3_2026_langeland_er_komplet: m3_2026_langeland_pakke_komplet -> m3_2026_langeland_pakke_komplet == Sandt
-| m3_2023_langeland_er_ikke_komplet: m3_2023_langeland_pakke_ikke_komplet -> m3_2023_langeland_pakke_ikke_komplet == Falskt
+| m3_2022_langeland_er_ikke_komplet: m3_2022_langeland_pakke_ikke_komplet -> m3_2022_langeland_pakke_ikke_komplet == Falskt

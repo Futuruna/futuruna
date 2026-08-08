@@ -221,16 +221,16 @@ efter 1. pkt. med tillæg af 3 procentpoint (tillægsselskabsskatten).
 # SelskabsskattelovPar17Stk1SatsKilde = SelskabsskattelovenLbk1241Af2022 | SelskabsskattelovenLbk279Af2025
 # SelskabsskattelovPar17Stk1SatsResultat(skatteår: Heltal, kilde: SelskabsskattelovPar17Stk1SatsKilde, selskabsskat_basispoint: Heltal, tillægsselskabsskat_basispoint: Heltal, cfc_sats_basispoint: Heltal)
 
-| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk1241Af2022 under skatteår >= 2024 && skatteår < 2025
+| selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk1241Af2022 under skatteår >= 2023 && skatteår < 2025
 | selskabsskattelov_par17_stk1_sats_kilde(skatteår: Heltal) -> SelskabsskattelovenLbk279Af2025 under skatteår >= 2025
-| selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2024
-| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår: Heltal) -> 300 under skatteår >= 2024
+| selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår: Heltal) -> 2200 under skatteår >= 2023
+| selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår: Heltal) -> 300 under skatteår >= 2023
 | selskabsskattelov_par17_stk1_sats_resultat(skatteår: Heltal) -> SelskabsskattelovPar17Stk1SatsResultat(
     skatteår = skatteår,
     kilde = selskabsskattelov_par17_stk1_sats_kilde(skatteår),
     selskabsskat_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår),
     tillægsselskabsskat_basispoint = selskabsskattelov_par17_stk1_tillægsselskabsskat_basispoint(skatteår),
     cfc_sats_basispoint = selskabsskattelov_par17_stk1_selskabsskat_basispoint(skatteår)
-) under skatteår >= 2024
+) under skatteår >= 2023
 | selskabsskattelov_par17_stk1_sats_basispoint(skatteår: Heltal) -> selskabsskattelov_par17_stk1_sats_resultat(skatteår).selskabsskat_basispoint
 --@end::selskabsskatteloven_par17_stk1--

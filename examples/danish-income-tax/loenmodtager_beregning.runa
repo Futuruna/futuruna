@@ -25,7 +25,7 @@
 omfang som nævnt i ligningslovens § 8 M,
 ----
 
-# LønmodtagerPensionsfradrag(fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
+# LønmodtagerPensionsfradrag(fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_før_am_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
 # LønmodtagerInput(skatteår: Heltal, kommune: Kommune, bruttoløn_kroner: Heltal, øvrig_personlig_indkomst_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, ligningsmæssige_fradrag_kroner: Heltal, pensionsfradrag: LønmodtagerPensionsfradrag, personfradrag_alder_status: PersonfradragAlderStatus, betaler_kirkeskat: Boolsk)
 # LønmodtagerSkatteforhold(aktieindkomst_kroner: Heltal, ægtefælle_aktieindkomst_kroner: Heltal, aktieindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, ægtefælle_nettokapitalindkomst_kroner: Heltal, kapitalindkomst_ægtefæller_samlevende_ved_årets_udløb: Boolsk, cfc_indkomst_kroner: Heltal, par8c_status: Par8cPersonstatus, personfradrag_skattepligt: PersonfradragSkattepligt, personfradrag_valg_dato_yyyymmdd: Heltal, personfradrag_omvalg_dato_yyyymmdd: Heltal)
 # LønmodtagerSkatteloftResult(nedslag: Par19SkatteloftNedslagResultat, input: Par19SkatteloftInput, overskydende_basispoint: Heltal, nedslag_kroner: Heltal)
@@ -55,19 +55,22 @@ omfang som nævnt i ligningslovens § 8 M,
 | lønmodtager_ingen_ekstra_pensionsfradrag() -> LønmodtagerPensionsfradrag(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     pbl18_fradragsberettiget_indbetaling_kroner = 0,
+    pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 0,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
 )
+| lønmodtager_ligningsfradragsgrundlag_kroner(input: LønmodtagerInput) -> input.bruttoløn_kroner + positivt_beløb(input.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_før_am_kroner) + positivt_beløb(input.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner)
 | ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(
     skatteår = input.skatteår,
-    arbejdsmarkedsbidragsgrundlag_kroner = input.bruttoløn_kroner,
+    arbejdsmarkedsbidragsgrundlag_kroner = lønmodtager_ligningsfradragsgrundlag_kroner(input),
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt
 )
 | ligningslov_9j_9k_9l_input_for(input: LønmodtagerInput) -> Ligningslov9J9K9LInput(
     skatteår = input.skatteår,
-    arbejdsmarkedsbidragsgrundlag_kroner = input.bruttoløn_kroner,
+    arbejdsmarkedsbidragsgrundlag_kroner = lønmodtager_ligningsfradragsgrundlag_kroner(input),
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
     fødselsdato = input.pensionsfradrag.fødselsdato,
     pbl18_fradragsberettiget_indbetaling_kroner = input.pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner,
@@ -110,7 +113,7 @@ omfang som nævnt i ligningslovens § 8 M,
 | lønmodtager_betaler_kommunal_indkomstskat(skatteforhold: LønmodtagerSkatteforhold) -> lønmodtager_betaler_par8c(skatteforhold) == Falskt
 | lønmodtager_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> 0
 | exception lønmodtager_par8c_sats_for_begrænset_skattepligt lønmodtager_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> par8c_sats_basispoint(input.skatteår) under lønmodtager_betaler_par8c(skatteforhold)
-| lønmodtager_kommunal_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+| lønmodtager_kommunal_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
 | exception lønmodtager_par8c_erstatter_kommunal_basispoint lønmodtager_kommunal_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> 0 under lønmodtager_betaler_par8c(skatteforhold)
 | lønmodtager_kommunal_eller_par8c_basispoint(input: LønmodtagerInput, skatteforhold: LønmodtagerSkatteforhold) -> lønmodtager_kommunal_basispoint(input, skatteforhold) + lønmodtager_par8c_basispoint(input, skatteforhold)
 
@@ -306,11 +309,11 @@ Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
 
 | kommuneskat_input_for(input: LønmodtagerInput) -> KommunalIndkomstskatInput(
     skattepligtig_indkomst_kroner = lønmodtager_indkomstskat_grundlag(input),
-    udskrivningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+    udskrivningsprocent_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
 )
 | kirkeskat_input_for(input: LønmodtagerInput) -> KirkeskatInput(
     skattepligtig_indkomst_kroner = lønmodtager_indkomstskat_grundlag(input),
-    kirkelig_ligningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
+    kirkelig_ligningsprocent_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
     folkekirkemedlem = input.betaler_kirkeskat
 )
 | kirkeskat_sats_for(input: LønmodtagerInput) -> kirkeskat_sats_basispoint(kirkeskat_input_for(input))
@@ -318,7 +321,7 @@ Bundskat, I alt, Skatteloftsnedslag, Grundskyldspromille (Kommune).
 | kirkeskat_før_personfradrag(input: LønmodtagerInput) -> kirkeskat_før_personfradrag_kroner(kirkeskat_input_for(input))
 | lønmodtager_kirkeskat_fra_skattepligtig_indkomst(input: LønmodtagerInput, skattepligtig_indkomst_kroner: Heltal) -> kirkeskat_før_personfradrag_kroner(KirkeskatInput(
     skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner,
-    kirkelig_ligningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
+    kirkelig_ligningsprocent_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kirkeskat_basispoint,
     folkekirkemedlem = input.betaler_kirkeskat
 ))
 
@@ -333,8 +336,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | personfradrag_skatteværdi_input(input: LønmodtagerInput) -> PersonfradragSkatteværdiInput(
     fradrag_kroner = personfradrag_for(input),
     bundskat_basispoint = nationalparametre_for(input.skatteår).bundskat_basispoint,
-    sundhedsbidrag_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
-    kommuneskat_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint,
+    sundhedsbidrag_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
+    kommuneskat_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint,
     kirkeskat_basispoint = kirkeskat_sats_for(input),
     par8c_basispoint = 0
 )
@@ -403,8 +406,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ))
 # LønmodtagerPar13Sag(input: LønmodtagerInput, forhold: LønmodtagerPar13Forhold) {
     | skattepligtigt_underskud_kroner() -> par13_absolut_underskud(almindelig_skattepligtig_indkomst_fixture(input))
-    | sundhedsbidrag_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
-    | kommuneskat_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+    | sundhedsbidrag_basispoint() -> kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
+    | kommuneskat_basispoint() -> kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
     | kirkeskat_basispoint() -> kirkeskat_sats_for(input)
     | skatteværdi_input() -> Par13UnderskudSkatteværdiInput(
         underskud_kroner = skattepligtigt_underskud_kroner(),
@@ -638,7 +641,7 @@ nedsat med de overskydende procenter.
     | kommunal_basispoint() -> lønmodtager_kommunal_basispoint(input, skatteforhold)
     | par8c_basispoint() -> lønmodtager_par8c_basispoint(input, skatteforhold)
     | kommunal_eller_par8c_basispoint() -> lønmodtager_kommunal_eller_par8c_basispoint(input, skatteforhold)
-    | sundhedsbidrag_basispoint() -> kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
+    | sundhedsbidrag_basispoint() -> kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint
     | kirkeskat_basispoint() -> kirkeskat_sats_for(input)
     | personligt_skatteloft_beregningsgrundlag_kroner() -> lønmodtager_personligt_skatteloft_beregningsgrundlag(input)
     | positiv_kapital_skatteloft_beregningsgrundlag_kroner() -> lønmodtager_positiv_kapital_skatteloft_beregningsgrundlag(input)
@@ -749,7 +752,7 @@ nedsat med de overskydende procenter.
     | kommunal_lignende_statsskat_efter_personfradrag_kroner() -> ægtefælle_personfradrag_nedsættelse().ikke_statslig_nedsættelse.par8c_efter_kroner
     | kommuneskat_før_personfradrag_kroner() -> kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
         skattepligtig_indkomst_kroner = almindelig_skattepligtig_indkomst_kroner(),
-        udskrivningsprocent_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
+        udskrivningsprocent_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).kommuneskat_basispoint
     ))
     | exception par8c_erstatter_kommuneskat kommuneskat_før_personfradrag_kroner() -> 0 under betaler_par8c()
     | kirkeskat_før_personfradrag_kroner() -> lønmodtager_kirkeskat_fra_skattepligtig_indkomst(input, almindelig_skattepligtig_indkomst_kroner())

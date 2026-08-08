@@ -157,7 +157,7 @@ skatteberegningen.
     | par13_skattepligtigt_underskud_kroner() -> par13_absolut_underskud(almindelig_skattepligtig_indkomst_kroner())
     | par13_skatteværdi_sats_basispoint() -> par13_skatteværdi_sats_basispoint(Par13UnderskudSkatteværdiInput(
         underskud_kroner = par13_skattepligtigt_underskud_kroner(),
-        sundhedsbidrag_basispoint = kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
+        sundhedsbidrag_basispoint = kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint,
         kommuneskat_basispoint = lønmodtager_kommunal_basispoint(input, skatteforhold),
         kirkeskat_basispoint = kirkeskat_sats_for(input),
         par8c_basispoint = lønmodtager_par8c_basispoint(input, skatteforhold),
@@ -190,7 +190,7 @@ skatteberegningen.
         omvalg_dato_yyyymmdd = skatteforhold.personfradrag_omvalg_dato_yyyymmdd
     ))
     | par6_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, nationalparametre_for(input.skatteår).bundskat_basispoint)
-    | par8_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, kommunale_parametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint)
+    | par8_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, kommunale_indkomstskatteparametre_for(input.skatteår, input.kommune).sundhedsbidrag_basispoint)
     | par8c_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, lønmodtager_par8c_basispoint(input, skatteforhold))
     | kommunalt_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, lønmodtager_kommunal_basispoint(input, skatteforhold))
     | kirkeligt_personfradrag_skatteværdi_øre() -> lønmodtager_eksakt_skat_øre(personfradrag_resultat().personfradrag_kroner, kirkeskat_sats_for(input))

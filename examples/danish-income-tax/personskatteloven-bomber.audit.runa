@@ -142,7 +142,7 @@ skatteloft basis.
 ))
 = bomb_par7_stk5_negativ_ægtefællekapital_skattebesparelse_kroner = bomb_par7_mellemskat_uden_ægtefælleregel_kroner - bomb_par7_stk5_mellemskat_med_ægtefælleregel_kroner
 
-| bomb_2026_fuld_progressiv_kommunal_stack_basispoint(kommune: Kommune) -> nationalparametre_for(2026).bundskat_basispoint + nationalparametre_for(2026).mellemskat_basispoint + nationalparametre_for(2026).topskat_basispoint + nationalparametre_for(2026).toptopskat_basispoint + kommunale_parametre_for(2026, kommune).kommuneskat_basispoint
+| bomb_2026_fuld_progressiv_kommunal_stack_basispoint(kommune: Kommune) -> nationalparametre_for(2026).bundskat_basispoint + nationalparametre_for(2026).mellemskat_basispoint + nationalparametre_for(2026).topskat_basispoint + nationalparametre_for(2026).toptopskat_basispoint + kommunale_indkomstskatteparametre_for(2026, kommune).kommuneskat_basispoint
 
 = bomb_københavn_2026_fuld_progressiv_stack_basispoint = bomb_2026_fuld_progressiv_kommunal_stack_basispoint(København)
 = bomb_københavn_2026_personligt_skatteloft_basispoint = par19_personlig_skatteloft_basispoint(2026)

@@ -35,6 +35,13 @@
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 18 er uændret"
 )
 
+= pensionsbeskatningsloven_lbk1243_par19_stk1 = PensionsbeskatningslovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 19, stk. 1",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; LOV nr. 1757 af 29/12/2025 indsætter stk. 6, men stk. 1 er uændret"
+)
+
 = pensionsbeskatningsloven_lbk1243_par52 = PensionsbeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 52",
@@ -629,7 +636,7 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_årsarbejdsgiver_rate_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
 | pbl18_årsarbejdsgiver_kapital_brutto_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_kapital_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner } ellers { 0 })
 | pbl18_årsarbejdsgiver_kapital_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_kapital_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
-| pbl18_årsarbejdsgiver_øvrige_efter_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) == Falskt && pbl18_ordning_er_par15b(indbetaling.ordning) == Falskt && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner - indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
+| pbl18_årsarbejdsgiver_øvrige_efter_am_bidrag_kroner(input: Pbl18Årsinput) -> foldl(input.indbetalinger, 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + hvis indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_omfattet_af_kapitel1(indbetaling.ordning) && pbl18_ordning_udelukket_fra_fradrag(indbetaling.ordning) == Falskt && pbl18_ordning_har_rate_loft(indbetaling.ordning) == Falskt && pbl18_ordning_er_par15b(indbetaling.ordning) == Falskt && pbl18_årsindbetaling_fradragsår(indbetaling) == input.indkomstår { indbetaling.betaling.beløb_kroner - indbetaling.betaling.arbejdsmarkedsbidrag_kroner } ellers { 0 })
 | pbl18_årsarbejdsgivergrundlag(input: Pbl18Årsinput, par15b_resultat: Pbl15BÅrsresultat) -> Pbl18Årsarbejdsgivergrundlag(
     rate_og_ophørende_brutto_kroner = pbl18_årsarbejdsgiver_rate_brutto_kroner(input),
     rate_og_ophørende_am_bidrag_kroner = pbl18_årsarbejdsgiver_rate_am_bidrag_kroner(input),
@@ -832,6 +839,101 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 }
 | pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input).resultat()
 --@end::pensionsbeskatningsloven_par18--
+
+= pensionsbeskatningsloven_par19_stk1_metadata = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par19_stk1::meta:pensionsbeskatningsloven_par19_stk1_metadata--
+----
+§ 19. Ved opgørelsen af en arbejdstagers skattepligtige indkomst medregnes
+ikke beløb, der af arbejdsgiveren indbetales til en af kapitel 1 omfattet
+ordning for arbejdstageren, herunder indbetalinger til Arbejdsmarkedets
+Tillægspension vedrørende arbejdsgiverbetalte dagpengeydelser i henhold til lov
+om sygedagpenge. Det samme gælder indbetalinger fra en tidligere arbejdsgiver
+til en af kapitel 1 omfattet ordning. Bortseelsesretten efter 1. og 2. pkt.
+gælder også de i kalenderåret forfaldne bidrag eller præmier, der indbetales
+senest den 1. april i det efterfølgende kalenderår. Hvis den 1. april falder på
+en banklukkedag, forlænges fristen til den førstkommende bankdag. Indbetales et
+bidrag m.v., der hidrører fra en tilbagebetaling efter § 22 E, inden fristen
+for tilbagebetalingen efter § 22 E, jf. dog 3. pkt., er det
+bortseelsesberettiget på tidspunktet for indbetalingen på den pensionsordning,
+som tilbagebetalingen hidrører fra. Bidrag eller præmier til forudlønnede
+arbejdstageres pensionsordninger, der er forfaldne til betaling i løbet af
+måneden, men som vedrører den følgende måned, anses ved anvendelsen af 1. pkt.
+for bortseelsesberettigede og ved anvendelsen af 3. pkt. for forfaldne i
+sidstnævnte måned. Er der sket afgiftsberigtigelse af en kapitalforsikring eller
+en opsparing i pensionsøjemed efter § 25, stk. 1, nr. 1, ved udbetaling til
+ejeren, efter at pensionsudbetalingsalderen er nået, medregnes beløb, der af
+arbejdsgiveren eller en tidligere arbejdsgiver indbetales til en
+kapitalforsikring eller en opsparing i pensionsøjemed i de indkomstår, der
+følger efter indkomståret, hvori den eller de første kapitalforsikringer eller
+opsparinger i pensionsøjemed er afgiftsberigtiget, dog ved opgørelsen af
+arbejdstagerens skattepligtige indkomst. 1. og 2. pkt. gælder ikke præmier og
+bidrag til aldersopsparing, aldersforsikring eller den del af et
+pensionskassemedlems årlige bidrag, der anvendes til finansiering af
+supplerende engangssummer som nævnt i § 29 A, stk. 1. Efter arbejdstagerens død
+medregnes indbetalinger fra afdødes tidligere arbejdsgiver til sikring af
+ægtefælle- eller samleverpension, samleverpension eller børnepension efter § 2,
+nr. 4, heller ikke ved opgørelsen af den skattepligtige indkomst for
+ægtefællen, den fraskilte ægtefælle, samleveren, jf. § 2, nr. 4, litra e,
+børnene eller afdødes bo. Retten til at bortse fra arbejdsgiverens indbetalinger
+til en indeksordning er begrænset på samme måde som fradragsretten for egne
+indbetalinger, jf. § 18, stk. 1, 13. pkt. Retten til at bortse fra
+arbejdsgiverens indbetalinger til en rateforsikring eller rateopsparing i
+pensionsøjemed omfattet af § 15 B er begrænset på samme måde som fradragsretten
+for egne præmier og bidrag, jf. § 15 B, stk. 6.
+----
+
+--@begin::pensionsbeskatningsloven_par19_stk1--
+# Pbl19Arbejdsgiverrelation = Pbl19NuværendeArbejdsgiver | Pbl19TidligereArbejdsgiver | Pbl19AndenIndbetaler
+# Pbl19Kapitalordningsstatus = Pbl19IngenTidligereAfgiftsberigtigelse | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår: Heltal)
+# Pbl19ArbejdsgiverindbetalingFakta(arbejdsgiverrelation: Pbl19Arbejdsgiverrelation, ordning: Pbl18Ordning, indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, kapitalordningsstatus: Pbl19Kapitalordningsstatus)
+# Pbl19ArbejdsgiverindbetalingResultat(indkomstår: Heltal, fakta: Pbl19ArbejdsgiverindbetalingFakta, input_gyldigt: Boolsk, arbejdsgiverrelation_omfattet: Boolsk, ordning_omfattet_af_kapitel1: Boolsk, særlig_ordningsundtagelse: Boolsk, kapitalordning_efter_tidligere_afgiftsberigtigelse: Boolsk, bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal)
+
+| pbl19_stk1_arbejdsgiverrelation_omfattet(relation: Pbl19Arbejdsgiverrelation) -> relation == Pbl19NuværendeArbejdsgiver || relation == Pbl19TidligereArbejdsgiver
+| pbl19_stk1_særlig_ordningsundtagelse(ordning: Pbl18Ordning) -> ordning == Pbl18Aldersopsparing || ordning == Pbl18Aldersforsikring || ordning == Pbl18SupplerendeEngangssum
+| pbl19_stk1_er_kapitalforsikring_eller_opsparing(ordning: Pbl18Ordning) -> ordning == Pbl18Kapitalforsikring || ordning == Pbl18OpsparingIPensionsøjemed
+| pbl19_stk1_kapitalordningsstatus_gyldig(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> match fakta.kapitalordningsstatus {
+    | Pbl19IngenTidligereAfgiftsberigtigelse -> Sandt
+    | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår) -> pbl19_stk1_er_kapitalforsikring_eller_opsparing(fakta.ordning) && afgiftsberigtigelsesår > 0 && indkomstår > afgiftsberigtigelsesår
+}
+| pbl19_stk1_kapitalordning_efter_tidligere_afgiftsberigtigelse(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> match fakta.kapitalordningsstatus {
+    | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår) -> pbl19_stk1_er_kapitalforsikring_eller_opsparing(fakta.ordning) && indkomstår > afgiftsberigtigelsesår
+    | _ -> Falskt
+}
+| pbl19_stk1_indberettet_bruttobeløb_gyldigt(fakta: Pbl19ArbejdsgiverindbetalingFakta) -> match fakta.indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner {
+    | Some(beløb_kroner) -> beløb_kroner >= fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner
+    | None -> Sandt
+}
+| pbl19_stk1_input_gyldigt(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> indkomstår > 0 && fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner >= 0 && pbl19_stk1_indberettet_bruttobeløb_gyldigt(fakta) && pbl19_stk1_arbejdsgiverrelation_omfattet(fakta.arbejdsgiverrelation) && pbl18_ordning_omfattet_af_kapitel1(fakta.ordning) && pbl19_stk1_kapitalordningsstatus_gyldig(fakta, indkomstår)
+| pbl19_stk1_bortseelsesret(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> Falskt
+| exception pbl19_stk1_almindelig_kapitel1_ordning_har_bortseelsesret pbl19_stk1_bortseelsesret(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> Sandt under pbl19_stk1_input_gyldigt(fakta, indkomstår) && pbl19_stk1_særlig_ordningsundtagelse(fakta.ordning) == Falskt && pbl19_stk1_kapitalordning_efter_tidligere_afgiftsberigtigelse(fakta, indkomstår) == Falskt
+| pbl19_stk1_bortseelsesberettiget_efter_am_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> 0
+| exception pbl19_stk1_bortseelsesberettiget_beløb pbl19_stk1_bortseelsesberettiget_efter_am_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner under pbl19_stk1_bortseelsesret(fakta, indkomstår)
+| pbl19_stk1_personlig_indkomst_efter_am_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> 0
+| exception pbl19_stk1_undtaget_indbetaling_medregnes_i_personlig_indkomst pbl19_stk1_personlig_indkomst_efter_am_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner under pbl19_stk1_input_gyldigt(fakta, indkomstår) && pbl19_stk1_bortseelsesret(fakta, indkomstår) == Falskt
+| pbl19_stk1_indberettet_bruttobeløb_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta) -> match fakta.indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner {
+    | Some(beløb_kroner) -> beløb_kroner
+    | None -> 0
+}
+| pbl19_stk1_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> 0
+| exception pbl19_stk1_skattepligtig_indbetaling_bevarer_indberettet_am_grundlag pbl19_stk1_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> pbl19_stk1_indberettet_bruttobeløb_kroner(fakta) under pbl19_stk1_input_gyldigt(fakta, indkomstår) && pbl19_stk1_bortseelsesret(fakta, indkomstår) == Falskt
+| pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> Pbl19ArbejdsgiverindbetalingResultat(
+    indkomstår = indkomstår,
+    fakta = fakta,
+    input_gyldigt = pbl19_stk1_input_gyldigt(fakta, indkomstår),
+    arbejdsgiverrelation_omfattet = pbl19_stk1_arbejdsgiverrelation_omfattet(fakta.arbejdsgiverrelation),
+    ordning_omfattet_af_kapitel1 = pbl18_ordning_omfattet_af_kapitel1(fakta.ordning),
+    særlig_ordningsundtagelse = pbl19_stk1_særlig_ordningsundtagelse(fakta.ordning),
+    kapitalordning_efter_tidligere_afgiftsberigtigelse = pbl19_stk1_kapitalordning_efter_tidligere_afgiftsberigtigelse(fakta, indkomstår),
+    bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner = pbl19_stk1_bortseelsesberettiget_efter_am_kroner(fakta, indkomstår),
+    personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = pbl19_stk1_personlig_indkomst_efter_am_kroner(fakta, indkomstår),
+    arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = pbl19_stk1_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(fakta, indkomstår)
+)
+--@end::pensionsbeskatningsloven_par19_stk1--
 
 = pbl_par52_kildemeta = Source(
     value = pensionsbeskatningsloven_lbk1243_par52

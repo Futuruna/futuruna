@@ -30,6 +30,7 @@
         Source(value = personskatteloven_lbk1284_par3),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
         DependencySource(value = søbl5_til8_bek940),
         DependencySource(value = søbl5_til8_ligningslov7u_lbk1500),
@@ -64,13 +65,25 @@ ikke er fradragsberettiget, indgår som en ikke adskilt del af en
 pensionsordning, der er omfattet af § 19, anvendes reglerne i stk. 1, 1. pkt.,
 på indbetalingerne til denne ordning. Gruppelivsforsikringen behandles i øvrigt
 efter reglerne i § 53 A.
+
+Pensionsbeskatningsloven § 19, stk. 1, 1., 2. og 8. pkt.:
+
+Ved opgørelsen af en arbejdstagers skattepligtige indkomst medregnes ikke
+beløb, der af arbejdsgiveren indbetales til en af kapitel 1 omfattet ordning
+for arbejdstageren, herunder indbetalinger til Arbejdsmarkedets Tillægspension
+vedrørende arbejdsgiverbetalte dagpengeydelser i henhold til lov om
+sygedagpenge. Det samme gælder indbetalinger fra en tidligere arbejdsgiver til
+en af kapitel 1 omfattet ordning. 1. og 2. pkt. gælder ikke præmier og bidrag
+til aldersopsparing, aldersforsikring eller den del af et pensionskassemedlems
+årlige bidrag, der anvendes til finansiering af supplerende engangssummer som
+nævnt i § 29 A, stk. 1.
 ----
 
 --@begin:personskat_arbejdsgiverydelser--
-# PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
+# PersonskatArbejdsgiverydelse = DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner: Heltal) | GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | ArbejdsgiveradministreretPensionEfterPbl19(fakta: Pbl19ArbejdsgiverindbetalingFakta) | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal) | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art: ArbejdsmarkedsbidragNaturaliaArt, skattepligtig_værdi_kroner: Heltal) | UklassificeretArbejdsgiverbetaltYdelse(beskrivelse: Tekst, beløb_kroner: Heltal)
 # PersonskatArbejdsgiverydelseFakta(identifikation: Tekst, indkomstår: Heltal, ydelse: PersonskatArbejdsgiverydelse)
-# PersonskatArbejdsgiverydelseAmKlassifikation = AnsættelsesvederlagEfterPar2Stk1Nr1 | GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag | NaturalieOmfattetAfPar2Stk2(resultat: ArbejdsmarkedsbidragNaturaliaResultat) | IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
-# PersonskatArbejdsgiverydelseBeregning(fakta: PersonskatArbejdsgiverydelseFakta, am_klassifikation: PersonskatArbejdsgiverydelseAmKlassifikation, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_ydelsen: Par3PersonligIndkomstResultat, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatArbejdsgiverydelseAmKlassifikation = AnsættelsesvederlagEfterPar2Stk1Nr1 | GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag | PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat: Pbl19ArbejdsgiverindbetalingResultat) | SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag | NaturalieOmfattetAfPar2Stk2(resultat: ArbejdsmarkedsbidragNaturaliaResultat) | IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
+# PersonskatArbejdsgiverydelseBeregning(fakta: PersonskatArbejdsgiverydelseFakta, am_klassifikation: PersonskatArbejdsgiverydelseAmKlassifikation, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_ydelsen: Par3PersonligIndkomstResultat, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatArbejdsgiverydelseResultat = UgyldigArbejdsgiverydelse(fakta: PersonskatArbejdsgiverydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | IkkeUnderstøttetArbejdsgiverydelse(fakta: PersonskatArbejdsgiverydelseFakta) | BeregnetArbejdsgiverydelse(beregning: PersonskatArbejdsgiverydelseBeregning)
 
 | personskat_tomt_par3_personlig_indkomst_input(indkomstposter: List(Par3Indkomstpost), stk2_nr1_udgifter: List(Par3Stk2Nr1UdgiftInput)) -> Par3PersonligIndkomstInput(
@@ -82,13 +95,25 @@ efter reglerne i § 53 A.
 | personskat_arbejdsgiverydelse_beløb_kroner(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(beløb_kroner) -> beløb_kroner
     | GruppelivSomUadskiltDelAfPbl19Ordning(beløb_kroner) -> beløb_kroner
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, beløb_kroner) -> beløb_kroner
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(_, beløb_kroner) -> beløb_kroner
     | UklassificeretArbejdsgiverbetaltYdelse(_, beløb_kroner) -> beløb_kroner
 }
+| personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_gyldigt(bruttobeløb: Option(Heltal), nettobeløb_kroner: Heltal) -> match bruttobeløb {
+    | Some(bruttobeløb_kroner) -> bruttobeløb_kroner >= nettobeløb_kroner
+    | None -> Sandt
+}
+| personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_kroner(bruttobeløb: Option(Heltal)) -> match bruttobeløb {
+    | Some(bruttobeløb_kroner) -> bruttobeløb_kroner
+    | None -> 0
+}
 | personskat_arbejdsgiverydelse_grundfakta_gyldige(fakta: PersonskatArbejdsgiverydelseFakta) -> fakta.identifikation != "" && personskat_arbejdsgiverydelse_beløb_kroner(fakta.ydelse) >= 0
-| personskat_arbejdsgiverydelse_understøttet(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
+| personskat_arbejdsgiverydelse_understøttet(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(_) -> Sandt
     | GruppelivSomUadskiltDelAfPbl19Ordning(_) -> Sandt
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).input_gyldigt
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(bruttobeløb, nettobeløb_kroner) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_gyldigt(bruttobeløb, nettobeløb_kroner)
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art, beløb_kroner) -> arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
         art = art,
         skattepligtig_værdi_kroner = beløb_kroner,
@@ -96,9 +121,11 @@ efter reglerne i § 53 A.
     )).par2_stk2_art_omfattet
     | UklassificeretArbejdsgiverbetaltYdelse(_, _) -> Falskt
 }
-| personskat_arbejdsgiverydelse_am_klassifikation(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
+| personskat_arbejdsgiverydelse_am_klassifikation(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(_) -> AnsættelsesvederlagEfterPar2Stk1Nr1
     | GruppelivSomUadskiltDelAfPbl19Ordning(_) -> GruppelivMedAlleredeIndeholdtArbejdsmarkedsbidrag
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> PensionEfterPbl19MedAlleredeIndeholdtArbejdsmarkedsbidrag(resultat = pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår))
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, _) -> SamlepostEfterPbl19EllerPbl56MedAlleredeIndeholdtArbejdsmarkedsbidrag
     | NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2(art, beløb_kroner) -> NaturalieOmfattetAfPar2Stk2(resultat = arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
         art = art,
         skattepligtig_værdi_kroner = beløb_kroner,
@@ -106,10 +133,15 @@ efter reglerne i § 53 A.
     )))
     | UklassificeretArbejdsgiverbetaltYdelse(_, _) -> IkkeUnderstøttetArbejdsgiverydelseAmKlassifikation
 }
-| personskat_arbejdsgiverydelse_par3_indkomstpost(ydelse: PersonskatArbejdsgiverydelse) -> Par3Indkomstpost(
+| personskat_arbejdsgiverydelse_personlig_indkomst_kroner(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, beløb_kroner) -> beløb_kroner
+    | _ -> personskat_arbejdsgiverydelse_beløb_kroner(ydelse)
+}
+| personskat_arbejdsgiverydelse_par3_indkomstpost(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> Par3Indkomstpost(
     indgår_i_skattepligtig_indkomst = Sandt,
     er_kapitalindkomst = Falskt,
-    beløb_kroner = personskat_arbejdsgiverydelse_beløb_kroner(ydelse)
+    beløb_kroner = personskat_arbejdsgiverydelse_personlig_indkomst_kroner(ydelse, indkomstår)
 )
 | personskat_arbejdsgiverydelse_arbejdsmarkedsbidragsgrundlag_kroner(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
     | DirekteArbejdsgiverbetaltGruppeliv(beløb_kroner) -> beløb_kroner
@@ -120,19 +152,27 @@ efter reglerne i § 53 A.
     )).grundlag_kroner
     | _ -> 0
 }
-| personskat_arbejdsgiverydelse_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner(ydelse: PersonskatArbejdsgiverydelse) -> match ydelse {
+| personskat_arbejdsgiverydelse_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(bruttobeløb, _) -> personskat_arbejdsgiveradministreret_samlepost_bruttobeløb_kroner(bruttobeløb)
+    | _ -> 0
+}
+| personskat_arbejdsgiverydelse_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner(ydelse: PersonskatArbejdsgiverydelse, indkomstår: Heltal) -> match ydelse {
     | GruppelivSomUadskiltDelAfPbl19Ordning(beløb_kroner) -> beløb_kroner
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_arbejdsgiverindbetaling_resultat(fakta, indkomstår).personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner
+    | ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(_, beløb_kroner) -> beløb_kroner
     | _ -> 0
 }
 | personskat_arbejdsgiverydelse_beregning(fakta: PersonskatArbejdsgiverydelseFakta) -> {
-    = par3_indkomstpost = personskat_arbejdsgiverydelse_par3_indkomstpost(fakta.ydelse)
+    = par3_indkomstpost = personskat_arbejdsgiverydelse_par3_indkomstpost(fakta.ydelse, fakta.indkomstår)
     PersonskatArbejdsgiverydelseBeregning(
         fakta = fakta,
-        am_klassifikation = personskat_arbejdsgiverydelse_am_klassifikation(fakta.ydelse),
+        am_klassifikation = personskat_arbejdsgiverydelse_am_klassifikation(fakta.ydelse, fakta.indkomstår),
         par3_indkomstpost = par3_indkomstpost,
         par3_indkomstresultat_for_ydelsen = par3_personlig_indkomst_resultat(personskat_tomt_par3_personlig_indkomst_input([par3_indkomstpost], [])),
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = personskat_arbejdsgiverydelse_arbejdsmarkedsbidragsgrundlag_kroner(fakta.ydelse),
-        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = personskat_arbejdsgiverydelse_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner(fakta.ydelse)
+        arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = personskat_arbejdsgiverydelse_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(fakta.ydelse, fakta.indkomstår),
+        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = personskat_arbejdsgiverydelse_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner(fakta.ydelse, fakta.indkomstår)
     )
 }
 | personskat_arbejdsgiverydelse_resultat(fakta: PersonskatArbejdsgiverydelseFakta, skatteår: Heltal, identifikation_unik: Boolsk) -> hvis identifikation_unik == Falskt || fakta.indkomstår != skatteår || personskat_arbejdsgiverydelse_grundfakta_gyldige(fakta) == Falskt {
@@ -142,7 +182,7 @@ efter reglerne i § 53 A.
         skatteår_matcher = fakta.indkomstår == skatteår,
         grundfakta_gyldige = personskat_arbejdsgiverydelse_grundfakta_gyldige(fakta)
     )
-} ellers hvis personskat_arbejdsgiverydelse_understøttet(fakta.ydelse) == Falskt {
+} ellers hvis personskat_arbejdsgiverydelse_understøttet(fakta.ydelse, fakta.indkomstår) == Falskt {
     IkkeUnderstøttetArbejdsgiverydelse(fakta = fakta)
 } ellers {
     BeregnetArbejdsgiverydelse(beregning = personskat_arbejdsgiverydelse_beregning(fakta))
@@ -153,6 +193,10 @@ efter reglerne i § 53 A.
 }
 | personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat: PersonskatArbejdsgiverydelseResultat) -> match resultat {
     | BeregnetArbejdsgiverydelse(beregning) -> beregning.arbejdsmarkedsbidragsgrundlag_tillæg_kroner
+    | _ -> 0
+}
+| personskat_arbejdsgiverydelse_resultat_am_grundlag_med_indeholdt_bidrag_kroner(resultat: PersonskatArbejdsgiverydelseResultat) -> match resultat {
+    | BeregnetArbejdsgiverydelse(beregning) -> beregning.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner
     | _ -> 0
 }
 | personskat_arbejdsgiverydelse_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat: PersonskatArbejdsgiverydelseResultat) -> match resultat {
@@ -277,9 +321,9 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta)
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
-# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, sømandsbeskatning: Søbl5Til8Årsinput)
-# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
+# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
 
 | personskat_ingen_ordinær_personlig_indkomst() -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = [],
@@ -337,6 +381,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | forenings_og_arbejdsløshedsydelser() -> personskat_forenings_og_arbejdsløshedsydelse_resultater(input.forenings_og_arbejdsløshedsydelser, skatteår, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige())
     | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
     | arbejdsmarkedsbidragsgrundlag_tillæg_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
+    | arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_med_indeholdt_bidrag_kroner(resultat))
     | personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(forenings_og_arbejdsløshedsydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat| sum_kroner + personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat))
     | resultat() -> PersonskatOrdinærPersonligIndkomstResultat(
         input = input,
@@ -348,6 +393,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         forenings_og_arbejdsløshedsydelsesidentifikationer_entydige = forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(),
         alle_input_gyldige = alle_input_gyldige(),
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = arbejdsmarkedsbidragsgrundlag_tillæg_kroner(),
+        arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(),
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner()
     )
 }
@@ -365,6 +411,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         sømandsbeskatning = sømandsbeskatning(),
         alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige && sømandsbeskatning().alle_input_gyldige && sømandsbeskatning().beregningsklar && sømandsbeskatning().kanonisk_fuld_skattepligt_understøttet,
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner + sømandsbeskatning().samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
+        arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner,
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + sømandsbeskatning().samlet_dis_personlig_indkomst_kroner,
         fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()),
         ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto())

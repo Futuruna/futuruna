@@ -6,11 +6,141 @@
 
 # Kommune = København | Frederiksberg | Ballerup | Brøndby | Dragør | Gentofte | Gladsaxe | Glostrup | Herlev | Albertslund | Hvidovre | HøjeTaastrup | LyngbyTaarbæk | Rødovre | Ishøj | Tårnby | Vallensbæk | Furesø | Allerød | Fredensborg | Helsingør | Hillerød | Hørsholm | Rudersdal | Egedal | Frederikssund | Greve | Køge | Halsnæs | Roskilde | Solrød | Gribskov | Odsherred | Holbæk | Faxe | Kalundborg | Ringsted | Slagelse | Stevns | Sorø | Lejre | Lolland | Næstved | Guldborgsund | Vordingborg | Bornholm | Middelfart | Assens | FaaborgMidtfyn | Kerteminde | Nyborg | Odense | Svendborg | Nordfyns | Langeland | Ærø | Haderslev | Billund | Sønderborg | Tønder | Esbjerg | Fanø | Varde | Vejen | Aabenraa | Fredericia | Horsens | Kolding | Vejle | Herning | Holstebro | Lemvig | Struer | Syddjurs | Norddjurs | Favrskov | Odder | Randers | Silkeborg | Samsø | Skanderborg | Aarhus | IkastBrande | RingkøbingSkjern | Hedensted | Morsø | Skive | Thisted | Viborg | Brønderslev | Frederikshavn | Vesthimmerland | Læsø | Rebild | Mariagerfjord | Jammerbugt | Aalborg | Hjørring
 # KommunaleParametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal, grundskyld_promille_tiendedele: Heltal)
-# KommunaleParametreKilde = SkatteministerietKommuneskatter2024 | SkatteministerietKommuneskatter2025 | SkatteministerietKommuneskattesatser2026Xlsx
+# KommunaleIndkomstskatteparametre(skatteår: Heltal, kommune: Kommune, kommunekode: Heltal, kommuneskat_basispoint: Heltal, kirkeskat_basispoint: Heltal, sundhedsbidrag_basispoint: Heltal, bundskat_basispoint: Heltal, skatteloftsnedslag_basispoint: Heltal)
+# KommunaleParametreKilde = SkatteministerietKommuneskatter2023 | SkatteministerietKommuneskatter2024 | SkatteministerietKommuneskatter2025 | SkatteministerietKommuneskattesatser2026Xlsx
 # KommunaleParametreKildeInfo(år: Heltal, titel: Tekst, url: Tekst, filformat: Tekst, sha256: Tekst, hentet_dato: Tekst)
 # KommunaleParametreResultat(skatteår: Heltal, kommune: Kommune, kilde: KommunaleParametreKilde, parametre: KommunaleParametre)
+# KommunaleIndkomstskatteparametreResultat(skatteår: Heltal, kommune: Kommune, kilde: KommunaleParametreKilde, parametre: KommunaleIndkomstskatteparametre)
 
 = alle_kommuner = [København, Frederiksberg, Ballerup, Brøndby, Dragør, Gentofte, Gladsaxe, Glostrup, Herlev, Albertslund, Hvidovre, HøjeTaastrup, LyngbyTaarbæk, Rødovre, Ishøj, Tårnby, Vallensbæk, Furesø, Allerød, Fredensborg, Helsingør, Hillerød, Hørsholm, Rudersdal, Egedal, Frederikssund, Greve, Køge, Halsnæs, Roskilde, Solrød, Gribskov, Odsherred, Holbæk, Faxe, Kalundborg, Ringsted, Slagelse, Stevns, Sorø, Lejre, Lolland, Næstved, Guldborgsund, Vordingborg, Bornholm, Middelfart, Assens, FaaborgMidtfyn, Kerteminde, Nyborg, Odense, Svendborg, Nordfyns, Langeland, Ærø, Haderslev, Billund, Sønderborg, Tønder, Esbjerg, Fanø, Varde, Vejen, Aabenraa, Fredericia, Horsens, Kolding, Vejle, Herning, Holstebro, Lemvig, Struer, Syddjurs, Norddjurs, Favrskov, Odder, Randers, Silkeborg, Samsø, Skanderborg, Aarhus, IkastBrande, RingkøbingSkjern, Hedensted, Morsø, Skive, Thisted, Viborg, Brønderslev, Frederikshavn, Vesthimmerland, Læsø, Rebild, Mariagerfjord, Jammerbugt, Aalborg, Hjørring]
+
+= skatteministeriet_kommunale_indkomstskatteparametre_2023 = KommunaleParametreKildeInfo(
+    år = 2023,
+    titel = "Kommuneskattesatser 2023",
+    url = "https://skm.dk/media/Skatteministeriet/Dokumenter/Excelfiler/Kommuneskatter/km2023.xls",
+    filformat = "XLS",
+    sha256 = "3492c4cd9d5bf9b9945e8a3ccbb7c45a6ff450162f84d90b53777385774a4f5f",
+    hentet_dato = "2026-08-09"
+)
+= kommunale_indkomstskatteparametre_2023_metadata = Metadata(attachments = (RateSource(value = skatteministeriet_kommunale_indkomstskatteparametre_2023),))
+
+--@label:kommunale_indkomstskatteparametre_2023::meta:kommunale_indkomstskatteparametre_2023_metadata--
+----
+Skatteministeriet, "Kommuneskattesatser 2023"
+Officiel fil: https://skm.dk/media/Skatteministeriet/Dokumenter/Excelfiler/Kommuneskatter/km2023.xls
+
+Tabellen nedenfor overfører alene kommunekode, kommuneskat, kirkeskat og
+skatteloftsnedslag. Den historiske grundskyld havde en anden hjemmel og en
+finere decimalenhed end Ejendomsskattelovens 2024-format og er derfor ikke
+repræsenteret som en kommunal indkomstskatteparameter.
+
+Bundskatten på 12,06 pct. følger den vedtagne sats for 2023 og
+Skatteministeriets officielle tidsserie for centrale skattesatser.
+----
+
+--@begin:kommunale_indkomstskatteparametre_2023--
+= kommunale_indkomstskatteparametre_2023 = [
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = København, kommunekode = 101, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Frederiksberg, kommunekode = 147, kommuneskat_basispoint = 2347, kirkeskat_basispoint = 50, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Ballerup, kommunekode = 151, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Brøndby, kommunekode = 153, kommuneskat_basispoint = 2430, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Dragør, kommunekode = 155, kommuneskat_basispoint = 2480, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Gentofte, kommunekode = 157, kommuneskat_basispoint = 2417, kirkeskat_basispoint = 40, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Gladsaxe, kommunekode = 159, kommuneskat_basispoint = 2360, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Glostrup, kommunekode = 161, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Herlev, kommunekode = 163, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 75, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Albertslund, kommunekode = 165, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 59),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hvidovre, kommunekode = 167, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 39),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = HøjeTaastrup, kommunekode = 169, kommuneskat_basispoint = 2460, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = LyngbyTaarbæk, kommunekode = 173, kommuneskat_basispoint = 2438, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Rødovre, kommunekode = 175, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 72, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Ishøj, kommunekode = 183, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Tårnby, kommunekode = 185, kommuneskat_basispoint = 2310, kirkeskat_basispoint = 61, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Vallensbæk, kommunekode = 187, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 80, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 59),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Furesø, kommunekode = 190, kommuneskat_basispoint = 2488, kirkeskat_basispoint = 65, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Allerød, kommunekode = 201, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 58, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 29),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Fredensborg, kommunekode = 210, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 60, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 29),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Helsingør, kommunekode = 217, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 63, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 51),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hillerød, kommunekode = 219, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 69, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 59),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hørsholm, kommunekode = 223, kommuneskat_basispoint = 2370, kirkeskat_basispoint = 62, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Rudersdal, kommunekode = 230, kommuneskat_basispoint = 2321, kirkeskat_basispoint = 57, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Egedal, kommunekode = 240, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 76, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Frederikssund, kommunekode = 250, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Greve, kommunekode = 253, kommuneskat_basispoint = 2442, kirkeskat_basispoint = 73, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Køge, kommunekode = 259, kommuneskat_basispoint = 2526, kirkeskat_basispoint = 87, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 25),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Halsnæs, kommunekode = 260, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Roskilde, kommunekode = 265, kommuneskat_basispoint = 2520, kirkeskat_basispoint = 84, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 19),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Solrød, kommunekode = 269, kommuneskat_basispoint = 2490, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Gribskov, kommunekode = 270, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 85, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 39),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Odsherred, kommunekode = 306, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Holbæk, kommunekode = 316, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 29),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Faxe, kommunekode = 320, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Kalundborg, kommunekode = 326, kommuneskat_basispoint = 2420, kirkeskat_basispoint = 101, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Ringsted, kommunekode = 329, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 109),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Slagelse, kommunekode = 330, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 59),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Stevns, kommunekode = 336, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 110, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 99),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Sorø, kommunekode = 340, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Lejre, kommunekode = 350, kommuneskat_basispoint = 2531, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 30),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Lolland, kommunekode = 360, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 123, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Næstved, kommunekode = 370, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Guldborgsund, kommunekode = 376, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Vordingborg, kommunekode = 390, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Bornholm, kommunekode = 400, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 119),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Middelfart, kommunekode = 410, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 90, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Assens, kommunekode = 420, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 109),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = FaaborgMidtfyn, kommunekode = 430, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 109),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Kerteminde, kommunekode = 440, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 109),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Nyborg, kommunekode = 450, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Odense, kommunekode = 461, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 68, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Svendborg, kommunekode = 479, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 102, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Nordfyns, kommunekode = 480, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 104, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 99),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Langeland, kommunekode = 482, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Ærø, kommunekode = 492, kommuneskat_basispoint = 2610, kirkeskat_basispoint = 107, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 109),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Haderslev, kommunekode = 510, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Billund, kommunekode = 530, kommuneskat_basispoint = 2400, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Sønderborg, kommunekode = 540, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 91, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Tønder, kommunekode = 550, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 116, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 29),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Esbjerg, kommunekode = 561, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 81, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Fanø, kommunekode = 563, kommuneskat_basispoint = 2566, kirkeskat_basispoint = 114, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 65),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Varde, kommunekode = 573, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 9),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Vejen, kommunekode = 575, kommuneskat_basispoint = 2533, kirkeskat_basispoint = 106, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 32),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Aabenraa, kommunekode = 580, kommuneskat_basispoint = 2560, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 59),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Fredericia, kommunekode = 607, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 88, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Horsens, kommunekode = 615, kommuneskat_basispoint = 2539, kirkeskat_basispoint = 79, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 38),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Kolding, kommunekode = 621, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 92, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Vejle, kommunekode = 630, kommuneskat_basispoint = 2340, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Herning, kommunekode = 657, kommuneskat_basispoint = 2490, kirkeskat_basispoint = 99, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Holstebro, kommunekode = 661, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Lemvig, kommunekode = 665, kommuneskat_basispoint = 2546, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 45),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Struer, kommunekode = 671, kommuneskat_basispoint = 2530, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 29),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Syddjurs, kommunekode = 706, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 89),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Norddjurs, kommunekode = 707, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 100, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 99),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Favrskov, kommunekode = 710, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 96, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Odder, kommunekode = 727, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 9),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Randers, kommunekode = 730, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 89, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Silkeborg, kommunekode = 740, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 95, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Samsø, kommunekode = 741, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 122, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 89),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Skanderborg, kommunekode = 746, kommuneskat_basispoint = 2600, kirkeskat_basispoint = 86, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 99),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Aarhus, kommunekode = 751, kommuneskat_basispoint = 2452, kirkeskat_basispoint = 74, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = IkastBrande, kommunekode = 756, kommuneskat_basispoint = 2510, kirkeskat_basispoint = 97, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 9),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = RingkøbingSkjern, kommunekode = 760, kommuneskat_basispoint = 2500, kirkeskat_basispoint = 105, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 0),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hedensted, kommunekode = 766, kommuneskat_basispoint = 2552, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 51),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Morsø, kommunekode = 773, kommuneskat_basispoint = 2580, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 79),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Skive, kommunekode = 779, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 109, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Thisted, kommunekode = 787, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 127, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Viborg, kommunekode = 791, kommuneskat_basispoint = 2550, kirkeskat_basispoint = 93, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 49),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Brønderslev, kommunekode = 810, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 108, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Frederikshavn, kommunekode = 813, kommuneskat_basispoint = 2620, kirkeskat_basispoint = 103, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 119),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Vesthimmerland, kommunekode = 820, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 118, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Læsø, kommunekode = 825, kommuneskat_basispoint = 2630, kirkeskat_basispoint = 130, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 129),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Rebild, kommunekode = 840, kommuneskat_basispoint = 2533, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 32),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Mariagerfjord, kommunekode = 846, kommuneskat_basispoint = 2590, kirkeskat_basispoint = 115, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 89),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Jammerbugt, kommunekode = 849, kommuneskat_basispoint = 2570, kirkeskat_basispoint = 120, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 69),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Aalborg, kommunekode = 851, kommuneskat_basispoint = 2540, kirkeskat_basispoint = 98, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 39),
+    KommunaleIndkomstskatteparametre(skatteår = 2023, kommune = Hjørring, kommunekode = 860, kommuneskat_basispoint = 2621, kirkeskat_basispoint = 119, sundhedsbidrag_basispoint = 0, bundskat_basispoint = 1206, skatteloftsnedslag_basispoint = 120)
+]
+| kommunale_parametre_kilde_for_år(skatteår: Heltal) -> SkatteministerietKommuneskatter2023 under skatteår == 2023
+--@end:kommunale_indkomstskatteparametre_2023--
 
 = skatteministeriet_kommunale_parametre_2024 = KommunaleParametreKildeInfo(
     år = 2024,
@@ -685,6 +815,7 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
 | kommunale_parametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(kommunale_parametre_kandidater(skatteår, kommune)) under kommune_understøttet_i_år(skatteår, kommune)
 | kommunale_parametre_kilde(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_kilde_for_år(skatteår) under kommune_understøttet_i_år(skatteår, kommune)
 | kommunale_parametre_kildeinfo(kilde: KommunaleParametreKilde) -> match kilde {
+    | SkatteministerietKommuneskatter2023 -> skatteministeriet_kommunale_indkomstskatteparametre_2023
     | SkatteministerietKommuneskatter2024 -> skatteministeriet_kommunale_parametre_2024
     | SkatteministerietKommuneskatter2025 -> skatteministeriet_kommunale_parametre_2025
     | SkatteministerietKommuneskattesatser2026Xlsx -> skatteministeriet_kommunale_parametre_2026
@@ -696,3 +827,28 @@ Hjørring | Nordjylland | 860 | 1081 | 36 | 26,21 | 1,19 | 1,15 | 16,5
     parametre = kommunale_parametre_værdi_for(skatteår, kommune)
 ) under kommune_understøttet_i_år(skatteår, kommune)
 | kommunale_parametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_parametre_resultat(skatteår, kommune).parametre
+
+| kommunale_indkomstskatteparametre_fra_samlede(parametre: KommunaleParametre) -> KommunaleIndkomstskatteparametre(
+    skatteår = parametre.skatteår,
+    kommune = parametre.kommune,
+    kommunekode = parametre.kommunekode,
+    kommuneskat_basispoint = parametre.kommuneskat_basispoint,
+    kirkeskat_basispoint = parametre.kirkeskat_basispoint,
+    sundhedsbidrag_basispoint = parametre.sundhedsbidrag_basispoint,
+    bundskat_basispoint = parametre.bundskat_basispoint,
+    skatteloftsnedslag_basispoint = parametre.skatteloftsnedslag_basispoint
+)
+| kommunale_indkomstskatteparametre_2023_kandidater(kommune: Kommune) -> filter(kommunale_indkomstskatteparametre_2023, |parametre: KommunaleIndkomstskatteparametre| parametre.kommune == kommune)
+| kommunalt_indkomstskatteår_understøttet(skatteår: Heltal) -> skatteår == 2023 || kommunalt_skatteår_understøttet(skatteår)
+| kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Falskt
+| exception kommune_indkomstskat_2023_understøttet kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under skatteår == 2023 && length(kommunale_indkomstskatteparametre_2023_kandidater(kommune)) == 1
+| exception kommune_indkomstskat_ny_ordning_understøttet kommune_indkomstskat_understøttet_i_år(skatteår: Heltal, kommune: Kommune) -> Sandt under kommunalt_skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> head(kommunale_indkomstskatteparametre_2023_kandidater(kommune)) under skatteår == 2023 && kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_værdi_for(skatteår: Heltal, kommune: Kommune) -> kommunale_indkomstskatteparametre_fra_samlede(kommunale_parametre_for(skatteår, kommune)) under kommunalt_skatteår_understøttet(skatteår) && kommune_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_resultat(skatteår: Heltal, kommune: Kommune) -> KommunaleIndkomstskatteparametreResultat(
+    skatteår = skatteår,
+    kommune = kommune,
+    kilde = kommunale_parametre_kilde_for_år(skatteår),
+    parametre = kommunale_indkomstskatteparametre_værdi_for(skatteår, kommune)
+) under kommune_indkomstskat_understøttet_i_år(skatteår, kommune)
+| kommunale_indkomstskatteparametre_for(skatteår: Heltal, kommune: Kommune) -> kommunale_indkomstskatteparametre_resultat(skatteår, kommune).parametre

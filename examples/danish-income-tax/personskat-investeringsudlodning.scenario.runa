@@ -1,0 +1,193 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet prøver den kanoniske vej fra investeringsaktivets kildefakta til
+personlig indkomst, kapitalindkomst eller aktieindkomst. Beløbene er fiktive.
+Den effektive status efter aktieavancebeskatningslovens §§ 19 B-19 C og
+§§ 21-22 bliver afledt af aktivmasse, meddelelse og oplysninger; status gives
+ikke som et ubundet resultatfelt.
+----
+
+| personskat_investeringsudlodning_aktivmasse(indkomstår: Heltal, kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal) -> AktieavanceInvesteringsaktivmasse(
+    indkomstår = indkomstår,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(
+            art = AblKvalificerendeAktieaktiv,
+            gennemsnitlig_værdi_kroner = kvalificerende_aktiver_kroner
+        ),
+        AblDirekteInvesteringsaktiv(
+            art = AblAndetVærdipapir,
+            gennemsnitlig_værdi_kroner = øvrige_værdipapirer_kroner
+        )
+    ],
+    ejerposter = []
+)
+
+= personskat_investeringsudlodning_19b_klassifikation = AktieavancePar19BPar19CInput(
+    indkomstår = 2025,
+    meddelelse = AblPar19BOrdinærMeddelelse(
+        virkningsår = 2025,
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2024, måned = 11, dag = 1)
+    ),
+    aktivmasse = personskat_investeringsudlodning_aktivmasse(2025, 60000, 40000),
+    oplysninger = AblPar19BOplysningerIndsendt(
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1)
+    )
+)
+
+= personskat_investeringsudlodning_19c_klassifikation = AktieavancePar19BPar19CInput(
+    indkomstår = 2025,
+    meddelelse = AblIngenPar19BMeddelelse,
+    aktivmasse = personskat_investeringsudlodning_aktivmasse(2025, 20000, 80000),
+    oplysninger = AblPar19BOplysningerIkkeIndsendt
+)
+
+= personskat_investeringsudlodning_21_klassifikation = AktieavancePar21Par22Input(
+    indkomstår = 2025,
+    aktivmasse = personskat_investeringsudlodning_aktivmasse(2025, 60000, 40000),
+    oplysninger = AblPar21OplysningerIndsendt(
+        frist = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1),
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1)
+    )
+)
+
+= personskat_investeringsudlodning_22_klassifikation = AktieavancePar21Par22Input(
+    indkomstår = 2025,
+    aktivmasse = personskat_investeringsudlodning_aktivmasse(2025, 20000, 80000),
+    oplysninger = AblPar21OplysningerIndsendt(
+        frist = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1),
+        indsendelsesdato = AktieavanceInvesteringsdato(år = 2026, måned = 7, dag = 1)
+    )
+)
+
+= personskat_investeringsudlodning_ikke_næring = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+
+= personskat_investeringsudlodning_næring = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17ErhvervetSomLedINæringsvej
+)
+
+| personskat_investeringsselskabsudlodning(identifikation: Tekst, beløb_kroner: Heltal, klassifikation: AktieavancePar19BPar19CInput, par17_modprøve: AktieavancePar17Modprøve) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatInvesteringsselskabsandel(
+        klassifikation = klassifikation,
+        par17_modprøve = par17_modprøve
+    ),
+    beløb_kroner = beløb_kroner,
+    par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+)
+
+| personskat_minimumsinstitutsudlodning(identifikation: Tekst, beløb_kroner: Heltal, klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatMinimumsinstitutsbevis(
+        klassifikation = klassifikation,
+        par17_modprøve = par17_modprøve
+    ),
+    beløb_kroner = beløb_kroner,
+    par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+)
+
+= personskat_investeringsudlodninger = [
+    personskat_investeringsselskabsudlodning(
+        identifikation = "abl-19b-aktieindkomst",
+        beløb_kroner = 1000,
+        klassifikation = personskat_investeringsudlodning_19b_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_ikke_næring
+    ),
+    personskat_investeringsselskabsudlodning(
+        identifikation = "abl-19c-kapitalindkomst",
+        beløb_kroner = 2310,
+        klassifikation = personskat_investeringsudlodning_19c_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_ikke_næring
+    ),
+    personskat_minimumsinstitutsudlodning(
+        identifikation = "abl-21-aktieindkomst",
+        beløb_kroner = 3000,
+        klassifikation = personskat_investeringsudlodning_21_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_ikke_næring
+    ),
+    personskat_minimumsinstitutsudlodning(
+        identifikation = "abl-22-kapitalindkomst",
+        beløb_kroner = 4000,
+        klassifikation = personskat_investeringsudlodning_22_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_ikke_næring
+    ),
+    personskat_investeringsselskabsudlodning(
+        identifikation = "abl-19b-personlig-indkomst",
+        beløb_kroner = 5000,
+        klassifikation = personskat_investeringsudlodning_19b_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_næring
+    ),
+    personskat_investeringsselskabsudlodning(
+        identifikation = "abl-19c-personlig-indkomst",
+        beløb_kroner = 6000,
+        klassifikation = personskat_investeringsudlodning_19c_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_næring
+    ),
+    personskat_minimumsinstitutsudlodning(
+        identifikation = "abl-21-personlig-indkomst",
+        beløb_kroner = 7000,
+        klassifikation = personskat_investeringsudlodning_21_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_næring
+    ),
+    personskat_minimumsinstitutsudlodning(
+        identifikation = "abl-22-personlig-indkomst",
+        beløb_kroner = 8000,
+        klassifikation = personskat_investeringsudlodning_22_klassifikation,
+        par17_modprøve = personskat_investeringsudlodning_næring
+    )
+]
+
+= personskat_investeringsudlodning_lønmodtager = PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 0,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+= personskat_investeringsudlodning_input = PersonskatInput(
+    lønmodtager = personskat_investeringsudlodning_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = PersonskatAktieavanceInput(
+        ordinært_aktieår = UdenOrdinærtAktieår,
+        særlige_aktiver = [],
+        udbytter = personskat_investeringsudlodninger
+    ),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_investeringsudlodning_resultat = beregn_personskat(personskat_investeringsudlodning_input)
+
+| personskat_investeringsudlodning_klassifikationer_afledes: personskat_investeringsudlodning_resultat -> personskat_investeringsudlodning_resultat.aktieavance.alle_input_gyldige && length(personskat_investeringsudlodning_resultat.aktieavance.udbytter) == 8 && all(personskat_investeringsudlodning_resultat.aktieavance.udbytter, |resultat: PersonskatUdbytteResultat| resultat.input_gyldigt && resultat.aktivklassifikation_resultat != None && resultat.par4_resultat.aktieavance_aktivklassifikation_gyldig)
+| personskat_investeringsudlodning_19b_og_21_er_aktieindkomst: personskat_investeringsudlodning_resultat -> personskat_investeringsudlodning_resultat.aktieavance.aktieindkomst_kroner == 4000
+| personskat_investeringsudlodning_19c_og_22_er_kapitalindkomst: personskat_investeringsudlodning_resultat -> personskat_investeringsudlodning_resultat.aktieavance.kapitalindkomst_kroner == 6310
+| personskat_investeringsudlodning_par17_modprøver_er_personlig_indkomst: personskat_investeringsudlodning_resultat -> personskat_investeringsudlodning_resultat.aktieavance.personlig_indkomst_kroner == 26000
+| personskat_investeringsudlodning_ingen_dobbeltklassifikation: personskat_investeringsudlodning_resultat -> personskat_investeringsudlodning_resultat.aktieavance.aktieindkomst_kroner + personskat_investeringsudlodning_resultat.aktieavance.kapitalindkomst_kroner + personskat_investeringsudlodning_resultat.aktieavance.personlig_indkomst_kroner == 36310
+
+? personskat_investeringsudlodning_klassifikationer_afledes
+? personskat_investeringsudlodning_19b_og_21_er_aktieindkomst
+? personskat_investeringsudlodning_19c_og_22_er_kapitalindkomst
+? personskat_investeringsudlodning_par17_modprøver_er_personlig_indkomst
+? personskat_investeringsudlodning_ingen_dobbeltklassifikation

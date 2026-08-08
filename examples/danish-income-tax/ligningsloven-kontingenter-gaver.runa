@@ -13,6 +13,12 @@
     hentet_dato = "2026-08-04",
     ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 13 er uændret"
 )
+= ligningsloven_lov609_2023_par2_og_par3 = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/609",
+    identifier = "LOV nr. 609 af 31/05/2023, § 2 og § 3, stk. 2",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Ændringsloven hæver loftet i ligningslovens § 13 fra 6.000 kr. til 7.000 kr. med virkning fra indkomståret 2024"
+)
 = skat_fagforening_akasse_vejledning = LigningslovKontingentGaveKildeInfo(
     url = "https://skat.dk/borger/fradrag/fradrag-for-fagforening-a-kasse-efterloen-og-fleksydelse",
     identifier = "Skattestyrelsen: Fradrag for fagforening, A-kasse, efterløn og fleksydelse",
@@ -122,9 +128,9 @@ kontingentudgiften til told- og skatteforvaltningen.
 | ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 7000
 | exception ligningslov13_selvstændig_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
 | exception ligningslov13_juridisk_person_uden_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 0 under skatteyderstatus == Ll13JuridiskPerson
-| ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> penge_mindste_beløb(fradrag_før_årsloft_kroner, 7000)
-| exception ligningslov13_selvstændig_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
-| exception ligningslov13_juridisk_person_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13JuridiskPerson
+| ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> penge_mindste_beløb(fradrag_før_årsloft_kroner, ligningslov13_årsloft_kroner(indkomstår, skatteyderstatus))
+| exception ligningslov13_selvstændig_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13SelvstændigtErhvervsdrivende
+| exception ligningslov13_juridisk_person_får_fuldt_fradrag ligningslov13_fradrag_efter_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus, fradrag_før_årsloft_kroner: Heltal) -> fradrag_før_årsloft_kroner under skatteyderstatus == Ll13JuridiskPerson
 | ligningslov13_årsresultat(indkomstår: Heltal, input: Ligningslov13Årsinput) -> {
     = kontingentresultater = map(input.kontingenter, |fakta: Ligningslov13KontingentFakta| ligningslov13_kontingent_resultat(indkomstår, fakta))
     = skatteår_understøttet = length(input.kontingenter) == 0 || ligningslov13_skatteår_understøttet(indkomstår)
@@ -133,7 +139,7 @@ kontingentudgiften til told- og skatteforvaltningen.
     = kontingentperioder_ikke_overlappende = ligningslov13_kontingentperioder_ikke_overlappende(input.kontingenter)
     = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && foreningsfakta_konsistente && kontingentperioder_ikke_overlappende && all(kontingentresultater, |resultat: Ligningslov13KontingentResultat| resultat.input_gyldigt)
     = fradrag_før_årsloft_kroner = ligningslov13_fradrag_før_årsloft_kroner(kontingentresultater)
-    = samlet_fradrag_kroner = hvis alle_input_gyldige { ligningslov13_fradrag_efter_årsloft_kroner(input.skatteyderstatus, fradrag_før_årsloft_kroner) } ellers { 0 }
+    = samlet_fradrag_kroner = hvis alle_input_gyldige { ligningslov13_fradrag_efter_årsloft_kroner(indkomstår, input.skatteyderstatus, fradrag_før_årsloft_kroner) } ellers { 0 }
     Ligningslov13Årsresultat(
         indkomstår = indkomstår,
         input = input,
@@ -151,11 +157,47 @@ kontingentudgiften til told- og skatteforvaltningen.
 }
 --@end::ligningsloven_par13_kontingentfradrag--
 
+= ligningsloven_par13_historiske_lofter_metadata = Metadata(
+    attachments = AmendmentSource(value = ligningsloven_lov609_2023_par2_og_par3)
+)
+
+--@label:ligningsloven_par13_historiske_lofter::meta:ligningsloven_par13_historiske_lofter_metadata--
+----
+§ 2
+
+I ligningsloven, jf. lovbekendtgørelse nr. 42 af 13. januar 2023, som ændret
+ved § 36 i lov nr. 871 af 21. juni 2022, foretages følgende ændring:
+
+1. I § 13, stk. 1, 2. pkt., ændres »6.000 kr.« til: »7.000 kr.«
+
+§ 3
+
+Stk. 2. Loven har virkning fra og med indkomståret 2024.
+----
+
+--@begin::ligningsloven_par13_historiske_lofter--
+| exception ligningslov13_2023_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2023
+| exception ligningslov13_2024_understøttet ligningslov13_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2024
+| exception ligningslov13_2023_årsloft ligningslov13_årsloft_kroner(indkomstår: Heltal, skatteyderstatus: Ligningslov13Skatteyderstatus) -> 6000 under indkomstår == 2023 && skatteyderstatus == Ll13Lønmodtager
+--@end::ligningsloven_par13_historiske_lofter--
+
 = ligningsloven_lbk1500_par8a = LigningslovKontingentGaveKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 8 A i LBK nr. 1500 af 24/11/2025",
     hentet_dato = "2026-08-04",
     ændringsstatus = "Efterfølgende ændringer på Retsinformations konsoliderede visning pr. 04/08/2026 gennemgået; den anvendte § 8 A er uændret"
+)
+= ligningsloven_lbk42_2023_par8a = LigningslovKontingentGaveKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 8 A i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Den anvendte § 8 A har samme grundbeløb og fradragsbetingelser som den senere konsolidering"
+)
+= skatteministeriet_par20_beløbsgrænser_2023_2024 = LigningslovKontingentGaveKildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2023-2024",
+    identifier = "Skatteministeriet: Beløbsgrænser reguleret efter personskattelovens § 20, 2023-2024",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Tabellen angiver § 8 A-lofter på 17.700 kr. i 2023 og 18.300 kr. i 2024"
 )
 = skat_gavefradrag_vejledning = LigningslovKontingentGaveKildeInfo(
     url = "https://skat.dk/borger/fradrag/fradrag-for-gaver-og-bidrag-til-velgoerende-foreninger",
@@ -178,6 +220,8 @@ kontingentudgiften til told- og skatteforvaltningen.
 = ligningsloven_par8a_metadata = Metadata(
     attachments = (
         Source(value = ligningsloven_lbk1500_par8a),
+        HistoricalSource(value = ligningsloven_lbk42_2023_par8a),
+        ParameterSource(value = skatteministeriet_par20_beløbsgrænser_2023_2024),
         Guidance(value = skat_gavefradrag_vejledning),
     )
 )
@@ -251,7 +295,7 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
 # LigningslovGaveResultat(fakta: LigningslovGaveFakta, input_gyldigt: Boolsk, modtagerhjemsted_opfyldt: Boolsk, modtagerformål_opfyldt: Boolsk, godkendelse_opfyldt: Boolsk, indberetning_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: LigningslovGavehjemmel, fradragsgrundlag_før_årsloft_kroner: Heltal)
 # LigningslovGaveÅrsresultat(indkomstår: Heltal, input: LigningslovGaveÅrsinput, indkomstgrundlag: Ligningslov12Indkomstgrundlag, gaveresultater: List(LigningslovGaveResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, par12_indkomstgrundlag_tilgængeligt: Boolsk, alle_input_gyldige: Boolsk, par8a_fradrag_før_loft_kroner: Heltal, par8a_årsloft_kroner: Heltal, par8a_fradrag_kroner: Heltal, par8h_fradrag_kroner: Heltal, par12_fradrag_før_loft_kroner: Heltal, par12_årsloft_kroner: Heltal, par12_fradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
-| ligningslov_gave_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov_gave_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2023 || indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
 | ligningslov_gavemodtager_hjemsted_opfyldt(hjemsted: LigningslovGavemodtagerHjemsted) -> hjemsted == LlGaveDanmark || hjemsted == LlGaveAndetEUEØSLand
 | ligningslov_religiøs_anerkendelse_opfyldt(anerkendelse: LigningslovReligiøsAnerkendelse) -> anerkendelse == LlGaveAnerkendtTrossamfund || anerkendelse == LlGaveAnerkendtMenighedForsamlingEllerKreds || anerkendelse == LlGaveAnerkendtValgmenighed
 | ligningslov_gave_formål_almenvelgørende_eller_almennyttigt(formål: LigningslovGavemodtagerFormål) -> match formål {
@@ -267,6 +311,8 @@ Stk. 4. Gaver, der er fradraget efter § 8 S, kan ikke fradrages efter stk. 1 og
     | _ -> Falskt
 }
 | ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 0
+| exception ligningslov8a_2023_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 17700 under indkomstår == 2023
+| exception ligningslov8a_2024_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 18300 under indkomstår == 2024
 | exception ligningslov8a_2025_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 19000 under indkomstår == 2025
 | exception ligningslov8a_2026_årsloft ligningslov8a_årsloft_kroner(indkomstår: Heltal) -> 20000 under indkomstår == 2026
 --@end::ligningsloven_par8a_gavefradrag--

@@ -12174,6 +12174,10 @@ impl Interpreter {
                     last = val;
                 }
                 Stmt::Expr(expr) => {
+                    if prune_top_level_bindings {
+                        last = Value::Unit;
+                        continue;
+                    }
                     last = self.eval(expr, env);
                     // Handle teardown markers from teardown() builtin
                     if let Value::Constructor(ref name, ref args) = last {
@@ -12397,6 +12401,10 @@ impl Interpreter {
                     pass_block,
                     else_block,
                 } => {
+                    if prune_top_level_bindings {
+                        last = Value::Unit;
+                        continue;
+                    }
                     // Explicit proof blocks are checked by `runa verify`, not executed at runtime.
                     if proof_block.is_some() {
                         last = Value::Unit;

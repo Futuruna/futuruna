@@ -477,6 +477,27 @@
     særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
     begrænsninger = pension_standardbegrænsninger
 )
+| pension_årsaldersopsparing_fra_arbejdsgiver(identifikation: Tekst, beløb_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = Pbl18Aldersopsparing,
+    indbetalingskilde = Pbl18Arbejdsgiverindbetaling,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_kroner,
+        forfaldsår = 2026,
+        betalingsår = 2026,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = pension_ingen_indekskontrakter,
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_kroner,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
+    begrænsninger = pension_standardbegrænsninger
+)
 | pension_årslivrenteindbetaling_med_resterende_fradragsramme(identifikation: Tekst, indskudsår: Heltal, indskud_kroner: Heltal, resterende_fradragsramme_kroner: Heltal) -> Pbl18Årsindbetaling(
     identifikation = identifikation,
     ordning = Pbl18LivsvarigLivrente,
@@ -519,6 +540,18 @@
         pension_årsrateindbetaling("Arbejdsgiverordning", Pbl18Arbejdsgiverindbetaling, 40000, 3200),
         pension_årsrateindbetaling("Privat rate A", Pbl18EgenIndbetaling, 40000, 0),
         pension_årsrateindbetaling("Privat rate B", Pbl18EgenIndbetaling, 50000, 0)
+    ]
+))
+
+= pension_årsaldersopsparing_uden_fradragsgrundlag = pbl18_årsresultat(Pbl18Årsinput(
+    indkomstår = 2026,
+    personlig_indkomst_før_pensionsfradrag_kroner = 600000,
+    selvstændig_overskud = pension_intet_selvstændigt_overskud,
+    livrentevalg = Pbl18FordeltFradrag,
+    par15a_årsgrundlag = pension_tomt_par15a_årsgrundlag,
+    par15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
+    indbetalinger = [
+        pension_årsaldersopsparing_fra_arbejdsgiver("Arbejdsgiveraldersopsparing", 1000, 80)
     ]
 ))
 
@@ -582,6 +615,7 @@
 | pension_fond_er_ikke_par4a_stk4: pension_par3_fond -> pension_par3_fond.hjemmel == Par3Nr3Pensionsbeskatningslov52 && pension_par3_fond.fradrag_i_aktieindkomst_kroner == 0 && pension_par3_fond.fradrag_i_personlig_indkomst_kroner == 40000
 | pension_fradrag_føres_i_personlig_indkomst: pension_personlig_indkomst -> pension_personlig_indkomst.brutto_personlig_indkomst_kroner == 200000 && pension_personlig_indkomst.fradrag_i_personlig_indkomst_kroner == 60000 && pension_personlig_indkomst.netto_personlig_indkomst_kroner == 140000
 | pension_årsrate_deler_loft_efter_arbejdsgiver: pension_årsrate_med_fælles_loft -> pension_årsrate_med_fælles_loft.input_gyldigt && pension_årsrate_med_fælles_loft.arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner == 40000 && pension_årsrate_med_fælles_loft.arbejdsgivergrundlag.rate_og_ophørende_am_bidrag_kroner == 3200 && pension_årsrate_med_fælles_loft.egne_rate_og_ophørende_før_fælles_loft_kroner == 90000 && pension_årsrate_med_fælles_loft.rate_og_ophørende_fradragsloft_efter_arbejdsgiver_kroner == 31900 && pension_årsrate_med_fælles_loft.rate_og_ophørende_fradrag_kroner == 31900 && pension_årsrate_med_fælles_loft.samlet_fradrag_i_skattepligtig_indkomst_kroner == 31900
+| pension_årsaldersopsparing_er_ikke_arbejdsgiverfradragsgrundlag: pension_årsaldersopsparing_uden_fradragsgrundlag -> pension_årsaldersopsparing_uden_fradragsgrundlag.input_gyldigt && pension_årsaldersopsparing_uden_fradragsgrundlag.arbejdsgivergrundlag.rate_og_ophørende_brutto_kroner == 0 && pension_årsaldersopsparing_uden_fradragsgrundlag.arbejdsgivergrundlag.kapitalordninger_brutto_kroner == 0 && pension_årsaldersopsparing_uden_fradragsgrundlag.arbejdsgivergrundlag.øvrige_efter_am_bidrag_kroner == 0 && pension_årsaldersopsparing_uden_fradragsgrundlag.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
 | pension_årslivrenter_deler_opfyldningsvalg: pension_årslivrenter_med_fælles_opfyldning -> pension_årslivrenter_med_fælles_opfyldning.input_gyldigt && pension_årslivrenter_med_fælles_opfyldning.livrente_beregnet_årsfradrag_kroner == 20000 && pension_årslivrenter_med_fælles_opfyldning.livrente_valgt_årsfradrag_kroner == 63200 && pension_årslivrenter_med_fælles_opfyldning.samlet_fradrag_i_skattepligtig_indkomst_kroner == 63200
 | pension_tiårsfordeling_fortsætter_og_begrænses_af_resterende_fradragsramme: pension_årslivrente_med_begrænset_resterende_fradragsramme -> pension_årslivrente_med_begrænset_resterende_fradragsramme.input_gyldigt && pension_årslivrente_med_begrænset_resterende_fradragsramme.postresultater[0].fradragsår == 2017 && pension_årslivrente_med_begrænset_resterende_fradragsramme.postresultater[0].grundlæggende_fradragsret && pension_årslivrente_med_begrænset_resterende_fradragsramme.livrente_beregnet_årsfradrag_kroner == 10000 && pension_årslivrente_med_begrænset_resterende_fradragsramme.livrente_valgt_årsfradrag_kroner == 5000 && pension_årslivrente_med_begrænset_resterende_fradragsramme.samlet_fradrag_i_skattepligtig_indkomst_kroner == 5000
 | pension_årsidentifikationer_skal_være_entydige: pension_årsinput_med_dublet -> pension_årsinput_med_dublet.input_gyldigt == Falskt && pension_årsinput_med_dublet.samlet_fradrag_i_skattepligtig_indkomst_kroner == 0
@@ -603,6 +637,7 @@
 ? pension_fond_er_ikke_par4a_stk4
 ? pension_fradrag_føres_i_personlig_indkomst
 ? pension_årsrate_deler_loft_efter_arbejdsgiver
+? pension_årsaldersopsparing_er_ikke_arbejdsgiverfradragsgrundlag
 ? pension_årslivrenter_deler_opfyldningsvalg
 ? pension_tiårsfordeling_fortsætter_og_begrænses_af_resterende_fradragsramme
 ? pension_årsidentifikationer_skal_være_entydige

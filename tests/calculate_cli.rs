@@ -18898,6 +18898,313 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
 }
 
+fn round_trip_source_inputs_through_generated_personskat_workbook(
+    source_scenario: &Path,
+    source_entry: &str,
+    source_cases: &[(&str, &str)],
+) -> (Value, Value) {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let fixture = root.join("examples/danish-income-tax/personskat.calculate.runa");
+    let source_input_path = temp_path("json");
+    let public_template_path = temp_path("json");
+    let public_input_path = temp_path("json");
+    let workbook_path = temp_path("xlsx");
+
+    let source_template = run(&[
+        "template",
+        source_scenario.to_str().expect("source scenario path"),
+        "--entry",
+        source_entry,
+        "--format",
+        "json",
+        "--output",
+        source_input_path.to_str().expect("source input path"),
+    ]);
+    assert!(
+        source_template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&source_template.stderr)
+    );
+    let mut source_input: Value = serde_json::from_slice(
+        &std::fs::read(&source_input_path).expect("read source JSON template"),
+    )
+    .expect("source JSON template");
+    let source_case = source_input["cases"][0].clone();
+    source_input["cases"] = Value::Array(
+        source_cases
+            .iter()
+            .map(|(case_id, variant)| {
+                let mut case = source_case.clone();
+                case["case_id"] = Value::String((*case_id).to_string());
+                case["input"]["$variant"] = Value::String((*variant).to_string());
+                case
+            })
+            .collect(),
+    );
+    std::fs::write(
+        &source_input_path,
+        serde_json::to_vec_pretty(&source_input).expect("encode source calculation input"),
+    )
+    .expect("write source calculation input");
+
+    let source_call = run(&[
+        "call",
+        source_scenario.to_str().expect("source scenario path"),
+        "--entry",
+        source_entry,
+        "--input",
+        source_input_path.to_str().expect("source input path"),
+    ]);
+    assert!(
+        source_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&source_call.stderr),
+        String::from_utf8_lossy(&source_call.stdout)
+    );
+    let source_output = parse_stdout(&source_call);
+    assert_eq!(source_output["diagnostics"], serde_json::json!([]));
+
+    let public_template = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--format",
+        "json",
+        "--output",
+        public_template_path.to_str().expect("public template path"),
+    ]);
+    assert!(
+        public_template.status.success(),
+        "stderr:\n{}",
+        String::from_utf8_lossy(&public_template.stderr)
+    );
+    let mut public_input: Value = serde_json::from_slice(
+        &std::fs::read(&public_template_path).expect("read Personskat JSON template"),
+    )
+    .expect("Personskat JSON template");
+    public_input["cases"] = Value::Array(
+        source_output["results"]
+            .as_array()
+            .expect("source calculation results")
+            .iter()
+            .map(|result| {
+                serde_json::json!({
+                    "case_id": result["case_id"].as_str().expect("source case id"),
+                    "input": result["result"].clone()
+                })
+            })
+            .collect(),
+    );
+    std::fs::write(
+        &public_input_path,
+        serde_json::to_vec_pretty(&public_input).expect("encode canonical Personskat input"),
+    )
+    .expect("write canonical Personskat input");
+
+    let direct_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        public_input_path.to_str().expect("public input path"),
+    ]);
+    assert!(
+        direct_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&direct_call.stderr),
+        String::from_utf8_lossy(&direct_call.stdout)
+    );
+    let hydrate = run(&[
+        "template",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        public_input_path.to_str().expect("public input path"),
+        "--format",
+        "xlsx",
+        "--output",
+        workbook_path.to_str().expect("workbook path"),
+    ]);
+    assert!(
+        hydrate.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&hydrate.stderr),
+        String::from_utf8_lossy(&hydrate.stdout)
+    );
+    let workbook_call = run(&[
+        "call",
+        fixture.to_str().expect("fixture path"),
+        "--input",
+        workbook_path.to_str().expect("workbook path"),
+    ]);
+
+    std::fs::remove_file(&source_input_path).ok();
+    std::fs::remove_file(&public_template_path).ok();
+    std::fs::remove_file(&public_input_path).ok();
+    std::fs::remove_file(&workbook_path).ok();
+
+    assert!(
+        workbook_call.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&workbook_call.stderr),
+        String::from_utf8_lossy(&workbook_call.stdout)
+    );
+    let direct_output = parse_stdout(&direct_call);
+    let workbook_output = parse_stdout(&workbook_call);
+    assert_eq!(direct_output["diagnostics"], serde_json::json!([]));
+    assert_eq!(workbook_output["diagnostics"], serde_json::json!([]));
+    assert_eq!(workbook_output["results"], direct_output["results"]);
+
+    (source_output, workbook_output)
+}
+
+#[test]
+fn anonymized_2025_source_facts_round_trip_through_generated_personskat_workbook() {
+    let source_scenario = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat-2025-aarsopgoerelse.scenario.runa");
+    let (source_output, workbook_output) =
+        round_trip_source_inputs_through_generated_personskat_workbook(
+            &source_scenario,
+            "årsopgørelse2025_kanoniske_kildefakta_til_arbejdsbog",
+            &[(
+                "personskat-anonymiseret-aarsopgoerelse-2025",
+                "AnonymiseretÅrsopgørelse2025",
+            )],
+        );
+
+    let canonical_input = &source_output["results"][0]["result"];
+    assert_eq!(canonical_input["lønmodtager"]["skatteår"], 2025);
+    assert_eq!(canonical_input["lønmodtager"]["bruttoløn_kroner"], 817_097);
+    assert_eq!(
+        canonical_input["årsopgørelse"]["$variant"],
+        "MedEksaktÅrsopgørelse"
+    );
+
+    let result = &workbook_output["results"][0]["result"];
+    assert_eq!(
+        result["skat"]["personlig_indkomst_efter_am_kroner"],
+        749_936
+    );
+    assert_eq!(result["skat"]["nettokapitalindkomst_kroner"], -36_404);
+    assert_eq!(result["aktieavance"]["aktieindkomst_kroner"], 14_967);
+    assert_eq!(result["slutskat_øre"], 29_059_034);
+    assert_eq!(
+        result["årsopgørelse"]["resultat"]["overskydende_skat_øre"],
+        8_280
+    );
+    assert_eq!(
+        result["årsopgørelse"]["afregning"]["$variant"],
+        "OverskydendeSkatAfregnet"
+    );
+    assert_eq!(
+        result["årsopgørelse"]["afregning"]["resultat"]["udbetales_kroner"],
+        82
+    );
+    assert_eq!(
+        result["årsopgørelse"]["afregning"]["resultat"]["ikke_udbetalt_øre"],
+        80
+    );
+}
+
+#[test]
+fn anonymized_2023_and_2024_source_facts_round_trip_through_generated_personskat_workbook() {
+    let source_scenario = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat-2023-2024-aarsopgoerelser.scenario.runa");
+    let (_, workbook_output) = round_trip_source_inputs_through_generated_personskat_workbook(
+        &source_scenario,
+        "historiske_kanoniske_kildefakta_til_arbejdsbog",
+        &[
+            (
+                "personskat-anonymiseret-aarsopgoerelse-2023",
+                "AnonymiseretÅrsopgørelse2023",
+            ),
+            (
+                "personskat-anonymiseret-aarsopgoerelse-2024",
+                "AnonymiseretÅrsopgørelse2024",
+            ),
+        ],
+    );
+    let results = workbook_output["results"]
+        .as_array()
+        .expect("historical Personskat workbook results");
+    let result_2023 = &results
+        .iter()
+        .find(|case| case["case_id"] == "personskat-anonymiseret-aarsopgoerelse-2023")
+        .expect("2023 Personskat workbook result")["result"];
+    let result_2024 = &results
+        .iter()
+        .find(|case| case["case_id"] == "personskat-anonymiseret-aarsopgoerelse-2024")
+        .expect("2024 Personskat workbook result")["result"];
+
+    for (result, expected) in [
+        (
+            result_2023,
+            (2023, 767_928, -26_159, 858, 60_108, 22_735, 658_926, 66_732),
+        ),
+        (
+            result_2024,
+            (
+                2024, 914_168, -23_253, 1_385, 63_772, 20_301, 806_842, 79_740,
+            ),
+        ),
+    ] {
+        let (year, personal, capital, shares, deductions, spouse, taxable, am) = expected;
+        assert_eq!(result["skat"]["skatteår"], year);
+        assert_eq!(
+            result["skat"]["personlig_indkomst_efter_am_kroner"],
+            personal
+        );
+        assert_eq!(result["skat"]["nettokapitalindkomst_kroner"], capital);
+        assert_eq!(result["aktieavance"]["aktieindkomst_kroner"], shares);
+        assert_eq!(
+            result["skat"]["samlede_ligningsmæssige_fradrag_kroner"],
+            deductions
+        );
+        assert_eq!(
+            result["indgående_ægtefælle"]["par13_indkomstfradrag_kroner"],
+            spouse
+        );
+        assert_eq!(
+            result["skat"]["almindelig_skattepligtig_indkomst_kroner"],
+            taxable
+        );
+        assert_eq!(result["skat"]["arbejdsmarkedsbidrag_kroner"], am);
+    }
+
+    assert_eq!(result_2023["slutskat_øre"], 30_605_958);
+    assert_eq!(
+        result_2023["årsopgørelse"]["resultat"]["overskydende_skat_øre"],
+        3_350_634
+    );
+    assert_eq!(
+        result_2023["årsopgørelse"]["afregning"]["resultat"]["godtgørelse_øre"],
+        26_805
+    );
+    assert_eq!(
+        result_2023["årsopgørelse"]["afregning"]["resultat"]["udbetales_kroner"],
+        33_774
+    );
+    assert_eq!(
+        result_2023["årsopgørelse"]["afregning"]["resultat"]["ikke_udbetalt_øre"],
+        39
+    );
+
+    assert_eq!(result_2024["slutskat_øre"], 39_709_195);
+    assert_eq!(
+        result_2024["årsopgørelse"]["resultat"]["overskydende_skat_øre"],
+        292_459
+    );
+    assert_eq!(
+        result_2024["årsopgørelse"]["afregning"]["resultat"]["godtgørelse_øre"],
+        1_754
+    );
+    assert_eq!(
+        result_2024["årsopgørelse"]["afregning"]["resultat"]["udbetales_kroner"],
+        2_942
+    );
+    assert_eq!(
+        result_2024["årsopgørelse"]["afregning"]["resultat"]["ikke_udbetalt_øre"],
+        13
+    );
+}
+
 #[test]
 fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))

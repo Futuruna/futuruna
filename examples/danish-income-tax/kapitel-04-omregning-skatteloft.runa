@@ -335,8 +335,8 @@ nedsat med de overskydende procenter.
     skatteår = skatteår,
     bundskat_basispoint = nationalparametre_for(skatteår).bundskat_basispoint,
     progressiv_statsskat_basispoint = par19_loftrelevant_progressiv_statsskat_basispoint(skatteår),
-    sundhedsbidrag_basispoint = kommunale_parametre_for(skatteår, kommune).sundhedsbidrag_basispoint,
-    kommunal_eller_par8c_basispoint = kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint,
+    sundhedsbidrag_basispoint = kommunale_indkomstskatteparametre_for(skatteår, kommune).sundhedsbidrag_basispoint,
+    kommunal_eller_par8c_basispoint = kommunale_indkomstskatteparametre_for(skatteår, kommune).kommuneskat_basispoint,
     beregningsgrundlag_kroner = beregningsgrundlag_kroner
 ) under parameterpakke_komplet(skatteår, kommune)
 | par19_personlig_skatteloft_input_for(skatteår: Heltal, kommune: Kommune, beregningsgrundlag_kroner: Heltal) -> par19_skatteloft_input_for(skatteår, kommune, beregningsgrundlag_kroner)

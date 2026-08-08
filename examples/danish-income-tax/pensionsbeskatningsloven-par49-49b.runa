@@ -77,7 +77,7 @@ lov om arbejdsløshedsforsikring m.v.
 # Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
 # Pbl49Til49BÅrsresultat(indkomstår: Heltal, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
-| pbl49_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| pbl49_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
 | pbl49_arbejdsløshedskasse_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status != Pbl49IkkeArbejdsløshedskasse
 | pbl49_stk3_akassemedlemskab_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status == Pbl49DanskAnerkendtArbejdsløshedskasse || status == Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 || status == Pbl49ArbejdsløshedskasseUdenForEUEØS
 | pbl49_relevant_dansk_indkomst(indkomstgrundlag: Pbl49DanskIndkomstgrundlag) -> indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr1Eller4 || indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr12Dagpenge

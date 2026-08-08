@@ -207,8 +207,10 @@ Skattestyrelsens 2026-satser.
     pensionsfradrag = LønmodtagerPensionsfradrag(
         fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+        pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 0,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
         pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
         pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
     ),

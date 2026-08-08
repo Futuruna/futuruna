@@ -21,7 +21,7 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::$variant),
     label = "Arbejdsgiverbetalt ydelse",
     question = Some("Hvilken retlig type arbejdsgiverbetalt ydelse fremgår af kildematerialet?"),
-    help = Some("Vælg ikke ud fra årsopgørelsens samlelinje alene. Brug lønseddel, eIndkomst eller pensionsoversigt til at afgøre ydelsens type og AM-status."),
+    help = Some("Vælg den præcise retlige type, når kilden dokumenterer den. Brug den afgrænsede PBL § 19/PBL § 56-samlepost, når kilden kun viser det samlede indberettede beløb."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_direkte_gruppeliv = TypetBeregningsfelt(
@@ -37,6 +37,62 @@
     question = Some("Hvor stor personlig indkomst er indberettet for gruppeliv, der er en uadskilt del af en arbejdsgiveradministreret pensionsordning?"),
     help = Some("Forsikringsselskabet har allerede indeholdt arbejdsmarkedsbidrag. Beløbet må derfor ikke lægges i et nyt AM-grundlag."),
     unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::arbejdsgiverrelation::$variant),
+    label = "Pensionsindbetalingens arbejdsgiverrelation",
+    question = Some("Blev pensionsindbetalingen foretaget af den nuværende arbejdsgiver, en tidligere arbejdsgiver eller en anden indbetaler?"),
+    help = Some("PBL § 19, stk. 1, omfatter indbetalinger fra en nuværende eller tidligere arbejdsgiver."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_ordning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::ordning::$variant),
+    label = "Den arbejdsgiveradministrerede pensionsordning",
+    question = Some("Hvilken pensionsordning blev arbejdsgiverens indbetaling ført til?"),
+    help = Some("Aldersopsparing, aldersforsikring og supplerende engangssum er udtrykkeligt undtaget fra bortseelsesretten i PBL § 19, stk. 1."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_før_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner),
+    label = "Arbejdsgiveradministreret pension før indeholdt AM-bidrag",
+    question = Some("Hvilket bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag er indberettet?"),
+    help = Some("Feltet er valgfrit, når kilden kun viser beløbet efter AM-bidrag. Et oplyst bruttobeløb bruges i beskæftigelses- og jobfradragets grundlag uden at opkræve bidraget igen."),
+    unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_efter_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
+    label = "Arbejdsgiveradministreret pension efter AM-bidrag",
+    question = Some("Hvor stor pensionsindbetaling er indberettet efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag?"),
+    help = Some("Brug beløbet efter AM-bidrag fra årsopgørelsen, eIndkomst eller pensionsoversigten. Futuruna opkræver ikke arbejdsmarkedsbidrag af beløbet igen."),
+    unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_før_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner),
+    label = "Pensions- og gruppelivssamlepost før indeholdt AM-bidrag",
+    question = Some("Hvilket samlet bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
+    help = Some("Brug feltet, når en indberetning samler arbejdsgiveradministreret aldersopsparing, gruppeliv eller andre afgrænsede undtagelser uden at oplyse den præcise fordeling."),
+    unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_efter_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56::indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
+    label = "Pensions- og gruppelivssamlepost efter indeholdt AM-bidrag",
+    question = Some("Hvilket samlet beløb efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag fremgår af kilden?"),
+    help = Some("Beløbet medregnes i personlig indkomst uden et nyt AM-bidrag. Angiv ikke en mere præcis pensionsart, end kilden dokumenterer."),
+    unit = Some("kr./år")
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_kapitalstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::kapitalordningsstatus::$variant),
+    label = "Tidligere afgiftsberigtigelse af kapitalordning",
+    question = Some("Er kapitalforsikringen eller opsparingen tidligere afgiftsberigtiget efter pensionsalderen?"),
+    help = Some("Vælg ingen tidligere afgiftsberigtigelse for andre ordningstyper. Senere arbejdsgiverindbetalinger til en afgiftsberigtiget kapitalordning medregnes i indkomsten."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_pbl19_pension_afgiftsår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::kapitalordningsstatus::Pbl19AfgiftsberigtigetEfterPensionsalderen::afgiftsberigtigelsesår),
+    label = "Kapitalordningens afgiftsberigtigelsesår",
+    question = Some("I hvilket indkomstår blev kapitalordningen første gang afgiftsberigtiget efter pensionsalderen?"),
+    help = Some("Året bruges til at afgøre, om den aktuelle arbejdsgiverindbetaling ligger i et efterfølgende indkomstår."),
+    unit = Some("år")
 )
 = personskat_personlig_indkomst_felt_naturalie_art = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::NaturalieEfterArbejdsmarkedsbidragslovensPar2Stk2::art),
@@ -131,6 +187,14 @@
         personskat_personlig_indkomst_felt_arbejdsgiverydelse_art,
         personskat_personlig_indkomst_felt_direkte_gruppeliv,
         personskat_personlig_indkomst_felt_pbl19_gruppeliv,
+        personskat_personlig_indkomst_felt_pbl19_pension_arbejdsgiverrelation,
+        personskat_personlig_indkomst_felt_pbl19_pension_ordning,
+        personskat_personlig_indkomst_felt_pbl19_pension_før_am,
+        personskat_personlig_indkomst_felt_pbl19_pension_efter_am,
+        personskat_personlig_indkomst_felt_pbl19_pension_kapitalstatus,
+        personskat_personlig_indkomst_felt_pbl19_pension_afgiftsår,
+        personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_før_am,
+        personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_efter_am,
         personskat_personlig_indkomst_felt_naturalie_art,
         personskat_personlig_indkomst_felt_naturalie_værdi,
         personskat_personlig_indkomst_felt_uklassificeret_ydelse_beskrivelse,
@@ -150,6 +214,7 @@
         Source(value = personskatteloven_lbk1284_par3),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
         Guidance(value = skat_gruppeliv_vejledning),
     )

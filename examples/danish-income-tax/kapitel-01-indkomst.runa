@@ -1095,8 +1095,8 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr3Resultat(brutto_kapitalafkast_kroner: Heltal, skattekontrollov_hjemmel: SkattekontrollovOplysningsfristKilde, oplysningsfrist_yyyymmdd: Heltal, overført_til_skattepligtig_inden_oplysningsfrist: Boolsk, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_efter_par23a_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr3aInput(virksomhedsskattelov22a_resultat: Virksomhedsskattelov22AResultat, virksomhedsskattelov23a_resultat: Virksomhedsskattelov23AResultat, virksomhedsskattelov22c_resultat: Virksomhedsskattelov22CResultat)
 # Par4Stk1Nr3aResultat(kapitalafkast_efter_virksomhedsskattelov22a_kroner: Heltal, medregnet_personlig_indkomst_efter_par23a_kroner: Heltal, kapitalafkast_22a_efter_par23a_kroner: Heltal, kapitalafkast_efter_virksomhedsskattelov22c_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-# Par4Stk1Nr4Input(ligningslov16a_resultat: Ligningslov16AResultat, par4a_aktiepost_resultat: Par4aAktiepostResultat, andelsforening_udlodning: AndelsforeningUdlodning)
-# Par4Stk1Nr4Resultat(skattepligtigt_udbytte_kroner: Heltal, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, aktieindkomst_efter_par4a_kroner: Heltal, ikke_aktieindkomst_efter_par4a: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
+# Par4Stk1Nr4Input(ligningslov16a_resultat: Ligningslov16AResultat, par4a_aktiepost_resultat: Par4aAktiepostResultat, andelsforening_udlodning: AndelsforeningUdlodning, aktieavance_aktivklassifikation: Option(AktieavanceAktivklassifikationInput))
+# Par4Stk1Nr4Resultat(skattepligtigt_udbytte_kroner: Heltal, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, aktieindkomst_efter_par4a_kroner: Heltal, aktieavance_aktivklassifikation_resultat: Option(AktieavanceAktivklassifikationResultat), aktieavance_aktivklassifikation_gyldig: Boolsk, ikke_aktieindkomst_efter_par4a: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr5Input(aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
 # Par4Stk1Nr5Resultat(effektiv_aktiv: AktieavancebeskatningslovAktiv, skattepligtig_gevinst_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, kapitalindkomst_kroner: Heltal, personlig_reklassifikation: KapitalPersonligReklassifikation)
 # Par4Stk1Nr5aInput(beløb_kroner: Heltal, selskabsskattelov1_stk1_nr6_resultat: Selskabsskattelov1Stk1Nr6Resultat)
@@ -1393,10 +1393,30 @@ fra og med den 1. januar 2027.
     | par4a_samme_udbyttepost() -> input.par4a_aktiepost_resultat.art == Ligningslov16AUdbytte && input.par4a_aktiepost_resultat.beløb_kroner == skattepligtigt_udbytte_kroner()
     | par4a_afgrænsning() -> input.par4a_aktiepost_resultat.afgrænsning
     | aktieindkomst_efter_par4a_kroner() -> input.par4a_aktiepost_resultat.aktieindkomst_kroner
+    | aktieavance_aktivklassifikation_resultat() -> match input.aktieavance_aktivklassifikation {
+        | Some(klassifikation) -> Some(aktieavance_aktivklassifikation_resultat(klassifikation))
+        | None -> None
+    }
+    | aktieavance_aktivklassifikation_gyldig() -> match aktieavance_aktivklassifikation_resultat() {
+        | Some(resultat) -> resultat.input_gyldigt
+        | None -> Sandt
+    }
+    | aktieavance_aktivklassifikation_tillader_kapitalindkomst() -> match aktieavance_aktivklassifikation_resultat() {
+        | Some(resultat) -> resultat.input_gyldigt && resultat.ville_være_omfattet_af_par17_uden_investeringsstatus == Falskt && (resultat.effektiv_aktiv == AblInvesteringsselskab19C || resultat.effektiv_aktiv == AblMinimumsbevis22)
+        | None -> Sandt
+    }
     | ikke_aktieindkomst_efter_par4a() -> par4a_samme_udbyttepost() && input.par4a_aktiepost_resultat.medregnes_i_aktieindkomst == Falskt
     | personlig_reklassifikation() -> IngenPersonligReklassifikation
     | exception par4_stk4_andelsudlodning_ikke_normal personlig_reklassifikation() -> AndelsUdlodningIkkeNormal under andelsudlodning_medregnes_personligt(input.andelsforening_udlodning)
-    | omfattet_af_kapitalindkomst() -> input.ligningslov16a_resultat.omfattet_af_par16a_udbytte && ikke_aktieindkomst_efter_par4a() && personlig_reklassifikation() == IngenPersonligReklassifikation
+    | exception par4_stk5_aktieavance19c_hvis17 personlig_reklassifikation() -> Aktieavance19CHvis17Aktier under match aktieavance_aktivklassifikation_resultat() {
+        | Some(resultat) -> resultat.input_gyldigt && resultat.effektiv_aktiv == AblInvesteringsselskab19C && resultat.ville_være_omfattet_af_par17_uden_investeringsstatus
+        | None -> Falskt
+    }
+    | exception par4_stk5_aktieavance22_efter17 personlig_reklassifikation() -> Aktieavance17Aktier under match aktieavance_aktivklassifikation_resultat() {
+        | Some(resultat) -> resultat.input_gyldigt && resultat.effektiv_aktiv == AblMinimumsbevis22 && resultat.ville_være_omfattet_af_par17_uden_investeringsstatus
+        | None -> Falskt
+    }
+    | omfattet_af_kapitalindkomst() -> input.ligningslov16a_resultat.omfattet_af_par16a_udbytte && aktieavance_aktivklassifikation_gyldig() && aktieavance_aktivklassifikation_tillader_kapitalindkomst() && ikke_aktieindkomst_efter_par4a() && input.par4a_aktiepost_resultat.personlig_indkomst_kroner == 0 && personlig_reklassifikation() == IngenPersonligReklassifikation
     | kapitalindkomst_kroner() -> 0
     | exception par4_stk1_nr4_udbytte_ikke_aktieindkomst kapitalindkomst_kroner() -> skattepligtigt_udbytte_kroner() under omfattet_af_kapitalindkomst()
     | postbeløb_kroner() -> 0
@@ -1406,6 +1426,8 @@ fra og med den 1. januar 2027.
         skattepligtigt_udbytte_kroner = skattepligtigt_udbytte_kroner(),
         par4a_afgrænsning = par4a_afgrænsning(),
         aktieindkomst_efter_par4a_kroner = aktieindkomst_efter_par4a_kroner(),
+        aktieavance_aktivklassifikation_resultat = aktieavance_aktivklassifikation_resultat(),
+        aktieavance_aktivklassifikation_gyldig = aktieavance_aktivklassifikation_gyldig(),
         ikke_aktieindkomst_efter_par4a = ikke_aktieindkomst_efter_par4a(),
         omfattet_af_kapitalindkomst = omfattet_af_kapitalindkomst(),
         kapitalindkomst_kroner = kapitalindkomst_kroner(),
@@ -1414,10 +1436,17 @@ fra og med den 1. januar 2027.
 }
 | par4_stk1_nr4_sag(input: Par4Stk1Nr4Input) -> Par4Stk1Nr4Sag(input)
 | par4_stk1_nr4_resultat(input: Par4Stk1Nr4Input) -> par4_stk1_nr4_sag(input).resultat()
+| par4_stk1_nr4_input_fra_resultater(ligningslov16a_resultat: Ligningslov16AResultat, par4a_aktiepost_resultat: Par4aAktiepostResultat, andelsforening_udlodning: AndelsforeningUdlodning, aktieavance_aktivklassifikation: Option(AktieavanceAktivklassifikationInput)) -> Par4Stk1Nr4Input(
+    ligningslov16a_resultat = ligningslov16a_resultat,
+    par4a_aktiepost_resultat = par4a_aktiepost_resultat,
+    andelsforening_udlodning = andelsforening_udlodning,
+    aktieavance_aktivklassifikation = aktieavance_aktivklassifikation
+)
 | par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> Par4Stk1Nr4Input(
     ligningslov16a_resultat = ligningslov16a_resultat,
     par4a_aktiepost_resultat = par4a_ligningslov16a_aktiepost_resultat_fra_resultat(ligningslov16a_resultat, par4a_afgrænsning),
-    andelsforening_udlodning = andelsforening_udlodning
+    andelsforening_udlodning = andelsforening_udlodning,
+    aktieavance_aktivklassifikation = None
 )
 | par4_stk1_nr4_input_fra_ligningslov16a(input: Ligningslov16AInput, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat(input), par4a_afgrænsning, andelsforening_udlodning)
 | par4_stk1_nr4_resultat_fra_ligningslov16a_resultat(ligningslov16a_resultat: Ligningslov16AResultat, par4a_afgrænsning: AktiepostStk1Og2Afgrænsning, andelsforening_udlodning: AndelsforeningUdlodning) -> par4_stk1_nr4_resultat(par4_stk1_nr4_input_fra_ligningslov16a_resultat(ligningslov16a_resultat, par4a_afgrænsning, andelsforening_udlodning))
@@ -2788,6 +2817,12 @@ Stk. 5. Aktieindkomst indgår ikke i den skattepligtige indkomst.
     beløb_kroner = resultat.udbytte_kroner,
     afgrænsning = afgrænsning,
     personlig_reklassifikation = IngenAktieTilPersonligUndtagelse
+))
+| par4a_ligningslov16a_aktiepost_resultat_fra_resultat_med_personlig_reklassifikation(resultat: Ligningslov16AResultat, afgrænsning: AktiepostStk1Og2Afgrænsning, personlig_reklassifikation: AktieTilPersonligUndtagelse) -> par4a_aktiepost_resultat(Par4aAktiepost(
+    art = Ligningslov16AUdbytte,
+    beløb_kroner = resultat.udbytte_kroner,
+    afgrænsning = afgrænsning,
+    personlig_reklassifikation = personlig_reklassifikation
 ))
 | par4a_ligningslov16a_aktiepost_resultat(input: Ligningslov16AInput, afgrænsning: AktiepostStk1Og2Afgrænsning) -> par4a_ligningslov16a_aktiepost_resultat_fra_resultat(ligningslov16a_resultat(input), afgrænsning)
 | par4a_aktieindkomst_efter_stk1_og_2_kroner(input: Par4aAktieindkomstInput) -> foldl(input.poster, 0, |sum, post| sum + par4a_aktiepost_i_aktieindkomst_kroner(post))

@@ -5,6 +5,7 @@
 @ importer ./slutopgoerelse
 @ importer ./metadata
 @ importer ./ligningsloven - par33
+@ importer ./personskat.calculate
 
 -- Anonymiseret realitetstest mod en privat årsopgørelse for indkomståret 2025.
 -- Personnummer, navn, adresser og ejendomsidentifikationer er bevidst udeladt.
@@ -239,6 +240,414 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 )
 = årsopgørelse2025_afregningsresultat = kildeskat_overskydende_afregning_eksakt(årsopgørelse2025_slutopgørelsesresultat, årsopgørelse2025_afregningsfakta)
 
+----
+Kanonisk kilderekonstruktion:
+
+Årsopgørelsen dokumenterer beløbene og flere af deres skattemæssige kategorier,
+men ikke alle underliggende ordnings- og instrumentvilkår. De supplerende fakta
+nedenfor er derfor en minimal, eksplicit rekonstruktion, som skal bekræftes mod
+eIndkomst, pensionsoversigter, virksomhedsregnskab og depotoplysninger. De er
+ikke udledt af myndighedens beregnede slutskat.
+
+Arbejdsgiverens rateindbetaling på 3.279 kr. efter AM-bidrag er repræsenteret
+som 3.564 kr. før og 285 kr. i indeholdt AM-bidrag. Aldersopsparing er valgt som
+den konkrete § 19-undtagelse bag de 911 kr.; en anden dokumenteret undtaget
+ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
+----
+
+| årsopgørelse2025_arbejdsgiverydelse(identifikation: Tekst, ydelse: PersonskatArbejdsgiverydelse) -> PersonskatArbejdsgiverydelseFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    ydelse = ydelse
+)
+| årsopgørelse2025_pbl18_indbetaling(identifikation: Tekst, ordning: Pbl18Ordning, indbetalingskilde: Pbl18Indbetalingskilde, beløb_før_am_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal) -> Pbl18Årsindbetaling(
+    identifikation = identifikation,
+    ordning = ordning,
+    indbetalingskilde = indbetalingskilde,
+    fradragsretshaver = Pbl18OrdningensEjer,
+    betaling = Pbl18Årsbetaling(
+        beløb_kroner = beløb_før_am_kroner,
+        forfaldsår = 2025,
+        betalingsår = 2025,
+        betalt_senest_bankjusteret_1_april_efter_forfald = Sandt,
+        hidrører_fra_par22e_tilbagebetaling = Falskt,
+        par15a_fradragsplacering = Pbl18IkkePar15APlacering,
+        arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner
+    ),
+    fordelingsforløb = Pbl18IngenTiårsfordeling,
+    indeksvalg = Pbl18Indeksvalg(fradragsvalgte_kontraktbidrag_kroner = []),
+    indeksordningsgrundlag = Pbl18IkkeIndeksordning,
+    forfaldne_ikke_tidligere_fratrukket_kroner = beløb_før_am_kroner,
+    særligt_ordningsgrundlag = Pbl18IntetSærligtOrdningsgrundlag,
+    begrænsninger = Pbl18Begrænsninger(
+        pbl54_personkreds_opfyldt = Sandt,
+        afgiftspligt_for_hele_ordningen_indtrådt = Falskt,
+        udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens = Falskt
+    )
+)
+
+= årsopgørelse2025_arbejdsgiveradministreret_samlepost = ArbejdsgiveradministreretSamlepostEfterPbl19EllerPbl56(
+    indberettet_beløb_før_indeholdt_arbejdsmarkedsbidrag_kroner = None,
+    indberettet_beløb_efter_indeholdt_arbejdsmarkedsbidrag_kroner = årsopgørelse2025_personlig.arbejdsgiverpension_efter_am_kroner
+)
+= årsopgørelse2025_personlig_indkomst_input = PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [
+            årsopgørelse2025_arbejdsgiverydelse(
+                "gruppeliv-efter-indeholdt-am",
+                GruppelivSomUadskiltDelAfPbl19Ordning(
+                    personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = årsopgørelse2025_personlig.gruppeliv_og_ydelser_kroner
+                )
+            ),
+            årsopgørelse2025_arbejdsgiverydelse(
+                "arbejdsgiveradministreret-samlepost-efter-indeholdt-am",
+                årsopgørelse2025_arbejdsgiveradministreret_samlepost
+            )
+        ],
+        virksomheder_uden_virksomhedsordning = [PersonskatOrdinærVirksomhedFakta(
+            identifikation = "virksomhed-med-underskud",
+            indkomstår = 2025,
+            indtægter = [],
+            udgifter = [PersonskatVirksomhedsudgiftFakta(
+                identifikation = "dokumenteret-driftsunderskud",
+                afgrænsning = SelvstændigErhvervsindkomstUdgift,
+                beløb_kroner = årsopgørelse2025_personlig.virksomhedsunderskud_kroner
+            )]
+        )],
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+
+= årsopgørelse2025_pensionsinput = PersonskatPensionsInput(
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_indbetalinger = [
+        årsopgørelse2025_pbl18_indbetaling(
+            identifikation = "privat-livrente",
+            ordning = Pbl18LivsvarigLivrente,
+            indbetalingskilde = Pbl18EgenIndbetaling,
+            beløb_før_am_kroner = årsopgørelse2025_personlig.privat_livrente_kroner,
+            arbejdsmarkedsbidrag_kroner = 0
+        ),
+        årsopgørelse2025_pbl18_indbetaling(
+            identifikation = "arbejdsgiver-ratepension",
+            ordning = Pbl18Rateopsparing,
+            indbetalingskilde = Pbl18Arbejdsgiverindbetaling,
+            beløb_før_am_kroner = 3564,
+            arbejdsmarkedsbidrag_kroner = 285
+        )
+    ],
+    pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
+    pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(
+        afståelser = [],
+        ordninger = [],
+        kvalifikationsår = [],
+        tidligere_indbetalinger = []
+    ),
+    pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
+    øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
+)
+
+| årsopgørelse2025_investeringsaktivmasse(kvalificerende_aktiver_kroner: Heltal, øvrige_værdipapirer_kroner: Heltal) -> AktieavanceInvesteringsaktivmasse(
+    indkomstår = 2025,
+    direkte_aktiver = [
+        AblDirekteInvesteringsaktiv(
+            art = AblKvalificerendeAktieaktiv,
+            gennemsnitlig_værdi_kroner = kvalificerende_aktiver_kroner
+        ),
+        AblDirekteInvesteringsaktiv(
+            art = AblAndetVærdipapir,
+            gennemsnitlig_værdi_kroner = øvrige_værdipapirer_kroner
+        )
+    ],
+    ejerposter = []
+)
+= årsopgørelse2025_abl19c_klassifikation = AktieavancePar19BPar19CInput(
+    indkomstår = 2025,
+    meddelelse = AblIngenPar19BMeddelelse,
+    aktivmasse = årsopgørelse2025_investeringsaktivmasse(20000, 80000),
+    oplysninger = AblPar19BOplysningerIkkeIndsendt
+)
+= årsopgørelse2025_ikke_næringsaktiv = AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+| årsopgørelse2025_almindeligt_udbytte(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatUdbytteFakta(
+    identifikation = identifikation,
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatAlmindeligAktie,
+    beløb_kroner = beløb_kroner,
+    par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+)
+= årsopgørelse2025_investeringsudlodning = PersonskatUdbytteFakta(
+    identifikation = "investeringsudlodning-abl19c",
+    udlodder = Ll16AAlmindeligtSelskab,
+    modtager = Ll16AAktuelAktionær,
+    aktiv = PersonskatInvesteringsselskabsandel(
+        klassifikation = årsopgørelse2025_abl19c_klassifikation,
+        par17_modprøve = årsopgørelse2025_ikke_næringsaktiv
+    ),
+    beløb_kroner = årsopgørelse2025_kapital.investeringsudlodning_kroner,
+    par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+)
+= årsopgørelse2025_investeringsgevinst_input = PersonskatØvrigtSærligtAktieaktivInput(
+    indkomstår = 2025,
+    aktiv = AblInvesteringsselskabPar19TilKlassifikation,
+    afståelsessum_kroner = 102693,
+    anskaffelsessum_kroner = 100000,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    investeringsklassifikation = AblPar19BPar19CKlassifikation(input = årsopgørelse2025_abl19c_klassifikation)
+)
+= årsopgørelse2025_investeringsgevinst = PersonskatSærligtAktieaktivFakta(
+    identifikation = "investeringsgevinst-abl19c",
+    kilde = PersonskatØvrigtAktieaktiv(
+        input = årsopgørelse2025_investeringsgevinst_input,
+        par17_modprøvekilde = MedPar17Modprøvekilde(fakta = PersonskatPar17Kildefakta(
+            indkomstår = 2025,
+            skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            instrument = AblPar17UndtagetEfterPar19C,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej,
+            afståelsessum_kroner = 102693,
+            anskaffelsessum_kroner = 100000
+        ))
+    ),
+    markedsstatus = AblIkkeOptagetTilHandel
+)
+= årsopgørelse2025_aktieavanceinput = PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [årsopgørelse2025_investeringsgevinst],
+    udbytter = [
+        årsopgørelse2025_investeringsudlodning,
+        årsopgørelse2025_almindeligt_udbytte("øvrig-aktieindkomst", 14569),
+        årsopgørelse2025_almindeligt_udbytte("udenlandsk-aktieudbytte", 398)
+    ]
+)
+
+= årsopgørelse2025_kapitalindkomstinput = PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = årsopgørelse2025_kapital.renteindtægt_kroner,
+        renteudgifter_kroner = årsopgørelse2025_kapital.realkreditrenter_kroner + årsopgørelse2025_kapital.bankrenter_kroner,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+
+= årsopgørelse2025_gavemodtager = LigningslovGavemodtagerFakta(
+    identifikation = "anonymiseret-gavemodtager",
+    hjemsted = LlGaveDanmark,
+    formål = LlGaveAlmennyttigtTilStørreKreds,
+    godkendelse = LlGaveGodkendtEfterPar8A(godkendelsesår = 2025),
+    likvidationsprovenu_til_anden_velgørende_forening = Sandt
+)
+= årsopgørelse2025_ligningsfradragsinput = PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
+    befordring = personskat_ingen_befordringsfradrag(),
+    rejser = ligningslov9a_intet_årsinput(),
+    faglige_kontingenter = Ligningslov13Årsinput(
+        skatteyderstatus = Ll13Lønmodtager,
+        kontingenter = [Ligningslov13KontingentFakta(
+            identifikation = "fagforening-2025",
+            forening_identifikation = "anonymiseret-fagforening",
+            indkomstår = 2025,
+            periode = Ligningslov13Kontingentperiode(
+                fra_dato = Dato(år = 2025, måned = 1, dag = 1),
+                til_dato = Dato(år = 2025, måned = 12, dag = 31)
+            ),
+            foreningsart = Ll13Fagforening,
+            betalt_kontingent_kroner = årsopgørelse2025_fradrag.fagforening_kroner,
+            foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = årsopgørelse2025_fradrag.fagforening_kroner,
+            foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser = Sandt,
+            skatteyder_hører_til_erhvervsgruppen = Sandt,
+            indberetningsstatus = Ll13IndberettetEfterSkatteindberetningslov31
+        )]
+    ),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = [Pbl49Til49BBidragsfakta(
+            identifikation = "a-kasse-2025",
+            indkomstår = 2025,
+            betalt_beløb_kroner = årsopgørelse2025_fradrag.a_kasse_mv_kroner,
+            art = Pbl49Akassekontingent(
+                arbejdsløshedskasse = Pbl49DanskAnerkendtArbejdsløshedskasse,
+                skatteyderen_er_medlem_og_forsikret = Sandt
+            )
+        )]
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [LigningslovGaveFakta(
+        identifikation = "gave-2025",
+        indkomstår = 2025,
+        betalt_beløb_kroner = årsopgørelse2025_fradrag.gaver_kroner,
+        modtager = årsopgørelse2025_gavemodtager,
+        indberettet_efter_skatteindberetningslov26 = Sandt,
+        art = Ll8AAlmindeligGave(fradraget_efter_par8s = Falskt)
+    )])
+)
+
+= årsopgørelse2025_kanonisk_lønmodtager = PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = Frederiksberg,
+    bruttoløn_kroner = årsopgørelse2025_personlig.løn_før_am_kroner,
+    personlig_indkomst = årsopgørelse2025_personlig_indkomst_input,
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = årsopgørelse2025_ligningsfradragsinput,
+    pension = årsopgørelse2025_pensionsinput,
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= årsopgørelse2025_ægtefælle_kapitalindkomstinput = PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = årsopgørelse2025_ægtefælle.renteudgifter_kroner,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+= årsopgørelse2025_ægtefælle_personfakta = PersonskatPersonFakta(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2025,
+        kommune = Frederiksberg,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = årsopgørelse2025_ægtefælle_kapitalindkomstinput,
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
+
+= årsopgørelse2025_kanoniske_ejendomsskatter = EjendomsskattelovPersonÅrsfakta(
+    person = ejendomsskattelov_ingen_person_kildefakta(),
+    ejendomme = [EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = årsopgørelse2025_ejendom,
+        nedslagsfakta = EjendomsskattelovNedslagsfakta(
+            ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
+                oprindelig_erhvervelsesdato = EjendomsskattelovDato(år = 2025, måned = 8, dag = 1),
+                ejerskifter = []
+            ),
+            boliganvendelse = EjskHelårsbolig,
+            selvstændige_boligenheder = 1,
+            ejendomsform = EjskIkkeEjerlejlighed,
+            fredet_og_omfattet_af_ligningslovens_par15k = Falskt,
+            par24_beregningsgrundlag = EjskPar24SammeVærdiSomPar13,
+            pensionistsuccession = EjskIngenPensionistsuccession,
+            udenlandske_ejendomsskatter = []
+        ),
+        overgangsomfang = EjendomsskattelovOvergangsomfang(
+            vurderingskategori = EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1,
+            ejerkreds = EjskKunFysiskeEjere
+        ),
+        overgangsvurderinger = ejendomsskattelov_ingen_overgangsvurderinger()
+    )]
+)
+
+= årsopgørelse2025_kanonisk_ligningslov33 = PersonskatLigningslov33ParInput(
+    hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
+        indkomstår = 2025,
+        dansk_bruttoindkomst_kroner = 14569,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        kreditgrupper = [Ligningslov33PersonKreditgruppe(
+            identifikation = "udenlandsk-aktieudbytte",
+            grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
+            indkomstfakta = Ligningslov33Indkomstfakta(
+                område = Ll33FremmedStat("anonymiseret"),
+                udenlandsk_bruttoindkomst_kroner = 398,
+                direkte_henførbare_udgifter_kroner = 0
+            ),
+            skattebetalinger = [Ligningslov33Skattebetaling(
+                opkrævningsmåde = Ll33Indeholdelse,
+                betalt_udenlandsk_skat_øre = 600,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Anonymiseret privat årsopgørelse 2025, side 2",
+                overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
+                    fradragsberettiget_udenlandsk_skat_øre = 600,
+                    dokumentreference = "Anonymiseret privat årsopgørelse 2025, side 4"
+                )
+            )],
+            udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
+                skattepligtig_nettoindkomst_efter_par33f_kroner = 0,
+                personlig_nettoindkomst_efter_par33f_kroner = 0,
+                positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
+                aktienettoindkomst_efter_par33f_kroner = 398,
+                cfc_nettoindkomst_efter_par33f_kroner = 0,
+                arbejdsmarkedsbidragsgrundlag_kroner = 0
+            ),
+            lønlempelsesstatus = Ll33IngenLønindkomst
+        )],
+        par6_kreditter = [],
+        fragtskat_åbningssaldi = []
+    )),
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
+)
+
+= årsopgørelse2025_kanonisk_input = PersonskatInput(
+    lønmodtager = årsopgørelse2025_kanonisk_lønmodtager,
+    kapitalindkomst = årsopgørelse2025_kapitalindkomstinput,
+    aktieavance = årsopgørelse2025_aktieavanceinput,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = årsopgørelse2025_ægtefælle_personfakta,
+        samlevende_ved_indkomstårets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb
+    ),
+    ejendomsskatter = årsopgørelse2025_kanoniske_ejendomsskatter,
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = årsopgørelse2025_kanonisk_ligningslov33,
+    årsopgørelse = MedEksaktÅrsopgørelse(
+        overført_restskat_mv_øre = 0,
+        øvrig_pensionsbeskatningsafgift_øre = 0,
+        kreditter = årsopgørelse2025_par60_kreditter,
+        afregningsfakta = AfregnOverskydendeSkat(fakta = årsopgørelse2025_afregningsfakta)
+    )
+)
+
+# Årsopgørelse2025Arbejdsbogskilde = AnonymiseretÅrsopgørelse2025
+
+@ calculate("Anonymiserede 2025-kildefakta til Personskat-arbejdsbog")
+| årsopgørelse2025_kanoniske_kildefakta_til_arbejdsbog(kilde: Årsopgørelse2025Arbejdsbogskilde) -> match kilde {
+    | AnonymiseretÅrsopgørelse2025 -> årsopgørelse2025_kanonisk_input
+}
+
+= årsopgørelse2025_kanonisk_resultat = beregn_personskat(årsopgørelse2025_kanonisk_input)
+
 = årsopgørelse2025_lønmodtagerinput = LønmodtagerInput(
     skatteår = 2025,
     kommune = Frederiksberg,
@@ -249,8 +658,10 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     pensionsfradrag = LønmodtagerPensionsfradrag(
         fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = årsopgørelse2025_personlig.privat_livrente_kroner,
+        pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 3564,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 3279,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
         pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
         pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
     ),
@@ -268,8 +679,10 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     pensionsfradrag = LønmodtagerPensionsfradrag(
         fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = 0,
+        pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 0,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
         pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
         pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
     ),
@@ -429,6 +842,16 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 | årsopgørelse2025_årsopgørelsens_ørebeløb_matcher: årsopgørelse2025_årsopgørelsens_beregnede_skat_øre -> årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) == 32775714 && årsopgørelse2025_årsopgørelsens_overskydende_skat_øre() == 3716680 && årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre() == 8200
 | årsopgørelse2025_kildeskat_slutopgørelse_bevarer_rapportens_ører: årsopgørelse2025_slutopgørelsesresultat -> årsopgørelse2025_slutopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelse2025_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_slutopgørelsesresultat.art == OverskydendeSkat && årsopgørelse2025_afregningsresultat.input_gyldigt && årsopgørelse2025_afregningsresultat.godtgørelse_basispoint == 0 && årsopgørelse2025_afregningsresultat.udbetaling_før_hele_kroner_øre == 8280 && årsopgørelse2025_afregningsresultat.udbetales_kroner == 82 && årsopgørelse2025_afregningsresultat.ikke_udbetalt_øre == 80 && årsopgørelse2025_afregningsresultat.udbetales_kroner * 100 == årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre()
 | årsopgørelse2025_futuruna_slutopgørelse_matcher_rapporten: årsopgørelse2025_futuruna_slutopgørelsesresultat -> årsopgørelse2025_futuruna_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_futuruna_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_futuruna_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_futuruna_slutopgørelsesresultat.art == OverskydendeSkat && årsopgørelse2025_futuruna_afregningsresultat == årsopgørelse2025_afregningsresultat
+| årsopgørelse2025_kanoniske_kildefakta_giver_samme_indkomstgrundlag: årsopgørelse2025_kanonisk_resultat -> årsopgørelse2025_kanonisk_resultat.personlig_indkomst.alle_input_gyldige && årsopgørelse2025_kanonisk_resultat.kapitalindkomst.alle_input_gyldige && årsopgørelse2025_kanonisk_resultat.aktieavance.alle_input_gyldige && årsopgørelse2025_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 65367 && årsopgørelse2025_kanonisk_resultat.skat.personlig_indkomst_efter_am_kroner == 749936 && årsopgørelse2025_kanonisk_resultat.skat.nettokapitalindkomst_kroner == 0 - 36404 && årsopgørelse2025_kanonisk_resultat.aktieavance.aktieindkomst_kroner == 14967
+| årsopgørelse2025_kanonisk_pensionsgrundlag_udledes_fra_indbetalinger: årsopgørelse2025_kanonisk_resultat -> årsopgørelse2025_kanonisk_resultat.pension.pbl18_årsresultat.input_gyldigt && årsopgørelse2025_kanonisk_resultat.pension.pbl18_årsresultat.samlet_fradrag_i_skattepligtig_indkomst_kroner == 844 && årsopgørelse2025_kanonisk_resultat.pension.lønmodtager_pensionsfradrag.pbl18_fradragsberettiget_indbetaling_kroner == 844 && årsopgørelse2025_kanonisk_resultat.pension.lønmodtager_pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner == 3279 && årsopgørelse2025_kanonisk_resultat.skat.ekstra_pensionsfradrag_kroner == 495
+| årsopgørelse2025_kanonisk_slutskat_matcher_myndighedens_kontrolresultat: årsopgørelse2025_kanonisk_resultat -> årsopgørelse2025_kanonisk_resultat.slutskat_øre == årsopgørelse2025_årsopgørelsens_beregnede_skat_øre && årsopgørelse2025_kanonisk_resultat.ligningslov33.input_gyldigt && årsopgørelse2025_kanonisk_resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre == 600 && årsopgørelse2025_kanonisk_resultat.ejendomsskatter.samlet_ejendomsskat_øre == årsopgørelse2025_ejendom_resultat.samlet_ejendomsskat_øre
+| årsopgørelse2025_kanonisk_årsopgørelse_bevarer_ører_og_afregning: årsopgørelse2025_kanonisk_resultat -> match årsopgørelse2025_kanonisk_resultat.årsopgørelse {
+    | BeregnetÅrsopgørelse(slutopgørelsesinput, slutopgørelse, afregning) -> slutopgørelsesinput.slutskat_øre == 29059034 && slutopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && slutopgørelse.overskydende_skat_øre == 8280 && slutopgørelse.art == OverskydendeSkat && match afregning {
+        | OverskydendeSkatAfregnet(resultat) -> resultat.input_gyldigt && resultat.udbetales_kroner == 82 && resultat.ikke_udbetalt_øre == 80
+        | _ -> Falskt
+    }
+    | _ -> Falskt
+}
 
 ? årsopgørelse2025_indkomstgrundlag_matcher
 ? årsopgørelse2025_fradrag_matcher
@@ -445,6 +868,10 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 ? årsopgørelse2025_årsopgørelsens_ørebeløb_matcher
 ? årsopgørelse2025_kildeskat_slutopgørelse_bevarer_rapportens_ører
 ? årsopgørelse2025_futuruna_slutopgørelse_matcher_rapporten
+? årsopgørelse2025_kanoniske_kildefakta_giver_samme_indkomstgrundlag
+? årsopgørelse2025_kanonisk_pensionsgrundlag_udledes_fra_indbetalinger
+? årsopgørelse2025_kanonisk_slutskat_matcher_myndighedens_kontrolresultat
+? årsopgørelse2025_kanonisk_årsopgørelse_bevarer_ører_og_afregning
 
 @ print("2025 årsopgørelse: rapporteret beregnet skat i øre = " + vis(årsopgørelse2025_årsopgørelsens_beregnede_skat_øre))
 @ print("2025 årsopgørelse: Futuruna-lovberegnet skat i øre = " + vis(årsopgørelse2025_futuruna_lovberegnet_skat_øre()))
@@ -452,3 +879,7 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 @ print("2025 årsopgørelse: rapporteret overskydende skat før tidligere § 55-udbetaling i øre = " + vis(årsopgørelse2025_årsopgørelsens_overskydende_skat_øre()))
 @ print("2025 årsopgørelse: rapporteret udbetaling nu i øre = " + vis(årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre()))
 @ print("2025 årsopgørelse: lovbestemt udbetaling i hele kroner = " + vis(årsopgørelse2025_afregningsresultat.udbetales_kroner))
+@ print("2025 årsopgørelse: kanonisk personlig indkomst i kroner = " + vis(årsopgørelse2025_kanonisk_resultat.skat.personlig_indkomst_efter_am_kroner))
+@ print("2025 årsopgørelse: kanonisk nettokapitalindkomst i kroner = " + vis(årsopgørelse2025_kanonisk_resultat.skat.nettokapitalindkomst_kroner))
+@ print("2025 årsopgørelse: kanonisk aktieindkomst i kroner = " + vis(årsopgørelse2025_kanonisk_resultat.aktieavance.aktieindkomst_kroner))
+@ print("2025 årsopgørelse: kanonisk slutskat i øre = " + vis(årsopgørelse2025_kanonisk_resultat.slutskat_øre))

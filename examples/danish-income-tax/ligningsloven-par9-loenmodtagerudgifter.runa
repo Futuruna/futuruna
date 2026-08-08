@@ -111,7 +111,7 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 }
 | ligningslov9_stk1_årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput) -> {
     = udgiftsresultater = map(input.udgifter, |fakta: Ligningslov9Stk1Udgiftsfakta| ligningslov9_stk1_udgiftsresultat(indkomstår = indkomstår, skatteyderstatus = input.skatteyderstatus, fakta = fakta))
-    = skatteår_understøttet = ligningslov9_stk1_skatteår_understøttet(indkomstår = indkomstår)
+    = skatteår_understøttet = length(input.udgifter) == 0 || ligningslov9_stk1_skatteår_understøttet(indkomstår = indkomstår)
     = identifikationer_entydige = ligningslov9_stk1_identifikationer_entydige(udgifter = input.udgifter)
     = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(udgiftsresultater, |resultat: Ligningslov9Stk1Udgiftsresultat| resultat.input_gyldigt)
     = grundbeløb_kroner = ligningslov9_stk1_grundbeløb_kroner(indkomstår = indkomstår)

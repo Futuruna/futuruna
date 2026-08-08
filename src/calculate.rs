@@ -3836,4 +3836,27 @@ mod calculation_execution_tests {
         assert_eq!(calculation_worker_count(8, Some(3)), 3);
         assert_eq!(calculation_worker_count(2, Some(8)), 2);
     }
+
+    #[test]
+    fn calculation_initialization_skips_top_level_scenario_checks_and_effects() {
+        let source = r#"
+# Input(value: Int)
+
+@ calculate("Scenario-backed calculation")
+| calculate_scenario(input: Input) -> input.value
+
+| unrelated_scenario_check: 1 -> 1 == 1
+? unrelated_scenario_check
+
+@ print("scenario output must not run during a calculation call")
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse scenario calculation");
+
+        let worker = CalculationWorker::new("calculate_scenario", &stmts, None);
+
+        assert!(worker.interpreter.output.is_empty());
+    }
 }

@@ -85,8 +85,8 @@ bekendtgørelse nr. 839 af 24. juni 2025 om kildeskat.
 
 | forskudsregistrering_2026_skattekommune_for(skatteår: Heltal, kommune: Kommune, betaler_kirkeskat: Boolsk) -> Forskudsregistrering2026Skattekommune(
     skatteår = skatteår,
-    kommunal_skat_basispoint = kommunale_parametre_for(skatteår, kommune).kommuneskat_basispoint,
-    kirkeskat_basispoint = kommunale_parametre_for(skatteår, kommune).kirkeskat_basispoint,
+    kommunal_skat_basispoint = kommunale_indkomstskatteparametre_for(skatteår, kommune).kommuneskat_basispoint,
+    kirkeskat_basispoint = kommunale_indkomstskatteparametre_for(skatteår, kommune).kirkeskat_basispoint,
     betaler_kirkeskat = betaler_kirkeskat,
     bundskat_basispoint = nationalparametre_for(skatteår).bundskat_basispoint,
     begrænset_skattepligtig = Falskt,

@@ -1747,6 +1747,10 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
 2017: procent 8,75; maksimalt fradrag 30.000 kr.
 2018: procent 9,5; maksimalt fradrag 34.300 kr.
 2019: procent 10,1; maksimalt fradrag 37.200 kr.
+2020: procent 10,5; maksimalt fradrag 39.400 kr.
+2021: procent 10,6; maksimalt fradrag 40.600 kr.
+2022: procent 10,65; maksimalt fradrag 43.500 kr.
+2023: procent 10,65; maksimalt fradrag 45.600 kr.
 2024: procent 10,65; maksimalt fradrag 45.100 kr.
 2025: procent 12,3; maksimalt fradrag 55.600 kr.
 2026: procent 12,75; maksimalt fradrag 63.300 kr.
@@ -1802,6 +1806,26 @@ Beskæftigelsesfradrag, § 9 J, stk. 2
     beskæftigelsesfradrag_basispoint = 1010,
     beskæftigelsesfradrag_maks_kroner = 37200
 ) under skatteår == 2019
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2020,
+    beskæftigelsesfradrag_basispoint = 1050,
+    beskæftigelsesfradrag_maks_kroner = 39400
+) under skatteår == 2020
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2021,
+    beskæftigelsesfradrag_basispoint = 1060,
+    beskæftigelsesfradrag_maks_kroner = 40600
+) under skatteår == 2021
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2022,
+    beskæftigelsesfradrag_basispoint = 1065,
+    beskæftigelsesfradrag_maks_kroner = 43500
+) under skatteår == 2022
+| ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
+    skatteår = 2023,
+    beskæftigelsesfradrag_basispoint = 1065,
+    beskæftigelsesfradrag_maks_kroner = 45600
+) under skatteår == 2023
 | ll9j_parametre_for(skatteår: Heltal) -> Ligningslov9JParametre(
     skatteår = 2024,
     beskæftigelsesfradrag_basispoint = 1065,
@@ -1888,6 +1912,10 @@ Jobfradrag, § 9 K
 2017: ikke gældende.
 2018: procent 2,5; indkomstgrænse 187.500 kr.; maksimalt fradrag 1.400 kr.
 2019: procent 3,75; indkomstgrænse 191.600 kr.; maksimalt fradrag 2.100 kr.
+2020: procent 4,5; indkomstgrænse 195.800 kr.; maksimalt fradrag 2.600 kr.
+2021: procent 4,5; indkomstgrænse 200.300 kr.; maksimalt fradrag 2.600 kr.
+2022: procent 4,5; indkomstgrænse 202.700 kr.; maksimalt fradrag 2.700 kr.
+2023: procent 4,5; indkomstgrænse 208.700 kr.; maksimalt fradrag 2.700 kr.
 2024: procent 4,5; indkomstgrænse 216.100 kr.; maksimalt fradrag 2.800 kr.
 2025: procent 4,5; indkomstgrænse 224.500 kr.; maksimalt fradrag 2.900 kr.
 2026: procent 4,5; indkomstgrænse 235.200 kr.; maksimalt fradrag 3.100 kr.
@@ -1910,6 +1938,30 @@ Jobfradrag, § 9 K
     jobfradrag_indkomstgrænse_kroner = 191600,
     jobfradrag_maks_kroner = 2100
 ) under skatteår == 2019
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2020,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 195800,
+    jobfradrag_maks_kroner = 2600
+) under skatteår == 2020
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2021,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 200300,
+    jobfradrag_maks_kroner = 2600
+) under skatteår == 2021
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2022,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 202700,
+    jobfradrag_maks_kroner = 2700
+) under skatteår == 2022
+| ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
+    skatteår = 2023,
+    jobfradrag_basispoint = 450,
+    jobfradrag_indkomstgrænse_kroner = 208700,
+    jobfradrag_maks_kroner = 2700
+) under skatteår == 2023
 | ll9k_parametre_for(skatteår: Heltal) -> Ligningslov9KParametre(
     skatteår = 2024,
     jobfradrag_basispoint = 450,
