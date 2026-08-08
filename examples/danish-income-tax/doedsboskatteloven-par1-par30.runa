@@ -40,7 +40,13 @@
     url = "https://info.skat.dk/data.aspx?oid=1847069",
     identifier = "Den juridiske vejledning 2026-1, C.E.3.3.5.3: Negativ skat (carry back) ved underskud i skattepligtig indkomst eller negativ aktieindkomst i bobeskatningsperioden",
     hentet_dato = "2026-08-08",
-    ændringsstatus = "Det foreløbige carryback er 30 pct. af resterende underskud plus overskydende negativ aktieskat; den endelige udbetaling kræver historiske skattebetalinger"
+    ændringsstatus = "Carry back er 30 pct. af resterende underskud plus overskydende negativ aktieskat, begrænset af dokumenterede tidligere skatter efter fradrag af skat efter KSL §§ 48 E-48 F; vejledningens behandling af arbejdsmarkedsbidrag er indarbejdet"
+)
+= dødsboskattelov_par31_særbo_fællesbo_vejledning = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847119",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.7.2: Beregning af dødsboskat når afdøde har både særeje og delingsformue, der skiftes hver for sig",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Den fælles skatteberegning og § 31, stk. 4-fordelingen mellem fællesbo og særbo er kontrolleret; forskellige skæringsdage kræver en særskilt udvidelse"
 )
 = dødsboskattelov_par32_aktieindkomst_vejledning = DødsboskattelovPar1Par30KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1847073",
@@ -98,8 +104,8 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
 # Dødsboskattelov30Indkomstårsforhold = Dbl30Kalenderindkomstår | Dbl30BagudforskudtIndkomstår(dødsårets_startdato: Dato) | Dbl30FremadforskudtIndkomstår(dødsårets_startdato: Dato)
 # Dødsboskattelov30Ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62 | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato: Dato)
 # Dødsboskattelov30ReguleredeSatser(dødsår: Heltal, understøttet: Boolsk, bofradrag_pr_måned_kroner: Heltal, mellemperiodefradrag_pr_måned_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_sats_basispoint: Heltal, aktieindkomst_høj_sats_basispoint: Heltal, kilde: DødsboskattelovPar1Par30KildeInfo)
-# Dødsboskattelov30Input(boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, dødsdato: Dato, boopgørelsestype: Dødsboskattelov30Boopgørelsestype, boopgørelsens_skæringsdag: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold, aktieindkomstgrundlag: Dødsboskattelov32Aktieindkomstgrundlag)
-# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, datoer_gyldige: Boolsk, boopgørelsestype_understøttet: Boolsk, indkomstårsforhold_gyldigt: Boolsk, ægtefælleforhold_gyldigt: Boolsk, aktieindkomstgrundlag_gyldigt: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, skatteberegning_efter_par30_og_par32_klar: Boolsk, beregningsklar: Boolsk, regulerede_satser: Dødsboskattelov30ReguleredeSatser, bobeskatningsindkomstgrundlag_kroner: Heltal, bobeskatningsunderskud_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, aktieskatteberegning: Dødsboskattelov32Resultat, samlet_skat_før_fradrag_kroner: Heltal, bofradragsmåneder_stk2: Heltal, mellemperiodemåneder_stk3: Heltal, ægtefællefradragsmåneder_stk4: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, samlede_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, samlet_skat_efter_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal, foreløbigt_carryback_efter_par31: Dødsboskattelov31ForeløbigtCarrybackResultat)
+# Dødsboskattelov30Input(boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, dødsdato: Dato, boopgørelsestype: Dødsboskattelov30Boopgørelsestype, boopgørelsens_skæringsdag: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold, aktieindkomstgrundlag: Dødsboskattelov32Aktieindkomstgrundlag, carrybackgrundlag: Dødsboskattelov31Carrybackgrundlag)
+# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, datoer_gyldige: Boolsk, boopgørelsestype_understøttet: Boolsk, indkomstårsforhold_gyldigt: Boolsk, ægtefælleforhold_gyldigt: Boolsk, aktieindkomstgrundlag_gyldigt: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, skatteberegning_efter_par30_og_par32_klar: Boolsk, beregningsklar: Boolsk, regulerede_satser: Dødsboskattelov30ReguleredeSatser, bobeskatningsindkomstgrundlag_kroner: Heltal, bobeskatningsunderskud_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, aktieskatteberegning: Dødsboskattelov32Resultat, samlet_skat_før_fradrag_kroner: Heltal, bofradragsmåneder_stk2: Heltal, mellemperiodemåneder_stk3: Heltal, ægtefællefradragsmåneder_stk4: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, samlede_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, samlet_skat_efter_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal, foreløbigt_carryback_efter_par31: Dødsboskattelov31ForeløbigtCarrybackResultat, carryback_efter_par31: Dødsboskattelov31CarrybackResultat)
 
 | dødsboskattelov30_sats_basispoint() -> 5000
 = dødsboskattelov_par30_ukendt_satskilde = DødsboskattelovPar1Par30KildeInfo(
@@ -194,7 +200,8 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     = overskydende_negativ_aktieskat_kroner = penge_positivt_beløb(0 - samlet_skat_før_nulgrænse_kroner)
     = resterende_negativ_bobeskatningsindkomst_kroner = bobeskatningsunderskud_kroner - aktieskatteberegning.bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner
     = foreløbigt_carryback_efter_par31 = dødsboskattelov31_foreløbigt_carryback(resterende_negativ_bobeskatningsindkomst_kroner, overskydende_negativ_aktieskat_kroner)
-    = beregningsklar = skatteberegning_efter_par30_og_par32_klar && !foreløbigt_carryback_efter_par31.kræver_komplet_skattehistorik
+    = carryback_efter_par31 = dødsboskattelov31_carryback_resultat(input, foreløbigt_carryback_efter_par31)
+    = beregningsklar = skatteberegning_efter_par30_og_par32_klar && carryback_efter_par31.beregningsklar
     = bofradragsmåneder_stk2 = hvis input_gyldigt { dødsboskattelov30_bofradragsmåneder_stk2(input) } ellers { 0 }
     = mellemperiodemåneder_stk3 = hvis input_gyldigt { dødsboskattelov30_mellemperiodemåneder_stk3(input) } ellers { 0 }
     = ægtefællefradragsmåneder_stk4 = hvis input_gyldigt { dødsboskattelov30_ægtefællefradragsmåneder_stk4(input) } ellers { 0 }
@@ -233,7 +240,8 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
         anvendte_fradrag_kroner = anvendte_fradrag_kroner,
         samlet_skat_efter_fradrag_kroner = samlet_skat_efter_fradrag_kroner,
         dødsboskat_efter_fradrag_kroner = samlet_skat_efter_fradrag_kroner,
-        foreløbigt_carryback_efter_par31 = foreløbigt_carryback_efter_par31
+        foreløbigt_carryback_efter_par31 = foreløbigt_carryback_efter_par31,
+        carryback_efter_par31 = carryback_efter_par31
     )
 }
 --@end::dødsboskattelov_par30--
@@ -243,6 +251,7 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
         Source(value = dødsboskattelov_par1_par30_lbk426),
         Guidance(value = dødsboskattelov_par31_carryback_vejledning),
         Guidance(value = dødsboskattelov_par30_beregningsskema_vejledning),
+        Guidance(value = dødsboskattelov_par31_særbo_fællesbo_vejledning),
     )
 )
 
@@ -258,7 +267,15 @@ Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesbo
 ----
 
 --@begin::dødsboskattelov_par31--
+# Dødsboskattelov31LængstlevendeÆgtefælleforhold = Dbl31IngenLængstlevendeÆgtefælle | Dbl31LængstlevendeÆgtefælle(identifikation: Tekst)
+# Dødsboskattelov31Skatteperson = Dbl31Afdøde | Dbl31LængstlevendeÆgtefælle
+# Dødsboskattelov31BetaltÅrsskat(person: Dødsboskattelov31Skatteperson, indkomstår: Heltal, skat_af_skattepligtig_indkomst_kroner: Heltal, skat_af_aktieindkomst_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, heraf_skat_efter_kildeskattelov48e_48f_kroner: Heltal, dokumentreference: Tekst)
+# Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, boopgørelsens_skæringsdag: Dato, dokumentreference: Tekst)
+# Dødsboskattelov31Bofordelingsgrundlag = Dbl31EtSamletDødsbo | Dbl31FællesboOgSærboSkiftesHverForSig(fællesbo: Dødsboskattelov31Boindkomstkilde, særbo: Dødsboskattelov31Boindkomstkilde)
+# Dødsboskattelov31Carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag | Dbl31DokumenteretCarrybackgrundlag(længstlevende_ægtefælleforhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold, betalte_årsskatter: List(Dødsboskattelov31BetaltÅrsskat), bofordelingsgrundlag: Dødsboskattelov31Bofordelingsgrundlag)
 # Dødsboskattelov31ForeløbigtCarrybackResultat(resterende_negativ_bobeskatningsindkomst_kroner: Heltal, underskudsskat_med_30_procent_kroner: Heltal, overskydende_negativ_aktieskat_kroner: Heltal, foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner: Heltal, kræver_komplet_skattehistorik: Boolsk)
+# Dødsboskattelov31Fordelingsresultat(grundlag: Dødsboskattelov31Bofordelingsgrundlag, grundlag_gyldigt: Boolsk, fællesboets_indkomstsum_kroner: Heltal, særboets_indkomstsum_kroner: Heltal, udbetaling_til_samlet_dødsbo_kroner: Heltal, udbetaling_til_fællesbo_kroner: Heltal, udbetaling_til_særbo_kroner: Heltal)
+# Dødsboskattelov31CarrybackResultat(grundlag: Dødsboskattelov31Carrybackgrundlag, foreløbigt_carryback: Dødsboskattelov31ForeløbigtCarrybackResultat, historik_påkrævet: Boolsk, historik_tilstede: Boolsk, forventet_antal_årsskatter: Heltal, oplyst_antal_årsskatter: Heltal, årsskatter_gyldige: Boolsk, historik_komplet: Boolsk, bofordelingsgrundlag_gyldigt: Boolsk, betalte_skatter_før_par31_stk3_kroner: Heltal, udelukket_skat_efter_kildeskattelov48e_48f_kroner: Heltal, historikloft_efter_stk2_stk3_kroner: Heltal, udbetaling_efter_historikloft_kroner: Heltal, fordeling_efter_stk4: Dødsboskattelov31Fordelingsresultat, beregningsklar: Boolsk)
 
 | dødsboskattelov31_underskudsskat_basispoint() -> 3000
 | dødsboskattelov31_foreløbigt_carryback(resterende_negativ_bobeskatningsindkomst_kroner: Heltal, overskydende_negativ_aktieskat_kroner: Heltal) -> {
@@ -273,6 +290,124 @@ Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesbo
         foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner = foreløbigt_tilbagebetalingsbeløb_kroner,
         kræver_komplet_skattehistorik = foreløbigt_tilbagebetalingsbeløb_kroner > 0
     )
+}
+| dødsboskattelov31_længstlevende_ægtefælle_tilstede(forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> match forhold {
+    | Dbl31IngenLængstlevendeÆgtefælle -> Falskt
+    | Dbl31LængstlevendeÆgtefælle(_) -> Sandt
+}
+| dødsboskattelov31_længstlevende_ægtefælleforhold_gyldigt(forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> match forhold {
+    | Dbl31IngenLængstlevendeÆgtefælle -> Sandt
+    | Dbl31LængstlevendeÆgtefælle(identifikation) -> identifikation != ""
+}
+| dødsboskattelov31_fulde_indkomstår_i_boperioden(input: Dødsboskattelov30Input) -> {
+    = hele_år_efter_dødsåret = input.boopgørelsens_skæringsdag.år - input.dødsdato.år
+    = skæringsåret_fuldt_omfattet = input.boopgørelsens_skæringsdag.måned == 12 && input.boopgørelsens_skæringsdag.dag == 31
+    penge_positivt_beløb(hele_år_efter_dødsåret - hvis skæringsåret_fuldt_omfattet { 0 } ellers { 1 })
+}
+| dødsboskattelov31_forventet_antal_årsskatter(input: Dødsboskattelov30Input, forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> 2 + hvis dødsboskattelov31_længstlevende_ægtefælle_tilstede(forhold) { 3 + dødsboskattelov31_fulde_indkomstår_i_boperioden(input) } ellers { 0 }
+| dødsboskattelov31_år_er_et_af_to_senest_afsluttede_før_dødsfaldet(indkomstår: Heltal, dødsår: Heltal) -> indkomstår == dødsår - 2 || indkomstår == dødsår - 1
+| dødsboskattelov31_år_fuldt_omfattet_af_boperioden(indkomstår: Heltal, input: Dødsboskattelov30Input) -> indkomstår > input.dødsdato.år && dato_før_eller_lig_med(Dato(år = indkomstår, måned = 12, dag = 31), input.boopgørelsens_skæringsdag)
+| dødsboskattelov31_årsskat_hører_til_påkrævet_periode(årsskat: Dødsboskattelov31BetaltÅrsskat, input: Dødsboskattelov30Input, forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> match årsskat.person {
+    | Dbl31Afdøde -> dødsboskattelov31_år_er_et_af_to_senest_afsluttede_før_dødsfaldet(årsskat.indkomstår, input.dødsdato.år)
+    | Dbl31LængstlevendeÆgtefælle -> dødsboskattelov31_længstlevende_ægtefælle_tilstede(forhold) && (dødsboskattelov31_år_er_et_af_to_senest_afsluttede_før_dødsfaldet(årsskat.indkomstår, input.dødsdato.år) || årsskat.indkomstår == input.dødsdato.år || dødsboskattelov31_år_fuldt_omfattet_af_boperioden(årsskat.indkomstår, input))
+}
+| dødsboskattelov31_betalt_skat_før_par31_stk3_kroner(årsskat: Dødsboskattelov31BetaltÅrsskat) -> årsskat.skat_af_skattepligtig_indkomst_kroner + årsskat.skat_af_aktieindkomst_kroner + årsskat.arbejdsmarkedsbidrag_kroner
+| dødsboskattelov31_betalt_årsskat_gyldig(årsskat: Dødsboskattelov31BetaltÅrsskat, input: Dødsboskattelov30Input, forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> årsskat.indkomstår > 0 && årsskat.skat_af_skattepligtig_indkomst_kroner >= 0 && årsskat.skat_af_aktieindkomst_kroner >= 0 && årsskat.arbejdsmarkedsbidrag_kroner >= 0 && årsskat.heraf_skat_efter_kildeskattelov48e_48f_kroner >= 0 && årsskat.heraf_skat_efter_kildeskattelov48e_48f_kroner <= dødsboskattelov31_betalt_skat_før_par31_stk3_kroner(årsskat) && årsskat.dokumentreference != "" && dødsboskattelov31_årsskat_hører_til_påkrævet_periode(årsskat, input, forhold)
+| dødsboskattelov31_årsskat_unik(årsskatter: List(Dødsboskattelov31BetaltÅrsskat), årsskat: Dødsboskattelov31BetaltÅrsskat) -> foldl(årsskatter, 0, |antal: Heltal, anden: Dødsboskattelov31BetaltÅrsskat| antal + hvis anden.person == årsskat.person && anden.indkomstår == årsskat.indkomstår { 1 } ellers { 0 }) == 1
+| dødsboskattelov31_årsskatter_gyldige(årsskatter: List(Dødsboskattelov31BetaltÅrsskat), input: Dødsboskattelov30Input, forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> all(årsskatter, |årsskat: Dødsboskattelov31BetaltÅrsskat| dødsboskattelov31_betalt_årsskat_gyldig(årsskat, input, forhold) && dødsboskattelov31_årsskat_unik(årsskatter, årsskat))
+| dødsboskattelov31_historik_komplet(årsskatter: List(Dødsboskattelov31BetaltÅrsskat), input: Dødsboskattelov30Input, forhold: Dødsboskattelov31LængstlevendeÆgtefælleforhold) -> dødsboskattelov31_længstlevende_ægtefælleforhold_gyldigt(forhold) && length(årsskatter) == dødsboskattelov31_forventet_antal_årsskatter(input, forhold) && dødsboskattelov31_årsskatter_gyldige(årsskatter, input, forhold)
+| dødsboskattelov31_betalte_skatter_før_par31_stk3_kroner(årsskatter: List(Dødsboskattelov31BetaltÅrsskat)) -> foldl(årsskatter, 0, |sum: Heltal, årsskat: Dødsboskattelov31BetaltÅrsskat| sum + dødsboskattelov31_betalt_skat_før_par31_stk3_kroner(årsskat))
+| dødsboskattelov31_udelukket_skat_efter_kildeskattelov48e_48f_kroner(årsskatter: List(Dødsboskattelov31BetaltÅrsskat)) -> foldl(årsskatter, 0, |sum: Heltal, årsskat: Dødsboskattelov31BetaltÅrsskat| sum + årsskat.heraf_skat_efter_kildeskattelov48e_48f_kroner)
+| dødsboskattelov31_absolut_beløb_kroner(beløb_kroner: Heltal) -> hvis beløb_kroner < 0 { 0 - beløb_kroner } ellers { beløb_kroner }
+| dødsboskattelov31_boindkomstkilde_gyldig(kilde: Dødsboskattelov31Boindkomstkilde, fælles_skæringsdag: Dato) -> dato_gyldig(kilde.boopgørelsens_skæringsdag) && kilde.boopgørelsens_skæringsdag == fælles_skæringsdag && kilde.dokumentreference != ""
+| dødsboskattelov31_bofordelingsgrundlag_kilder_gyldige(grundlag: Dødsboskattelov31Bofordelingsgrundlag, input: Dødsboskattelov30Input) -> match grundlag {
+    | Dbl31EtSamletDødsbo -> Sandt
+    | Dbl31FællesboOgSærboSkiftesHverForSig(fællesbo, særbo) -> dødsboskattelov31_boindkomstkilde_gyldig(fællesbo, input.boopgørelsens_skæringsdag) && dødsboskattelov31_boindkomstkilde_gyldig(særbo, input.boopgørelsens_skæringsdag) && fællesbo.bobeskatningsindkomst_kroner + særbo.bobeskatningsindkomst_kroner == input.bobeskatningsindkomst_kroner && fællesbo.aktieindkomst_kroner + særbo.aktieindkomst_kroner == dødsboskattelov32_aktieindkomst_kroner(input.aktieindkomstgrundlag)
+}
+| dødsboskattelov31_fordeling_efter_stk4(input: Dødsboskattelov30Input, grundlag: Dødsboskattelov31Bofordelingsgrundlag, samlet_udbetaling_kroner: Heltal) -> match grundlag {
+    | Dbl31EtSamletDødsbo -> Dødsboskattelov31Fordelingsresultat(
+        grundlag = grundlag,
+        grundlag_gyldigt = Sandt,
+        fællesboets_indkomstsum_kroner = 0,
+        særboets_indkomstsum_kroner = 0,
+        udbetaling_til_samlet_dødsbo_kroner = penge_positivt_beløb(samlet_udbetaling_kroner),
+        udbetaling_til_fællesbo_kroner = 0,
+        udbetaling_til_særbo_kroner = 0
+    )
+    | Dbl31FællesboOgSærboSkiftesHverForSig(fællesbo, særbo) -> {
+        = udbetaling_kroner = penge_positivt_beløb(samlet_udbetaling_kroner)
+        = fællesboets_indkomstsum_kroner = fællesbo.bobeskatningsindkomst_kroner + fællesbo.aktieindkomst_kroner
+        = særboets_indkomstsum_kroner = særbo.bobeskatningsindkomst_kroner + særbo.aktieindkomst_kroner
+        = fællesbo_positivt_særbo_negativt = fællesboets_indkomstsum_kroner > 0 && særboets_indkomstsum_kroner < 0
+        = fællesbo_negativt_særbo_positivt = fællesboets_indkomstsum_kroner < 0 && særboets_indkomstsum_kroner > 0
+        = forholdsnævner_kroner = dødsboskattelov31_absolut_beløb_kroner(fællesboets_indkomstsum_kroner) + dødsboskattelov31_absolut_beløb_kroner(særboets_indkomstsum_kroner)
+        = kilder_gyldige = dødsboskattelov31_bofordelingsgrundlag_kilder_gyldige(grundlag, input)
+        = fordeling_mulig = udbetaling_kroner == 0 || fællesbo_positivt_særbo_negativt || fællesbo_negativt_særbo_positivt || forholdsnævner_kroner > 0
+        = grundlag_gyldigt = kilder_gyldige && fordeling_mulig
+        = udbetaling_til_fællesbo_kroner = hvis !grundlag_gyldigt { 0 } ellers { hvis fællesbo_positivt_særbo_negativt { 0 } ellers { hvis fællesbo_negativt_særbo_positivt { udbetaling_kroner } ellers { hvis forholdsnævner_kroner > 0 { udbetaling_kroner * dødsboskattelov31_absolut_beløb_kroner(fællesboets_indkomstsum_kroner) / forholdsnævner_kroner } ellers { 0 } } } }
+        = udbetaling_til_særbo_kroner = hvis grundlag_gyldigt { udbetaling_kroner - udbetaling_til_fællesbo_kroner } ellers { 0 }
+        Dødsboskattelov31Fordelingsresultat(
+            grundlag = grundlag,
+            grundlag_gyldigt = grundlag_gyldigt,
+            fællesboets_indkomstsum_kroner = fællesboets_indkomstsum_kroner,
+            særboets_indkomstsum_kroner = særboets_indkomstsum_kroner,
+            udbetaling_til_samlet_dødsbo_kroner = 0,
+            udbetaling_til_fællesbo_kroner = udbetaling_til_fællesbo_kroner,
+            udbetaling_til_særbo_kroner = udbetaling_til_særbo_kroner
+        )
+    }
+}
+| dødsboskattelov31_carryback_resultat(input: Dødsboskattelov30Input, foreløbigt_carryback: Dødsboskattelov31ForeløbigtCarrybackResultat) -> match input.carrybackgrundlag {
+    | Dbl31IngenDokumenteretCarrybackgrundlag -> {
+        = historik_påkrævet = foreløbigt_carryback.kræver_komplet_skattehistorik
+        = fordeling = dødsboskattelov31_fordeling_efter_stk4(input, Dbl31EtSamletDødsbo, 0)
+        Dødsboskattelov31CarrybackResultat(
+            grundlag = input.carrybackgrundlag,
+            foreløbigt_carryback = foreløbigt_carryback,
+            historik_påkrævet = historik_påkrævet,
+            historik_tilstede = Falskt,
+            forventet_antal_årsskatter = 0,
+            oplyst_antal_årsskatter = 0,
+            årsskatter_gyldige = !historik_påkrævet,
+            historik_komplet = !historik_påkrævet,
+            bofordelingsgrundlag_gyldigt = !historik_påkrævet,
+            betalte_skatter_før_par31_stk3_kroner = 0,
+            udelukket_skat_efter_kildeskattelov48e_48f_kroner = 0,
+            historikloft_efter_stk2_stk3_kroner = 0,
+            udbetaling_efter_historikloft_kroner = 0,
+            fordeling_efter_stk4 = fordeling,
+            beregningsklar = !historik_påkrævet
+        )
+    }
+    | Dbl31DokumenteretCarrybackgrundlag(længstlevende_ægtefælleforhold, betalte_årsskatter, bofordelingsgrundlag) -> {
+        = forventet_antal_årsskatter = dødsboskattelov31_forventet_antal_årsskatter(input, længstlevende_ægtefælleforhold)
+        = årsskatter_gyldige = dødsboskattelov31_årsskatter_gyldige(betalte_årsskatter, input, længstlevende_ægtefælleforhold)
+        = historik_komplet = dødsboskattelov31_historik_komplet(betalte_årsskatter, input, længstlevende_ægtefælleforhold)
+        = betalte_skatter_før_par31_stk3_kroner = hvis historik_komplet { dødsboskattelov31_betalte_skatter_før_par31_stk3_kroner(betalte_årsskatter) } ellers { 0 }
+        = udelukket_skat_efter_kildeskattelov48e_48f_kroner = hvis historik_komplet { dødsboskattelov31_udelukket_skat_efter_kildeskattelov48e_48f_kroner(betalte_årsskatter) } ellers { 0 }
+        = historikloft_efter_stk2_stk3_kroner = betalte_skatter_før_par31_stk3_kroner - udelukket_skat_efter_kildeskattelov48e_48f_kroner
+        = foreløbig_fordelingskontrol = dødsboskattelov31_fordeling_efter_stk4(input, bofordelingsgrundlag, 0)
+        = grundlag_gyldigt = historik_komplet && foreløbig_fordelingskontrol.grundlag_gyldigt
+        = udbetaling_efter_historikloft_kroner = hvis grundlag_gyldigt { penge_mindste_beløb(foreløbigt_carryback.foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner, historikloft_efter_stk2_stk3_kroner) } ellers { 0 }
+        = fordeling = dødsboskattelov31_fordeling_efter_stk4(input, bofordelingsgrundlag, udbetaling_efter_historikloft_kroner)
+        Dødsboskattelov31CarrybackResultat(
+            grundlag = input.carrybackgrundlag,
+            foreløbigt_carryback = foreløbigt_carryback,
+            historik_påkrævet = foreløbigt_carryback.kræver_komplet_skattehistorik,
+            historik_tilstede = Sandt,
+            forventet_antal_årsskatter = forventet_antal_årsskatter,
+            oplyst_antal_årsskatter = length(betalte_årsskatter),
+            årsskatter_gyldige = årsskatter_gyldige,
+            historik_komplet = historik_komplet,
+            bofordelingsgrundlag_gyldigt = fordeling.grundlag_gyldigt,
+            betalte_skatter_før_par31_stk3_kroner = betalte_skatter_før_par31_stk3_kroner,
+            udelukket_skat_efter_kildeskattelov48e_48f_kroner = udelukket_skat_efter_kildeskattelov48e_48f_kroner,
+            historikloft_efter_stk2_stk3_kroner = historikloft_efter_stk2_stk3_kroner,
+            udbetaling_efter_historikloft_kroner = udbetaling_efter_historikloft_kroner,
+            fordeling_efter_stk4 = fordeling,
+            beregningsklar = grundlag_gyldigt && fordeling.grundlag_gyldigt
+        )
+    }
 }
 --@end::dødsboskattelov_par31--
 

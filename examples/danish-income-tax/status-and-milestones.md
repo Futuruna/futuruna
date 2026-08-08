@@ -3,8 +3,9 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-03d604` (Dødsboskattelovens §§ 30-32 sammensætter nu den 50-procentige dødsboskat med positiv eller negativ aktieskat fra en signeret, dokumenteret § 21-aktieindkomst. Reglerne anvender 27/42 pct. og 2025/2026-grænserne, fordobler grænsen ved § 62, modregner negativ bobeskatningsindkomst i positiv aktieindkomst og anvender § 30-fradrag efter sammensætningen. Resterende underskud og overskydende negativ aktieskat udstilles som foreløbigt § 31-carryback og fejler lukket, indtil det historiske skatteloft kan beregnes; SØBL-lempelsen forbliver udtrykkeligt begrænset til ikke-negativ bobeskatningsindkomst uden aktieindkomst)
-Tracked continuations: `td-3def11` (endeligt § 31-carryback med historisk skatteloft og bodeling) og `td-375054` (§ 67, stk. 7-reduktion af den fordoblede § 32-grænse ved særskilt skifte)
+Current implementation slice: `td-3def11` (Dødsboskattelovens § 31 beregner nu den endelige carry back-udbetaling som det mindste af den foreløbige underskuds- og aktieskat og et komplet, dokumenteret historikloft. Reglerne kræver afdødes to senest afsluttede indkomstår og, når relevant, den længstlevende ægtefælles samme år, dødsåret og fuldt omfattede boperiodeår; arbejdsmarkedsbidrag medregnes efter vejledningen, mens skat efter KSL §§ 48 E-48 F udelukkes. Særskilt skiftede fælles- og særboer afstemmes mod den samlede opgørelse og fordeler udbetalingen forholdsmæssigt eller fuldt til boet med negativ indkomstsum ved modsatte fortegn. Ufuldstændig historik og uafstemte boopgørelser fejler lukket, og Personskat-arbejdsbogen udstiller årsskatterne i en relationel tabel med danske feltnavne; en komplet JSON/XLSX-rundtur bevarer to års skattehistorik og beregner et historikloft på 80.000 kr. og en udbetaling på 60.000 kr.)
+Tracked continuations: `td-375054` (§ 67, stk. 7-reduktion af den fordoblede § 32-grænse ved særskilt skifte) og `td-76c15b` (særskilt skiftede boer med forskellige boopgørelsesskæringsdage)
+Previous implementation slice: `td-03d604` (Dødsboskattelovens §§ 30-32 sammensætter den 50-procentige dødsboskat med positiv eller negativ aktieskat fra en signeret, dokumenteret § 21-aktieindkomst. Reglerne anvender 27/42 pct. og 2025/2026-grænserne, fordobler grænsen ved § 62, modregner negativ bobeskatningsindkomst i positiv aktieindkomst og anvender § 30-fradrag efter sammensætningen. Resterende underskud og overskydende negativ aktieskat udstilles som foreløbigt § 31-carryback; SØBL-lempelsen forbliver udtrykkeligt begrænset til ikke-negativ bobeskatningsindkomst uden aktieindkomst)
 Previous implementation slice: `td-fe8f4b` (Dødsboskattelovens § 30 afleder nu bofradrag, mellemperiodefradrag og det yderligere § 62-ægtefællefradrag fra dødsdato, boopgørelsens skæringsdag og typede kalenderårs-, bagudforskudte eller fremadforskudte indkomstårsforhold. Tolvmånedersloftet, kronologien og bestemmelsens udelukkelse af tillægsopgørelser fejler lukket, 2025- og 2026-satserne bærer officiel Skattestyrelsen-proveniens, og SØBL § 5 samt Personskat-arbejdsbogen bruger kildefakta i stedet for allerede beregnede fradragsbeløb)
 Previous implementation slice: `td-d4743d` (Ligningslovens § 33 A følger nu et eksplicit, typet valg af faktiske udrejsedatoer. Alle mulige kandidater bevares til audit, men kun valgte, kronologiske og ikke-overlappende lempelsesperioder påvirker skatten; overlappende valg fejler lukket. Den 43. danske dag afbryder ved besøgets begyndelse, arbejde uden nødvendig direkte forbindelse og arbejdsløshedsdagpenge afbryder på hændelsesdatoen, og en ny periode kan vælges ved den kildeafledte udrejse. Ophør af skattepligt efter KSL § 1 afgrænser indkomsten uden at forkorte selve udlandsopholdet. Daterede lønperioder fordeles uden gættet proration, valgte udrejsedatoer føres som en relationel ISO-datotabel i arbejdsbogen, og reglerne er verificeret fortolket, kompileret, gennem kanonisk Personskat og mod den eksakte 2025-årsopgørelse)
 Previous implementation slice: `td-c54ca5` (En senere overskridelse af Ligningslovens § 33 A's 42-dagesgrænse afbryder opholdet ved begyndelsen af det danske besøg, hvor den 43. dag falder. En allerede afsluttet seksmånedersperiode bevarer sit nedslag, mens løn før og efter afbrydelsen fordeles i dokumenterede, ikke-overlappende datoperioder; en periode over grænsen eller et ufordelt samlet beløb fejler lukket frem for at blive forholdsmæssigt gættet)
@@ -4329,8 +4330,13 @@ Review candidates to revisit deliberately, not as broad churn:
   fordobles ved det typede § 62-ægtefælleforhold. Negativ
   bobeskatningsindkomst modregnes kun i positiv aktieindkomst og kun til nul.
   Resterende underskud og negativ aktieskat, der overstiger dødsboskatten,
-  bevares som et foreløbigt § 31-carryback; en endelig udbetaling fejler lukket,
-  indtil de historiske skattebetalinger til stk. 2-loftet er til stede.
+  bevares som et foreløbigt § 31-carryback. Den endelige udbetaling begrænses
+  til dokumenterede skatter for de lovbestemte år, medregner den længstlevende
+  ægtefælles arbejdsmarkedsbidrag efter vejledningen og udelukker skat efter
+  KSL §§ 48 E-48 F. Manglende år, dubletter og uafstemte fælles- og særboer
+  fejler lukket. Ved to boer fordeles udbetalingen efter deres samlede
+  bobeskatnings- og aktieindkomst eller fuldt til boet med negativ sum ved
+  modsatte fortegn.
   Begrænset skattepligt efter KSL § 2,
   stk. 2, udstiller både den fritagne løn og nul dansk indkomstskat og
   AM-bidrag. § 5 b sammensætter kulbrinteskattelovens § 21, stk. 2, med den
@@ -4343,12 +4349,14 @@ Review candidates to revisit deliberately, not as broad churn:
   ikke-negativ bobeskatningsindkomst uden aktieindkomst, fordi en fordeling af
   lempelsen på den sammensatte aktieskat kræver sit eget hjemmelsgrundlag.
   Personskat-arbejdsbogen udstiller i stedet den fulde § 32-kilde som et valg,
-  et signeret beløb og en dokumentreference. En udfyldt JSON/XLSX-rundtur
-  bevarer alle tre kildefakta og den samme eksplicitte SØBL-afvisning. Den
+  et signeret beløb og en dokumentreference samt § 31-historikken som en
+  relationel årsskattetabel. En udfyldt JSON/XLSX-rundtur bevarer alle
+  kildefakta, beregner 60.000 kr. i endelig carry back under et dokumenteret
+  loft på 80.000 kr. og bevarer den samme eksplicitte SØBL-afvisning. Den
   komplette JSON/XLSX-rundtur
   bevarer tre repræsentative resultater byteidentisk: 200.000 kr. DIS-løn i et
-  bo med 600.000 kr. bobeskatningsindkomst og 40.000 kr. § 30-fradrag giver
-  86.666 kr. lempelse og 173.334 kr. resterende dødsboskat; 300.000 kr. under
+  bo med 600.000 kr. bobeskatningsindkomst og 40.500 kr. § 30-fradrag giver
+  86.500 kr. lempelse og 173.000 kr. resterende dødsboskat; 300.000 kr. under
   KSL § 2, stk. 2, giver nul dansk skat; og 500.000 kr. efter
   kulbrinteskattelovens § 21, stk. 2, får fjernet 150.000 kr. indkomstskat og
   40.000 kr. AM-bidrag. De almindelige Personskat-sluttal afviser samtidig

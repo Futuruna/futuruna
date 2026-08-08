@@ -1397,6 +1397,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Aktieindkomst i dødsboet",
             "Opgjort aktieindkomst i bobeskatningsperioden",
             "Dokumentation for boets aktieindkomst",
+            "Skattehistorik til carry back efter § 31",
+            "Længstlevende ægtefælle i § 31-historikken",
+            "Længstlevende ægtefælles identifikation",
+            "Fordeling mellem fællesbo og særbo",
+            "Fællesboets bobeskatningsindkomst",
+            "Fællesboets aktieindkomst",
+            "Dokumentation for fællesboets indkomster",
+            "Særboets bobeskatningsindkomst",
+            "Særboets aktieindkomst",
+            "Dokumentation for særboets indkomster",
             "Kulbrinteskattegrundlag efter § 21, stk. 2",
             "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
             "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
@@ -1657,6 +1667,22 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.$variant",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.aktieindkomst_kroner",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.dokumentreference",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.længstlevende_ægtefælleforhold.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.længstlevende_ægtefælleforhold.Dbl31LængstlevendeÆgtefælle.identifikation",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.bobeskatningsindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.aktieindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.boopgørelsens_skæringsdag.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.boopgørelsens_skæringsdag.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.boopgørelsens_skæringsdag.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.fællesbo.dokumentreference",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.bobeskatningsindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.aktieindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.boopgørelsens_skæringsdag.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.boopgørelsens_skæringsdag.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.boopgørelsens_skæringsdag.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.bofordelingsgrundlag.Dbl31FællesboOgSærboSkiftesHverForSig.særbo.dokumentreference",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.personstatus",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.arbejdsgiverhjemting",
@@ -1670,6 +1696,49 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     .iter()
                     .any(|path| path == expected),
                 "missing canonical non-standard SØBL source-fact path {expected}"
+            );
+        }
+        let death_estate_tax_history_path = "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.carrybackgrundlag.Dbl31DokumenteretCarrybackgrundlag.betalte_årsskatter";
+        let death_estate_tax_history_sheet =
+            workbook_collection_sheet_name(&mut workbook, death_estate_tax_history_path);
+        assert_eq!(
+            workbook_title(&mut workbook, &death_estate_tax_history_sheet),
+            "Dansk personskat - Betalte årsskatter til § 31-loftet"
+        );
+        let death_estate_tax_history_paths =
+            workbook_column_paths(&mut workbook, &death_estate_tax_history_sheet);
+        for expected in [
+            "person",
+            "indkomstår",
+            "skat_af_skattepligtig_indkomst_kroner",
+            "skat_af_aktieindkomst_kroner",
+            "arbejdsmarkedsbidrag_kroner",
+            "heraf_skat_efter_kildeskattelov48e_48f_kroner",
+            "dokumentreference",
+        ] {
+            assert!(
+                death_estate_tax_history_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical § 31 tax-history path {expected} on {death_estate_tax_history_sheet}"
+            );
+        }
+        let death_estate_tax_history_headers =
+            workbook_headers(&mut workbook, &death_estate_tax_history_sheet);
+        for expected in [
+            "Person i skattehistorikken",
+            "Årsskattens indkomstår",
+            "Betalt skat af skattepligtig indkomst",
+            "Betalt skat af aktieindkomst",
+            "Arbejdsmarkedsbidrag i § 31-historikken",
+            "Heraf skat efter §§ 48 E og 48 F",
+            "Dokumentation for den betalte årsskat",
+        ] {
+            assert!(
+                death_estate_tax_history_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human § 31 tax-history label {expected} on {death_estate_tax_history_sheet}"
             );
         }
         let seafarer_employments_path = "lønmodtager.ligningsfradrag.sømandsfradrag.beskæftigelser";
@@ -15289,7 +15358,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "Dbl30TidligereAfdødÆgtefælleEfterPar62",
                     "førstafdødes_dødsdato": { "år": 2026, "måned": 7, "dag": 15 }
                 },
-                "aktieindkomstgrundlag": { "$variant": "Dbl32IngenAktieindkomst" }
+                "aktieindkomstgrundlag": { "$variant": "Dbl32IngenAktieindkomst" },
+                "carrybackgrundlag": { "$variant": "Dbl31IngenDokumenteretCarrybackgrundlag" }
             }
         },
         "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
@@ -15303,6 +15373,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "$variant": "Dbl32OpgjortAktieindkomstEfterPar21",
         "aktieindkomst_kroner": 100_000,
         "dokumentreference": "boopgørelse-aktieindkomst-2026"
+    });
+
+    let mut death_estate_carryback_case = death_estate_case.clone();
+    death_estate_carryback_case["case_id"] =
+        Value::String("personskat-dis-doedsbo-carryback-2026".into());
+    let death_estate_carryback_input = &mut death_estate_carryback_case["input"]["lønmodtager"]
+        ["personlig_indkomst"]["sømandsbeskatning"]["dødsboskattegrundlag"]["input"];
+    death_estate_carryback_input["bobeskatningsindkomst_kroner"] = serde_json::json!(-200_000);
+    death_estate_carryback_input["ægtefælleforhold"] =
+        serde_json::json!({ "$variant": "Dbl30IntetÆgtefælleforholdEfterPar62" });
+    death_estate_carryback_input["carrybackgrundlag"] = serde_json::json!({
+        "$variant": "Dbl31DokumenteretCarrybackgrundlag",
+        "længstlevende_ægtefælleforhold": {
+            "$variant": "Dbl31IngenLængstlevendeÆgtefælle"
+        },
+        "betalte_årsskatter": [
+            {
+                "person": { "$variant": "Dbl31Afdøde" },
+                "indkomstår": 2024,
+                "skat_af_skattepligtig_indkomst_kroner": 35_000,
+                "skat_af_aktieindkomst_kroner": 5_000,
+                "arbejdsmarkedsbidrag_kroner": 0,
+                "heraf_skat_efter_kildeskattelov48e_48f_kroner": 0,
+                "dokumentreference": "årsopgørelse-afdøde-2024"
+            },
+            {
+                "person": { "$variant": "Dbl31Afdøde" },
+                "indkomstår": 2025,
+                "skat_af_skattepligtig_indkomst_kroner": 30_000,
+                "skat_af_aktieindkomst_kroner": 10_000,
+                "arbejdsmarkedsbidrag_kroner": 0,
+                "heraf_skat_efter_kildeskattelov48e_48f_kroner": 0,
+                "dokumentreference": "årsopgørelse-afdøde-2025"
+            }
+        ],
+        "bofordelingsgrundlag": { "$variant": "Dbl31EtSamletDødsbo" }
     });
 
     let mut limited_taxpayer_case = death_estate_case.clone();
@@ -15380,6 +15486,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(death_estate_share_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_carryback_case);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -15816,6 +15926,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-doedsbo-aktieindkomst-2026")
         .expect("death-estate share-income DIS JSON case")
         .clone();
+    let death_estate_carryback_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-carryback-2026")
+        .expect("death-estate carryback DIS JSON case")
+        .clone();
     let limited_taxpayer_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -15897,6 +16014,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         dis_course_case,
         death_estate_case,
         death_estate_share_case,
+        death_estate_carryback_case,
         limited_taxpayer_case,
         hydrocarbon_case,
         par32_mixed_case,
@@ -16708,6 +16826,56 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktieindkomst_kroner": 100_000,
             "dokumentreference": "boopgørelse-aktieindkomst-2026"
         })
+    );
+
+    let json_death_estate_carryback_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-carryback-2026")
+        .expect("JSON death-estate carryback DIS result");
+    let hydrated_death_estate_carryback_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-carryback-2026")
+        .expect("hydrated XLSX death-estate carryback DIS result");
+    assert_eq!(
+        hydrated_death_estate_carryback_result["result"],
+        json_death_estate_carryback_result["result"]
+    );
+    let death_estate_carryback_annual = &hydrated_death_estate_carryback_result["result"]
+        ["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(death_estate_carryback_annual["alle_input_gyldige"], false);
+    assert_eq!(death_estate_carryback_annual["beregningsklar"], false);
+    let death_estate_carryback_trace = &death_estate_carryback_annual["dødsbo_lempelse"]
+        ["dødsboskat_før_søbl5"]["carryback_efter_par31"];
+    assert_eq!(death_estate_carryback_trace["historik_komplet"], true);
+    assert_eq!(
+        death_estate_carryback_trace["historikloft_efter_stk2_stk3_kroner"],
+        80_000
+    );
+    assert_eq!(
+        death_estate_carryback_trace["udbetaling_efter_historikloft_kroner"],
+        60_000
+    );
+    assert_eq!(death_estate_carryback_trace["beregningsklar"], true);
+    let hydrated_carryback_source = &death_estate_carryback_annual["input"]["dødsboskattegrundlag"]
+        ["input"]["carrybackgrundlag"];
+    assert_eq!(
+        hydrated_carryback_source["betalte_årsskatter"]
+            .as_array()
+            .expect("hydrated § 31 annual tax history")
+            .len(),
+        2
+    );
+    assert_eq!(
+        hydrated_carryback_source["betalte_årsskatter"][0]["dokumentreference"],
+        "årsopgørelse-afdøde-2024"
+    );
+    assert_eq!(
+        hydrated_carryback_source["betalte_årsskatter"][1]["dokumentreference"],
+        "årsopgørelse-afdøde-2025"
     );
 
     let json_limited_taxpayer_result = json_result["results"]

@@ -1007,6 +1007,174 @@
     help = Some("Angiv en entydig dokumentreference. En opgjort aktieindkomst uden dokumentreference afvises."),
     unit = None
 )
+= personskat_felt_dis_dødsbo_carrybackgrundlag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::carrybackgrundlag::$variant),
+    label = "Skattehistorik til carry back efter § 31",
+    question = Some("Skal en mulig udbetaling efter dødsboskattelovens § 31 opgøres fra dokumenterede tidligere skatter?"),
+    help = Some("Vælg dokumenteret grundlag, når bobeskatningsindkomst eller aktieindkomst er negativ. Uden komplet skattehistorik fejler en positiv carry back-beregning lukket."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_ægtefælleforhold = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Carrybackgrundlag::Dbl31DokumenteretCarrybackgrundlag::længstlevende_ægtefælleforhold::$variant),
+    label = "Længstlevende ægtefælle i § 31-historikken",
+    question = Some("Skal en længstlevende ægtefælles betalte skatter medregnes i loftet efter § 31, stk. 2?"),
+    help = Some("Ved en længstlevende ægtefælle kræves de to afsluttede år før dødsfaldet, dødsåret og alle indkomstår, som boperioden omfatter fuldt ud."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_ægtefælle_identifikation = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31LængstlevendeÆgtefælleforhold::Dbl31LængstlevendeÆgtefælle::identifikation),
+    label = "Længstlevende ægtefælles identifikation",
+    question = Some("Hvilken entydig identifikation har den længstlevende ægtefælle?"),
+    help = Some("Brug samme identifikation i årsopgørelserne og boets auditspor."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_årsskatter = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Carrybackgrundlag::Dbl31DokumenteretCarrybackgrundlag::betalte_årsskatter),
+    label = "Betalte årsskatter til § 31-loftet",
+    question = Some("Hvilke betalte skatter dokumenterer loftet for carry back-udbetalingen?"),
+    help = Some("Tilføj én række pr. person og indkomstår. Futuruna kontrollerer de krævede år, dubletter, beløb og dokumentreferencer."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_årsskat_person = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::person::$variant),
+    label = "Person i skattehistorikken",
+    question = Some("Vedrører denne årsskat afdøde eller den længstlevende ægtefælle?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_årsskat_indkomstår = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::indkomstår),
+    label = "Årsskattens indkomstår",
+    question = Some("Hvilket indkomstår vedrører den betalte skat?"),
+    help = Some("Året skal være en af de perioder, som § 31, stk. 2, medregner for den valgte person."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_par31_skat_af_skattepligtig_indkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::skat_af_skattepligtig_indkomst_kroner),
+    label = "Betalt skat af skattepligtig indkomst",
+    question = Some("Hvor meget skat af skattepligtig indkomst blev betalt for personen og indkomståret?"),
+    help = Some("Angiv det dokumenterede ikke-negative årsbeløb før udelukkelse af skat efter kildeskattelovens §§ 48 E og 48 F."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_skat_af_aktieindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::skat_af_aktieindkomst_kroner),
+    label = "Betalt skat af aktieindkomst",
+    question = Some("Hvor meget skat af aktieindkomst blev betalt for personen og indkomståret?"),
+    help = Some("Angiv det dokumenterede ikke-negative årsbeløb."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_arbejdsmarkedsbidrag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::arbejdsmarkedsbidrag_kroner),
+    label = "Arbejdsmarkedsbidrag i § 31-historikken",
+    question = Some("Hvor meget arbejdsmarkedsbidrag skal medregnes for personen og indkomståret?"),
+    help = Some("Medtag det dokumenterede årsbeløb. For en længstlevende ægtefælle indgår bidraget også for dødsåret og fuldt omfattede boperiodeår."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_forskerskat = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::heraf_skat_efter_kildeskattelov48e_48f_kroner),
+    label = "Heraf skat efter §§ 48 E og 48 F",
+    question = Some("Hvor stor en del af årets oplyste skatter blev betalt efter forskerskatteordningen?"),
+    help = Some("Beløbet trækkes fra § 31-loftet efter stk. 3 og må ikke overstige rækkens samlede skat og arbejdsmarkedsbidrag."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_årsskat_dokumentreference = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31BetaltÅrsskat::dokumentreference),
+    label = "Dokumentation for den betalte årsskat",
+    question = Some("Hvilken årsopgørelse eller myndighedsopgørelse dokumenterer denne række?"),
+    help = Some("Angiv en entydig reference, som kan følges i auditoutputtet."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_bofordelingsgrundlag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Carrybackgrundlag::Dbl31DokumenteretCarrybackgrundlag::bofordelingsgrundlag::$variant),
+    label = "Fordeling mellem fællesbo og særbo",
+    question = Some("Skiftes afdødes andel af fællesboet og afdødes særbo hver for sig?"),
+    help = Some("Ved særskilt skifte fordeler Futuruna § 31-udbetalingen efter de to boers dokumenterede bobeskatnings- og aktieindkomst."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_bobeskatningsindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::bobeskatningsindkomst_kroner),
+    label = "Fællesboets bobeskatningsindkomst",
+    question = Some("Hvad er fællesboets del af den samlede bobeskatningsindkomst?"),
+    help = Some("Fællesboets og særboets beløb skal tilsammen svare til det samlede dødsboskattegrundlag."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_aktieindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::aktieindkomst_kroner),
+    label = "Fællesboets aktieindkomst",
+    question = Some("Hvad er fællesboets del af boets samlede aktieindkomst?"),
+    help = Some("Beløbet kan være positivt eller negativt og afstemmes mod den samlede aktieindkomst."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::boopgørelsens_skæringsdag::år),
+    label = "Fællesboets skæringsdag - år",
+    question = Some("I hvilket år ligger fællesboets skæringsdag?"),
+    help = Some("Den nuværende § 31-model kræver samme skæringsdag for den samlede opgørelse, fællesboet og særboet."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::boopgørelsens_skæringsdag::måned),
+    label = "Fællesboets skæringsdag - måned",
+    question = Some("I hvilken måned ligger fællesboets skæringsdag?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::boopgørelsens_skæringsdag::dag),
+    label = "Fællesboets skæringsdag - dag",
+    question = Some("På hvilken dag ligger fællesboets skæringsdag?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_dis_dødsbo_par31_fællesbo_dokumentreference = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::dokumentreference),
+    label = "Dokumentation for fællesboets indkomster",
+    question = Some("Hvilken boopgørelse dokumenterer fællesboets indkomstbeløb?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par31_særbo_bobeskatningsindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::bobeskatningsindkomst_kroner),
+    label = "Særboets bobeskatningsindkomst",
+    question = Some("Hvad er særboets del af den samlede bobeskatningsindkomst?"),
+    help = Some("Fællesboets og særboets beløb skal tilsammen svare til det samlede dødsboskattegrundlag."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_særbo_aktieindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::aktieindkomst_kroner),
+    label = "Særboets aktieindkomst",
+    question = Some("Hvad er særboets del af boets samlede aktieindkomst?"),
+    help = Some("Beløbet kan være positivt eller negativt og afstemmes mod den samlede aktieindkomst."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::boopgørelsens_skæringsdag::år),
+    label = "Særboets skæringsdag - år",
+    question = Some("I hvilket år ligger særboets skæringsdag?"),
+    help = Some("Den nuværende § 31-model kræver samme skæringsdag for den samlede opgørelse, fællesboet og særboet."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::boopgørelsens_skæringsdag::måned),
+    label = "Særboets skæringsdag - måned",
+    question = Some("I hvilken måned ligger særboets skæringsdag?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::boopgørelsens_skæringsdag::dag),
+    label = "Særboets skæringsdag - dag",
+    question = Some("På hvilken dag ligger særboets skæringsdag?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_dis_dødsbo_par31_særbo_dokumentreference = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::dokumentreference),
+    label = "Dokumentation for særboets indkomster",
+    question = Some("Hvilken boopgørelse dokumenterer særboets indkomstbeløb?"),
+    help = None,
+    unit = None
+)
 = personskat_felt_ægtefælle = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::$variant),
     label = "Ægtefælle",
@@ -10760,7 +10928,31 @@
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_dag,
         personskat_felt_dis_dødsbo_aktieindkomstgrundlag,
         personskat_felt_dis_dødsbo_aktieindkomst_beløb,
-        personskat_felt_dis_dødsbo_aktieindkomst_dokumentreference
+        personskat_felt_dis_dødsbo_aktieindkomst_dokumentreference,
+        personskat_felt_dis_dødsbo_carrybackgrundlag,
+        personskat_felt_dis_dødsbo_par31_ægtefælleforhold,
+        personskat_felt_dis_dødsbo_par31_ægtefælle_identifikation,
+        personskat_felt_dis_dødsbo_par31_årsskatter,
+        personskat_felt_dis_dødsbo_par31_årsskat_person,
+        personskat_felt_dis_dødsbo_par31_årsskat_indkomstår,
+        personskat_felt_dis_dødsbo_par31_skat_af_skattepligtig_indkomst,
+        personskat_felt_dis_dødsbo_par31_skat_af_aktieindkomst,
+        personskat_felt_dis_dødsbo_par31_arbejdsmarkedsbidrag,
+        personskat_felt_dis_dødsbo_par31_forskerskat,
+        personskat_felt_dis_dødsbo_par31_årsskat_dokumentreference,
+        personskat_felt_dis_dødsbo_par31_bofordelingsgrundlag,
+        personskat_felt_dis_dødsbo_par31_fællesbo_bobeskatningsindkomst,
+        personskat_felt_dis_dødsbo_par31_fællesbo_aktieindkomst,
+        personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_år,
+        personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_måned,
+        personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_dag,
+        personskat_felt_dis_dødsbo_par31_fællesbo_dokumentreference,
+        personskat_felt_dis_dødsbo_par31_særbo_bobeskatningsindkomst,
+        personskat_felt_dis_dødsbo_par31_særbo_aktieindkomst,
+        personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_år,
+        personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_måned,
+        personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_dag,
+        personskat_felt_dis_dødsbo_par31_særbo_dokumentreference
     ],
     spørgsmål = [],
     beløbsfelter = [],
@@ -10769,6 +10961,8 @@
         DependencySource(value = dødsboskattelov_par1_par30_lbk426),
         Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
+        Guidance(value = dødsboskattelov_par31_carryback_vejledning),
+        Guidance(value = dødsboskattelov_par31_særbo_fællesbo_vejledning),
     )
 )
 = personskat_meta_dis_kulbrinteskattegrundlag = TypetBeregningsmeta(

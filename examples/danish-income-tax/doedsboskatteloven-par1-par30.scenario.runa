@@ -11,7 +11,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1)),
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_fradrag_begrænses = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -21,7 +22,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 1),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_fremadforskudt = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -31,7 +33,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 18),
     indkomstårsforhold = Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 2, dag = 1)),
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_bagudforskudt = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -41,7 +44,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 11, dag = 15),
     indkomstårsforhold = Dbl30BagudforskudtIndkomstår(dødsårets_startdato = Dato(år = 2024, måned = 10, dag = 1)),
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_længstlevende = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoOvertagetAfLængstlevendeEfterPar58,
@@ -51,7 +55,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_aktieindkomst_uden_reference = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -61,7 +66,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = ""),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_indkomst_carryback = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -71,7 +77,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_ikke_understøttet_år = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -81,7 +88,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2024, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_skæringsdag_før_dødsfald = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -91,7 +99,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 4, dag = 11),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_umuligt_ægtefælleforhold = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -101,7 +110,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 4, dag = 13)),
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_umuligt_fremadforskudt_indkomstår = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -111,7 +121,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 5, dag = 1)),
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_tillægsopgørelse = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -121,7 +132,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 4, dag = 30),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -131,7 +143,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-positiv-aktieindkomst")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-positiv-aktieindkomst"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026 = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -141,7 +154,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2026, måned = 1, dag = 5)),
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 300000, dokumentreference = "boopgørelse-par62-aktieindkomst")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 300000, dokumentreference = "boopgørelse-par62-aktieindkomst"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -151,7 +165,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-negativ-aktieindkomst")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-negativ-aktieindkomst"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -161,7 +176,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-negativ-aktieindkomst")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-negativ-aktieindkomst"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -171,7 +187,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-underskudsmodregning")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-underskudsmodregning"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_indkomst_efterlader_carryback = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -181,7 +198,8 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-delvis-underskudsmodregning")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-delvis-underskudsmodregning"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
 = dødsbo_scenarie_negativ_indkomst_og_negativ_aktieindkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
@@ -191,7 +209,140 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
-    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-dobbelt-negativ")
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -100000, dokumentreference = "boopgørelse-dobbelt-negativ"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
+))
+
+| dødsbo_scenarie_par31_årsskat(person: Dødsboskattelov31Skatteperson, indkomstår: Heltal, skat_af_skattepligtig_indkomst_kroner: Heltal, skat_af_aktieindkomst_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, heraf_skat_efter_kildeskattelov48e_48f_kroner: Heltal, dokumentreference: Tekst) -> Dødsboskattelov31BetaltÅrsskat(
+    person = person,
+    indkomstår = indkomstår,
+    skat_af_skattepligtig_indkomst_kroner = skat_af_skattepligtig_indkomst_kroner,
+    skat_af_aktieindkomst_kroner = skat_af_aktieindkomst_kroner,
+    arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner,
+    heraf_skat_efter_kildeskattelov48e_48f_kroner = heraf_skat_efter_kildeskattelov48e_48f_kroner,
+    dokumentreference = dokumentreference
+)
+| dødsbo_scenarie_par31_ugift_carrybackgrundlag(skat_2023_kroner: Heltal, skat_2024_kroner: Heltal, udelukket_2023_kroner: Heltal, udelukket_2024_kroner: Heltal, bofordelingsgrundlag: Dødsboskattelov31Bofordelingsgrundlag) -> Dbl31DokumenteretCarrybackgrundlag(
+    længstlevende_ægtefælleforhold = Dbl31IngenLængstlevendeÆgtefælle,
+    betalte_årsskatter = [
+        dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = skat_2023_kroner, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = udelukket_2023_kroner, dokumentreference = "årsopgørelse-afdøde-2023"),
+        dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = skat_2024_kroner, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = udelukket_2024_kroner, dokumentreference = "årsopgørelse-afdøde-2024"),
+    ],
+    bofordelingsgrundlag = bofordelingsgrundlag
+)
+| dødsbo_scenarie_par31_ugift_resultat(carrybackgrundlag: Dødsboskattelov31Carrybackgrundlag) -> dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = -200000,
+    dødsdato = Dato(år = 2025, måned = 5, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = -60000, dokumentreference = "boopgørelse-par31-negativ-aktieindkomst"),
+    carrybackgrundlag = carrybackgrundlag
+))
+
+= dødsbo_scenarie_par31_historikloft_under_foreløbigt = dødsbo_scenarie_par31_ugift_resultat(carrybackgrundlag = dødsbo_scenarie_par31_ugift_carrybackgrundlag(
+    skat_2023_kroner = 35000,
+    skat_2024_kroner = 40000,
+    udelukket_2023_kroner = 0,
+    udelukket_2024_kroner = 0,
+    bofordelingsgrundlag = Dbl31EtSamletDødsbo
+))
+= dødsbo_scenarie_par31_historikloft_lig_foreløbigt = dødsbo_scenarie_par31_ugift_resultat(carrybackgrundlag = dødsbo_scenarie_par31_ugift_carrybackgrundlag(
+    skat_2023_kroner = 38100,
+    skat_2024_kroner = 38100,
+    udelukket_2023_kroner = 0,
+    udelukket_2024_kroner = 0,
+    bofordelingsgrundlag = Dbl31EtSamletDødsbo
+))
+= dødsbo_scenarie_par31_historikloft_over_foreløbigt = dødsbo_scenarie_par31_ugift_resultat(carrybackgrundlag = dødsbo_scenarie_par31_ugift_carrybackgrundlag(
+    skat_2023_kroner = 50000,
+    skat_2024_kroner = 50000,
+    udelukket_2023_kroner = 0,
+    udelukket_2024_kroner = 0,
+    bofordelingsgrundlag = Dbl31EtSamletDødsbo
+))
+= dødsbo_scenarie_par31_forskerskat_udelukkes = dødsbo_scenarie_par31_ugift_resultat(carrybackgrundlag = dødsbo_scenarie_par31_ugift_carrybackgrundlag(
+    skat_2023_kroner = 50000,
+    skat_2024_kroner = 50000,
+    udelukket_2023_kroner = 10000,
+    udelukket_2024_kroner = 20000,
+    bofordelingsgrundlag = Dbl31EtSamletDødsbo
+))
+
+= dødsbo_scenarie_par31_ægtefællehistorik = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = -100000,
+    dødsdato = Dato(år = 2025, måned = 5, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 12, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31DokumenteretCarrybackgrundlag(
+        længstlevende_ægtefælleforhold = Dbl31LængstlevendeÆgtefælle(identifikation = "længstlevende-ægtefælle"),
+        betalte_årsskatter = [
+            dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 3000, dokumentreference = "årsopgørelse-ægtefælle-2025"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2026, skat_af_skattepligtig_indkomst_kroner = 7000, skat_af_aktieindkomst_kroner = 1000, arbejdsmarkedsbidrag_kroner = 2000, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2026"),
+        ],
+        bofordelingsgrundlag = Dbl31EtSamletDødsbo
+    )
+))
+= dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = -100000,
+    dødsdato = Dato(år = 2025, måned = 5, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 12, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31DokumenteretCarrybackgrundlag(
+        længstlevende_ægtefælleforhold = Dbl31LængstlevendeÆgtefælle(identifikation = "længstlevende-ægtefælle"),
+        betalte_årsskatter = [
+            dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31Afdøde, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-afdøde-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2023, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2023"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2024, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2024"),
+            dødsbo_scenarie_par31_årsskat(person = Dbl31LængstlevendeÆgtefælle, indkomstår = 2025, skat_af_skattepligtig_indkomst_kroner = 10000, skat_af_aktieindkomst_kroner = 0, arbejdsmarkedsbidrag_kroner = 0, heraf_skat_efter_kildeskattelov48e_48f_kroner = 0, dokumentreference = "årsopgørelse-ægtefælle-2025"),
+        ],
+        bofordelingsgrundlag = Dbl31EtSamletDødsbo
+    )
+))
+
+| dødsbo_scenarie_par31_split_resultat(bofordelingsgrundlag: Dødsboskattelov31Bofordelingsgrundlag) -> dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = -200000,
+    dødsdato = Dato(år = 2025, måned = 5, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 0, dokumentreference = "samlet-boopgørelse-aktieindkomst"),
+    carrybackgrundlag = dødsbo_scenarie_par31_ugift_carrybackgrundlag(
+        skat_2023_kroner = 50000,
+        skat_2024_kroner = 50000,
+        udelukket_2023_kroner = 0,
+        udelukket_2024_kroner = 0,
+        bofordelingsgrundlag = bofordelingsgrundlag
+    )
+))
+= dødsbo_scenarie_par31_split_forholdsmæssig_fordeling = dødsbo_scenarie_par31_split_resultat(bofordelingsgrundlag = Dbl31FællesboOgSærboSkiftesHverForSig(
+    fællesbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = -120000, aktieindkomst_kroner = 0, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "fællesboopgørelse"),
+    særbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = -80000, aktieindkomst_kroner = 0, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "særboopgørelse")
+))
+= dødsbo_scenarie_par31_split_modsat_fortegn = dødsbo_scenarie_par31_split_resultat(bofordelingsgrundlag = Dbl31FællesboOgSærboSkiftesHverForSig(
+    fællesbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = -250000, aktieindkomst_kroner = -10000, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "fællesboopgørelse"),
+    særbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = 50000, aktieindkomst_kroner = 10000, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "særboopgørelse")
+))
+= dødsbo_scenarie_par31_split_uden_afstemning = dødsbo_scenarie_par31_split_resultat(bofordelingsgrundlag = Dbl31FællesboOgSærboSkiftesHverForSig(
+    fællesbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = -120000, aktieindkomst_kroner = 0, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "fællesboopgørelse"),
+    særbo = Dødsboskattelov31Boindkomstkilde(bobeskatningsindkomst_kroner = -70000, aktieindkomst_kroner = 0, boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 12), dokumentreference = "særboopgørelse-uden-afstemning")
 ))
 
 | dødsbo_scenarie_par30_beregnes_fra_kildefakta: dødsbo_scenarie_positiv_indkomst -> dødsbo_scenarie_positiv_indkomst.input_gyldigt && dødsbo_scenarie_positiv_indkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst.dødsboskat_før_fradrag_kroner == 300000 && dødsbo_scenarie_positiv_indkomst.bofradragsmåneder_stk2 == 0 && dødsbo_scenarie_positiv_indkomst.mellemperiodemåneder_stk3 == 8 && dødsbo_scenarie_positiv_indkomst.ægtefællefradragsmåneder_stk4 == 8 && dødsbo_scenarie_positiv_indkomst.samlede_fradrag_kroner == 40000 && dødsbo_scenarie_positiv_indkomst.dødsboskat_efter_fradrag_kroner == 260000
@@ -202,7 +353,16 @@
 | dødsbo_scenarie_bagudforskudt_begynder_ved_kalenderåret: dødsbo_scenarie_bagudforskudt -> dødsbo_scenarie_bagudforskudt.input_gyldigt && dødsbo_scenarie_bagudforskudt.bofradragsmåneder_stk2 == 12 && dødsbo_scenarie_bagudforskudt.mellemperiodemåneder_stk3 == 11 && dødsbo_scenarie_bagudforskudt.dødsboskat_efter_fradrag_kroner == 73350
 | dødsbo_scenarie_undtagne_boformer_afvises: dødsbo_scenarie_længstlevende -> dødsbo_scenarie_længstlevende.input_gyldigt && dødsbo_scenarie_længstlevende.skattepligtigt_dødsbo_efter_par1_stk2 == Falskt && dødsbo_scenarie_længstlevende.beregningsklar == Falskt
 | dødsbo_scenarie_aktieindkomst_kræver_dokumentreference: dødsbo_scenarie_aktieindkomst_uden_reference -> dødsbo_scenarie_aktieindkomst_uden_reference.aktieindkomstgrundlag_gyldigt == Falskt && dødsbo_scenarie_aktieindkomst_uden_reference.input_gyldigt == Falskt && dødsbo_scenarie_aktieindkomst_uden_reference.beregningsklar == Falskt && dødsbo_scenarie_aktieindkomst_uden_reference.samlet_skat_efter_fradrag_kroner == 0
-| dødsbo_scenarie_negativ_indkomst_udstiller_par31_carryback: dødsbo_scenarie_negativ_indkomst_carryback -> dødsbo_scenarie_negativ_indkomst_carryback.input_gyldigt && dødsbo_scenarie_negativ_indkomst_carryback.skatteberegning_efter_par30_og_par32_klar && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.resterende_negativ_bobeskatningsindkomst_kroner == 100000 && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.underskudsskat_med_30_procent_kroner == 30000 && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.kræver_komplet_skattehistorik && dødsbo_scenarie_negativ_indkomst_carryback.beregningsklar == Falskt && dødsbo_scenarie_negativ_indkomst_carryback.samlet_skat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_negativ_indkomst_udstiller_par31_carryback: dødsbo_scenarie_negativ_indkomst_carryback -> dødsbo_scenarie_negativ_indkomst_carryback.input_gyldigt && dødsbo_scenarie_negativ_indkomst_carryback.skatteberegning_efter_par30_og_par32_klar && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.resterende_negativ_bobeskatningsindkomst_kroner == 100000 && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.underskudsskat_med_30_procent_kroner == 30000 && dødsbo_scenarie_negativ_indkomst_carryback.foreløbigt_carryback_efter_par31.kræver_komplet_skattehistorik && dødsbo_scenarie_negativ_indkomst_carryback.carryback_efter_par31.historik_tilstede == Falskt && dødsbo_scenarie_negativ_indkomst_carryback.carryback_efter_par31.beregningsklar == Falskt && dødsbo_scenarie_negativ_indkomst_carryback.beregningsklar == Falskt && dødsbo_scenarie_negativ_indkomst_carryback.samlet_skat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_par31_historikloft_under_foreløbigt_begrænser_udbetaling: dødsbo_scenarie_par31_historikloft_under_foreløbigt -> dødsbo_scenarie_par31_historikloft_under_foreløbigt.foreløbigt_carryback_efter_par31.foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner == 76200 && dødsbo_scenarie_par31_historikloft_under_foreløbigt.carryback_efter_par31.historikloft_efter_stk2_stk3_kroner == 75000 && dødsbo_scenarie_par31_historikloft_under_foreløbigt.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 75000 && dødsbo_scenarie_par31_historikloft_under_foreløbigt.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_samlet_dødsbo_kroner == 75000 && dødsbo_scenarie_par31_historikloft_under_foreløbigt.beregningsklar
+| dødsbo_scenarie_par31_historikloft_lig_foreløbigt_bevarer_udbetaling: dødsbo_scenarie_par31_historikloft_lig_foreløbigt -> dødsbo_scenarie_par31_historikloft_lig_foreløbigt.carryback_efter_par31.historikloft_efter_stk2_stk3_kroner == 76200 && dødsbo_scenarie_par31_historikloft_lig_foreløbigt.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 76200 && dødsbo_scenarie_par31_historikloft_lig_foreløbigt.beregningsklar
+| dødsbo_scenarie_par31_historikloft_over_foreløbigt_bevarer_udbetaling: dødsbo_scenarie_par31_historikloft_over_foreløbigt -> dødsbo_scenarie_par31_historikloft_over_foreløbigt.carryback_efter_par31.historikloft_efter_stk2_stk3_kroner == 100000 && dødsbo_scenarie_par31_historikloft_over_foreløbigt.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 76200 && dødsbo_scenarie_par31_historikloft_over_foreløbigt.beregningsklar
+| dødsbo_scenarie_par31_forskerskat_indgår_ikke_i_historikloftet: dødsbo_scenarie_par31_forskerskat_udelukkes -> dødsbo_scenarie_par31_forskerskat_udelukkes.carryback_efter_par31.betalte_skatter_før_par31_stk3_kroner == 100000 && dødsbo_scenarie_par31_forskerskat_udelukkes.carryback_efter_par31.udelukket_skat_efter_kildeskattelov48e_48f_kroner == 30000 && dødsbo_scenarie_par31_forskerskat_udelukkes.carryback_efter_par31.historikloft_efter_stk2_stk3_kroner == 70000 && dødsbo_scenarie_par31_forskerskat_udelukkes.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 70000 && dødsbo_scenarie_par31_forskerskat_udelukkes.beregningsklar
+| dødsbo_scenarie_par31_ægtefælleperioder_og_arbejdsmarkedsbidrag_indgår: dødsbo_scenarie_par31_ægtefællehistorik -> dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.forventet_antal_årsskatter == 6 && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.oplyst_antal_årsskatter == 6 && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.historik_komplet && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.betalte_skatter_før_par31_stk3_kroner == 60000 && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.udelukket_skat_efter_kildeskattelov48e_48f_kroner == 3000 && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.historikloft_efter_stk2_stk3_kroner == 57000 && dødsbo_scenarie_par31_ægtefællehistorik.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 30000 && dødsbo_scenarie_par31_ægtefællehistorik.beregningsklar
+| dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik_fejler_lukket: dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik -> dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik.carryback_efter_par31.forventet_antal_årsskatter == 6 && dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik.carryback_efter_par31.oplyst_antal_årsskatter == 5 && dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik.carryback_efter_par31.historik_komplet == Falskt && dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 0 && dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik.beregningsklar == Falskt
+| dødsbo_scenarie_par31_split_fordeles_forholdsmæssigt: dødsbo_scenarie_par31_split_forholdsmæssig_fordeling -> dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.carryback_efter_par31.fordeling_efter_stk4.fællesboets_indkomstsum_kroner == -120000 && dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.carryback_efter_par31.fordeling_efter_stk4.særboets_indkomstsum_kroner == -80000 && dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_fællesbo_kroner == 36000 && dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_særbo_kroner == 24000 && dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 60000 && dødsbo_scenarie_par31_split_forholdsmæssig_fordeling.beregningsklar
+| dødsbo_scenarie_par31_split_modsat_fortegn_tildeler_det_negative_bo: dødsbo_scenarie_par31_split_modsat_fortegn -> dødsbo_scenarie_par31_split_modsat_fortegn.carryback_efter_par31.fordeling_efter_stk4.fællesboets_indkomstsum_kroner == -260000 && dødsbo_scenarie_par31_split_modsat_fortegn.carryback_efter_par31.fordeling_efter_stk4.særboets_indkomstsum_kroner == 60000 && dødsbo_scenarie_par31_split_modsat_fortegn.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_fællesbo_kroner == 60000 && dødsbo_scenarie_par31_split_modsat_fortegn.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_særbo_kroner == 0 && dødsbo_scenarie_par31_split_modsat_fortegn.beregningsklar
+| dødsbo_scenarie_par31_split_uden_afstemning_fejler_lukket: dødsbo_scenarie_par31_split_uden_afstemning -> dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.bofordelingsgrundlag_gyldigt == Falskt && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_fællesbo_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_særbo_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.beregningsklar == Falskt
 | dødsbo_scenarie_positiv_aktieindkomst_bruger_begge_satser_og_samlet_fradragsgrundlag: dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst -> dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.lavt_skattegrundlag_kroner == 67500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.højt_skattegrundlag_kroner == 32500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.positiv_aktieskat_kroner == 31875 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.samlet_skat_før_fradrag_kroner == 81875 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.anvendte_fradrag_kroner == 2500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.samlet_skat_efter_fradrag_kroner == 79375
 | dødsbo_scenarie_par62_fordobler_2026_progressionsgrænsen: dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026 -> dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.beregningsklar && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 158800 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.lavt_skattegrundlag_kroner == 158800 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.højt_skattegrundlag_kroner == 141200 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.positiv_aktieskat_kroner == 102180 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.samlet_skat_efter_fradrag_kroner == 96780
 | dødsbo_scenarie_negativ_aktieskat_modregnes_før_fradrag: dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat -> dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.beregningsklar && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.aktieskatteberegning.negativ_aktieskat_kroner == 31875 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.samlet_skat_før_fradrag_kroner == 18125 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.anvendte_fradrag_kroner == 2500 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.samlet_skat_efter_fradrag_kroner == 15625
@@ -225,6 +385,15 @@
 ? dødsbo_scenarie_undtagne_boformer_afvises
 ? dødsbo_scenarie_aktieindkomst_kræver_dokumentreference
 ? dødsbo_scenarie_negativ_indkomst_udstiller_par31_carryback
+? dødsbo_scenarie_par31_historikloft_under_foreløbigt_begrænser_udbetaling
+? dødsbo_scenarie_par31_historikloft_lig_foreløbigt_bevarer_udbetaling
+? dødsbo_scenarie_par31_historikloft_over_foreløbigt_bevarer_udbetaling
+? dødsbo_scenarie_par31_forskerskat_indgår_ikke_i_historikloftet
+? dødsbo_scenarie_par31_ægtefælleperioder_og_arbejdsmarkedsbidrag_indgår
+? dødsbo_scenarie_par31_ufuldstændig_ægtefællehistorik_fejler_lukket
+? dødsbo_scenarie_par31_split_fordeles_forholdsmæssigt
+? dødsbo_scenarie_par31_split_modsat_fortegn_tildeler_det_negative_bo
+? dødsbo_scenarie_par31_split_uden_afstemning_fejler_lukket
 ? dødsbo_scenarie_positiv_aktieindkomst_bruger_begge_satser_og_samlet_fradragsgrundlag
 ? dødsbo_scenarie_par62_fordobler_2026_progressionsgrænsen
 ? dødsbo_scenarie_negativ_aktieskat_modregnes_før_fradrag
