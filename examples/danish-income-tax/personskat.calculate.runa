@@ -12998,19 +12998,33 @@
 
 = personskat_par37_til40_ægtefællemodregning_metadata = Metadata(
     attachments = (
+        DependencySource(value = kildeskatteloven_2024_460),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
     )
 )
 
 --@label:personskat_par37_til40_ægtefællemodregning::meta:personskat_par37_til40_ægtefællemodregning_metadata--
 ----
+Kildeskatteloven § 4, stk. 6:
+"Bortfalder skattepligten efter § 1 for en af ægtefællerne eller for begge,
+anses samlivet i skattemæssig henseende for ophævet på tidspunktet for
+skattepligtens bortfald."
+
 Den juridiske vejledning C.B.2.14.2.7:
+"Hvis ægtefæller fraflytter samtidigt, kan et eventuelt fradragsberettiget tab,
+som opstår hos den ene ægtefælle, og som denne ikke kan udnytte, anvendes til
+modregning i den anden ægtefælles gevinst på aktier, som bliver skattepligtige
+i forbindelse med fraflytningen."
+
 "Efter Skattestyrelsens opfattelse kan der kun ske modregning mellem ægtefæller,
 hvis begge ægtefæller bliver skattepligtige af gevinst/tab på aktier ved
 fraflytningen."
 ----
 
 --@begin:personskat_par37_til40_ægtefællemodregning--
+# PersonskatPar37Til40Kildereduktionstilstand(resterende_modregning_kroner: Heltal, kilderesultater: List(AktieavancebeskatningslovKilderesultat))
+# PersonskatPar37Til40Resultatreduktionstilstand(resterende_modregning_kroner: Heltal, resultater: List(PersonskatSærligtAktieaktivResultat))
+
 | personskat_par37_til40_neutral_årskontekst() -> PersonskatPar37Til40Årskontekst(
     egen_aktieindkomst_kroner = 0,
     ægtefælles_aktieindkomst_kroner = 0,
@@ -13039,7 +13053,7 @@ fraflytningen."
 }
 | personskat_par37_til40_aktuel_skattepligt(fakta: PersonskatSærligtAktieaktivFakta, skatteår: Heltal) -> personskat_par37_til40_har_aktuel_afledning(fakta, skatteår) && personskat_par37_til40_resultat_udløser_skattepligt(personskat_par37_til40_neutralt_resultat(fakta, skatteår))
 | personskat_par37_til40_har_aktuel_skattepligt(input: PersonskatAktieavanceInput, skatteår: Heltal) -> length(filter(input.særlige_aktiver, |fakta: PersonskatSærligtAktieaktivFakta| personskat_par37_til40_aktuel_skattepligt(fakta, skatteår))) > 0
-| personskat_par37_til40_ægtefællemodregning_tilladt(hovedpersons_input: PersonskatAktieavanceInput, hovedpersons_skatteår: Heltal, ægtefælles_input: PersonskatAktieavanceInput, ægtefælles_skatteår: Heltal, samlevende_ved_indkomstårets_udløb: Boolsk) -> samlevende_ved_indkomstårets_udløb && personskat_par37_til40_fraflytning_samtidig(hovedpersons_input, hovedpersons_skatteår, ægtefælles_input, ægtefælles_skatteår) && personskat_par37_til40_har_aktuel_skattepligt(hovedpersons_input, hovedpersons_skatteår) && personskat_par37_til40_har_aktuel_skattepligt(ægtefælles_input, ægtefælles_skatteår)
+| personskat_par37_til40_ægtefællemodregning_tilladt(hovedpersons_input: PersonskatAktieavanceInput, hovedpersons_skatteår: Heltal, ægtefælles_input: PersonskatAktieavanceInput, ægtefælles_skatteår: Heltal) -> personskat_par37_til40_fraflytning_samtidig(hovedpersons_input, hovedpersons_skatteår, ægtefælles_input, ægtefælles_skatteår) && personskat_par37_til40_har_aktuel_skattepligt(hovedpersons_input, hovedpersons_skatteår) && personskat_par37_til40_har_aktuel_skattepligt(ægtefælles_input, ægtefælles_skatteår)
 | personskat_par37_til40_nettogevinst_før_gulv_kroner(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.fraflytningsresultat.par38_resultat.samlet_nettogevinst_før_gulv_kroner
     | None -> 0
@@ -13049,6 +13063,82 @@ fraflytningen."
 | personskat_par37_til40_kilderesultater_før_nettogulv(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
     | Some(forløb) -> aktieavance_par38_kilderesultater_før_nettogulv(forløb.fraflytningsresultat.par38_resultat.input)
     | None -> resultat.kilderesultater
+}
+| personskat_par37_til40_kilderesultat_uden_personskattelovsmedregning(kilderesultat: AktieavancebeskatningslovKilderesultat) -> AktieavancebeskatningslovKilderesultat(
+    kildeidentifikation = kilderesultat.kildeidentifikation,
+    resultat = AktieavancebeskatningslovResultat(
+        indkomstår = kilderesultat.resultat.indkomstår,
+        effektiv_aktiv = kilderesultat.resultat.effektiv_aktiv,
+        bruttogevinst_kroner = kilderesultat.resultat.bruttogevinst_kroner,
+        bruttotab_kroner = kilderesultat.resultat.bruttotab_kroner,
+        tab_afskåret_kroner = kilderesultat.resultat.tab_afskåret_kroner,
+        skattepligtig_gevinst_kroner = kilderesultat.resultat.skattepligtig_gevinst_kroner,
+        fradragsberettiget_tab_kroner = kilderesultat.resultat.fradragsberettiget_tab_kroner,
+        netto_efter_aktieavancebeskatningsloven_kroner = kilderesultat.resultat.netto_efter_aktieavancebeskatningsloven_kroner,
+        medregnes_i_skattepligtig_indkomst = Falskt,
+        personskattelov_kategori = AblIkkeMedregnetISlice
+    ),
+    kildegrundlag = kilderesultat.kildegrundlag,
+    input_gyldigt = kilderesultat.input_gyldigt
+)
+| personskat_par37_til40_kilderesultat_med_modregning(kilderesultat: AktieavancebeskatningslovKilderesultat, modregning_kroner: Heltal) -> {
+    = nyt_skattepligtigt_gevinstbeløb_kroner = kilderesultat.resultat.skattepligtig_gevinst_kroner - modregning_kroner
+    = nyt_netto_kroner = kilderesultat.resultat.netto_efter_aktieavancebeskatningsloven_kroner - modregning_kroner
+    AktieavancebeskatningslovKilderesultat(
+        kildeidentifikation = kilderesultat.kildeidentifikation,
+        resultat = AktieavancebeskatningslovResultat(
+            indkomstår = kilderesultat.resultat.indkomstår,
+            effektiv_aktiv = kilderesultat.resultat.effektiv_aktiv,
+            bruttogevinst_kroner = kilderesultat.resultat.bruttogevinst_kroner,
+            bruttotab_kroner = kilderesultat.resultat.bruttotab_kroner,
+            tab_afskåret_kroner = kilderesultat.resultat.tab_afskåret_kroner,
+            skattepligtig_gevinst_kroner = nyt_skattepligtigt_gevinstbeløb_kroner,
+            fradragsberettiget_tab_kroner = kilderesultat.resultat.fradragsberettiget_tab_kroner,
+            netto_efter_aktieavancebeskatningsloven_kroner = nyt_netto_kroner,
+            medregnes_i_skattepligtig_indkomst = nyt_netto_kroner != 0,
+            personskattelov_kategori = kilderesultat.resultat.personskattelov_kategori
+        ),
+        kildegrundlag = kilderesultat.kildegrundlag,
+        input_gyldigt = kilderesultat.input_gyldigt
+    )
+}
+| personskat_par37_til40_kildereduktionstrin(tilstand: PersonskatPar37Til40Kildereduktionstilstand, kilderesultat: AktieavancebeskatningslovKilderesultat) -> {
+    = positivt_netto_kroner = penge_positivt_beløb(kilderesultat.resultat.netto_efter_aktieavancebeskatningsloven_kroner)
+    = anvendt_modregning_kroner = penge_mindste_beløb(tilstand.resterende_modregning_kroner, positivt_netto_kroner)
+    PersonskatPar37Til40Kildereduktionstilstand(
+        resterende_modregning_kroner = tilstand.resterende_modregning_kroner - anvendt_modregning_kroner,
+        kilderesultater = concat(tilstand.kilderesultater, [personskat_par37_til40_kilderesultat_med_modregning(kilderesultat, anvendt_modregning_kroner)])
+    )
+}
+| personskat_par37_til40_resultatreduktionstrin(skatteår: Heltal, tilstand: PersonskatPar37Til40Resultatreduktionstilstand, resultat: PersonskatSærligtAktieaktivResultat) -> hvis personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) {
+    = reduceret = foldl(
+        personskat_par37_til40_kilderesultater_før_nettogulv(resultat),
+        PersonskatPar37Til40Kildereduktionstilstand(resterende_modregning_kroner = tilstand.resterende_modregning_kroner, kilderesultater = []),
+        personskat_par37_til40_kildereduktionstrin
+    )
+    PersonskatPar37Til40Resultatreduktionstilstand(
+        resterende_modregning_kroner = reduceret.resterende_modregning_kroner,
+        resultater = concat(tilstand.resultater, [personskat_særligt_aktieaktiv_med_kilderesultater(resultat, reduceret.kilderesultater)])
+    )
+} ellers {
+    PersonskatPar37Til40Resultatreduktionstilstand(
+        resterende_modregning_kroner = tilstand.resterende_modregning_kroner,
+        resultater = concat(tilstand.resultater, [resultat])
+    )
+}
+| personskat_par37_til40_resultat_uden_personskattelovsmedregning(resultat: PersonskatSærligtAktieaktivResultat, skatteår: Heltal) -> hvis personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) {
+    personskat_særligt_aktieaktiv_med_kilderesultater(resultat, map(personskat_par37_til40_kilderesultater_før_nettogulv(resultat), personskat_par37_til40_kilderesultat_uden_personskattelovsmedregning))
+} ellers {
+    resultat
+}
+| personskat_par37_til40_resultater_med_eksplicit_ægtefællemodregning(resultater: List(PersonskatSærligtAktieaktivResultat), skatteår: Heltal, egen_nettogevinst_før_gulv_kroner: Heltal, ægtefælles_nettogevinst_før_gulv_kroner: Heltal) -> hvis egen_nettogevinst_før_gulv_kroner <= 0 {
+    map(resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_uden_personskattelovsmedregning(resultat, skatteår))
+} ellers {
+    foldl(
+        resultater,
+        PersonskatPar37Til40Resultatreduktionstilstand(resterende_modregning_kroner = penge_positivt_beløb(0 - ægtefælles_nettogevinst_før_gulv_kroner), resultater = []),
+        |tilstand: PersonskatPar37Til40Resultatreduktionstilstand, resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultatreduktionstrin(skatteår, tilstand, resultat)
+    ).resultater
 }
 | personskat_par37_til40_kilderesultater_efter_ægtefællemodregning(resultat: PersonskatSærligtAktieaktivResultat, skatteår: Heltal, ægtefællemodregning_tilladt: Boolsk, parrets_nettogevinst_før_gulv_kroner: Heltal) -> hvis ægtefællemodregning_tilladt && personskat_par37_til40_resultat_har_aktuel_afledning(resultat, skatteår) {
     hvis parrets_nettogevinst_før_gulv_kroner > 0 { personskat_par37_til40_kilderesultater_før_nettogulv(resultat) } ellers { [] }
@@ -13201,7 +13291,7 @@ fraflytningen."
     = ægtefællebasisresultat = personskat_aktieavance_resultat_fra_forberedelse(ægtefællebasisforberedelse, ægtefælleordinært_aktieår)
     = hovedpersons_par37_til40_netto_før_gulv_kroner = personskat_par37_til40_samlet_aktuel_nettogevinst_før_gulv_kroner(hovedpersons_input, hovedpersons_skatteår)
     = ægtefælles_par37_til40_netto_før_gulv_kroner = personskat_par37_til40_samlet_aktuel_nettogevinst_før_gulv_kroner(ægtefælles_input, ægtefælles_skatteår)
-    = ægtefællemodregning_tilladt = personskat_par37_til40_ægtefællemodregning_tilladt(hovedpersons_input, hovedpersons_skatteår, ægtefælles_input, ægtefælles_skatteår, samlevende_ved_indkomstårets_udløb)
+    = ægtefællemodregning_tilladt = personskat_par37_til40_ægtefællemodregning_tilladt(hovedpersons_input, hovedpersons_skatteår, ægtefælles_input, ægtefælles_skatteår)
     = parrets_nettogevinst_før_gulv_kroner = hovedpersons_par37_til40_netto_før_gulv_kroner + ægtefælles_par37_til40_netto_før_gulv_kroner
     = hovedpersons_ægtefællefraflytning_kroner = hvis ægtefællemodregning_tilladt { ægtefælles_par37_til40_netto_før_gulv_kroner } ellers { 0 }
     = ægtefælles_ægtefællefraflytning_kroner = hvis ægtefællemodregning_tilladt { hovedpersons_par37_til40_netto_før_gulv_kroner } ellers { 0 }
@@ -13225,8 +13315,16 @@ fraflytningen."
             afledning_tilladt = Sandt
         )
     )
-    = hovedresultater_efter_ægtefællemodregning = map(hovedsærlige.resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_efter_ægtefællemodregning(resultat, hovedpersons_skatteår, ægtefællemodregning_tilladt, parrets_nettogevinst_før_gulv_kroner))
-    = ægtefælleresultater_efter_ægtefællemodregning = map(ægtefællesærlige.resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_efter_ægtefællemodregning(resultat, ægtefælles_skatteår, ægtefællemodregning_tilladt, parrets_nettogevinst_før_gulv_kroner))
+    = hovedresultater_efter_ægtefællemodregning = hvis ægtefællemodregning_tilladt && samlevende_ved_indkomstårets_udløb == Falskt {
+        personskat_par37_til40_resultater_med_eksplicit_ægtefællemodregning(hovedsærlige.resultater, hovedpersons_skatteår, hovedpersons_par37_til40_netto_før_gulv_kroner, ægtefælles_par37_til40_netto_før_gulv_kroner)
+    } ellers {
+        map(hovedsærlige.resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_efter_ægtefællemodregning(resultat, hovedpersons_skatteår, ægtefællemodregning_tilladt, parrets_nettogevinst_før_gulv_kroner))
+    }
+    = ægtefælleresultater_efter_ægtefællemodregning = hvis ægtefællemodregning_tilladt && samlevende_ved_indkomstårets_udløb == Falskt {
+        personskat_par37_til40_resultater_med_eksplicit_ægtefællemodregning(ægtefællesærlige.resultater, ægtefælles_skatteår, ægtefælles_par37_til40_netto_før_gulv_kroner, hovedpersons_par37_til40_netto_før_gulv_kroner)
+    } ellers {
+        map(ægtefællesærlige.resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_efter_ægtefællemodregning(resultat, ægtefælles_skatteår, ægtefællemodregning_tilladt, parrets_nettogevinst_før_gulv_kroner))
+    }
     = hovedforberedelse = personskat_aktieavance_forberedelse_fra_resultater(hovedpersons_input, hovedpersons_skatteår, hovedresultater_efter_ægtefællemodregning, hovedbasisforberedelse.udbytter)
     = ægtefælleforberedelse = personskat_aktieavance_forberedelse_fra_resultater(ægtefælles_input, ægtefælles_skatteår, ægtefælleresultater_efter_ægtefællemodregning, ægtefællebasisforberedelse.udbytter)
     = hovedresultat = personskat_aktieavance_resultat_fra_forberedelse(hovedforberedelse, hovedordinært_aktieår)

@@ -35,8 +35,8 @@
 )
 = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946398",
-    identifier = "Den juridiske vejledning C.B.2.14.2.7: gevinst og tab ved fraflytning",
-    hentet_dato = "2026-07-18"
+    identifier = "Den juridiske vejledning 2026-2, C.B.2.14.2.7: gevinst og tab ved fraflytning",
+    hentet_dato = "2026-08-07"
 )
 = aktieavancebeskatningsloven_juridisk_vejledning_par39 = AktieavancebeskatningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1946400",

@@ -159,7 +159,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     ejendomsskatter = scenarie.ejendomsskatter
 )
 | fraflytter_slutskat_personfakta(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> fraflytter_slutskat_personfakta_fra_scenarie(fraflytter_slutskat_personscenarie(særlige_aktiver))
-| fraflytter_slutskat_parinput_med_personer(hovedperson: FraflytterSlutskatPersonscenarie, ægtefælle: FraflytterSlutskatPersonscenarie) -> PersonskatInput(
+| fraflytter_slutskat_parinput_med_personer_og_årsslutsamliv(hovedperson: FraflytterSlutskatPersonscenarie, ægtefælle: FraflytterSlutskatPersonscenarie, samlevende_ved_indkomstårets_udløb: Boolsk) -> PersonskatInput(
     lønmodtager = fraflytter_slutskat_loenmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = hovedperson.aktieavance,
@@ -169,11 +169,21 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = fraflytter_slutskat_personfakta_fra_scenarie(ægtefælle),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb
     ),
     ejendomsskatter = hovedperson.ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
+)
+| fraflytter_slutskat_parinput_med_personer(hovedperson: FraflytterSlutskatPersonscenarie, ægtefælle: FraflytterSlutskatPersonscenarie) -> fraflytter_slutskat_parinput_med_personer_og_årsslutsamliv(
+    hovedperson = hovedperson,
+    ægtefælle = ægtefælle,
+    samlevende_ved_indkomstårets_udløb = Sandt
+)
+| fraflytter_slutskat_parinput_med_årsslutsamliv(hovedpersons_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), ægtefælles_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), samlevende_ved_indkomstårets_udløb: Boolsk) -> fraflytter_slutskat_parinput_med_personer_og_årsslutsamliv(
+    hovedperson = fraflytter_slutskat_personscenarie(hovedpersons_særlige_aktiver),
+    ægtefælle = fraflytter_slutskat_personscenarie(ægtefælles_særlige_aktiver),
+    samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb
 )
 | fraflytter_slutskat_parinput(hovedpersons_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), ægtefælles_særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> fraflytter_slutskat_parinput_med_personer(
     hovedperson = fraflytter_slutskat_personscenarie(hovedpersons_særlige_aktiver),
@@ -439,11 +449,23 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         [fraflytter_slutskat_gevinstkilde(samtidig_dato)]
     )
     = tab_og_gevinst = beregn_personskat(tab_og_gevinst_input)
+    = tab_og_gevinst_uden_årsslutsamliv_input = fraflytter_slutskat_parinput_med_årsslutsamliv(
+        [fraflytter_slutskat_tabskilde(samtidig_dato, AblPar38MindstSyvÅrIndenForSenesteTiÅr)],
+        [fraflytter_slutskat_gevinstkilde(samtidig_dato)],
+        Falskt
+    )
+    = tab_og_gevinst_uden_årsslutsamliv = beregn_personskat(tab_og_gevinst_uden_årsslutsamliv_input)
     = gevinst_og_tab_input = fraflytter_slutskat_parinput(
         [fraflytter_slutskat_gevinstkilde(samtidig_dato)],
         [fraflytter_slutskat_tabskilde(samtidig_dato, AblPar38MindstSyvÅrIndenForSenesteTiÅr)]
     )
     = gevinst_og_tab = beregn_personskat(gevinst_og_tab_input)
+    = gevinst_og_tab_uden_årsslutsamliv_input = fraflytter_slutskat_parinput_med_årsslutsamliv(
+        [fraflytter_slutskat_gevinstkilde(samtidig_dato)],
+        [fraflytter_slutskat_tabskilde(samtidig_dato, AblPar38MindstSyvÅrIndenForSenesteTiÅr)],
+        Falskt
+    )
+    = gevinst_og_tab_uden_årsslutsamliv = beregn_personskat(gevinst_og_tab_uden_årsslutsamliv_input)
     = kun_en_skattepligtig_input = fraflytter_slutskat_parinput(
         [fraflytter_slutskat_tabskilde(samtidig_dato, AblPar38UnderSyvÅrIndenForSenesteTiÅr)],
         [fraflytter_slutskat_gevinstkilde(samtidig_dato)]
@@ -457,14 +479,24 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     = basis_skat_kroner = fraflytter_slutskat_parrets_samlede_skat(parbasis)
     = begge_positive_fraflytterskat_kroner = fraflytter_slutskat_for_par(begge_positive)
     = tab_og_gevinst_fraflytterskat_kroner = fraflytter_slutskat_for_par(tab_og_gevinst)
+    = tab_og_gevinst_uden_årsslutsamliv_fraflytterskat_kroner = fraflytter_slutskat_for_par(tab_og_gevinst_uden_årsslutsamliv)
     = gevinst_og_tab_fraflytterskat_kroner = fraflytter_slutskat_for_par(gevinst_og_tab)
+    = gevinst_og_tab_uden_årsslutsamliv_fraflytterskat_kroner = fraflytter_slutskat_for_par(gevinst_og_tab_uden_årsslutsamliv)
     = kun_en_skattepligtig_fraflytterskat_kroner = fraflytter_slutskat_for_par(kun_en_skattepligtig)
     = forskellige_datoer_fraflytterskat_kroner = fraflytter_slutskat_for_par(forskellige_datoer)
     = ægtefælleresultater_gyldige = match tab_og_gevinst.ægtefælle {
         | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.aktieavance.alle_input_gyldige && grundlag.aktieavance.aktieindkomst_kroner == 100000
         | IngenÆgtefælleberegning -> Falskt
     }
-    @ print("ABL § 38 ægtefællekontrol: positive=" + vis(begge_positive_fraflytterskat_kroner) + ", tab/gevinst=" + vis(tab_og_gevinst_fraflytterskat_kroner) + ", omvendt=" + vis(gevinst_og_tab_fraflytterskat_kroner) + ", kun-en=" + vis(kun_en_skattepligtig_fraflytterskat_kroner) + ", forskellige-datoer=" + vis(forskellige_datoer_fraflytterskat_kroner) + ", deltas=" + vis(fraflytter_slutskat_parrets_samlede_skat(begge_positive) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer) - basis_skat_kroner) + ", spouse-valid=" + vis(ægtefælleresultater_gyldige))
+    = uden_årsslutsamliv_ægtefælleresultater_gyldige = match tab_og_gevinst_uden_årsslutsamliv.ægtefælle {
+        | BeregnetÆgtefælle(_, grundlag, _, samlevende_ved_indkomstårets_udløb) -> grundlag.aktieavance.alle_input_gyldige && samlevende_ved_indkomstårets_udløb == Falskt && grundlag.aktieavance.aktieindkomst_kroner == 70000 && head(head(grundlag.aktieavance.særlige_resultater).kilderesultater).resultat.skattepligtig_gevinst_kroner == 70000
+        | IngenÆgtefælleberegning -> Falskt
+    }
+    = omvendt_uden_årsslutsamliv_ægtefælleresultater_gyldige = match gevinst_og_tab_uden_årsslutsamliv.ægtefælle {
+        | BeregnetÆgtefælle(_, grundlag, _, samlevende_ved_indkomstårets_udløb) -> grundlag.aktieavance.alle_input_gyldige && samlevende_ved_indkomstårets_udløb == Falskt && grundlag.aktieavance.aktieindkomst_kroner == 0 && head(head(grundlag.aktieavance.særlige_resultater).kilderesultater).resultat.personskattelov_kategori == AblIkkeMedregnetISlice
+        | IngenÆgtefælleberegning -> Falskt
+    }
+    @ print("ABL § 38 ægtefællekontrol: positive=" + vis(begge_positive_fraflytterskat_kroner) + ", tab/gevinst=" + vis(tab_og_gevinst_fraflytterskat_kroner) + ", uden-årsslutsamliv=" + vis(tab_og_gevinst_uden_årsslutsamliv_fraflytterskat_kroner) + ", omvendt=" + vis(gevinst_og_tab_fraflytterskat_kroner) + ", omvendt-uden-årsslutsamliv=" + vis(gevinst_og_tab_uden_årsslutsamliv_fraflytterskat_kroner) + ", kun-en=" + vis(kun_en_skattepligtig_fraflytterskat_kroner) + ", forskellige-datoer=" + vis(forskellige_datoer_fraflytterskat_kroner) + ", deltas=" + vis(fraflytter_slutskat_parrets_samlede_skat(begge_positive) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst_uden_årsslutsamliv) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab_uden_årsslutsamliv) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig) - basis_skat_kroner) + "/" + vis(fraflytter_slutskat_parrets_samlede_skat(forskellige_datoer) - basis_skat_kroner) + ", spouse-valid=" + vis(ægtefælleresultater_gyldige))
     (begge_positive.aktieavance.alle_input_gyldige
         && begge_positive_fraflytterskat_kroner == 40500
         && begge_positive_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(begge_positive) - basis_skat_kroner
@@ -480,8 +512,21 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         && length(head(tab_og_gevinst.aktieavance.særlige_resultater).kilderesultater) == 1
         && tab_og_gevinst_fraflytterskat_kroner == 18900
         && tab_og_gevinst_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst) - basis_skat_kroner
+        && tab_og_gevinst_uden_årsslutsamliv_fraflytterskat_kroner == 18900
+        && tab_og_gevinst_uden_årsslutsamliv_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(tab_og_gevinst_uden_årsslutsamliv) - basis_skat_kroner
+        && tab_og_gevinst_uden_årsslutsamliv.aktieavance.aktieindkomst_kroner == 0
+        && tab_og_gevinst_uden_årsslutsamliv.aktieindkomst_parår.input.egen_aktieindkomst_kroner == 0
+        && tab_og_gevinst_uden_årsslutsamliv.aktieindkomst_parår.input.ægtefælles_aktieindkomst_kroner == 70000
+        && tab_og_gevinst_uden_årsslutsamliv.negativ_aktieindkomstskat.samlet_negativ_skat_kroner == 0
+        && head(head(tab_og_gevinst_uden_årsslutsamliv.aktieavance.særlige_resultater).kilderesultater).resultat.personskattelov_kategori == AblIkkeMedregnetISlice
+        && uden_årsslutsamliv_ægtefælleresultater_gyldige
         && gevinst_og_tab_fraflytterskat_kroner == tab_og_gevinst_fraflytterskat_kroner
         && gevinst_og_tab_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab) - basis_skat_kroner
+        && gevinst_og_tab_uden_årsslutsamliv_fraflytterskat_kroner == tab_og_gevinst_uden_årsslutsamliv_fraflytterskat_kroner
+        && gevinst_og_tab_uden_årsslutsamliv_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(gevinst_og_tab_uden_årsslutsamliv) - basis_skat_kroner
+        && gevinst_og_tab_uden_årsslutsamliv.aktieavance.aktieindkomst_kroner == 70000
+        && head(head(gevinst_og_tab_uden_årsslutsamliv.aktieavance.særlige_resultater).kilderesultater).resultat.skattepligtig_gevinst_kroner == 70000
+        && omvendt_uden_årsslutsamliv_ægtefælleresultater_gyldige
         && kun_en_skattepligtig_fraflytterskat_kroner == 27000
         && kun_en_skattepligtig_fraflytterskat_kroner == fraflytter_slutskat_parrets_samlede_skat(kun_en_skattepligtig) - basis_skat_kroner
         && length(head(kun_en_skattepligtig.aktieavance.særlige_resultater).kilderesultater) == 0

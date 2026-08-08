@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-07
 TD epic: `td-56cf8d`
-Current implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
+Current implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
+Previous implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
 Previous implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
 Previous implementation slice: `td-4a61a9` (Ejendomsskattelovens § 39 sammenligner nu kun grundskylden på den ikke-fritagne grundandel, mens §§ 44-45 fortsat opgør det årlige stigningsloft og først derefter fordeler både ordinær og begrænset grundskyld på ejerperioden; kildefakta, mellemresultater og slutskat er identiske gennem JSON og XLSX)
 Previous implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
@@ -29,7 +30,7 @@ Current LL § 9 A short-service slice: `td-bc07c9` (undtagelsen for enkeltståen
 Previous LL § 9 A granularity slice: `td-45f9fb` (kostprincippet gælder for hele rejsen, mens logidækning, godtgørelse og standard- eller dokumenteret fradrag afgøres pr. rejsedøgn; allerede lønopdelt overskud bevares som supplerende løn)
 Previous ABL reporting slice: `td-3f2ee9` (ABL § 39 A's årlige oplysningspligt kontrolleres nu mod en typet kildehistorik med opgørelsesdato og dokumenterede fristudsættelser; manglende oplysninger afledes først efter den effektive frist og bliver et synligt ledgerresultat)
 Previous negative share-tax ledger slice: `td-9ffd39` (uudnyttet negativ aktieindkomstskat efter Personskattelovens § 8 a, stk. 5-6, føres nu mellem Personskat-år som typede ejer- og årstrancher; årets negative skat anvendes før tidligere fremførsel, ældste tranche anvendes først, og hele ledgeren bevares gennem JSON/XLSX)
-Previous simultaneous exit-tax slice: `td-421749` (samtidig fraflytning for samlevende ægtefæller bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge bliver fraflytterskattepligtige; én rolleuafhængig parberegning fordeler skatten uden dobbeltregning og bevarer kildeproveniens gennem JSON/XLSX)
+Current simultaneous exit-tax slice: `td-421749` (samtidig fraflytning bruger eksakte datoer og modregner kun ABL § 38-tab på tværs, når begge ægtefæller bliver fraflytterskattepligtige; den særlige modregning virker også, når KSL § 4, stk. 6 gør årsslutsamliv falsk, uden at overføre den ordinære dobbelte § 8 a-grænse)
 Previous employee-expense slice: `td-80292f` (Ligningslovens § 9, stk. 1 og 3, modellerer typede, dokumenterede lønmodtagerudgifter, den fælles årsgrænse og repræsentationsbegrænsningen; fradraget føres gennem Sømandsbeskatningslovens § 4 til den kanoniske Personskat-beregning og arbejdsbog)
 Previous DIS implementation slice: `td-80c439` (Sømandsbeskatningslovens §§ 5-8 klassificerer DIS, DAS og udenlandske skibe fra typede kildefakta; DIS-løn indgår i progression uden AM-bidrag, den forholdsmæssige lempelse beregnes pr. skattekomponent og føres til den kanoniske Personskat-slutskat og arbejdsbog)
 Previous travel-expense slice: `td-d17087` (Ligningslovens § 9 A er et kildebåret, typet årsdomæne for rejser, godtgørelser og fradrag; den kanoniske Personskat-graf udleder Sømandsbeskatningslovens § 4, stk. 2-udelukkelse og fører skattepligtig godtgørelse samt fradrag til de rette skattegrundlag)
@@ -4813,10 +4814,18 @@ Review candidates to revisit deliberately, not as broad churn:
   same-year aggregate is rejected. The generated JSON/XLSX contract therefore
   exposes the context origin but no duplicate current-year context amounts.
   A typed annual context keeps the signed own/spouse amounts, cohabitation and
-  derivation validity together through the rule chain. When both cohabiting
-  spouses have current-year departure branches, the canonical calculation now
-  fails closed instead of attributing the shared § 8 a effect twice. The joint
-  netting and attribution model is bounded follow-up `td-421749`.
+  derivation validity together through the rule chain. Under `td-421749`, exact
+  departure dates and each spouse's independently derived § 38 liability now
+  control the special cross-spouse loss offset. The permission is independent
+  of ordinary year-end cohabitation: KSL § 4, stk. 6 ends tax cohabitation when
+  § 1 liability ceases, while C.B.2.14.2.7 still permits a usable departure loss
+  to offset the other spouse's simultaneously taxable departure gain. With
+  year-end cohabitation false, the 30.000 kr. loss source remains visible but is
+  excluded from separate PSL aggregation, and the other spouse's 100.000 kr.
+  gain is reduced in source order to 70.000 kr. The pair's exit tax is therefore
+  18.900 kr. in both role orders without granting the ordinary doubled § 8 a
+  threshold. Only-one-liable and different-date cases remain unnetted at
+  27.000 kr.; simultaneous positive gains keep their own ordinary tax status.
   Twelve focused scenarios cover signed pair tax, own and spouse derivation,
   cohabitation, ordered multiple branches, historical replay, conflicting
   same-year context and simultaneous spouse departure in both the interpreter

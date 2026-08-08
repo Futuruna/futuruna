@@ -14352,6 +14352,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ["særlige_aktiver"] = Value::Array(vec![spouse_departure]);
     par37_simultaneous_spouse_case["input"]["ægtefælle"]["fakta"]["aktieavance"]["udbytter"] =
         serde_json::json!([]);
+    par37_simultaneous_spouse_case["input"]["ægtefælle"]["samlevende_ved_indkomstårets_udløb"] =
+        serde_json::json!(false);
     let mut par37_conflicting_context_case = par37_case.clone();
     par37_conflicting_context_case["case_id"] =
         Value::String("personskat-par37-40-modstridende-kontekst-2026".into());
@@ -15514,7 +15516,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
-        simultaneous_spouse_case,
+        simultaneous_spouse_case.clone(),
         ordinary_share_loss_case,
         spouse_property_credit_case,
         partial_exemption_case,
@@ -17180,24 +17182,28 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         json_par37_simultaneous_spouse_result["result"]
     );
     let simultaneous_result = &json_par37_simultaneous_spouse_result["result"];
+    assert_eq!(
+        simultaneous_spouse_case["input"]["ægtefælle"]["samlevende_ved_indkomstårets_udløb"],
+        false
+    );
     let simultaneous_main_special = &simultaneous_result["aktieavance"]["særlige_resultater"][0];
     let simultaneous_spouse_special =
         &simultaneous_result["ægtefælle"]["grundlag"]["aktieavance"]["særlige_resultater"][0];
     assert_eq!(
         simultaneous_result["aktieavance"]["aktieindkomst_kroner"],
-        -30_000
+        0
     );
     assert_eq!(
         simultaneous_result["ægtefælle"]["grundlag"]["aktieavance"]["aktieindkomst_kroner"],
-        100_000
+        70_000
     );
     assert_eq!(
         simultaneous_result["aktieindkomst_parår"]["input"]["egen_aktieindkomst_kroner"],
-        -30_000
+        0
     );
     assert_eq!(
         simultaneous_result["aktieindkomst_parår"]["input"]["ægtefælles_aktieindkomst_kroner"],
-        100_000
+        70_000
     );
     assert_eq!(
         simultaneous_result["aktieindkomst_parår"]
@@ -17225,6 +17231,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         simultaneous_main_special["kilderesultater"][0]["resultat"]
             ["netto_efter_aktieavancebeskatningsloven_kroner"],
         -30_000
+    );
+    assert_eq!(
+        simultaneous_main_special["kilderesultater"][0]["resultat"]["personskattelov_kategori"]
+            ["$variant"],
+        "AblIkkeMedregnetISlice"
+    );
+    assert_eq!(
+        simultaneous_spouse_special["kilderesultater"][0]["resultat"]["bruttogevinst_kroner"],
+        100_000
+    );
+    assert_eq!(
+        simultaneous_spouse_special["kilderesultater"][0]["resultat"]
+            ["skattepligtig_gevinst_kroner"],
+        70_000
     );
     assert_eq!(
         simultaneous_main_special["par37_til40_forløbsresultat"]
