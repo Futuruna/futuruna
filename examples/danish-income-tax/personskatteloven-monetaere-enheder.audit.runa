@@ -1,0 +1,545 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+@ importer ./kapitel - 04 - omregning - skatteloft
+@ importer ./kildeskatteloven
+@ importer ./slutopgoerelse
+@ importer ./ejendomsskatteloven
+@ importer ./kommuneskatteloven
+
+# PersonskatMonetærAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# PersonskatMonetærEnhed = HeleKroner | Øre
+# PersonskatMonetærBeregningEnhed = Basispoint | PromilleTiendedele | ReguleringsTiendedele | Fordelingsnævner
+# PersonskatMonetærAfrunding = IngenMonetærAfrunding | NedModNulTilHelKrone | NærmesteHeleKrone | NedTilTiKroner | OpTilNærmesteHundredeKroner | NedModNulTilØre | HeleKronerMedØrerest | KronerOpskaleretTilØreUdenRest
+# PersonskatMonetærBelægsstatus = UdtrykkeligLovregel | AdministrativVejledning | KildedrevetEksaktBeregning | KanoniskKompatibilitetsprojektion | BekræftetPræcisionstab
+# PersonskatMonetærtTrin(navn: Tekst, input_enhed: PersonskatMonetærEnhed, beregningsenheder: List(PersonskatMonetærBeregningEnhed), output_enhed: PersonskatMonetærEnhed, afrunding: PersonskatMonetærAfrunding, belæg: PersonskatMonetærBelægsstatus, offentligt_slutskattetrin: Boolsk, implementeringsissue: Tekst)
+# PersonskatMonetærAuditResultat(trin: List(PersonskatMonetærtTrin), alle_trin_navngivet: Boolsk, antal_offentlige_slutskattetrin: Heltal, antal_bekræftede_præcisionstab: Heltal)
+# PersonskatMonetærAuditAdvarsel(kode: Tekst, beskrivelse: Tekst, implementeringsissue: Tekst)
+
+= personskat_monetaer_psl_kilde = PersonskatMonetærAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven §§ 5-14 og 20",
+    hentet_dato = "2026-08-07"
+)
+
+= personskat_monetaer_kommuneskattelov_kilde = PersonskatMonetærAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2019/935",
+    identifier = "Kommuneskatteloven § 5, stk. 1-3",
+    hentet_dato = "2026-08-07"
+)
+
+= personskat_monetaer_ksl_kilde = PersonskatMonetærAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven §§ 48 og 60-62 C",
+    hentet_dato = "2026-08-07"
+)
+
+= personskat_monetaer_ejendomsskattelov_kilde = PersonskatMonetærAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2023/678",
+    identifier = "Ejendomsskatteloven §§ 13, 15-19 og 31",
+    hentet_dato = "2026-08-07"
+)
+
+= personskat_monetaer_par14_vejledning_kilde = PersonskatMonetærAuditKilde(
+    url = "https://info.skat.dk/data.aspx?oid=1977388",
+    identifier = "Den juridiske vejledning 2026-1, C.F.1.6.2.1",
+    hentet_dato = "2026-08-07"
+)
+
+= personskat_monetaer_procentkomponent_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_psl_kilde),
+        DependencySource(value = personskat_monetaer_kommuneskattelov_kilde),
+    )
+)
+
+--@label:personskat_monetaer_procentkomponent::meta:personskat_monetaer_procentkomponent_metadata--
+----
+§ 5. Indkomstskatten til staten opgøres som summen af
+1) bundskat efter § 6,
+2) topskat efter § 7,
+3) udligningsskat efter § 7 a,
+4) sundhedsbidrag efter § 8,
+5) skat af aktieindkomst efter § 8 a,
+6) skat af CFC-indkomst efter § 8 b og
+7) skat svarende til kommunal indkomstskat efter § 8 c.
+
+§ 6. Skatten efter § 5, nr. 1, beregnes med den procent, der anføres i stk. 2,
+af den personlige indkomst med tillæg af positiv nettokapitalindkomst.
+
+§ 5. Kommunal indkomstskat beregnes på grundlag af den i
+henhold til personskatteloven opgjorte skattepligtige indkomst.
+
+Skatten nedsættes efter personskattelovens §§ 10 og 12, jf. til dels § 9.
+
+Stk. 2. Den indkomst, hvoraf kommunal indkomstskat beregnes, afrundes efter
+samme regler som gælder for afrunding af den indkomst, hvoraf skatten til
+staten beregnes.
+
+Stk. 3. Omfatter indkomstansættelsen for en person en kortere periode end et
+år, beregnes og svares indkomstskatten efter tilsvarende regler som fastsat for
+indkomstskatten til staten.
+----
+
+--@begin:personskat_monetaer_procentkomponent--
+= personskat_monetaer_procentkomponent_trin = PersonskatMonetærtTrin(
+    navn = "PSL §§ 6-8 a og kommunal skat: kanonisk procentkomponent",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = HeleKroner,
+    afrunding = NedModNulTilHelKrone,
+    belæg = KanoniskKompatibilitetsprojektion,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = "td-16a9cb"
+)
+--@end:personskat_monetaer_procentkomponent--
+
+= personskat_monetaer_par12_par13_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_psl_kilde),
+    )
+)
+
+--@label:personskat_monetaer_par12_par13::meta:personskat_monetaer_par12_par13_metadata--
+----
+§ 12. Skatteværdien af de i § 10 nævnte personfradrag opgøres som en procentdel
+af fradragene. Ved opgørelsen anvendes samme procent som ved beregningen af
+indkomstskat til kommunen samt kirkeskat. For skattepligtige, der svarer skat
+efter § 8 c, anvendes dog beskatningsprocenten for skatten efter § 5, nr. 7.
+Ved beregningen af indkomstskat til staten beregnes skatteværdien af
+personfradraget med beskatningsprocenterne for bundskat efter § 5, nr. 1, og for
+sundhedsbidrag efter § 5, nr. 4.
+
+Stk. 2. Hvis skatteværdien af personfradraget ikke kan udnyttes ved beregningen
+af en eller flere af de i § 9 nævnte skatter, anvendes den ikke udnyttede del
+til nedsættelse af de øvrige skatter.
+
+Stk. 2. Hvis en gift persons skattepligtige indkomst udviser underskud,
+og ægtefællerne er samlevende ved indkomstårets udløb, skal underskud, der ikke
+er modregnet efter stk. 1, 2. pkt., i størst muligt omfang fradrages i den anden
+ægtefælles skattepligtige indkomst. Derefter modregnes skatteværdien af
+uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
+§ 8 a, stk. 2.
+----
+
+--@begin:personskat_monetaer_par12_par13--
+= personskat_monetaer_personfradrag_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 12: skatteværdi af personfradrag",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = HeleKroner,
+    afrunding = NedModNulTilHelKrone,
+    belæg = KanoniskKompatibilitetsprojektion,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = "td-16a9cb"
+)
+
+= personskat_monetaer_underskudsoverfoersel_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 13, stk. 2: genberegning efter ægtefælleunderskud",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = HeleKroner,
+    afrunding = NedModNulTilHelKrone,
+    belæg = KanoniskKompatibilitetsprojektion,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = "td-16a9cb"
+)
+
+| personskat_monetaer_skat_øre(grundlag_kroner: Heltal, sats_basispoint: Heltal) -> grundlag_kroner * sats_basispoint / 100
+
+= personskat_monetaer_kommuneskat_foer_kroner = penge_beløb_gange_basispoint_kroner(642876, 2457)
+= personskat_monetaer_kommuneskat_efter_kroner = penge_beløb_gange_basispoint_kroner(603259, 2457)
+= personskat_monetaer_isoleret_underskudsvirkning_kroner = penge_beløb_gange_basispoint_kroner(39617, 2457)
+= personskat_monetaer_kommuneskat_foer_øre = personskat_monetaer_skat_øre(642876, 2457)
+= personskat_monetaer_kommuneskat_efter_øre = personskat_monetaer_skat_øre(603259, 2457)
+= personskat_monetaer_isoleret_underskudsvirkning_øre = personskat_monetaer_skat_øre(39617, 2457)
+
+| personskat_monetaer_genberegning_er_ikke_additiv_i_kroner: personskat_monetaer_kommuneskat_efter_kroner -> personskat_monetaer_kommuneskat_foer_kroner == 157954 && personskat_monetaer_kommuneskat_efter_kroner == 148220 && personskat_monetaer_kommuneskat_foer_kroner - personskat_monetaer_kommuneskat_efter_kroner == 9734 && personskat_monetaer_isoleret_underskudsvirkning_kroner == 9733
+| personskat_monetaer_genberegning_er_ikke_additiv_i_øre: personskat_monetaer_kommuneskat_efter_øre -> personskat_monetaer_kommuneskat_foer_øre == 15795463 && personskat_monetaer_kommuneskat_efter_øre == 14822073 && personskat_monetaer_kommuneskat_foer_øre - personskat_monetaer_kommuneskat_efter_øre == 973390 && personskat_monetaer_isoleret_underskudsvirkning_øre == 973389
+| personskat_monetaer_nærmeste_krone_adskilles_fra_nedrunding: personskat_monetaer_isoleret_underskudsvirkning_kroner -> penge_beløb_gange_basispoint_kroner(26182, 4000) == 10472 && penge_beløb_gange_basispoint_afrundet_kroner(26182, 4000) == 10473
+--@end:personskat_monetaer_par12_par13--
+
+= personskat_monetaer_par14_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_psl_kilde),
+        Guidance(value = personskat_monetaer_par14_vejledning_kilde),
+    )
+)
+
+--@label:personskat_monetaer_par14::meta:personskat_monetaer_par14_metadata--
+----
+§ 14. Hvis en person bliver skattepligtig, eller hvis en person ophører med at
+være skattepligtig, jf. kildeskattelovens § 1, omregnes såvel den
+skattepligtige indkomst som den personlige indkomst og kapitalindkomsten for det
+år, hvor skattepligten indtræder eller ophører, således at beløbene kommer til
+at svare til et helt års indkomster.
+På grundlag af de opgjorte helårsindkomster beregnes helårsskat efter §§ 6-9.
+Den beregnede helårsskat nedsættes efter forholdet mellem delårsbeløbene og
+helårsbeløbene.
+----
+
+--@begin:personskat_monetaer_par14--
+= personskat_monetaer_par14_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 14: løbende delårsbeløb omregnet til helårsbeløb",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Fordelingsnævner],
+    output_enhed = HeleKroner,
+    afrunding = NærmesteHeleKrone,
+    belæg = AdministrativVejledning,
+    offentligt_slutskattetrin = Falskt,
+    implementeringsissue = ""
+)
+
+| personskat_monetaer_par14_positive_og_negative_halver: par14_helt_kroner_afrundet(25, 2) -> par14_helt_kroner_afrundet(25, 2) == 13 && par14_helt_kroner_afrundet(0 - 25, 2) == 0 - 13
+--@end:personskat_monetaer_par14--
+
+= personskat_monetaer_par20_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_psl_kilde),
+    )
+)
+
+--@label:personskat_monetaer_par20::meta:personskat_monetaer_par20_metadata--
+----
+§ 20. Ved regulering af beløb efter denne bestemmelse anvendes et årligt
+beregnet reguleringstal. Reguleringstallet beregnes som det foregående års
+reguleringstal forhøjet med 2,0 pct. tillagt eller fratrukket den af
+finansministeren bekendtgjorte tilpasningsprocent for det pågældende finansår
+efter lov om en satsreguleringsprocent. Reguleringstallet beregnes med én
+decimal.
+
+Stk. 2. Ved regulering efter stk. 1 forhøjes eller nedsættes beløbene med samme
+procent som den, hvormed årets reguleringstal afviger fra 100. De således
+regulerede beløb afrundes opad til nærmeste kronebeløb, der kan deles med 100.
+----
+
+--@begin:personskat_monetaer_par20--
+= personskat_monetaer_par20_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 20: reguleret beløbsgrænse",
+    input_enhed = HeleKroner,
+    beregningsenheder = [ReguleringsTiendedele],
+    output_enhed = HeleKroner,
+    afrunding = OpTilNærmesteHundredeKroner,
+    belæg = UdtrykkeligLovregel,
+    offentligt_slutskattetrin = Falskt,
+    implementeringsissue = ""
+)
+
+| personskat_monetaer_par20_runder_kun_naar_noedvendigt: par20_afrund_op_til_nærmeste_100_kroner(51548) -> par20_afrund_op_til_nærmeste_100_kroner(51548) == 51600 && par20_afrund_op_til_nærmeste_100_kroner(51600) == 51600
+--@end:personskat_monetaer_par20--
+
+= personskat_monetaer_ksl_par48_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_ksl_kilde),
+    )
+)
+
+--@label:personskat_monetaer_ksl_par48::meta:personskat_monetaer_ksl_par48_metadata--
+----
+Stk. 6. Skatteministeren kan bestemme, at der ved den
+indeholdelsespligtiges beregning af A-skat skal ske nedrunding af det beløb,
+hvoraf skatten beregnes, til det nærmeste med 10 delelige kronebeløb.
+----
+
+--@begin:personskat_monetaer_ksl_par48--
+= personskat_monetaer_ksl_par48_trin = PersonskatMonetærtTrin(
+    navn = "KSL § 48, stk. 6: A-skattegrundlag",
+    input_enhed = HeleKroner,
+    beregningsenheder = [],
+    output_enhed = HeleKroner,
+    afrunding = NedTilTiKroner,
+    belæg = UdtrykkeligLovregel,
+    offentligt_slutskattetrin = Falskt,
+    implementeringsissue = ""
+)
+
+| personskat_monetaer_a_skattegrundlag_nedrundes_til_ti: penge_nedrundet_til_ti_kroner(38007) -> penge_nedrundet_til_ti_kroner(38007) == 38000
+--@end:personskat_monetaer_ksl_par48--
+
+= personskat_monetaer_ejendomsskattelov_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_ejendomsskattelov_kilde),
+    )
+)
+
+--@label:personskat_monetaer_ejendomsskattelov::meta:personskat_monetaer_ejendomsskattelov_metadata--
+----
+§ 13. Ejendomsværdiskatten opgøres som beskatningsgrundlaget efter stk. 2-4
+ganget med ejendomsværdiskattesatsen i § 22 med fradrag for nedslagsbeløb efter
+§§ 15, 23-25 og 27 og rabat efter § 40, stk. 2, og med tillæg efter § 26.
+
+§ 15. Ejendomsværdiskatten opgøres på helårsniveau efter §§ 22-26.
+
+Stk. 2. Kan ejendommen ikke tjene til bolig for den skattepligtige eller dennes
+husstand i hele indkomståret, eller anvendes en ejendom til formål, som ikke er
+ejendomsværdiskattepligtige, nedsættes den beregnede ejendomsværdiskat
+forholdsmæssigt med den periode af indkomståret, ejendommen ikke kan tjene til
+bolig for den skattepligtige eller dennes husstand eller ejendommen ikke
+anvendes til ejendomsværdiskattepligtige formål, jf. dog stk. 5, 1. pkt.
+
+§ 16. For ejendomme, der er ejet af to eller flere fysiske personer, og for
+ejendomme omfattet af § 3, stk. 1, nr. 2, påhviler ejendomsværdiskat ejerne
+efter de ejerandele, der er registreret i et autoritativt register.
+
+§ 17. Grundskylden opgøres som beskatningsgrundlaget efter stk. 2 og 3 ganget
+med grundskyldssatsen i § 28 med fradrag for grundforbedringer efter
+ejendomsvurderingslovens §§ 22 og 23 og for fritagelse efter § 5, stk. 2, og
+§ 7, stk. 2.
+Derudover fradrages rabat efter § 40, stk. 3, eller begrænsning af stigninger i
+grundskyld efter § 45.
+
+Stk. 2. Beskatningsgrundlaget for grundskylden for et indkomstår eller
+kalenderår udgør 80 pct. af den grundværdi, der efter
+ejendomsvurderingsloven er ansat for den pågældende ejendom i det forudgående
+indkomstår eller kalenderår, jf. dog stk. 3 og 4.
+
+§ 18. Grundskylden opgøres på helårsniveau efter § 28.
+
+Stk. 2. Ved erhvervelse af en ejendom bliver ejeren omfattet af pligten til at
+svare grundskyld fra og med overtagelsesdagen.
+Ved afståelse af en ejendom skal ejeren svare grundskyld til og med dagen før
+overtagelsesdagen.
+
+§ 19. For ejendomme, der er ejet af to eller flere fysiske personer, og for
+ejendomme omfattet af § 3, stk. 1, nr. 2, påhviler grundskylden ejerne efter de
+ejerandele, der er registreret i et autoritativt register.
+
+§ 31. Ejendomsværdiskat af ejendomme nævnt i § 3 og grundskyld af ejendomme
+nævnt i § 3, stk. 1, nr. 3 og 4, og ejendomsvurderingslovens § 3, stk. 1,
+nr. 1, der alene er ejet af fysiske personer, opkræves af told- og
+skatteforvaltningen via forskuds- og årsopgørelsen hos den eller de fysiske
+personer, der ejer ejendommen i henhold til et autoritativt register.
+----
+
+--@begin:personskat_monetaer_ejendomsskattelov--
+= personskat_monetaer_ejendomsskat_broek_trin = PersonskatMonetærtTrin(
+    navn = "Ejendomsskatteloven: sats, årsandel og ejerandel",
+    input_enhed = HeleKroner,
+    beregningsenheder = [PromilleTiendedele, Basispoint, Fordelingsnævner],
+    output_enhed = Øre,
+    afrunding = NedModNulTilØre,
+    belæg = KildedrevetEksaktBeregning,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_ejendomsskat_kroner_trin = PersonskatMonetærtTrin(
+    navn = "Ejendomsskatteloven: kompatibilitetsprojektion til hele kroner",
+    input_enhed = Øre,
+    beregningsenheder = [],
+    output_enhed = HeleKroner,
+    afrunding = NedModNulTilHelKrone,
+    belæg = KanoniskKompatibilitetsprojektion,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = "td-16a9cb"
+)
+
+= personskat_monetaer_ejendomsskat_fixture = ejsk_2025_ordinær_halvårsandel_fixture
+
+| personskat_monetaer_ejendomsskat_bevarer_øre_foer_projektion: personskat_monetaer_ejendomsskat_fixture -> personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_øre == 601205 && personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_kroner == 6012 && personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_øre % 100 == 5
+| personskat_monetaer_ørebroek_bevarer_taeller_og_naevner: penge_øre_beregning(57000000000, 3650000) -> penge_øre_beregning(57000000000, 3650000).tæller == 57000000000 && penge_øre_beregning(57000000000, 3650000).nævner == 3650000 && penge_øre_beregning(57000000000, 3650000).øre_nedrundet == 15616
+--@end:personskat_monetaer_ejendomsskattelov--
+
+= personskat_monetaer_ksl_slutopgoerelse_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_monetaer_ksl_kilde),
+    )
+)
+
+--@label:personskat_monetaer_ksl_slutopgoerelse::meta:personskat_monetaer_ksl_slutopgoerelse_metadata--
+----
+§ 60. I den slutskat, der for et år udskrives for den skattepligtige, med
+tillæg af eventuel overført restskat m.v. efter § 61, stk. 3, og afgiften
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, modregnes nedennævnte
+beløb vedrørende samme år:
+
+a) Foreløbige skattebeløb, som er indeholdt i A-indkomst og
+arbejdsmarkedsbidragspligtig indkomst, der skal medregnes ved den
+skattepligtiges ansættelse til slutskat.
+b) Foreløbige skattebeløb, som har skullet indbetales efter § 68.
+c) Foreløbige skattebeløb, som har skullet betales i henhold til skattebillet.
+d) De i § 67, stk. 1, 1. pkt., nævnte beløb.
+e) Beløb, som den skattepligtige har indbetalt i henhold til § 59.
+f) Beløb efter virksomhedsskattelovens § 10, stk. 3, 2. pkt., § 13, stk. 1,
+3. pkt., og § 22 b, stk. 5.
+g) Beløb efter personskattelovens § 8 a, stk. 5.
+h) Beløb, der er indbetalt som acontoskat efter afskrivningslovens § 40 C,
+stk. 8-10.
+i) Beløb efter § 6 i lov om arbejdsmarkedsbidrag.
+j) Nedslag efter lov om skattenedslag for seniorer.
+k) Beløb efter lov om skattefri kompensation for forhøjede energi- og
+miljøafgifter.
+
+Stk. 3. Ved opgørelsen af det beløb, der skal modregnes efter stk. 1 eller
+stk. 2, fradrages skatter, der måtte være tilbagebetalt i henhold til § 55.
+
+§ 61. Den skattepligtige skal tilsvare det beløb, hvormed slutskatten med
+tillæg af eventuel overført restskat m.v. efter stk. 3, og af eventuel afgift
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, måtte overstige de
+foreløbige skatter, der modregnes efter § 60.
+
+Beløbet benævnes »restskat«.
+
+§ 62. Det beløb hvormed slutskatten med tillæg af eventuel overført restskat
+m.v. efter § 61, stk. 3, og af eventuel afgift omfattet af
+pensionsbeskatningslovens § 25 A, stk. 5-9, måtte være mindre end de
+foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
+
+Stk. 4. Af det beløb, der efter foranstående skal udbetales den skattepligtige,
+udbetales kun det hele kronebeløb.
+
+§ 62 C. Stk. 4. Ved opkrævning af beløb efter denne lov opkræves kun hele
+kronebeløb. Tilsvarende gælder ved opkrævning af rater efter stk. 1.
+----
+
+--@begin:personskat_monetaer_ksl_slutopgoerelse--
+= personskat_monetaer_par60_trin = PersonskatMonetærtTrin(
+    navn = "KSL §§ 60-62: slutskat og foreløbige skatter modregnes",
+    input_enhed = Øre,
+    beregningsenheder = [],
+    output_enhed = Øre,
+    afrunding = IngenMonetærAfrunding,
+    belæg = UdtrykkeligLovregel,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_par62_udbetaling_trin = PersonskatMonetærtTrin(
+    navn = "KSL § 62, stk. 4: udbetaling af overskydende skat",
+    input_enhed = Øre,
+    beregningsenheder = [],
+    output_enhed = HeleKroner,
+    afrunding = HeleKronerMedØrerest,
+    belæg = UdtrykkeligLovregel,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_par62c_opkraevning_trin = PersonskatMonetærtTrin(
+    navn = "KSL § 62 C, stk. 4: opkrævning af restskat",
+    input_enhed = Øre,
+    beregningsenheder = [],
+    output_enhed = HeleKroner,
+    afrunding = HeleKronerMedØrerest,
+    belæg = UdtrykkeligLovregel,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+| personskat_monetaer_slutopgoerelse_input(slutskat_øre: Heltal, indeholdt_øre: Heltal) -> KildeskatSlutopgørelseEksaktInput(
+    slutskat_øre = slutskat_øre,
+    overført_restskat_mv_øre = 0,
+    pensionsbeskatningsafgift_øre = 0,
+    kreditter = KildeskatPar60KreditterØre(
+        a_skat_og_am_indeholdt_øre = indeholdt_øre,
+        par68_indbetalt_øre = 0,
+        b_skat_betalt_øre = 0,
+        udbytteskat_modregningsberettiget_øre = 0,
+        frivillig_indbetaling_par59_øre = 0,
+        virksomhedsordning_beløb_øre = 0,
+        personskattelov_par8a_stk5_beløb_øre = 0,
+        afskrivningslov_acontoskat_øre = 0,
+        am_lov_par6_beløb_øre = 0,
+        seniornedslag_øre = 0,
+        energiafgiftskompensation_øre = 0,
+        tilbagebetalt_par55_øre = 0
+    )
+)
+
+= personskat_monetaer_overskydende_skat_fixture = kildeskat_slutopgørelse_eksakt_resultat(personskat_monetaer_slutopgoerelse_input(
+    slutskat_øre = 100000,
+    indeholdt_øre = 108280
+))
+
+= personskat_monetaer_restskat_fixture = kildeskat_slutopgørelse_eksakt_resultat(personskat_monetaer_slutopgoerelse_input(
+    slutskat_øre = 108280,
+    indeholdt_øre = 100000
+))
+
+| personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen: personskat_monetaer_overskydende_skat_fixture -> personskat_monetaer_overskydende_skat_fixture.slutskat_med_tillæg_øre == 100000 && personskat_monetaer_overskydende_skat_fixture.modregnede_foreløbige_skatter_øre == 108280 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_øre == 8280 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_udbetales_kroner == 82 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_ikke_udbetalt_øre == 80
+| personskat_monetaer_restskat_bevarer_øre_til_lovgraensen: personskat_monetaer_restskat_fixture -> personskat_monetaer_restskat_fixture.slutskat_med_tillæg_øre == 108280 && personskat_monetaer_restskat_fixture.modregnede_foreløbige_skatter_øre == 100000 && personskat_monetaer_restskat_fixture.restskat_øre == 8280 && personskat_monetaer_restskat_fixture.restskat_opkræves_kroner == 82 && personskat_monetaer_restskat_fixture.restskat_ikke_opkrævet_øre == 80
+--@end:personskat_monetaer_ksl_slutopgoerelse--
+
+= personskat_monetaer_præcisionstab_advarsel = PersonskatMonetærAuditAdvarsel(
+    kode = "PERSONSKAT_EXACT_FINAL_TAX_LOSS",
+    beskrivelse = "Kanonisk Personskat ganger en allerede helkroneprojekteret slutskat med 100 før den eksakte KSL-slutopgørelse; komponent- og ejendomsskatterester kan ikke genskabes.",
+    implementeringsissue = "td-16a9cb"
+)
+
+= personskat_monetaer_præcisionstab_metadata = Metadata(
+    attachments = (
+        Warning(value = personskat_monetaer_præcisionstab_advarsel),
+    )
+)
+
+--@label:personskat_monetaer_præcisionstab::meta:personskat_monetaer_præcisionstab_metadata--
+----
+Bekræftet implementeringsfund:
+Den eksakte årsopgørelse modtager i dag den kanoniske slutskat i hele kroner
+ganget med 100. En tidligere øre- eller brøkrest kan derfor ikke genskabes ved
+denne opskalering.
+----
+
+--@begin:personskat_monetaer_præcisionstab--
+= personskat_monetaer_præcisionstab_trin = PersonskatMonetærtTrin(
+    navn = "Kanonisk Personskat til eksakt KSL-slutopgørelse",
+    input_enhed = HeleKroner,
+    beregningsenheder = [],
+    output_enhed = Øre,
+    afrunding = KronerOpskaleretTilØreUdenRest,
+    belæg = BekræftetPræcisionstab,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = "td-16a9cb"
+)
+
+| personskat_monetaer_helkroneopskalering_genskaber_ikke_ørerest: personskat_monetaer_ejendomsskat_fixture -> personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_kroner * 100 == 601200 && personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_øre == 601205
+--@end:personskat_monetaer_præcisionstab--
+
+| personskat_monetaere_trin() -> [
+    personskat_monetaer_procentkomponent_trin,
+    personskat_monetaer_personfradrag_trin,
+    personskat_monetaer_underskudsoverfoersel_trin,
+    personskat_monetaer_par14_trin,
+    personskat_monetaer_par20_trin,
+    personskat_monetaer_ksl_par48_trin,
+    personskat_monetaer_ejendomsskat_broek_trin,
+    personskat_monetaer_ejendomsskat_kroner_trin,
+    personskat_monetaer_par60_trin,
+    personskat_monetaer_par62_udbetaling_trin,
+    personskat_monetaer_par62c_opkraevning_trin,
+    personskat_monetaer_præcisionstab_trin,
+]
+| personskat_monetaere_offentlige_slutskattetrin() -> filter(personskat_monetaere_trin(), |trin: PersonskatMonetærtTrin| trin.offentligt_slutskattetrin)
+| personskat_monetaere_bekræftede_præcisionstab() -> filter(personskat_monetaere_trin(), |trin: PersonskatMonetærtTrin| trin.belæg == BekræftetPræcisionstab)
+| personskat_monetaer_audit_resultat() -> PersonskatMonetærAuditResultat(
+    trin = personskat_monetaere_trin(),
+    alle_trin_navngivet = all(personskat_monetaere_trin(), |trin: PersonskatMonetærtTrin| trin.navn != ""),
+    antal_offentlige_slutskattetrin = length(personskat_monetaere_offentlige_slutskattetrin()),
+    antal_bekræftede_præcisionstab = length(personskat_monetaere_bekræftede_præcisionstab())
+)
+
+= personskat_monetaer_audit = personskat_monetaer_audit_resultat()
+
+| personskat_monetaer_audit_har_komplet_stagekontrakt: personskat_monetaer_audit -> length(personskat_monetaer_audit.trin) == 12 && personskat_monetaer_audit.alle_trin_navngivet && personskat_monetaer_audit.antal_offentlige_slutskattetrin == 9
+| personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere: personskat_monetaer_audit -> personskat_monetaer_procentkomponent_trin.beregningsenheder == [Basispoint] && personskat_monetaer_par14_trin.beregningsenheder == [Fordelingsnævner] && personskat_monetaer_par20_trin.beregningsenheder == [ReguleringsTiendedele] && personskat_monetaer_ejendomsskat_broek_trin.beregningsenheder == [PromilleTiendedele, Basispoint, Fordelingsnævner]
+| personskat_monetaer_audit_isolerer_kendt_præcisionstab: personskat_monetaer_audit -> personskat_monetaer_audit.antal_bekræftede_præcisionstab == 1 && head(personskat_monetaere_bekræftede_præcisionstab()).implementeringsissue == "td-16a9cb"
+
+? personskat_monetaer_genberegning_er_ikke_additiv_i_kroner
+? personskat_monetaer_genberegning_er_ikke_additiv_i_øre
+? personskat_monetaer_nærmeste_krone_adskilles_fra_nedrunding
+? personskat_monetaer_par14_positive_og_negative_halver
+? personskat_monetaer_par20_runder_kun_naar_noedvendigt
+? personskat_monetaer_a_skattegrundlag_nedrundes_til_ti
+? personskat_monetaer_ejendomsskat_bevarer_øre_foer_projektion
+? personskat_monetaer_ørebroek_bevarer_taeller_og_naevner
+? personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen
+? personskat_monetaer_restskat_bevarer_øre_til_lovgraensen
+? personskat_monetaer_helkroneopskalering_genskaber_ikke_ørerest
+? personskat_monetaer_audit_har_komplet_stagekontrakt
+? personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere
+? personskat_monetaer_audit_isolerer_kendt_præcisionstab
+
+@ print("Personskat monetære trin: " + vis(length(personskat_monetaer_audit.trin)))
+@ print("Offentlige slutskattetrin: " + vis(personskat_monetaer_audit.antal_offentlige_slutskattetrin))
+@ print("Bekræftede præcisionstab: " + vis(personskat_monetaer_audit.antal_bekræftede_præcisionstab))
