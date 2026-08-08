@@ -429,7 +429,7 @@
 = personskat_fiskerfradrag_søbl4_kildetilknytninger = [
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation = "fisker-telefon"), "ansat-fisker"),
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation = "andet-job-telefon"), "andet-job"),
-    personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Ligningslov9COg9DBefordringsfradrag, "andet-job"),
+    personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Ligningslov9COg9DBefordringsforhold(kildeidentifikation = "andet-job-befordring"), "andet-job"),
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Ligningslov13Årsfradrag, "andet-job"),
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "fisker-akasse"), "ansat-fisker"),
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "andet-akasse"), "andet-job")

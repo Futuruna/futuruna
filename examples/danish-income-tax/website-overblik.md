@@ -422,6 +422,18 @@ transport bliver personlig B-indkomst uden AM-bidrag, mens modposten ved fri
 bil bliver AM-bidragspligtig personlig indkomst. Afgrænsningen følger
 [Den juridiske vejledning C.A.5.14.4.4](https://info.skat.dk/data.aspx?oid=1976849)
 og [SKM2025.537.BR](https://info.skat.dk/data.aspx?oid=2459313).
+Samordningen med sømandsfradraget er tilsvarende relationel. Hvert
+befordringsforhold efter Ligningslovens §§ 9 C-9 D har en stabil identifikation
+og et navngivet arbejdssted. Når
+[Sømandsbeskatningslovens § 4](https://www.retsinformation.dk/eli/lta/2023/1181)
+finder anvendelse, fjerner Futuruna kun ruten til sømandsarbejdet og genberegner
+årets fælles lavindkomsttillæg på de ruter, der faktisk er tilbage. I det
+verificerede blandede eksempel falder grundfradraget fra 48.184 kr. til 24.092
+kr. og lavindkomsttillægget fra 30.800 kr. til 15.418 kr.; landarbejdets rute
+bevares.
+En kilde, som ikke findes, peger på et andet arbejdssted eller forsøges fordelt
+som et anonymt årsbeløb, gør beregningen ugyldig. Det fulde resultat er ens fra
+typet JSON og den genererede relationelle XLSX-arbejdsbog.
 § 4, stk. 3 omklassificerer både poster og omkostninger ved næring uden at gøre
 dem til AM-bidragspligtig løn. De resterende § 3-, § 4- og § 4 a-kildegrene
 kobles fortsat på det samme input, så den samlede borgerarbejdsbog udbygges fra

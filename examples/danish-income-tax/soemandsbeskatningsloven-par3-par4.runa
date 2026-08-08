@@ -271,7 +271,7 @@ Stk. 2. Personer, som kan foretage fradrag efter § 3, er ikke omfattet af ligni
 ----
 
 --@begin::sømandsbeskatningsloven_par4--
-# Sømandsbeskatningslov4Fradragskilde = Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation: Tekst) | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Søbl4Ligningslov9COg9DBefordringsfradrag | Søbl4Ligningslov13Årsfradrag | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst)
+# Sømandsbeskatningslov4Fradragskilde = Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation: Tekst) | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Søbl4Ligningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Søbl4Ligningslov13Årsfradrag | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst)
 # Sømandsbeskatningslov4Arbejdstilknytning = Søbl4Sømandsbeskæftigelsesperiode(beskæftigelsesidentifikation: Tekst) | Søbl4AndetArbejdsforhold(arbejdsforhold_identifikation: Tekst) | Søbl4ÅrsbeløbUdenPeriodeopdeling
 # Sømandsbeskatningslov4Kildetilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdstilknytning: Sømandsbeskatningslov4Arbejdstilknytning)
 # Sømandsbeskatningslov4Årsinput(kildetilknytninger: List(Sømandsbeskatningslov4Kildetilknytning))
@@ -281,12 +281,14 @@ Stk. 2. Personer, som kan foretage fradrag efter § 3, er ikke omfattet af ligni
 | sømandsbeskatningslov4_kildeidentifikation_gyldig(kilde: Sømandsbeskatningslov4Fradragskilde) -> match kilde {
     | Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation) -> kildeidentifikation != ""
     | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation) -> kildeidentifikation != ""
+    | Søbl4Ligningslov9COg9DBefordringsforhold(kildeidentifikation) -> kildeidentifikation != ""
     | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> kildeidentifikation != ""
     | _ -> Sandt
 }
 | sømandsbeskatningslov4_kilde_kan_fordeles_som_årsbeløb(kilde: Sømandsbeskatningslov4Fradragskilde) -> match kilde {
     | Søbl4Ligningslov9Stk1Lønmodtagerudgift(_) -> Falskt
     | Søbl4Ligningslov9BErhvervsbefordring(_) -> Falskt
+    | Søbl4Ligningslov9COg9DBefordringsforhold(_) -> Falskt
     | _ -> Sandt
 }
 | sømandsbeskatningslov4_sømandsbeskæftigelse_omfattet(resultat: Sømandsbeskatningslov3Årsresultat, beskæftigelsesidentifikation: Tekst) -> beskæftigelsesidentifikation != "" && any(resultat.beskæftigelsesresultater, |beskæftigelse: Sømandsbeskatningslov3Beskæftigelsesresultat| beskæftigelse.fakta.identifikation == beskæftigelsesidentifikation && beskæftigelse.fradragsbetingelser_opfyldt && beskæftigelse.fakta.fuldtidsomregnede_sødage_hundrededele > 0)

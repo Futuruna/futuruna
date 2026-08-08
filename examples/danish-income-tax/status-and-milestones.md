@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
+Current implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
+Previous implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
 Previous implementation slice: `td-21293c` (LL § 13-betalinger bærer nu eksakte, ikke-overlappende kontingentperioder; LL § 9 G kan kun bevare en betaling før første fiskerregistrering eller efter fuldstændigt ophør gennem en typet konkret bedømmelse med reference og et andet arbejde eller erhverv; registreringsperioder og midlertidige afbrydelser fjernes fortsat, ugyldige eller dublerede bedømmelser fejler lukket, og resultatet er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-f4f16f` (LL § 13-betalinger bærer både en entydig betalingsidentifikation og en stabil foreningsidentifikation; LL § 9 G kræver én arbejdstilknytning pr. forening, fjerner alle betalinger til samme fiskeritilknyttede forening og bevarer kun en reelt anden forening ved andet arbejde; modstridende foreningsfakta eller tilknytninger fejler lukket, og den relationelle JSON/XLSX-grænse er byteidentisk)
 Previous implementation slice: `td-78ac4d` (befordring efter LL §§ 9 C-9 D er nu et årsdomæne med entydige forhold, typede transportformål og stabile arbejds- eller uddannelsesmål; LL § 9 G fjerner kun fiskeriets forhold og genberegner årets fælles lavindkomsttillæg, mens andet arbejde og uddannelsesbefordring bevares; samme relationelle input og resultat er verificeret identisk gennem JSON og XLSX)
@@ -579,18 +580,26 @@ Et udenlandsk familieforløb med 17 oplyste standarduger og et 61-dages
 hjemlandsophold over to-månedersgrænsen giver samme fradrag på 3.200 kr. i JSON
 og XLSX.
 
-Den faktiske periodefordeling er implementeret i `td-2a827d`. Hver berørt
-LL § 9 B-sag og hvert PBL § 49, stk. 1-bidrag har en strukturel kildeidentitet;
-LL §§ 9 C-9 D og det loftsberegnede LL § 13-årsfradrag har hver sin entydige
-kildegren. Kilden knyttes til en navngiven kvalificerende sømandsbeskæftigelse,
-et andet navngivet arbejdsforhold eller, kun hvor kilden reelt er et årsbeløb,
-en udtrykkelig årsfordeling. LL § 9 B kan ikke bruge årsfordelingen, fordi hver
-kørselssag skal henføres til sit faktiske arbejde. Ukendte, dublerede eller
-manglende tilknytninger gør beregningen ugyldig og får fradragsaggregatet til at
-fejle lukket i stedet for at gætte. Et kompileret blandet-år-scenarie bevarer
-7.880 kr. i skattefri kørselsgodtgørelse fra andet arbejde, omklassificerer
-3.940 kr. fra sømandsperioden og bevarer LL §§ 9 C-9 D, LL § 13 og PBL § 49,
-stk. 1, præcis én gang uden endnu en sødagsfordeling.
+Den faktiske periodefordeling blev indført i `td-2a827d` og er præciseret for
+befordring i `td-4efd49`. Hver berørt LL § 9 B-sag, hvert LL §§ 9 C-9 D-
+befordringsforhold og hvert PBL § 49, stk. 1-bidrag har en strukturel
+kildeidentitet. Kun det loftsberegnede LL § 13-årsfradrag kan fortsat behandles
+som et samlet årsbeløb. En identificeret kilde knyttes til en navngiven
+kvalificerende sømandsbeskæftigelse eller et andet navngivet arbejdsforhold;
+for §§ 9 C-9 D skal befordringsmålet svare præcist til denne tilknytning.
+Ukendte, dublerede, manglende eller arbejdsstridige tilknytninger gør
+beregningen ugyldig og får fradragsaggregatet til at fejle lukket i stedet for
+at gætte.
+
+Et kompileret blandet-år-scenarie bevarer 7.880 kr. i skattefri
+kørselsgodtgørelse fra andet arbejde og omklassificerer 3.940 kr. fra
+sømandsperioden. To lige store §§ 9 C-9 D-ruter giver før § 4 et grundfradrag
+på 48.184 kr. og årets fælles lavindkomsttillæg på 30.800 kr. Efter
+sømandsruten er fjernet, genberegnes grundlaget til 24.092 kr. og tillægget til
+15.418 kr.; kun landarbejdets identificerede rute bevares. Det samme fulde
+resultat er verificeret identisk gennem direkte JSON og en JSON-hydreret,
+relationel XLSX-arbejdsbog. En forkert kobling mellem kilde og arbejdssted
+fejler lukket med 0 kr. i samlet ligningsfradrag.
 Den særskilte DIS-lempelse af selve søindkomsten efter Sømandsbeskatningslovens
 §§ 5-8 er ikke en del af §§ 3-4-samordningen; dens kanoniske lønvirkning spores
 i `td-80c439`.

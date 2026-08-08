@@ -1547,6 +1547,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "kilde.$variant",
             "kilde.Søbl4Ligningslov9Stk1Lønmodtagerudgift.kildeidentifikation",
             "kilde.Søbl4Ligningslov9BErhvervsbefordring.kildeidentifikation",
+            "kilde.Søbl4Ligningslov9COg9DBefordringsforhold.kildeidentifikation",
             "kilde.Søbl4Pensionsbeskatningslov49Stk1Bidrag.kildeidentifikation",
             "arbejdstilknytning.$variant",
             "arbejdstilknytning.Søbl4Sømandsbeskæftigelsesperiode.beskæftigelsesidentifikation",
@@ -1565,6 +1566,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fradragskilde omfattet af § 4",
             "Identifikation for § 9, stk. 1-lønmodtagerudgiften",
             "Identifikation for § 9 B-kørselssagen",
+            "Identifikation for §§ 9 C-9 D-befordringsforholdet",
             "Identifikation for § 49, stk. 1-bidraget",
             "Arbejdsperiodens faktiske tilknytning",
             "Tilknyttet sømandsbeskæftigelse",
@@ -11455,6 +11457,87 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
         "kontingenter": []
     });
+    let mut seafarer_commute_case = json_input["cases"][0].clone();
+    seafarer_commute_case["case_id"] =
+        Value::String("personskat-soemand-blandet-befordring-2026".into());
+    seafarer_commute_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    seafarer_commute_case["input"]["lønmodtager"]["bruttoløn_kroner"] = serde_json::json!(200_000);
+    seafarer_commute_case["input"]["lønmodtager"]["ligningsfradrag"]["sømandsfradrag"] = serde_json::json!({
+        "valg": { "$variant": "AnvendSømandsfradrag" },
+        "beskæftigelser": [{
+            "identifikation": "blandet-fragtskib-json-xlsx",
+            "indkomstår": 2026,
+            "ansættelsesforhold_startdato": { "år": 2026, "måned": 1, "dag": 1 },
+            "arbejdssted": {
+                "$variant": "ArbejdePåSkib",
+                "bruttotonnage": 500,
+                "anvendelse": { "$variant": "ErhvervsmæssigBefordringAfGods" }
+            },
+            "fart": { "$variant": "UdenForBegrænsetFart" },
+            "hjemsted": { "$variant": "RegistreretMedHjemstedIDanmark" },
+            "flag": { "$variant": "FlagFraEUEØSStat" },
+            "forhyringsvilkår": { "$variant": "SædvanligeForhyringsvilkårForSøfolk" },
+            "fuldtidsomregnede_sødage_hundrededele": 18_250
+        }]
+    });
+    seafarer_commute_case["input"]["lønmodtager"]["ligningsfradrag"]["sømandsbeskatningslov4"] = serde_json::json!({
+        "kildetilknytninger": [{
+            "kilde": {
+                "$variant": "Søbl4Ligningslov9COg9DBefordringsforhold",
+                "kildeidentifikation": "sømandsbefordring-json-xlsx"
+            },
+            "arbejdstilknytning": {
+                "$variant": "Søbl4Sømandsbeskæftigelsesperiode",
+                "beskæftigelsesidentifikation": "blandet-fragtskib-json-xlsx"
+            }
+        }, {
+            "kilde": {
+                "$variant": "Søbl4Ligningslov9COg9DBefordringsforhold",
+                "kildeidentifikation": "landbefordring-json-xlsx"
+            },
+            "arbejdstilknytning": {
+                "$variant": "Søbl4AndetArbejdsforhold",
+                "arbejdsforhold_identifikation": "landarbejde-json-xlsx"
+            }
+        }]
+    });
+    let commute_facts = |identification: &str, destination: &str| {
+        serde_json::json!({
+            "identifikation": identification,
+            "befordringsmål_identifikation": destination,
+            "arbejdsdage": 100,
+            "daglige_befordringskilometer": 100,
+            "bopæl_i_yderkommune_eller_lille_ø": false,
+            "befordringsformål": { "$variant": "IndtægtsgivendeArbejdsplads" },
+            "modtaget_skattefri_befordringsgodtgørelse_for_strækning": false,
+            "modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning": false,
+            "ligningslov9d": { "$variant": "UdenLigningslov9D" },
+            "fradrag_udelukket_folketingshverv_m_v": false,
+            "arbejdsgiverbetalt_befordring": {
+                "$variant": "UdenArbejdsgiverbetaltBefordring"
+            },
+            "broer": {
+                "storebælt_bil_motorcykel_passager": 0,
+                "storebælt_kollektiv_passager": 0,
+                "øresund_bil_motorcykel_passager": 0,
+                "øresund_kollektiv_passager": 0,
+                "dokumenteret_og_afholdt_af_skattepligtige": false
+            },
+            "særlig_transport": {
+                "faktisk_dokumenteret_udgift_kroner": 0,
+                "geografiske_forhold_tidsforbrug_økonomisk_rimelighed_kræver_transporten": false
+            }
+        })
+    };
+    seafarer_commute_case["input"]["lønmodtager"]["ligningsfradrag"]["befordring"] = serde_json::json!({
+        "forhold": [
+            commute_facts(
+                "sømandsbefordring-json-xlsx",
+                "blandet-fragtskib-json-xlsx"
+            ),
+            commute_facts("landbefordring-json-xlsx", "landarbejde-json-xlsx")
+        ]
+    });
     let mut interest_case = json_input["cases"][0].clone();
     interest_case["case_id"] = Value::String("personskat-renter-befordring-2026".into());
     let reinvested_home = serde_json::json!({
@@ -14785,6 +14868,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(fisher_cross_year_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(seafarer_commute_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -14937,6 +15024,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-fisker-nytårsfordeling-2026")
         .expect("fisher cross-year JSON case")
         .clone();
+    let seafarer_commute_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-soemand-blandet-befordring-2026")
+        .expect("mixed seafarer-commute JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case,
@@ -14956,6 +15050,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         par32_mixed_case,
         fisher_union_transition_case,
         fisher_cross_year_case,
+        seafarer_commute_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -15088,6 +15183,58 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         2
     );
     assert_eq!(fisher_cross_year_trip["påbegyndte_havdage"], 1);
+    let json_seafarer_commute_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-soemand-blandet-befordring-2026")
+        .expect("JSON mixed seafarer-commute result");
+    let hydrated_seafarer_commute_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-soemand-blandet-befordring-2026")
+        .expect("hydrated XLSX mixed seafarer-commute result");
+    assert_eq!(
+        hydrated_seafarer_commute_result["result"],
+        json_seafarer_commute_result["result"]
+    );
+    let seafarer_commute_trace = &json_seafarer_commute_result["result"]["ligningsfradrag"];
+    assert_eq!(seafarer_commute_trace["alle_input_gyldige"], true);
+    assert_eq!(
+        seafarer_commute_trace["befordring"]["samlet_par9c_grundfradrag_kroner"],
+        48_184
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring"]["lavindkomsttillæg_kroner"],
+        30_800
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring_efter_sømandsbeskatningslov4"]["input"]["forhold"]
+            .as_array()
+            .expect("retained commute relationships")
+            .len(),
+        1
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring_efter_sømandsbeskatningslov4"]["input"]["forhold"][0]
+            ["identifikation"],
+        "landbefordring-json-xlsx"
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring_efter_sømandsbeskatningslov4"]
+            ["samlet_par9c_grundfradrag_kroner"],
+        24_092
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring_efter_sømandsbeskatningslov4"]
+            ["lavindkomsttillæg_kroner"],
+        15_418
+    );
+    assert_eq!(
+        seafarer_commute_trace["befordring_fradrag_anvendt_kroner"],
+        39_510
+    );
     let json_pbl15a_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")
