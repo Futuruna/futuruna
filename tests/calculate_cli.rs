@@ -11418,6 +11418,43 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "indberetningsstatus": { "$variant": "Ll13IndberettetEfterSkatteindberetningslov31" }
         }]
     });
+    let mut fisher_cross_year_case = fisher_union_transition_case.clone();
+    fisher_cross_year_case["case_id"] =
+        Value::String("personskat-fisker-nytårsfordeling-2026".into());
+    fisher_cross_year_case["input"]["lønmodtager"]["ligningsfradrag"]["fiskerfradrag"] = serde_json::json!({
+        "valg": { "$variant": "Ll9GVælgFiskerfradrag" },
+        "registreringer": [{
+            "identifikation": "a-status-over-årsskifte",
+            "status": { "$variant": "Ll9GErhvervsfiskerMedAStatus" },
+            "fra_dato": { "år": 2025, "måned": 12, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+        }],
+        "arbejdsforhold": [{
+            "identifikation": "ansat-fisker-over-årsskifte",
+            "erhvervsform": { "$variant": "Ll9GAnsatFisker" },
+            "fra_dato": { "år": 2025, "måned": 12, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+        }],
+        "fangstture": [{
+            "identifikation": "fangsttur-over-årsskifte",
+            "arbejdsforhold_identifikation": "ansat-fisker-over-årsskifte",
+            "afgang_fra_havn": {
+                "dato": { "år": 2025, "måned": 12, "dag": 31 },
+                "klokkeslæt": { "time": 18, "minut": 0 }
+            },
+            "ankomst_til_havn": {
+                "dato": { "år": 2026, "måned": 1, "dag": 2 },
+                "klokkeslæt": { "time": 0, "minut": 0 }
+            }
+        }],
+        "selvstændige_udgiftsvurderinger": [],
+        "kontingentperiodeundtagelser": [],
+        "kildetilknytninger": []
+    });
+    fisher_cross_year_case["input"]["lønmodtager"]["ligningsfradrag"]["faglige_kontingenter"] = serde_json::json!({
+        "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
+        "kontingenter": []
+    });
     let mut interest_case = json_input["cases"][0].clone();
     interest_case["case_id"] = Value::String("personskat-renter-befordring-2026".into());
     let reinvested_home = serde_json::json!({
@@ -14744,6 +14781,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(fisher_union_transition_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(fisher_cross_year_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -14889,6 +14930,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-fisker-kontingentovergange-2026")
         .expect("fisher union-transition JSON case")
         .clone();
+    let fisher_cross_year_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-nytårsfordeling-2026")
+        .expect("fisher cross-year JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case,
@@ -14907,6 +14955,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         hydrocarbon_case,
         par32_mixed_case,
         fisher_union_transition_case,
+        fisher_cross_year_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -15005,6 +15054,40 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert!(preserved_union_dues
         .iter()
         .any(|dues| dues["identifikation"] == "kontingent-efter-fuldt-ophør"));
+    let json_fisher_cross_year_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-nytårsfordeling-2026")
+        .expect("JSON fisher cross-year result");
+    let hydrated_fisher_cross_year_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-nytårsfordeling-2026")
+        .expect("hydrated XLSX fisher cross-year result");
+    assert_eq!(
+        hydrated_fisher_cross_year_result["result"],
+        json_fisher_cross_year_result["result"]
+    );
+    let fisher_cross_year_annual = &json_fisher_cross_year_result["result"]["ligningsfradrag"]
+        ["fiskerfradragssamordning"]["fiskerfradrag"];
+    assert_eq!(fisher_cross_year_annual["alle_input_gyldige"], true);
+    assert_eq!(
+        fisher_cross_year_annual["påbegyndte_havdage_før_årsloft"],
+        1
+    );
+    assert_eq!(fisher_cross_year_annual["samlet_fradrag_kroner"], 190);
+    let fisher_cross_year_trip = &fisher_cross_year_annual["fangstturresultater"][0];
+    assert_eq!(
+        fisher_cross_year_trip["fangsttur_overlapper_indkomståret"],
+        true
+    );
+    assert_eq!(
+        fisher_cross_year_trip["samlede_påbegyndte_havdage_på_fangstturen"],
+        2
+    );
+    assert_eq!(fisher_cross_year_trip["påbegyndte_havdage"], 1);
     let json_pbl15a_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

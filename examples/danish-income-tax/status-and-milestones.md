@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-21293c` (LL § 13-betalinger bærer nu eksakte, ikke-overlappende kontingentperioder; LL § 9 G kan kun bevare en betaling før første fiskerregistrering eller efter fuldstændigt ophør gennem en typet konkret bedømmelse med reference og et andet arbejde eller erhverv; registreringsperioder og midlertidige afbrydelser fjernes fortsat, ugyldige eller dublerede bedømmelser fejler lukket, og resultatet er identisk gennem JSON og XLSX)
+Current implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
+Previous implementation slice: `td-21293c` (LL § 13-betalinger bærer nu eksakte, ikke-overlappende kontingentperioder; LL § 9 G kan kun bevare en betaling før første fiskerregistrering eller efter fuldstændigt ophør gennem en typet konkret bedømmelse med reference og et andet arbejde eller erhverv; registreringsperioder og midlertidige afbrydelser fjernes fortsat, ugyldige eller dublerede bedømmelser fejler lukket, og resultatet er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-f4f16f` (LL § 13-betalinger bærer både en entydig betalingsidentifikation og en stabil foreningsidentifikation; LL § 9 G kræver én arbejdstilknytning pr. forening, fjerner alle betalinger til samme fiskeritilknyttede forening og bevarer kun en reelt anden forening ved andet arbejde; modstridende foreningsfakta eller tilknytninger fejler lukket, og den relationelle JSON/XLSX-grænse er byteidentisk)
 Previous implementation slice: `td-78ac4d` (befordring efter LL §§ 9 C-9 D er nu et årsdomæne med entydige forhold, typede transportformål og stabile arbejds- eller uddannelsesmål; LL § 9 G fjerner kun fiskeriets forhold og genberegner årets fælles lavindkomsttillæg, mens andet arbejde og uddannelsesbefordring bevares; samme relationelle input og resultat er verificeret identisk gennem JSON og XLSX)
 Previous implementation slice: `td-5759f5` (Ligningslovens § 9 G er nu et kildedrevet årsdomæne med A-/B-registrering, eksakte arbejds- og fangstperioder, afledte påbegyndte havdage, årsvalg og loft; den kanoniske Personskat-graf afskærer kun fiskeriets LL §§ 9-9 D- og § 13-kilder, PBL § 49, stk. 1-bidrag og selvstændige udgifter, der typet er vurderet som sidestillet med lønmodtagerudgifter, mens andet arbejde og almindelige driftsudgifter bevares; hele inputfladen har danske XLSX-etiketter)
@@ -656,9 +657,20 @@ perioder før første registrering og efter fuldstændigt ophør, i alt 2.000 kr
 det direkte JSON-resultat og resultatet fra den genererede XLSX-arbejdsbog er
 identiske.
 
-Ét afgrænset tidsrandtilfælde er fortsat åbent. `td-def72e` skal fastlægge den
-kilderigtige årsfordeling for en sammenhængende fangsttur over 31. december;
-den nuværende model fejler lukket på dette forløb.
+`td-def72e` har nu lukket det afgrænsede tidsrandtilfælde for en
+sammenhængende fangsttur over 31. december. Loven, de oprindelige forarbejder
+og Den juridiske vejledning bekræfter fangstturens 12-timersgrænse, den
+påbegyndte 24-timers-havdag, årsvalget og årsloftet, men angiver ingen særregel
+for årsskiftet. Den eksplicit typede og metadataindekserede fortolkning henfører
+derfor hver påbegyndt havdag til det indkomstår, hvor dens 24-timers-periode
+starter. Turen oplyses med sine fulde tidspunkter i hvert relevant års
+beregning, og resultatet viser både turens samlede havdage og årets andel.
+En 30-timers tur fra 31. december kl. 18 til 2. januar kl. 00 giver én havdag i
+hvert år; præcis 24 timer giver kun én havdag i afgangsåret, mens ét yderligere
+minut starter en ny havdag i det følgende år. Årenes summer svarer til turens
+samlede antal uden dobbeltregning, og det enkelte års 220-dagesloft anvendes
+først efter fordelingen. Reglerne er verificeret fortolket og kompileret,
+gennem den kanoniske Personskat-graf og med identiske JSON/XLSX-resultater.
 
 Den modregningsberettigede udbytteskat på 4.353,14 kr. føres nu tabsfrit fra
 den typede dokumentlinje til `KildeskatPar60KreditterØre` og videre gennem den

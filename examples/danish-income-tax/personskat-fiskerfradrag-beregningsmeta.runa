@@ -141,8 +141,8 @@
 = personskat_fiskerfradrag_felt_fangstture = TypetBeregningsfelt(
     path = refof(Ligningslov9GÅrsinput::fangstture),
     label = "Fangstture",
-    question = Some("Hvilke fangstture på mindst 12 timer blev gennemført i indkomståret?"),
-    help = Some("Opret én række pr. sammenhængende tur fra afgang fra havn til ankomst til havn. Futuruna udleder påbegyndte 24-timers-havdage fra de præcise tidspunkter."),
+    question = Some("Hvilke fangstture på mindst 12 timer overlappede indkomståret?"),
+    help = Some("Opret én række pr. sammenhængende tur fra afgang fra havn til ankomst til havn. En tur over nytår oplyses med de samme fulde tidspunkter i hvert relevant års beregning; Futuruna henfører hver påbegyndt 24-timers-havdag til året, hvor perioden starter."),
     unit = None
 )
 = personskat_fiskerfradrag_felt_fangstturidentifikation = TypetBeregningsfelt(
