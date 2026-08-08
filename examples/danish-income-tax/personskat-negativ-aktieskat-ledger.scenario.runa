@@ -69,6 +69,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
     ægtefælle = ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = fremførsel,
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = negativ_aktieskat_ledger_årsopgørelse(angivet_par8a_beløb_kroner)
 )
 
@@ -115,8 +116,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )
 
 = negativ_aktieskat_ledger_2024 = beregn_personskat(negativ_aktieskat_ledger_input(
@@ -178,6 +178,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
         hovedperson = hovedpersons_fremførsel,
         ægtefælle = ægtefælles_fremførsel
     ),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = negativ_aktieskat_ledger_årsopgørelse(0)
 )
 

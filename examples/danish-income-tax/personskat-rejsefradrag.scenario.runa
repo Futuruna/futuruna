@@ -213,6 +213,7 @@ indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_rejsefradrag_input(sømandsfradrag: Sømandsbeskatningslov3Årsinput) -> personskat_rejsefradrag_input_med_ll9a(

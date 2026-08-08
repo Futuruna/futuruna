@@ -48,6 +48,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     ægtefælle = ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_dis_input(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> personskat_dis_input_med_ægtefælle(
@@ -166,6 +167,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_dis_langeland_2026_resultat = beregn_personskat(personskat_dis_langeland_2026_input)

@@ -97,6 +97,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 
@@ -148,8 +149,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     aktieavance = PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par32_scenarie_aktieår),
         særlige_aktiver = [],
-        udbytter = [],
-        ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+        udbytter = []
     )
 ))
 
@@ -207,8 +207,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
             kilde = PersonskatAktieaktivEfterPar17(fakta = personskat_par32_scenarie_par17_fakta),
             markedsstatus = AblOptagetTilHandelPåReguleretMarked
         )],
-        udbytter = [],
-        ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+        udbytter = []
     )
 ))
 
@@ -347,8 +346,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
             personskat_par32_scenarie_særligt_aktiv_fra_abl("par32-abl19b-aktie", abl19b_aktieindkomst_input, AblPar17UndtagetEfterPar19B),
             personskat_par32_scenarie_særligt_aktiv_fra_abl("par32-abl19c-kapital", abl19c_kapital_input, AblPar17UndtagetEfterPar19C)
         ],
-        udbytter = [],
-        ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+        udbytter = []
     )
 )
 

@@ -303,6 +303,7 @@
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_fiskerfradrag_input_med_ligningsfradrag_og_bruttoløn(ligningsfradrag: PersonskatLigningsfradragInput, bruttoløn_kroner: Heltal) -> personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(

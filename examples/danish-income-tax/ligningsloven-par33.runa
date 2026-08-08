@@ -19,7 +19,13 @@
 
 = ligningsloven_vejledning_par33_credit = Ligningslov33KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1977310",
-    identifier = "Den juridiske vejledning 2026-2, C.F.4.1 LL § 33",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.1 LL § 33",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33_personberegning = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977330",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.3.1 Generelt om lempelsesberegningerne",
     hentet_dato = "2026-08-08"
 )
 
@@ -33,6 +39,7 @@
     attachments = (
         Source(value = ligningsloven_lbk1500_par33),
         Guidance(value = ligningsloven_vejledning_par33_credit),
+        Guidance(value = ligningsloven_vejledning_par33_personberegning),
         Practice(value = ligningsloven_praksis_skm2018_370_sr),
     )
 )
@@ -177,3 +184,198 @@ Færøerne efter overenskomsten har et ubetinget krav på at oppebære.
 }
 
 --@end:ligningsloven_par33--
+
+--@label:ligningsloven_par33_stk8::meta:ligningsloven_par33_metadata--
+----
+§ 33.
+
+Stk. 8. Stk. 1 gælder ikke med hensyn til lønindkomst, der er omfattet af § 33 A
+eller af sømandsbeskatningslovens §§ 5-8.
+----
+
+--@begin:ligningsloven_par33_stk8--
+
+# Ligningslov33Lønlempelsesstatus = Ll33IngenLønindkomst | Ll33OrdinærCreditlempetLønindkomst | Ll33LønindkomstOmfattetAfPar33A | Ll33LønindkomstOmfattetAfSømandsbeskatningslovenPar5Til8
+
+| ligningslov33_lønlempelsesstatus_tillader_credit(status: Ligningslov33Lønlempelsesstatus) -> match status {
+    | Ll33IngenLønindkomst -> Sandt
+    | Ll33OrdinærCreditlempetLønindkomst -> Sandt
+    | Ll33LønindkomstOmfattetAfPar33A -> Falskt
+    | Ll33LønindkomstOmfattetAfSømandsbeskatningslovenPar5Til8 -> Falskt
+}
+
+--@end:ligningsloven_par33_stk8--
+
+--@label:ligningsloven_par33_personberegning::meta:ligningsloven_par33_metadata--
+----
+Med virkning fra indkomståret 2010 er der offentliggjort en praksisændring, som
+betyder, at beregningsmetoderne for lempelse for skat af udenlandsk indkomst
+ændres.
+
+Lempelsen skal herefter beregnes på grundlag af den beregnede danske skat, før
+personfradraget er fratrukket, og ikke efter personfradraget er fratrukket. Der
+bliver således ikke henført en forholdsmæssig del af personfradraget til den
+udenlandske indkomst.
+
+Lempelsen for skat af udenlandsk indkomst beregnes særskilt for hver
+indkomstskat, der indgår i en persons skatteberegning. Lempelsen ved credit og
+exemption bliver beregnet med udgangspunkt i denne brøk:
+
+dansk skat x udenlandsk indkomst
+den skattepligtige indkomst
+
+Lempelsesbrøken for skat af udenlandsk indkomst beregnes således særskilt for
+hver af de indkomstskatter, som følger af:
+
+* PSL § 6 (bundskat)
+* PSL § 7 (mellemskat)
+* PSL § 7 a (topskat)
+* PSL § 8 (toptopskat)
+* PSL § 8a (skat af aktieindkomst)
+* PSL § 8b (skat af CFC-indkomst)
+* AMBL § 1 (AM-bidrag)
+
+Derudover skal der beregnes lempelse af kommunal indkomstskat og kirkeskat.
+
+Hvis der er flere indkomster fra det samme land, skal lempelsesberegningen ske
+samlet. Lempelsesberegningen skal dog ske særskilt for hver indkomst, hvis der
+skal lempes efter forskellige metoder, eller hvis indkomsten i det pågældende
+land er blevet særskilt (kilde-)beskattet, og der skal lempes efter
+creditmetoden.
+
+Hvis der er indkomst fra forskellige lande, skal lempelsesberegningerne
+foretages for hvert enkelt land for sig.
+
+Det er kun de udenlandske indkomster, som indgår i beregningsgrundlaget for den
+pågældende skat, som bliver taget med ved lempelsesberegningen.
+
+Den udenlandske skattepligtige indkomst, personlige indkomst, kapitalindkomst,
+aktieindkomst og CFC-indkomst opgøres efter danske regler.
+
+Fradrag, der vedrører den udenlandske indkomst, skal trækkes fra i den
+udenlandske indkomst. Det er derfor den udenlandske nettoindkomst, der indgår i
+lempelsesbrøkens tæller.
+----
+
+--@begin:ligningsloven_par33_personberegning--
+
+# Ligningslov33PersonSkattekomponentart = Ll33PersonskattelovPar6 | Ll33PersonskattelovPar7 | Ll33PersonskattelovPar7A | Ll33PersonskattelovPar8 | Ll33PersonskattelovPar8A | Ll33PersonskattelovPar8B | Ll33ArbejdsmarkedsbidragslovPar1 | Ll33KommunalIndkomstskat | Ll33Kirkeskat
+# Ligningslov33DanskBeregningsgrundlag = Ll33SkattepligtigIndkomst(samlet_indkomst_kroner: Heltal) | Ll33PersonligIndkomst(samlet_indkomst_kroner: Heltal) | Ll33PersonligOgPositivKapitalindkomst(samlet_indkomst_kroner: Heltal) | Ll33Aktieindkomst(samlet_indkomst_kroner: Heltal) | Ll33CfcIndkomst(samlet_indkomst_kroner: Heltal) | Ll33Arbejdsmarkedsbidragsgrundlag(samlet_indkomst_kroner: Heltal)
+# Ligningslov33DanskSkattekomponent(art: Ligningslov33PersonSkattekomponentart, beregningsgrundlag: Ligningslov33DanskBeregningsgrundlag, dansk_skat_før_personfradrag_øre: Heltal)
+# Ligningslov33PersonDanskSkattekreds(komponenter: List(Ligningslov33DanskSkattekomponent), samlet_dansk_indkomstskat_tilgængelig_øre: Heltal)
+# Ligningslov33UdenlandskIndkomstEfterDanskeRegler(skattepligtig_nettoindkomst_efter_par33f_kroner: Heltal, personlig_nettoindkomst_efter_par33f_kroner: Heltal, positiv_kapitalnettoindkomst_efter_par33f_kroner: Heltal, aktienettoindkomst_efter_par33f_kroner: Heltal, cfc_nettoindkomst_efter_par33f_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal)
+# Ligningslov33Kreditgrupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet | Ll33SærskiltKildebeskattetCredit(dokumentreference: Tekst)
+# Ligningslov33PersonKreditgruppe(identifikation: Tekst, grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag, fakta: Ligningslov33LandelinjeFakta, udenlandsk_indkomst_efter_danske_regler: Ligningslov33UdenlandskIndkomstEfterDanskeRegler, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus)
+# Ligningslov33PersonÅrsinput(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, kreditgrupper: List(Ligningslov33PersonKreditgruppe))
+# Ligningslov33PersonKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, udenlandsk_nettoindkomst_i_beregningsgrundlaget_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, proportionalt_dansk_skatteloft_øre: Heltal)
+# Ligningslov33PersonKreditgrupperesultat(gruppe: Ligningslov33PersonKreditgruppe, par33f: Ligningslov33FLandelinjeResultat, komponenter: List(Ligningslov33PersonKomponentresultat), input_gyldigt: Boolsk, udenlandsk_skat_efter_overenskomst_øre: Heltal, proportionalt_dansk_skatteloft_øre: Heltal, nedslag_øre: Heltal)
+# Ligningslov33PersonÅrsresultat(input: Ligningslov33PersonÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, kreditgrupper: List(Ligningslov33PersonKreditgrupperesultat), input_gyldigt: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
+
+| ligningslov33_dansk_beregningsgrundlag_kroner(grundlag: Ligningslov33DanskBeregningsgrundlag) -> match grundlag {
+    | Ll33SkattepligtigIndkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+    | Ll33PersonligIndkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+    | Ll33PersonligOgPositivKapitalindkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+    | Ll33Aktieindkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+    | Ll33CfcIndkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+    | Ll33Arbejdsmarkedsbidragsgrundlag(samlet_indkomst_kroner) -> samlet_indkomst_kroner
+}
+| ligningslov33_dansk_skattekomponent_gyldig(komponent: Ligningslov33DanskSkattekomponent) -> ligningslov33_dansk_beregningsgrundlag_kroner(komponent.beregningsgrundlag) >= 0 && komponent.dansk_skat_før_personfradrag_øre >= 0
+| ligningslov33_skattekomponent_antal(komponenter: List(Ligningslov33DanskSkattekomponent), art: Ligningslov33PersonSkattekomponentart) -> foldl(komponenter, 0, |antal: Heltal, komponent: Ligningslov33DanskSkattekomponent| antal + hvis komponent.art == art { 1 } ellers { 0 })
+| ligningslov33_skattekomponenter_entydige(komponenter: List(Ligningslov33DanskSkattekomponent)) -> all(komponenter, |komponent: Ligningslov33DanskSkattekomponent| ligningslov33_skattekomponent_antal(komponenter, komponent.art) == 1)
+| ligningslov33_person_dansk_skattekreds_gyldig(skattekreds: Ligningslov33PersonDanskSkattekreds) -> skattekreds.samlet_dansk_indkomstskat_tilgængelig_øre >= 0 && all(skattekreds.komponenter, ligningslov33_dansk_skattekomponent_gyldig) && ligningslov33_skattekomponenter_entydige(skattekreds.komponenter)
+| ligningslov33_udenlandsk_indkomst_efter_danske_regler_gyldig(indkomst: Ligningslov33UdenlandskIndkomstEfterDanskeRegler, status: Ligningslov33Lønlempelsesstatus) -> indkomst.positiv_kapitalnettoindkomst_efter_par33f_kroner >= 0 && indkomst.arbejdsmarkedsbidragsgrundlag_kroner >= 0 && (status != Ll33IngenLønindkomst || indkomst.arbejdsmarkedsbidragsgrundlag_kroner == 0) && ligningslov33_lønlempelsesstatus_tillader_credit(status)
+| ligningslov33_kreditgrupperingsgrundlag_gyldigt(grundlag: Ligningslov33Kreditgrupperingsgrundlag) -> match grundlag {
+    | Ll33SamletIndkomstFraSkatteområdet -> Sandt
+    | Ll33SærskiltKildebeskattetCredit(dokumentreference) -> dokumentreference != ""
+}
+| ligningslov33_person_kreditgruppe_gyldig(gruppe: Ligningslov33PersonKreditgruppe) -> gruppe.identifikation != "" && ligningslov33_kreditgrupperingsgrundlag_gyldigt(gruppe.grupperingsgrundlag) && ligningslov33_landelinje_fakta_gyldige(gruppe.fakta) && ligningslov33_udenlandsk_indkomst_efter_danske_regler_gyldig(gruppe.udenlandsk_indkomst_efter_danske_regler, gruppe.lønlempelsesstatus)
+| ligningslov33_person_kreditgruppe_antal(grupper: List(Ligningslov33PersonKreditgruppe), identifikation: Tekst) -> foldl(grupper, 0, |antal: Heltal, gruppe: Ligningslov33PersonKreditgruppe| antal + hvis gruppe.identifikation == identifikation { 1 } ellers { 0 })
+| ligningslov33_person_kreditgrupper_entydige(grupper: List(Ligningslov33PersonKreditgruppe)) -> all(grupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_person_kreditgruppe_antal(grupper, gruppe.identifikation) == 1)
+| ligningslov33_person_kreditgruppe_er_samlet(gruppe: Ligningslov33PersonKreditgruppe) -> match gruppe.grupperingsgrundlag {
+    | Ll33SamletIndkomstFraSkatteområdet -> Sandt
+    | Ll33SærskiltKildebeskattetCredit(_) -> Falskt
+}
+| ligningslov33_person_samlede_områdegrupper_antal(grupper: List(Ligningslov33PersonKreditgruppe), område: Ligningslov33Skatteområde) -> foldl(grupper, 0, |antal: Heltal, gruppe: Ligningslov33PersonKreditgruppe| antal + hvis gruppe.fakta.område == område && ligningslov33_person_kreditgruppe_er_samlet(gruppe) { 1 } ellers { 0 })
+| ligningslov33_person_områdegruppering_gyldig(grupper: List(Ligningslov33PersonKreditgruppe)) -> all(grupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_person_samlede_områdegrupper_antal(grupper, gruppe.fakta.område) <= 1)
+| ligningslov33_person_til_par33f_input(input: Ligningslov33PersonÅrsinput) -> Ligningslov33Årsinput(
+    dansk_bruttoindkomst_kroner = input.dansk_bruttoindkomst_kroner,
+    ikke_henførbare_udgifter_kroner = input.ikke_henførbare_udgifter_kroner,
+    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner,
+    landelinjer = map(input.kreditgrupper, |gruppe: Ligningslov33PersonKreditgruppe| gruppe.fakta)
+)
+| ligningslov33_person_årsinput_gyldigt(input: Ligningslov33PersonÅrsinput) -> input.dansk_bruttoindkomst_kroner >= 0 && input.ikke_henførbare_udgifter_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner <= input.ikke_henførbare_udgifter_kroner && all(input.kreditgrupper, ligningslov33_person_kreditgruppe_gyldig) && ligningslov33_person_kreditgrupper_entydige(input.kreditgrupper) && ligningslov33_person_områdegruppering_gyldig(input.kreditgrupper)
+| ligningslov33_person_par33f_resultat(input: Ligningslov33PersonÅrsinput, gruppe: Ligningslov33PersonKreditgruppe) -> {
+    = par33f_input = ligningslov33_person_til_par33f_input(input)
+    = input_gyldigt = ligningslov33_person_årsinput_gyldigt(input) && ligningslov33_person_kreditgruppe_gyldig(gruppe)
+    Ligningslov33FLandelinjeResultat(
+        fakta = gruppe.fakta,
+        input_gyldigt = input_gyldigt,
+        fordelt_ikke_henførbar_udgift_kroner = hvis input_gyldigt { ligningslov33_par33f_fordelt_udgift_kroner(par33f_input, gruppe.fakta) } ellers { 0 },
+        nettoindkomst_efter_par33f_kroner = hvis input_gyldigt { ligningslov33_par33f_nettoindkomst_kroner(par33f_input, gruppe.fakta) } ellers { 0 }
+    )
+}
+| ligningslov33_udenlandsk_indkomst_i_beregningsgrundlaget_kroner(grundlag: Ligningslov33DanskBeregningsgrundlag, indkomst: Ligningslov33UdenlandskIndkomstEfterDanskeRegler) -> match grundlag {
+    | Ll33SkattepligtigIndkomst(_) -> indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner
+    | Ll33PersonligIndkomst(_) -> indkomst.personlig_nettoindkomst_efter_par33f_kroner
+    | Ll33PersonligOgPositivKapitalindkomst(_) -> indkomst.personlig_nettoindkomst_efter_par33f_kroner + indkomst.positiv_kapitalnettoindkomst_efter_par33f_kroner
+    | Ll33Aktieindkomst(_) -> indkomst.aktienettoindkomst_efter_par33f_kroner
+    | Ll33CfcIndkomst(_) -> indkomst.cfc_nettoindkomst_efter_par33f_kroner
+    | Ll33Arbejdsmarkedsbidragsgrundlag(_) -> indkomst.arbejdsmarkedsbidragsgrundlag_kroner
+}
+| ligningslov33_tom_forholdsmæssig_beregning() -> penge_øre_beregning(0, 1)
+| ligningslov33_person_forholdsmæssig_beregning(komponent: Ligningslov33DanskSkattekomponent, udenlandsk_indkomst_kroner: Heltal) -> {
+    = samlet_indkomst_kroner = ligningslov33_dansk_beregningsgrundlag_kroner(komponent.beregningsgrundlag)
+    hvis ligningslov33_dansk_skattekomponent_gyldig(komponent) && samlet_indkomst_kroner > 0 && udenlandsk_indkomst_kroner > 0 {
+        penge_øre_beregning(
+            komponent.dansk_skat_før_personfradrag_øre * penge_mindste_beløb(udenlandsk_indkomst_kroner, samlet_indkomst_kroner),
+            samlet_indkomst_kroner
+        )
+    } ellers {
+        ligningslov33_tom_forholdsmæssig_beregning()
+    }
+}
+| ligningslov33_person_komponentresultat(komponent: Ligningslov33DanskSkattekomponent, gruppe: Ligningslov33PersonKreditgruppe, input_gyldigt: Boolsk) -> {
+    = udenlandsk_indkomst_kroner = ligningslov33_udenlandsk_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, gruppe.udenlandsk_indkomst_efter_danske_regler)
+    = beregning = hvis input_gyldigt { ligningslov33_person_forholdsmæssig_beregning(komponent, udenlandsk_indkomst_kroner) } ellers { ligningslov33_tom_forholdsmæssig_beregning() }
+    Ligningslov33PersonKomponentresultat(
+        komponent = komponent,
+        udenlandsk_nettoindkomst_i_beregningsgrundlaget_kroner = hvis input_gyldigt { penge_positivt_beløb(udenlandsk_indkomst_kroner) } ellers { 0 },
+        forholdsmæssig_beregning = beregning,
+        proportionalt_dansk_skatteloft_øre = beregning.øre_nedrundet
+    )
+}
+| ligningslov33_person_komponentresultater(skattekreds: Ligningslov33PersonDanskSkattekreds, gruppe: Ligningslov33PersonKreditgruppe, input_gyldigt: Boolsk) -> map(skattekreds.komponenter, |komponent: Ligningslov33DanskSkattekomponent| ligningslov33_person_komponentresultat(komponent, gruppe, input_gyldigt))
+| ligningslov33_person_samlet_komponentloft_øre(komponenter: List(Ligningslov33PersonKomponentresultat)) -> foldl(komponenter, 0, |sum_øre: Heltal, komponent: Ligningslov33PersonKomponentresultat| sum_øre + komponent.proportionalt_dansk_skatteloft_øre)
+| ligningslov33_person_kreditgrupperesultat(input: Ligningslov33PersonÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds, gruppe: Ligningslov33PersonKreditgruppe) -> {
+    = par33f = ligningslov33_person_par33f_resultat(input, gruppe)
+    = input_gyldigt = ligningslov33_person_årsinput_gyldigt(input) && ligningslov33_person_dansk_skattekreds_gyldig(skattekreds) && par33f.input_gyldigt
+    = komponenter = ligningslov33_person_komponentresultater(skattekreds, gruppe, input_gyldigt)
+    = udenlandsk_skat_efter_overenskomst_øre = hvis input_gyldigt { ligningslov33_udenlandsk_skat_efter_overenskomst_øre(gruppe.fakta) } ellers { 0 }
+    = proportionalt_dansk_skatteloft_øre = hvis input_gyldigt { ligningslov33_person_samlet_komponentloft_øre(komponenter) } ellers { 0 }
+    Ligningslov33PersonKreditgrupperesultat(
+        gruppe = gruppe,
+        par33f = par33f,
+        komponenter = komponenter,
+        input_gyldigt = input_gyldigt,
+        udenlandsk_skat_efter_overenskomst_øre = udenlandsk_skat_efter_overenskomst_øre,
+        proportionalt_dansk_skatteloft_øre = proportionalt_dansk_skatteloft_øre,
+        nedslag_øre = penge_mindste_beløb(udenlandsk_skat_efter_overenskomst_øre, proportionalt_dansk_skatteloft_øre)
+    )
+}
+| ligningslov33_person_kreditgrupperesultater(input: Ligningslov33PersonÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds) -> map(input.kreditgrupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_person_kreditgrupperesultat(input, skattekreds, gruppe))
+| ligningslov33_person_samlet_nedslag_øre(grupper: List(Ligningslov33PersonKreditgrupperesultat)) -> foldl(grupper, 0, |sum_øre: Heltal, gruppe: Ligningslov33PersonKreditgrupperesultat| sum_øre + gruppe.nedslag_øre)
+| ligningslov33_person_årsresultat(input: Ligningslov33PersonÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds) -> {
+    = kreditgrupper = ligningslov33_person_kreditgrupperesultater(input, skattekreds)
+    = input_gyldigt = ligningslov33_person_årsinput_gyldigt(input) && ligningslov33_person_dansk_skattekreds_gyldig(skattekreds)
+    = samlet_nedslag_før_skattecap_øre = hvis input_gyldigt { ligningslov33_person_samlet_nedslag_øre(kreditgrupper) } ellers { 0 }
+    Ligningslov33PersonÅrsresultat(
+        input = input,
+        dansk_skattekreds = skattekreds,
+        kreditgrupper = kreditgrupper,
+        input_gyldigt = input_gyldigt,
+        samlet_nedslag_før_skattecap_øre = samlet_nedslag_før_skattecap_øre,
+        samlet_nedslag_øre = penge_mindste_beløb(samlet_nedslag_før_skattecap_øre, skattekreds.samlet_dansk_indkomstskat_tilgængelig_øre)
+    )
+}
+
+--@end:ligningsloven_par33_personberegning--

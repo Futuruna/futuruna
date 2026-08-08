@@ -88,8 +88,7 @@ når den kanoniske personskatteberegning. Scenariet er ikke lovtekst.
     aktieavance = PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par44_ordinært_aktieår),
         særlige_aktiver = [],
-        udbytter = [],
-        ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+        udbytter = []
     ),
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
@@ -98,6 +97,7 @@ når den kanoniske personskatteberegning. Scenariet er ikke lovtekst.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_par44_resultat = beregn_personskat(personskat_par44_input)

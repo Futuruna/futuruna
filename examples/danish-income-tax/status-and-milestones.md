@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-cf68ed` (Ligningslovens § 33, stk. 1-2, og § 33 F har nu et kildedrevet domæne for almindelig creditlempelse med landelinjer, dokumenteret indkomstskat, direkte og fordelte udgifter, eksportkreditrenter, overenskomstloft og forholdsmæssigt dansk skatteloft; nedslaget indgår valgfrit for både hovedperson og ægtefælle i den kanoniske Personskat-graf og afstemmer den anonymiserede 2025-årsopgørelse præcist)
+Current implementation slice: `td-3d4618` (Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning C.F.4.3.1 er nu et årligt persondomæne for almindelig creditlempelse; hver lovligt afgrænset kreditgruppe beregner sit danske loft særskilt over de ni relevante indkomstskattekomponenter, mens § 33 A- og Sømandsbeskatningslov-lempet løn afskæres, og hovedpersonens og ægtefællens nedslag føres uafhængigt gennem den kanoniske Personskat-graf, arbejdsbogen og den præcise 2025-afstemning)
 Previous implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
 Previous implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
 Previous implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
@@ -4152,20 +4152,22 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
-- Ligningslovens § 33, stk. 1-2, og § 33 F er nu implementeret for den
-  almindelige creditlempelse. Hver udenlandsk jurisdiktion bærer bruttoindkomst,
-  direkte udgifter, opkrævningsmåde, betalt skat og et eventuelt overenskomst- eller
-  myndighedsloft; dokumentation og skatteart kontrolleres, formueskat afvises,
-  og fælles udgifter fordeles efter § 33 F, mens omfattede
-  eksportkreditrenter holdes ude. Reglerne beregner både nettoudlandsindkomst,
-  det forholdsmæssige danske skatteloft og det endelige nedslag pr. land og
-  samlet. Den valgfrie gren er ført gennem hovedpersonens og ægtefællens
-  ørepræcise aktieskat, slutskat, årsopgørelse og genererede arbejdsbog. Den
-  anonymiserede 2025-årsopgørelses 398 kr. udenlandske udbytte og 6,00 kr.
-  udenlandske skat giver et dansk loft på 107,46 kr., et nedslag på 6,00 kr.
-  og en endelig afstemningsforskel på 0 øre. Fokus-, kanoniske og virkelige
-  scenarier passerer både interpreter og compiler; backend-, skema- og
-  metadata-kontroller passerer også.
+- Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning
+  C.F.4.3.1 er nu implementeret som et årligt persondomæne for almindelig
+  creditlempelse. Hver kreditgruppe bærer udenlandsk bruttoindkomst, direkte og
+  fordelte udgifter, opkrævningsmåde, dokumenteret skat, overenskomstloft og
+  indkomstens klassifikation efter dansk ret. Det danske loft beregnes særskilt
+  for Personskattelovens §§ 6, 7, 7 a, 8, 8 a og 8 b, AM-bidrag,
+  kommuneskat og kirkeskat på Personskats egne ørepræcise komponenter før
+  personfradrag. § 33 A- og Sømandsbeskatningslov-lempet løn afskæres lukket.
+  Hovedpersonens og ægtefællens nedslag beregnes uafhængigt og placeres før den
+  efterfølgende modregning af negativ aktieindkomstskat. Den genererede
+  arbejdsbog udstiller de udenlandske kreditgrupper med danske spørgsmål og
+  relationstabeller. Den anonymiserede 2025-årsopgørelses 398 kr. udenlandske
+  udbytte og 6,00 kr. udenlandske skat giver fortsat et nedslag på 6,00 kr. og
+  en endelig afstemningsforskel på 0 øre ud af 290.590,34 kr. beregnet skat.
+  Fokus-, kanoniske og virkelige scenarier passerer både interpreter og
+  compiler; frontend-, skema-, arbejdsbogs- og metadatakontroller passerer også.
 - Sømandsbeskatningslovens § 5-lempelse har nu et parallelt ørepræcist
   resultatdomæne. Bundskat, historiske og reformerede progressive statsskatter,
   § 8 c, kommune- og kirkeskat fordeles efter deres egne lovbestemte

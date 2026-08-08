@@ -33,6 +33,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_resultat = beregn_personskat(personskat_calculate_input)
@@ -48,6 +49,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
@@ -61,6 +63,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_input_med_lønmodtager(lønmodtager: PersonskatLønmodtagerInput) -> PersonskatInput(
@@ -74,6 +77,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
@@ -617,8 +621,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 = personskat_calculate_par5a_position = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-PAR5A-1",
@@ -664,8 +667,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par5a_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_par5a_aktieår),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 = personskat_calculate_boligret_afståelse = AblOrdinærAfståelse(
     kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
@@ -710,8 +712,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_boligret_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_boligret_aktieår),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 | personskat_calculate_par17_kildefakta_fra_abl_input(input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatPar17Kildefakta(
     indkomstår = input.indkomstår,
@@ -744,14 +745,12 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-kapital", abl19c_kapital_input, AblPar17UndtagetEfterPar19C)],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 = personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-personlig", abl19c_hvis17_input, AblPar17UndtagetEfterPar19C)],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
@@ -771,8 +770,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl22-ugyldig", personskat_calculate_ugyldig_22_input, AblPar17InvesteringsbevisIMinimumsinstitut)],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 | personskat_calculate_par17_kildefakta(skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> PersonskatPar17Kildefakta(
     indkomstår = 2026,
@@ -790,8 +788,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatAktieaktivEfterPar17(fakta = fakta),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 = personskat_calculate_par17_stk1_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
     skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
@@ -878,8 +875,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatMedarbejderejeordningEfterPar35G(fakta = personskat_calculate_par35_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 | personskat_calculate_par35_spor_afledt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par35_forløbsresultat {
     | Some(forløb) -> forløb.input_gyldigt && forløb.umiddelbar_skattepligtig_gevinst_kroner == 50000 && forløb.årets_nye_forfald_kroner == 22000 && forløb.årets_betalte_overdragerskat_kroner == 0 && forløb.årets_saldobortfald_kroner == 0 && forløb.tilstand_ultimo.overdragerskat_saldo_kroner == 22000 && length(forløb.tilstand_ultimo.beholdning) == 0 && length(forløb.hændelsesresultater) == 1 && head(forløb.hændelsesresultater).post.rækkefølge_i_indkomståret == 1 && aktieavance_par35_hændelsesidentifikation(head(forløb.hændelsesresultater).post.hændelse) == "personskat-par35-salg-2026"
@@ -942,8 +938,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = personskat_calculate_par37_til40_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )))
 | personskat_calculate_par37_til40_spor_afledt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.input_gyldigt && forløb.årets_beregnede_fraflytterskat_kroner == 30090 && forløb.årets_nye_henstand_kroner == 30090 && forløb.årets_skat_til_betaling_ved_fraflytning_kroner == 0 && forløb.tilstand_ultimo.henstandssaldo_kroner == 30090 && length(forløb.tilstand_ultimo.beholdning) == 1
@@ -969,8 +964,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_aktieinput_med_udbytter(udbytter: List(PersonskatUdbytteFakta)) -> PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [],
-    udbytter = udbytter,
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = udbytter
 )
 
 = personskat_calculate_udbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
@@ -1024,6 +1018,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_udbytte_ægtefælle_resultat = beregn_personskat(personskat_calculate_udbytte_ægtefælle_input)
@@ -1039,6 +1034,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = UdenÆgtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 1000,
         øvrig_pensionsbeskatningsafgift_kroner = 500,
@@ -1070,6 +1066,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = input.ægtefælle,
     ejendomsskatter = input.ejendomsskatter,
     negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel,
+    ligningslov33 = input.ligningslov33,
     årsopgørelse = årsopgørelse
 )
 = personskat_calculate_eksakte_årsopgørelseskreditter = KildeskatPar60KreditterØre(
@@ -1098,37 +1095,69 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
         særlige_aktiver = [],
-        udbytter = [],
-        ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+        udbytter = []
     )),
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
 = personskat_calculate_ligningslov33_aktieinput = PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [],
-    udbytter = [personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)],
-    ligningslov33_aktieindkomst = MedLigningslov33Aktieindkomst(input = Ligningslov33Årsinput(
+    udbytter = [personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)]
+)
+= personskat_calculate_ligningslov33_input = PersonskatLigningslov33ParInput(
+    hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
         dansk_bruttoindkomst_kroner = 14569,
         ikke_henførbare_udgifter_kroner = 0,
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
-        landelinjer = [Ligningslov33LandelinjeFakta(
-            område = Ll33FremmedStat("anonymiseret"),
-            opkrævningsmåde = Ll33Indeholdelse,
-            udenlandsk_bruttoindkomst_kroner = 398,
-            direkte_henførbare_udgifter_kroner = 0,
-            betalt_udenlandsk_skat_øre = 600,
-            skatteart = Ll33Indkomstskat,
-            betalingsdokumentreference = "Anonymiseret årsopgørelsesscenarie",
-            overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
-                fradragsberettiget_udenlandsk_skat_øre = 600,
-                dokumentreference = "Anonymiseret årsopgørelsesscenarie"
-            )
+        kreditgrupper = [Ligningslov33PersonKreditgruppe(
+            identifikation = "anonymiseret-udenlandsk-udbytte",
+            grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
+            fakta = Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("anonymiseret"),
+                opkrævningsmåde = Ll33Indeholdelse,
+                udenlandsk_bruttoindkomst_kroner = 398,
+                direkte_henførbare_udgifter_kroner = 0,
+                betalt_udenlandsk_skat_øre = 600,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Anonymiseret årsopgørelsesscenarie",
+                overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
+                    fradragsberettiget_udenlandsk_skat_øre = 600,
+                    dokumentreference = "Anonymiseret årsopgørelsesscenarie"
+                )
+            ),
+            udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
+                skattepligtig_nettoindkomst_efter_par33f_kroner = 0,
+                personlig_nettoindkomst_efter_par33f_kroner = 0,
+                positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
+                aktienettoindkomst_efter_par33f_kroner = 398,
+                cfc_nettoindkomst_efter_par33f_kroner = 0,
+                arbejdsmarkedsbidragsgrundlag_kroner = 0
+            ),
+            lønlempelsesstatus = Ll33IngenLønindkomst
         )]
-    ))
+    )),
+    ægtefælle = UdenLigningslov33
 )
-= personskat_calculate_ligningslov33_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
-    personskat_calculate_input_med_aktieavance(personskat_calculate_ligningslov33_aktieinput),
-    personskat_calculate_med_årsopgørelse_input.årsopgørelse
+| personskat_calculate_input_med_ligningslov33(input: PersonskatInput, ligningslov33: PersonskatLigningslov33ParInput) -> PersonskatInput(
+    lønmodtager = input.lønmodtager,
+    kapitalindkomst = input.kapitalindkomst,
+    aktieavance = input.aktieavance,
+    udenlandske_sociale_bidrag = input.udenlandske_sociale_bidrag,
+    cfc = input.cfc,
+    skatteforhold = input.skatteforhold,
+    underskudsforhold = input.underskudsforhold,
+    ægtefælle = input.ægtefælle,
+    ejendomsskatter = input.ejendomsskatter,
+    negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel,
+    ligningslov33 = ligningslov33,
+    årsopgørelse = input.årsopgørelse
+)
+= personskat_calculate_ligningslov33_resultat = beregn_personskat(personskat_calculate_input_med_ligningslov33(
+    personskat_calculate_input_med_årsopgørelse(
+        personskat_calculate_input_med_aktieavance(personskat_calculate_ligningslov33_aktieinput),
+        personskat_calculate_med_årsopgørelse_input.årsopgørelse
+    ),
+    personskat_calculate_ligningslov33_input
 ))
 = personskat_calculate_ligningslov33_neutralt_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
     personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
@@ -1181,8 +1210,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_stort_ordinært_tabsinput = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )
 | personskat_calculate_personfakta_med_aktieavance(aktieavance: PersonskatAktieavanceInput) -> PersonskatPersonFakta(
     lønmodtager = personskat_calculate_lønmodtager,
@@ -1208,6 +1236,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_calculate_med_årsopgørelse_input.negativ_aktieskat_fremførsel,
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = personskat_calculate_med_årsopgørelse_input.årsopgørelse
 )
 = personskat_calculate_stort_eget_aktietab_resultat = beregn_personskat(personskat_calculate_par_med_aktieavancer(
@@ -1276,6 +1305,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         )]
     ),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = MedÅrsopgørelse(
         overført_restskat_mv_kroner = 0,
         øvrig_pensionsbeskatningsafgift_kroner = 0,
@@ -1307,6 +1337,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = input.ægtefælle,
     ejendomsskatter = input.ejendomsskatter,
     negativ_aktieskat_fremførsel = input.negativ_aktieskat_fremførsel,
+    ligningslov33 = input.ligningslov33,
     årsopgørelse = input.årsopgørelse
 )
 = personskat_calculate_stort_ordinært_tabsår_2025 = AktieavanceOrdinærPersonÅrsinput(
@@ -1323,8 +1354,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_stort_ordinært_tabsinput_2025 = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår_2025),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )
 = personskat_calculate_ejendomsskat_og_stort_aktietab_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance_fra(
     personskat_calculate_ejendomsskat_input,
@@ -1354,6 +1384,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     ejendomsskatter = egne_ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_par8a_uden_ejendomsskatter_resultat = beregn_personskat(personskat_calculate_par_2025_med_aktieavance_og_ejendomsskatter(
@@ -1408,8 +1439,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],
-    udbytter = [],
-    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
+    udbytter = []
 )
 = personskat_calculate_par13a_par12_klassifikation = AktieavanceAktivklassifikationInput(
     indkomstår = 2026,
@@ -1431,7 +1461,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par13a_ægtefællefakta = PersonskatPersonFakta(
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [], udbytter = [personskat_calculate_par13a_ægtefælleudbytte], ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst),
+    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [], udbytter = [personskat_calculate_par13a_ægtefælleudbytte]),
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
@@ -1449,6 +1479,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ægtefælle = MedÆgtefælle(fakta = personskat_calculate_par13a_ægtefællefakta, samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
 = personskat_calculate_par13a_ægtefælleoverførsel_resultat = beregn_personskat(personskat_calculate_par13a_parinput(Sandt))
@@ -1708,7 +1739,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_øre == 21007564 && årsopgørelsesinput.slutskat_øre == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21157564
 }
-| personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat: personskat_calculate_ligningslov33_resultat -> personskat_calculate_ligningslov33_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ligningslov33_resultat.endelig_aktieindkomstskat_øre == 404109 && head(personskat_calculate_ligningslov33_resultat.ligningslov33_aktieindkomst.landelinjer).proportionalt_dansk_skatteloft_øre == 10746 && personskat_calculate_ligningslov33_resultat.samlet_ligningslov33_nedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_øre - personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == 600 && personskat_calculate_ligningslov33_neutralt_resultat.slutskat_øre - personskat_calculate_ligningslov33_resultat.slutskat_øre == 600 && match personskat_calculate_ligningslov33_resultat.årsopgørelse {
+| personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat: personskat_calculate_ligningslov33_resultat -> personskat_calculate_ligningslov33_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ligningslov33_resultat.ligningslov33.input_gyldigt && personskat_calculate_ligningslov33_resultat.endelig_aktieindkomstskat_øre == 404109 && head(personskat_calculate_ligningslov33_resultat.ligningslov33.hovedperson.kreditgrupper).proportionalt_dansk_skatteloft_øre == 10746 && personskat_calculate_ligningslov33_resultat.ligningslov33.hovedpersons_nedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.ligningslov33.samlet_parnedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_øre - personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == 600 && personskat_calculate_ligningslov33_neutralt_resultat.slutskat_øre - personskat_calculate_ligningslov33_resultat.slutskat_øre == 600 && match personskat_calculate_ligningslov33_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ligningslov33_resultat.slutskat_øre
 }
