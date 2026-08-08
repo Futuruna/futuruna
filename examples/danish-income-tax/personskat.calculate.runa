@@ -986,6 +986,27 @@
     help = Some("Angiv kalenderdagen som en gyldig ISO 8601-dato."),
     unit = Some("dag")
 )
+= personskat_felt_dis_dødsbo_par67_stk7_progressionsforhold = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Ægtefælleforhold::Dbl30TidligereAfdødÆgtefælleEfterPar62::par67_stk7_progressionsforhold::$variant),
+    label = "Førstafdødes særbo efter § 67, stk. 7",
+    question = Some("Blev førstafdødes særbo skiftet og endeligt skatteberegnet før beregningen af sidstafdødes bo?"),
+    help = Some("Vælg intet særboskifte, uafsluttet særboskat eller endeligt skatteberegnet særbo. Et uafsluttet særbo afvises, fordi den resterende ekstra progressionsgrænse endnu ikke kan dokumenteres."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_par67_stk7_anvendt_progressionsgrænse = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov67Stk7Progressionsforhold::Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet::anvendt_ekstra_progressionsgrænse_kroner),
+    label = "Anvendt ekstra progressionsgrænse i førstafdødes særbo",
+    question = Some("Hvor meget af den ekstra progressionsgrænse blev anvendt ved skiftet af førstafdødes særbo?"),
+    help = Some("Angiv kun den anvendte del af den ekstra § 8 a-grænse, ikke særboets samlede aktieindkomst. Beløbet kan højst være årets ordinære progressionsgrænse."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_par67_stk7_dokumentreference = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov67Stk7Progressionsforhold::Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet::dokumentreference),
+    label = "Dokumentation for førstafdødes særboskat",
+    question = Some("Hvilken endelig skatteberegning dokumenterer den allerede anvendte progressionsgrænse?"),
+    help = Some("Angiv en entydig reference til skatteberegningen for førstafdødes særbo."),
+    unit = None
+)
 = personskat_felt_dis_dødsbo_aktieindkomstgrundlag = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Input::aktieindkomstgrundlag::$variant),
     label = "Aktieindkomst i dødsboet",
@@ -10926,6 +10947,9 @@
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_år,
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_måned,
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_dag,
+        personskat_felt_dis_dødsbo_par67_stk7_progressionsforhold,
+        personskat_felt_dis_dødsbo_par67_stk7_anvendt_progressionsgrænse,
+        personskat_felt_dis_dødsbo_par67_stk7_dokumentreference,
         personskat_felt_dis_dødsbo_aktieindkomstgrundlag,
         personskat_felt_dis_dødsbo_aktieindkomst_beløb,
         personskat_felt_dis_dødsbo_aktieindkomst_dokumentreference,
@@ -10963,6 +10987,9 @@
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
         Guidance(value = dødsboskattelov_par31_carryback_vejledning),
         Guidance(value = dødsboskattelov_par31_særbo_fællesbo_vejledning),
+        Guidance(value = dødsboskattelov_par67_stk7_særbo_vejledning),
+        Guidance(value = dødsboskattelov_par67_stk7_skatteberegning_vejledning),
+        PreparatoryWork(value = dødsboskattelov_par67_stk7_l159_bemærkninger),
     )
 )
 = personskat_meta_dis_kulbrinteskattegrundlag = TypetBeregningsmeta(

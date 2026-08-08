@@ -1394,6 +1394,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Førstafdøde ægtefælles dødsdato - år",
             "Førstafdøde ægtefælles dødsdato - måned",
             "Førstafdøde ægtefælles dødsdato - dag",
+            "Førstafdødes særbo efter § 67, stk. 7",
+            "Anvendt ekstra progressionsgrænse i førstafdødes særbo",
+            "Dokumentation for førstafdødes særboskat",
             "Aktieindkomst i dødsboet",
             "Opgjort aktieindkomst i bobeskatningsperioden",
             "Dokumentation for boets aktieindkomst",
@@ -1664,6 +1667,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.år",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.måned",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.par67_stk7_progressionsforhold.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.par67_stk7_progressionsforhold.Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet.anvendt_ekstra_progressionsgrænse_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.par67_stk7_progressionsforhold.Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet.dokumentreference",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.$variant",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.aktieindkomst_kroner",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.dokumentreference",
@@ -15356,7 +15362,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "indkomstårsforhold": { "$variant": "Dbl30Kalenderindkomstår" },
                 "ægtefælleforhold": {
                     "$variant": "Dbl30TidligereAfdødÆgtefælleEfterPar62",
-                    "førstafdødes_dødsdato": { "år": 2026, "måned": 7, "dag": 15 }
+                    "førstafdødes_dødsdato": { "år": 2026, "måned": 7, "dag": 15 },
+                    "par67_stk7_progressionsforhold": {
+                        "$variant": "Dbl67Stk7IntetSkifteAfFørstafdødesSærbo"
+                    }
                 },
                 "aktieindkomstgrundlag": { "$variant": "Dbl32IngenAktieindkomst" },
                 "carrybackgrundlag": { "$variant": "Dbl31IngenDokumenteretCarrybackgrundlag" }
@@ -15373,6 +15382,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "$variant": "Dbl32OpgjortAktieindkomstEfterPar21",
         "aktieindkomst_kroner": 100_000,
         "dokumentreference": "boopgørelse-aktieindkomst-2026"
+    });
+    death_estate_share_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+        ["dødsboskattegrundlag"]["input"]["ægtefælleforhold"]["par67_stk7_progressionsforhold"] = serde_json::json!({
+        "$variant": "Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet",
+        "anvendt_ekstra_progressionsgrænse_kroner": 30_000,
+        "dokumentreference": "skatteberegning-førstafdødes-særbo-2026"
     });
 
     let mut death_estate_carryback_case = death_estate_case.clone();
@@ -16826,6 +16841,29 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktieindkomst_kroner": 100_000,
             "dokumentreference": "boopgørelse-aktieindkomst-2026"
         })
+    );
+    assert_eq!(
+        death_estate_share_annual["input"]["dødsboskattegrundlag"]["input"]["ægtefælleforhold"]
+            ["par67_stk7_progressionsforhold"],
+        serde_json::json!({
+            "$variant": "Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet",
+            "anvendt_ekstra_progressionsgrænse_kroner": 30_000,
+            "dokumentreference": "skatteberegning-førstafdødes-særbo-2026"
+        })
+    );
+    let death_estate_share_tax = &death_estate_share_annual["dødsbo_lempelse"]
+        ["dødsboskat_før_søbl5"]["aktieskatteberegning"];
+    assert_eq!(
+        death_estate_share_tax["progressionsgrænse_før_par67_stk7_kroner"],
+        158_800
+    );
+    assert_eq!(
+        death_estate_share_tax["anvendt_ekstra_progressionsgrænse_i_førstafdødes_særbo_kroner"],
+        30_000
+    );
+    assert_eq!(
+        death_estate_share_tax["effektiv_progressionsgrænse_kroner"],
+        128_800
     );
 
     let json_death_estate_carryback_result = json_result["results"]

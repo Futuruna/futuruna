@@ -10,7 +10,10 @@
     boopgørelsestype = Dbl30OrdinærBoopgørelse,
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
-    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1)),
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(
+        førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1),
+        par67_stk7_progressionsforhold = Dbl67Stk7IntetSkifteAfFørstafdødesSærbo
+    ),
     aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
@@ -109,7 +112,10 @@
     boopgørelsestype = Dbl30OrdinærBoopgørelse,
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
-    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 4, dag = 13)),
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(
+        førstafdødes_dødsdato = Dato(år = 2025, måned = 4, dag = 13),
+        par67_stk7_progressionsforhold = Dbl67Stk7IntetSkifteAfFørstafdødesSærbo
+    ),
     aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
@@ -153,10 +159,44 @@
     boopgørelsestype = Dbl30OrdinærBoopgørelse,
     boopgørelsens_skæringsdag = Dato(år = 2026, måned = 1, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
-    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2026, måned = 1, dag = 5)),
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(
+        førstafdødes_dødsdato = Dato(år = 2026, måned = 1, dag = 5),
+        par67_stk7_progressionsforhold = Dbl67Stk7IntetSkifteAfFørstafdødesSærbo
+    ),
     aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 300000, dokumentreference = "boopgørelse-par62-aktieindkomst"),
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
+| dødsbo_scenarie_par67_stk7(progressionsforhold: Dødsboskattelov67Stk7Progressionsforhold) -> dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 0,
+    dødsdato = Dato(år = 2026, måned = 1, dag = 20),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 1, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(
+        førstafdødes_dødsdato = Dato(år = 2026, måned = 1, dag = 5),
+        par67_stk7_progressionsforhold = progressionsforhold
+    ),
+    aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 300000, dokumentreference = "boopgørelse-par67-stk7-aktieindkomst"),
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
+))
+= dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug = dødsbo_scenarie_par67_stk7(Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(
+    anvendt_ekstra_progressionsgrænse_kroner = 0,
+    dokumentreference = "skatteberegning-førstafdødes-særbo-intet-forbrug"
+))
+= dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug = dødsbo_scenarie_par67_stk7(Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(
+    anvendt_ekstra_progressionsgrænse_kroner = 30000,
+    dokumentreference = "skatteberegning-førstafdødes-særbo-delvist-forbrug"
+))
+= dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug = dødsbo_scenarie_par67_stk7(Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(
+    anvendt_ekstra_progressionsgrænse_kroner = 79400,
+    dokumentreference = "skatteberegning-førstafdødes-særbo-fuldt-forbrug"
+))
+= dødsbo_scenarie_par67_stk7_overforbrug = dødsbo_scenarie_par67_stk7(Dbl67Stk7FørstafdødesSærboEndeligtSkatteberegnet(
+    anvendt_ekstra_progressionsgrænse_kroner = 79401,
+    dokumentreference = "skatteberegning-førstafdødes-særbo-overforbrug"
+))
+= dødsbo_scenarie_par67_stk7_uafsluttet_særboskat = dødsbo_scenarie_par67_stk7(Dbl67Stk7FørstafdødesSærboIkkeEndeligtSkatteberegnet)
 = dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 100000,
@@ -365,6 +405,11 @@
 | dødsbo_scenarie_par31_split_uden_afstemning_fejler_lukket: dødsbo_scenarie_par31_split_uden_afstemning -> dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.bofordelingsgrundlag_gyldigt == Falskt && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.udbetaling_efter_historikloft_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_fællesbo_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.carryback_efter_par31.fordeling_efter_stk4.udbetaling_til_særbo_kroner == 0 && dødsbo_scenarie_par31_split_uden_afstemning.beregningsklar == Falskt
 | dødsbo_scenarie_positiv_aktieindkomst_bruger_begge_satser_og_samlet_fradragsgrundlag: dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst -> dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.lavt_skattegrundlag_kroner == 67500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.højt_skattegrundlag_kroner == 32500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.aktieskatteberegning.positiv_aktieskat_kroner == 31875 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.samlet_skat_før_fradrag_kroner == 81875 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.anvendte_fradrag_kroner == 2500 && dødsbo_scenarie_positiv_indkomst_og_positiv_aktieindkomst.samlet_skat_efter_fradrag_kroner == 79375
 | dødsbo_scenarie_par62_fordobler_2026_progressionsgrænsen: dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026 -> dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.beregningsklar && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 158800 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.lavt_skattegrundlag_kroner == 158800 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.højt_skattegrundlag_kroner == 141200 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.aktieskatteberegning.positiv_aktieskat_kroner == 102180 && dødsbo_scenarie_par62_fordoblet_progressionsgrænse_2026.samlet_skat_efter_fradrag_kroner == 96780
+| dødsbo_scenarie_par67_stk7_intet_forbrug_bevarer_fordoblingen: dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug -> dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug.beregningsklar && dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug.aktieskatteberegning.progressionsgrænse_før_par67_stk7_kroner == 158800 && dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug.aktieskatteberegning.anvendt_ekstra_progressionsgrænse_i_førstafdødes_særbo_kroner == 0 && dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 158800 && dødsbo_scenarie_par67_stk7_intet_tidligere_forbrug.aktieskatteberegning.positiv_aktieskat_kroner == 102180
+| dødsbo_scenarie_par67_stk7_delvist_forbrug_reducerer_kun_restfordelen: dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug -> dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.beregningsklar && dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.aktieskatteberegning.progressionsgrænse_før_par67_stk7_kroner == 158800 && dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.aktieskatteberegning.anvendt_ekstra_progressionsgrænse_i_førstafdødes_særbo_kroner == 30000 && dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 128800 && dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.aktieskatteberegning.positiv_aktieskat_kroner == 106680 && dødsbo_scenarie_par67_stk7_delvist_tidligere_forbrug.samlet_skat_efter_fradrag_kroner == 101280
+| dødsbo_scenarie_par67_stk7_fuldt_forbrug_fjerner_hele_restfordelen: dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug -> dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.beregningsklar && dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.aktieskatteberegning.progressionsgrænse_før_par67_stk7_kroner == 158800 && dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.aktieskatteberegning.anvendt_ekstra_progressionsgrænse_i_førstafdødes_særbo_kroner == 79400 && dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 79400 && dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.aktieskatteberegning.positiv_aktieskat_kroner == 114090 && dødsbo_scenarie_par67_stk7_fuldt_tidligere_forbrug.samlet_skat_efter_fradrag_kroner == 108690
+| dødsbo_scenarie_par67_stk7_overforbrug_fejler_lukket: dødsbo_scenarie_par67_stk7_overforbrug -> dødsbo_scenarie_par67_stk7_overforbrug.progressionsgrundlag_gyldigt == Falskt && dødsbo_scenarie_par67_stk7_overforbrug.input_gyldigt == Falskt && dødsbo_scenarie_par67_stk7_overforbrug.aktieskatteberegning.effektiv_progressionsgrænse_kroner == 0 && dødsbo_scenarie_par67_stk7_overforbrug.beregningsklar == Falskt
+| dødsbo_scenarie_par67_stk7_uafsluttet_særboskat_fejler_lukket: dødsbo_scenarie_par67_stk7_uafsluttet_særboskat -> dødsbo_scenarie_par67_stk7_uafsluttet_særboskat.progressionsgrundlag_gyldigt == Falskt && dødsbo_scenarie_par67_stk7_uafsluttet_særboskat.input_gyldigt == Falskt && dødsbo_scenarie_par67_stk7_uafsluttet_særboskat.beregningsklar == Falskt
 | dødsbo_scenarie_negativ_aktieskat_modregnes_før_fradrag: dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat -> dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.beregningsklar && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.aktieskatteberegning.negativ_aktieskat_kroner == 31875 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.samlet_skat_før_fradrag_kroner == 18125 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.anvendte_fradrag_kroner == 2500 && dødsbo_scenarie_negativ_aktieskat_rummes_i_dødsboskat.samlet_skat_efter_fradrag_kroner == 15625
 | dødsbo_scenarie_overskydende_negativ_aktieskat_går_til_par31: dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat -> dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat.skatteberegning_efter_par30_og_par32_klar && dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat.samlet_skat_før_fradrag_kroner == 0 && dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat.foreløbigt_carryback_efter_par31.overskydende_negativ_aktieskat_kroner == 21875 && dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat.foreløbigt_carryback_efter_par31.foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner == 21875 && dødsbo_scenarie_negativ_aktieskat_overskyder_dødsboskat.beregningsklar == Falskt
 | dødsbo_scenarie_negativ_indkomst_modregnes_kun_i_positiv_aktieindkomst: dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst -> dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.beregningsklar && dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.aktieskatteberegning.bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner == 50000 && dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.aktieskatteberegning.aktieindkomst_efter_par30_stk5_kroner == 50000 && dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.aktieskatteberegning.positiv_aktieskat_kroner == 13500 && dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.foreløbigt_carryback_efter_par31.resterende_negativ_bobeskatningsindkomst_kroner == 0 && dødsbo_scenarie_negativ_indkomst_modregnes_fuldt_i_positiv_aktieindkomst.samlet_skat_efter_fradrag_kroner == 11000
@@ -396,6 +441,11 @@
 ? dødsbo_scenarie_par31_split_uden_afstemning_fejler_lukket
 ? dødsbo_scenarie_positiv_aktieindkomst_bruger_begge_satser_og_samlet_fradragsgrundlag
 ? dødsbo_scenarie_par62_fordobler_2026_progressionsgrænsen
+? dødsbo_scenarie_par67_stk7_intet_forbrug_bevarer_fordoblingen
+? dødsbo_scenarie_par67_stk7_delvist_forbrug_reducerer_kun_restfordelen
+? dødsbo_scenarie_par67_stk7_fuldt_forbrug_fjerner_hele_restfordelen
+? dødsbo_scenarie_par67_stk7_overforbrug_fejler_lukket
+? dødsbo_scenarie_par67_stk7_uafsluttet_særboskat_fejler_lukket
 ? dødsbo_scenarie_negativ_aktieskat_modregnes_før_fradrag
 ? dødsbo_scenarie_overskydende_negativ_aktieskat_går_til_par31
 ? dødsbo_scenarie_negativ_indkomst_modregnes_kun_i_positiv_aktieindkomst
@@ -407,4 +457,4 @@
 ? dødsbo_scenarie_umuligt_indkomstårsforhold_fejler_lukket
 ? dødsbo_scenarie_tillægsopgørelse_fejler_lukket
 
-@ print("Dødsboskattelovens § 1, stk. 2, og §§ 30-32 er kontrolleret fra daterede kildefakta")
+@ print("Dødsboskattelovens § 1, stk. 2, §§ 30-32 og § 67, stk. 7, er kontrolleret fra daterede kildefakta")

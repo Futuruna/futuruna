@@ -202,7 +202,10 @@
     boopgørelsestype = Dbl30OrdinærBoopgørelse,
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
-    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1)),
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(
+        førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1),
+        par67_stk7_progressionsforhold = Dbl67Stk7IntetSkifteAfFørstafdødesSærbo
+    ),
     aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 )
