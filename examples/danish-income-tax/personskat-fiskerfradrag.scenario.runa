@@ -435,7 +435,161 @@
     personskat_fiskerfradrag_søbl4_tilknytning(Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "andet-akasse"), "andet-job")
 ]
 
+| personskat_fiskerfradrag_rejse(rejseidentifikation: Tekst, arbejdssted_identifikation: Tekst, startdag: Heltal) -> Ligningslov9ARejsefakta(
+    identifikation = rejseidentifikation,
+    indkomstår = 2026,
+    startdato = Dato(år = 2026, måned = 6, dag = startdag),
+    rejseart = Ll9ATjenesterejse,
+    arbejdssted_identifikation = arbejdssted_identifikation,
+    arbejdsstedskarakter = Ll9AStedbundetArbejdssted(tidsbegrænsning = Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse),
+    overnatningsforhold = Ll9AIngenMulighedForOvernatningPåSædvanligBopæl(
+        afstand_ad_normal_transportvej_kilometer = 200,
+        korteste_transporttid_hver_vej_minutter = 180
+    ),
+    hverv = Ll9AAlmindeligtHverv,
+    varighed_minutter = 1440,
+    kost = Ligningslov9AKostfakta(
+        dækning = Ll9AKostIkkeDækketEfterRegning,
+        godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 300),
+        fri_morgenmad_antal = 0,
+        fri_frokost_antal = 0,
+        fri_aftensmad_antal = 0,
+        dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner = 0,
+        fradragsprincip = Ll9AKostfradragMedStandardsats
+    ),
+    logidøgn = [Ligningslov9ALogidøgn(
+        rejsedøgnsnummer = 1,
+        dækning = Ll9ALogiIkkeDækketAfArbejdsgiver,
+        godtgørelsesudbetaling = Ll9AUopdeltGodtgørelse(udbetalt_kroner = 100),
+        dokumenteret_logiudgift_betalt_før_refusion_kroner = 0,
+        fradragsprincip = Ll9ALogifradragMedStandardsats
+    )],
+    kontrol = Ll9AArbejdsgiverkontrolUdført,
+    lønomlægning = Ll9AGodtgørelseUdenLønomlægning,
+    indkomstforhold = Ll9ADanskSkattepligtigArbejdsindkomst
+)
+| personskat_fiskerfradrag_ølogi() -> MedØlogifradrag(
+    bopæl = Ligningslov9AØbopæl(
+        kommune = Samsø,
+        ø = Ll9AAndenDanskØ(navn = "Samsø"),
+        vejforbindelse = Ll9AIngenFastVejforbindelseFraØen
+    ),
+    arbejdsforhold = [Ligningslov9AØlogiArbejdsforhold(
+        arbejdssted_identifikation = "andet-job",
+        arbejdsstedskarakter = Ll9AØlogiFastArbejdssted,
+        overnatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(
+            afstand_ad_normal_transportvej_kilometer = 100,
+            korteste_transporttid_hver_vej_minutter = 180
+        ),
+        hverv = Ll9AAlmindeligtHverv,
+        ophold = [Ligningslov9AØlogiophold(
+            identifikation = "andet-job-ølogi",
+            starttidspunkt = DatoTidspunkt(
+                dato = Dato(år = 2026, måned = 7, dag = 1),
+                klokkeslæt = Klokkeslæt(time = 0, minut = 0)
+            ),
+            sluttidspunkt_eksklusiv = DatoTidspunkt(
+                dato = Dato(år = 2026, måned = 7, dag = 2),
+                klokkeslæt = Klokkeslæt(time = 0, minut = 0)
+            ),
+            udgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt
+        )]
+    )]
+)
+| personskat_fiskerfradrag_blandede_rejser() -> Ligningslov9AÅrsinput(
+    personrolle = Ll9AAlmindeligLønmodtager,
+    rejser = [
+        personskat_fiskerfradrag_rejse("fisker-rejse", "ansat-fisker", 10),
+        personskat_fiskerfradrag_rejse("andet-job-rejse", "andet-job", 20)
+    ],
+    udenlandske_indkomstkilder = [],
+    arbejdshistorik = Ligningslov9AArbejdshistorik(
+        tidligere_rejser = [],
+        arbejdsdage = [],
+        arbejdsstedsafstande = [Ligningslov9AArbejdsstedsafstand(
+            fra_arbejdssted_identifikation = "ansat-fisker",
+            til_arbejdssted_identifikation = "andet-job",
+            gældende_fra = Dato(år = 2026, måned = 1, dag = 1),
+            afstand_ad_normal_transportvej_kilometer = 20
+        )]
+    ),
+    ølogi = personskat_fiskerfradrag_ølogi(),
+    dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+)
+| personskat_fiskerfradrag_blandede_rejser_par9g_med_andet_arbejdes_tilknytning(valg: Ligningslov9GFradragsvalg, andet_arbejdes_tilknytning: Ligningslov9GArbejdstilknytning) -> Ligningslov9GÅrsinput(
+    valg = valg,
+    registreringer = [Ligningslov9GRegistreringsperiode(
+        identifikation = "blandede-rejser-a-status",
+        status = Ll9GErhvervsfiskerMedAStatus,
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 12, dag = 31)
+    )],
+    arbejdsforhold = [personskat_fiskerfradrag_arbejdsforhold("ansat-fisker", Ll9GAnsatFisker)],
+    fangstture = [Ligningslov9GFangsttur(
+        identifikation = "blandede-rejser-fangsttur",
+        arbejdsforhold_identifikation = "ansat-fisker",
+        afgang_fra_havn = personskat_fiskerfradrag_tidspunkt(1, 6),
+        ankomst_til_havn = personskat_fiskerfradrag_tidspunkt(2, 6)
+    )],
+    selvstændige_udgiftsvurderinger = [],
+    kontingentperiodeundtagelser = [],
+    kildetilknytninger = [
+        personskat_fiskerfradrag_tilknytning(
+            Ll9GLigningslov9ARejse(kildeidentifikation = "fisker-rejse"),
+            Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "ansat-fisker")
+        ),
+        personskat_fiskerfradrag_tilknytning(
+            Ll9GLigningslov9ARejse(kildeidentifikation = "andet-job-rejse"),
+            andet_arbejdes_tilknytning
+        )
+    ]
+)
+| personskat_fiskerfradrag_blandede_rejser_par9g(valg: Ligningslov9GFradragsvalg) -> personskat_fiskerfradrag_blandede_rejser_par9g_med_andet_arbejdes_tilknytning(
+    valg = valg,
+    andet_arbejdes_tilknytning = Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation = "andet-job")
+)
+| personskat_fiskerfradrag_blandede_rejser_ligningsfradrag_med_andet_arbejdes_tilknytning(valg: Ligningslov9GFradragsvalg, andet_arbejdes_tilknytning: Ligningslov9GArbejdstilknytning) -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = personskat_fiskerfradrag_blandede_rejser_par9g_med_andet_arbejdes_tilknytning(
+        valg = valg,
+        andet_arbejdes_tilknytning = andet_arbejdes_tilknytning
+    ),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
+    befordring = personskat_ingen_befordringsfradrag(),
+    rejser = personskat_fiskerfradrag_blandede_rejser(),
+    faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = []
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [])
+)
+| personskat_fiskerfradrag_blandede_rejser_ligningsfradrag(valg: Ligningslov9GFradragsvalg) -> personskat_fiskerfradrag_blandede_rejser_ligningsfradrag_med_andet_arbejdes_tilknytning(
+    valg = valg,
+    andet_arbejdes_tilknytning = Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation = "andet-job")
+)
+| personskat_fiskerfradrag_blandede_rejser_resultat(valg: Ligningslov9GFradragsvalg) -> beregn_personskat(
+    personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(
+        ligningsfradrag = personskat_fiskerfradrag_blandede_rejser_ligningsfradrag(valg),
+        personlig_indkomst = personskat_fiskerfradrag_tom_personlig_indkomst(),
+        bruttoløn_kroner = 600000
+    )
+)
+
 = personskat_fiskerfradrag_kanonisk = beregn_personskat(personskat_fiskerfradrag_input(personskat_fiskerfradrag_kildetilknytninger, personskat_fiskerfradrag_selvstændige_udgiftsvurderinger))
+= personskat_fiskerfradrag_blandede_rejser_uden_valg = personskat_fiskerfradrag_blandede_rejser_resultat(Ll9GFravælgFiskerfradrag)
+= personskat_fiskerfradrag_blandede_rejser_med_valg = personskat_fiskerfradrag_blandede_rejser_resultat(Ll9GVælgFiskerfradrag)
+= personskat_fiskerfradrag_blandede_rejser_fejlklassificeret = beregn_personskat(
+    personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(
+        ligningsfradrag = personskat_fiskerfradrag_blandede_rejser_ligningsfradrag_med_andet_arbejdes_tilknytning(
+            valg = Ll9GVælgFiskerfradrag,
+            andet_arbejdes_tilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "andet-job")
+        ),
+        personlig_indkomst = personskat_fiskerfradrag_tom_personlig_indkomst(),
+        bruttoløn_kroner = 600000
+    )
+)
 = personskat_fiskerfradrag_nytårsfordeling = beregn_personskat(personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(
     ligningsfradrag = personskat_fiskerfradrag_nytårs_ligningsfradrag(),
     personlig_indkomst = personskat_fiskerfradrag_tom_personlig_indkomst(),
@@ -509,6 +663,9 @@
 ])
 
 | personskat_fiskerfradrag_kanonisk_samordning: personskat_fiskerfradrag_kanonisk -> personskat_fiskerfradrag_kanonisk.ligningsfradrag.alle_input_gyldige && personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.påkrævede_kilder) == 9 && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.påkrævede_selvstændige_udgiftsvurderinger) == 2 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.samlet_fradrag_kroner == 190
+| personskat_fiskerfradrag_uden_valg_bevarer_alle_rejseforhold: personskat_fiskerfradrag_blandede_rejser_uden_valg -> personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.alle_input_gyldige && personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.rejser_før_ligningslov9g.samlet_skattefri_godtgørelse_kroner == 800 && personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.rejser.samlet_skattefri_godtgørelse_kroner == 800 && personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.rejser.samlet_skattepligtig_godtgørelse_kroner == 0 && personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.rejser.samlet_ll9a_fradrag_efter_årsloft_kroner == 1254 && personskat_fiskerfradrag_blandede_rejser_uden_valg.ligningsfradrag.rejser.ølogi.fradrag_efter_fælles_årsloft_kroner == 268 && personskat_fiskerfradrag_blandede_rejser_uden_valg.skat.bruttoløn_kroner == 600000 && personskat_fiskerfradrag_blandede_rejser_uden_valg.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_fiskerfradrag_valg_afskærer_kun_fiskerrejsen_men_hele_ølogien: personskat_fiskerfradrag_blandede_rejser_med_valg -> personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.alle_input_gyldige && length(personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.fiskerfradragssamordning.påkrævede_kilder) == 2 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser_før_ligningslov9g.samlet_skattefri_godtgørelse_kroner == 800 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser_før_ligningslov9g.samlet_ll9a_fradrag_efter_årsloft_kroner == 1254 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.samlet_skattefri_godtgørelse_kroner == 400 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.samlet_skattepligtig_godtgørelse_kroner == 400 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.samlet_ll9a_fradrag_efter_årsloft_kroner == 493 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.ølogi.stk11_udelukket && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.ølogi.fradrag_efter_fælles_årsloft_kroner == 0 && personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.samlet_afskåret_efter_ligningslov9g_kroner == 761 && any(personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.rejseresultater, |rejse: Ligningslov9ARejseresultat| rejse.fakta.identifikation == "fisker-rejse" && rejse.ekstern_udelukkelse == Ll9AUdelukketEfterValgtFiskerfradragPar9G && rejse.stk1_til_stk9_udelukket) && any(personskat_fiskerfradrag_blandede_rejser_med_valg.ligningsfradrag.rejser.rejseresultater, |rejse: Ligningslov9ARejseresultat| rejse.fakta.identifikation == "andet-job-rejse" && rejse.ekstern_udelukkelse == Ll9AIngenEksternUdelukkelse && rejse.stk1_til_stk9_udelukket == Falskt && rejse.skattefri_godtgørelse_kroner == 400 && rejse.fradrag_før_årsloft_kroner == 493) && personskat_fiskerfradrag_blandede_rejser_med_valg.skat.bruttoløn_kroner == 600400 && personskat_fiskerfradrag_blandede_rejser_med_valg.skat.arbejdsmarkedsbidrag_kroner == 48032
+| personskat_fiskerfradrag_andet_arbejde_kan_ikke_omklassificeres_til_fiskerarbejde: personskat_fiskerfradrag_blandede_rejser_fejlklassificeret -> personskat_fiskerfradrag_blandede_rejser_fejlklassificeret.ligningsfradrag.fiskerfradragssamordning.kildetilknytninger_gyldige == Falskt && personskat_fiskerfradrag_blandede_rejser_fejlklassificeret.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig == Falskt && personskat_fiskerfradrag_blandede_rejser_fejlklassificeret.ligningsfradrag.alle_input_gyldige == Falskt
 | personskat_fiskerfradrag_nytårsfordeling_føres_kanonisk: personskat_fiskerfradrag_nytårsfordeling -> personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.alle_input_gyldige && personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig && head(personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.fangstturresultater).samlede_påbegyndte_havdage_på_fangstturen == 2 && head(personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.fangstturresultater).påbegyndte_havdage == 1 && personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.påbegyndte_havdage_før_årsloft == 1 && personskat_fiskerfradrag_nytårsfordeling.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.samlet_fradrag_kroner == 190
 | personskat_fiskerfradrag_bevarer_andet_arbejdes_fradrag: personskat_fiskerfradrag_kanonisk -> personskat_fiskerfradrag_kanonisk.ligningsfradrag.øvrige_lønmodtagerudgifter.samlet_fradrag_kroner == 2400 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 6000 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.pbl49_stk1_fradrag_anvendt_kroner == 2500 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.pbl49a_og_49b_fradrag_anvendt_kroner == 1000
 | personskat_fiskerfradrag_samordner_kontingenter_pr_forening: personskat_fiskerfradrag_kanonisk -> length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.input.faglige_kontingenter.kontingenter) == 3 && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.input.kontingenter) == 1 && head(personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.input.kontingenter).forening_identifikation == "andet-forbund"
@@ -527,6 +684,9 @@
 | personskat_fiskerfradrag_manglende_udgiftsvurdering_fejler_lukket: personskat_fiskerfradrag_manglende_udgiftsvurdering -> personskat_fiskerfradrag_manglende_udgiftsvurdering.ligningsfradrag.fiskerfradragssamordning.påkrævede_selvstændige_udgifter_vurderet == Falskt && personskat_fiskerfradrag_manglende_udgiftsvurdering.ligningsfradrag.alle_input_gyldige == Falskt && personskat_fiskerfradrag_manglende_udgiftsvurdering.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 90000
 
 ? personskat_fiskerfradrag_kanonisk_samordning
+? personskat_fiskerfradrag_uden_valg_bevarer_alle_rejseforhold
+? personskat_fiskerfradrag_valg_afskærer_kun_fiskerrejsen_men_hele_ølogien
+? personskat_fiskerfradrag_andet_arbejde_kan_ikke_omklassificeres_til_fiskerarbejde
 ? personskat_fiskerfradrag_nytårsfordeling_føres_kanonisk
 ? personskat_fiskerfradrag_bevarer_andet_arbejdes_fradrag
 ? personskat_fiskerfradrag_samordner_kontingenter_pr_forening

@@ -1,9 +1,10 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-06
+Last updated: 2026-08-07
 TD epic: `td-56cf8d`
-Current implementation slice: `td-4a61a9` (Ejendomsskattelovens § 39 sammenligner nu kun grundskylden på den ikke-fritagne grundandel, mens §§ 44-45 fortsat opgør det årlige stigningsloft og først derefter fordeler både ordinær og begrænset grundskyld på ejerperioden; kildefakta, mellemresultater og slutskat er identiske gennem JSON og XLSX)
+Current implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
+Previous implementation slice: `td-4a61a9` (Ejendomsskattelovens § 39 sammenligner nu kun grundskylden på den ikke-fritagne grundandel, mens §§ 44-45 fortsat opgør det årlige stigningsloft og først derefter fordeler både ordinær og begrænset grundskyld på ejerperioden; kildefakta, mellemresultater og slutskat er identiske gennem JSON og XLSX)
 Previous implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
 Previous implementation slice: `td-21293c` (LL § 13-betalinger bærer nu eksakte, ikke-overlappende kontingentperioder; LL § 9 G kan kun bevare en betaling før første fiskerregistrering eller efter fuldstændigt ophør gennem en typet konkret bedømmelse med reference og et andet arbejde eller erhverv; registreringsperioder og midlertidige afbrydelser fjernes fortsat, ugyldige eller dublerede bedømmelser fejler lukket, og resultatet er identisk gennem JSON og XLSX)
@@ -622,6 +623,20 @@ sidestillede gren fjernes før personlig indkomst og arbejdsmarkedsbidrag;
 almindelige fiskeridriftsudgifter og en anden virksomhed bevares. Manglende,
 modstridende eller forældreløse udgiftsvurderinger samt manglende, dublerede,
 forældreløse eller arbejdsstridige kildetilknytninger fejler lukket.
+
+`td-b0c76e` fører nu § 9 G-valget ind i selve § 9 A-domænet med en typet
+udelukkelseskontekst. Hver almindelig rejse kan bære sin egen eksterne
+udelukkelsesgrund, mens en separat personomfattende grund gælder ø-logi efter
+§ 9 A, stk. 12. En fiskeritilknyttet rejse omklassificerer derfor 400 kr. fra
+skattefri til skattepligtig godtgørelse og mister sit fradrag, mens en samtidig
+rejse ved andet arbejde bevarer 400 kr. skattefrit og 493 kr. i fradrag. Valget
+af fiskerfradrag afskærer samtidig hele ø-logifradraget på 268 kr. Det løfter
+den kanoniske bruttoløn fra 600.000 kr. til 600.400 kr. og AM-bidraget fra
+48.000 kr. til 48.032 kr. Ukendte, tomme, dublerede eller modstridende
+rejseudelukkelser fejler lukket, og årsresultatet bevarer både tilstanden før
+§ 9 G, efter § 9 G og efter Sømandsbeskatningslovens § 4. Det blandede resultat
+er for både fravalg og valg af § 9 G verificeret ens gennem regler, direkte JSON
+og den genererede relationelle XLSX-arbejdsbog.
 
 `td-78ac4d` har efterfølgende opdelt befordring efter LL §§ 9 C-9 D i entydige
 årsforhold. Hvert forhold bærer sit eget transportformål og en stabil reference

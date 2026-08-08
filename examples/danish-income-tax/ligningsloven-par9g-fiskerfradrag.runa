@@ -27,8 +27,8 @@
 = juridisk_vejledning_ligningslov9g_fiskere = Ligningslov9GKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2061766",
     identifier = "Den juridiske vejledning 2026-1, C.A.4.3.2.12: Fiskere",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Vejledning om registrering, havdage, årsvalg, erstattede fradrag og konkret bedømte kontingentperioder kontrolleret 06/08/2026"
+    hentet_dato = "2026-08-07",
+    ændringsstatus = "Vejledning om registrering, havdage, årsvalg, skattefri rejsegodtgørelse, erstattede fradrag og konkret bedømte kontingentperioder kontrolleret 07/08/2026"
 )
 = ligningsloven_lsf5_1992_bemærkninger_par9g = Ligningslov9GKildeInfo(
     url = "https://www.retsinformation.dk/eli/ft/199212K00005",
@@ -73,14 +73,17 @@ som kan sidestilles med lønmodtagerudgifter efter § 9, stk. 1.
 ----
 Den juridiske vejledning C.A.4.3.2.12 opgør en havdag som 24 timer, kræver at
 den enkelte fangsttur varer mindst 12 timer og anser turen for afbrudt ved ophold
-i havn eller på land. Andet arbejde eller arbejdsløshed bevarer ikke fradraget
-for kontingent til den samme fiskeritilknyttede fagforening. Er fiskeren medlem
-af en anden fagforening i forbindelse med andet arbejde, bevares fradraget til
-denne anden forening. Den samme vejledning bevarer også særskilte udgifter, der
-vedrører andet arbejde end fiskeriet. Kontingent for tiden før den første
-registrering kan efter en konkret ligningsmæssig bedømmelse bevares, når
-personen havde andet arbejde i årets første del. Det samme gælder tiden efter,
-at personen fuldstændig er ophørt med fiskerierhvervet, ikke længere er
+i havn eller på land. Vejledningen angiver særskilt, at ansatte fiskere kun kan
+anvende LL § 9 A om skattefri godtgørelse eller fradrag for rejseudgifter til
+kost og småfornødenheder, når de ikke har valgt § 9 G for fangstture i året.
+Andet arbejde eller arbejdsløshed bevarer ikke fradraget for kontingent til den
+samme fiskeritilknyttede fagforening. Er fiskeren medlem af en anden fagforening
+i forbindelse med andet arbejde, bevares fradraget til denne anden forening.
+Den samme vejledning bevarer også befordringsfradrag, rejseudgifter og andre
+lønmodtagerudgifter ved andet arbejde end fiskeriet. Kontingent for tiden før
+den første registrering kan efter en konkret ligningsmæssig bedømmelse bevares,
+når personen havde andet arbejde i årets første del. Det samme gælder tiden
+efter, at personen fuldstændig er ophørt med fiskerierhvervet, ikke længere er
 registreret og har påbegyndt et andet erhverv. En midlertidig periode uden
 fiskeri er ikke et fuldstændigt ophør. Se også C.A.4.3.1.3 og TfS 1996, 105 DEP.
 

@@ -11469,6 +11469,163 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
         "kontingenter": []
     });
+    let fisher_travel = |identifikation: &str, arbejdssted: &str, startdag: i64| {
+        serde_json::json!({
+            "identifikation": identifikation,
+            "indkomstår": 2026,
+            "startdato": { "år": 2026, "måned": 6, "dag": startdag },
+            "rejseart": { "$variant": "Ll9ATjenesterejse" },
+            "arbejdssted_identifikation": arbejdssted,
+            "arbejdsstedskarakter": {
+                "$variant": "Ll9AStedbundetArbejdssted",
+                "tidsbegrænsning": {
+                    "$variant": "Ll9ATidsbegrænsetTilKonkretOpgavesFærdiggørelse"
+                }
+            },
+            "overnatningsforhold": {
+                "$variant": "Ll9AIngenMulighedForOvernatningPåSædvanligBopæl",
+                "afstand_ad_normal_transportvej_kilometer": 200,
+                "korteste_transporttid_hver_vej_minutter": 180
+            },
+            "hverv": { "$variant": "Ll9AAlmindeligtHverv" },
+            "varighed_minutter": 1440,
+            "kost": {
+                "dækning": { "$variant": "Ll9AKostIkkeDækketEfterRegning" },
+                "godtgørelsesudbetaling": {
+                    "$variant": "Ll9AUopdeltGodtgørelse",
+                    "udbetalt_kroner": 300
+                },
+                "fri_morgenmad_antal": 0,
+                "fri_frokost_antal": 0,
+                "fri_aftensmad_antal": 0,
+                "dokumenterede_kostudgifter_før_arbejdsgiverdækning_kroner": 0,
+                "fradragsprincip": { "$variant": "Ll9AKostfradragMedStandardsats" }
+            },
+            "logidøgn": [{
+                "rejsedøgnsnummer": 1,
+                "dækning": { "$variant": "Ll9ALogiIkkeDækketAfArbejdsgiver" },
+                "godtgørelsesudbetaling": {
+                    "$variant": "Ll9AUopdeltGodtgørelse",
+                    "udbetalt_kroner": 100
+                },
+                "dokumenteret_logiudgift_betalt_før_refusion_kroner": 0,
+                "fradragsprincip": { "$variant": "Ll9ALogifradragMedStandardsats" }
+            }],
+            "kontrol": { "$variant": "Ll9AArbejdsgiverkontrolUdført" },
+            "lønomlægning": { "$variant": "Ll9AGodtgørelseUdenLønomlægning" },
+            "indkomstforhold": { "$variant": "Ll9ADanskSkattepligtigArbejdsindkomst" }
+        })
+    };
+    let mut fisher_mixed_travel_case = json_input["cases"][0].clone();
+    fisher_mixed_travel_case["case_id"] =
+        Value::String("personskat-fisker-blandede-rejser-2026".into());
+    fisher_mixed_travel_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    fisher_mixed_travel_case["input"]["lønmodtager"]["bruttoløn_kroner"] =
+        serde_json::json!(600_000);
+    fisher_mixed_travel_case["input"]["lønmodtager"]["ligningsfradrag"]["fiskerfradrag"] = serde_json::json!({
+        "valg": { "$variant": "Ll9GVælgFiskerfradrag" },
+        "registreringer": [{
+            "identifikation": "blandede-rejser-a-status",
+            "status": { "$variant": "Ll9GErhvervsfiskerMedAStatus" },
+            "fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+        }],
+        "arbejdsforhold": [{
+            "identifikation": "ansat-fisker",
+            "erhvervsform": { "$variant": "Ll9GAnsatFisker" },
+            "fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+        }],
+        "fangstture": [{
+            "identifikation": "blandede-rejser-fangsttur",
+            "arbejdsforhold_identifikation": "ansat-fisker",
+            "afgang_fra_havn": {
+                "dato": { "år": 2026, "måned": 6, "dag": 1 },
+                "klokkeslæt": { "time": 6, "minut": 0 }
+            },
+            "ankomst_til_havn": {
+                "dato": { "år": 2026, "måned": 6, "dag": 2 },
+                "klokkeslæt": { "time": 6, "minut": 0 }
+            }
+        }],
+        "selvstændige_udgiftsvurderinger": [],
+        "kontingentperiodeundtagelser": [],
+        "kildetilknytninger": [{
+            "kilde": {
+                "$variant": "Ll9GLigningslov9ARejse",
+                "kildeidentifikation": "fisker-rejse"
+            },
+            "arbejdstilknytning": {
+                "$variant": "Ll9GTilknyttetErhvervsfiskerarbejde",
+                "arbejdsforhold_identifikation": "ansat-fisker"
+            }
+        }, {
+            "kilde": {
+                "$variant": "Ll9GLigningslov9ARejse",
+                "kildeidentifikation": "andet-job-rejse"
+            },
+            "arbejdstilknytning": {
+                "$variant": "Ll9GTilknyttetAndetArbejde",
+                "arbejdsforhold_identifikation": "andet-job"
+            }
+        }]
+    });
+    fisher_mixed_travel_case["input"]["lønmodtager"]["ligningsfradrag"]["rejser"] = serde_json::json!({
+        "personrolle": { "$variant": "Ll9AAlmindeligLønmodtager" },
+        "rejser": [
+            fisher_travel("fisker-rejse", "ansat-fisker", 10),
+            fisher_travel("andet-job-rejse", "andet-job", 20)
+        ],
+        "udenlandske_indkomstkilder": [],
+        "arbejdshistorik": {
+            "tidligere_rejser": [],
+            "arbejdsdage": [],
+            "arbejdsstedsafstande": [{
+                "fra_arbejdssted_identifikation": "ansat-fisker",
+                "til_arbejdssted_identifikation": "andet-job",
+                "gældende_fra": { "år": 2026, "måned": 1, "dag": 1 },
+                "afstand_ad_normal_transportvej_kilometer": 20
+            }]
+        },
+        "ølogi": {
+            "$variant": "MedØlogifradrag",
+            "bopæl": {
+                "kommune": { "$variant": "Samsø" },
+                "ø": { "$variant": "Ll9AAndenDanskØ", "navn": "Samsø" },
+                "vejforbindelse": { "$variant": "Ll9AIngenFastVejforbindelseFraØen" }
+            },
+            "arbejdsforhold": [{
+                "arbejdssted_identifikation": "andet-job",
+                "arbejdsstedskarakter": { "$variant": "Ll9AØlogiFastArbejdssted" },
+                "overnatningsforhold": {
+                    "$variant": "Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl",
+                    "afstand_ad_normal_transportvej_kilometer": 100,
+                    "korteste_transporttid_hver_vej_minutter": 180
+                },
+                "hverv": { "$variant": "Ll9AAlmindeligtHverv" },
+                "ophold": [{
+                    "identifikation": "andet-job-ølogi",
+                    "starttidspunkt": {
+                        "dato": { "år": 2026, "måned": 7, "dag": 1 },
+                        "klokkeslæt": { "time": 0, "minut": 0 }
+                    },
+                    "sluttidspunkt_eksklusiv": {
+                        "dato": { "år": 2026, "måned": 7, "dag": 2 },
+                        "klokkeslæt": { "time": 0, "minut": 0 }
+                    },
+                    "udgiftsforhold": { "$variant": "Ll9AØlogiEgenUdgiftAfholdt" }
+                }]
+            }]
+        },
+        "dobbelt_husførelse": { "$variant": "Ll9AIntetFradragForDobbeltHusførelse" }
+    });
+    let mut fisher_mixed_travel_no_election_case = fisher_mixed_travel_case.clone();
+    fisher_mixed_travel_no_election_case["case_id"] =
+        Value::String("personskat-fisker-blandede-rejser-uden-valg-2026".into());
+    fisher_mixed_travel_no_election_case["input"]["lønmodtager"]["ligningsfradrag"]
+        ["fiskerfradrag"]["valg"] = serde_json::json!({
+        "$variant": "Ll9GFravælgFiskerfradrag"
+    });
     let mut seafarer_commute_case = json_input["cases"][0].clone();
     seafarer_commute_case["case_id"] =
         Value::String("personskat-soemand-blandet-befordring-2026".into());
@@ -15063,6 +15220,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
+        .push(fisher_mixed_travel_no_election_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(fisher_mixed_travel_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
         .push(seafarer_commute_case);
     for case in json_input["cases"]
         .as_array_mut()
@@ -15230,6 +15395,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-fisker-nytårsfordeling-2026")
         .expect("fisher cross-year JSON case")
         .clone();
+    let fisher_mixed_travel_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-2026")
+        .expect("fisher mixed-travel JSON case")
+        .clone();
+    let fisher_mixed_travel_no_election_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-uden-valg-2026")
+        .expect("non-elected fisher mixed-travel JSON case")
+        .clone();
     let seafarer_commute_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -15258,6 +15437,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         par32_mixed_case,
         fisher_union_transition_case,
         fisher_cross_year_case,
+        fisher_mixed_travel_no_election_case,
+        fisher_mixed_travel_case,
         seafarer_commute_case,
     ]);
     std::fs::write(
@@ -15391,6 +15572,138 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         2
     );
     assert_eq!(fisher_cross_year_trip["påbegyndte_havdage"], 1);
+    let json_fisher_mixed_travel_no_election_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-uden-valg-2026")
+        .expect("JSON non-elected fisher mixed-travel result");
+    let hydrated_fisher_mixed_travel_no_election_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-uden-valg-2026")
+        .expect("hydrated XLSX non-elected fisher mixed-travel result");
+    assert_eq!(
+        hydrated_fisher_mixed_travel_no_election_result["result"],
+        json_fisher_mixed_travel_no_election_result["result"]
+    );
+    let fisher_mixed_travel_no_election_trace =
+        &json_fisher_mixed_travel_no_election_result["result"]["ligningsfradrag"];
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["alle_input_gyldige"],
+        true
+    );
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["fiskerfradragssamordning"]["fiskerfradrag"]
+            ["fradrag_foretaget_efter_par9g"],
+        false
+    );
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["rejser"]["samlet_skattefri_godtgørelse_kroner"],
+        800
+    );
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["rejser"]["samlet_skattepligtig_godtgørelse_kroner"],
+        0
+    );
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["rejser"]["samlet_ll9a_fradrag_efter_årsloft_kroner"],
+        1_254
+    );
+    assert_eq!(
+        fisher_mixed_travel_no_election_trace["rejser"]["ølogi"]
+            ["fradrag_efter_fælles_årsloft_kroner"],
+        268
+    );
+    assert_eq!(
+        json_fisher_mixed_travel_no_election_result["result"]["skat"]["bruttoløn_kroner"],
+        600_000
+    );
+    assert_eq!(
+        json_fisher_mixed_travel_no_election_result["result"]["skat"]
+            ["arbejdsmarkedsbidrag_kroner"],
+        48_000
+    );
+    let json_fisher_mixed_travel_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-2026")
+        .expect("JSON fisher mixed-travel result");
+    let hydrated_fisher_mixed_travel_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-blandede-rejser-2026")
+        .expect("hydrated XLSX fisher mixed-travel result");
+    assert_eq!(
+        hydrated_fisher_mixed_travel_result["result"],
+        json_fisher_mixed_travel_result["result"]
+    );
+    let fisher_mixed_travel_trace = &json_fisher_mixed_travel_result["result"]["ligningsfradrag"];
+    assert_eq!(fisher_mixed_travel_trace["alle_input_gyldige"], true);
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser_før_ligningslov9g"]
+            ["samlet_skattefri_godtgørelse_kroner"],
+        800
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser_før_ligningslov9g"]
+            ["samlet_ll9a_fradrag_efter_årsloft_kroner"],
+        1_254
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser"]["samlet_skattefri_godtgørelse_kroner"],
+        400
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser"]["samlet_skattepligtig_godtgørelse_kroner"],
+        400
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser"]["samlet_ll9a_fradrag_efter_årsloft_kroner"],
+        493
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["rejser"]["ølogi"]["stk11_udelukket"],
+        true
+    );
+    assert_eq!(
+        fisher_mixed_travel_trace["samlet_afskåret_efter_ligningslov9g_kroner"],
+        761
+    );
+    let fisher_mixed_travel_results = fisher_mixed_travel_trace["rejser"]["rejseresultater"]
+        .as_array()
+        .expect("fisher mixed-travel results");
+    let fisher_trip = fisher_mixed_travel_results
+        .iter()
+        .find(|result| result["fakta"]["identifikation"] == "fisker-rejse")
+        .expect("fishing-linked travel result");
+    assert_eq!(
+        fisher_trip["ekstern_udelukkelse"]["$variant"],
+        "Ll9AUdelukketEfterValgtFiskerfradragPar9G"
+    );
+    assert_eq!(fisher_trip["stk1_til_stk9_udelukket"], true);
+    let unrelated_trip = fisher_mixed_travel_results
+        .iter()
+        .find(|result| result["fakta"]["identifikation"] == "andet-job-rejse")
+        .expect("unrelated-job travel result");
+    assert_eq!(
+        unrelated_trip["ekstern_udelukkelse"]["$variant"],
+        "Ll9AIngenEksternUdelukkelse"
+    );
+    assert_eq!(unrelated_trip["stk1_til_stk9_udelukket"], false);
+    assert_eq!(unrelated_trip["skattefri_godtgørelse_kroner"], 400);
+    assert_eq!(unrelated_trip["fradrag_før_årsloft_kroner"], 493);
+    assert_eq!(
+        json_fisher_mixed_travel_result["result"]["skat"]["bruttoløn_kroner"],
+        600_400
+    );
+    assert_eq!(
+        json_fisher_mixed_travel_result["result"]["skat"]["arbejdsmarkedsbidrag_kroner"],
+        48_032
+    );
     let json_seafarer_commute_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

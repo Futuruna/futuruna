@@ -124,8 +124,7 @@
 # PersonskatBefordringsfradragForholdsresultat = UgyldigtBefordringsfradragsforhold(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradragsforhold(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat)
 # PersonskatBefordringsfradragResultat(input: PersonskatBefordringsfradragInput, forholdsresultater: List(PersonskatBefordringsfradragForholdsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, aftrapningsindkomst_kroner: Heltal, samlet_par9d_fradrag_kroner: Heltal, samlet_par9c_grundfradrag_kroner: Heltal, lavindkomstgrundlag_kroner: Heltal, lavindkomsttillæg_kroner: Heltal, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
 # PersonskatLigningslov9GKoordinering(fiskerfradrag: Ligningslov9GÅrsresultat, påkrævede_kilder: List(Ligningslov9GFradragskilde), påkrævede_selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsnøgle), kildetilknytninger_gyldige: Boolsk, påkrævede_kilder_tilknyttet: Boolsk, selvstændige_udgiftsvurderinger_gyldige: Boolsk, påkrævede_selvstændige_udgifter_vurderet: Boolsk, kontingentperiodeundtagelser_gyldige: Boolsk, samordning_gyldig: Boolsk, selvstændige_driftsudgifter_afskåret_kroner: Heltal)
-# PersonskatLigningslov9GRejsefradrag(rejsefradrag_før_årsloft_kroner: Heltal, rejsefradrag_efter_årsloft_kroner: Heltal, ølogifradrag_før_årsloft_kroner: Heltal, ølogifradrag_efter_årsloft_kroner: Heltal, samlet_ll9a_fradrag_efter_årsloft_kroner: Heltal)
-# PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat, sømandsbeskatningslov4_kildetilknytninger_gyldige: Boolsk, sømandsbeskatningslov4_påkrævede_kilder_tilknyttet: Boolsk, fiskerfradragssamordning: PersonskatLigningslov9GKoordinering, øvrige_lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, befordring_før_ligningslov9g: PersonskatBefordringsfradragResultat, befordring: PersonskatBefordringsfradragResultat, befordring_efter_sømandsbeskatningslov4: PersonskatBefordringsfradragResultat, rejser_før_sømandsbeskatningslov4_stk2: Ligningslov9AÅrsresultat, rejser: Ligningslov9AÅrsresultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat, gaver: LigningslovGaveÅrsresultat, erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner: Heltal, erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner: Heltal, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, rejsegodtgørelse_skattefri_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, erhvervsbefordring_fradrag_før_par4_kroner: Heltal, erhvervsbefordring_fradrag_anvendt_kroner: Heltal, rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_før_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_anvendt_kroner: Heltal, befordring_fradrag_før_par4_kroner: Heltal, befordring_fradrag_anvendt_kroner: Heltal, faglige_kontingenter_fradrag_anvendt_kroner: Heltal, pbl49_stk1_fradrag_før_par4_kroner: Heltal, pbl49_stk1_fradrag_anvendt_kroner: Heltal, pbl49a_og_49b_fradrag_anvendt_kroner: Heltal, samlet_afskåret_efter_ligningslov9g_kroner: Heltal, samlet_afskåret_efter_sømandsbeskatningslov4_kroner: Heltal, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
+# PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat, sømandsbeskatningslov4_kildetilknytninger_gyldige: Boolsk, sømandsbeskatningslov4_påkrævede_kilder_tilknyttet: Boolsk, fiskerfradragssamordning: PersonskatLigningslov9GKoordinering, øvrige_lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, befordring_før_ligningslov9g: PersonskatBefordringsfradragResultat, befordring: PersonskatBefordringsfradragResultat, befordring_efter_sømandsbeskatningslov4: PersonskatBefordringsfradragResultat, rejser_før_ligningslov9g: Ligningslov9AÅrsresultat, rejser_før_sømandsbeskatningslov4_stk2: Ligningslov9AÅrsresultat, rejser: Ligningslov9AÅrsresultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat, gaver: LigningslovGaveÅrsresultat, erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner: Heltal, erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner: Heltal, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, rejsegodtgørelse_skattefri_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, erhvervsbefordring_fradrag_før_par4_kroner: Heltal, erhvervsbefordring_fradrag_anvendt_kroner: Heltal, rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_før_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_anvendt_kroner: Heltal, befordring_fradrag_før_par4_kroner: Heltal, befordring_fradrag_anvendt_kroner: Heltal, faglige_kontingenter_fradrag_anvendt_kroner: Heltal, pbl49_stk1_fradrag_før_par4_kroner: Heltal, pbl49_stk1_fradrag_anvendt_kroner: Heltal, pbl49a_og_49b_fradrag_anvendt_kroner: Heltal, samlet_afskåret_efter_ligningslov9g_kroner: Heltal, samlet_afskåret_efter_sømandsbeskatningslov4_kroner: Heltal, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
 # PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
 # PersonskatPensionsInput(pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_indbetalinger: List(Pbl18Årsindbetaling), pbl18_selvstændig_overskud: Pbl18SelvstændigOverskudInput, pbl18_livrentevalg: Pbl18Fradragsvalg, pbl15a_årsgrundlag: Pbl15AÅrsgrundlag, pbl15b_årsgrundlag: Pbl15BÅrsgrundlag, øvrige_pbl20_årsgrundlag: Pbl20Årsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg)
 # PersonskatPensionsudbetalingsresultat(aktuelle_pbl20_resultat: Pbl20Årsresultat, foregående_pbl20_resultat: Pbl20Årsresultat, aktuelle_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, foregående_pbl15b_resultat: Pbl15BUdbetalingsårsresultat, aktuelle_input_gyldige: Boolsk, foregående_input_gyldige: Boolsk, samlet_personlig_indkomst_i_året_kroner: Heltal, samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner: Heltal, samlet_pbl29_afgift_i_året_kroner: Heltal)
@@ -11599,16 +11598,6 @@
     | Pbl49Seniormedlemskontingent(_, _) -> Sandt
     | _ -> Falskt
 }
-| personskat_ll9g_ølogiopholdskilder(input: Ligningslov9AØlogiInput) -> match input {
-    | UdenØlogifradrag -> []
-    | MedØlogifradrag(_, arbejdsforhold) -> flat_map(
-        arbejdsforhold,
-        |forhold: Ligningslov9AØlogiArbejdsforhold| map(
-            forhold.ophold,
-            |ophold: Ligningslov9AØlogiophold| Ll9GLigningslov9AØlogiophold(kildeidentifikation = ophold.identifikation)
-        )
-    )
-}
 | personskat_ll9g_selvstændigt_fiskerarbejde_findes(input: Ligningslov9GÅrsinput, virksomhedsidentifikation: Tekst) -> any(
     input.arbejdsforhold,
     |arbejdsforhold: Ligningslov9GArbejdsforhold| arbejdsforhold.identifikation == virksomhedsidentifikation && arbejdsforhold.erhvervsform == Ll9GSelvstændigFisker
@@ -11657,7 +11646,6 @@
         lønmodtager.ligningsfradrag.rejser.rejser,
         |rejse: Ligningslov9ARejsefakta| Ll9GLigningslov9ARejse(kildeidentifikation = rejse.identifikation)
     )
-    = ligningslov9a_ølogikilder = personskat_ll9g_ølogiopholdskilder(lønmodtager.ligningsfradrag.rejser.ølogi)
     = ligningslov9b_kilder = map(
         lønmodtager.erhvervsbefordring.sager,
         |sag: PersonskatErhvervsbefordringFakta| Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation = sag.identifikation)
@@ -11689,12 +11677,12 @@
         concat(
             ligningslov9a_rejsekilder,
             concat(
-                ligningslov9a_ølogikilder,
+                ligningslov9b_kilder,
                 concat(
-                    ligningslov9b_kilder,
+                    ligningslov9c_og_9d_kilder,
                     concat(
-                        ligningslov9c_og_9d_kilder,
-                        concat(ligningslov13_kilder, concat(pensionsbeskatningslov49_stk1_kilder, selvstændige_sidestillede_udgiftskilder))
+                        ligningslov13_kilder,
+                        concat(pensionsbeskatningslov49_stk1_kilder, selvstændige_sidestillede_udgiftskilder)
                     )
                 )
             )
@@ -11860,6 +11848,27 @@
     )
 }
 | personskat_ll9g_kilde_bevares(koordinering: PersonskatLigningslov9GKoordinering, kilde: Ligningslov9GFradragskilde) -> koordinering.fiskerfradrag.fradrag_foretaget_efter_par9g == Falskt || koordinering.samordning_gyldig && ligningslov9g_kilde_afskåret(koordinering.fiskerfradrag, kilde) == Falskt
+| personskat_ll9g_rejseudelukkelser(input: Ligningslov9AÅrsinput, koordinering: PersonskatLigningslov9GKoordinering) -> hvis koordinering.samordning_gyldig {
+    map(
+        filter(
+            input.rejser,
+            |rejse: Ligningslov9ARejsefakta| ligningslov9g_kilde_afskåret(
+                koordinering.fiskerfradrag,
+                Ll9GLigningslov9ARejse(kildeidentifikation = rejse.identifikation)
+            )
+        ),
+        |rejse: Ligningslov9ARejsefakta| Ligningslov9ARejseudelukkelse(
+            rejseidentifikation = rejse.identifikation,
+            årsag = Ll9AUdelukketEfterValgtFiskerfradragPar9G
+        )
+    )
+} ellers { [] }
+| personskat_ll9g_ølogiudelukkelse(koordinering: PersonskatLigningslov9GKoordinering) -> hvis koordinering.fiskerfradrag.fradrag_foretaget_efter_par9g { Ll9AUdelukketEfterValgtFiskerfradragPar9G } ellers { Ll9AIngenEksternUdelukkelse }
+| personskat_ll9g_rejseudelukkelseskontekst(input: Ligningslov9AÅrsinput, koordinering: PersonskatLigningslov9GKoordinering) -> Ligningslov9AUdelukkelseskontekst(
+    generel_rejseudelukkelse = Ll9AIngenEksternUdelukkelse,
+    rejseudelukkelser = personskat_ll9g_rejseudelukkelser(input, koordinering),
+    ølogiudelukkelse = personskat_ll9g_ølogiudelukkelse(koordinering)
+)
 | personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta) -> personskat_ll9g_kilde_bevares(
     koordinering,
     Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
@@ -11940,42 +11949,6 @@
         Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = bidrag.fakta.identifikation)
     ) { bidrag.fradrag_kroner } ellers { 0 }
 )
-| personskat_ll9g_rejsefradrag_før_årsloft_kroner(resultat: Ligningslov9AÅrsresultat, koordinering: PersonskatLigningslov9GKoordinering) -> foldl(
-    resultat.rejseresultater,
-    0,
-    |sum_kroner: Heltal, rejse: Ligningslov9ARejseresultat| sum_kroner + hvis personskat_ll9g_kilde_bevares(
-        koordinering,
-        Ll9GLigningslov9ARejse(kildeidentifikation = rejse.fakta.identifikation)
-    ) { rejse.fradrag_før_årsloft_kroner } ellers { 0 }
-)
-| personskat_ll9g_ølogifradrag_før_årsloft_kroner(resultat: Ligningslov9AÅrsresultat, koordinering: PersonskatLigningslov9GKoordinering) -> foldl(
-    resultat.ølogi.arbejdsforholdsresultater,
-    0,
-    |arbejdsforholdssum_kroner: Heltal, arbejdsforhold: Ligningslov9AØlogiArbejdsforholdsresultat| arbejdsforholdssum_kroner + foldl(
-        arbejdsforhold.opholdsresultater,
-        0,
-        |opholdssum_kroner: Heltal, ophold: Ligningslov9AØlogiopholdsresultat| opholdssum_kroner + hvis personskat_ll9g_kilde_bevares(
-            koordinering,
-            Ll9GLigningslov9AØlogiophold(kildeidentifikation = ophold.fakta.identifikation)
-        ) { ophold.fradrag_før_fælles_årsloft_kroner } ellers { 0 }
-    )
-)
-| personskat_ll9g_rejsefradrag_resultat(resultat: Ligningslov9AÅrsresultat, koordinering: PersonskatLigningslov9GKoordinering) -> {
-    = input_gyldigt = resultat.alle_input_gyldige && koordinering.samordning_gyldig
-    = rejsefradrag_før_årsloft_kroner = hvis input_gyldigt { personskat_ll9g_rejsefradrag_før_årsloft_kroner(resultat, koordinering) } ellers { 0 }
-    = tilgængeligt_rejsefradragsloft_kroner = penge_positivt_beløb(resultat.årligt_fælles_fradragsloft_kroner - resultat.dobbelt_husførelse_efter_fælles_loft_kroner)
-    = rejsefradrag_efter_årsloft_kroner = hvis input_gyldigt { penge_mindste_beløb(rejsefradrag_før_årsloft_kroner, tilgængeligt_rejsefradragsloft_kroner) } ellers { 0 }
-    = ølogifradrag_før_årsloft_kroner = hvis input_gyldigt { personskat_ll9g_ølogifradrag_før_årsloft_kroner(resultat, koordinering) } ellers { 0 }
-    = tilgængeligt_ølogiloft_kroner = penge_positivt_beløb(tilgængeligt_rejsefradragsloft_kroner - rejsefradrag_efter_årsloft_kroner)
-    = ølogifradrag_efter_årsloft_kroner = hvis input_gyldigt { penge_mindste_beløb(ølogifradrag_før_årsloft_kroner, tilgængeligt_ølogiloft_kroner) } ellers { 0 }
-    PersonskatLigningslov9GRejsefradrag(
-        rejsefradrag_før_årsloft_kroner = rejsefradrag_før_årsloft_kroner,
-        rejsefradrag_efter_årsloft_kroner = rejsefradrag_efter_årsloft_kroner,
-        ølogifradrag_før_årsloft_kroner = ølogifradrag_før_årsloft_kroner,
-        ølogifradrag_efter_årsloft_kroner = ølogifradrag_efter_årsloft_kroner,
-        samlet_ll9a_fradrag_efter_årsloft_kroner = rejsefradrag_efter_årsloft_kroner + ølogifradrag_efter_årsloft_kroner
-    )
-}
 | personskat_ll9c_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2025 || skatteår == 2026
 | personskat_ll9d_grundfakta_gyldige(input: Ligningslov9DInput) -> input.billigste_offentlige_befordring_kroner >= 0 && input.befordringsudgifter.årlige_kilometer_egen_befordring >= 0 && input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner >= 0
 | personskat_ll9d_input_gyldigt(input: PersonskatLigningslov9DInput, skatteår: Heltal) -> match input {
@@ -12217,11 +12190,24 @@
     = sømandsfradrag = sømandsbeskatningslov3_årsresultat(indkomstår = lønmodtager.skatteår, input = input.sømandsfradrag)
     = øvrige_lønmodtagerudgifter_før_ligningslov9g = ligningslov9_stk1_årsresultat(indkomstår = lønmodtager.skatteår, input = input.øvrige_lønmodtagerudgifter)
     = øvrige_lønmodtagerudgifter = ligningslov9_stk1_årsresultat(indkomstår = lønmodtager.skatteår, input = personskat_ll9g_lønmodtagerudgifter_input(input.øvrige_lønmodtagerudgifter, fiskerfradragssamordning))
-    = rejser_før_sømandsbeskatningslov4_stk2 = ligningslov9a_årsresultat(indkomstår = lønmodtager.skatteår, input = input.rejser, ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse)
+    = rejser_før_ligningslov9g = ligningslov9a_årsresultat(indkomstår = lønmodtager.skatteår, input = input.rejser, ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse)
+    = rejser_efter_ligningslov9g_udelukkelseskontekst = personskat_ll9g_rejseudelukkelseskontekst(input.rejser, fiskerfradragssamordning)
+    = rejser_før_sømandsbeskatningslov4_stk2 = ligningslov9a_årsresultat_med_udelukkelseskontekst(
+        indkomstår = lønmodtager.skatteår,
+        input = input.rejser,
+        udelukkelseskontekst = rejser_efter_ligningslov9g_udelukkelseskontekst
+    )
     = rejser_ekstern_udelukkelse = hvis personlig_indkomst.sømandsbeskatning.ligningslov9a_stk1_til9_afskåret { Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 } ellers {
         hvis sømandsfradrag.kan_foretage_fradrag_efter_par3 { Ll9AUdelukketEfterSømandsbeskatningslov4Stk2 } ellers { Ll9AIngenEksternUdelukkelse }
     }
-    = rejser = ligningslov9a_årsresultat(indkomstår = lønmodtager.skatteår, input = input.rejser, ekstern_udelukkelse = rejser_ekstern_udelukkelse)
+    = rejser_endelig_udelukkelseskontekst = hvis rejser_ekstern_udelukkelse != Ll9AIngenEksternUdelukkelse {
+        ligningslov9a_udelukkelseskontekst_for_generel_udelukkelse(rejser_ekstern_udelukkelse)
+    } ellers { rejser_efter_ligningslov9g_udelukkelseskontekst }
+    = rejser = ligningslov9a_årsresultat_med_udelukkelseskontekst(
+        indkomstår = lønmodtager.skatteår,
+        input = input.rejser,
+        udelukkelseskontekst = rejser_endelig_udelukkelseskontekst
+    )
     = erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner = erhvervsbefordring.samlet_skattefri_godtgørelse_kroner
     = erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner = personskat_søbl4_erhvervsbefordring_skattefri_godtgørelse_anvendt_kroner(erhvervsbefordring = erhvervsbefordring, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
     = erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner = erhvervsbefordring.samlet_skattepligtig_godtgørelse_kroner + erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner - erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner
@@ -12245,10 +12231,8 @@
     = erhvervsbefordring_fradrag_før_ligningslov9g_kroner = personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(erhvervsbefordring)
     = erhvervsbefordring_fradrag_før_par4_kroner = personskat_ll9g_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring, fiskerfradragssamordning)
     = erhvervsbefordring_fradrag_anvendt_kroner = personskat_ll9g_og_søbl4_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring = erhvervsbefordring, koordinering = fiskerfradragssamordning, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
-    = rejsefradrag_før_ligningslov9g = personskat_ll9g_rejsefradrag_resultat(rejser_før_sømandsbeskatningslov4_stk2, fiskerfradragssamordning)
-    = rejsefradrag_efter_ligningslov9g_og_sømandsbeskatningslov4 = personskat_ll9g_rejsefradrag_resultat(rejser, fiskerfradragssamordning)
-    = rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner = rejsefradrag_før_ligningslov9g.samlet_ll9a_fradrag_efter_årsloft_kroner
-    = rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner = rejsefradrag_efter_ligningslov9g_og_sømandsbeskatningslov4.samlet_ll9a_fradrag_efter_årsloft_kroner
+    = rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner = rejser_før_sømandsbeskatningslov4_stk2.samlet_ll9a_fradrag_efter_årsloft_kroner
+    = rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner = rejser.samlet_ll9a_fradrag_efter_årsloft_kroner
     = dobbelt_husførelse_før_sømandsbeskatningslov4_stk2_kroner = rejser_før_sømandsbeskatningslov4_stk2.dobbelt_husførelse_efter_fælles_loft_kroner
     = dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner = rejser.dobbelt_husførelse_efter_fælles_loft_kroner
     = lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner = øvrige_lønmodtagerudgifter.samlet_fradragsgrundlag_før_bundgrænse_kroner
@@ -12263,9 +12247,9 @@
     = pbl49_stk1_fradrag_før_par4_kroner = personskat_ll9g_pbl49_stk1_fradrag_anvendt_kroner(arbejdsløshed_efterløn_og_fleksydelse, fiskerfradragssamordning)
     = pbl49_stk1_fradrag_anvendt_kroner = personskat_ll9g_og_søbl4_pbl49_stk1_fradrag_anvendt_kroner(resultat = arbejdsløshed_efterløn_og_fleksydelse, koordinering = fiskerfradragssamordning, input = input.sømandsbeskatningslov4, sømandsfradrag = sømandsfradrag)
     = pbl49a_og_49b_fradrag_anvendt_kroner = personskat_pbl49a_og_49b_fradrag_kroner(resultat = arbejdsløshed_efterløn_og_fleksydelse)
-    = samlet_afskåret_efter_ligningslov9g_kroner = øvrige_lønmodtagerudgifter_før_ligningslov9g.samlet_fradrag_kroner - øvrige_lønmodtagerudgifter.samlet_fradrag_kroner + rejser_før_sømandsbeskatningslov4_stk2.samlet_ll9a_fradrag_efter_årsloft_kroner - rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner + erhvervsbefordring_fradrag_før_ligningslov9g_kroner - erhvervsbefordring_fradrag_før_par4_kroner + befordring_fradrag_før_ligningslov9g_kroner - befordring_fradrag_før_par4_kroner + faglige_kontingenter_før_ligningslov9g.samlet_fradrag_kroner - faglige_kontingenter.samlet_fradrag_kroner + pbl49_stk1_fradrag_før_ligningslov9g_kroner - pbl49_stk1_fradrag_før_par4_kroner
+    = samlet_afskåret_efter_ligningslov9g_kroner = øvrige_lønmodtagerudgifter_før_ligningslov9g.samlet_fradrag_kroner - øvrige_lønmodtagerudgifter.samlet_fradrag_kroner + rejser_før_ligningslov9g.samlet_ll9a_fradrag_efter_årsloft_kroner - rejser_før_sømandsbeskatningslov4_stk2.samlet_ll9a_fradrag_efter_årsloft_kroner + erhvervsbefordring_fradrag_før_ligningslov9g_kroner - erhvervsbefordring_fradrag_før_par4_kroner + befordring_fradrag_før_ligningslov9g_kroner - befordring_fradrag_før_par4_kroner + faglige_kontingenter_før_ligningslov9g.samlet_fradrag_kroner - faglige_kontingenter.samlet_fradrag_kroner + pbl49_stk1_fradrag_før_ligningslov9g_kroner - pbl49_stk1_fradrag_før_par4_kroner
     = samlet_afskåret_efter_sømandsbeskatningslov4_kroner = erhvervsbefordring_fradrag_før_par4_kroner - erhvervsbefordring_fradrag_anvendt_kroner + rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner - rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner + lønmodtagerudgifter_fradrag_før_par4_kroner - lønmodtagerudgifter_fradrag_anvendt_kroner + befordring_fradrag_før_par4_kroner - befordring_fradrag_anvendt_kroner + faglige_kontingenter.samlet_fradrag_kroner - faglige_kontingenter_fradrag_anvendt_kroner + pbl49_stk1_fradrag_før_par4_kroner - pbl49_stk1_fradrag_anvendt_kroner
-    = alle_input_gyldige = fiskerfradragssamordning.samordning_gyldig && sømandsfradrag.alle_input_gyldige && sømandsbeskatningslov4_kildetilknytninger_gyldige && sømandsbeskatningslov4_påkrævede_kilder_tilknyttet && øvrige_lønmodtagerudgifter_før_ligningslov9g.alle_input_gyldige && øvrige_lønmodtagerudgifter.alle_input_gyldige && personskat_befordringsfradrag_input_gyldigt(befordring_før_ligningslov9g) && personskat_befordringsfradrag_input_gyldigt(befordring) && personskat_befordringsfradrag_input_gyldigt(befordring_efter_sømandsbeskatningslov4) && rejser.alle_input_gyldige && faglige_kontingenter_før_ligningslov9g.alle_input_gyldige && faglige_kontingenter.alle_input_gyldige && arbejdsløshed_efterløn_og_fleksydelse.alle_input_gyldige && gaver.alle_input_gyldige
+    = alle_input_gyldige = fiskerfradragssamordning.samordning_gyldig && sømandsfradrag.alle_input_gyldige && sømandsbeskatningslov4_kildetilknytninger_gyldige && sømandsbeskatningslov4_påkrævede_kilder_tilknyttet && øvrige_lønmodtagerudgifter_før_ligningslov9g.alle_input_gyldige && øvrige_lønmodtagerudgifter.alle_input_gyldige && personskat_befordringsfradrag_input_gyldigt(befordring_før_ligningslov9g) && personskat_befordringsfradrag_input_gyldigt(befordring) && personskat_befordringsfradrag_input_gyldigt(befordring_efter_sømandsbeskatningslov4) && rejser_før_ligningslov9g.alle_input_gyldige && rejser_før_sømandsbeskatningslov4_stk2.alle_input_gyldige && rejser.alle_input_gyldige && faglige_kontingenter_før_ligningslov9g.alle_input_gyldige && faglige_kontingenter.alle_input_gyldige && arbejdsløshed_efterløn_og_fleksydelse.alle_input_gyldige && gaver.alle_input_gyldige
     PersonskatLigningsfradragResultat(
         input = input,
         sømandsfradrag = sømandsfradrag,
@@ -12276,6 +12260,7 @@
         befordring_før_ligningslov9g = befordring_før_ligningslov9g,
         befordring = befordring,
         befordring_efter_sømandsbeskatningslov4 = befordring_efter_sømandsbeskatningslov4,
+        rejser_før_ligningslov9g = rejser_før_ligningslov9g,
         rejser_før_sømandsbeskatningslov4_stk2 = rejser_før_sømandsbeskatningslov4_stk2,
         rejser = rejser,
         faglige_kontingenter = faglige_kontingenter,

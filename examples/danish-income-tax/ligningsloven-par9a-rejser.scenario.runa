@@ -151,6 +151,18 @@
     dobbelt_husførelse = dobbelt_husførelse,
     ekstern_udelukkelse = ekstern_udelukkelse
 )
+| ll9a_scenarie_årsresultat_med_udelukkelseskontekst(rejser: List(Ligningslov9ARejsefakta), udelukkelseskontekst: Ligningslov9AUdelukkelseskontekst) -> ligningslov9a_årsresultat_med_udelukkelseskontekst(
+    indkomstår = 2026,
+    input = Ligningslov9AÅrsinput(
+        personrolle = Ll9AAlmindeligLønmodtager,
+        rejser = rejser,
+        udenlandske_indkomstkilder = [],
+        arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
+        ølogi = UdenØlogifradrag,
+        dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+    ),
+    udelukkelseskontekst = udelukkelseskontekst
+)
 | ll9a_scenarie_årsresultat_med_indkomstkilder(rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), dobbelt_husførelse: Ligningslov9ADobbeltHusførelse, ekstern_udelukkelse: Ligningslov9AEksternUdelukkelse) -> ll9a_scenarie_årsresultat_med_historik_og_indkomstkilder(
     rejser = rejser,
     udenlandske_indkomstkilder = udenlandske_indkomstkilder,
@@ -482,6 +494,28 @@
     [ll9a_scenarie_almindelig_rejse],
     Ll9AIntetFradragForDobbeltHusførelse,
     Ll9AUdelukketEfterSømandsbeskatningslov4Stk2
+)
+= ll9a_scenarie_kildeudelukket_resultat = ll9a_scenarie_årsresultat_med_udelukkelseskontekst(
+    rejser = [ll9a_scenarie_almindelig_rejse],
+    udelukkelseskontekst = Ligningslov9AUdelukkelseskontekst(
+        generel_rejseudelukkelse = Ll9AIngenEksternUdelukkelse,
+        rejseudelukkelser = [Ligningslov9ARejseudelukkelse(
+            rejseidentifikation = "almindelig",
+            årsag = Ll9AUdelukketEfterValgtFiskerfradragPar9G
+        )],
+        ølogiudelukkelse = Ll9AIngenEksternUdelukkelse
+    )
+)
+= ll9a_scenarie_ukendt_kildeudelukkelse_resultat = ll9a_scenarie_årsresultat_med_udelukkelseskontekst(
+    rejser = [ll9a_scenarie_almindelig_rejse],
+    udelukkelseskontekst = Ligningslov9AUdelukkelseskontekst(
+        generel_rejseudelukkelse = Ll9AIngenEksternUdelukkelse,
+        rejseudelukkelser = [Ligningslov9ARejseudelukkelse(
+            rejseidentifikation = "ukendt-rejse",
+            årsag = Ll9AUdelukketEfterValgtFiskerfradragPar9G
+        )],
+        ølogiudelukkelse = Ll9AIngenEksternUdelukkelse
+    )
 )
 
 = ll9a_scenarie_ugyldig_reset_resultat = ll9a_scenarie_årsresultat_med_historik(
@@ -892,6 +926,11 @@
 | ll9a_scenarie_modstridende_udlandskilder_fejler_lukket: ll9a_scenarie_modstridende_udlandskilder_resultat -> ll9a_scenarie_modstridende_udlandskilder_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_modstridende_udlandskilder_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_modstridende_udlandskilder_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_uanvendt_udlandskilde_fejler_lukket: ll9a_scenarie_uanvendt_udlandskilde_resultat -> ll9a_scenarie_uanvendt_udlandskilde_resultat.udlandsindkomstkilder_gyldige == Falskt && ll9a_scenarie_uanvendt_udlandskilde_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_uanvendt_udlandskilde_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer: ll9a_scenarie_sømandsudelukket_resultat -> ll9a_scenarie_sømandsudelukket_resultat.stk1_til_stk9_udelukket && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_sømandsudelukket_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_sømandsudelukket_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_kildeudelukkelse_omklassificerer_kun_den_valgte_rejse: ll9a_scenarie_kildeudelukket_resultat -> {
+    = rejse = head(ll9a_scenarie_kildeudelukket_resultat.rejseresultater)
+    ll9a_scenarie_kildeudelukket_resultat.rejseudelukkelser_gyldige && ll9a_scenarie_kildeudelukket_resultat.alle_input_gyldige && ll9a_scenarie_kildeudelukket_resultat.stk1_til_stk9_udelukket == Falskt && rejse.ekstern_udelukkelse == Ll9AUdelukketEfterValgtFiskerfradragPar9G && rejse.stk1_til_stk9_udelukket && ll9a_scenarie_kildeudelukket_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_kildeudelukket_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_kildeudelukket_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+}
+| ll9a_scenarie_ukendt_kildeudelukkelse_fejler_lukket: ll9a_scenarie_ukendt_kildeudelukkelse_resultat -> ll9a_scenarie_ukendt_kildeudelukkelse_resultat.rejseudelukkelser_gyldige == Falskt && ll9a_scenarie_ukendt_kildeudelukkelse_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ukendt_kildeudelukkelse_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ugyldig_reset_fejler_lukket: ll9a_scenarie_ugyldig_reset_resultat -> ll9a_scenarie_ugyldig_reset_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ugyldig_reset_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ikke_understøttet_år_fejler_lukket: ll9a_scenarie_ikke_understøttet_år_resultat -> ll9a_scenarie_ikke_understøttet_år_resultat.skatteår_understøttet == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn: ll9a_scenarie_blandede_logidøgn_resultat -> {
@@ -942,6 +981,8 @@
 ? ll9a_scenarie_modstridende_udlandskilder_fejler_lukket
 ? ll9a_scenarie_uanvendt_udlandskilde_fejler_lukket
 ? ll9a_scenarie_sømandsudelukkelse_omklassificerer_og_afskærer
+? ll9a_scenarie_kildeudelukkelse_omklassificerer_kun_den_valgte_rejse
+? ll9a_scenarie_ukendt_kildeudelukkelse_fejler_lukket
 ? ll9a_scenarie_ugyldig_reset_fejler_lukket
 ? ll9a_scenarie_ikke_understøttet_år_fejler_lukket
 ? ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn
