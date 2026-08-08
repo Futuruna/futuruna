@@ -95,7 +95,7 @@ stk. 2, gennem den kanoniske Personskat-beregning.
     position_primo = KglÅrsnettoVidereførtValutapositionPrimo(position = position),
     årsændring = KglÅrsnettoValutaUltimoværdi(ultimoværdi = kgl_valuta_scenarie_værdi(800000, slutkurs))
 )
-| kgl_valuta_scenarie_position(resultat: PersonskatKursgevinstResultat) -> match resultat.øvrige_instrumentresultat.valutainstrumentresultater[0].position_ultimo { | Some(position) -> position | None -> KglÅrsnettoValutaposition(indkomstår = 0, erhvervelsesår = 0, valuta = kgl_valuta_scenarie_usd(), anskaffelsesværdi = kgl_valuta_scenarie_værdi(0, 1), seneste_værdi = kgl_valuta_scenarie_værdi(0, 1), kredit_eller_pris_tidligere_medregnet_øre = 0, valutakurs_tidligere_medregnet_øre = 0) }
+| kgl_valuta_scenarie_position(resultat: PersonskatKursgevinstResultat) -> match resultat.øvrige_instrumentresultat.valutainstrumentresultater[0].position_ultimo { | Some(position) -> position | None -> KglÅrsnettoValutaposition(indkomstår = 0, erhvervelsesår = 0, valuta = kgl_valuta_scenarie_usd(), par25_valgpositioner = kgl_årsnetto_par25_valgpositioner(kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglRealisationsprincip), 0), anskaffelsesværdi = kgl_valuta_scenarie_værdi(0, 1), seneste_værdi = kgl_valuta_scenarie_værdi(0, 1), kredit_eller_pris_tidligere_medregnet_øre = 0, valutakurs_tidligere_medregnet_øre = 0) }
 
 | kgl_valuta_scenarie_personskat(indkomstår: Heltal, valg: KglÅrsnettoPar25Årsvalg, instrumenter: List(KglÅrsnettoValutaforløb)) -> personskat_kursgevinst_resultat(
     MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
@@ -135,6 +135,16 @@ stk. 2, gennem den kanoniske Personskat-beregning.
     kgl_valuta_scenarie_videreført_årsvalg(2025, KglRealisationsprincip, KglRealisationsprincip, KglLagerprincip, KglLagerprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
     [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg), 9)]
 )
+= kgl_valuta_scenarie_udeladt_valgposition_2026 = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_første_årsvalg(KglRealisationsprincip, KglRealisationsprincip),
+    [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg), 9)]
+)
+= kgl_valuta_scenarie_modstridende_valgposition_2026 = kgl_valuta_scenarie_personskat(
+    2026,
+    kgl_valuta_scenarie_videreført_årsvalg(2025, KglRealisationsprincip, KglRealisationsprincip, KglRealisationsprincip, KglRealisationsprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
+    [kgl_valuta_scenarie_videreført_fordring("valutavalg-usd", kgl_valuta_scenarie_position(kgl_valuta_scenarie_valutavalg), 9)]
+)
 = kgl_valuta_scenarie_skift_uden_tilladelse = kgl_valuta_scenarie_personskat(
     2027,
     kgl_valuta_scenarie_videreført_årsvalg(2026, KglRealisationsprincip, KglRealisationsprincip, KglLagerprincip, KglRealisationsprincip, KglÅrsnettoIngenPar25Ændringstilladelse),
@@ -172,6 +182,8 @@ stk. 2, gennem den kanoniske Personskat-beregning.
 | kgl_valuta_obligationsvalg_lagerbeskatter_begge_komponenter: kgl_valuta_scenarie_obligationsvalg -> kgl_valuta_scenarie_obligationsvalg.input_gyldigt && kgl_valuta_scenarie_obligationsvalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.opgørelsesprincip == KglLagerprincip && kgl_valuta_scenarie_obligationsvalg.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.opgørelsesprincip == KglLagerprincip && kgl_valuta_scenarie_obligationsvalg.årets_samlede_netto_efter_par14_kroner == 14000
 | kgl_valuta_særskilt_valutavalg_lader_kreditkomponenten_urealiseret: kgl_valuta_scenarie_valutavalg -> kgl_valuta_scenarie_valutavalg.input_gyldigt && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.opgørelsesprincip == KglRealisationsprincip && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].kredit_eller_pris.årets_rå_netto_kroner == 0 && kgl_valuta_scenarie_valutavalg.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 24000
 | kgl_valuta_lagerposition_videreføres_uden_dobbeltbeskatning: kgl_valuta_scenarie_valutavalg_2026 -> kgl_valuta_scenarie_valutavalg_2026.input_gyldigt && kgl_valuta_scenarie_valutavalg_2026.årets_samlede_netto_efter_par14_kroner == 8000 && kgl_valuta_scenarie_valutavalg_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.kumulativ_rå_netto_øre == 3200000 && kgl_valuta_scenarie_valutavalg_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.tidligere_medregnet_øre == 2400000
+| kgl_valuta_videreført_position_kan_ikke_udelade_valghistorik: kgl_valuta_scenarie_udeladt_valgposition_2026 -> kgl_valuta_scenarie_udeladt_valgposition_2026.input_gyldigt == Falskt && kgl_valuta_scenarie_udeladt_valgposition_2026.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt && kgl_valuta_scenarie_udeladt_valgposition_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].input_gyldigt == Falskt && length(kgl_valuta_scenarie_udeladt_valgposition_2026.kursgevinstlov_resultater) == 0
+| kgl_valuta_videreført_position_kan_ikke_ændre_tidligere_princip: kgl_valuta_scenarie_modstridende_valgposition_2026 -> kgl_valuta_scenarie_modstridende_valgposition_2026.input_gyldigt == Falskt && kgl_valuta_scenarie_modstridende_valgposition_2026.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt && kgl_valuta_scenarie_modstridende_valgposition_2026.øvrige_instrumentresultat.valutainstrumentresultater[0].input_gyldigt == Falskt && length(kgl_valuta_scenarie_modstridende_valgposition_2026.kursgevinstlov_resultater) == 0
 | kgl_valuta_lager_til_realisation_kræver_tilladelse: kgl_valuta_scenarie_skift_uden_tilladelse -> kgl_valuta_scenarie_skift_uden_tilladelse.input_gyldigt == Falskt && kgl_valuta_scenarie_skift_uden_tilladelse.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt
 | kgl_valuta_lager_til_realisation_med_tilladelse_udskyder_ny_bevægelse: kgl_valuta_scenarie_skift_med_tilladelse -> kgl_valuta_scenarie_skift_med_tilladelse.input_gyldigt && kgl_valuta_scenarie_skift_med_tilladelse.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == 0 && kgl_valuta_scenarie_position(kgl_valuta_scenarie_skift_med_tilladelse).valutakurs_tidligere_medregnet_øre == 3200000
 | kgl_valuta_gæld_vender_fortegnet_for_valutakursændringen: kgl_valuta_scenarie_gæld -> kgl_valuta_scenarie_gæld.input_gyldigt && kgl_valuta_scenarie_gæld.årets_samlede_netto_efter_par14_kroner == -30000 && kgl_valuta_scenarie_gæld.øvrige_instrumentresultat.valutainstrumentresultater[0].valutakurs.årets_rå_netto_kroner == -30000 && kgl_valuta_scenarie_gæld.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 30000
@@ -182,6 +194,8 @@ stk. 2, gennem den kanoniske Personskat-beregning.
 ? kgl_valuta_obligationsvalg_lagerbeskatter_begge_komponenter
 ? kgl_valuta_særskilt_valutavalg_lader_kreditkomponenten_urealiseret
 ? kgl_valuta_lagerposition_videreføres_uden_dobbeltbeskatning
+? kgl_valuta_videreført_position_kan_ikke_udelade_valghistorik
+? kgl_valuta_videreført_position_kan_ikke_ændre_tidligere_princip
 ? kgl_valuta_lager_til_realisation_kræver_tilladelse
 ? kgl_valuta_lager_til_realisation_med_tilladelse_udskyder_ny_bevægelse
 ? kgl_valuta_gæld_vender_fortegnet_for_valutakursændringen

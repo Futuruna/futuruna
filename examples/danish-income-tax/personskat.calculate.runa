@@ -5122,7 +5122,7 @@
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::$variant),
     label = "Valutainstrumentets position ved årets begyndelse",
     question = Some("Er valutainstrumentet anskaffet eller stiftet i året, eller videreføres det fra det foregående indkomstår?"),
-    help = Some("En videreført position bevarer anskaffelsesværdien, seneste værdi og allerede medregnede pris- og valutakomponenter."),
+    help = Some("En videreført position bevarer anskaffelsesværdien, seneste værdi, allerede medregnede pris- og valutakomponenter og de to § 25-valg fra det foregående indkomstår."),
     unit = None
 )
 = personskat_felt_kgl_valuta_årsændring = Beregningsfelt(
@@ -5137,6 +5137,32 @@
     label = "Valutapositionens foregående indkomstår",
     question = "Hvilket indkomstår stammer den videreførte valutaposition fra?",
     unit = "år"
+)
+= personskat_felt_kgl_valuta_primo_obligationsvalg_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::par25_valgpositioner::obligationer_på_reguleret_marked::indkomstår),
+    label = "År for positionens tidligere obligationsvalg",
+    question = "Hvilket indkomstår gælder obligationsvalget, som blev bevaret i den videreførte position?",
+    unit = "år"
+)
+= personskat_felt_kgl_valuta_primo_obligationsvalg_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::par25_valgpositioner::obligationer_på_reguleret_marked::princip),
+    label = "Positionens tidligere obligationsprincip",
+    question = Some("Hvilket § 25-princip for noterede obligationer blev bevaret i positionen fra det foregående indkomstår?"),
+    help = Some("Værdien kommer fra det foregående års beregningsresultat og skal svare til årets angivne valghistorik."),
+    unit = None
+)
+= personskat_felt_kgl_valuta_primo_valutavalg_år = Beregningsbeløbsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::par25_valgpositioner::valutakursændringer::indkomstår),
+    label = "År for positionens tidligere valutavalg",
+    question = "Hvilket indkomstår gælder valutavalget, som blev bevaret i den videreførte position?",
+    unit = "år"
+)
+= personskat_felt_kgl_valuta_primo_valutavalg_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::par25_valgpositioner::valutakursændringer::princip),
+    label = "Positionens tidligere valutaprincip",
+    question = Some("Hvilket § 25-princip for valutakursændringer blev bevaret i positionen fra det foregående indkomstår?"),
+    help = Some("Værdien kommer fra det foregående års beregningsresultat og skal svare til årets angivne valghistorik."),
+    unit = None
 )
 = personskat_felt_kgl_valuta_primo_erhvervelsesår = Beregningsbeløbsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::valutainstrumenter::position_primo::KglÅrsnettoVidereførtValutapositionPrimo::position::erhvervelsesår),
@@ -10754,6 +10780,8 @@
         personskat_felt_kgl_valuta_erhvervelsesgrundlag,
         personskat_felt_kgl_valuta_dba_status,
         personskat_felt_kgl_valuta_position_primo,
+        personskat_felt_kgl_valuta_primo_obligationsvalg_princip,
+        personskat_felt_kgl_valuta_primo_valutavalg_princip,
         personskat_felt_kgl_valuta_årsændring,
         personskat_felt_kgl_årsnetto_position_primo,
         personskat_felt_kgl_årsnetto_mængdeposition_trancher,
@@ -10810,6 +10838,8 @@
         personskat_felt_kgl_par25_obligationsvalg_primo_år,
         personskat_felt_kgl_par25_valutavalg_primo_år,
         personskat_felt_kgl_valuta_primo_indkomstår,
+        personskat_felt_kgl_valuta_primo_obligationsvalg_år,
+        personskat_felt_kgl_valuta_primo_valutavalg_år,
         personskat_felt_kgl_valuta_primo_erhvervelsesår,
         personskat_felt_kgl_valuta_primo_anskaffelsesbeløb,
         personskat_felt_kgl_valuta_primo_anskaffelseskurs_tæller,

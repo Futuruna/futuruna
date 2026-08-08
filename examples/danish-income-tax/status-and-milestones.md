@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-07
 TD epic: `td-56cf8d`
-Current implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
+Current implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
+Previous implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
 Previous implementation slice: `td-4a61a9` (Ejendomsskattelovens § 39 sammenligner nu kun grundskylden på den ikke-fritagne grundandel, mens §§ 44-45 fortsat opgør det årlige stigningsloft og først derefter fordeler både ordinær og begrænset grundskyld på ejerperioden; kildefakta, mellemresultater og slutskat er identiske gennem JSON og XLSX)
 Previous implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
@@ -61,7 +62,7 @@ Current negative share-tax ledger: `td-9ffd39` (typede åbnings- og lukningssald
 Previous spouse property-tax capacity: `td-d85f63` (ægtefællens typede ejendomsskattekilder, resultatproveniens og komplette slutskat indgår i § 8 a-overførslen; arbejdsbog, skema og rolleombytning er verificeret)
 Current exit-tax projection correction: `td-44859f` (begge personers ABL §§ 37-40-projektioner bruger komplet slutskat efter modregning af årets og tidligere fremførte § 8 a-skat inklusive ejendomsskatter)
 Current KGL § 33 signed-value completion: `td-89a28a` (negative kontraktværdier og afregningsbeløb kan krydse nul uden at blive afvist eller beskåret)
-Current KGL foreign-currency completion: `td-1e2380` (typede valutapositioner adskiller kredit-/priskomponent og valutakomponent efter KGL §§ 14, 23, 25 og 42, stk. 9; komponenterne føres gennem vedvarende principvalg, flerårige positioner og den kanoniske JSON/XLSX-grænse)
+Current KGL foreign-currency completion: `td-1e2380` (typede valutapositioner adskiller kredit-/priskomponent og valutakomponent efter KGL §§ 14, 23, 25 og 42, stk. 9; positionerne bevarer begge foregående § 25-valg, afviser udeladt eller modstridende valghistorik og føres gennem den kanoniske JSON/XLSX-grænse)
 Current KGL partial-realization completion: `td-aac8d3` (typede delafdrag, gentagne realisationer, FIFO/gennemsnitsmetode, flerårige restpositioner og separate KGL-resultater uden rå årsnetto)
 Current language support slice: `td-d25733` (genbrugelige, typede beregningsfeltreferencer er implementeret og afprøvet på CFC-domænet; pending independent review)
 Current calculation-cache slice: `td-884d24` (validerede `@ calculate`-kontrakter genbruges på tværs af CLI-processer med en nøgle over compiler, prelude og hele det transitive importindhold; Personskat-skema falder fra 115,43 s koldt til 12,31 s varmt)
@@ -3155,11 +3156,14 @@ encoded as a temporal rule on top of the consolidation.
   med typede kildefakta, eksakte valutabeløb og rationale kurser. Reglerne
   adskiller kredit- eller priskomponenten fra valutakomponenten og afleder selv
   KGL §§ 1, 12-18, 23, 25-26 og 42, stk. 9, ABL § 22 og den fælles
-  2.000-kr.-grænse. Kollektive lager-/realisationsvalg bevares mellem år,
-  tilladelseskrævende principskift fejler lukket, og lageropgørelsen medregner
-  kun årets tilvækst. Den kanoniske JSON/XLSX-grænse udstiller kildefakta med
-  danske labels, men hverken færdige komponenter eller et caller-beregnet
-  årsnetto.
+  2.000-kr.-grænse. Kollektive lager-/realisationsvalg bevares mellem år både
+  i årsvalget og i hver videreført valutaposition. De to spor skal pege på det
+  samme umiddelbart foregående indkomstår og princip; en udeladt eller
+  modstridende valghistorik fejler både § 25-resultatet og instrumentet lukket.
+  Tilladelseskrævende principskift fejler fortsat lukket, og lageropgørelsen
+  medregner kun årets tilvækst. Den kanoniske JSON/XLSX-grænse udstiller
+  kildefakta med danske labels, men hverken færdige komponenter eller et
+  caller-beregnet årsnetto.
 - `kursgevinstloven-saelgerpantebrev.runa`, its `.scenario.runa` file,
   `kursgevinstloven-ebl-par6d.runa` and its `.scenario.runa` file exist and pass
   interpreted and compiled execution. They model proportional cash-value basis,

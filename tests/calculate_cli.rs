@@ -4064,6 +4064,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "aktiv.KglÅrsnettoValutafordring.kilde.fordringsart",
             "aktiv.KglÅrsnettoValutafordring.kilde.debitorrelation",
             "position_primo.$variant",
+            "position_primo.KglÅrsnettoVidereførtValutapositionPrimo.position.par25_valgpositioner.obligationer_på_reguleret_marked.indkomstår",
+            "position_primo.KglÅrsnettoVidereførtValutapositionPrimo.position.par25_valgpositioner.obligationer_på_reguleret_marked.princip",
+            "position_primo.KglÅrsnettoVidereførtValutapositionPrimo.position.par25_valgpositioner.valutakursændringer.indkomstår",
+            "position_primo.KglÅrsnettoVidereførtValutapositionPrimo.position.par25_valgpositioner.valutakursændringer.princip",
             "årsændring.$variant",
             "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.anskaffelsesværdi.beløb_hundreddele",
             "årsændring.KglÅrsnettoValutaAnskaffetOgAfstået.anskaffelsesværdi.kurs.dkk_øre_tæller",
@@ -4091,6 +4095,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Valutafordringens art",
             "Valutafordringens relation til debitor",
             "Valutainstrumentets position ved årets begyndelse",
+            "År for positionens tidligere obligationsvalg",
+            "Positionens tidligere obligationsprincip",
+            "År for positionens tidligere valutavalg",
+            "Positionens tidligere valutaprincip",
             "Valutainstrumentets ændring i året",
             "Afstået positions valutamængde ved anskaffelsen",
             "Afstået positions anskaffelseskurs i DKK-øre",
@@ -13752,7 +13760,88 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
-        .push(currency_claim_case);
+        .push(currency_claim_case.clone());
+    let mut carried_currency_claim_case = currency_claim_case;
+    carried_currency_claim_case["case_id"] =
+        Value::String("personskat-kgl-valutaposition-videreført-2026".into());
+    carried_currency_claim_case["input"]["kapitalindkomst"]["kursgevinst"]["fakta"]
+        ["øvrige_instrumenter"]["par25_valg"] = serde_json::json!({
+        "obligationer_på_reguleret_marked": {
+            "position_primo": {
+                "$variant": "KglÅrsnettoVidereførtPar25Valg",
+                "fra_indkomstår": 2025,
+                "princip": { "$variant": "KglRealisationsprincip" }
+            },
+            "aktuelt_princip": { "$variant": "KglRealisationsprincip" },
+            "ændringstilladelse": {
+                "$variant": "KglÅrsnettoIngenPar25Ændringstilladelse"
+            }
+        },
+        "valutakursændringer": {
+            "position_primo": {
+                "$variant": "KglÅrsnettoVidereførtPar25Valg",
+                "fra_indkomstår": 2025,
+                "princip": { "$variant": "KglLagerprincip" }
+            },
+            "aktuelt_princip": { "$variant": "KglLagerprincip" },
+            "ændringstilladelse": {
+                "$variant": "KglÅrsnettoIngenPar25Ændringstilladelse"
+            }
+        }
+    });
+    carried_currency_claim_case["input"]["kapitalindkomst"]["kursgevinst"]["fakta"]
+        ["øvrige_instrumenter"]["valutainstrumenter"][0]["identifikation"] =
+        Value::String("valutavalg-usd-2026".into());
+    carried_currency_claim_case["input"]["kapitalindkomst"]["kursgevinst"]["fakta"]
+        ["øvrige_instrumenter"]["valutainstrumenter"][0]["position_primo"] = serde_json::json!({
+        "$variant": "KglÅrsnettoVidereførtValutapositionPrimo",
+        "position": {
+            "indkomstår": 2025,
+            "erhvervelsesår": 2025,
+            "valuta": { "iso_4217_kode": "USD" },
+            "par25_valgpositioner": {
+                "obligationer_på_reguleret_marked": {
+                    "indkomstår": 2025,
+                    "princip": { "$variant": "KglRealisationsprincip" }
+                },
+                "valutakursændringer": {
+                    "indkomstår": 2025,
+                    "princip": { "$variant": "KglLagerprincip" }
+                }
+            },
+            "anskaffelsesværdi": {
+                "beløb_hundreddele": 1_000_000,
+                "kurs": {
+                    "dkk_øre_tæller": 500,
+                    "valuta_hundreddele_nævner": 100
+                }
+            },
+            "seneste_værdi": {
+                "beløb_hundreddele": 800_000,
+                "kurs": {
+                    "dkk_øre_tæller": 800,
+                    "valuta_hundreddele_nævner": 100
+                }
+            },
+            "kredit_eller_pris_tidligere_medregnet_øre": 0,
+            "valutakurs_tidligere_medregnet_øre": 2_400_000
+        }
+    });
+    carried_currency_claim_case["input"]["kapitalindkomst"]["kursgevinst"]["fakta"]
+        ["øvrige_instrumenter"]["valutainstrumenter"][0]["årsændring"] = serde_json::json!({
+        "$variant": "KglÅrsnettoValutaUltimoværdi",
+        "ultimoværdi": {
+            "beløb_hundreddele": 800_000,
+            "kurs": {
+                "dkk_øre_tæller": 900,
+                "valuta_hundreddele_nævner": 100
+            }
+        }
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(carried_currency_claim_case);
     let mut voluntary_arrangement_case = json_input["cases"][0].clone();
     voluntary_arrangement_case["case_id"] =
         Value::String("personskat-kgl-frivillig-ordning-2026".into());
@@ -15318,6 +15407,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-kgl-valutakomponenter-2026")
         .expect("foreign-currency KGL claim JSON case")
         .clone();
+    let carried_currency_claim_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutaposition-videreført-2026")
+        .expect("carried foreign-currency KGL claim JSON case")
+        .clone();
     let external_deficit_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -15426,6 +15522,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         annual_claim_case,
         partial_claim_case,
         currency_claim_case,
+        carried_currency_claim_case,
         external_deficit_case,
         prior_deficit_result_case,
         negative_share_tax_carry_case,
@@ -16071,6 +16168,51 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         hydrated_currency_claim_result["result"]["kapitalindkomst"]["kapitalindkomst_resultat"]
             ["nettokapitalindkomst_kroner"],
         24_000
+    );
+    let json_carried_currency_claim_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutaposition-videreført-2026")
+        .expect("JSON carried foreign-currency KGL claim result");
+    let hydrated_carried_currency_claim_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-kgl-valutaposition-videreført-2026")
+        .expect("hydrated XLSX carried foreign-currency KGL claim result");
+    assert_eq!(
+        hydrated_carried_currency_claim_result["result"],
+        json_carried_currency_claim_result["result"]
+    );
+    let carried_currency_claim_trace = &hydrated_carried_currency_claim_result["result"]
+        ["kapitalindkomst"]["kursgevinst_resultat"];
+    assert_eq!(carried_currency_claim_trace["input_gyldigt"], true);
+    assert_eq!(
+        carried_currency_claim_trace["øvrige_instrumentresultat"]["par25_valgresultat"]
+            ["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        carried_currency_claim_trace["øvrige_instrumentresultat"]["valutainstrumentresultater"][0]
+            ["valutakurs"]["tidligere_medregnet_øre"],
+        2_400_000
+    );
+    assert_eq!(
+        carried_currency_claim_trace["øvrige_instrumentresultat"]["valutainstrumentresultater"][0]
+            ["valutakurs"]["årets_rå_netto_kroner"],
+        8_000
+    );
+    assert_eq!(
+        carried_currency_claim_trace["øvrige_instrumentresultat"]["valutainstrumentresultater"][0]
+            ["position_ultimo"]["par25_valgpositioner"]["valutakursændringer"]["princip"]
+            ["$variant"],
+        "KglLagerprincip"
+    );
+    assert_eq!(
+        hydrated_carried_currency_claim_result["result"]["kapitalindkomst"]
+            ["kapitalindkomst_resultat"]["nettokapitalindkomst_kroner"],
+        8_000
     );
     let json_dis_result = json_result["results"]
         .as_array()
