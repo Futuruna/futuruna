@@ -1,0 +1,461 @@
+@ sprog da
+
+@ importer ./kalenderdato
+@ importer ./ligningsloven - par33
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+-- Ligningsloven § 33 A - lempelse for løn ved længerevarende arbejde i udlandet.
+--
+-- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+
+# Ligningslov33AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par33a = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 33 A i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk1 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977314",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.1 Skattelempelse efter LL § 33 A, stk. 1",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_42_dages_regel = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977320",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.2.4 42-dages-reglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2003/20112",
+    identifier = "Ligningsvejledningen 2003, § 33 A-eksempel: 15. januar til 25. september tillader 58 dage",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk3 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977322",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.3 Halv skattelempelse efter LL § 33 A, stk. 3",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_stk2 = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977323",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.4 Tjeneste for dansk offentlig myndighed",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33a_beregning = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977325",
+    identifier = "Den juridiske vejledning 2026-1, C.F.4.2.5 Nedslagsregler efter LL § 33 A",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_styresignal_2023_10299 = Ligningslov33AKildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2023/10299",
+    identifier = "Styresignal SKM2023.519.SKTST efter SKM2023.18.ØLR - udlandsopholdets sammenhæng med arbejdsgiverens forhold",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_skm2026_158_vlr = Ligningslov33AKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2461005",
+    identifier = "SKM2026.158.VLR - dansk luftrum og dokumentation af 42-dagesreglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_par33a_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par33a),
+        Guidance(value = ligningsloven_vejledning_par33a_stk1),
+        Guidance(value = ligningsloven_vejledning_par33a_42_dages_regel),
+        Guidance(value = ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel),
+        Guidance(value = ligningsloven_vejledning_par33a_stk2),
+        Guidance(value = ligningsloven_vejledning_par33a_stk3),
+        Guidance(value = ligningsloven_vejledning_par33a_beregning),
+        Practice(value = ligningsloven_styresignal_2023_10299),
+        Practice(value = ligningsloven_skm2026_158_vlr),
+    )
+)
+
+--@label:ligningsloven_par33a_stk1::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A. Har en person, der er skattepligtig efter kildeskattelovens § 1,
+under ophold uden for riget i mindst 6 måneder uden andre afbrydelser af
+opholdet end nødvendigt arbejde her i riget i direkte forbindelse med
+udlandsopholdet, ferie el.lign. af en sammenlagt varighed på højst 42 dage
+erhvervet lønindkomst ved personligt arbejde i tjenesteforhold, nedsættes den
+samlede indkomstskat med det beløb, der forholdsmæssigt falder på den
+udenlandske indkomst. Nedsættelsen omfatter ikke den del af lønindkomsten, der
+kan henføres til arbejde her i landet. Ved opgørelsen af den nævnte
+6-månedersperiode anses ophold om bord på et dansk skib, der er registreret i
+Dansk Internationalt Skibsregister, jf. lov om beskatning af søfolk, for at
+være ophold uden for riget. Ophører skattepligten efter kildeskattelovens § 1
+inden udløbet af 6-månedersperioden, finder reglerne i denne bestemmelse
+tilsvarende anvendelse på lønindkomst erhvervet i den periode, hvor
+skattepligten bestod, såfremt betingelserne i 1. pkt. i øvrigt er opfyldt.
+----
+
+--@begin:ligningsloven_par33a_stk1--
+
+# Ligningslov33ADanskOpholdsart = Ll33ANødvendigtArbejdeMedDirekteForbindelseTilUdlandsopholdet | Ll33AFerieEllerLignende | Ll33AAndetOpholdIRiget
+# Ligningslov33ADanskOpholdsdag(dato: Dato, art: Ligningslov33ADanskOpholdsart)
+# Ligningslov33AArbejdsgiverforbindelse = Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(dokumentreference: Tekst) | Ll33AUdlandsopholdIkkeBegrundetIArbejdsgiverensForhold | Ll33AArbejdsgiverforbindelseIkkeDokumenteret
+# Ligningslov33ATjenesteforholdsstatus = Ll33APersonligtArbejdeITjenesteforhold | Ll33AIkkePersonligtArbejdeITjenesteforhold
+# Ligningslov33ASkattepligtsstatus = Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet | Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(ophørsdato: Dato) | Ll33AIkkeSkattepligtigEfterKildeskattelovensPar1
+# Ligningslov33ALønindkomstEfterDanskeRegler(skattepligtig_nettoindkomst_kroner: Heltal, personlig_nettoindkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal)
+
+| ligningslov33a_arbejdsgiverforbindelse_input_gyldig(forbindelse: Ligningslov33AArbejdsgiverforbindelse) -> match forbindelse {
+    | Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(dokumentreference) -> dokumentreference != ""
+    | _ -> Sandt
+}
+| ligningslov33a_arbejdsgiverforbindelse_opfyldt(forbindelse: Ligningslov33AArbejdsgiverforbindelse) -> match forbindelse {
+    | Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(_) -> Sandt
+    | _ -> Falskt
+}
+| ligningslov33a_tjenesteforhold_omfattet(status: Ligningslov33ATjenesteforholdsstatus) -> status == Ll33APersonligtArbejdeITjenesteforhold
+| ligningslov33a_lønindkomst_gyldig(indkomst: Ligningslov33ALønindkomstEfterDanskeRegler) -> indkomst.skattepligtig_nettoindkomst_kroner >= 0 && indkomst.personlig_nettoindkomst_kroner >= 0 && indkomst.arbejdsmarkedsbidragsgrundlag_kroner >= 0
+| ligningslov33a_dis_ophold_anses_som_udlandsophold() -> Sandt
+
+--@end:ligningsloven_par33a_stk1--
+
+--@label:ligningsloven_par33a_stk2::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A.
+
+Stk. 2. Stk. 1 finder ikke anvendelse for lønindkomst ved tjeneste uden for
+riget for den danske stat eller anden dansk offentlig myndighed, såfremt
+erhververen af den nævnte lønindkomst modtager ydelser efter § 7, nr. 15,
+eller § 9 A. Tilsvarende finder stk. 1 ikke anvendelse for lønindkomst
+erhvervet fra den danske stat eller anden offentlig myndighed, hvis lønnen er
+fastsat i henhold til en kollektiv aftale og det ikke udtrykkeligt fremgår af
+denne aftale, at lønnen er fastsat under hensyn til lempelse efter stk. 1.
+----
+
+--@begin:ligningsloven_par33a_stk2--
+
+# Ligningslov33AOffentligYdelsesstatus = Ll33AIngenYdelseEfterPar7Nr15EllerPar9A | Ll33AYdelseEfterPar7Nr15 | Ll33AYdelseEfterPar9A | Ll33AYdelseEfterPar7Nr15OgPar9A
+# Ligningslov33AOffentligLønfastsættelse = Ll33AIndividuelOffentligLønaftale | Ll33AKollektivAftaleMedUdtrykkeligtLempelseshensyn | Ll33AKollektivAftaleUdenUdtrykkeligtLempelseshensyn
+# Ligningslov33ASystemeksportstatus = Ll33AIkkeSystemeksport | Ll33ASystemeksportForDanskOffentligMyndighed(dokumentreference: Tekst)
+# Ligningslov33AArbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver | Ll33ADanskStatEllerOffentligMyndighed(ydelser: Ligningslov33AOffentligYdelsesstatus, lønfastsættelse: Ligningslov33AOffentligLønfastsættelse, systemeksport: Ligningslov33ASystemeksportstatus)
+
+| ligningslov33a_systemeksport_input_gyldig(status: Ligningslov33ASystemeksportstatus) -> match status {
+    | Ll33AIkkeSystemeksport -> Sandt
+    | Ll33ASystemeksportForDanskOffentligMyndighed(dokumentreference) -> dokumentreference != ""
+}
+| ligningslov33a_offentligt_arbejdsgivergrundlag_input_gyldigt(grundlag: Ligningslov33AArbejdsgivergrundlag) -> match grundlag {
+    | Ll33AIkkeDanskOffentligArbejdsgiver -> Sandt
+    | Ll33ADanskStatEllerOffentligMyndighed(_, _, systemeksport) -> ligningslov33a_systemeksport_input_gyldig(systemeksport)
+}
+| ligningslov33a_offentlig_ydelse_udelukker(ydelser: Ligningslov33AOffentligYdelsesstatus) -> ydelser != Ll33AIngenYdelseEfterPar7Nr15EllerPar9A
+| ligningslov33a_offentlig_lønfastsættelse_udelukker(lønfastsættelse: Ligningslov33AOffentligLønfastsættelse) -> lønfastsættelse == Ll33AKollektivAftaleUdenUdtrykkeligtLempelseshensyn
+| ligningslov33a_stk2_udelukker(grundlag: Ligningslov33AArbejdsgivergrundlag) -> match grundlag {
+    | Ll33AIkkeDanskOffentligArbejdsgiver -> Falskt
+    | Ll33ADanskStatEllerOffentligMyndighed(ydelser, lønfastsættelse, _) -> ligningslov33a_offentlig_ydelse_udelukker(ydelser) || ligningslov33a_offentlig_lønfastsættelse_udelukker(lønfastsættelse)
+}
+
+--@end:ligningsloven_par33a_stk2--
+
+--@label:ligningsloven_par33a_stk3::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A.
+
+Stk. 3. Har en dobbeltbeskatningsoverenskomst for en person, der ikke er
+udsendt af den danske stat eller en anden offentlig myndighed, tillagt Danmark
+beskatningsretten til indkomsten, nedsættes den samlede indkomstskat med
+halvdelen af det beløb, der forholdsmæssigt falder på den udenlandske
+indkomst. Tilsvarende gælder for personer udsendt til udførelse af
+systemeksport for den danske stat eller anden dansk offentlig myndighed.
+----
+
+--@begin:ligningsloven_par33a_stk3--
+
+# Ligningslov33ABeskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst | Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst) | Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(dokumentreference: Tekst)
+
+| ligningslov33a_beskatningsret_input_gyldig(beskatningsret: Ligningslov33ABeskatningsret) -> match beskatningsret {
+    | Ll33AIngenDobbeltbeskatningsoverenskomst -> Sandt
+    | Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(dokumentreference) -> dokumentreference != ""
+    | Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(dokumentreference) -> dokumentreference != ""
+}
+| ligningslov33a_offentlig_systemeksport(grundlag: Ligningslov33AArbejdsgivergrundlag) -> match grundlag {
+    | Ll33ADanskStatEllerOffentligMyndighed(_, _, Ll33ASystemeksportForDanskOffentligMyndighed(_)) -> Sandt
+    | _ -> Falskt
+}
+| ligningslov33a_offentlig_uden_systemeksport(grundlag: Ligningslov33AArbejdsgivergrundlag) -> match grundlag {
+    | Ll33ADanskStatEllerOffentligMyndighed(_, _, Ll33AIkkeSystemeksport) -> Sandt
+    | _ -> Falskt
+}
+| ligningslov33a_lempelsesandel_basispoint(grundlag: Ligningslov33AArbejdsgivergrundlag, beskatningsret: Ligningslov33ABeskatningsret) -> hvis ligningslov33a_offentlig_uden_systemeksport(grundlag) {
+    10000
+} ellers hvis ligningslov33a_offentlig_systemeksport(grundlag) {
+    match beskatningsret {
+        | Ll33AArbejdslandetHarBeskatningsrettenEfterOverenskomst(_) -> 10000
+        | _ -> 5000
+    }
+} ellers {
+    match beskatningsret {
+        | Ll33ADanmarkHarBeskatningsrettenEfterOverenskomst(_) -> 5000
+        | _ -> 10000
+    }
+}
+
+--@end:ligningsloven_par33a_stk3--
+
+--@label:ligningsloven_par33a_stk4::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A.
+
+Stk. 4. Skatteministeren kan fastsætte regler om henstand med opkrævning af
+skatten.
+----
+
+--@begin:ligningsloven_par33a_stk4--
+
+# Ligningslov33AHenstandsstatus = Ll33AIngenHenstand | Ll33AHenstandEfterSkatteministerensRegler(dokumentreference: Tekst)
+
+| ligningslov33a_henstandsstatus_input_gyldig(status: Ligningslov33AHenstandsstatus) -> match status {
+    | Ll33AIngenHenstand -> Sandt
+    | Ll33AHenstandEfterSkatteministerensRegler(dokumentreference) -> dokumentreference != ""
+}
+
+--@end:ligningsloven_par33a_stk4--
+
+--@label:ligningsloven_par33a_stk5::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A.
+
+Stk. 5. Stk. 1-4 finder tilsvarende anvendelse på dødsboer omfattet af
+dødsboskattelovens § 1, stk. 2.
+----
+
+--@begin:ligningsloven_par33a_stk5--
+
+# Ligningslov33ASkattesubjekt = Ll33APerson | Ll33ADødsboOmfattetAfDødsboskattelovensPar1Stk2
+
+| ligningslov33a_subjekt_omfattet(subjekt: Ligningslov33ASkattesubjekt) -> match subjekt {
+    | Ll33APerson -> Sandt
+    | Ll33ADødsboOmfattetAfDødsboskattelovensPar1Stk2 -> Sandt
+}
+
+--@end:ligningsloven_par33a_stk5--
+
+--@label:ligningsloven_par33a_stk6::meta:ligningsloven_par33a_metadata--
+----
+§ 33 A.
+
+Stk. 6. Ved anvendelse af stk. 1 kan personen vælge at se bort fra ophold her
+i riget fra og med den 9. marts 2020 til det tidspunkt, hvor arbejdet
+genoptages i det land, hvor arbejdet normalt udføres, dog senest til og med den
+30. juni 2020. Valget medfører, at arbejde her i riget, der ikke er nødvendigt
+arbejde i direkte forbindelse med udlandsopholdet, ikke afbryder
+udlandsopholdet. Nedsættelsen af den samlede indkomstskat efter stk. 1 og 3
+omfatter ikke den del af lønindkomsten, der kan henføres til den angivne
+periode. Valget skal træffes senest den 1. maj 2021 og kan omgøres til og med
+den 30. juni 2022.
+----
+
+--@begin:ligningsloven_par33a_stk6--
+
+# Ligningslov33ACovidvalg = Ll33AUdenCovidvalg | Ll33ACovidvalgAnvendt(arbejde_genoptaget_i_arbejdslandet_dato: Option(Dato), valgdato: Dato) | Ll33ACovidvalgOmgjort(omgørelsesdato: Dato)
+
+| ligningslov33a_covidperiodestart() -> Dato(år = 2020, måned = 3, dag = 9)
+| ligningslov33a_covidperiodens_seneste_slut() -> Dato(år = 2020, måned = 6, dag = 30)
+| ligningslov33a_covidvalgets_seneste_dato() -> Dato(år = 2021, måned = 5, dag = 1)
+| ligningslov33a_covidomgørelsens_seneste_dato() -> Dato(år = 2022, måned = 6, dag = 30)
+| ligningslov33a_covid_genoptagelsesdato_gyldig(dato: Option(Dato)) -> match dato {
+    | None -> Sandt
+    | Some(genoptagelsesdato) -> dato_efter_eller_lig_med(genoptagelsesdato, ligningslov33a_covidperiodestart()) && dato_før_eller_lig_med(genoptagelsesdato, ligningslov33a_covidperiodens_seneste_slut())
+}
+| ligningslov33a_covidvalg_input_gyldigt(valg: Ligningslov33ACovidvalg) -> match valg {
+    | Ll33AUdenCovidvalg -> Sandt
+    | Ll33ACovidvalgAnvendt(genoptagelsesdato, valgdato) -> dato_gyldig(valgdato) && dato_før_eller_lig_med(valgdato, ligningslov33a_covidvalgets_seneste_dato()) && ligningslov33a_covid_genoptagelsesdato_gyldig(genoptagelsesdato)
+    | Ll33ACovidvalgOmgjort(omgørelsesdato) -> dato_gyldig(omgørelsesdato) && dato_før_eller_lig_med(omgørelsesdato, ligningslov33a_covidomgørelsens_seneste_dato())
+}
+| ligningslov33a_covidvalg_slutdato(valg: Ligningslov33ACovidvalg) -> match valg {
+    | Ll33ACovidvalgAnvendt(Some(genoptagelsesdato), _) -> genoptagelsesdato
+    | Ll33ACovidvalgAnvendt(None, _) -> ligningslov33a_covidperiodens_seneste_slut()
+    | _ -> ligningslov33a_covidperiodestart()
+}
+| ligningslov33a_dansk_opholdsdag_ignoreres_efter_stk6(dag: Ligningslov33ADanskOpholdsdag, valg: Ligningslov33ACovidvalg) -> match valg {
+    | Ll33ACovidvalgAnvendt(_, _) -> dato_efter_eller_lig_med(dag.dato, ligningslov33a_covidperiodestart()) && dato_før_eller_lig_med(dag.dato, ligningslov33a_covidvalg_slutdato(valg))
+    | _ -> Falskt
+}
+
+--@end:ligningsloven_par33a_stk6--
+
+--@begin:ligningsloven_par33a_aarsberegning--
+
+# Ligningslov33AOphold(fra_dato: Dato, til_dato: Dato, danske_opholdsdage: List(Ligningslov33ADanskOpholdsdag), arbejdsgiverforbindelse: Ligningslov33AArbejdsgiverforbindelse, tjenesteforhold: Ligningslov33ATjenesteforholdsstatus, skattepligt: Ligningslov33ASkattepligtsstatus, covidvalg: Ligningslov33ACovidvalg, dokumentreference: Tekst)
+# Ligningslov33AIndkomstfordeling(samlet_lønindkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler, heraf_arbejde_i_riget_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
+# Ligningslov33AAnsættelsesforhold(identifikation: Tekst, subjekt: Ligningslov33ASkattesubjekt, ophold: Ligningslov33AOphold, arbejdsgivergrundlag: Ligningslov33AArbejdsgivergrundlag, beskatningsret: Ligningslov33ABeskatningsret, indkomstfordeling: Ligningslov33AIndkomstfordeling, henstand: Ligningslov33AHenstandsstatus)
+# Ligningslov33AÅrsinput(indkomstår: Heltal, ansættelsesforhold: List(Ligningslov33AAnsættelsesforhold))
+# Ligningslov33AForholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, input_gyldigt: Boolsk, mindst_seks_måneders_udlandsophold: Boolsk, danske_opholdsdage_lovlige: Boolsk, højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode: Heltal, samlet_antal_medregnede_danske_dage: Heltal, samlet_tilladt_antal_danske_dage: Heltal, samlet_dagegrænse_overholdt: Boolsk, arbejdsgiverforbindelse_opfyldt: Boolsk, tjenesteforhold_omfattet: Boolsk, skattepligt_omfattet: Boolsk, stk2_udelukker: Boolsk, betingelser_opfyldt: Boolsk, lempelsesandel_basispoint: Heltal, lempelsesberettiget_indkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
+# Ligningslov33AKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, fuldt_lempelsesberettiget_indkomst_kroner: Heltal, halvt_lempelsesberettiget_indkomst_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, nedslag_øre: Heltal)
+# Ligningslov33AÅrsresultat(input: Ligningslov33AÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, forholdsresultater: List(Ligningslov33AForholdsresultat), fuldt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, halvt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, komponenter: List(Ligningslov33AKomponentresultat), input_gyldigt: Boolsk, alle_forhold_lempelsesberettigede: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
+
+| ligningslov33a_tom_lønindkomst() -> Ligningslov33ALønindkomstEfterDanskeRegler(
+    skattepligtig_nettoindkomst_kroner = 0,
+    personlig_nettoindkomst_kroner = 0,
+    arbejdsmarkedsbidragsgrundlag_kroner = 0
+)
+| ligningslov33a_lønindkomst_læg_sammen(venstre: Ligningslov33ALønindkomstEfterDanskeRegler, højre: Ligningslov33ALønindkomstEfterDanskeRegler) -> Ligningslov33ALønindkomstEfterDanskeRegler(
+    skattepligtig_nettoindkomst_kroner = venstre.skattepligtig_nettoindkomst_kroner + højre.skattepligtig_nettoindkomst_kroner,
+    personlig_nettoindkomst_kroner = venstre.personlig_nettoindkomst_kroner + højre.personlig_nettoindkomst_kroner,
+    arbejdsmarkedsbidragsgrundlag_kroner = venstre.arbejdsmarkedsbidragsgrundlag_kroner + højre.arbejdsmarkedsbidragsgrundlag_kroner
+)
+| ligningslov33a_lønindkomst_træk_fra(samlet: Ligningslov33ALønindkomstEfterDanskeRegler, fradrag: Ligningslov33ALønindkomstEfterDanskeRegler) -> Ligningslov33ALønindkomstEfterDanskeRegler(
+    skattepligtig_nettoindkomst_kroner = samlet.skattepligtig_nettoindkomst_kroner - fradrag.skattepligtig_nettoindkomst_kroner,
+    personlig_nettoindkomst_kroner = samlet.personlig_nettoindkomst_kroner - fradrag.personlig_nettoindkomst_kroner,
+    arbejdsmarkedsbidragsgrundlag_kroner = samlet.arbejdsmarkedsbidragsgrundlag_kroner - fradrag.arbejdsmarkedsbidragsgrundlag_kroner
+)
+| ligningslov33a_indkomstfordeling_input_gyldig(fordeling: Ligningslov33AIndkomstfordeling) -> {
+    = samlet = fordeling.samlet_lønindkomst_efter_danske_regler
+    = dansk_arbejde = fordeling.heraf_arbejde_i_riget_efter_danske_regler
+    ligningslov33a_lønindkomst_gyldig(samlet) && ligningslov33a_lønindkomst_gyldig(dansk_arbejde) && dansk_arbejde.skattepligtig_nettoindkomst_kroner <= samlet.skattepligtig_nettoindkomst_kroner && dansk_arbejde.personlig_nettoindkomst_kroner <= samlet.personlig_nettoindkomst_kroner && dansk_arbejde.arbejdsmarkedsbidragsgrundlag_kroner <= samlet.arbejdsmarkedsbidragsgrundlag_kroner
+}
+| ligningslov33a_lempelsesberettiget_indkomst(fordeling: Ligningslov33AIndkomstfordeling) -> hvis ligningslov33a_indkomstfordeling_input_gyldig(fordeling) {
+    ligningslov33a_lønindkomst_træk_fra(fordeling.samlet_lønindkomst_efter_danske_regler, fordeling.heraf_arbejde_i_riget_efter_danske_regler)
+} ellers {
+    ligningslov33a_tom_lønindkomst()
+}
+| ligningslov33a_dato_i_lukket_periode(dato: Dato, fra_dato: Dato, til_dato: Dato) -> dato_efter_eller_lig_med(dato, fra_dato) && dato_før_eller_lig_med(dato, til_dato)
+| ligningslov33a_dato_i_halvåben_periode(dato: Dato, fra_dato: Dato, til_dato_eksklusiv: Dato) -> dato_efter_eller_lig_med(dato, fra_dato) && dato_før(dato, til_dato_eksklusiv)
+| ligningslov33a_dansk_opholdsdag_antal(dage: List(Ligningslov33ADanskOpholdsdag), dato: Dato) -> foldl(dage, 0, |antal: Heltal, dag: Ligningslov33ADanskOpholdsdag| antal + hvis dag.dato == dato { 1 } ellers { 0 })
+| ligningslov33a_danske_opholdsdage_entydige(dage: List(Ligningslov33ADanskOpholdsdag)) -> all(dage, |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_dansk_opholdsdag_antal(dage, dag.dato) == 1)
+| ligningslov33a_dansk_opholdsdag_input_gyldig(dag: Ligningslov33ADanskOpholdsdag, ophold: Ligningslov33AOphold) -> dato_gyldig(dag.dato) && ligningslov33a_dato_i_lukket_periode(dag.dato, ophold.fra_dato, ophold.til_dato)
+| ligningslov33a_skattepligtsstatus_input_gyldig(status: Ligningslov33ASkattepligtsstatus, ophold: Ligningslov33AOphold) -> match status {
+    | Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet -> Sandt
+    | Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(ophørsdato) -> dato_gyldig(ophørsdato) && ligningslov33a_dato_i_lukket_periode(ophørsdato, ophold.fra_dato, ophold.til_dato)
+    | Ll33AIkkeSkattepligtigEfterKildeskattelovensPar1 -> Sandt
+}
+| ligningslov33a_skattepligt_omfattet(status: Ligningslov33ASkattepligtsstatus) -> status != Ll33AIkkeSkattepligtigEfterKildeskattelovensPar1
+| ligningslov33a_ophold_slut_eksklusiv(ophold: Ligningslov33AOphold) -> dato_næste_dag(ophold.til_dato)
+| ligningslov33a_ophold_fulde_måneder(ophold: Ligningslov33AOphold) -> dato_fulde_måneder_mellem(ophold.fra_dato, ligningslov33a_ophold_slut_eksklusiv(ophold))
+| ligningslov33a_mindst_seks_måneders_udlandsophold(ophold: Ligningslov33AOphold) -> ligningslov33a_ophold_fulde_måneder(ophold) >= 6
+| ligningslov33a_rejsedag_ved_udlandsopholdets_start_eller_slut(dag: Ligningslov33ADanskOpholdsdag, ophold: Ligningslov33AOphold) -> dag.dato == ophold.fra_dato || dag.dato == ophold.til_dato
+| ligningslov33a_dansk_opholdsdag_lovlig(dag: Ligningslov33ADanskOpholdsdag, ophold: Ligningslov33AOphold) -> ligningslov33a_rejsedag_ved_udlandsopholdets_start_eller_slut(dag, ophold) || ligningslov33a_dansk_opholdsdag_ignoreres_efter_stk6(dag, ophold.covidvalg) || dag.art != Ll33AAndetOpholdIRiget
+| ligningslov33a_danske_opholdsdage_lovlige(ophold: Ligningslov33AOphold) -> all(ophold.danske_opholdsdage, |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_dansk_opholdsdag_lovlig(dag, ophold))
+| ligningslov33a_dansk_opholdsdag_medregnes(dag: Ligningslov33ADanskOpholdsdag, ophold: Ligningslov33AOphold) -> ligningslov33a_rejsedag_ved_udlandsopholdets_start_eller_slut(dag, ophold) == Falskt && ligningslov33a_dansk_opholdsdag_ignoreres_efter_stk6(dag, ophold.covidvalg) == Falskt
+| ligningslov33a_medregnede_danske_opholdsdage(ophold: Ligningslov33AOphold) -> filter(ophold.danske_opholdsdage, |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_dansk_opholdsdag_medregnes(dag, ophold))
+| ligningslov33a_seksmåneders_vinduestarter(ophold: Ligningslov33AOphold) -> {
+    = antal_dage = dato_dage_fra_og_med_til_og_med(ophold.fra_dato, ophold.til_dato)
+    = alle_startdatoer = map(range(0, antal_dage), |forskydning: Heltal| dato_plus_dage(ophold.fra_dato, forskydning))
+    = opholdsslut_eksklusiv = ligningslov33a_ophold_slut_eksklusiv(ophold)
+    filter(alle_startdatoer, |startdato: Dato| dato_før_eller_lig_med(dato_plus_måneder(startdato, 6), opholdsslut_eksklusiv))
+}
+| ligningslov33a_danske_dage_i_seksmånedersvindue(ophold: Ligningslov33AOphold, startdato: Dato) -> {
+    = slutdato_eksklusiv = dato_plus_måneder(startdato, 6)
+    foldl(ligningslov33a_medregnede_danske_opholdsdage(ophold), 0, |antal: Heltal, dag: Ligningslov33ADanskOpholdsdag| antal + hvis ligningslov33a_dato_i_halvåben_periode(dag.dato, startdato, slutdato_eksklusiv) { 1 } ellers { 0 })
+}
+| ligningslov33a_højeste_antal_danske_dage_i_seksmånedersvindue(ophold: Ligningslov33AOphold) -> foldl(ligningslov33a_seksmåneders_vinduestarter(ophold), 0, |højeste: Heltal, startdato: Dato| penge_største_beløb(højeste, ligningslov33a_danske_dage_i_seksmånedersvindue(ophold, startdato)))
+| ligningslov33a_alle_seksmånedersvinduer_overholder_42_dage(ophold: Ligningslov33AOphold) -> all(ligningslov33a_seksmåneders_vinduestarter(ophold), |startdato: Dato| ligningslov33a_danske_dage_i_seksmånedersvindue(ophold, startdato) <= 42)
+| ligningslov33a_fulde_ekstra_opholdsmåneder(ophold: Ligningslov33AOphold) -> penge_positivt_beløb(ligningslov33a_ophold_fulde_måneder(ophold) - 6)
+| ligningslov33a_forholdsmæssigt_tillæg_for_delmåned(ophold: Ligningslov33AOphold) -> {
+    = fulde_opholdsmåneder = ligningslov33a_ophold_fulde_måneder(ophold)
+    = delmåned_start = dato_plus_måneder(ophold.fra_dato, fulde_opholdsmåneder)
+    = næste_opholdsmåneds_slut_eksklusiv = dato_plus_måneder(ophold.fra_dato, fulde_opholdsmåneder + 1)
+    = delmåned_dage = dato_faktiske_dage_mellem(delmåned_start, ligningslov33a_ophold_slut_eksklusiv(ophold))
+    = hel_opholdsmåned_dage = dato_faktiske_dage_mellem(delmåned_start, næste_opholdsmåneds_slut_eksklusiv)
+    hvis fulde_opholdsmåneder >= 6 && hel_opholdsmåned_dage > 0 {
+        delmåned_dage * 7 / hel_opholdsmåned_dage
+    } ellers {
+        0
+    }
+}
+| ligningslov33a_samlet_tilladt_antal_danske_dage(ophold: Ligningslov33AOphold) -> 42 + ligningslov33a_fulde_ekstra_opholdsmåneder(ophold) * 7 + ligningslov33a_forholdsmæssigt_tillæg_for_delmåned(ophold)
+| ligningslov33a_samlet_dagegrænse_overholdt(ophold: Ligningslov33AOphold) -> length(ligningslov33a_medregnede_danske_opholdsdage(ophold)) <= ligningslov33a_samlet_tilladt_antal_danske_dage(ophold)
+| ligningslov33a_ophold_input_gyldigt(ophold: Ligningslov33AOphold) -> dato_gyldig(ophold.fra_dato) && dato_gyldig(ophold.til_dato) && dato_før_eller_lig_med(ophold.fra_dato, ophold.til_dato) && ophold.dokumentreference != "" && ligningslov33a_arbejdsgiverforbindelse_input_gyldig(ophold.arbejdsgiverforbindelse) && ligningslov33a_skattepligtsstatus_input_gyldig(ophold.skattepligt, ophold) && ligningslov33a_covidvalg_input_gyldigt(ophold.covidvalg) && ligningslov33a_danske_opholdsdage_entydige(ophold.danske_opholdsdage) && all(ophold.danske_opholdsdage, |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_dansk_opholdsdag_input_gyldig(dag, ophold))
+| ligningslov33a_ophold_betingelser_opfyldt(ophold: Ligningslov33AOphold) -> ligningslov33a_ophold_input_gyldigt(ophold) && ligningslov33a_mindst_seks_måneders_udlandsophold(ophold) && ligningslov33a_danske_opholdsdage_lovlige(ophold) && ligningslov33a_alle_seksmånedersvinduer_overholder_42_dage(ophold) && ligningslov33a_samlet_dagegrænse_overholdt(ophold) && ligningslov33a_arbejdsgiverforbindelse_opfyldt(ophold.arbejdsgiverforbindelse) && ligningslov33a_tjenesteforhold_omfattet(ophold.tjenesteforhold) && ligningslov33a_skattepligt_omfattet(ophold.skattepligt)
+| ligningslov33a_ansættelsesforhold_overlapper_indkomstår(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> fakta.ophold.fra_dato.år <= indkomstår && fakta.ophold.til_dato.år >= indkomstår
+| ligningslov33a_ansættelsesforhold_input_gyldigt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> fakta.identifikation != "" && indkomstår > 0 && ligningslov33a_subjekt_omfattet(fakta.subjekt) && ligningslov33a_ophold_input_gyldigt(fakta.ophold) && ligningslov33a_ansættelsesforhold_overlapper_indkomstår(fakta, indkomstår) && ligningslov33a_offentligt_arbejdsgivergrundlag_input_gyldigt(fakta.arbejdsgivergrundlag) && ligningslov33a_beskatningsret_input_gyldig(fakta.beskatningsret) && ligningslov33a_indkomstfordeling_input_gyldig(fakta.indkomstfordeling) && ligningslov33a_henstandsstatus_input_gyldig(fakta.henstand)
+| ligningslov33a_ansættelsesforhold_betingelser_opfyldt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> ligningslov33a_ansættelsesforhold_input_gyldigt(fakta, indkomstår) && ligningslov33a_ophold_betingelser_opfyldt(fakta.ophold) && ligningslov33a_stk2_udelukker(fakta.arbejdsgivergrundlag) == Falskt
+| ligningslov33a_forholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> {
+    = input_gyldigt = ligningslov33a_ansættelsesforhold_input_gyldigt(fakta, indkomstår)
+    = betingelser_opfyldt = ligningslov33a_ansættelsesforhold_betingelser_opfyldt(fakta, indkomstår)
+    Ligningslov33AForholdsresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        mindst_seks_måneders_udlandsophold = ligningslov33a_mindst_seks_måneders_udlandsophold(fakta.ophold),
+        danske_opholdsdage_lovlige = ligningslov33a_danske_opholdsdage_lovlige(fakta.ophold),
+        højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode = ligningslov33a_højeste_antal_danske_dage_i_seksmånedersvindue(fakta.ophold),
+        samlet_antal_medregnede_danske_dage = length(ligningslov33a_medregnede_danske_opholdsdage(fakta.ophold)),
+        samlet_tilladt_antal_danske_dage = ligningslov33a_samlet_tilladt_antal_danske_dage(fakta.ophold),
+        samlet_dagegrænse_overholdt = ligningslov33a_samlet_dagegrænse_overholdt(fakta.ophold),
+        arbejdsgiverforbindelse_opfyldt = ligningslov33a_arbejdsgiverforbindelse_opfyldt(fakta.ophold.arbejdsgiverforbindelse),
+        tjenesteforhold_omfattet = ligningslov33a_tjenesteforhold_omfattet(fakta.ophold.tjenesteforhold),
+        skattepligt_omfattet = ligningslov33a_skattepligt_omfattet(fakta.ophold.skattepligt),
+        stk2_udelukker = ligningslov33a_stk2_udelukker(fakta.arbejdsgivergrundlag),
+        betingelser_opfyldt = betingelser_opfyldt,
+        lempelsesandel_basispoint = hvis betingelser_opfyldt { ligningslov33a_lempelsesandel_basispoint(fakta.arbejdsgivergrundlag, fakta.beskatningsret) } ellers { 0 },
+        lempelsesberettiget_indkomst_efter_danske_regler = hvis betingelser_opfyldt { ligningslov33a_lempelsesberettiget_indkomst(fakta.indkomstfordeling) } ellers { ligningslov33a_tom_lønindkomst() }
+    )
+}
+| ligningslov33a_forholdsresultater(input: Ligningslov33AÅrsinput) -> map(input.ansættelsesforhold, |fakta: Ligningslov33AAnsættelsesforhold| ligningslov33a_forholdsresultat(fakta, input.indkomstår))
+| ligningslov33a_ansættelsesidentifikation_antal(forhold: List(Ligningslov33AAnsættelsesforhold), identifikation: Tekst) -> foldl(forhold, 0, |antal: Heltal, fakta: Ligningslov33AAnsættelsesforhold| antal + hvis fakta.identifikation == identifikation { 1 } ellers { 0 })
+| ligningslov33a_ansættelsesidentifikationer_entydige(forhold: List(Ligningslov33AAnsættelsesforhold)) -> all(forhold, |fakta: Ligningslov33AAnsættelsesforhold| ligningslov33a_ansættelsesidentifikation_antal(forhold, fakta.identifikation) == 1)
+| ligningslov33a_aggregeret_indkomst(resultater: List(Ligningslov33AForholdsresultat), lempelsesandel_basispoint: Heltal) -> foldl(
+    resultater,
+    ligningslov33a_tom_lønindkomst(),
+    |sum: Ligningslov33ALønindkomstEfterDanskeRegler, resultat: Ligningslov33AForholdsresultat| ligningslov33a_lønindkomst_læg_sammen(sum, hvis resultat.lempelsesandel_basispoint == lempelsesandel_basispoint { resultat.lempelsesberettiget_indkomst_efter_danske_regler } ellers { ligningslov33a_tom_lønindkomst() })
+)
+| ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(grundlag: Ligningslov33DanskBeregningsgrundlag, indkomst: Ligningslov33ALønindkomstEfterDanskeRegler) -> match grundlag {
+    | Ll33SkattepligtigIndkomst(_) -> indkomst.skattepligtig_nettoindkomst_kroner
+    | Ll33PersonligIndkomst(_) -> indkomst.personlig_nettoindkomst_kroner
+    | Ll33PersonligOgPositivKapitalindkomst(_) -> indkomst.personlig_nettoindkomst_kroner
+    | Ll33Aktieindkomst(_) -> 0
+    | Ll33CfcIndkomst(_) -> 0
+    | Ll33Arbejdsmarkedsbidragsgrundlag(_) -> indkomst.arbejdsmarkedsbidragsgrundlag_kroner
+}
+| ligningslov33a_komponent_indkomstgrundlag_gyldigt(komponent: Ligningslov33DanskSkattekomponent, fuld: Ligningslov33ALønindkomstEfterDanskeRegler, halv: Ligningslov33ALønindkomstEfterDanskeRegler) -> ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, fuld) + ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, halv) <= ligningslov33_dansk_beregningsgrundlag_kroner(komponent.beregningsgrundlag)
+| ligningslov33a_komponent_beregning(komponent: Ligningslov33DanskSkattekomponent, fuld: Ligningslov33ALønindkomstEfterDanskeRegler, halv: Ligningslov33ALønindkomstEfterDanskeRegler, input_gyldigt: Boolsk) -> {
+    = samlet_indkomst_kroner = ligningslov33_dansk_beregningsgrundlag_kroner(komponent.beregningsgrundlag)
+    = fuldt_lempelsesberettiget_indkomst_kroner = ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, fuld)
+    = halvt_lempelsesberettiget_indkomst_kroner = ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, halv)
+    hvis input_gyldigt && samlet_indkomst_kroner > 0 && fuldt_lempelsesberettiget_indkomst_kroner + halvt_lempelsesberettiget_indkomst_kroner > 0 {
+        penge_øre_beregning(
+            komponent.dansk_skat_før_personfradrag_øre * (fuldt_lempelsesberettiget_indkomst_kroner * 10000 + halvt_lempelsesberettiget_indkomst_kroner * 5000),
+            samlet_indkomst_kroner * 10000
+        )
+    } ellers {
+        penge_øre_beregning(0, 1)
+    }
+}
+| ligningslov33a_komponentresultat(komponent: Ligningslov33DanskSkattekomponent, fuld: Ligningslov33ALønindkomstEfterDanskeRegler, halv: Ligningslov33ALønindkomstEfterDanskeRegler, input_gyldigt: Boolsk) -> {
+    = beregning = ligningslov33a_komponent_beregning(komponent, fuld, halv, input_gyldigt)
+    Ligningslov33AKomponentresultat(
+        komponent = komponent,
+        fuldt_lempelsesberettiget_indkomst_kroner = hvis input_gyldigt { ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, fuld) } ellers { 0 },
+        halvt_lempelsesberettiget_indkomst_kroner = hvis input_gyldigt { ligningslov33a_indkomst_i_beregningsgrundlaget_kroner(komponent.beregningsgrundlag, halv) } ellers { 0 },
+        forholdsmæssig_beregning = beregning,
+        nedslag_øre = beregning.øre_nedrundet
+    )
+}
+| ligningslov33a_komponentresultater(skattekreds: Ligningslov33PersonDanskSkattekreds, fuld: Ligningslov33ALønindkomstEfterDanskeRegler, halv: Ligningslov33ALønindkomstEfterDanskeRegler, input_gyldigt: Boolsk) -> map(skattekreds.komponenter, |komponent: Ligningslov33DanskSkattekomponent| ligningslov33a_komponentresultat(komponent, fuld, halv, input_gyldigt))
+| ligningslov33a_samlet_komponentnedslag_øre(komponenter: List(Ligningslov33AKomponentresultat)) -> foldl(komponenter, 0, |sum_øre: Heltal, komponent: Ligningslov33AKomponentresultat| sum_øre + komponent.nedslag_øre)
+| ligningslov33a_årsresultat(input: Ligningslov33AÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds) -> {
+    = forholdsresultater = ligningslov33a_forholdsresultater(input)
+    = fuld = ligningslov33a_aggregeret_indkomst(forholdsresultater, 10000)
+    = halv = ligningslov33a_aggregeret_indkomst(forholdsresultater, 5000)
+    = grundinput_gyldigt = input.indkomstår > 0 && ligningslov33a_ansættelsesidentifikationer_entydige(input.ansættelsesforhold) && all(forholdsresultater, |resultat: Ligningslov33AForholdsresultat| resultat.input_gyldigt) && ligningslov33_person_dansk_skattekreds_gyldig(skattekreds)
+    = komponentgrundlag_gyldigt = all(skattekreds.komponenter, |komponent: Ligningslov33DanskSkattekomponent| ligningslov33a_komponent_indkomstgrundlag_gyldigt(komponent, fuld, halv))
+    = input_gyldigt = grundinput_gyldigt && komponentgrundlag_gyldigt
+    = komponenter = ligningslov33a_komponentresultater(skattekreds, fuld, halv, input_gyldigt)
+    = samlet_nedslag_før_skattecap_øre = hvis input_gyldigt { ligningslov33a_samlet_komponentnedslag_øre(komponenter) } ellers { 0 }
+    Ligningslov33AÅrsresultat(
+        input = input,
+        dansk_skattekreds = skattekreds,
+        forholdsresultater = forholdsresultater,
+        fuldt_lempelsesberettiget_indkomst = fuld,
+        halvt_lempelsesberettiget_indkomst = halv,
+        komponenter = komponenter,
+        input_gyldigt = input_gyldigt,
+        alle_forhold_lempelsesberettigede = all(forholdsresultater, |resultat: Ligningslov33AForholdsresultat| resultat.betingelser_opfyldt),
+        samlet_nedslag_før_skattecap_øre = samlet_nedslag_før_skattecap_øre,
+        samlet_nedslag_øre = penge_mindste_beløb(samlet_nedslag_før_skattecap_øre, skattekreds.samlet_dansk_indkomstskat_tilgængelig_øre)
+    )
+}
+
+--@end:ligningsloven_par33a_aarsberegning--

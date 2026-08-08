@@ -1437,6 +1437,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Hovedpersonens fremførte negative aktieskat",
             "Ægtefællens fremførte negative aktieskat",
             "Indkomstår for udenlandsk skattenedslag",
+            "Nedslag for arbejde i udlandet efter § 33 A",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
@@ -3520,6 +3521,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.indkomstår",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.saldo_øre",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.dokumentreferencer",
+            "ligningslov33.ligningslov33a_hovedperson.$variant",
+            "ligningslov33.ligningslov33a_ægtefælle.$variant",
             "ægtefælle.$variant",
             "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
             "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
@@ -5623,6 +5626,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "ligningslov33.ægtefælle.$variant",
                         Data::String("UdenLigningslov33".to_string()),
+                    ),
+                    (
+                        "ligningslov33.ligningslov33a_hovedperson.$variant",
+                        Data::String("UdenLigningslov33A".to_string()),
+                    ),
+                    (
+                        "ligningslov33.ligningslov33a_ægtefælle.$variant",
+                        Data::String("UdenLigningslov33A".to_string()),
                     ),
                     (
                         "ægtefælle.$variant",
@@ -15456,16 +15467,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     }
                 })
             });
-        case["input"]
+        let foreign_relief = case["input"]
             .as_object_mut()
             .expect("Personskat input")
             .entry("ligningslov33".to_string())
             .or_insert_with(|| {
                 serde_json::json!({
                     "hovedperson": { "$variant": "UdenLigningslov33" },
-                    "ægtefælle": { "$variant": "UdenLigningslov33" }
+                    "ægtefælle": { "$variant": "UdenLigningslov33" },
+                    "ligningslov33a_hovedperson": { "$variant": "UdenLigningslov33A" },
+                    "ligningslov33a_ægtefælle": { "$variant": "UdenLigningslov33A" }
                 })
             });
+        let foreign_relief = foreign_relief
+            .as_object_mut()
+            .expect("Personskat foreign-relief input");
+        foreign_relief
+            .entry("ligningslov33a_hovedperson".to_string())
+            .or_insert_with(|| serde_json::json!({ "$variant": "UdenLigningslov33A" }));
+        foreign_relief
+            .entry("ligningslov33a_ægtefælle".to_string())
+            .or_insert_with(|| serde_json::json!({ "$variant": "UdenLigningslov33A" }));
     }
     let mut freight_tax_case = json_input["cases"][0].clone();
     freight_tax_case["case_id"] = Value::String("personskat-ligningslov33-fragtskat-2026".into());
@@ -15531,7 +15553,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 }]
             }
         },
-        "ægtefælle": { "$variant": "UdenLigningslov33" }
+        "ægtefælle": { "$variant": "UdenLigningslov33" },
+        "ligningslov33a_hovedperson": { "$variant": "UdenLigningslov33A" },
+        "ligningslov33a_ægtefælle": { "$variant": "UdenLigningslov33A" }
     });
     json_input["cases"]
         .as_array_mut()

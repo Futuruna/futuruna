@@ -6,7 +6,9 @@
 = personskat_ligningslov33_scenarier_metadata = Metadata(
     attachments = (
         Source(value = ligningsloven_lbk1500_par33),
+        Source(value = ligningsloven_lbk1500_par33a),
         Guidance(value = ligningsloven_vejledning_par33_personberegning),
+        Guidance(value = ligningsloven_vejledning_par33a_beregning),
     )
 )
 
@@ -92,6 +94,35 @@ nedslaget i personens slutskat.
     kreditgrupper = [gruppe],
     par6_kreditter = [],
     fragtskat_åbningssaldi = []
+)
+| personskat_ligningslov33a_scenarie_ansættelsesforhold(identifikation: Tekst, udenlandsk_bruttoløn_kroner: Heltal) -> Ligningslov33AAnsættelsesforhold(
+    identifikation = identifikation,
+    subjekt = Ll33APerson,
+    ophold = Ligningslov33AOphold(
+        fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+        til_dato = Dato(år = 2026, måned = 6, dag = 30),
+        danske_opholdsdage = [],
+        arbejdsgiverforbindelse = Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(dokumentreference = identifikation),
+        tjenesteforhold = Ll33APersonligtArbejdeITjenesteforhold,
+        skattepligt = Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet,
+        covidvalg = Ll33AUdenCovidvalg,
+        dokumentreference = identifikation
+    ),
+    arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
+    beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
+    indkomstfordeling = Ligningslov33AIndkomstfordeling(
+        samlet_lønindkomst_efter_danske_regler = Ligningslov33ALønindkomstEfterDanskeRegler(
+            skattepligtig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
+            personlig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
+            arbejdsmarkedsbidragsgrundlag_kroner = udenlandsk_bruttoløn_kroner
+        ),
+        heraf_arbejde_i_riget_efter_danske_regler = ligningslov33a_tom_lønindkomst()
+    ),
+    henstand = Ll33AIngenHenstand
+)
+| personskat_ligningslov33a_scenarie_årsinput(identifikation: Tekst, udenlandsk_bruttoløn_kroner: Heltal) -> Ligningslov33AÅrsinput(
+    indkomstår = 2026,
+    ansættelsesforhold = [personskat_ligningslov33a_scenarie_ansættelsesforhold(identifikation, udenlandsk_bruttoløn_kroner)]
 )
 | personskat_ligningslov33_scenarie_fragtskattegruppe() -> Ligningslov33PersonKreditgruppe(
     identifikation = "norsk-fragtskat-2026",
@@ -225,7 +256,9 @@ nedslaget i personens slutskat.
 )
 = personskat_ligningslov33_ordinær_løninput = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = personskat_ligningslov33_scenarie_årsinput(480000, personskat_ligningslov33_ordinær_løngruppe)),
-    ægtefælle = UdenLigningslov33
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 = personskat_ligningslov33_ordinær_lønresultat = beregn_personskat(personskat_ligningslov33_scenarie_input(
     UdenÆgtefælle,
@@ -241,11 +274,24 @@ nedslaget i personens slutskat.
         480000,
         personskat_ligningslov33_scenarie_kreditgruppe("løn-efter-par33a", 120000, 5000000, Ll33LønindkomstOmfattetAfPar33A)
     )),
-    ægtefælle = UdenLigningslov33
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 = personskat_ligningslov33_par33a_resultat = beregn_personskat(personskat_ligningslov33_scenarie_input(
     UdenÆgtefælle,
     personskat_ligningslov33_par33a_input
+))
+
+= personskat_ligningslov33a_kanonisk_input = PersonskatLigningslov33ParInput(
+    hovedperson = UdenLigningslov33,
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = MedLigningslov33A(input = personskat_ligningslov33a_scenarie_årsinput("kanonisk-par33a", 120000)),
+    ligningslov33a_ægtefælle = UdenLigningslov33A
+)
+= personskat_ligningslov33a_kanonisk_resultat = beregn_personskat(personskat_ligningslov33_scenarie_input(
+    UdenÆgtefælle,
+    personskat_ligningslov33a_kanonisk_input
 ))
 
 = personskat_ligningslov33_ægtefælle = MedÆgtefælle(
@@ -257,7 +303,9 @@ nedslaget i personens slutskat.
     ægtefælle = MedLigningslov33(input = personskat_ligningslov33_scenarie_årsinput(
         240000,
         personskat_ligningslov33_scenarie_kreditgruppe("ægtefælles-svenske-løn", 60000, 2000000, Ll33OrdinærCreditlempetLønindkomst)
-    ))
+    )),
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 = personskat_ligningslov33_ægtefælle_beregning = beregn_personskat(personskat_ligningslov33_scenarie_input(
     personskat_ligningslov33_ægtefælle,
@@ -268,10 +316,23 @@ nedslaget i personens slutskat.
     personskat_uden_ligningslov33()
 ))
 
+= personskat_ligningslov33a_ægtefælleinput = PersonskatLigningslov33ParInput(
+    hovedperson = UdenLigningslov33,
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = MedLigningslov33A(input = personskat_ligningslov33a_scenarie_årsinput("ægtefælles-par33a", 60000))
+)
+= personskat_ligningslov33a_ægtefælle_beregning = beregn_personskat(personskat_ligningslov33_scenarie_input(
+    personskat_ligningslov33_ægtefælle,
+    personskat_ligningslov33a_ægtefælleinput
+))
+
 = personskat_ligningslov33_par6_kapitalindkomst = personskat_ligningslov33_scenarie_kapitalindkomst_med_fast_ejendom()
 = personskat_ligningslov33_par6_input = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = personskat_ligningslov33_scenarie_par6_årsinput(1200000)),
-    ægtefælle = UdenLigningslov33
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 = personskat_ligningslov33_par6_resultat = beregn_personskat(personskat_ligningslov33_scenarie_input_med_kapitalindkomst(
     personskat_ligningslov33_par6_kapitalindkomst,
@@ -288,12 +349,16 @@ nedslaget i personens slutskat.
     UdenÆgtefælle,
     PersonskatLigningslov33ParInput(
         hovedperson = MedLigningslov33(input = personskat_ligningslov33_scenarie_par6_årsinput(1200001)),
-        ægtefælle = UdenLigningslov33
+        ægtefælle = UdenLigningslov33,
+        ligningslov33a_hovedperson = UdenLigningslov33A,
+        ligningslov33a_ægtefælle = UdenLigningslov33A
     )
 ))
 = personskat_ligningslov33_fragtskat_input = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = personskat_ligningslov33_scenarie_fragtskat_årsinput(2026)),
-    ægtefælle = UdenLigningslov33
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 = personskat_ligningslov33_fragtskat_resultat = beregn_personskat(personskat_ligningslov33_scenarie_input(
     UdenÆgtefælle,
@@ -307,7 +372,9 @@ nedslaget i personens slutskat.
     UdenÆgtefælle,
     PersonskatLigningslov33ParInput(
         hovedperson = MedLigningslov33(input = personskat_ligningslov33_scenarie_fragtskat_årsinput(2025)),
-        ægtefælle = UdenLigningslov33
+        ægtefælle = UdenLigningslov33,
+        ligningslov33a_hovedperson = UdenLigningslov33A,
+        ligningslov33a_ægtefælle = UdenLigningslov33A
     )
 ))
 
@@ -320,6 +387,15 @@ nedslaget i personens slutskat.
     personskat_ligningslov33_ordinær_lønresultat.ligningslov33.input_gyldigt && length(gruppe.komponenter) == 9 && par6.proportionalt_dansk_skatteloft_øre > 0 && par8a.proportionalt_dansk_skatteloft_øre == 0 && arbejdsmarkedsbidrag.proportionalt_dansk_skatteloft_øre > 0 && kommuneskat.proportionalt_dansk_skatteloft_øre > 0 && personskat_ligningslov33_ordinær_lønresultat.ligningslov33.hovedpersons_nedslag_øre > 0 && personskat_ligningslov33_ordinær_lønneutral.slutskat_øre - personskat_ligningslov33_ordinær_lønresultat.slutskat_øre == personskat_ligningslov33_ordinær_lønresultat.ligningslov33.hovedpersons_nedslag_øre
 }
 | personskat_ligningslov33_par33a_afvises_uden_nedslag: personskat_ligningslov33_par33a_resultat -> personskat_ligningslov33_par33a_resultat.ligningslov33.input_gyldigt == Falskt && personskat_ligningslov33_par33a_resultat.ligningslov33.hovedpersons_nedslag_øre == 0 && personskat_ligningslov33_par33a_resultat.slutskat_øre == personskat_ligningslov33_ordinær_lønneutral.slutskat_øre
+| personskat_ligningslov33a_kanonisk_lempelse_nedsætter_slutskatten: personskat_ligningslov33a_kanonisk_resultat -> {
+    = par33a = personskat_ligningslov33a_kanonisk_resultat.ligningslov33a
+    = komponenter = par33a.hovedperson.komponenter
+    par33a.input_gyldigt && par33a.hovedperson.alle_forhold_lempelsesberettigede && length(komponenter) == 9 && par33a.hovedpersons_nedslag_øre > 0 && personskat_ligningslov33a_kanonisk_resultat.ligningslov33.hovedpersons_nedslag_øre == 0 && personskat_ligningslov33a_kanonisk_resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre == par33a.hovedpersons_nedslag_øre && personskat_ligningslov33_ordinær_lønneutral.slutskat_øre - personskat_ligningslov33a_kanonisk_resultat.slutskat_øre == par33a.hovedpersons_nedslag_øre
+}
+| personskat_ligningslov33a_ægtefælles_lempelse_holdes_adskilt: personskat_ligningslov33a_ægtefælle_beregning -> match personskat_ligningslov33a_ægtefælle_beregning.ligningslov33a.ægtefælle {
+    | None -> Falskt
+    | Some(ægtefælleresultat) -> personskat_ligningslov33a_ægtefælle_beregning.ligningslov33a.input_gyldigt && personskat_ligningslov33a_ægtefælle_beregning.ligningslov33a.hovedpersons_nedslag_øre == 0 && ægtefælleresultat.samlet_nedslag_øre > 0 && personskat_ligningslov33a_ægtefælle_beregning.ligningslov33a.ægtefælles_nedslag_øre == ægtefælleresultat.samlet_nedslag_øre && personskat_ligningslov33a_ægtefælle_beregning.ægtefælles_ligningslov33_og_33a_nedslag_øre == ægtefælleresultat.samlet_nedslag_øre && personskat_ligningslov33a_ægtefælle_beregning.slutskat_øre == personskat_ligningslov33_ægtefælleneutral.slutskat_øre
+}
 | personskat_ligningslov33_ægtefællers_nedslag_holdes_adskilt: personskat_ligningslov33_ægtefælle_beregning -> match personskat_ligningslov33_ægtefælle_beregning.ligningslov33.ægtefælle {
     | None -> Falskt
     | Some(ægtefælleresultat) -> personskat_ligningslov33_ægtefælle_beregning.ligningslov33.input_gyldigt && personskat_ligningslov33_ægtefælle_beregning.ligningslov33.hovedpersons_nedslag_øre == 0 && ægtefælleresultat.samlet_nedslag_øre > 0 && personskat_ligningslov33_ægtefælle_beregning.ligningslov33.ægtefælles_nedslag_øre == ægtefælleresultat.samlet_nedslag_øre && personskat_ligningslov33_ægtefælle_beregning.ligningslov33.samlet_parnedslag_øre == ægtefælleresultat.samlet_nedslag_øre && personskat_ligningslov33_ægtefælle_beregning.slutskat_øre == personskat_ligningslov33_ægtefælleneutral.slutskat_øre && personskat_ægtefælles_slutskat_kroner(personskat_ligningslov33_ægtefælleneutral) - personskat_ægtefælles_slutskat_kroner(personskat_ligningslov33_ægtefælle_beregning) == ægtefælleresultat.samlet_nedslag_øre / 100
@@ -337,6 +413,8 @@ nedslaget i personens slutskat.
 
 ? personskat_ligningslov33_ordinær_løn_fordeles_på_kanoniske_komponenter
 ? personskat_ligningslov33_par33a_afvises_uden_nedslag
+? personskat_ligningslov33a_kanonisk_lempelse_nedsætter_slutskatten
+? personskat_ligningslov33a_ægtefælles_lempelse_holdes_adskilt
 ? personskat_ligningslov33_ægtefællers_nedslag_holdes_adskilt
 ? personskat_ligningslov33_par6_fast_ejendom_afstemmes_mod_ebl
 ? personskat_ligningslov33_par6_uafstemt_handelsværdi_afvises

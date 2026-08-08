@@ -1141,7 +1141,9 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         par6_kreditter = [],
         fragtskat_åbningssaldi = []
     )),
-    ægtefælle = UdenLigningslov33
+    ægtefælle = UdenLigningslov33,
+    ligningslov33a_hovedperson = UdenLigningslov33A,
+    ligningslov33a_ægtefælle = UdenLigningslov33A
 )
 | personskat_calculate_input_med_ligningslov33(input: PersonskatInput, ligningslov33: PersonskatLigningslov33ParInput) -> PersonskatInput(
     lønmodtager = input.lønmodtager,

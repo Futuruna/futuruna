@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0ef0f9` (Ligningslovens § 33-kildefakta adskiller nu den udenlandske indkomst fra en liste af dokumenterede skattebetalinger. Almindelig indkomstskat og fragtskat fra samme fremmede stat kan derfor bevare hver sin art, beløb, opkrævningsmåde og overenskomstgrundlag under ét fælles dansk § 33/§ 33 F-loft; en fremført fragtskattesaldo bruger kun kapaciteten efter alle årets betalinger og kan også udnyttes i et år uden ny fragtskat. Den relationelle struktur føres som en underordnet betalingstabel gennem Personskat-arbejdsbogen)
+Current implementation slice: `td-f7b305` (Ligningslovens § 33 A, stk. 1-6 er implementeret med den gældende ordlyd, daterede udlandsophold, hver afsluttet seksmånedersperiodes 42-dagesgrænse, forholdsmæssig optjening af danske dage også i delmåneder, udeladelse af rejsedagene ved opholdets start og slutning, danske arbejdsdage, offentlige arbejdsgiverundtagelser samt helt og halvt nedslag. Nedslaget beregnes ørepræcist pr. dansk skattekomponent og føres for hovedperson og ægtefælle gennem den kanoniske Personskat-graf; JSON-skemaet og den genererede arbejdsbog udstiller 96 danske, kildebelagte § 33 A-feltforekomster)
+Previous implementation slice: `td-0ef0f9` (Ligningslovens § 33-kildefakta adskiller nu den udenlandske indkomst fra en liste af dokumenterede skattebetalinger. Almindelig indkomstskat og fragtskat fra samme fremmede stat kan derfor bevare hver sin art, beløb, opkrævningsmåde og overenskomstgrundlag under ét fælles dansk § 33/§ 33 F-loft; en fremført fragtskattesaldo bruger kun kapaciteten efter alle årets betalinger og kan også udnyttes i et år uden ny fragtskat. Den relationelle struktur føres som en underordnet betalingstabel gennem Personskat-arbejdsbogen)
 Previous implementation slice: `td-16a41b` (Ligningslovens § 33, stk. 9 klassificerer fragtskat på bruttofortjenesten ved international skibstrafik fra kildefakta og fører en dokumenteret saldo pr. fremmed stat og indkomstår. Årets fragtskat bruger først det fælles § 33/§ 33 F-loft, tidligere saldo bruger kun den resterende kapacitet, og resten føres videre uden en opdigtet udløbs- eller FIFO-regel. Årskontinuitet, områdeidentitet, kanonisk Personskat og en fuld JSON/XLSX-rundtur er verificeret)
 Previous implementation slice: `td-6b37ad` (Kildeskattelovens § 10, stk. 1-3 afleder fiktiv afståelse, dato og handelsværdi ved fraflytning og afskærer ABL § 38-, KGL § 37- og LL § 28-aktiver; Ligningslovens § 33, stk. 6 beregner derefter nedslag for den udenlandske skat, som kunne være pålignet et fast driftssted eller en fast ejendom, gennem de eksisterende § 33/§ 33 F-lofter. Fast ejendom skal afstemmes entydigt mod den kanoniske EBL-beregning på identifikation, dato, afståelsessum og skattepligtig fortjeneste, mens et fast driftssted kræver sin egen dokumentreference)
 Previous implementation slice: `td-3d4618` (Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning C.F.4.3.1 er nu et årligt persondomæne for almindelig creditlempelse; hver lovligt afgrænset kreditgruppe beregner sit danske loft særskilt over de ni relevante indkomstskattekomponenter, mens § 33 A- og Sømandsbeskatningslov-lempet løn afskæres, og hovedpersonens og ægtefællens nedslag føres uafhængigt gennem den kanoniske Personskat-graf, arbejdsbogen og den præcise 2025-afstemning)
@@ -3532,8 +3533,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: about 90% complete as an executable research corpus, and
-  about 80% complete as a production-grade calculator for Personskatteloven
+- Working estimate: about 91% complete as an executable research corpus, and
+  about 82% complete as a production-grade calculator for Personskatteloven
   plus its necessary dependencies. These are deliberately separate measures:
   represented legal structure is further ahead than exact amount-level support
   for every special taxpayer, transition, cross-year history and dependency.
@@ -4155,6 +4156,28 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 33 A, stk. 1-6 er implementeret som et selvstændigt,
+  kildebelagt årsdomæne. Hvert ansættelsesforhold bærer et dokumenteret,
+  sammenhængende udlandsophold, samtlige kalenderdage i Danmark,
+  arbejdsgiverforbindelse, tjenesteforhold, skattepligtsstatus,
+  arbejdsgivergrundlag, overenskomstmæssig beskatningsret og lønfordeling efter
+  danske regler. Futuruna prøver mindst seks fulde kalendermåneder, højst 42
+  dage i enhver afsluttet seksmånedersperiode og den proportionale totalgrænse
+  på yderligere syv dage pr. måned, inklusive den forholdsmæssige del af en
+  påbegyndt ekstra måned. Rejsedagene ved udlandsopholdets start og afslutning
+  tæller ikke med. Et otte måneders ophold med 56 korrekt fordelte dage består,
+  mens samme total med 43 dage i ét vindue afskæres; det officielle eksempel
+  fra 15. januar til 25. september tillader 58, men ikke 59, danske dage.
+  Arbejde i Danmark trækkes ud af lempelsesgrundlaget, stk. 2's offentlige
+  ydelser og kollektive lønaftaler afskæres, og stk. 3 fordeler helt eller halvt
+  nedslag efter offentlig status, systemeksport og beskatningsret. De
+  ørepræcise komponenter aggregeres før afrunding og samordnes med almindelig
+  § 33-credit under den disponible danske indkomstskat for hovedperson og
+  ægtefælle. Nitten fokusscenarier passerer interpreter og compiler, ni
+  kanoniske udenlandslempelsesscenarier og 57 almindelige Personskat-scenarier
+  passerer kompileret, og den anonymiserede 2025-årsopgørelse afstemmer fortsat
+  290.590,34 kr. med 0 øres forskel. Det genererede JSON-skema og XLSX-arbejdsbog
+  har 96 danske § 33 A-feltforekomster med lov-, vejlednings- og praksiskilder.
 - Ligningslovens § 33, stk. 9 er implementeret efter den gældende ordlyd som
   et område- og årsbundet fragtskatteregnskab. En kreditgruppe klassificeres
   som fragtskat alene ved skat på bruttofortjenesten ved international
