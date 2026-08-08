@@ -456,10 +456,59 @@ foreløbige skatter, der modregnes efter § 60.
 
 Beløbet benævnes »restskat«.
 
+Stk. 2. Ved betaling af restskat skal der ud over restskatten betales et
+procenttillæg til staten af restskatten.
+
+Procenttillægget beregnes en gang årligt og fastsættes som rentesatsen i
+opkrævningslovens § 7, stk. 2, 3. pkt., med tillæg af 1,5 procentpoint afrundet
+til en decimal.
+
+Af restskat og procenttillæg efter 1. pkt. beregnes en rente svarende til
+renten i opkrævningslovens § 7, stk. 2, med tillæg af 0,4 procentpoint pr.
+påbegyndt måned fra den 1. september i året efter indkomståret og indtil
+udskrivningsdatoen for den skattepligtiges årsopgørelse, hvis den
+skattepligtige ikke rettidigt har opfyldt sin oplysningspligt efter
+skattekontrollovens § 2.
+
 § 62. Det beløb hvormed slutskatten med tillæg af eventuel overført restskat
 m.v. efter § 61, stk. 3, og af eventuel afgift omfattet af
 pensionsbeskatningslovens § 25 A, stk. 5-9, måtte være mindre end de
 foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
+
+Stk. 2. Ved tilbagebetaling af overskydende skat ydes der den
+skattepligtige et procenttillæg af beløbet i godtgørelse.
+
+Procenttillægget beregnes en gang årligt og fastsættes som rentesatsen i
+opkrævningslovens § 7, stk. 2, 3. pkt., med fradrag af 5,2 procentpoint
+afrundet til en decimal.
+
+Procenttillægget kan dog ikke fastsættes til mindre end 0,0 pct. af den
+overskydende skat.
+
+I det omfang overskydende skat modsvares af beløb, der er indbetalt efter
+§ 59, ydes ingen godtgørelse efter 1. pkt. Betalt rente af indbetalinger efter
+§ 59 tilbagebetales, i det omfang indbetalingen modsvares af overskydende skat.
+
+Ved flere indbetalinger efter § 59 anses de seneste indbetalinger i størst
+muligt omfang at modsvares af overskydende skat.
+
+Der ydes ingen godtgørelse for et beløb, som modsvares af nedslaget efter lov
+om skattenedslag for seniorer og efter lov om skattefri kompensation for
+forhøjede energi- og miljøafgifter.
+
+Stk. 3. Tilbagebetaling af overskydende skat med godtgørelse efter stk. 2 sker
+i tiden fra den 1. marts til den 1. september i året efter indkomståret.
+
+Der tilkommer den skattepligtige en rente svarende til renten i henhold til
+opkrævningslovens § 7, stk. 2, med tillæg af 0,4 procentpoint pr. påbegyndt
+måned fra den 1. september at regne, hvis tilbagebetaling sker efter denne
+dato.
+
+Inden tilbagebetaling finder sted, modregnes eventuelle restancer af personlig
+skat med påløbne morarenter, uanset om renterne er forfaldne.
+
+Modregningen kræver ingen særskilt erklæring herom fra told- og
+skatteforvaltningen.
 
 Stk. 4. Af det beløb, der efter foranstående skal udbetales den skattepligtige,
 udbetales kun det hele kronebeløb.
@@ -532,8 +581,32 @@ kronebeløb. Tilsvarende gælder ved opkrævning af rater efter stk. 1.
     indeholdt_øre = 100000
 ))
 
-| personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen: personskat_monetaer_overskydende_skat_fixture -> personskat_monetaer_overskydende_skat_fixture.slutskat_med_tillæg_øre == 100000 && personskat_monetaer_overskydende_skat_fixture.modregnede_foreløbige_skatter_øre == 108280 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_øre == 8280 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_udbetales_kroner == 82 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_ikke_udbetalt_øre == 80
-| personskat_monetaer_restskat_bevarer_øre_til_lovgraensen: personskat_monetaer_restskat_fixture -> personskat_monetaer_restskat_fixture.slutskat_med_tillæg_øre == 108280 && personskat_monetaer_restskat_fixture.modregnede_foreløbige_skatter_øre == 100000 && personskat_monetaer_restskat_fixture.restskat_øre == 8280 && personskat_monetaer_restskat_fixture.restskat_opkræves_kroner == 82 && personskat_monetaer_restskat_fixture.restskat_ikke_opkrævet_øre == 80
+= personskat_monetaer_overskydende_skat_afregning_fixture = kildeskat_overskydende_afregning_eksakt(
+    personskat_monetaer_overskydende_skat_fixture,
+    KildeskatOverskydendeAfregningEksaktFakta(
+        indkomstår = 2025,
+        modsvarer_par59_indbetaling_øre = 0,
+        tilbagebetalt_rente_par59_øre = 0,
+        modsvarer_seniornedslag_øre = 0,
+        modsvarer_energiafgiftskompensation_øre = 0,
+        restancer_personlig_skat_med_morarenter_øre = 0,
+        tilbagebetaling_efter_1_september = Falskt,
+        påbegyndte_måneder_efter_1_september = 0
+    )
+)
+
+= personskat_monetaer_restskat_afregning_fixture = kildeskat_restskat_afregning_eksakt(
+    personskat_monetaer_restskat_fixture,
+    KildeskatRestskatAfregningEksaktFakta(
+        indkomstår = 2025,
+        oplysningspligt_ikke_rettidigt_opfyldt = Falskt,
+        påbegyndte_måneder_fra_1_september = 0,
+        øvrige_skyldige_renter_øre = 0
+    )
+)
+
+| personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen: personskat_monetaer_overskydende_skat_fixture -> personskat_monetaer_overskydende_skat_fixture.slutskat_med_tillæg_øre == 100000 && personskat_monetaer_overskydende_skat_fixture.modregnede_foreløbige_skatter_øre == 108280 && personskat_monetaer_overskydende_skat_fixture.overskydende_skat_øre == 8280 && personskat_monetaer_overskydende_skat_afregning_fixture.godtgørelse_øre == 0 && personskat_monetaer_overskydende_skat_afregning_fixture.udbetaling_før_hele_kroner_øre == 8280 && personskat_monetaer_overskydende_skat_afregning_fixture.udbetales_kroner == 82 && personskat_monetaer_overskydende_skat_afregning_fixture.ikke_udbetalt_øre == 80
+| personskat_monetaer_restskat_bevarer_øre_til_lovgraensen: personskat_monetaer_restskat_fixture -> personskat_monetaer_restskat_fixture.slutskat_med_tillæg_øre == 108280 && personskat_monetaer_restskat_fixture.modregnede_foreløbige_skatter_øre == 100000 && personskat_monetaer_restskat_fixture.restskat_øre == 8280 && personskat_monetaer_restskat_afregning_fixture.procenttillæg_basispoint == 570 && personskat_monetaer_restskat_afregning_fixture.procenttillæg_øre == 471 && personskat_monetaer_restskat_afregning_fixture.opkrævning_før_hele_kroner_øre == 8751 && personskat_monetaer_restskat_afregning_fixture.opkræves_kroner == 87 && personskat_monetaer_restskat_afregning_fixture.ikke_opkrævet_øre == 51
 --@end:personskat_monetaer_ksl_slutopgoerelse--
 
 = personskat_monetaer_eksakt_slutskat_metadata = Metadata(

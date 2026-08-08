@@ -227,6 +227,17 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     kreditter = årsopgørelse2025_par60_kreditter
 )
 = årsopgørelse2025_slutopgørelsesresultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelse2025_slutopgørelsesinput)
+= årsopgørelse2025_afregningsfakta = KildeskatOverskydendeAfregningEksaktFakta(
+    indkomstår = 2025,
+    modsvarer_par59_indbetaling_øre = 0,
+    tilbagebetalt_rente_par59_øre = 0,
+    modsvarer_seniornedslag_øre = 0,
+    modsvarer_energiafgiftskompensation_øre = 0,
+    restancer_personlig_skat_med_morarenter_øre = 0,
+    tilbagebetaling_efter_1_september = Falskt,
+    påbegyndte_måneder_efter_1_september = 0
+)
+= årsopgørelse2025_afregningsresultat = kildeskat_overskydende_afregning_eksakt(årsopgørelse2025_slutopgørelsesresultat, årsopgørelse2025_afregningsfakta)
 
 = årsopgørelse2025_lønmodtagerinput = LønmodtagerInput(
     skatteår = 2025,
@@ -401,6 +412,7 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     kreditter = årsopgørelse2025_par60_kreditter
 )
 = årsopgørelse2025_futuruna_slutopgørelsesresultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelse2025_futuruna_slutopgørelsesinput)
+= årsopgørelse2025_futuruna_afregningsresultat = kildeskat_overskydende_afregning_eksakt(årsopgørelse2025_futuruna_slutopgørelsesresultat, årsopgørelse2025_afregningsfakta)
 
 | årsopgørelse2025_indkomstgrundlag_matcher: årsopgørelse2025_futuruna_kerne -> årsopgørelse2025_futuruna_kerne.arbejdsmarkedsbidrag_kroner == 65367 && årsopgørelse2025_futuruna_kerne.personlig_indkomst_efter_am_kroner == 749936 && årsopgørelse2025_futuruna_kerne.nettokapitalindkomst_kroner == 0 - 36404
 | årsopgørelse2025_fradrag_matcher: årsopgørelse2025_futuruna_kerne -> årsopgørelse2025_futuruna_kerne.beskæftigelsesfradrag_kroner == 55600 && årsopgørelse2025_futuruna_kerne.jobfradrag_kroner == 2900 && årsopgørelse2025_futuruna_kerne.ekstra_pensionsfradrag_kroner == 495 && årsopgørelse2025_futuruna_kerne.samlede_ligningsmæssige_fradrag_kroner == 70656
@@ -415,8 +427,8 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 | årsopgørelse2025_komponentberegning_matcher_futuruna: årsopgørelse2025_afstemning() -> årsopgørelse2025_komponentberegnet_skat_før_ligningslov33_øre() == 29059634 && årsopgørelse2025_komponentberegnet_skat_efter_ligningslov33_øre() == 29059034 && årsopgørelse2025_komponentberegnet_skat_efter_ligningslov33_øre() == årsopgørelse2025_afstemning().lovberegnet_skat_øre
 | årsopgørelse2025_afstemning_rekoncilierer_uden_forskel: årsopgørelse2025_afstemning() -> årsopgørelse2025_afstemning().årsopgørelsens_beregnede_skat_øre == 29059034 && årsopgørelse2025_afstemning().uforklaret_forskel_øre == 0 && årsopgørelse2025_afstemning().forskellens_proveniens_afklaret
 | årsopgørelse2025_årsopgørelsens_ørebeløb_matcher: årsopgørelse2025_årsopgørelsens_beregnede_skat_øre -> årsopgørelse2025_forudbetalt_skat_øre(årsopgørelse2025_forudbetaling) == 32775714 && årsopgørelse2025_årsopgørelsens_overskydende_skat_øre() == 3716680 && årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre() == 8200
-| årsopgørelse2025_kildeskat_slutopgørelse_bevarer_rapportens_ører: årsopgørelse2025_slutopgørelsesresultat -> årsopgørelse2025_slutopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelse2025_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner == 82 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_ikke_udbetalt_øre == 80 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner * 100 == årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre() && årsopgørelse2025_slutopgørelsesresultat.art == OverskydendeSkat
-| årsopgørelse2025_futuruna_slutopgørelse_matcher_rapporten: årsopgørelse2025_futuruna_slutopgørelsesresultat -> årsopgørelse2025_futuruna_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_futuruna_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_futuruna_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_futuruna_slutopgørelsesresultat.overskydende_skat_udbetales_kroner == 82 && årsopgørelse2025_futuruna_slutopgørelsesresultat.overskydende_skat_ikke_udbetalt_øre == 80 && årsopgørelse2025_futuruna_slutopgørelsesresultat.art == OverskydendeSkat
+| årsopgørelse2025_kildeskat_slutopgørelse_bevarer_rapportens_ører: årsopgørelse2025_slutopgørelsesresultat -> årsopgørelse2025_slutopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelse2025_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_slutopgørelsesresultat.art == OverskydendeSkat && årsopgørelse2025_afregningsresultat.input_gyldigt && årsopgørelse2025_afregningsresultat.godtgørelse_basispoint == 0 && årsopgørelse2025_afregningsresultat.udbetaling_før_hele_kroner_øre == 8280 && årsopgørelse2025_afregningsresultat.udbetales_kroner == 82 && årsopgørelse2025_afregningsresultat.ikke_udbetalt_øre == 80 && årsopgørelse2025_afregningsresultat.udbetales_kroner * 100 == årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre()
+| årsopgørelse2025_futuruna_slutopgørelse_matcher_rapporten: årsopgørelse2025_futuruna_slutopgørelsesresultat -> årsopgørelse2025_futuruna_slutopgørelsesresultat.slutskat_med_tillæg_øre == 29059034 && årsopgørelse2025_futuruna_slutopgørelsesresultat.modregnede_foreløbige_skatter_øre == 29067314 && årsopgørelse2025_futuruna_slutopgørelsesresultat.overskydende_skat_øre == 8280 && årsopgørelse2025_futuruna_slutopgørelsesresultat.art == OverskydendeSkat && årsopgørelse2025_futuruna_afregningsresultat == årsopgørelse2025_afregningsresultat
 
 ? årsopgørelse2025_indkomstgrundlag_matcher
 ? årsopgørelse2025_fradrag_matcher
@@ -439,4 +451,4 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
 @ print("2025 årsopgørelse: afstemningsforskel i øre = " + vis(årsopgørelse2025_afstemning().uforklaret_forskel_øre))
 @ print("2025 årsopgørelse: rapporteret overskydende skat før tidligere § 55-udbetaling i øre = " + vis(årsopgørelse2025_årsopgørelsens_overskydende_skat_øre()))
 @ print("2025 årsopgørelse: rapporteret udbetaling nu i øre = " + vis(årsopgørelse2025_årsopgørelsens_udbetaling_nu_øre()))
-@ print("2025 årsopgørelse: lovbestemt udbetaling i hele kroner = " + vis(årsopgørelse2025_slutopgørelsesresultat.overskydende_skat_udbetales_kroner))
+@ print("2025 årsopgørelse: lovbestemt udbetaling i hele kroner = " + vis(årsopgørelse2025_afregningsresultat.udbetales_kroner))

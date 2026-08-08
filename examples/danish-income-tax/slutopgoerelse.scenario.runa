@@ -40,6 +40,20 @@ overskydende skat efter § 62.
     kreditter = slutopgørelse_lønmodtager_kreditter(person, a_skat_månedligt_kroner)
 )
 | slutopgørelse_lønmodtager_resultat(person: LønmodtagerBreakdown, a_skat_månedligt_kroner: Heltal) -> kildeskat_slutopgørelse_resultat(slutopgørelse_lønmodtager_input(person, a_skat_månedligt_kroner))
+| slutopgørelse_eksakte_a_skat_kreditter(a_skat_og_am_indeholdt_øre: Heltal) -> KildeskatPar60KreditterØre(
+    a_skat_og_am_indeholdt_øre = a_skat_og_am_indeholdt_øre,
+    par68_indbetalt_øre = 0,
+    b_skat_betalt_øre = 0,
+    udbytteskat_modregningsberettiget_øre = 0,
+    frivillig_indbetaling_par59_øre = 0,
+    virksomhedsordning_beløb_øre = 0,
+    personskattelov_par8a_stk5_beløb_øre = 0,
+    afskrivningslov_acontoskat_øre = 0,
+    am_lov_par6_beløb_øre = 0,
+    seniornedslag_øre = 0,
+    energiafgiftskompensation_øre = 0,
+    tilbagebetalt_par55_øre = 0
+)
 
 = scenarie1_mand_slutopgørelse_genereret = slutopgørelse_lønmodtager_resultat(scenarie1_mand, scenarie1_mand_genereret_skattekort_a_skat)
 = scenarie1_ægtefælle_slutopgørelse_genereret = slutopgørelse_lønmodtager_resultat(scenarie1_ægtefælle, scenarie1_ægtefælle_genereret_skattekort_a_skat)
@@ -50,27 +64,6 @@ overskydende skat efter § 62.
 = scenarie1_husholdning_oplyst_kort_overskydende_skat = scenarie1_mand_slutopgørelse_oplyst_kort.overskydende_skat_kroner + scenarie1_ægtefælle_slutopgørelse_oplyst_kort.overskydende_skat_kroner
 
 = scenarie1_mand_slutopgørelse_lav_indeholdelse = slutopgørelse_lønmodtager_resultat(scenarie1_mand, 12000)
-= scenarie1_opkrævningslov_rente_fixture_basispoint = opkrævning_par7_offentliggjort_stk2_rente_basispoint(2026)
-= scenarie1_husholdning_genereret_godtgørelse = kildeskat_overskydende_godtgørelse_kroner(KildeskatOverskydendeGodtgørelseInput(
-    overskydende_skat_kroner = scenarie1_husholdning_genereret_overskydende_skat,
-    modsvarer_par59_indbetaling_kroner = 0,
-    modsvarer_seniornedslag_kroner = 0,
-    modsvarer_energiafgiftskompensation_kroner = 0,
-    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
-))
-= scenarie1_husholdning_genereret_udbetaling = kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(KildeskatOverskydendeTilbagebetalingInput(
-    overskydende_skat_kroner = scenarie1_husholdning_genereret_overskydende_skat,
-    godtgørelse_kroner = scenarie1_husholdning_genereret_godtgørelse,
-    restancer_personlig_skat_med_morarenter_kroner = 0,
-    tilbagebetaling_i_ordinært_vindue = Sandt,
-    tilbagebetaling_efter_1_september = Falskt,
-    påbegyndte_måneder_efter_1_september = 0,
-    opkrævningslov_par7_stk2_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
-))
-= scenarie1_mand_lav_indeholdelse_tillæg = kildeskat_restskat_procenttillæg_kroner(KildeskatRestskatTillægInput(
-    restskat_kroner = scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner,
-    opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint = scenarie1_opkrævningslov_rente_fixture_basispoint
-))
 = scenarie1_mand_lav_indeholdelse_systemdatoer = KildeskatRestskatSystemdatoer(
     indkomstår = 2026,
     seneste_systemdato_for_overførsel = KildeskatDato(år = 2027, måned = 9, dag = 30),
@@ -89,48 +82,73 @@ overskydende skat efter § 62.
     slutskat_øre = 12000099,
     overført_restskat_mv_øre = 0,
     pensionsbeskatningsafgift_øre = 0,
-    kreditter = KildeskatPar60KreditterØre(
-        a_skat_og_am_indeholdt_øre = 0,
-        par68_indbetalt_øre = 0,
-        b_skat_betalt_øre = 0,
-        udbytteskat_modregningsberettiget_øre = 0,
-        frivillig_indbetaling_par59_øre = 0,
-        virksomhedsordning_beløb_øre = 0,
-        personskattelov_par8a_stk5_beløb_øre = 0,
-        afskrivningslov_acontoskat_øre = 0,
-        am_lov_par6_beløb_øre = 0,
-        seniornedslag_øre = 0,
-        energiafgiftskompensation_øre = 0,
-        tilbagebetalt_par55_øre = 0
-    )
+    kreditter = slutopgørelse_eksakte_a_skat_kreditter(0)
 )
 = slutopgørelse_eksakt_restskat_resultat = kildeskat_slutopgørelse_eksakt_resultat(slutopgørelse_eksakt_restskat_input)
+= slutopgørelse_eksakt_restskat_afregning = kildeskat_restskat_afregning_eksakt(
+    slutopgørelse_eksakt_restskat_resultat,
+    KildeskatRestskatAfregningEksaktFakta(
+        indkomstår = 2025,
+        oplysningspligt_ikke_rettidigt_opfyldt = Falskt,
+        påbegyndte_måneder_fra_1_september = 0,
+        øvrige_skyldige_renter_øre = 0
+    )
+)
+= slutopgørelse_eksakt_restskat_modstridende_rettidighed = kildeskat_restskat_afregning_eksakt(
+    slutopgørelse_eksakt_restskat_resultat,
+    KildeskatRestskatAfregningEksaktFakta(
+        indkomstår = 2025,
+        oplysningspligt_ikke_rettidigt_opfyldt = Falskt,
+        påbegyndte_måneder_fra_1_september = 1,
+        øvrige_skyldige_renter_øre = 0
+    )
+)
+= slutopgørelse_eksakt_overskydende_input = KildeskatSlutopgørelseEksaktInput(
+    slutskat_øre = 10000,
+    overført_restskat_mv_øre = 0,
+    pensionsbeskatningsafgift_øre = 0,
+    kreditter = slutopgørelse_eksakte_a_skat_kreditter(11991)
+)
+= slutopgørelse_eksakt_overskydende_resultat = kildeskat_slutopgørelse_eksakt_resultat(slutopgørelse_eksakt_overskydende_input)
+= slutopgørelse_eksakt_overskydende_afregning = kildeskat_overskydende_afregning_eksakt(
+    slutopgørelse_eksakt_overskydende_resultat,
+    KildeskatOverskydendeAfregningEksaktFakta(
+        indkomstår = 2025,
+        modsvarer_par59_indbetaling_øre = 0,
+        tilbagebetalt_rente_par59_øre = 0,
+        modsvarer_seniornedslag_øre = 0,
+        modsvarer_energiafgiftskompensation_øre = 0,
+        restancer_personlig_skat_med_morarenter_øre = 0,
+        tilbagebetaling_efter_1_september = Sandt,
+        påbegyndte_måneder_efter_1_september = 1
+    )
+)
 
 | scenarie1_mand_genereret_slutopgørelse_overskydende: scenarie1_mand_slutopgørelse_genereret -> scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner == 2690 && scenarie1_mand_slutopgørelse_genereret.restskat_kroner == 0
 | scenarie1_ægtefælle_genereret_slutopgørelse_overskydende: scenarie1_ægtefælle_slutopgørelse_genereret -> scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner == 851 && scenarie1_ægtefælle_slutopgørelse_genereret.restskat_kroner == 0
 | scenarie1_husholdning_genereret_overskydende: scenarie1_husholdning_genereret_overskydende_skat -> scenarie1_husholdning_genereret_overskydende_skat == 3541
 | scenarie1_husholdning_oplyst_kort_overskydende: scenarie1_husholdning_oplyst_kort_overskydende_skat -> scenarie1_husholdning_oplyst_kort_overskydende_skat == 18469
 | scenarie1_mand_lav_indeholdelse_bliver_restskat: scenarie1_mand_slutopgørelse_lav_indeholdelse -> scenarie1_mand_slutopgørelse_lav_indeholdelse.restskat_kroner == 16726 && scenarie1_mand_slutopgørelse_lav_indeholdelse.art == Restskat
-| scenarie1_husholdning_genereret_godtgørelse_beregnet: scenarie1_husholdning_genereret_godtgørelse -> scenarie1_husholdning_genereret_godtgørelse == 0
-| scenarie1_husholdning_genereret_udbetaling_beregnet: scenarie1_husholdning_genereret_udbetaling -> scenarie1_husholdning_genereret_udbetaling == 3541
-| scenarie1_lav_indeholdelse_restskat_tillæg: scenarie1_mand_lav_indeholdelse_tillæg -> scenarie1_mand_lav_indeholdelse_tillæg == 267
+| scenarie1_2026_afregningssatser_afventer_offentliggoerelse: kildeskat_årsopgørelsessatser(2026) -> kildeskat_årsopgørelsessatser_dækket(2026) == Falskt
 | scenarie1_lav_indeholdelse_indregnes_i_følgende_år: scenarie1_mand_lav_indeholdelse_plan -> scenarie1_mand_lav_indeholdelse_plan.indregnes_i_følgende_år_kroner == 16726 && scenarie1_mand_lav_indeholdelse_plan.tre_rater_kroner == 0
-| slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner: slutopgørelse_eksakt_restskat_resultat -> slutopgørelse_eksakt_restskat_resultat.restskat_øre == 12000099 && slutopgørelse_eksakt_restskat_resultat.restskat_opkræves_kroner == 120000 && slutopgørelse_eksakt_restskat_resultat.restskat_ikke_opkrævet_øre == 99 && slutopgørelse_eksakt_restskat_resultat.art == Restskat
+| slutopgørelse_2025_satser_hentes_fra_skm2025_716: kildeskat_årsopgørelsessatser(2025) -> kildeskat_årsopgørelsessatser_dækket(2025) && kildeskat_årsopgørelsessatser(2025).dag_til_dag_rente_basispoint == 370 && kildeskat_årsopgørelsessatser(2025).restskat_procenttillæg_basispoint == 570 && kildeskat_årsopgørelsessatser(2025).overskydende_skat_godtgørelse_basispoint == 0 && kildeskat_årsopgørelsessatser(2025).kilde.identifier == "SKM2025.716.SKTST"
+| slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner_efter_tillæg: slutopgørelse_eksakt_restskat_afregning -> slutopgørelse_eksakt_restskat_resultat.restskat_øre == 12000099 && slutopgørelse_eksakt_restskat_resultat.art == Restskat && slutopgørelse_eksakt_restskat_afregning.input_gyldigt && slutopgørelse_eksakt_restskat_afregning.procenttillæg_basispoint == 570 && slutopgørelse_eksakt_restskat_afregning.procenttillæg_øre == 684005 && slutopgørelse_eksakt_restskat_afregning.opkrævning_før_hele_kroner_øre == 12684104 && slutopgørelse_eksakt_restskat_afregning.opkræves_kroner == 126841 && slutopgørelse_eksakt_restskat_afregning.ikke_opkrævet_øre == 4
+| slutopgørelse_eksakt_restskat_afviser_måneder_ved_rettidig_oplysning: slutopgørelse_eksakt_restskat_modstridende_rettidighed -> slutopgørelse_eksakt_restskat_modstridende_rettidighed.input_gyldigt == Falskt
+| slutopgørelse_eksakt_overskydende_rundes_efter_godtgørelse_og_rente: slutopgørelse_eksakt_overskydende_afregning -> slutopgørelse_eksakt_overskydende_resultat.overskydende_skat_øre == 1991 && slutopgørelse_eksakt_overskydende_resultat.overskydende_skat_øre / 100 == 19 && slutopgørelse_eksakt_overskydende_afregning.input_gyldigt && slutopgørelse_eksakt_overskydende_afregning.godtgørelse_basispoint == 0 && slutopgørelse_eksakt_overskydende_afregning.godtgørelse_øre == 0 && slutopgørelse_eksakt_overskydende_afregning.forsinkelsesrente_øre == 9 && slutopgørelse_eksakt_overskydende_afregning.udbetaling_før_hele_kroner_øre == 2000 && slutopgørelse_eksakt_overskydende_afregning.udbetales_kroner == 20 && slutopgørelse_eksakt_overskydende_afregning.ikke_udbetalt_øre == 0
 
 ? scenarie1_mand_genereret_slutopgørelse_overskydende
 ? scenarie1_ægtefælle_genereret_slutopgørelse_overskydende
 ? scenarie1_husholdning_genereret_overskydende
 ? scenarie1_husholdning_oplyst_kort_overskydende
 ? scenarie1_mand_lav_indeholdelse_bliver_restskat
-? scenarie1_husholdning_genereret_godtgørelse_beregnet
-? scenarie1_husholdning_genereret_udbetaling_beregnet
-? scenarie1_lav_indeholdelse_restskat_tillæg
+? scenarie1_2026_afregningssatser_afventer_offentliggoerelse
 ? scenarie1_lav_indeholdelse_indregnes_i_følgende_år
-? slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner
+? slutopgørelse_2025_satser_hentes_fra_skm2025_716
+? slutopgørelse_eksakt_restskat_opkræves_i_hele_kroner_efter_tillæg
+? slutopgørelse_eksakt_restskat_afviser_måneder_ved_rettidig_oplysning
+? slutopgørelse_eksakt_overskydende_rundes_efter_godtgørelse_og_rente
 
 @ print("scenarie1 mand slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_mand_slutopgørelse_genereret.overskydende_skat_kroner))
 @ print("scenarie1 aegtefaelle slutopgoerelse med genereret kort: overskydende skat " + vis(scenarie1_ægtefælle_slutopgørelse_genereret.overskydende_skat_kroner))
 @ print("scenarie1 husholdning genereret kort samlet overskydende skat: " + vis(scenarie1_husholdning_genereret_overskydende_skat))
-@ print("scenarie1 husholdning genereret kort godtgoerelse fixture: " + vis(scenarie1_husholdning_genereret_godtgørelse))
-@ print("scenarie1 husholdning genereret kort udbetaling inkl. godtgoerelse fixture: " + vis(scenarie1_husholdning_genereret_udbetaling))
 @ print("scenarie1 husholdning oplyst kort samlet overskydende skat: " + vis(scenarie1_husholdning_oplyst_kort_overskydende_skat))

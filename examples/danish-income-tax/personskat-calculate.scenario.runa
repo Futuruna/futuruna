@@ -1083,12 +1083,24 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     energiafgiftskompensation_øre = 0,
     tilbagebetalt_par55_øre = 0
 )
+= personskat_calculate_eksakt_afregningsfakta = UdenSlutopgørelsesafregning
+= personskat_calculate_ikke_publicerede_2026_afregningsfakta = AfregnOverskydendeSkat(fakta = KildeskatOverskydendeAfregningEksaktFakta(
+    indkomstår = 2026,
+    modsvarer_par59_indbetaling_øre = 0,
+    tilbagebetalt_rente_par59_øre = 0,
+    modsvarer_seniornedslag_øre = 0,
+    modsvarer_energiafgiftskompensation_øre = 0,
+    restancer_personlig_skat_med_morarenter_øre = 0,
+    tilbagebetaling_efter_1_september = Falskt,
+    påbegyndte_måneder_efter_1_september = 0
+))
 = personskat_calculate_eksakt_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
     personskat_calculate_input,
     MedEksaktÅrsopgørelse(
         overført_restskat_mv_øre = 0,
         øvrig_pensionsbeskatningsafgift_øre = 0,
-        kreditter = personskat_calculate_eksakte_årsopgørelseskreditter
+        kreditter = personskat_calculate_eksakte_årsopgørelseskreditter,
+        afregningsfakta = personskat_calculate_eksakt_afregningsfakta
     )
 ))
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
@@ -1666,7 +1678,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_par5a_reducerer_tab_før_personskattelov: personskat_calculate_par5a_resultat -> personskat_calculate_par5a_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par5a_resultat.aktieavance.aktieindkomst_kroner == -18000 && personskat_calculate_par5a_spor_er_reduceret(personskat_calculate_par5a_resultat.aktieavance.ordinært_aktieår) && personskat_calculate_par5a_resultat.aktieindkomst_parår.egen_skat_kroner == -4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == 4860 && personskat_calculate_par5a_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == 0 && personskat_calculate_par5a_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == personskat_calculate_par5a_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner - 4860
 | personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_øre(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
     | IngenÅrsopgørelse -> 0
-    | BeregnetÅrsopgørelse(input, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_øre
+    | BeregnetÅrsopgørelse(input, _, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_øre
 }
 | personskat_calculate_stort_eget_aktietab_modregnes_og_fremføres: personskat_calculate_stort_eget_aktietab_resultat -> personskat_calculate_stort_eget_aktietab_resultat.aktieavance.aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.input.egen_aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.eget_effektive_grundbeløb_kroner == 158800 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.egen_skat_kroner == -606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_ægtefælles_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == 188728 && personskat_calculate_stort_eget_aktietab_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == 0 && personskat_calculate_stort_eget_aktietab_resultat.slutskat_øre == 20872564 && personskat_calculate_stort_eget_aktietab_resultat.personskattelov_par8a_stk5_kredit_øre == 20872564 && personskat_calculate_stort_eget_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre == 0 && personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_øre(personskat_calculate_stort_eget_aktietab_resultat) == 20872564
 | personskat_calculate_stort_ægtefælleaktietab_bevarer_kildesporet: personskat_calculate_stort_ægtefælleaktietab_resultat -> personskat_calculate_stort_ægtefælleaktietab_resultat.aktieindkomst_parår.input.ægtefælles_aktieindkomst_kroner == -1500000 && match personskat_calculate_stort_ægtefælleaktietab_resultat.ægtefælle {
@@ -1736,23 +1748,25 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_årsopgørelse_valgfri: personskat_calculate_resultat -> personskat_calculate_resultat.årsopgørelse == IngenÅrsopgørelse
 | personskat_calculate_årsopgørelse_beregnes: personskat_calculate_med_årsopgørelse_resultat -> match personskat_calculate_med_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.slutskat_øre == 20872564 && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21022564 && årsopgørelsesresultat.restskat_øre == 21022564 && årsopgørelsesresultat.restskat_opkræves_kroner == 210225 && årsopgørelsesresultat.restskat_ikke_opkrævet_øre == 64 && årsopgørelsesresultat.art == Restskat
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, afregning) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.slutskat_øre == 20872564 && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21022564 && årsopgørelsesresultat.restskat_øre == 21022564 && årsopgørelsesresultat.art == Restskat && afregning == IngenSlutopgørelsesafregning
 }
 | personskat_calculate_eksakt_årsopgørelse_bevarer_ører: personskat_calculate_eksakt_årsopgørelse_resultat -> match personskat_calculate_eksakt_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_eksakt_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelsesresultat.modregnede_foreløbige_skatter_øre == 20935314 && årsopgørelsesresultat.overskydende_skat_øre == 62750 && årsopgørelsesresultat.overskydende_skat_udbetales_kroner == 627 && årsopgørelsesresultat.overskydende_skat_ikke_udbetalt_øre == 50 && årsopgørelsesresultat.art == OverskydendeSkat
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, afregning) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_eksakt_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelsesresultat.modregnede_foreløbige_skatter_øre == 20935314 && årsopgørelsesresultat.overskydende_skat_øre == 62750 && årsopgørelsesresultat.art == OverskydendeSkat && afregning == IngenSlutopgørelsesafregning
 }
+| personskat_calculate_afregningsår_valideres: personskat_calculate_ikke_publicerede_2026_afregningsfakta -> personskat_afregningsfakta_matcher_indkomstår(personskat_calculate_ikke_publicerede_2026_afregningsfakta, 2026) && personskat_afregningsfakta_matcher_indkomstår(personskat_calculate_ikke_publicerede_2026_afregningsfakta, 2025) == Falskt
+| personskat_calculate_2026_afregningssats_forhaandsgættes_ikke: kildeskat_årsopgørelsessatser(2026) -> kildeskat_årsopgørelsessatser_dækket(2025) && kildeskat_årsopgørelsessatser(2025).restskat_procenttillæg_basispoint == 570 && kildeskat_årsopgørelsessatser_dækket(2026) == Falskt
 | personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse: personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat -> match personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat) -> årsopgørelsesinput.slutskat_øre == 21007564 && årsopgørelsesinput.slutskat_øre == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21157564
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, _) -> årsopgørelsesinput.slutskat_øre == 21007564 && årsopgørelsesinput.slutskat_øre == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21157564
 }
 | personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat: personskat_calculate_ligningslov33_resultat -> personskat_calculate_ligningslov33_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ligningslov33_resultat.ligningslov33.input_gyldigt && personskat_calculate_ligningslov33_resultat.endelig_aktieindkomstskat_øre == 404109 && head(personskat_calculate_ligningslov33_resultat.ligningslov33.hovedperson.kreditgrupper).proportionalt_dansk_skatteloft_øre == 10746 && personskat_calculate_ligningslov33_resultat.ligningslov33.hovedpersons_nedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.ligningslov33.samlet_parnedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_øre - personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == 600 && personskat_calculate_ligningslov33_neutralt_resultat.slutskat_øre - personskat_calculate_ligningslov33_resultat.slutskat_øre == 600 && match personskat_calculate_ligningslov33_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ligningslov33_resultat.slutskat_øre
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, _, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ligningslov33_resultat.slutskat_øre
 }
 | personskat_calculate_ejendomsskatter_udledes_og_indgår_en_gang: personskat_calculate_ejendomsskat_resultat -> personskat_calculate_ejendomsskat_resultat.ejendomsskatter.identifikationer_entydige && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.alle_input_gyldige && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.regelgrundlag_understøttet && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsværdiskat_øre == 315350 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_grundskyld_øre == 285855 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_øre == 601205 && personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_kroner == 6012 && personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_ejendomsskatter_kroner == personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + 6012 && match personskat_calculate_ejendomsskat_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ejendomsskat_resultat.slutskat_øre && årsopgørelsesinput.slutskat_øre == personskat_calculate_ejendomsskat_resultat.eksakt_ordinær_skat_efter_dis_øre + personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_øre && årsopgørelsesinput.slutskat_øre % 100 != 0 && personskat_calculate_ejendomsskat_resultat.slutskat_kroner_kompatibilitetsprojektion == årsopgørelsesinput.slutskat_øre / 100 && personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_ejendomsskatter_kroner * 100 != årsopgørelsesinput.slutskat_øre
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, _, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ejendomsskat_resultat.slutskat_øre && årsopgørelsesinput.slutskat_øre == personskat_calculate_ejendomsskat_resultat.eksakt_ordinær_skat_efter_dis_øre + personskat_calculate_ejendomsskat_resultat.ejendomsskatter.samlet_ejendomsskat_øre && årsopgørelsesinput.slutskat_øre % 100 != 0 && personskat_calculate_ejendomsskat_resultat.slutskat_kroner_kompatibilitetsprojektion == årsopgørelsesinput.slutskat_øre / 100 && personskat_calculate_ejendomsskat_resultat.samlet_skat_inkl_ejendomsskatter_kroner * 100 != årsopgørelsesinput.slutskat_øre
 }
 
 ? personskat_calculate_am_bidrag
@@ -1809,6 +1823,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes
 ? personskat_calculate_eksakt_årsopgørelse_bevarer_ører
+? personskat_calculate_afregningsår_valideres
+? personskat_calculate_2026_afregningssats_forhaandsgættes_ikke
 ? personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse
 ? personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat
 ? personskat_calculate_ejendomsskatter_udledes_og_indgår_en_gang

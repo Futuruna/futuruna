@@ -4945,6 +4945,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("question metadata column");
         for (path, expected_label, expected_question_fragment) in [
             (
+                "årsopgørelse.MedEksaktÅrsopgørelse.afregningsfakta.$variant",
+                "Afregning af årsopgørelsen",
+                "Skal årsopgørelsen afregnes",
+            ),
+            (
+                "årsopgørelse.MedEksaktÅrsopgørelse.afregningsfakta.AfregnOverskydendeSkat.fakta.restancer_personlig_skat_med_morarenter_øre",
+                "Restancer til modregning",
+                "Hvor store restancer",
+            ),
+            (
                 "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.par5a_kildefakta.$variant",
                 "Kildedata til tabsbegrænsning efter ABL § 5 A",
                 "Kræver afståelsen oplysninger",
@@ -17821,12 +17831,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         21_022_564
     );
     assert_eq!(
-        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_opkræves_kroner"],
-        210_225
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_øre"],
+        21_022_564
     );
     assert_eq!(
-        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_ikke_opkrævet_øre"],
-        64
+        result["results"][0]["result"]["årsopgørelse"]["afregning"]["$variant"],
+        "IngenSlutopgørelsesafregning"
     );
     assert_eq!(
         result["results"][1]["result"]["aktieavance"]["personlig_indkomst_kroner"],

@@ -117,7 +117,7 @@ henholdsvis udbetales efter reglerne i § 62.
 # KildeskatSlutopgørelseInput(slutskat_kroner: Heltal, overført_restskat_mv_kroner: Heltal, pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter)
 # KildeskatSlutopgørelseResult(slutskat_med_tillæg_kroner: Heltal, modregnede_foreløbige_skatter_kroner: Heltal, restskat_kroner: Heltal, overskydende_skat_kroner: Heltal, art: KildeskatSlutopgørelseArt)
 # KildeskatSlutopgørelseEksaktInput(slutskat_øre: Heltal, overført_restskat_mv_øre: Heltal, pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre)
-# KildeskatSlutopgørelseEksaktResult(slutskat_med_tillæg_øre: Heltal, modregnede_foreløbige_skatter_øre: Heltal, restskat_øre: Heltal, restskat_opkræves_kroner: Heltal, restskat_ikke_opkrævet_øre: Heltal, overskydende_skat_øre: Heltal, overskydende_skat_udbetales_kroner: Heltal, overskydende_skat_ikke_udbetalt_øre: Heltal, art: KildeskatSlutopgørelseArt)
+# KildeskatSlutopgørelseEksaktResult(slutskat_med_tillæg_øre: Heltal, modregnede_foreløbige_skatter_øre: Heltal, restskat_øre: Heltal, overskydende_skat_øre: Heltal, art: KildeskatSlutopgørelseArt)
 # KildeskatÆgtefælleUdligningInput(person_a_restskat_kroner: Heltal, person_a_overskydende_skat_kroner: Heltal, person_b_restskat_kroner: Heltal, person_b_overskydende_skat_kroner: Heltal, samlevende_ved_årets_udgang: Boolsk, begge_indforstået: Boolsk)
 # KildeskatÆgtefælleUdligningResult(person_a_restskat_efter_udligning_kroner: Heltal, person_a_overskydende_skat_efter_udligning_kroner: Heltal, person_b_restskat_efter_udligning_kroner: Heltal, person_b_overskydende_skat_efter_udligning_kroner: Heltal, anvendt_a_til_b_kroner: Heltal, anvendt_b_til_a_kroner: Heltal)
 
@@ -199,19 +199,11 @@ kronebeløb. Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> IngenSlutopgørelsesDifference
 | exception kildeskat_slutopgørelse_eksakt_er_restskat kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> Restskat under kildeskat_restskat_øre(input) > 0
 | exception kildeskat_slutopgørelse_eksakt_er_overskydende kildeskat_slutopgørelse_eksakt_art(input: KildeskatSlutopgørelseEksaktInput) -> OverskydendeSkat under kildeskat_overskydende_skat_øre(input) > 0
-| kildeskat_restskat_opkræves_kroner(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_restskat_øre(input) / 100
-| kildeskat_restskat_ikke_opkrævet_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_restskat_øre(input) % 100
-| kildeskat_overskydende_skat_udbetales_kroner(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_overskydende_skat_øre(input) / 100
-| kildeskat_overskydende_skat_ikke_udbetalt_øre(input: KildeskatSlutopgørelseEksaktInput) -> kildeskat_overskydende_skat_øre(input) % 100
 | kildeskat_slutopgørelse_eksakt_resultat(input: KildeskatSlutopgørelseEksaktInput) -> KildeskatSlutopgørelseEksaktResult(
     slutskat_med_tillæg_øre = kildeskat_slutskat_med_tillæg_øre(input),
     modregnede_foreløbige_skatter_øre = kildeskat_par60_modregning_øre(input.kreditter),
     restskat_øre = kildeskat_restskat_øre(input),
-    restskat_opkræves_kroner = kildeskat_restskat_opkræves_kroner(input),
-    restskat_ikke_opkrævet_øre = kildeskat_restskat_ikke_opkrævet_øre(input),
     overskydende_skat_øre = kildeskat_overskydende_skat_øre(input),
-    overskydende_skat_udbetales_kroner = kildeskat_overskydende_skat_udbetales_kroner(input),
-    overskydende_skat_ikke_udbetalt_øre = kildeskat_overskydende_skat_ikke_udbetalt_øre(input),
     art = kildeskat_slutopgørelse_eksakt_art(input)
 )
 | kildeskat_slutopgørelse_difference_kroner(input: KildeskatSlutopgørelseInput) -> kildeskat_slutopgørelse_difference_øre(kildeskat_slutopgørelse_eksakt_input_fra_kroner(input)) / 100
@@ -339,6 +331,9 @@ skat med påløbne morarenter, uanset om renterne er forfaldne.
 Modregningen kræver ingen særskilt erklæring herom fra told- og
 skatteforvaltningen.
 
+Stk. 4. Af det beløb, der efter foranstående skal udbetales den skattepligtige,
+udbetales kun det hele kronebeløb.
+
 § 62 A. Medfører en ændret årsopgørelse, at der skal betales restskat eller
 yderligere restskat, gælder reglerne i § 61, stk. 3-6, for betaling af beløbet
 med tillæg efter § 61, stk. 2.
@@ -434,8 +429,52 @@ Stk. 4. Ved opkrævning af beløb efter denne lov opkræves kun hele kronebeløb
 Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 ----
 
+# KildeskatKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# KildeskatÅrsopgørelsessatser(indkomstår: Heltal, dag_til_dag_rente_basispoint: Heltal, restskat_procenttillæg_basispoint: Heltal, overskydende_skat_godtgørelse_basispoint: Heltal, kilde: KildeskatKildeInfo)
+
+= kildeskat_skm2025_716 = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2460000",
+    identifier = "SKM2025.716.SKTST",
+    hentet_dato = "2026-08-08"
+)
+= kildeskat_skm2025_716_metadata = Source(value = kildeskat_skm2025_716)
+
+--@label:kildeskat_skm2025_716_satser::meta:kildeskat_skm2025_716_metadata--
+----
+SKM2025.716.SKTST, indkomståret 2025:
+Dag-til-dag-rente: 3,7 pct.
+Procenttillæg på restskat: 5,7 pct.
+Procentgodtgørelse på overskydende skat: 0 pct.
+----
+
+--@begin:kildeskat_skm2025_716_satser--
+= kildeskat_ukendt_årsopgørelsessatskilde = KildeskatKildeInfo(
+    url = "",
+    identifier = "",
+    hentet_dato = ""
+)
+| kildeskat_årsopgørelsessatser(indkomstår: Heltal) -> KildeskatÅrsopgørelsessatser(
+    indkomstår = indkomstår,
+    dag_til_dag_rente_basispoint = 0,
+    restskat_procenttillæg_basispoint = 0,
+    overskydende_skat_godtgørelse_basispoint = 0,
+    kilde = kildeskat_ukendt_årsopgørelsessatskilde
+)
+| exception kildeskat_årsopgørelsessatser_2025 kildeskat_årsopgørelsessatser(indkomstår: Heltal) -> KildeskatÅrsopgørelsessatser(
+    indkomstår = 2025,
+    dag_til_dag_rente_basispoint = 370,
+    restskat_procenttillæg_basispoint = 570,
+    overskydende_skat_godtgørelse_basispoint = 0,
+    kilde = kildeskat_skm2025_716
+) under indkomstår == 2025
+| kildeskat_årsopgørelsessatser_dækket(indkomstår: Heltal) -> kildeskat_årsopgørelsessatser(indkomstår).kilde.identifier != ""
+| kildeskat_afregningsrenteår(indkomstår: Heltal) -> indkomstår + 1
+--@end:kildeskat_skm2025_716_satser--
+
 # KildeskatRestskatTillægInput(restskat_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatForsinkelsesrenteInput(beløb_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder: Heltal, rente_udløses: Boolsk)
+# KildeskatRestskatAfregningEksaktFakta(indkomstår: Heltal, oplysningspligt_ikke_rettidigt_opfyldt: Boolsk, påbegyndte_måneder_fra_1_september: Heltal, øvrige_skyldige_renter_øre: Heltal)
+# KildeskatRestskatAfregningEksaktResult(input_gyldigt: Boolsk, restskat_øre: Heltal, procenttillæg_basispoint: Heltal, procenttillæg_øre: Heltal, oplysningsrente_øre: Heltal, øvrige_skyldige_renter_øre: Heltal, opkrævning_før_hele_kroner_øre: Heltal, opkræves_kroner: Heltal, ikke_opkrævet_øre: Heltal)
 # KildeskatRestskatUdskrivningspostur = SenestSeptemberFørAugust | SenestSeptemberFraAugust | EfterSeptemberFørJanuar | JanuarEllerSenere
 # KildeskatRestskatOpkrævningInput(restskat_med_eventuelle_renter_kroner: Heltal, reguleret_overførselsgrænse_kroner: Heltal, udskrivningspostur: KildeskatRestskatUdskrivningspostur, skattepligtig_ved_begyndelsen_af_efterfølgende_år: Boolsk, første_resterende_b_skat_rate_nr: Heltal)
 # KildeskatRestskatOpkrævningDatoInput(restskat_med_eventuelle_renter_kroner: Heltal, reguleret_overførselsgrænse_kroner: Heltal, skattepligtig_ved_begyndelsen_af_efterfølgende_år: Boolsk, udskrivningsdato: KildeskatDato, systemdatoer: KildeskatRestskatSystemdatoer)
@@ -447,6 +486,10 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 # KildeskatRestskatRateplan(art: KildeskatRestskatRateart, første_forfaldsdato: KildeskatDato, sidste_forfaldsdato: KildeskatDato, rateantal: Heltal, beløbsdeling: KildeskatRestskatBeløbsdeling, sidste_rettidige_betalingsdag: Heltal)
 # KildeskatOverskydendeGodtgørelseInput(overskydende_skat_kroner: Heltal, modsvarer_par59_indbetaling_kroner: Heltal, modsvarer_seniornedslag_kroner: Heltal, modsvarer_energiafgiftskompensation_kroner: Heltal, opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint: Heltal)
 # KildeskatOverskydendeTilbagebetalingInput(overskydende_skat_kroner: Heltal, godtgørelse_kroner: Heltal, restancer_personlig_skat_med_morarenter_kroner: Heltal, tilbagebetaling_i_ordinært_vindue: Boolsk, tilbagebetaling_efter_1_september: Boolsk, påbegyndte_måneder_efter_1_september: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal)
+# KildeskatOverskydendeAfregningEksaktFakta(indkomstår: Heltal, modsvarer_par59_indbetaling_øre: Heltal, tilbagebetalt_rente_par59_øre: Heltal, modsvarer_seniornedslag_øre: Heltal, modsvarer_energiafgiftskompensation_øre: Heltal, restancer_personlig_skat_med_morarenter_øre: Heltal, tilbagebetaling_efter_1_september: Boolsk, påbegyndte_måneder_efter_1_september: Heltal)
+# KildeskatOverskydendeAfregningEksaktResult(input_gyldigt: Boolsk, overskydende_skat_øre: Heltal, godtgørelsesgrundlag_øre: Heltal, godtgørelse_basispoint: Heltal, godtgørelse_øre: Heltal, tilbagebetalt_rente_par59_øre: Heltal, forsinkelsesrente_øre: Heltal, restancemodregning_øre: Heltal, udbetaling_før_hele_kroner_øre: Heltal, udbetales_kroner: Heltal, ikke_udbetalt_øre: Heltal)
+# KildeskatSlutopgørelseAfregningsfakta = UdenSlutopgørelsesafregning | AfregnRestskat(fakta: KildeskatRestskatAfregningEksaktFakta) | AfregnOverskydendeSkat(fakta: KildeskatOverskydendeAfregningEksaktFakta)
+# KildeskatSlutopgørelseAfregningsresultat = IngenSlutopgørelsesafregning | RestskatAfregnet(resultat: KildeskatRestskatAfregningEksaktResult) | OverskydendeSkatAfregnet(resultat: KildeskatOverskydendeAfregningEksaktResult) | AfregningsfaktaMatcherIkkeSlutopgørelse
 # KildeskatÆndretÅrsopgørelseArt = ÆndretRestskatEllerYderligereRestskat | ÆndretOverskydendeSkatSkalTilbagebetales | ÆndretRestskatNedsatEllerBortfaldet | ÆndretOverskydendeSkatFremkommer
 # KildeskatPar62ARenteInput(art: KildeskatÆndretÅrsopgørelseArt, beløb_kroner: Heltal, tillæg_eller_godtgørelse_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, påbegyndte_måneder_fra_1_september: Heltal, udskrives_efter_september_systemdato: Boolsk)
 # KildeskatPar62ARenteDatoInput(art: KildeskatÆndretÅrsopgørelseArt, beløb_kroner: Heltal, tillæg_eller_godtgørelse_kroner: Heltal, opkrævningslov_par7_stk2_rente_basispoint: Heltal, udskrivningsdato: KildeskatDato, systemdatoer: KildeskatRestskatSystemdatoer)
@@ -457,11 +500,29 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 # KildeskatPar62CMindreRestskatInput(restskat_tillæg_renter_kroner: Heltal, tidligere_ikke_opkrævet_kroner: Heltal, ikke_indregnet_efter_par61_stk3: Boolsk)
 
 | kildeskat_basispoint_afrundet_til_en_decimal(sats_basispoint: Heltal) -> penge_basispoint_afrundet_til_en_decimal(sats_basispoint)
-| kildeskat_restskat_procenttillæg_basispoint(input: KildeskatRestskatTillægInput) -> kildeskat_basispoint_afrundet_til_en_decimal(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint + 150)
+| kildeskat_restskat_procenttillæg_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint: Heltal) -> kildeskat_basispoint_afrundet_til_en_decimal(opkrævningsrente_basispoint + 150)
+| kildeskat_restskat_procenttillæg_basispoint(input: KildeskatRestskatTillægInput) -> kildeskat_restskat_procenttillæg_basispoint_fra_opkrævningsrente(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint)
 | kildeskat_restskat_procenttillæg_kroner(input: KildeskatRestskatTillægInput) -> penge_beløb_gange_basispoint_kroner(input.restskat_kroner, kildeskat_restskat_procenttillæg_basispoint(input))
-| kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input: KildeskatForsinkelsesrenteInput) -> input.opkrævningslov_par7_stk2_rente_basispoint + 40
+| kildeskat_forsinkelsesrente_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint: Heltal) -> opkrævningsrente_basispoint + 40
+| kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input: KildeskatForsinkelsesrenteInput) -> kildeskat_forsinkelsesrente_basispoint_fra_opkrævningsrente(input.opkrævningslov_par7_stk2_rente_basispoint)
 | kildeskat_forsinkelsesrente_kroner(input: KildeskatForsinkelsesrenteInput) -> 0
 | exception kildeskat_forsinket_beløb_forrentes kildeskat_forsinkelsesrente_kroner(input: KildeskatForsinkelsesrenteInput) -> penge_beløb_gange_basispoint_kroner(input.beløb_kroner * input.påbegyndte_måneder, kildeskat_forsinkelsesrente_basispoint_pr_påbegyndt_måned(input)) under input.rente_udløses && input.påbegyndte_måneder > 0
+| kildeskat_restskat_afregningsfakta_gyldige(fakta: KildeskatRestskatAfregningEksaktFakta) -> kildeskat_årsopgørelsessatser_dækket(fakta.indkomstår) && fakta.påbegyndte_måneder_fra_1_september >= 0 && fakta.øvrige_skyldige_renter_øre >= 0 && ((fakta.oplysningspligt_ikke_rettidigt_opfyldt && fakta.påbegyndte_måneder_fra_1_september > 0 && opkrævning_par7_nationalbank_data_dækket(kildeskat_afregningsrenteår(fakta.indkomstår))) || (fakta.oplysningspligt_ikke_rettidigt_opfyldt == Falskt && fakta.påbegyndte_måneder_fra_1_september == 0))
+| kildeskat_restskat_procenttillæg_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatRestskatAfregningEksaktFakta) -> penge_øre_gange_basispoint_øre(slutopgørelse.restskat_øre, kildeskat_årsopgørelsessatser(fakta.indkomstår).restskat_procenttillæg_basispoint)
+| kildeskat_restskat_oplysningsrente_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatRestskatAfregningEksaktFakta) -> 0
+| exception kildeskat_restskat_forsinket_efter_manglende_oplysning kildeskat_restskat_oplysningsrente_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatRestskatAfregningEksaktFakta) -> penge_øre_gange_basispoint_øre((slutopgørelse.restskat_øre + kildeskat_restskat_procenttillæg_øre(slutopgørelse, fakta)) * fakta.påbegyndte_måneder_fra_1_september, kildeskat_forsinkelsesrente_basispoint_fra_opkrævningsrente(opkrævning_par7_offentliggjort_stk2_rente_basispoint(kildeskat_afregningsrenteår(fakta.indkomstår)))) under fakta.oplysningspligt_ikke_rettidigt_opfyldt && fakta.påbegyndte_måneder_fra_1_september > 0
+| kildeskat_restskat_opkrævning_før_hele_kroner_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatRestskatAfregningEksaktFakta) -> slutopgørelse.restskat_øre + kildeskat_restskat_procenttillæg_øre(slutopgørelse, fakta) + kildeskat_restskat_oplysningsrente_øre(slutopgørelse, fakta) + fakta.øvrige_skyldige_renter_øre
+| kildeskat_restskat_afregning_eksakt(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatRestskatAfregningEksaktFakta) -> KildeskatRestskatAfregningEksaktResult(
+    input_gyldigt = kildeskat_restskat_afregningsfakta_gyldige(fakta) && slutopgørelse.art == Restskat,
+    restskat_øre = slutopgørelse.restskat_øre,
+    procenttillæg_basispoint = kildeskat_årsopgørelsessatser(fakta.indkomstår).restskat_procenttillæg_basispoint,
+    procenttillæg_øre = kildeskat_restskat_procenttillæg_øre(slutopgørelse, fakta),
+    oplysningsrente_øre = kildeskat_restskat_oplysningsrente_øre(slutopgørelse, fakta),
+    øvrige_skyldige_renter_øre = fakta.øvrige_skyldige_renter_øre,
+    opkrævning_før_hele_kroner_øre = kildeskat_restskat_opkrævning_før_hele_kroner_øre(slutopgørelse, fakta),
+    opkræves_kroner = kildeskat_restskat_opkrævning_før_hele_kroner_øre(slutopgørelse, fakta) / 100,
+    ikke_opkrævet_øre = kildeskat_restskat_opkrævning_før_hele_kroner_øre(slutopgørelse, fakta) % 100
+)
 
 | kildeskat_restskat_grænse_2010_niveau_kroner() -> 18300
 | kildeskat_restskat_udskrives_senest_september_systemdato(postur: KildeskatRestskatUdskrivningspostur) -> postur == SenestSeptemberFørAugust || postur == SenestSeptemberFraAugust
@@ -681,9 +742,11 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
     sidste_rettidige_betalingsdag = kildeskat_restskat_sidste_rettidige_betalingsdag()
 )
 
-| kildeskat_overskydende_godtgørelse_rå_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint - 520
-| kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> 0
-| exception kildeskat_overskydende_godtgørelse_positiv_sats kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_basispoint_afrundet_til_en_decimal(kildeskat_overskydende_godtgørelse_rå_basispoint(input)) under kildeskat_overskydende_godtgørelse_rå_basispoint(input) > 0
+| kildeskat_overskydende_godtgørelse_rå_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint: Heltal) -> opkrævningsrente_basispoint - 520
+| kildeskat_overskydende_godtgørelse_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint: Heltal) -> 0
+| exception kildeskat_overskydende_godtgørelse_fra_positiv_sats kildeskat_overskydende_godtgørelse_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint: Heltal) -> kildeskat_basispoint_afrundet_til_en_decimal(kildeskat_overskydende_godtgørelse_rå_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint)) under kildeskat_overskydende_godtgørelse_rå_basispoint_fra_opkrævningsrente(opkrævningsrente_basispoint) > 0
+| kildeskat_overskydende_godtgørelse_rå_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_overskydende_godtgørelse_rå_basispoint_fra_opkrævningsrente(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint)
+| kildeskat_overskydende_godtgørelse_basispoint(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_overskydende_godtgørelse_basispoint_fra_opkrævningsrente(input.opkrævningslov_par7_stk2_tredje_pkt_rente_basispoint)
 | kildeskat_overskydende_godtgørelsesgrundlag_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> kildeskat_slutopgørelse_positivt_beløb(input.overskydende_skat_kroner - input.modsvarer_par59_indbetaling_kroner - input.modsvarer_seniornedslag_kroner - input.modsvarer_energiafgiftskompensation_kroner)
 | kildeskat_overskydende_godtgørelse_kroner(input: KildeskatOverskydendeGodtgørelseInput) -> penge_beløb_gange_basispoint_kroner(kildeskat_overskydende_godtgørelsesgrundlag_kroner(input), kildeskat_overskydende_godtgørelse_basispoint(input))
 | kildeskat_overskydende_ordinært_tilbagebetalingsvindue(input: KildeskatOverskydendeTilbagebetalingInput) -> input.tilbagebetaling_i_ordinært_vindue
@@ -694,6 +757,32 @@ Tilsvarende gælder ved opkrævning af rater efter stk. 1.
     rente_udløses = input.tilbagebetaling_efter_1_september
 ))
 | kildeskat_overskydende_udbetaling_efter_restancemodregning_kroner(input: KildeskatOverskydendeTilbagebetalingInput) -> kildeskat_slutopgørelse_positivt_beløb(input.overskydende_skat_kroner + input.godtgørelse_kroner + kildeskat_overskydende_forsinkelsesrente_kroner(input) - input.restancer_personlig_skat_med_morarenter_kroner)
+| kildeskat_overskydende_afregningsfakta_gyldige(fakta: KildeskatOverskydendeAfregningEksaktFakta) -> kildeskat_årsopgørelsessatser_dækket(fakta.indkomstår) && fakta.modsvarer_par59_indbetaling_øre >= 0 && fakta.tilbagebetalt_rente_par59_øre >= 0 && fakta.modsvarer_seniornedslag_øre >= 0 && fakta.modsvarer_energiafgiftskompensation_øre >= 0 && fakta.restancer_personlig_skat_med_morarenter_øre >= 0 && fakta.påbegyndte_måneder_efter_1_september >= 0 && ((fakta.tilbagebetaling_efter_1_september && fakta.påbegyndte_måneder_efter_1_september > 0 && opkrævning_par7_nationalbank_data_dækket(kildeskat_afregningsrenteår(fakta.indkomstår))) || (fakta.tilbagebetaling_efter_1_september == Falskt && fakta.påbegyndte_måneder_efter_1_september == 0))
+| kildeskat_overskydende_godtgørelsesgrundlag_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> kildeskat_slutopgørelse_positivt_beløb_øre(slutopgørelse.overskydende_skat_øre - fakta.modsvarer_par59_indbetaling_øre - fakta.modsvarer_seniornedslag_øre - fakta.modsvarer_energiafgiftskompensation_øre)
+| kildeskat_overskydende_godtgørelse_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> penge_øre_gange_basispoint_øre(kildeskat_overskydende_godtgørelsesgrundlag_øre(slutopgørelse, fakta), kildeskat_årsopgørelsessatser(fakta.indkomstår).overskydende_skat_godtgørelse_basispoint)
+| kildeskat_overskydende_forsinkelsesrente_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> 0
+| exception kildeskat_overskydende_tilbagebetales_efter_1_september kildeskat_overskydende_forsinkelsesrente_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> penge_øre_gange_basispoint_øre((slutopgørelse.overskydende_skat_øre + kildeskat_overskydende_godtgørelse_øre(slutopgørelse, fakta)) * fakta.påbegyndte_måneder_efter_1_september, kildeskat_forsinkelsesrente_basispoint_fra_opkrævningsrente(opkrævning_par7_offentliggjort_stk2_rente_basispoint(kildeskat_afregningsrenteår(fakta.indkomstår)))) under fakta.tilbagebetaling_efter_1_september && fakta.påbegyndte_måneder_efter_1_september > 0
+| kildeskat_overskydende_før_restancemodregning_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> slutopgørelse.overskydende_skat_øre + kildeskat_overskydende_godtgørelse_øre(slutopgørelse, fakta) + fakta.tilbagebetalt_rente_par59_øre + kildeskat_overskydende_forsinkelsesrente_øre(slutopgørelse, fakta)
+| kildeskat_overskydende_restancemodregning_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> penge_mindste_beløb(kildeskat_overskydende_før_restancemodregning_øre(slutopgørelse, fakta), fakta.restancer_personlig_skat_med_morarenter_øre)
+| kildeskat_overskydende_udbetaling_før_hele_kroner_øre(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> kildeskat_slutopgørelse_positivt_beløb_øre(kildeskat_overskydende_før_restancemodregning_øre(slutopgørelse, fakta) - kildeskat_overskydende_restancemodregning_øre(slutopgørelse, fakta))
+| kildeskat_overskydende_afregning_eksakt(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatOverskydendeAfregningEksaktFakta) -> KildeskatOverskydendeAfregningEksaktResult(
+    input_gyldigt = kildeskat_overskydende_afregningsfakta_gyldige(fakta) && slutopgørelse.art == OverskydendeSkat,
+    overskydende_skat_øre = slutopgørelse.overskydende_skat_øre,
+    godtgørelsesgrundlag_øre = kildeskat_overskydende_godtgørelsesgrundlag_øre(slutopgørelse, fakta),
+    godtgørelse_basispoint = kildeskat_årsopgørelsessatser(fakta.indkomstår).overskydende_skat_godtgørelse_basispoint,
+    godtgørelse_øre = kildeskat_overskydende_godtgørelse_øre(slutopgørelse, fakta),
+    tilbagebetalt_rente_par59_øre = fakta.tilbagebetalt_rente_par59_øre,
+    forsinkelsesrente_øre = kildeskat_overskydende_forsinkelsesrente_øre(slutopgørelse, fakta),
+    restancemodregning_øre = kildeskat_overskydende_restancemodregning_øre(slutopgørelse, fakta),
+    udbetaling_før_hele_kroner_øre = kildeskat_overskydende_udbetaling_før_hele_kroner_øre(slutopgørelse, fakta),
+    udbetales_kroner = kildeskat_overskydende_udbetaling_før_hele_kroner_øre(slutopgørelse, fakta) / 100,
+    ikke_udbetalt_øre = kildeskat_overskydende_udbetaling_før_hele_kroner_øre(slutopgørelse, fakta) % 100
+)
+| kildeskat_slutopgørelse_afregning(slutopgørelse: KildeskatSlutopgørelseEksaktResult, fakta: KildeskatSlutopgørelseAfregningsfakta) -> match fakta {
+    | UdenSlutopgørelsesafregning -> IngenSlutopgørelsesafregning
+    | AfregnRestskat(restskat_fakta) -> hvis slutopgørelse.art == Restskat { RestskatAfregnet(resultat = kildeskat_restskat_afregning_eksakt(slutopgørelse, restskat_fakta)) } ellers { AfregningsfaktaMatcherIkkeSlutopgørelse }
+    | AfregnOverskydendeSkat(overskydende_fakta) -> hvis slutopgørelse.art == OverskydendeSkat { OverskydendeSkatAfregnet(resultat = kildeskat_overskydende_afregning_eksakt(slutopgørelse, overskydende_fakta)) } ellers { AfregningsfaktaMatcherIkkeSlutopgørelse }
+}
 
 | kildeskat_ændret_årsopgørelse_bruger_par61_stk3_6(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretRestskatEllerYderligereRestskat
 | kildeskat_ændret_årsopgørelse_tilbagebetaling_efter_par61_stk4(art: KildeskatÆndretÅrsopgørelseArt) -> art == ÆndretOverskydendeSkatSkalTilbagebetales
