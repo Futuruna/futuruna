@@ -1014,7 +1014,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = personskat_calculate_udbytte_ægtefællefakta,
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
@@ -1251,7 +1252,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = personskat_calculate_personfakta_med_aktieavance(ægtefælles_aktieavance),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_calculate_med_årsopgørelse_input.negativ_aktieskat_fremførsel,
@@ -1399,7 +1401,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     underskudsforhold = personskat_calculate_ejendomsskat_input.underskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = personskat_calculate_personfakta_2025_med_aktieavance_og_ejendomsskatter(ægtefælles_aktieavance, ægtefælles_ejendomsskatter),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = egne_ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
@@ -1495,7 +1498,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
-    ægtefælle = MedÆgtefælle(fakta = personskat_calculate_par13a_ægtefællefakta, samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb),
+    ægtefælle = MedÆgtefælle(fakta = personskat_calculate_par13a_ægtefællefakta, samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb, kildeskat25a_fordelinger = []),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     ligningslov33 = personskat_uden_ligningslov33(),

@@ -626,7 +626,8 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = årsopgørelse2025_ægtefælle_personfakta,
-        samlevende_ved_indkomstårets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb
+        samlevende_ved_indkomstårets_udløb = årsopgørelse2025_ægtefælle.samlevende_ved_indkomstårets_udløb,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = årsopgørelse2025_kanoniske_ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),

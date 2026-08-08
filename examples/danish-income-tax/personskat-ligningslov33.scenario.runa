@@ -299,7 +299,8 @@ nedslaget i personens slutskat.
 
 = personskat_ligningslov33_ægtefælle = MedÆgtefælle(
     fakta = personskat_ligningslov33_scenarie_person(300000),
-    samlevende_ved_indkomstårets_udløb = Sandt
+    samlevende_ved_indkomstårets_udløb = Sandt,
+    kildeskat25a_fordelinger = []
 )
 = personskat_ligningslov33_ægtefælleinput = PersonskatLigningslov33ParInput(
     hovedperson = UdenLigningslov33,

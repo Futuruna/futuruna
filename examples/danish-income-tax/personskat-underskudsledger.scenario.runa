@@ -82,7 +82,8 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
             ægtefælle_renteudgifter_kroner,
             ægtefælle_underskudsforhold
         ),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),

@@ -532,7 +532,8 @@ myndighedens beregnede skattebeløb bruges ikke som input.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = historisk_ægtefælle_personfakta(kilde),
-        samlevende_ved_indkomstårets_udløb = kilde.ægtefælle.samlevende_ved_indkomstårets_udløb
+        samlevende_ved_indkomstårets_udløb = kilde.ægtefælle.samlevende_ved_indkomstårets_udløb,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),

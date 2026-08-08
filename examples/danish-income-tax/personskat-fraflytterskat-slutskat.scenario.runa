@@ -170,7 +170,8 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = fraflytter_slutskat_personfakta_fra_scenarie(ægtefælle),
-        samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb
+        samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = hovedperson.ejendomsskatter,
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),

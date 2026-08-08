@@ -64,11 +64,13 @@
 = personskat_uden_ægtefælleoverførsler = beregn_personskat(personskat_ægtefælle_scenarie_input(UdenÆgtefælle))
 = personskat_med_ægtefælleoverførsler = beregn_personskat(personskat_ægtefælle_scenarie_input(MedÆgtefælle(
     fakta = personskat_ægtefælle_scenarie_fakta,
-    samlevende_ved_indkomstårets_udløb = Sandt
+    samlevende_ved_indkomstårets_udløb = Sandt,
+    kildeskat25a_fordelinger = []
 )))
 = personskat_uden_samliv_ved_årets_udløb = beregn_personskat(personskat_ægtefælle_scenarie_input(MedÆgtefælle(
     fakta = personskat_ægtefælle_scenarie_fakta,
-    samlevende_ved_indkomstårets_udløb = Falskt
+    samlevende_ved_indkomstårets_udløb = Falskt,
+    kildeskat25a_fordelinger = []
 )))
 
 = personskat_ægtefælle_par13_indkomstfradrag_kroner = personskat_med_ægtefælleoverførsler.indgående_ægtefælle.par13_indkomstfradrag_kroner

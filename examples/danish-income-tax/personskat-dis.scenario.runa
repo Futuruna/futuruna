@@ -237,7 +237,8 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
                 beløb_kroner = 500000
                 )], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag)
         ),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     )
 )
 = personskat_dis_ægtefælle_hovedgrundlag = personskat_person_grundlag(personskat_hovedperson_fakta(personskat_dis_ægtefælle_input))

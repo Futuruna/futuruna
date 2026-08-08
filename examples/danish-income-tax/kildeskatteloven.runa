@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./kalenderdato
 @ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Kildeskatteloven — afhængig lovkilde for ægtefælleoverførsel, A-indkomst og A-skat.
@@ -126,6 +127,12 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 # Kildeskat25AFortjenestehenføring = Ksl25AStk1Virksomhedsdriver(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_ægtefæller_deltager_i_driften: Boolsk, personen_driver_virksomheden: Boolsk, personen_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3MedarbejdendeÆgtefælle(fakta: Kildeskat25AStk3Fortjenestefakta) | Ksl25AStk8LigeligDeltagelse(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, lønaftale_finder_anvendelse: Boolsk, personens_fordelingsandel_basispoint: Heltal)
 # Kildeskat25AFortjenestegrundlag(person_identifikation: Tekst, ægtefælle_identifikation: Tekst, henføring: Kildeskat25AFortjenestehenføring)
 # Kildeskat25AFortjenestehenføringsresultat(indkomstår: Heltal, grundlag: Kildeskat25AFortjenestegrundlag, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, stk3_resultat: Option(Kildeskat25AStk3Resultat), grundlag_gyldigt: Boolsk, hjemmel_opfyldt: Boolsk, fortjeneste_medregnet_hos_person_før_am_kroner: Heltal)
+# Kildeskat25AStk7Fakta(aftalens_ikrafttrædelsesdato: Dato, lønperiodens_startdato: Dato, lønperiodens_slutdato: Dato, begge_ægtefæller_deltager_i_driften: Boolsk, a_skat_indeholdt_og_indbetalt: Boolsk, arbejdsmarkedsbidrag_indeholdt_og_indbetalt: Boolsk, gældsindeholdelse_påkrævet: Boolsk, påkrævet_gældsindeholdelse_overholdt: Boolsk, løn_før_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal)
+# Kildeskat25AStk7Resultat(indkomstår: Heltal, fakta: Kildeskat25AStk7Fakta, datoer_gyldige: Boolsk, indeholdelses_og_indbetalingspligter_overholdt: Boolsk, lønnen_svarer_til_arbejdsindsatsen: Boolsk, stk7_betingelser_opfyldt: Boolsk, lønmodtagerens_skattepligtige_indkomst_kroner: Heltal, lønmodtagerens_personlige_indkomst_kroner: Heltal, lønmodtagerens_arbejdsmarkedsbidragspligtige_indkomst_kroner: Heltal)
+# Kildeskat25AVirksomhedsbeløb(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_indkomst_kroner: Heltal)
+# Kildeskat25AVirksomhedsfordelingsvalg = Ksl25AStk1HosVirksomhedsdriver(begge_ægtefæller_deltager_i_driften: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3TilMedarbejdendeÆgtefælle(begge_deltager_i_væsentligt_omfang: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal) | Ksl25AStk7Lønaftale(fakta: Kildeskat25AStk7Fakta) | Ksl25AStk8LigeligResultatfordeling(begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, anden_ægtefælles_fordelingsandel_basispoint: Heltal)
+# Kildeskat25AVirksomhedsfordelingsinput(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, virksomhedsresultat_efter_eventuel_løn: Kildeskat25AVirksomhedsbeløb, valg: Kildeskat25AVirksomhedsfordelingsvalg)
+# Kildeskat25AVirksomhedsfordelingsresultat(input: Kildeskat25AVirksomhedsfordelingsinput, stk3_resultat: Option(Kildeskat25AStk3Resultat), stk7_resultat: Option(Kildeskat25AStk7Resultat), grundfakta_gyldige: Boolsk, hjemmel_opfyldt: Boolsk, virksomhedsdriver: Kildeskat25AVirksomhedsbeløb, anden_ægtefælle: Kildeskat25AVirksomhedsbeløb, samlet_efter_fordeling: Kildeskat25AVirksomhedsbeløb)
 
 | kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
 | exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
@@ -211,6 +218,143 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
     hjemmel_opfyldt = kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, grundlag.henføring),
     fortjeneste_medregnet_hos_person_før_am_kroner = kildeskat25a_fortjeneste_medregnet_hos_person_før_am_kroner(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, grundlag.henføring)
 )
+
+| kildeskat25a_stk7_datoer_gyldige(indkomstår: Heltal, fakta: Kildeskat25AStk7Fakta) -> dato_gyldig(fakta.aftalens_ikrafttrædelsesdato) && dato_gyldig(fakta.lønperiodens_startdato) && dato_gyldig(fakta.lønperiodens_slutdato) && fakta.lønperiodens_startdato.år == indkomstår && fakta.lønperiodens_slutdato.år == indkomstår && dato_før_eller_lig_med(fakta.aftalens_ikrafttrædelsesdato, fakta.lønperiodens_startdato) && dato_før_eller_lig_med(fakta.lønperiodens_startdato, fakta.lønperiodens_slutdato)
+| kildeskat25a_stk7_indeholdelses_og_indbetalingspligter_overholdt(fakta: Kildeskat25AStk7Fakta) -> fakta.a_skat_indeholdt_og_indbetalt && fakta.arbejdsmarkedsbidrag_indeholdt_og_indbetalt && (fakta.gældsindeholdelse_påkrævet == Falskt || fakta.påkrævet_gældsindeholdelse_overholdt)
+| kildeskat25a_stk7_lønnen_svarer_til_arbejdsindsatsen(fakta: Kildeskat25AStk7Fakta) -> fakta.løn_før_arbejdsmarkedsbidrag_kroner > 0 && fakta.arbejdsindsats_forsvarligt_maksimum_kroner >= fakta.løn_før_arbejdsmarkedsbidrag_kroner
+| kildeskat25a_stk7_resultat(indkomstår: Heltal, fakta: Kildeskat25AStk7Fakta) -> {
+    = datoer_gyldige = kildeskat25a_stk7_datoer_gyldige(indkomstår, fakta)
+    = pligter_overholdt = kildeskat25a_stk7_indeholdelses_og_indbetalingspligter_overholdt(fakta)
+    = lønnen_svarer_til_arbejdsindsatsen = kildeskat25a_stk7_lønnen_svarer_til_arbejdsindsatsen(fakta)
+    = betingelser_opfyldt = indkomstår > 0 && fakta.begge_ægtefæller_deltager_i_driften && datoer_gyldige && pligter_overholdt && lønnen_svarer_til_arbejdsindsatsen
+    = løn_kroner = hvis betingelser_opfyldt { fakta.løn_før_arbejdsmarkedsbidrag_kroner } ellers { 0 }
+    Kildeskat25AStk7Resultat(
+        indkomstår = indkomstår,
+        fakta = fakta,
+        datoer_gyldige = datoer_gyldige,
+        indeholdelses_og_indbetalingspligter_overholdt = pligter_overholdt,
+        lønnen_svarer_til_arbejdsindsatsen = lønnen_svarer_til_arbejdsindsatsen,
+        stk7_betingelser_opfyldt = betingelser_opfyldt,
+        lønmodtagerens_skattepligtige_indkomst_kroner = løn_kroner,
+        lønmodtagerens_personlige_indkomst_kroner = løn_kroner,
+        lønmodtagerens_arbejdsmarkedsbidragspligtige_indkomst_kroner = løn_kroner
+    )
+}
+
+| kildeskat25a_tomt_virksomhedsbeløb() -> Kildeskat25AVirksomhedsbeløb(
+    skattepligtig_indkomst_kroner = 0,
+    personlig_indkomst_kroner = 0,
+    kapitalindkomst_kroner = 0,
+    arbejdsmarkedsbidragspligtig_indkomst_kroner = 0
+)
+| kildeskat25a_virksomhedsbeløb_plus(venstre: Kildeskat25AVirksomhedsbeløb, højre: Kildeskat25AVirksomhedsbeløb) -> Kildeskat25AVirksomhedsbeløb(
+    skattepligtig_indkomst_kroner = venstre.skattepligtig_indkomst_kroner + højre.skattepligtig_indkomst_kroner,
+    personlig_indkomst_kroner = venstre.personlig_indkomst_kroner + højre.personlig_indkomst_kroner,
+    kapitalindkomst_kroner = venstre.kapitalindkomst_kroner + højre.kapitalindkomst_kroner,
+    arbejdsmarkedsbidragspligtig_indkomst_kroner = venstre.arbejdsmarkedsbidragspligtig_indkomst_kroner + højre.arbejdsmarkedsbidragspligtig_indkomst_kroner
+)
+| kildeskat25a_virksomhedsbeløb_minus(venstre: Kildeskat25AVirksomhedsbeløb, højre: Kildeskat25AVirksomhedsbeløb) -> Kildeskat25AVirksomhedsbeløb(
+    skattepligtig_indkomst_kroner = venstre.skattepligtig_indkomst_kroner - højre.skattepligtig_indkomst_kroner,
+    personlig_indkomst_kroner = venstre.personlig_indkomst_kroner - højre.personlig_indkomst_kroner,
+    kapitalindkomst_kroner = venstre.kapitalindkomst_kroner - højre.kapitalindkomst_kroner,
+    arbejdsmarkedsbidragspligtig_indkomst_kroner = venstre.arbejdsmarkedsbidragspligtig_indkomst_kroner - højre.arbejdsmarkedsbidragspligtig_indkomst_kroner
+)
+| kildeskat25a_virksomhedsbeløb_andel(beløb: Kildeskat25AVirksomhedsbeløb, andel_basispoint: Heltal) -> Kildeskat25AVirksomhedsbeløb(
+    skattepligtig_indkomst_kroner = beløb.skattepligtig_indkomst_kroner * andel_basispoint / 10000,
+    personlig_indkomst_kroner = beløb.personlig_indkomst_kroner * andel_basispoint / 10000,
+    kapitalindkomst_kroner = beløb.kapitalindkomst_kroner * andel_basispoint / 10000,
+    arbejdsmarkedsbidragspligtig_indkomst_kroner = beløb.arbejdsmarkedsbidragspligtig_indkomst_kroner * andel_basispoint / 10000
+)
+| kildeskat25a_virksomhedsbeløb_fra_overførsel(overførsel_kroner: Heltal) -> Kildeskat25AVirksomhedsbeløb(
+    skattepligtig_indkomst_kroner = overførsel_kroner,
+    personlig_indkomst_kroner = overførsel_kroner,
+    kapitalindkomst_kroner = 0,
+    arbejdsmarkedsbidragspligtig_indkomst_kroner = overførsel_kroner
+)
+| kildeskat25a_stk3_input_fra_virksomhedsfordeling(input: Kildeskat25AVirksomhedsfordelingsinput) -> match input.valg {
+    | Ksl25AStk3TilMedarbejdendeÆgtefælle(begge_deltager, driver_overvejende, anmodet_kroner, arbejdsindsats_maksimum_kroner) -> Kildeskat25AStk3Input(
+        indkomstår = input.indkomstår,
+        samlevende_ved_indkomstårets_udgang = input.samlevende_ved_indkomstårets_udgang,
+        samliv_ophoert_i_indkomståret = input.samliv_ophoert_i_indkomståret,
+        begge_deltaget_i_væsentligt_omfang = begge_deltager,
+        en_ægtefælle_driver_i_overvejende_grad = driver_overvejende,
+        anmodet_overførsel_kroner = anmodet_kroner,
+        arbejdsindsats_forsvarligt_maksimum_kroner = arbejdsindsats_maksimum_kroner,
+        skattepligtigt_almindeligt_overskud_kroner = input.virksomhedsresultat_efter_eventuel_løn.personlig_indkomst_kroner,
+        renteudgifter_kroner = 0,
+        kurstab_på_fordringer_og_gæld_kroner = 0,
+        renteindtægter_kroner = 0,
+        udbytteindtægter_kroner = 0,
+        kursgevinster_på_fordringer_og_gæld_kroner = 0,
+        lønaftale_finder_anvendelse = Falskt,
+        fordeling_efter_stk8_finder_anvendelse = Falskt
+    )
+    | _ -> Kildeskat25AStk3Input(
+        indkomstår = input.indkomstår,
+        samlevende_ved_indkomstårets_udgang = Falskt,
+        samliv_ophoert_i_indkomståret = input.samliv_ophoert_i_indkomståret,
+        begge_deltaget_i_væsentligt_omfang = Falskt,
+        en_ægtefælle_driver_i_overvejende_grad = Falskt,
+        anmodet_overførsel_kroner = 0,
+        arbejdsindsats_forsvarligt_maksimum_kroner = 0,
+        skattepligtigt_almindeligt_overskud_kroner = 0,
+        renteudgifter_kroner = 0,
+        kurstab_på_fordringer_og_gæld_kroner = 0,
+        renteindtægter_kroner = 0,
+        udbytteindtægter_kroner = 0,
+        kursgevinster_på_fordringer_og_gæld_kroner = 0,
+        lønaftale_finder_anvendelse = Falskt,
+        fordeling_efter_stk8_finder_anvendelse = Falskt
+    )
+}
+| kildeskat25a_virksomhedsfordeling_stk3_resultat(input: Kildeskat25AVirksomhedsfordelingsinput) -> match input.valg {
+    | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> Some(kildeskat25a_stk3_resultat(kildeskat25a_stk3_input_fra_virksomhedsfordeling(input)))
+    | _ -> None
+}
+| kildeskat25a_virksomhedsfordeling_stk7_resultat(input: Kildeskat25AVirksomhedsfordelingsinput) -> match input.valg {
+    | Ksl25AStk7Lønaftale(fakta) -> Some(kildeskat25a_stk7_resultat(input.indkomstår, fakta))
+    | _ -> None
+}
+| kildeskat25a_virksomhedsfordeling_grundfakta_gyldige(input: Kildeskat25AVirksomhedsfordelingsinput) -> input.indkomstår > 0 && input.virksomhedsresultat_efter_eventuel_løn.arbejdsmarkedsbidragspligtig_indkomst_kroner >= 0
+| kildeskat25a_virksomhedsfordeling_hjemmel_opfyldt(input: Kildeskat25AVirksomhedsfordelingsinput) -> hvis kildeskat25a_virksomhedsfordeling_grundfakta_gyldige(input) == Falskt { Falskt } ellers {
+    match input.valg {
+        | Ksl25AStk1HosVirksomhedsdriver(begge_deltager, driver_overvejende) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && (begge_deltager == Falskt || driver_overvejende)
+        | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> {
+            = resultat = kildeskat25a_stk3_resultat(kildeskat25a_stk3_input_fra_virksomhedsfordeling(input))
+            resultat.stk3_betingelser_opfyldt && resultat.overført_til_medarbejdende_ægtefælle_kroner > 0 && resultat.overført_til_medarbejdende_ægtefælle_kroner <= input.virksomhedsresultat_efter_eventuel_løn.personlig_indkomst_kroner && resultat.overført_til_medarbejdende_ægtefælle_kroner <= input.virksomhedsresultat_efter_eventuel_løn.arbejdsmarkedsbidragspligtig_indkomst_kroner
+        }
+        | Ksl25AStk7Lønaftale(fakta) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && kildeskat25a_stk7_resultat(input.indkomstår, fakta).stk7_betingelser_opfyldt
+        | Ksl25AStk8LigeligResultatfordeling(begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, andel_basispoint) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && begge_ligeligt && hæfter_ligeligt && anmodet && sagligt_begrundet && andel_basispoint > 0 && andel_basispoint < 10000
+    }
+}
+| kildeskat25a_virksomhedsfordeling_anden_ægtefælle(input: Kildeskat25AVirksomhedsfordelingsinput) -> hvis kildeskat25a_virksomhedsfordeling_hjemmel_opfyldt(input) {
+    match input.valg {
+        | Ksl25AStk1HosVirksomhedsdriver(_, _) -> kildeskat25a_tomt_virksomhedsbeløb()
+        | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> kildeskat25a_virksomhedsbeløb_fra_overførsel(kildeskat25a_stk3_resultat(kildeskat25a_stk3_input_fra_virksomhedsfordeling(input)).overført_til_medarbejdende_ægtefælle_kroner)
+        | Ksl25AStk7Lønaftale(fakta) -> kildeskat25a_virksomhedsbeløb_fra_overførsel(kildeskat25a_stk7_resultat(input.indkomstår, fakta).lønmodtagerens_personlige_indkomst_kroner)
+        | Ksl25AStk8LigeligResultatfordeling(_, _, _, _, andel_basispoint) -> kildeskat25a_virksomhedsbeløb_andel(input.virksomhedsresultat_efter_eventuel_løn, andel_basispoint)
+    }
+} ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+| kildeskat25a_virksomhedsfordeling_virksomhedsdriver(input: Kildeskat25AVirksomhedsfordelingsinput, anden_ægtefælle: Kildeskat25AVirksomhedsbeløb) -> hvis kildeskat25a_virksomhedsfordeling_hjemmel_opfyldt(input) {
+    match input.valg {
+        | Ksl25AStk7Lønaftale(_) -> input.virksomhedsresultat_efter_eventuel_løn
+        | _ -> kildeskat25a_virksomhedsbeløb_minus(input.virksomhedsresultat_efter_eventuel_løn, anden_ægtefælle)
+    }
+} ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+| kildeskat25a_virksomhedsfordelingsresultat(input: Kildeskat25AVirksomhedsfordelingsinput) -> {
+    = anden_ægtefælle = kildeskat25a_virksomhedsfordeling_anden_ægtefælle(input)
+    = virksomhedsdriver = kildeskat25a_virksomhedsfordeling_virksomhedsdriver(input, anden_ægtefælle)
+    Kildeskat25AVirksomhedsfordelingsresultat(
+        input = input,
+        stk3_resultat = kildeskat25a_virksomhedsfordeling_stk3_resultat(input),
+        stk7_resultat = kildeskat25a_virksomhedsfordeling_stk7_resultat(input),
+        grundfakta_gyldige = kildeskat25a_virksomhedsfordeling_grundfakta_gyldige(input),
+        hjemmel_opfyldt = kildeskat25a_virksomhedsfordeling_hjemmel_opfyldt(input),
+        virksomhedsdriver = virksomhedsdriver,
+        anden_ægtefælle = anden_ægtefælle,
+        samlet_efter_fordeling = kildeskat25a_virksomhedsbeløb_plus(virksomhedsdriver, anden_ægtefælle)
+    )
+}
 --@end::kildeskatteloven_par25a--
 
 ----

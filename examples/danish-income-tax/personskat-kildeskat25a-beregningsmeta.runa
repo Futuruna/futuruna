@@ -1,0 +1,273 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - kildeskat25a - kildefakta
+
+= personskat_ksl25a_felt_virksomhedsidentifikation = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedsidentifikation),
+    label = "Virksomhedens identifikation",
+    question = Some("Hvilken af ægtefællernes virksomheder vedrører denne fordeling?"),
+    help = Some("Brug den samme entydige identifikation som på virksomhedens indtægter og udgifter. Virksomheden skal kun oplyses hos den ægtefælle, der driver den."),
+    unit = None
+)
+= personskat_ksl25a_felt_virksomhedens_placering = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedens_placering),
+    label = "Virksomhedens placering",
+    question = Some("Er virksomheden oplyst hos hovedpersonen eller ægtefællen?"),
+    help = Some("Placeringen udpeger virksomhedens oprindelige kildefakta; resultatet fordeles derefter efter kildeskattelovens § 25 A."),
+    unit = None
+)
+= personskat_ksl25a_felt_samlivsophør = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samliv_ophoert_i_indkomståret),
+    label = "Samliv ophørt i indkomståret",
+    question = Some("Ophørte samlivet mellem ægtefællerne i indkomståret?"),
+    help = Some("Fordelingsreglerne her anvendes kun, når samlivet ikke er ophørt i indkomståret."),
+    unit = None
+)
+= personskat_ksl25a_felt_fordelingsregel = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::$variant),
+    label = "Regel for ægtefællernes virksomhedsindkomst",
+    question = Some("Hvordan skal virksomhedens resultat behandles mellem ægtefællerne efter kildeskattelovens § 25 A?"),
+    help = Some("Vælg virksomhedsdriver, medarbejdende ægtefælle, lønaftale eller ligelig deltagelse. Futuruna validerer betingelserne for den valgte regel."),
+    unit = None
+)
+= personskat_ksl25a_felt_stk1_begge_deltager = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk1HosVirksomhedsdriver::begge_ægtefæller_deltager_i_driften),
+    label = "Begge ægtefæller deltager i driften",
+    question = Some("Deltager begge ægtefæller i virksomhedens drift?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk1_driver_overvejende = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk1HosVirksomhedsdriver::virksomhedsdriveren_driver_i_overvejende_grad),
+    label = "Virksomhedsdriveren driver i overvejende grad",
+    question = Some("Driver den ægtefælle, som virksomheden er oplyst hos, virksomheden i overvejende grad?"),
+    help = Some("Oplysningen er nødvendig efter § 25 A, stk. 1, når begge ægtefæller deltager i driften."),
+    unit = None
+)
+= personskat_ksl25a_felt_stk3_begge_deltager_væsentligt = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::begge_deltager_i_væsentligt_omfang),
+    label = "Begge deltager væsentligt",
+    question = Some("Deltager begge ægtefæller i væsentligt omfang i virksomhedens drift?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk3_driver_overvejende = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::virksomhedsdriveren_driver_i_overvejende_grad),
+    label = "Én ægtefælle driver i overvejende grad",
+    question = Some("Driver den ægtefælle, som virksomheden er oplyst hos, virksomheden i overvejende grad?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk3_anmodet_overførsel = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::anmodet_overførsel_kroner),
+    label = "Anmodet overførsel til medarbejdende ægtefælle",
+    question = Some("Hvor meget af virksomhedens overskud anmoder ægtefællerne om at overføre til den medarbejdende ægtefælle?"),
+    help = Some("Futuruna anvender automatisk halvdelsgrænsen, det regulerede grundbeløb og grænsen efter arbejdsindsatsen."),
+    unit = Some("kr./år")
+)
+= personskat_ksl25a_felt_stk3_arbejdsindsats_maksimum = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::arbejdsindsats_forsvarligt_maksimum_kroner),
+    label = "Forsvarligt maksimum efter arbejdsindsatsen",
+    question = Some("Hvilket højeste årligt beløb står ikke i åbenbart misforhold til den medarbejdende ægtefælles arbejdsindsats?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::aftalens_ikrafttrædelsesdato::år),
+    label = "Lønaftalens ikrafttrædelsesdato - år",
+    question = Some("I hvilket år trådte lønaftalen mellem ægtefællerne i kraft?"),
+    help = Some("Lønaftalen kan ikke få skattemæssig virkning før denne dato."),
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::aftalens_ikrafttrædelsesdato::måned),
+    label = "Lønaftalens ikrafttrædelsesdato - måned",
+    question = Some("I hvilken måned trådte lønaftalen i kraft?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::aftalens_ikrafttrædelsesdato::dag),
+    label = "Lønaftalens ikrafttrædelsesdato - dag",
+    question = Some("På hvilken dag i måneden trådte lønaftalen i kraft?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_start_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_startdato::år),
+    label = "Lønperiodens startdato - år",
+    question = Some("I hvilket år begynder lønperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_start_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_startdato::måned),
+    label = "Lønperiodens startdato - måned",
+    question = Some("I hvilken måned begynder lønperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_start_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_startdato::dag),
+    label = "Lønperiodens startdato - dag",
+    question = Some("På hvilken dag i måneden begynder lønperioden?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_slut_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_slutdato::år),
+    label = "Lønperiodens slutdato - år",
+    question = Some("I hvilket år slutter lønperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_slut_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_slutdato::måned),
+    label = "Lønperiodens slutdato - måned",
+    question = Some("I hvilken måned slutter lønperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_stk7_lønperiodens_slut_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::lønperiodens_slutdato::dag),
+    label = "Lønperiodens slutdato - dag",
+    question = Some("På hvilken dag i måneden slutter lønperioden?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_stk7_begge_deltager = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::begge_ægtefæller_deltager_i_driften),
+    label = "Begge ægtefæller deltager i driften",
+    question = Some("Deltager begge ægtefæller i virksomhedens drift under lønaftalen?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk7_a_skat = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::a_skat_indeholdt_og_indbetalt),
+    label = "A-skat indeholdt og indbetalt",
+    question = Some("Er A-skat af ægtefællens løn både indeholdt og indbetalt?"),
+    help = Some("Lønaftalen får kun skattemæssig virkning, når indeholdelses- og indbetalingspligterne er overholdt."),
+    unit = None
+)
+= personskat_ksl25a_felt_stk7_am_bidrag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::arbejdsmarkedsbidrag_indeholdt_og_indbetalt),
+    label = "Arbejdsmarkedsbidrag indeholdt og indbetalt",
+    question = Some("Er arbejdsmarkedsbidrag af ægtefællens løn både indeholdt og indbetalt?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk7_gældsindeholdelse_påkrævet = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::gældsindeholdelse_påkrævet),
+    label = "Gældsindeholdelse påkrævet",
+    question = Some("Skulle der indeholdes beløb efter gældsinddrivelseslovens § 10?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk7_gældsindeholdelse_overholdt = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::påkrævet_gældsindeholdelse_overholdt),
+    label = "Påkrævet gældsindeholdelse overholdt",
+    question = Some("Blev den påkrævede gældsindeholdelse gennemført og indbetalt?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk7_løn = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::løn_før_arbejdsmarkedsbidrag_kroner),
+    label = "Ægtefællens løn fra virksomheden",
+    question = Some("Hvor stor løn før arbejdsmarkedsbidrag modtog den anden ægtefælle fra virksomheden?"),
+    help = Some("Beløbet skal også findes som en særskilt virksomhedsudgift med den nedenfor angivne identifikation."),
+    unit = Some("kr./år")
+)
+= personskat_ksl25a_felt_stk7_arbejdsindsats_maksimum = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk7Lønaftale::fakta::arbejdsindsats_forsvarligt_maksimum_kroner),
+    label = "Forsvarligt lønmaksimum efter arbejdsindsatsen",
+    question = Some("Hvilket højeste lønbeløb står ikke i åbenbart misforhold til ægtefællens arbejdsindsats?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_ksl25a_felt_lønudgiftsidentifikation = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::lønudgiftsidentifikation),
+    label = "Identifikation for ægtefælleløn i virksomhedens udgifter",
+    question = Some("Hvilken virksomhedsudgift er den løn, der er betalt til ægtefællen?"),
+    help = Some("Feltet udfyldes kun ved en lønaftale. Identifikationen og beløbet skal matche præcis én udgift i kildevirksomheden."),
+    unit = None
+)
+= personskat_ksl25a_felt_stk8_begge_deltager_ligeligt = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::begge_deltager_i_væsentligt_og_ligeligt_omfang),
+    label = "Begge deltager væsentligt og ligeligt",
+    question = Some("Deltager begge ægtefæller i væsentligt og ligeligt omfang i virksomhedens drift?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk8_hæftelse = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::hæfter_i_samme_omfang),
+    label = "Samme hæftelse for virksomhedens forpligtelser",
+    question = Some("Hæfter ægtefællerne i samme omfang for virksomhedens forpligtelser?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk8_anmodning = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::fordeling_anmodet),
+    label = "Resultatfordeling anmodet",
+    question = Some("Har ægtefællerne anmodet om at fordele virksomhedens resultat mellem sig?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk8_saglig_begrundelse = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::fordeling_sagligt_begrundet_i_driften),
+    label = "Fordelingen er sagligt begrundet i driften",
+    question = Some("Kan den valgte resultatfordeling sagligt begrundes i virksomhedens drift?"),
+    help = None,
+    unit = None
+)
+= personskat_ksl25a_felt_stk8_andel = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::anden_ægtefælles_fordelingsandel_basispoint),
+    label = "Den anden ægtefælles andel af resultatet",
+    question = Some("Hvor stor en andel af virksomhedens resultat skal henføres til den anden ægtefælle?"),
+    help = Some("Angiv andelen i basispoint; 5.000 svarer til 50 procent."),
+    unit = Some("basispoint")
+)
+
+= personskat_kildeskat25a_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ksl25a_felt_virksomhedsidentifikation,
+        personskat_ksl25a_felt_virksomhedens_placering,
+        personskat_ksl25a_felt_samlivsophør,
+        personskat_ksl25a_felt_fordelingsregel,
+        personskat_ksl25a_felt_stk1_begge_deltager,
+        personskat_ksl25a_felt_stk1_driver_overvejende,
+        personskat_ksl25a_felt_stk3_begge_deltager_væsentligt,
+        personskat_ksl25a_felt_stk3_driver_overvejende,
+        personskat_ksl25a_felt_stk3_anmodet_overførsel,
+        personskat_ksl25a_felt_stk3_arbejdsindsats_maksimum,
+        personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_år,
+        personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_måned,
+        personskat_ksl25a_felt_stk7_ikrafttrædelsesdato_dag,
+        personskat_ksl25a_felt_stk7_lønperiodens_start_år,
+        personskat_ksl25a_felt_stk7_lønperiodens_start_måned,
+        personskat_ksl25a_felt_stk7_lønperiodens_start_dag,
+        personskat_ksl25a_felt_stk7_lønperiodens_slut_år,
+        personskat_ksl25a_felt_stk7_lønperiodens_slut_måned,
+        personskat_ksl25a_felt_stk7_lønperiodens_slut_dag,
+        personskat_ksl25a_felt_stk7_begge_deltager,
+        personskat_ksl25a_felt_stk7_a_skat,
+        personskat_ksl25a_felt_stk7_am_bidrag,
+        personskat_ksl25a_felt_stk7_gældsindeholdelse_påkrævet,
+        personskat_ksl25a_felt_stk7_gældsindeholdelse_overholdt,
+        personskat_ksl25a_felt_stk7_løn,
+        personskat_ksl25a_felt_stk7_arbejdsindsats_maksimum,
+        personskat_ksl25a_felt_lønudgiftsidentifikation,
+        personskat_ksl25a_felt_stk8_begge_deltager_ligeligt,
+        personskat_ksl25a_felt_stk8_hæftelse,
+        personskat_ksl25a_felt_stk8_anmodning,
+        personskat_ksl25a_felt_stk8_saglig_begrundelse,
+        personskat_ksl25a_felt_stk8_andel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        DependencySource(value = kildeskatteloven_lbk460_par25a),
+    )
+)
+
+--@label:PersonskatKsl25AVirksomhedsfordelingFakta::meta:personskat_kildeskat25a_beregningsmeta--

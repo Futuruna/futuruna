@@ -171,7 +171,8 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
     underskudsforhold = StandardUnderskudsforhold,
     ægtefælle = MedÆgtefælle(
         fakta = negativ_aktieskat_ledger_personfakta(2026),
-        samlevende_ved_indkomstårets_udløb = Sandt
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = []
     ),
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = PersonskatNegativAktieskatFremførselsparInput(

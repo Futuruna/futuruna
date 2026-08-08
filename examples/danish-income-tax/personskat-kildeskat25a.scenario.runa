@@ -1,0 +1,194 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| personskat_ksl25a_scenarie_virksomhed(identifikation: Tekst, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    indtægter = indtægter,
+    udgifter = udgifter
+)
+| personskat_ksl25a_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        virksomheder_uden_virksomhedsordning = virksomheder,
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| personskat_ksl25a_scenarie_lønmodtager_for_år(virksomheder: List(PersonskatOrdinærVirksomhedFakta), skatteår: Heltal) -> PersonskatLønmodtagerInput(
+    skatteår = skatteår,
+    kommune = Frederiksberg,
+    bruttoløn_kroner = 0,
+    personlig_indkomst = personskat_ksl25a_scenarie_personlig_indkomst(virksomheder),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_ksl25a_scenarie_lønmodtager(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> personskat_ksl25a_scenarie_lønmodtager_for_år(virksomheder, 2025)
+| personskat_ksl25a_scenarie_personfakta_for_år(virksomheder: List(PersonskatOrdinærVirksomhedFakta), skatteår: Heltal) -> PersonskatPersonFakta(
+    lønmodtager = personskat_ksl25a_scenarie_lønmodtager_for_år(virksomheder, skatteår),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
+| personskat_ksl25a_scenarie_personfakta(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> personskat_ksl25a_scenarie_personfakta_for_år(virksomheder, 2025)
+| personskat_ksl25a_scenarie_input_med_ægtefælles_skatteår(hovedpersons_virksomheder: List(PersonskatOrdinærVirksomhedFakta), ægtefælles_virksomheder: List(PersonskatOrdinærVirksomhedFakta), fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), ægtefælles_skatteår: Heltal) -> PersonskatInput(
+    lønmodtager = personskat_ksl25a_scenarie_lønmodtager(hovedpersons_virksomheder),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = personskat_ksl25a_scenarie_personfakta_for_år(ægtefælles_virksomheder, ægtefælles_skatteår),
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = fordelinger
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_ksl25a_scenarie_input(hovedpersons_virksomheder: List(PersonskatOrdinærVirksomhedFakta), ægtefælles_virksomheder: List(PersonskatOrdinærVirksomhedFakta), fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> personskat_ksl25a_scenarie_input_med_ægtefælles_skatteår(hovedpersons_virksomheder, ægtefælles_virksomheder, fordelinger, 2025)
+| personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner
+    | IngenÆgtefælleberegning -> 0
+}
+| personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.lønmodtager_input.bruttoløn_kroner
+    | IngenÆgtefælleberegning -> 0
+}
+| personskat_ksl25a_scenarie_ægtefælles_personlig_indkomst_uden_nyt_am_kroner(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner
+    | IngenÆgtefælleberegning -> 0
+}
+| personskat_ksl25a_scenarie_ægtefælles_personlige_input_gyldige(resultat: PersonskatBeregningResultat) -> match resultat.ægtefælle {
+    | BeregnetÆgtefælle(_, grundlag, _, _) -> grundlag.personlig_indkomst.alle_input_gyldige
+    | IngenÆgtefælleberegning -> Falskt
+}
+| personskat_ksl25a_scenarie_parskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner + personskat_ægtefælles_slutskat_kroner(resultat)
+
+= personskat_ksl25a_scenarie_ordinær_indtægt = PersonskatVirksomhedsindtægtFakta(
+    identifikation = "ordinær-drift",
+    art = OrdinærDriftsindtægt,
+    beløb_kroner = 400000
+)
+= personskat_ksl25a_scenarie_lønudgift = PersonskatVirksomhedsudgiftFakta(
+    identifikation = "ægtefælleløn",
+    afgrænsning = SelvstændigErhvervsindkomstUdgift,
+    beløb_kroner = 100000
+)
+= personskat_ksl25a_scenarie_tabsgivende_udgift = PersonskatVirksomhedsudgiftFakta(
+    identifikation = "driftsudgift",
+    afgrænsning = SelvstændigErhvervsindkomstUdgift,
+    beløb_kroner = 100000
+)
+= personskat_ksl25a_scenarie_overskudsvirksomhed = personskat_ksl25a_scenarie_virksomhed("fælles-virksomhed", [personskat_ksl25a_scenarie_ordinær_indtægt], [])
+= personskat_ksl25a_scenarie_lønvirksomhed = personskat_ksl25a_scenarie_virksomhed("fælles-virksomhed", [personskat_ksl25a_scenarie_ordinær_indtægt], [personskat_ksl25a_scenarie_lønudgift])
+= personskat_ksl25a_scenarie_tabsvirksomhed = personskat_ksl25a_scenarie_virksomhed("fælles-virksomhed", [], [personskat_ksl25a_scenarie_tabsgivende_udgift])
+
+= personskat_ksl25a_scenarie_stk1_fakta = PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "fælles-virksomhed",
+    virksomhedens_placering = HovedpersonensVirksomhed,
+    samliv_ophoert_i_indkomståret = Falskt,
+    fordeling = Ksl25AStk1HosVirksomhedsdriver(
+        begge_ægtefæller_deltager_i_driften = Sandt,
+        virksomhedsdriveren_driver_i_overvejende_grad = Sandt
+    ),
+    lønudgiftsidentifikation = None
+)
+= personskat_ksl25a_scenarie_stk3_fakta = PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "fælles-virksomhed",
+    virksomhedens_placering = HovedpersonensVirksomhed,
+    samliv_ophoert_i_indkomståret = Falskt,
+    fordeling = Ksl25AStk3TilMedarbejdendeÆgtefælle(
+        begge_deltager_i_væsentligt_omfang = Sandt,
+        virksomhedsdriveren_driver_i_overvejende_grad = Sandt,
+        anmodet_overførsel_kroner = 120000,
+        arbejdsindsats_forsvarligt_maksimum_kroner = 120000
+    ),
+    lønudgiftsidentifikation = None
+)
+| personskat_ksl25a_scenarie_stk7_fakta(a_skat_overholdt: Boolsk, lønudgiftsidentifikation: Option(Tekst)) -> PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "fælles-virksomhed",
+    virksomhedens_placering = HovedpersonensVirksomhed,
+    samliv_ophoert_i_indkomståret = Falskt,
+    fordeling = Ksl25AStk7Lønaftale(fakta = Kildeskat25AStk7Fakta(
+        aftalens_ikrafttrædelsesdato = Dato(år = 2025, måned = 1, dag = 1),
+        lønperiodens_startdato = Dato(år = 2025, måned = 1, dag = 1),
+        lønperiodens_slutdato = Dato(år = 2025, måned = 12, dag = 31),
+        begge_ægtefæller_deltager_i_driften = Sandt,
+        a_skat_indeholdt_og_indbetalt = a_skat_overholdt,
+        arbejdsmarkedsbidrag_indeholdt_og_indbetalt = Sandt,
+        gældsindeholdelse_påkrævet = Falskt,
+        påkrævet_gældsindeholdelse_overholdt = Sandt,
+        løn_før_arbejdsmarkedsbidrag_kroner = 100000,
+        arbejdsindsats_forsvarligt_maksimum_kroner = 100000
+    )),
+    lønudgiftsidentifikation = lønudgiftsidentifikation
+)
+| personskat_ksl25a_scenarie_stk8_fakta(anden_ægtefælles_andel_basispoint: Heltal) -> PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "fælles-virksomhed",
+    virksomhedens_placering = HovedpersonensVirksomhed,
+    samliv_ophoert_i_indkomståret = Falskt,
+    fordeling = Ksl25AStk8LigeligResultatfordeling(
+        begge_deltager_i_væsentligt_og_ligeligt_omfang = Sandt,
+        hæfter_i_samme_omfang = Sandt,
+        fordeling_anmodet = Sandt,
+        fordeling_sagligt_begrundet_i_driften = Sandt,
+        anden_ægtefælles_fordelingsandel_basispoint = anden_ægtefælles_andel_basispoint
+    ),
+    lønudgiftsidentifikation = None
+)
+
+= personskat_ksl25a_scenarie_stk1 = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_overskudsvirksomhed], [], [personskat_ksl25a_scenarie_stk1_fakta]))
+= personskat_ksl25a_scenarie_stk3 = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_overskudsvirksomhed], [], [personskat_ksl25a_scenarie_stk3_fakta]))
+= personskat_ksl25a_scenarie_stk7 = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_lønvirksomhed], [], [personskat_ksl25a_scenarie_stk7_fakta(Sandt, Some("ægtefælleløn"))]))
+= personskat_ksl25a_scenarie_stk8 = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_overskudsvirksomhed], [], [personskat_ksl25a_scenarie_stk8_fakta(4000)]))
+= personskat_ksl25a_scenarie_stk8_tab = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_tabsvirksomhed], [], [personskat_ksl25a_scenarie_stk8_fakta(4000)]))
+= personskat_ksl25a_scenarie_stk7_uden_a_skat = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_lønvirksomhed], [], [personskat_ksl25a_scenarie_stk7_fakta(Falskt, Some("ægtefælleløn"))]))
+= personskat_ksl25a_scenarie_stk7_uden_lønudgiftslink = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_lønvirksomhed], [], [personskat_ksl25a_scenarie_stk7_fakta(Sandt, None)]))
+= personskat_ksl25a_scenarie_dobbelt_fordeling = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_overskudsvirksomhed], [], [personskat_ksl25a_scenarie_stk3_fakta, personskat_ksl25a_scenarie_stk3_fakta]))
+= personskat_ksl25a_scenarie_dobbelt_kildefakta = beregn_personskat(personskat_ksl25a_scenarie_input([personskat_ksl25a_scenarie_overskudsvirksomhed], [personskat_ksl25a_scenarie_overskudsvirksomhed], [personskat_ksl25a_scenarie_stk3_fakta]))
+= personskat_ksl25a_scenarie_tom_fordeling_mellem_forskellige_skatteår = beregn_personskat(personskat_ksl25a_scenarie_input_med_ægtefælles_skatteår([], [], [], 2024))
+
+| personskat_ksl25a_stk1_bevarer_resultatet: personskat_ksl25a_scenarie_stk1.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner -> personskat_ksl25a_scenarie_stk1.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_stk1.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 400000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_stk1) == 0
+| personskat_ksl25a_stk3_fordeler_overskuddet: personskat_ksl25a_scenarie_stk3.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner -> personskat_ksl25a_scenarie_stk3.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_stk3.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 280000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_stk3) == 120000
+| personskat_ksl25a_stk3_bevarer_samlet_overskud: personskat_ksl25a_scenarie_stk3.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_stk3) -> personskat_ksl25a_scenarie_stk3.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_stk3) == 400000
+| personskat_ksl25a_stk3_påvirker_kanonisk_skat: personskat_ksl25a_scenarie_parskat_kroner(personskat_ksl25a_scenarie_stk3) -> personskat_ksl25a_scenarie_stk3.slutskat_øre < personskat_ksl25a_scenarie_stk1.slutskat_øre && personskat_ægtefælles_slutskat_kroner(personskat_ksl25a_scenarie_stk3) > personskat_ægtefælles_slutskat_kroner(personskat_ksl25a_scenarie_stk1) && personskat_ksl25a_scenarie_parskat_kroner(personskat_ksl25a_scenarie_stk3) != personskat_ksl25a_scenarie_parskat_kroner(personskat_ksl25a_scenarie_stk1)
+| personskat_ksl25a_stk7_fører_lønnen_til_lønmodtageren: personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(personskat_ksl25a_scenarie_stk7) -> personskat_ksl25a_scenarie_stk7.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_stk7.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 300000 && personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(personskat_ksl25a_scenarie_stk7) == 100000
+| personskat_ksl25a_stk7_bevarer_resultat_og_løn: personskat_ksl25a_scenarie_stk7.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(personskat_ksl25a_scenarie_stk7) -> personskat_ksl25a_scenarie_stk7.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(personskat_ksl25a_scenarie_stk7) == 400000
+| personskat_ksl25a_stk8_fordeler_positivt_resultat: personskat_ksl25a_scenarie_stk8.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner -> personskat_ksl25a_scenarie_stk8.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_stk8.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 240000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_stk8) == 160000
+| personskat_ksl25a_stk8_fordeler_negativt_resultat: personskat_ksl25a_scenarie_stk8_tab.personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner -> personskat_ksl25a_scenarie_stk8_tab.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_stk8_tab.personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == -60000 && personskat_ksl25a_scenarie_ægtefælles_personlig_indkomst_uden_nyt_am_kroner(personskat_ksl25a_scenarie_stk8_tab) == -40000
+| personskat_ksl25a_stk7_kræver_indeholdt_a_skat: personskat_ksl25a_scenarie_stk7_uden_a_skat.kildeskat25a.alle_input_gyldige -> personskat_ksl25a_scenarie_stk7_uden_a_skat.kildeskat25a.alle_input_gyldige == Falskt && personskat_ksl25a_scenarie_stk7_uden_a_skat.personlig_indkomst.alle_input_gyldige == Falskt
+| personskat_ksl25a_stk7_kræver_lønudgiftslink: personskat_ksl25a_scenarie_stk7_uden_lønudgiftslink.kildeskat25a.alle_input_gyldige -> personskat_ksl25a_scenarie_stk7_uden_lønudgiftslink.kildeskat25a.alle_input_gyldige == Falskt && personskat_ksl25a_scenarie_stk7_uden_lønudgiftslink.personlig_indkomst.alle_input_gyldige == Falskt
+| personskat_ksl25a_afviser_dobbelt_fordeling: personskat_ksl25a_scenarie_dobbelt_fordeling.kildeskat25a.fordelingsidentifikationer_entydige -> personskat_ksl25a_scenarie_dobbelt_fordeling.kildeskat25a.fordelingsidentifikationer_entydige == Falskt && personskat_ksl25a_scenarie_dobbelt_fordeling.kildeskat25a.alle_input_gyldige == Falskt
+| personskat_ksl25a_kilden_angives_kun_hos_en_ægtefælle: personskat_ksl25a_scenarie_dobbelt_kildefakta.kildeskat25a.alle_input_gyldige -> personskat_ksl25a_scenarie_dobbelt_kildefakta.kildeskat25a.alle_input_gyldige == Falskt && head(personskat_ksl25a_scenarie_dobbelt_kildefakta.kildeskat25a.resultater).modpart_har_ikke_samme_virksomhed == Falskt
+| personskat_ksl25a_tom_fordeling_er_neutral_mellem_skatteår: personskat_ksl25a_scenarie_tom_fordeling_mellem_forskellige_skatteår.kildeskat25a.alle_input_gyldige -> personskat_ksl25a_scenarie_tom_fordeling_mellem_forskellige_skatteår.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_tom_fordeling_mellem_forskellige_skatteår.personlig_indkomst.alle_input_gyldige && personskat_ksl25a_scenarie_ægtefælles_personlige_input_gyldige(personskat_ksl25a_scenarie_tom_fordeling_mellem_forskellige_skatteår)
+
+? personskat_ksl25a_stk1_bevarer_resultatet
+? personskat_ksl25a_stk3_fordeler_overskuddet
+? personskat_ksl25a_stk3_bevarer_samlet_overskud
+? personskat_ksl25a_stk3_påvirker_kanonisk_skat
+? personskat_ksl25a_stk7_fører_lønnen_til_lønmodtageren
+? personskat_ksl25a_stk7_bevarer_resultat_og_løn
+? personskat_ksl25a_stk8_fordeler_positivt_resultat
+? personskat_ksl25a_stk8_fordeler_negativt_resultat
+? personskat_ksl25a_stk7_kræver_indeholdt_a_skat
+? personskat_ksl25a_stk7_kræver_lønudgiftslink
+? personskat_ksl25a_afviser_dobbelt_fordeling
+? personskat_ksl25a_kilden_angives_kun_hos_en_ægtefælle
+? personskat_ksl25a_tom_fordeling_er_neutral_mellem_skatteår
+
+@ print("KSL § 25 A, stk. 1, samlet skat for parret: " + vis(personskat_ksl25a_scenarie_parskat_kroner(personskat_ksl25a_scenarie_stk1)))
+@ print("KSL § 25 A, stk. 3, samlet skat for parret: " + vis(personskat_ksl25a_scenarie_parskat_kroner(personskat_ksl25a_scenarie_stk3)))
+@ print("KSL § 25 A, stk. 7, virksomhedsresultat og løn: " + vis(personskat_ksl25a_scenarie_stk7.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner) + " + " + vis(personskat_ksl25a_scenarie_ægtefælles_bruttoløn_kroner(personskat_ksl25a_scenarie_stk7)))
