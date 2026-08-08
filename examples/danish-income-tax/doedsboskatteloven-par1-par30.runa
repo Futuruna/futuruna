@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./kalenderdato
 @ importer ./metadata
 @ importer ./pengebeloeb
 
@@ -16,6 +17,18 @@
     identifier = "Den juridiske vejledning 2026-1, C.E.3.3.5.1.1: Skat for bobeskatningsperioden",
     hentet_dato = "2026-08-06",
     ændringsstatus = "Vejledningens 50-procentsberegning af positiv bobeskatningsindkomst er kontrolleret"
+)
+= dødsboskattelov_par30_forskudt_indkomstår_vejledning = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847115",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.6.2.1: Fradrag i dødsboskatten ved forskudt indkomstår",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Bagudforskudte indkomstår bruger kalenderårets begyndelse; fremadforskudte indkomstår bruger dødsårets faktiske begyndelse"
+)
+= dødsboskattelov_par30_satser_2024_2026 = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=220619&oid=2292849",
+    identifier = "Den juridiske vejledning 2026-1, C.E.15.2: Oversigt over satser og grundbeløb 2024-2026",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "§ 30-satserne er kontrolleret til 6.900/2.500 kr. for dødsåret 2025 og 7.200/2.700 kr. for dødsåret 2026"
 )
 
 = dødsboskattelov_par1_metadata = Metadata(
@@ -41,6 +54,8 @@ Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskat
     attachments = (
         Source(value = dødsboskattelov_par1_par30_lbk426),
         Guidance(value = dødsboskattelov_par30_vejledning),
+        Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2024_2026),
     )
 )
 
@@ -61,35 +76,122 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
 
 --@begin::dødsboskattelov_par30--
 # Dødsboskattelov30Aktieskatteforhold = Dbl30IngenAktieskatteinteraktion | Dbl30AktieskatteinteraktionKræverFuldBeregning
-# Dødsboskattelov30Input(indkomstår: Heltal, boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, aktieskatteforhold: Dødsboskattelov30Aktieskatteforhold)
-# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, positiv_bobeskatningsindkomst_understøttet: Boolsk, aktieskatteforhold_understøttet: Boolsk, beregningsklar: Boolsk, bobeskatningsindkomstgrundlag_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, oplyste_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal)
+# Dødsboskattelov30Boopgørelsestype = Dbl30OrdinærBoopgørelse | Dbl30Tillægsopgørelse
+# Dødsboskattelov30Indkomstårsforhold = Dbl30Kalenderindkomstår | Dbl30BagudforskudtIndkomstår(dødsårets_startdato: Dato) | Dbl30FremadforskudtIndkomstår(dødsårets_startdato: Dato)
+# Dødsboskattelov30Ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62 | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato: Dato)
+# Dødsboskattelov30ReguleredeSatser(dødsår: Heltal, understøttet: Boolsk, bofradrag_pr_måned_kroner: Heltal, mellemperiodefradrag_pr_måned_kroner: Heltal, kilde: DødsboskattelovPar1Par30KildeInfo)
+# Dødsboskattelov30Input(boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, dødsdato: Dato, boopgørelsestype: Dødsboskattelov30Boopgørelsestype, boopgørelsens_skæringsdag: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold, aktieskatteforhold: Dødsboskattelov30Aktieskatteforhold)
+# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, datoer_gyldige: Boolsk, boopgørelsestype_understøttet: Boolsk, indkomstårsforhold_gyldigt: Boolsk, ægtefælleforhold_gyldigt: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, positiv_bobeskatningsindkomst_understøttet: Boolsk, aktieskatteforhold_understøttet: Boolsk, beregningsklar: Boolsk, regulerede_satser: Dødsboskattelov30ReguleredeSatser, bobeskatningsindkomstgrundlag_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, bofradragsmåneder_stk2: Heltal, mellemperiodemåneder_stk3: Heltal, ægtefællefradragsmåneder_stk4: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, samlede_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal)
 
 | dødsboskattelov30_sats_basispoint() -> 5000
-| dødsboskattelov30_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
-| dødsboskattelov30_input_gyldigt(input: Dødsboskattelov30Input) -> dødsboskattelov30_skatteår_understøttet(input.indkomstår) && input.bofradrag_stk2_kroner >= 0 && input.mellemperiodefradrag_stk3_kroner >= 0 && input.ægtefællefradrag_stk4_kroner >= 0
+= dødsboskattelov_par30_ukendt_satskilde = DødsboskattelovPar1Par30KildeInfo(
+    url = "",
+    identifier = "",
+    hentet_dato = "",
+    ændringsstatus = ""
+)
+| dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+    dødsår = dødsår,
+    understøttet = Falskt,
+    bofradrag_pr_måned_kroner = 0,
+    mellemperiodefradrag_pr_måned_kroner = 0,
+    kilde = dødsboskattelov_par30_ukendt_satskilde
+)
+| exception dødsboskattelov30_regulerede_satser_2025 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+    dødsår = 2025,
+    understøttet = Sandt,
+    bofradrag_pr_måned_kroner = 6900,
+    mellemperiodefradrag_pr_måned_kroner = 2500,
+    kilde = dødsboskattelov_par30_satser_2024_2026
+) under dødsår == 2025
+| exception dødsboskattelov30_regulerede_satser_2026 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+    dødsår = 2026,
+    understøttet = Sandt,
+    bofradrag_pr_måned_kroner = 7200,
+    mellemperiodefradrag_pr_måned_kroner = 2700,
+    kilde = dødsboskattelov_par30_satser_2024_2026
+) under dødsår == 2026
+| dødsboskattelov30_kalenderårets_startdato(dødsdato: Dato) -> Dato(år = dødsdato.år, måned = 1, dag = 1)
+| dødsboskattelov30_dødsårets_startdato(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold) -> match indkomstårsforhold {
+    | Dbl30Kalenderindkomstår -> dødsboskattelov30_kalenderårets_startdato(dødsdato)
+    | Dbl30BagudforskudtIndkomstår(dødsårets_startdato) -> dødsårets_startdato
+    | Dbl30FremadforskudtIndkomstår(dødsårets_startdato) -> dødsårets_startdato
+}
+| dødsboskattelov30_fradragsstartdato_stk3_stk4(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold) -> match indkomstårsforhold {
+    | Dbl30BagudforskudtIndkomstår(_) -> dødsboskattelov30_kalenderårets_startdato(dødsdato)
+    | _ -> dødsboskattelov30_dødsårets_startdato(dødsdato, indkomstårsforhold)
+}
+| dødsboskattelov30_indkomstårsforhold_gyldigt(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold) -> {
+    = kalenderårets_startdato = dødsboskattelov30_kalenderårets_startdato(dødsdato)
+    match indkomstårsforhold {
+        | Dbl30Kalenderindkomstår -> Sandt
+        | Dbl30BagudforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år - 1 && dato_før(dødsårets_startdato, kalenderårets_startdato)
+        | Dbl30FremadforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år && dato_efter(dødsårets_startdato, kalenderårets_startdato) && dato_før_eller_lig_med(dødsårets_startdato, dødsdato)
+    }
+}
+| dødsboskattelov30_ægtefælleforhold_gyldigt(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold) -> match ægtefælleforhold {
+    | Dbl30IntetÆgtefælleforholdEfterPar62 -> Sandt
+    | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato) -> dato_gyldig(førstafdødes_dødsdato) && dato_før_eller_lig_med(dødsboskattelov30_dødsårets_startdato(dødsdato, indkomstårsforhold), førstafdødes_dødsdato) && dato_før(førstafdødes_dødsdato, dødsdato)
+}
+| dødsboskattelov30_datoer_gyldige(input: Dødsboskattelov30Input) -> dato_gyldig(input.dødsdato) && dato_gyldig(input.boopgørelsens_skæringsdag) && dato_før_eller_lig_med(input.dødsdato, input.boopgørelsens_skæringsdag)
+| dødsboskattelov30_boopgørelsestype_understøttet(boopgørelsestype: Dødsboskattelov30Boopgørelsestype) -> boopgørelsestype == Dbl30OrdinærBoopgørelse
+| dødsboskattelov30_input_gyldigt(input: Dødsboskattelov30Input) -> dødsboskattelov30_regulerede_satser(input.dødsdato.år).understøttet && dødsboskattelov30_datoer_gyldige(input) && dødsboskattelov30_boopgørelsestype_understøttet(input.boopgørelsestype) && dødsboskattelov30_indkomstårsforhold_gyldigt(input.dødsdato, input.indkomstårsforhold) && dødsboskattelov30_ægtefælleforhold_gyldigt(input.dødsdato, input.indkomstårsforhold, input.ægtefælleforhold)
+| dødsboskattelov30_inklusive_påbegyndte_måneder(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) { dato_månedsindeks(til_dato) - dato_månedsindeks(fra_dato) + 1 } ellers { 0 }
+| dødsboskattelov30_bofradragsmåneder_stk2(input: Dødsboskattelov30Input) -> hvis dødsboskattelov30_datoer_gyldige(input) {
+    = måneder_efter_dødsmåneden = dato_månedsindeks(input.boopgørelsens_skæringsdag) - dato_månedsindeks(input.dødsdato)
+    hvis måneder_efter_dødsmåneden < 12 { måneder_efter_dødsmåneden } ellers { 12 }
+} ellers {
+    0
+}
+| dødsboskattelov30_mellemperiodemåneder_stk3(input: Dødsboskattelov30Input) -> dødsboskattelov30_inklusive_påbegyndte_måneder(dødsboskattelov30_fradragsstartdato_stk3_stk4(input.dødsdato, input.indkomstårsforhold), input.dødsdato)
+| dødsboskattelov30_ægtefællefradragsmåneder_stk4(input: Dødsboskattelov30Input) -> match input.ægtefælleforhold {
+    | Dbl30IntetÆgtefælleforholdEfterPar62 -> 0
+    | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato) -> dødsboskattelov30_inklusive_påbegyndte_måneder(dødsboskattelov30_fradragsstartdato_stk3_stk4(input.dødsdato, input.indkomstårsforhold), førstafdødes_dødsdato)
+}
 | dødsboskattelov30_resultat(input: Dødsboskattelov30Input) -> {
+    = regulerede_satser = dødsboskattelov30_regulerede_satser(input.dødsdato.år)
     = input_gyldigt = dødsboskattelov30_input_gyldigt(input)
-    = skatteår_understøttet = dødsboskattelov30_skatteår_understøttet(input.indkomstår)
+    = datoer_gyldige = dødsboskattelov30_datoer_gyldige(input)
+    = boopgørelsestype_understøttet = dødsboskattelov30_boopgørelsestype_understøttet(input.boopgørelsestype)
+    = indkomstårsforhold_gyldigt = dødsboskattelov30_indkomstårsforhold_gyldigt(input.dødsdato, input.indkomstårsforhold)
+    = ægtefælleforhold_gyldigt = dødsboskattelov30_ægtefælleforhold_gyldigt(input.dødsdato, input.indkomstårsforhold, input.ægtefælleforhold)
     = skattepligtigt_dødsbo = dødsboskattelov1_stk2_skattepligtigt_dødsbo(input.boform)
     = positiv_bobeskatningsindkomst_understøttet = input.bobeskatningsindkomst_kroner >= 0
     = aktieskatteforhold_understøttet = input.aktieskatteforhold == Dbl30IngenAktieskatteinteraktion
     = beregningsklar = input_gyldigt && skattepligtigt_dødsbo && positiv_bobeskatningsindkomst_understøttet && aktieskatteforhold_understøttet
     = bobeskatningsindkomstgrundlag_kroner = hvis beregningsklar { input.bobeskatningsindkomst_kroner } ellers { 0 }
     = dødsboskat_før_fradrag_kroner = penge_beløb_gange_basispoint_kroner(bobeskatningsindkomstgrundlag_kroner, dødsboskattelov30_sats_basispoint())
-    = oplyste_fradrag_kroner = input.bofradrag_stk2_kroner + input.mellemperiodefradrag_stk3_kroner + input.ægtefællefradrag_stk4_kroner
-    = anvendte_fradrag_kroner = hvis beregningsklar { penge_mindste_beløb(oplyste_fradrag_kroner, dødsboskat_før_fradrag_kroner) } ellers { 0 }
+    = bofradragsmåneder_stk2 = hvis input_gyldigt { dødsboskattelov30_bofradragsmåneder_stk2(input) } ellers { 0 }
+    = mellemperiodemåneder_stk3 = hvis input_gyldigt { dødsboskattelov30_mellemperiodemåneder_stk3(input) } ellers { 0 }
+    = ægtefællefradragsmåneder_stk4 = hvis input_gyldigt { dødsboskattelov30_ægtefællefradragsmåneder_stk4(input) } ellers { 0 }
+    = bofradrag_stk2_kroner = bofradragsmåneder_stk2 * regulerede_satser.bofradrag_pr_måned_kroner
+    = mellemperiodefradrag_stk3_kroner = mellemperiodemåneder_stk3 * regulerede_satser.mellemperiodefradrag_pr_måned_kroner
+    = ægtefællefradrag_stk4_kroner = ægtefællefradragsmåneder_stk4 * regulerede_satser.mellemperiodefradrag_pr_måned_kroner
+    = samlede_fradrag_kroner = bofradrag_stk2_kroner + mellemperiodefradrag_stk3_kroner + ægtefællefradrag_stk4_kroner
+    = anvendte_fradrag_kroner = hvis beregningsklar { penge_mindste_beløb(samlede_fradrag_kroner, dødsboskat_før_fradrag_kroner) } ellers { 0 }
     Dødsboskattelov30Resultat(
         input = input,
         input_gyldigt = input_gyldigt,
-        skatteår_understøttet = skatteår_understøttet,
+        skatteår_understøttet = regulerede_satser.understøttet,
+        datoer_gyldige = datoer_gyldige,
+        boopgørelsestype_understøttet = boopgørelsestype_understøttet,
+        indkomstårsforhold_gyldigt = indkomstårsforhold_gyldigt,
+        ægtefælleforhold_gyldigt = ægtefælleforhold_gyldigt,
         skattepligtigt_dødsbo_efter_par1_stk2 = skattepligtigt_dødsbo,
         positiv_bobeskatningsindkomst_understøttet = positiv_bobeskatningsindkomst_understøttet,
         aktieskatteforhold_understøttet = aktieskatteforhold_understøttet,
         beregningsklar = beregningsklar,
+        regulerede_satser = regulerede_satser,
         bobeskatningsindkomstgrundlag_kroner = bobeskatningsindkomstgrundlag_kroner,
         dødsboskattesats_basispoint = dødsboskattelov30_sats_basispoint(),
         dødsboskat_før_fradrag_kroner = dødsboskat_før_fradrag_kroner,
-        oplyste_fradrag_kroner = oplyste_fradrag_kroner,
+        bofradragsmåneder_stk2 = bofradragsmåneder_stk2,
+        mellemperiodemåneder_stk3 = mellemperiodemåneder_stk3,
+        ægtefællefradragsmåneder_stk4 = ægtefællefradragsmåneder_stk4,
+        bofradrag_stk2_kroner = bofradrag_stk2_kroner,
+        mellemperiodefradrag_stk3_kroner = mellemperiodefradrag_stk3_kroner,
+        ægtefællefradrag_stk4_kroner = ægtefællefradrag_stk4_kroner,
+        samlede_fradrag_kroner = samlede_fradrag_kroner,
         anvendte_fradrag_kroner = anvendte_fradrag_kroner,
         dødsboskat_efter_fradrag_kroner = hvis beregningsklar { dødsboskat_før_fradrag_kroner - anvendte_fradrag_kroner } ellers { 0 }
     )

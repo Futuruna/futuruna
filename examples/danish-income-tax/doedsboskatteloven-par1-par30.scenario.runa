@@ -1,63 +1,157 @@
 @ sprog da
 
 @ importer ./doedsboskatteloven - par1 - par30
+@ importer ./kalenderdato
 
 = dødsbo_scenarie_positiv_indkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
-    indkomstår = 2025,
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 600000,
-    bofradrag_stk2_kroner = 30000,
-    mellemperiodefradrag_stk3_kroner = 10000,
-    ægtefællefradrag_stk4_kroner = 0,
+    dødsdato = Dato(år = 2025, måned = 8, dag = 15),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1)),
     aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
 ))
 = dødsbo_scenarie_fradrag_begrænses = dødsboskattelov30_resultat(Dødsboskattelov30Input(
-    indkomstår = 2025,
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 100000,
-    bofradrag_stk2_kroner = 70000,
-    mellemperiodefradrag_stk3_kroner = 0,
-    ægtefællefradrag_stk4_kroner = 0,
+    dødsdato = Dato(år = 2025, måned = 1, dag = 31),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 1),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_fremadforskudt = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 336690,
+    dødsdato = Dato(år = 2025, måned = 5, dag = 18),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 5, dag = 18),
+    indkomstårsforhold = Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 2, dag = 1)),
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_bagudforskudt = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 367300,
+    dødsdato = Dato(år = 2025, måned = 11, dag = 15),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 11, dag = 15),
+    indkomstårsforhold = Dbl30BagudforskudtIndkomstår(dødsårets_startdato = Dato(år = 2024, måned = 10, dag = 1)),
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
     aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
 ))
 = dødsbo_scenarie_længstlevende = dødsboskattelov30_resultat(Dødsboskattelov30Input(
-    indkomstår = 2025,
     boform = Dbl1Stk2BoOvertagetAfLængstlevendeEfterPar58,
     bobeskatningsindkomst_kroner = 600000,
-    bofradrag_stk2_kroner = 0,
-    mellemperiodefradrag_stk3_kroner = 0,
-    ægtefællefradrag_stk4_kroner = 0,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
     aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
 ))
 = dødsbo_scenarie_aktieskat_afventer = dødsboskattelov30_resultat(Dødsboskattelov30Input(
-    indkomstår = 2025,
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 600000,
-    bofradrag_stk2_kroner = 0,
-    mellemperiodefradrag_stk3_kroner = 0,
-    ægtefællefradrag_stk4_kroner = 0,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
     aktieskatteforhold = Dbl30AktieskatteinteraktionKræverFuldBeregning
 ))
+= dødsbo_scenarie_negativ_indkomst_afventer = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = -100000,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
 = dødsbo_scenarie_ikke_understøttet_år = dødsboskattelov30_resultat(Dødsboskattelov30Input(
-    indkomstår = 2024,
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 600000,
-    bofradrag_stk2_kroner = 0,
-    mellemperiodefradrag_stk3_kroner = 0,
-    ægtefællefradrag_stk4_kroner = 0,
+    dødsdato = Dato(år = 2024, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2024, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_skæringsdag_før_dødsfald = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 4, dag = 11),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_umuligt_ægtefælleforhold = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 4, dag = 13)),
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_umuligt_fremadforskudt_indkomstår = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
+    indkomstårsforhold = Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 5, dag = 1)),
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_tillægsopgørelse = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    dødsdato = Dato(år = 2025, måned = 4, dag = 12),
+    boopgørelsestype = Dbl30Tillægsopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2026, måned = 4, dag = 30),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
     aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
 ))
 
-| dødsbo_scenarie_par30_beregnes: dødsbo_scenarie_positiv_indkomst -> dødsbo_scenarie_positiv_indkomst.input_gyldigt && dødsbo_scenarie_positiv_indkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst.dødsboskat_før_fradrag_kroner == 300000 && dødsbo_scenarie_positiv_indkomst.anvendte_fradrag_kroner == 40000 && dødsbo_scenarie_positiv_indkomst.dødsboskat_efter_fradrag_kroner == 260000
-| dødsbo_scenarie_fradrag_kan_ikke_skabe_negativ_skat: dødsbo_scenarie_fradrag_begrænses -> dødsbo_scenarie_fradrag_begrænses.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.anvendte_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.dødsboskat_efter_fradrag_kroner == 0
-| dødsbo_scenarie_undtagne_boformer_afvises: dødsbo_scenarie_længstlevende -> dødsbo_scenarie_længstlevende.skattepligtigt_dødsbo_efter_par1_stk2 == Falskt && dødsbo_scenarie_længstlevende.beregningsklar == Falskt
+| dødsbo_scenarie_par30_beregnes_fra_kildefakta: dødsbo_scenarie_positiv_indkomst -> dødsbo_scenarie_positiv_indkomst.input_gyldigt && dødsbo_scenarie_positiv_indkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst.dødsboskat_før_fradrag_kroner == 300000 && dødsbo_scenarie_positiv_indkomst.bofradragsmåneder_stk2 == 0 && dødsbo_scenarie_positiv_indkomst.mellemperiodemåneder_stk3 == 8 && dødsbo_scenarie_positiv_indkomst.ægtefællefradragsmåneder_stk4 == 8 && dødsbo_scenarie_positiv_indkomst.samlede_fradrag_kroner == 40000 && dødsbo_scenarie_positiv_indkomst.dødsboskat_efter_fradrag_kroner == 260000
+| dødsbo_scenarie_2025_satser_har_officiel_proveniens: dødsbo_scenarie_positiv_indkomst -> dødsbo_scenarie_positiv_indkomst.regulerede_satser.bofradrag_pr_måned_kroner == 6900 && dødsbo_scenarie_positiv_indkomst.regulerede_satser.mellemperiodefradrag_pr_måned_kroner == 2500 && dødsbo_scenarie_positiv_indkomst.regulerede_satser.kilde.url == "https://info.skat.dk/data.aspx?chk=220619&oid=2292849"
+| dødsbo_scenarie_2026_satser_har_officiel_proveniens: dødsboskattelov30_regulerede_satser(2026) -> dødsboskattelov30_regulerede_satser(2026).understøttet && dødsboskattelov30_regulerede_satser(2026).bofradrag_pr_måned_kroner == 7200 && dødsboskattelov30_regulerede_satser(2026).mellemperiodefradrag_pr_måned_kroner == 2700 && dødsboskattelov30_regulerede_satser(2026).kilde.url == "https://info.skat.dk/data.aspx?chk=220619&oid=2292849"
+| dødsbo_scenarie_fradrag_kan_ikke_skabe_negativ_skat: dødsbo_scenarie_fradrag_begrænses -> dødsbo_scenarie_fradrag_begrænses.bofradragsmåneder_stk2 == 12 && dødsbo_scenarie_fradrag_begrænses.bofradrag_stk2_kroner == 82800 && dødsbo_scenarie_fradrag_begrænses.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.anvendte_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.dødsboskat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_fremadforskudt_følger_dødsårets_start: dødsbo_scenarie_fremadforskudt -> dødsbo_scenarie_fremadforskudt.input_gyldigt && dødsbo_scenarie_fremadforskudt.bofradragsmåneder_stk2 == 12 && dødsbo_scenarie_fremadforskudt.mellemperiodemåneder_stk3 == 4 && dødsbo_scenarie_fremadforskudt.ægtefællefradragsmåneder_stk4 == 0 && dødsbo_scenarie_fremadforskudt.dødsboskat_efter_fradrag_kroner == 75545
+| dødsbo_scenarie_bagudforskudt_begynder_ved_kalenderåret: dødsbo_scenarie_bagudforskudt -> dødsbo_scenarie_bagudforskudt.input_gyldigt && dødsbo_scenarie_bagudforskudt.bofradragsmåneder_stk2 == 12 && dødsbo_scenarie_bagudforskudt.mellemperiodemåneder_stk3 == 11 && dødsbo_scenarie_bagudforskudt.dødsboskat_efter_fradrag_kroner == 73350
+| dødsbo_scenarie_undtagne_boformer_afvises: dødsbo_scenarie_længstlevende -> dødsbo_scenarie_længstlevende.input_gyldigt && dødsbo_scenarie_længstlevende.skattepligtigt_dødsbo_efter_par1_stk2 == Falskt && dødsbo_scenarie_længstlevende.beregningsklar == Falskt
 | dødsbo_scenarie_aktieskat_fejler_lukket: dødsbo_scenarie_aktieskat_afventer -> dødsbo_scenarie_aktieskat_afventer.input_gyldigt && dødsbo_scenarie_aktieskat_afventer.aktieskatteforhold_understøttet == Falskt && dødsbo_scenarie_aktieskat_afventer.beregningsklar == Falskt && dødsbo_scenarie_aktieskat_afventer.dødsboskat_efter_fradrag_kroner == 0
-| dødsbo_scenarie_ikke_understøttet_år_fejler_lukket: dødsbo_scenarie_ikke_understøttet_år -> dødsbo_scenarie_ikke_understøttet_år.skatteår_understøttet == Falskt && dødsbo_scenarie_ikke_understøttet_år.input_gyldigt == Falskt && dødsbo_scenarie_ikke_understøttet_år.beregningsklar == Falskt && dødsbo_scenarie_ikke_understøttet_år.dødsboskat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_negativ_indkomst_fejler_lukket: dødsbo_scenarie_negativ_indkomst_afventer -> dødsbo_scenarie_negativ_indkomst_afventer.input_gyldigt && dødsbo_scenarie_negativ_indkomst_afventer.positiv_bobeskatningsindkomst_understøttet == Falskt && dødsbo_scenarie_negativ_indkomst_afventer.beregningsklar == Falskt && dødsbo_scenarie_negativ_indkomst_afventer.dødsboskat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_ikke_understøttet_år_fejler_lukket: dødsbo_scenarie_ikke_understøttet_år -> dødsbo_scenarie_ikke_understøttet_år.skatteår_understøttet == Falskt && dødsbo_scenarie_ikke_understøttet_år.input_gyldigt == Falskt && dødsbo_scenarie_ikke_understøttet_år.beregningsklar == Falskt
+| dødsbo_scenarie_ugyldig_datorækkefølge_fejler_lukket: dødsbo_scenarie_skæringsdag_før_dødsfald -> dødsbo_scenarie_skæringsdag_før_dødsfald.datoer_gyldige == Falskt && dødsbo_scenarie_skæringsdag_før_dødsfald.input_gyldigt == Falskt && dødsbo_scenarie_skæringsdag_før_dødsfald.beregningsklar == Falskt
+| dødsbo_scenarie_umuligt_ægtefælleforhold_fejler_lukket: dødsbo_scenarie_umuligt_ægtefælleforhold -> dødsbo_scenarie_umuligt_ægtefælleforhold.ægtefælleforhold_gyldigt == Falskt && dødsbo_scenarie_umuligt_ægtefælleforhold.input_gyldigt == Falskt && dødsbo_scenarie_umuligt_ægtefælleforhold.beregningsklar == Falskt
+| dødsbo_scenarie_umuligt_indkomstårsforhold_fejler_lukket: dødsbo_scenarie_umuligt_fremadforskudt_indkomstår -> dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.indkomstårsforhold_gyldigt == Falskt && dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.input_gyldigt == Falskt && dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.beregningsklar == Falskt
+| dødsbo_scenarie_tillægsopgørelse_fejler_lukket: dødsbo_scenarie_tillægsopgørelse -> dødsbo_scenarie_tillægsopgørelse.datoer_gyldige && dødsbo_scenarie_tillægsopgørelse.boopgørelsestype_understøttet == Falskt && dødsbo_scenarie_tillægsopgørelse.input_gyldigt == Falskt && dødsbo_scenarie_tillægsopgørelse.beregningsklar == Falskt
 
-? dødsbo_scenarie_par30_beregnes
+? dødsbo_scenarie_par30_beregnes_fra_kildefakta
+? dødsbo_scenarie_2025_satser_har_officiel_proveniens
+? dødsbo_scenarie_2026_satser_har_officiel_proveniens
 ? dødsbo_scenarie_fradrag_kan_ikke_skabe_negativ_skat
+? dødsbo_scenarie_fremadforskudt_følger_dødsårets_start
+? dødsbo_scenarie_bagudforskudt_begynder_ved_kalenderåret
 ? dødsbo_scenarie_undtagne_boformer_afvises
 ? dødsbo_scenarie_aktieskat_fejler_lukket
+? dødsbo_scenarie_negativ_indkomst_fejler_lukket
 ? dødsbo_scenarie_ikke_understøttet_år_fejler_lukket
+? dødsbo_scenarie_ugyldig_datorækkefølge_fejler_lukket
+? dødsbo_scenarie_umuligt_ægtefælleforhold_fejler_lukket
+? dødsbo_scenarie_umuligt_indkomstårsforhold_fejler_lukket
+? dødsbo_scenarie_tillægsopgørelse_fejler_lukket
 
-@ print("Dødsboskattelovens § 1, stk. 2, og den afgrænsede § 30-beregning kontrolleret")
+@ print("Dødsboskattelovens § 1, stk. 2, og § 30 er kontrolleret fra daterede kildefakta")

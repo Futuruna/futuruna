@@ -1374,12 +1374,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Valg af sømandsfradrag",
             "Valg af fiskerfradrag",
             "Dødsboets skattegrundlag efter § 30",
-            "Dødsboets indkomstår",
             "Dødsboets behandlingsform",
             "Positiv bobeskatningsindkomst",
-            "Bofradrag efter § 30, stk. 2",
-            "Mellemperiodefradrag efter § 30, stk. 3",
-            "Fradrag for tidligere afdød ægtefælle efter § 30, stk. 4",
+            "Dødsdato (ISO 8601) - år",
+            "Dødsdato (ISO 8601) - måned",
+            "Dødsdato (ISO 8601) - dag",
+            "Boopgørelsens type",
+            "Boopgørelsens skæringsdag (ISO 8601) - år",
+            "Boopgørelsens skæringsdag (ISO 8601) - måned",
+            "Boopgørelsens skæringsdag (ISO 8601) - dag",
+            "Afdødes indkomstårsforhold",
+            "Bagudforskudt dødsårs startdato - år",
+            "Bagudforskudt dødsårs startdato - måned",
+            "Bagudforskudt dødsårs startdato - dag",
+            "Fremadforskudt dødsårs startdato - år",
+            "Fremadforskudt dødsårs startdato - måned",
+            "Fremadforskudt dødsårs startdato - dag",
+            "Tidligere afdød ægtefælle efter § 62",
+            "Førstafdøde ægtefælles dødsdato - år",
+            "Førstafdøde ægtefælles dødsdato - måned",
+            "Førstafdøde ægtefælles dødsdato - dag",
             "Aktieskatteforhold i dødsboet",
             "Kulbrinteskattegrundlag efter § 21, stk. 2",
             "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
@@ -1618,12 +1632,26 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         let nonstandard_taxpayer_paths = workbook_column_paths(&mut workbook, "cases");
         for expected in [
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.$variant",
-            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstår",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boform",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.bobeskatningsindkomst_kroner",
-            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.bofradrag_stk2_kroner",
-            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.mellemperiodefradrag_stk3_kroner",
-            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefællefradrag_stk4_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.dødsdato.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.dødsdato.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.dødsdato.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boopgørelsestype",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boopgørelsens_skæringsdag.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boopgørelsens_skæringsdag.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boopgørelsens_skæringsdag.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30BagudforskudtIndkomstår.dødsårets_startdato.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30BagudforskudtIndkomstår.dødsårets_startdato.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30BagudforskudtIndkomstår.dødsårets_startdato.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30FremadforskudtIndkomstår.dødsårets_startdato.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30FremadforskudtIndkomstår.dødsårets_startdato.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstårsforhold.Dbl30FremadforskudtIndkomstår.dødsårets_startdato.dag",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.år",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.måned",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.dag",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieskatteforhold",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.personstatus",
@@ -15247,12 +15275,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "dødsboskattegrundlag": {
             "$variant": "Søbl5Dødsboskattegrundlag",
             "input": {
-                "indkomstår": 2026,
                 "boform": { "$variant": "Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark" },
                 "bobeskatningsindkomst_kroner": 600_000,
-                "bofradrag_stk2_kroner": 30_000,
-                "mellemperiodefradrag_stk3_kroner": 10_000,
-                "ægtefællefradrag_stk4_kroner": 0,
+                "dødsdato": { "år": 2026, "måned": 8, "dag": 15 },
+                "boopgørelsestype": { "$variant": "Dbl30OrdinærBoopgørelse" },
+                "boopgørelsens_skæringsdag": { "år": 2026, "måned": 8, "dag": 31 },
+                "indkomstårsforhold": { "$variant": "Dbl30Kalenderindkomstår" },
+                "ægtefælleforhold": {
+                    "$variant": "Dbl30TidligereAfdødÆgtefælleEfterPar62",
+                    "førstafdødes_dødsdato": { "år": 2026, "måned": 7, "dag": 15 }
+                },
                 "aktieskatteforhold": { "$variant": "Dbl30IngenAktieskatteinteraktion" }
             }
         },
@@ -16603,11 +16635,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     assert_eq!(
         death_estate_annual["dødsbo_lempelse"]["forholdsmæssig_lempelse_kroner"],
-        86_666
+        86_500
     );
     assert_eq!(
         death_estate_annual["dødsbo_lempelse"]["dødsboskat_efter_søbl5_kroner"],
-        173_334
+        173_000
     );
     assert_eq!(
         death_estate_annual["dødsbo_lempelse"]["arbejdsmarkedsbidrag_kroner"],

@@ -846,12 +846,54 @@
     help = Some("Vælg kun et grundlag, når skattepligtspositionen er et dødsbo omfattet af dødsboskattelovens § 1, stk. 2."),
     unit = None
 )
-= personskat_felt_dis_dødsbo_indkomstår = TypetBeregningsfelt(
-    path = refof(Dødsboskattelov30Input::indkomstår),
-    label = "Dødsboets indkomstår",
-    question = Some("Hvilket indkomstår vedrører dødsboskattegrundlaget?"),
-    help = Some("Indkomståret skal svare til den samlede Personskat-beregning."),
+= personskat_felt_dis_dødsbo_dødsdato_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::dødsdato::år),
+    label = "Dødsdato (ISO 8601) - år",
+    question = Some("I hvilket år døde afdøde?"),
+    help = Some("Dødsåret vælger automatisk de regulerede satser efter dødsboskattelovens § 30, stk. 6."),
     unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_dødsdato_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::dødsdato::måned),
+    label = "Dødsdato (ISO 8601) - måned",
+    question = Some("I hvilken måned døde afdøde?"),
+    help = Some("Måneden bruges til at aflede fradragene efter § 30, stk. 2-4."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_dødsdato_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::dødsdato::dag),
+    label = "Dødsdato (ISO 8601) - dag",
+    question = Some("På hvilken dag døde afdøde?"),
+    help = Some("Angiv kalenderdagen som en gyldig ISO 8601-dato."),
+    unit = Some("dag")
+)
+= personskat_felt_dis_dødsbo_boopgørelsestype = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::boopgørelsestype::$variant),
+    label = "Boopgørelsens type",
+    question = Some("Er skæringsdagen fra den ordinære boopgørelse eller fra en tillægsopgørelse?"),
+    help = Some("Dødsboskattelovens § 30, stk. 2, giver ikke yderligere bofradrag efter en skæringsdag i en tillægsopgørelse."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_skæringsdag_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::boopgørelsens_skæringsdag::år),
+    label = "Boopgørelsens skæringsdag (ISO 8601) - år",
+    question = Some("I hvilket år ligger skæringsdagen i boopgørelsen?"),
+    help = Some("Brug skæringsdagen i den ordinære boopgørelse, ikke en tillægsopgørelse."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_skæringsdag_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::boopgørelsens_skæringsdag::måned),
+    label = "Boopgørelsens skæringsdag (ISO 8601) - måned",
+    question = Some("I hvilken måned ligger skæringsdagen i boopgørelsen?"),
+    help = Some("Futuruna tæller de påbegyndte måneder efter dødsmåneden og anvender 12-månedersloftet."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_skæringsdag_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::boopgørelsens_skæringsdag::dag),
+    label = "Boopgørelsens skæringsdag (ISO 8601) - dag",
+    question = Some("På hvilken dag ligger skæringsdagen i boopgørelsen?"),
+    help = Some("Skæringsdagen må ikke ligge før dødsdatoen."),
+    unit = Some("dag")
 )
 = personskat_felt_dis_dødsbo_boform = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Input::boform::$variant),
@@ -867,26 +909,82 @@
     help = Some("Den afgrænsede beregning understøtter positiv bobeskatningsindkomst."),
     unit = Some("kr.")
 )
-= personskat_felt_dis_dødsbo_bofradrag = TypetBeregningsfelt(
-    path = refof(Dødsboskattelov30Input::bofradrag_stk2_kroner),
-    label = "Bofradrag efter § 30, stk. 2",
-    question = Some("Hvor stort er det regulerede bofradrag efter § 30, stk. 2?"),
-    help = Some("Angiv det allerede opgjorte fradrag for den relevante bobeskatningsperiode."),
-    unit = Some("kr.")
+= personskat_felt_dis_dødsbo_indkomstårsforhold = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::indkomstårsforhold::$variant),
+    label = "Afdødes indkomstårsforhold",
+    question = Some("Brugte afdøde kalenderår, bagudforskudt indkomstår eller fremadforskudt indkomstår?"),
+    help = Some("Valget afgør, om fradragsperioden begynder 1. januar eller ved det forskudte dødsårs begyndelse."),
+    unit = None
 )
-= personskat_felt_dis_dødsbo_mellemperiodefradrag = TypetBeregningsfelt(
-    path = refof(Dødsboskattelov30Input::mellemperiodefradrag_stk3_kroner),
-    label = "Mellemperiodefradrag efter § 30, stk. 3",
-    question = Some("Hvor stort er det regulerede fradrag for mellemperioden efter § 30, stk. 3?"),
-    help = Some("Angiv det allerede opgjorte fradrag for perioden frem til dødsfaldet."),
-    unit = Some("kr.")
+= personskat_felt_dis_dødsbo_bagudforskudt_start_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::år),
+    label = "Bagudforskudt dødsårs startdato - år",
+    question = Some("I hvilket år begyndte det bagudforskudte dødsår?"),
+    help = Some("Udfyldes kun ved bagudforskudt indkomstår; selve § 30-fradraget begynder fortsat 1. januar i dødsåret."),
+    unit = Some("år")
 )
-= personskat_felt_dis_dødsbo_ægtefællefradrag = TypetBeregningsfelt(
-    path = refof(Dødsboskattelov30Input::ægtefællefradrag_stk4_kroner),
-    label = "Fradrag for tidligere afdød ægtefælle efter § 30, stk. 4",
-    question = Some("Hvor stort er det regulerede yderligere fradrag efter § 30, stk. 4?"),
-    help = Some("Angiv nul, hvis afdøde ikke skulle beskattes af en tidligere afdød ægtefælles indkomst efter § 62."),
-    unit = Some("kr.")
+= personskat_felt_dis_dødsbo_bagudforskudt_start_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::måned),
+    label = "Bagudforskudt dødsårs startdato - måned",
+    question = Some("I hvilken måned begyndte det bagudforskudte dødsår?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_bagudforskudt_start_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::dag),
+    label = "Bagudforskudt dødsårs startdato - dag",
+    question = Some("På hvilken dag begyndte det bagudforskudte dødsår?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_dis_dødsbo_fremadforskudt_start_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::år),
+    label = "Fremadforskudt dødsårs startdato - år",
+    question = Some("I hvilket år begyndte det fremadforskudte dødsår?"),
+    help = Some("Udfyldes kun ved fremadforskudt indkomstår; Futuruna tæller fradragsmåneder fra denne dato."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_fremadforskudt_start_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::måned),
+    label = "Fremadforskudt dødsårs startdato - måned",
+    question = Some("I hvilken måned begyndte det fremadforskudte dødsår?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_fremadforskudt_start_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::dag),
+    label = "Fremadforskudt dødsårs startdato - dag",
+    question = Some("På hvilken dag begyndte det fremadforskudte dødsår?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_dis_dødsbo_ægtefælleforhold = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::ægtefælleforhold::$variant),
+    label = "Tidligere afdød ægtefælle efter § 62",
+    question = Some("Skulle afdøde beskattes af en tidligere afdød ægtefælles indkomst efter dødsboskattelovens § 62?"),
+    help = Some("Vælg kun § 62-forholdet, når begge ægtefæller døde i samme indkomstår, og førstafdødes bo blev behandlet efter reglerne om uskiftet bo mv."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_år = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Ægtefælleforhold::Dbl30TidligereAfdødÆgtefælleEfterPar62::førstafdødes_dødsdato::år),
+    label = "Førstafdøde ægtefælles dødsdato - år",
+    question = Some("I hvilket år døde den førstafdøde ægtefælle?"),
+    help = Some("Datoen skal ligge i samme indkomstår og før sidstafdødes dødsdato."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_måned = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Ægtefælleforhold::Dbl30TidligereAfdødÆgtefælleEfterPar62::førstafdødes_dødsdato::måned),
+    label = "Førstafdøde ægtefælles dødsdato - måned",
+    question = Some("I hvilken måned døde den førstafdøde ægtefælle?"),
+    help = Some("Måneden bruges til at aflede det yderligere fradrag efter § 30, stk. 4."),
+    unit = Some("måned")
+)
+= personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_dag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Ægtefælleforhold::Dbl30TidligereAfdødÆgtefælleEfterPar62::førstafdødes_dødsdato::dag),
+    label = "Førstafdøde ægtefælles dødsdato - dag",
+    question = Some("På hvilken dag døde den førstafdøde ægtefælle?"),
+    help = Some("Angiv kalenderdagen som en gyldig ISO 8601-dato."),
+    unit = Some("dag")
 )
 = personskat_felt_dis_dødsbo_aktieskatteforhold = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Input::aktieskatteforhold::$variant),
@@ -10626,12 +10724,26 @@
 = personskat_meta_dis_dødsboskattegrundlag = TypetBeregningsmeta(
     felter = [
         personskat_felt_dis_dødsboskattegrundlag,
-        personskat_felt_dis_dødsbo_indkomstår,
         personskat_felt_dis_dødsbo_boform,
         personskat_felt_dis_dødsbo_bobeskatningsindkomst,
-        personskat_felt_dis_dødsbo_bofradrag,
-        personskat_felt_dis_dødsbo_mellemperiodefradrag,
-        personskat_felt_dis_dødsbo_ægtefællefradrag,
+        personskat_felt_dis_dødsbo_dødsdato_år,
+        personskat_felt_dis_dødsbo_dødsdato_måned,
+        personskat_felt_dis_dødsbo_dødsdato_dag,
+        personskat_felt_dis_dødsbo_boopgørelsestype,
+        personskat_felt_dis_dødsbo_skæringsdag_år,
+        personskat_felt_dis_dødsbo_skæringsdag_måned,
+        personskat_felt_dis_dødsbo_skæringsdag_dag,
+        personskat_felt_dis_dødsbo_indkomstårsforhold,
+        personskat_felt_dis_dødsbo_bagudforskudt_start_år,
+        personskat_felt_dis_dødsbo_bagudforskudt_start_måned,
+        personskat_felt_dis_dødsbo_bagudforskudt_start_dag,
+        personskat_felt_dis_dødsbo_fremadforskudt_start_år,
+        personskat_felt_dis_dødsbo_fremadforskudt_start_måned,
+        personskat_felt_dis_dødsbo_fremadforskudt_start_dag,
+        personskat_felt_dis_dødsbo_ægtefælleforhold,
+        personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_år,
+        personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_måned,
+        personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_dag,
         personskat_felt_dis_dødsbo_aktieskatteforhold
     ],
     spørgsmål = [],
@@ -10639,6 +10751,8 @@
     attachments = (
         Source(value = søbl5_til8_lbk1181),
         DependencySource(value = dødsboskattelov_par1_par30_lbk426),
+        Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2024_2026),
     )
 )
 = personskat_meta_dis_kulbrinteskattegrundlag = TypetBeregningsmeta(

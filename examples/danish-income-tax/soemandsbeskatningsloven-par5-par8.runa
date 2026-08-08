@@ -634,7 +634,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
         )
         | Søbl5Dødsboskattegrundlag(dødsboskatteinput) -> {
             = dødsboskat = dødsboskattelov30_resultat(dødsboskatteinput)
-            = input_gyldigt = relevant && dødsboskatteinput.indkomstår == indkomstår && dødsboskat.input_gyldigt && dødsboskat.skattepligtigt_dødsbo_efter_par1_stk2
+            = input_gyldigt = relevant && dødsboskatteinput.dødsdato.år == indkomstår && dødsboskat.input_gyldigt && dødsboskat.skattepligtigt_dødsbo_efter_par1_stk2
             = beregningsklar = input_gyldigt && dødsboskat.beregningsklar
             = dis_nettoløn_i_forholdsmæssigt_grundlag_kroner = hvis beregningsklar { søbl5_til8_mindste_beløb(dis_nettoløn_efter_bundfradrag_kroner, dødsboskat.bobeskatningsindkomstgrundlag_kroner) } ellers { 0 }
             = forholdsmæssig_lempelse_kroner = hvis beregningsklar && dødsboskat.bobeskatningsindkomstgrundlag_kroner > 0 { dødsboskat.dødsboskat_efter_fradrag_kroner * dis_nettoløn_i_forholdsmæssigt_grundlag_kroner / dødsboskat.bobeskatningsindkomstgrundlag_kroner } ellers { 0 }
