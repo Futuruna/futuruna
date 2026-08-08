@@ -8,6 +8,7 @@
 @ importer ./ejendomsskatteloven
 @ importer ./kommuneskatteloven
 @ importer ./loenmodtager - eksakt - skat
+@ importer ./soemandsbeskatningsloven - dis - lempelse
 
 # PersonskatMonetærAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 # PersonskatMonetærEnhed = HeleKroner | Øre
@@ -52,6 +53,39 @@
     identifier = "Cirkulære nr. 22 af 9. december 1986, afsnit C, nr. 18",
     hentet_dato = "2026-08-07"
 )
+
+= personskat_monetaer_dis_metadata = Metadata(
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        Guidance(value = personskat_monetaer_uafrundet_skat_kilde),
+    )
+)
+
+--@label:personskat_monetaer_dis::meta:personskat_monetaer_dis_metadata--
+----
+§ 5. Har en person, der er skattepligtig efter kildeskattelovens § 1, erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål, som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst. 1. pkt. finder tilsvarende anvendelse på dødsboer omfattet af dødsboskattelovens § 1, stk. 2. Gratialer og fratrædelsesgodtgørelser m.v., jf. ligningslovens § 7 U, er omfattet af 1. pkt., når den pågældende ydelse har direkte tilknytning til arbejde udført om bord på skib som nævnt i 1. pkt.
+----
+
+--@begin:personskat_monetaer_dis--
+= personskat_monetaer_dis_forholdsmaessig_lempelse_trin = PersonskatMonetærtTrin(
+    navn = "SØBL § 5: forholdsmæssig DIS-lempelse af ørepræcise skattekomponenter",
+    input_enhed = Øre,
+    beregningsenheder = [Fordelingsnævner],
+    output_enhed = Øre,
+    afrunding = NedModNulTilØre,
+    belæg = KildedrevetEksaktBeregning,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_dis_forholdsmaessig_lempelse_fixture = søbl5_eksakt_forholdsmæssig_beregning(
+    dansk_skat_øre = 2463000,
+    dis_nettoindkomst_kroner = 500000,
+    samlet_skattegrundlag_kroner = 776000
+)
+
+| personskat_monetaer_dis_lempelse_bevarer_forholdsbroek_og_ørerest: personskat_monetaer_dis_forholdsmaessig_lempelse_fixture -> personskat_monetaer_dis_forholdsmaessig_lempelse_fixture.tæller == 1231500000000 && personskat_monetaer_dis_forholdsmaessig_lempelse_fixture.nævner == 776000 && personskat_monetaer_dis_forholdsmaessig_lempelse_fixture.øre_nedrundet == 1586984 && personskat_monetaer_dis_forholdsmaessig_lempelse_fixture.øre_nedrundet % 100 == 84
+--@end:personskat_monetaer_dis--
 
 = personskat_monetaer_procentkomponent_metadata = Metadata(
     attachments = (
@@ -548,6 +582,7 @@ skatteberegningen.
     personskat_monetaer_par14_trin,
     personskat_monetaer_par20_trin,
     personskat_monetaer_ksl_par48_trin,
+    personskat_monetaer_dis_forholdsmaessig_lempelse_trin,
     personskat_monetaer_ejendomsskat_broek_trin,
     personskat_monetaer_ejendomsskat_kroner_trin,
     personskat_monetaer_par60_trin,
@@ -566,8 +601,8 @@ skatteberegningen.
 
 = personskat_monetaer_audit = personskat_monetaer_audit_resultat()
 
-| personskat_monetaer_audit_har_komplet_stagekontrakt: personskat_monetaer_audit -> length(personskat_monetaer_audit.trin) == 15 && personskat_monetaer_audit.alle_trin_navngivet && personskat_monetaer_audit.antal_offentlige_slutskattetrin == 12
-| personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere: personskat_monetaer_audit -> personskat_monetaer_procentkomponent_trin.beregningsenheder == [Basispoint] && personskat_monetaer_par14_trin.beregningsenheder == [Fordelingsnævner] && personskat_monetaer_par20_trin.beregningsenheder == [ReguleringsTiendedele] && personskat_monetaer_ejendomsskat_broek_trin.beregningsenheder == [PromilleTiendedele, Basispoint, Fordelingsnævner]
+| personskat_monetaer_audit_har_komplet_stagekontrakt: personskat_monetaer_audit -> length(personskat_monetaer_audit.trin) == 16 && personskat_monetaer_audit.alle_trin_navngivet && personskat_monetaer_audit.antal_offentlige_slutskattetrin == 13
+| personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere: personskat_monetaer_audit -> personskat_monetaer_procentkomponent_trin.beregningsenheder == [Basispoint] && personskat_monetaer_par14_trin.beregningsenheder == [Fordelingsnævner] && personskat_monetaer_par20_trin.beregningsenheder == [ReguleringsTiendedele] && personskat_monetaer_dis_forholdsmaessig_lempelse_trin.beregningsenheder == [Fordelingsnævner] && personskat_monetaer_ejendomsskat_broek_trin.beregningsenheder == [PromilleTiendedele, Basispoint, Fordelingsnævner]
 | personskat_monetaer_audit_har_ingen_bekræftede_præcisionstab: personskat_monetaer_audit -> personskat_monetaer_audit.antal_bekræftede_præcisionstab == 0
 
 ? personskat_monetaer_genberegning_er_ikke_additiv_i_kroner
@@ -576,6 +611,7 @@ skatteberegningen.
 ? personskat_monetaer_par14_positive_og_negative_halver
 ? personskat_monetaer_par20_runder_kun_naar_noedvendigt
 ? personskat_monetaer_a_skattegrundlag_nedrundes_til_ti
+? personskat_monetaer_dis_lempelse_bevarer_forholdsbroek_og_ørerest
 ? personskat_monetaer_ejendomsskat_bevarer_øre_foer_projektion
 ? personskat_monetaer_ørebroek_bevarer_taeller_og_naevner
 ? personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen

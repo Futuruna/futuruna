@@ -37,7 +37,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     personfradrag_alder_status = Fyldt18EllerGift,
     betaler_kirkeskat = Falskt
 )
-| personskat_dis_input(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatInput(
+| personskat_dis_input_med_ægtefælle(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput, ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
     lønmodtager = personskat_dis_lønmodtager(bruttoløn_kroner, sømandsbeskatning),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
     aktieavance = personskat_ingen_aktieavance(),
@@ -45,14 +45,29 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
-    ægtefælle = UdenÆgtefælle,
+    ægtefælle = ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
-| personskat_dis_fakta_med_indkomsttype(identifikation: Tekst, registrering: Søbl5Til8Registrering, indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
+| personskat_dis_input(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> personskat_dis_input_med_ægtefælle(
+    bruttoløn_kroner = bruttoløn_kroner,
+    sømandsbeskatning = sømandsbeskatning,
+    ægtefælle = UdenÆgtefælle
+)
+| personskat_dis_personfakta(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatPersonFakta(
+    lønmodtager = personskat_dis_lønmodtager(bruttoløn_kroner, sømandsbeskatning),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
+| personskat_dis_fakta_med_indkomsttype_for_år(indkomstår: Heltal, identifikation: Tekst, registrering: Søbl5Til8Registrering, indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
     identifikation = identifikation,
-    indkomstår = 2025,
+    indkomstår = indkomstår,
     person = Søbl5Til8Personfakta(
         skattepligt = SøblFuldtSkattepligtigEfterKsl1,
         statsborgerskab = SøblStatsborgerIEUEØS,
@@ -77,7 +92,23 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
         beløb_kroner = beløb_kroner
     )
 )
+| personskat_dis_fakta_med_indkomsttype(identifikation: Tekst, registrering: Søbl5Til8Registrering, indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> personskat_dis_fakta_med_indkomsttype_for_år(
+    indkomstår = 2025,
+    identifikation = identifikation,
+    registrering = registrering,
+    indkomsttype = indkomsttype,
+    løngrundlag = løngrundlag,
+    beløb_kroner = beløb_kroner
+)
 | personskat_dis_fakta(identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> personskat_dis_fakta_med_indkomsttype(
+    identifikation = identifikation,
+    registrering = registrering,
+    indkomsttype = SøblLønVedArbejdeOmBord,
+    løngrundlag = løngrundlag,
+    beløb_kroner = beløb_kroner
+)
+| personskat_dis_fakta_for_år(indkomstår: Heltal, identifikation: Tekst, registrering: Søbl5Til8Registrering, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> personskat_dis_fakta_med_indkomsttype_for_år(
+    indkomstår = indkomstår,
     identifikation = identifikation,
     registrering = registrering,
     indkomsttype = SøblLønVedArbejdeOmBord,
@@ -102,9 +133,44 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 
 | personskat_dis_kilde_føres_til_personlig_indkomst: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 500000 && personskat_dis_kanonisk_resultat.skat.bruttoløn_kroner == 300000 && personskat_dis_kanonisk_resultat.skat.arbejdsmarkedsbidrag_kroner == 24000 && personskat_dis_kanonisk_resultat.skat.personlig_indkomst_efter_am_kroner == 776000
 | personskat_dis_lempelse_føres_til_slutskat: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.input_gyldigt && personskat_dis_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner > 0 && personskat_dis_kanonisk_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == personskat_dis_kanonisk_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner - personskat_dis_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner
+| personskat_dis_eksakt_lempelse_bevarer_ører: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.input_gyldigt && length(personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.komponenter) == 9 && personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.komponenter[0].forholdsmæssig_beregning.tæller == 4659880000000 && personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.komponenter[0].forholdsmæssig_beregning.nævner == 776000 && personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.samlet_lempelse_øre == 19341984 && personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.samlet_lempelse_øre % 100 == 84 && personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.samlet_lempelse_kroner_kompatibilitetsprojektion == 193419 && personskat_dis_kanonisk_resultat.sømandsbeskatning.samlet_lempelse_kroner == 193418
+| personskat_dis_eksakt_lempelse_føres_til_slutskat: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.eksakt_ordinær_skat_efter_dis_øre == 10309160 && personskat_dis_kanonisk_resultat.eksakt_ordinær_skat_efter_dis_øre == personskat_dis_kanonisk_resultat.sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre && personskat_dis_kanonisk_resultat.slutskat_øre == 10309160
 | personskat_dis_bevarer_progression: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.indkomstskat_efter_dis_lempelse_kroner > personskat_dis_ordinær_baseline.sømandsbeskatning.indkomstskat_efter_dis_lempelse_kroner
 | personskat_dis_afskærer_ligningslov9a: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.ekstern_udelukkelse == Ll9AUdelukketEfterSømandsbeskatningslov5Stk5 && personskat_dis_kanonisk_resultat.ligningsfradrag.rejser.stk1_til_stk9_udelukket
 | personskat_dis_afleder_par13_stk5: personskat_dis_kanonisk_resultat -> personskat_dis_kanonisk_resultat.sømandsbeskatning.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar5
+
+= personskat_dis_langeland_2026_input = PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = Langeland,
+        bruttoløn_kroner = 300000,
+        personlig_indkomst = personskat_dis_personlig_indkomst(Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta_for_år(
+            indkomstår = 2026,
+            identifikation = "langeland-dis-skatteloft",
+            registrering = SøblDanskSkibRegistreretIDIS,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 700000
+            )], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag)),
+        erhvervsbefordring = PersonskatErhvervsbefordringInput(sager = []),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+= personskat_dis_langeland_2026_resultat = beregn_personskat(personskat_dis_langeland_2026_input)
+
+| personskat_dis_skatteloft_henføres_eksakt: personskat_dis_langeland_2026_resultat -> personskat_dis_langeland_2026_resultat.sømandsbeskatning.henført_personligt_skatteloftsnedslag_kroner > 0 && personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.henført_personligt_skatteloftsnedslag_øre > 0 && personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.henført_personligt_skatteloftsnedslag_øre % 100 != 0 && personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.henført_personligt_skatteloftsnedslag_beregning.nævner == personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.personlig_indkomstgrundlag_kroner && personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.henført_personligt_skatteloftsnedslag_beregning.øre_nedrundet == personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.henført_personligt_skatteloftsnedslag_øre && personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.samlet_lempelse_øre <= personskat_dis_langeland_2026_resultat.sømandsbeskatning_eksakt.højeste_lempelse_efter_par13_og_skatteloft_øre
 
 = personskat_dis_ligningslov7u_blandet_resultat = beregn_personskat(personskat_dis_input(
     bruttoløn_kroner = 300000,
@@ -156,6 +222,41 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 | personskat_dis_ligningslov7u_fordeling_føres_til_skat_og_lempelse: personskat_dis_ligningslov7u_blandet_resultat -> personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && personskat_dis_ligningslov7u_blandet_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 518000 && personskat_dis_ligningslov7u_blandet_resultat.sømandsbeskatning.dis_personlig_indkomst_kroner == 518000 && personskat_dis_ligningslov7u_blandet_resultat.skat.bruttoløn_kroner == 354000 && personskat_dis_ligningslov7u_blandet_resultat.skat.arbejdsmarkedsbidrag_kroner == 28320 && personskat_dis_ligningslov7u_blandet_resultat.skat.personlig_indkomst_efter_am_kroner == 843680
 | personskat_dis_ligningslov7u_bundfradrag_skaber_ikke_negativ_indkomst: personskat_dis_ligningslov7u_cap_resultat -> personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner == 4000 && personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.samlet_dis_personlig_indkomst_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.personlig_indkomst.sømandsbeskatning.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.sømandsbeskatning.dis_personlig_indkomst_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.skat.bruttoløn_kroner == 0 && personskat_dis_ligningslov7u_cap_resultat.skat.arbejdsmarkedsbidrag_kroner == 0
 
+= personskat_dis_ægtefælle_input = personskat_dis_input_med_ægtefælle(
+    bruttoløn_kroner = 300000,
+    sømandsbeskatning = søbl5_til8_intet_årsinput(),
+    ægtefælle = MedÆgtefælle(
+        fakta = personskat_dis_personfakta(
+            bruttoløn_kroner = 300000,
+            sømandsbeskatning = Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta(
+                identifikation = "ægtefælle-dis",
+                registrering = SøblDanskSkibRegistreretIDIS,
+                løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+                beløb_kroner = 500000
+                )], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag)
+        ),
+        samlevende_ved_indkomstårets_udløb = Sandt
+    )
+)
+= personskat_dis_ægtefælle_hovedgrundlag = personskat_person_grundlag(personskat_hovedperson_fakta(personskat_dis_ægtefælle_input))
+= personskat_dis_ægtefælle_parberegning = personskat_parberegning(
+    hovedgrundlag = personskat_dis_ægtefælle_hovedgrundlag,
+    ægtefælle_input = personskat_dis_ægtefælle_input.ægtefælle,
+    ægtefælle_aktieavance = IngenÆgtefælleAktieavance
+)
+| personskat_dis_ægtefælles_hele_lempelse_kroner(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
+    | IngenÆgtefælleberegning -> 0
+    | BeregnetÆgtefælle(_, grundlag, skat, _) -> søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning).samlet_lempelse_kroner
+}
+| personskat_dis_ægtefælles_eksakte_skat_før_lempelse_øre(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle_eksakt {
+    | IngenEksaktÆgtefælleberegning -> 0
+    | BeregnetEksaktÆgtefælle(skat) -> skat.samlet_inkl_am_øre
+}
+= personskat_dis_ægtefælle_lempelse_øre = personskat_ægtefælles_dis_lempelse_øre(personskat_dis_ægtefælle_parberegning)
+= personskat_dis_ægtefælle_skat_efter_lempelse_øre = personskat_ægtefælles_eksakte_ordinære_skat_efter_dis_øre(personskat_dis_ægtefælle_parberegning)
+
+| personskat_dis_ægtefællegren_bevarer_ører: personskat_dis_ægtefælle_skat_efter_lempelse_øre -> personskat_dis_ægtefælle_lempelse_øre % 100 != 0 && personskat_dis_ægtefælle_skat_efter_lempelse_øre == personskat_dis_ægtefælles_eksakte_skat_før_lempelse_øre(personskat_dis_ægtefælle_parberegning) - personskat_dis_ægtefælle_lempelse_øre && personskat_dis_ægtefælle_skat_efter_lempelse_øre != personskat_dis_ægtefælles_eksakte_skat_før_lempelse_øre(personskat_dis_ægtefælle_parberegning) - personskat_dis_ægtefælles_hele_lempelse_kroner(personskat_dis_ægtefælle_parberegning) * 100
+
 = personskat_das_kanonisk_resultat = beregn_personskat(personskat_dis_input(
     bruttoløn_kroner = 0,
     sømandsbeskatning = Søbl5Til8Årsinput(indkomster = [personskat_dis_fakta(
@@ -170,11 +271,15 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 
 ? personskat_dis_kilde_føres_til_personlig_indkomst
 ? personskat_dis_lempelse_føres_til_slutskat
+? personskat_dis_eksakt_lempelse_bevarer_ører
+? personskat_dis_eksakt_lempelse_føres_til_slutskat
 ? personskat_dis_bevarer_progression
 ? personskat_dis_afskærer_ligningslov9a
 ? personskat_dis_afleder_par13_stk5
+? personskat_dis_skatteloft_henføres_eksakt
 ? personskat_dis_ligningslov7u_fordeling_føres_til_skat_og_lempelse
 ? personskat_dis_ligningslov7u_bundfradrag_skaber_ikke_negativ_indkomst
+? personskat_dis_ægtefællegren_bevarer_ører
 ? personskat_das_føres_til_ordinær_am_løn
 
 @ print("Personskat: DIS-lempelse og ordinær DAS-løn er sammensat i den kanoniske slutskat")

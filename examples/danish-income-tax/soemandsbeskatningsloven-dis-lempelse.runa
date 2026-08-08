@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./loenmodtager_beregning
+@ importer ./loenmodtager - eksakt - skat
 @ importer ./soemandsbeskatningsloven - par5 - par8
 
 = søbl5_dis_lempelse_metadata = Metadata(
@@ -22,6 +23,8 @@
 # Søbl5Lempelseskomponentart = Søbl5Bundskat | Søbl5Mellemskat | Søbl5Topskat | Søbl5Toptopskat | Søbl5Udligningsskat | Søbl5Sundhedsbidrag | Søbl5KommunalLignendeStatsskat | Søbl5Kommuneskat | Søbl5Kirkeskat
 # Søbl5Lempelseskomponent(art: Søbl5Lempelseskomponentart, dansk_skat_før_personfradrag_kroner: Heltal, dis_nettoindkomst_i_skattegrundlaget_kroner: Heltal, samlet_skattegrundlag_kroner: Heltal, forholdsmæssig_lempelse_kroner: Heltal)
 # Søbl5Lempelsesresultat(årsresultat: Søbl5Til8Årsresultat, komponenter: List(Søbl5Lempelseskomponent), input_gyldigt: Boolsk, dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal, lempelse_før_skatteloft_kroner: Heltal, henført_personligt_skatteloftsnedslag_kroner: Heltal, højeste_lempelse_efter_par13_og_skatteloft_kroner: Heltal, samlet_lempelse_kroner: Heltal, indkomstskat_før_dis_lempelse_kroner: Heltal, indkomstskat_efter_dis_lempelse_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_inkl_am_efter_dis_lempelse_kroner: Heltal, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
+# Søbl5EksaktLempelseskomponent(art: Søbl5Lempelseskomponentart, dansk_skat_før_personfradrag_øre: Heltal, dis_nettoindkomst_i_skattegrundlaget_kroner: Heltal, samlet_skattegrundlag_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, forholdsmæssig_lempelse_øre: Heltal)
+# Søbl5EksaktLempelsesresultat(årsresultat: Søbl5Til8Årsresultat, komponenter: List(Søbl5EksaktLempelseskomponent), input_gyldigt: Boolsk, dis_personlig_indkomst_kroner: Heltal, personlig_indkomstgrundlag_kroner: Heltal, personlig_og_positiv_kapitalindkomstgrundlag_kroner: Heltal, skattepligtig_indkomstgrundlag_kroner: Heltal, lempelse_før_skatteloft_øre: Heltal, henført_personligt_skatteloftsnedslag_beregning: PengeØreBeregning, henført_personligt_skatteloftsnedslag_øre: Heltal, højeste_lempelse_efter_par13_og_skatteloft_øre: Heltal, samlet_lempelse_øre: Heltal, samlet_lempelse_kroner_kompatibilitetsprojektion: Heltal, indkomstskat_før_dis_lempelse_øre: Heltal, indkomstskat_efter_dis_lempelse_øre: Heltal, arbejdsmarkedsbidrag_øre: Heltal, samlet_skat_inkl_am_efter_dis_lempelse_øre: Heltal, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 
 | søbl5_positivt_beløb(beløb_kroner: Heltal) -> hvis beløb_kroner > 0 { beløb_kroner } ellers { 0 }
 | søbl5_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
@@ -90,6 +93,86 @@
         indkomstskat_efter_dis_lempelse_kroner = indkomstskat_efter_dis_lempelse_kroner,
         arbejdsmarkedsbidrag_kroner = model.indkomstgrundlag.arbejdsmarkedsbidrag_kroner,
         samlet_skat_inkl_am_efter_dis_lempelse_kroner = model.indkomstgrundlag.arbejdsmarkedsbidrag_kroner + indkomstskat_efter_dis_lempelse_kroner,
+        par13_stk5_lempelsesgrundlag = årsresultat.par13_stk5_lempelsesgrundlag
+    )
+}
+| søbl5_tom_eksakt_forholdsmæssig_beregning() -> PengeØreBeregning(
+    tæller = 0,
+    nævner = 1,
+    øre_nedrundet = 0
+)
+| søbl5_eksakt_forholdsmæssig_beregning(dansk_skat_øre: Heltal, dis_nettoindkomst_kroner: Heltal, samlet_skattegrundlag_kroner: Heltal) -> hvis dansk_skat_øre > 0 && dis_nettoindkomst_kroner > 0 && samlet_skattegrundlag_kroner > 0 {
+    penge_øre_beregning(
+        dansk_skat_øre * søbl5_mindste_beløb(dis_nettoindkomst_kroner, samlet_skattegrundlag_kroner),
+        samlet_skattegrundlag_kroner
+    )
+} ellers {
+    søbl5_tom_eksakt_forholdsmæssig_beregning()
+}
+| søbl5_eksakt_komponent(art: Søbl5Lempelseskomponentart, dansk_skat_øre: Heltal, dis_nettoindkomst_kroner: Heltal, samlet_skattegrundlag_kroner: Heltal) -> {
+    = beregning = søbl5_eksakt_forholdsmæssig_beregning(dansk_skat_øre, dis_nettoindkomst_kroner, samlet_skattegrundlag_kroner)
+    Søbl5EksaktLempelseskomponent(
+        art = art,
+        dansk_skat_før_personfradrag_øre = dansk_skat_øre,
+        dis_nettoindkomst_i_skattegrundlaget_kroner = søbl5_mindste_beløb(søbl5_positivt_beløb(dis_nettoindkomst_kroner), søbl5_positivt_beløb(samlet_skattegrundlag_kroner)),
+        samlet_skattegrundlag_kroner = søbl5_positivt_beløb(samlet_skattegrundlag_kroner),
+        forholdsmæssig_beregning = beregning,
+        forholdsmæssig_lempelse_øre = beregning.øre_nedrundet
+    )
+}
+| søbl5_eksakt_mellemskat_øre(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning) -> hvis model.input.skatteår >= 2026 { eksakt_model.før_nedsættelser.par7_skat_øre } ellers { 0 }
+| søbl5_eksakt_topskat_øre(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning) -> hvis model.input.skatteår >= 2026 { eksakt_model.før_nedsættelser.par7a_skat_øre } ellers { eksakt_model.før_nedsættelser.par7_skat_øre }
+| søbl5_eksakt_toptopskat_øre(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning) -> hvis model.input.skatteår >= 2026 { eksakt_model.før_nedsættelser.par8_skat_øre } ellers { 0 }
+| søbl5_eksakt_udligningsskat_øre(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning) -> hvis model.input.skatteår < 2026 { eksakt_model.før_nedsættelser.par7a_skat_øre } ellers { 0 }
+| søbl5_eksakt_sundhedsbidrag_øre(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning) -> hvis model.input.skatteår < 2026 { eksakt_model.før_nedsættelser.par8_skat_øre } ellers { 0 }
+| søbl5_eksakte_lempelseskomponenter(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning, dis_indkomst_kroner: Heltal) -> [
+    søbl5_eksakt_komponent(Søbl5Bundskat, eksakt_model.før_nedsættelser.par6_skat_øre, dis_indkomst_kroner, søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Mellemskat, søbl5_eksakt_mellemskat_øre(model, eksakt_model), dis_indkomst_kroner, søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Topskat, søbl5_eksakt_topskat_øre(model, eksakt_model), dis_indkomst_kroner, søbl5_topskat_grundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Toptopskat, søbl5_eksakt_toptopskat_øre(model, eksakt_model), dis_indkomst_kroner, søbl5_personlig_indkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Udligningsskat, søbl5_eksakt_udligningsskat_øre(model, eksakt_model), dis_indkomst_kroner, søbl5_personlig_indkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Sundhedsbidrag, søbl5_eksakt_sundhedsbidrag_øre(model, eksakt_model), dis_indkomst_kroner, søbl5_skattepligtig_indkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5KommunalLignendeStatsskat, eksakt_model.før_nedsættelser.par8c_skat_øre, dis_indkomst_kroner, søbl5_skattepligtig_indkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Kommuneskat, eksakt_model.før_nedsættelser.kommuneskat_øre, dis_indkomst_kroner, søbl5_skattepligtig_indkomstgrundlag_kroner(model)),
+    søbl5_eksakt_komponent(Søbl5Kirkeskat, eksakt_model.før_nedsættelser.kirkeskat_øre, dis_indkomst_kroner, søbl5_skattepligtig_indkomstgrundlag_kroner(model)),
+]
+| søbl5_eksakt_lempelse_før_skatteloft_øre(komponenter: List(Søbl5EksaktLempelseskomponent)) -> foldl(komponenter, 0, |sum_øre: Heltal, komponent: Søbl5EksaktLempelseskomponent| sum_øre + komponent.forholdsmæssig_lempelse_øre)
+| søbl5_eksakt_henført_personligt_skatteloftsnedslag_beregning(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning, dis_indkomst_kroner: Heltal) -> søbl5_eksakt_forholdsmæssig_beregning(
+    eksakt_model.skatteloft.personligt_nedslag_øre,
+    dis_indkomst_kroner,
+    søbl5_personlig_indkomstgrundlag_kroner(model)
+)
+| søbl5_eksakt_højeste_lempelse_efter_par13_og_skatteloft_øre(eksakt_model: LønmodtagerEksaktBeregning) -> søbl5_positivt_beløb(
+    lønmodtager_eksakte_statslige_skatter(eksakt_model.efter_par13) + lønmodtager_eksakte_kommunale_og_kirkelige_skatter(eksakt_model.efter_par13) - eksakt_model.skatteloft.samlet_nedslag_øre
+)
+| søbl5_eksakt_lempelsesresultat(model: LønmodtagerBeregning, eksakt_model: LønmodtagerEksaktBeregning, årsresultat: Søbl5Til8Årsresultat) -> {
+    = dis_indkomst_kroner = årsresultat.samlet_dis_personlig_indkomst_kroner
+    = komponenter = søbl5_eksakte_lempelseskomponenter(model, eksakt_model, dis_indkomst_kroner)
+    = lempelse_før_skatteloft_øre = søbl5_eksakt_lempelse_før_skatteloft_øre(komponenter)
+    = henført_personligt_skatteloftsnedslag_beregning = søbl5_eksakt_henført_personligt_skatteloftsnedslag_beregning(model, eksakt_model, dis_indkomst_kroner)
+    = henført_personligt_skatteloftsnedslag_øre = henført_personligt_skatteloftsnedslag_beregning.øre_nedrundet
+    = højeste_lempelse_efter_par13_og_skatteloft_øre = søbl5_eksakt_højeste_lempelse_efter_par13_og_skatteloft_øre(eksakt_model)
+    = beregnet_lempelse_øre = søbl5_positivt_beløb(lempelse_før_skatteloft_øre - henført_personligt_skatteloftsnedslag_øre)
+    = samlet_lempelse_øre = hvis årsresultat.beregningsklar && årsresultat.kanonisk_fuld_skattepligt_understøttet { søbl5_mindste_beløb(beregnet_lempelse_øre, højeste_lempelse_efter_par13_og_skatteloft_øre) } ellers { 0 }
+    = indkomstskat_efter_dis_lempelse_øre = søbl5_positivt_beløb(eksakt_model.samlet_indkomstskat_øre - samlet_lempelse_øre)
+    Søbl5EksaktLempelsesresultat(
+        årsresultat = årsresultat,
+        komponenter = komponenter,
+        input_gyldigt = årsresultat.alle_input_gyldige && årsresultat.beregningsklar && årsresultat.kanonisk_fuld_skattepligt_understøttet,
+        dis_personlig_indkomst_kroner = dis_indkomst_kroner,
+        personlig_indkomstgrundlag_kroner = søbl5_personlig_indkomstgrundlag_kroner(model),
+        personlig_og_positiv_kapitalindkomstgrundlag_kroner = søbl5_personlig_og_positiv_kapitalindkomstgrundlag_kroner(model),
+        skattepligtig_indkomstgrundlag_kroner = søbl5_skattepligtig_indkomstgrundlag_kroner(model),
+        lempelse_før_skatteloft_øre = lempelse_før_skatteloft_øre,
+        henført_personligt_skatteloftsnedslag_beregning = henført_personligt_skatteloftsnedslag_beregning,
+        henført_personligt_skatteloftsnedslag_øre = henført_personligt_skatteloftsnedslag_øre,
+        højeste_lempelse_efter_par13_og_skatteloft_øre = højeste_lempelse_efter_par13_og_skatteloft_øre,
+        samlet_lempelse_øre = samlet_lempelse_øre,
+        samlet_lempelse_kroner_kompatibilitetsprojektion = samlet_lempelse_øre / 100,
+        indkomstskat_før_dis_lempelse_øre = eksakt_model.samlet_indkomstskat_øre,
+        indkomstskat_efter_dis_lempelse_øre = indkomstskat_efter_dis_lempelse_øre,
+        arbejdsmarkedsbidrag_øre = eksakt_model.arbejdsmarkedsbidrag_øre,
+        samlet_skat_inkl_am_efter_dis_lempelse_øre = eksakt_model.arbejdsmarkedsbidrag_øre + indkomstskat_efter_dis_lempelse_øre,
         par13_stk5_lempelsesgrundlag = årsresultat.par13_stk5_lempelsesgrundlag
     )
 }

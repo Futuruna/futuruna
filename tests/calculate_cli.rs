@@ -16487,6 +16487,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("DIS relief")
             > 0
     );
+    let exact_dis_result = &hydrated_dis_result["result"]["sømandsbeskatning_eksakt"];
+    assert_eq!(exact_dis_result["input_gyldigt"], true);
+    let exact_dis_relief_øre = exact_dis_result["samlet_lempelse_øre"]
+        .as_i64()
+        .expect("exact DIS relief in øre");
+    assert!(exact_dis_relief_øre > 0);
+    assert_ne!(exact_dis_relief_øre % 100, 0);
+    assert_eq!(
+        exact_dis_result["samlet_lempelse_kroner_kompatibilitetsprojektion"],
+        exact_dis_relief_øre / 100
+    );
+    assert!(exact_dis_result["komponenter"]
+        .as_array()
+        .expect("exact DIS relief components")
+        .iter()
+        .any(|component| {
+            component["forholdsmæssig_beregning"]["nævner"]
+                .as_i64()
+                .is_some_and(|denominator| denominator > 1)
+                && component["forholdsmæssig_lempelse_øre"]
+                    .as_i64()
+                    .is_some_and(|relief| relief % 100 != 0)
+        }));
+    assert_eq!(
+        hydrated_dis_result["result"]["eksakt_ordinær_skat_efter_dis_øre"],
+        exact_dis_result["samlet_skat_inkl_am_efter_dis_lempelse_øre"]
+    );
+    assert_eq!(
+        exact_dis_result["samlet_skat_inkl_am_efter_dis_lempelse_øre"]
+            .as_i64()
+            .expect("exact tax after DIS relief"),
+        exact_dis_result["arbejdsmarkedsbidrag_øre"]
+            .as_i64()
+            .expect("exact labour-market contribution")
+            + exact_dis_result["indkomstskat_efter_dis_lempelse_øre"]
+                .as_i64()
+                .expect("exact income tax after DIS relief")
+    );
     assert_eq!(
         hydrated_dis_result["result"]["sømandsbeskatning"]["par13_stk5_lempelsesgrundlag"]
             ["$variant"],

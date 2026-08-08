@@ -221,7 +221,7 @@
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseEksaktInput, resultat: KildeskatSlutopgørelseEksaktResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, eksakt_ordinær_skat_efter_dis_øre: Heltal, endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre: Heltal, slutskat_øre: Heltal, slutskat_kroner_kompatibilitetsprojektion: Heltal, personskattelov_par8a_stk5_kredit_øre: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, sømandsbeskatning_eksakt: Søbl5EksaktLempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, eksakt_ordinær_skat_efter_dis_øre: Heltal, endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre: Heltal, slutskat_øre: Heltal, slutskat_kroner_kompatibilitetsprojektion: Heltal, personskattelov_par8a_stk5_kredit_øre: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -14730,13 +14730,20 @@ fraflytningen."
     = højt_grundlag_kroner = negativ_aktieindkomst_abs_kroner - lavt_grundlag_kroner
     penge_beløb_gange_basispoint_øre(lavt_grundlag_kroner, aktieindkomstskat_sats_basispoint(skatteår, LavAktieSkat)) + penge_beløb_gange_basispoint_øre(højt_grundlag_kroner, aktieindkomstskat_sats_basispoint(skatteår, HøjAktieSkat))
 }
-| personskat_ægtefælles_dis_lempelse_kroner(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
+| personskat_ægtefælles_dis_lempelse_øre(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
     | IngenÆgtefælleberegning -> 0
-    | BeregnetÆgtefælle(_, grundlag, skat, _) -> søbl5_lempelsesresultat(skat, grundlag.personlig_indkomst.sømandsbeskatning).samlet_lempelse_kroner
+    | BeregnetÆgtefælle(_, grundlag, skat, _) -> match parberegning.ægtefælle_eksakt {
+        | IngenEksaktÆgtefælleberegning -> 0
+        | BeregnetEksaktÆgtefælle(eksakt_skat) -> søbl5_eksakt_lempelsesresultat(
+            model = skat,
+            eksakt_model = eksakt_skat,
+            årsresultat = grundlag.personlig_indkomst.sømandsbeskatning
+        ).samlet_lempelse_øre
+    }
 }
 | personskat_ægtefælles_eksakte_ordinære_skat_efter_dis_øre(parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle_eksakt {
     | IngenEksaktÆgtefælleberegning -> 0
-    | BeregnetEksaktÆgtefælle(skat) -> penge_positivt_beløb(skat.samlet_inkl_am_øre - personskat_ægtefælles_dis_lempelse_kroner(parberegning) * 100)
+    | BeregnetEksaktÆgtefælle(skat) -> penge_positivt_beløb(skat.samlet_inkl_am_øre - personskat_ægtefælles_dis_lempelse_øre(parberegning))
 }
 | personskat_ægtefælles_endelige_aktieindkomstskat_øre(parberegning: PersonskatParberegningResultat) -> {
     = aktieskat = aktieindkomst_positiv_skat(AktieindkomstPositivSkatInput(
@@ -14921,6 +14928,11 @@ fraflytningen."
     = parberegning = personskat_parberegning_med_par32(hovedgrundlag, input.ægtefælle, aktieavance_par.ægtefælle, personskat_kgl_par32_ægtefælle_kontekst(kursgevinst_par32))
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
     = sømandsbeskatning = søbl5_lempelsesresultat(parberegning.hovedskat, hovedgrundlag.personlig_indkomst.sømandsbeskatning)
+    = sømandsbeskatning_eksakt = søbl5_eksakt_lempelsesresultat(
+        model = parberegning.hovedskat,
+        eksakt_model = parberegning.hovedskat_eksakt,
+        årsresultat = hovedgrundlag.personlig_indkomst.sømandsbeskatning
+    )
     = positiv_aktieindkomstskat = personskat_positiv_aktieindkomstskat(input.lønmodtager.skatteår, parberegning.hovedskatteforhold)
     = samlet_skat_inkl_endelig_aktieindkomstskat_kroner = sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + positiv_aktieindkomstskat.endelig_skat_kroner
     = ejendomsskatteårskontekst = personskat_ejendomsskat_årskontekst(hovedgrundlag, parberegning, input.ejendomsskatter)
@@ -14935,7 +14947,7 @@ fraflytningen."
     = samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner = negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_efter_fremført_negativ_skat_kroner
     = fremført_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_modregnet_kroner
     = samlet_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner = negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner + fremført_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_kroner
-    = eksakt_ordinær_skat_efter_dis_øre = penge_positivt_beløb(parberegning.hovedskat_eksakt.samlet_inkl_am_øre - sømandsbeskatning.samlet_lempelse_kroner * 100)
+    = eksakt_ordinær_skat_efter_dis_øre = sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre
     = endelig_aktieindkomstskat_øre = personskat_endelig_aktieindkomstskat_øre(input.lønmodtager.skatteår, positiv_aktieindkomstskat)
     = samlet_skat_inkl_endelig_aktieindkomstskat_øre = eksakt_ordinær_skat_efter_dis_øre + endelig_aktieindkomstskat_øre
     = samlet_skat_inkl_ejendomsskatter_øre = samlet_skat_inkl_endelig_aktieindkomstskat_øre + ejendomsskatter.samlet_ejendomsskat_øre
@@ -14950,6 +14962,7 @@ fraflytningen."
     PersonskatBeregningResultat(
         skat = skat,
         sømandsbeskatning = sømandsbeskatning,
+        sømandsbeskatning_eksakt = sømandsbeskatning_eksakt,
         indgående_ægtefælle = parberegning.hovedskat.indgående_ægtefælle,
         ægtefælle = parberegning.ægtefælle,
         underskudsår = personskat_underskudsparårsresultat(input, parberegning),

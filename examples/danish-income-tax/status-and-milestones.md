@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-07
 TD epic: `td-56cf8d`
-Current implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
+Current implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
+Previous implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
 Previous implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
 Previous implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
 Previous implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
@@ -51,7 +52,7 @@ Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede ak
 Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
-Current monetary audit: `td-24963d` og `td-16a9cb` (15 typede trin, heraf 12 offentlige slutskattetrin, dokumenterer enheder, afrunding og den eksakte KSL-slutopgørelse; auditten finder nu nul bekræftede præcisionstab i den kanoniske slutskattevej)
+Current monetary audit: `td-24963d`, `td-16a9cb` og `td-33478d` (16 typede trin, heraf 13 offentlige slutskattetrin, dokumenterer enheder, forholdsmæssig DIS-lempelse, afrunding og den eksakte KSL-slutopgørelse; auditten finder nu nul bekræftede præcisionstab i den kanoniske slutskattevej)
 Previous ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
 Current common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne kildefakta, lovregler, beregningsmetadata og kanonisk samordning)
 Current exact-credit completion: `td-6fe980` (den typede dokumentmapping og den kanoniske Personskat-arbejdsbog kan føre foreløbige skatter i eksakte øre gennem hele § 60-modregningen)
@@ -4136,6 +4137,15 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Sømandsbeskatningslovens § 5-lempelse har nu et parallelt ørepræcist
+  resultatdomæne. Bundskat, historiske og reformerede progressive statsskatter,
+  § 8 c, kommune- og kirkeskat fordeles efter deres egne lovbestemte
+  indkomstgrundlag, og hver `PengeØreBeregning` bevarer tæller, nævner og den
+  nedrundede øreværdi. Skatteloftsnedslag og loftet efter § 13 anvendes i samme
+  præcision. I det kanoniske 2025-scenarie er lempelsen 193.419,84 kr. og den
+  ordinære skat efter lempelse 103.091,60 kr.; den tidligere helkronegren på
+  193.418 kr. bevares som kompatibilitetsresultat. Hovedperson, ægtefælle,
+  interpreter, compiler og JSON/XLSX-grænsen følger nu den eksakte vej.
 - ABL § 39 A's årlige oplysningspligt kan nu skelne mellem en manglende
   indgivelse og en kildehistorik, der endnu ikke rækker forbi fristen. En typet
   opgørelsesdato og højst én dokumenteret fristudsættelse pr. indkomstår
