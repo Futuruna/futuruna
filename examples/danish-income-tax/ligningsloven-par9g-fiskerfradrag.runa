@@ -73,7 +73,7 @@ kontingent eller en særskilt udgift, der vedrører andet arbejde end fiskeriet.
 # Ligningslov9GSelvstændigUdgiftssammenlignelighed = Ll9GSidstillesMedLønmodtagerudgift | Ll9GSidstillesIkkeMedLønmodtagerudgift
 # Ligningslov9GSelvstændigUdgiftsnøgle(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
 # Ligningslov9GSelvstændigUdgiftsvurdering(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst, sammenlignelighed: Ligningslov9GSelvstændigUdgiftssammenlignelighed)
-# Ligningslov9GFradragskilde = Ll9GLigningslov9Stk1Udgift(kildeidentifikation: Tekst) | Ll9GLigningslov9ARejse(kildeidentifikation: Tekst) | Ll9GLigningslov9AØlogiophold(kildeidentifikation: Tekst) | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Ll9GLigningslov9COg9DBefordringsfradrag | Ll9GLigningslov13Kontingent(kildeidentifikation: Tekst) | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst) | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
+# Ligningslov9GFradragskilde = Ll9GLigningslov9Stk1Udgift(kildeidentifikation: Tekst) | Ll9GLigningslov9ARejse(kildeidentifikation: Tekst) | Ll9GLigningslov9AØlogiophold(kildeidentifikation: Tekst) | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation: Tekst) | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation: Tekst) | Ll9GLigningslov13Kontingent(kildeidentifikation: Tekst) | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation: Tekst) | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation: Tekst, kildeidentifikation: Tekst)
 # Ligningslov9GArbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation: Tekst) | Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation: Tekst)
 # Ligningslov9GKildetilknytning(kilde: Ligningslov9GFradragskilde, arbejdstilknytning: Ligningslov9GArbejdstilknytning)
 # Ligningslov9GÅrsinput(valg: Ligningslov9GFradragsvalg, registreringer: List(Ligningslov9GRegistreringsperiode), arbejdsforhold: List(Ligningslov9GArbejdsforhold), fangstture: List(Ligningslov9GFangsttur), selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering), kildetilknytninger: List(Ligningslov9GKildetilknytning))
@@ -132,10 +132,10 @@ kontingent eller en særskilt udgift, der vedrører andet arbejde end fiskeriet.
     | Ll9GLigningslov9ARejse(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GLigningslov9AØlogiophold(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GLigningslov9BErhvervsbefordring(kildeidentifikation) -> kildeidentifikation != ""
+    | Ll9GLigningslov9COg9DBefordringsforhold(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GLigningslov13Kontingent(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> kildeidentifikation != ""
     | Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift(virksomhedsidentifikation, kildeidentifikation) -> virksomhedsidentifikation != "" && kildeidentifikation != ""
-    | Ll9GLigningslov9COg9DBefordringsfradrag -> Sandt
 }
 | ligningslov9g_arbejdstilknytning_grundgyldig(input: Ligningslov9GÅrsinput, arbejdstilknytning: Ligningslov9GArbejdstilknytning) -> match arbejdstilknytning {
     | Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation) -> arbejdsforhold_identifikation != "" && match ligningsloven9g_arbejdsforhold_for(input, arbejdsforhold_identifikation) { | Some(_) -> Sandt | None -> Falskt }

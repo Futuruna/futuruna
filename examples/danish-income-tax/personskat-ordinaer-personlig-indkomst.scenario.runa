@@ -192,7 +192,9 @@
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
-    befordring = MedBefordringsfradrag(fakta = PersonskatBefordringsfradragFakta(
+    befordring = PersonskatBefordringsfradragInput(forhold = [PersonskatBefordringsfradragFakta(
+        identifikation = "ordinær-befordring",
+        befordringsmål_identifikation = "ordinært-arbejde",
         arbejdsdage = 200,
         daglige_befordringskilometer = 50,
         bopæl_i_yderkommune_eller_lille_ø = Falskt,
@@ -204,16 +206,13 @@
         arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
         broer = ll9c_ingen_bropassager(),
         særlig_transport = ll9c_ingen_særlig_transport()
-    )),
+    )]),
     rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
     arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
     gaver = LigningslovGaveÅrsinput(gaver = [])
 )
-| personskat_ordinaer_scenario_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> match resultat {
-    | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner
-    | _ -> 0
-}
+| personskat_ordinaer_scenario_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> resultat.aftrapningsindkomst_kroner
 
 = personskat_ordinaer_canonical_gruppeliv_efter_am = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))

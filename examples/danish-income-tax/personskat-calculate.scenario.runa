@@ -77,6 +77,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     årsopgørelse = UdenÅrsopgørelse
 )
 | personskat_calculate_befordringsfakta(arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, ligningslov9d: PersonskatLigningslov9DInput) -> PersonskatBefordringsfradragFakta(
+    identifikation = "beregning-befordring",
+    befordringsmål_identifikation = "beregning-arbejde",
     arbejdsdage = 203,
     daglige_befordringskilometer = 60,
     bopæl_i_yderkommune_eller_lille_ø = Falskt,
@@ -100,7 +102,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
         fiskerfradrag = ligningslov9g_intet_årsinput(),
         øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
-        befordring = MedBefordringsfradrag(fakta = fakta),
+        befordring = PersonskatBefordringsfradragInput(forhold = [fakta]),
         rejser = ligningslov9a_intet_årsinput(),
         faglige_kontingenter = Ligningslov13Årsinput(skatteyderstatus = Ll13Lønmodtager, kontingenter = []),
         arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark, bidrag = []),
@@ -1369,7 +1371,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
-    befordring = UdenBefordringsfradrag,
+    befordring = personskat_ingen_befordringsfradrag(),
     rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
@@ -1497,16 +1499,13 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_befordring_afledes: personskat_calculate_befordring_resultat -> personskat_calculate_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 0 && personskat_calculate_befordring_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 23166 && personskat_calculate_befordring_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 203308
 | personskat_calculate_fri_offentlig_befordring_føder_personlig_indkomst_uden_am: personskat_calculate_fri_offentlig_befordring_resultat -> personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 0 && personskat_calculate_fri_offentlig_befordring_resultat.skat.bruttoløn_kroner == 600000 && personskat_calculate_fri_offentlig_befordring_resultat.skat.øvrig_personlig_indkomst_kroner == 23166 && personskat_calculate_fri_offentlig_befordring_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_calculate_fri_bil_føder_personlig_indkomst_med_am: personskat_calculate_fri_bil_befordring_resultat -> personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.personlig_indkomst_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner == 23166 && personskat_calculate_fri_bil_befordring_resultat.skat.bruttoløn_kroner == 623166 && personskat_calculate_fri_bil_befordring_resultat.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_calculate_fri_bil_befordring_resultat.skat.arbejdsmarkedsbidrag_kroner == 49853
-| personskat_calculate_fri_bil_modpost_indgår_i_ll9c_aftrapningsgrundlag: personskat_calculate_fri_bil_befordring_resultat -> match personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.befordring {
-    | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner == 623166
+| personskat_calculate_fri_bil_modpost_indgår_i_ll9c_aftrapningsgrundlag: personskat_calculate_fri_bil_befordring_resultat -> personskat_calculate_fri_bil_befordring_resultat.ligningsfradrag.befordring.aftrapningsindkomst_kroner == 623166
+| personskat_calculate_ll9d_betingelser_erstatter_ll9c: personskat_calculate_ll9d_resultat -> personskat_calculate_ll9d_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_ll9d_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 8000 && personskat_calculate_ll9d_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 8000 && personskat_calculate_ll9d_resultat.ligningsfradrag.befordring.samlet_ligningsfradrag_kroner == 8000 && match head(personskat_calculate_ll9d_resultat.ligningsfradrag.befordring.forholdsresultater) {
+    | BeregnetBefordringsfradragsforhold(_, ligningslov9d_resultat, _, ligningslov9c_resultat) -> ligningslov9d_resultat.omfattet_af_par9d && ligningslov9d_resultat.fradrag_kroner == 8000 && ligningslov9c_resultat.berettiget_til_ordinært_fradrag == Falskt && ligningslov9c_resultat.samlet_befordringsfradrag_kroner == 0
     | _ -> Falskt
 }
-| personskat_calculate_ll9d_betingelser_erstatter_ll9c: personskat_calculate_ll9d_resultat -> personskat_calculate_ll9d_resultat.ligningsfradrag.alle_input_gyldige && personskat_calculate_ll9d_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 8000 && personskat_calculate_ll9d_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 8000 && match personskat_calculate_ll9d_resultat.ligningsfradrag.befordring {
-    | BeregnetBefordringsfradrag(_, ligningslov9d_resultat, _, ligningslov9c_resultat, samlet_ligningsfradrag_kroner, _, _) -> ligningslov9d_resultat.omfattet_af_par9d && ligningslov9d_resultat.fradrag_kroner == 8000 && ligningslov9c_resultat.berettiget_til_ordinært_fradrag == Falskt && ligningslov9c_resultat.samlet_befordringsfradrag_kroner == 0 && samlet_ligningsfradrag_kroner == 8000
-    | _ -> Falskt
-}
-| personskat_calculate_ll9d_forkert_år_afvises: personskat_calculate_ll9d_forkert_år_resultat -> personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.alle_input_gyldige == Falskt && personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726 && match personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.befordring {
-    | UgyldigtBefordringsfradrag(_, skatteår_understøttet, grundfakta_gyldige, ligningslov9d_input_gyldigt) -> skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt == Falskt
+| personskat_calculate_ll9d_forkert_år_afvises: personskat_calculate_ll9d_forkert_år_resultat -> personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.alle_input_gyldige == Falskt && personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == 0 && personskat_calculate_ll9d_forkert_år_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner == 208726 && match head(personskat_calculate_ll9d_forkert_år_resultat.ligningsfradrag.befordring.forholdsresultater) {
+    | UgyldigtBefordringsfradragsforhold(_, skatteår_understøttet, grundfakta_gyldige, ligningslov9d_input_gyldigt) -> skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt == Falskt
     | _ -> Falskt
 }
 | personskat_calculate_ordinær_aktieavance_afledes: personskat_calculate_ordinær_aktie_resultat -> personskat_calculate_ordinær_aktie_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ordinær_aktie_resultat.aktieavance.aktieindkomst_kroner == 5000 && personskat_calculate_ordinær_aktie_resultat.aktieavance.kapitalindkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.aktieavance.personlig_indkomst_kroner == 0 && personskat_calculate_ordinær_aktie_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && personskat_calculate_ordinær_aktie_resultat.endelig_aktieindkomstskat_kroner == 1350 && personskat_calculate_ordinær_aktie_resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == personskat_calculate_ordinær_aktie_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner + 1350

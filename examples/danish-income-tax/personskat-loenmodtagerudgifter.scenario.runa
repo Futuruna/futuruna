@@ -66,7 +66,7 @@ Personskat-beregning.
         skatteyderstatus = Ll9Stk1Lønmodtager,
         udgifter = udgifter
     ),
-    befordring = UdenBefordringsfradrag,
+    befordring = personskat_ingen_befordringsfradrag(),
     rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,

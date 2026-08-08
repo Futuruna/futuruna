@@ -159,6 +159,8 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 )
 | personskat_sømandsfradrag_erhvervsbefordring(identifikation: Tekst, rækkefølge: Heltal, arbejdsgiver: Tekst, udbetalt_godtgørelse_kroner: Heltal, kundeopsøgende: Boolsk, antal_arbejdsgivere: Heltal) -> personskat_sømandsfradrag_erhvervsbefordring_med_kilometer(identifikation = identifikation, rækkefølge = rækkefølge, arbejdsgiver = arbejdsgiver, kilometer = 1000, udbetalt_godtgørelse_kroner = udbetalt_godtgørelse_kroner, kundeopsøgende = kundeopsøgende, antal_arbejdsgivere = antal_arbejdsgivere)
 | personskat_sømandsfradrag_befordringsfakta() -> PersonskatBefordringsfradragFakta(
+    identifikation = "sømandsbefordring",
+    befordringsmål_identifikation = "sømandsarbejde",
     arbejdsdage = 203,
     daglige_befordringskilometer = 60,
     bopæl_i_yderkommune_eller_lille_ø = Falskt,
@@ -207,7 +209,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
     fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
-    befordring = MedBefordringsfradrag(fakta = personskat_sømandsfradrag_befordringsfakta()),
+    befordring = PersonskatBefordringsfradragInput(forhold = [personskat_sømandsfradrag_befordringsfakta()]),
     rejser = ligningslov9a_intet_årsinput(),
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,

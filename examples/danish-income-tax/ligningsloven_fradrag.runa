@@ -1408,8 +1408,20 @@ Kilde: https://info.skat.dk/data.aspx?oid=2061747
 | ll9c_lavindkomst_tillæg_basispoint_efter_aftrapning(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(ll9c_satser_for(input.skatteår).lavindkomst_tillæg_basispoint - ll9c_lavindkomst_aftrapningstrin_1000(input) * ll9c_satser_for(input.skatteår).lavindkomst_aftrapning_basispoint_pr_1000)
 | ll9c_lavindkomst_maks_basispoint_efter_aftrapning(input: Ligningslov9CInput) -> ligningslov_positivt_beløb(10000 - ll9c_lavindkomst_aftrapningstrin_1000(input) * 200)
 | ll9c_lavindkomst_maks_efter_aftrapning_kroner(input: Ligningslov9CInput) -> penge_beløb_gange_basispoint_kroner(ll9c_satser_for(input.skatteår).lavindkomst_maks_kroner, ll9c_lavindkomst_maks_basispoint_efter_aftrapning(input))
+| ll9c_lavindkomst_tillæg_for_årsgrundlag_kroner(skatteår: Heltal, aftrapningsindkomst_kroner: Heltal, årsgrundlag_kroner: Heltal) -> {
+    = satser = ll9c_satser_for(skatteår)
+    = overskydende_indkomst_kroner = ligningslov_positivt_beløb(aftrapningsindkomst_kroner - satser.lavindkomst_indkomstgrænse_kroner)
+    = aftrapningstrin_1000 = overskydende_indkomst_kroner / 1000
+    = tillæg_basispoint = ligningslov_positivt_beløb(satser.lavindkomst_tillæg_basispoint - aftrapningstrin_1000 * satser.lavindkomst_aftrapning_basispoint_pr_1000)
+    = maksimum_basispoint = ligningslov_positivt_beløb(10000 - aftrapningstrin_1000 * 200)
+    = maksimum_kroner = penge_beløb_gange_basispoint_kroner(satser.lavindkomst_maks_kroner, maksimum_basispoint)
+    ligningslov_mindste_beløb(
+        penge_beløb_gange_basispoint_kroner(ligningslov_positivt_beløb(årsgrundlag_kroner), tillæg_basispoint),
+        maksimum_kroner
+    )
+}
 | ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> 0
-| exception ll9c_ordinært_lavindkomsttillæg ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> ligningslov_mindste_beløb(penge_beløb_gange_basispoint_kroner(ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input), ll9c_lavindkomst_tillæg_basispoint_efter_aftrapning(input)), ll9c_lavindkomst_maks_efter_aftrapning_kroner(input)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
+| exception ll9c_ordinært_lavindkomsttillæg ll9c_lavindkomst_tillæg_kroner(input: Ligningslov9CInput) -> ll9c_lavindkomst_tillæg_for_årsgrundlag_kroner(input.skatteår, input.aftrapningsindkomst_kroner, ll9c_grundfradrag_før_lavindkomsttillæg_kroner(input)) under ll9c_ordinært_befordringsfradrag_berettiget(input)
 | ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> 0
 | exception ll9c_fri_befordring_medregnes_som_værdi ll9c_fri_befordring_skattepligtig_værdi_kroner(input: Ligningslov9CInput) -> ll9c_afstandsfradrag_kroner(input) under ll9c_arbejdsplads_befordringsfradrag_berettiget(input) && input.fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen == Sandt
 | ll9c_befordringsfradrag_resultat(input: Ligningslov9CInput) -> Ligningslov9CResultat(

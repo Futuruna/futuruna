@@ -163,24 +163,9 @@ indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
     )]
 )
 
-| personskat_rejsefradrag_nul_befordringsfradrag() -> MedBefordringsfradrag(fakta = PersonskatBefordringsfradragFakta(
-    arbejdsdage = 0,
-    daglige_befordringskilometer = 0,
-    bopæl_i_yderkommune_eller_lille_ø = Falskt,
-    befordringsformål = IndtægtsgivendeArbejdsplads,
-    modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
-    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
-    ligningslov9d = UdenLigningslov9D,
-    fradrag_udelukket_folketingshverv_m_v = Falskt,
-    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
-    broer = ll9c_ingen_bropassager(),
-    særlig_transport = ll9c_ingen_særlig_transport()
-))
+| personskat_rejsefradrag_nul_befordringsfradrag() -> personskat_ingen_befordringsfradrag()
 
-| personskat_rejsefradrag_ll9c_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> match resultat {
-    | BeregnetBefordringsfradrag(_, _, ligningslov9c_input, _, _, _, _) -> ligningslov9c_input.aftrapningsindkomst_kroner
-    | _ -> 0
-}
+| personskat_rejsefradrag_ll9c_aftrapningsindkomst_kroner(resultat: PersonskatBefordringsfradragResultat) -> resultat.aftrapningsindkomst_kroner
 
 | personskat_rejsefradrag_ligningsfradrag_med_ll9a(sømandsfradrag: Sømandsbeskatningslov3Årsinput, rejser: Ligningslov9AÅrsinput) -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsfradrag,
