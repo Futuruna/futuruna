@@ -56,6 +56,15 @@ relationelle ark. Hvert eksponeret felt kan samtidig have en
 dansk etiket, et interviewspørgsmål, hjælp, enhed og typede kildehenvisninger,
 mens den kanoniske feltsti forbliver en stabil maskinnøgle.
 
+Den genererede arbejdsbog er nu strukturelt komplet for den aktuelt
+understøttede `PersonskatInput`-graf. Kontrakten når 1.500 domænedefinitioner og
+opløser 4.216 feltmetadata-poster; gentagne kildefakta ligger i relationelle
+ark, og en udfyldt arbejdsbog giver samme fulde resultat som det tilsvarende
+kanoniske JSON-input. Det er ikke en påstand om, at enhver dansk skatteregel er
+implementeret: nye kildebårne lovgrene føjes fortsat til korpusset, men når de
+forbindes til `PersonskatInput`, bliver de automatisk en del af den samme
+arbejdsbog uden en særskilt regnearksimplementering.
+
 Regnearket er derfor også et maskinlæsbart udvekslingsformat. En AI kan læse den
 samme kontrakt, interviewe borgeren med de menneskelige spørgsmål og udfylde de
 kanoniske svar. AI'en skal ikke selv gætte skatteregler eller beregne skatten:
@@ -449,7 +458,7 @@ et ellers gyldigt ABL-forløb, der alene ikke opfylder § 15's
 fritagelsesbetingelser, fortsætter gennem de almindelige ABL-regler.
 Beregningsgrænsen har samtidig titlen `@ calculate("Dansk personskat")`; den
 tekst navngiver hele beregningen, mens feltmetadata navngiver de enkelte
-interviewoplysninger. Kontrakten har nu 1.364 eksplicitte feltmetadata-poster,
+interviewoplysninger. Kontrakten opløser nu 4.216 feltmetadata-poster,
 heraf 261 for § 53 A-ordninger og 66 for egne og ægtefællens skadegenopførelser
 efter Ejendomsavancebeskatningslovens § 10. De historiske overgangsvalg ligger i de
 fjorten relationelle § 53 A-ark frem for som gentagne kolonner på ordningen.

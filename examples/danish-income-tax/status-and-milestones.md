@@ -77,6 +77,7 @@ Planned calculation-runner performance: `td-783a9c` (genbrug en kompileret eller
 Deferred performance issues: `td-6659f1`, `td-370d3f`
 Deferred metadata cleanup: `td-e4cfd3` (flyt PBL § 15 A's eksisterende præsentationsmetadata til genbrugelige typeankre)
 Deferred workbook topology: `td-70d182` (undlad inaktive variantark i den komplette Personskat-arbejdsbog)
+Completed generated-workbook boundary: `td-c743fb` (én typet `beregn_personskat(PersonskatInput)`-kontrakt genererer hele arbejdsbogen for den aktuelt understøttede kanoniske graf; 1.500 nåbare domænedefinitioner, 4.216 opløste feltmetadata-poster og relationelle samlinger valideres og rundføres gennem samme JSON/XLSX-resultat)
 Latest approved implementation slice: `td-4e42fd`
 Latest approved language slice: `td-8a34e0`
 
@@ -4604,9 +4605,11 @@ Review candidates to revisit deliberately, not as broad churn:
   JSON/TOML/XLSX templates and `runa call` carry the same source-linked
   contract. XLSX schema v6 creates related child worksheets only for genuine
   `List`, `Map` or `Set` fields; the ABL collections now prove that behavior in
-  the aggregate itself. Remaining workbook gaps are therefore the remaining
-  source-law branches that have not yet reached `PersonskatInput`, not
-  hand-authored workbook topology.
+  the aggregate itself. As of `td-c743fb`, the workbook adapter is complete for
+  every branch in the currently supported canonical graph. Source-law branches
+  that have not yet reached `PersonskatInput` are corpus work, not missing
+  hand-authored workbook topology: subsequent legal branches extend the same
+  graph and appear automatically in the generated contract.
 - The 2026-08-01 calculation-boundary audit now inventories every public
   `@ calculate` entry with `runa audit --entry ... --json`. The four entries in
   `investeringsklassifikation.calculate.runa` accept typed source-fact graphs
@@ -4698,23 +4701,20 @@ Review candidates to revisit deliberately, not as broad churn:
   7.000 kr., gendanner samme kanoniske JSON og returnerer den afledte § 7-status,
   § 17-anvendelse og KGL § 32-relation. Skemaet for denne slice havde hash
   `e7a63e73e5c8943ea7d69588a3eea69423551347b8ee6a2715fe3c10aea6b09f`.
-- `td-c743fb` tracks the complete generated Personskatteloven workbook. Its
-  completion boundary is one typed `@ calculate` input graph that reaches every
-  required and optional fact in the supported full-law calculation. The XLSX
-  remains derived from that contract: scalar and optional values stay on the
-  case sheet, while only genuine `List`, `Map`, or `Set` values become related
-  child sheets.
-  The workbook engine itself is no longer the limiting factor: this slice adds
-  fact-only asset and owner-position lists that the eventual aggregate can
-  expose. The remaining work is to make the canonical input graph reach every
-  supported branch before generating and presenting one full citizen workbook.
-  The focused investment contract also proves that recursive legal input graphs
-  terminate in schema/XLSX generation and round-trip through `runa call`.
-  The § 19 workbook currently derives four related fact sheets, and the
-  §§ 19 A-20 A workbook derives seven, including nested participant-company
-  claims. The eventual full workbook remains downstream of the complete
-  calculation contract rather than replacing legal recursion with precomputed
-  caller values.
+- `td-c743fb` has completed the generated Personskatteloven workbook for the
+  currently supported canonical corpus. One typed
+  `beregn_personskat(PersonskatInput)` entry reaches every required and optional
+  input in that graph. The current schema contains 1.500 reachable domain
+  definitions, 4.216 resolved field-metadata entries, 331 list nodes, one map
+  node and 25 optional nodes. `runa template --format xlsx` generates a 4,6 MB
+  workbook directly from this graph. Scalars and optional values stay on the
+  case sheet, while genuine `List`, `Map`, or `Set` values become related child
+  sheets. Populated canonical cases, including nested legal histories, produce
+  byte-identical JSON and XLSX results; stale and tampered topology fails
+  closed. This is completeness relative to the executable `PersonskatInput`
+  graph, not a claim that every possible Danish tax dependency is implemented.
+  Remaining source-law work belongs in the corpus and automatically expands the
+  same generated workbook when it reaches `PersonskatInput`.
 - Aktieavancebeskatningsloven §§ 37-40 are now composed into the canonical
   Personskat calculation under `td-3681f7`. A typed source record establishes
   the departure holdings and their § 38 basis, derives the marginal § 8 a tax,
@@ -4991,12 +4991,11 @@ Review candidates to revisit deliberately, not as broad churn:
   disposal loss before that calculation. Rank the next dependent
   classification by its impact on Personskatteloven rather than deepening
   exploratory audits.
-- Extend the canonical Personskatteloven `@ calculate` aggregate with the
-  remaining executable § 3/§ 4/§ 4 a source-fact branches. The aggregate
-  already reaches ordinary wage facts, ordinary and special ABL inputs, special
-  tax/deficit conditions and optional annual settlement. Keep the generated
-  workbook downstream of that graph so scalar cells, enum dropdowns, variant
-  payloads and related collection sheets cannot drift from the executable law.
+- Extend the completed canonical Personskatteloven `@ calculate` boundary when
+  new executable § 3/§ 4/§ 4 a source-fact branches enter `PersonskatInput`.
+  Keep the generated workbook downstream of that graph so scalar cells, enum
+  dropdowns, variant payloads and related collection sheets cannot drift from
+  the executable law; no separate workbook implementation is required.
 - Continue the current Ejendomsavancebeskatningsloven dependency from the
   source-backed §§ 5/5 A, 6, 8 and 9 paths. Milk quotas and § 5, stk. 6 are now
   executable and round-trip through the canonical Personskat contract, and
