@@ -8,16 +8,20 @@
     eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
     landelinjer = [
         Ligningslov33LandelinjeFakta(
-            område = Ll33FremmedStat("anonymiseret"),
-            opkrævningsmåde = Ll33Indeholdelse,
-            udenlandsk_bruttoindkomst_kroner = 398,
-            direkte_henførbare_udgifter_kroner = 0,
-            betalt_udenlandsk_skat_øre = 600,
-            skatteart = Ll33Indkomstskat,
-            betalingsdokumentreference = "Privat årsopgørelse 2025, side 4: udenlandsk skat",
-            overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
-                fradragsberettiget_udenlandsk_skat_øre = 600,
-                dokumentreference = "Privat årsopgørelse 2025, side 4: specifikation af nedslag"
+            indkomstfakta = Ligningslov33Indkomstfakta(
+                område = Ll33FremmedStat("anonymiseret"),
+                udenlandsk_bruttoindkomst_kroner = 398,
+                direkte_henførbare_udgifter_kroner = 0
+            ),
+            skattebetaling = Ligningslov33Skattebetaling(
+                opkrævningsmåde = Ll33Indeholdelse,
+                betalt_udenlandsk_skat_øre = 600,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Privat årsopgørelse 2025, side 4: udenlandsk skat",
+                overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
+                    fradragsberettiget_udenlandsk_skat_øre = 600,
+                    dokumentreference = "Privat årsopgørelse 2025, side 4: specifikation af nedslag"
+                )
             )
         ),
     ]
@@ -37,14 +41,18 @@
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
         landelinjer = [
             Ligningslov33LandelinjeFakta(
-                område = Ll33FremmedStat("AA"),
-                opkrævningsmåde = Ll33DirektePåligning,
-                udenlandsk_bruttoindkomst_kroner = 10000,
-                direkte_henførbare_udgifter_kroner = 0,
-                betalt_udenlandsk_skat_øre = 500000,
-                skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Betalingsbilag AA-2025",
-                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                indkomstfakta = Ligningslov33Indkomstfakta(
+                    område = Ll33FremmedStat("AA"),
+                    udenlandsk_bruttoindkomst_kroner = 10000,
+                    direkte_henførbare_udgifter_kroner = 0
+                ),
+                skattebetaling = Ligningslov33Skattebetaling(
+                    opkrævningsmåde = Ll33DirektePåligning,
+                    betalt_udenlandsk_skat_øre = 500000,
+                    skatteart = Ll33Indkomstskat,
+                    betalingsdokumentreference = "Betalingsbilag AA-2025",
+                    overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                )
             ),
         ]
     ),
@@ -61,16 +69,20 @@
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
         landelinjer = [
             Ligningslov33LandelinjeFakta(
-                område = Ll33FremmedStat("BB"),
-                opkrævningsmåde = Ll33Indeholdelse,
-                udenlandsk_bruttoindkomst_kroner = 80000,
-                direkte_henførbare_udgifter_kroner = 0,
-                betalt_udenlandsk_skat_øre = 2000000,
-                skatteart = Ll33SærligIndkomstskat,
-                betalingsdokumentreference = "Betalingsbilag BB-2025",
-                overenskomstgrundlag = Ll33OverenskomstensUbetingedeKrav(
-                    maksimal_skat_øre = 1500000,
-                    dokumentreference = "DBO BB-Danmark, artikel 22"
+                indkomstfakta = Ligningslov33Indkomstfakta(
+                    område = Ll33FremmedStat("BB"),
+                    udenlandsk_bruttoindkomst_kroner = 80000,
+                    direkte_henførbare_udgifter_kroner = 0
+                ),
+                skattebetaling = Ligningslov33Skattebetaling(
+                    opkrævningsmåde = Ll33Indeholdelse,
+                    betalt_udenlandsk_skat_øre = 2000000,
+                    skatteart = Ll33SærligIndkomstskat,
+                    betalingsdokumentreference = "Betalingsbilag BB-2025",
+                    overenskomstgrundlag = Ll33OverenskomstensUbetingedeKrav(
+                        maksimal_skat_øre = 1500000,
+                        dokumentreference = "DBO BB-Danmark, artikel 22"
+                    )
                 )
             ),
         ]
@@ -88,14 +100,18 @@
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 2000,
         landelinjer = [
             Ligningslov33LandelinjeFakta(
-                område = Ll33FremmedStat("CC"),
-                opkrævningsmåde = Ll33DirektePåligning,
-                udenlandsk_bruttoindkomst_kroner = 40000,
-                direkte_henførbare_udgifter_kroner = 1000,
-                betalt_udenlandsk_skat_øre = 500000,
-                skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Betalingsbilag CC-2025",
-                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                indkomstfakta = Ligningslov33Indkomstfakta(
+                    område = Ll33FremmedStat("CC"),
+                    udenlandsk_bruttoindkomst_kroner = 40000,
+                    direkte_henførbare_udgifter_kroner = 1000
+                ),
+                skattebetaling = Ligningslov33Skattebetaling(
+                    opkrævningsmåde = Ll33DirektePåligning,
+                    betalt_udenlandsk_skat_øre = 500000,
+                    skatteart = Ll33Indkomstskat,
+                    betalingsdokumentreference = "Betalingsbilag CC-2025",
+                    overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                )
             ),
         ]
     ),
@@ -112,24 +128,32 @@
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
         landelinjer = [
             Ligningslov33LandelinjeFakta(
-                område = Ll33FremmedStat("DD"),
-                opkrævningsmåde = Ll33Indeholdelse,
-                udenlandsk_bruttoindkomst_kroner = 100,
-                direkte_henførbare_udgifter_kroner = 0,
-                betalt_udenlandsk_skat_øre = 100,
-                skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Betalingsbilag DD-1",
-                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                indkomstfakta = Ligningslov33Indkomstfakta(
+                    område = Ll33FremmedStat("DD"),
+                    udenlandsk_bruttoindkomst_kroner = 100,
+                    direkte_henførbare_udgifter_kroner = 0
+                ),
+                skattebetaling = Ligningslov33Skattebetaling(
+                    opkrævningsmåde = Ll33Indeholdelse,
+                    betalt_udenlandsk_skat_øre = 100,
+                    skatteart = Ll33Indkomstskat,
+                    betalingsdokumentreference = "Betalingsbilag DD-1",
+                    overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                )
             ),
             Ligningslov33LandelinjeFakta(
-                område = Ll33FremmedStat("DD"),
-                opkrævningsmåde = Ll33DirektePåligning,
-                udenlandsk_bruttoindkomst_kroner = 200,
-                direkte_henførbare_udgifter_kroner = 0,
-                betalt_udenlandsk_skat_øre = 200,
-                skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Betalingsbilag DD-2",
-                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                indkomstfakta = Ligningslov33Indkomstfakta(
+                    område = Ll33FremmedStat("DD"),
+                    udenlandsk_bruttoindkomst_kroner = 200,
+                    direkte_henførbare_udgifter_kroner = 0
+                ),
+                skattebetaling = Ligningslov33Skattebetaling(
+                    opkrævningsmåde = Ll33DirektePåligning,
+                    betalt_udenlandsk_skat_øre = 200,
+                    skatteart = Ll33Indkomstskat,
+                    betalingsdokumentreference = "Betalingsbilag DD-2",
+                    overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+                )
             ),
         ]
     ),
@@ -145,14 +169,18 @@
         ikke_henførbare_udgifter_kroner = 0,
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
         landelinjer = [Ligningslov33LandelinjeFakta(
-            område = Ll33FremmedStat("EE"),
-            opkrævningsmåde = Ll33Indeholdelse,
-            udenlandsk_bruttoindkomst_kroner = 1000,
-            direkte_henførbare_udgifter_kroner = 0,
-            betalt_udenlandsk_skat_øre = 27000,
-            skatteart = skatteart,
-            betalingsdokumentreference = betalingsdokumentreference,
-            overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            indkomstfakta = Ligningslov33Indkomstfakta(
+                område = Ll33FremmedStat("EE"),
+                udenlandsk_bruttoindkomst_kroner = 1000,
+                direkte_henførbare_udgifter_kroner = 0
+            ),
+            skattebetaling = Ligningslov33Skattebetaling(
+                opkrævningsmåde = Ll33Indeholdelse,
+                betalt_udenlandsk_skat_øre = 27000,
+                skatteart = skatteart,
+                betalingsdokumentreference = betalingsdokumentreference,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            )
         )]
     ),
     Ligningslov33DanskSkattekreds(
@@ -189,16 +217,18 @@
 ) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = grupperingsgrundlag,
-    fakta = Ligningslov33LandelinjeFakta(
+    indkomstfakta = Ligningslov33Indkomstfakta(
         område = Ll33FremmedStat(landekode),
-        opkrævningsmåde = Ll33Indeholdelse,
         udenlandsk_bruttoindkomst_kroner = udenlandsk_bruttoindkomst_kroner,
-        direkte_henførbare_udgifter_kroner = 0,
+        direkte_henførbare_udgifter_kroner = 0
+    ),
+    skattebetalinger = [Ligningslov33Skattebetaling(
+        opkrævningsmåde = Ll33Indeholdelse,
         betalt_udenlandsk_skat_øre = betalt_udenlandsk_skat_øre,
         skatteart = Ll33Indkomstskat,
         betalingsdokumentreference = "Dokumentation " + identifikation,
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
-    ),
+    )],
     udenlandsk_indkomst_efter_danske_regler = indkomst,
     lønlempelsesstatus = lønlempelsesstatus
 )

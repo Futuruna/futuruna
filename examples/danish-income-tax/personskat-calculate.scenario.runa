@@ -1113,11 +1113,13 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kreditgrupper = [Ligningslov33PersonKreditgruppe(
             identifikation = "anonymiseret-udenlandsk-udbytte",
             grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            fakta = Ligningslov33LandelinjeFakta(
+            indkomstfakta = Ligningslov33Indkomstfakta(
                 område = Ll33FremmedStat("anonymiseret"),
-                opkrævningsmåde = Ll33Indeholdelse,
                 udenlandsk_bruttoindkomst_kroner = 398,
-                direkte_henførbare_udgifter_kroner = 0,
+                direkte_henførbare_udgifter_kroner = 0
+            ),
+            skattebetalinger = [Ligningslov33Skattebetaling(
+                opkrævningsmåde = Ll33Indeholdelse,
                 betalt_udenlandsk_skat_øre = 600,
                 skatteart = Ll33Indkomstskat,
                 betalingsdokumentreference = "Anonymiseret årsopgørelsesscenarie",
@@ -1125,7 +1127,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
                     fradragsberettiget_udenlandsk_skat_øre = 600,
                     dokumentreference = "Anonymiseret årsopgørelsesscenarie"
                 )
-            ),
+            )],
             udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
                 skattepligtig_nettoindkomst_efter_par33f_kroner = 0,
                 personlig_nettoindkomst_efter_par33f_kroner = 0,

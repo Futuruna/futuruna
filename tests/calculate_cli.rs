@@ -1443,6 +1443,42 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human Personskatteloven input label {expected}"
             );
         }
+        let foreign_tax_payments_path =
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.skattebetalinger";
+        let foreign_tax_payments_sheet =
+            workbook_collection_sheet_name(&mut workbook, foreign_tax_payments_path);
+        let foreign_tax_payment_paths =
+            workbook_column_paths(&mut workbook, &foreign_tax_payments_sheet);
+        for expected in [
+            "opkrævningsmåde",
+            "betalt_udenlandsk_skat_øre",
+            "skatteart",
+            "betalingsdokumentreference",
+            "overenskomstgrundlag.$variant",
+        ] {
+            assert!(
+                foreign_tax_payment_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical LL § 33 tax-payment path {expected} on {foreign_tax_payments_sheet}"
+            );
+        }
+        let foreign_tax_payment_headers =
+            workbook_headers(&mut workbook, &foreign_tax_payments_sheet);
+        for expected in [
+            "Opkrævningsmåde for udenlandsk skat",
+            "Betalt udenlandsk skat",
+            "Den udenlandske skats art",
+            "Dokumentation for betalt udenlandsk skat",
+            "Loft efter dobbeltbeskatningsoverenskomst",
+        ] {
+            assert!(
+                foreign_tax_payment_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 33 tax-payment label {expected} on {foreign_tax_payments_sheet}"
+            );
+        }
         let freight_tax_balances_path =
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi";
         let freight_tax_balances_sheet =
@@ -3477,7 +3513,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "negativ_aktieskat_fremførsel.ægtefælle.$variant",
             "ligningslov33.hovedperson.$variant",
             "ligningslov33.hovedperson.MedLigningslov33.input.indkomstår",
-            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.fakta.skatteart",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.indkomstfakta.område.$variant",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.skattebetalinger.skatteart",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.$variant",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.Ll33FremmedStat.landekode",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.indkomstår",
@@ -15445,14 +15482,24 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "grupperingsgrundlag": {
                         "$variant": "Ll33SamletIndkomstFraSkatteområdet"
                     },
-                    "fakta": {
+                    "indkomstfakta": {
                         "område": {
                             "$variant": "Ll33FremmedStat",
                             "landekode": "NO"
                         },
-                        "opkrævningsmåde": { "$variant": "Ll33DirektePåligning" },
                         "udenlandsk_bruttoindkomst_kroner": 100_000,
-                        "direkte_henførbare_udgifter_kroner": 0,
+                        "direkte_henførbare_udgifter_kroner": 0
+                    },
+                    "skattebetalinger": [{
+                        "opkrævningsmåde": { "$variant": "Ll33DirektePåligning" },
+                        "betalt_udenlandsk_skat_øre": 100_000,
+                        "skatteart": { "$variant": "Ll33Indkomstskat" },
+                        "betalingsdokumentreference": "Norsk indkomstskattebilag 2026",
+                        "overenskomstgrundlag": {
+                            "$variant": "Ll33IngenDobbeltbeskatningsoverenskomst"
+                        }
+                    }, {
+                        "opkrævningsmåde": { "$variant": "Ll33DirektePåligning" },
                         "betalt_udenlandsk_skat_øre": 100_000,
                         "skatteart": {
                             "$variant": "Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik"
@@ -15461,7 +15508,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "overenskomstgrundlag": {
                             "$variant": "Ll33IngenDobbeltbeskatningsoverenskomst"
                         }
-                    },
+                    }],
                     "udenlandsk_indkomst_efter_danske_regler": {
                         "skattepligtig_nettoindkomst_efter_par33f_kroner": 100_000,
                         "personlig_nettoindkomst_efter_par33f_kroner": 0,
@@ -15779,7 +15826,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     assert_eq!(
         json_freight_tax_result["result"]["ligningslov33"]["hovedpersons_nedslag_øre"],
-        200_000
+        300_000
+    );
+    assert_eq!(
+        json_freight_tax_result["result"]["ligningslov33"]["hovedperson"]["kreditgrupper"][0]
+            ["skattebetalinger"]
+            .as_array()
+            .expect("mixed LL § 33 tax-payment results")
+            .len(),
+        2
     );
     assert_eq!(
         json_freight_tax_result["result"]["ligningslov33"]["hovedperson"]["fragtskat_ultimosaldi"]

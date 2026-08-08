@@ -62,16 +62,18 @@ nedslaget i personens slutskat.
 | personskat_ligningslov33_scenarie_kreditgruppe(identifikation: Tekst, udenlandsk_bruttoløn_kroner: Heltal, betalt_udenlandsk_skat_øre: Heltal, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    fakta = Ligningslov33LandelinjeFakta(
+    indkomstfakta = Ligningslov33Indkomstfakta(
         område = Ll33FremmedStat("SE"),
-        opkrævningsmåde = Ll33DirektePåligning,
         udenlandsk_bruttoindkomst_kroner = udenlandsk_bruttoløn_kroner,
-        direkte_henførbare_udgifter_kroner = 0,
+        direkte_henførbare_udgifter_kroner = 0
+    ),
+    skattebetalinger = [Ligningslov33Skattebetaling(
+        opkrævningsmåde = Ll33DirektePåligning,
         betalt_udenlandsk_skat_øre = betalt_udenlandsk_skat_øre,
         skatteart = Ll33Indkomstskat,
         betalingsdokumentreference = identifikation,
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
-    ),
+    )],
     udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
         skattepligtig_nettoindkomst_efter_par33f_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
         personlig_nettoindkomst_efter_par33f_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
@@ -94,16 +96,18 @@ nedslaget i personens slutskat.
 | personskat_ligningslov33_scenarie_fragtskattegruppe() -> Ligningslov33PersonKreditgruppe(
     identifikation = "norsk-fragtskat-2026",
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    fakta = Ligningslov33LandelinjeFakta(
+    indkomstfakta = Ligningslov33Indkomstfakta(
         område = Ll33FremmedStat(landekode = "NO"),
-        opkrævningsmåde = Ll33DirektePåligning,
         udenlandsk_bruttoindkomst_kroner = 100000,
-        direkte_henførbare_udgifter_kroner = 0,
+        direkte_henførbare_udgifter_kroner = 0
+    ),
+    skattebetalinger = [Ligningslov33Skattebetaling(
+        opkrævningsmåde = Ll33DirektePåligning,
         betalt_udenlandsk_skat_øre = 100000,
         skatteart = Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik,
         betalingsdokumentreference = "Norsk fragtskattebilag 2026",
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
-    ),
+    )],
     udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
         skattepligtig_nettoindkomst_efter_par33f_kroner = 100000,
         personlig_nettoindkomst_efter_par33f_kroner = 0,

@@ -30,21 +30,34 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
     cfc_nettoindkomst_efter_par33f_kroner = 0,
     arbejdsmarkedsbidragsgrundlag_kroner = 0
 )
-| ll33_fragtskat_scenarie_gruppe(identifikation: Tekst, område: Ligningslov33Skatteområde, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> Ligningslov33PersonKreditgruppe(
+| ll33_fragtskat_scenarie_skattebetaling(identifikation: Tekst, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> Ligningslov33Skattebetaling(
+    opkrævningsmåde = Ll33DirektePåligning,
+    betalt_udenlandsk_skat_øre = betalt_skat_øre,
+    skatteart = skatteart,
+    betalingsdokumentreference = "Skattebilag " + identifikation,
+    overenskomstgrundlag = overenskomstgrundlag
+)
+| ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(identifikation: Tekst, skatteområde: Ligningslov33Skatteområde, skattebetalinger: List(Ligningslov33Skattebetaling)) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    fakta = Ligningslov33LandelinjeFakta(
-        område = område,
-        opkrævningsmåde = Ll33DirektePåligning,
+    indkomstfakta = Ligningslov33Indkomstfakta(
+        område = skatteområde,
         udenlandsk_bruttoindkomst_kroner = 100000,
-        direkte_henførbare_udgifter_kroner = 0,
-        betalt_udenlandsk_skat_øre = betalt_skat_øre,
-        skatteart = skatteart,
-        betalingsdokumentreference = "Fragtskattebilag " + identifikation,
-        overenskomstgrundlag = overenskomstgrundlag
+        direkte_henførbare_udgifter_kroner = 0
     ),
+    skattebetalinger = skattebetalinger,
     udenlandsk_indkomst_efter_danske_regler = ll33_fragtskat_scenarie_indkomst(),
     lønlempelsesstatus = Ll33IngenLønindkomst
+)
+| ll33_fragtskat_scenarie_gruppe(identifikation: Tekst, område: Ligningslov33Skatteområde, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(
+    identifikation = identifikation,
+    skatteområde = område,
+    skattebetalinger = [ll33_fragtskat_scenarie_skattebetaling(
+        identifikation = identifikation,
+        skatteart = skatteart,
+        betalt_skat_øre = betalt_skat_øre,
+        overenskomstgrundlag = overenskomstgrundlag
+    )]
 )
 | ll33_fragtskat_scenarie_fragtskattegruppe(identifikation: Tekst, landekode: Tekst, betalt_fragtskat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> ll33_fragtskat_scenarie_gruppe(
     identifikation,
@@ -164,11 +177,92 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
     [],
     2500000
 )
+= ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat = ll33_fragtskat_scenarie_resultat(
+    2026,
+    [ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(
+        identifikation = "NO-blandet-2026",
+        skatteområde = Ll33FremmedStat(landekode = "NO"),
+        skattebetalinger = [
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-indkomstskat-2026",
+                skatteart = Ll33Indkomstskat,
+                betalt_skat_øre = 1000000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-fragtskat-2026",
+                skatteart = Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik,
+                betalt_skat_øre = 2000000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    )],
+    [],
+    2500000
+)
+= ll33_fragtskat_scenarie_blandet_med_fremført_saldo = ll33_fragtskat_scenarie_resultat(
+    2026,
+    [ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(
+        identifikation = "NO-blandet-saldo-2026",
+        skatteområde = Ll33FremmedStat(landekode = "NO"),
+        skattebetalinger = [
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-indkomstskat-saldo-2026",
+                skatteart = Ll33Indkomstskat,
+                betalt_skat_øre = 1000000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-fragtskat-saldo-2026",
+                skatteart = Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik,
+                betalt_skat_øre = 500000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    )],
+    ll33_fragtskat_scenarie_2025.fragtskat_ultimosaldi,
+    2500000
+)
+= ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo = ll33_fragtskat_scenarie_resultat(
+    2026,
+    [ll33_fragtskat_scenarie_gruppe(
+        "NO-kun-indkomstskat-med-saldo-2026",
+        Ll33FremmedStat(landekode = "NO"),
+        Ll33Indkomstskat,
+        1000000,
+        Ll33IngenDobbeltbeskatningsoverenskomst
+    )],
+    ll33_fragtskat_scenarie_2025.fragtskat_ultimosaldi,
+    2500000
+)
+= ll33_fragtskat_scenarie_blandet_med_formueskat = ll33_fragtskat_scenarie_resultat(
+    2026,
+    [ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(
+        identifikation = "NO-blandet-formueskat-2026",
+        skatteområde = Ll33FremmedStat(landekode = "NO"),
+        skattebetalinger = [
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-indkomstskat-formueskat-2026",
+                skatteart = Ll33Indkomstskat,
+                betalt_skat_øre = 1000000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+            ll33_fragtskat_scenarie_skattebetaling(
+                identifikation = "NO-formueskat-2026",
+                skatteart = Ll33Formueskat,
+                betalt_skat_øre = 500000,
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    )],
+    [],
+    2500000
+)
 
 | ll33_fragtskat_scenarie_overskydende_fragtskat_fremføres: ll33_fragtskat_scenarie_2025 -> {
     = område = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_2025)
     = saldo = ll33_fragtskat_scenarie_første_ultimosaldo(ll33_fragtskat_scenarie_2025)
-    ll33_fragtskat_scenarie_2025.input_gyldigt && område.årets_fragtskattenedslag_øre == 2500000 && område.årets_nye_fremførsel_øre == 1500000 && område.anvendt_fremført_fragtskat_øre == 0 && område.samlet_fragtskattenedslag_øre == 2500000 && ll33_fragtskat_scenarie_2025.samlet_nedslag_øre == 2500000 && saldo.område == Ll33FremmedStat(landekode = "NO") && saldo.indkomstår == 2025 && saldo.saldo_øre == 1500000 && saldo.dokumentreferencer == ["Fragtskattebilag NO-2025"]
+    ll33_fragtskat_scenarie_2025.input_gyldigt && område.årets_fragtskattenedslag_øre == 2500000 && område.årets_nye_fremførsel_øre == 1500000 && område.anvendt_fremført_fragtskat_øre == 0 && område.samlet_fragtskattenedslag_øre == 2500000 && ll33_fragtskat_scenarie_2025.samlet_nedslag_øre == 2500000 && saldo.område == Ll33FremmedStat(landekode = "NO") && saldo.indkomstår == 2025 && saldo.saldo_øre == 1500000 && saldo.dokumentreferencer == ["Skattebilag NO-2025"]
 }
 | ll33_fragtskat_scenarie_fremført_saldo_udnyttes_efter_årets_fragtskat: ll33_fragtskat_scenarie_2026 -> {
     = område = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_2026)
@@ -177,7 +271,7 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 | ll33_fragtskat_scenarie_resterende_saldo_bevares: ll33_fragtskat_scenarie_delvis_anvendelse -> {
     = område = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_delvis_anvendelse)
     = saldo = ll33_fragtskat_scenarie_første_ultimosaldo(ll33_fragtskat_scenarie_delvis_anvendelse)
-    ll33_fragtskat_scenarie_delvis_anvendelse.input_gyldigt && område.anvendt_fremført_fragtskat_øre == 800000 && område.samlet_fragtskattenedslag_øre == 1800000 && saldo.indkomstår == 2026 && saldo.saldo_øre == 700000 && saldo.dokumentreferencer == ["Fragtskattebilag NO-2025"]
+    ll33_fragtskat_scenarie_delvis_anvendelse.input_gyldigt && område.anvendt_fremført_fragtskat_øre == 800000 && område.samlet_fragtskattenedslag_øre == 1800000 && saldo.indkomstår == 2026 && saldo.saldo_øre == 700000 && saldo.dokumentreferencer == ["Skattebilag NO-2025"]
 }
 | ll33_fragtskat_scenarie_saldo_bevares_uden_årets_fragtskat: ll33_fragtskat_scenarie_uden_årets_fragtskat -> {
     = område = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_uden_årets_fragtskat)
@@ -186,7 +280,7 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 }
 | ll33_fragtskat_scenarie_saldo_udløber_ikke_efter_fem_år: ll33_fragtskat_scenarie_2031_uden_årets_fragtskat -> {
     = saldo = ll33_fragtskat_scenarie_første_ultimosaldo(ll33_fragtskat_scenarie_2031_uden_årets_fragtskat)
-    ll33_fragtskat_scenarie_2031_uden_årets_fragtskat.input_gyldigt && saldo.indkomstår == 2031 && saldo.saldo_øre == 1500000 && saldo.dokumentreferencer == ["Fragtskattebilag NO-2025"]
+    ll33_fragtskat_scenarie_2031_uden_årets_fragtskat.input_gyldigt && saldo.indkomstår == 2031 && saldo.saldo_øre == 1500000 && saldo.dokumentreferencer == ["Skattebilag NO-2025"]
 }
 | ll33_fragtskat_scenarie_saldo_skal_komme_fra_forrige_år: ll33_fragtskat_scenarie_forkert_saldoår -> ll33_fragtskat_scenarie_forkert_saldoår.input_gyldigt == Falskt && ll33_fragtskat_scenarie_forkert_saldoår.samlet_nedslag_øre == 0 && length(ll33_fragtskat_scenarie_forkert_saldoår.fragtskat_ultimosaldi) == 0
 | ll33_fragtskat_scenarie_åbningssaldo_er_entydig_pr_stat: ll33_fragtskat_scenarie_dobbelt_åbningssaldo -> ll33_fragtskat_scenarie_dobbelt_åbningssaldo.input_gyldigt == Falskt && ll33_fragtskat_scenarie_dobbelt_åbningssaldo.samlet_nedslag_øre == 0 && length(ll33_fragtskat_scenarie_dobbelt_åbningssaldo.fragtskat_ultimosaldi) == 0
@@ -195,6 +289,24 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 | ll33_fragtskat_scenarie_overenskomstloft_skaber_ikke_saldo: ll33_fragtskat_scenarie_overenskomstloft -> {
     = område = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_overenskomstloft)
     ll33_fragtskat_scenarie_overenskomstloft.input_gyldigt && område.betalt_fragtskat_efter_overenskomst_øre == 2000000 && område.årets_fragtskattenedslag_øre == 2000000 && område.årets_nye_fremførsel_øre == 0 && length(ll33_fragtskat_scenarie_overenskomstloft.fragtskat_ultimosaldi) == 0
+}
+| ll33_fragtskat_scenarie_blandede_skattearter_deler_ét_loft: ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat -> {
+    = gruppe = head(ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat.kreditgrupper)
+    = fragtskat = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat)
+    ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat.input_gyldigt && length(gruppe.skattebetalinger) == 2 && any(gruppe.skattebetalinger, |betaling: Ligningslov33PersonSkattebetalingsresultat| betaling.betaling.skatteart == Ll33Indkomstskat) && any(gruppe.skattebetalinger, |betaling: Ligningslov33PersonSkattebetalingsresultat| betaling.betaling.skatteart == Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik) && gruppe.udenlandsk_skat_efter_overenskomst_øre == 3000000 && gruppe.nedslag_øre == 2500000 && fragtskat.betalt_fragtskat_efter_overenskomst_øre == 2000000 && fragtskat.årets_fragtskattenedslag_øre == 2000000 && fragtskat.årets_nye_fremførsel_øre == 0 && ll33_fragtskat_scenarie_blandet_ordinær_og_fragtskat.samlet_nedslag_øre == 2500000
+}
+| ll33_fragtskat_scenarie_fremført_saldo_bruger_resten_af_fælles_loft: ll33_fragtskat_scenarie_blandet_med_fremført_saldo -> {
+    = fragtskat = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_blandet_med_fremført_saldo)
+    = saldo = ll33_fragtskat_scenarie_første_ultimosaldo(ll33_fragtskat_scenarie_blandet_med_fremført_saldo)
+    ll33_fragtskat_scenarie_blandet_med_fremført_saldo.input_gyldigt && head(ll33_fragtskat_scenarie_blandet_med_fremført_saldo.kreditgrupper).nedslag_øre == 1500000 && fragtskat.årets_fragtskattenedslag_øre == 500000 && fragtskat.anvendt_fremført_fragtskat_øre == 1000000 && fragtskat.samlet_fragtskattenedslag_øre == 1500000 && ll33_fragtskat_scenarie_blandet_med_fremført_saldo.samlet_nedslag_øre == 2500000 && saldo.saldo_øre == 500000
+}
+| ll33_fragtskat_scenarie_fremført_saldo_kan_bruges_uden_ny_fragtskat: ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo -> {
+    = fragtskat = ll33_fragtskat_scenarie_første_områderesultat(ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo)
+    ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo.input_gyldigt && fragtskat.betalt_fragtskat_efter_overenskomst_øre == 0 && fragtskat.årets_fragtskattenedslag_øre == 0 && fragtskat.anvendt_fremført_fragtskat_øre == 1500000 && fragtskat.samlet_fragtskattenedslag_øre == 1500000 && ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo.samlet_nedslag_øre == 2500000 && length(ll33_fragtskat_scenarie_ordinær_skat_med_fremført_saldo.fragtskat_ultimosaldi) == 0
+}
+| ll33_fragtskat_scenarie_ugyldig_skattebetaling_kan_ikke_udelades: ll33_fragtskat_scenarie_blandet_med_formueskat -> {
+    = gruppe = head(ll33_fragtskat_scenarie_blandet_med_formueskat.kreditgrupper)
+    ll33_fragtskat_scenarie_blandet_med_formueskat.input_gyldigt == Falskt && length(gruppe.skattebetalinger) == 2 && any(gruppe.skattebetalinger, |betaling: Ligningslov33PersonSkattebetalingsresultat| betaling.betaling.skatteart == Ll33Formueskat) && gruppe.nedslag_øre == 0 && ll33_fragtskat_scenarie_blandet_med_formueskat.samlet_nedslag_øre == 0
 }
 
 ? ll33_fragtskat_scenarie_overskydende_fragtskat_fremføres
@@ -207,5 +319,9 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 ? ll33_fragtskat_scenarie_gælder_kun_fremmed_stat
 ? ll33_fragtskat_scenarie_almindelig_indkomstskat_fremføres_ikke
 ? ll33_fragtskat_scenarie_overenskomstloft_skaber_ikke_saldo
+? ll33_fragtskat_scenarie_blandede_skattearter_deler_ét_loft
+? ll33_fragtskat_scenarie_fremført_saldo_bruger_resten_af_fælles_loft
+? ll33_fragtskat_scenarie_fremført_saldo_kan_bruges_uden_ny_fragtskat
+? ll33_fragtskat_scenarie_ugyldig_skattebetaling_kan_ikke_udelades
 
 --@end:ligningslov33_fragtskat_scenarier--

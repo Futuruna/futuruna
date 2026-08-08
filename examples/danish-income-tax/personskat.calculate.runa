@@ -7011,7 +7011,14 @@
     path = refof(Ligningslov33PersonÅrsinput::kreditgrupper),
     label = "Udenlandske kreditgrupper",
     question = Some("Hvilke udenlandske indkomster og skatter skal lempelsesberegningen omfatte?"),
-    help = Some("Tilføj én samlet gruppe pr. skatteområde. Opret kun flere grupper for samme område, når en indkomst er særskilt kildebeskattet og dokumenteret."),
+    help = Some("Tilføj én samlet indkomstgruppe pr. skatteområde. Gruppens dokumenterede skattebetalinger registreres særskilt under samme danske skatteloft. Opret kun flere indkomstgrupper for samme område, når en indkomst er særskilt kildebeskattet og dokumenteret."),
+    unit = None
+)
+= personskat_felt_ligningslov33_skattebetalinger = TypetBeregningsfelt(
+    path = refof(Ligningslov33PersonKreditgruppe::skattebetalinger),
+    label = "Skattebetalinger i kreditgruppen",
+    question = Some("Hvilke dokumenterede udenlandske skattebetalinger vedrører denne indkomstgruppe?"),
+    help = Some("Registrer hver skattebetaling med egen art, beløb, opkrævningsmåde og overenskomstgrundlag. Almindelig indkomstskat og fragtskat fra samme stat kan dermed dele ét dansk skatteloft uden at miste deres særskilte retsvirkninger."),
     unit = None
 )
 = personskat_felt_ligningslov33_par6_kreditter = TypetBeregningsfelt(
@@ -7239,7 +7246,7 @@
     unit = Some("kr./år")
 )
 = personskat_felt_ligningslov33_område = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::område::$variant),
+    path = refof(Ligningslov33Indkomstfakta::område::$variant),
     label = "Skatteområde",
     question = Some("Er indkomsten fra en fremmed stat, Grønland eller Færøerne?"),
     help = None,
@@ -7253,49 +7260,49 @@
     unit = None
 )
 = personskat_felt_ligningslov33_opkrævningsmåde = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::opkrævningsmåde),
+    path = refof(Ligningslov33Skattebetaling::opkrævningsmåde),
     label = "Opkrævningsmåde for udenlandsk skat",
     question = Some("Blev den udenlandske skat pålignet direkte eller indeholdt ved udbetalingen?"),
     help = None,
     unit = None
 )
 = personskat_felt_ligningslov33_udenlandsk_bruttoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::udenlandsk_bruttoindkomst_kroner),
+    path = refof(Ligningslov33Indkomstfakta::udenlandsk_bruttoindkomst_kroner),
     label = "Udenlandsk bruttoindkomst",
     question = Some("Hvor stor var gruppens udenlandske bruttoindkomst?"),
     help = None,
     unit = Some("kr./år")
 )
 = personskat_felt_ligningslov33_direkte_udgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::direkte_henførbare_udgifter_kroner),
+    path = refof(Ligningslov33Indkomstfakta::direkte_henførbare_udgifter_kroner),
     label = "Direkte udgifter til udenlandsk indkomst",
     question = Some("Hvor store udgifter vedrører direkte gruppens udenlandske indkomst?"),
     help = Some("Beløbet trækkes fra før det forholdsmæssige danske skatteloft beregnes."),
     unit = Some("kr./år")
 )
 = personskat_felt_ligningslov33_betalt_udenlandsk_skat = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::betalt_udenlandsk_skat_øre),
+    path = refof(Ligningslov33Skattebetaling::betalt_udenlandsk_skat_øre),
     label = "Betalt udenlandsk skat",
     question = Some("Hvor meget udenlandsk skat er dokumenteret betalt eller indeholdt?"),
     help = Some("Angiv det præcise beløb i øre, så små nedslag ikke tabes ved afrunding."),
     unit = Some("øre")
 )
 = personskat_felt_ligningslov33_skatteart = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::skatteart),
+    path = refof(Ligningslov33Skattebetaling::skatteart),
     label = "Den udenlandske skats art",
     question = Some("Er den betalte skat en indkomstskat, en særlig indkomstskat, fragtskat på bruttofortjeneste ved international skibstrafik eller en formueskat?"),
     help = Some("§ 33 omfatter indkomstskatter og særlige indkomstskatter, men ikke formueskatter. Fragtskat har en særskilt fremførselsregel i stk. 9."),
     unit = None
 )
 = personskat_felt_ligningslov33_betalingsdokumentreference = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::betalingsdokumentreference),
+    path = refof(Ligningslov33Skattebetaling::betalingsdokumentreference),
     label = "Dokumentation for betalt udenlandsk skat",
     question = Some("Hvilket dokument viser, at den udenlandske skat er betalt eller indeholdt?"),
     help = Some("Brug en stabil reference uden personfølsomme oplysninger."),
     unit = None
 )
 = personskat_felt_ligningslov33_overenskomstgrundlag = TypetBeregningsfelt(
-    path = refof(Ligningslov33LandelinjeFakta::overenskomstgrundlag::$variant),
+    path = refof(Ligningslov33Skattebetaling::overenskomstgrundlag::$variant),
     label = "Loft efter dobbeltbeskatningsoverenskomst",
     question = Some("Er den udenlandske skat begrænset af en dobbeltbeskatningsoverenskomst eller en myndighedsfastsættelse?"),
     help = Some("Futuruna anvender det mindste af betalt udenlandsk skat, overenskomstloftet og det danske forholdsmæssige skatteloft."),
@@ -11350,6 +11357,7 @@
         Field(value = personskat_felt_ligningslov33_ikke_henførbare_udgifter),
         Field(value = personskat_felt_ligningslov33_eksportkreditrenter),
         Field(value = personskat_felt_ligningslov33_kreditgrupper),
+        Field(value = personskat_felt_ligningslov33_skattebetalinger),
         Field(value = personskat_felt_ligningslov33_par6_kreditter),
         Field(value = personskat_felt_ligningslov33_fragtskat_åbningssaldi),
         Field(value = personskat_felt_ligningslov33_fragtskat_saldo_område),
