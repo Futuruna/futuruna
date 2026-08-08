@@ -2459,8 +2459,8 @@ Primary prompt source:
 - Retsinformation: `https://www.retsinformation.dk/eli/lta/2019/799`
 - XML endpoint checked: `https://www.retsinformation.dk/eli/lta/2019/799/dan/xml`
 - Title: `Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)`
-- XML status on 2026-07-30: `Historic`
-- XML end date observed on 2026-07-30: `2026-06-23`
+- XML status on 2026-08-07: `Historic`
+- XML end date observed on 2026-08-07: `2026-06-23`
 - Historic mark in XML: `2021-06-16`
 
 Current working source:
@@ -2468,27 +2468,30 @@ Current working source:
 - Retsinformation: `https://www.retsinformation.dk/eli/lta/2021/1284`
 - XML endpoint checked: `https://www.retsinformation.dk/eli/lta/2021/1284/dan/xml`
 - Title: `Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)`
-- XML status on 2026-07-30: `Valid`
+- XML status on 2026-08-07: `Valid`
 - Signed: `2021-06-14`
 - In force from: `2021-06-16`
-- XML end date observed on 2026-07-30: `2026-07-29`
+- XML end date observed on 2026-08-07: `2026-07-29`
 - Tracked amendment sources now include `2022/252`, `2023/610`,
   `2023/1564`, `2024/108`, `2024/482`, `2024/1691` and `2026/615`.
 
 Current source-refresh finding:
 
-- The tracked Retsinformation XML sources were re-fetched on 2026-07-30.
+- The tracked Retsinformation XML sources were re-fetched on 2026-08-07.
 - The official XML `Status` fields remained unchanged: the working/dependency
   sources still report `Valid`, while `2019/799` reports `Historic`.
+- The consolidated Aktieavancebeskatningsloven `2025/1098` metadata horizon
+  moved from `2026-07-29` to `2026-08-05`; the encoded source record now
+  matches the official XML.
 - Every tracked `Valid` source now has an XML `EndDate` horizon before
-  2026-07-30, so `source-status.runa` distinguishes formal legal validity from
+  2026-08-07, so `source-status.runa` distinguishes formal legal validity from
   current-day automation freshness.
 - `AktuelSkatteberegning` still accepts formally valid sources; the new
   `DagsaktuelAutomatiskBeregning` purpose rejects sources whose metadata horizon
-  does not cover `20260730`.
-- `scripts/refresh-danish-tax-source-status.py --today 20260730 --fail-on-drift`
+  does not cover `20260807`.
+- `scripts/refresh-danish-tax-source-status.py --today 20260807 --fail-on-drift`
   fetches official XML for every `Retskilde(...)` record and reports semantic
-  drift between Retsinformation and the encoded source model. On 2026-07-30 it
+  drift between Retsinformation and the encoded source model. On 2026-08-07 it
   checked 43 records with 0 drift and 0 fetch/parse errors.
 
 Current Personskatteloven amendment sources:

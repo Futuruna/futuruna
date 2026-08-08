@@ -3,7 +3,7 @@
 -- Personskatteloven — kildegrundlag og første lovstruktur.
 --
 -- Metadata-refresh check:
--- scripts/refresh-danish-tax-source-status.py --today 20260730 --fail-on-drift
+-- scripts/refresh-danish-tax-source-status.py --today 20260807 --fail-on-drift
 -- Replace --today with the refresh date in YYYYMMDD form.
 -- The script fetches official Retsinformation XML for every Retskilde record
 -- below and reports semantic drift; it does not rewrite the legal model.
@@ -176,76 +176,76 @@
 -- Futuruna-reglerne nedenfor er projektets kildefaste oversættelse.
 
 ----
-Officiel XML-metadata for 2019/799, hentet 2026-07-30:
+Officiel XML-metadata for 2019/799, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)
 Status: Historic
 StartDate: 2019-08-13
 EndDate: 2026-06-23
 DateOfHistoricMark: 2021-06-16
 
-Officiel XML-metadata for 2021/1284, hentet 2026-07-30:
+Officiel XML-metadata for 2021/1284, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om indkomstskat for personer m.v. (personskatteloven)
 Status: Valid
 DiesSigni: 2021-06-14
 StartDate: 2021-06-16
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2022/252, hentet 2026-07-30:
+Officiel XML-metadata for 2022/252, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
 Status: Valid
 DiesSigni: 2022-02-25
 StartDate: 2022-02-25
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2023/610, hentet 2026-07-30:
+Officiel XML-metadata for 2023/610, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
 Status: Valid
 DiesSigni: 2023-05-31
 StartDate: 2023-05-31
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2023/1564, hentet 2026-07-30:
+Officiel XML-metadata for 2023/1564, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af personskatteloven, pensionsbeskatningsloven og forskellige andre love (Forhøjelse af personfradraget for personer under 18 år og klare regler for bevarelse af lavere pensionsudbetalingsalder m.v.)
 Status: Valid
 DiesSigni: 2023-12-12
 StartDate: 2023-12-12
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2023/679, hentet 2026-07-30:
+Officiel XML-metadata for 2023/679, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af kildeskatteloven, lov om kommunal indkomstskat, ejendomsvurderingsloven og forskellige andre love  (Opkrævning og inddrivelse af grundskyld og dækningsafgift m.v., statens afregning af grundskyld og dækningsafgift til kommunerne, foreløbige vurderinger som midlertidigt beskatningsgrundlag i 2024 og 2025, forenkling af ejendomsvurderingerne for 2024 og 2025, udvidelse af antallet af dommere i Landsskatteretten m.v.)
 Status: Valid
 DiesSigni: 2023-06-03
 StartDate: 2023-06-03
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2024/108, hentet 2026-07-30:
+Officiel XML-metadata for 2024/108, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af personskatteloven (Nedsættelse af bundskatten som følge af kommunale skattestigninger)
 Status: Valid
 DiesSigni: 2024-01-31
 StartDate: 2024-01-31
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2024/482, hentet 2026-07-30:
+Officiel XML-metadata for 2024/482, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af personskatteloven, ligningsloven og forskellige andre love (Udmøntning af dele af aftale om reform af personskat)
 Status: Valid
 StartDate: 2024-05-22
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2024/1691, hentet 2026-07-30:
+Officiel XML-metadata for 2024/1691, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af selskabsskatteloven, aktiesparekontoloven, aktieavancebeskatningsloven, personskatteloven og forskellige andre love (Udmøntning af dele af »Aftale om Iværksætterpakken«)
 Status: Valid
 DiesSigni: 2024-12-30
 StartDate: 2024-12-30
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2026/615, hentet 2026-07-30:
+Officiel XML-metadata for 2026/615, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af ejendomsvurderingsloven, ejendomsskatteloven og forskellige andre love (Samlet ejendomskategori for landbrugs-, skov- og naturejendomme, forenkling af ejendomsvurderingerne for 2026 og 2027 og lempeligere ejendomsbeskatningsgrundlag for kolonihavegrunde m.v.)
 Status: Valid
 DiesSigni: 2026-06-30
 StartDate: 2026-06-30
 EndDate: 2026-07-01
 
-Officiel XML-metadata for 2022/1241, hentet 2026-07-30:
+Officiel XML-metadata for 2022/1241, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af selskabsskatteloven
 PopularTitle: Selskabsskatteloven
 Status: Historic
@@ -254,7 +254,7 @@ StartDate: 2022-09-02
 EndDate: 2026-06-23
 DateOfHistoricMark: 2025-03-17
 
-Officiel XML-metadata for 2025/279, hentet 2026-07-30:
+Officiel XML-metadata for 2025/279, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af selskabsskatteloven
 PopularTitle: Selskabsskatteloven
 Status: Valid
@@ -262,14 +262,14 @@ DiesSigni: 2025-03-13
 StartDate: 2025-03-17
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2024/1243, hentet 2026-07-30:
+Officiel XML-metadata for 2024/1243, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om beskatningen af pensionsordninger m.v. (pensionsbeskatningsloven)
 PopularTitle: Pensionsbeskatningsloven
 Status: Valid
 StartDate: 2024-11-28
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2004/1388, hentet 2026-07-30:
+Officiel XML-metadata for 2004/1388, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af forskellige skattelove (Justering af reglerne om pensionsordninger)
 Status: Valid
 DiesSigni: 2004-12-20
@@ -278,33 +278,33 @@ EndDate: 2026-06-23
 Offentliggørelsesdato i dokumentvisningen: 2004-12-21
 Ikrafttrædelse efter § 7, stk. 1: 2004-12-22
 
-Officiel XML-metadata for 2023/1181, hentet 2026-07-30:
+Officiel XML-metadata for 2023/1181, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om beskatning af søfolk (sømandsbeskatningsloven)
 PopularTitle: Sømandsbeskatningsloven
 Status: Valid
 StartDate: 2023-09-26
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2020/121, hentet 2026-07-30:
+Officiel XML-metadata for 2020/121, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om arbejdsmarkedsbidrag (arbejdsmarkedsbidragsloven)
 Status: Valid
 StartDate: 2020-02-12
 EndDate: 2026-07-28
 
-Officiel XML-metadata for 2025/96, hentet 2026-07-30:
+Officiel XML-metadata for 2025/96, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af arbejdsmarkedsbidragsloven og forskellige andre love (Unges fritagelse for arbejdsmarkedsbidrag m.v.)
 Status: Valid
 StartDate: 2025-02-04
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2019/935, hentet 2026-07-30:
+Officiel XML-metadata for 2019/935, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om kommunal indkomstskat
 PopularTitle: Kommuneskatteloven
 Status: Valid
 StartDate: 2019-09-13
 EndDate: 2026-07-01
 
-Officiel XML-metadata for 2025/720, hentet 2026-07-30:
+Officiel XML-metadata for 2025/720, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af lov om kommunal udligning og generelle tilskud
 til kommuner og lov om kommunal indkomstskat og statens afregning af grundskyld
 og dækningsafgift til kommunerne (Ændring af selvbudgetteringsordningen og
@@ -313,47 +313,47 @@ Status: Valid
 StartDate: 2025-06-20
 EndDate: 2025-06-21
 
-Officiel XML-metadata for 2023/424, hentet 2026-07-30:
+Officiel XML-metadata for 2023/424, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om folkekirkens økonomi
 Status: Valid
 StartDate: 2023-04-25
 EndDate: 2025-12-31
 
-Officiel XML-metadata for 2025/1772, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1772, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af lov om menighedsråd, lov om folkekirkens økonomi, lov om folkekirkens kirkebygninger og kirkegårde og forskellige andre love (Forenkling og bedre understøttelse af menighedsrådsarbejdet, understøttelse af menighedsrådenes vedligeholdelse af middelalderkirker og orientering om foreløbige ligningsbehov)
 Status: Valid
 StartDate: 2025-12-29
 EndDate: 2026-07-28
 
-Officiel XML-metadata for 2024/460, hentet 2026-07-30:
+Officiel XML-metadata for 2024/460, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af kildeskatteloven
 PopularTitle: Kildeskatteloven
 Status: Valid
 StartDate: 2024-05-16
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2025/839, hentet 2026-07-30:
+Officiel XML-metadata for 2025/839, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse om kildeskat
 Status: Valid
 DiesSigni: 2025-06-24
 StartDate: 2025-06-26
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2025/1094, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1094, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse om forskudsregistrering og beregning af indeholdelsesprocent for indkomståret 2026
 Status: Valid
 DiesSigni: 2025-09-10
 StartDate: 2025-09-11
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2025/1828, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1828, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse om ændring af bekendtgørelse om forskudsregistrering og beregning af indeholdelsesprocent for indkomståret 2026
 Status: Valid
 DiesSigni: 2025-12-29
 StartDate: 2025-12-29
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2024/1040, hentet 2026-07-30:
+Officiel XML-metadata for 2024/1040, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om opkrævning af skatter og afgifter m.v. (opkrævningsloven)
 PopularTitle: Opkrævningsloven
 Status: Valid
@@ -361,35 +361,35 @@ DiesSigni: 2024-09-13
 StartDate: 2024-09-18
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2024/1694, hentet 2026-07-30:
+Officiel XML-metadata for 2024/1694, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.)
 Status: Valid
 DiesSigni: 2024-12-30
 StartDate: 2024-12-30
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2025/1783, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1783, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
 Status: Valid
 DiesSigni: 2025-12-29
 StartDate: 2025-12-29
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2025/1793, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1793, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse om ikrafttræden af § 1, nr. 6 og 17, i lov om ændring af opkrævningsloven og forskellige andre love (Ny opkrævningsløsning for visse krav, renteharmonisering, hæftelse for kildeskat efter solvent likvidation og sikring af rentekrav ved udbetaling af refusion af kildeskat til modtagere af udbytter, renter og royalties m.v.) og § 2, nr. 5 og 6, i lov om ændring af momsloven, opkrævningsloven og forskellige andre love (Ændring af reglerne om momsfritagelse af uddannelse af børn og unge under 30 år, harmoniseringsrente og skattetillæg for selskaber m.v.)
 Status: Valid
 DiesSigni: 2025-12-29
 StartDate: 2025-12-29
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2025/1500, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1500, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om påligningen af indkomstskat til staten (ligningsloven)
 PopularTitle: Ligningsloven
 Status: Valid
 StartDate: 2025-12-04
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2025/1176, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1176, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om skattemæssig behandling af gevinst og tab på fordringer, gæld og finansielle kontrakter (kursgevinstloven)
 PopularTitle: Kursgevinstloven
 Status: Valid
@@ -397,22 +397,22 @@ DiesSigni: 2025-09-19
 StartDate: 2025-10-03
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2025/1098, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1098, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om den skattemæssige behandling af gevinster og tab ved afståelse af aktier m.v. (aktieavancebeskatningsloven)
 PopularTitle: Aktieavancebeskatningsloven
 Status: Valid
 DiesSigni: 2025-08-27
 StartDate: 2025-09-16
-EndDate: 2026-07-29
+EndDate: 2026-08-05
 
-Officiel XML-metadata for 2025/1755, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1755, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af erhvervsvirksomhedsloven, aktieavancebeskatningsloven og forskellige andre love (Ny mulighed for generationsskifte til en medarbejderejevirksomhed og selskabsbeskattede elaktiviteter i andelsselskaber)
 Status: Valid
 DiesSigni: 2025-12-29
 StartDate: 2025-12-29
 EndDate: 2026-07-07
 
-Officiel XML-metadata for 2021/1836, hentet 2026-07-30:
+Officiel XML-metadata for 2021/1836, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om indkomstbeskatning af selvstændige erhvervsdrivende (virksomhedsskatteloven)
 PopularTitle: Virksomhedsskatteloven
 Status: Valid
@@ -420,7 +420,7 @@ DiesSigni: 2021-09-16
 StartDate: 2021-09-24
 EndDate: 2026-07-01
 
-Officiel XML-metadata for 2023/678, hentet 2026-07-30:
+Officiel XML-metadata for 2023/678, hentet 2026-08-07:
 DocumentTitle: Ejendomsskattelov
 PopularTitle: Ejendomsskatteloven
 Status: Valid
@@ -428,7 +428,7 @@ DiesSigni: 2023-06-03
 StartDate: 2023-06-03
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2020/1590, hentet 2026-07-30:
+Officiel XML-metadata for 2020/1590, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af ejendomsværdiskatteloven
 PopularTitle: Ejendomsværdiskatteloven
 Status: Historic
@@ -437,7 +437,7 @@ StartDate: 2020-11-12
 EndDate: 2026-06-23
 DateOfHistoricMark: 2026-01-27
 
-Officiel XML-metadata for 2025/1099, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1099, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om den skattemæssige behandling af husdyrbesætninger
 PopularTitle: Husdyrbeskatningsloven
 Status: Valid
@@ -445,14 +445,14 @@ DiesSigni: 2025-09-01
 StartDate: 2025-09-16
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 1981/543, hentet 2026-07-30:
+Officiel XML-metadata for 1981/543, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse om opgørelse og fradrag for forskelsbeløb m.v. vedrørende landbrugets husdyrbesætninger
 Status: Valid
 DiesSigni: 1981-11-16
 StartDate: 1997-09-25
 EndDate: 2026-06-23
 
-Officiel XML-metadata for 2025/1088, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1088, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om skattemæssig opgørelse af varelagre m.v.
 PopularTitle: Varelagerloven
 Status: Valid
@@ -460,7 +460,7 @@ DiesSigni: 2025-09-02
 StartDate: 2025-09-09
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2025/749, hentet 2026-07-30:
+Officiel XML-metadata for 2025/749, hentet 2026-08-07:
 DocumentTitle: Lov om ændring af ligningsloven, afskrivningsloven,
 opkrævningsloven og skatteindberetningsloven (Lempelse af beskatningen af
 aktionærlån og ændring af reglerne om beskatning af løbende ydelser)
@@ -469,7 +469,7 @@ DiesSigni: 2025-06-20
 StartDate: 2025-06-20
 EndDate: 2026-06-24
 
-Officiel XML-metadata for 2025/1222, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1222, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om skattemæssige afskrivninger (afskrivningsloven)
 PopularTitle: Afskrivningsloven
 Status: Valid
@@ -477,7 +477,7 @@ DiesSigni: 2025-10-13
 StartDate: 2025-10-16
 EndDate: 2026-07-25
 
-Officiel XML-metadata for 1922/149, hentet 2026-07-30:
+Officiel XML-metadata for 1922/149, hentet 2026-08-07:
 DocumentTitle: Lov om Indkomst- og Formueskat til Staten. (* 1)
 PopularTitle: Statsskatteloven
 Status: Valid
@@ -485,7 +485,7 @@ DiesSigni: 1922-04-10
 StartDate: 1997-09-25
 EndDate: 2026-07-29
 
-Officiel XML-metadata for 2025/1307, hentet 2026-07-30:
+Officiel XML-metadata for 2025/1307, hentet 2026-08-07:
 DocumentTitle: Bekendtgørelse af lov om indskud på etableringskonto og iværksætterkonto
 PopularTitle: Etableringskontoloven
 Status: Valid
@@ -498,14 +498,14 @@ EndDate: 2026-07-01
 # Beregningsformål = AktuelSkatteberegning | DagsaktuelAutomatiskBeregning | HistoriskAudit | KildeDiff
 # Retskilde(eli: Tekst, år: Heltal, nummer: Heltal, status: Kildestatus, hentet_yyyymmdd: Heltal, metadata_start_yyyymmdd: Heltal, metadata_end_yyyymmdd: Heltal)
 
-= aktuel_kildestatusdato_yyyymmdd = 20260730
+= aktuel_kildestatusdato_yyyymmdd = 20260807
 
 = personskatteloven_2019_799 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2019/799",
     år = 2019,
     nummer = 799,
     status = Historisk,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20190813,
     metadata_end_yyyymmdd = 20260623
 )
@@ -514,7 +514,7 @@ EndDate: 2026-07-01
     år = 2021,
     nummer = 1284,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20210616,
     metadata_end_yyyymmdd = 20260729
 )
@@ -523,7 +523,7 @@ EndDate: 2026-07-01
     år = 2022,
     nummer = 252,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20220225,
     metadata_end_yyyymmdd = 20260623
 )
@@ -532,7 +532,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 610,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20230531,
     metadata_end_yyyymmdd = 20260624
 )
@@ -541,7 +541,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 1564,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20231212,
     metadata_end_yyyymmdd = 20260623
 )
@@ -550,7 +550,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 679,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20230603,
     metadata_end_yyyymmdd = 20260623
 )
@@ -559,7 +559,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 108,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20240131,
     metadata_end_yyyymmdd = 20260624
 )
@@ -568,7 +568,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 482,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20240522,
     metadata_end_yyyymmdd = 20260623
 )
@@ -577,7 +577,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 1691,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20241230,
     metadata_end_yyyymmdd = 20260623
 )
@@ -586,7 +586,7 @@ EndDate: 2026-07-01
     år = 2026,
     nummer = 615,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20260630,
     metadata_end_yyyymmdd = 20260701
 )
@@ -595,7 +595,7 @@ EndDate: 2026-07-01
     år = 2022,
     nummer = 1241,
     status = Historisk,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20220902,
     metadata_end_yyyymmdd = 20260623
 )
@@ -604,7 +604,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 279,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250317,
     metadata_end_yyyymmdd = 20260729
 )
@@ -613,7 +613,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 1243,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20241128,
     metadata_end_yyyymmdd = 20260729
 )
@@ -622,7 +622,7 @@ EndDate: 2026-07-01
     år = 2004,
     nummer = 1388,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20041220,
     metadata_end_yyyymmdd = 20260623
 )
@@ -631,7 +631,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 1181,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20230926,
     metadata_end_yyyymmdd = 20260729
 )
@@ -640,7 +640,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1099,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250916,
     metadata_end_yyyymmdd = 20260623
 )
@@ -649,7 +649,7 @@ EndDate: 2026-07-01
     år = 1981,
     nummer = 543,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 19970925,
     metadata_end_yyyymmdd = 20260623
 )
@@ -658,7 +658,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1088,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250909,
     metadata_end_yyyymmdd = 20260624
 )
@@ -667,7 +667,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1222,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251016,
     metadata_end_yyyymmdd = 20260725
 )
@@ -676,7 +676,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 749,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250620,
     metadata_end_yyyymmdd = 20260624
 )
@@ -685,7 +685,7 @@ EndDate: 2026-07-01
     år = 1922,
     nummer = 149,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 19970925,
     metadata_end_yyyymmdd = 20260729
 )
@@ -694,7 +694,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1307,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251118,
     metadata_end_yyyymmdd = 20260701
 )
@@ -703,7 +703,7 @@ EndDate: 2026-07-01
     år = 2020,
     nummer = 121,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20200212,
     metadata_end_yyyymmdd = 20260728
 )
@@ -712,7 +712,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 96,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250204,
     metadata_end_yyyymmdd = 20260623
 )
@@ -721,7 +721,7 @@ EndDate: 2026-07-01
     år = 2019,
     nummer = 935,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20190913,
     metadata_end_yyyymmdd = 20260701
 )
@@ -730,7 +730,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 720,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250620,
     metadata_end_yyyymmdd = 20250621
 )
@@ -739,7 +739,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 424,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20230425,
     metadata_end_yyyymmdd = 20251231
 )
@@ -748,7 +748,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1772,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251229,
     metadata_end_yyyymmdd = 20260728
 )
@@ -757,7 +757,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 460,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20240516,
     metadata_end_yyyymmdd = 20260729
 )
@@ -766,7 +766,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 839,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250626,
     metadata_end_yyyymmdd = 20260624
 )
@@ -775,7 +775,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1094,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250911,
     metadata_end_yyyymmdd = 20260624
 )
@@ -784,7 +784,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1828,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251229,
     metadata_end_yyyymmdd = 20260624
 )
@@ -793,7 +793,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 1040,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20240918,
     metadata_end_yyyymmdd = 20260624
 )
@@ -802,7 +802,7 @@ EndDate: 2026-07-01
     år = 2024,
     nummer = 1694,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20241230,
     metadata_end_yyyymmdd = 20260623
 )
@@ -811,7 +811,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1783,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251229,
     metadata_end_yyyymmdd = 20260623
 )
@@ -820,7 +820,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1793,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251229,
     metadata_end_yyyymmdd = 20260623
 )
@@ -829,7 +829,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1500,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251204,
     metadata_end_yyyymmdd = 20260729
 )
@@ -838,7 +838,7 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1176,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251003,
     metadata_end_yyyymmdd = 20260729
 )
@@ -847,16 +847,16 @@ EndDate: 2026-07-01
     år = 2025,
     nummer = 1098,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20250916,
-    metadata_end_yyyymmdd = 20260729
+    metadata_end_yyyymmdd = 20260805
 )
 = aktieavancebeskatningslov_medarbejdereje_aendring_2025_1755 = Retskilde(
     eli = "https://www.retsinformation.dk/eli/lta/2025/1755",
     år = 2025,
     nummer = 1755,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20251229,
     metadata_end_yyyymmdd = 20260707
 )
@@ -865,7 +865,7 @@ EndDate: 2026-07-01
     år = 2021,
     nummer = 1836,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20210924,
     metadata_end_yyyymmdd = 20260701
 )
@@ -874,7 +874,7 @@ EndDate: 2026-07-01
     år = 2023,
     nummer = 678,
     status = Gældende,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20230603,
     metadata_end_yyyymmdd = 20260729
 )
@@ -883,7 +883,7 @@ EndDate: 2026-07-01
     år = 2020,
     nummer = 1590,
     status = Historisk,
-    hentet_yyyymmdd = 20260730,
+    hentet_yyyymmdd = 20260807,
     metadata_start_yyyymmdd = 20201112,
     metadata_end_yyyymmdd = 20260623
 )
