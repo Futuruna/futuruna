@@ -1,0 +1,199 @@
+@ sprog da
+
+@ importer ./ligningsloven - par33a
+
+| ll33a_afbrydelse_scenarie_danske_dage(første_dato: Dato, antal: Heltal) -> map(
+    range(0, antal),
+    |forskydning: Heltal| Ligningslov33ADanskOpholdsdag(
+        dato = dato_plus_dage(første_dato, forskydning),
+        art = Ll33AFerieEllerLignende
+    )
+)
+| ll33a_afbrydelse_scenarie_indkomst(skattepligtig_kroner: Heltal, personlig_kroner: Heltal, am_grundlag_kroner: Heltal) -> Ligningslov33ALønindkomstEfterDanskeRegler(
+    skattepligtig_nettoindkomst_kroner = skattepligtig_kroner,
+    personlig_nettoindkomst_kroner = personlig_kroner,
+    arbejdsmarkedsbidragsgrundlag_kroner = am_grundlag_kroner
+)
+| ll33a_afbrydelse_scenarie_ophold(danske_dage: List(Ligningslov33ADanskOpholdsdag)) -> Ligningslov33AOphold(
+    fra_dato = Dato(år = 2025, måned = 1, dag = 1),
+    til_dato = Dato(år = 2025, måned = 8, dag = 31),
+    danske_opholdsdage = danske_dage,
+    arbejdsgiverforbindelse = Ll33AUdlandsopholdBegrundetIArbejdsgiverensForhold(dokumentreference = "udstationeringsaftale"),
+    tjenesteforhold = Ll33APersonligtArbejdeITjenesteforhold,
+    skattepligt = Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet,
+    covidvalg = Ll33AUdenCovidvalg,
+    dokumentreference = "pas-rejsebilag"
+)
+| ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, samlet_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, dansk_arbejde: Ligningslov33ALønindkomstEfterDanskeRegler) -> Ligningslov33ADateretIndkomstfordeling(
+    identifikation = identifikation,
+    fra_dato = fra_dato,
+    til_dato = til_dato,
+    fordeling = Ligningslov33AIndkomstfordeling(
+        samlet_lønindkomst_efter_danske_regler = samlet_indkomst,
+        heraf_arbejde_i_riget_efter_danske_regler = dansk_arbejde
+    ),
+    dokumentreference = identifikation
+)
+| ll33a_afbrydelse_scenarie_forhold(identifikation: Tekst, ophold: Ligningslov33AOphold, indkomstgrundlag: Ligningslov33AIndkomstgrundlag) -> Ligningslov33AAnsættelsesforhold(
+    identifikation = identifikation,
+    subjekt = Ll33APerson,
+    ophold = ophold,
+    arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
+    beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
+    indkomstgrundlag = indkomstgrundlag,
+    henstand = Ll33AIngenHenstand
+)
+| ll33a_afbrydelse_scenarie_skattekreds() -> Ligningslov33PersonDanskSkattekreds(
+    komponenter = [
+        Ligningslov33DanskSkattekomponent(
+            art = Ll33KommunalIndkomstskat,
+            beregningsgrundlag = Ll33SkattepligtigIndkomst(samlet_indkomst_kroner = 300000),
+            dansk_skat_før_personfradrag_øre = 7500000
+        ),
+        Ligningslov33DanskSkattekomponent(
+            art = Ll33PersonskattelovPar6,
+            beregningsgrundlag = Ll33PersonligOgPositivKapitalindkomst(samlet_indkomst_kroner = 300000),
+            dansk_skat_før_personfradrag_øre = 3600000
+        ),
+        Ligningslov33DanskSkattekomponent(
+            art = Ll33ArbejdsmarkedsbidragslovPar1,
+            beregningsgrundlag = Ll33Arbejdsmarkedsbidragsgrundlag(samlet_indkomst_kroner = 400000),
+            dansk_skat_før_personfradrag_øre = 3200000
+        ),
+    ],
+    samlet_dansk_indkomstskat_tilgængelig_øre = 14300000
+)
+| ll33a_afbrydelse_scenarie_resultat(forhold: Ligningslov33AAnsættelsesforhold) -> ligningslov33a_årsresultat(
+    Ligningslov33AÅrsinput(indkomstår = 2025, ansættelsesforhold = [forhold]),
+    ll33a_afbrydelse_scenarie_skattekreds()
+)
+
+= ll33a_afbrydelse_scenarie_ti_weekendophold = flat_map(
+    [
+        Dato(år = 2025, måned = 2, dag = 7),
+        Dato(år = 2025, måned = 2, dag = 21),
+        Dato(år = 2025, måned = 3, dag = 7),
+        Dato(år = 2025, måned = 3, dag = 21),
+        Dato(år = 2025, måned = 4, dag = 4),
+        Dato(år = 2025, måned = 4, dag = 18),
+        Dato(år = 2025, måned = 5, dag = 2),
+        Dato(år = 2025, måned = 5, dag = 16),
+        Dato(år = 2025, måned = 5, dag = 23),
+        Dato(år = 2025, måned = 5, dag = 30),
+    ],
+    |fredag: Dato| ll33a_afbrydelse_scenarie_danske_dage(fredag, 3)
+)
+
+= ll33a_afbrydelse_scenarie_sen_ophold = ll33a_afbrydelse_scenarie_ophold(
+    concat(
+        ll33a_afbrydelse_scenarie_ti_weekendophold,
+        ll33a_afbrydelse_scenarie_danske_dage(Dato(år = 2025, måned = 6, dag = 30), 14)
+    )
+)
+
+= ll33a_afbrydelse_scenarie_sen = ll33a_afbrydelse_scenarie_resultat(
+    ll33a_afbrydelse_scenarie_forhold(
+        "sen-afbrydelse",
+        ll33a_afbrydelse_scenarie_sen_ophold,
+        Ll33ADateredeIndkomstfordelinger(
+            perioder = [
+                ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(
+                    "løn-januar-juni",
+                    Dato(år = 2025, måned = 1, dag = 1),
+                    Dato(år = 2025, måned = 6, dag = 30),
+                    ll33a_afbrydelse_scenarie_indkomst(120000, 120000, 160000),
+                    ll33a_afbrydelse_scenarie_indkomst(20000, 20000, 20000)
+                ),
+                ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(
+                    "løn-juli-august",
+                    Dato(år = 2025, måned = 7, dag = 1),
+                    Dato(år = 2025, måned = 8, dag = 31),
+                    ll33a_afbrydelse_scenarie_indkomst(40000, 40000, 50000),
+                    ll33a_afbrydelse_scenarie_indkomst(0, 0, 0)
+                ),
+            ]
+        )
+    )
+)
+
+= ll33a_afbrydelse_scenarie_sen_uden_dateret_indkomst = ll33a_afbrydelse_scenarie_resultat(
+    ll33a_afbrydelse_scenarie_forhold(
+        "sen-afbrydelse-uden-dateret-indkomst",
+        ll33a_afbrydelse_scenarie_sen_ophold,
+        Ll33ASamletIndkomstForUafbrudtLempelsesperiode(
+            fordeling = Ligningslov33AIndkomstfordeling(
+                samlet_lønindkomst_efter_danske_regler = ll33a_afbrydelse_scenarie_indkomst(160000, 160000, 210000),
+                heraf_arbejde_i_riget_efter_danske_regler = ll33a_afbrydelse_scenarie_indkomst(20000, 20000, 20000)
+            )
+        )
+    )
+)
+
+= ll33a_afbrydelse_scenarie_sen_med_krydsende_indkomstperiode = ll33a_afbrydelse_scenarie_resultat(
+    ll33a_afbrydelse_scenarie_forhold(
+        "sen-afbrydelse-med-krydsende-indkomstperiode",
+        ll33a_afbrydelse_scenarie_sen_ophold,
+        Ll33ADateredeIndkomstfordelinger(
+            perioder = [
+                ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(
+                    "løn-januar-august",
+                    Dato(år = 2025, måned = 1, dag = 1),
+                    Dato(år = 2025, måned = 8, dag = 31),
+                    ll33a_afbrydelse_scenarie_indkomst(160000, 160000, 210000),
+                    ll33a_afbrydelse_scenarie_indkomst(20000, 20000, 20000)
+                ),
+            ]
+        )
+    )
+)
+
+= ll33a_afbrydelse_scenarie_tidlig = ll33a_afbrydelse_scenarie_resultat(
+    ll33a_afbrydelse_scenarie_forhold(
+        "afbrydelse-før-seks-måneder",
+        ll33a_afbrydelse_scenarie_ophold(
+            concat(
+                ll33a_afbrydelse_scenarie_ti_weekendophold,
+                ll33a_afbrydelse_scenarie_danske_dage(Dato(år = 2025, måned = 6, dag = 29), 14)
+            )
+        ),
+        Ll33ADateredeIndkomstfordelinger(
+            perioder = [
+                ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(
+                    "løn-før-tidlig-afbrydelse",
+                    Dato(år = 2025, måned = 1, dag = 1),
+                    Dato(år = 2025, måned = 6, dag = 29),
+                    ll33a_afbrydelse_scenarie_indkomst(120000, 120000, 160000),
+                    ll33a_afbrydelse_scenarie_indkomst(0, 0, 0)
+                ),
+                ll33a_afbrydelse_scenarie_dateret_indkomstfordeling(
+                    "løn-efter-tidlig-afbrydelse",
+                    Dato(år = 2025, måned = 6, dag = 30),
+                    Dato(år = 2025, måned = 8, dag = 31),
+                    ll33a_afbrydelse_scenarie_indkomst(40000, 40000, 50000),
+                    ll33a_afbrydelse_scenarie_indkomst(0, 0, 0)
+                ),
+            ]
+        )
+    )
+)
+
+| ll33a_sen_overskridelse_finder_den_43_dag: ll33a_afbrydelse_scenarie_sen -> head(ll33a_afbrydelse_scenarie_sen.forholdsresultater).periodeafgrænsning.første_overskridelsesdato == Some(Dato(år = 2025, måned = 7, dag = 12))
+| ll33a_sen_overskridelse_afbryder_ved_besøgets_start: ll33a_afbrydelse_scenarie_sen -> head(ll33a_afbrydelse_scenarie_sen.forholdsresultater).periodeafgrænsning.afbrydelsesdato == Some(Dato(år = 2025, måned = 6, dag = 30))
+| ll33a_sen_overskridelse_afgrænser_prefix_og_suffix: ll33a_afbrydelse_scenarie_sen -> head(ll33a_afbrydelse_scenarie_sen.forholdsresultater).periodeafgrænsning.lempelsesophold.til_dato == Dato(år = 2025, måned = 6, dag = 30) && head(ll33a_afbrydelse_scenarie_sen.forholdsresultater).periodeafgrænsning.afvist_periode == Some(Ligningslov33ADatoperiode(fra_dato = Dato(år = 2025, måned = 7, dag = 1), til_dato = Dato(år = 2025, måned = 8, dag = 31)))
+| ll33a_sen_overskridelse_bevarer_kvalificerende_prefix: ll33a_afbrydelse_scenarie_sen -> ll33a_afbrydelse_scenarie_sen.input_gyldigt && ll33a_afbrydelse_scenarie_sen.alle_forhold_lempelsesberettigede && head(ll33a_afbrydelse_scenarie_sen.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 44
+| ll33a_sen_overskridelse_medregner_kun_prefixens_daterede_indkomst: ll33a_afbrydelse_scenarie_sen -> ll33a_afbrydelse_scenarie_sen.fuldt_lempelsesberettiget_indkomst.skattepligtig_nettoindkomst_kroner == 100000 && ll33a_afbrydelse_scenarie_sen.fuldt_lempelsesberettiget_indkomst.arbejdsmarkedsbidragsgrundlag_kroner == 140000 && ll33a_afbrydelse_scenarie_sen.samlet_nedslag_øre == 4820000
+| ll33a_sen_overskridelse_kræver_dateret_indkomst: ll33a_afbrydelse_scenarie_sen_uden_dateret_indkomst -> ll33a_afbrydelse_scenarie_sen_uden_dateret_indkomst.input_gyldigt == Falskt && ll33a_afbrydelse_scenarie_sen_uden_dateret_indkomst.samlet_nedslag_øre == 0
+| ll33a_sen_overskridelse_afviser_indkomstperiode_over_grænsen: ll33a_afbrydelse_scenarie_sen_med_krydsende_indkomstperiode -> ll33a_afbrydelse_scenarie_sen_med_krydsende_indkomstperiode.input_gyldigt == Falskt && ll33a_afbrydelse_scenarie_sen_med_krydsende_indkomstperiode.samlet_nedslag_øre == 0
+| ll33a_afbrydelse_før_seks_måneder_giver_ingen_lempelse: ll33a_afbrydelse_scenarie_tidlig -> {
+    = resultat = head(ll33a_afbrydelse_scenarie_tidlig.forholdsresultater)
+    ll33a_afbrydelse_scenarie_tidlig.input_gyldigt && resultat.periodeafgrænsning.første_overskridelsesdato == Some(Dato(år = 2025, måned = 7, dag = 11)) && resultat.periodeafgrænsning.afbrydelsesdato == Some(Dato(år = 2025, måned = 6, dag = 29)) && resultat.periodeafgrænsning.lempelsesophold.til_dato == Dato(år = 2025, måned = 6, dag = 29) && resultat.mindst_seks_måneders_udlandsophold == Falskt && resultat.betingelser_opfyldt == Falskt && ll33a_afbrydelse_scenarie_tidlig.samlet_nedslag_øre == 0
+}
+
+? ll33a_sen_overskridelse_finder_den_43_dag
+? ll33a_sen_overskridelse_afbryder_ved_besøgets_start
+? ll33a_sen_overskridelse_afgrænser_prefix_og_suffix
+? ll33a_sen_overskridelse_bevarer_kvalificerende_prefix
+? ll33a_sen_overskridelse_medregner_kun_prefixens_daterede_indkomst
+? ll33a_sen_overskridelse_kræver_dateret_indkomst
+? ll33a_sen_overskridelse_afviser_indkomstperiode_over_grænsen
+? ll33a_afbrydelse_før_seks_måneder_giver_ingen_lempelse

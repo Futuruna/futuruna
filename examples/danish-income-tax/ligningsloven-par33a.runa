@@ -286,13 +286,24 @@ den 30. juni 2022.
 
 --@end:ligningsloven_par33a_stk6--
 
+--@label:ligningsloven_par33a_aarsberegning::meta:ligningsloven_par33a_metadata--
+----
+Den juridiske vejledning 2026-1, C.F.4.2.2.4:
+"Udlandsopholdet anses for at være afbrudt ved starten af det ferieophold mv.,
+i hvilket de 42 dage bliver overskredet."
+----
+
 --@begin:ligningsloven_par33a_aarsberegning--
 
 # Ligningslov33AOphold(fra_dato: Dato, til_dato: Dato, danske_opholdsdage: List(Ligningslov33ADanskOpholdsdag), arbejdsgiverforbindelse: Ligningslov33AArbejdsgiverforbindelse, tjenesteforhold: Ligningslov33ATjenesteforholdsstatus, skattepligt: Ligningslov33ASkattepligtsstatus, covidvalg: Ligningslov33ACovidvalg, dokumentreference: Tekst)
 # Ligningslov33AIndkomstfordeling(samlet_lønindkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler, heraf_arbejde_i_riget_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
-# Ligningslov33AAnsættelsesforhold(identifikation: Tekst, subjekt: Ligningslov33ASkattesubjekt, ophold: Ligningslov33AOphold, arbejdsgivergrundlag: Ligningslov33AArbejdsgivergrundlag, beskatningsret: Ligningslov33ABeskatningsret, indkomstfordeling: Ligningslov33AIndkomstfordeling, henstand: Ligningslov33AHenstandsstatus)
+# Ligningslov33ADateretIndkomstfordeling(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, fordeling: Ligningslov33AIndkomstfordeling, dokumentreference: Tekst)
+# Ligningslov33AIndkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(fordeling: Ligningslov33AIndkomstfordeling) | Ll33ADateredeIndkomstfordelinger(perioder: List(Ligningslov33ADateretIndkomstfordeling))
+# Ligningslov33ADatoperiode(fra_dato: Dato, til_dato: Dato)
+# Ligningslov33ALempelsesperiodeafgrænsning(første_overskridelsesdato: Option(Dato), afbrydelsesdato: Option(Dato), lempelsesophold: Ligningslov33AOphold, afvist_periode: Option(Ligningslov33ADatoperiode))
+# Ligningslov33AAnsættelsesforhold(identifikation: Tekst, subjekt: Ligningslov33ASkattesubjekt, ophold: Ligningslov33AOphold, arbejdsgivergrundlag: Ligningslov33AArbejdsgivergrundlag, beskatningsret: Ligningslov33ABeskatningsret, indkomstgrundlag: Ligningslov33AIndkomstgrundlag, henstand: Ligningslov33AHenstandsstatus)
 # Ligningslov33AÅrsinput(indkomstår: Heltal, ansættelsesforhold: List(Ligningslov33AAnsættelsesforhold))
-# Ligningslov33AForholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, input_gyldigt: Boolsk, mindst_seks_måneders_udlandsophold: Boolsk, danske_opholdsdage_lovlige: Boolsk, højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode: Heltal, samlet_antal_medregnede_danske_dage: Heltal, samlet_tilladt_antal_danske_dage: Heltal, samlet_dagegrænse_overholdt: Boolsk, arbejdsgiverforbindelse_opfyldt: Boolsk, tjenesteforhold_omfattet: Boolsk, skattepligt_omfattet: Boolsk, stk2_udelukker: Boolsk, betingelser_opfyldt: Boolsk, lempelsesandel_basispoint: Heltal, lempelsesberettiget_indkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
+# Ligningslov33AForholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, periodeafgrænsning: Ligningslov33ALempelsesperiodeafgrænsning, input_gyldigt: Boolsk, mindst_seks_måneders_udlandsophold: Boolsk, danske_opholdsdage_lovlige: Boolsk, højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode: Heltal, samlet_antal_medregnede_danske_dage: Heltal, samlet_tilladt_antal_danske_dage: Heltal, samlet_dagegrænse_overholdt: Boolsk, arbejdsgiverforbindelse_opfyldt: Boolsk, tjenesteforhold_omfattet: Boolsk, skattepligt_omfattet: Boolsk, stk2_udelukker: Boolsk, betingelser_opfyldt: Boolsk, lempelsesandel_basispoint: Heltal, lempelsesberettiget_indkomst_efter_danske_regler: Ligningslov33ALønindkomstEfterDanskeRegler)
 # Ligningslov33AKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, fuldt_lempelsesberettiget_indkomst_kroner: Heltal, halvt_lempelsesberettiget_indkomst_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, nedslag_øre: Heltal)
 # Ligningslov33AÅrsresultat(input: Ligningslov33AÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, forholdsresultater: List(Ligningslov33AForholdsresultat), fuldt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, halvt_lempelsesberettiget_indkomst: Ligningslov33ALønindkomstEfterDanskeRegler, komponenter: List(Ligningslov33AKomponentresultat), input_gyldigt: Boolsk, alle_forhold_lempelsesberettigede: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
 
@@ -350,6 +361,74 @@ den 30. juni 2022.
     = slutdato_eksklusiv = dato_plus_måneder(startdato, 6)
     foldl(ligningslov33a_medregnede_danske_opholdsdage(ophold), 0, |antal: Heltal, dag: Ligningslov33ADanskOpholdsdag| antal + hvis ligningslov33a_dato_i_halvåben_periode(dag.dato, startdato, slutdato_eksklusiv) { 1 } ellers { 0 })
 }
+| ligningslov33a_medregnede_danske_opholdsdage_sorteret(ophold: Ligningslov33AOphold) -> sort_by(ligningslov33a_medregnede_danske_opholdsdage(ophold), |dag: Ligningslov33ADanskOpholdsdag| dato_nøgle(dag.dato))
+| ligningslov33a_seneste_seksmånedersperiode_fra_dato(slutdato: Dato) -> dato_næste_dag(dato_plus_måneder(slutdato, -6))
+| ligningslov33a_danske_dage_i_seneste_seks_måneder_til_og_med(ophold: Ligningslov33AOphold, slutdato: Dato) -> foldl(
+    ligningslov33a_medregnede_danske_opholdsdage(ophold),
+    0,
+    |antal: Heltal, dag: Ligningslov33ADanskOpholdsdag| antal + hvis ligningslov33a_dato_i_lukket_periode(dag.dato, ligningslov33a_seneste_seksmånedersperiode_fra_dato(slutdato), slutdato) { 1 } ellers { 0 }
+)
+| ligningslov33a_første_overskridelsesdato(ophold: Ligningslov33AOphold) -> hvis length(ligningslov33a_medregnede_danske_opholdsdage(ophold)) <= 42 {
+    None
+} ellers {
+    match find(
+        ligningslov33a_medregnede_danske_opholdsdage_sorteret(ophold),
+        |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_danske_dage_i_seneste_seks_måneder_til_og_med(ophold, dag.dato) > 42
+    ) {
+        | Some(dag) -> Some(dag.dato)
+        | None -> None
+    }
+}
+| ligningslov33a_dansk_opholdsdag_er_besøgsstart(dag: Ligningslov33ADanskOpholdsdag, dage: List(Ligningslov33ADanskOpholdsdag)) -> all(
+    dage,
+    |tidligere_dag: Ligningslov33ADanskOpholdsdag| dato_ordinal(tidligere_dag.dato) + 1 != dato_ordinal(dag.dato)
+)
+| ligningslov33a_afbrydelsesdato_for_overskridelse(ophold: Ligningslov33AOphold, overskridelsesdato: Dato) -> {
+    = besøgsstarter = sort_by(
+        filter(
+            ophold.danske_opholdsdage,
+            |dag: Ligningslov33ADanskOpholdsdag| dato_før_eller_lig_med(dag.dato, overskridelsesdato) && ligningslov33a_dansk_opholdsdag_er_besøgsstart(dag, ophold.danske_opholdsdage)
+        ),
+        |dag: Ligningslov33ADanskOpholdsdag| dato_nøgle(dag.dato)
+    )
+    last(besøgsstarter).dato
+}
+| ligningslov33a_skattepligt_for_afgrænset_ophold(status: Ligningslov33ASkattepligtsstatus, til_dato: Dato) -> match status {
+    | Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(ophørsdato) -> hvis dato_før_eller_lig_med(ophørsdato, til_dato) { status } ellers { Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet }
+    | _ -> status
+}
+| ligningslov33a_ophold_afgrænset_til_og_med(ophold: Ligningslov33AOphold, til_dato: Dato) -> Ligningslov33AOphold(
+    fra_dato = ophold.fra_dato,
+    til_dato = til_dato,
+    danske_opholdsdage = filter(ophold.danske_opholdsdage, |dag: Ligningslov33ADanskOpholdsdag| dato_før_eller_lig_med(dag.dato, til_dato)),
+    arbejdsgiverforbindelse = ophold.arbejdsgiverforbindelse,
+    tjenesteforhold = ophold.tjenesteforhold,
+    skattepligt = ligningslov33a_skattepligt_for_afgrænset_ophold(ophold.skattepligt, til_dato),
+    covidvalg = ophold.covidvalg,
+    dokumentreference = ophold.dokumentreference
+)
+| ligningslov33a_lempelsesperiodeafgrænsning(ophold: Ligningslov33AOphold) -> match ligningslov33a_første_overskridelsesdato(ophold) {
+    | None -> Ligningslov33ALempelsesperiodeafgrænsning(
+        første_overskridelsesdato = None,
+        afbrydelsesdato = None,
+        lempelsesophold = ophold,
+        afvist_periode = None
+    )
+    | Some(overskridelsesdato) -> {
+        = afbrydelsesdato = ligningslov33a_afbrydelsesdato_for_overskridelse(ophold, overskridelsesdato)
+        = afvist_fra_dato = dato_næste_dag(afbrydelsesdato)
+        Ligningslov33ALempelsesperiodeafgrænsning(
+            første_overskridelsesdato = Some(overskridelsesdato),
+            afbrydelsesdato = Some(afbrydelsesdato),
+            lempelsesophold = ligningslov33a_ophold_afgrænset_til_og_med(ophold, afbrydelsesdato),
+            afvist_periode = hvis dato_før_eller_lig_med(afvist_fra_dato, ophold.til_dato) {
+                Some(Ligningslov33ADatoperiode(fra_dato = afvist_fra_dato, til_dato = ophold.til_dato))
+            } ellers {
+                None
+            }
+        )
+    }
+}
 | ligningslov33a_højeste_antal_danske_dage_i_seksmånedersvindue(ophold: Ligningslov33AOphold) -> foldl(ligningslov33a_seksmåneders_vinduestarter(ophold), 0, |højeste: Heltal, startdato: Dato| penge_største_beløb(højeste, ligningslov33a_danske_dage_i_seksmånedersvindue(ophold, startdato)))
 | ligningslov33a_alle_seksmånedersvinduer_overholder_42_dage(ophold: Ligningslov33AOphold) -> all(ligningslov33a_seksmåneders_vinduestarter(ophold), |startdato: Dato| ligningslov33a_danske_dage_i_seksmånedersvindue(ophold, startdato) <= 42)
 | ligningslov33a_fulde_ekstra_opholdsmåneder(ophold: Ligningslov33AOphold) -> penge_positivt_beløb(ligningslov33a_ophold_fulde_måneder(ophold) - 6)
@@ -369,28 +448,82 @@ den 30. juni 2022.
 | ligningslov33a_samlet_dagegrænse_overholdt(ophold: Ligningslov33AOphold) -> length(ligningslov33a_medregnede_danske_opholdsdage(ophold)) <= ligningslov33a_samlet_tilladt_antal_danske_dage(ophold)
 | ligningslov33a_ophold_input_gyldigt(ophold: Ligningslov33AOphold) -> dato_gyldig(ophold.fra_dato) && dato_gyldig(ophold.til_dato) && dato_før_eller_lig_med(ophold.fra_dato, ophold.til_dato) && ophold.dokumentreference != "" && ligningslov33a_arbejdsgiverforbindelse_input_gyldig(ophold.arbejdsgiverforbindelse) && ligningslov33a_skattepligtsstatus_input_gyldig(ophold.skattepligt, ophold) && ligningslov33a_covidvalg_input_gyldigt(ophold.covidvalg) && ligningslov33a_danske_opholdsdage_entydige(ophold.danske_opholdsdage) && all(ophold.danske_opholdsdage, |dag: Ligningslov33ADanskOpholdsdag| ligningslov33a_dansk_opholdsdag_input_gyldig(dag, ophold))
 | ligningslov33a_ophold_betingelser_opfyldt(ophold: Ligningslov33AOphold) -> ligningslov33a_ophold_input_gyldigt(ophold) && ligningslov33a_mindst_seks_måneders_udlandsophold(ophold) && ligningslov33a_danske_opholdsdage_lovlige(ophold) && ligningslov33a_alle_seksmånedersvinduer_overholder_42_dage(ophold) && ligningslov33a_samlet_dagegrænse_overholdt(ophold) && ligningslov33a_arbejdsgiverforbindelse_opfyldt(ophold.arbejdsgiverforbindelse) && ligningslov33a_tjenesteforhold_omfattet(ophold.tjenesteforhold) && ligningslov33a_skattepligt_omfattet(ophold.skattepligt)
+| ligningslov33a_daterede_indkomstperioder_overlapper(venstre: Ligningslov33ADateretIndkomstfordeling, højre: Ligningslov33ADateretIndkomstfordeling) -> dato_før_eller_lig_med(venstre.fra_dato, højre.til_dato) && dato_før_eller_lig_med(højre.fra_dato, venstre.til_dato)
+| ligningslov33a_dateret_indkomstidentifikation_antal(perioder: List(Ligningslov33ADateretIndkomstfordeling), identifikation: Tekst) -> foldl(perioder, 0, |antal: Heltal, periode: Ligningslov33ADateretIndkomstfordeling| antal + hvis periode.identifikation == identifikation { 1 } ellers { 0 })
+| ligningslov33a_daterede_indkomstidentifikationer_entydige(perioder: List(Ligningslov33ADateretIndkomstfordeling)) -> all(perioder, |periode: Ligningslov33ADateretIndkomstfordeling| ligningslov33a_dateret_indkomstidentifikation_antal(perioder, periode.identifikation) == 1)
+| ligningslov33a_daterede_indkomstperioder_uden_overlap(perioder: List(Ligningslov33ADateretIndkomstfordeling)) -> all(
+    perioder,
+    |periode: Ligningslov33ADateretIndkomstfordeling| all(
+        perioder,
+        |anden: Ligningslov33ADateretIndkomstfordeling| periode.identifikation == anden.identifikation || ligningslov33a_daterede_indkomstperioder_overlapper(periode, anden) == Falskt
+    )
+)
+| ligningslov33a_dateret_indkomstperiode_ligger_i_ophold_og_indkomstår(periode: Ligningslov33ADateretIndkomstfordeling, ophold: Ligningslov33AOphold, indkomstår: Heltal) -> periode.fra_dato.år == indkomstår && periode.til_dato.år == indkomstår && ligningslov33a_dato_i_lukket_periode(periode.fra_dato, ophold.fra_dato, ophold.til_dato) && ligningslov33a_dato_i_lukket_periode(periode.til_dato, ophold.fra_dato, ophold.til_dato)
+| ligningslov33a_dateret_indkomstperiode_afgrænset_entydigt(periode: Ligningslov33ADateretIndkomstfordeling, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> match afgrænsning.afbrydelsesdato {
+    | None -> Sandt
+    | Some(afbrydelsesdato) -> dato_før_eller_lig_med(periode.til_dato, afbrydelsesdato) || dato_efter(periode.fra_dato, afbrydelsesdato)
+}
+| ligningslov33a_dateret_indkomstperiode_input_gyldig(periode: Ligningslov33ADateretIndkomstfordeling, ophold: Ligningslov33AOphold, indkomstår: Heltal, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> periode.identifikation != "" && periode.dokumentreference != "" && dato_gyldig(periode.fra_dato) && dato_gyldig(periode.til_dato) && dato_før_eller_lig_med(periode.fra_dato, periode.til_dato) && ligningslov33a_dateret_indkomstperiode_ligger_i_ophold_og_indkomstår(periode, ophold, indkomstår) && ligningslov33a_indkomstfordeling_input_gyldig(periode.fordeling) && ligningslov33a_dateret_indkomstperiode_afgrænset_entydigt(periode, afgrænsning)
+| ligningslov33a_daterede_indkomstperioder_input_gyldige(perioder: List(Ligningslov33ADateretIndkomstfordeling), ophold: Ligningslov33AOphold, indkomstår: Heltal, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> length(perioder) > 0 && ligningslov33a_daterede_indkomstidentifikationer_entydige(perioder) && ligningslov33a_daterede_indkomstperioder_uden_overlap(perioder) && all(perioder, |periode: Ligningslov33ADateretIndkomstfordeling| ligningslov33a_dateret_indkomstperiode_input_gyldig(periode, ophold, indkomstår, afgrænsning))
+| ligningslov33a_afbrudt_efter_kvalificerende_periode(afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> match afgrænsning.afbrydelsesdato {
+    | None -> Falskt
+    | Some(_) -> ligningslov33a_mindst_seks_måneders_udlandsophold(afgrænsning.lempelsesophold)
+}
+| ligningslov33a_indkomstgrundlag_input_gyldigt(grundlag: Ligningslov33AIndkomstgrundlag, ophold: Ligningslov33AOphold, indkomstår: Heltal, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> match grundlag {
+    | Ll33ASamletIndkomstForUafbrudtLempelsesperiode(fordeling) -> ligningslov33a_indkomstfordeling_input_gyldig(fordeling) && ligningslov33a_afbrudt_efter_kvalificerende_periode(afgrænsning) == Falskt
+    | Ll33ADateredeIndkomstfordelinger(perioder) -> ligningslov33a_daterede_indkomstperioder_input_gyldige(perioder, ophold, indkomstår, afgrænsning)
+}
+| ligningslov33a_dateret_indkomstperiode_lempelsesberettiget(periode: Ligningslov33ADateretIndkomstfordeling, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> match afgrænsning.afbrydelsesdato {
+    | None -> Sandt
+    | Some(afbrydelsesdato) -> dato_før_eller_lig_med(periode.til_dato, afbrydelsesdato)
+}
+| ligningslov33a_dateret_lempelsesberettiget_indkomst(perioder: List(Ligningslov33ADateretIndkomstfordeling), afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> foldl(
+    perioder,
+    ligningslov33a_tom_lønindkomst(),
+    |sum: Ligningslov33ALønindkomstEfterDanskeRegler, periode: Ligningslov33ADateretIndkomstfordeling| ligningslov33a_lønindkomst_læg_sammen(
+        sum,
+        hvis ligningslov33a_dateret_indkomstperiode_lempelsesberettiget(periode, afgrænsning) {
+            ligningslov33a_lempelsesberettiget_indkomst(periode.fordeling)
+        } ellers {
+            ligningslov33a_tom_lønindkomst()
+        }
+    )
+)
+| ligningslov33a_indkomstgrundlag_lempelsesberettiget_indkomst(grundlag: Ligningslov33AIndkomstgrundlag, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> match grundlag {
+    | Ll33ASamletIndkomstForUafbrudtLempelsesperiode(fordeling) -> ligningslov33a_lempelsesberettiget_indkomst(fordeling)
+    | Ll33ADateredeIndkomstfordelinger(perioder) -> ligningslov33a_dateret_lempelsesberettiget_indkomst(perioder, afgrænsning)
+}
 | ligningslov33a_ansættelsesforhold_overlapper_indkomstår(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> fakta.ophold.fra_dato.år <= indkomstår && fakta.ophold.til_dato.år >= indkomstår
-| ligningslov33a_ansættelsesforhold_input_gyldigt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> fakta.identifikation != "" && indkomstår > 0 && ligningslov33a_subjekt_omfattet(fakta.subjekt) && ligningslov33a_ophold_input_gyldigt(fakta.ophold) && ligningslov33a_ansættelsesforhold_overlapper_indkomstår(fakta, indkomstår) && ligningslov33a_offentligt_arbejdsgivergrundlag_input_gyldigt(fakta.arbejdsgivergrundlag) && ligningslov33a_beskatningsret_input_gyldig(fakta.beskatningsret) && ligningslov33a_indkomstfordeling_input_gyldig(fakta.indkomstfordeling) && ligningslov33a_henstandsstatus_input_gyldig(fakta.henstand)
-| ligningslov33a_ansættelsesforhold_betingelser_opfyldt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> ligningslov33a_ansættelsesforhold_input_gyldigt(fakta, indkomstår) && ligningslov33a_ophold_betingelser_opfyldt(fakta.ophold) && ligningslov33a_stk2_udelukker(fakta.arbejdsgivergrundlag) == Falskt
+| ligningslov33a_ansættelsesforhold_input_gyldigt_med_afgrænsning(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning) -> fakta.identifikation != "" && indkomstår > 0 && ligningslov33a_subjekt_omfattet(fakta.subjekt) && ligningslov33a_ophold_input_gyldigt(fakta.ophold) && ligningslov33a_ansættelsesforhold_overlapper_indkomstår(fakta, indkomstår) && ligningslov33a_offentligt_arbejdsgivergrundlag_input_gyldigt(fakta.arbejdsgivergrundlag) && ligningslov33a_beskatningsret_input_gyldig(fakta.beskatningsret) && ligningslov33a_indkomstgrundlag_input_gyldigt(fakta.indkomstgrundlag, fakta.ophold, indkomstår, afgrænsning) && ligningslov33a_henstandsstatus_input_gyldig(fakta.henstand)
+| ligningslov33a_ansættelsesforhold_input_gyldigt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> ligningslov33a_ansættelsesforhold_input_gyldigt_med_afgrænsning(fakta, indkomstår, ligningslov33a_lempelsesperiodeafgrænsning(fakta.ophold))
+| ligningslov33a_ansættelsesforhold_betingelser_opfyldt_med_afgrænsning(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal, afgrænsning: Ligningslov33ALempelsesperiodeafgrænsning, input_gyldigt: Boolsk) -> input_gyldigt && ligningslov33a_ophold_betingelser_opfyldt(afgrænsning.lempelsesophold) && ligningslov33a_stk2_udelukker(fakta.arbejdsgivergrundlag) == Falskt
+| ligningslov33a_ansættelsesforhold_betingelser_opfyldt(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> {
+    = afgrænsning = ligningslov33a_lempelsesperiodeafgrænsning(fakta.ophold)
+    = input_gyldigt = ligningslov33a_ansættelsesforhold_input_gyldigt_med_afgrænsning(fakta, indkomstår, afgrænsning)
+    ligningslov33a_ansættelsesforhold_betingelser_opfyldt_med_afgrænsning(fakta, indkomstår, afgrænsning, input_gyldigt)
+}
 | ligningslov33a_forholdsresultat(fakta: Ligningslov33AAnsættelsesforhold, indkomstår: Heltal) -> {
-    = input_gyldigt = ligningslov33a_ansættelsesforhold_input_gyldigt(fakta, indkomstår)
-    = betingelser_opfyldt = ligningslov33a_ansættelsesforhold_betingelser_opfyldt(fakta, indkomstår)
+    = periodeafgrænsning = ligningslov33a_lempelsesperiodeafgrænsning(fakta.ophold)
+    = lempelsesophold = periodeafgrænsning.lempelsesophold
+    = input_gyldigt = ligningslov33a_ansættelsesforhold_input_gyldigt_med_afgrænsning(fakta, indkomstår, periodeafgrænsning)
+    = betingelser_opfyldt = ligningslov33a_ansættelsesforhold_betingelser_opfyldt_med_afgrænsning(fakta, indkomstår, periodeafgrænsning, input_gyldigt)
     Ligningslov33AForholdsresultat(
         fakta = fakta,
+        periodeafgrænsning = periodeafgrænsning,
         input_gyldigt = input_gyldigt,
-        mindst_seks_måneders_udlandsophold = ligningslov33a_mindst_seks_måneders_udlandsophold(fakta.ophold),
-        danske_opholdsdage_lovlige = ligningslov33a_danske_opholdsdage_lovlige(fakta.ophold),
+        mindst_seks_måneders_udlandsophold = ligningslov33a_mindst_seks_måneders_udlandsophold(lempelsesophold),
+        danske_opholdsdage_lovlige = ligningslov33a_danske_opholdsdage_lovlige(lempelsesophold),
         højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode = ligningslov33a_højeste_antal_danske_dage_i_seksmånedersvindue(fakta.ophold),
         samlet_antal_medregnede_danske_dage = length(ligningslov33a_medregnede_danske_opholdsdage(fakta.ophold)),
         samlet_tilladt_antal_danske_dage = ligningslov33a_samlet_tilladt_antal_danske_dage(fakta.ophold),
         samlet_dagegrænse_overholdt = ligningslov33a_samlet_dagegrænse_overholdt(fakta.ophold),
-        arbejdsgiverforbindelse_opfyldt = ligningslov33a_arbejdsgiverforbindelse_opfyldt(fakta.ophold.arbejdsgiverforbindelse),
-        tjenesteforhold_omfattet = ligningslov33a_tjenesteforhold_omfattet(fakta.ophold.tjenesteforhold),
-        skattepligt_omfattet = ligningslov33a_skattepligt_omfattet(fakta.ophold.skattepligt),
+        arbejdsgiverforbindelse_opfyldt = ligningslov33a_arbejdsgiverforbindelse_opfyldt(lempelsesophold.arbejdsgiverforbindelse),
+        tjenesteforhold_omfattet = ligningslov33a_tjenesteforhold_omfattet(lempelsesophold.tjenesteforhold),
+        skattepligt_omfattet = ligningslov33a_skattepligt_omfattet(lempelsesophold.skattepligt),
         stk2_udelukker = ligningslov33a_stk2_udelukker(fakta.arbejdsgivergrundlag),
         betingelser_opfyldt = betingelser_opfyldt,
         lempelsesandel_basispoint = hvis betingelser_opfyldt { ligningslov33a_lempelsesandel_basispoint(fakta.arbejdsgivergrundlag, fakta.beskatningsret) } ellers { 0 },
-        lempelsesberettiget_indkomst_efter_danske_regler = hvis betingelser_opfyldt { ligningslov33a_lempelsesberettiget_indkomst(fakta.indkomstfordeling) } ellers { ligningslov33a_tom_lønindkomst() }
+        lempelsesberettiget_indkomst_efter_danske_regler = hvis betingelser_opfyldt { ligningslov33a_indkomstgrundlag_lempelsesberettiget_indkomst(fakta.indkomstgrundlag, periodeafgrænsning) } ellers { ligningslov33a_tom_lønindkomst() }
     )
 }
 | ligningslov33a_forholdsresultater(input: Ligningslov33AÅrsinput) -> map(input.ansættelsesforhold, |fakta: Ligningslov33AAnsættelsesforhold| ligningslov33a_forholdsresultat(fakta, input.indkomstår))

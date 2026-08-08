@@ -7388,6 +7388,76 @@
     help = Some("Valget skal kunne henføres til den relevante overenskomst og artikel. Dansk beskatningsret medfører som udgangspunkt halvt nedslag."),
     unit = None
 )
+= personskat_felt_ligningslov33a_indkomstgrundlag = TypetBeregningsfelt(
+    path = refof(Ligningslov33AAnsættelsesforhold::indkomstgrundlag::$variant),
+    label = "Metode for fordeling af lønindkomsten",
+    question = Some("Er lønnen opgjort samlet for en uafbrudt lempelsesperiode eller fordelt på dokumenterede datoperioder?"),
+    help = Some("Brug daterede indkomstfordelinger, hvis en senere overskridelse af 42-dages-reglen kan afgrænse en allerede kvalificerende periode."),
+    unit = None
+)
+= personskat_felt_ligningslov33a_daterede_indkomstperioder = TypetBeregningsfelt(
+    path = refof(Ligningslov33AIndkomstgrundlag::Ll33ADateredeIndkomstfordelinger::perioder),
+    label = "Daterede lønfordelinger",
+    question = Some("Hvilke ikke-overlappende perioder fordeler lønnen før og efter en mulig afbrydelse af udlandsopholdet?"),
+    help = Some("En periode må ikke krydse den afledte afbrydelsesdato. Del i stedet lønnen ved grænsen, så Futuruna aldrig skal gætte en forholdsmæssig fordeling."),
+    unit = None
+)
+= personskat_felt_ligningslov33a_indkomstperiode_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::identifikation),
+    label = "Lønperiodens identifikation",
+    question = Some("Hvilken entydig reference identificerer denne lønperiode?"),
+    help = Some("Brug eksempelvis lønseddelens eller arbejdsgiveropgørelsens stabile reference."),
+    unit = None
+)
+= personskat_felt_ligningslov33a_indkomstperiode_fra_år = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::fra_dato::år),
+    label = "Lønperiodens startår",
+    question = Some("I hvilket år begynder denne lønperiode?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_fra_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::fra_dato::måned),
+    label = "Lønperiodens startmåned",
+    question = Some("I hvilken måned begynder denne lønperiode?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_fra_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::fra_dato::dag),
+    label = "Lønperiodens startdag",
+    question = Some("På hvilken dag i måneden begynder denne lønperiode?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_til_år = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::til_dato::år),
+    label = "Lønperiodens slutår",
+    question = Some("I hvilket år slutter denne lønperiode?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_til_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::til_dato::måned),
+    label = "Lønperiodens slutmåned",
+    question = Some("I hvilken måned slutter denne lønperiode?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_til_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::til_dato::dag),
+    label = "Lønperiodens slutdag",
+    question = Some("På hvilken dag i måneden slutter denne lønperiode?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_ligningslov33a_indkomstperiode_dokumentreference = TypetBeregningsfelt(
+    path = refof(Ligningslov33ADateretIndkomstfordeling::dokumentreference),
+    label = "Dokumentation for lønperioden",
+    question = Some("Hvilket dokument underbygger periodens datoer og beløb?"),
+    help = Some("Brug en stabil reference uden personfølsomme oplysninger."),
+    unit = None
+)
 = personskat_felt_ligningslov33a_henstand = TypetBeregningsfelt(
     path = refof(Ligningslov33AAnsættelsesforhold::henstand::$variant),
     label = "Henstand efter § 33 A, stk. 4",
@@ -7628,45 +7698,45 @@
 )
 = personskat_felt_ligningslov33a_samlet_skattepligtig_nettoindkomst = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::samlet_lønindkomst_efter_danske_regler::skattepligtig_nettoindkomst_kroner),
-    label = "Samlet skattepligtig løn efter danske regler",
-    question = Some("Hvor stor er hele ansættelsesforholdets lønandel i grundlaget for skattepligtig indkomst efter danske regler?"),
+    label = "Skattepligtig løn i indkomstfordelingen",
+    question = Some("Hvor stor er lønandelen i denne samlede eller daterede indkomstfordeling i grundlaget for skattepligtig indkomst efter danske regler?"),
     help = Some("Beløbet opgøres efter direkte henførbare udgifter."),
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_samlet_personlig_nettoindkomst = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::samlet_lønindkomst_efter_danske_regler::personlig_nettoindkomst_kroner),
-    label = "Samlet personlig løn efter danske regler",
-    question = Some("Hvor stor er hele ansættelsesforholdets lønandel i grundlaget for personlig indkomst efter danske regler?"),
+    label = "Personlig løn i indkomstfordelingen",
+    question = Some("Hvor stor er lønandelen i denne samlede eller daterede indkomstfordeling i grundlaget for personlig indkomst efter danske regler?"),
     help = Some("Beløbet opgøres efter direkte henførbare udgifter."),
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_samlet_am_grundlag = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::samlet_lønindkomst_efter_danske_regler::arbejdsmarkedsbidragsgrundlag_kroner),
-    label = "Samlet AM-bidragsgrundlag for lønnen",
-    question = Some("Hvor stor en del af hele ansættelsesforholdets løn indgår i det danske arbejdsmarkedsbidragsgrundlag?"),
+    label = "AM-bidragsgrundlag i indkomstfordelingen",
+    question = Some("Hvor stor en del af lønnen i denne samlede eller daterede indkomstfordeling indgår i det danske arbejdsmarkedsbidragsgrundlag?"),
     help = None,
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_riget_skattepligtig_nettoindkomst = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::heraf_arbejde_i_riget_efter_danske_regler::skattepligtig_nettoindkomst_kroner),
     label = "Skattepligtig løn for arbejde i Danmark",
     question = Some("Hvor stor en del af den skattepligtige løn vedrører arbejde udført i Danmark?"),
     help = Some("Denne del er ikke lempelsesberettiget efter § 33 A."),
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_riget_personlig_nettoindkomst = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::heraf_arbejde_i_riget_efter_danske_regler::personlig_nettoindkomst_kroner),
     label = "Personlig løn for arbejde i Danmark",
     question = Some("Hvor stor en del af lønnen i personlig indkomst vedrører arbejde udført i Danmark?"),
     help = Some("Denne del er ikke lempelsesberettiget efter § 33 A."),
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_riget_am_grundlag = TypetBeregningsfelt(
     path = refof(Ligningslov33AIndkomstfordeling::heraf_arbejde_i_riget_efter_danske_regler::arbejdsmarkedsbidragsgrundlag_kroner),
     label = "AM-bidragsgrundlag for arbejde i Danmark",
     question = Some("Hvor stor en del af AM-bidragsgrundlaget vedrører arbejde udført i Danmark?"),
     help = Some("Denne del er ikke lempelsesberettiget efter § 33 A."),
-    unit = Some("kr./år")
+    unit = Some("kr.")
 )
 = personskat_felt_ligningslov33a_henstand_dokumentreference = TypetBeregningsfelt(
     path = refof(Ligningslov33AHenstandsstatus::Ll33AHenstandEfterSkatteministerensRegler::dokumentreference),
@@ -11749,6 +11819,16 @@
         Field(value = personskat_felt_ligningslov33a_subjekt),
         Field(value = personskat_felt_ligningslov33a_arbejdsgivergrundlag),
         Field(value = personskat_felt_ligningslov33a_beskatningsret),
+        Field(value = personskat_felt_ligningslov33a_indkomstgrundlag),
+        Field(value = personskat_felt_ligningslov33a_daterede_indkomstperioder),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_identifikation),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_fra_år),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_fra_måned),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_fra_dag),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_til_år),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_til_måned),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_til_dag),
+        Field(value = personskat_felt_ligningslov33a_indkomstperiode_dokumentreference),
         Field(value = personskat_felt_ligningslov33a_henstand),
         Field(value = personskat_felt_ligningslov33a_fra_dato_år),
         Field(value = personskat_felt_ligningslov33a_fra_dato_måned),

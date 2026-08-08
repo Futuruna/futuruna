@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-f7b305` (Ligningslovens § 33 A, stk. 1-6 er implementeret med den gældende ordlyd, daterede udlandsophold, hver afsluttet seksmånedersperiodes 42-dagesgrænse, forholdsmæssig optjening af danske dage også i delmåneder, udeladelse af rejsedagene ved opholdets start og slutning, danske arbejdsdage, offentlige arbejdsgiverundtagelser samt helt og halvt nedslag. Nedslaget beregnes ørepræcist pr. dansk skattekomponent og føres for hovedperson og ægtefælle gennem den kanoniske Personskat-graf; JSON-skemaet og den genererede arbejdsbog udstiller 96 danske, kildebelagte § 33 A-feltforekomster)
+Current implementation slice: `td-c54ca5` (En senere overskridelse af Ligningslovens § 33 A's 42-dagesgrænse afbryder nu opholdet ved begyndelsen af det danske besøg, hvor den 43. dag falder. En allerede afsluttet seksmånedersperiode bevarer sit nedslag, mens løn før og efter afbrydelsen fordeles i dokumenterede, ikke-overlappende datoperioder; en periode over grænsen eller et ufordelt samlet beløb fejler lukket frem for at blive forholdsmæssigt gættet. Afgrænsningen, den afviste periode og 128 danske § 33 A-feltforekomster føres gennem regler, resultater og arbejdsbog)
+Previous implementation slice: `td-f7b305` (Ligningslovens § 33 A, stk. 1-6 er implementeret med den gældende ordlyd, daterede udlandsophold, hver afsluttet seksmånedersperiodes 42-dagesgrænse, forholdsmæssig optjening af danske dage også i delmåneder, udeladelse af rejsedagene ved opholdets start og slutning, danske arbejdsdage, offentlige arbejdsgiverundtagelser samt helt og halvt nedslag. Nedslaget beregnes ørepræcist pr. dansk skattekomponent og føres for hovedperson og ægtefælle gennem den kanoniske Personskat-graf)
 Previous implementation slice: `td-0ef0f9` (Ligningslovens § 33-kildefakta adskiller nu den udenlandske indkomst fra en liste af dokumenterede skattebetalinger. Almindelig indkomstskat og fragtskat fra samme fremmede stat kan derfor bevare hver sin art, beløb, opkrævningsmåde og overenskomstgrundlag under ét fælles dansk § 33/§ 33 F-loft; en fremført fragtskattesaldo bruger kun kapaciteten efter alle årets betalinger og kan også udnyttes i et år uden ny fragtskat. Den relationelle struktur føres som en underordnet betalingstabel gennem Personskat-arbejdsbogen)
 Previous implementation slice: `td-16a41b` (Ligningslovens § 33, stk. 9 klassificerer fragtskat på bruttofortjenesten ved international skibstrafik fra kildefakta og fører en dokumenteret saldo pr. fremmed stat og indkomstår. Årets fragtskat bruger først det fælles § 33/§ 33 F-loft, tidligere saldo bruger kun den resterende kapacitet, og resten føres videre uden en opdigtet udløbs- eller FIFO-regel. Årskontinuitet, områdeidentitet, kanonisk Personskat og en fuld JSON/XLSX-rundtur er verificeret)
 Previous implementation slice: `td-6b37ad` (Kildeskattelovens § 10, stk. 1-3 afleder fiktiv afståelse, dato og handelsværdi ved fraflytning og afskærer ABL § 38-, KGL § 37- og LL § 28-aktiver; Ligningslovens § 33, stk. 6 beregner derefter nedslag for den udenlandske skat, som kunne være pålignet et fast driftssted eller en fast ejendom, gennem de eksisterende § 33/§ 33 F-lofter. Fast ejendom skal afstemmes entydigt mod den kanoniske EBL-beregning på identifikation, dato, afståelsessum og skattepligtig fortjeneste, mens et fast driftssted kræver sin egen dokumentreference)
@@ -4165,19 +4166,26 @@ Review candidates to revisit deliberately, not as broad churn:
   dage i enhver afsluttet seksmånedersperiode og den proportionale totalgrænse
   på yderligere syv dage pr. måned, inklusive den forholdsmæssige del af en
   påbegyndt ekstra måned. Rejsedagene ved udlandsopholdets start og afslutning
-  tæller ikke med. Et otte måneders ophold med 56 korrekt fordelte dage består,
-  mens samme total med 43 dage i ét vindue afskæres; det officielle eksempel
+  tæller ikke med. Ved en senere overskridelse finder reglerne den første dag,
+  hvor et rullende seksmånedersvindue når 43 danske dage, og afbryder ved
+  begyndelsen af det sammenhængende danske besøg. Det tidligere ophold bevarer
+  nedslaget, hvis det allerede udgør mindst seks måneder. Daterede,
+  ikke-overlappende lønperioder fordeler indkomsten eksakt på hver side af
+  grænsen; en periode, der krydser grænsen, eller et ufordelt samlet beløb
+  fejler lukket. Et otte måneders ophold med 56 korrekt fordelte dage består,
+  mens samme total med 43 dage i ét vindue afbrydes; det officielle eksempel
   fra 15. januar til 25. september tillader 58, men ikke 59, danske dage.
   Arbejde i Danmark trækkes ud af lempelsesgrundlaget, stk. 2's offentlige
   ydelser og kollektive lønaftaler afskæres, og stk. 3 fordeler helt eller halvt
   nedslag efter offentlig status, systemeksport og beskatningsret. De
   ørepræcise komponenter aggregeres før afrunding og samordnes med almindelig
   § 33-credit under den disponible danske indkomstskat for hovedperson og
-  ægtefælle. Nitten fokusscenarier passerer interpreter og compiler, ni
+  ægtefælle. Nitten grundscenarier og otte afbrydelsesscenarier passerer både
+  interpreter og compiler, ni
   kanoniske udenlandslempelsesscenarier og 57 almindelige Personskat-scenarier
   passerer kompileret, og den anonymiserede 2025-årsopgørelse afstemmer fortsat
   290.590,34 kr. med 0 øres forskel. Det genererede JSON-skema og XLSX-arbejdsbog
-  har 96 danske § 33 A-feltforekomster med lov-, vejlednings- og praksiskilder.
+  har 128 danske § 33 A-feltforekomster med lov-, vejlednings- og praksiskilder.
 - Ligningslovens § 33, stk. 9 er implementeret efter den gældende ordlyd som
   et område- og årsbundet fragtskatteregnskab. En kreditgruppe klassificeres
   som fragtskat alene ved skat på bruttofortjenesten ved international
@@ -5119,6 +5127,11 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
+- Udvid under `td-d4743d` den nu afledte § 33 A-afbrydelse til andre
+  kildebelagte afbrydelsesårsager og senere genoptjening. Periodemodellen skal
+  da kunne bære flere lempelses- og afvisningsperioder i samme ansættelsesforhold
+  uden at genindføre brugerangivne juridiske konklusioner eller gætte en
+  forholdsmæssig lønfordeling.
 - Udskyd næste performance-lag, indtil de væsentlige resterende lovregler er
   implementeret. Når fokus vender tilbage til målt latenstid, ejer `td-60a9d6`
   genbrug af parsede og typede moduler, mens `td-783a9c` ejer en resident

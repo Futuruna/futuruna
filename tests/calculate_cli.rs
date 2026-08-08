@@ -1480,6 +1480,48 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human LL § 33 tax-payment label {expected} on {foreign_tax_payments_sheet}"
             );
         }
+        let ll33a_dated_income_path = "ligningslov33.ligningslov33a_hovedperson.MedLigningslov33A.input.ansættelsesforhold.indkomstgrundlag.Ll33ADateredeIndkomstfordelinger.perioder";
+        let ll33a_dated_income_sheet =
+            workbook_collection_sheet_name(&mut workbook, ll33a_dated_income_path);
+        let ll33a_dated_income_paths =
+            workbook_column_paths(&mut workbook, &ll33a_dated_income_sheet);
+        for expected in [
+            "identifikation",
+            "fra_dato.år",
+            "fra_dato.måned",
+            "fra_dato.dag",
+            "til_dato.år",
+            "til_dato.måned",
+            "til_dato.dag",
+            "fordeling.samlet_lønindkomst_efter_danske_regler.skattepligtig_nettoindkomst_kroner",
+            "fordeling.heraf_arbejde_i_riget_efter_danske_regler.skattepligtig_nettoindkomst_kroner",
+            "dokumentreference",
+        ] {
+            assert!(
+                ll33a_dated_income_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 33 A dated-income path {expected} on {ll33a_dated_income_sheet}"
+            );
+        }
+        let ll33a_dated_income_headers = workbook_headers(&mut workbook, &ll33a_dated_income_sheet);
+        for expected in [
+            "Lønperiodens identifikation",
+            "Lønperiodens startår",
+            "Lønperiodens startmåned",
+            "Lønperiodens startdag",
+            "Lønperiodens slutår",
+            "Lønperiodens slutmåned",
+            "Lønperiodens slutdag",
+            "Skattepligtig løn i indkomstfordelingen",
+            "Skattepligtig løn for arbejde i Danmark",
+            "Dokumentation for lønperioden",
+        ] {
+            assert!(
+                ll33a_dated_income_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 33 A dated-income label {expected} on {ll33a_dated_income_sheet}"
+            );
+        }
         let freight_tax_balances_path =
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi";
         let freight_tax_balances_sheet =

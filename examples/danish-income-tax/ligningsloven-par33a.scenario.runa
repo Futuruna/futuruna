@@ -30,9 +30,11 @@
     ophold = ophold,
     arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
     beskatningsret = beskatningsret,
-    indkomstfordeling = Ligningslov33AIndkomstfordeling(
-        samlet_lønindkomst_efter_danske_regler = samlet_indkomst,
-        heraf_arbejde_i_riget_efter_danske_regler = dansk_arbejde
+    indkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(
+        fordeling = Ligningslov33AIndkomstfordeling(
+            samlet_lønindkomst_efter_danske_regler = samlet_indkomst,
+            heraf_arbejde_i_riget_efter_danske_regler = dansk_arbejde
+        )
     ),
     henstand = Ll33AIngenHenstand
 )
@@ -46,9 +48,11 @@
         systemeksport = systemeksport
     ),
     beskatningsret = beskatningsret,
-    indkomstfordeling = Ligningslov33AIndkomstfordeling(
-        samlet_lønindkomst_efter_danske_regler = ll33a_scenarie_indkomst(120000, 120000, 160000),
-        heraf_arbejde_i_riget_efter_danske_regler = ll33a_scenarie_indkomst(0, 0, 0)
+    indkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(
+        fordeling = Ligningslov33AIndkomstfordeling(
+            samlet_lønindkomst_efter_danske_regler = ll33a_scenarie_indkomst(120000, 120000, 160000),
+            heraf_arbejde_i_riget_efter_danske_regler = ll33a_scenarie_indkomst(0, 0, 0)
+        )
     ),
     henstand = Ll33AIngenHenstand
 )

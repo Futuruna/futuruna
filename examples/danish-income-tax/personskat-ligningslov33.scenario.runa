@@ -110,13 +110,15 @@ nedslaget i personens slutskat.
     ),
     arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
     beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
-    indkomstfordeling = Ligningslov33AIndkomstfordeling(
-        samlet_lønindkomst_efter_danske_regler = Ligningslov33ALønindkomstEfterDanskeRegler(
-            skattepligtig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
-            personlig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
-            arbejdsmarkedsbidragsgrundlag_kroner = udenlandsk_bruttoløn_kroner
-        ),
-        heraf_arbejde_i_riget_efter_danske_regler = ligningslov33a_tom_lønindkomst()
+    indkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(
+        fordeling = Ligningslov33AIndkomstfordeling(
+            samlet_lønindkomst_efter_danske_regler = Ligningslov33ALønindkomstEfterDanskeRegler(
+                skattepligtig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
+                personlig_nettoindkomst_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
+                arbejdsmarkedsbidragsgrundlag_kroner = udenlandsk_bruttoløn_kroner
+            ),
+            heraf_arbejde_i_riget_efter_danske_regler = ligningslov33a_tom_lønindkomst()
+        )
     ),
     henstand = Ll33AIngenHenstand
 )
