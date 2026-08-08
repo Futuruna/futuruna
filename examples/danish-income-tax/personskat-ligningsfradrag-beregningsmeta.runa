@@ -209,6 +209,12 @@
     help = None,
     unit = Some("år")
 )
+= personskat_ll13_felt_periode_fra_år = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::fra_dato::år), label = "Kontingentperiodens startdato (ISO 8601) - år", question = Some("I hvilket år begyndte den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("år"))
+= personskat_ll13_felt_periode_fra_måned = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::fra_dato::måned), label = "Kontingentperiodens startdato (ISO 8601) - måned", question = Some("I hvilken måned begyndte den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("måned"))
+= personskat_ll13_felt_periode_fra_dag = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::fra_dato::dag), label = "Kontingentperiodens startdato (ISO 8601) - dag", question = Some("På hvilken dag begyndte den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("dag"))
+= personskat_ll13_felt_periode_til_år = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::til_dato::år), label = "Kontingentperiodens slutdato (ISO 8601) - år", question = Some("I hvilket år sluttede den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("år"))
+= personskat_ll13_felt_periode_til_måned = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::til_dato::måned), label = "Kontingentperiodens slutdato (ISO 8601) - måned", question = Some("I hvilken måned sluttede den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("måned"))
+= personskat_ll13_felt_periode_til_dag = TypetBeregningsfelt(path = refof(Ligningslov13Årsinput::kontingenter::periode::til_dato::dag), label = "Kontingentperiodens slutdato (ISO 8601) - dag", question = Some("På hvilken dag sluttede den periode, som kontingentbetalingen dækker?"), help = None, unit = Some("dag"))
 = personskat_ll13_felt_foreningsart = TypetBeregningsfelt(
     path = refof(Ligningslov13Årsinput::kontingenter::foreningsart),
     label = "Foreningens art",
@@ -259,6 +265,12 @@
         personskat_ll13_felt_identifikation,
         personskat_ll13_felt_forening_identifikation,
         personskat_ll13_felt_indkomstår,
+        personskat_ll13_felt_periode_fra_år,
+        personskat_ll13_felt_periode_fra_måned,
+        personskat_ll13_felt_periode_fra_dag,
+        personskat_ll13_felt_periode_til_år,
+        personskat_ll13_felt_periode_til_måned,
+        personskat_ll13_felt_periode_til_dag,
         personskat_ll13_felt_foreningsart,
         personskat_ll13_felt_betalt,
         personskat_ll13_felt_foreningsandel,

@@ -1942,6 +1942,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "identifikation",
             "indkomstår",
+            "periode.fra_dato.år",
+            "periode.fra_dato.måned",
+            "periode.fra_dato.dag",
+            "periode.til_dato.år",
+            "periode.til_dato.måned",
+            "periode.til_dato.dag",
             "foreningsart",
             "betalt_kontingent_kroner",
             "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner",
@@ -1958,6 +1964,12 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         for expected in [
             "Kontingentets identifikation",
             "Kontingentets indkomstår",
+            "Kontingentperiodens startdato (ISO 8601) - år",
+            "Kontingentperiodens startdato (ISO 8601) - måned",
+            "Kontingentperiodens startdato (ISO 8601) - dag",
+            "Kontingentperiodens slutdato (ISO 8601) - år",
+            "Kontingentperiodens slutdato (ISO 8601) - måned",
+            "Kontingentperiodens slutdato (ISO 8601) - dag",
             "Foreningens art",
             "Betalt fagligt kontingent",
             "Foreningens faglige økonomiske andel",
@@ -1968,6 +1980,44 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             assert!(
                 union_dues_headers.iter().any(|header| header == expected),
                 "missing human LL § 13 input label {expected} on {union_dues_sheet}"
+            );
+        }
+        let union_period_assessments_path =
+            "lønmodtager.ligningsfradrag.fiskerfradrag.kontingentperiodeundtagelser";
+        let union_period_assessments_sheet =
+            workbook_collection_sheet_name(&mut workbook, union_period_assessments_path);
+        let union_period_assessment_paths =
+            workbook_column_paths(&mut workbook, &union_period_assessments_sheet);
+        for expected in [
+            "kontingent_identifikation",
+            "bedømmelse.$variant",
+            "bedømmelse.Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse.andet_arbejdsforhold_identifikation",
+            "bedømmelse.Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse.ligningsmæssig_bedømmelsesreference",
+            "bedømmelse.Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse.andet_erhverv_identifikation",
+            "bedømmelse.Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse.ligningsmæssig_bedømmelsesreference",
+        ] {
+            assert!(
+                union_period_assessment_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical LL § 9 G union-period assessment path {expected} on {union_period_assessments_sheet}"
+            );
+        }
+        let union_period_assessment_headers =
+            workbook_headers(&mut workbook, &union_period_assessments_sheet);
+        for expected in [
+            "Kontingentbetaling for den konkrete bedømmelse",
+            "Kontingentperiodens overgangstype",
+            "Andet arbejde før første fiskerregistrering",
+            "Reference for bedømmelsen før første registrering",
+            "Andet erhverv efter fuldstændigt ophør med fiskeriet",
+            "Reference for bedømmelsen efter fuldstændigt ophør",
+        ] {
+            assert!(
+                union_period_assessment_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 9 G union-period assessment label {expected} on {union_period_assessments_sheet}"
             );
         }
         let unemployment_contributions_path =
@@ -11100,6 +11150,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "arbejdsforhold": [],
                     "fangstture": [],
                     "selvstændige_udgiftsvurderinger": [],
+                    "kontingentperiodeundtagelser": [],
                     "kildetilknytninger": []
                 },
                 "øvrige_lønmodtagerudgifter": {
@@ -11243,6 +11294,129 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         },
         "ægtefælle": { "$variant": "UdenÆgtefælle" },
         "årsopgørelse": { "$variant": "UdenÅrsopgørelse" }
+    });
+    let mut fisher_union_transition_case = json_input["cases"][0].clone();
+    fisher_union_transition_case["case_id"] =
+        Value::String("personskat-fisker-kontingentovergange-2026".into());
+    fisher_union_transition_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    fisher_union_transition_case["input"]["lønmodtager"]["ligningsfradrag"]["fiskerfradrag"] = serde_json::json!({
+        "valg": { "$variant": "Ll9GVælgFiskerfradrag" },
+        "registreringer": [{
+            "identifikation": "a-status-forår",
+            "status": { "$variant": "Ll9GErhvervsfiskerMedAStatus" },
+            "fra_dato": { "år": 2026, "måned": 4, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 6, "dag": 30 }
+        }, {
+            "identifikation": "a-status-efterår",
+            "status": { "$variant": "Ll9GErhvervsfiskerMedAStatus" },
+            "fra_dato": { "år": 2026, "måned": 9, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 10, "dag": 31 }
+        }],
+        "arbejdsforhold": [{
+            "identifikation": "ansat-fisker-overgang",
+            "erhvervsform": { "$variant": "Ll9GAnsatFisker" },
+            "fra_dato": { "år": 2026, "måned": 4, "dag": 1 },
+            "til_dato": { "år": 2026, "måned": 10, "dag": 31 }
+        }],
+        "fangstture": [{
+            "identifikation": "fangsttur-overgang",
+            "arbejdsforhold_identifikation": "ansat-fisker-overgang",
+            "afgang_fra_havn": {
+                "dato": { "år": 2026, "måned": 6, "dag": 1 },
+                "klokkeslæt": { "time": 6, "minut": 0 }
+            },
+            "ankomst_til_havn": {
+                "dato": { "år": 2026, "måned": 6, "dag": 2 },
+                "klokkeslæt": { "time": 6, "minut": 0 }
+            }
+        }],
+        "selvstændige_udgiftsvurderinger": [],
+        "kontingentperiodeundtagelser": [{
+            "kontingent_identifikation": "kontingent-før-registrering",
+            "bedømmelse": {
+                "$variant": "Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse",
+                "andet_arbejdsforhold_identifikation": "landarbejde-før-fiskeri",
+                "ligningsmæssig_bedømmelsesreference": "TfS-1996-105-DEP/konkret-bedømmelse/før"
+            }
+        }, {
+            "kontingent_identifikation": "kontingent-efter-fuldt-ophør",
+            "bedømmelse": {
+                "$variant": "Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse",
+                "andet_erhverv_identifikation": "nyt-erhverv-efter-fiskeri",
+                "ligningsmæssig_bedømmelsesreference": "TfS-1996-105-DEP/konkret-bedømmelse/efter"
+            }
+        }],
+        "kildetilknytninger": [{
+            "kilde": {
+                "$variant": "Ll9GLigningslov13Forening",
+                "forening_identifikation": "fiskerforbund-overgang"
+            },
+            "arbejdstilknytning": {
+                "$variant": "Ll9GTilknyttetErhvervsfiskerarbejde",
+                "arbejdsforhold_identifikation": "ansat-fisker-overgang"
+            }
+        }]
+    });
+    fisher_union_transition_case["input"]["lønmodtager"]["ligningsfradrag"]
+        ["faglige_kontingenter"] = serde_json::json!({
+        "skatteyderstatus": { "$variant": "Ll13Lønmodtager" },
+        "kontingenter": [{
+            "identifikation": "kontingent-før-registrering",
+            "forening_identifikation": "fiskerforbund-overgang",
+            "indkomstår": 2026,
+            "periode": {
+                "fra_dato": { "år": 2026, "måned": 1, "dag": 1 },
+                "til_dato": { "år": 2026, "måned": 3, "dag": 31 }
+            },
+            "foreningsart": { "$variant": "Ll13Fagforening" },
+            "betalt_kontingent_kroner": 1000,
+            "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner": 1000,
+            "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser": true,
+            "skatteyder_hører_til_erhvervsgruppen": true,
+            "indberetningsstatus": { "$variant": "Ll13IndberettetEfterSkatteindberetningslov31" }
+        }, {
+            "identifikation": "kontingent-under-registrering",
+            "forening_identifikation": "fiskerforbund-overgang",
+            "indkomstår": 2026,
+            "periode": {
+                "fra_dato": { "år": 2026, "måned": 4, "dag": 1 },
+                "til_dato": { "år": 2026, "måned": 6, "dag": 30 }
+            },
+            "foreningsart": { "$variant": "Ll13Fagforening" },
+            "betalt_kontingent_kroner": 1000,
+            "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner": 1000,
+            "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser": true,
+            "skatteyder_hører_til_erhvervsgruppen": true,
+            "indberetningsstatus": { "$variant": "Ll13IndberettetEfterSkatteindberetningslov31" }
+        }, {
+            "identifikation": "kontingent-midlertidigt-uden-registrering",
+            "forening_identifikation": "fiskerforbund-overgang",
+            "indkomstår": 2026,
+            "periode": {
+                "fra_dato": { "år": 2026, "måned": 7, "dag": 1 },
+                "til_dato": { "år": 2026, "måned": 8, "dag": 31 }
+            },
+            "foreningsart": { "$variant": "Ll13Fagforening" },
+            "betalt_kontingent_kroner": 1000,
+            "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner": 1000,
+            "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser": true,
+            "skatteyder_hører_til_erhvervsgruppen": true,
+            "indberetningsstatus": { "$variant": "Ll13IndberettetEfterSkatteindberetningslov31" }
+        }, {
+            "identifikation": "kontingent-efter-fuldt-ophør",
+            "forening_identifikation": "fiskerforbund-overgang",
+            "indkomstår": 2026,
+            "periode": {
+                "fra_dato": { "år": 2026, "måned": 11, "dag": 1 },
+                "til_dato": { "år": 2026, "måned": 12, "dag": 31 }
+            },
+            "foreningsart": { "$variant": "Ll13Fagforening" },
+            "betalt_kontingent_kroner": 1000,
+            "foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner": 1000,
+            "foreningens_hovedformål_er_erhvervsgruppens_økonomiske_interesser": true,
+            "skatteyder_hører_til_erhvervsgruppen": true,
+            "indberetningsstatus": { "$variant": "Ll13IndberettetEfterSkatteindberetningslov31" }
+        }]
     });
     let mut interest_case = json_input["cases"][0].clone();
     interest_case["case_id"] = Value::String("personskat-renter-befordring-2026".into());
@@ -12589,6 +12763,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "arbejdsforhold": [],
                         "fangstture": [],
                         "selvstændige_udgiftsvurderinger": [],
+                        "kontingentperiodeundtagelser": [],
                         "kildetilknytninger": []
                     },
                     "øvrige_lønmodtagerudgifter": {
@@ -14565,6 +14740,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(pbl15a_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(fisher_union_transition_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -14703,6 +14882,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-kgl-par32-blandet-fordeling-2026")
         .expect("mixed-class KGL §32 JSON case")
         .clone();
+    let fisher_union_transition_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-kontingentovergange-2026")
+        .expect("fisher union-transition JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case,
@@ -14720,6 +14906,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         limited_taxpayer_case,
         hydrocarbon_case,
         par32_mixed_case,
+        fisher_union_transition_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -14779,6 +14966,45 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
+    let json_fisher_union_transition_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-kontingentovergange-2026")
+        .expect("JSON fisher union-transition result");
+    let hydrated_fisher_union_transition_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-fisker-kontingentovergange-2026")
+        .expect("hydrated XLSX fisher union-transition result");
+    assert_eq!(
+        hydrated_fisher_union_transition_result["result"],
+        json_fisher_union_transition_result["result"]
+    );
+    let fisher_union_transition_trace =
+        &json_fisher_union_transition_result["result"]["ligningsfradrag"];
+    assert_eq!(fisher_union_transition_trace["alle_input_gyldige"], true);
+    assert_eq!(
+        fisher_union_transition_trace["fiskerfradragssamordning"]
+            ["kontingentperiodeundtagelser_gyldige"],
+        true
+    );
+    assert_eq!(
+        fisher_union_transition_trace["faglige_kontingenter"]["samlet_fradrag_kroner"],
+        2_000
+    );
+    let preserved_union_dues = fisher_union_transition_trace["faglige_kontingenter"]["input"]
+        ["kontingenter"]
+        .as_array()
+        .expect("preserved transition-period union dues");
+    assert_eq!(preserved_union_dues.len(), 2);
+    assert!(preserved_union_dues
+        .iter()
+        .any(|dues| dues["identifikation"] == "kontingent-før-registrering"));
+    assert!(preserved_union_dues
+        .iter()
+        .any(|dues| dues["identifikation"] == "kontingent-efter-fuldt-ophør"));
     let json_pbl15a_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")
@@ -16208,42 +16434,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         spouse_transfer_recipient_year["netto_aktieindkomst_fra_ordinære_aktier_kroner"],
         -12_000
     );
-    assert_eq!(
-        result["results"][1]["result"],
-        json_result["results"][0]["result"]
-    );
-    assert_eq!(
-        result["results"][2]["result"],
-        json_result["results"][1]["result"]
-    );
-    assert_eq!(
-        result["results"][3]["result"],
-        json_result["results"][2]["result"]
-    );
-    assert_eq!(
-        result["results"][4]["result"],
-        json_result["results"][3]["result"]
-    );
-    assert_eq!(
-        result["results"][5]["result"],
-        json_result["results"][4]["result"]
-    );
-    assert_eq!(
-        result["results"][6]["result"],
-        json_result["results"][5]["result"]
-    );
-    assert_eq!(
-        result["results"][7]["result"],
-        json_result["results"][6]["result"]
-    );
-    assert_eq!(
-        result["results"][8]["result"],
-        json_result["results"][7]["result"]
-    );
-    assert_eq!(
-        result["results"][9]["result"],
-        json_result["results"][8]["result"]
-    );
+    let xlsx_results = result["results"].as_array().expect("XLSX results");
+    let json_results = json_result["results"].as_array().expect("JSON results");
+    for xlsx_case in &xlsx_results[1..=9] {
+        let case_id = xlsx_case["case_id"].as_str().expect("XLSX case id");
+        let json_case = json_results
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .unwrap_or_else(|| panic!("missing JSON result for {case_id}"));
+        assert_eq!(
+            xlsx_case["result"], json_case["result"],
+            "JSON/XLSX mismatch for {case_id}"
+        );
+    }
 
     assert_eq!(
         result["results"][0]["result"]["skat"]["samlet_inkl_am_efter_personfradrag_kroner"],

@@ -199,6 +199,56 @@
     unit = None
 )
 
+= personskat_fiskerfradrag_felt_kontingentperiodeundtagelser = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser),
+    label = "Konkrete bedømmelser af kontingentperioder",
+    question = Some("Er et kontingent til fiskeriets faglige forening konkret godkendt for en periode før første registrering eller efter fuldstændigt ophør med fiskeriet?"),
+    help = Some("Opret kun en række, når der foreligger en konkret ligningsmæssig bedømmelse. Midlertidigt andet arbejde, arbejdsløshed eller en pause mellem registreringer er ikke et fuldstændigt ophør."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_kontingentperiode_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::kontingent_identifikation),
+    label = "Kontingentbetaling for den konkrete bedømmelse",
+    question = Some("Hvilken oplyst kontingentbetaling vedrører den konkrete bedømmelse?"),
+    help = Some("Identifikationen skal svare præcist til én række i tabellen over faglige kontingenter."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_kontingentperiode_bedømmelse = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::bedømmelse::$variant),
+    label = "Kontingentperiodens overgangstype",
+    question = Some("Vedrører bedømmelsen tiden før den første registrering eller tiden efter fuldstændigt ophør med fiskeriet?"),
+    help = Some("Futuruna kontrollerer den valgte overgangstype mod alle oplyste registreringsperioder."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_første_registrering_andet_arbejde = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::bedømmelse::Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse::andet_arbejdsforhold_identifikation),
+    label = "Andet arbejde før første fiskerregistrering",
+    question = Some("Hvilket andet arbejdsforhold havde personen før den første registrering som erhvervsfisker?"),
+    help = Some("Identifikationen må ikke være et oplyst fiskerarbejdsforhold."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_første_registrering_bedømmelsesreference = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::bedømmelse::Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse::ligningsmæssig_bedømmelsesreference),
+    label = "Reference for bedømmelsen før første registrering",
+    question = Some("Hvilken afgørelse, kontrollerbar vurdering eller anden reference dokumenterer den konkrete ligningsmæssige bedømmelse?"),
+    help = Some("Henvisningen skal identificere den konkrete bedømmelse; en generel henvisning til § 9 G er ikke tilstrækkelig."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_fuldt_ophør_andet_erhverv = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::bedømmelse::Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse::andet_erhverv_identifikation),
+    label = "Andet erhverv efter fuldstændigt ophør med fiskeriet",
+    question = Some("Hvilket andet erhverv påbegyndte personen efter fuldstændigt ophør med fiskeriet?"),
+    help = Some("Identifikationen må ikke være et oplyst fiskerarbejdsforhold."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_fuldt_ophør_bedømmelsesreference = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kontingentperiodeundtagelser::bedømmelse::Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse::ligningsmæssig_bedømmelsesreference),
+    label = "Reference for bedømmelsen efter fuldstændigt ophør",
+    question = Some("Hvilken afgørelse, kontrollerbar vurdering eller anden reference dokumenterer den konkrete ligningsmæssige bedømmelse?"),
+    help = Some("Henvisningen skal identificere den konkrete bedømmelse; en generel henvisning til § 9 G er ikke tilstrækkelig."),
+    unit = None
+)
+
 = personskat_fiskerfradrag_felt_kildetilknytninger = TypetBeregningsfelt(
     path = refof(Ligningslov9GÅrsinput::kildetilknytninger),
     label = "Arbejdstilknytning for fradragskilder",
@@ -264,6 +314,13 @@
         personskat_fiskerfradrag_felt_udgiftsvurdering_virksomhed,
         personskat_fiskerfradrag_felt_udgiftsvurdering_kilde,
         personskat_fiskerfradrag_felt_udgiftsvurdering_sammenlignelighed,
+        personskat_fiskerfradrag_felt_kontingentperiodeundtagelser,
+        personskat_fiskerfradrag_felt_kontingentperiode_identifikation,
+        personskat_fiskerfradrag_felt_kontingentperiode_bedømmelse,
+        personskat_fiskerfradrag_felt_første_registrering_andet_arbejde,
+        personskat_fiskerfradrag_felt_første_registrering_bedømmelsesreference,
+        personskat_fiskerfradrag_felt_fuldt_ophør_andet_erhverv,
+        personskat_fiskerfradrag_felt_fuldt_ophør_bedømmelsesreference,
         personskat_fiskerfradrag_felt_kildetilknytninger,
         personskat_fiskerfradrag_felt_kildetype,
         personskat_fiskerfradrag_felt_ll9_stk1_kilde,

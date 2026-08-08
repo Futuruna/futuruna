@@ -25,10 +25,14 @@
     arbejdsgiver_refunderet_efter_regning_kroner = 0,
     dokumentation = Ll9Stk1DokumenteretMedBilag
 )
-| personskat_fiskerfradrag_kontingent(identifikation: Tekst, forening_identifikation: Tekst, beløb_kroner: Heltal) -> Ligningslov13KontingentFakta(
+| personskat_fiskerfradrag_kontingent(identifikation: Tekst, forening_identifikation: Tekst, fra_måned: Heltal, fra_dag: Heltal, til_måned: Heltal, til_dag: Heltal, beløb_kroner: Heltal) -> Ligningslov13KontingentFakta(
     identifikation = identifikation,
     forening_identifikation = forening_identifikation,
     indkomstår = 2026,
+    periode = Ligningslov13Kontingentperiode(
+        fra_dato = Dato(år = 2026, måned = fra_måned, dag = fra_dag),
+        til_dato = Dato(år = 2026, måned = til_måned, dag = til_dag)
+    ),
     foreningsart = Ll13Fagforening,
     betalt_kontingent_kroner = beløb_kroner,
     foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = beløb_kroner,
@@ -166,6 +170,7 @@
         ankomst_til_havn = personskat_fiskerfradrag_tidspunkt(2, 6)
     )],
     selvstændige_udgiftsvurderinger = selvstændige_udgiftsvurderinger,
+    kontingentperiodeundtagelser = [],
     kildetilknytninger = kildetilknytninger
 )
 | personskat_fiskerfradrag_ligningsfradrag_med_sømandsregler(
@@ -189,9 +194,9 @@
     faglige_kontingenter = Ligningslov13Årsinput(
         skatteyderstatus = Ll13Lønmodtager,
         kontingenter = [
-            personskat_fiskerfradrag_kontingent("fisker-kontingent-1", "fiskerforbund", 3000),
-            personskat_fiskerfradrag_kontingent("fisker-kontingent-2", "fiskerforbund", 3000),
-            personskat_fiskerfradrag_kontingent("andet-forbund-kontingent", "andet-forbund", 6000)
+            personskat_fiskerfradrag_kontingent("fisker-kontingent-1", "fiskerforbund", 1, 1, 6, 30, 3000),
+            personskat_fiskerfradrag_kontingent("fisker-kontingent-2", "fiskerforbund", 7, 1, 12, 31, 3000),
+            personskat_fiskerfradrag_kontingent("andet-forbund-kontingent", "andet-forbund", 1, 1, 12, 31, 6000)
         ]
     ),
     arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
@@ -236,12 +241,12 @@
     ),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
-| personskat_fiskerfradrag_input_med_ligningsfradrag_og_bruttoløn(ligningsfradrag: PersonskatLigningsfradragInput, bruttoløn_kroner: Heltal) -> PersonskatInput(
+| personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(ligningsfradrag: PersonskatLigningsfradragInput, personlig_indkomst: PersonskatPersonligIndkomstInput, bruttoløn_kroner: Heltal) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
         kommune = København,
         bruttoløn_kroner = bruttoløn_kroner,
-        personlig_indkomst = personskat_fiskerfradrag_personlig_indkomst(),
+        personlig_indkomst = personlig_indkomst,
         erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
         ligningsfradrag = ligningsfradrag,
         pension = personskat_ingen_pension(),
@@ -259,9 +264,107 @@
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| personskat_fiskerfradrag_input_med_ligningsfradrag_og_bruttoløn(ligningsfradrag: PersonskatLigningsfradragInput, bruttoløn_kroner: Heltal) -> personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(
+    ligningsfradrag = ligningsfradrag,
+    personlig_indkomst = personskat_fiskerfradrag_personlig_indkomst(),
+    bruttoløn_kroner = bruttoløn_kroner
+)
 | personskat_fiskerfradrag_input_med_ligningsfradrag(ligningsfradrag: PersonskatLigningsfradragInput) -> personskat_fiskerfradrag_input_med_ligningsfradrag_og_bruttoløn(ligningsfradrag, 600000)
 | personskat_fiskerfradrag_input(kildetilknytninger: List(Ligningslov9GKildetilknytning), selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering)) -> personskat_fiskerfradrag_input_med_ligningsfradrag(
     personskat_fiskerfradrag_ligningsfradrag(kildetilknytninger, selvstændige_udgiftsvurderinger)
+)
+| personskat_fiskerfradrag_tom_personlig_indkomst() -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        virksomheder_uden_virksomhedsordning = [],
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| personskat_fiskerfradrag_overgangsregistrering(identifikation: Tekst, fra_måned: Heltal, fra_dag: Heltal, til_måned: Heltal, til_dag: Heltal) -> Ligningslov9GRegistreringsperiode(
+    identifikation = identifikation,
+    status = Ll9GErhvervsfiskerMedAStatus,
+    fra_dato = Dato(år = 2026, måned = fra_måned, dag = fra_dag),
+    til_dato = Dato(år = 2026, måned = til_måned, dag = til_dag)
+)
+= personskat_fiskerfradrag_overgangsregistreringer = [
+    personskat_fiskerfradrag_overgangsregistrering("a-status-forår", 4, 1, 6, 30),
+    personskat_fiskerfradrag_overgangsregistrering("a-status-efterår", 9, 1, 10, 31)
+]
+= personskat_fiskerfradrag_overgangskontingenter = [
+    personskat_fiskerfradrag_kontingent("kontingent-før-registrering", "fiskerforbund-overgang", 1, 1, 3, 31, 1000),
+    personskat_fiskerfradrag_kontingent("kontingent-under-registrering", "fiskerforbund-overgang", 4, 1, 6, 30, 1000),
+    personskat_fiskerfradrag_kontingent("kontingent-midlertidigt-uden-registrering", "fiskerforbund-overgang", 7, 1, 8, 31, 1000),
+    personskat_fiskerfradrag_kontingent("kontingent-efter-fuldt-ophør", "fiskerforbund-overgang", 11, 1, 12, 31, 1000)
+]
+= personskat_fiskerfradrag_gyldige_overgangsbedømmelser = [
+    Ligningslov9GKontingentperiodeundtagelse(
+        kontingent_identifikation = "kontingent-før-registrering",
+        bedømmelse = Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(
+            andet_arbejdsforhold_identifikation = "landarbejde-før-fiskeri",
+            ligningsmæssig_bedømmelsesreference = "TfS-1996-105-DEP/konkret-bedømmelse/før"
+        )
+    ),
+    Ligningslov9GKontingentperiodeundtagelse(
+        kontingent_identifikation = "kontingent-efter-fuldt-ophør",
+        bedømmelse = Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse(
+            andet_erhverv_identifikation = "nyt-erhverv-efter-fiskeri",
+            ligningsmæssig_bedømmelsesreference = "TfS-1996-105-DEP/konkret-bedømmelse/efter"
+        )
+    )
+]
+| personskat_fiskerfradrag_overgangsarbejdsforhold(til_måned: Heltal, til_dag: Heltal) -> Ligningslov9GArbejdsforhold(
+    identifikation = "ansat-fisker-overgang",
+    erhvervsform = Ll9GAnsatFisker,
+    fra_dato = Dato(år = 2026, måned = 4, dag = 1),
+    til_dato = Dato(år = 2026, måned = til_måned, dag = til_dag)
+)
+| personskat_fiskerfradrag_overgangs_ligningsfradrag_med_arbejdsforhold(kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse), arbejdsforhold: List(Ligningslov9GArbejdsforhold)) -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = Ligningslov9GÅrsinput(
+        valg = Ll9GVælgFiskerfradrag,
+        registreringer = personskat_fiskerfradrag_overgangsregistreringer,
+        arbejdsforhold = arbejdsforhold,
+        fangstture = [Ligningslov9GFangsttur(
+            identifikation = "fangsttur-overgang",
+            arbejdsforhold_identifikation = "ansat-fisker-overgang",
+            afgang_fra_havn = personskat_fiskerfradrag_tidspunkt(1, 6),
+            ankomst_til_havn = personskat_fiskerfradrag_tidspunkt(2, 6)
+        )],
+        selvstændige_udgiftsvurderinger = [],
+        kontingentperiodeundtagelser = kontingentperiodeundtagelser,
+        kildetilknytninger = [personskat_fiskerfradrag_tilknytning(
+            Ll9GLigningslov13Forening(forening_identifikation = "fiskerforbund-overgang"),
+            Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "ansat-fisker-overgang")
+        )]
+    ),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
+    befordring = personskat_ingen_befordringsfradrag(),
+    rejser = ligningslov9a_intet_årsinput(),
+    faglige_kontingenter = Ligningslov13Årsinput(
+        skatteyderstatus = Ll13Lønmodtager,
+        kontingenter = personskat_fiskerfradrag_overgangskontingenter
+    ),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = []
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [])
+)
+| personskat_fiskerfradrag_overgangs_ligningsfradrag(kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse)) -> personskat_fiskerfradrag_overgangs_ligningsfradrag_med_arbejdsforhold(
+    kontingentperiodeundtagelser = kontingentperiodeundtagelser,
+    arbejdsforhold = [personskat_fiskerfradrag_overgangsarbejdsforhold(10, 31)]
+)
+| personskat_fiskerfradrag_overgangs_input_med_arbejdsforhold(kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse), arbejdsforhold: List(Ligningslov9GArbejdsforhold)) -> personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(
+    ligningsfradrag = personskat_fiskerfradrag_overgangs_ligningsfradrag_med_arbejdsforhold(kontingentperiodeundtagelser, arbejdsforhold),
+    personlig_indkomst = personskat_fiskerfradrag_tom_personlig_indkomst(),
+    bruttoløn_kroner = 600000
+)
+| personskat_fiskerfradrag_overgangs_input(kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse)) -> personskat_fiskerfradrag_overgangs_input_med_arbejdsforhold(
+    kontingentperiodeundtagelser = kontingentperiodeundtagelser,
+    arbejdsforhold = [personskat_fiskerfradrag_overgangsarbejdsforhold(10, 31)]
 )
 | personskat_fiskerfradrag_søbl4_tilknytning(kilde: Sømandsbeskatningslov4Fradragskilde, arbejdsforhold_identifikation: Tekst) -> Sømandsbeskatningslov4Kildetilknytning(
     kilde = kilde,
@@ -292,6 +395,31 @@
 ]
 
 = personskat_fiskerfradrag_kanonisk = beregn_personskat(personskat_fiskerfradrag_input(personskat_fiskerfradrag_kildetilknytninger, personskat_fiskerfradrag_selvstændige_udgiftsvurderinger))
+= personskat_fiskerfradrag_gyldige_overgange = beregn_personskat(personskat_fiskerfradrag_overgangs_input(personskat_fiskerfradrag_gyldige_overgangsbedømmelser))
+= personskat_fiskerfradrag_aktiv_periode_forklædt_som_første = beregn_personskat(personskat_fiskerfradrag_overgangs_input(concat(
+    personskat_fiskerfradrag_gyldige_overgangsbedømmelser,
+    [Ligningslov9GKontingentperiodeundtagelse(
+        kontingent_identifikation = "kontingent-under-registrering",
+        bedømmelse = Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(
+            andet_arbejdsforhold_identifikation = "landarbejde-før-fiskeri",
+            ligningsmæssig_bedømmelsesreference = "ugyldig-bedømmelse-af-aktiv-periode"
+        )
+    )]
+)))
+= personskat_fiskerfradrag_dobbelt_overgangsbedømmelse = beregn_personskat(personskat_fiskerfradrag_overgangs_input(concat(
+    personskat_fiskerfradrag_gyldige_overgangsbedømmelser,
+    [Ligningslov9GKontingentperiodeundtagelse(
+        kontingent_identifikation = "kontingent-før-registrering",
+        bedømmelse = Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(
+            andet_arbejdsforhold_identifikation = "andet-landarbejde-før-fiskeri",
+            ligningsmæssig_bedømmelsesreference = "dobbelt-bedømmelse"
+        )
+    )]
+)))
+= personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør = beregn_personskat(personskat_fiskerfradrag_overgangs_input_med_arbejdsforhold(
+    personskat_fiskerfradrag_gyldige_overgangsbedømmelser,
+    [personskat_fiskerfradrag_overgangsarbejdsforhold(12, 31)]
+))
 = personskat_fiskerfradrag_modstridende_foreningstilknytninger = concat(
     personskat_fiskerfradrag_kildetilknytninger,
     [personskat_fiskerfradrag_tilknytning(
@@ -337,6 +465,10 @@
 | personskat_fiskerfradrag_kanonisk_samordning: personskat_fiskerfradrag_kanonisk -> personskat_fiskerfradrag_kanonisk.ligningsfradrag.alle_input_gyldige && personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.påkrævede_kilder) == 9 && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.påkrævede_selvstændige_udgiftsvurderinger) == 2 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.samlet_fradrag_kroner == 190
 | personskat_fiskerfradrag_bevarer_andet_arbejdes_fradrag: personskat_fiskerfradrag_kanonisk -> personskat_fiskerfradrag_kanonisk.ligningsfradrag.øvrige_lønmodtagerudgifter.samlet_fradrag_kroner == 2400 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 6000 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.pbl49_stk1_fradrag_anvendt_kroner == 2500 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.pbl49a_og_49b_fradrag_anvendt_kroner == 1000
 | personskat_fiskerfradrag_samordner_kontingenter_pr_forening: personskat_fiskerfradrag_kanonisk -> length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.input.faglige_kontingenter.kontingenter) == 3 && length(personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.input.kontingenter) == 1 && head(personskat_fiskerfradrag_kanonisk.ligningsfradrag.faglige_kontingenter.input.kontingenter).forening_identifikation == "andet-forbund"
+| personskat_fiskerfradrag_bevarer_kun_konkret_bedømte_yderperioder: personskat_fiskerfradrag_gyldige_overgange -> personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.alle_input_gyldige && personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.fiskerfradragssamordning.kontingentperiodeundtagelser_gyldige && length(personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.faglige_kontingenter.input.kontingenter) == 2 && any(personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.faglige_kontingenter.input.kontingenter, |kontingent: Ligningslov13KontingentFakta| kontingent.identifikation == "kontingent-før-registrering") && any(personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.faglige_kontingenter.input.kontingenter, |kontingent: Ligningslov13KontingentFakta| kontingent.identifikation == "kontingent-efter-fuldt-ophør") && all(personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.faglige_kontingenter.input.kontingenter, |kontingent: Ligningslov13KontingentFakta| kontingent.identifikation != "kontingent-under-registrering" && kontingent.identifikation != "kontingent-midlertidigt-uden-registrering") && personskat_fiskerfradrag_gyldige_overgange.ligningsfradrag.faglige_kontingenter.samlet_fradrag_kroner == 2000
+| personskat_fiskerfradrag_aktiv_periode_kan_ikke_bedømmes_som_før_registrering: personskat_fiskerfradrag_aktiv_periode_forklædt_som_første -> personskat_fiskerfradrag_aktiv_periode_forklædt_som_første.ligningsfradrag.fiskerfradragssamordning.kontingentperiodeundtagelser_gyldige == Falskt && personskat_fiskerfradrag_aktiv_periode_forklædt_som_første.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig == Falskt && personskat_fiskerfradrag_aktiv_periode_forklædt_som_første.ligningsfradrag.alle_input_gyldige == Falskt && personskat_fiskerfradrag_aktiv_periode_forklædt_som_første.ligningsfradrag.samlet_ligningsfradrag_kroner == 0
+| personskat_fiskerfradrag_dobbelt_kontingentbedømmelse_fejler_lukket: personskat_fiskerfradrag_dobbelt_overgangsbedømmelse -> personskat_fiskerfradrag_dobbelt_overgangsbedømmelse.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.kontingentperiodeundtagelser_entydige == Falskt && personskat_fiskerfradrag_dobbelt_overgangsbedømmelse.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig == Falskt && personskat_fiskerfradrag_dobbelt_overgangsbedømmelse.ligningsfradrag.alle_input_gyldige == Falskt && personskat_fiskerfradrag_dobbelt_overgangsbedømmelse.ligningsfradrag.samlet_ligningsfradrag_kroner == 0
+| personskat_fiskerfradrag_afmelding_uden_fuldt_ophør_fejler_lukket: personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør -> personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør.ligningsfradrag.fiskerfradragssamordning.kontingentperiodeundtagelser_gyldige == Falskt && personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig == Falskt && personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør.ligningsfradrag.alle_input_gyldige == Falskt && personskat_fiskerfradrag_afmeldt_uden_fuldt_ophør.ligningsfradrag.samlet_ligningsfradrag_kroner == 0
 | personskat_fiskerfradrag_modstridende_foreningstilknytning_fejler_lukket: personskat_fiskerfradrag_modstridende_foreningstilknytning -> personskat_fiskerfradrag_modstridende_foreningstilknytning.ligningsfradrag.fiskerfradragssamordning.fiskerfradrag.kildetilknytninger_entydige == Falskt && personskat_fiskerfradrag_modstridende_foreningstilknytning.ligningsfradrag.fiskerfradragssamordning.samordning_gyldig == Falskt && personskat_fiskerfradrag_modstridende_foreningstilknytning.ligningsfradrag.alle_input_gyldige == Falskt && personskat_fiskerfradrag_modstridende_foreningstilknytning.ligningsfradrag.samlet_ligningsfradrag_kroner == 0
 | personskat_fiskerfradrag_samlet_ligningsfradrag: personskat_fiskerfradrag_kanonisk -> personskat_fiskerfradrag_kanonisk.ligningsfradrag.samlet_afskåret_efter_ligningslov9g_kroner == 37092 && personskat_fiskerfradrag_kanonisk.ligningsfradrag.samlet_ligningsfradrag_kroner == 36182
 | personskat_fiskerfradrag_blandet_befordring_genberegner_årsloft: personskat_fiskerfradrag_lavindkomst_befordring -> personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.alle_input_gyldige && length(personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring_før_ligningslov9g.forholdsresultater) == 3 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring_før_ligningslov9g.samlet_par9c_grundfradrag_kroner == 48184 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring_før_ligningslov9g.lavindkomsttillæg_kroner == 30800 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring_før_ligningslov9g.samlet_ligningsfradrag_kroner == 78984 && length(personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring.forholdsresultater) == 2 && any(personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring.input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation == "uddannelse-befordring") && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring.samlet_par9c_grundfradrag_kroner == 24092 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring.lavindkomsttillæg_kroner == 15418 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.befordring.samlet_ligningsfradrag_kroner == 39510 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.samlet_afskåret_efter_ligningslov9g_kroner == 52474 && personskat_fiskerfradrag_lavindkomst_befordring.ligningsfradrag.samlet_ligningsfradrag_kroner == 51600
@@ -350,6 +482,10 @@
 ? personskat_fiskerfradrag_kanonisk_samordning
 ? personskat_fiskerfradrag_bevarer_andet_arbejdes_fradrag
 ? personskat_fiskerfradrag_samordner_kontingenter_pr_forening
+? personskat_fiskerfradrag_bevarer_kun_konkret_bedømte_yderperioder
+? personskat_fiskerfradrag_aktiv_periode_kan_ikke_bedømmes_som_før_registrering
+? personskat_fiskerfradrag_dobbelt_kontingentbedømmelse_fejler_lukket
+? personskat_fiskerfradrag_afmelding_uden_fuldt_ophør_fejler_lukket
 ? personskat_fiskerfradrag_modstridende_foreningstilknytning_fejler_lukket
 ? personskat_fiskerfradrag_samlet_ligningsfradrag
 ? personskat_fiskerfradrag_blandet_befordring_genberegner_årsloft

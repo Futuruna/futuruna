@@ -1379,6 +1379,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             identifikation = "fagforening-2025",
             forening_identifikation = "fagforening-2025",
             indkomstår = 2025,
+            periode = Ligningslov13Kontingentperiode(
+                fra_dato = Dato(år = 2025, måned = 1, dag = 1),
+                til_dato = Dato(år = 2025, måned = 12, dag = 31)
+            ),
             foreningsart = Ll13Fagforening,
             betalt_kontingent_kroner = 8000,
             foreningens_opgjorte_andel_til_faglige_økonomiske_interesser_kroner = 8000,

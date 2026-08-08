@@ -123,7 +123,7 @@
 # PersonskatLigningsfradragInput(sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput, fiskerfradrag: Ligningslov9GÅrsinput, øvrige_lønmodtagerudgifter: Ligningslov9Stk1Årsinput, befordring: PersonskatBefordringsfradragInput, rejser: Ligningslov9AÅrsinput, faglige_kontingenter: Ligningslov13Årsinput, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsinput, gaver: LigningslovGaveÅrsinput)
 # PersonskatBefordringsfradragForholdsresultat = UgyldigtBefordringsfradragsforhold(fakta: PersonskatBefordringsfradragFakta, skatteår_understøttet: Boolsk, grundfakta_gyldige: Boolsk, ligningslov9d_input_gyldigt: Boolsk) | BeregnetBefordringsfradragsforhold(fakta: PersonskatBefordringsfradragFakta, ligningslov9d_resultat: Ligningslov9DResultat, ligningslov9c_input: Ligningslov9CInput, ligningslov9c_resultat: Ligningslov9CResultat)
 # PersonskatBefordringsfradragResultat(input: PersonskatBefordringsfradragInput, forholdsresultater: List(PersonskatBefordringsfradragForholdsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, aftrapningsindkomst_kroner: Heltal, samlet_par9d_fradrag_kroner: Heltal, samlet_par9c_grundfradrag_kroner: Heltal, lavindkomstgrundlag_kroner: Heltal, lavindkomsttillæg_kroner: Heltal, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
-# PersonskatLigningslov9GKoordinering(fiskerfradrag: Ligningslov9GÅrsresultat, påkrævede_kilder: List(Ligningslov9GFradragskilde), påkrævede_selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsnøgle), kildetilknytninger_gyldige: Boolsk, påkrævede_kilder_tilknyttet: Boolsk, selvstændige_udgiftsvurderinger_gyldige: Boolsk, påkrævede_selvstændige_udgifter_vurderet: Boolsk, samordning_gyldig: Boolsk, selvstændige_driftsudgifter_afskåret_kroner: Heltal)
+# PersonskatLigningslov9GKoordinering(fiskerfradrag: Ligningslov9GÅrsresultat, påkrævede_kilder: List(Ligningslov9GFradragskilde), påkrævede_selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsnøgle), kildetilknytninger_gyldige: Boolsk, påkrævede_kilder_tilknyttet: Boolsk, selvstændige_udgiftsvurderinger_gyldige: Boolsk, påkrævede_selvstændige_udgifter_vurderet: Boolsk, kontingentperiodeundtagelser_gyldige: Boolsk, samordning_gyldig: Boolsk, selvstændige_driftsudgifter_afskåret_kroner: Heltal)
 # PersonskatLigningslov9GRejsefradrag(rejsefradrag_før_årsloft_kroner: Heltal, rejsefradrag_efter_årsloft_kroner: Heltal, ølogifradrag_før_årsloft_kroner: Heltal, ølogifradrag_efter_årsloft_kroner: Heltal, samlet_ll9a_fradrag_efter_årsloft_kroner: Heltal)
 # PersonskatLigningsfradragResultat(input: PersonskatLigningsfradragInput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat, sømandsbeskatningslov4_kildetilknytninger_gyldige: Boolsk, sømandsbeskatningslov4_påkrævede_kilder_tilknyttet: Boolsk, fiskerfradragssamordning: PersonskatLigningslov9GKoordinering, øvrige_lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, befordring_før_ligningslov9g: PersonskatBefordringsfradragResultat, befordring: PersonskatBefordringsfradragResultat, rejser_før_sømandsbeskatningslov4_stk2: Ligningslov9AÅrsresultat, rejser: Ligningslov9AÅrsresultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat, gaver: LigningslovGaveÅrsresultat, erhvervsbefordring_skattefri_godtgørelse_før_par4_kroner: Heltal, erhvervsbefordring_skattefri_godtgørelse_efter_par4_kroner: Heltal, erhvervsbefordring_skattepligtig_godtgørelse_efter_par4_kroner: Heltal, rejsegodtgørelse_skattefri_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattefri_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsegodtgørelse_skattepligtig_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, erhvervsbefordring_fradrag_før_par4_kroner: Heltal, erhvervsbefordring_fradrag_anvendt_kroner: Heltal, rejsefradrag_før_sømandsbeskatningslov4_stk2_kroner: Heltal, rejsefradrag_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_før_sømandsbeskatningslov4_stk2_kroner: Heltal, dobbelt_husførelse_efter_sømandsbeskatningslov4_stk2_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_før_par4_kroner: Heltal, lønmodtagerudgifter_fradrag_anvendt_kroner: Heltal, befordring_fradrag_før_par4_kroner: Heltal, befordring_fradrag_anvendt_kroner: Heltal, faglige_kontingenter_fradrag_anvendt_kroner: Heltal, pbl49_stk1_fradrag_før_par4_kroner: Heltal, pbl49_stk1_fradrag_anvendt_kroner: Heltal, pbl49a_og_49b_fradrag_anvendt_kroner: Heltal, samlet_afskåret_efter_ligningslov9g_kroner: Heltal, samlet_afskåret_efter_sømandsbeskatningslov4_kroner: Heltal, alle_input_gyldige: Boolsk, samlet_ligningsfradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner: Heltal)
 # PersonskatAktiepensionsfradragValg = UdenAktiepensionsfradragIAktieindkomst | MedAktiepensionsfradragIAktieindkomst(ønsket_fradrag_kroner: Heltal, meddelelse_dato_yyyymmdd: Heltal, omgørelse_dato_yyyymmdd: Heltal)
@@ -11764,6 +11764,46 @@
     påkrævede_kilder,
     |kilde: Ligningslov9GFradragskilde| length(ligningslov9g_kildetilknytninger_for(fiskerfradrag.input, kilde)) == 1
 )
+| personskat_ll9g_kontingent_for(input: Ligningslov13Årsinput, kontingent_identifikation: Tekst) -> find(
+    input.kontingenter,
+    |kontingent: Ligningslov13KontingentFakta| kontingent.identifikation == kontingent_identifikation
+)
+| personskat_ll9g_andet_arbejde_ikke_fiskerarbejde(input: Ligningslov9GÅrsinput, arbejdsforhold_identifikation: Tekst) -> arbejdsforhold_identifikation != "" && all(
+    input.arbejdsforhold,
+    |arbejdsforhold: Ligningslov9GArbejdsforhold| arbejdsforhold.identifikation != arbejdsforhold_identifikation
+)
+| personskat_ll9g_kontingent_før_alle_registreringer(kontingent: Ligningslov13KontingentFakta, registreringer: List(Ligningslov9GRegistreringsperiode)) -> length(registreringer) > 0 && all(
+    registreringer,
+    |registrering: Ligningslov9GRegistreringsperiode| dato_før(kontingent.periode.til_dato, registrering.fra_dato)
+)
+| personskat_ll9g_kontingent_efter_alle_registreringer(kontingent: Ligningslov13KontingentFakta, registreringer: List(Ligningslov9GRegistreringsperiode)) -> length(registreringer) > 0 && all(
+    registreringer,
+    |registrering: Ligningslov9GRegistreringsperiode| dato_før(registrering.til_dato, kontingent.periode.fra_dato)
+)
+| personskat_ll9g_kontingent_før_alle_fiskerarbejdsforhold(kontingent: Ligningslov13KontingentFakta, arbejdsforhold: List(Ligningslov9GArbejdsforhold)) -> length(arbejdsforhold) > 0 && all(
+    arbejdsforhold,
+    |forhold: Ligningslov9GArbejdsforhold| dato_før(kontingent.periode.til_dato, forhold.fra_dato)
+)
+| personskat_ll9g_kontingent_efter_alle_fiskerarbejdsforhold(kontingent: Ligningslov13KontingentFakta, arbejdsforhold: List(Ligningslov9GArbejdsforhold)) -> length(arbejdsforhold) > 0 && all(
+    arbejdsforhold,
+    |forhold: Ligningslov9GArbejdsforhold| dato_før(forhold.til_dato, kontingent.periode.fra_dato)
+)
+| personskat_ll9g_kontingent_forening_tilknyttet_fiskerarbejde(input: Ligningslov9GÅrsinput, kontingent: Ligningslov13KontingentFakta) -> {
+    = kilde = Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
+    length(ligningslov9g_kildetilknytninger_for(input, kilde)) == 1 && ligningslov9g_kilde_tilknyttet_erhvervsfiskerarbejde(input, kilde)
+}
+| personskat_ll9g_kontingentperiodebedømmelse_kanonisk_gyldig(input: Ligningslov9GÅrsinput, kontingent: Ligningslov13KontingentFakta, bedømmelse: Ligningslov9GKontingentperiodebedømmelse) -> match bedømmelse {
+    | Ll9GFørFørsteRegistreringGodkendtEfterKonkretBedømmelse(andet_arbejdsforhold_identifikation, ligningsmæssig_bedømmelsesreference) -> ligningsmæssig_bedømmelsesreference != "" && personskat_ll9g_andet_arbejde_ikke_fiskerarbejde(input, andet_arbejdsforhold_identifikation) && personskat_ll9g_kontingent_før_alle_registreringer(kontingent, input.registreringer) && personskat_ll9g_kontingent_før_alle_fiskerarbejdsforhold(kontingent, input.arbejdsforhold)
+    | Ll9GEfterFuldtOphørGodkendtEfterKonkretBedømmelse(andet_erhverv_identifikation, ligningsmæssig_bedømmelsesreference) -> ligningsmæssig_bedømmelsesreference != "" && personskat_ll9g_andet_arbejde_ikke_fiskerarbejde(input, andet_erhverv_identifikation) && personskat_ll9g_kontingent_efter_alle_registreringer(kontingent, input.registreringer) && personskat_ll9g_kontingent_efter_alle_fiskerarbejdsforhold(kontingent, input.arbejdsforhold)
+}
+| personskat_ll9g_kontingentperiodeundtagelse_kanonisk_gyldig(lønmodtager: PersonskatLønmodtagerInput, undtagelse: Ligningslov9GKontingentperiodeundtagelse) -> match personskat_ll9g_kontingent_for(lønmodtager.ligningsfradrag.faglige_kontingenter, undtagelse.kontingent_identifikation) {
+    | Some(kontingent) -> personskat_ll9g_kontingent_forening_tilknyttet_fiskerarbejde(lønmodtager.ligningsfradrag.fiskerfradrag, kontingent) && personskat_ll9g_kontingentperiodebedømmelse_kanonisk_gyldig(lønmodtager.ligningsfradrag.fiskerfradrag, kontingent, undtagelse.bedømmelse)
+    | None -> Falskt
+}
+| personskat_ll9g_kontingentperiodeundtagelser_kanonisk_gyldige(lønmodtager: PersonskatLønmodtagerInput, fiskerfradrag: Ligningslov9GÅrsresultat) -> fiskerfradrag.alle_input_gyldige && all(
+    fiskerfradrag.input.kontingentperiodeundtagelser,
+    |undtagelse: Ligningslov9GKontingentperiodeundtagelse| personskat_ll9g_kontingentperiodeundtagelse_kanonisk_gyldig(lønmodtager, undtagelse)
+)
 | personskat_ll9g_selvstændige_driftsudgifter_afskåret_kroner(lønmodtager: PersonskatLønmodtagerInput, fiskerfradrag: Ligningslov9GÅrsresultat, samordning_gyldig: Boolsk) -> hvis samordning_gyldig == Falskt { 0 } ellers {
     foldl(
         lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning,
@@ -11786,7 +11826,8 @@
     = påkrævede_kilder_tilknyttet = personskat_ll9g_påkrævede_kilder_tilknyttet(fiskerfradrag, påkrævede_kilder)
     = selvstændige_udgiftsvurderinger_gyldige = fiskerfradrag.alle_input_gyldige && personskat_ll9g_selvstændige_udgiftsvurderinger_kanonisk_gyldige(lønmodtager)
     = påkrævede_selvstændige_udgifter_vurderet = personskat_ll9g_påkrævede_selvstændige_udgifter_vurderet(fiskerfradrag, påkrævede_selvstændige_udgiftsvurderinger)
-    = samordning_gyldig = kildetilknytninger_gyldige && påkrævede_kilder_tilknyttet && selvstændige_udgiftsvurderinger_gyldige && påkrævede_selvstændige_udgifter_vurderet
+    = kontingentperiodeundtagelser_gyldige = personskat_ll9g_kontingentperiodeundtagelser_kanonisk_gyldige(lønmodtager, fiskerfradrag)
+    = samordning_gyldig = kildetilknytninger_gyldige && påkrævede_kilder_tilknyttet && selvstændige_udgiftsvurderinger_gyldige && påkrævede_selvstændige_udgifter_vurderet && kontingentperiodeundtagelser_gyldige
     PersonskatLigningslov9GKoordinering(
         fiskerfradrag = fiskerfradrag,
         påkrævede_kilder = påkrævede_kilder,
@@ -11795,11 +11836,20 @@
         påkrævede_kilder_tilknyttet = påkrævede_kilder_tilknyttet,
         selvstændige_udgiftsvurderinger_gyldige = selvstændige_udgiftsvurderinger_gyldige,
         påkrævede_selvstændige_udgifter_vurderet = påkrævede_selvstændige_udgifter_vurderet,
+        kontingentperiodeundtagelser_gyldige = kontingentperiodeundtagelser_gyldige,
         samordning_gyldig = samordning_gyldig,
         selvstændige_driftsudgifter_afskåret_kroner = personskat_ll9g_selvstændige_driftsudgifter_afskåret_kroner(lønmodtager, fiskerfradrag, samordning_gyldig)
     )
 }
 | personskat_ll9g_kilde_bevares(koordinering: PersonskatLigningslov9GKoordinering, kilde: Ligningslov9GFradragskilde) -> koordinering.fiskerfradrag.fradrag_foretaget_efter_par9g == Falskt || koordinering.samordning_gyldig && ligningslov9g_kilde_afskåret(koordinering.fiskerfradrag, kilde) == Falskt
+| personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta) -> personskat_ll9g_kilde_bevares(
+    koordinering,
+    Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
+)
+| exception personskat_ll9g_konkret_bedømt_kontingentperiode_bevares personskat_ll9g_kontingent_bevares(koordinering: PersonskatLigningslov9GKoordinering, kontingent: Ligningslov13KontingentFakta) -> Sandt under koordinering.samordning_gyldig && any(
+    koordinering.fiskerfradrag.input.kontingentperiodeundtagelser,
+    |undtagelse: Ligningslov9GKontingentperiodeundtagelse| undtagelse.kontingent_identifikation == kontingent.identifikation
+)
 | personskat_ll9g_lønmodtagerudgifter_input(input: Ligningslov9Stk1Årsinput, koordinering: PersonskatLigningslov9GKoordinering) -> Ligningslov9Stk1Årsinput(
     skatteyderstatus = input.skatteyderstatus,
     udgifter = filter(
@@ -11814,10 +11864,7 @@
     skatteyderstatus = input.skatteyderstatus,
     kontingenter = filter(
         input.kontingenter,
-        |kontingent: Ligningslov13KontingentFakta| personskat_ll9g_kilde_bevares(
-            koordinering,
-            Ll9GLigningslov13Forening(forening_identifikation = kontingent.forening_identifikation)
-        )
+        |kontingent: Ligningslov13KontingentFakta| personskat_ll9g_kontingent_bevares(koordinering, kontingent)
     )
 )
 | personskat_ll9g_virksomhedsudgift_anvendt(virksomhedsidentifikation: Tekst, udgift: PersonskatVirksomhedsudgiftFakta, koordinering: PersonskatLigningslov9GKoordinering) -> PersonskatVirksomhedsudgiftFakta(
