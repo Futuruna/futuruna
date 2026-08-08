@@ -5549,6 +5549,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         fill_wage_case(sheets, 25, "personskat-underskud-årsresultat-2026");
         fill_wage_case(sheets, 26, "personskat-soemandsfradrag-2026");
+        fill_wage_case(sheets, 27, "personskat-pbl15a-relationer-2026");
+        fill_wage_case(sheets, 28, "personskat-pbl15a-foraeldreloes-2026");
         for row in [5, 14, 15, 20, 21] {
             fill_kgl_choices(sheets, row);
         }
@@ -6982,6 +6984,630 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             ("fuldtidsomregnede_sødage_hundrededele", Data::Int(36_500)),
         ] {
             set_workbook_cell_by_header(sheets, &seafarer_employments_sheet, 1, header, value);
+        }
+        let pbl15a_case_id = "personskat-pbl15a-relationer-2026";
+        let pbl15a_disposal_id = "pbl15a-virksomhedsafståelse";
+        let pbl15a_disposals_path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser";
+        let pbl15a_disposals_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, pbl15a_disposals_path);
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            ("item_id", Data::String(pbl15a_disposal_id.to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String(pbl15a_disposal_id.to_string()),
+            ),
+            ("afståelsesdato.år", Data::Int(2026)),
+            ("afståelsesdato.måned", Data::Int(7)),
+            ("afståelsesdato.dag", Data::Int(1)),
+            (
+                "grundlag.$variant",
+                Data::String("Pbl15AEgenVirksomhedsfortjeneste".to_string()),
+            ),
+            (
+                "fortjenestegrundlag.ejendomsavance.$variant",
+                Data::String("Pbl15AUdenEjendomsavance".to_string()),
+            ),
+            (
+                "fortjenestegrundlag.aktieavance.$variant",
+                Data::String("Pbl15AUdenAktieavance".to_string()),
+            ),
+            ("alder_hele_år_ved_afståelsen", Data::Int(60)),
+            (
+                "passiv_kapital.aktuel_regnskabsperiodes_startdato.år",
+                Data::Int(2026),
+            ),
+            (
+                "passiv_kapital.aktuel_regnskabsperiodes_startdato.måned",
+                Data::Int(1),
+            ),
+            (
+                "passiv_kapital.aktuel_regnskabsperiodes_startdato.dag",
+                Data::Int(1),
+            ),
+            (
+                "passiv_kapital.holdingforløb.personens_afståelsesrækkefølge_på_dagen",
+                Data::Int(1),
+            ),
+            (
+                "passiv_kapital.holdingforløb.afvikling.$variant",
+                Data::String("Pbl15AHoldingFortsatBestående".to_string()),
+            ),
+            (
+                "passiv_kapital.næringsvirksomhed_med_værdipapirer_eller_finansiering",
+                Data::Bool(false),
+            ),
+            (
+                "udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe",
+                Data::Bool(false),
+            ),
+            ("antal_ejere", Data::Int(1)),
+            (
+                "opretter_deltog_i_driften_i_væsentligt_omfang",
+                Data::Bool(true),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl15a_disposals_sheet, 1, header, value);
+        }
+
+        let pbl15a_depreciation_sources_path =
+            format!("{pbl15a_disposals_path}.fortjenestegrundlag.afskrivningslovsposter");
+        let pbl15a_depreciation_sources_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_depreciation_sources_path);
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            ("parent_id", Data::String(pbl15a_disposal_id.to_string())),
+            (
+                "item_id",
+                Data::String("pbl15a-al6-afståelsesfortjeneste".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("pbl15a-al6-afståelsesfortjeneste".to_string()),
+            ),
+            (
+                "kilde.$variant",
+                Data::String("Pbl15AAl6Salg".to_string()),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.indkomstår",
+                Data::Int(2026),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.anskaffelsesår",
+                Data::Int(2024),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.skatteyder",
+                Data::String("AlSelvstændigErhvervsdrivendePerson".to_string()),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.valg",
+                Data::String("Al6Småaktiv".to_string()),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.omfattet_af_par6_stk1_modellen",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.kort_levetid_betingelse_opfyldt",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.småaktiv_betingelse_opfyldt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.forskning_betingelse_opfyldt",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.valg_hjemmel_opfyldt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.omfattet_af_stk3",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.udskydelse_efter_stk3_gælder",
+                Data::Bool(false),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.første_mulige_fradragsår",
+                Data::Int(2024),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.fradragsår_opfyldt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.valg_gyldigt",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.forskningsudgift_under_loft_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.forskningsudgift_over_loft_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.fradrag_i_skattepligtig_indkomst_kroner",
+                Data::Int(100_000),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.anskaffelsessum_fradraget_senest_i_indkomståret_kroner",
+                Data::Int(100_000),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner",
+                Data::Int(0),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.salgssum_kroner",
+                Data::Int(100_000),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.leveret_i_indkomståret",
+                Data::Bool(true),
+            ),
+            (
+                "kilde.Pbl15AAl6Salg.input.virksomhed_sælges_eller_ophører_i_indkomståret",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                &pbl15a_depreciation_sources_sheet,
+                1,
+                header,
+                value,
+            );
+        }
+
+        let pbl15a_periods_path =
+            format!("{pbl15a_disposals_path}.passiv_kapital.seneste_tre_regnskabsperioder");
+        let pbl15a_periods_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_periods_path);
+        for (row, year, position) in [(1, 2023, 1), (2, 2024, 2), (3, 2025, 3)] {
+            let period_id = format!("pbl15a-regnskabsperiode-{year}");
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(pbl15a_disposal_id.to_string())),
+                ("item_id", Data::String(period_id)),
+                ("position", Data::Int(position)),
+                ("rækkefølge_fra_ældste", Data::Int(position)),
+                ("startdato.år", Data::Int(year)),
+                ("startdato.måned", Data::Int(1)),
+                ("startdato.dag", Data::Int(1)),
+                ("slutdato.år", Data::Int(year)),
+                ("slutdato.måned", Data::Int(12)),
+                ("slutdato.dag", Data::Int(31)),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl15a_periods_sheet, row, header, value);
+            }
+        }
+
+        let pbl15a_company_accounts_path = format!("{pbl15a_periods_path}.selskabsregnskaber");
+        let pbl15a_company_accounts_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_company_accounts_path);
+        for (row, year, position) in [(1, 2023, 1), (2, 2024, 1), (3, 2025, 1)] {
+            let period_id = format!("pbl15a-regnskabsperiode-{year}");
+            let account_id = format!("pbl15a-selskabsregnskab-{year}");
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(period_id)),
+                ("item_id", Data::String(account_id)),
+                ("position", Data::Int(position)),
+                (
+                    "selskab.identifikation",
+                    Data::String("pbl15a-driftsselskab".to_string()),
+                ),
+                (
+                    "selskab.ejerforhold.direkte_ejerandel_basispoint",
+                    Data::Int(1_000),
+                ),
+                (
+                    "selskab.udøver_aktiv_udlejning_efter_abl34_stk7",
+                    Data::Bool(false),
+                ),
+                (
+                    "aktiernes_handelsværdi_i_virksomheden_kroner",
+                    Data::Int(900_000),
+                ),
+                ("aktieafkast_i_virksomheden_kroner", Data::Int(300_000)),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl15a_company_accounts_sheet,
+                    row,
+                    header,
+                    value,
+                );
+            }
+        }
+
+        let pbl15a_owner_paths_path =
+            format!("{pbl15a_company_accounts_path}.selskab.ejerforhold.indirekte_ejerveje");
+        let pbl15a_owner_paths_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_owner_paths_path);
+        for (row, year) in [(1, 2023), (2, 2024), (3, 2025)] {
+            let account_id = format!("pbl15a-selskabsregnskab-{year}");
+            let owner_path_id = format!("pbl15a-indirekte-ejervej-{year}");
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(account_id)),
+                ("item_id", Data::String(owner_path_id.clone())),
+                ("position", Data::Int(1)),
+                ("identifikation", Data::String(owner_path_id)),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl15a_owner_paths_sheet, row, header, value);
+            }
+        }
+        for (header, value) in [
+            (
+                "case_id",
+                Data::String("personskat-pbl15a-foraeldreloes-2026".to_string()),
+            ),
+            (
+                "parent_id",
+                Data::String("manglende-pbl15a-selskabsregnskab".to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("pbl15a-foraeldreloes-ejervej".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("pbl15a-foraeldreloes-ejervej".to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl15a_owner_paths_sheet, 4, header, value);
+        }
+
+        let pbl15a_owner_shares_path =
+            format!("{pbl15a_owner_paths_path}.ejerandele_gennem_kæden_basispoint");
+        let pbl15a_owner_shares_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_owner_shares_path);
+        for (row, year, position, basispoints) in [
+            (1, 2023, 1, 5_000),
+            (2, 2023, 2, 4_000),
+            (3, 2024, 1, 5_000),
+            (4, 2024, 2, 4_000),
+            (5, 2025, 1, 5_000),
+            (6, 2025, 2, 4_000),
+        ] {
+            let owner_path_id = format!("pbl15a-indirekte-ejervej-{year}");
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(owner_path_id.clone())),
+                (
+                    "item_id",
+                    Data::String(format!("{owner_path_id}-led-{position}")),
+                ),
+                ("position", Data::Int(position)),
+                ("value", Data::Int(basispoints)),
+            ] {
+                set_workbook_cell_by_header(sheets, &pbl15a_owner_shares_sheet, row, header, value);
+            }
+        }
+
+        let pbl15a_company_income_path =
+            format!("{pbl15a_company_accounts_path}.selskabets_indtægter_før_ejerandel");
+        let pbl15a_company_income_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_company_income_path);
+        let pbl15a_company_assets_path =
+            format!("{pbl15a_company_accounts_path}.selskabets_aktiver_før_ejerandel");
+        let pbl15a_company_assets_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_company_assets_path);
+        for (row, year) in [(1, 2023), (2, 2024), (3, 2025)] {
+            let account_id = format!("pbl15a-selskabsregnskab-{year}");
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(account_id.clone())),
+                (
+                    "item_id",
+                    Data::String(format!("pbl15a-driftsindtægt-{year}")),
+                ),
+                ("position", Data::Int(1)),
+                (
+                    "identifikation",
+                    Data::String(format!("pbl15a-driftsindtægt-{year}")),
+                ),
+                ("beløb_kroner", Data::Int(1_000_000)),
+                ("art", Data::String("Pbl15AØvrigDriftsindtægt".to_string())),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl15a_company_income_sheet,
+                    row,
+                    header,
+                    value,
+                );
+            }
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                ("parent_id", Data::String(account_id)),
+                (
+                    "item_id",
+                    Data::String(format!("pbl15a-driftsaktiv-{year}")),
+                ),
+                ("position", Data::Int(1)),
+                (
+                    "identifikation",
+                    Data::String(format!("pbl15a-driftsaktiv-{year}")),
+                ),
+                ("handelsværdi_kroner", Data::Int(2_000_000)),
+                ("art", Data::String("Pbl15AØvrigtDriftsaktiv".to_string())),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl15a_company_assets_sheet,
+                    row,
+                    header,
+                    value,
+                );
+            }
+        }
+
+        let pbl15a_transfer_companies_path = format!(
+            "{pbl15a_disposals_path}.passiv_kapital.selskabsaktiver_på_overdragelsestidspunktet"
+        );
+        let pbl15a_transfer_companies_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_transfer_companies_path);
+        let pbl15a_transfer_company_id = "pbl15a-selskabsaktiv-ved-afståelse";
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            ("parent_id", Data::String(pbl15a_disposal_id.to_string())),
+            (
+                "item_id",
+                Data::String(pbl15a_transfer_company_id.to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "selskab.identifikation",
+                Data::String("pbl15a-driftsselskab".to_string()),
+            ),
+            (
+                "selskab.ejerforhold.direkte_ejerandel_basispoint",
+                Data::Int(1_000),
+            ),
+            (
+                "selskab.udøver_aktiv_udlejning_efter_abl34_stk7",
+                Data::Bool(false),
+            ),
+            (
+                "aktiernes_handelsværdi_i_virksomheden_kroner",
+                Data::Int(900_000),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl15a_transfer_companies_sheet, 1, header, value);
+        }
+
+        let pbl15a_transfer_owner_paths_path =
+            format!("{pbl15a_transfer_companies_path}.selskab.ejerforhold.indirekte_ejerveje");
+        let pbl15a_transfer_owner_paths_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_transfer_owner_paths_path);
+        let pbl15a_transfer_owner_path_id = "pbl15a-indirekte-ejervej-ved-afståelse";
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            (
+                "parent_id",
+                Data::String(pbl15a_transfer_company_id.to_string()),
+            ),
+            (
+                "item_id",
+                Data::String(pbl15a_transfer_owner_path_id.to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String(pbl15a_transfer_owner_path_id.to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                &pbl15a_transfer_owner_paths_sheet,
+                1,
+                header,
+                value,
+            );
+        }
+        let pbl15a_transfer_owner_shares_path =
+            format!("{pbl15a_transfer_owner_paths_path}.ejerandele_gennem_kæden_basispoint");
+        let pbl15a_transfer_owner_shares_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_transfer_owner_shares_path);
+        for (row, position, basispoints) in [(1, 1, 5_000), (2, 2, 4_000)] {
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                (
+                    "parent_id",
+                    Data::String(pbl15a_transfer_owner_path_id.to_string()),
+                ),
+                (
+                    "item_id",
+                    Data::String(format!("{pbl15a_transfer_owner_path_id}-led-{position}")),
+                ),
+                ("position", Data::Int(position)),
+                ("value", Data::Int(basispoints)),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl15a_transfer_owner_shares_sheet,
+                    row,
+                    header,
+                    value,
+                );
+            }
+        }
+        let pbl15a_transfer_assets_path =
+            format!("{pbl15a_transfer_companies_path}.selskabets_aktiver_før_ejerandel");
+        let pbl15a_transfer_assets_sheet =
+            workbook_collection_sheet_name_from_rows(sheets, &pbl15a_transfer_assets_path);
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            (
+                "parent_id",
+                Data::String(pbl15a_transfer_company_id.to_string()),
+            ),
+            (
+                "item_id",
+                Data::String("pbl15a-driftsaktiv-ved-afståelse".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("pbl15a-driftsaktiv-ved-afståelse".to_string()),
+            ),
+            ("handelsværdi_kroner", Data::Int(2_000_000)),
+            ("art", Data::String("Pbl15AØvrigtDriftsaktiv".to_string())),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl15a_transfer_assets_sheet, 1, header, value);
+        }
+
+        let pbl15a_plans_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "lønmodtager.pension.pbl15a_årsgrundlag.ordninger",
+        );
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            ("item_id", Data::String("pbl15a-ophørspension".to_string())),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("pbl15a-ophørspension".to_string()),
+            ),
+            ("oprettelsesår", Data::Int(2026)),
+            ("art", Data::String("Pbl15ARateopsparing".to_string())),
+            (
+                "oprettelsesafståelse_identifikation",
+                Data::String(pbl15a_disposal_id.to_string()),
+            ),
+        ] {
+            set_workbook_cell_by_header(sheets, &pbl15a_plans_sheet, 1, header, value);
+        }
+
+        let pbl15a_qualification_years_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "lønmodtager.pension.pbl15a_årsgrundlag.kvalifikationsår",
+        );
+        for (row, year) in (2016_i64..=2025).enumerate() {
+            let position = row as i64 + 1;
+            for (header, value) in [
+                ("case_id", Data::String(pbl15a_case_id.to_string())),
+                (
+                    "item_id",
+                    Data::String(format!("pbl15a-kvalifikationsår-{year}")),
+                ),
+                ("position", Data::Int(position)),
+                ("indkomstår", Data::Int(year)),
+                (
+                    "grundlag",
+                    Data::String("Pbl15AEgenSelvstændigVirksomhed".to_string()),
+                ),
+            ] {
+                set_workbook_cell_by_header(
+                    sheets,
+                    &pbl15a_qualification_years_sheet,
+                    row + 1,
+                    header,
+                    value,
+                );
+            }
+        }
+
+        let pbl18_contributions_sheet = workbook_collection_sheet_name_from_rows(
+            sheets,
+            "lønmodtager.pension.pbl18_indbetalinger",
+        );
+        for (header, value) in [
+            ("case_id", Data::String(pbl15a_case_id.to_string())),
+            (
+                "item_id",
+                Data::String("pbl15a-indbetaling-2026".to_string()),
+            ),
+            ("position", Data::Int(1)),
+            (
+                "identifikation",
+                Data::String("pbl15a-indbetaling-2026".to_string()),
+            ),
+            (
+                "ordning",
+                Data::String("Pbl18Par15ARateordning".to_string()),
+            ),
+            (
+                "indbetalingskilde",
+                Data::String("Pbl18EgenIndbetaling".to_string()),
+            ),
+            (
+                "fradragsretshaver",
+                Data::String("Pbl18OrdningensEjer".to_string()),
+            ),
+            ("betaling.beløb_kroner", Data::Int(75_000)),
+            ("betaling.forfaldsår", Data::Int(2026)),
+            ("betaling.betalingsår", Data::Int(2026)),
+            (
+                "betaling.betalt_senest_bankjusteret_1_april_efter_forfald",
+                Data::Bool(true),
+            ),
+            (
+                "betaling.hidrører_fra_par22e_tilbagebetaling",
+                Data::Bool(false),
+            ),
+            (
+                "betaling.par15a_fradragsplacering.$variant",
+                Data::String("Pbl18Par15AIndbetalingsår".to_string()),
+            ),
+            ("betaling.arbejdsmarkedsbidrag_kroner", Data::Int(0)),
+            (
+                "fordelingsforløb.$variant",
+                Data::String("Pbl18IngenTiårsfordeling".to_string()),
+            ),
+            (
+                "indeksordningsgrundlag.$variant",
+                Data::String("Pbl18IkkeIndeksordning".to_string()),
+            ),
+            (
+                "forfaldne_ikke_tidligere_fratrukket_kroner",
+                Data::Int(75_000),
+            ),
+            (
+                "særligt_ordningsgrundlag.$variant",
+                Data::String("Pbl18Par15AIndbetalingsgrundlag".to_string()),
+            ),
+            (
+                "særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.ordning_identifikation",
+                Data::String("pbl15a-ophørspension".to_string()),
+            ),
+            (
+                "særligt_ordningsgrundlag.Pbl18Par15AIndbetalingsgrundlag.afståelse_identifikation",
+                Data::String(pbl15a_disposal_id.to_string()),
+            ),
+            (
+                "begrænsninger.pbl54_personkreds_opfyldt",
+                Data::Bool(true),
+            ),
+            (
+                "begrænsninger.afgiftspligt_for_hele_ordningen_indtrådt",
+                Data::Bool(false),
+            ),
+            (
+                "begrænsninger.udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens",
+                Data::Bool(false),
+            ),
+        ] {
+            set_workbook_cell_by_header(
+                sheets,
+                &pbl18_contributions_sheet,
+                1,
+                header,
+                value,
+            );
         }
         let pbl53a_sheet =
             workbook_collection_sheet_name_from_rows(sheets, "kapitalindkomst.pbl53a.ordninger");
@@ -10247,6 +10873,49 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 .as_deref(),
             Some("1")
         );
+
+        let pbl15a_disposals_path = "lønmodtager.pension.pbl15a_årsgrundlag.afståelser";
+        let pbl15a_periods_path =
+            format!("{pbl15a_disposals_path}.passiv_kapital.seneste_tre_regnskabsperioder");
+        let pbl15a_periods_sheet =
+            workbook_collection_sheet_name(&mut workbook, &pbl15a_periods_path);
+        let pbl15a_periods = workbook
+            .worksheet_range(&pbl15a_periods_sheet)
+            .expect("PBL § 15 A accounting periods");
+        let pbl15a_period_rows = pbl15a_periods.rows().skip(2).collect::<Vec<_>>();
+        assert_eq!(pbl15a_period_rows.len(), 3);
+        for (row, item_id, position) in [
+            (&pbl15a_period_rows[0], "pbl15a-regnskabsperiode-2023", "1"),
+            (&pbl15a_period_rows[1], "pbl15a-regnskabsperiode-2024", "2"),
+            (&pbl15a_period_rows[2], "pbl15a-regnskabsperiode-2025", "3"),
+        ] {
+            assert_eq!(row[0].to_string(), "personskat-pbl15a-relationer-2026");
+            assert_eq!(row[1].to_string(), "pbl15a-virksomhedsafståelse");
+            assert_eq!(row[2].to_string(), item_id);
+            assert_eq!(row[3].to_string(), position);
+        }
+        let pbl15a_company_accounts_path = format!("{pbl15a_periods_path}.selskabsregnskaber");
+        let pbl15a_owner_paths_path =
+            format!("{pbl15a_company_accounts_path}.selskab.ejerforhold.indirekte_ejerveje");
+        let pbl15a_owner_paths_sheet =
+            workbook_collection_sheet_name(&mut workbook, &pbl15a_owner_paths_path);
+        let pbl15a_owner_paths = workbook
+            .worksheet_range(&pbl15a_owner_paths_sheet)
+            .expect("PBL § 15 A indirect ownership paths");
+        let pbl15a_owner_path_rows = pbl15a_owner_paths.rows().skip(2).collect::<Vec<_>>();
+        assert_eq!(pbl15a_owner_path_rows.len(), 4);
+        assert_eq!(
+            pbl15a_owner_path_rows[0][1].to_string(),
+            "pbl15a-selskabsregnskab-2023"
+        );
+        assert_eq!(
+            pbl15a_owner_path_rows[3][0].to_string(),
+            "personskat-pbl15a-foraeldreloes-2026"
+        );
+        assert_eq!(
+            pbl15a_owner_path_rows[3][1].to_string(),
+            "manglende-pbl15a-selskabsregnskab"
+        );
     }
 
     let output = run(&[
@@ -10256,17 +10925,60 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         input_path.to_str().expect("input path"),
     ]);
     std::fs::remove_file(&input_path).ok();
-    assert!(
-        output.status.success(),
-        "stderr:\n{}\nstdout:\n{}",
-        String::from_utf8_lossy(&output.stderr),
-        String::from_utf8_lossy(&output.stdout)
-    );
+    assert!(!output.status.success());
     let result = parse_stdout(&output);
-    assert!(result["diagnostics"]
+    let diagnostics = result["diagnostics"]
         .as_array()
-        .expect("diagnostics")
-        .is_empty());
+        .expect("XLSX Personskat diagnostics");
+    assert_eq!(diagnostics.len(), 1);
+    assert_eq!(
+        diagnostics[0]["case_id"],
+        "personskat-pbl15a-foraeldreloes-2026"
+    );
+    assert!(diagnostics[0]["message"]
+        .as_str()
+        .is_some_and(|message| message.contains("orphan parent_id")));
+    let xlsx_pbl15a_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-pbl15a-relationer-2026")
+        .expect("XLSX PBL § 15 A relation result");
+    let xlsx_pbl15a_canonical_result = xlsx_pbl15a_result["result"].clone();
+    let xlsx_pbl15a_annual_result = &xlsx_pbl15a_result["result"]["pension"]["pbl18_årsresultat"];
+    assert_eq!(xlsx_pbl15a_annual_result["input_gyldigt"], true);
+    assert_eq!(xlsx_pbl15a_annual_result["par15a_fradrag_kroner"], 75_000);
+    assert_eq!(
+        xlsx_pbl15a_annual_result["samlet_fradrag_i_skattepligtig_indkomst_kroner"],
+        75_000
+    );
+    let xlsx_pbl15a_disposal =
+        &xlsx_pbl15a_annual_result["par15a_grundlagsresultat"]["afståelsesresultater"][0];
+    assert_eq!(xlsx_pbl15a_disposal["fakta_gyldige"], true);
+    assert_eq!(xlsx_pbl15a_disposal["kvalificerer_til_ophørspension"], true);
+    assert_eq!(
+        xlsx_pbl15a_disposal["højeste_indbetaling_fra_afståelsen_kroner"],
+        100_000
+    );
+    let xlsx_pbl15a_capital = &xlsx_pbl15a_disposal["passiv_kapital_resultat"];
+    assert_eq!(xlsx_pbl15a_capital["fakta_gyldige"], true);
+    assert_eq!(xlsx_pbl15a_capital["passive_indtægter_tre_år_kroner"], 0);
+    assert_eq!(
+        xlsx_pbl15a_capital["samlede_indtægter_tre_år_kroner"],
+        900_000
+    );
+    assert_eq!(
+        xlsx_pbl15a_capital["samlede_aktiver_tre_år_kroner"],
+        1_800_000
+    );
+    assert_eq!(
+        xlsx_pbl15a_capital["samlede_aktiver_ved_afståelse_kroner"],
+        600_000
+    );
+    assert_eq!(
+        xlsx_pbl15a_capital["overvejende_passiv_kapitalanbringelse"],
+        false
+    );
     let xlsx_seafarer_result = result["results"]
         .as_array()
         .expect("XLSX Personskat results")
@@ -13635,6 +14347,176 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(hydrocarbon_case);
+    let pbl15a_company = |owner_path_id: &str| {
+        serde_json::json!({
+            "identifikation": "pbl15a-driftsselskab",
+            "ejerforhold": {
+                "direkte_ejerandel_basispoint": 1_000,
+                "indirekte_ejerveje": [{
+                    "identifikation": owner_path_id,
+                    "ejerandele_gennem_kæden_basispoint": [5_000, 4_000]
+                }]
+            },
+            "udøver_aktiv_udlejning_efter_abl34_stk7": false
+        })
+    };
+    let pbl15a_period = |year: i64, position: i64| {
+        let owner_path_id = format!("pbl15a-indirekte-ejervej-{year}");
+        serde_json::json!({
+            "rækkefølge_fra_ældste": position,
+            "startdato": { "år": year, "måned": 1, "dag": 1 },
+            "slutdato": { "år": year, "måned": 12, "dag": 31 },
+            "virksomhedens_indtægter": [],
+            "virksomhedens_aktiver": [],
+            "selskabsregnskaber": [{
+                "selskab": pbl15a_company(&owner_path_id),
+                "aktiernes_handelsværdi_i_virksomheden_kroner": 900_000,
+                "aktieafkast_i_virksomheden_kroner": 300_000,
+                "selskabets_indtægter_før_ejerandel": [{
+                    "identifikation": format!("pbl15a-driftsindtægt-{year}"),
+                    "beløb_kroner": 1_000_000,
+                    "art": { "$variant": "Pbl15AØvrigDriftsindtægt" }
+                }],
+                "selskabets_aktiver_før_ejerandel": [{
+                    "identifikation": format!("pbl15a-driftsaktiv-{year}"),
+                    "handelsværdi_kroner": 2_000_000,
+                    "art": { "$variant": "Pbl15AØvrigtDriftsaktiv" }
+                }]
+            }]
+        })
+    };
+    let pbl15a_qualification_years = (2016..=2025)
+        .map(|year| {
+            serde_json::json!({
+                "indkomstår": year,
+                "grundlag": { "$variant": "Pbl15AEgenSelvstændigVirksomhed" }
+            })
+        })
+        .collect::<Vec<_>>();
+    let mut pbl15a_case = json_input["cases"][0].clone();
+    pbl15a_case["case_id"] = Value::String("personskat-pbl15a-relationer-2026".into());
+    pbl15a_case["input"]["aktieavance"]["særlige_aktiver"] = serde_json::json!([]);
+    pbl15a_case["input"]["lønmodtager"]["pension"]["pbl18_indbetalinger"] = serde_json::json!([{
+        "identifikation": "pbl15a-indbetaling-2026",
+        "ordning": { "$variant": "Pbl18Par15ARateordning" },
+        "indbetalingskilde": { "$variant": "Pbl18EgenIndbetaling" },
+        "fradragsretshaver": { "$variant": "Pbl18OrdningensEjer" },
+        "betaling": {
+            "beløb_kroner": 75_000,
+            "forfaldsår": 2026,
+            "betalingsår": 2026,
+            "betalt_senest_bankjusteret_1_april_efter_forfald": true,
+            "hidrører_fra_par22e_tilbagebetaling": false,
+            "par15a_fradragsplacering": {
+                "$variant": "Pbl18Par15AIndbetalingsår"
+            },
+            "arbejdsmarkedsbidrag_kroner": 0
+        },
+        "fordelingsforløb": { "$variant": "Pbl18IngenTiårsfordeling" },
+        "indeksvalg": { "fradragsvalgte_kontraktbidrag_kroner": [] },
+        "indeksordningsgrundlag": { "$variant": "Pbl18IkkeIndeksordning" },
+        "forfaldne_ikke_tidligere_fratrukket_kroner": 75_000,
+        "særligt_ordningsgrundlag": {
+            "$variant": "Pbl18Par15AIndbetalingsgrundlag",
+            "ordning_identifikation": "pbl15a-ophørspension",
+            "afståelse_identifikation": "pbl15a-virksomhedsafståelse"
+        },
+        "begrænsninger": {
+            "pbl54_personkreds_opfyldt": true,
+            "afgiftspligt_for_hele_ordningen_indtrådt": false,
+            "udenlandsk_overførsel_med_tidligere_fradrag_uden_skatte_eller_afgiftskonsekvens": false
+        }
+    }]);
+    pbl15a_case["input"]["lønmodtager"]["pension"]["pbl15a_årsgrundlag"] = serde_json::json!({
+        "afståelser": [{
+            "identifikation": "pbl15a-virksomhedsafståelse",
+            "afståelsesdato": { "år": 2026, "måned": 7, "dag": 1 },
+            "grundlag": { "$variant": "Pbl15AEgenVirksomhedsfortjeneste" },
+            "fortjenestegrundlag": {
+                "afskrivningslovsposter": [{
+                    "identifikation": "pbl15a-al6-afståelsesfortjeneste",
+                    "kilde": {
+                        "$variant": "Pbl15AAl6Salg",
+                        "input": {
+                            "straksafskrivningsresultat": {
+                                "indkomstår": 2026,
+                                "anskaffelsesår": 2024,
+                                "skatteyder": {
+                                    "$variant": "AlSelvstændigErhvervsdrivendePerson"
+                                },
+                                "valg": { "$variant": "Al6Småaktiv" },
+                                "omfattet_af_par6_stk1_modellen": true,
+                                "kort_levetid_betingelse_opfyldt": false,
+                                "småaktiv_betingelse_opfyldt": true,
+                                "forskning_betingelse_opfyldt": false,
+                                "valg_hjemmel_opfyldt": true,
+                                "omfattet_af_stk3": false,
+                                "udskydelse_efter_stk3_gælder": false,
+                                "første_mulige_fradragsår": 2024,
+                                "fradragsår_opfyldt": true,
+                                "valg_gyldigt": true,
+                                "forskningsudgift_under_loft_kroner": 0,
+                                "forskningsudgift_over_loft_kroner": 0,
+                                "fradrag_i_skattepligtig_indkomst_kroner": 100_000,
+                                "anskaffelsessum_fradraget_senest_i_indkomståret_kroner": 100_000,
+                                "ufradraget_anskaffelsessum_kroner": 0
+                            },
+                            "salgssum_kroner": 100_000,
+                            "leveret_i_indkomståret": true,
+                            "virksomhed_sælges_eller_ophører_i_indkomståret": false
+                        }
+                    }
+                }],
+                "ejendomsavance": { "$variant": "Pbl15AUdenEjendomsavance" },
+                "aktieavance": { "$variant": "Pbl15AUdenAktieavance" },
+                "kursgevinstposter": []
+            },
+            "alder_hele_år_ved_afståelsen": 60,
+            "passiv_kapital": {
+                "seneste_tre_regnskabsperioder": [
+                    pbl15a_period(2023, 1),
+                    pbl15a_period(2024, 2),
+                    pbl15a_period(2025, 3)
+                ],
+                "aktuel_regnskabsperiodes_startdato": {
+                    "år": 2026,
+                    "måned": 1,
+                    "dag": 1
+                },
+                "virksomhedens_aktiver_på_overdragelsestidspunktet": [],
+                "selskabsaktiver_på_overdragelsestidspunktet": [{
+                    "selskab": pbl15a_company("pbl15a-indirekte-ejervej-ved-afståelse"),
+                    "aktiernes_handelsværdi_i_virksomheden_kroner": 900_000,
+                    "selskabets_aktiver_før_ejerandel": [{
+                        "identifikation": "pbl15a-driftsaktiv-ved-afståelse",
+                        "handelsværdi_kroner": 2_000_000,
+                        "art": { "$variant": "Pbl15AØvrigtDriftsaktiv" }
+                    }]
+                }],
+                "holdingforløb": {
+                    "personens_afståelsesrækkefølge_på_dagen": 1,
+                    "datterselskabshændelser": [],
+                    "afvikling": { "$variant": "Pbl15AHoldingFortsatBestående" }
+                },
+                "næringsvirksomhed_med_værdipapirer_eller_finansiering": false
+            },
+            "udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe": false,
+            "antal_ejere": 1,
+            "opretter_deltog_i_driften_i_væsentligt_omfang": true
+        }],
+        "ordninger": [{
+            "identifikation": "pbl15a-ophørspension",
+            "oprettelsesår": 2026,
+            "art": { "$variant": "Pbl15ARateopsparing" },
+            "oprettelsesafståelse_identifikation": "pbl15a-virksomhedsafståelse"
+        }],
+        "kvalifikationsår": pbl15a_qualification_years,
+        "tidligere_indbetalinger": []
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(pbl15a_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -13849,6 +14731,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
+    let json_pbl15a_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-pbl15a-relationer-2026")
+        .expect("JSON PBL § 15 A relation result");
+    assert_eq!(xlsx_pbl15a_canonical_result, json_pbl15a_result["result"]);
     let json_ordinary_share_loss_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")
