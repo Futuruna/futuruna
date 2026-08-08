@@ -222,7 +222,7 @@
 # PersonskatParberegningResultat(hovedskat: LønmodtagerBeregning, hovedskat_eksakt: LønmodtagerEksaktBeregning, hovedskatteforhold: LønmodtagerSkatteforhold, ægtefælle: PersonskatÆgtefælleBeregningResultat, ægtefælle_eksakt: PersonskatÆgtefælleEksaktBeregningResultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat)
 # PersonskatLigningslov33PersonInput = UdenLigningslov33 | MedLigningslov33(input: Ligningslov33PersonÅrsinput)
 # PersonskatLigningslov33ParInput(hovedperson: PersonskatLigningslov33PersonInput, ægtefælle: PersonskatLigningslov33PersonInput)
-# PersonskatLigningslov33ParResultat(hovedperson: Ligningslov33PersonÅrsresultat, ægtefælle: Option(Ligningslov33PersonÅrsresultat), hovedpersons_par6_kildetilknytninger_gyldige: Boolsk, ægtefælles_par6_kildetilknytninger_gyldige: Boolsk, input_gyldigt: Boolsk, hovedpersons_nedslag_øre: Heltal, ægtefælles_nedslag_øre: Heltal, samlet_parnedslag_øre: Heltal)
+# PersonskatLigningslov33ParResultat(hovedperson: Ligningslov33PersonÅrsresultat, ægtefælle: Option(Ligningslov33PersonÅrsresultat), hovedpersons_indkomstår_gyldigt: Boolsk, ægtefælles_indkomstår_gyldigt: Boolsk, hovedpersons_par6_kildetilknytninger_gyldige: Boolsk, ægtefælles_par6_kildetilknytninger_gyldige: Boolsk, input_gyldigt: Boolsk, hovedpersons_nedslag_øre: Heltal, ægtefælles_nedslag_øre: Heltal, samlet_parnedslag_øre: Heltal)
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, ligningslov33: PersonskatLigningslov33ParInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseEksaktInput, resultat: KildeskatSlutopgørelseEksaktResult)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
@@ -6979,6 +6979,13 @@
     help = Some("Vælg kun ja, når den udenlandske indkomst, skat eller skatteberegning og eventuelle begrænsninger kan dokumenteres."),
     unit = None
 )
+= personskat_felt_ligningslov33_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov33PersonÅrsinput::indkomstår),
+    label = "Indkomstår for udenlandsk skattenedslag",
+    question = Some("Hvilket indkomstår vedrører den udenlandske indkomst, skat og eventuelle fremførte fragtskat?"),
+    help = Some("Året skal være det samme som skatteåret i den samlede Personskat-beregning."),
+    unit = Some("år")
+)
 = personskat_felt_ligningslov33_dansk_bruttoindkomst = TypetBeregningsfelt(
     path = refof(Ligningslov33PersonÅrsinput::dansk_bruttoindkomst_kroner),
     label = "Dansk bruttoindkomst i lempelsesberegningen",
@@ -7012,6 +7019,41 @@
     label = "Fraflytningskreditter efter ligningslovens § 33, stk. 6",
     question = Some("Skal Danmark give nedslag for skat, som en anden stat kunne have pålignet en fiktiv aktivafståelse ved fraflytning?"),
     help = Some("Tilføj kun aktiver, der anses for afstået efter kildeskattelovens § 10, stk. 1. Aktier efter ABL § 38, fordringer mv. efter KGL § 37 og rettigheder efter LL § 28 behandles efter deres særregler."),
+    unit = None
+)
+= personskat_felt_ligningslov33_fragtskat_åbningssaldi = TypetBeregningsfelt(
+    path = refof(Ligningslov33PersonÅrsinput::fragtskat_åbningssaldi),
+    label = "Fremført fragtskat ved årets begyndelse",
+    question = Some("Har du fragtskat fra tidligere indkomstår, som endnu ikke er udnyttet?"),
+    help = Some("Tilføj én saldo pr. fremmed stat fra det umiddelbart foregående års Futuruna-resultat."),
+    unit = None
+)
+= personskat_felt_ligningslov33_fragtskat_saldo_område = TypetBeregningsfelt(
+    path = refof(Ligningslov33FragtskatSaldo::område::$variant),
+    label = "Fremmed stat for fremført fragtskat",
+    question = Some("Hvilken fremmed stat vedrører den fremførte fragtskat?"),
+    help = Some("Fragtskat efter § 33, stk. 9 føres særskilt for hver fremmed stat."),
+    unit = None
+)
+= personskat_felt_ligningslov33_fragtskat_saldo_indkomstår = TypetBeregningsfelt(
+    path = refof(Ligningslov33FragtskatSaldo::indkomstår),
+    label = "Fremførselsår for fragtskat",
+    question = Some("Fra hvilket indkomstår overføres fragtskattesaldoen?"),
+    help = Some("Saldoen skal komme fra det umiddelbart foregående indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_ligningslov33_fragtskat_saldo_øre = TypetBeregningsfelt(
+    path = refof(Ligningslov33FragtskatSaldo::saldo_øre),
+    label = "Fremført fragtskat",
+    question = Some("Hvor meget uudnyttet fragtskat fremføres?"),
+    help = Some("Angiv saldoen fra det foregående års beregningsresultat."),
+    unit = Some("øre")
+)
+= personskat_felt_ligningslov33_fragtskat_saldo_dokumentreferencer = TypetBeregningsfelt(
+    path = refof(Ligningslov33FragtskatSaldo::dokumentreferencer),
+    label = "Dokumentation for fremført fragtskat",
+    question = Some("Hvilke dokumenter underbygger den fremførte fragtskattesaldo?"),
+    help = Some("Bevar referencerne fra tidligere års saldo og den udenlandske skattebetaling."),
     unit = None
 )
 = personskat_felt_ligningslov33_par6_aktivgrundlag = TypetBeregningsfelt(
@@ -7241,8 +7283,8 @@
 = personskat_felt_ligningslov33_skatteart = TypetBeregningsfelt(
     path = refof(Ligningslov33LandelinjeFakta::skatteart),
     label = "Den udenlandske skats art",
-    question = Some("Er den betalte skat en indkomstskat, en særlig indkomstskat eller en formueskat?"),
-    help = Some("Ligningslovens § 33 omfatter indkomstskatter og særlige indkomstskatter, men ikke formueskatter."),
+    question = Some("Er den betalte skat en indkomstskat, en særlig indkomstskat, fragtskat på bruttofortjeneste ved international skibstrafik eller en formueskat?"),
+    help = Some("§ 33 omfatter indkomstskatter og særlige indkomstskatter, men ikke formueskatter. Fragtskat har en særskilt fremførselsregel i stk. 9."),
     unit = None
 )
 = personskat_felt_ligningslov33_betalingsdokumentreference = TypetBeregningsfelt(
@@ -11303,11 +11345,17 @@
 = personskat_metadata_ligningslov33 = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ligningslov33_valg),
+        Field(value = personskat_felt_ligningslov33_indkomstår),
         Field(value = personskat_felt_ligningslov33_dansk_bruttoindkomst),
         Field(value = personskat_felt_ligningslov33_ikke_henførbare_udgifter),
         Field(value = personskat_felt_ligningslov33_eksportkreditrenter),
         Field(value = personskat_felt_ligningslov33_kreditgrupper),
         Field(value = personskat_felt_ligningslov33_par6_kreditter),
+        Field(value = personskat_felt_ligningslov33_fragtskat_åbningssaldi),
+        Field(value = personskat_felt_ligningslov33_fragtskat_saldo_område),
+        Field(value = personskat_felt_ligningslov33_fragtskat_saldo_indkomstår),
+        Field(value = personskat_felt_ligningslov33_fragtskat_saldo_øre),
+        Field(value = personskat_felt_ligningslov33_fragtskat_saldo_dokumentreferencer),
         Field(value = personskat_felt_ligningslov33_par6_aktivgrundlag),
         Field(value = personskat_felt_ligningslov33_par6_fast_driftssted_dokumentreference),
         Field(value = personskat_felt_ligningslov33_par6_identifikation),
@@ -11348,6 +11396,8 @@
         Field(value = personskat_felt_ligningslov33_fastsat_skat),
         Field(value = personskat_felt_ligningslov33_myndighedsdokumentreference),
         Source(value = ligningsloven_lbk1500_par33),
+        AmendmentSource(value = ligningsloven_lov487_1996_par33_fragtskat),
+        AmendmentSource(value = ligningsloven_lov313_2002_par33_fragtskat),
         DependencySource(value = kildeskatteloven_lbk460_par10),
         Guidance(value = ligningsloven_vejledning_par33_credit),
         Guidance(value = ligningsloven_vejledning_par33_personberegning),
@@ -15129,20 +15179,26 @@ fraflytningen."
 }
 # PersonskatLigningslov33DanskKontekst(skatteår: Heltal, skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, positiv_kapitalindkomst_kroner: Heltal, aktieindkomst_kroner: Heltal, cfc_indkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, skattekomponenter_efter_par13: LønmodtagerEksakteSkattekomponenter, arbejdsmarkedsbidrag_øre: Heltal, lav_aktieindkomstskat_øre: Heltal, tilgængelig_indkomstskat_øre: Heltal)
 
-| personskat_tomt_ligningslov33_årsinput() -> Ligningslov33PersonÅrsinput(
+| personskat_tomt_ligningslov33_årsinput(indkomstår: Heltal) -> Ligningslov33PersonÅrsinput(
+    indkomstår = indkomstår,
     dansk_bruttoindkomst_kroner = 0,
     ikke_henførbare_udgifter_kroner = 0,
     eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
     kreditgrupper = [],
-    par6_kreditter = []
+    par6_kreditter = [],
+    fragtskat_åbningssaldi = []
 )
 | personskat_uden_ligningslov33() -> PersonskatLigningslov33ParInput(
     hovedperson = UdenLigningslov33,
     ægtefælle = UdenLigningslov33
 )
-| personskat_ligningslov33_årsinput(input: PersonskatLigningslov33PersonInput) -> match input {
-    | UdenLigningslov33 -> personskat_tomt_ligningslov33_årsinput()
+| personskat_ligningslov33_årsinput(input: PersonskatLigningslov33PersonInput, indkomstår: Heltal) -> match input {
+    | UdenLigningslov33 -> personskat_tomt_ligningslov33_årsinput(indkomstår)
     | MedLigningslov33(årsinput) -> årsinput
+}
+| personskat_ligningslov33_person_indkomstår_gyldigt(input: PersonskatLigningslov33PersonInput, indkomstår: Heltal) -> match input {
+    | UdenLigningslov33 -> Sandt
+    | MedLigningslov33(årsinput) -> årsinput.indkomstår == indkomstår
 }
 | personskat_ligningslov33_dansk_kontekst(grundlag: PersonskatPersonGrundlagResultat, skat: LønmodtagerBeregning, eksakt_skat: LønmodtagerEksaktBeregning, aktieindkomst_kroner: Heltal, lav_aktieindkomstskat_øre: Heltal, tilgængelig_indkomstskat_øre: Heltal) -> PersonskatLigningslov33DanskKontekst(
     skatteår = skat.input.skatteår,
@@ -15212,7 +15268,7 @@ fraflytningen."
     samlet_dansk_indkomstskat_tilgængelig_øre = kontekst.tilgængelig_indkomstskat_øre
 )
 | personskat_ligningslov33_personresultat(input: PersonskatLigningslov33PersonInput, kontekst: PersonskatLigningslov33DanskKontekst) -> ligningslov33_person_årsresultat(
-    personskat_ligningslov33_årsinput(input),
+    personskat_ligningslov33_årsinput(input, kontekst.skatteår),
     personskat_ligningslov33_dansk_skattekreds(kontekst)
 )
 | personskat_ligningslov33_egne_ejendomsavancefakta(grundlag: PersonskatPersonGrundlagResultat) -> match grundlag.kapitalindkomst.ejendomsavance_resultat {
@@ -15276,6 +15332,10 @@ fraflytningen."
     | None -> None
     | Some(kontekst) -> Some(personskat_ligningslov33_personresultat(input, kontekst))
 }
+| personskat_ligningslov33_ægtefælle_indkomstår_gyldigt(input: PersonskatLigningslov33PersonInput, parberegning: PersonskatParberegningResultat) -> match personskat_ligningslov33_ægtefællekontekst(parberegning) {
+    | None -> input == UdenLigningslov33
+    | Some(kontekst) -> personskat_ligningslov33_person_indkomstår_gyldigt(input, kontekst.skatteår)
+}
 | personskat_ligningslov33_ægtefælleinput_konsistent(input: PersonskatLigningslov33PersonInput, parberegning: PersonskatParberegningResultat) -> match parberegning.ægtefælle {
     | IngenÆgtefælleberegning -> input == UdenLigningslov33
     | BeregnetÆgtefælle(_, _, _, _) -> match parberegning.ægtefælle_eksakt {
@@ -15298,16 +15358,20 @@ fraflytningen."
 | personskat_ligningslov33_parresultat(input: PersonskatLigningslov33ParInput, hovedkontekst: PersonskatLigningslov33DanskKontekst, hovedgrundlag: PersonskatPersonGrundlagResultat, parberegning: PersonskatParberegningResultat) -> {
     = hovedperson = personskat_ligningslov33_personresultat(input.hovedperson, hovedkontekst)
     = ægtefælle = personskat_ligningslov33_ægtefælleresultat(input.ægtefælle, parberegning)
+    = hovedpersons_indkomstår_gyldigt = personskat_ligningslov33_person_indkomstår_gyldigt(input.hovedperson, hovedkontekst.skatteår)
+    = ægtefælles_indkomstår_gyldigt = personskat_ligningslov33_ægtefælle_indkomstår_gyldigt(input.ægtefælle, parberegning)
     = hovedpersons_par6_kildetilknytninger_gyldige = personskat_ligningslov33_person_par6_kildetilknytninger_gyldige(input.hovedperson, hovedgrundlag)
     = ægtefælles_par6_kildetilknytninger_gyldige = personskat_ligningslov33_ægtefælle_par6_kildetilknytninger_gyldige(input.ægtefælle, parberegning)
-    = hovedpersons_nedslag_øre = hvis hovedpersons_par6_kildetilknytninger_gyldige { hovedperson.samlet_nedslag_øre } ellers { 0 }
-    = ægtefælles_nedslag_øre = hvis ægtefælles_par6_kildetilknytninger_gyldige { personskat_ligningslov33_option_nedslag_øre(ægtefælle) } ellers { 0 }
+    = hovedpersons_nedslag_øre = hvis hovedpersons_indkomstår_gyldigt && hovedpersons_par6_kildetilknytninger_gyldige { hovedperson.samlet_nedslag_øre } ellers { 0 }
+    = ægtefælles_nedslag_øre = hvis ægtefælles_indkomstår_gyldigt && ægtefælles_par6_kildetilknytninger_gyldige { personskat_ligningslov33_option_nedslag_øre(ægtefælle) } ellers { 0 }
     PersonskatLigningslov33ParResultat(
         hovedperson = hovedperson,
         ægtefælle = ægtefælle,
+        hovedpersons_indkomstår_gyldigt = hovedpersons_indkomstår_gyldigt,
+        ægtefælles_indkomstår_gyldigt = ægtefælles_indkomstår_gyldigt,
         hovedpersons_par6_kildetilknytninger_gyldige = hovedpersons_par6_kildetilknytninger_gyldige,
         ægtefælles_par6_kildetilknytninger_gyldige = ægtefælles_par6_kildetilknytninger_gyldige,
-        input_gyldigt = hovedperson.input_gyldigt && personskat_ligningslov33_ægtefælleinput_konsistent(input.ægtefælle, parberegning) && personskat_ligningslov33_option_gyldigt(ægtefælle) && hovedpersons_par6_kildetilknytninger_gyldige && ægtefælles_par6_kildetilknytninger_gyldige,
+        input_gyldigt = hovedperson.input_gyldigt && personskat_ligningslov33_ægtefælleinput_konsistent(input.ægtefælle, parberegning) && personskat_ligningslov33_option_gyldigt(ægtefælle) && hovedpersons_indkomstår_gyldigt && ægtefælles_indkomstår_gyldigt && hovedpersons_par6_kildetilknytninger_gyldige && ægtefælles_par6_kildetilknytninger_gyldige,
         hovedpersons_nedslag_øre = hovedpersons_nedslag_øre,
         ægtefælles_nedslag_øre = ægtefælles_nedslag_øre,
         samlet_parnedslag_øre = hovedpersons_nedslag_øre + ægtefælles_nedslag_øre

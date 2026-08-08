@@ -1436,12 +1436,58 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Anden myndigheds afgørelsesreference",
             "Hovedpersonens fremførte negative aktieskat",
             "Ægtefællens fremførte negative aktieskat",
+            "Indkomstår for udenlandsk skattenedslag",
         ] {
             assert!(
                 case_headers.iter().any(|header| header == expected),
                 "missing human Personskatteloven input label {expected}"
             );
         }
+        let freight_tax_balances_path =
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi";
+        let freight_tax_balances_sheet =
+            workbook_collection_sheet_name(&mut workbook, freight_tax_balances_path);
+        let freight_tax_balance_paths =
+            workbook_column_paths(&mut workbook, &freight_tax_balances_sheet);
+        for expected in [
+            "område.$variant",
+            "område.Ll33FremmedStat.landekode",
+            "indkomstår",
+            "saldo_øre",
+        ] {
+            assert!(
+                freight_tax_balance_paths.iter().any(|path| path == expected),
+                "missing canonical LL § 33(9) balance path {expected} on {freight_tax_balances_sheet}"
+            );
+        }
+        let freight_tax_balance_headers =
+            workbook_headers(&mut workbook, &freight_tax_balances_sheet);
+        for expected in [
+            "Fremmed stat for fremført fragtskat",
+            "Landekode",
+            "Fremførselsår for fragtskat",
+            "Fremført fragtskat",
+        ] {
+            assert!(
+                freight_tax_balance_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 33(9) balance label {expected} on {freight_tax_balances_sheet}"
+            );
+        }
+        let freight_tax_documents_path = "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.dokumentreferencer";
+        let freight_tax_documents_sheet =
+            workbook_collection_sheet_name(&mut workbook, freight_tax_documents_path);
+        assert_eq!(
+            workbook_headers(&mut workbook, &freight_tax_documents_sheet),
+            [
+                "case_id",
+                "parent_id",
+                "item_id",
+                "position",
+                "Dokumentation for fremført fragtskat",
+            ]
+        );
         let column_metadata = workbook
             .worksheet_range("_columns")
             .expect("column metadata");
@@ -3429,6 +3475,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.trancher.oprindelsesår",
             "negativ_aktieskat_fremførsel.hovedperson.EksterntFastsatFremførtNegativAktieskat.trancher.resterende_negativ_skat_kroner",
             "negativ_aktieskat_fremførsel.ægtefælle.$variant",
+            "ligningslov33.hovedperson.$variant",
+            "ligningslov33.hovedperson.MedLigningslov33.input.indkomstår",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.fakta.skatteart",
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.$variant",
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.Ll33FremmedStat.landekode",
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.indkomstår",
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.saldo_øre",
+            "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.dokumentreferencer",
             "ægtefælle.$variant",
             "ægtefælle.MedÆgtefælle.fakta.lønmodtager.bruttoløn_kroner",
             "ægtefælle.MedÆgtefælle.fakta.kapitalindkomst.renter.renteudgifter_kroner",
@@ -5524,6 +5578,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     (
                         "negativ_aktieskat_fremførsel.ægtefælle.$variant",
                         Data::String("UdenFremførtNegativAktieskat".to_string()),
+                    ),
+                    (
+                        "ligningslov33.hovedperson.$variant",
+                        Data::String("UdenLigningslov33".to_string()),
+                    ),
+                    (
+                        "ligningslov33.ægtefælle.$variant",
+                        Data::String("UdenLigningslov33".to_string()),
                     ),
                     (
                         "ægtefælle.$variant",
@@ -15357,7 +15419,77 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     }
                 })
             });
+        case["input"]
+            .as_object_mut()
+            .expect("Personskat input")
+            .entry("ligningslov33".to_string())
+            .or_insert_with(|| {
+                serde_json::json!({
+                    "hovedperson": { "$variant": "UdenLigningslov33" },
+                    "ægtefælle": { "$variant": "UdenLigningslov33" }
+                })
+            });
     }
+    let mut freight_tax_case = json_input["cases"][0].clone();
+    freight_tax_case["case_id"] = Value::String("personskat-ligningslov33-fragtskat-2026".into());
+    freight_tax_case["input"]["ligningslov33"] = serde_json::json!({
+        "hovedperson": {
+            "$variant": "MedLigningslov33",
+            "input": {
+                "indkomstår": 2026,
+                "dansk_bruttoindkomst_kroner": 600_000,
+                "ikke_henførbare_udgifter_kroner": 0,
+                "eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner": 0,
+                "kreditgrupper": [{
+                    "identifikation": "norsk-fragtskat-2026",
+                    "grupperingsgrundlag": {
+                        "$variant": "Ll33SamletIndkomstFraSkatteområdet"
+                    },
+                    "fakta": {
+                        "område": {
+                            "$variant": "Ll33FremmedStat",
+                            "landekode": "NO"
+                        },
+                        "opkrævningsmåde": { "$variant": "Ll33DirektePåligning" },
+                        "udenlandsk_bruttoindkomst_kroner": 100_000,
+                        "direkte_henførbare_udgifter_kroner": 0,
+                        "betalt_udenlandsk_skat_øre": 100_000,
+                        "skatteart": {
+                            "$variant": "Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik"
+                        },
+                        "betalingsdokumentreference": "Norsk fragtskattebilag 2026",
+                        "overenskomstgrundlag": {
+                            "$variant": "Ll33IngenDobbeltbeskatningsoverenskomst"
+                        }
+                    },
+                    "udenlandsk_indkomst_efter_danske_regler": {
+                        "skattepligtig_nettoindkomst_efter_par33f_kroner": 100_000,
+                        "personlig_nettoindkomst_efter_par33f_kroner": 0,
+                        "positiv_kapitalnettoindkomst_efter_par33f_kroner": 0,
+                        "aktienettoindkomst_efter_par33f_kroner": 0,
+                        "cfc_nettoindkomst_efter_par33f_kroner": 0,
+                        "arbejdsmarkedsbidragsgrundlag_kroner": 0
+                    },
+                    "lønlempelsesstatus": { "$variant": "Ll33IngenLønindkomst" }
+                }],
+                "par6_kreditter": [],
+                "fragtskat_åbningssaldi": [{
+                    "område": {
+                        "$variant": "Ll33FremmedStat",
+                        "landekode": "NO"
+                    },
+                    "indkomstår": 2025,
+                    "saldo_øre": 100_000,
+                    "dokumentreferencer": ["Futuruna-fragtskattesaldo 2025"]
+                }]
+            }
+        },
+        "ægtefælle": { "$variant": "UdenLigningslov33" }
+    });
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(freight_tax_case);
     std::fs::write(
         &json_input_path,
         serde_json::to_vec_pretty(&json_input).expect("encode Personskat JSON input"),
@@ -15533,6 +15665,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-soemand-blandet-befordring-2026")
         .expect("mixed seafarer-commute JSON case")
         .clone();
+    let freight_tax_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ligningslov33-fragtskat-2026")
+        .expect("LL § 33(9) freight-tax JSON case")
+        .clone();
     hydrated_json_input["cases"] = Value::Array(vec![
         mixed_case,
         simultaneous_spouse_case.clone(),
@@ -15558,6 +15697,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         fisher_mixed_travel_no_election_case,
         fisher_mixed_travel_case,
         seafarer_commute_case,
+        freight_tax_case,
     ]);
     std::fs::write(
         &hydrated_json_input_path,
@@ -15617,6 +15757,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     let json_result = parse_stdout(&json_output);
     let hydrated_xlsx_result = parse_stdout(&hydrated_xlsx_output);
+    let json_freight_tax_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ligningslov33-fragtskat-2026")
+        .expect("JSON LL § 33(9) freight-tax result");
+    let hydrated_freight_tax_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ligningslov33-fragtskat-2026")
+        .expect("hydrated XLSX LL § 33(9) freight-tax result");
+    assert_eq!(
+        hydrated_freight_tax_result["result"],
+        json_freight_tax_result["result"]
+    );
+    assert_eq!(
+        json_freight_tax_result["result"]["ligningslov33"]["input_gyldigt"],
+        true
+    );
+    assert_eq!(
+        json_freight_tax_result["result"]["ligningslov33"]["hovedpersons_nedslag_øre"],
+        200_000
+    );
+    assert_eq!(
+        json_freight_tax_result["result"]["ligningslov33"]["hovedperson"]["fragtskat_ultimosaldi"]
+            .as_array()
+            .expect("LL § 33(9) closing freight-tax balances")
+            .len(),
+        0
+    );
     let json_fisher_union_transition_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

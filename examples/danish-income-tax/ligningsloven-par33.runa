@@ -4,7 +4,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 
--- Ligningsloven § 33, stk. 1-2, 6 og 8, og § 33 F - almindelig creditlempelse.
+-- Ligningsloven § 33, stk. 1-2, 6 og 8-9, og § 33 F - almindelig creditlempelse.
 --
 -- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
 -- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
@@ -14,7 +14,7 @@
 
 = ligningsloven_lbk1500_par33 = Ligningslov33KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 33, stk. 1-2, 6 og 8, og § 33 F i LBK nr. 1500 af 24/11/2025",
+    identifier = "Ligningsloven § 33, stk. 1-2, 6 og 8-9, og § 33 F i LBK nr. 1500 af 24/11/2025",
     hentet_dato = "2026-08-08"
 )
 
@@ -36,10 +36,24 @@
     hentet_dato = "2026-08-08"
 )
 
+= ligningsloven_lov487_1996_par33_fragtskat = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1996/487",
+    identifier = "LOV nr. 487 af 12/06/1996, § 1, nr. 8 - indførelse af fragtskattereglen",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_lov313_2002_par33_fragtskat = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2002/313",
+    identifier = "LOV nr. 313 af 21/05/2002, § 8, nr. 6-7 - ophævelse af femårsfristen og rækkefølgereglerne",
+    hentet_dato = "2026-08-08"
+)
+
 = ligningsloven_par33_metadata = Metadata(
     attachments = (
         Source(value = ligningsloven_lbk1500_par33),
         Source(value = kildeskatteloven_lbk460_par10),
+        AmendmentSource(value = ligningsloven_lov487_1996_par33_fragtskat),
+        AmendmentSource(value = ligningsloven_lov313_2002_par33_fragtskat),
         Guidance(value = ligningsloven_vejledning_par33_credit),
         Guidance(value = ligningsloven_vejledning_par33_personberegning),
         Practice(value = ligningsloven_praksis_skm2018_370_sr),
@@ -68,7 +82,7 @@ forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
 
 # Ligningslov33Skatteområde = Ll33FremmedStat(landekode: Tekst) | Ll33Grønland | Ll33Færøerne
 # Ligningslov33Opkrævningsmåde = Ll33DirektePåligning | Ll33Indeholdelse
-# Ligningslov33UdenlandskSkatteart = Ll33Indkomstskat | Ll33SærligIndkomstskat | Ll33Formueskat
+# Ligningslov33UdenlandskSkatteart = Ll33Indkomstskat | Ll33SærligIndkomstskat | Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik | Ll33Formueskat
 # Ligningslov33Overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst | Ll33OverenskomstensUbetingedeKrav(maksimal_skat_øre: Heltal, dokumentreference: Tekst) | Ll33SkatteforvaltningenFastsatSkat(fradragsberettiget_udenlandsk_skat_øre: Heltal, dokumentreference: Tekst)
 # Ligningslov33LandelinjeFakta(område: Ligningslov33Skatteområde, opkrævningsmåde: Ligningslov33Opkrævningsmåde, udenlandsk_bruttoindkomst_kroner: Heltal, direkte_henførbare_udgifter_kroner: Heltal, betalt_udenlandsk_skat_øre: Heltal, skatteart: Ligningslov33UdenlandskSkatteart, betalingsdokumentreference: Tekst, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag)
 # Ligningslov33Årsinput(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, landelinjer: List(Ligningslov33LandelinjeFakta))
@@ -93,10 +107,19 @@ forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
 | ligningslov33_skatteart_omfattet(skatteart: Ligningslov33UdenlandskSkatteart) -> match skatteart {
     | Ll33Indkomstskat -> Sandt
     | Ll33SærligIndkomstskat -> Sandt
+    | Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik -> Sandt
     | Ll33Formueskat -> Falskt
 }
+| ligningslov33_skatteart_område_gyldigt(skatteart: Ligningslov33UdenlandskSkatteart, område: Ligningslov33Skatteområde) -> match skatteart {
+    | Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik -> match område {
+        | Ll33FremmedStat(_) -> Sandt
+        | Ll33Grønland -> Falskt
+        | Ll33Færøerne -> Falskt
+    }
+    | _ -> Sandt
+}
 | ligningslov33_betalingsdokumentation_gyldig(fakta: Ligningslov33LandelinjeFakta) -> fakta.betalt_udenlandsk_skat_øre == 0 || fakta.betalingsdokumentreference != ""
-| ligningslov33_landelinje_fakta_gyldige(fakta: Ligningslov33LandelinjeFakta) -> ligningslov33_skatteområde_gyldigt(fakta.område) && fakta.udenlandsk_bruttoindkomst_kroner >= 0 && fakta.direkte_henførbare_udgifter_kroner >= 0 && fakta.betalt_udenlandsk_skat_øre >= 0 && ligningslov33_skatteart_omfattet(fakta.skatteart) && ligningslov33_betalingsdokumentation_gyldig(fakta) && ligningslov33_overenskomstgrundlag_gyldigt(fakta.overenskomstgrundlag)
+| ligningslov33_landelinje_fakta_gyldige(fakta: Ligningslov33LandelinjeFakta) -> ligningslov33_skatteområde_gyldigt(fakta.område) && fakta.udenlandsk_bruttoindkomst_kroner >= 0 && fakta.direkte_henførbare_udgifter_kroner >= 0 && fakta.betalt_udenlandsk_skat_øre >= 0 && ligningslov33_skatteart_omfattet(fakta.skatteart) && ligningslov33_skatteart_område_gyldigt(fakta.skatteart, fakta.område) && ligningslov33_betalingsdokumentation_gyldig(fakta) && ligningslov33_overenskomstgrundlag_gyldigt(fakta.overenskomstgrundlag)
 | ligningslov33_område_antal(linjer: List(Ligningslov33LandelinjeFakta), område: Ligningslov33Skatteområde) -> foldl(linjer, 0, |antal: Heltal, linje: Ligningslov33LandelinjeFakta| antal + hvis linje.område == område { 1 } ellers { 0 })
 | ligningslov33_skatteområder_entydige(linjer: List(Ligningslov33LandelinjeFakta)) -> all(linjer, |linje: Ligningslov33LandelinjeFakta| ligningslov33_område_antal(linjer, linje.område) == 1)
 | ligningslov33_samlet_udenlandsk_bruttoindkomst_kroner(input: Ligningslov33Årsinput) -> foldl(input.landelinjer, 0, |sum: Heltal, linje: Ligningslov33LandelinjeFakta| sum + linje.udenlandsk_bruttoindkomst_kroner)
@@ -239,6 +262,34 @@ eller af sømandsbeskatningslovens §§ 5-8.
 
 --@end:ligningsloven_par33_stk8--
 
+--@label:ligningsloven_par33_stk9::meta:ligningsloven_par33_metadata--
+----
+§ 33.
+
+Stk. 9. Fragtskat betalt til en fremmed stat, som overstiger den danske skat,
+der falder på indkomsten fra den fremmede stat, jf. stk. 1, 2. pkt., kan
+fremføres til fradrag i skatten i de følgende indkomstår. En fremført
+fragtskat, jf. 1. pkt., kan kun fradrages i et senere år i det omfang, den med
+tillæg af den i dette år betalte fragtskat ikke overstiger den danske skat,
+der i dette år falder på den udenlandske indkomst. Som fragtskat anses skat på
+bruttofortjenesten ved international skibstrafik.
+----
+
+--@begin:ligningsloven_par33_stk9--
+
+# Ligningslov33FragtskatSaldo(område: Ligningslov33Skatteområde, indkomstår: Heltal, saldo_øre: Heltal, dokumentreferencer: List(Tekst))
+
+| ligningslov33_er_fragtskat(skatteart: Ligningslov33UdenlandskSkatteart) -> skatteart == Ll33FragtskatPåBruttofortjenesteVedInternationalSkibstrafik
+| ligningslov33_fragtskat_område_gyldigt(område: Ligningslov33Skatteområde) -> match område {
+    | Ll33FremmedStat(landekode) -> landekode != ""
+    | Ll33Grønland -> Falskt
+    | Ll33Færøerne -> Falskt
+}
+| ligningslov33_fragtskat_dokumentreferencer_gyldige(dokumentreferencer: List(Tekst)) -> length(dokumentreferencer) > 0 && all(dokumentreferencer, |dokumentreference: Tekst| dokumentreference != "")
+| ligningslov33_fragtskat_saldo_gyldig(saldo: Ligningslov33FragtskatSaldo, aktuelt_indkomstår: Heltal) -> ligningslov33_fragtskat_område_gyldigt(saldo.område) && saldo.indkomstår + 1 == aktuelt_indkomstår && saldo.saldo_øre > 0 && ligningslov33_fragtskat_dokumentreferencer_gyldige(saldo.dokumentreferencer)
+
+--@end:ligningsloven_par33_stk9--
+
 --@label:ligningsloven_par33_personberegning::meta:ligningsloven_par33_metadata--
 ----
 Med virkning fra indkomståret 2010 er der offentliggjort en praksisændring, som
@@ -300,11 +351,12 @@ lempelsesbrøkens tæller.
 # Ligningslov33Kreditgrupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet | Ll33SærskiltKildebeskattetCredit(dokumentreference: Tekst)
 # Ligningslov33PersonKreditgruppe(identifikation: Tekst, grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag, fakta: Ligningslov33LandelinjeFakta, udenlandsk_indkomst_efter_danske_regler: Ligningslov33UdenlandskIndkomstEfterDanskeRegler, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus)
 # Ligningslov33Par6Kreditfakta(grundlag: Ligningslov33Par6Kreditgrundlag, identifikation: Tekst, grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag, område: Ligningslov33Skatteområde, udenlandsk_bruttoindkomst_kroner: Heltal, direkte_henførbare_udgifter_kroner: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag, udenlandsk_indkomst_efter_danske_regler: Ligningslov33UdenlandskIndkomstEfterDanskeRegler, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus)
-# Ligningslov33PersonÅrsinput(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, kreditgrupper: List(Ligningslov33PersonKreditgruppe), par6_kreditter: List(Ligningslov33Par6Kreditfakta))
+# Ligningslov33PersonÅrsinput(indkomstår: Heltal, dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, kreditgrupper: List(Ligningslov33PersonKreditgruppe), par6_kreditter: List(Ligningslov33Par6Kreditfakta), fragtskat_åbningssaldi: List(Ligningslov33FragtskatSaldo))
 # Ligningslov33PersonKomponentresultat(komponent: Ligningslov33DanskSkattekomponent, udenlandsk_nettoindkomst_i_beregningsgrundlaget_kroner: Heltal, forholdsmæssig_beregning: PengeØreBeregning, proportionalt_dansk_skatteloft_øre: Heltal)
 # Ligningslov33PersonKreditgrupperesultat(gruppe: Ligningslov33PersonKreditgruppe, par33f: Ligningslov33FLandelinjeResultat, komponenter: List(Ligningslov33PersonKomponentresultat), input_gyldigt: Boolsk, udenlandsk_skat_efter_overenskomst_øre: Heltal, proportionalt_dansk_skatteloft_øre: Heltal, nedslag_øre: Heltal)
 # Ligningslov33Par6Kreditresultat(fakta: Ligningslov33Par6Kreditfakta, kildeskat10: Kildeskat10Aktivresultat, kreditgruppe: Ligningslov33PersonKreditgrupperesultat, input_gyldigt: Boolsk, udenlandsk_skat_som_kunne_være_pålignet_efter_overenskomst_øre: Heltal, nedslag_øre: Heltal)
-# Ligningslov33PersonÅrsresultat(input: Ligningslov33PersonÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, kreditgrupper: List(Ligningslov33PersonKreditgrupperesultat), par6_kreditter: List(Ligningslov33Par6Kreditresultat), input_gyldigt: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
+# Ligningslov33FragtskatOmråderesultat(område: Ligningslov33Skatteområde, kreditgruppe_identifikation: Option(Tekst), åbningssaldo: Option(Ligningslov33FragtskatSaldo), betalt_fragtskat_efter_overenskomst_øre: Heltal, dansk_skatteloft_øre: Heltal, årets_fragtskattenedslag_øre: Heltal, anvendt_fremført_fragtskat_øre: Heltal, årets_nye_fremførsel_øre: Heltal, samlet_fragtskattenedslag_øre: Heltal, ultimosaldo: Option(Ligningslov33FragtskatSaldo), input_gyldigt: Boolsk)
+# Ligningslov33PersonÅrsresultat(input: Ligningslov33PersonÅrsinput, dansk_skattekreds: Ligningslov33PersonDanskSkattekreds, kreditgrupper: List(Ligningslov33PersonKreditgrupperesultat), par6_kreditter: List(Ligningslov33Par6Kreditresultat), fragtskat_resultater: List(Ligningslov33FragtskatOmråderesultat), fragtskat_ultimosaldi: List(Ligningslov33FragtskatSaldo), input_gyldigt: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
 
 | ligningslov33_dansk_beregningsgrundlag_kroner(grundlag: Ligningslov33DanskBeregningsgrundlag) -> match grundlag {
     | Ll33SkattepligtigIndkomst(samlet_indkomst_kroner) -> samlet_indkomst_kroner
@@ -323,7 +375,12 @@ lempelsesbrøkens tæller.
     | Ll33SamletIndkomstFraSkatteområdet -> Sandt
     | Ll33SærskiltKildebeskattetCredit(dokumentreference) -> dokumentreference != ""
 }
-| ligningslov33_person_kreditgruppe_gyldig(gruppe: Ligningslov33PersonKreditgruppe) -> gruppe.identifikation != "" && ligningslov33_kreditgrupperingsgrundlag_gyldigt(gruppe.grupperingsgrundlag) && ligningslov33_landelinje_fakta_gyldige(gruppe.fakta) && ligningslov33_udenlandsk_indkomst_efter_danske_regler_gyldig(gruppe.udenlandsk_indkomst_efter_danske_regler, gruppe.lønlempelsesstatus)
+| ligningslov33_person_fragtskat_kreditgruppe_gyldig(gruppe: Ligningslov33PersonKreditgruppe) -> hvis ligningslov33_er_fragtskat(gruppe.fakta.skatteart) {
+    gruppe.grupperingsgrundlag == Ll33SamletIndkomstFraSkatteområdet && gruppe.lønlempelsesstatus == Ll33IngenLønindkomst
+} ellers {
+    Sandt
+}
+| ligningslov33_person_kreditgruppe_gyldig(gruppe: Ligningslov33PersonKreditgruppe) -> gruppe.identifikation != "" && ligningslov33_kreditgrupperingsgrundlag_gyldigt(gruppe.grupperingsgrundlag) && ligningslov33_landelinje_fakta_gyldige(gruppe.fakta) && ligningslov33_udenlandsk_indkomst_efter_danske_regler_gyldig(gruppe.udenlandsk_indkomst_efter_danske_regler, gruppe.lønlempelsesstatus) && ligningslov33_person_fragtskat_kreditgruppe_gyldig(gruppe)
 | ligningslov33_person_kreditgruppe_antal(grupper: List(Ligningslov33PersonKreditgruppe), identifikation: Tekst) -> foldl(grupper, 0, |antal: Heltal, gruppe: Ligningslov33PersonKreditgruppe| antal + hvis gruppe.identifikation == identifikation { 1 } ellers { 0 })
 | ligningslov33_person_kreditgrupper_entydige(grupper: List(Ligningslov33PersonKreditgruppe)) -> all(grupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_person_kreditgruppe_antal(grupper, gruppe.identifikation) == 1)
 | ligningslov33_person_kreditgruppe_er_samlet(gruppe: Ligningslov33PersonKreditgruppe) -> match gruppe.grupperingsgrundlag {
@@ -332,6 +389,10 @@ lempelsesbrøkens tæller.
 }
 | ligningslov33_person_samlede_områdegrupper_antal(grupper: List(Ligningslov33PersonKreditgruppe), område: Ligningslov33Skatteområde) -> foldl(grupper, 0, |antal: Heltal, gruppe: Ligningslov33PersonKreditgruppe| antal + hvis gruppe.fakta.område == område && ligningslov33_person_kreditgruppe_er_samlet(gruppe) { 1 } ellers { 0 })
 | ligningslov33_person_områdegruppering_gyldig(grupper: List(Ligningslov33PersonKreditgruppe)) -> all(grupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_person_samlede_områdegrupper_antal(grupper, gruppe.fakta.område) <= 1)
+| ligningslov33_fragtskat_åbningssaldo_antal(saldi: List(Ligningslov33FragtskatSaldo), område: Ligningslov33Skatteområde) -> foldl(saldi, 0, |antal: Heltal, saldo: Ligningslov33FragtskatSaldo| antal + hvis saldo.område == område { 1 } ellers { 0 })
+| ligningslov33_fragtskat_åbningssaldi_entydige(saldi: List(Ligningslov33FragtskatSaldo)) -> all(saldi, |saldo: Ligningslov33FragtskatSaldo| ligningslov33_fragtskat_åbningssaldo_antal(saldi, saldo.område) == 1)
+| ligningslov33_fragtskat_kreditgruppe_antal(grupper: List(Ligningslov33PersonKreditgruppe), område: Ligningslov33Skatteområde) -> foldl(grupper, 0, |antal: Heltal, gruppe: Ligningslov33PersonKreditgruppe| antal + hvis gruppe.fakta.område == område && ligningslov33_er_fragtskat(gruppe.fakta.skatteart) { 1 } ellers { 0 })
+| ligningslov33_fragtskat_kreditgrupper_entydige(grupper: List(Ligningslov33PersonKreditgruppe)) -> all(grupper, |gruppe: Ligningslov33PersonKreditgruppe| ligningslov33_er_fragtskat(gruppe.fakta.skatteart) == Falskt || ligningslov33_fragtskat_kreditgruppe_antal(grupper, gruppe.fakta.område) == 1)
 | ligningslov33_par6_kreditgruppe(fakta: Ligningslov33Par6Kreditfakta) -> Ligningslov33PersonKreditgruppe(
     identifikation = fakta.identifikation,
     grupperingsgrundlag = fakta.grupperingsgrundlag,
@@ -359,7 +420,7 @@ lempelsesbrøkens tæller.
 )
 | ligningslov33_person_årsinput_gyldigt(input: Ligningslov33PersonÅrsinput) -> {
     = alle_kreditgrupper = ligningslov33_person_alle_kreditgrupper(input)
-    input.dansk_bruttoindkomst_kroner >= 0 && input.ikke_henførbare_udgifter_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner <= input.ikke_henførbare_udgifter_kroner && all(input.kreditgrupper, ligningslov33_person_kreditgruppe_gyldig) && all(input.par6_kreditter, ligningslov33_par6_kreditfakta_gyldige) && ligningslov33_person_kreditgrupper_entydige(alle_kreditgrupper) && ligningslov33_person_områdegruppering_gyldig(alle_kreditgrupper)
+    input.indkomstår > 0 && input.dansk_bruttoindkomst_kroner >= 0 && input.ikke_henførbare_udgifter_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner <= input.ikke_henførbare_udgifter_kroner && all(input.kreditgrupper, ligningslov33_person_kreditgruppe_gyldig) && all(input.par6_kreditter, ligningslov33_par6_kreditfakta_gyldige) && all(input.fragtskat_åbningssaldi, |saldo: Ligningslov33FragtskatSaldo| ligningslov33_fragtskat_saldo_gyldig(saldo, input.indkomstår)) && ligningslov33_person_kreditgrupper_entydige(alle_kreditgrupper) && ligningslov33_person_områdegruppering_gyldig(alle_kreditgrupper) && ligningslov33_fragtskat_åbningssaldi_entydige(input.fragtskat_åbningssaldi) && ligningslov33_fragtskat_kreditgrupper_entydige(input.kreditgrupper)
 }
 | ligningslov33_person_par33f_resultat(input: Ligningslov33PersonÅrsinput, gruppe: Ligningslov33PersonKreditgruppe) -> {
     = par33f_input = ligningslov33_person_til_par33f_input(input)
@@ -450,16 +511,111 @@ lempelsesbrøkens tæller.
 }
 | ligningslov33_par6_kreditresultater(input: Ligningslov33PersonÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds) -> map(input.par6_kreditter, |fakta: Ligningslov33Par6Kreditfakta| ligningslov33_par6_kreditresultat(input, skattekreds, fakta))
 | ligningslov33_par6_samlet_nedslag_øre(kreditter: List(Ligningslov33Par6Kreditresultat)) -> foldl(kreditter, 0, |sum_øre: Heltal, kredit: Ligningslov33Par6Kreditresultat| sum_øre + kredit.nedslag_øre)
+| ligningslov33_fragtskat_matchende_åbningssaldi(input: Ligningslov33PersonÅrsinput, område: Ligningslov33Skatteområde) -> filter(input.fragtskat_åbningssaldi, |saldo: Ligningslov33FragtskatSaldo| saldo.område == område)
+| ligningslov33_fragtskat_åbningssaldo(input: Ligningslov33PersonÅrsinput, område: Ligningslov33Skatteområde) -> {
+    = saldi = ligningslov33_fragtskat_matchende_åbningssaldi(input, område)
+    hvis length(saldi) == 1 { Some(head(saldi)) } ellers { None }
+}
+| ligningslov33_fragtskat_åbningssaldo_øre(saldo: Option(Ligningslov33FragtskatSaldo)) -> match saldo {
+    | None -> 0
+    | Some(fakta) -> fakta.saldo_øre
+}
+| ligningslov33_fragtskat_åbningssaldo_dokumentreferencer(saldo: Option(Ligningslov33FragtskatSaldo)) -> match saldo {
+    | None -> []
+    | Some(fakta) -> fakta.dokumentreferencer
+}
+| ligningslov33_fragtskat_årets_nye_fremførsel_øre(kreditgruppe: Ligningslov33PersonKreditgrupperesultat) -> penge_positivt_beløb(kreditgruppe.udenlandsk_skat_efter_overenskomst_øre - kreditgruppe.proportionalt_dansk_skatteloft_øre)
+| ligningslov33_fragtskat_ledigt_dansk_skatteloft_øre(kreditgruppe: Ligningslov33PersonKreditgrupperesultat) -> penge_positivt_beløb(kreditgruppe.proportionalt_dansk_skatteloft_øre - kreditgruppe.udenlandsk_skat_efter_overenskomst_øre)
+| ligningslov33_fragtskat_anvendt_fremført_øre(kreditgruppe: Ligningslov33PersonKreditgrupperesultat, åbningssaldo: Option(Ligningslov33FragtskatSaldo)) -> penge_mindste_beløb(
+    ligningslov33_fragtskat_åbningssaldo_øre(åbningssaldo),
+    ligningslov33_fragtskat_ledigt_dansk_skatteloft_øre(kreditgruppe)
+)
+| ligningslov33_fragtskat_ultimosaldo_dokumentreferencer(kreditgruppe: Ligningslov33PersonKreditgrupperesultat, åbningssaldo: Option(Ligningslov33FragtskatSaldo), årets_nye_fremførsel_øre: Heltal) -> concat(
+    ligningslov33_fragtskat_åbningssaldo_dokumentreferencer(åbningssaldo),
+    hvis årets_nye_fremførsel_øre > 0 { [kreditgruppe.gruppe.fakta.betalingsdokumentreference] } ellers { [] }
+)
+| ligningslov33_fragtskat_ultimosaldo(input: Ligningslov33PersonÅrsinput, kreditgruppe: Ligningslov33PersonKreditgrupperesultat, åbningssaldo: Option(Ligningslov33FragtskatSaldo), anvendt_fremført_øre: Heltal, årets_nye_fremførsel_øre: Heltal) -> {
+    = saldo_øre = ligningslov33_fragtskat_åbningssaldo_øre(åbningssaldo) - anvendt_fremført_øre + årets_nye_fremførsel_øre
+    hvis kreditgruppe.input_gyldigt && saldo_øre > 0 {
+        Some(Ligningslov33FragtskatSaldo(
+            område = kreditgruppe.gruppe.fakta.område,
+            indkomstår = input.indkomstår,
+            saldo_øre = saldo_øre,
+            dokumentreferencer = ligningslov33_fragtskat_ultimosaldo_dokumentreferencer(kreditgruppe, åbningssaldo, årets_nye_fremførsel_øre)
+        ))
+    } ellers {
+        None
+    }
+}
+| ligningslov33_fragtskat_områderesultat_med_kreditgruppe(input: Ligningslov33PersonÅrsinput, kreditgruppe: Ligningslov33PersonKreditgrupperesultat) -> {
+    = åbningssaldo = ligningslov33_fragtskat_åbningssaldo(input, kreditgruppe.gruppe.fakta.område)
+    = input_gyldigt = kreditgruppe.input_gyldigt && ligningslov33_er_fragtskat(kreditgruppe.gruppe.fakta.skatteart)
+    = anvendt_fremført_øre = hvis input_gyldigt { ligningslov33_fragtskat_anvendt_fremført_øre(kreditgruppe, åbningssaldo) } ellers { 0 }
+    = årets_nye_fremførsel_øre = hvis input_gyldigt { ligningslov33_fragtskat_årets_nye_fremførsel_øre(kreditgruppe) } ellers { 0 }
+    Ligningslov33FragtskatOmråderesultat(
+        område = kreditgruppe.gruppe.fakta.område,
+        kreditgruppe_identifikation = Some(kreditgruppe.gruppe.identifikation),
+        åbningssaldo = åbningssaldo,
+        betalt_fragtskat_efter_overenskomst_øre = hvis input_gyldigt { kreditgruppe.udenlandsk_skat_efter_overenskomst_øre } ellers { 0 },
+        dansk_skatteloft_øre = hvis input_gyldigt { kreditgruppe.proportionalt_dansk_skatteloft_øre } ellers { 0 },
+        årets_fragtskattenedslag_øre = hvis input_gyldigt { kreditgruppe.nedslag_øre } ellers { 0 },
+        anvendt_fremført_fragtskat_øre = anvendt_fremført_øre,
+        årets_nye_fremførsel_øre = årets_nye_fremførsel_øre,
+        samlet_fragtskattenedslag_øre = hvis input_gyldigt { kreditgruppe.nedslag_øre + anvendt_fremført_øre } ellers { 0 },
+        ultimosaldo = ligningslov33_fragtskat_ultimosaldo(input, kreditgruppe, åbningssaldo, anvendt_fremført_øre, årets_nye_fremførsel_øre),
+        input_gyldigt = input_gyldigt
+    )
+}
+| ligningslov33_fragtskat_områderesultat_uden_kreditgruppe(input: Ligningslov33PersonÅrsinput, saldo: Ligningslov33FragtskatSaldo) -> {
+    = input_gyldigt = ligningslov33_person_årsinput_gyldigt(input)
+    Ligningslov33FragtskatOmråderesultat(
+        område = saldo.område,
+        kreditgruppe_identifikation = None,
+        åbningssaldo = Some(saldo),
+        betalt_fragtskat_efter_overenskomst_øre = 0,
+        dansk_skatteloft_øre = 0,
+        årets_fragtskattenedslag_øre = 0,
+        anvendt_fremført_fragtskat_øre = 0,
+        årets_nye_fremførsel_øre = 0,
+        samlet_fragtskattenedslag_øre = 0,
+        ultimosaldo = hvis input_gyldigt {
+            Some(Ligningslov33FragtskatSaldo(
+                område = saldo.område,
+                indkomstår = input.indkomstår,
+                saldo_øre = saldo.saldo_øre,
+                dokumentreferencer = saldo.dokumentreferencer
+            ))
+        } ellers {
+            None
+        },
+        input_gyldigt = input_gyldigt
+    )
+}
+| ligningslov33_fragtskat_kreditgrupperesultater(kreditgrupper: List(Ligningslov33PersonKreditgrupperesultat)) -> filter(kreditgrupper, |kreditgruppe: Ligningslov33PersonKreditgrupperesultat| ligningslov33_er_fragtskat(kreditgruppe.gruppe.fakta.skatteart))
+| ligningslov33_fragtskat_uafstemte_åbningssaldi(input: Ligningslov33PersonÅrsinput) -> filter(input.fragtskat_åbningssaldi, |saldo: Ligningslov33FragtskatSaldo| ligningslov33_fragtskat_kreditgruppe_antal(input.kreditgrupper, saldo.område) == 0)
+| ligningslov33_fragtskat_områderesultater(input: Ligningslov33PersonÅrsinput, kreditgrupper: List(Ligningslov33PersonKreditgrupperesultat)) -> concat(
+    map(ligningslov33_fragtskat_kreditgrupperesultater(kreditgrupper), |kreditgruppe: Ligningslov33PersonKreditgrupperesultat| ligningslov33_fragtskat_områderesultat_med_kreditgruppe(input, kreditgruppe)),
+    map(ligningslov33_fragtskat_uafstemte_åbningssaldi(input), |saldo: Ligningslov33FragtskatSaldo| ligningslov33_fragtskat_områderesultat_uden_kreditgruppe(input, saldo))
+)
+| ligningslov33_fragtskat_anvendt_fremført_i_alt_øre(resultater: List(Ligningslov33FragtskatOmråderesultat)) -> foldl(resultater, 0, |sum_øre: Heltal, resultat: Ligningslov33FragtskatOmråderesultat| sum_øre + resultat.anvendt_fremført_fragtskat_øre)
+| ligningslov33_fragtskat_ultimosaldi(resultater: List(Ligningslov33FragtskatOmråderesultat)) -> foldl(resultater, [], |saldi: List(Ligningslov33FragtskatSaldo), resultat: Ligningslov33FragtskatOmråderesultat| match resultat.ultimosaldo {
+        | None -> saldi
+        | Some(saldo) -> concat(saldi, [saldo])
+    })
 | ligningslov33_person_årsresultat(input: Ligningslov33PersonÅrsinput, skattekreds: Ligningslov33PersonDanskSkattekreds) -> {
     = kreditgrupper = ligningslov33_person_kreditgrupperesultater(input, skattekreds)
     = par6_kreditter = ligningslov33_par6_kreditresultater(input, skattekreds)
+    = fragtskat_resultater = ligningslov33_fragtskat_områderesultater(input, kreditgrupper)
+    = fragtskat_ultimosaldi = ligningslov33_fragtskat_ultimosaldi(fragtskat_resultater)
     = input_gyldigt = ligningslov33_person_årsinput_gyldigt(input) && ligningslov33_person_dansk_skattekreds_gyldig(skattekreds)
-    = samlet_nedslag_før_skattecap_øre = hvis input_gyldigt { ligningslov33_person_samlet_nedslag_øre(kreditgrupper) + ligningslov33_par6_samlet_nedslag_øre(par6_kreditter) } ellers { 0 }
+    = samlet_nedslag_før_skattecap_øre = hvis input_gyldigt { ligningslov33_person_samlet_nedslag_øre(kreditgrupper) + ligningslov33_par6_samlet_nedslag_øre(par6_kreditter) + ligningslov33_fragtskat_anvendt_fremført_i_alt_øre(fragtskat_resultater) } ellers { 0 }
     Ligningslov33PersonÅrsresultat(
         input = input,
         dansk_skattekreds = skattekreds,
         kreditgrupper = kreditgrupper,
         par6_kreditter = par6_kreditter,
+        fragtskat_resultater = fragtskat_resultater,
+        fragtskat_ultimosaldi = fragtskat_ultimosaldi,
         input_gyldigt = input_gyldigt,
         samlet_nedslag_før_skattecap_øre = samlet_nedslag_før_skattecap_øre,
         samlet_nedslag_øre = penge_mindste_beløb(samlet_nedslag_før_skattecap_øre, skattekreds.samlet_dansk_indkomstskat_tilgængelig_øre)

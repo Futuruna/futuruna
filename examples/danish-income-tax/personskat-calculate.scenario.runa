@@ -1106,6 +1106,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 )
 = personskat_calculate_ligningslov33_input = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
+        indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 14569,
         ikke_henførbare_udgifter_kroner = 0,
         eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
@@ -1135,7 +1136,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             ),
             lønlempelsesstatus = Ll33IngenLønindkomst
         )],
-        par6_kreditter = []
+        par6_kreditter = [],
+        fragtskat_åbningssaldi = []
     )),
     ægtefælle = UdenLigningslov33
 )

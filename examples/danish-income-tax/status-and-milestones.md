@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-6b37ad` (Kildeskattelovens § 10, stk. 1-3 afleder fiktiv afståelse, dato og handelsværdi ved fraflytning og afskærer ABL § 38-, KGL § 37- og LL § 28-aktiver; Ligningslovens § 33, stk. 6 beregner derefter nedslag for den udenlandske skat, som kunne være pålignet et fast driftssted eller en fast ejendom, gennem de eksisterende § 33/§ 33 F-lofter. Fast ejendom skal afstemmes entydigt mod den kanoniske EBL-beregning på identifikation, dato, afståelsessum og skattepligtig fortjeneste, mens et fast driftssted kræver sin egen dokumentreference)
+Current implementation slice: `td-16a41b` (Ligningslovens § 33, stk. 9 klassificerer fragtskat på bruttofortjenesten ved international skibstrafik fra kildefakta og fører en dokumenteret saldo pr. fremmed stat og indkomstår. Årets fragtskat bruger først det fælles § 33/§ 33 F-loft, tidligere saldo bruger kun den resterende kapacitet, og resten føres videre uden en opdigtet udløbs- eller FIFO-regel. Årskontinuitet, områdeidentitet, kanonisk Personskat og en fuld JSON/XLSX-rundtur er verificeret)
+Previous implementation slice: `td-6b37ad` (Kildeskattelovens § 10, stk. 1-3 afleder fiktiv afståelse, dato og handelsværdi ved fraflytning og afskærer ABL § 38-, KGL § 37- og LL § 28-aktiver; Ligningslovens § 33, stk. 6 beregner derefter nedslag for den udenlandske skat, som kunne være pålignet et fast driftssted eller en fast ejendom, gennem de eksisterende § 33/§ 33 F-lofter. Fast ejendom skal afstemmes entydigt mod den kanoniske EBL-beregning på identifikation, dato, afståelsessum og skattepligtig fortjeneste, mens et fast driftssted kræver sin egen dokumentreference)
 Previous implementation slice: `td-3d4618` (Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning C.F.4.3.1 er nu et årligt persondomæne for almindelig creditlempelse; hver lovligt afgrænset kreditgruppe beregner sit danske loft særskilt over de ni relevante indkomstskattekomponenter, mens § 33 A- og Sømandsbeskatningslov-lempet løn afskæres, og hovedpersonens og ægtefællens nedslag føres uafhængigt gennem den kanoniske Personskat-graf, arbejdsbogen og den præcise 2025-afstemning)
 Previous implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
 Previous implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
@@ -4153,6 +4154,19 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 33, stk. 9 er implementeret efter den gældende ordlyd som
+  et område- og årsbundet fragtskatteregnskab. En kreditgruppe klassificeres
+  som fragtskat alene ved skat på bruttofortjenesten ved international
+  skibstrafik i en fremmed stat. Årets betalte fragtskat modregnes først under
+  det almindelige § 33/§ 33 F-loft; en dokumenteret åbningssaldo kan derefter
+  kun bruge den resterende danske skat på samme stats indkomst, og en rest
+  bliver en dokumenteret ultimosaldo for året. Reglerne kræver det umiddelbart
+  foregående indkomstår og entydig områdeidentitet. De indfører hverken den
+  femårsfrist eller den prioriteringsregel, som blev fjernet ved lov nr. 313 af
+  2002. Direkte flerårsscenarier, den kanoniske Personskat-graf og en
+  JSON/XLSX-rundtur med kreditgruppe, åbningssaldo og dokumentreference
+  passerer; arbejdsbogscasen giver 2.000 kr. i samlet nedslag og ingen
+  ultimosaldo.
 - Kildeskattelovens § 10, stk. 1-3 er implementeret som en selvstændig,
   kildebelagt aktivgrænse med typede hændelser for ophør af fuld skattepligt,
   overenskomstmæssigt hjemstedsskifte og overførsel under begrænset
