@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-00b484` (bekendtgørelse nr. 940 § 1 bruger nu typede start- og slutdatoer til seks- og tremånedersgrænserne; kursusperioder og nødvendige rejsedatoer aggregeres i eksplicitte 12-månedersopgørelser, og Personskat-arbejdsbogen bevarer de gentagne datofakta i relationstabeller med ISO-rækkefølge)
+Current implementation slice: `td-44eb29` (Sømandsbeskatningslovens §§ 5 og 5 b giver nu dødsboer, begrænset skattepligtige efter KSL § 2, stk. 2, og kulbrinteskattepligtige efter § 21, stk. 2, særskilte beløbsresultater; de nødvendige årsgrundlag kommer fra typede Dødsboskattelov- og Kulbrinteskattelov-moduler og bevares gennem den genererede Personskat-arbejdsbog)
+Previous exact-period slice: `td-00b484` (bekendtgørelse nr. 940 § 1 bruger typede start- og slutdatoer til seks- og tremånedersgrænserne; kursusperioder og nødvendige rejsedatoer aggregeres i eksplicitte 12-månedersopgørelser, og Personskat-arbejdsbogen bevarer de gentagne datofakta i relationstabeller med ISO-rækkefølge)
 Previous SØBL § 6 slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
 Previous DIS § 7 U slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
 Previous historical KGL § 32 slice: `td-6606f7` (historiske KGL § 32-år bærer nu et ikke-rekursivt, typet årsgrundlag med EBL-ejendomsfakta, sælgerpantebreve, gæld og øvrige KGL-instrumenter; den fælles § 14/§ 23-netto og ABL § 22-kapacitet genberegnes gennem samme kanoniske regler som det aktuelle år, og uafstemte relationer fejler lukket)
@@ -4043,6 +4044,31 @@ Review candidates to revisit deliberately, not as broad churn:
   dage forbliver et gyldigt kildeinput med en ikke-omfattet arbejdsrolle. Den
   kanoniske JSON/XLSX-prøve udfylder
   tre kursusperioder i relationstabellen og bevarer samme § 5-resultat.
+  De ikke-standardiserede skattepligtspositioner har nu egne årsresultater i
+  stedet for at blive presset gennem den ordinære fuldt-skattepligtige
+  lempelse. Et dødsbo efter dødsboskattelovens § 1, stk. 2, beregner først den
+  afgrænsede § 30-skat på 50 pct. med bofradrag og nedsætter derefter skatten
+  forholdsmæssigt med DIS-nettolønnen. Begrænset skattepligt efter KSL § 2,
+  stk. 2, udstiller både den fritagne løn og nul dansk indkomstskat og
+  AM-bidrag. § 5 b sammensætter kulbrinteskattelovens § 21, stk. 2, med den
+  gældende personlige AM-sats og fjerner begge skatter. Dødsboets § 30-grundlag
+  og kulbrinteskattepligtens kildefakta ligger én gang på årsinputtet, mens
+  skattepligtspositionen forbliver en kompakt værdi på hver indkomstrække.
+  Manglende eller uvedkommende årsgrundlag, blandede skattepligtskategorier,
+  uafklaret dobbeltbeskatningsaftale, KSL-beskatningsvalg og den endnu ikke
+  sammensatte dødsboaktieskat fejler lukket. Den komplette JSON/XLSX-rundtur
+  bevarer tre repræsentative resultater byteidentisk: 200.000 kr. DIS-løn i et
+  bo med 600.000 kr. bobeskatningsindkomst og 40.000 kr. § 30-fradrag giver
+  86.666 kr. lempelse og 173.334 kr. resterende dødsboskat; 300.000 kr. under
+  KSL § 2, stk. 2, giver nul dansk skat; og 500.000 kr. efter
+  kulbrinteskattelovens § 21, stk. 2, får fjernet 150.000 kr. indkomstskat og
+  40.000 kr. AM-bidrag. De almindelige Personskat-sluttal afviser samtidig
+  eksplicit disse positioner, så et særskilt resultat ikke kan præsenteres som
+  en ordinær fuldt-skattepligtig beregning.
+  Dødsboets forholdsmæssige DIS-indkomst begrænses til den positive
+  bobeskatningsindkomst, så modgående indkomstposter ikke kan skabe en
+  lempelse over den samlede § 30-skat. Begge nye afhængighedsberegninger
+  accepterer kun corpusårene 2025 og 2026 og fejler eksplicit lukket udenfor.
 - Validerede `@ calculate`-kontrakter har nu en vedvarende,
   indholdsadresseret cache. Nøglen omfatter compilerbinæren, prelude-valget,
   rodfilen og alle transitive almindelige, kvalificerede og hash-baserede
@@ -4821,9 +4847,6 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Færdiggør den sidste afgrænsede SØBL-rest uden at svække den nye
-  kildefaktamodel: `td-44eb29` giver dødsboer, begrænset skattepligtige og
-  kulbrinteskattesager deres egne kanoniske beløbsresultater.
 - Udskyd næste performance-lag, indtil de væsentlige resterende lovregler er
   implementeret. Når fokus vender tilbage til målt latenstid, ejer `td-60a9d6`
   genbrug af parsede og typede moduler, mens `td-783a9c` ejer en resident

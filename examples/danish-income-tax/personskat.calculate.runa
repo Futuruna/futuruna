@@ -267,6 +267,55 @@
     help = Some("§§ 5-8 skelner mellem fuld skattepligt, begrænset skattepligt, kulbrinteskattepligt og andre positioner."),
     unit = None
 )
+= personskat_felt_dis_kulbrinteskattegrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatInput::lønmodtager::personlig_indkomst::sømandsbeskatning::kulbrinteskattegrundlag::$variant),
+    label = "Kulbrinteskattegrundlag efter § 21, stk. 2",
+    question = Some("Skal der knyttes et kulbrinteskattegrundlag til årets sømandsindkomst?"),
+    help = Some("Vælg kun et grundlag, når skattepligtspositionen er kulbrinteskattepligt efter § 21, stk. 2."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_personstatus = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::personstatus::$variant),
+    label = "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
+    question = Some("Var personen uden for fuld skattepligt efter kildeskattelovens § 1?"),
+    help = Some("Feltet udfyldes kun for kulbrinteskattepligt efter § 21, stk. 2."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_arbejdsgiverhjemting = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::arbejdsgiverhjemting::$variant),
+    label = "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
+    question = Some("Havde arbejdsgiveren hjemting i Danmark?"),
+    help = Some("Den endelige bruttoskat efter § 21, stk. 2, forudsætter en arbejdsgiver uden hjemting i Danmark."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_indkomstkategori = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::indkomstkategori::$variant),
+    label = "Indkomstkategori efter kulbrinteskatteloven",
+    question = Some("Hvilken kategori efter kulbrinteskattelovens § 21, stk. 2, tilhørte indkomsten?"),
+    help = Some("Erhvervsindkomst og indtægt efter § 4 falder uden for den afgrænsede bruttoskatteberegning."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_beskatningsret = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::dansk_beskatningsret::$variant),
+    label = "Dansk beskatningsret til kulbrinteindkomsten",
+    question = Some("Er dansk beskatningsret bekræftet eller afskåret af en dobbeltbeskatningsaftale?"),
+    help = Some("Vælg uafklaret, hvis den relevante dobbeltbeskatningsaftale endnu ikke er vurderet; beregningen fejler da lukket."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_beskatningsvalg = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::beskatningsvalg::$variant),
+    label = "Beskatningsvalg for kulbrinteindkomsten",
+    question = Some("Er den endelige bruttoskat efter § 21, stk. 2, valgt, eller er ordinær beskatning efter kildeskattelovens § 2 valgt?"),
+    help = Some("Valg af ordinær kildeskat kræver den tilsvarende beregning og fejler derfor lukket i dette afgrænsede resultat."),
+    unit = None
+)
+= personskat_felt_dis_kulbrinte_alder = TypetBeregningsfelt(
+    path = refof(Kulbrinteskattelov21Stk2Kildefakta::alder_ved_indkomstårets_udløb),
+    label = "Alder ved indkomstårets udløb for kulbrinteindkomsten",
+    question = Some("Hvor gammel var personen ved indkomstårets udløb?"),
+    help = Some("Alderen bruges til den gældende personlige sats for arbejdsmarkedsbidrag."),
+    unit = Some("år")
+)
 = personskat_felt_dis_statsborgerskab = TypetBeregningsfelt(
     path = refof(Søbl5Til8Indkomstfakta::person::statsborgerskab::$variant),
     label = "Statsborgerskab ved passagersejlads",
@@ -770,6 +819,62 @@
     question = Some("Hvor stort var beløbet før fordeling af årets § 7 U-bundfradrag?"),
     help = Some("Angiv hele beløbet. Futuruna fordeler bundfradraget og fører den resterende anden indkomst til det ordinære AM-bidragsgrundlag."),
     unit = Some("kr.")
+)
+= personskat_felt_dis_dødsboskattegrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatInput::lønmodtager::personlig_indkomst::sømandsbeskatning::dødsboskattegrundlag::$variant),
+    label = "Dødsboets skattegrundlag efter § 30",
+    question = Some("Skal der knyttes et dødsboskattegrundlag til årets DIS-indkomst?"),
+    help = Some("Vælg kun et grundlag, når skattepligtspositionen er et dødsbo omfattet af dødsboskattelovens § 1, stk. 2."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_indkomstår = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::indkomstår),
+    label = "Dødsboets indkomstår",
+    question = Some("Hvilket indkomstår vedrører dødsboskattegrundlaget?"),
+    help = Some("Indkomståret skal svare til den samlede Personskat-beregning."),
+    unit = Some("år")
+)
+= personskat_felt_dis_dødsbo_boform = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::boform::$variant),
+    label = "Dødsboets behandlingsform",
+    question = Some("Hvordan behandles dødsboet efter dødsboskattelovens § 1, stk. 2?"),
+    help = Some("Boer overtaget af en længstlevende ægtefælle og boudlæg uden skiftebehandling er ikke skattepligtige efter bestemmelsen."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_bobeskatningsindkomst = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::bobeskatningsindkomst_kroner),
+    label = "Positiv bobeskatningsindkomst",
+    question = Some("Hvor stor er boets bobeskatningsindkomst før dødsboskat og fradrag efter § 30?"),
+    help = Some("Den afgrænsede beregning understøtter positiv bobeskatningsindkomst."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_bofradrag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::bofradrag_stk2_kroner),
+    label = "Bofradrag efter § 30, stk. 2",
+    question = Some("Hvor stort er det regulerede bofradrag efter § 30, stk. 2?"),
+    help = Some("Angiv det allerede opgjorte fradrag for den relevante bobeskatningsperiode."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_mellemperiodefradrag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::mellemperiodefradrag_stk3_kroner),
+    label = "Mellemperiodefradrag efter § 30, stk. 3",
+    question = Some("Hvor stort er det regulerede fradrag for mellemperioden efter § 30, stk. 3?"),
+    help = Some("Angiv det allerede opgjorte fradrag for perioden frem til dødsfaldet."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_ægtefællefradrag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::ægtefællefradrag_stk4_kroner),
+    label = "Fradrag for tidligere afdød ægtefælle efter § 30, stk. 4",
+    question = Some("Hvor stort er det regulerede yderligere fradrag efter § 30, stk. 4?"),
+    help = Some("Angiv nul, hvis afdøde ikke skulle beskattes af en tidligere afdød ægtefælles indkomst efter § 62."),
+    unit = Some("kr.")
+)
+= personskat_felt_dis_dødsbo_aktieskatteforhold = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::aktieskatteforhold::$variant),
+    label = "Aktieskatteforhold i dødsboet",
+    question = Some("Kræver boets aktieindkomst eller negative aktieskat samordning efter §§ 30-32?"),
+    help = Some("Aktieskatteinteraktion markeres eksplicit og fejler lukket, indtil den fulde dødsboaktieskat er sammensat."),
+    unit = None
 )
 = personskat_felt_ægtefælle = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::$variant),
@@ -9556,6 +9661,41 @@
         DependencySource(value = søbl5_til8_bek940),
     )
 )
+= personskat_meta_dis_dødsboskattegrundlag = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_dis_dødsboskattegrundlag,
+        personskat_felt_dis_dødsbo_indkomstår,
+        personskat_felt_dis_dødsbo_boform,
+        personskat_felt_dis_dødsbo_bobeskatningsindkomst,
+        personskat_felt_dis_dødsbo_bofradrag,
+        personskat_felt_dis_dødsbo_mellemperiodefradrag,
+        personskat_felt_dis_dødsbo_ægtefællefradrag,
+        personskat_felt_dis_dødsbo_aktieskatteforhold
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = dødsboskattelov_par1_par30_lbk426),
+    )
+)
+= personskat_meta_dis_kulbrinteskattegrundlag = TypetBeregningsmeta(
+    felter = [
+        personskat_felt_dis_kulbrinteskattegrundlag,
+        personskat_felt_dis_kulbrinte_personstatus,
+        personskat_felt_dis_kulbrinte_arbejdsgiverhjemting,
+        personskat_felt_dis_kulbrinte_indkomstkategori,
+        personskat_felt_dis_kulbrinte_beskatningsret,
+        personskat_felt_dis_kulbrinte_beskatningsvalg,
+        personskat_felt_dis_kulbrinte_alder
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = søbl5_til8_lbk1181),
+        DependencySource(value = kulbrinteskattelov_par21_lbk477),
+    )
+)
 = personskat_metadata_ægtefællegrundlag = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_ægtefælle),
@@ -11055,6 +11195,8 @@
         personskat_meta_dis_indkomster,
         personskat_meta_dis_skibsårsdrifter,
         personskat_meta_andre_ligningslov7u_indkomster,
+        personskat_meta_dis_dødsboskattegrundlag,
+        personskat_meta_dis_kulbrinteskattegrundlag,
         personskat_metadata_ægtefællegrundlag,
         personskat_metadata_underskudsforhold,
         personskat_metadata_befordring,

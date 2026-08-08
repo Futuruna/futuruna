@@ -1372,6 +1372,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Ægtefællens årlige bruttoløn",
             "Ægtefællens renteudgifter",
             "Valg af sømandsfradrag",
+            "Dødsboets skattegrundlag efter § 30",
+            "Dødsboets indkomstår",
+            "Dødsboets behandlingsform",
+            "Positiv bobeskatningsindkomst",
+            "Bofradrag efter § 30, stk. 2",
+            "Mellemperiodefradrag efter § 30, stk. 3",
+            "Fradrag for tidligere afdød ægtefælle efter § 30, stk. 4",
+            "Aktieskatteforhold i dødsboet",
+            "Kulbrinteskattegrundlag efter § 21, stk. 2",
+            "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
+            "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
+            "Indkomstkategori efter kulbrinteskatteloven",
+            "Dansk beskatningsret til kulbrinteindkomsten",
+            "Beskatningsvalg for kulbrinteindkomsten",
+            "Alder ved indkomstårets udløb for kulbrinteindkomsten",
             "Status for øvrige lønmodtagerudgifter",
             "Befordringsfradrag",
             "Personens rolle ved rejserne",
@@ -1448,6 +1463,31 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             })
             .count();
         assert_eq!(case_headers.len(), case_column_count + 1);
+        let nonstandard_taxpayer_paths = workbook_column_paths(&mut workbook, "cases");
+        for expected in [
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.indkomstår",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.boform",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.bobeskatningsindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.bofradrag_stk2_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.mellemperiodefradrag_stk3_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefællefradrag_stk4_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieskatteforhold",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.personstatus",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.arbejdsgiverhjemting",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.indkomstkategori",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.dansk_beskatningsret",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.beskatningsvalg",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.alder_ved_indkomstårets_udløb",
+        ] {
+            assert!(
+                nonstandard_taxpayer_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical non-standard SØBL source-fact path {expected}"
+            );
+        }
         let seafarer_employments_path = "lønmodtager.ligningsfradrag.sømandsfradrag.beskæftigelser";
         let seafarer_employments_sheet =
             workbook_collection_sheet_name(&mut workbook, seafarer_employments_path);
@@ -5228,6 +5268,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         Data::String("UdenEtableringskontoindskud".to_string()),
                     ),
                     (
+                        "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.$variant",
+                        Data::String("Søbl5IntetDødsboskattegrundlag".to_string()),
+                    ),
+                    (
+                        "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
+                        Data::String("Søbl5BIntetKulbrinteskattegrundlag".to_string()),
+                    ),
+                    (
                         "lønmodtager.ligningsfradrag.sømandsfradrag.valg",
                         Data::String("FravælgSømandsfradrag".to_string()),
                     ),
@@ -6289,6 +6337,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.etableringskonto.$variant",
                 Data::String("UdenEtableringskontoindskud".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.$variant",
+                Data::String("Søbl5IntetDødsboskattegrundlag".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
+                Data::String("Søbl5BIntetKulbrinteskattegrundlag".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.ligningsfradrag.sømandsfradrag.valg",
@@ -10250,7 +10306,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
+                "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
                     "virksomheder_uden_virksomhedsordning": [],
@@ -11730,7 +11786,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
-                    "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
+                    "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
                         "virksomheder_uden_virksomhedsordning": [],
@@ -12435,7 +12491,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
         },
-        "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [] },
+        "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
             "virksomheder_uden_virksomhedsordning": [],
@@ -13369,7 +13425,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "andre_ligningslov7u_indkomster": [{
             "identifikation": "anden-ligningslov7u-2026",
             "beløb_kroner": 60_000
-        }]
+        }],
+        "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" },
+        "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
     });
     let mut dis_ligningslov7u_income = dis_case["input"]["lønmodtager"]["personlig_indkomst"]
         ["sømandsbeskatning"]["indkomster"][0]
@@ -13428,6 +13486,104 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ["skibsårsdrifter"] = Value::Array(vec![]);
     dis_course_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
         ["andre_ligningslov7u_indkomster"] = Value::Array(vec![]);
+
+    let mut death_estate_case = dis_case.clone();
+    death_estate_case["case_id"] = Value::String("personskat-dis-doedsbo-2026".into());
+    death_estate_case["input"]["lønmodtager"]["bruttoløn_kroner"] = serde_json::json!(0);
+    let mut death_estate_income = death_estate_case["input"]["lønmodtager"]["personlig_indkomst"]
+        ["sømandsbeskatning"]["indkomster"][0]
+        .clone();
+    death_estate_income["identifikation"] = Value::String("doedsbo-dis-gods-2026".into());
+    death_estate_income["person"]["skattepligt"] =
+        serde_json::json!({ "$variant": "SøblDødsboEfterDødsboskattelov1Stk2" });
+    death_estate_income["skib"]["identifikation"] = Value::String("doedsbo-dis-skib-2026".into());
+    death_estate_income["arbejde"]["anvendelse"] = serde_json::json!({
+        "$variant": "SøblUdelukkendeAnvendtTil",
+        "aktivitet": {
+            "$variant": "SøblTransportAfGodsMellemForskelligeDestinationer"
+        }
+    });
+    death_estate_income["arbejde"]["arbejdsområde"] =
+        serde_json::json!({ "$variant": "SøblArbejdeUdenForEUEØS" });
+    death_estate_income["løn"]["beløb_kroner"] = serde_json::json!(200_000);
+    death_estate_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"] = serde_json::json!({
+        "indkomster": [death_estate_income],
+        "skibsårsdrifter": [],
+        "andre_ligningslov7u_indkomster": [],
+        "dødsboskattegrundlag": {
+            "$variant": "Søbl5Dødsboskattegrundlag",
+            "input": {
+                "indkomstår": 2026,
+                "boform": { "$variant": "Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark" },
+                "bobeskatningsindkomst_kroner": 600_000,
+                "bofradrag_stk2_kroner": 30_000,
+                "mellemperiodefradrag_stk3_kroner": 10_000,
+                "ægtefællefradrag_stk4_kroner": 0,
+                "aktieskatteforhold": { "$variant": "Dbl30IngenAktieskatteinteraktion" }
+            }
+        },
+        "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
+    });
+
+    let mut limited_taxpayer_case = death_estate_case.clone();
+    limited_taxpayer_case["case_id"] =
+        Value::String("personskat-dis-begraenset-skattepligt-2026".into());
+    let mut limited_taxpayer_income = limited_taxpayer_case["input"]["lønmodtager"]
+        ["personlig_indkomst"]["sømandsbeskatning"]["indkomster"][0]
+        .clone();
+    limited_taxpayer_income["identifikation"] = Value::String("begraenset-dis-gods-2026".into());
+    limited_taxpayer_income["person"]["skattepligt"] =
+        serde_json::json!({ "$variant": "SøblBegrænsetSkattepligtigEfterKsl2Stk2" });
+    limited_taxpayer_income["person"]["statsborgerskab"] =
+        serde_json::json!({ "$variant": "SøblAndetStatsborgerskab" });
+    limited_taxpayer_income["skib"]["identifikation"] =
+        Value::String("begraenset-dis-skib-2026".into());
+    limited_taxpayer_income["løn"]["beløb_kroner"] = serde_json::json!(300_000);
+    limited_taxpayer_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"] = serde_json::json!({
+        "indkomster": [limited_taxpayer_income],
+        "skibsårsdrifter": [],
+        "andre_ligningslov7u_indkomster": [],
+        "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" },
+        "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
+    });
+
+    let mut hydrocarbon_case = death_estate_case.clone();
+    hydrocarbon_case["case_id"] = Value::String("personskat-dis-kulbrinte-2026".into());
+    let mut hydrocarbon_income = hydrocarbon_case["input"]["lønmodtager"]["personlig_indkomst"]
+        ["sømandsbeskatning"]["indkomster"][0]
+        .clone();
+    hydrocarbon_income["identifikation"] = Value::String("kulbrinte-dis-2026".into());
+    hydrocarbon_income["person"]["skattepligt"] =
+        serde_json::json!({ "$variant": "SøblKulbrinteskattepligtigEfterPar21Stk2" });
+    hydrocarbon_income["person"]["statsborgerskab"] =
+        serde_json::json!({ "$variant": "SøblAndetStatsborgerskab" });
+    hydrocarbon_income["skib"] = serde_json::json!({
+        "identifikation": "kulbrinte-eu-skib-2026",
+        "registrering": {
+            "$variant": "SøblUdenlandskSkibRegistreretIEUEØS",
+            "flag": { "$variant": "SøblEUEØSFlag" }
+        },
+        "bruttotonnage": 12_000,
+        "arbejdsgiverstatus": { "$variant": "SøblUdenlandskArbejdsgiverGodkendtEfterPar11A" }
+    });
+    hydrocarbon_income["løn"]["beløb_kroner"] = serde_json::json!(500_000);
+    hydrocarbon_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"] = serde_json::json!({
+        "indkomster": [hydrocarbon_income],
+        "skibsårsdrifter": [],
+        "andre_ligningslov7u_indkomster": [],
+        "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" },
+        "kulbrinteskattegrundlag": {
+            "$variant": "Søbl5BKulbrinteskattegrundlag",
+            "kildefakta": {
+                "personstatus": { "$variant": "KulbrintePersonIkkeOmfattetAfKildeskattelov1" },
+                "arbejdsgiverhjemting": { "$variant": "KulbrinteArbejdsgiverUdenHjemtingIDanmark" },
+                "indkomstkategori": { "$variant": "KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag" },
+                "dansk_beskatningsret": { "$variant": "KulbrinteDanskBeskatningsretBekræftet" },
+                "beskatningsvalg": { "$variant": "KulbrinteEndeligBruttoskatEfterPar21Stk2" },
+                "alder_ved_indkomstårets_udløb": 40
+            }
+        }
+    });
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -13436,6 +13592,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(dis_course_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(limited_taxpayer_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(hydrocarbon_case);
     for case in json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -13546,6 +13714,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-kursus-2026")
         .expect("DIS course JSON case")
         .clone();
+    let death_estate_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-2026")
+        .expect("death-estate DIS JSON case")
+        .clone();
+    let limited_taxpayer_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-begraenset-skattepligt-2026")
+        .expect("limited-taxpayer DIS JSON case")
+        .clone();
+    let hydrocarbon_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kulbrinte-2026")
+        .expect("hydrocarbon DIS JSON case")
+        .clone();
     let par32_mixed_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -13566,6 +13755,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         negative_share_tax_carry_case,
         dis_case,
         dis_course_case,
+        death_estate_case,
+        limited_taxpayer_case,
+        hydrocarbon_case,
         par32_mixed_case,
     ]);
     std::fs::write(
@@ -13877,6 +14069,120 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-2026")
         .expect("hydrated XLSX DIS result");
     assert_eq!(hydrated_dis_result["result"], json_dis_result["result"]);
+    let json_death_estate_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-2026")
+        .expect("JSON death-estate DIS result");
+    let hydrated_death_estate_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-2026")
+        .expect("hydrated XLSX death-estate DIS result");
+    assert_eq!(
+        hydrated_death_estate_result["result"],
+        json_death_estate_result["result"]
+    );
+    let death_estate_annual =
+        &hydrated_death_estate_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(death_estate_annual["alle_input_gyldige"], true);
+    assert_eq!(death_estate_annual["beregningsklar"], true);
+    assert_eq!(
+        death_estate_annual["skattepligtskategori"]["$variant"],
+        "SøblDødsboSkattepligtKategori"
+    );
+    assert_eq!(
+        death_estate_annual["dødsbo_lempelse"]["forholdsmæssig_lempelse_kroner"],
+        86_666
+    );
+    assert_eq!(
+        death_estate_annual["dødsbo_lempelse"]["dødsboskat_efter_søbl5_kroner"],
+        173_334
+    );
+    assert_eq!(
+        death_estate_annual["dødsbo_lempelse"]["arbejdsmarkedsbidrag_kroner"],
+        0
+    );
+    assert_eq!(
+        hydrated_death_estate_result["result"]["sømandsbeskatning"]["input_gyldigt"],
+        false
+    );
+
+    let json_limited_taxpayer_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-begraenset-skattepligt-2026")
+        .expect("JSON limited-taxpayer DIS result");
+    let hydrated_limited_taxpayer_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-begraenset-skattepligt-2026")
+        .expect("hydrated XLSX limited-taxpayer DIS result");
+    assert_eq!(
+        hydrated_limited_taxpayer_result["result"],
+        json_limited_taxpayer_result["result"]
+    );
+    let limited_taxpayer_annual =
+        &hydrated_limited_taxpayer_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(limited_taxpayer_annual["alle_input_gyldige"], true);
+    assert_eq!(limited_taxpayer_annual["beregningsklar"], true);
+    assert_eq!(
+        limited_taxpayer_annual["begrænset_skattefritagelse"]["løn_uden_dansk_skat_kroner"],
+        300_000
+    );
+    assert_eq!(
+        limited_taxpayer_annual["begrænset_skattefritagelse"]["dansk_indkomstskat_kroner"],
+        0
+    );
+    assert_eq!(
+        limited_taxpayer_annual["begrænset_skattefritagelse"]["arbejdsmarkedsbidrag_kroner"],
+        0
+    );
+    assert_eq!(
+        hydrated_limited_taxpayer_result["result"]["sømandsbeskatning"]["input_gyldigt"],
+        false
+    );
+
+    let json_hydrocarbon_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kulbrinte-2026")
+        .expect("JSON hydrocarbon DIS result");
+    let hydrated_hydrocarbon_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-kulbrinte-2026")
+        .expect("hydrated XLSX hydrocarbon DIS result");
+    assert_eq!(
+        hydrated_hydrocarbon_result["result"],
+        json_hydrocarbon_result["result"]
+    );
+    let hydrocarbon_annual =
+        &hydrated_hydrocarbon_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(hydrocarbon_annual["alle_input_gyldige"], true);
+    assert_eq!(hydrocarbon_annual["beregningsklar"], true);
+    assert_eq!(
+        hydrocarbon_annual["kulbrinte_lempelse"]["indkomstskattenedsættelse_kroner"],
+        150_000
+    );
+    assert_eq!(
+        hydrocarbon_annual["kulbrinte_lempelse"]["arbejdsmarkedsbidragsfritagelse_kroner"],
+        40_000
+    );
+    assert_eq!(
+        hydrocarbon_annual["kulbrinte_lempelse"]["samlet_skat_efter_søbl5b_kroner"],
+        0
+    );
+    assert_eq!(
+        hydrated_hydrocarbon_result["result"]["sømandsbeskatning"]["input_gyldigt"],
+        false
+    );
     let json_dis_course_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

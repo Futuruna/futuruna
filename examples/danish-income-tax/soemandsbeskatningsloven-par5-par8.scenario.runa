@@ -7,6 +7,14 @@
     statsborgerskab = statsborgerskab,
     relation = SøblAlmindeligLønmodtager
 )
+| søbl_scenarie_kulbrintekildefakta(beskatningsret: Kulbrinteskattelov21Stk2DanskBeskatningsret, valg: Kulbrinteskattelov21Stk2Beskatningsvalg, alder: Heltal) -> Kulbrinteskattelov21Stk2Kildefakta(
+    personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,
+    arbejdsgiverhjemting = KulbrinteArbejdsgiverUdenHjemtingIDanmark,
+    indkomstkategori = KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag,
+    dansk_beskatningsret = beskatningsret,
+    beskatningsvalg = valg,
+    alder_ved_indkomstårets_udløb = alder
+)
 | søbl_scenarie_skib(identifikation: Tekst, registrering: Søbl5Til8Registrering, arbejdsgiverstatus: Søbl5Til8Arbejdsgiverstatus) -> Søbl5Til8Skibsfakta(
     identifikation = identifikation,
     registrering = registrering,
@@ -171,7 +179,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 500000)
 )
-= søbl_scenarie_dansk_dis_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_dansk_dis_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = []))
+= søbl_scenarie_dansk_dis_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_dansk_dis_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag))
 = søbl_scenarie_dansk_dis_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl_scenarie_dansk_dis_år))
 = søbl_scenarie_dansk_dis_lempelse = søbl5_lempelsesresultat(søbl_scenarie_dansk_dis_model, søbl_scenarie_dansk_dis_år)
 = søbl_scenarie_kun_ordinær_model = beregn_lønmodtager_model(søbl_scenarie_lønmodtagerinput(300000, søbl5_til8_årsresultat(2025, søbl5_til8_intet_årsinput())))
@@ -179,6 +187,121 @@
 | søbl_scenarie_dansk_dis_klassificeres: søbl_scenarie_dansk_dis_år -> søbl_scenarie_dansk_dis_år.alle_input_gyldige && søbl_scenarie_dansk_dis_år.beregningsklar && søbl_scenarie_dansk_dis_år.samlet_dis_personlig_indkomst_kroner == 500000 && søbl_scenarie_dansk_dis_år.samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner == 0 && søbl_scenarie_dansk_dis_år.par13_stk5_lempelsesgrundlag == SømandsbeskatningslovPar5
 | søbl_scenarie_dis_er_uden_am: søbl_scenarie_dansk_dis_model -> søbl_scenarie_dansk_dis_model.indkomstgrundlag.arbejdsmarkedsbidrag_kroner == 24000 && søbl_scenarie_dansk_dis_model.indkomstgrundlag.personlig_indkomst_efter_am_kroner == 776000
 | søbl_scenarie_lempelse_med_progression: søbl_scenarie_dansk_dis_lempelse -> søbl_scenarie_dansk_dis_lempelse.input_gyldigt && søbl_scenarie_dansk_dis_lempelse.samlet_lempelse_kroner > 0 && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner > søbl_scenarie_kun_ordinær_model.slutskat.samlet_indkomstskat_kroner && søbl_scenarie_dansk_dis_lempelse.indkomstskat_efter_dis_lempelse_kroner < søbl_scenarie_dansk_dis_model.slutskat.samlet_indkomstskat_kroner
+
+= søbl_scenarie_dødsbo_fakta = søbl_scenarie_indkomst(
+    identifikation = "dødsbo-dis-gods",
+    person = søbl_scenarie_person(SøblDødsboEfterDødsboskattelov1Stk2, SøblStatsborgerIEUEØS),
+    skib = søbl_scenarie_skib("dødsbo-dis-skib", SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 200000)
+)
+= søbl_scenarie_dødsboskatteinput = Dødsboskattelov30Input(
+    indkomstår = 2025,
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    bofradrag_stk2_kroner = 30000,
+    mellemperiodefradrag_stk3_kroner = 10000,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+)
+= søbl_scenarie_dødsbo_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_dødsbo_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5Dødsboskattegrundlag(input = søbl_scenarie_dødsboskatteinput),
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+= søbl_scenarie_dødsbo_manglende_grundlag = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_dødsbo_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+= søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [Søbl5Til8Indkomstfakta(
+        identifikation = "dødsbo-dis-over-bobeskatningsindkomst",
+        indkomstår = 2025,
+        person = søbl_scenarie_dødsbo_fakta.person,
+        skib = søbl_scenarie_dødsbo_fakta.skib,
+        arbejde = søbl_scenarie_dødsbo_fakta.arbejde,
+        løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 700000)
+    )],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5Dødsboskattegrundlag(input = søbl_scenarie_dødsboskatteinput),
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+
+| søbl_scenarie_dødsbo_lempes_i_par30_skatten: søbl_scenarie_dødsbo_år -> søbl_scenarie_dødsbo_år.alle_input_gyldige && søbl_scenarie_dødsbo_år.beregningsklar && søbl_scenarie_dødsbo_år.skattepligtskategori == SøblDødsboSkattepligtKategori && head(søbl_scenarie_dødsbo_år.indkomstresultater).retsgrundlag == SøblPar5Stk1Dødsbo && head(søbl_scenarie_dødsbo_år.indkomstresultater).beskatningsvirkning == SøblNedsættelseAfDødsboskat && søbl_scenarie_dødsbo_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.relevant && søbl_scenarie_dødsbo_år.dødsbo_lempelse.beregningsklar && søbl_scenarie_dødsbo_år.dødsbo_lempelse.forholdsmæssig_lempelse_kroner == 86666 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.dødsboskat_efter_søbl5_kroner == 173334 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.arbejdsmarkedsbidrag_kroner == 0
+| søbl_scenarie_dødsbo_mangler_grundlag_fejler_lukket: søbl_scenarie_dødsbo_manglende_grundlag -> søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.relevant && søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.grundlag_tilstede == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.beregningsklar == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.alle_input_gyldige == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.beregningsklar == Falskt
+| søbl_scenarie_dødsbo_lempelse_begrænses_til_bobeskatningsindkomsten: søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst -> søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.alle_input_gyldige && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.beregningsklar && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dis_nettoløn_efter_bundfradrag_kroner == 700000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dis_nettoløn_i_forholdsmæssigt_grundlag_kroner == 600000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.forholdsmæssig_lempelse_kroner == 260000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dødsboskat_efter_søbl5_kroner == 0
+
+= søbl_scenarie_begrænset_fakta = søbl_scenarie_indkomst(
+    identifikation = "begrænset-dis-gods",
+    person = søbl_scenarie_person(SøblBegrænsetSkattepligtigEfterKsl2Stk2, SøblAndetStatsborgerskab),
+    skib = søbl_scenarie_skib("begrænset-dis-skib", SøblDanskSkibRegistreretIDIS, SøblDanskArbejdsgiver),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
+)
+= søbl_scenarie_begrænset_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_begrænset_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+
+| søbl_scenarie_begrænset_skattepligt_betaler_ingen_dansk_skat: søbl_scenarie_begrænset_år -> søbl_scenarie_begrænset_år.alle_input_gyldige && søbl_scenarie_begrænset_år.beregningsklar && søbl_scenarie_begrænset_år.skattepligtskategori == SøblBegrænsetSkattepligtKategori && head(søbl_scenarie_begrænset_år.indkomstresultater).retsgrundlag == SøblPar5Stk2 && søbl_scenarie_begrænset_år.begrænset_skattefritagelse.relevant && søbl_scenarie_begrænset_år.begrænset_skattefritagelse.løn_uden_dansk_skat_kroner == 300000 && søbl_scenarie_begrænset_år.begrænset_skattefritagelse.dansk_indkomstskat_kroner == 0 && søbl_scenarie_begrænset_år.begrænset_skattefritagelse.arbejdsmarkedsbidrag_kroner == 0 && søbl_scenarie_begrænset_år.samlet_dis_personlig_indkomst_kroner == 0
+
+| søbl_scenarie_kulbrinteindkomst(identifikation: Tekst, beløb_kroner: Heltal) -> søbl_scenarie_indkomst(
+    identifikation = identifikation,
+    person = søbl_scenarie_person(SøblKulbrinteskattepligtigEfterPar21Stk2, SøblAndetStatsborgerskab),
+    skib = søbl_scenarie_skib("kulbrinte-eu-skib", SøblUdenlandskSkibRegistreretIEUEØS(SøblEUEØSFlag), SøblUdenlandskArbejdsgiverGodkendtEfterPar11A),
+    arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
+    løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, beløb_kroner)
+)
+= søbl_scenarie_kulbrinte_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_kulbrinteindkomst("kulbrinte-dis", 500000)],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = søbl_scenarie_kulbrintekildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
+))
+= søbl_scenarie_kulbrinte_ksl_valg_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_kulbrinteindkomst("kulbrinte-ksl-valg", 500000)],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = søbl_scenarie_kulbrintekildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteValgtKildeskattelov2Stk1Nr1, 40))
+))
+= søbl_scenarie_kulbrinte_manglende_grundlag_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_kulbrinteindkomst("kulbrinte-manglende-grundlag", 500000)],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+= søbl_scenarie_ekstra_kulbrintegrundlag_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_dansk_dis_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = søbl_scenarie_kulbrintekildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
+))
+= søbl_scenarie_blandede_skattepligtskategorier_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_dansk_dis_fakta, søbl_scenarie_begrænset_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+
+| søbl_scenarie_kulbrinteskat_og_am_fritages_efter_par5b: søbl_scenarie_kulbrinte_år -> søbl_scenarie_kulbrinte_år.alle_input_gyldige && søbl_scenarie_kulbrinte_år.beregningsklar && søbl_scenarie_kulbrinte_år.skattepligtskategori == SøblKulbrinteSkattepligtKategori && head(søbl_scenarie_kulbrinte_år.indkomstresultater).retsgrundlag == SøblPar5B && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.relevant && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.grundlag_tilstede && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.beregningsklar && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.indkomstskattenedsættelse_kroner == 150000 && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.arbejdsmarkedsbidragsfritagelse_kroner == 40000 && søbl_scenarie_kulbrinte_år.kulbrinte_lempelse.samlet_skat_efter_søbl5b_kroner == 0 && søbl_scenarie_kulbrinte_år.samlet_dis_personlig_indkomst_kroner == 0
+| søbl_scenarie_kulbrinte_ksl_valg_fejler_lukket: søbl_scenarie_kulbrinte_ksl_valg_år -> søbl_scenarie_kulbrinte_ksl_valg_år.kulbrinte_lempelse.input_gyldigt && søbl_scenarie_kulbrinte_ksl_valg_år.kulbrinte_lempelse.beregningsklar == Falskt && søbl_scenarie_kulbrinte_ksl_valg_år.kulbrinte_lempelse.indkomstskattenedsættelse_kroner == 0 && søbl_scenarie_kulbrinte_ksl_valg_år.alle_input_gyldige && søbl_scenarie_kulbrinte_ksl_valg_år.beregningsklar == Falskt
+| søbl_scenarie_kulbrinte_mangler_grundlag_fejler_lukket: søbl_scenarie_kulbrinte_manglende_grundlag_år -> søbl_scenarie_kulbrinte_manglende_grundlag_år.kulbrinte_lempelse.relevant && søbl_scenarie_kulbrinte_manglende_grundlag_år.kulbrinte_lempelse.grundlag_tilstede == Falskt && søbl_scenarie_kulbrinte_manglende_grundlag_år.kulbrinte_lempelse.input_gyldigt == Falskt && søbl_scenarie_kulbrinte_manglende_grundlag_år.alle_input_gyldige == Falskt && søbl_scenarie_kulbrinte_manglende_grundlag_år.beregningsklar == Falskt
+| søbl_scenarie_ekstra_kulbrintegrundlag_afvises: søbl_scenarie_ekstra_kulbrintegrundlag_år -> søbl_scenarie_ekstra_kulbrintegrundlag_år.kulbrinte_lempelse.relevant == Falskt && søbl_scenarie_ekstra_kulbrintegrundlag_år.kulbrinte_lempelse.grundlag_tilstede && søbl_scenarie_ekstra_kulbrintegrundlag_år.kulbrinte_lempelse.input_gyldigt == Falskt && søbl_scenarie_ekstra_kulbrintegrundlag_år.alle_input_gyldige == Falskt && søbl_scenarie_ekstra_kulbrintegrundlag_år.beregningsklar == Falskt
+| søbl_scenarie_blandede_skattepligtskategorier_afvises: søbl_scenarie_blandede_skattepligtskategorier_år -> søbl_scenarie_blandede_skattepligtskategorier_år.skattepligtskategorier_konsistente == Falskt && søbl_scenarie_blandede_skattepligtskategorier_år.skattepligtskategori == SøblIngenSkattepligtskategori && søbl_scenarie_blandede_skattepligtskategorier_år.alle_input_gyldige == Falskt && søbl_scenarie_blandede_skattepligtskategorier_år.beregningsklar == Falskt
 
 = søbl_scenarie_ligningslov7u_dis_fakta = søbl_scenarie_indkomst(
     identifikation = "dis-ligningslov7u",
@@ -197,7 +320,9 @@
     andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
         identifikation = "anden-ligningslov7u",
         beløb_kroner = 60000
-    )]
+    )],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_ligningslov7u_cap_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [Søbl5Til8Indkomstfakta(
@@ -216,7 +341,9 @@
     andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
         identifikation = "anden-ligningslov7u-cap",
         beløb_kroner = 1000
-    )]
+    )],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_ligningslov7u_afrunding_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [Søbl5Til8Indkomstfakta(
@@ -235,7 +362,9 @@
     andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
         identifikation = "anden-ligningslov7u-afrunding",
         beløb_kroner = 20001
-    )]
+    )],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_ligningslov7u_dobbelt_identifikation_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_ligningslov7u_dis_fakta],
@@ -243,7 +372,9 @@
     andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
         identifikation = "dis-ligningslov7u",
         beløb_kroner = 60000
-    )]
+    )],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 
 | søbl_scenarie_ligningslov7u_fordeles_forholdsmæssigt: søbl_scenarie_ligningslov7u_blandet_år -> søbl_scenarie_ligningslov7u_blandet_år.alle_input_gyldige && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.fuldt_bundfradrag_kroner == 8000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.anvendt_bundfradrag_kroner == 8000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && søbl_scenarie_ligningslov7u_blandet_år.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner == 20000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_dis_personlig_indkomst_kroner == 18000 && søbl_scenarie_ligningslov7u_blandet_år.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 54000
@@ -258,7 +389,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeUdenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblNettolønUdenDokumenteretFastsættelse, 400000)
 )
-= søbl_scenarie_udenlandsk_ikke_godkendt_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_udenlandsk_ikke_godkendt_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = []))
+= søbl_scenarie_udenlandsk_ikke_godkendt_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_udenlandsk_ikke_godkendt_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag))
 
 | søbl_scenarie_udenlandsk_ikke_godkendt_afvises: søbl_scenarie_udenlandsk_ikke_godkendt_år -> søbl_scenarie_udenlandsk_ikke_godkendt_år.alle_input_gyldige && søbl_scenarie_udenlandsk_ikke_godkendt_år.beregningsklar == Falskt && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_udenlandsk_ikke_godkendt_år.samlet_uafklaret_nettoløn_kroner == 400000
 
@@ -269,7 +400,7 @@
     arbejde = søbl_scenarie_arbejde(SøblTransportAfGodsMellemForskelligeDestinationer, SøblArbejdeIndenForEUEØS, SøblIngenPassagersejlads, SøblAnvendPar10RefusionEllerAlmindeligBeskatning),
     løn = søbl_scenarie_løn(SøblOrdinærBruttoløn, 400000)
 )
-= søbl_scenarie_das_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_das_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = []))
+= søbl_scenarie_das_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_das_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag))
 
 | søbl_scenarie_das_forbliver_ordinær_løn: søbl_scenarie_das_år -> søbl_scenarie_das_år.beregningsklar && søbl_scenarie_das_år.kan_anvende_par5_til8 == Falskt && søbl_scenarie_das_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_das_år.samlet_ordinær_bruttoløn_kroner == 400000
 
@@ -324,12 +455,16 @@
 = søbl_scenarie_bugser_49_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_49_fakta],
     skibsårsdrifter = [søbl_scenarie_skibsårsdrift("bugser-49", 4900, 0, 5100, 2000)],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_50_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_50_fakta_første_periode, søbl_scenarie_bugser_50_fakta_anden_periode],
     skibsårsdrifter = [søbl_scenarie_skibsårsdrift("bugser-50", 4500, 500, 5000, 2000)],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_50_modstridende_årsdrift = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_50_fakta_første_periode],
@@ -337,22 +472,30 @@
         søbl_scenarie_skibsårsdrift("bugser-50", 4500, 500, 5000, 2000),
         søbl_scenarie_skibsårsdrift("bugser-50", 4900, 0, 5100, 2000),
     ],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_50_manglende_årsdrift = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_50_fakta_første_periode],
     skibsårsdrifter = [],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_50_skiftende_arbejdsgiver = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_50_fakta_første_periode, søbl_scenarie_bugser_50_fakta_anden_arbejdsgiver],
     skibsårsdrifter = [søbl_scenarie_skibsårsdrift("bugser-50", 4500, 500, 5000, 2000)],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_50_modstridende_skibsfakta = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_bugser_50_fakta_første_periode, søbl_scenarie_bugser_50_fakta_modstridende_tonnage],
     skibsårsdrifter = [søbl_scenarie_skibsårsdrift("bugser-50", 4500, 500, 5000, 2000)],
-    andre_ligningslov7u_indkomster = []
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_bugser_49 = head(søbl_scenarie_bugser_49_år.indkomstresultater)
 = søbl_scenarie_bugser_50_første = head(søbl_scenarie_bugser_50_år.indkomstresultater)
@@ -398,7 +541,7 @@
     løn = søbl_scenarie_løn(SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen, 300000)
 )
 = søbl_scenarie_par8 = søbl5_til8_indkomstresultat(2025, søbl_scenarie_par8_fakta)
-= søbl_scenarie_par8_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_par8_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = []))
+= søbl_scenarie_par8_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(indkomster = [søbl_scenarie_par8_fakta], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag))
 = søbl_scenarie_par13_stk5 = par13_stk5_overførsel_resultat(Par13Stk5OverførselInput(
     skatteår = 2025,
     ønsket_overførsel_kroner = 100000,
@@ -421,6 +564,15 @@
 ? søbl_scenarie_rejsedage_aggregeres_i_tolv_måneder
 ? søbl_scenarie_dis_er_uden_am
 ? søbl_scenarie_lempelse_med_progression
+? søbl_scenarie_dødsbo_lempes_i_par30_skatten
+? søbl_scenarie_dødsbo_mangler_grundlag_fejler_lukket
+? søbl_scenarie_dødsbo_lempelse_begrænses_til_bobeskatningsindkomsten
+? søbl_scenarie_begrænset_skattepligt_betaler_ingen_dansk_skat
+? søbl_scenarie_kulbrinteskat_og_am_fritages_efter_par5b
+? søbl_scenarie_kulbrinte_ksl_valg_fejler_lukket
+? søbl_scenarie_kulbrinte_mangler_grundlag_fejler_lukket
+? søbl_scenarie_ekstra_kulbrintegrundlag_afvises
+? søbl_scenarie_blandede_skattepligtskategorier_afvises
 ? søbl_scenarie_ligningslov7u_fordeles_forholdsmæssigt
 ? søbl_scenarie_ligningslov7u_bundfradrag_begrænses_til_indkomst
 ? søbl_scenarie_ligningslov7u_afrunding_bevarer_bundfradraget

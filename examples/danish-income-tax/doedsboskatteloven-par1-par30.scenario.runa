@@ -1,0 +1,63 @@
+@ sprog da
+
+@ importer ./doedsboskatteloven - par1 - par30
+
+= dødsbo_scenarie_positiv_indkomst = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    indkomstår = 2025,
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    bofradrag_stk2_kroner = 30000,
+    mellemperiodefradrag_stk3_kroner = 10000,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_fradrag_begrænses = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    indkomstår = 2025,
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 100000,
+    bofradrag_stk2_kroner = 70000,
+    mellemperiodefradrag_stk3_kroner = 0,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_længstlevende = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    indkomstår = 2025,
+    boform = Dbl1Stk2BoOvertagetAfLængstlevendeEfterPar58,
+    bobeskatningsindkomst_kroner = 600000,
+    bofradrag_stk2_kroner = 0,
+    mellemperiodefradrag_stk3_kroner = 0,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+= dødsbo_scenarie_aktieskat_afventer = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    indkomstår = 2025,
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    bofradrag_stk2_kroner = 0,
+    mellemperiodefradrag_stk3_kroner = 0,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30AktieskatteinteraktionKræverFuldBeregning
+))
+= dødsbo_scenarie_ikke_understøttet_år = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+    indkomstår = 2024,
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 600000,
+    bofradrag_stk2_kroner = 0,
+    mellemperiodefradrag_stk3_kroner = 0,
+    ægtefællefradrag_stk4_kroner = 0,
+    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+))
+
+| dødsbo_scenarie_par30_beregnes: dødsbo_scenarie_positiv_indkomst -> dødsbo_scenarie_positiv_indkomst.input_gyldigt && dødsbo_scenarie_positiv_indkomst.beregningsklar && dødsbo_scenarie_positiv_indkomst.dødsboskat_før_fradrag_kroner == 300000 && dødsbo_scenarie_positiv_indkomst.anvendte_fradrag_kroner == 40000 && dødsbo_scenarie_positiv_indkomst.dødsboskat_efter_fradrag_kroner == 260000
+| dødsbo_scenarie_fradrag_kan_ikke_skabe_negativ_skat: dødsbo_scenarie_fradrag_begrænses -> dødsbo_scenarie_fradrag_begrænses.dødsboskat_før_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.anvendte_fradrag_kroner == 50000 && dødsbo_scenarie_fradrag_begrænses.dødsboskat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_undtagne_boformer_afvises: dødsbo_scenarie_længstlevende -> dødsbo_scenarie_længstlevende.skattepligtigt_dødsbo_efter_par1_stk2 == Falskt && dødsbo_scenarie_længstlevende.beregningsklar == Falskt
+| dødsbo_scenarie_aktieskat_fejler_lukket: dødsbo_scenarie_aktieskat_afventer -> dødsbo_scenarie_aktieskat_afventer.input_gyldigt && dødsbo_scenarie_aktieskat_afventer.aktieskatteforhold_understøttet == Falskt && dødsbo_scenarie_aktieskat_afventer.beregningsklar == Falskt && dødsbo_scenarie_aktieskat_afventer.dødsboskat_efter_fradrag_kroner == 0
+| dødsbo_scenarie_ikke_understøttet_år_fejler_lukket: dødsbo_scenarie_ikke_understøttet_år -> dødsbo_scenarie_ikke_understøttet_år.skatteår_understøttet == Falskt && dødsbo_scenarie_ikke_understøttet_år.input_gyldigt == Falskt && dødsbo_scenarie_ikke_understøttet_år.beregningsklar == Falskt && dødsbo_scenarie_ikke_understøttet_år.dødsboskat_efter_fradrag_kroner == 0
+
+? dødsbo_scenarie_par30_beregnes
+? dødsbo_scenarie_fradrag_kan_ikke_skabe_negativ_skat
+? dødsbo_scenarie_undtagne_boformer_afvises
+? dødsbo_scenarie_aktieskat_fejler_lukket
+? dødsbo_scenarie_ikke_understøttet_år_fejler_lukket
+
+@ print("Dødsboskattelovens § 1, stk. 2, og den afgrænsede § 30-beregning kontrolleret")
