@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-44eb29` (Sømandsbeskatningslovens §§ 5 og 5 b giver nu dødsboer, begrænset skattepligtige efter KSL § 2, stk. 2, og kulbrinteskattepligtige efter § 21, stk. 2, særskilte beløbsresultater; de nødvendige årsgrundlag kommer fra typede Dødsboskattelov- og Kulbrinteskattelov-moduler og bevares gennem den genererede Personskat-arbejdsbog)
+Current implementation slice: `td-0ca3f2` (sammenhængende ø-logiophold efter LL § 9 A, stk. 12, bærer nu eksakte start- og sluttidspunkter; fulde 24-timers-døgn fordeles én gang på 2025 og 2026, hvert år bruger sin egen sats og sit eget loft, og tidsfakta bevares gennem JSON/XLSX)
+Previous implementation slice: `td-44eb29` (Sømandsbeskatningslovens §§ 5 og 5 b giver nu dødsboer, begrænset skattepligtige efter KSL § 2, stk. 2, og kulbrinteskattepligtige efter § 21, stk. 2, særskilte beløbsresultater; de nødvendige årsgrundlag kommer fra typede Dødsboskattelov- og Kulbrinteskattelov-moduler og bevares gennem den genererede Personskat-arbejdsbog)
 Previous exact-period slice: `td-00b484` (bekendtgørelse nr. 940 § 1 bruger typede start- og slutdatoer til seks- og tremånedersgrænserne; kursusperioder og nødvendige rejsedatoer aggregeres i eksplicitte 12-månedersopgørelser, og Personskat-arbejdsbogen bevarer de gentagne datofakta i relationstabeller med ISO-rækkefølge)
 Previous SØBL § 6 slice: `td-b874c0` (Sømandsbeskatningslovens § 6-driftstid oplyses én gang pr. stabil skibsidentifikation og indkomstår; alle lønperioder deler samme afledte 50-procentresultat, ventetid bevares som en eksakt forholdsmæssig brøk, og manglende, dublerede, modstridende eller uanvendte årsoplysninger fejler lukket gennem Personskat og arbejdsbogen)
 Previous DIS § 7 U slice: `td-a97df7` (bekendtgørelse nr. 940 § 4, stk. 2 fordeler ligningslovens § 7 U-bundfradrag mellem direkte DIS-tilknyttet nettoløn og anden § 7 U-indkomst; begge kildegrupper, allokeringen og de korrigerede beløb bevares typet gennem Personskat og arbejdsbogen)
@@ -447,21 +448,31 @@ satsdel og supplerende løn. Reglerne udleder virkningen uden
 fradragsberettigelsesflag fra kalderen og er verificeret i både interpreter,
 compiler og den relationelle XLSX-grænse.
 
-Den særskilte ø-logigren i § 9 A, stk. 12, er implementeret i `td-e53d8f`.
-Typede fakta beskriver bopælskommune, ø, fast vejforbindelse, arbejdssted,
-afstand og transporttid, hverv samt identificerede logiophold med dato,
-varighed og egenudgift. Reglerne genkender både kommunerne i § 9 C, stk. 3, og
+Den særskilte ø-logigren i § 9 A, stk. 12, er implementeret i `td-e53d8f` og
+dens årsafgrænsning i `td-0ca3f2`. Typede fakta beskriver bopælskommune, ø,
+fast vejforbindelse, arbejdssted, afstand og transporttid, hverv samt
+identificerede logiophold med eksakt starttidspunkt, eksklusivt sluttidspunkt
+og egenudgift. Reglerne genkender både kommunerne i § 9 C, stk. 3, og
 de ti særskilt nævnte småøer, kræver en ikkebrofast ø, et fast arbejdssted og
 umulig hjemmeovernatning og genbruger stk. 11's person- og erhvervsudelukkelser.
 Kun fulde døgn med egen logiudgift giver standardsats. Ugyldige, dublerede
-eller overlappende ophold fejler lukket.
+eller overlappende ophold fejler lukket. Et sammenhængende ophold kan krydse
+31. december: hvert fuldt 24-timers-døgn henføres én gang til året for døgnets
+starttidspunkt, og overlap samt dækning for dobbelt husførelse afgrænses til
+det beregnede indkomstår. Kilderne fastlægger fulde døgn og årlige satser, men
+ikke denne tekniske årshenføring; princippet er derfor bevaret som en typet
+`Assumption` i metadataindekset frem for skjult i en kommentar.
 
 Ø-logifradraget tildeles efter dobbelt husførelse og almindeligt rejsefradrag
 inden for det samme regulerede årsloft. Det kanoniske Personskat-resultat bruger
 nu det samlede § 9 A-fradrag både før og efter Sømandsbeskatningslovens § 4,
 stk. 2. Skatteforvaltningens Samsø-eksempel med fire fulde døgn giver 1.072 kr.
 i 2026; en sømandsberettiget person får beløbet synligt før udelukkelsen og 0
-kr. efter. Begge forløb passerer i interpreter og compiler.
+kr. efter. Et tre-døgnsophold fra 30. december 2025 til 2. januar 2026 giver
+to døgn a 256 kr. i 2025 og ét døgn a 268 kr. i 2026. Et længere
+årsskifteophold rammer særskilt loftet på 32.800 kr. i 2025 og 34.400 kr. i
+2026. Forløbene passerer i interpreter, compiler og den relationelle
+JSON/XLSX-grænse.
 
 Fradrag for dobbelt husførelse efter statsskattelovens § 6, litra a, er
 implementeret og kanonisk samordnet i `td-18836f`. Et særskilt typet domæne

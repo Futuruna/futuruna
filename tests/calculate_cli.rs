@@ -16520,8 +16520,14 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
                     "hverv": { "$variant": "Ll9AAlmindeligtHverv" },
                     "ophold": [{
                         "identifikation": "samsø-fire-døgn",
-                        "startdato": { "år": 2026, "måned": 6, "dag": 1 },
-                        "varighed_minutter": 5760,
+                        "starttidspunkt": {
+                            "dato": { "år": 2026, "måned": 6, "dag": 1 },
+                            "klokkeslæt": { "time": 10, "minut": 20 }
+                        },
+                        "sluttidspunkt_eksklusiv": {
+                            "dato": { "år": 2026, "måned": 6, "dag": 5 },
+                            "klokkeslæt": { "time": 10, "minut": 20 }
+                        },
                         "udgiftsforhold": {
                             "$variant": "Ll9AØlogiEgenUdgiftAfholdt"
                         }
@@ -16588,7 +16594,10 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
         let stay_headers = workbook_headers(&mut workbook, &stay_sheet);
         assert!(stay_headers
             .iter()
-            .any(|header| header == "Ølogiopholdets samlede varighed"));
+            .any(|header| header == "Ølogiopholdets starttidspunkt - time"));
+        assert!(stay_headers
+            .iter()
+            .any(|header| header == "Ølogiopholdets sluttidspunkt - minut"));
         assert!(workbook
             .worksheet_range(&stay_sheet)
             .expect("island lodging stays")
@@ -16608,7 +16617,7 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
             .iter()
             .position(|cell| cell.to_string() == "sources")
             .expect("sources metadata column");
-        let duration_metadata = column_metadata
+        let end_minute_metadata = column_metadata
             .rows()
             .skip(1)
             .find(|row| {
@@ -16616,11 +16625,11 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
                     .map(ToString::to_string)
                     .as_deref()
                     == Some(
-                        "årsinput.ølogi.MedØlogifradrag.arbejdsforhold.ophold.varighed_minutter",
+                        "årsinput.ølogi.MedØlogifradrag.arbejdsforhold.ophold.sluttidspunkt_eksklusiv.klokkeslæt.minut",
                     )
             })
-            .expect("island lodging duration metadata");
-        assert!(duration_metadata
+            .expect("island lodging end-minute metadata");
+        assert!(end_minute_metadata
             .get(sources_column)
             .map(ToString::to_string)
             .expect("island lodging sources")
@@ -16652,6 +16661,15 @@ fn ligningslov9a_xlsx_round_trips_island_lodging_input() {
     assert_eq!(annual["ølogi"]["bopæl_omfattet_af_par9c_stk3"], true);
     assert_eq!(annual["ølogi"]["fradrag_før_fælles_årsloft_kroner"], 1072);
     assert_eq!(annual["samlet_ll9a_fradrag_efter_årsloft_kroner"], 1072);
+    let stay = &annual["ølogi"]["arbejdsforholdsresultater"][0]["opholdsresultater"][0];
+    assert_eq!(stay["samlet_varighed_minutter"], 5760);
+    assert_eq!(stay["samlet_antal_fulde_logidøgn"], 4);
+    assert_eq!(stay["antal_fulde_logidøgn_i_indkomståret"], 4);
+    assert_eq!(stay["fakta"]["starttidspunkt"]["klokkeslæt"]["time"], 10);
+    assert_eq!(
+        stay["fakta"]["sluttidspunkt_eksklusiv"]["klokkeslæt"]["minut"],
+        20
+    );
 }
 
 #[test]

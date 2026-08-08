@@ -617,11 +617,25 @@
     Ll9AIngenEksternUdelukkelse
 )
 
-| ll9a_scenarie_ølogiophold(identifikation: Tekst, startdato: Dato, varighed_minutter: Heltal) -> Ligningslov9AØlogiophold(
+| ll9a_scenarie_ølogiophold_mellem(identifikation: Tekst, starttidspunkt: DatoTidspunkt, sluttidspunkt_eksklusiv: DatoTidspunkt) -> Ligningslov9AØlogiophold(
     identifikation = identifikation,
-    startdato = startdato,
-    varighed_minutter = varighed_minutter,
+    starttidspunkt = starttidspunkt,
+    sluttidspunkt_eksklusiv = sluttidspunkt_eksklusiv,
     udgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt
+)
+| ll9a_scenarie_ølogiophold(identifikation: Tekst, startdato: Dato, varighed_minutter: Heltal) -> ll9a_scenarie_ølogiophold_mellem(
+    identifikation = identifikation,
+    starttidspunkt = DatoTidspunkt(
+        dato = startdato,
+        klokkeslæt = Klokkeslæt(time = 0, minut = 0)
+    ),
+    sluttidspunkt_eksklusiv = DatoTidspunkt(
+        dato = dato_plus_dage(startdato, varighed_minutter / 1440),
+        klokkeslæt = Klokkeslæt(
+            time = (varighed_minutter % 1440) / 60,
+            minut = varighed_minutter % 60
+        )
+    )
 )
 | ll9a_scenarie_ølogiinput(
     kommune: Kommune,
@@ -660,6 +674,18 @@
         startdato = Dato(år = 2026, måned = 6, dag = 1),
         varighed_minutter = varighed_minutter
     )]
+)
+| ll9a_scenarie_ølogiårsresultat_i_indkomstår(indkomstår: Heltal, ølogi: Ligningslov9AØlogiInput) -> ligningslov9a_årsresultat(
+    indkomstår = indkomstår,
+    input = Ligningslov9AÅrsinput(
+        personrolle = Ll9AAlmindeligLønmodtager,
+        rejser = [],
+        udenlandske_indkomstkilder = [],
+        arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
+        ølogi = ølogi,
+        dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+    ),
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
 = ll9a_scenarie_samsø_fire_døgn_resultat = ll9a_scenarie_årsresultat_med_ølogi(
@@ -783,6 +809,71 @@
     dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse,
     ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
+= ll9a_scenarie_årsskifte_ølogiophold = ll9a_scenarie_ølogiophold_mellem(
+    identifikation = "årsskifte-tre-døgn",
+    starttidspunkt = DatoTidspunkt(
+        dato = Dato(år = 2025, måned = 12, dag = 30),
+        klokkeslæt = Klokkeslæt(time = 12, minut = 0)
+    ),
+    sluttidspunkt_eksklusiv = DatoTidspunkt(
+        dato = Dato(år = 2026, måned = 1, dag = 2),
+        klokkeslæt = Klokkeslæt(time = 12, minut = 0)
+    )
+)
+= ll9a_scenarie_årsskifte_ølogiinput = ll9a_scenarie_ølogiinput(
+    kommune = Samsø,
+    ø = Ll9AAndenDanskØ(navn = "Samsø"),
+    vejforbindelse = Ll9AIngenFastVejforbindelseFraØen,
+    arbejdsstedskarakter = Ll9AØlogiFastArbejdssted,
+    overnatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(95, 180),
+    hverv = Ll9AAlmindeligtHverv,
+    ophold = [ll9a_scenarie_årsskifte_ølogiophold]
+)
+= ll9a_scenarie_årsskifte_2025_resultat = ll9a_scenarie_ølogiårsresultat_i_indkomstår(2025, ll9a_scenarie_årsskifte_ølogiinput)
+= ll9a_scenarie_årsskifte_2026_resultat = ll9a_scenarie_ølogiårsresultat_i_indkomstår(2026, ll9a_scenarie_årsskifte_ølogiinput)
+= ll9a_scenarie_langt_årsskifte_ølogiinput = ll9a_scenarie_ølogiinput(
+    kommune = Samsø,
+    ø = Ll9AAndenDanskØ(navn = "Samsø"),
+    vejforbindelse = Ll9AIngenFastVejforbindelseFraØen,
+    arbejdsstedskarakter = Ll9AØlogiFastArbejdssted,
+    overnatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(95, 180),
+    hverv = Ll9AAlmindeligtHverv,
+    ophold = [ll9a_scenarie_ølogiophold_mellem(
+        identifikation = "langt-årsskifte",
+        starttidspunkt = DatoTidspunkt(
+            dato = Dato(år = 2025, måned = 8, dag = 1),
+            klokkeslæt = Klokkeslæt(time = 6, minut = 15)
+        ),
+        sluttidspunkt_eksklusiv = DatoTidspunkt(
+            dato = Dato(år = 2026, måned = 7, dag = 1),
+            klokkeslæt = Klokkeslæt(time = 6, minut = 15)
+        )
+    )]
+)
+= ll9a_scenarie_langt_årsskifte_2025_resultat = ll9a_scenarie_ølogiårsresultat_i_indkomstår(2025, ll9a_scenarie_langt_årsskifte_ølogiinput)
+= ll9a_scenarie_langt_årsskifte_2026_resultat = ll9a_scenarie_ølogiårsresultat_i_indkomstår(2026, ll9a_scenarie_langt_årsskifte_ølogiinput)
+= ll9a_scenarie_årslokal_overlap_a = ll9a_scenarie_ølogiophold_mellem(
+    identifikation = "årslokal-overlap-a",
+    starttidspunkt = DatoTidspunkt(
+        dato = Dato(år = 2025, måned = 12, dag = 31),
+        klokkeslæt = Klokkeslæt(time = 12, minut = 0)
+    ),
+    sluttidspunkt_eksklusiv = DatoTidspunkt(
+        dato = Dato(år = 2026, måned = 1, dag = 1),
+        klokkeslæt = Klokkeslæt(time = 12, minut = 0)
+    )
+)
+= ll9a_scenarie_årslokal_overlap_b = ll9a_scenarie_ølogiophold_mellem(
+    identifikation = "årslokal-overlap-b",
+    starttidspunkt = DatoTidspunkt(
+        dato = Dato(år = 2025, måned = 12, dag = 31),
+        klokkeslæt = Klokkeslæt(time = 18, minut = 0)
+    ),
+    sluttidspunkt_eksklusiv = DatoTidspunkt(
+        dato = Dato(år = 2026, måned = 1, dag = 1),
+        klokkeslæt = Klokkeslæt(time = 0, minut = 0)
+    )
+)
 
 | ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag: ll9a_scenarie_almindeligt_resultat -> ll9a_scenarie_almindeligt_resultat.alle_input_gyldige && ll9a_scenarie_almindeligt_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_almindeligt_resultat.samlet_skattepligtig_godtgørelse_kroner == 0 && ll9a_scenarie_almindeligt_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 986
 | ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning: ll9a_scenarie_faktiske_udgifter_resultat -> ll9a_scenarie_faktiske_udgifter_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_faktiske_udgifter_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1700
@@ -813,7 +904,7 @@
     rejse.input_gyldigt && rejse.standardsats_kostgodtgørelse_før_dækning_kroner == 1250 && rejse.standardsats_kostgodtgørelse_efter_dækning_kroner == 312 && rejse.standardsats_kostfradrag_efter_dækning_kroner == 312 && rejse.kostfradrag_kroner == 312 && rejse.logifradrag_kroner == 0
 }
 | ll9a_scenarie_samsø_fire_døgn_giver_vejledningens_fradrag: ll9a_scenarie_samsø_fire_døgn_resultat -> ll9a_scenarie_samsø_fire_døgn_resultat.alle_input_gyldige && ll9a_scenarie_samsø_fire_døgn_resultat.ølogi.bopæl_omfattet_af_par9c_stk3 && ll9a_scenarie_samsø_fire_døgn_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 1072 && ll9a_scenarie_samsø_fire_døgn_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 1072
-| ll9a_scenarie_ølogi_giver_kun_sats_for_fulde_døgn: ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat -> head(head(ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater).antal_fulde_logidøgn == 4 && ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 1072
+| ll9a_scenarie_ølogi_giver_kun_sats_for_fulde_døgn: ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat -> head(head(ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater).samlet_antal_fulde_logidøgn == 4 && head(head(ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater).antal_fulde_logidøgn_i_indkomståret == 4 && ll9a_scenarie_samsø_fire_døgn_og_treogtyve_timer_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 1072
 | ll9a_scenarie_brofast_ø_er_gyldig_men_ikke_omfattet: ll9a_scenarie_brofast_ø_resultat -> ll9a_scenarie_brofast_ø_resultat.alle_input_gyldige && ll9a_scenarie_brofast_ø_resultat.ølogi.bopæl_omfattet_af_par9c_stk3 == Falskt && ll9a_scenarie_brofast_ø_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_fast_arbejdssted_er_en_særlig_betingelse: ll9a_scenarie_midlertidigt_arbejdssted_resultat -> ll9a_scenarie_midlertidigt_arbejdssted_resultat.alle_input_gyldige && head(ll9a_scenarie_midlertidigt_arbejdssted_resultat.ølogi.arbejdsforholdsresultater).fast_arbejdssted == Falskt && ll9a_scenarie_midlertidigt_arbejdssted_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_mulig_hjemmeovernatning_afskærer_ølogi: ll9a_scenarie_hjemmeovernatning_mulig_resultat -> ll9a_scenarie_hjemmeovernatning_mulig_resultat.alle_input_gyldige && head(ll9a_scenarie_hjemmeovernatning_mulig_resultat.ølogi.arbejdsforholdsresultater).hjemmeovernatning_umulig == Falskt && ll9a_scenarie_hjemmeovernatning_mulig_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 0
@@ -822,6 +913,17 @@
 | ll9a_scenarie_stk11_afskærer_værnepligtiges_ølogi: ll9a_scenarie_værnepligtig_ølogi_resultat -> ll9a_scenarie_værnepligtig_ølogi_resultat.alle_input_gyldige && ll9a_scenarie_værnepligtig_ølogi_resultat.ølogi.stk11_udelukket && ll9a_scenarie_værnepligtig_ølogi_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_overlappende_øophold_fejler_lukket: ll9a_scenarie_overlappende_øophold_resultat -> ll9a_scenarie_overlappende_øophold_resultat.ølogi.ophold_ikke_overlappende == Falskt && ll9a_scenarie_overlappende_øophold_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_overlappende_øophold_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_rejser_og_ølogi_deler_årsloft: ll9a_scenarie_fælles_årsloft_med_ølogi_resultat -> ll9a_scenarie_fælles_årsloft_med_ølogi_resultat.alle_input_gyldige && ll9a_scenarie_fælles_årsloft_med_ølogi_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 986 && ll9a_scenarie_fælles_årsloft_med_ølogi_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 48240 && ll9a_scenarie_fælles_årsloft_med_ølogi_resultat.ølogi.fradrag_efter_fælles_årsloft_kroner == 33414 && ll9a_scenarie_fælles_årsloft_med_ølogi_resultat.samlet_ll9a_fradrag_efter_årsloft_kroner == 34400
+| ll9a_scenarie_årsskifte_fordeler_hvert_fuldt_døgn_præcis_en_gang: ll9a_scenarie_årsskifte_2025_resultat -> {
+    = resultat_2025 = head(head(ll9a_scenarie_årsskifte_2025_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater)
+    = resultat_2026 = head(head(ll9a_scenarie_årsskifte_2026_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater)
+    ll9a_scenarie_årsskifte_2025_resultat.alle_input_gyldige && ll9a_scenarie_årsskifte_2026_resultat.alle_input_gyldige && resultat_2025.samlet_antal_fulde_logidøgn == 3 && resultat_2025.antal_fulde_logidøgn_i_indkomståret == 2 && resultat_2026.antal_fulde_logidøgn_i_indkomståret == 1 && resultat_2025.antal_fulde_logidøgn_i_indkomståret + resultat_2026.antal_fulde_logidøgn_i_indkomståret == resultat_2025.samlet_antal_fulde_logidøgn && resultat_2025.standardsats_pr_døgn_kroner == 256 && resultat_2026.standardsats_pr_døgn_kroner == 268 && ll9a_scenarie_årsskifte_2025_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 512 && ll9a_scenarie_årsskifte_2026_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 268
+}
+| ll9a_scenarie_årsskifte_anvender_hvert_års_eget_loft: ll9a_scenarie_langt_årsskifte_2025_resultat -> {
+    = resultat_2025 = head(head(ll9a_scenarie_langt_årsskifte_2025_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater)
+    = resultat_2026 = head(head(ll9a_scenarie_langt_årsskifte_2026_resultat.ølogi.arbejdsforholdsresultater).opholdsresultater)
+    resultat_2025.antal_fulde_logidøgn_i_indkomståret == 153 && resultat_2026.antal_fulde_logidøgn_i_indkomståret == 181 && resultat_2025.antal_fulde_logidøgn_i_indkomståret + resultat_2026.antal_fulde_logidøgn_i_indkomståret == resultat_2025.samlet_antal_fulde_logidøgn && ll9a_scenarie_langt_årsskifte_2025_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 39168 && ll9a_scenarie_langt_årsskifte_2025_resultat.ølogi.fradrag_efter_fælles_årsloft_kroner == 32800 && ll9a_scenarie_langt_årsskifte_2026_resultat.ølogi.fradrag_før_fælles_årsloft_kroner == 48508 && ll9a_scenarie_langt_årsskifte_2026_resultat.ølogi.fradrag_efter_fælles_årsloft_kroner == 34400
+}
+| ll9a_scenarie_overlapkontrol_er_indkomstårslokal: ll9a_scenarie_årslokal_overlap_a -> ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(2025, ll9a_scenarie_årslokal_overlap_a, ll9a_scenarie_årslokal_overlap_b) && ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(2026, ll9a_scenarie_årslokal_overlap_a, ll9a_scenarie_årslokal_overlap_b) == Falskt
 
 ? ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag
 ? ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning
@@ -855,3 +957,6 @@
 ? ll9a_scenarie_stk11_afskærer_værnepligtiges_ølogi
 ? ll9a_scenarie_overlappende_øophold_fejler_lukket
 ? ll9a_scenarie_rejser_og_ølogi_deler_årsloft
+? ll9a_scenarie_årsskifte_fordeler_hvert_fuldt_døgn_præcis_en_gang
+? ll9a_scenarie_årsskifte_anvender_hvert_års_eget_loft
+? ll9a_scenarie_overlapkontrol_er_indkomstårslokal

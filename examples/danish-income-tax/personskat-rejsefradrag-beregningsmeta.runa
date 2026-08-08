@@ -571,32 +571,74 @@
     unit = None
 )
 = personskat_ll9a_felt_ølogi_ophold_startår = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::år),
-    label = "Ølogiopholdets startdato - år",
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::år),
+    label = "Ølogiopholdets startdato (ISO 8601) - år",
     question = Some("I hvilket år begyndte logiopholdet?"),
     help = None,
     unit = Some("år")
 )
 = personskat_ll9a_felt_ølogi_ophold_startmåned = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::måned),
-    label = "Ølogiopholdets startdato - måned",
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::måned),
+    label = "Ølogiopholdets startdato (ISO 8601) - måned",
     question = Some("I hvilken måned begyndte logiopholdet?"),
     help = None,
     unit = Some("måned")
 )
 = personskat_ll9a_felt_ølogi_ophold_startdag = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::startdato::dag),
-    label = "Ølogiopholdets startdato - dag",
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::dato::dag),
+    label = "Ølogiopholdets startdato (ISO 8601) - dag",
     question = Some("På hvilken dag i måneden begyndte logiopholdet?"),
     help = None,
     unit = Some("dag")
 )
-= personskat_ll9a_felt_ølogi_ophold_varighed = TypetBeregningsfelt(
-    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::varighed_minutter),
-    label = "Ølogiopholdets samlede varighed",
-    question = Some("Hvor mange minutter varede logiopholdet?"),
-    help = Some("Fradraget beregnes kun for fulde døgn; resterende timer udløser ikke et yderligere beløb."),
-    unit = Some("minutter")
+= personskat_ll9a_felt_ølogi_ophold_starttime = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::klokkeslæt::time),
+    label = "Ølogiopholdets starttidspunkt - time",
+    question = Some("I hvilken time begyndte logiopholdet?"),
+    help = Some("Angiv timen fra 0 til 23."),
+    unit = Some("time")
+)
+= personskat_ll9a_felt_ølogi_ophold_startminut = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::starttidspunkt::klokkeslæt::minut),
+    label = "Ølogiopholdets starttidspunkt - minut",
+    question = Some("I hvilket minut begyndte logiopholdet?"),
+    help = Some("Angiv minuttet fra 0 til 59."),
+    unit = Some("minut")
+)
+= personskat_ll9a_felt_ølogi_ophold_slutår = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::år),
+    label = "Ølogiopholdets slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede logiopholdet?"),
+    help = Some("Sluttidspunktet er eksklusivt: opholdet varer frem til, men ikke med, dette tidspunkt."),
+    unit = Some("år")
+)
+= personskat_ll9a_felt_ølogi_ophold_slutmåned = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::måned),
+    label = "Ølogiopholdets slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede logiopholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ll9a_felt_ølogi_ophold_slutdag = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::dato::dag),
+    label = "Ølogiopholdets slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag i måneden sluttede logiopholdet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ll9a_felt_ølogi_ophold_sluttime = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::klokkeslæt::time),
+    label = "Ølogiopholdets sluttidspunkt - time",
+    question = Some("I hvilken time sluttede logiopholdet?"),
+    help = Some("Angiv timen fra 0 til 23."),
+    unit = Some("time")
+)
+= personskat_ll9a_felt_ølogi_ophold_slutminut = TypetBeregningsfelt(
+    path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::sluttidspunkt_eksklusiv::klokkeslæt::minut),
+    label = "Ølogiopholdets sluttidspunkt - minut",
+    question = Some("I hvilket minut sluttede logiopholdet?"),
+    help = Some("Futuruna udleder opholdets varighed og fulde 24-timers-døgn af start- og sluttidspunktet."),
+    unit = Some("minut")
 )
 = personskat_ll9a_felt_ølogi_ophold_udgift = TypetBeregningsfelt(
     path = refof(Ligningslov9AÅrsinput::ølogi::MedØlogifradrag::arbejdsforhold::ophold::udgiftsforhold),
@@ -1316,7 +1358,13 @@
         personskat_ll9a_felt_ølogi_ophold_startår,
         personskat_ll9a_felt_ølogi_ophold_startmåned,
         personskat_ll9a_felt_ølogi_ophold_startdag,
-        personskat_ll9a_felt_ølogi_ophold_varighed,
+        personskat_ll9a_felt_ølogi_ophold_starttime,
+        personskat_ll9a_felt_ølogi_ophold_startminut,
+        personskat_ll9a_felt_ølogi_ophold_slutår,
+        personskat_ll9a_felt_ølogi_ophold_slutmåned,
+        personskat_ll9a_felt_ølogi_ophold_slutdag,
+        personskat_ll9a_felt_ølogi_ophold_sluttime,
+        personskat_ll9a_felt_ølogi_ophold_slutminut,
         personskat_ll9a_felt_ølogi_ophold_udgift,
         personskat_ll9a_felt_dobbelt_husførelse
     ],
@@ -1341,6 +1389,7 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
         Guidance(value = juridisk_vejledning_ligningslov9a_standardperioder),
         Guidance(value = juridisk_vejledning_ligningslov9a_øfradrag),
+        Assumption(value = ligningslov9a_ølogi_årsfordeling),
         DependencySource(value = statsskatteloven_lov149_par6_litra_a_dobbelt_husførelse),
         Guidance(value = juridisk_vejledning_dobbelt_husførelse_2026),
         Practice(value = skatterådet_skm2021_130_sr),

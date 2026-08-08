@@ -98,8 +98,14 @@ indgår i det fælles årsloft, men afskæres ikke som et § 9 A-fradrag.
             hverv = Ll9AAlmindeligtHverv,
             ophold = [Ligningslov9AØlogiophold(
                 identifikation = "samsø-fire-døgn",
-                startdato = Dato(år = 2026, måned = 6, dag = 1),
-                varighed_minutter = 5760,
+                starttidspunkt = DatoTidspunkt(
+                    dato = Dato(år = 2026, måned = 6, dag = 1),
+                    klokkeslæt = Klokkeslæt(time = 10, minut = 20)
+                ),
+                sluttidspunkt_eksklusiv = DatoTidspunkt(
+                    dato = Dato(år = 2026, måned = 6, dag = 5),
+                    klokkeslæt = Klokkeslæt(time = 10, minut = 20)
+                ),
                 udgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt
             )]
         )]

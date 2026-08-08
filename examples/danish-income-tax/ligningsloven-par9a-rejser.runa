@@ -7,6 +7,7 @@
 @ importer ./statsskatteloven - par6 - dobbelt - husfoerelse
 
 # Ligningslov9AKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+# Ligningslov9AÅrsfordelingsforudsætning(princip: Tekst, begrundelse: Tekst)
 
 = ligningsloven_lbk1500_par9a = Ligningslov9AKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -110,6 +111,10 @@
     hentet_dato = "2026-08-04",
     ændringsstatus = "Gældende vejledning, inklusive SKM2026.318.LSR, kontrolleret 04/08/2026"
 )
+= ligningslov9a_ølogi_årsfordeling = Ligningslov9AÅrsfordelingsforudsætning(
+    princip = "Et fuldt 24-timers-logidøgn henføres til det indkomstår, hvor døgnets starttidspunkt ligger",
+    begrundelse = "De officielle kilder fastlægger fulde 24-timers-døgn og årlige satser, men ikke den tekniske fordeling af et enkelt døgn over årsskiftet; starttidspunktet giver én deterministisk henføring uden dobbelt medregning"
+)
 
 = ligningsloven_par9a_metadata = Metadata(
     attachments = (
@@ -129,6 +134,7 @@
         Guidance(value = juridisk_vejledning_ligningslov9a_udlæg_efter_regning),
         Guidance(value = juridisk_vejledning_ligningslov9a_dækningsprincip),
         Guidance(value = juridisk_vejledning_ligningslov9a_kontrol),
+        Assumption(value = ligningslov9a_ølogi_årsfordeling),
     )
 )
 
@@ -271,14 +277,14 @@ kronebeløb.
 # Ligningslov9AØlogiArbejdsstedskarakter = Ll9AØlogiFastArbejdssted | Ll9AØlogiMidlertidigtArbejdssted
 # Ligningslov9AØlogiOvernatningsforhold = Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(afstand_ad_normal_transportvej_kilometer: Heltal, korteste_transporttid_hver_vej_minutter: Heltal) | Ll9AØlogiMulighedForOvernatningPåSædvanligBopæl
 # Ligningslov9AØlogiUdgiftsforhold = Ll9AØlogiEgenUdgiftAfholdt | Ll9AØlogiUdenEgenUdgift
-# Ligningslov9AØlogiophold(identifikation: Tekst, startdato: Dato, varighed_minutter: Heltal, udgiftsforhold: Ligningslov9AØlogiUdgiftsforhold)
+# Ligningslov9AØlogiophold(identifikation: Tekst, starttidspunkt: DatoTidspunkt, sluttidspunkt_eksklusiv: DatoTidspunkt, udgiftsforhold: Ligningslov9AØlogiUdgiftsforhold)
 # Ligningslov9AØlogiArbejdsforhold(arbejdssted_identifikation: Tekst, arbejdsstedskarakter: Ligningslov9AØlogiArbejdsstedskarakter, overnatningsforhold: Ligningslov9AØlogiOvernatningsforhold, hverv: Ligningslov9AHverv, ophold: List(Ligningslov9AØlogiophold))
 # Ligningslov9AØlogiInput = UdenØlogifradrag | MedØlogifradrag(bopæl: Ligningslov9AØbopæl, arbejdsforhold: List(Ligningslov9AØlogiArbejdsforhold))
 # Ligningslov9ADobbeltHusførelse = Ll9AIntetFradragForDobbeltHusførelse | Ll9ADobbeltHusførelseEfterStatsskattelov6(input: Statsskattelov6DobbeltHusførelseÅrsinput)
 # Ligningslov9AÅrsinput(personrolle: Ligningslov9APersonrolle, rejser: List(Ligningslov9ARejsefakta), udenlandske_indkomstkilder: List(Ligningslov9AUdenlandskIndkomstkilde), arbejdshistorik: Ligningslov9AArbejdshistorik, ølogi: Ligningslov9AØlogiInput, dobbelt_husførelse: Ligningslov9ADobbeltHusførelse)
 # Ligningslov9ASatser(indkomstår: Heltal, kost_og_småfornødenheder_pr_døgn_kroner: Heltal, logi_pr_døgn_kroner: Heltal, årligt_fælles_fradragsloft_kroner: Heltal)
 # Ligningslov9ALogidøgnresultat(fakta: Ligningslov9ALogidøgn, input_gyldigt: Boolsk, standardsats_logi_kroner: Heltal, udbetalt_godtgørelse_kroner: Heltal, supplerende_løn_kroner: Heltal, skattefri_godtgørelse_kroner: Heltal, skattepligtigt_rejsebeløb_kroner: Heltal, fradrag_kroner: Heltal)
-# Ligningslov9AØlogiopholdsresultat(fakta: Ligningslov9AØlogiophold, input_gyldigt: Boolsk, antal_fulde_logidøgn: Heltal, standardsats_pr_døgn_kroner: Heltal, fradragsbetingelser_opfyldt: Boolsk, fradrag_før_fælles_årsloft_kroner: Heltal)
+# Ligningslov9AØlogiopholdsresultat(fakta: Ligningslov9AØlogiophold, input_gyldigt: Boolsk, samlet_varighed_minutter: Heltal, samlet_antal_fulde_logidøgn: Heltal, antal_fulde_logidøgn_i_indkomståret: Heltal, standardsats_pr_døgn_kroner: Heltal, fradragsbetingelser_opfyldt: Boolsk, fradrag_før_fælles_årsloft_kroner: Heltal)
 # Ligningslov9AØlogiArbejdsforholdsresultat(fakta: Ligningslov9AØlogiArbejdsforhold, input_gyldigt: Boolsk, fast_arbejdssted: Boolsk, hjemmeovernatning_umulig: Boolsk, hverv_berettiget_til_logisats: Boolsk, fradragsbetingelser_opfyldt: Boolsk, opholdsresultater: List(Ligningslov9AØlogiopholdsresultat), fradrag_før_fælles_årsloft_kroner: Heltal)
 # Ligningslov9AØlogiÅrsresultat(indkomstår: Heltal, input: Ligningslov9AØlogiInput, skatteår_understøttet: Boolsk, bopæl_omfattet_af_par9c_stk3: Boolsk, stk11_udelukket: Boolsk, arbejdsstedsidentifikationer_entydige: Boolsk, opholdsidentifikationer_entydige: Boolsk, ophold_ikke_overlappende: Boolsk, egne_input_gyldige: Boolsk, fælles_årsgrundlag_gyldigt: Boolsk, arbejdsforholdsresultater: List(Ligningslov9AØlogiArbejdsforholdsresultat), fradrag_før_fælles_årsloft_kroner: Heltal, tilgængeligt_fælles_årsloft_kroner: Heltal, fradrag_efter_fælles_årsloft_kroner: Heltal)
 # Ligningslov9AStandardperiodevurdering = Ll9AStandardperiodeUdledt(resultat: Ligningslov9AStandardperioderesultat) | Ll9ATolvMånedersbegrænsningUndtaget | Ll9AStandardperiodeKunneIkkeUdledes
@@ -498,27 +504,50 @@ kronebeløb.
     | Ll9AØlogiIngenMulighedForOvernatningPåSædvanligBopæl(_, _) -> Sandt
     | Ll9AØlogiMulighedForOvernatningPåSædvanligBopæl -> Falskt
 }
-| ligningslov9a_ølogi_påbegyndte_kalenderdage(ophold: Ligningslov9AØlogiophold) -> hvis ophold.varighed_minutter > 0 { (ophold.varighed_minutter + 1439) / 1440 } ellers { 0 }
-| ligningslov9a_ølogi_slutordinal_eksklusiv(ophold: Ligningslov9AØlogiophold) -> dato_ordinal(ophold.startdato) + ligningslov9a_ølogi_påbegyndte_kalenderdage(ophold)
-| ligningslov9a_ølogi_ophold_input_gyldigt(indkomstår: Heltal, ophold: Ligningslov9AØlogiophold) -> {
-    = påbegyndte_kalenderdage = ligningslov9a_ølogi_påbegyndte_kalenderdage(ophold)
-    = sidste_berørte_ordinal = dato_ordinal(ophold.startdato) + hvis påbegyndte_kalenderdage > 0 { påbegyndte_kalenderdage - 1 } ellers { 0 }
-    ophold.identifikation != "" && dato_gyldig(ophold.startdato) && ophold.startdato.år == indkomstår && ophold.varighed_minutter >= 0 && sidste_berørte_ordinal <= dato_ordinal(Dato(år = indkomstår, måned = 12, dag = 31))
+| ligningslov9a_ølogi_varighed_minutter(ophold: Ligningslov9AØlogiophold) -> dato_tidspunkt_minutter_mellem(ophold.starttidspunkt, ophold.sluttidspunkt_eksklusiv)
+| ligningslov9a_ølogi_samlet_antal_fulde_logidøgn(ophold: Ligningslov9AØlogiophold) -> ligningslov9a_fulde_døgn(ligningslov9a_ølogi_varighed_minutter(ophold))
+| ligningslov9a_ølogi_minutter_i_klokkeslæt(klokkeslæt: Klokkeslæt) -> klokkeslæt.time * 60 + klokkeslæt.minut
+| ligningslov9a_ølogi_påbegyndte_kalenderdage(ophold: Ligningslov9AØlogiophold) -> hvis dato_tidspunkt_før(ophold.starttidspunkt, ophold.sluttidspunkt_eksklusiv) {
+    dato_ordinal(ophold.sluttidspunkt_eksklusiv.dato) - dato_ordinal(ophold.starttidspunkt.dato) + hvis ligningslov9a_ølogi_minutter_i_klokkeslæt(ophold.sluttidspunkt_eksklusiv.klokkeslæt) > 0 { 1 } ellers { 0 }
+} ellers { 0 }
+| ligningslov9a_ølogi_fulde_døgn_påbegyndt_før(ophold: Ligningslov9AØlogiophold, grænse: DatoTidspunkt) -> {
+    = samlet_antal_fulde_logidøgn = ligningslov9a_ølogi_samlet_antal_fulde_logidøgn(ophold)
+    = minutter_fra_start_til_grænse = dato_tidspunkt_minutordinal(grænse) - dato_tidspunkt_minutordinal(ophold.starttidspunkt)
+    = antal_påbegyndt_før_grænse = hvis minutter_fra_start_til_grænse > 0 { (minutter_fra_start_til_grænse + 1439) / 1440 } ellers { 0 }
+    hvis antal_påbegyndt_før_grænse < samlet_antal_fulde_logidøgn { antal_påbegyndt_før_grænse } ellers { samlet_antal_fulde_logidøgn }
 }
-| ligningslov9a_ølogi_ophold_overlapper(a: Ligningslov9AØlogiophold, b: Ligningslov9AØlogiophold) -> a.identifikation != b.identifikation && a.varighed_minutter > 0 && b.varighed_minutter > 0 && dato_ordinal(a.startdato) < ligningslov9a_ølogi_slutordinal_eksklusiv(b) && dato_ordinal(b.startdato) < ligningslov9a_ølogi_slutordinal_eksklusiv(a)
+| ligningslov9a_ølogi_fulde_døgn_i_indkomståret(indkomstår: Heltal, ophold: Ligningslov9AØlogiophold) -> ligningslov9a_ølogi_fulde_døgn_påbegyndt_før(ophold, dato_tidspunkt_årsbegyndelse(indkomstår + 1)) - ligningslov9a_ølogi_fulde_døgn_påbegyndt_før(ophold, dato_tidspunkt_årsbegyndelse(indkomstår))
+| ligningslov9a_ølogi_ophold_input_gyldigt(indkomstår: Heltal, ophold: Ligningslov9AØlogiophold) -> {
+    = årsbegyndelse = dato_tidspunkt_årsbegyndelse(indkomstår)
+    = næste_årsbegyndelse = dato_tidspunkt_årsbegyndelse(indkomstår + 1)
+    ophold.identifikation != "" && dato_tidspunkt_før(ophold.starttidspunkt, ophold.sluttidspunkt_eksklusiv) && dato_tidspunkt_før(ophold.starttidspunkt, næste_årsbegyndelse) && dato_tidspunkt_før(årsbegyndelse, ophold.sluttidspunkt_eksklusiv)
+}
+| ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(indkomstår: Heltal, a: Ligningslov9AØlogiophold, b: Ligningslov9AØlogiophold) -> {
+    = årsbegyndelse = dato_tidspunkt_minutordinal(dato_tidspunkt_årsbegyndelse(indkomstår))
+    = næste_årsbegyndelse = dato_tidspunkt_minutordinal(dato_tidspunkt_årsbegyndelse(indkomstår + 1))
+    = a_start = hvis dato_tidspunkt_minutordinal(a.starttidspunkt) > årsbegyndelse { dato_tidspunkt_minutordinal(a.starttidspunkt) } ellers { årsbegyndelse }
+    = b_start = hvis dato_tidspunkt_minutordinal(b.starttidspunkt) > årsbegyndelse { dato_tidspunkt_minutordinal(b.starttidspunkt) } ellers { årsbegyndelse }
+    = a_slut = hvis dato_tidspunkt_minutordinal(a.sluttidspunkt_eksklusiv) < næste_årsbegyndelse { dato_tidspunkt_minutordinal(a.sluttidspunkt_eksklusiv) } ellers { næste_årsbegyndelse }
+    = b_slut = hvis dato_tidspunkt_minutordinal(b.sluttidspunkt_eksklusiv) < næste_årsbegyndelse { dato_tidspunkt_minutordinal(b.sluttidspunkt_eksklusiv) } ellers { næste_årsbegyndelse }
+    a.identifikation != b.identifikation && a_start < a_slut && b_start < b_slut && a_start < b_slut && b_start < a_slut
+}
 | ligningslov9a_ølogi_alle_ophold(arbejdsforhold: List(Ligningslov9AØlogiArbejdsforhold)) -> flat_map(arbejdsforhold, |forhold: Ligningslov9AØlogiArbejdsforhold| forhold.ophold)
-| ligningslov9a_ølogi_ophold_ikke_overlappende(ophold: List(Ligningslov9AØlogiophold)) -> all(ophold, |a: Ligningslov9AØlogiophold| all(ophold, |b: Ligningslov9AØlogiophold| ligningslov9a_ølogi_ophold_overlapper(a, b) == Falskt))
+| ligningslov9a_ølogi_ophold_ikke_overlappende(indkomstår: Heltal, ophold: List(Ligningslov9AØlogiophold)) -> all(ophold, |a: Ligningslov9AØlogiophold| all(ophold, |b: Ligningslov9AØlogiophold| ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(indkomstår, a, b) == Falskt))
 | ligningslov9a_ølogi_opholdsresultat(indkomstår: Heltal, fakta: Ligningslov9AØlogiophold, fradragsbetingelser_opfyldt: Boolsk) -> {
     = input_gyldigt = ligningslov9a_ølogi_ophold_input_gyldigt(indkomstår, fakta)
-    = antal_fulde_logidøgn = ligningslov9a_fulde_døgn(fakta.varighed_minutter)
+    = samlet_varighed_minutter = ligningslov9a_ølogi_varighed_minutter(fakta)
+    = samlet_antal_fulde_logidøgn = ligningslov9a_ølogi_samlet_antal_fulde_logidøgn(fakta)
+    = antal_fulde_logidøgn_i_indkomståret = ligningslov9a_ølogi_fulde_døgn_i_indkomståret(indkomstår, fakta)
     = standardsats_pr_døgn_kroner = hvis ligningslov9a_skatteår_understøttet(indkomstår) { ligningslov9a_satser(indkomstår).logi_pr_døgn_kroner } ellers { 0 }
     Ligningslov9AØlogiopholdsresultat(
         fakta = fakta,
         input_gyldigt = input_gyldigt,
-        antal_fulde_logidøgn = antal_fulde_logidøgn,
+        samlet_varighed_minutter = samlet_varighed_minutter,
+        samlet_antal_fulde_logidøgn = samlet_antal_fulde_logidøgn,
+        antal_fulde_logidøgn_i_indkomståret = antal_fulde_logidøgn_i_indkomståret,
         standardsats_pr_døgn_kroner = standardsats_pr_døgn_kroner,
         fradragsbetingelser_opfyldt = fradragsbetingelser_opfyldt,
-        fradrag_før_fælles_årsloft_kroner = hvis input_gyldigt && fradragsbetingelser_opfyldt && fakta.udgiftsforhold == Ll9AØlogiEgenUdgiftAfholdt { antal_fulde_logidøgn * standardsats_pr_døgn_kroner } ellers { 0 }
+        fradrag_før_fælles_årsloft_kroner = hvis input_gyldigt && fradragsbetingelser_opfyldt && fakta.udgiftsforhold == Ll9AØlogiEgenUdgiftAfholdt { antal_fulde_logidøgn_i_indkomståret * standardsats_pr_døgn_kroner } ellers { 0 }
     )
 }
 | ligningslov9a_ølogi_arbejdsforholdsresultat(indkomstår: Heltal, personrolle: Ligningslov9APersonrolle, bopæl_omfattet_af_par9c_stk3: Boolsk, stk11_udelukket: Boolsk, fakta: Ligningslov9AØlogiArbejdsforhold) -> {
@@ -563,7 +592,7 @@ kronebeløb.
         = arbejdsstedsidentifikationer_entydige = length(distinct(map(arbejdsforhold, |forhold: Ligningslov9AØlogiArbejdsforhold| forhold.arbejdssted_identifikation))) == length(arbejdsforhold)
         = ophold = ligningslov9a_ølogi_alle_ophold(arbejdsforhold)
         = opholdsidentifikationer_entydige = length(distinct(map(ophold, |fakta: Ligningslov9AØlogiophold| fakta.identifikation))) == length(ophold)
-        = ophold_ikke_overlappende = ligningslov9a_ølogi_ophold_ikke_overlappende(ophold)
+        = ophold_ikke_overlappende = ligningslov9a_ølogi_ophold_ikke_overlappende(indkomstår, ophold)
         = arbejdsforholdsresultater = map(arbejdsforhold, |fakta: Ligningslov9AØlogiArbejdsforhold| ligningslov9a_ølogi_arbejdsforholdsresultat(indkomstår, personrolle, bopæl_omfattet_af_par9c_stk3, stk11_udelukket, fakta))
         = egne_input_gyldige = skatteår_understøttet && ligningslov9a_øbopæl_input_gyldigt(bopæl) && arbejdsstedsidentifikationer_entydige && opholdsidentifikationer_entydige && ophold_ikke_overlappende && all(arbejdsforholdsresultater, |resultat: Ligningslov9AØlogiArbejdsforholdsresultat| resultat.input_gyldigt)
         = fradrag_før_fælles_årsloft_kroner = hvis egne_input_gyldige { foldl(arbejdsforholdsresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9AØlogiArbejdsforholdsresultat| sum_kroner + resultat.fradrag_før_fælles_årsloft_kroner) } ellers { 0 }
@@ -740,16 +769,21 @@ kronebeløb.
     filter(resultater, ligningslov9a_rejseresultat_udelukker_dobbelt_husførelse),
     ligningslov9a_rejseresultat_dobbelt_husførelse_dækning
 )
-| ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning(resultat: Ligningslov9AØlogiopholdsresultat) -> Statsskattelov6DobbeltHusførelseAndenDækning(
-    kildeidentifikation = resultat.fakta.identifikation,
-    fra_dato = resultat.fakta.startdato,
-    til_dato = dato_plus_dage(resultat.fakta.startdato, ligningslov9a_ølogi_påbegyndte_kalenderdage(resultat.fakta) - 1)
-)
+| ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning(indkomstår: Heltal, resultat: Ligningslov9AØlogiopholdsresultat) -> {
+    = første_berørte_dato = hvis dato_før(resultat.fakta.starttidspunkt.dato, Dato(år = indkomstår, måned = 1, dag = 1)) { Dato(år = indkomstår, måned = 1, dag = 1) } ellers { resultat.fakta.starttidspunkt.dato }
+    = sidste_berørte_dato_før_årsafgrænsning = dato_plus_dage(resultat.fakta.starttidspunkt.dato, ligningslov9a_ølogi_påbegyndte_kalenderdage(resultat.fakta) - 1)
+    = sidste_berørte_dato = hvis dato_efter(sidste_berørte_dato_før_årsafgrænsning, Dato(år = indkomstår, måned = 12, dag = 31)) { Dato(år = indkomstår, måned = 12, dag = 31) } ellers { sidste_berørte_dato_før_årsafgrænsning }
+    Statsskattelov6DobbeltHusførelseAndenDækning(
+        kildeidentifikation = resultat.fakta.identifikation,
+        fra_dato = første_berørte_dato,
+        til_dato = sidste_berørte_dato
+    )
+}
 | ligningslov9a_ølogidækninger_til_dobbelt_husførelse(resultat: Ligningslov9AØlogiÅrsresultat) -> flat_map(
     resultat.arbejdsforholdsresultater,
     |arbejdsforhold: Ligningslov9AØlogiArbejdsforholdsresultat| map(
         filter(arbejdsforhold.opholdsresultater, |ophold: Ligningslov9AØlogiopholdsresultat| ophold.fradrag_før_fælles_årsloft_kroner > 0),
-        ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning
+        |ophold: Ligningslov9AØlogiopholdsresultat| ligningslov9a_ølogiopholdsresultat_dobbelt_husførelse_dækning(resultat.indkomstår, ophold)
     )
 )
 | ligningslov9a_identifikationer_entydige(rejser: List(Ligningslov9ARejsefakta)) -> length(distinct(map(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation))) == length(rejser) && all(rejser, |fakta: Ligningslov9ARejsefakta| fakta.identifikation != "")

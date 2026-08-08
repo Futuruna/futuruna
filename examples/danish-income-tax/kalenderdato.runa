@@ -1,6 +1,8 @@
 @ sprog da
 
 # Dato(år: Heltal, måned: Heltal, dag: Heltal)
+# Klokkeslæt(time: Heltal, minut: Heltal)
+# DatoTidspunkt(dato: Dato, klokkeslæt: Klokkeslæt)
 # Ugedag = Mandag | Tirsdag | Onsdag | Torsdag | Fredag | Lørdag | Søndag
 # Datoperiodegrænser = EfterStartTilOgMedSlut | FraOgMedStartTilFørSlut | FraOgMedBeggeDatoer | UdenBeggeDatoer
 # Kalenderdagskonvention = FaktiskeGregorianskeDage | TrediveDagesMåneder
@@ -119,6 +121,13 @@
     0
 }
 | dato_ordinal(dato: Dato) -> hvis dato_gyldig(dato) { dato_dage_før_år(dato.år) + dato_dagnummer_i_år(dato) } ellers { 0 }
+| klokkeslæt_gyldigt(klokkeslæt: Klokkeslæt) -> klokkeslæt.time >= 0 && klokkeslæt.time <= 23 && klokkeslæt.minut >= 0 && klokkeslæt.minut <= 59
+| dato_tidspunkt_gyldigt(tidspunkt: DatoTidspunkt) -> dato_gyldig(tidspunkt.dato) && klokkeslæt_gyldigt(tidspunkt.klokkeslæt)
+| dato_tidspunkt_minutordinal(tidspunkt: DatoTidspunkt) -> hvis dato_tidspunkt_gyldigt(tidspunkt) { dato_ordinal(tidspunkt.dato) * 1440 + tidspunkt.klokkeslæt.time * 60 + tidspunkt.klokkeslæt.minut } ellers { 0 }
+| dato_tidspunkt_før(venstre: DatoTidspunkt, højre: DatoTidspunkt) -> dato_tidspunkt_gyldigt(venstre) && dato_tidspunkt_gyldigt(højre) && dato_tidspunkt_minutordinal(venstre) < dato_tidspunkt_minutordinal(højre)
+| dato_tidspunkt_før_eller_lig_med(venstre: DatoTidspunkt, højre: DatoTidspunkt) -> dato_tidspunkt_gyldigt(venstre) && dato_tidspunkt_gyldigt(højre) && dato_tidspunkt_minutordinal(venstre) <= dato_tidspunkt_minutordinal(højre)
+| dato_tidspunkt_minutter_mellem(fra_tidspunkt: DatoTidspunkt, til_tidspunkt: DatoTidspunkt) -> hvis dato_tidspunkt_før_eller_lig_med(fra_tidspunkt, til_tidspunkt) { dato_tidspunkt_minutordinal(til_tidspunkt) - dato_tidspunkt_minutordinal(fra_tidspunkt) } ellers { 0 }
+| dato_tidspunkt_årsbegyndelse(år: Heltal) -> DatoTidspunkt(dato = Dato(år = år, måned = 1, dag = 1), klokkeslæt = Klokkeslæt(time = 0, minut = 0))
 | dato_faktiske_dage_mellem(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) { dato_ordinal(til_dato) - dato_ordinal(fra_dato) } ellers { 0 }
 | dato_dage_efter_til_og_med(fra_dato: Dato, til_dato: Dato) -> dato_faktiske_dage_mellem(fra_dato, til_dato)
 | dato_dage_fra_og_med_til_og_med(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) { dato_faktiske_dage_mellem(fra_dato, til_dato) + 1 } ellers { 0 }

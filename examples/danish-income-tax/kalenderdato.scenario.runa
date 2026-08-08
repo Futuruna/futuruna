@@ -7,6 +7,8 @@
 = kalenderdato_januar_2025 = Dato(år = 2025, måned = 1, dag = 31)
 = kalenderdato_februar_28_2024 = Dato(år = 2024, måned = 2, dag = 28)
 = kalenderdato_marts_1_2024 = Dato(år = 2024, måned = 3, dag = 1)
+= kalenderdato_nytårsaften_tidspunkt = DatoTidspunkt(dato = Dato(år = 2025, måned = 12, dag = 31), klokkeslæt = Klokkeslæt(time = 23, minut = 30))
+= kalenderdato_nytårsdag_tidspunkt = DatoTidspunkt(dato = Dato(år = 2026, måned = 1, dag = 1), klokkeslæt = Klokkeslæt(time = 0, minut = 15))
 
 | kalenderdato_skudårsregler: dato_skudår(2000) -> dato_skudår(2000) && dato_skudår(2024) && dato_skudår(1900) == Falskt && dato_skudår(2025) == Falskt
 | kalenderdato_validerer_månedsgrænser: kalenderdato_ugyldig_måned_2024 -> dato_gyldig(Dato(år = 2024, måned = 2, dag = 29)) && dato_gyldig(Dato(år = 2025, måned = 2, dag = 29)) == Falskt && dato_gyldig(kalenderdato_ugyldig_måned_2024) == Falskt
@@ -15,6 +17,8 @@
 | kalenderdato_fulde_måneder_følger_månedsdagen: kalenderdato_januar_2025 -> dato_fulde_måneder_mellem(kalenderdato_januar_2025, Dato(år = 2025, måned = 2, dag = 27)) == 0 && dato_fulde_måneder_mellem(kalenderdato_januar_2025, Dato(år = 2025, måned = 2, dag = 28)) == 1 && dato_fulde_måneder_mellem(Dato(år = 2024, måned = 2, dag = 29), Dato(år = 2025, måned = 2, dag = 28)) == 12 && dato_fulde_måneder_mellem(Dato(år = 2025, måned = 2, dag = 1), Dato(år = 2025, måned = 1, dag = 31)) == 0
 | kalenderdato_faktiske_dage_respekterer_skudår: kalenderdato_februar_28_2024 -> dato_dage_efter_til_og_med(kalenderdato_februar_28_2024, kalenderdato_marts_1_2024) == 2 && dato_dage_efter_til_og_med(Dato(år = 2023, måned = 2, dag = 28), Dato(år = 2023, måned = 3, dag = 1)) == 1
 | kalenderdato_næste_dag_og_ugedag_er_gregorianske: kalenderdato_februar_28_2024 -> dato_næste_dag(kalenderdato_februar_28_2024) == Dato(år = 2024, måned = 2, dag = 29) && dato_plus_dage(kalenderdato_februar_28_2024, 2) == kalenderdato_marts_1_2024 && dato_ugedag(Dato(år = 2024, måned = 1, dag = 1)) == Some(Mandag) && dato_ugedag(Dato(år = 2023, måned = 7, dag = 1)) == Some(Lørdag)
+| kalenderdato_tidspunkter_er_ordnede_på_tværs_af_år: kalenderdato_nytårsaften_tidspunkt -> dato_tidspunkt_gyldigt(kalenderdato_nytårsaften_tidspunkt) && dato_tidspunkt_før(kalenderdato_nytårsaften_tidspunkt, kalenderdato_nytårsdag_tidspunkt) && dato_tidspunkt_minutter_mellem(kalenderdato_nytårsaften_tidspunkt, kalenderdato_nytårsdag_tidspunkt) == 45
+| kalenderdato_tidspunkter_validerer_klokkeslæt: kalenderdato_nytårsdag_tidspunkt -> klokkeslæt_gyldigt(Klokkeslæt(time = 23, minut = 59)) && klokkeslæt_gyldigt(Klokkeslæt(time = 24, minut = 0)) == Falskt && dato_tidspunkt_årsbegyndelse(2026) == DatoTidspunkt(dato = Dato(år = 2026, måned = 1, dag = 1), klokkeslæt = Klokkeslæt(time = 0, minut = 0))
 | kalenderdato_lovfrist_fra_fredag_eller_weekend_flyttes_til_mandag: kalenderdato_januar_2024 -> dato_fristdag_efter_fredag_eller_weekend(Dato(år = 2022, måned = 7, dag = 1)) == Dato(år = 2022, måned = 7, dag = 4) && dato_fristdag_efter_fredag_eller_weekend(Dato(år = 2023, måned = 7, dag = 1)) == Dato(år = 2023, måned = 7, dag = 3) && dato_fristdag_efter_fredag_eller_weekend(Dato(år = 2018, måned = 7, dag = 1)) == Dato(år = 2018, måned = 7, dag = 2) && dato_fristdag_efter_fredag_eller_weekend(Dato(år = 2024, måned = 7, dag = 1)) == Dato(år = 2024, måned = 7, dag = 1)
 
 = kalenderdato_faktisk_2024 = dagtælling_resultat(
@@ -78,6 +82,8 @@
 ? kalenderdato_fulde_måneder_følger_månedsdagen
 ? kalenderdato_faktiske_dage_respekterer_skudår
 ? kalenderdato_næste_dag_og_ugedag_er_gregorianske
+? kalenderdato_tidspunkter_er_ordnede_på_tværs_af_år
+? kalenderdato_tidspunkter_validerer_klokkeslæt
 ? kalenderdato_lovfrist_fra_fredag_eller_weekend_flyttes_til_mandag
 ? kalenderdato_adskiller_faktisk_og_fast_årsgrundlag
 ? kalenderdato_tredive360_er_selvstændig_politik
