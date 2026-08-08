@@ -1,0 +1,138 @@
+@ sprog da
+
+@ importer ./ligningsloven_fradrag
+
+= ll9l_2018_årgang1967 = ll9l_pensionsalder_resultat(
+    skatteår = 2018,
+    fødselsdato = Dato(år = 1967, måned = 1, dag = 1)
+)
+= ll9l_2020_årgang1967 = ll9l_pensionsalder_resultat(
+    skatteår = 2020,
+    fødselsdato = Dato(år = 1967, måned = 1, dag = 1)
+)
+= ll9l_2021_årgang1967 = ll9l_pensionsalder_resultat(
+    skatteår = 2021,
+    fødselsdato = Dato(år = 1967, måned = 1, dag = 1)
+)
+= ll9l_2025_årgang1971 = ll9l_pensionsalder_resultat(
+    skatteår = 2025,
+    fødselsdato = Dato(år = 1971, måned = 1, dag = 1)
+)
+= ll9l_2026_årgang1971 = ll9l_pensionsalder_resultat(
+    skatteår = 2026,
+    fødselsdato = Dato(år = 1971, måned = 1, dag = 1)
+)
+= ll9l_1954_første_halvår = ll9l_pensionsalder_resultat(
+    skatteår = 2018,
+    fødselsdato = Dato(år = 1954, måned = 1, dag = 1)
+)
+
+| ll9l_2018_bruger_2015_reglerne: ll9l_2018_årgang1967 -> ll9l_2018_årgang1967.input_gyldigt && ll9l_2018_årgang1967.folkepensionsalder.regelversion == Socialpension1AReglerFra2015 && ll9l_2018_årgang1967.folkepensionsalder.folkepensionsalder_måneder == 816 && ll9l_2018_årgang1967.folkepensionsalder.folkepension_opnåelsesår == 2035 && ll9l_2018_årgang1967.første_indkomstår_med_forhøjet_sats == 2020 && ll9l_2018_årgang1967.pensionsalder_status == Ll9lMereEnd15ÅrFørFolkepension
+| ll9l_2020_er_femtende_indkomstår_før_68_år: ll9l_2020_årgang1967 -> ll9l_2020_årgang1967.folkepensionsalder.regelversion == Socialpension1AReglerFra2015 && ll9l_2020_årgang1967.pensionsalder_status == Ll9lFra15ÅrFørFolkepension
+| ll9l_2021_bruger_2020_reglerne: ll9l_2021_årgang1967 -> ll9l_2021_årgang1967.input_gyldigt && ll9l_2021_årgang1967.folkepensionsalder.regelversion == Socialpension1AReglerFra2020 && ll9l_2021_årgang1967.folkepensionsalder.folkepensionsalder_måneder == 828 && ll9l_2021_årgang1967.folkepensionsalder.folkepension_opnåelsesår == 2036 && ll9l_2021_årgang1967.første_indkomstår_med_forhøjet_sats == 2021 && ll9l_2021_årgang1967.pensionsalder_status == Ll9lFra15ÅrFørFolkepension
+| ll9l_2025_bruger_2020_reglerne_før_ikrafttræden: ll9l_2025_årgang1971 -> ll9l_2025_årgang1971.folkepensionsalder.regelversion == Socialpension1AReglerFra2020 && ll9l_2025_årgang1971.folkepensionsalder.folkepensionsalder_måneder == 828 && ll9l_2025_årgang1971.folkepensionsalder.folkepension_opnåelsesår == 2040 && ll9l_2025_årgang1971.første_indkomstår_med_forhøjet_sats == 2025
+| ll9l_2026_bruger_2025_reglerne_efter_ikrafttræden: ll9l_2026_årgang1971 -> ll9l_2026_årgang1971.folkepensionsalder.regelversion == Socialpension1AReglerFra2025 && ll9l_2026_årgang1971.folkepensionsalder.folkepensionsalder_måneder == 840 && ll9l_2026_årgang1971.folkepensionsalder.folkepension_opnåelsesår == 2041 && ll9l_2026_årgang1971.første_indkomstår_med_forhøjet_sats == 2026
+| ll9l_halvårsalder_bevares_i_måneder: ll9l_1954_første_halvår -> ll9l_1954_første_halvår.folkepensionsalder.folkepensionsalder_måneder == 786 && ll9l_1954_første_halvår.folkepensionsalder.folkepensionsdato == Dato(år = 2019, måned = 7, dag = 1)
+
+= ll9l_2019_folkepensionsnær_maks_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2019,
+    fødselsdato = Dato(år = 1958, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2026_ordinær_maks_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2025_afrundet_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2025,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 844,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 3279,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9l_2026_modregnet_udbetaling_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 50000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 10000,
+    pbl20_udbetaling_status = Ll9lModregningspligtigPbl20Udbetaling
+))
+= ll9l_2026_undtaget_udbetaling_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 50000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 10000,
+    pbl20_udbetaling_status = Ll9lUndtagetPbl20Udbetaling
+))
+= ll9l_2026_ugyldig_fødselsdato_fixture = ll9l_ekstra_pensionsfradrag_kroner(Ligningslov9LInput(
+    skatteår = 2026,
+    fødselsdato = Dato(år = 1990, måned = 2, dag = 30),
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9j_9k_9l_2026_fixture = ll9j_9k_9l_fradrag_resultat(Ligningslov9J9K9LInput(
+    skatteår = 2026,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+= ll9j_9k_9l_2017_fixture = ll9j_9k_9l_fradrag_resultat(Ligningslov9J9K9LInput(
+    skatteår = 2017,
+    arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+    udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
+    fødselsdato = Dato(år = 1958, måned = 1, dag = 1),
+    pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+    pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+    pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+    pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+    pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+))
+
+| ll9l_2019_reguleret_maks_og_22pct: ll9l_2019_folkepensionsnær_maks_fixture -> ll9l_2019_folkepensionsnær_maks_fixture == 15730
+| ll9l_2026_reguleret_maks_og_12pct: ll9l_2026_ordinær_maks_fixture -> ll9l_2026_ordinær_maks_fixture == 10536
+| ll9l_2025_afrundes_til_nærmeste_hele_krone: ll9l_2025_afrundet_fixture -> ll9l_2025_afrundet_fixture == 495
+| ll9l_pbl20_udbetaling_modregnes: ll9l_2026_modregnet_udbetaling_fixture -> ll9l_2026_modregnet_udbetaling_fixture == 4800
+| ll9l_pbl20_udbetaling_undtages: ll9l_2026_undtaget_udbetaling_fixture -> ll9l_2026_undtaget_udbetaling_fixture == 6000
+| ll9l_ugyldig_fødselsdato_failer_lukket: ll9l_2026_ugyldig_fødselsdato_fixture -> ll9l_2026_ugyldig_fødselsdato_fixture == 0 && ll9l_pensionsalder_resultat(2026, Dato(år = 1990, måned = 2, dag = 30)).input_gyldigt == Falskt
+| ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.pensionsalder_resultat.input_gyldigt && ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
+| ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
+
+? ll9l_2018_bruger_2015_reglerne
+? ll9l_2020_er_femtende_indkomstår_før_68_år
+? ll9l_2021_bruger_2020_reglerne
+? ll9l_2025_bruger_2020_reglerne_før_ikrafttræden
+? ll9l_2026_bruger_2025_reglerne_efter_ikrafttræden
+? ll9l_halvårsalder_bevares_i_måneder
+? ll9l_2019_reguleret_maks_og_22pct
+? ll9l_2026_reguleret_maks_og_12pct
+? ll9l_2025_afrundes_til_nærmeste_hele_krone
+? ll9l_pbl20_udbetaling_modregnes
+? ll9l_pbl20_udbetaling_undtages
+? ll9l_ugyldig_fødselsdato_failer_lukket
+? ll9j_9k_9l_samlet_fradrag
+? ll9j_9k_9l_2017_kun_9j_fradrag
+
+@ print("Ligningslovens § 9 L: folkepensionsalderen afledes fra fødselsdato og den tidsmæssigt gældende § 1 a")

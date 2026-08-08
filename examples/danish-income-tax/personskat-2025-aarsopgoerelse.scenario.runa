@@ -247,7 +247,7 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     nettokapitalindkomst_kroner = årsopgørelse2025_nettokapitalindkomst_kroner(årsopgørelse2025_kapital),
     ligningsmæssige_fradrag_kroner = årsopgørelse2025_øvrige_ligningsfradrag_kroner(årsopgørelse2025_fradrag),
     pensionsfradrag = LønmodtagerPensionsfradrag(
-        pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+        fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = årsopgørelse2025_personlig.privat_livrente_kroner,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 3279,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
@@ -266,7 +266,7 @@ nedslag for udenlandsk aktieudbytte efter creditprincippet.
     nettokapitalindkomst_kroner = 0 - årsopgørelse2025_ægtefælle.renteudgifter_kroner,
     ligningsmæssige_fradrag_kroner = 0,
     pensionsfradrag = LønmodtagerPensionsfradrag(
-        pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+        fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = 0,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,

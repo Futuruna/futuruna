@@ -1422,7 +1422,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fradrag for dobbelt husførelse",
             "Skatteyderens status for faglige kontingenter",
             "Skattepligtsposition for A-kasse og lignende bidrag",
-            "Afstand til folkepensionsalderen",
+            "Fødselsår",
+            "Fødselsmåned",
+            "Fødselsdag i måneden",
             "Selvstændigt overskud før VSL § 22 b",
             "Renteudgifter i virksomhedsoverskuddet",
             "Kurstab i virksomhedsoverskuddet",
@@ -3549,7 +3551,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.erhvervsbefordring.sager.køretøj",
             "lønmodtager.erhvervsbefordring.sager.befordring.kilometer_i_sagen",
             "lønmodtager.erhvervsbefordring.sager.godtgørelsesforhold.udbetalt_godtgørelse_kroner",
-            "lønmodtager.pension.pensionsalder_status",
+            "lønmodtager.pension.fødselsdato.år",
+            "lønmodtager.pension.fødselsdato.måned",
+            "lønmodtager.pension.fødselsdato.dag",
             "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
             "lønmodtager.pension.pbl18_livrentevalg.$variant",
             "lønmodtager.pension.pbl18_livrentevalg.Pbl18Grundbeløbsvalg.ønsket_fradrag_kroner",
@@ -5687,8 +5691,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         ),
                     ),
                     (
-                        "lønmodtager.pension.pensionsalder_status",
-                        Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
+                        "lønmodtager.pension.fødselsdato.år",
+                        Data::String("1990".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.fødselsdato.måned",
+                        Data::String("1".to_string()),
+                    ),
+                    (
+                        "lønmodtager.pension.fødselsdato.dag",
+                        Data::String("1".to_string()),
                     ),
                     (
                         "lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
@@ -6776,8 +6788,16 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 ),
             ),
             (
-                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pensionsalder_status",
-                Data::String("Ll9lMereEnd15ÅrFørFolkepension".to_string()),
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato.år",
+                Data::String("1990".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato.måned",
+                Data::String("1".to_string()),
+            ),
+            (
+                "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato.dag",
+                Data::String("1".to_string()),
             ),
             (
                 "ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.pbl18_selvstændig_overskud.skattepligtigt_overskud_før_vsl22b_kroner",
@@ -11522,9 +11542,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "gaver": { "gaver": [] }
             },
             "pension": {
-                "pensionsalder_status": {
-                    "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
-                },
+                "fødselsdato": { "år": 1990, "måned": 1, "dag": 1 },
                 "pbl18_indbetalinger": [],
                 "pbl18_selvstændig_overskud": {
                     "skattepligtigt_overskud_før_vsl22b_kroner": 0,
@@ -13410,9 +13428,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "gaver": { "gaver": [] }
                 },
                 "pension": {
-                    "pensionsalder_status": {
-                        "$variant": "Ll9lMereEnd15ÅrFørFolkepension"
-                    },
+                    "fødselsdato": { "år": 1990, "måned": 1, "dag": 1 },
                     "pbl18_indbetalinger": [],
                     "pbl18_selvstændig_overskud": {
                         "skattepligtigt_overskud_før_vsl22b_kroner": 0,

@@ -159,7 +159,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
 # Par26ForskelsbeløbPersonÅrsKomponenter(skatteår: Heltal, alder_status: Par26AlderStatus, bundskat_grundlag_kroner: Heltal, personlig_indkomst_kroner: Heltal, nettokapitalindkomst_kroner: Heltal, topskat_grundlag_kroner: Heltal, aktieindkomstskat_grundlag_kroner: Heltal, fradrag_efter_ll9j_9k_9l_kroner: Heltal, kommunal_og_kirke_basispoint: Heltal, baseline_fradrag_efter_425pct_grundbeløb_kroner: Heltal, personfradrag_nr6_skatteværdi_kroner: Heltal, udligningsskat_kroner: Heltal, ligningsmæssige_fradrag_til_nr8_kroner: Heltal, betaler_kommunal_eller_par8c: Boolsk)
 # Par26ForskelsbeløbParÅrsKomponentInput(status: Par26ÆgtefælleStatus, forskerordning_48f_valgt: Boolsk, egen: Par26ForskelsbeløbPersonÅrsKomponenter, ægtefælle: Par26ForskelsbeløbPersonÅrsKomponenter)
 # Par26ForskelsbeløbParÅrsKomponentResult(stk5_kapital: Par26Stk5KapitalParResult, stk6_bundfradrag: Par26Stk6BundfradragParResult, stk8_kapital: Par26Stk8KapitalParResult, egen_års_input: Par26ForskelsbeløbÅrsInput, ægtefælle_års_input: Par26ForskelsbeløbÅrsInput, års_resultat: Par26ForskelsbeløbParÅrsResult)
-# Par26Nr5LigningsfradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk, pensionsalder_status: Ligningslov9LPensionsalderStatus, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus, kommunal_og_kirke_basispoint: Heltal)
+# Par26Nr5LigningsfradragInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk, fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus, kommunal_og_kirke_basispoint: Heltal)
 # Par26Nr5LigningsfradragResult(fradrag_efter_ll9j_9k_9l_kroner: Heltal, baseline_fradrag_efter_425pct_grundbeløb_kroner: Heltal, nr5_kroner: Heltal)
 # Par26Stk7TopskatÆgtefællerInput(skatteår: Heltal, samlevende_i_hele_indkomståret: Boolsk, egen_personlig_indkomst_kroner: Heltal, egen_pbl16_tillæg_kroner: Heltal, egen_nettokapitalindkomst_kroner: Heltal, egne_ligningsmæssige_fradrag_kroner: Heltal, ægtefælle_personlig_indkomst_kroner: Heltal, ægtefælle_pbl16_tillæg_kroner: Heltal, ægtefælle_nettokapitalindkomst_kroner: Heltal, ægtefælles_ligningsmæssige_fradrag_kroner: Heltal)
 # Par26Stk7TopskatÆgtefællerResult(nr3_bundfradrag_kroner: Heltal, par7_bundfradrag_kroner: Heltal, kapital_grundbeløb_kroner: Heltal, egen_personligt_beregningsgrundlag_kroner: Heltal, ægtefælle_personligt_beregningsgrundlag_kroner: Heltal, højeste_beregningsgrundlag: Par7HøjesteBeregningsgrundlag, egen_kapital_over_grundbeløb_kroner: Heltal, ægtefælle_kapital_over_grundbeløb_kroner: Heltal, stk2_nr3_samlet_kapitalskat_kroner: Heltal, par7_samlet_kapitalskat_kroner: Heltal, egen_personlig_nr3_kroner: Heltal, ægtefælle_personlig_nr3_kroner: Heltal, egen_kapital_nr3_kroner: Heltal, ægtefælle_kapital_nr3_kroner: Heltal, egen_nr3_kroner: Heltal, ægtefælle_nr3_kroner: Heltal, samlet_nr3_kroner: Heltal)
@@ -213,7 +213,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     skatteår = input.skatteår,
     arbejdsmarkedsbidragsgrundlag_kroner = input.arbejdsmarkedsbidragsgrundlag_kroner,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = input.udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver,
-    pensionsalder_status = input.pensionsalder_status,
+    fødselsdato = input.fødselsdato,
     pbl18_fradragsberettiget_indbetaling_kroner = input.pbl18_fradragsberettiget_indbetaling_kroner,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = input.pbl19_rate_ophørende_bortseelsesret_efter_am_kroner,
     pbl19_øvrige_indbetalinger_efter_am_kroner = input.pbl19_øvrige_indbetalinger_efter_am_kroner,
@@ -742,7 +742,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     skatteår = 2012,
     arbejdsmarkedsbidragsgrundlag_kroner = 600000,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
-    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1958, måned = 1, dag = 1),
     pbl18_fradragsberettiget_indbetaling_kroner = 100000,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
@@ -754,7 +754,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     skatteår = 2017,
     arbejdsmarkedsbidragsgrundlag_kroner = 600000,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
-    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1958, måned = 1, dag = 1),
     pbl18_fradragsberettiget_indbetaling_kroner = 100000,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
@@ -766,7 +766,7 @@ at betale indkomstskat efter § 8 c eller kommunal indkomstskat.
     skatteår = 2019,
     arbejdsmarkedsbidragsgrundlag_kroner = 600000,
     udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = Falskt,
-    pensionsalder_status = Ll9lFra15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1958, måned = 1, dag = 1),
     pbl18_fradragsberettiget_indbetaling_kroner = 100000,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
     pbl19_øvrige_indbetalinger_efter_am_kroner = 0,

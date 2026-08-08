@@ -205,7 +205,7 @@ Skattestyrelsens 2026-satser.
     nettokapitalindkomst_kroner = 0,
     ligningsmæssige_fradrag_kroner = 0,
     pensionsfradrag = LønmodtagerPensionsfradrag(
-        pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+        fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
         pbl18_fradragsberettiget_indbetaling_kroner = 100000,
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,

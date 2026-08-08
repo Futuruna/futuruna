@@ -40,7 +40,7 @@
     tidligere_indbetalinger = []
 )
 | personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), par15a_årsgrundlag: Pbl15AÅrsgrundlag, aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> PersonskatPensionsInput(
-    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
@@ -52,7 +52,7 @@
 | personskat_pensionsinput_med_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger, personskat_tomt_par15a_årsgrundlag(), aktiepensionsfradrag_valg)
 | personskat_pensionsinput(indbetalinger: List(Pbl18Årsindbetaling)) -> personskat_pensionsinput_med_aktiefradrag(indbetalinger, UdenAktiepensionsfradragIAktieindkomst)
 | personskat_pensionsinput_med_pbl20(indbetalinger: List(Pbl18Årsindbetaling), pbl20_årsgrundlag: Pbl20Årsgrundlag) -> PersonskatPensionsInput(
-    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
@@ -62,7 +62,7 @@
     aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
 )
 | personskat_pensionsinput_med_par15b(indbetalinger: List(Pbl18Årsindbetaling), par15b_årsgrundlag: Pbl15BÅrsgrundlag) -> PersonskatPensionsInput(
-    pensionsalder_status = Ll9lMereEnd15ÅrFørFolkepension,
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
