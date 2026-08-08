@@ -1,0 +1,25 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: direct-rulescope=42
+-- expect-stdout: bound-rulescope=42
+-- expect-stdout: typed-rulescope=42
+
+# ForwardScope() {
+    | delegated() -> later_value + 1
+    | computed() -> delegated()
+    | typed_computed() -> later_typed_value + 1
+    | unused_cycle() -> direct_result
+}
+
+| through_scope(scope_input: ForwardScope) -> scope_input.typed_computed()
+
+= scope = ForwardScope()
+= direct_result = ForwardScope().computed()
+= bound_result = scope.computed()
+= typed_result = through_scope(ForwardScope())
+= later_value = 41
+= later_typed_value = 41
+
+@ print("direct-rulescope=" + show(direct_result))
+@ print("bound-rulescope=" + show(bound_result))
+@ print("typed-rulescope=" + show(typed_result))

@@ -4979,61 +4979,190 @@ pub enum Rule {
 struct FreeSymbolUses {
     values: BTreeSet<String>,
     calls: BTreeSet<String>,
+    member_calls: BTreeSet<(String, String)>,
+    typed_member_calls: BTreeSet<(String, String)>,
+}
+
+impl FreeSymbolUses {
+    fn extend(&mut self, other: Self) {
+        self.values.extend(other.values);
+        self.calls.extend(other.calls);
+        self.member_calls.extend(other.member_calls);
+        self.typed_member_calls.extend(other.typed_member_calls);
+    }
+}
+
+fn type_name(ty: &Ty) -> Option<&str> {
+    match ty {
+        Ty::Name(name) => Some(name),
+        Ty::App(constructor, _) => type_name(constructor),
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+            type_name(inner)
+        }
+        Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
+    }
+}
+
+fn typed_member_receivers(params: &[Param]) -> BTreeMap<String, String> {
+    params
+        .iter()
+        .filter_map(|param| {
+            param
+                .ty
+                .as_ref()
+                .and_then(type_name)
+                .map(|name| (param.name.clone(), name.to_string()))
+        })
+        .collect()
+}
+
+fn update_lexical_bindings(
+    pattern: &Pat,
+    ty: Option<&Ty>,
+    expression: &Expr,
+    bound: &mut BTreeSet<String>,
+    typed_receivers: &mut BTreeMap<String, String>,
+) {
+    let receiver_type = if let Pat::Var(_) = pattern {
+        ty.and_then(type_name)
+            .map(str::to_string)
+            .or_else(|| match &expression.kind {
+                ExprKind::Var(source) => typed_receivers.get(source).cloned(),
+                ExprKind::App(function, _) => match &function.kind {
+                    ExprKind::Var(constructor) => Some(constructor.clone()),
+                    _ => None,
+                },
+                _ => None,
+            })
+    } else {
+        None
+    };
+    let mut names = BTreeSet::new();
+    collect_pattern_names(pattern, &mut names);
+    for name in &names {
+        typed_receivers.remove(name);
+    }
+
+    if let Pat::Var(name) = pattern {
+        if let Some(receiver_type) = receiver_type {
+            typed_receivers.insert(name.clone(), receiver_type);
+        }
+    }
+    bound.extend(names);
+}
+
+fn shadow_pattern_bindings(
+    pattern: &Pat,
+    bound: &mut BTreeSet<String>,
+    typed_receivers: &mut BTreeMap<String, String>,
+) {
+    let mut names = BTreeSet::new();
+    collect_pattern_names(pattern, &mut names);
+    for name in &names {
+        typed_receivers.remove(name);
+    }
+    bound.extend(names);
+}
+
+fn update_stmt_lexical_bindings(
+    stmt: &Stmt,
+    bound: &mut BTreeSet<String>,
+    typed_receivers: &mut BTreeMap<String, String>,
+) {
+    match stmt {
+        Stmt::Bind(pattern, ty, expression) | Stmt::MonadicBind(pattern, ty, expression) => {
+            update_lexical_bindings(pattern, ty.as_ref(), expression, bound, typed_receivers);
+        }
+        Stmt::StreamBind(name, _) => {
+            typed_receivers.remove(name);
+            bound.insert(name.clone());
+        }
+        _ => {}
+    }
+}
+
+fn extend_param_bindings(
+    params: &[Param],
+    bound: &mut BTreeSet<String>,
+    typed_receivers: &mut BTreeMap<String, String>,
+) {
+    for param in params {
+        typed_receivers.remove(&param.name);
+        if let Some(receiver_type) = param.ty.as_ref().and_then(type_name) {
+            typed_receivers.insert(param.name.clone(), receiver_type.to_string());
+        }
+        bound.insert(param.name.clone());
+    }
 }
 
 fn collect_true_free_symbol_uses_stmt(
     stmt: &Stmt,
     uses: &mut FreeSymbolUses,
     bound: &BTreeSet<String>,
+    typed_receivers: &BTreeMap<String, String>,
 ) {
     match stmt {
         Stmt::Bind(_, _, expr) | Stmt::MonadicBind(_, _, expr) => {
-            collect_true_free_symbol_uses(expr, uses, bound);
+            collect_true_free_symbol_uses(expr, uses, bound, typed_receivers);
         }
         Stmt::Expr(expr) | Stmt::StreamBind(_, expr) => {
-            collect_true_free_symbol_uses(expr, uses, bound);
+            collect_true_free_symbol_uses(expr, uses, bound, typed_receivers);
         }
         Stmt::Send(target, msg) => {
-            collect_true_free_symbol_uses(target, uses, bound);
-            collect_true_free_symbol_uses(msg, uses, bound);
+            collect_true_free_symbol_uses(target, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(msg, uses, bound, typed_receivers);
         }
         Stmt::For(var, iter, body_stmts) => {
-            collect_true_free_symbol_uses(iter, uses, bound);
+            collect_true_free_symbol_uses(iter, uses, bound, typed_receivers);
             let mut for_bound = bound.clone();
+            let mut for_typed_receivers = typed_receivers.clone();
             for_bound.insert(var.clone());
+            for_typed_receivers.remove(var);
             for body_stmt in body_stmts {
-                collect_true_free_symbol_uses_stmt(body_stmt, uses, &for_bound);
-                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
-                    collect_pattern_names(pat, &mut for_bound);
-                }
+                collect_true_free_symbol_uses_stmt(
+                    body_stmt,
+                    uses,
+                    &for_bound,
+                    &for_typed_receivers,
+                );
+                update_stmt_lexical_bindings(body_stmt, &mut for_bound, &mut for_typed_receivers);
             }
         }
         Stmt::While(cond, body_stmts) => {
-            collect_true_free_symbol_uses(cond, uses, bound);
+            collect_true_free_symbol_uses(cond, uses, bound, typed_receivers);
             let mut while_bound = bound.clone();
+            let mut while_typed_receivers = typed_receivers.clone();
             for body_stmt in body_stmts {
-                collect_true_free_symbol_uses_stmt(body_stmt, uses, &while_bound);
-                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
-                    collect_pattern_names(pat, &mut while_bound);
-                }
+                collect_true_free_symbol_uses_stmt(
+                    body_stmt,
+                    uses,
+                    &while_bound,
+                    &while_typed_receivers,
+                );
+                update_stmt_lexical_bindings(
+                    body_stmt,
+                    &mut while_bound,
+                    &mut while_typed_receivers,
+                );
             }
         }
         Stmt::StreamSub(expr, arms) => {
-            collect_true_free_symbol_uses(expr, uses, bound);
+            collect_true_free_symbol_uses(expr, uses, bound, typed_receivers);
             for arm in arms {
                 let mut arm_bound = bound.clone();
-                collect_pattern_names(&arm.pat, &mut arm_bound);
+                let mut arm_typed_receivers = typed_receivers.clone();
+                shadow_pattern_bindings(&arm.pat, &mut arm_bound, &mut arm_typed_receivers);
                 if let Some(guard) = &arm.guard {
-                    collect_true_free_symbol_uses(guard, uses, &arm_bound);
+                    collect_true_free_symbol_uses(guard, uses, &arm_bound, &arm_typed_receivers);
                 }
-                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound);
+                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound, &arm_typed_receivers);
             }
         }
         Stmt::Invariant {
             subject, predicate, ..
         } => {
-            collect_true_free_symbol_uses(subject, uses, bound);
-            collect_true_free_symbol_uses(predicate, uses, bound);
+            collect_true_free_symbol_uses(subject, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(predicate, uses, bound, typed_receivers);
         }
         Stmt::Prove {
             pass_block,
@@ -5042,36 +5171,60 @@ fn collect_true_free_symbol_uses_stmt(
         } => {
             if let Some(pass_block) = pass_block {
                 let mut pass_bound = bound.clone();
+                let mut pass_typed_receivers = typed_receivers.clone();
                 for pass_stmt in pass_block {
-                    collect_true_free_symbol_uses_stmt(pass_stmt, uses, &pass_bound);
-                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = pass_stmt {
-                        collect_pattern_names(pat, &mut pass_bound);
-                    }
+                    collect_true_free_symbol_uses_stmt(
+                        pass_stmt,
+                        uses,
+                        &pass_bound,
+                        &pass_typed_receivers,
+                    );
+                    update_stmt_lexical_bindings(
+                        pass_stmt,
+                        &mut pass_bound,
+                        &mut pass_typed_receivers,
+                    );
                 }
             }
             if let Some(else_block) = else_block {
                 let mut else_bound = bound.clone();
+                let mut else_typed_receivers = typed_receivers.clone();
                 for else_stmt in else_block {
-                    collect_true_free_symbol_uses_stmt(else_stmt, uses, &else_bound);
-                    if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = else_stmt {
-                        collect_pattern_names(pat, &mut else_bound);
-                    }
+                    collect_true_free_symbol_uses_stmt(
+                        else_stmt,
+                        uses,
+                        &else_bound,
+                        &else_typed_receivers,
+                    );
+                    update_stmt_lexical_bindings(
+                        else_stmt,
+                        &mut else_bound,
+                        &mut else_typed_receivers,
+                    );
                 }
             }
         }
         Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
             let mut scope_bound = bound.clone();
+            let mut scope_typed_receivers = typed_receivers.clone();
             for body_stmt in body {
-                collect_true_free_symbol_uses_stmt(body_stmt, uses, &scope_bound);
-                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = body_stmt {
-                    collect_pattern_names(pat, &mut scope_bound);
-                }
+                collect_true_free_symbol_uses_stmt(
+                    body_stmt,
+                    uses,
+                    &scope_bound,
+                    &scope_typed_receivers,
+                );
+                update_stmt_lexical_bindings(
+                    body_stmt,
+                    &mut scope_bound,
+                    &mut scope_typed_receivers,
+                );
             }
         }
         Stmt::Rule(_) => {}
         Stmt::Annot(_, args) | Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
             for arg in args {
-                collect_true_free_symbol_uses(arg, uses, bound);
+                collect_true_free_symbol_uses(arg, uses, bound, typed_receivers);
             }
         }
         Stmt::Use(_)
@@ -5086,7 +5239,12 @@ fn collect_true_free_symbol_uses_stmt(
     }
 }
 
-fn collect_true_free_symbol_uses(expr: &Expr, uses: &mut FreeSymbolUses, bound: &BTreeSet<String>) {
+fn collect_true_free_symbol_uses(
+    expr: &Expr,
+    uses: &mut FreeSymbolUses,
+    bound: &BTreeSet<String>,
+    typed_receivers: &BTreeMap<String, String>,
+) {
     match &expr.kind {
         ExprKind::Var(name) => {
             if !bound.contains(name) {
@@ -5095,27 +5253,34 @@ fn collect_true_free_symbol_uses(expr: &Expr, uses: &mut FreeSymbolUses, bound: 
         }
         ExprKind::Lit(_) | ExprKind::Unit => {}
         ExprKind::BinOp(_, lhs, rhs) => {
-            collect_true_free_symbol_uses(lhs, uses, bound);
-            collect_true_free_symbol_uses(rhs, uses, bound);
+            collect_true_free_symbol_uses(lhs, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(rhs, uses, bound, typed_receivers);
         }
         ExprKind::UnOp(_, inner) | ExprKind::Try(inner) => {
-            collect_true_free_symbol_uses(inner, uses, bound)
+            collect_true_free_symbol_uses(inner, uses, bound, typed_receivers)
         }
         ExprKind::App(func, args) => {
             if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
                 if let Some(value) = args.get(1) {
-                    collect_true_free_symbol_uses(value, uses, bound);
+                    collect_true_free_symbol_uses(value, uses, bound, typed_receivers);
                 }
                 return;
             }
             if let ExprKind::Var(fn_name) = &func.kind {
                 if (fn_name == "findall" || fn_name == "search") && args.len() >= 2 {
                     let mut inner_bound = bound.clone();
+                    let mut inner_typed_receivers = typed_receivers.clone();
                     if let ExprKind::Var(qvar) = &args[0].kind {
                         inner_bound.insert(qvar.clone());
+                        inner_typed_receivers.remove(qvar);
                     }
                     for arg in &args[1..] {
-                        collect_true_free_symbol_uses(arg, uses, &inner_bound);
+                        collect_true_free_symbol_uses(
+                            arg,
+                            uses,
+                            &inner_bound,
+                            &inner_typed_receivers,
+                        );
                     }
                     return;
                 }
@@ -5125,78 +5290,114 @@ fn collect_true_free_symbol_uses(expr: &Expr, uses: &mut FreeSymbolUses, bound: 
                     uses.calls.insert(name.clone());
                 }
             } else {
-                collect_true_free_symbol_uses(func, uses, bound);
+                if let ExprKind::Field(receiver, member) = &func.kind {
+                    let receiver_name = match &receiver.kind {
+                        ExprKind::Var(name) => Some(name),
+                        ExprKind::App(constructor, _) => match &constructor.kind {
+                            ExprKind::Var(name) => Some(name),
+                            _ => None,
+                        },
+                        _ => None,
+                    };
+                    if let Some(receiver_name) = receiver_name {
+                        if let Some(receiver_type) = typed_receivers.get(receiver_name) {
+                            uses.typed_member_calls
+                                .insert((receiver_type.clone(), member.clone()));
+                        } else if !bound.contains(receiver_name) {
+                            uses.member_calls
+                                .insert((receiver_name.clone(), member.clone()));
+                        }
+                    }
+                }
+                collect_true_free_symbol_uses(func, uses, bound, typed_receivers);
             }
             for arg in args {
-                collect_true_free_symbol_uses(arg, uses, bound);
+                collect_true_free_symbol_uses(arg, uses, bound, typed_receivers);
             }
         }
         ExprKind::If(cond, then_expr, else_expr) => {
-            collect_true_free_symbol_uses(cond, uses, bound);
-            collect_true_free_symbol_uses(then_expr, uses, bound);
-            collect_true_free_symbol_uses(else_expr, uses, bound);
+            collect_true_free_symbol_uses(cond, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(then_expr, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(else_expr, uses, bound, typed_receivers);
         }
-        ExprKind::Field(object, _) => collect_true_free_symbol_uses(object, uses, bound),
+        ExprKind::Field(object, _) => {
+            collect_true_free_symbol_uses(object, uses, bound, typed_receivers)
+        }
         ExprKind::Index(collection, index) => {
-            collect_true_free_symbol_uses(collection, uses, bound);
-            collect_true_free_symbol_uses(index, uses, bound);
+            collect_true_free_symbol_uses(collection, uses, bound, typed_receivers);
+            collect_true_free_symbol_uses(index, uses, bound, typed_receivers);
         }
         ExprKind::Match(scrutinee, arms) => {
-            collect_true_free_symbol_uses(scrutinee, uses, bound);
+            collect_true_free_symbol_uses(scrutinee, uses, bound, typed_receivers);
             for arm in arms {
                 let mut arm_bound = bound.clone();
-                collect_pattern_names(&arm.pat, &mut arm_bound);
-                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound);
+                let mut arm_typed_receivers = typed_receivers.clone();
+                shadow_pattern_bindings(&arm.pat, &mut arm_bound, &mut arm_typed_receivers);
+                collect_true_free_symbol_uses(&arm.body, uses, &arm_bound, &arm_typed_receivers);
                 if let Some(guard) = &arm.guard {
-                    collect_true_free_symbol_uses(guard, uses, &arm_bound);
+                    collect_true_free_symbol_uses(guard, uses, &arm_bound, &arm_typed_receivers);
                 }
             }
         }
         ExprKind::Lambda(params, body) => {
             let mut inner_bound = bound.clone();
-            inner_bound.extend(params.iter().map(|param| param.name.clone()));
-            collect_true_free_symbol_uses(body, uses, &inner_bound);
+            let mut inner_typed_receivers = typed_receivers.clone();
+            extend_param_bindings(params, &mut inner_bound, &mut inner_typed_receivers);
+            collect_true_free_symbol_uses(body, uses, &inner_bound, &inner_typed_receivers);
         }
         ExprKind::Block(stmts) => {
             let mut block_bound = bound.clone();
+            let mut block_typed_receivers = typed_receivers.clone();
             for stmt in stmts {
-                collect_true_free_symbol_uses_stmt(stmt, uses, &block_bound);
-                if let Stmt::Bind(pat, _, _) | Stmt::MonadicBind(pat, _, _) = stmt {
-                    collect_pattern_names(pat, &mut block_bound);
-                }
+                collect_true_free_symbol_uses_stmt(
+                    stmt,
+                    uses,
+                    &block_bound,
+                    &block_typed_receivers,
+                );
+                update_stmt_lexical_bindings(stmt, &mut block_bound, &mut block_typed_receivers);
             }
         }
         ExprKind::List(items) | ExprKind::Tuple(items) => {
             for item in items {
-                collect_true_free_symbol_uses(item, uses, bound);
+                collect_true_free_symbol_uses(item, uses, bound, typed_receivers);
             }
         }
         ExprKind::Effect(_, args) => {
             for arg in args {
-                collect_true_free_symbol_uses(arg, uses, bound);
+                collect_true_free_symbol_uses(arg, uses, bound, typed_receivers);
             }
         }
         ExprKind::Handle { handlers, body, .. } => {
             for handler in handlers {
                 let mut handler_bound = bound.clone();
-                handler_bound.extend(handler.params.iter().cloned());
-                collect_true_free_symbol_uses(&handler.body, uses, &handler_bound);
+                let mut handler_typed_receivers = typed_receivers.clone();
+                for param in &handler.params {
+                    handler_typed_receivers.remove(param);
+                    handler_bound.insert(param.clone());
+                }
+                collect_true_free_symbol_uses(
+                    &handler.body,
+                    uses,
+                    &handler_bound,
+                    &handler_typed_receivers,
+                );
             }
-            collect_true_free_symbol_uses(body, uses, bound);
+            collect_true_free_symbol_uses(body, uses, bound, typed_receivers);
         }
         ExprKind::Conjunction(goals) | ExprKind::Disjunction(goals) => {
             for goal in goals {
-                collect_true_free_symbol_uses(goal, uses, bound);
+                collect_true_free_symbol_uses(goal, uses, bound, typed_receivers);
             }
         }
         ExprKind::Pipe(input, transform) => {
-            collect_true_free_symbol_uses(input, uses, bound);
+            collect_true_free_symbol_uses(input, uses, bound, typed_receivers);
             if let ExprKind::Var(name) = &transform.kind {
                 if !bound.contains(name) {
                     uses.calls.insert(name.clone());
                 }
             } else {
-                collect_true_free_symbol_uses(transform, uses, bound);
+                collect_true_free_symbol_uses(transform, uses, bound, typed_receivers);
             }
         }
     }
@@ -5210,14 +5411,14 @@ pub fn collect_true_free_vars_stmt(
     bound: &BTreeSet<String>,
 ) {
     let mut uses = FreeSymbolUses::default();
-    collect_true_free_symbol_uses_stmt(stmt, &mut uses, bound);
+    collect_true_free_symbol_uses_stmt(stmt, &mut uses, bound, &BTreeMap::new());
     free.extend(uses.values);
     free.extend(uses.calls);
 }
 
 pub fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &BTreeSet<String>) {
     let mut uses = FreeSymbolUses::default();
-    collect_true_free_symbol_uses(expr, &mut uses, bound);
+    collect_true_free_symbol_uses(expr, &mut uses, bound, &BTreeMap::new());
     free.extend(uses.values);
     free.extend(uses.calls);
 }
@@ -5271,10 +5472,15 @@ impl TopLevelBindingDependencyPlan {
         &self,
         stmts: &[&'a Stmt],
     ) -> Result<Vec<&'a Stmt>, TopLevelInitializationCycle> {
+        struct BindingBundle<'a> {
+            annotations: Vec<&'a Stmt>,
+            binding: &'a Stmt,
+        }
+
         fn append_binding<'a>(
             name: &str,
             plan: &TopLevelBindingDependencyPlan,
-            bindings: &BTreeMap<String, &'a Stmt>,
+            bindings: &BTreeMap<String, BindingBundle<'a>>,
             emitted: &mut BTreeSet<String>,
             active: &mut Vec<String>,
             ordered: &mut Vec<&'a Stmt>,
@@ -5299,27 +5505,55 @@ impl TopLevelBindingDependencyPlan {
             active.pop();
 
             if emitted.insert(name.to_string()) {
-                if let Some(stmt) = bindings.get(name) {
-                    ordered.push(*stmt);
+                if let Some(bundle) = bindings.get(name) {
+                    ordered.extend(bundle.annotations.iter().copied());
+                    ordered.push(bundle.binding);
                 }
             }
             Ok(())
         }
 
-        let bindings = stmts
-            .iter()
-            .filter_map(|stmt| match stmt {
-                Stmt::Bind(Pat::Var(name), _, _) if self.binding_names.contains(name) => {
-                    Some((name.clone(), *stmt))
+        let mut bindings = BTreeMap::new();
+        let mut bundled_annotation_indexes = BTreeSet::new();
+        for (index, stmt) in stmts.iter().enumerate() {
+            let Stmt::Bind(Pat::Var(name), _, _) = stmt else {
+                continue;
+            };
+            if !self.binding_names.contains(name) {
+                continue;
+            }
+
+            let mut annotation_start = index;
+            while annotation_start > 0 {
+                let is_binding_annotation = matches!(
+                    stmts[annotation_start - 1],
+                    Stmt::Annot(annotation, arguments)
+                        if arguments.is_empty()
+                            && (annotation == "comptime" || annotation == "export")
+                );
+                if !is_binding_annotation {
+                    break;
                 }
-                _ => None,
-            })
-            .collect::<BTreeMap<_, _>>();
+                annotation_start -= 1;
+            }
+            let annotations = stmts[annotation_start..index].to_vec();
+            bundled_annotation_indexes.extend(annotation_start..index);
+            bindings.insert(
+                name.clone(),
+                BindingBundle {
+                    annotations,
+                    binding: *stmt,
+                },
+            );
+        }
         let mut emitted = BTreeSet::new();
         let mut active = Vec::new();
         let mut ordered = Vec::with_capacity(stmts.len());
 
-        for stmt in stmts {
+        for (index, stmt) in stmts.iter().enumerate() {
+            if bundled_annotation_indexes.contains(&index) {
+                continue;
+            }
             if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
                 if self.binding_names.contains(name) {
                     append_binding(
@@ -5373,33 +5607,141 @@ fn rule_head_bound_names(head: &Expr) -> BTreeSet<String> {
         .collect()
 }
 
+fn rule_scope_member_callable_name(scope: &str, member: &str) -> String {
+    format!("\0rulescope:{scope}:{member}")
+}
+
+fn rule_scope_member_name(stmt: &Stmt) -> Option<&str> {
+    match stmt {
+        Stmt::Defn(Defn::Fn { name, .. }) => Some(name),
+        Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => rule_head_name(head),
+            Rule::ReactiveScope { .. } => None,
+        },
+        _ => None,
+    }
+}
+
+fn direct_rule_scope_constructor<'a>(
+    expression: &'a Expr,
+    rule_scope_names: &BTreeSet<String>,
+) -> Option<&'a str> {
+    let ExprKind::App(function, _) = &expression.kind else {
+        return None;
+    };
+    let ExprKind::Var(name) = &function.kind else {
+        return None;
+    };
+    rule_scope_names.contains(name).then_some(name.as_str())
+}
+
+fn resolve_rule_scope_member_callable(
+    receiver: &str,
+    member: &str,
+    statement_index: usize,
+    binding_positions: &BTreeMap<String, usize>,
+    binding_rule_scopes: &BTreeMap<String, String>,
+    rule_scope_names: &BTreeSet<String>,
+) -> Option<String> {
+    let earlier_binding_shadows = binding_positions
+        .get(receiver)
+        .is_some_and(|position| *position < statement_index);
+    if earlier_binding_shadows {
+        return binding_rule_scopes
+            .get(receiver)
+            .map(|scope| rule_scope_member_callable_name(scope, member));
+    }
+    if rule_scope_names.contains(receiver) {
+        return Some(rule_scope_member_callable_name(receiver, member));
+    }
+    binding_rule_scopes
+        .get(receiver)
+        .map(|scope| rule_scope_member_callable_name(scope, member))
+}
+
+fn collect_rule_head_typed_receivers(
+    expression: &Expr,
+    typed_receivers: &mut BTreeMap<String, String>,
+) {
+    match &expression.kind {
+        ExprKind::App(function, args) if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") => {
+            if let [inner, type_expression] = args.as_slice() {
+                if let (ExprKind::Var(name), ExprKind::Var(receiver_type)) =
+                    (&inner.kind, &type_expression.kind)
+                {
+                    typed_receivers.insert(name.clone(), receiver_type.clone());
+                }
+                collect_rule_head_typed_receivers(inner, typed_receivers);
+            }
+        }
+        ExprKind::App(_, args) | ExprKind::Tuple(args) => {
+            for argument in args {
+                collect_rule_head_typed_receivers(argument, typed_receivers);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rule_head_typed_receivers(head: &Expr) -> BTreeMap<String, String> {
+    let mut typed_receivers = BTreeMap::new();
+    if let ExprKind::App(_, args) = &head.kind {
+        for argument in args {
+            collect_rule_head_typed_receivers(argument, &mut typed_receivers);
+        }
+    }
+    typed_receivers
+}
+
 pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBindingDependencyPlan {
     let mut counts = BTreeMap::<String, usize>::new();
     let mut binding_positions = BTreeMap::<String, usize>::new();
-    let mut comptime_bindings = BTreeSet::new();
-    let mut pending_annotation = None::<String>;
 
     for (index, stmt) in stmts.iter().enumerate() {
-        if let Stmt::Annot(name, _) = stmt {
-            pending_annotation = Some(name.clone());
-            continue;
-        }
         if let Stmt::Bind(Pat::Var(name), _, _) = stmt {
             *counts.entry(name.clone()).or_default() += 1;
             binding_positions.entry(name.clone()).or_insert(index);
-            if pending_annotation.as_deref() == Some("comptime") {
-                comptime_bindings.insert(name.clone());
-            }
         }
-        pending_annotation = None;
     }
 
     let binding_names = counts
         .into_iter()
-        .filter_map(|(name, count)| {
-            (count == 1 && !comptime_bindings.contains(&name)).then_some(name)
-        })
+        .filter_map(|(name, count)| (count == 1).then_some(name))
         .collect::<BTreeSet<_>>();
+
+    let rule_scope_members = stmts
+        .iter()
+        .filter_map(|stmt| match stmt {
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, body, .. }) => Some((
+                name.clone(),
+                body.iter()
+                    .filter_map(rule_scope_member_name)
+                    .map(str::to_string)
+                    .collect::<BTreeSet<_>>(),
+            )),
+            _ => None,
+        })
+        .collect::<BTreeMap<_, _>>();
+    let rule_scope_names = rule_scope_members.keys().cloned().collect::<BTreeSet<_>>();
+    let binding_rule_scopes = stmts
+        .iter()
+        .filter_map(|stmt| {
+            let Stmt::Bind(Pat::Var(name), ty, expression) = stmt else {
+                return None;
+            };
+            if !binding_names.contains(name) {
+                return None;
+            }
+            let scope = ty
+                .as_ref()
+                .and_then(type_name)
+                .filter(|name| rule_scope_names.contains(*name))
+                .or_else(|| direct_rule_scope_constructor(expression, &rule_scope_names))?;
+            Some((name.clone(), scope.to_string()))
+        })
+        .collect::<BTreeMap<_, _>>();
 
     let mut callable_dependencies = BTreeMap::<String, FreeSymbolUses>::new();
     for stmt in stmts {
@@ -5411,8 +5753,9 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
                     .iter()
                     .map(|param| param.name.clone())
                     .collect::<BTreeSet<_>>();
+                let typed_receivers = typed_member_receivers(params);
                 let uses = callable_dependencies.entry(name.clone()).or_default();
-                collect_true_free_symbol_uses(body, uses, &bound);
+                collect_true_free_symbol_uses(body, uses, &bound, &typed_receivers);
             }
             Stmt::Rule(rule) => {
                 let (head, expressions) = match rule {
@@ -5442,9 +5785,96 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
                     continue;
                 };
                 let bound = rule_head_bound_names(head);
+                let typed_receivers = rule_head_typed_receivers(head);
                 let uses = callable_dependencies.entry(name.to_string()).or_default();
                 for expression in expressions {
-                    collect_true_free_symbol_uses(expression, uses, &bound);
+                    collect_true_free_symbol_uses(expression, uses, &bound, &typed_receivers);
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                callable_dependencies.entry(name.clone()).or_default();
+                let member_names = rule_scope_members.get(name).cloned().unwrap_or_default();
+                let scope_bound = params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<BTreeSet<_>>();
+                let scope_typed_receivers = typed_member_receivers(params);
+
+                for member_stmt in body {
+                    let member = match member_stmt {
+                        Stmt::Defn(Defn::Fn {
+                            name, params, body, ..
+                        }) => {
+                            let mut bound = scope_bound.clone();
+                            let mut typed_receivers = scope_typed_receivers.clone();
+                            extend_param_bindings(params, &mut bound, &mut typed_receivers);
+                            Some((name.as_str(), bound, typed_receivers, vec![body]))
+                        }
+                        Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                            let (head, expressions) = match rule {
+                                Rule::Clause {
+                                    head,
+                                    body: Some(body),
+                                } => (head, vec![body]),
+                                Rule::Default {
+                                    head,
+                                    value,
+                                    condition,
+                                }
+                                | Rule::Exception {
+                                    head,
+                                    value,
+                                    condition,
+                                    ..
+                                } => {
+                                    let mut expressions = vec![value];
+                                    expressions.extend(condition.iter());
+                                    (head, expressions)
+                                }
+                                Rule::Clause { head, body: None } => (head, Vec::new()),
+                                Rule::ReactiveScope { .. } => unreachable!(),
+                            };
+                            rule_head_name(head).map(|member_name| {
+                                let mut bound = scope_bound.clone();
+                                bound.extend(rule_head_bound_names(head));
+                                let mut typed_receivers = scope_typed_receivers.clone();
+                                typed_receivers.extend(rule_head_typed_receivers(head));
+                                (member_name, bound, typed_receivers, expressions)
+                            })
+                        }
+                        _ => None,
+                    };
+                    let Some((member_name, bound, typed_receivers, expressions)) = member else {
+                        continue;
+                    };
+
+                    let mut member_uses = FreeSymbolUses::default();
+                    for expression in expressions {
+                        collect_true_free_symbol_uses(
+                            expression,
+                            &mut member_uses,
+                            &bound,
+                            &typed_receivers,
+                        );
+                    }
+                    let sibling_calls = member_uses
+                        .calls
+                        .iter()
+                        .filter(|call| member_names.contains(*call))
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    member_uses
+                        .calls
+                        .retain(|call| !member_names.contains(call));
+                    member_uses.calls.extend(
+                        sibling_calls
+                            .iter()
+                            .map(|call| rule_scope_member_callable_name(name, call)),
+                    );
+                    callable_dependencies
+                        .entry(rule_scope_member_callable_name(name, member_name))
+                        .or_default()
+                        .extend(member_uses);
                 }
             }
             Stmt::TypeDecl(TypeDecl::ADT { variants, .. })
@@ -5469,11 +5899,31 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
         }
 
         let mut uses = FreeSymbolUses::default();
-        collect_true_free_symbol_uses(expression, &mut uses, &BTreeSet::new());
-        let mut callable_stack = uses.calls.into_iter().collect::<Vec<_>>();
+        collect_true_free_symbol_uses(expression, &mut uses, &BTreeSet::new(), &BTreeMap::new());
+        let FreeSymbolUses {
+            values,
+            calls,
+            member_calls,
+            typed_member_calls,
+        } = uses;
+        let mut callable_stack = calls.into_iter().collect::<Vec<_>>();
+        callable_stack.extend(member_calls.iter().filter_map(|(receiver, member)| {
+            resolve_rule_scope_member_callable(
+                receiver,
+                member,
+                statement_index,
+                &binding_positions,
+                &binding_rule_scopes,
+                &rule_scope_names,
+            )
+        }));
+        callable_stack.extend(
+            typed_member_calls
+                .iter()
+                .map(|(scope, member)| rule_scope_member_callable_name(scope, member)),
+        );
         let mut visited_callables = BTreeSet::new();
-        let mut binding_dependencies = uses
-            .values
+        let mut binding_dependencies = values
             .into_iter()
             .filter(|symbol| binding_names.contains(symbol))
             .collect::<BTreeSet<_>>();
@@ -5502,6 +5952,24 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
                         .cloned(),
                 );
                 callable_stack.extend(callable.calls.iter().cloned());
+                callable_stack.extend(callable.member_calls.iter().filter_map(
+                    |(receiver, member)| {
+                        resolve_rule_scope_member_callable(
+                            receiver,
+                            member,
+                            statement_index,
+                            &binding_positions,
+                            &binding_rule_scopes,
+                            &rule_scope_names,
+                        )
+                    },
+                ));
+                callable_stack.extend(
+                    callable
+                        .typed_member_calls
+                        .iter()
+                        .map(|(scope, member)| rule_scope_member_callable_name(scope, member)),
+                );
             } else if binding_names.contains(&symbol) {
                 // A call without a static function, rule, or constructor resolves
                 // through a function-valued top-level binding.

@@ -1,0 +1,11 @@
+-- expect-command: interp
+-- expect-status: fail
+-- expect-stderr: cyclic top-level value initialization: cyclic -> cyclic
+
+# CyclicScope() {
+    | value() -> cyclic + 1
+}
+
+= cyclic = CyclicScope().value()
+
+@ print(show(cyclic))

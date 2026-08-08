@@ -1,0 +1,10 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: comptime-forward=42
+
+= early = later + 1
+
+@ comptime
+= later = 41
+
+@ print("comptime-forward=" + show(early))

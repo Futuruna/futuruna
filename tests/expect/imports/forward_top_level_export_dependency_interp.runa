@@ -1,0 +1,7 @@
+-- expect-command: interp
+-- expect-status: pass
+-- expect-stdout: export-forward=42
+
+@ import ./forward_top_level_export_dependency_lib
+
+@ print("export-forward=" + show(exported_forward_value))

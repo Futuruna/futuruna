@@ -294,8 +294,10 @@ Binds a name to a value. Ground truth at a point in time.
 ### Top-level initialization order
 
 Unique top-level bindings may refer to bindings declared later, directly or
-through functions and rules. Futuruna initializes the required dependencies
-first in both interpreted and compiled execution.
+through functions, rules, and RuleScope members. Futuruna initializes the
+required dependencies first in both interpreted and compiled execution.
+Declarative `@ comptime` and `@ export` annotations remain attached when a
+binding moves with its dependencies.
 
 ```runa
 | answer() -> base + 1
