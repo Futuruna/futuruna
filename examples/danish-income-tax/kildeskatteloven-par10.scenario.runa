@@ -1,0 +1,74 @@
+@ sprog da
+
+@ importer ./kildeskatteloven - par10
+
+= ksl10_fraflytningsdato = Dato(år = 2026, måned = 8, dag = 8)
+
+| ksl10_scenariefakta(hændelse: Kildeskat10Grænsehændelse, status: Kildeskat10DanskBeskatningsstatus, særregel: Kildeskat10Særregel) -> Kildeskat10Aktivfakta(
+    identifikation = "aktiv-1",
+    grænsehændelse = hændelse,
+    dansk_beskatningsstatus_efter_hændelsen = status,
+    særregel = særregel,
+    handelsværdi_på_grænsetidspunktet_kroner = 1200000
+)
+
+= ksl10_fuld_skattepligt_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10FuldSkattepligtEfterPar1Ophører(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10IngenSærregel
+))
+= ksl10_dbo_hjemsted_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10DobbeltbeskatningshjemstedBliverUdland(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10IngenSærregel
+))
+= ksl10_begrænset_overførsel_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10IngenSærregel
+))
+= ksl10_fortsat_dansk_beskatning_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10FuldSkattepligtEfterPar1Ophører(dato = ksl10_fraflytningsdato),
+    Ksl10AktivFortsatOmfattetAfDanskBeskatning,
+    Ksl10IngenSærregel
+))
+= ksl10_dødsfald_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10Dødsfald(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10IngenSærregel
+))
+= ksl10_abl38_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10FuldSkattepligtEfterPar1Ophører(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10AktieOmfattetAfAktieavancebeskatningslovensPar38
+))
+= ksl10_kgl37_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10FuldSkattepligtEfterPar1Ophører(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10FordringGældEllerFinansielKontraktOmfattetAfKursgevinstlovensPar37
+))
+= ksl10_ll28_resultat = kildeskat10_aktivresultat(ksl10_scenariefakta(
+    Ksl10FuldSkattepligtEfterPar1Ophører(dato = ksl10_fraflytningsdato),
+    Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+    Ksl10KøbeEllerTegningsretOmfattetAfLigningslovensPar28
+))
+
+| ksl10_scenarie_fuld_skattepligt: ksl10_fuld_skattepligt_resultat -> ksl10_fuld_skattepligt_resultat.input_gyldigt && ksl10_fuld_skattepligt_resultat.stk1_hændelse && ksl10_fuld_skattepligt_resultat.anses_for_afhændet && ksl10_fuld_skattepligt_resultat.afståelsesdato == Some(ksl10_fraflytningsdato) && ksl10_fuld_skattepligt_resultat.afståelsessum_kroner == 1200000
+| ksl10_scenarie_dbo_hjemsted: ksl10_dbo_hjemsted_resultat -> ksl10_dbo_hjemsted_resultat.stk1_hændelse && ksl10_dbo_hjemsted_resultat.anses_for_afhændet
+| ksl10_scenarie_begrænset_overførsel: ksl10_begrænset_overførsel_resultat -> ksl10_begrænset_overførsel_resultat.stk2_hændelse && ksl10_begrænset_overførsel_resultat.anses_for_afhændet
+| ksl10_scenarie_fortsat_dansk_beskatning: ksl10_fortsat_dansk_beskatning_resultat -> ksl10_fortsat_dansk_beskatning_resultat.fortsat_dansk_beskatning && ksl10_fortsat_dansk_beskatning_resultat.anses_for_afhændet == Falskt && ksl10_fortsat_dansk_beskatning_resultat.afståelsessum_kroner == 0
+| ksl10_scenarie_dødsfald: ksl10_dødsfald_resultat -> ksl10_dødsfald_resultat.stk1_hændelse == Falskt && ksl10_dødsfald_resultat.anses_for_afhændet == Falskt
+| ksl10_scenarie_abl38_særregel: ksl10_abl38_resultat -> ksl10_abl38_resultat.stk3_udelukket && ksl10_abl38_resultat.anses_for_afhændet == Falskt
+| ksl10_scenarie_kgl37_særregel: ksl10_kgl37_resultat -> ksl10_kgl37_resultat.stk3_udelukket && ksl10_kgl37_resultat.anses_for_afhændet == Falskt
+| ksl10_scenarie_ll28_særregel: ksl10_ll28_resultat -> ksl10_ll28_resultat.stk3_udelukket && ksl10_ll28_resultat.anses_for_afhændet == Falskt
+
+? ksl10_scenarie_fuld_skattepligt
+? ksl10_scenarie_dbo_hjemsted
+? ksl10_scenarie_begrænset_overførsel
+? ksl10_scenarie_fortsat_dansk_beskatning
+? ksl10_scenarie_dødsfald
+? ksl10_scenarie_abl38_særregel
+? ksl10_scenarie_kgl37_særregel
+? ksl10_scenarie_ll28_særregel
+
+@ print("Kildeskatteloven § 10: 8 fraflytnings-, overførsels- og særregelsscenarier kontrolleret")

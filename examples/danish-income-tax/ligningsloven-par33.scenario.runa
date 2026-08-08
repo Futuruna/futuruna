@@ -216,7 +216,8 @@
             betalt_udenlandsk_skat_øre = 600,
             indkomst = ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 398, 0, 0),
             lønlempelsesstatus = Ll33IngenLønindkomst
-        )]
+        )],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [Ligningslov33DanskSkattekomponent(
@@ -241,7 +242,8 @@
             betalt_udenlandsk_skat_øre = 9000000,
             indkomst = ll33_person_scenarie_udenlandsk_indkomst(150000, 184000, 0, 0, 0, 200000),
             lønlempelsesstatus = Ll33OrdinærCreditlempetLønindkomst
-        )]
+        )],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [
@@ -263,7 +265,8 @@
         kreditgrupper = [
             ll33_person_scenarie_kreditgruppe("kildeskat-1", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 1"), 10000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0), Ll33IngenLønindkomst),
             ll33_person_scenarie_kreditgruppe("kildeskat-2", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 2"), 20000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 20000, 0, 0), Ll33IngenLønindkomst),
-        ]
+        ],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar8A, Ll33Aktieindkomst(100000), 2700000)],
@@ -279,7 +282,8 @@
         kreditgrupper = [
             ll33_person_scenarie_kreditgruppe("samlet-1", "ZZ", Ll33SamletIndkomstFraSkatteområdet, 10000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0), Ll33IngenLønindkomst),
             ll33_person_scenarie_kreditgruppe("samlet-2", "ZZ", Ll33SamletIndkomstFraSkatteområdet, 20000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 20000, 0, 0), Ll33IngenLønindkomst),
-        ]
+        ],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar8A, Ll33Aktieindkomst(100000), 2700000)],
@@ -300,7 +304,8 @@
             1000000,
             ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0),
             Ll33IngenLønindkomst
-        )]
+        )],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar8A, Ll33Aktieindkomst(100000), 2700000)],
@@ -321,7 +326,8 @@
             1000000,
             ll33_person_scenarie_udenlandsk_indkomst(80000, 92000, 0, 0, 0, 100000),
             status
-        )]
+        )],
+        par6_kreditter = []
     ),
     Ligningslov33PersonDanskSkattekreds(
         komponenter = [Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar6, Ll33PersonligOgPositivKapitalindkomst(200000), 2400000)],
@@ -330,6 +336,121 @@
 )
 = ll33_person_scenarie_par33a_løn = ll33_person_scenarie_udelukket_løn(Ll33LønindkomstOmfattetAfPar33A)
 = ll33_person_scenarie_søbl_løn = ll33_person_scenarie_udelukket_løn(Ll33LønindkomstOmfattetAfSømandsbeskatningslovenPar5Til8)
+
+| ll33_par6_scenarie_kreditfakta(hændelse: Kildeskat10Grænsehændelse, særregel: Kildeskat10Særregel, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag, aktivgrundlag: Ligningslov33Par6Aktivgrundlag) -> Ligningslov33Par6Kreditfakta(
+    grundlag = Ligningslov33Par6Kreditgrundlag(
+        kildeskat10_aktivfakta = Kildeskat10Aktivfakta(
+            identifikation = "udenlandsk-fast-ejendom",
+            grænsehændelse = hændelse,
+            dansk_beskatningsstatus_efter_hændelsen = Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning,
+            særregel = særregel,
+            handelsværdi_på_grænsetidspunktet_kroner = 1200000
+        ),
+        aktivgrundlag = aktivgrundlag,
+        udenlandsk_skat_som_kunne_være_pålignet_øre = 4000000,
+        dokumentreference = "Udenlandsk skatteberegning ved fiktiv afståelse"
+    ),
+    identifikation = "par6-fast-ejendom",
+    grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
+    område = Ll33FremmedStat(landekode = "XX"),
+    udenlandsk_bruttoindkomst_kroner = 120000,
+    direkte_henførbare_udgifter_kroner = 20000,
+    overenskomstgrundlag = overenskomstgrundlag,
+    udenlandsk_indkomst_efter_danske_regler = ll33_person_scenarie_udenlandsk_indkomst(100000, 0, 0, 0, 0, 0),
+    lønlempelsesstatus = Ll33IngenLønindkomst
+)
+| ll33_par6_scenarie_resultat(fakta: Ligningslov33Par6Kreditfakta, ordinære_grupper: List(Ligningslov33PersonKreditgruppe)) -> ligningslov33_person_årsresultat(
+    Ligningslov33PersonÅrsinput(
+        dansk_bruttoindkomst_kroner = 400000,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        kreditgrupper = ordinære_grupper,
+        par6_kreditter = [fakta]
+    ),
+    Ligningslov33PersonDanskSkattekreds(
+        komponenter = [Ligningslov33DanskSkattekomponent(
+            art = Ll33KommunalIndkomstskat,
+            beregningsgrundlag = Ll33SkattepligtigIndkomst(samlet_indkomst_kroner = 500000),
+            dansk_skat_før_personfradrag_øre = 12500000
+        )],
+        samlet_dansk_indkomstskat_tilgængelig_øre = 12500000
+    )
+)
+
+= ll33_par6_scenarie_fuld_skattepligt = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        Ksl10FuldSkattepligtEfterPar1Ophører(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        Ksl10IngenSærregel,
+        Ll33IngenDobbeltbeskatningsoverenskomst,
+        Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+    ),
+    []
+)
+= ll33_par6_scenarie_overenskomstloft = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        Ksl10DobbeltbeskatningshjemstedBliverUdland(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        Ksl10IngenSærregel,
+        Ll33OverenskomstensUbetingedeKrav(
+            maksimal_skat_øre = 1800000,
+            dokumentreference = "DBO XX-Danmark"
+        ),
+        Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+    ),
+    []
+)
+= ll33_par6_scenarie_stk2_afvises = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        Ksl10IngenSærregel,
+        Ll33IngenDobbeltbeskatningsoverenskomst,
+        Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+    ),
+    []
+)
+= ll33_par6_scenarie_særregel_afvises = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        Ksl10FuldSkattepligtEfterPar1Ophører(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        Ksl10AktieOmfattetAfAktieavancebeskatningslovensPar38,
+        Ll33IngenDobbeltbeskatningsoverenskomst,
+        Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+    ),
+    []
+)
+= ll33_par6_scenarie_dobbelt_område = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        Ksl10FuldSkattepligtEfterPar1Ophører(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        Ksl10IngenSærregel,
+        Ll33IngenDobbeltbeskatningsoverenskomst,
+        Ll33Par6FastEjendomEfterEjendomsavancebeskatningsloven
+    ),
+    [ll33_person_scenarie_kreditgruppe(
+        "ordinær-samme-land",
+        "XX",
+        Ll33SamletIndkomstFraSkatteområdet,
+        10000,
+        100000,
+        ll33_person_scenarie_udenlandsk_indkomst(10000, 0, 0, 0, 0, 0),
+        Ll33IngenLønindkomst
+    )]
+)
+= ll33_par6_scenarie_fast_driftssted = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        hændelse = Ksl10FuldSkattepligtEfterPar1Ophører(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        særregel = Ksl10IngenSærregel,
+        overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst,
+        aktivgrundlag = Ll33Par6AktivIFastDriftssted(dokumentreference = "Fast driftssted XX, aktivfortegnelse 2026")
+    ),
+    []
+)
+= ll33_par6_scenarie_udokumenteret_fast_driftssted = ll33_par6_scenarie_resultat(
+    ll33_par6_scenarie_kreditfakta(
+        hændelse = Ksl10FuldSkattepligtEfterPar1Ophører(dato = Dato(år = 2026, måned = 8, dag = 8)),
+        særregel = Ksl10IngenSærregel,
+        overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst,
+        aktivgrundlag = Ll33Par6AktivIFastDriftssted(dokumentreference = "")
+    ),
+    []
+)
 
 | ll33_scenarie_årsopgørelse_forklarer_seks_kroner: ll33_scenarie_årsopgørelse2025 -> ll33_scenarie_årsopgørelse2025.input_gyldigt && head(ll33_scenarie_årsopgørelse2025.landelinjer).proportionalt_dansk_skatteloft_øre == 10746 && head(ll33_scenarie_årsopgørelse2025.landelinjer).udenlandsk_skat_efter_overenskomst_øre == 600 && ll33_scenarie_årsopgørelse2025.samlet_nedslag_øre == 600
 | ll33_scenarie_proportionalt_loft_begrænser: ll33_scenarie_proportionalt_loft -> ll33_scenarie_proportionalt_loft.input_gyldigt && head(ll33_scenarie_proportionalt_loft.landelinjer).proportionalt_dansk_skatteloft_øre == 270000 && ll33_scenarie_proportionalt_loft.samlet_nedslag_øre == 270000
@@ -346,6 +467,13 @@
 | ll33_person_scenarie_særskilt_kildeskat_kræver_dokumentation: ll33_person_scenarie_udokumenteret_særskilt_kildeskat -> ll33_person_scenarie_udokumenteret_særskilt_kildeskat.input_gyldigt == Falskt && ll33_person_scenarie_udokumenteret_særskilt_kildeskat.samlet_nedslag_øre == 0
 | ll33_person_scenarie_par33a_afvises: ll33_person_scenarie_par33a_løn -> ll33_person_scenarie_par33a_løn.input_gyldigt == Falskt && ll33_person_scenarie_par33a_løn.samlet_nedslag_øre == 0
 | ll33_person_scenarie_søbl_afvises: ll33_person_scenarie_søbl_løn -> ll33_person_scenarie_søbl_løn.input_gyldigt == Falskt && ll33_person_scenarie_søbl_løn.samlet_nedslag_øre == 0
+| ll33_par6_scenarie_fiktiv_skat_begrænses_af_dansk_skat: ll33_par6_scenarie_fuld_skattepligt -> ll33_par6_scenarie_fuld_skattepligt.input_gyldigt && head(ll33_par6_scenarie_fuld_skattepligt.par6_kreditter).kildeskat10.anses_for_afhændet && head(ll33_par6_scenarie_fuld_skattepligt.par6_kreditter).udenlandsk_skat_som_kunne_være_pålignet_efter_overenskomst_øre == 4000000 && ll33_par6_scenarie_fuld_skattepligt.samlet_nedslag_øre == 2500000
+| ll33_par6_scenarie_overenskomst_begrænser: ll33_par6_scenarie_overenskomstloft -> ll33_par6_scenarie_overenskomstloft.input_gyldigt && ll33_par6_scenarie_overenskomstloft.samlet_nedslag_øre == 1800000
+| ll33_par6_scenarie_kun_ksl10_stk1: ll33_par6_scenarie_stk2_afvises -> ll33_par6_scenarie_stk2_afvises.input_gyldigt == Falskt && ll33_par6_scenarie_stk2_afvises.samlet_nedslag_øre == 0
+| ll33_par6_scenarie_ksl10_stk3_afskærer: ll33_par6_scenarie_særregel_afvises -> ll33_par6_scenarie_særregel_afvises.input_gyldigt == Falskt && ll33_par6_scenarie_særregel_afvises.samlet_nedslag_øre == 0
+| ll33_par6_scenarie_samme_land_samles_med_stk1_credit: ll33_par6_scenarie_dobbelt_område -> ll33_par6_scenarie_dobbelt_område.input_gyldigt == Falskt && ll33_par6_scenarie_dobbelt_område.samlet_nedslag_øre == 0
+| ll33_par6_scenarie_fast_driftssted_accepteres: ll33_par6_scenarie_fast_driftssted -> ll33_par6_scenarie_fast_driftssted.input_gyldigt && ll33_par6_scenarie_fast_driftssted.samlet_nedslag_øre == 2500000
+| ll33_par6_scenarie_fast_driftssted_kræver_dokumentation: ll33_par6_scenarie_udokumenteret_fast_driftssted -> ll33_par6_scenarie_udokumenteret_fast_driftssted.input_gyldigt == Falskt && ll33_par6_scenarie_udokumenteret_fast_driftssted.samlet_nedslag_øre == 0
 
 ? ll33_scenarie_årsopgørelse_forklarer_seks_kroner
 ? ll33_scenarie_proportionalt_loft_begrænser
@@ -362,5 +490,12 @@
 ? ll33_person_scenarie_særskilt_kildeskat_kræver_dokumentation
 ? ll33_person_scenarie_par33a_afvises
 ? ll33_person_scenarie_søbl_afvises
+? ll33_par6_scenarie_fiktiv_skat_begrænses_af_dansk_skat
+? ll33_par6_scenarie_overenskomst_begrænser
+? ll33_par6_scenarie_kun_ksl10_stk1
+? ll33_par6_scenarie_ksl10_stk3_afskærer
+? ll33_par6_scenarie_samme_land_samles_med_stk1_credit
+? ll33_par6_scenarie_fast_driftssted_accepteres
+? ll33_par6_scenarie_fast_driftssted_kræver_dokumentation
 
-@ print("Ligningsloven § 33: 15 credit-, komponent-, kilde- og nettoscenarier kontrolleret")
+@ print("Ligningsloven § 33: 22 credit-, komponent-, fraflytnings-, kilde- og nettoscenarier kontrolleret")

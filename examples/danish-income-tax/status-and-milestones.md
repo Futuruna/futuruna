@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-3d4618` (Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning C.F.4.3.1 er nu et årligt persondomæne for almindelig creditlempelse; hver lovligt afgrænset kreditgruppe beregner sit danske loft særskilt over de ni relevante indkomstskattekomponenter, mens § 33 A- og Sømandsbeskatningslov-lempet løn afskæres, og hovedpersonens og ægtefællens nedslag føres uafhængigt gennem den kanoniske Personskat-graf, arbejdsbogen og den præcise 2025-afstemning)
+Current implementation slice: `td-6b37ad` (Kildeskattelovens § 10, stk. 1-3 afleder fiktiv afståelse, dato og handelsværdi ved fraflytning og afskærer ABL § 38-, KGL § 37- og LL § 28-aktiver; Ligningslovens § 33, stk. 6 beregner derefter nedslag for den udenlandske skat, som kunne være pålignet et fast driftssted eller en fast ejendom, gennem de eksisterende § 33/§ 33 F-lofter. Fast ejendom skal afstemmes entydigt mod den kanoniske EBL-beregning på identifikation, dato, afståelsessum og skattepligtig fortjeneste, mens et fast driftssted kræver sin egen dokumentreference)
+Previous implementation slice: `td-3d4618` (Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning C.F.4.3.1 er nu et årligt persondomæne for almindelig creditlempelse; hver lovligt afgrænset kreditgruppe beregner sit danske loft særskilt over de ni relevante indkomstskattekomponenter, mens § 33 A- og Sømandsbeskatningslov-lempet løn afskæres, og hovedpersonens og ægtefællens nedslag føres uafhængigt gennem den kanoniske Personskat-graf, arbejdsbogen og den præcise 2025-afstemning)
 Previous implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
 Previous implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
 Previous implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
@@ -4152,6 +4153,22 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Kildeskattelovens § 10, stk. 1-3 er implementeret som en selvstændig,
+  kildebelagt aktivgrænse med typede hændelser for ophør af fuld skattepligt,
+  overenskomstmæssigt hjemstedsskifte og overførsel under begrænset
+  skattepligt. Reglerne afleder fiktiv afståelsesdato og handelsværdi og
+  afskærer dødsfald, fortsat dansk beskatningsret samt aktiver under ABL § 38,
+  KGL § 37 og LL § 28. Ligningslovens § 33, stk. 6 genbruger den almindelige
+  § 33/§ 33 F-komponentberegning for den skat, som en anden stat kunne have
+  pålignet et fast driftssted eller en fast ejendom, men accepterer kun en
+  hændelse efter KSL § 10, stk. 1. Den kanoniske Personskat-graf afstemmer fast
+  ejendom mod præcis én EBL-kilde på aktividentifikation, afståelsesdato,
+  handelsværdi, skattepligtig fortjeneste og kapitalindkomstklassifikation;
+  uoverensstemmelse giver nul nedslag. Fast driftssted er en særskilt typet
+  gren med obligatorisk dokumentation. De nye KSL-, LL- og kanoniske scenarier
+  passerer interpreter og compiler, og JSON-skemaet samt den genererede XLSX
+  udstiller de nye felter med danske spørgsmål. Den anonymiserede
+  2025-årsopgørelse afstemmer fortsat 290.590,34 kr. med 0 øres forskel.
 - Ligningslovens § 33, stk. 1-2 og 8, § 33 F og Den juridiske vejledning
   C.F.4.3.1 er nu implementeret som et årligt persondomæne for almindelig
   creditlempelse. Hver kreditgruppe bærer udenlandsk bruttoindkomst, direkte og

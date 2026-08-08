@@ -1134,7 +1134,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
                 arbejdsmarkedsbidragsgrundlag_kroner = 0
             ),
             lønlempelsesstatus = Ll33IngenLønindkomst
-        )]
+        )],
+        par6_kreditter = []
     )),
     ægtefælle = UdenLigningslov33
 )

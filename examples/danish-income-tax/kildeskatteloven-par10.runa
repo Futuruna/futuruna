@@ -1,0 +1,97 @@
+@ sprog da
+
+@ importer ./kalenderdato
+@ importer ./metadata
+
+-- Kildeskatteloven § 10 - fiktiv afståelse ved ophør af dansk beskatningsret.
+--
+-- Kilde: Retsinformation, LBK nr. 460 af 03/05/2024.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2024/460
+-- XML: https://www.retsinformation.dk/eli/lta/2024/460/dan/xml
+
+# Kildeskat10KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= kildeskatteloven_lbk460_par10 = Kildeskat10KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven § 10, stk. 1-3",
+    hentet_dato = "2026-08-08"
+)
+
+= kildeskatteloven_par10_metadata = Metadata(
+    attachments = (
+        Source(value = kildeskatteloven_lbk460_par10),
+    )
+)
+
+--@label:kildeskatteloven_par10::meta:kildeskatteloven_par10_metadata--
+----
+§ 10. Ophører en person med at være skattepligtig efter § 1, uden at der er
+tale om dødsfald, eller bliver en person efter bestemmelserne i en
+dobbeltbeskatningsoverenskomst hjemmehørende i en fremmed stat, på Færøerne
+eller i Grønland, anses aktiver, som ikke fortsat er omfattet af dansk
+beskatning, for afhændet på fraflytningstidspunktet. Aktiverne anses for
+afhændet til handelsværdien på fraflytningstidspunktet.
+
+Stk. 2. Overfører en person, der er skattepligtig efter § 2, aktiver til en
+fremmed stat, Færøerne eller Grønland, således at aktiverne efter overførslen
+ikke længere er omfattet af dansk beskatning, anses aktiverne for afhændet på
+overførselstidspunktet. Aktiverne anses for afhændet til handelsværdien på
+overførselstidspunktet.
+
+Stk. 3. Stk. 1 og 2 finder ikke anvendelse på aktiver, der er omfattet af
+aktieavancebeskatningslovens § 38, kursgevinstlovens § 37 eller ligningslovens
+§ 28.
+----
+
+--@begin:kildeskatteloven_par10--
+
+# Kildeskat10Grænsehændelse = Ksl10FuldSkattepligtEfterPar1Ophører(dato: Dato) | Ksl10DobbeltbeskatningshjemstedBliverUdland(dato: Dato) | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato: Dato) | Ksl10Dødsfald(dato: Dato) | Ksl10IngenGrænsehændelse
+# Kildeskat10DanskBeskatningsstatus = Ksl10AktivIkkeLængereOmfattetAfDanskBeskatning | Ksl10AktivFortsatOmfattetAfDanskBeskatning
+# Kildeskat10Særregel = Ksl10IngenSærregel | Ksl10AktieOmfattetAfAktieavancebeskatningslovensPar38 | Ksl10FordringGældEllerFinansielKontraktOmfattetAfKursgevinstlovensPar37 | Ksl10KøbeEllerTegningsretOmfattetAfLigningslovensPar28
+# Kildeskat10Aktivfakta(identifikation: Tekst, grænsehændelse: Kildeskat10Grænsehændelse, dansk_beskatningsstatus_efter_hændelsen: Kildeskat10DanskBeskatningsstatus, særregel: Kildeskat10Særregel, handelsværdi_på_grænsetidspunktet_kroner: Heltal)
+# Kildeskat10Aktivresultat(fakta: Kildeskat10Aktivfakta, input_gyldigt: Boolsk, stk1_hændelse: Boolsk, stk2_hændelse: Boolsk, stk3_udelukket: Boolsk, fortsat_dansk_beskatning: Boolsk, anses_for_afhændet: Boolsk, afståelsesdato: Option(Dato), afståelsessum_kroner: Heltal)
+
+| kildeskat10_grænsehændelsesdato(hændelse: Kildeskat10Grænsehændelse) -> match hændelse {
+    | Ksl10FuldSkattepligtEfterPar1Ophører(dato) -> Some(dato)
+    | Ksl10DobbeltbeskatningshjemstedBliverUdland(dato) -> Some(dato)
+    | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(dato) -> Some(dato)
+    | Ksl10Dødsfald(dato) -> Some(dato)
+    | Ksl10IngenGrænsehændelse -> None
+}
+| kildeskat10_grænsehændelse_gyldig(hændelse: Kildeskat10Grænsehændelse) -> match kildeskat10_grænsehændelsesdato(hændelse) {
+    | Some(dato) -> dato_gyldig(dato)
+    | None -> Sandt
+}
+| kildeskat10_stk1_hændelse(hændelse: Kildeskat10Grænsehændelse) -> match hændelse {
+    | Ksl10FuldSkattepligtEfterPar1Ophører(_) -> Sandt
+    | Ksl10DobbeltbeskatningshjemstedBliverUdland(_) -> Sandt
+    | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(_) -> Falskt
+    | Ksl10Dødsfald(_) -> Falskt
+    | Ksl10IngenGrænsehændelse -> Falskt
+}
+| kildeskat10_stk2_hændelse(hændelse: Kildeskat10Grænsehændelse) -> match hændelse {
+    | Ksl10BegrænsetSkattepligtigtAktivOverføresUd(_) -> Sandt
+    | Ksl10FuldSkattepligtEfterPar1Ophører(_) -> Falskt
+    | Ksl10DobbeltbeskatningshjemstedBliverUdland(_) -> Falskt
+    | Ksl10Dødsfald(_) -> Falskt
+    | Ksl10IngenGrænsehændelse -> Falskt
+}
+| kildeskat10_stk3_udelukket(særregel: Kildeskat10Særregel) -> særregel != Ksl10IngenSærregel
+| kildeskat10_fortsat_dansk_beskatning(status: Kildeskat10DanskBeskatningsstatus) -> status == Ksl10AktivFortsatOmfattetAfDanskBeskatning
+| kildeskat10_aktivfakta_gyldige(fakta: Kildeskat10Aktivfakta) -> fakta.identifikation != "" && kildeskat10_grænsehændelse_gyldig(fakta.grænsehændelse) && fakta.handelsværdi_på_grænsetidspunktet_kroner >= 0
+| kildeskat10_anses_for_afhændet(fakta: Kildeskat10Aktivfakta) -> kildeskat10_aktivfakta_gyldige(fakta) && (kildeskat10_stk1_hændelse(fakta.grænsehændelse) || kildeskat10_stk2_hændelse(fakta.grænsehændelse)) && kildeskat10_fortsat_dansk_beskatning(fakta.dansk_beskatningsstatus_efter_hændelsen) == Falskt && kildeskat10_stk3_udelukket(fakta.særregel) == Falskt
+| kildeskat10_afståelsesdato(fakta: Kildeskat10Aktivfakta) -> hvis kildeskat10_anses_for_afhændet(fakta) { kildeskat10_grænsehændelsesdato(fakta.grænsehændelse) } ellers { None }
+| kildeskat10_afståelsessum_kroner(fakta: Kildeskat10Aktivfakta) -> hvis kildeskat10_anses_for_afhændet(fakta) { fakta.handelsværdi_på_grænsetidspunktet_kroner } ellers { 0 }
+| kildeskat10_aktivresultat(fakta: Kildeskat10Aktivfakta) -> Kildeskat10Aktivresultat(
+    fakta = fakta,
+    input_gyldigt = kildeskat10_aktivfakta_gyldige(fakta),
+    stk1_hændelse = kildeskat10_stk1_hændelse(fakta.grænsehændelse),
+    stk2_hændelse = kildeskat10_stk2_hændelse(fakta.grænsehændelse),
+    stk3_udelukket = kildeskat10_stk3_udelukket(fakta.særregel),
+    fortsat_dansk_beskatning = kildeskat10_fortsat_dansk_beskatning(fakta.dansk_beskatningsstatus_efter_hændelsen),
+    anses_for_afhændet = kildeskat10_anses_for_afhændet(fakta),
+    afståelsesdato = kildeskat10_afståelsesdato(fakta),
+    afståelsessum_kroner = kildeskat10_afståelsessum_kroner(fakta)
+)
+
+--@end:kildeskatteloven_par10--
