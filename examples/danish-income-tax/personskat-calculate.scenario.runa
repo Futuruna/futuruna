@@ -98,6 +98,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ligningsfradrag = PersonskatLigningsfradragInput(
         sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
         sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+        fiskerfradrag = ligningslov9g_intet_årsinput(),
         øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
         befordring = MedBefordringsfradrag(fakta = fakta),
         rejser = ligningslov9a_intet_årsinput(),
@@ -1366,6 +1367,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ligningsfradrag_2025 = PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = UdenBefordringsfradrag,
     rejser = ligningslov9a_intet_årsinput(),

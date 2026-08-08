@@ -205,6 +205,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
 | personskat_sømandsfradrag_fælles_ligningsfradrag(sømandsfradrag: Sømandsbeskatningslov3Årsinput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput) -> PersonskatLigningsfradragInput(
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
     befordring = MedBefordringsfradrag(fakta = personskat_sømandsfradrag_befordringsfakta()),
     rejser = ligningslov9a_intet_årsinput(),
@@ -323,6 +324,7 @@ fra de typede beskæftigelsesfakta til den kanoniske Personskat-beregning.
     PersonskatLigningsfradragInput(
         sømandsfradrag = fuldt_input.sømandsfradrag,
         sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
+        fiskerfradrag = fuldt_input.fiskerfradrag,
         øvrige_lønmodtagerudgifter = fuldt_input.øvrige_lønmodtagerudgifter,
         befordring = fuldt_input.befordring,
         rejser = fuldt_input.rejser,

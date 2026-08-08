@@ -1,0 +1,290 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./ligningsloven - par9g - fiskerfradrag
+
+= personskat_fiskerfradrag_felt_valg = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::valg::$variant),
+    label = "Valg af fiskerfradrag",
+    question = Some("Skal fiskerfradraget efter ligningslovens § 9 G anvendes for indkomståret?"),
+    help = Some("Valget gælder hele indkomståret. Futuruna udleder registreringskravet, havdagene, årsloftet og de fradrag, som valget erstatter."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_registreringer = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer),
+    label = "Registreringer som erhvervsfisker",
+    question = Some("I hvilke perioder var personen registreret som erhvervsfisker med A- eller B-status?"),
+    help = Some("Opret én række pr. registreringsperiode. En registrering i blot en del af indkomståret kan opfylde registreringsbetingelsen for årets fangstture."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_registreringsidentifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::identifikation),
+    label = "Fiskerregistreringens identifikation",
+    question = Some("Hvilken entydig identifikation har registreringsperioden?"),
+    help = Some("Brug en stabil reference fra Fiskeristyrelsens registrering."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_registreringsstatus = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::status::$variant),
+    label = "Erhvervsfiskerens registreringsstatus",
+    question = Some("Var registreringen A-status eller B-status?"),
+    help = None,
+    unit = None
+)
+= personskat_fiskerfradrag_felt_registrering_fra_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::fra_dato::år),
+    label = "Registreringsperiodens startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte registreringsperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_fiskerfradrag_felt_registrering_fra_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::fra_dato::måned),
+    label = "Registreringsperiodens startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte registreringsperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_fiskerfradrag_felt_registrering_fra_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::fra_dato::dag),
+    label = "Registreringsperiodens startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte registreringsperioden?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_fiskerfradrag_felt_registrering_til_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::til_dato::år),
+    label = "Registreringsperiodens slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede registreringsperioden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_fiskerfradrag_felt_registrering_til_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::til_dato::måned),
+    label = "Registreringsperiodens slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede registreringsperioden?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_fiskerfradrag_felt_registrering_til_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::registreringer::til_dato::dag),
+    label = "Registreringsperiodens slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede registreringsperioden?"),
+    help = None,
+    unit = Some("dag")
+)
+
+= personskat_fiskerfradrag_felt_arbejdsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold),
+    label = "Arbejdsforhold som erhvervsfisker",
+    question = Some("Hvilke ansættelser eller selvstændige virksomheder vedrørte erhvervsfiskeriet?"),
+    help = Some("Opret én række pr. arbejdsforhold. Identifikationen bruges til fangstture og til at afgrænse de udgifter og kontingenter, som fiskerfradraget erstatter."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_arbejdsforholdsidentifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::identifikation),
+    label = "Fiskerarbejdsforholdets identifikation",
+    question = Some("Hvilken entydig identifikation har fiskerarbejdsforholdet?"),
+    help = Some("For en selvstændig fisker skal identifikationen svare til virksomhedens identifikation i de personlige indkomstfakta."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_erhvervsform = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::erhvervsform::$variant),
+    label = "Erhvervsform for fiskerarbejdet",
+    question = Some("Blev arbejdet udført som ansat eller selvstændig fisker?"),
+    help = None,
+    unit = None
+)
+= personskat_fiskerfradrag_felt_arbejde_fra_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::fra_dato::år),
+    label = "Fiskerarbejdets startdato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_fiskerfradrag_felt_arbejde_fra_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::fra_dato::måned),
+    label = "Fiskerarbejdets startdato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_fiskerfradrag_felt_arbejde_fra_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::fra_dato::dag),
+    label = "Fiskerarbejdets startdato (ISO 8601) - dag",
+    question = Some("På hvilken dag begyndte fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_fiskerfradrag_felt_arbejde_til_år = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::til_dato::år),
+    label = "Fiskerarbejdets slutdato (ISO 8601) - år",
+    question = Some("I hvilket år sluttede fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_fiskerfradrag_felt_arbejde_til_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::til_dato::måned),
+    label = "Fiskerarbejdets slutdato (ISO 8601) - måned",
+    question = Some("I hvilken måned sluttede fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_fiskerfradrag_felt_arbejde_til_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::arbejdsforhold::til_dato::dag),
+    label = "Fiskerarbejdets slutdato (ISO 8601) - dag",
+    question = Some("På hvilken dag sluttede fiskerarbejdsforholdet?"),
+    help = None,
+    unit = Some("dag")
+)
+
+= personskat_fiskerfradrag_felt_fangstture = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::fangstture),
+    label = "Fangstture",
+    question = Some("Hvilke fangstture på mindst 12 timer blev gennemført i indkomståret?"),
+    help = Some("Opret én række pr. sammenhængende tur fra afgang fra havn til ankomst til havn. Futuruna udleder påbegyndte 24-timers-havdage fra de præcise tidspunkter."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_fangstturidentifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::fangstture::identifikation),
+    label = "Fangstturens identifikation",
+    question = Some("Hvilken entydig identifikation har fangstturen?"),
+    help = Some("Brug en stabil reference fra fartøjets afregning, logbog eller besætningsopgørelse."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_fangsttur_arbejdsforhold = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::fangstture::arbejdsforhold_identifikation),
+    label = "Fiskerarbejdsforhold for fangstturen",
+    question = Some("Hvilket oplyst fiskerarbejdsforhold vedrører fangstturen?"),
+    help = Some("Identifikationen skal svare præcist til et arbejdsforhold som erhvervsfisker."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_afgang_år = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::afgang_fra_havn::dato::år), label = "Afgang fra havn (ISO 8601) - år", question = Some("I hvilket år afgik fangstturen?"), help = None, unit = Some("år"))
+= personskat_fiskerfradrag_felt_afgang_måned = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::afgang_fra_havn::dato::måned), label = "Afgang fra havn (ISO 8601) - måned", question = Some("I hvilken måned afgik fangstturen?"), help = None, unit = Some("måned"))
+= personskat_fiskerfradrag_felt_afgang_dag = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::afgang_fra_havn::dato::dag), label = "Afgang fra havn (ISO 8601) - dag", question = Some("På hvilken dag afgik fangstturen?"), help = None, unit = Some("dag"))
+= personskat_fiskerfradrag_felt_afgang_time = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::afgang_fra_havn::klokkeslæt::time), label = "Afgang fra havn - time", question = Some("I hvilken time afgik fangstturen?"), help = None, unit = Some("time"))
+= personskat_fiskerfradrag_felt_afgang_minut = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::afgang_fra_havn::klokkeslæt::minut), label = "Afgang fra havn - minut", question = Some("I hvilket minut afgik fangstturen?"), help = None, unit = Some("minut"))
+= personskat_fiskerfradrag_felt_ankomst_år = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::ankomst_til_havn::dato::år), label = "Ankomst til havn (ISO 8601) - år", question = Some("I hvilket år ankom fangstturen?"), help = None, unit = Some("år"))
+= personskat_fiskerfradrag_felt_ankomst_måned = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::ankomst_til_havn::dato::måned), label = "Ankomst til havn (ISO 8601) - måned", question = Some("I hvilken måned ankom fangstturen?"), help = None, unit = Some("måned"))
+= personskat_fiskerfradrag_felt_ankomst_dag = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::ankomst_til_havn::dato::dag), label = "Ankomst til havn (ISO 8601) - dag", question = Some("På hvilken dag ankom fangstturen?"), help = None, unit = Some("dag"))
+= personskat_fiskerfradrag_felt_ankomst_time = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::ankomst_til_havn::klokkeslæt::time), label = "Ankomst til havn - time", question = Some("I hvilken time ankom fangstturen?"), help = None, unit = Some("time"))
+= personskat_fiskerfradrag_felt_ankomst_minut = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::fangstture::ankomst_til_havn::klokkeslæt::minut), label = "Ankomst til havn - minut", question = Some("I hvilket minut ankom fangstturen?"), help = None, unit = Some("minut"))
+
+= personskat_fiskerfradrag_felt_selvstændige_udgiftsvurderinger = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::selvstændige_udgiftsvurderinger),
+    label = "Vurdering af selvstændige fiskeres udgifter",
+    question = Some("Kan hver driftsudgift i fiskerivirksomheden sidestilles med en lønmodtagerudgift efter ligningslovens § 9, stk. 1?"),
+    help = Some("Opret én række for hver oplyst driftsudgift i en selvstændig fiskerivirksomhed. Kun udgifter, som kan sidestilles med lønmodtagerudgifter, afskæres af § 9 G; almindelige driftsudgifter bevares."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_udgiftsvurdering_virksomhed = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::selvstændige_udgiftsvurderinger::virksomhedsidentifikation),
+    label = "Fiskerivirksomhed for udgiftsvurderingen",
+    question = Some("Hvilken selvstændig fiskerivirksomhed har afholdt udgiften?"),
+    help = Some("Identifikationen skal svare præcist til både virksomheden og et selvstændigt fiskerarbejdsforhold."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_udgiftsvurdering_kilde = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::selvstændige_udgiftsvurderinger::kildeidentifikation),
+    label = "Driftsudgift for udgiftsvurderingen",
+    question = Some("Hvilken oplyst driftsudgift i fiskerivirksomheden vurderes?"),
+    help = Some("Brug udgiftens entydige identifikation fra virksomhedens udgiftstabel."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_udgiftsvurdering_sammenlignelighed = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::selvstændige_udgiftsvurderinger::sammenlignelighed::$variant),
+    label = "Sammenlignelighed med lønmodtagerudgift",
+    question = Some("Kan udgiften sidestilles med en lønmodtagerudgift efter § 9, stk. 1?"),
+    help = Some("Vælg nej for en almindelig driftsudgift, som ikke erstattes af fiskerfradraget."),
+    unit = None
+)
+
+= personskat_fiskerfradrag_felt_kildetilknytninger = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kildetilknytninger),
+    label = "Arbejdstilknytning for fradragskilder",
+    question = Some("Hvilket fiskerarbejde eller andet arbejde vedrører hver udgift og hvert kontingent, som § 9 G kan erstatte?"),
+    help = Some("Opret én række pr. oplyst § 9, stk. 1-, §§ 9 A-9 D-, § 13- eller PBL § 49, stk. 1-kilde og pr. selvstændig udgift, der er vurderet som sidestillet med en lønmodtagerudgift. Kildeidentifikationen skal svare præcist til den oprindelige post."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_kildetype = TypetBeregningsfelt(
+    path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::$variant),
+    label = "Fradragskildens lovtype",
+    question = Some("Hvilken lovbestemt fradragstype har kilden?"),
+    help = Some("Vælg den type, som svarer til den allerede oplyste post. Efterløns- og fleksydelsesbidrag efter PBL §§ 49 A-49 B skal ikke tilknyttes."),
+    unit = None
+)
+= personskat_fiskerfradrag_felt_ll9_stk1_kilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GLigningslov9Stk1Udgift::kildeidentifikation), label = "Identifikation for § 9, stk. 1-udgiften", question = Some("Hvilken oplyst lønmodtagerudgift vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_ll9a_rejsekilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GLigningslov9ARejse::kildeidentifikation), label = "Identifikation for § 9 A-rejsen", question = Some("Hvilken oplyst rejse vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_ll9a_ølogikilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GLigningslov9AØlogiophold::kildeidentifikation), label = "Identifikation for § 9 A-ølogiopholdet", question = Some("Hvilket oplyst ølogiophold vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_ll9b_kilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GLigningslov9BErhvervsbefordring::kildeidentifikation), label = "Identifikation for § 9 B-befordringen", question = Some("Hvilken oplyst erhvervsbefordringssag vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_ll13_kilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GLigningslov13Kontingent::kildeidentifikation), label = "Identifikation for § 13-kontingentet", question = Some("Hvilket oplyst fagligt kontingent vedrører tilknytningen?"), help = Some("Et kontingent til fiskeriets faglige organisation afskæres også, når betalingen sker i en periode uden fiskerarbejde."), unit = None)
+= personskat_fiskerfradrag_felt_pbl49_kilde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GPensionsbeskatningslov49Stk1Bidrag::kildeidentifikation), label = "Identifikation for PBL § 49, stk. 1-bidraget", question = Some("Hvilket oplyst A-kasse- eller arbejdsløshedsforsikringsbidrag vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_selvstændig_virksomhed = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift::virksomhedsidentifikation), label = "Virksomhed for sidestillet selvstændig udgift", question = Some("Hvilken oplyst fiskerivirksomhed har afholdt den sidestillede udgift?"), help = Some("Virksomhedsidentifikationen afgrænser entydigt udgifter, selv når flere virksomheder bruger samme bilagsidentifikation."), unit = None)
+= personskat_fiskerfradrag_felt_selvstændig_udgift = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::kilde::Ll9GSelvstændigUdgiftSidestilletMedLønmodtagerudgift::kildeidentifikation), label = "Sidestillet selvstændig udgift", question = Some("Hvilken udgift, der kan sidestilles med en lønmodtagerudgift, vedrører tilknytningen?"), help = None, unit = None)
+= personskat_fiskerfradrag_felt_arbejdstilknytning = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::arbejdstilknytning::$variant), label = "Fradragskildens arbejdstilknytning", question = Some("Vedrører kilden erhvervsfiskerarbejde eller et andet arbejdsforhold?"), help = Some("Futuruna afskærer kun kilder, som udtrykkeligt er knyttet til erhvervsfiskerarbejdet."), unit = None)
+= personskat_fiskerfradrag_felt_tilknyttet_fiskerarbejde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::arbejdstilknytning::Ll9GTilknyttetErhvervsfiskerarbejde::arbejdsforhold_identifikation), label = "Tilknyttet erhvervsfiskerarbejde", question = Some("Hvilket oplyst fiskerarbejdsforhold vedrører kilden?"), help = Some("Identifikationen skal svare præcist til et arbejdsforhold i fiskerfradragets arbejdsforholdstabel."), unit = None)
+= personskat_fiskerfradrag_felt_tilknyttet_andet_arbejde = TypetBeregningsfelt(path = refof(Ligningslov9GÅrsinput::kildetilknytninger::arbejdstilknytning::Ll9GTilknyttetAndetArbejde::arbejdsforhold_identifikation), label = "Tilknyttet andet arbejdsforhold", question = Some("Hvilket andet arbejdsforhold vedrører kilden?"), help = Some("Brug samme arbejds- eller virksomhedsidentifikation som på den oprindelige kilde; den må ikke være registreret som et fiskerarbejdsforhold."), unit = None)
+
+= personskat_fiskerfradrag_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_fiskerfradrag_felt_valg,
+        personskat_fiskerfradrag_felt_registreringer,
+        personskat_fiskerfradrag_felt_registreringsidentifikation,
+        personskat_fiskerfradrag_felt_registreringsstatus,
+        personskat_fiskerfradrag_felt_registrering_fra_år,
+        personskat_fiskerfradrag_felt_registrering_fra_måned,
+        personskat_fiskerfradrag_felt_registrering_fra_dag,
+        personskat_fiskerfradrag_felt_registrering_til_år,
+        personskat_fiskerfradrag_felt_registrering_til_måned,
+        personskat_fiskerfradrag_felt_registrering_til_dag,
+        personskat_fiskerfradrag_felt_arbejdsforhold,
+        personskat_fiskerfradrag_felt_arbejdsforholdsidentifikation,
+        personskat_fiskerfradrag_felt_erhvervsform,
+        personskat_fiskerfradrag_felt_arbejde_fra_år,
+        personskat_fiskerfradrag_felt_arbejde_fra_måned,
+        personskat_fiskerfradrag_felt_arbejde_fra_dag,
+        personskat_fiskerfradrag_felt_arbejde_til_år,
+        personskat_fiskerfradrag_felt_arbejde_til_måned,
+        personskat_fiskerfradrag_felt_arbejde_til_dag,
+        personskat_fiskerfradrag_felt_fangstture,
+        personskat_fiskerfradrag_felt_fangstturidentifikation,
+        personskat_fiskerfradrag_felt_fangsttur_arbejdsforhold,
+        personskat_fiskerfradrag_felt_afgang_år,
+        personskat_fiskerfradrag_felt_afgang_måned,
+        personskat_fiskerfradrag_felt_afgang_dag,
+        personskat_fiskerfradrag_felt_afgang_time,
+        personskat_fiskerfradrag_felt_afgang_minut,
+        personskat_fiskerfradrag_felt_ankomst_år,
+        personskat_fiskerfradrag_felt_ankomst_måned,
+        personskat_fiskerfradrag_felt_ankomst_dag,
+        personskat_fiskerfradrag_felt_ankomst_time,
+        personskat_fiskerfradrag_felt_ankomst_minut,
+        personskat_fiskerfradrag_felt_selvstændige_udgiftsvurderinger,
+        personskat_fiskerfradrag_felt_udgiftsvurdering_virksomhed,
+        personskat_fiskerfradrag_felt_udgiftsvurdering_kilde,
+        personskat_fiskerfradrag_felt_udgiftsvurdering_sammenlignelighed,
+        personskat_fiskerfradrag_felt_kildetilknytninger,
+        personskat_fiskerfradrag_felt_kildetype,
+        personskat_fiskerfradrag_felt_ll9_stk1_kilde,
+        personskat_fiskerfradrag_felt_ll9a_rejsekilde,
+        personskat_fiskerfradrag_felt_ll9a_ølogikilde,
+        personskat_fiskerfradrag_felt_ll9b_kilde,
+        personskat_fiskerfradrag_felt_ll13_kilde,
+        personskat_fiskerfradrag_felt_pbl49_kilde,
+        personskat_fiskerfradrag_felt_selvstændig_virksomhed,
+        personskat_fiskerfradrag_felt_selvstændig_udgift,
+        personskat_fiskerfradrag_felt_arbejdstilknytning,
+        personskat_fiskerfradrag_felt_tilknyttet_fiskerarbejde,
+        personskat_fiskerfradrag_felt_tilknyttet_andet_arbejde
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par9g),
+        DependencySource(value = fiskeriloven_lbk205_par14),
+        AmendmentSource(value = fiskeriloven_lov333_par9_og_par10_stk4),
+        Guidance(value = juridisk_vejledning_ligningslov9g_fiskere),
+    )
+)
+
+--@label:Ligningslov9GÅrsinput::meta:personskat_fiskerfradrag_beregningsmeta--

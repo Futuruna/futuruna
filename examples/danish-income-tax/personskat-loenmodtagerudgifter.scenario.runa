@@ -61,6 +61,7 @@ Personskat-beregning.
 ) -> PersonskatLigningsfradragInput(
     sømandsfradrag = personskat_ll9_stk1_scenarie_sømandsfradrag(valg = valg),
     sømandsbeskatningslov4 = Sømandsbeskatningslov4Årsinput(kildetilknytninger = kildetilknytninger),
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
     øvrige_lønmodtagerudgifter = Ligningslov9Stk1Årsinput(
         skatteyderstatus = Ll9Stk1Lønmodtager,
         udgifter = udgifter

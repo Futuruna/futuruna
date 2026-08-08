@@ -1,0 +1,154 @@
+@ sprog da
+
+@ importer ./ligningsloven - par9g - fiskerfradrag
+
+| ll9g_scenarie_tidspunkt(år: Heltal, måned: Heltal, dag: Heltal, time: Heltal, minut: Heltal) -> DatoTidspunkt(
+    dato = Dato(år = år, måned = måned, dag = dag),
+    klokkeslæt = Klokkeslæt(time = time, minut = minut)
+)
+| ll9g_scenarie_registrering(status: Ligningslov9GRegistreringsstatus) -> Ligningslov9GRegistreringsperiode(
+    identifikation = "fiskerregistrering-2026",
+    status = status,
+    fra_dato = Dato(år = 2026, måned = 7, dag = 1),
+    til_dato = Dato(år = 2026, måned = 12, dag = 31)
+)
+| ll9g_scenarie_arbejdsforhold() -> Ligningslov9GArbejdsforhold(
+    identifikation = "fiskerarbejde-2026",
+    erhvervsform = Ll9GAnsatFisker,
+    fra_dato = Dato(år = 2026, måned = 1, dag = 1),
+    til_dato = Dato(år = 2026, måned = 12, dag = 31)
+)
+| ll9g_scenarie_fangsttur(identifikation: Tekst, startdag: Heltal, starttime: Heltal, slutdag: Heltal, sluttime: Heltal, slutminut: Heltal) -> Ligningslov9GFangsttur(
+    identifikation = identifikation,
+    arbejdsforhold_identifikation = "fiskerarbejde-2026",
+    afgang_fra_havn = ll9g_scenarie_tidspunkt(2026, 1, startdag, starttime, 0),
+    ankomst_til_havn = ll9g_scenarie_tidspunkt(2026, 1, slutdag, sluttime, slutminut)
+)
+| ll9g_scenarie_input(valg: Ligningslov9GFradragsvalg, registreringer: List(Ligningslov9GRegistreringsperiode), fangstture: List(Ligningslov9GFangsttur), kildetilknytninger: List(Ligningslov9GKildetilknytning)) -> Ligningslov9GÅrsinput(
+    valg = valg,
+    registreringer = registreringer,
+    arbejdsforhold = [ll9g_scenarie_arbejdsforhold()],
+    fangstture = fangstture,
+    selvstændige_udgiftsvurderinger = [],
+    kildetilknytninger = kildetilknytninger
+)
+| ll9g_scenarie_input_med_udgiftsvurderinger(vurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering)) -> Ligningslov9GÅrsinput(
+    valg = Ll9GVælgFiskerfradrag,
+    registreringer = [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedAStatus)],
+    arbejdsforhold = [ll9g_scenarie_arbejdsforhold()],
+    fangstture = [ll9g_scenarie_fangsttur("gyldig-tur-med-udgiftsvurdering", 22, 0, 22, 12, 0)],
+    selvstændige_udgiftsvurderinger = vurderinger,
+    kildetilknytninger = []
+)
+
+= ll9g_scenarie_grænseture = [
+    ll9g_scenarie_fangsttur("tolv-timer", 1, 0, 1, 12, 0),
+    ll9g_scenarie_fangsttur("elleve-nioghalvtreds", 2, 0, 2, 11, 59),
+    ll9g_scenarie_fangsttur("fireogtyve-timer", 3, 0, 4, 0, 0),
+    ll9g_scenarie_fangsttur("fireogtyve-timer-et-minut", 5, 0, 6, 0, 1)
+]
+= ll9g_scenarie_kildetilknytninger = [
+    Ligningslov9GKildetilknytning(
+        kilde = Ll9GLigningslov13Kontingent(kildeidentifikation = "fiskerforbund"),
+        arbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "fiskerarbejde-2026")
+    ),
+    Ligningslov9GKildetilknytning(
+        kilde = Ll9GLigningslov13Kontingent(kildeidentifikation = "andet-forbund"),
+        arbejdstilknytning = Ll9GTilknyttetAndetArbejde(arbejdsforhold_identifikation = "landarbejde-2026")
+    )
+]
+= ll9g_scenarie_valgt = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(
+        Ll9GVælgFiskerfradrag,
+        [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedBStatus)],
+        ll9g_scenarie_grænseture,
+        ll9g_scenarie_kildetilknytninger
+    )
+)
+= ll9g_scenarie_fravalgt = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(
+        Ll9GFravælgFiskerfradrag,
+        [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedAStatus)],
+        ll9g_scenarie_grænseture,
+        []
+    )
+)
+= ll9g_scenarie_uden_registrering = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(Ll9GVælgFiskerfradrag, [], ll9g_scenarie_grænseture, [])
+)
+= ll9g_scenarie_overlap = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(
+        Ll9GVælgFiskerfradrag,
+        [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedAStatus)],
+        [
+            ll9g_scenarie_fangsttur("overlap-a", 10, 0, 11, 0, 0),
+            ll9g_scenarie_fangsttur("overlap-b", 10, 12, 11, 12, 0)
+        ],
+        []
+    )
+)
+= ll9g_scenarie_årsloft = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(
+        Ll9GVælgFiskerfradrag,
+        [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedAStatus)],
+        [Ligningslov9GFangsttur(
+            identifikation = "lang-fangsttur",
+            arbejdsforhold_identifikation = "fiskerarbejde-2026",
+            afgang_fra_havn = ll9g_scenarie_tidspunkt(2026, 1, 1, 0, 0),
+            ankomst_til_havn = ll9g_scenarie_tidspunkt(2026, 8, 10, 0, 0)
+        )],
+        []
+    )
+)
+= ll9g_scenarie_forældreløs_tilknytning = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input(
+        Ll9GVælgFiskerfradrag,
+        [ll9g_scenarie_registrering(Ll9GErhvervsfiskerMedAStatus)],
+        [ll9g_scenarie_fangsttur("gyldig-tur", 20, 0, 20, 12, 0)],
+        [Ligningslov9GKildetilknytning(
+            kilde = Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = "akasse"),
+            arbejdstilknytning = Ll9GTilknyttetErhvervsfiskerarbejde(arbejdsforhold_identifikation = "manglende-fiskerarbejde")
+        )]
+    )
+)
+= ll9g_scenarie_duplikeret_udgiftsvurdering = ligningslov9g_årsresultat(
+    2026,
+    ll9g_scenarie_input_med_udgiftsvurderinger([
+        Ligningslov9GSelvstændigUdgiftsvurdering(
+            virksomhedsidentifikation = "fiskeri",
+            kildeidentifikation = "telefon",
+            sammenlignelighed = Ll9GSidstillesMedLønmodtagerudgift
+        ),
+        Ligningslov9GSelvstændigUdgiftsvurdering(
+            virksomhedsidentifikation = "fiskeri",
+            kildeidentifikation = "telefon",
+            sammenlignelighed = Ll9GSidstillesIkkeMedLønmodtagerudgift
+        )
+    ])
+)
+
+| ll9g_scenarie_havdagsgrænser_udledes: ll9g_scenarie_valgt -> ll9g_scenarie_valgt.alle_input_gyldige && ll9g_scenarie_valgt.registreret_som_erhvervsfisker_i_indkomståret && ll9g_scenarie_valgt.påbegyndte_havdage_før_årsloft == 4 && ll9g_scenarie_valgt.samlet_fradrag_kroner == 760
+| ll9g_scenarie_valget_gælder_hele_indkomståret: ll9g_scenarie_fravalgt -> ll9g_scenarie_fravalgt.kan_vælge_fiskerfradrag && ll9g_scenarie_fravalgt.fradrag_foretaget_efter_par9g == Falskt && ll9g_scenarie_fravalgt.samlet_fradrag_kroner == 0
+| ll9g_scenarie_registrering_er_en_betingelse: ll9g_scenarie_uden_registrering -> ll9g_scenarie_uden_registrering.alle_input_gyldige && ll9g_scenarie_uden_registrering.registreret_som_erhvervsfisker_i_indkomståret == Falskt && ll9g_scenarie_uden_registrering.kan_vælge_fiskerfradrag == Falskt
+| ll9g_scenarie_overlap_fejler_lukket: ll9g_scenarie_overlap -> ll9g_scenarie_overlap.fangstture_ikke_overlappende == Falskt && ll9g_scenarie_overlap.alle_input_gyldige == Falskt && ll9g_scenarie_overlap.samlet_fradrag_kroner == 0
+| ll9g_scenarie_årsloftet_er_220_havdage: ll9g_scenarie_årsloft -> ll9g_scenarie_årsloft.påbegyndte_havdage_før_årsloft == 221 && ll9g_scenarie_årsloft.havdage_efter_årsloft == 220 && ll9g_scenarie_årsloft.samlet_fradrag_kroner == 41800
+| ll9g_scenarie_kilder_bevarer_arbejdstilknytning: ll9g_scenarie_valgt -> ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Kontingent(kildeidentifikation = "fiskerforbund")) && ligningslov9g_kilde_afskåret(ll9g_scenarie_valgt, Ll9GLigningslov13Kontingent(kildeidentifikation = "andet-forbund")) == Falskt
+| ll9g_scenarie_forældreløs_tilknytning_fejler_lukket: ll9g_scenarie_forældreløs_tilknytning -> ll9g_scenarie_forældreløs_tilknytning.kildetilknytninger_grundgyldige == Falskt && ll9g_scenarie_forældreløs_tilknytning.alle_input_gyldige == Falskt && ll9g_scenarie_forældreløs_tilknytning.samlet_fradrag_kroner == 0
+| ll9g_scenarie_modstridende_udgiftsvurdering_fejler_lukket: ll9g_scenarie_duplikeret_udgiftsvurdering -> ll9g_scenarie_duplikeret_udgiftsvurdering.selvstændige_udgiftsvurderinger_entydige == Falskt && ll9g_scenarie_duplikeret_udgiftsvurdering.alle_input_gyldige == Falskt && ll9g_scenarie_duplikeret_udgiftsvurdering.samlet_fradrag_kroner == 0
+
+? ll9g_scenarie_havdagsgrænser_udledes
+? ll9g_scenarie_valget_gælder_hele_indkomståret
+? ll9g_scenarie_registrering_er_en_betingelse
+? ll9g_scenarie_overlap_fejler_lukket
+? ll9g_scenarie_årsloftet_er_220_havdage
+? ll9g_scenarie_kilder_bevarer_arbejdstilknytning
+? ll9g_scenarie_forældreløs_tilknytning_fejler_lukket
+? ll9g_scenarie_modstridende_udgiftsvurdering_fejler_lukket
+
+@ print("LL § 9 G: registrering, havdage, årsloft og kildetilknytning verificeret")

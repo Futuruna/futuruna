@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0d02de` (den genererede Personskat-arbejdsbog kan nu udfyldes med hele den relationelle PBL § 15 A-graf for en virksomhedsafståelse: tre regnskabsperioder, selskabsregnskaber, direkte og indirekte ejerveje, underliggende indtægter og aktiver, kvalifikationsår samt en tilknyttet PBL § 18-indbetaling; det rekonstruerede input og resultat er identisk med JSON, og en forældreløs relation fejler lukket)
+Current implementation slice: `td-5759f5` (Ligningslovens § 9 G er nu et kildedrevet årsdomæne med A-/B-registrering, eksakte arbejds- og fangstperioder, afledte påbegyndte havdage, årsvalg og loft; den kanoniske Personskat-graf afskærer kun fiskeriets LL §§ 9-9 D- og § 13-kilder, PBL § 49, stk. 1-bidrag og selvstændige udgifter, der typet er vurderet som sidestillet med lønmodtagerudgifter, mens andet arbejde og almindelige driftsudgifter bevares; hele inputfladen har danske XLSX-etiketter)
+Previous implementation slice: `td-0d02de` (den genererede Personskat-arbejdsbog kan nu udfyldes med hele den relationelle PBL § 15 A-graf for en virksomhedsafståelse: tre regnskabsperioder, selskabsregnskaber, direkte og indirekte ejerveje, underliggende indtægter og aktiver, kvalifikationsår samt en tilknyttet PBL § 18-indbetaling; det rekonstruerede input og resultat er identisk med JSON, og en forældreløs relation fejler lukket)
 Previous implementation slice: `td-d08000` (Sømandsbeskatningslovens § 3 a anvendes nu kun på regelmæssig EU/EØS-passagersejlads for ansættelsesforhold påbegyndt fra 1. januar 2022; den eksakte ansættelsesstart, den afledte overgangsgren og virkningen bevares gennem det kanoniske resultat og JSON/XLSX)
 Previous implementation slice: `td-0ca3f2` (sammenhængende ø-logiophold efter LL § 9 A, stk. 12, bærer nu eksakte start- og sluttidspunkter; fulde 24-timers-døgn fordeles én gang på 2025 og 2026, hvert år bruger sin egen sats og sit eget loft, og tidsfakta bevares gennem JSON/XLSX)
 Previous implementation slice: `td-44eb29` (Sømandsbeskatningslovens §§ 5 og 5 b giver nu dødsboer, begrænset skattepligtige efter KSL § 2, stk. 2, og kulbrinteskattepligtige efter § 21, stk. 2, særskilte beløbsresultater; de nødvendige årsgrundlag kommer fra typede Dødsboskattelov- og Kulbrinteskattelov-moduler og bevares gennem den genererede Personskat-arbejdsbog)
@@ -588,12 +589,41 @@ stk. 1, præcis én gang uden endnu en sødagsfordeling.
 Den særskilte DIS-lempelse af selve søindkomsten efter Sømandsbeskatningslovens
 §§ 5-8 er ikke en del af §§ 3-4-samordningen; dens kanoniske lønvirkning spores
 i `td-80c439`.
-Den endnu ikke implementerede kildefaktagren for øvrige lønmodtagerudgifter
-efter LL § 9, stk. 1, spores i `td-80292f`; § 4-reglen er klar til at samordne
-grenen, når dens eget lovkorpus kobles på.
-Den tilsvarende, beskæftigelsesknyttede samordning med fiskerfradraget efter LL
-§ 9 G er afgrænset i `td-5759f5`. Ingen af delene indføres som et løst flag i de
-almindelige kontingent- eller bidragsdomæner.
+Kildefaktagren for øvrige lønmodtagerudgifter efter LL § 9, stk. 1, er
+implementeret i `td-80292f` og indgår nu i både sømands- og
+fiskerfradragssamordningen.
+
+Fiskerfradraget efter LL § 9 G er implementeret i `td-5759f5`. Registrering med
+A- eller B-status, arbejdsperioder og fangstturenes præcise afgangs- og
+ankomsttidspunkter udleder selv 12-timersgrænsen, påbegyndte 24-timers-havdage,
+årsvalget og loftet på 220 havdage/41.800 kr. Hver mulig erstatningskilde har en
+typet reference til fiskerarbejde eller andet arbejde. LL § 9, stk. 1, og § 13
+genberegner deres fælles årsgrænser efter kildefiltreringen; PBL § 49, stk. 1,
+bevarer det fulde betalingsgrundlag for stk. 3, men medregner kun ikke-fisker-
+tilknyttede bidrag. Efterløns- og fleksydelsesbidrag berøres ikke. Hver
+driftsudgift i en selvstændig fiskerivirksomhed får en typet vurdering af, om
+den kan sidestilles med en lønmodtagerudgift efter LL § 9, stk. 1. Kun den
+sidestillede gren fjernes før personlig indkomst og arbejdsmarkedsbidrag;
+almindelige fiskeridriftsudgifter og en anden virksomhed bevares. Manglende,
+modstridende eller forældreløse udgiftsvurderinger samt manglende, dublerede,
+forældreløse eller arbejdsstridige kildetilknytninger fejler lukket. Et fuldt
+kanonisk blandet-år-scenarie verificerer 190 kr. i fiskerfradrag, 12.090 kr. i
+samlet ligningsfradrag og korrekt genberegning af et AM-grundlag med to
+virksomheder. Et ekstra blandet scenarie anvender fisker- og sømandsfradraget
+samtidig: oprindelige kilder valideres fortsat, mens kun beløb, der overlever
+§ 9 G, går videre til sømandsbeskatningslovens § 4. Beregningsskemaet
+udstiller både udgiftsvurderingerne og de samme kilder som relationelle
+XLSX-tabeller med danske etiketter for hovedperson og ægtefælle; ingen af
+udelukkelserne er et løst flag i kontingent- eller bidragsdomænerne.
+
+Tre afgrænsede randtilfælde er fortsat åbne: `td-def72e` skal fastlægge den
+kilderigtige årsfordeling for en sammenhængende fangsttur over 31. december,
+`td-78ac4d` skal opdele et blandet års befordring efter LL §§ 9 C-9 D mellem
+fiskeri og andet arbejde, og `td-f4f16f` skal håndhæve vejledningens skelnen
+mellem samme fiskeritilknyttede fagforening og en reelt anden fagforening ved
+andet arbejde. Den nuværende model fejler lukket på den første, kræver én samlet
+arbejdstilknytning for den anden og forventer én usplittet kildepost pr.
+kontingent for den tredje.
 
 Den modregningsberettigede udbytteskat på 4.353,14 kr. føres nu tabsfrit fra
 den typede dokumentlinje til `KildeskatPar60KreditterØre` og videre gennem den
