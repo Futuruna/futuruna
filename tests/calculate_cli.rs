@@ -15423,7 +15423,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "dokumentreference": "årsopgørelse-afdøde-2025"
             }
         ],
-        "bofordelingsgrundlag": { "$variant": "Dbl31EtSamletDødsbo" }
+        "bofordelingsgrundlag": {
+            "$variant": "Dbl31FællesboOgSærboSkiftesHverForSig",
+            "fællesbo": {
+                "bobeskatningsindkomst_kroner": -120_000,
+                "aktieindkomst_kroner": 0,
+                "boopgørelsens_skæringsdag": { "år": 2026, "måned": 8, "dag": 20 },
+                "dokumentreference": "fællesboopgørelse-2026-08-20"
+            },
+            "særbo": {
+                "bobeskatningsindkomst_kroner": -80_000,
+                "aktieindkomst_kroner": 0,
+                "boopgørelsens_skæringsdag": { "år": 2026, "måned": 8, "dag": 31 },
+                "dokumentreference": "særboopgørelse-2026-08-31"
+            }
+        }
     });
 
     let mut limited_taxpayer_case = death_estate_case.clone();
@@ -16898,6 +16912,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         60_000
     );
     assert_eq!(death_estate_carryback_trace["beregningsklar"], true);
+    let death_estate_carryback_distribution = &death_estate_carryback_trace["fordeling_efter_stk4"];
+    assert_eq!(
+        death_estate_carryback_distribution["fællesboets_bobeskatningsperiode_gyldig"],
+        true
+    );
+    assert_eq!(
+        death_estate_carryback_distribution["særboets_bobeskatningsperiode_gyldig"],
+        true
+    );
+    assert_eq!(
+        death_estate_carryback_distribution["skæringsdage_afstemt"],
+        true
+    );
+    assert_eq!(
+        death_estate_carryback_distribution["udbetaling_til_fællesbo_kroner"],
+        36_000
+    );
+    assert_eq!(
+        death_estate_carryback_distribution["udbetaling_til_særbo_kroner"],
+        24_000
+    );
     let hydrated_carryback_source = &death_estate_carryback_annual["input"]["dødsboskattegrundlag"]
         ["input"]["carrybackgrundlag"];
     assert_eq!(
@@ -16914,6 +16949,14 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         hydrated_carryback_source["betalte_årsskatter"][1]["dokumentreference"],
         "årsopgørelse-afdøde-2025"
+    );
+    assert_eq!(
+        hydrated_carryback_source["bofordelingsgrundlag"]["fællesbo"]["boopgørelsens_skæringsdag"],
+        serde_json::json!({ "år": 2026, "måned": 8, "dag": 20 })
+    );
+    assert_eq!(
+        hydrated_carryback_source["bofordelingsgrundlag"]["særbo"]["boopgørelsens_skæringsdag"],
+        serde_json::json!({ "år": 2026, "måned": 8, "dag": 31 })
     );
 
     let json_limited_taxpayer_result = json_result["results"]

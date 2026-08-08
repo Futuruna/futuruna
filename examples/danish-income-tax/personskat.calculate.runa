@@ -878,7 +878,7 @@
     path = refof(Dødsboskattelov30Input::boopgørelsens_skæringsdag::år),
     label = "Boopgørelsens skæringsdag (ISO 8601) - år",
     question = Some("I hvilket år ligger skæringsdagen i boopgørelsen?"),
-    help = Some("Brug skæringsdagen i den ordinære boopgørelse, ikke en tillægsopgørelse."),
+    help = Some("Brug skæringsdagen i den ordinære boopgørelse, ikke en tillægsopgørelse. Skiftes fællesbo og særbo hver for sig, skal den fælles beregning bruge den seneste af de to boers skæringsdage."),
     unit = Some("år")
 )
 = personskat_felt_dis_dødsbo_skæringsdag_måned = TypetBeregningsfelt(
@@ -1130,7 +1130,7 @@
     path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::fællesbo::boopgørelsens_skæringsdag::år),
     label = "Fællesboets skæringsdag - år",
     question = Some("I hvilket år ligger fællesboets skæringsdag?"),
-    help = Some("Den nuværende § 31-model kræver samme skæringsdag for den samlede opgørelse, fællesboet og særboet."),
+    help = Some("Oplys fællesboets egen skæringsdag. Den kan afvige fra særboets; den fælles beregning skal bruge den seneste af de to datoer."),
     unit = Some("år")
 )
 = personskat_felt_dis_dødsbo_par31_fællesbo_skæringsdag_måned = TypetBeregningsfelt(
@@ -1172,7 +1172,7 @@
     path = refof(Dødsboskattelov31Bofordelingsgrundlag::Dbl31FællesboOgSærboSkiftesHverForSig::særbo::boopgørelsens_skæringsdag::år),
     label = "Særboets skæringsdag - år",
     question = Some("I hvilket år ligger særboets skæringsdag?"),
-    help = Some("Den nuværende § 31-model kræver samme skæringsdag for den samlede opgørelse, fællesboet og særboet."),
+    help = Some("Oplys særboets egen skæringsdag. Den kan afvige fra fællesboets; den fælles beregning skal bruge den seneste af de to datoer."),
     unit = Some("år")
 )
 = personskat_felt_dis_dødsbo_par31_særbo_skæringsdag_måned = TypetBeregningsfelt(
