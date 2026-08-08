@@ -332,14 +332,14 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     stk4_samordning = UdenSamordningMedLigningslov15P
 ))
 
-| personskat_calculate_ejendomsavancefakta(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype) -> PersonskatEjendomsavanceFakta(
+| personskat_calculate_ejendomsavancefakta_med_par5(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype, par5_fakta: EblPar5Fakta) -> PersonskatEjendomsavanceFakta(
     identifikation = identifikation,
     afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
     afståelse = EblAlmindeligAfståelse,
     erhvervet_som_led_i_næring = Falskt,
     kontant_anskaffelsessum_kroner = anskaffelsessum_kroner,
     gæld_kursværdi_ved_anskaffelse_kroner = 0,
-    par5_fakta = ebl_par5_standardfakta(EblDato(år = 2026, måned = 1, dag = 1), EblPar4AlmindeligtAnskaffelsesgrundlag),
+    par5_fakta = par5_fakta,
     par4_stk8_anskaffelse_udeladt_kroner = 0,
     kontant_afståelsessum_kroner = afståelsessum_kroner,
     overdragne_gældsposter_kursværdi_kroner = 0,
@@ -348,7 +348,14 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
     par6d_valg = EblUdenPar6DValg
 )
-| personskat_calculate_par6a_genanbringelse(erhvervsfortjeneste_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(fakta = EblPar6AFakta(
+| personskat_calculate_ejendomsavancefakta(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal, ejendomstype: EjendomsavanceEjendomstype) -> personskat_calculate_ejendomsavancefakta_med_par5(
+    identifikation = identifikation,
+    anskaffelsessum_kroner = anskaffelsessum_kroner,
+    afståelsessum_kroner = afståelsessum_kroner,
+    ejendomstype = ejendomstype,
+    par5_fakta = ebl_par5_standardfakta(EblDato(år = 2026, måned = 1, dag = 1), EblPar4AlmindeligtAnskaffelsesgrundlag)
+)
+| personskat_calculate_par6a_fakta(erhvervsfortjeneste_kroner: Heltal) -> EblPar6AFakta(
     oprindelig_fortjeneste = EblOprindeligErhvervsfortjeneste(
         afståelsesindkomstår = 2025,
         erhvervsfortjeneste_før_par6_stk2_kroner = erhvervsfortjeneste_kroner,
@@ -367,7 +374,37 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ),
     begæring = EblPar6ABegæringVedRettidigAfgivelseEfterSkattekontrollovensPar2,
     ejerskab = EblPar6ASammeSkattepligtige
+)
+| personskat_calculate_par6a_genanbringelse(erhvervsfortjeneste_kroner: Heltal) -> EblMedGenanbringelseEfterPar6A(
+    fakta = personskat_calculate_par6a_fakta(erhvervsfortjeneste_kroner)
+)
+| personskat_calculate_par6c_genanbringelse(erhvervsfortjeneste_kroner: Heltal) -> EblMedGenanbringelseEfterPar6C(fakta = EblPar6CFakta(
+    par6a_fakta = personskat_calculate_par6a_fakta(erhvervsfortjeneste_kroner),
+    arbejdsart = EblPar6CNybygning,
+    arbejde_påbegyndt = Sandt
 ))
+| personskat_calculate_par6c_par5_fakta(nedslag_for_afstået_del_kroner: Heltal) -> EblPar5Fakta(
+    anskaffelsesdato = EblDato(år = 2026, måned = 1, dag = 1),
+    anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag,
+    fordeling = EblPar5Fordeling(
+        ejerandel_promille = 1000,
+        afståelsesomfang = EblPar5HeleEjendommen
+    ),
+    vedligeholdelses_og_forbedringsudgifter = [
+        EblPar5Udgift(
+            afholdelsesdato = EblDato(år = 2026, måned = 6, dag = 1),
+            fuldførelsesår = 2026,
+            beløb_for_afstået_del_kroner = 1000000,
+            status = EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(
+                nedslag_for_afstået_del_kroner = nedslag_for_afstået_del_kroner
+            )
+        )
+    ],
+    nedsættelser = [],
+    mælkekvoter = [],
+    stk6_overførsel = EblPar5UdenStk6Overførsel,
+    reguleringsvalg = EblPar5UdenIndeksering
+)
 | personskat_calculate_kapitalindkomst_med_ejendomsavance(ejendomsavance: PersonskatEjendomsavanceInput) -> PersonskatKapitalindkomstInput(
     renter = PersonskatRenteInput(
         renteindtægter_kroner = 0,
@@ -445,6 +482,25 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         afståelsessum_kroner = 1000000,
         ejendomstype = EblAndenFastEjendom(
             genanbringelse = personskat_calculate_par6a_genanbringelse(erhvervsfortjeneste_kroner = 200000)
+        )
+    )],
+    egne_skadegenopførelser = [],
+    eget_fremført_tab = UdenFremførtEjendomstab,
+    ægtefælles_afståelser = [],
+    ægtefælles_skadegenopførelser = [],
+    ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+)))))
+= personskat_calculate_ordinær_par6c_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
+    egne_afståelser = [personskat_calculate_ejendomsavancefakta_med_par5(
+        identifikation = "ordinær-par6c",
+        anskaffelsessum_kroner = 100000,
+        afståelsessum_kroner = 1000000,
+        ejendomstype = EblAndenFastEjendom(
+            genanbringelse = personskat_calculate_par6c_genanbringelse(erhvervsfortjeneste_kroner = 200000)
+        ),
+        par5_fakta = personskat_calculate_par6c_par5_fakta(
+            nedslag_for_afstået_del_kroner = 200000
         )
     )],
     egne_skadegenopførelser = [],
@@ -1497,6 +1553,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _, _, par4_resultat) -> head(egne_afståelsesresultater).genanbringelsesresultat.hjemmel == EblGenanbringelseEfterPar6A && head(egne_afståelsesresultater).aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 200000 && head(egne_afståelsesresultater).anskaffelsessum_før_par5_efter_aktivt_genanbringelsesnedslag_kroner == 800000 && head(egne_afståelsesresultater).skattepligtig_fortjeneste_kroner == 190000 && par4_resultat.kapitalindkomst_kroner == 190000
     | _ -> Falskt
 }
+| personskat_calculate_ordinær_par6c_afledes_fra_kildefakta: personskat_calculate_ordinær_par6c_resultat -> personskat_calculate_ordinær_par6c_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_ordinær_par6c_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 100000 && personskat_calculate_ordinær_par6c_resultat.skat.nettokapitalindkomst_kroner == 100000 && match personskat_calculate_ordinær_par6c_resultat.kapitalindkomst.ejendomsavance_resultat {
+    | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _, _, par4_resultat) -> head(egne_afståelsesresultater).genanbringelsesresultat.hjemmel == EblGenanbringelseEfterPar6C && head(egne_afståelsesresultater).aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner == 0 && head(egne_afståelsesresultater).par6c_nedslag_modregnet_i_par5_udgifter_kroner == 200000 && head(egne_afståelsesresultater).par5_resultat.reguleret_anskaffelsessum_kroner == 900000 && head(egne_afståelsesresultater).skattepligtig_fortjeneste_kroner == 100000 && par4_resultat.kapitalindkomst_kroner == 100000
+    | _ -> Falskt
+}
 | personskat_calculate_par11_stk2_afledes_fra_kildefakta: personskat_calculate_par11_stk2_resultat -> personskat_calculate_par11_stk2_resultat.kapitalindkomst.ejendomsavance_input_gyldigt && personskat_calculate_par11_stk2_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 200000 && match personskat_calculate_par11_stk2_resultat.kapitalindkomst.ejendomsavance_resultat {
     | BeregnetEjendomsavance(_, egne_afståelsesresultater, _, _, _, _, _, par4_resultat) -> head(egne_afståelsesresultater).undtaget_efter_par11 && head(egne_afståelsesresultater).par11_stk2_resultat.stk2_anvendt && head(egne_afståelsesresultater).par11_stk2_resultat.anskaffelsessumsnedslag_bortfalder_kroner == 200000 && head(egne_afståelsesresultater).fortjeneste_eller_tab_kroner == 450000 && head(egne_afståelsesresultater).skattepligtig_fortjeneste_kroner == 200000 && par4_resultat.kapitalindkomst_kroner == 200000
     | _ -> Falskt
@@ -1622,6 +1682,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_ægtefælles_tab_begrænses_af_egen_nettofortjeneste
 ? personskat_calculate_par8_fortjeneste_fritages
 ? personskat_calculate_ordinær_genanbringelse_afledes_fra_kildefakta
+? personskat_calculate_ordinær_par6c_afledes_fra_kildefakta
 ? personskat_calculate_par11_stk2_afledes_fra_kildefakta
 ? personskat_calculate_befordring_afledes
 ? personskat_calculate_fri_offentlig_befordring_føder_personlig_indkomst_uden_am

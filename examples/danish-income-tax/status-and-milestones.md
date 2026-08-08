@@ -1367,12 +1367,18 @@ allerede forbrugt bruttofortjeneste. Genanbringelse efter §§ 6 A, 6 C og 10 er
 nu et fælles typet domæne med oprindelig erhvervsfortjeneste, frister,
 erhvervsanvendelse, ejerskab, placering, begæring, investeringsgrundlag,
 genopførelsesfakta og senere reguleringer. En almindelig erhvervsejendom bærer
-nu samme typede genanbringelsesdomæne. Ved en senere ordinær afståelse
-nedsættes den kontante anskaffelsessum med det stadig aktive nedslag, før
-§§ 5 og 5 A regulerer anskaffelsessummen. Den gamle fortjeneste tilføjes ikke
-særskilt igen. Hvis bestemmende indflydelse allerede er ophørt, viser
-auditsporet i stedet den tidligere beskatning og et aktivt nedslag på 0 kr., så
-den senere afståelse bruger den ikke-nedsatte anskaffelsessum. § 8, stk. 5
+nu samme typede genanbringelsesdomæne. Ved en senere ordinær afståelse efter
+§§ 6 A eller 10 nedsættes den kontante anskaffelsessum med det stadig aktive
+nedslag, før §§ 5 og 5 A regulerer anskaffelsessummen. Efter § 6 C bevares
+ejendommens oprindelige kontante anskaffelsessum derimod; den genanbragte
+fortjeneste fordeles som kildefakta på de berørte om-, til- eller
+nybygningsudgifter og nedsætter kun disse udgifter, før § 5, stk. 2's årlige
+grænse og en eventuel § 5 A-regulering anvendes. Fordelingen skal afstemme
+præcist med den genanbragte fortjeneste for den afståede del. Den gamle
+fortjeneste tilføjes ikke særskilt igen. Hvis bestemmende indflydelse allerede
+er ophørt, viser auditsporet i stedet den tidligere beskatning og et aktivt
+nedslag på 0 kr.; både ejendomsbasis og de historisk mærkede byggeudgifter
+genoprettes ved den senere afståelse. § 8, stk. 5
 beskatter den tidligere
 genanbragte fortjeneste særskilt, når den nye ejendoms egen boligfortjeneste er
 skattefri. § 9, stk. 4 udleder selv, om erhvervsdelen kan bære hele den
@@ -1412,7 +1418,10 @@ ABL-regler i stedet for at blive nulstillet. Et fokuseret scenarie dækker de
 § 9-fordelingen og ABL § 15's boligretsgren. Et særskilt ordinært
 genanbringelsesscenarie og en `.audit.runa`-fil kontrollerer, at det aktive
 anskaffelsessumsnedslag anvendes præcis én gang, at kontrolophør fjerner
-nedslaget, og at et nedslag større end ejendommens grundlag afvises. Et nyt
+nedslaget, og at et nedslag større end ejendommens grundlag afvises. De
+kontrollerer desuden, at § 6 C kan anvendes ved en lav oprindelig
+ejendomsbasis, at byggeudgiftsfordelingen afstemmer, og at kontrolophør
+genopretter byggeudgiften uden dobbeltbeskatning. Et nyt
 fokuseret scenarie dækker
 desuden mælkekvotekøb, vederlagsfri tildeling, delvis disposition, udløb,
 toldning, § 5 A-år, § 5, stk. 6-værdiansættelse, 2027-overgangen for skov og
@@ -1456,7 +1465,9 @@ beregnede mellemfelter fra brugeren.
 Omkostninger efter § 4, stk. 2 ligger i deres egen nøglebundne tabel, to ark
 rummer egne og ægtefællens ejendomsafståelser, og de indlejrede § 5-fakta giver
 selvstændige relationelle tabeller for vedligeholdelses- og
-forbedringsudgifter, nedsættelser og egne eller ægtefællens mælkekvoter. De
+forbedringsudgifter, nedsættelser og egne eller ægtefællens mælkekvoter.
+Udgiftstabellerne har et typet § 6 C-valg med den genanbragte fortjeneste for
+den afståede del og en dansk interviewetiket. De
 øvrige relationelle ark kommer blandt andet fra de ordinære og særlige
 ABL-grene. Den udfyldte kombinationssag giver samme fulde resultat fra XLSX og
 kanonisk JSON for renter, fradrag, befordring, to egne ejendomsafståelser,
@@ -1533,7 +1544,7 @@ menneskelige ord, udfylde de kanoniske stier og lade Futuruna beregne
 deterministisk med den juridiske forklaringskæde bevaret. En metadataændring
 ændrer kontraktens fingerprint, så gamle interview- og regnearksskabeloner
 afvises som forældede. Den verificerede kontrakt har aktuelt fingerprint
-`92f3fe8b57cdf4d3667a18453805197019fc93f199523ad2ff199c1e1f2ba8f9`.
+`6296db5b79a2ab85e012c43c3bf2551ce7b23831a0f32db5be93bbc65f6e5232`.
 De 18 nye udlejningsfelter efter ligningslovens § 15 Q har alle en dansk
 etiket, et interviewspørgsmål, hjælp og en typet retskilde. De omfatter
 boligrolle, udlejningsform, bolig- og indberetningsstatus, fradragsmetode,
@@ -4534,7 +4545,8 @@ Review candidates to revisit deliberately, not as broad churn:
   centrale
   §§ 6 A/8/9-kildefakta, en ordinær ejendoms aktive
   anskaffelsessumsnedslag, kontrolophør, delafståelsernes særskilte
-  anskaffelsessumsgrundlag, mælkekvoter og § 5, stk. 6 for begge ægtefæller.
+  anskaffelsessumsgrundlag, § 6 C's særskilte byggeudgiftsnedslag,
+  mælkekvoter og § 5, stk. 6 for begge ægtefæller.
   KGL-posterne navngiver pantebrevslisten, pantebrevsidentiteten,
   skatteyderfakta, § 14-grundlaget og senere dispositioners år, berørte
   tranche, art, modtagers nye tranche, hovedstol og provenu. Den navngiver nu

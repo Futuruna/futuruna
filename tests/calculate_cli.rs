@@ -3546,6 +3546,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
                 "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
                 "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6A.fakta.investering.erhvervsanvendelse.EblPar6AUdlejetTilKontrolleretSelskab.bestemmende_indflydelse_består",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6C.fakta.par6a_fakta.oprindelig_fortjeneste.erhvervsfortjeneste_før_par6_stk2_kroner",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6C.fakta.par6a_fakta.investering.erhvervsmæssigt_anskaffelsesgrundlag_kroner",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6C.fakta.arbejdsart",
+                "ejendomstype.EblAndenFastEjendom.genanbringelse.EblMedGenanbringelseEfterPar6C.fakta.arbejde_påbegyndt",
                 "ejendomstype.EblBoligejendom.fakta.ejendomsart.$variant",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.$variant",
                 "ejendomstype.EblBoligejendom.fakta.genanbringelsesforhold.EblPar8GenanbringelseEfterStk5.genanbringelse.$variant",
@@ -3671,13 +3675,21 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "afholdelsesdato.dag",
                 "fuldførelsesår",
                 "beløb_for_afstået_del_kroner",
-                "status",
+                "status.$variant",
+                "status.EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C.nedslag_for_afstået_del_kroner",
             ] {
                 assert!(
                     expense_paths.iter().any(|path| path == expected),
                     "missing canonical § 5 expense path {expected} on {expense_sheet}"
                 );
             }
+            let expense_headers = workbook_headers(&mut workbook, &expense_sheet);
+            assert!(
+                expense_headers
+                    .iter()
+                    .any(|header| header == "Genanbragt fortjeneste efter § 6 C"),
+                "missing human § 6 C expense label on {expense_sheet}"
+            );
 
             let reduction_path = format!("{property_path}.par5_fakta.nedsættelser");
             let reduction_sheet = workbook_collection_sheet_name(&mut workbook, &reduction_path);

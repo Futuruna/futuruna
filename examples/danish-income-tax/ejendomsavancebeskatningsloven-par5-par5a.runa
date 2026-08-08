@@ -36,12 +36,19 @@
     hentet_dato = "2026-07-18"
 )
 
+= ebl_par5_par6c_vejledning_2026 = EblPar5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948712",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.3",
+    hentet_dato = "2026-08-06"
+)
+
 = ebl_par5_par5a_metadata = Metadata(
     attachments = (
         Source(value = ebl_par5_lbk132),
         Guidance(value = ebl_par5_vejledning_2026),
         Guidance(value = ebl_par5_mælkekvote_vejledning_2026),
         Guidance(value = ebl_par5_stk6_vejledning_2026),
+        Guidance(value = ebl_par5_par6c_vejledning_2026),
     )
 )
 
@@ -259,7 +266,7 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 --@begin:ebl_par5_par5a--
 # EblDato(år: Heltal, måned: Heltal, dag: Heltal)
 # EjendomsavancePar4Anskaffelsesgrundlag = EblPar4AlmindeligtAnskaffelsesgrundlag | EblPar4Stk3Nr1Anskaffelsesgrundlag | EblPar4Stk3Nr2Anskaffelsesgrundlag | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag | EblPar4Stk3TredjePktAnskaffelsesgrundlag(tab_efter_ejendomsværdi_par4_stk3_nr1_eller_2_kroner: Heltal) | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag | EblPar4Stk3SjettePktUdenlandskFaktiskAnskaffelsesgrundlag
-# EblPar5Udgiftsstatus = EblPar5UdgiftMedregningsberettiget | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J | EblPar5UdgiftFradragsberettiget | EblPar5UdgiftStraksfradragetEllerStraksafskrevet | EblPar5UdgiftFredetBygningMedFremtidigtFradrag | EblPar5UdgiftModsvaretAfSkattefritTilskud | EblPar5UdgiftFradragetEfterTidligereLigningslov15N | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag | EblPar5UdgiftLigningslov16IkkeTillagtBeregningsgrundlag | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse | EblPar5UdgiftFredetBygningUdenIndkomstfradrag
+# EblPar5Udgiftsstatus = EblPar5UdgiftMedregningsberettiget | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(nedslag_for_afstået_del_kroner: Heltal) | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J | EblPar5UdgiftFradragsberettiget | EblPar5UdgiftStraksfradragetEllerStraksafskrevet | EblPar5UdgiftFredetBygningMedFremtidigtFradrag | EblPar5UdgiftModsvaretAfSkattefritTilskud | EblPar5UdgiftFradragetEfterTidligereLigningslov15N | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag | EblPar5UdgiftLigningslov16IkkeTillagtBeregningsgrundlag | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse | EblPar5UdgiftFredetBygningUdenIndkomstfradrag
 # EblPar5Udgift(afholdelsesdato: EblDato, fuldførelsesår: Heltal, beløb_for_afstået_del_kroner: Heltal, status: EblPar5Udgiftsstatus)
 # EblPar5Nedsættelsesgrund = EblPar5Stk4Nr1AfskrivningIkkeBeskattetSomGenvunden | EblPar5Stk4Nr1AfskrivningBeskattetSomGenvunden | EblPar5Stk4Nr2NedrevetBygningEllerInstallation | EblPar5Stk4Nr3TabEllerVærdiforringelse | EblPar5Stk4Nr4RåstofEllerJordværdiforringelse | EblPar5Stk4Nr5DræningEllerMarkvanding
 # EblPar5Nedsættelse(indkomstår: Heltal, beløb_for_afstået_del_kroner: Heltal, grund: EblPar5Nedsættelsesgrund)
@@ -346,12 +353,41 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 
 | ebl_par5_udgiftsstatus_medregningsberettiget(status: EblPar5Udgiftsstatus) -> match status {
     | EblPar5UdgiftMedregningsberettiget -> Sandt
+    | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(_) -> Sandt
     | EblPar5UdgiftKunStandardfradragEfterTidligereLigningslov15J -> Sandt
     | EblPar5UdgiftLigningslov16TillagtBeregningsgrundlag -> Sandt
     | EblPar5UdgiftEfterSenesteLigningslov16Omfattelse -> Sandt
     | EblPar5UdgiftFredetBygningUdenIndkomstfradrag -> Sandt
     | _ -> Falskt
 }
+| ebl_par5_udgiftsstatus_par6c_nedslag_kroner(status: EblPar5Udgiftsstatus) -> match status {
+    | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(nedslag_for_afstået_del_kroner) -> penge_positivt_beløb(nedslag_for_afstået_del_kroner)
+    | _ -> 0
+}
+| ebl_par5_udgiftsstatus_har_par6c_nedslag(status: EblPar5Udgiftsstatus) -> match status {
+    | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(_) -> Sandt
+    | _ -> Falskt
+}
+| ebl_par5_par6c_nedslag_i_udgifter_kroner(fakta: EblPar5Fakta) -> foldl(fakta.vedligeholdelses_og_forbedringsudgifter, 0, |sum: Heltal, udgift: EblPar5Udgift| sum + ebl_par5_udgiftsstatus_par6c_nedslag_kroner(udgift.status))
+| ebl_par5_udgift_med_par6c_nedslag(udgift: EblPar5Udgift, anvend_nedslag: Boolsk) -> match udgift.status {
+    | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(nedslag_for_afstået_del_kroner) -> EblPar5Udgift(
+        afholdelsesdato = udgift.afholdelsesdato,
+        fuldførelsesår = udgift.fuldførelsesår,
+        beløb_for_afstået_del_kroner = hvis anvend_nedslag { penge_positivt_beløb(udgift.beløb_for_afstået_del_kroner - nedslag_for_afstået_del_kroner) } ellers { udgift.beløb_for_afstået_del_kroner },
+        status = EblPar5UdgiftMedregningsberettiget
+    )
+    | _ -> udgift
+}
+| ebl_par5_fakta_med_par6c_nedslag(fakta: EblPar5Fakta, anvend_nedslag: Boolsk) -> EblPar5Fakta(
+    anskaffelsesdato = fakta.anskaffelsesdato,
+    anskaffelsesgrundlag = fakta.anskaffelsesgrundlag,
+    fordeling = fakta.fordeling,
+    vedligeholdelses_og_forbedringsudgifter = map(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| ebl_par5_udgift_med_par6c_nedslag(udgift, anvend_nedslag)),
+    nedsættelser = fakta.nedsættelser,
+    mælkekvoter = fakta.mælkekvoter,
+    stk6_overførsel = fakta.stk6_overførsel,
+    reguleringsvalg = fakta.reguleringsvalg
+)
 | ebl_par5_udgift_efter_startdato(fakta: EblPar5Fakta, udgift: EblPar5Udgift) -> match fakta.anskaffelsesgrundlag {
     | EblPar4DagældendeVurderingslov4BAnskaffelsesgrundlag -> ebl_dato_yyyymmdd(udgift.afholdelsesdato) > 19930519
     | EblPar4Stk3FemtePktUdenlandskHandelsværdiAnskaffelsesgrundlag -> ebl_dato_yyyymmdd(udgift.afholdelsesdato) > 19930519
@@ -552,11 +588,17 @@ skovejendom« til: »landbrugs-, skov- og naturejendom«.
 )
 | ebl_par5_nedsættelsesresultater(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> map(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelsesresultat(fakta, afståelsesdato, nedsættelse))
 
-| ebl_par5_udgift_gyldig(udgift: EblPar5Udgift) -> ebl_dato_gyldig(udgift.afholdelsesdato) && udgift.fuldførelsesår >= udgift.afholdelsesdato.år && udgift.beløb_for_afstået_del_kroner >= 0
+| ebl_par5_udgift_par6c_nedslag_gyldigt(udgift: EblPar5Udgift) -> match udgift.status {
+    | EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C(nedslag_for_afstået_del_kroner) -> nedslag_for_afstået_del_kroner > 0 && nedslag_for_afstået_del_kroner <= udgift.beløb_for_afstået_del_kroner
+    | _ -> Sandt
+}
+| ebl_par5_par6c_nedslag_i_udgifter_gyldigt(fakta: EblPar5Fakta) -> all(fakta.vedligeholdelses_og_forbedringsudgifter, ebl_par5_udgift_par6c_nedslag_gyldigt)
+| ebl_par5_udgift_gyldig(udgift: EblPar5Udgift) -> ebl_dato_gyldig(udgift.afholdelsesdato) && udgift.fuldførelsesår >= udgift.afholdelsesdato.år && udgift.beløb_for_afstået_del_kroner >= 0 && ebl_par5_udgift_par6c_nedslag_gyldigt(udgift)
 | ebl_par5_nedsættelse_gyldig(nedsættelse: EblPar5Nedsættelse, fakta: EblPar5Fakta, afståelsesdato: EblDato) -> nedsættelse.indkomstår >= fakta.anskaffelsesdato.år && nedsættelse.indkomstår <= afståelsesdato.år && nedsættelse.beløb_for_afstået_del_kroner >= 0
 | ebl_par5_input_gyldigt(fakta: EblPar5Fakta, afståelsesdato: EblDato, anskaffelsessum_før_par5_kroner: Heltal) -> ebl_dato_gyldig(fakta.anskaffelsesdato) && ebl_dato_gyldig(afståelsesdato) && ebl_dato_før_eller_lig_med(fakta.anskaffelsesdato, afståelsesdato) && ebl_par4_anskaffelsesdato_og_grundlag_hænger_sammen(fakta.anskaffelsesdato, fakta.anskaffelsesgrundlag) && anskaffelsessum_før_par5_kroner >= 0 && ebl_par5_fordeling_gyldig(fakta.fordeling) && (ebl_par5_mælkekvote_fordelingsgrundlag_påkrævet(fakta, afståelsesdato) == Falskt || ebl_par5_mælkekvote_fordelingsgrundlag_tilgængeligt(fakta.fordeling)) && ebl_par4_anskaffelsesgrundlag_gyldigt(fakta.anskaffelsesgrundlag) && all(fakta.vedligeholdelses_og_forbedringsudgifter, ebl_par5_udgift_gyldig) && all(fakta.nedsættelser, |nedsættelse: EblPar5Nedsættelse| ebl_par5_nedsættelse_gyldig(nedsættelse, fakta, afståelsesdato)) && ebl_par5_mælkekvoter_gyldige(fakta.mælkekvoter) && ebl_par5_stk6_forhold_input_gyldigt(fakta.stk6_overførsel)
 | ebl_par5_udgiftsfuldførelse_understøttet(fakta: EblPar5Fakta) -> all(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| udgift.fuldførelsesår == udgift.afholdelsesdato.år)
-| ebl_par5_regelgrundlag_understøttet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5_udgiftsfuldførelse_understøttet(fakta) && ebl_par5a_valg_berettiget(fakta, afståelsesdato) && (ebl_par5a_valgt(fakta) == Falskt || ebl_par5a_kilder_tilgængelige(fakta, afståelsesdato))
+| ebl_par5_par6c_kontekst_ikke_påkrævet(fakta: EblPar5Fakta) -> all(fakta.vedligeholdelses_og_forbedringsudgifter, |udgift: EblPar5Udgift| ebl_par5_udgiftsstatus_har_par6c_nedslag(udgift.status) == Falskt)
+| ebl_par5_regelgrundlag_understøttet(fakta: EblPar5Fakta, afståelsesdato: EblDato) -> ebl_par5_udgiftsfuldførelse_understøttet(fakta) && ebl_par5_par6c_kontekst_ikke_påkrævet(fakta) && ebl_par5a_valg_berettiget(fakta, afståelsesdato) && (ebl_par5a_valgt(fakta) == Falskt || ebl_par5a_kilder_tilgængelige(fakta, afståelsesdato))
 | ebl_par5_standardfakta(anskaffelsesdato: EblDato, anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag) -> EblPar5Fakta(
     anskaffelsesdato = anskaffelsesdato,
     anskaffelsesgrundlag = anskaffelsesgrundlag,

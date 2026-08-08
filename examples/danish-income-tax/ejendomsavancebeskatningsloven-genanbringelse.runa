@@ -37,6 +37,12 @@
     hentet_dato = "2026-07-18"
 )
 
+= ebl_par6c_vejledning_2026 = EblGenanbringelseKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1948712",
+    identifier = "Den juridiske vejledning 2026-1, C.H.2.1.11.3",
+    hentet_dato = "2026-08-06"
+)
+
 = ebl_par10_anden_ejendom_vejledning_2026 = EblGenanbringelseKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1948737",
     identifier = "Den juridiske vejledning 2026-1, C.H.2.1.17.3",
@@ -272,6 +278,7 @@ indholdet i begæringer efter stk. 2.
 = ebl_par6c_metadata = Metadata(
     attachments = (
         Source(value = ebl_genanbringelse_lbk132),
+        Guidance(value = ebl_par6c_vejledning_2026),
         Guidance(value = ebl_par6c_afg10051),
     )
 )

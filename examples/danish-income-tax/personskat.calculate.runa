@@ -2552,6 +2552,20 @@
     help = Some("Tilføj hver udgift med dato, fuldførelsesår, beløb for den afståede del og skattemæssig status. Reglerne aggregerer beløbene pr. år før 10.000 kr.-grænsen anvendes."),
     unit = None
 )
+= personskat_felt_egen_par6c_udgiftsnedslag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.vedligeholdelses_og_forbedringsudgifter.status.EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C.nedslag_for_afstået_del_kroner",
+    label = "Genanbragt fortjeneste efter § 6 C",
+    question = Some("Hvor stor en del af den genanbragte fortjeneste efter § 6 C nedsatte denne bygge- eller forbedringsudgift for den afståede del?"),
+    help = Some("Fordel nedslaget på de berørte udgifter. Summen skal svare nøjagtigt til den aktive genanbragte fortjeneste for den afståede del."),
+    unit = Some("kr.")
+)
+= personskat_felt_ægtefælles_par6c_udgiftsnedslag = Beregningsfelt(
+    path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.ægtefælles_afståelser.par5_fakta.vedligeholdelses_og_forbedringsudgifter.status.EblPar5UdgiftMedGenanbragtFortjenesteEfterPar6C.nedslag_for_afstået_del_kroner",
+    label = "Genanbragt fortjeneste efter § 6 C",
+    question = Some("Hvor stor en del af din ægtefælles genanbragte fortjeneste efter § 6 C nedsatte denne bygge- eller forbedringsudgift for den afståede del?"),
+    help = Some("Fordel nedslaget på de berørte udgifter. Summen skal svare nøjagtigt til den aktive genanbragte fortjeneste for den afståede del."),
+    unit = Some("kr.")
+)
 = personskat_felt_egne_ejendomsnedsættelser = Beregningsfelt(
     path = "kapitalindkomst.ejendomsavance.MedEjendomsavance.fakta.egne_afståelser.par5_fakta.nedsættelser",
     label = "Nedsættelser af anskaffelsessummen",
@@ -10068,9 +10082,12 @@
     attachments = (
         Field(value = personskat_felt_egne_ejendomsudgifter),
         Field(value = personskat_felt_ægtefælles_ejendomsudgifter),
+        Field(value = personskat_felt_egen_par6c_udgiftsnedslag),
+        Field(value = personskat_felt_ægtefælles_par6c_udgiftsnedslag),
         Field(value = personskat_felt_egne_ejendomsnedsættelser),
         Field(value = personskat_felt_ægtefælles_ejendomsnedsættelser),
         Source(value = ebl_par5_lbk132),
+        Guidance(value = ebl_par6c_vejledning_2026),
     )
 )
 = personskat_metadata_egen_ejendomsidentifikation = PersonskatMetadata(
@@ -10227,6 +10244,7 @@
         Field(value = personskat_felt_ægtefælles_ordinær_genanbringelse),
         Source(value = ebl_genanbringelse_lbk132),
         Guidance(value = ebl_par6a_vejledning_2026),
+        Guidance(value = ebl_par6c_vejledning_2026),
     )
 )
 = personskat_metadata_egen_ordinær_genanbringelse_afståelsesår = PersonskatMetadata(
