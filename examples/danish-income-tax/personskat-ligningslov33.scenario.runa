@@ -108,6 +108,7 @@ nedslaget i personens slutskat.
         covidvalg = Ll33AUdenCovidvalg,
         dokumentreference = identifikation
     ),
+    periodevalg = Ligningslov33APeriodevalg(valgte_udrejsedatoer = [Dato(år = 2026, måned = 1, dag = 1)]),
     arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
     beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
     indkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(

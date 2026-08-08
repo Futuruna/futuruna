@@ -14,6 +14,16 @@
     personlig_nettoindkomst_kroner = personlig_kroner,
     arbejdsmarkedsbidragsgrundlag_kroner = am_grundlag_kroner
 )
+| ll33a_scenarie_dateret_indkomstfordeling(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, samlet: Ligningslov33ALønindkomstEfterDanskeRegler, dansk_arbejde: Ligningslov33ALønindkomstEfterDanskeRegler) -> Ligningslov33ADateretIndkomstfordeling(
+    identifikation = identifikation,
+    fra_dato = fra_dato,
+    til_dato = til_dato,
+    fordeling = Ligningslov33AIndkomstfordeling(
+        samlet_lønindkomst_efter_danske_regler = samlet,
+        heraf_arbejde_i_riget_efter_danske_regler = dansk_arbejde
+    ),
+    dokumentreference = "lønsedler"
+)
 | ll33a_scenarie_ophold(fra_dato: Dato, til_dato: Dato, danske_dage: List(Ligningslov33ADanskOpholdsdag), skattepligt: Ligningslov33ASkattepligtsstatus, covidvalg: Ligningslov33ACovidvalg) -> Ligningslov33AOphold(
     fra_dato = fra_dato,
     til_dato = til_dato,
@@ -28,6 +38,7 @@
     identifikation = identifikation,
     subjekt = Ll33APerson,
     ophold = ophold,
+    periodevalg = Ligningslov33APeriodevalg(valgte_udrejsedatoer = [ophold.fra_dato]),
     arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
     beskatningsret = beskatningsret,
     indkomstgrundlag = Ll33ASamletIndkomstForUafbrudtLempelsesperiode(
@@ -42,6 +53,7 @@
     identifikation = identifikation,
     subjekt = Ll33APerson,
     ophold = ophold,
+    periodevalg = Ligningslov33APeriodevalg(valgte_udrejsedatoer = [ophold.fra_dato]),
     arbejdsgivergrundlag = Ll33ADanskStatEllerOffentligMyndighed(
         ydelser = ydelser,
         lønfastsættelse = lønfastsættelse,
@@ -242,7 +254,7 @@
         ll33a_scenarie_ophold(
             Dato(år = 2025, måned = 1, dag = 10),
             Dato(år = 2025, måned = 7, dag = 9),
-            [Ligningslov33ADanskOpholdsdag(dato = Dato(år = 2025, måned = 3, dag = 1), art = Ll33AAndetOpholdIRiget)],
+            [Ligningslov33ADanskOpholdsdag(dato = Dato(år = 2025, måned = 3, dag = 1), art = Ll33AArbejdeIRigetUdenNødvendigDirekteForbindelseTilUdlandsopholdet)],
             Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet,
             Ll33AUdenCovidvalg
         ),
@@ -268,19 +280,64 @@
     ),
 ])
 
+= ll33a_scenarie_skattepligt_ophørt_ophold = ll33a_scenarie_ophold(
+    Dato(år = 2025, måned = 1, dag = 1),
+    Dato(år = 2025, måned = 6, dag = 30),
+    [],
+    Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(første_dato_uden_skattepligt = Dato(år = 2025, måned = 3, dag = 1)),
+    Ll33AUdenCovidvalg
+)
+
 = ll33a_scenarie_skattepligt_ophørt = ll33a_scenarie_resultat(2025, [
-    ll33a_scenarie_privat_forhold(
-        "skattepligt-ophørt",
-        ll33a_scenarie_ophold(
-            Dato(år = 2025, måned = 1, dag = 1),
-            Dato(år = 2025, måned = 6, dag = 30),
-            [],
-            Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet(ophørsdato = Dato(år = 2025, måned = 3, dag = 1)),
-            Ll33AUdenCovidvalg
+    Ligningslov33AAnsættelsesforhold(
+        identifikation = "skattepligt-ophørt",
+        subjekt = Ll33APerson,
+        ophold = ll33a_scenarie_skattepligt_ophørt_ophold,
+        periodevalg = Ligningslov33APeriodevalg(valgte_udrejsedatoer = [ll33a_scenarie_skattepligt_ophørt_ophold.fra_dato]),
+        arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
+        beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
+        indkomstgrundlag = Ll33ADateredeIndkomstfordelinger(
+            perioder = [
+                ll33a_scenarie_dateret_indkomstfordeling(
+                    "løn-under-skattepligt",
+                    Dato(år = 2025, måned = 1, dag = 1),
+                    Dato(år = 2025, måned = 2, dag = 28),
+                    ll33a_scenarie_indkomst(40000, 40000, 50000),
+                    ll33a_scenarie_indkomst(0, 0, 0)
+                ),
+                ll33a_scenarie_dateret_indkomstfordeling(
+                    "løn-efter-skattepligt",
+                    Dato(år = 2025, måned = 3, dag = 1),
+                    Dato(år = 2025, måned = 6, dag = 30),
+                    ll33a_scenarie_indkomst(80000, 80000, 110000),
+                    ll33a_scenarie_indkomst(0, 0, 0)
+                ),
+            ]
         ),
-        Ll33AIngenDobbeltbeskatningsoverenskomst,
-        ll33a_scenarie_indkomst(120000, 120000, 160000),
-        ll33a_scenarie_indkomst(0, 0, 0)
+        henstand = Ll33AIngenHenstand
+    ),
+])
+
+= ll33a_scenarie_skattepligt_ophørt_med_krydsende_indkomst = ll33a_scenarie_resultat(2025, [
+    Ligningslov33AAnsættelsesforhold(
+        identifikation = "skattepligt-ophørt-krydsende",
+        subjekt = Ll33APerson,
+        ophold = ll33a_scenarie_skattepligt_ophørt_ophold,
+        periodevalg = Ligningslov33APeriodevalg(valgte_udrejsedatoer = [ll33a_scenarie_skattepligt_ophørt_ophold.fra_dato]),
+        arbejdsgivergrundlag = Ll33AIkkeDanskOffentligArbejdsgiver,
+        beskatningsret = Ll33AIngenDobbeltbeskatningsoverenskomst,
+        indkomstgrundlag = Ll33ADateredeIndkomstfordelinger(
+            perioder = [
+                ll33a_scenarie_dateret_indkomstfordeling(
+                    "løn-krydser-skattepligtsophør",
+                    Dato(år = 2025, måned = 2, dag = 1),
+                    Dato(år = 2025, måned = 3, dag = 31),
+                    ll33a_scenarie_indkomst(40000, 40000, 50000),
+                    ll33a_scenarie_indkomst(0, 0, 0)
+                ),
+            ]
+        ),
+        henstand = Ll33AIngenHenstand
     ),
 ])
 
@@ -336,7 +393,7 @@
             Dato(år = 2020, måned = 9, dag = 30),
             concat(
                 ll33a_scenarie_danske_dage(Dato(år = 2020, måned = 1, dag = 10), 42, Ll33AFerieEllerLignende),
-                [Ligningslov33ADanskOpholdsdag(dato = Dato(år = 2020, måned = 3, dag = 15), art = Ll33AAndetOpholdIRiget)]
+                [Ligningslov33ADanskOpholdsdag(dato = Dato(år = 2020, måned = 3, dag = 15), art = Ll33AArbejdeIRigetUdenNødvendigDirekteForbindelseTilUdlandsopholdet)]
             ),
             Ll33ASkattepligtigEfterKildeskattelovensPar1HeleOpholdet,
             Ll33ACovidvalgAnvendt(
@@ -386,23 +443,30 @@
     ),
 ])
 
-| ll33a_præcis_seks_måneder_og_42_dage_giver_fuld_lempelse: ll33a_scenarie_fuld_lempelse -> ll33a_scenarie_fuld_lempelse.input_gyldigt && ll33a_scenarie_fuld_lempelse.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_fuld_lempelse.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && ll33a_scenarie_fuld_lempelse.samlet_nedslag_øre == 5720000
+| ll33a_præcis_seks_måneder_og_42_dage_giver_fuld_lempelse: ll33a_scenarie_fuld_lempelse -> ll33a_scenarie_fuld_lempelse.input_gyldigt && ll33a_scenarie_fuld_lempelse.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_fuld_lempelse.forholdsresultater).oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && ll33a_scenarie_fuld_lempelse.samlet_nedslag_øre == 5720000
 | ll33a_dansk_beskatningsret_giver_halv_lempelse: ll33a_scenarie_halv_lempelse -> ll33a_scenarie_halv_lempelse.input_gyldigt && head(ll33a_scenarie_halv_lempelse.forholdsresultater).lempelsesandel_basispoint == 5000 && ll33a_scenarie_halv_lempelse.samlet_nedslag_øre == 2860000
 | ll33a_arbejde_i_riget_trækkes_fra_lempelsesindkomsten: ll33a_scenarie_dansk_arbejde_udeladt -> ll33a_scenarie_dansk_arbejde_udeladt.input_gyldigt && ll33a_scenarie_dansk_arbejde_udeladt.fuldt_lempelsesberettiget_indkomst.skattepligtig_nettoindkomst_kroner == 100000 && ll33a_scenarie_dansk_arbejde_udeladt.fuldt_lempelsesberettiget_indkomst.arbejdsmarkedsbidragsgrundlag_kroner == 140000 && ll33a_scenarie_dansk_arbejde_udeladt.samlet_nedslag_øre == 4820000
-| ll33a_treogfyrre_dage_afskærer_lempelse: ll33a_scenarie_treogfyrre_dage -> ll33a_scenarie_treogfyrre_dage.input_gyldigt && ll33a_scenarie_treogfyrre_dage.alle_forhold_lempelsesberettigede == Falskt && head(ll33a_scenarie_treogfyrre_dage.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 43 && ll33a_scenarie_treogfyrre_dage.samlet_nedslag_øre == 0
-| ll33a_otte_måneder_tillader_56_fordelte_dage: ll33a_scenarie_otte_måneder_fordelte_dage -> ll33a_scenarie_otte_måneder_fordelte_dage.input_gyldigt && ll33a_scenarie_otte_måneder_fordelte_dage.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).samlet_antal_medregnede_danske_dage == 56 && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).samlet_tilladt_antal_danske_dage == 56 && ll33a_scenarie_otte_måneder_fordelte_dage.samlet_nedslag_øre == 5720000
-| ll33a_proportional_totalgrænse_tilsidesætter_ikke_seksmånedersvinduet: ll33a_scenarie_otte_måneder_koncentrerede_dage -> ll33a_scenarie_otte_måneder_koncentrerede_dage.input_gyldigt && head(ll33a_scenarie_otte_måneder_koncentrerede_dage.forholdsresultater).samlet_dagegrænse_overholdt && head(ll33a_scenarie_otte_måneder_koncentrerede_dage.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 43 && ll33a_scenarie_otte_måneder_koncentrerede_dage.alle_forhold_lempelsesberettigede == Falskt && ll33a_scenarie_otte_måneder_koncentrerede_dage.samlet_nedslag_øre == 0
-| ll33a_delmåned_tillader_58_dage_som_i_ligningsvejledningen: ll33a_scenarie_delmåned_58_dage -> ll33a_scenarie_delmåned_58_dage.input_gyldigt && ll33a_scenarie_delmåned_58_dage.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).samlet_antal_medregnede_danske_dage == 58 && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).samlet_tilladt_antal_danske_dage == 58 && ll33a_scenarie_delmåned_58_dage.samlet_nedslag_øre == 5720000
-| ll33a_delmåned_afviser_den_59_dag_selv_om_seksmånedersvinduerne_består: ll33a_scenarie_delmåned_59_dage -> ll33a_scenarie_delmåned_59_dage.input_gyldigt && head(ll33a_scenarie_delmåned_59_dage.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && head(ll33a_scenarie_delmåned_59_dage.forholdsresultater).samlet_antal_medregnede_danske_dage == 59 && head(ll33a_scenarie_delmåned_59_dage.forholdsresultater).samlet_tilladt_antal_danske_dage == 58 && head(ll33a_scenarie_delmåned_59_dage.forholdsresultater).samlet_dagegrænse_overholdt == Falskt && ll33a_scenarie_delmåned_59_dage.samlet_nedslag_øre == 0
-| ll33a_rejsedagene_ved_udlandsopholdets_start_og_slut_medregnes_ikke: ll33a_scenarie_rejsedage_ved_start_og_slut -> ll33a_scenarie_rejsedage_ved_start_og_slut.input_gyldigt && ll33a_scenarie_rejsedage_ved_start_og_slut.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_rejsedage_ved_start_og_slut.forholdsresultater).samlet_antal_medregnede_danske_dage == 42 && head(ll33a_scenarie_rejsedage_ved_start_og_slut.forholdsresultater).højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && ll33a_scenarie_rejsedage_ved_start_og_slut.samlet_nedslag_øre == 5720000
-| ll33a_andet_arbejde_i_riget_afbryder_opholdet: ll33a_scenarie_andet_arbejde -> ll33a_scenarie_andet_arbejde.input_gyldigt && head(ll33a_scenarie_andet_arbejde.forholdsresultater).danske_opholdsdage_lovlige == Falskt && ll33a_scenarie_andet_arbejde.samlet_nedslag_øre == 0
-| ll33a_under_seks_måneder_afskærer_lempelse: ll33a_scenarie_kort_ophold -> ll33a_scenarie_kort_ophold.input_gyldigt && head(ll33a_scenarie_kort_ophold.forholdsresultater).mindst_seks_måneders_udlandsophold == Falskt && ll33a_scenarie_kort_ophold.samlet_nedslag_øre == 0
-| ll33a_skattepligtsophør_før_seks_måneder_bevarer_lempelsen: ll33a_scenarie_skattepligt_ophørt -> ll33a_scenarie_skattepligt_ophørt.input_gyldigt && ll33a_scenarie_skattepligt_ophørt.alle_forhold_lempelsesberettigede && ll33a_scenarie_skattepligt_ophørt.samlet_nedslag_øre == 5720000
+| ll33a_treogfyrre_dage_afskærer_lempelse: ll33a_scenarie_treogfyrre_dage -> ll33a_scenarie_treogfyrre_dage.input_gyldigt && ll33a_scenarie_treogfyrre_dage.alle_forhold_lempelsesberettigede == Falskt && head(ll33a_scenarie_treogfyrre_dage.forholdsresultater).oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 43 && ll33a_scenarie_treogfyrre_dage.samlet_nedslag_øre == 0
+| ll33a_otte_måneder_tillader_56_fordelte_dage: ll33a_scenarie_otte_måneder_fordelte_dage -> ll33a_scenarie_otte_måneder_fordelte_dage.input_gyldigt && ll33a_scenarie_otte_måneder_fordelte_dage.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).oprindeligt_opholds_samlet_antal_medregnede_danske_dage == 56 && head(ll33a_scenarie_otte_måneder_fordelte_dage.forholdsresultater).oprindeligt_opholds_samlet_tilladt_antal_danske_dage == 56 && ll33a_scenarie_otte_måneder_fordelte_dage.samlet_nedslag_øre == 5720000
+| ll33a_ikke_valgt_senere_udrejsedato_ændrer_ikke_afslaget: ll33a_scenarie_otte_måneder_koncentrerede_dage -> {
+    = resultat = head(ll33a_scenarie_otte_måneder_koncentrerede_dage.forholdsresultater)
+    ll33a_scenarie_otte_måneder_koncentrerede_dage.input_gyldigt && ll33a_scenarie_otte_måneder_koncentrerede_dage.alle_forhold_lempelsesberettigede == Falskt && resultat.oprindeligt_opholds_samlet_dagegrænse_overholdt && resultat.oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 43 && any(resultat.periodevurderinger, |vurdering: Ligningslov33APeriodevurdering| vurdering.betingelser_opfyldt) && head(resultat.valgte_periodevurderinger).betingelser_opfyldt == Falskt && ll33a_scenarie_otte_måneder_koncentrerede_dage.samlet_nedslag_øre == 0
+}
+| ll33a_delmåned_tillader_58_dage_som_i_ligningsvejledningen: ll33a_scenarie_delmåned_58_dage -> ll33a_scenarie_delmåned_58_dage.input_gyldigt && ll33a_scenarie_delmåned_58_dage.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).oprindeligt_opholds_samlet_antal_medregnede_danske_dage == 58 && head(ll33a_scenarie_delmåned_58_dage.forholdsresultater).oprindeligt_opholds_samlet_tilladt_antal_danske_dage == 58 && ll33a_scenarie_delmåned_58_dage.samlet_nedslag_øre == 5720000
+| ll33a_delmåned_afviser_den_valgte_periode_ved_den_59_dag_men_finder_senere_kandidat: ll33a_scenarie_delmåned_59_dage -> {
+    = resultat = head(ll33a_scenarie_delmåned_59_dage.forholdsresultater)
+    ll33a_scenarie_delmåned_59_dage.input_gyldigt && ll33a_scenarie_delmåned_59_dage.alle_forhold_lempelsesberettigede == Falskt && resultat.oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && resultat.oprindeligt_opholds_samlet_antal_medregnede_danske_dage == 59 && resultat.oprindeligt_opholds_samlet_tilladt_antal_danske_dage == 58 && resultat.oprindeligt_opholds_samlet_dagegrænse_overholdt == Falskt && any(resultat.periodevurderinger, |vurdering: Ligningslov33APeriodevurdering| vurdering.betingelser_opfyldt) && head(resultat.valgte_periodevurderinger).betingelser_opfyldt == Falskt && ll33a_scenarie_delmåned_59_dage.samlet_nedslag_øre == 0
+}
+| ll33a_rejsedagene_ved_udlandsopholdets_start_og_slut_medregnes_ikke: ll33a_scenarie_rejsedage_ved_start_og_slut -> ll33a_scenarie_rejsedage_ved_start_og_slut.input_gyldigt && ll33a_scenarie_rejsedage_ved_start_og_slut.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_rejsedage_ved_start_og_slut.forholdsresultater).oprindeligt_opholds_samlet_antal_medregnede_danske_dage == 42 && head(ll33a_scenarie_rejsedage_ved_start_og_slut.forholdsresultater).oprindeligt_opholds_højeste_antal_danske_dage_i_afsluttet_seksmånedersperiode == 42 && ll33a_scenarie_rejsedage_ved_start_og_slut.samlet_nedslag_øre == 5720000
+| ll33a_andet_arbejde_i_riget_afbryder_opholdet: ll33a_scenarie_andet_arbejde -> ll33a_scenarie_andet_arbejde.input_gyldigt && head(ll33a_scenarie_andet_arbejde.forholdsresultater).oprindeligt_opholds_danske_opholdsdage_lovlige == Falskt && ll33a_scenarie_andet_arbejde.samlet_nedslag_øre == 0
+| ll33a_under_seks_måneder_afskærer_lempelse: ll33a_scenarie_kort_ophold -> ll33a_scenarie_kort_ophold.input_gyldigt && head(ll33a_scenarie_kort_ophold.forholdsresultater).mindst_en_kandidatperiode_på_seks_måneder == Falskt && ll33a_scenarie_kort_ophold.samlet_nedslag_øre == 0
+| ll33a_skattepligtsophør_før_seks_måneder_bevarer_lempelsen_for_indkomst_under_skattepligten: ll33a_scenarie_skattepligt_ophørt -> ll33a_scenarie_skattepligt_ophørt.input_gyldigt && ll33a_scenarie_skattepligt_ophørt.alle_forhold_lempelsesberettigede && ll33a_scenarie_skattepligt_ophørt.fuldt_lempelsesberettiget_indkomst.skattepligtig_nettoindkomst_kroner == 40000 && ll33a_scenarie_skattepligt_ophørt.samlet_nedslag_øre == 1880000
+| ll33a_indkomstperiode_må_ikke_krydse_skattepligtsophøret: ll33a_scenarie_skattepligt_ophørt_med_krydsende_indkomst -> ll33a_scenarie_skattepligt_ophørt_med_krydsende_indkomst.input_gyldigt == Falskt && ll33a_scenarie_skattepligt_ophørt_med_krydsende_indkomst.samlet_nedslag_øre == 0
 | ll33a_offentlig_par9a_ydelse_afskærer_lempelse: ll33a_scenarie_offentlig_ydelse -> ll33a_scenarie_offentlig_ydelse.input_gyldigt && head(ll33a_scenarie_offentlig_ydelse.forholdsresultater).stk2_udelukker && ll33a_scenarie_offentlig_ydelse.samlet_nedslag_øre == 0
 | ll33a_offentlig_kollektiv_aftale_uden_hensyn_afskærer: ll33a_scenarie_offentlig_kollektiv_aftale -> ll33a_scenarie_offentlig_kollektiv_aftale.input_gyldigt && head(ll33a_scenarie_offentlig_kollektiv_aftale.forholdsresultater).stk2_udelukker && ll33a_scenarie_offentlig_kollektiv_aftale.samlet_nedslag_øre == 0
 | ll33a_offentlig_individuel_aftale_bevarer_fuld_lempelse: ll33a_scenarie_offentlig_individuel_fuld -> ll33a_scenarie_offentlig_individuel_fuld.input_gyldigt && head(ll33a_scenarie_offentlig_individuel_fuld.forholdsresultater).lempelsesandel_basispoint == 10000 && ll33a_scenarie_offentlig_individuel_fuld.samlet_nedslag_øre == 5720000
 | ll33a_systemeksport_med_dansk_beskatningsret_giver_halv_lempelse: ll33a_scenarie_systemeksport_halv -> ll33a_scenarie_systemeksport_halv.input_gyldigt && head(ll33a_scenarie_systemeksport_halv.forholdsresultater).lempelsesandel_basispoint == 5000 && ll33a_scenarie_systemeksport_halv.samlet_nedslag_øre == 2860000
-| ll33a_covidvalg_ignorerer_ophold_men_ikke_indkomsten: ll33a_scenarie_covidvalg -> ll33a_scenarie_covidvalg.input_gyldigt && ll33a_scenarie_covidvalg.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_covidvalg.forholdsresultater).samlet_antal_medregnede_danske_dage == 42 && ll33a_scenarie_covidvalg.samlet_nedslag_øre == 4820000
+| ll33a_covidvalg_ignorerer_ophold_men_ikke_indkomsten: ll33a_scenarie_covidvalg -> ll33a_scenarie_covidvalg.input_gyldigt && ll33a_scenarie_covidvalg.alle_forhold_lempelsesberettigede && head(ll33a_scenarie_covidvalg.forholdsresultater).oprindeligt_opholds_samlet_antal_medregnede_danske_dage == 42 && ll33a_scenarie_covidvalg.samlet_nedslag_øre == 4820000
 | ll33a_dubletdato_er_ugyldigt_input: ll33a_scenarie_dubletdato -> ll33a_scenarie_dubletdato.input_gyldigt == Falskt && ll33a_scenarie_dubletdato.samlet_nedslag_øre == 0
 | ll33a_aggregeret_indkomst_kan_ikke_overstige_dansk_grundlag: ll33a_scenarie_overdrevet_aggregat -> ll33a_scenarie_overdrevet_aggregat.input_gyldigt == Falskt && ll33a_scenarie_overdrevet_aggregat.samlet_nedslag_øre == 0
 
@@ -411,13 +475,14 @@
 ? ll33a_arbejde_i_riget_trækkes_fra_lempelsesindkomsten
 ? ll33a_treogfyrre_dage_afskærer_lempelse
 ? ll33a_otte_måneder_tillader_56_fordelte_dage
-? ll33a_proportional_totalgrænse_tilsidesætter_ikke_seksmånedersvinduet
+? ll33a_ikke_valgt_senere_udrejsedato_ændrer_ikke_afslaget
 ? ll33a_delmåned_tillader_58_dage_som_i_ligningsvejledningen
-? ll33a_delmåned_afviser_den_59_dag_selv_om_seksmånedersvinduerne_består
+? ll33a_delmåned_afviser_den_valgte_periode_ved_den_59_dag_men_finder_senere_kandidat
 ? ll33a_rejsedagene_ved_udlandsopholdets_start_og_slut_medregnes_ikke
 ? ll33a_andet_arbejde_i_riget_afbryder_opholdet
 ? ll33a_under_seks_måneder_afskærer_lempelse
-? ll33a_skattepligtsophør_før_seks_måneder_bevarer_lempelsen
+? ll33a_skattepligtsophør_før_seks_måneder_bevarer_lempelsen_for_indkomst_under_skattepligten
+? ll33a_indkomstperiode_må_ikke_krydse_skattepligtsophøret
 ? ll33a_offentlig_par9a_ydelse_afskærer_lempelse
 ? ll33a_offentlig_kollektiv_aftale_uden_hensyn_afskærer
 ? ll33a_offentlig_individuel_aftale_bevarer_fuld_lempelse

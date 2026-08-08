@@ -7507,6 +7507,34 @@
     help = None,
     unit = Some("dag")
 )
+= personskat_felt_ligningslov33a_valgte_udrejsedatoer = TypetBeregningsfelt(
+    path = refof(Ligningslov33APeriodevalg::valgte_udrejsedatoer),
+    label = "Valgte udrejsedatoer for § 33 A",
+    question = Some("Fra hvilke faktiske udrejsedatoer vælger personen at anvende lempelse efter ligningslovens § 33 A?"),
+    help = Some("Angiv datoerne kronologisk. Den første kan være udlandsopholdets første udrejsedato eller en senere udrejse; efter en afbrydelse kan en ny ikke-overlappende lempelsesperiode vælges fra en ny faktisk udrejsedato."),
+    unit = None
+)
+= personskat_felt_ligningslov33a_valgt_udrejsedato_år = TypetBeregningsfelt(
+    path = refof(Ligningslov33APeriodevalg::valgte_udrejsedatoer::år),
+    label = "Valgt udrejsedato (ISO 8601) - år",
+    question = Some("I hvilket år begyndte den valgte lempelsesperiode?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_ligningslov33a_valgt_udrejsedato_måned = TypetBeregningsfelt(
+    path = refof(Ligningslov33APeriodevalg::valgte_udrejsedatoer::måned),
+    label = "Valgt udrejsedato (ISO 8601) - måned",
+    question = Some("I hvilken måned begyndte den valgte lempelsesperiode?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ligningslov33a_valgt_udrejsedato_dag = TypetBeregningsfelt(
+    path = refof(Ligningslov33APeriodevalg::valgte_udrejsedatoer::dag),
+    label = "Valgt udrejsedato (ISO 8601) - dag",
+    question = Some("På hvilken dag i måneden begyndte den valgte lempelsesperiode?"),
+    help = None,
+    unit = Some("dag")
+)
 = personskat_felt_ligningslov33a_danske_opholdsdage = TypetBeregningsfelt(
     path = refof(Ligningslov33AOphold::danske_opholdsdage),
     label = "Dage opholdt i Danmark",
@@ -7538,8 +7566,8 @@
 = personskat_felt_ligningslov33a_opholdsdag_art = TypetBeregningsfelt(
     path = refof(Ligningslov33ADanskOpholdsdag::art),
     label = "Formålet med dagen i Danmark",
-    question = Some("Var dagen nødvendig for arbejde med direkte forbindelse til udlandsopholdet, ferie eller et andet ophold?"),
-    help = Some("Andet arbejde i Danmark bryder betingelsen; ferie og nødvendigt, direkte forbundet arbejde tæller med i dageloftet."),
+    question = Some("Var dagen nødvendig for arbejde med direkte forbindelse til udlandsopholdet, ferie, arbejde uden den nødvendige direkte forbindelse eller en dag med arbejdsløshedsdagpenge?"),
+    help = Some("Arbejde uden den nødvendige direkte forbindelse og modtagelse af arbejdsløshedsdagpenge under ophold i Danmark afbryder perioden; ferie og nødvendigt, direkte forbundet arbejde tæller med i dageloftet."),
     unit = None
 )
 = personskat_felt_ligningslov33a_arbejdsgiverforbindelse = TypetBeregningsfelt(
@@ -7571,24 +7599,24 @@
     unit = None
 )
 = personskat_felt_ligningslov33a_skattepligt_ophørsår = TypetBeregningsfelt(
-    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::ophørsdato::år),
-    label = "År for skattepligtens ophør",
-    question = Some("I hvilket år ophørte den fulde skattepligt efter kildeskattelovens § 1?"),
-    help = None,
+    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::første_dato_uden_skattepligt::år),
+    label = "Første år uden fuld skattepligt",
+    question = Some("I hvilket år ligger den første dato, hvor skattepligten efter kildeskattelovens § 1 ikke længere bestod?"),
+    help = Some("Datoen er den første kalenderdato uden skattepligt og fungerer som en eksklusiv grænse for den lempelsesberettigede indkomst."),
     unit = Some("år")
 )
 = personskat_felt_ligningslov33a_skattepligt_ophørsmåned = TypetBeregningsfelt(
-    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::ophørsdato::måned),
-    label = "Måned for skattepligtens ophør",
-    question = Some("I hvilken måned ophørte den fulde skattepligt efter kildeskattelovens § 1?"),
-    help = None,
+    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::første_dato_uden_skattepligt::måned),
+    label = "Første måned uden fuld skattepligt",
+    question = Some("I hvilken måned ligger den første dato, hvor skattepligten efter kildeskattelovens § 1 ikke længere bestod?"),
+    help = Some("Datoen er den første kalenderdato uden skattepligt og fungerer som en eksklusiv grænse for den lempelsesberettigede indkomst."),
     unit = Some("måned")
 )
 = personskat_felt_ligningslov33a_skattepligt_ophørsdag = TypetBeregningsfelt(
-    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::ophørsdato::dag),
-    label = "Dag for skattepligtens ophør",
-    question = Some("På hvilken dag i måneden ophørte den fulde skattepligt efter kildeskattelovens § 1?"),
-    help = None,
+    path = refof(Ligningslov33ASkattepligtsstatus::Ll33ASkattepligtEfterKildeskattelovensPar1OphørteUnderOpholdet::første_dato_uden_skattepligt::dag),
+    label = "Første dag uden fuld skattepligt",
+    question = Some("Hvilken dag er den første kalenderdato, hvor skattepligten efter kildeskattelovens § 1 ikke længere bestod?"),
+    help = Some("Datoen er den første kalenderdato uden skattepligt og fungerer som en eksklusiv grænse for den lempelsesberettigede indkomst."),
     unit = Some("dag")
 )
 = personskat_felt_ligningslov33a_covidvalg = TypetBeregningsfelt(
@@ -11836,6 +11864,10 @@
         Field(value = personskat_felt_ligningslov33a_til_dato_år),
         Field(value = personskat_felt_ligningslov33a_til_dato_måned),
         Field(value = personskat_felt_ligningslov33a_til_dato_dag),
+        Field(value = personskat_felt_ligningslov33a_valgte_udrejsedatoer),
+        Field(value = personskat_felt_ligningslov33a_valgt_udrejsedato_år),
+        Field(value = personskat_felt_ligningslov33a_valgt_udrejsedato_måned),
+        Field(value = personskat_felt_ligningslov33a_valgt_udrejsedato_dag),
         Field(value = personskat_felt_ligningslov33a_danske_opholdsdage),
         Field(value = personskat_felt_ligningslov33a_opholdsdag_år),
         Field(value = personskat_felt_ligningslov33a_opholdsdag_måned),

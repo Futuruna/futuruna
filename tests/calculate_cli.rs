@@ -1522,6 +1522,33 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human LL § 33 A dated-income label {expected} on {ll33a_dated_income_sheet}"
             );
         }
+        let ll33a_period_election_path = "ligningslov33.ligningslov33a_hovedperson.MedLigningslov33A.input.ansættelsesforhold.periodevalg.valgte_udrejsedatoer";
+        let ll33a_period_election_sheet =
+            workbook_collection_sheet_name(&mut workbook, ll33a_period_election_path);
+        let ll33a_period_election_paths =
+            workbook_column_paths(&mut workbook, &ll33a_period_election_sheet);
+        for expected in ["år", "måned", "dag"] {
+            assert!(
+                ll33a_period_election_paths
+                    .iter()
+                    .any(|path| path == expected),
+                "missing canonical LL § 33 A period-election path {expected} on {ll33a_period_election_sheet}"
+            );
+        }
+        let ll33a_period_election_headers =
+            workbook_headers(&mut workbook, &ll33a_period_election_sheet);
+        for expected in [
+            "Valgt udrejsedato (ISO 8601) - år",
+            "Valgt udrejsedato (ISO 8601) - måned",
+            "Valgt udrejsedato (ISO 8601) - dag",
+        ] {
+            assert!(
+                ll33a_period_election_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human LL § 33 A period-election label {expected} on {ll33a_period_election_sheet}"
+            );
+        }
         let freight_tax_balances_path =
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi";
         let freight_tax_balances_sheet =
