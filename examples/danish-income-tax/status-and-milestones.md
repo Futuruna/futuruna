@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-06
 TD epic: `td-56cf8d`
-Current implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
+Current implementation slice: `td-4a61a9` (Ejendomsskattelovens § 39 sammenligner nu kun grundskylden på den ikke-fritagne grundandel, mens §§ 44-45 fortsat opgør det årlige stigningsloft og først derefter fordeler både ordinær og begrænset grundskyld på ejerperioden; kildefakta, mellemresultater og slutskat er identiske gennem JSON og XLSX)
+Previous implementation slice: `td-4efd49` (Sømandsbeskatningslovens § 4 samordner nu LL §§ 9 C-9 D pr. identificeret befordringsforhold; sømandsarbejdets rute fjernes, andet arbejdes rute bevares, og årets fælles lavindkomsttillæg genberegnes på de bevarede forhold; kilde og befordringsmål skal svare, årsfordeling af et identificeret forhold afvises, og den fulde beregning er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-def72e` (LL § 9 G-fangstture kan nu krydse 31. december; hver påbegyndt 24-timers-havdag henføres typet og efterprøvbart til året, hvor perioden starter, mens hele turens 12-timersgrænse og hvert års 220-dagesloft bevares; præcis 24 timer, 24 timer og ét minut samt en 30-timers nytårstur er verificeret uden dobbeltregning gennem regler, kanonisk Personskat og identiske JSON/XLSX-resultater)
 Previous implementation slice: `td-21293c` (LL § 13-betalinger bærer nu eksakte, ikke-overlappende kontingentperioder; LL § 9 G kan kun bevare en betaling før første fiskerregistrering eller efter fuldstændigt ophør gennem en typet konkret bedømmelse med reference og et andet arbejde eller erhverv; registreringsperioder og midlertidige afbrydelser fjernes fortsat, ugyldige eller dublerede bedømmelser fejler lukket, og resultatet er identisk gennem JSON og XLSX)
 Previous implementation slice: `td-f4f16f` (LL § 13-betalinger bærer både en entydig betalingsidentifikation og en stabil foreningsidentifikation; LL § 9 G kræver én arbejdstilknytning pr. forening, fjerner alle betalinger til samme fiskeritilknyttede forening og bevarer kun en reelt anden forening ved andet arbejde; modstridende foreningsfakta eller tilknytninger fejler lukket, og den relationelle JSON/XLSX-grænse er byteidentisk)
@@ -709,6 +710,21 @@ slutskat. De fokuserede scenarier gengiver blandt andet Skattestyrelsens
 1.090 kr. i rabat. De fastholder også, at pensionistnedslag holdes uden for
 forskelsbeløbet, samt grænserne på 4,75 pct. og 3,50 pct. for
 stigningsbegrænsningen.
+
+En efterfølgende kildekontrol har rettet to overgangsgrænser. Ved delvis
+grundskyldsfritagelse anvender § 39 nu samme ikke-fritagne grundandel i
+sammenligningen efter den nye og den tidligere lov. Et eksempel med 50 pct.
+fritagelse giver derfor 306.000 øre efter den nye lov, 200.000 øre efter den
+tidligere lov og 106.000 øre i forskelsbeløb og rabat. Stigningsloftet efter
+§§ 44-45 forbliver en helårsopgørelse, men den ordinære og den begrænsede
+grundskyld fordeles begge efter § 72, når ejerskabet kun omfatter en del af
+året. For et ejerskab fra 1. juli 2025 bliver helårsbeløbene 816.000 og 558.760
+øre, mens periodens beløb bliver 408.000 og 279.380 øre. De komplette typede
+overgangsfakta og disse mellemresultater er verificeret identiske gennem den
+direkte JSON-beregning og en genereret, udfyldt og genindlæst XLSX-arbejdsbog.
+Når loftet ikke binder, genbruges den ordinære periodeberegning direkte, så et
+fokuseret augusteksempel bevarer 170.001 øre og ikke mister 1 øre ved en ekstra
+fordeling af det allerede afrundede helårsbeløb.
 
 Kildegennemgangen mod Skatteministeriets aktuelle satsoversigt og Den juridiske
 vejledning har samtidig udvidet den ordinære grænse til 2026: § 22 anvender

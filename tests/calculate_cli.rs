@@ -13080,6 +13080,186 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(property_tax_case.clone());
+    let no_pension_context_2024 = serde_json::json!({
+        "indkomstår": 2024,
+        "kildefakta": {
+            "ejer_folkepensionsalder": {
+                "$variant": "EjskFolkepensionsalderIkkeOpnået"
+            },
+            "samlevende_ægtefælles_folkepensionsalder": {
+                "$variant": "EjskFolkepensionsalderIkkeOpnået"
+            },
+            "skattemæssigt_hjemsted": {
+                "$variant": "EjskFuldtSkattepligtigEfterKildeskattelovensPar1"
+            },
+            "egen_udbytteindkomst_kroner": 0,
+            "ægtefælles_udbytteindkomst_kroner": 0,
+            "egne_historiske_aktielønshændelser": [],
+            "ægtefælles_historiske_aktielønshændelser": []
+        },
+        "egen_indkomst": {
+            "personlig_indkomst_kroner": 0,
+            "kapitalindkomst_kroner": 0,
+            "aktieindkomst_kroner": 0
+        },
+        "ægtefælles_indkomst": {
+            "personlig_indkomst_kroner": 0,
+            "kapitalindkomst_kroner": 0,
+            "aktieindkomst_kroner": 0
+        },
+        "gift_og_samlevende_ved_indkomstårets_udgang": false
+    });
+    let relief_facts = |acquisition_year: i64, acquisition_month: i64, acquisition_day: i64| {
+        serde_json::json!({
+            "ejerskabshistorik": {
+                "oprindelig_erhvervelsesdato": {
+                    "år": acquisition_year,
+                    "måned": acquisition_month,
+                    "dag": acquisition_day
+                },
+                "ejerskifter": []
+            },
+            "boliganvendelse": { "$variant": "EjskHelårsbolig" },
+            "selvstændige_boligenheder": 1,
+            "ejendomsform": { "$variant": "EjskIkkeEjerlejlighed" },
+            "fredet_og_omfattet_af_ligningslovens_par15k": false,
+            "par24_beregningsgrundlag": {
+                "$variant": "EjskPar24SammeVærdiSomPar13"
+            },
+            "pensionistsuccession": {
+                "$variant": "EjskIngenPensionistsuccession"
+            },
+            "udenlandske_ejendomsskatter": []
+        })
+    };
+    let partial_exemption_ordinary = serde_json::json!({
+        "identifikation": "delvist-fritaget-json-xlsx",
+        "kommune": { "$variant": "København" },
+        "kategori": { "$variant": "EjskEnBoligenhed" },
+        "beliggenhed": { "$variant": "EjskDanmark" },
+        "erhvervsmæssigt_udlejet": false,
+        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+        "ejendomsværdi_kroner": 0,
+        "grundværdi_kroner": 1_500_000,
+        "produktionsjord": false,
+        "ejendomsværdiskatteperiode": {
+            "$variant": "HeleEjendomsskatteåret"
+        },
+        "grundskyldsperiode": { "$variant": "HeleEjendomsskatteåret" },
+        "ejerandel_basispoint": 10_000
+    });
+    let partial_exemption_relief = relief_facts(2020, 1, 1);
+    let mut partial_exemption_case = property_tax_case.clone();
+    partial_exemption_case["case_id"] =
+        Value::String("personskat-ejendomsskat-delvis-fritagelse-2025".into());
+    partial_exemption_case["input"]["ejendomsskatter"]["ejendomme"] = serde_json::json!([{
+        "ordinært_grundlag": partial_exemption_ordinary.clone(),
+        "nedslagsfakta": partial_exemption_relief.clone(),
+        "overgangsomfang": {
+            "vurderingskategori": {
+                "$variant": "EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1"
+            },
+            "ejerkreds": { "$variant": "EjskKunFysiskeEjere" }
+        },
+        "overgangsvurderinger": {
+            "rabat": {
+                "$variant": "EjskRabatvurderingerOplyst",
+                "fakta": {
+                    "rabat_2024": {
+                        "kontekst_2024": no_pension_context_2024,
+                        "ny_lov_helårsgrundlag": partial_exemption_ordinary,
+                        "ny_lov_nedslagsfakta": partial_exemption_relief,
+                        "tidligere_ejendomsværdiskat": {
+                            "ejendomsværdi_året_før_kroner": 0,
+                            "ejendomsværdi_2001_kroner": 0,
+                            "ejendomsværdi_2002_kroner": 0,
+                            "historisk_begrænsning": {
+                                "foregående_indkomstårs_ejendomsværdiskat_øre": null,
+                                "par9b_nedsættelse_øre": 0,
+                                "vurderet_helt_eller_delvis_benyttet_til_ejerbolig": true,
+                                "ejerlejlighed_frigjort_for_lejemål": false,
+                                "ombygning_over_100_procent": false
+                            },
+                            "udenlandske_ejendomsskatter": []
+                        },
+                        "tidligere_grundskyld": {
+                            "grundværdi_efter_fradrag_og_fritagelser_kroner": 200_000,
+                            "foregående_års_afgiftspligtige_grundværdi_kroner": 200_000,
+                            "grundskyld_promille_2023_tiendedele": 100
+                        },
+                        "byggeri": { "$variant": "EjskIngenNyEllerOmbygning" },
+                        "grundskyld_fritaget_basispoint": 5_000,
+                        "grundskyld_kan_fordeles_på_samme_boligenhed": false
+                    },
+                    "hændelser": []
+                }
+            },
+            "stigningsbegrænsning": {
+                "$variant": "EjskIngenStigningsvurderingerOplyst"
+            }
+        }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(partial_exemption_case);
+    let mut partial_year_cap_case = property_tax_case.clone();
+    partial_year_cap_case["case_id"] =
+        Value::String("personskat-ejendomsskat-halvårsloft-2025".into());
+    partial_year_cap_case["input"]["ejendomsskatter"]["ejendomme"] = serde_json::json!([{
+        "ordinært_grundlag": {
+            "identifikation": "halvårsloft-json-xlsx",
+            "kommune": { "$variant": "København" },
+            "kategori": { "$variant": "EjskAndenEjendom" },
+            "beliggenhed": { "$variant": "EjskDanmark" },
+            "erhvervsmæssigt_udlejet": false,
+            "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+            "ejendomsværdi_kroner": 0,
+            "grundværdi_kroner": 2_000_000,
+            "produktionsjord": false,
+            "ejendomsværdiskatteperiode": {
+                "$variant": "HeleEjendomsskatteåret"
+            },
+            "grundskyldsperiode": {
+                "$variant": "EjendomsskatFraOgMed",
+                "dato": { "år": 2025, "måned": 7, "dag": 1 }
+            },
+            "ejerandel_basispoint": 10_000
+        },
+        "nedslagsfakta": relief_facts(2025, 7, 1),
+        "overgangsomfang": {
+            "vurderingskategori": { "$variant": "EjskAndenVurderingskategori" },
+            "ejerkreds": { "$variant": "EjskKunFysiskeEjere" }
+        },
+        "overgangsvurderinger": {
+            "rabat": { "$variant": "EjskIngenRabatvurderingerOplyst" },
+            "stigningsbegrænsning": {
+                "$variant": "EjskStigningsvurderingerOplyst",
+                "fakta": {
+                    "tidligere_grundskyld_2024": {
+                        "grundværdi_efter_fradrag_og_fritagelser_kroner": 200_000,
+                        "foregående_års_afgiftspligtige_grundværdi_kroner": 200_000,
+                        "grundskyld_promille_2023_tiendedele": 260
+                    },
+                    "tidligere_år": [{
+                        "kalenderår": 2024,
+                        "kommune": { "$variant": "København" },
+                        "grundværdi_kroner": 1_500_000,
+                        "produktionsjord": false,
+                        "ejerandel_basispoint": 10_000,
+                        "almen_bolig": false,
+                        "hændelse": { "$variant": "EjskIngenStigningshændelse" }
+                    }],
+                    "aktuel_almen_bolig": false,
+                    "aktuel_hændelse": { "$variant": "EjskIngenStigningshændelse" }
+                }
+            }
+        }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(partial_year_cap_case);
     let mut spouse_property_credit_case = property_tax_case.clone();
     spouse_property_credit_case["case_id"] =
         Value::String("personskat-par8a-aegtefaelle-ejendomsskatter-2025".into());
@@ -14926,6 +15106,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-par8a-aegtefaelle-ejendomsskatter-2025")
         .expect("spouse property-tax credit JSON case")
         .clone();
+    let partial_exemption_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-delvis-fritagelse-2025")
+        .expect("partial property-tax exemption JSON case")
+        .clone();
+    let partial_year_cap_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-halvårsloft-2025")
+        .expect("partial-year property-tax cap JSON case")
+        .clone();
     let annual_claim_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -15036,6 +15230,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         simultaneous_spouse_case,
         ordinary_share_loss_case,
         spouse_property_credit_case,
+        partial_exemption_case,
+        partial_year_cap_case,
         annual_claim_case,
         partial_claim_case,
         currency_claim_case,
@@ -15287,6 +15483,77 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             .expect("gross tax before negative share-income tax")
             - 4_860
     );
+    let json_partial_exemption_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-delvis-fritagelse-2025")
+        .expect("JSON partial property-tax exemption result");
+    let hydrated_partial_exemption_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-delvis-fritagelse-2025")
+        .expect("hydrated XLSX partial property-tax exemption result");
+    assert_eq!(
+        hydrated_partial_exemption_result["result"],
+        json_partial_exemption_result["result"]
+    );
+    let partial_exemption_property =
+        &json_partial_exemption_result["result"]["ejendomsskatter"]["ejendomsresultater"][0];
+    assert_eq!(
+        partial_exemption_property["overgang"]["rabat"]["$variant"],
+        "EjskBeregnetRabat"
+    );
+    let partial_exemption_basis =
+        &partial_exemption_property["overgang"]["rabat"]["resultat"]["grundlag_2024"];
+    assert_eq!(partial_exemption_basis["ny_grundskyld_øre"], 306_000);
+    assert_eq!(partial_exemption_basis["tidligere_grundskyld_øre"], 200_000);
+    assert_eq!(
+        partial_exemption_basis["forskelsbeløb_grundskyld_øre"],
+        106_000
+    );
+    assert_eq!(partial_exemption_basis["rabat_grundskyld_øre"], 106_000);
+    let json_partial_year_cap_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-halvårsloft-2025")
+        .expect("JSON partial-year property-tax cap result");
+    let hydrated_partial_year_cap_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-halvårsloft-2025")
+        .expect("hydrated XLSX partial-year property-tax cap result");
+    assert_eq!(
+        hydrated_partial_year_cap_result["result"],
+        json_partial_year_cap_result["result"]
+    );
+    let partial_year_cap_property =
+        &json_partial_year_cap_result["result"]["ejendomsskatter"]["ejendomsresultater"][0];
+    assert_eq!(
+        partial_year_cap_property["grundskyld_før_overgang_øre"],
+        408_000
+    );
+    assert_eq!(partial_year_cap_property["grundskyld_øre"], 279_380);
+    assert_eq!(
+        partial_year_cap_property["overgang"]["stigningsbegrænsning"]["$variant"],
+        "EjskBeregnetStigningsbegrænsning"
+    );
+    let partial_year_cap =
+        &partial_year_cap_property["overgang"]["stigningsbegrænsning"]["resultat"];
+    assert_eq!(partial_year_cap["ordinær_grundskyld_helår_øre"], 816_000);
+    assert_eq!(partial_year_cap["ordinær_grundskyld_øre"], 408_000);
+    assert_eq!(
+        partial_year_cap["grundskyld_efter_stigningsbegrænsning_helår_øre"],
+        558_760
+    );
+    assert_eq!(
+        partial_year_cap["grundskyld_efter_stigningsbegrænsning_øre"],
+        279_380
+    );
+    assert_eq!(partial_year_cap["begrænsning_øre"], 128_620);
     let json_spouse_property_credit_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

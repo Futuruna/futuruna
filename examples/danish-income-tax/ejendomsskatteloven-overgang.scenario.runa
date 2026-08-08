@@ -41,6 +41,21 @@
     ejerandel_basispoint = ejerandel_basispoint
 )
 
+| ejsk_overgang_ordinært_delårsgrundlag(identifikation: Tekst, grundværdi_kroner: Heltal, startmåned: Heltal, startdag: Heltal) -> EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = identifikation,
+    kommune = København,
+    kategori = EjskAndenEjendom,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = 0,
+    grundværdi_kroner = grundværdi_kroner,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = HeleEjendomsskatteåret,
+    grundskyldsperiode = EjendomsskatFraOgMed(EjendomsskattelovDato(år = 2025, måned = startmåned, dag = startdag)),
+    ejerandel_basispoint = 10000
+)
+
 | ejsk_overgang_nedslagsfakta(erhvervelsesdato: EjendomsskattelovDato) -> EjendomsskattelovNedslagsfakta(
     ejerskabshistorik = EjendomsskattelovEjerskabshistorik(
         oprindelig_erhvervelsesdato = erhvervelsesdato,
@@ -134,6 +149,21 @@
     ejsk_overgang_pensionist_rabatgrundlag.ny_lov_nedslagsfakta
 )
 = ejsk_overgang_pensionist_rabat = ejendomsskattelov_rabat_2024_resultat(ejsk_overgang_ejerbolig_omfang(), ejsk_overgang_pensionist_rabatgrundlag)
+
+= ejsk_overgang_delvist_fritaget_rabatgrundlag = EjendomsskattelovRabat2024Fakta(
+    kontekst_2024 = ejsk_overgang_kontekst(2024, EjskFolkepensionsalderIkkeOpnået),
+    ny_lov_helårsgrundlag = ejsk_overgang_ordinært_grundlag("delvist-fritaget-rabateksempel", 0, 1500000, 10000, EjskEnBoligenhed),
+    ny_lov_nedslagsfakta = ejsk_overgang_nedslagsfakta(EjendomsskattelovDato(år = 2020, måned = 1, dag = 1)),
+    tidligere_ejendomsværdiskat = ejsk_overgang_historisk_ejendomsværdiskat(0),
+    tidligere_grundskyld = ejsk_overgang_historisk_grundskyld(200000, 200000, 100),
+    byggeri = EjskIngenNyEllerOmbygning,
+    grundskyld_fritaget_basispoint = 5000,
+    grundskyld_kan_fordeles_på_samme_boligenhed = Falskt
+)
+= ejsk_overgang_delvist_fritaget_rabat = ejendomsskattelov_rabat_2024_resultat(
+    ejsk_overgang_ejerbolig_omfang(),
+    ejsk_overgang_delvist_fritaget_rabatgrundlag
+)
 
 = ejsk_overgang_delvis_overdragelse_resultat = ejendomsskattelov_person_ejendom_resultat(
     ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
@@ -268,8 +298,59 @@
     )
 )
 
+= ejsk_overgang_halvårsgrundlag = ejsk_overgang_ordinært_delårsgrundlag("halvår-stigning-2025", 2000000, 7, 1)
+= ejsk_overgang_halvårs_stigning = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    ejsk_overgang_stigningsfakta_2025,
+    ejsk_overgang_halvårsgrundlag
+)
+= ejsk_overgang_offentlig_halvårs_stigningsberegning = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_halvårsgrundlag,
+        nedslagsfakta = ejsk_overgang_nedslagsfakta(EjendomsskattelovDato(år = 2025, måned = 7, dag = 1)),
+        overgangsomfang = ejsk_overgang_anden_ejendom_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskIngenRabatvurderingerOplyst,
+            stigningsbegrænsning = EjskStigningsvurderingerOplyst(ejsk_overgang_stigningsfakta_2025)
+        )
+    )
+)
+
+= ejsk_overgang_fem_månedersgrundlag = ejsk_overgang_ordinært_delårsgrundlag("fem-måneder-uden-loft-2025", 1000007, 8, 1)
+= ejsk_overgang_fem_måneder_uden_bindende_loft = ejendomsskattelov_stigningsbegrænsningsresultat(
+    2025,
+    ejsk_overgang_anden_ejendom_omfang(),
+    EjendomsskattelovStigningsbegrænsningsfakta(
+        tidligere_grundskyld_2024 = ejsk_overgang_stigningsfakta_2025.tidligere_grundskyld_2024,
+        tidligere_år = [ejsk_overgang_stigningshistorik_2024],
+        aktuel_almen_bolig = Falskt,
+        aktuel_hændelse = EjskOmkategoriseretEjendom
+    ),
+    ejsk_overgang_fem_månedersgrundlag
+)
+= ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft = ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_fem_månedersgrundlag,
+        nedslagsfakta = ejsk_overgang_nedslagsfakta(EjendomsskattelovDato(år = 2025, måned = 8, dag = 1)),
+        overgangsomfang = ejsk_overgang_anden_ejendom_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskIngenRabatvurderingerOplyst,
+            stigningsbegrænsning = EjskStigningsvurderingerOplyst(EjendomsskattelovStigningsbegrænsningsfakta(
+                tidligere_grundskyld_2024 = ejsk_overgang_stigningsfakta_2025.tidligere_grundskyld_2024,
+                tidligere_år = [ejsk_overgang_stigningshistorik_2024],
+                aktuel_almen_bolig = Falskt,
+                aktuel_hændelse = EjskOmkategoriseretEjendom
+            ))
+        )
+    )
+)
+
 | ejsk_overgang_officielt_eksempel_giver_1090_kroner: ejsk_overgang_officielt_resultat -> ejsk_overgang_officielt_resultat.regelgrundlag_understøttet && ejsk_overgang_officielt_resultat.overgang.rabat_ejendomsværdiskat_øre == 109000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_før_overgang_øre == 618000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_øre == 509000
 | ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet: ejsk_overgang_pensionist_rabat -> ejsk_overgang_pensionist_tidligere.skat_øre == 467500 && ejsk_overgang_pensionist_tidligere.skat_til_forskelsbeløb_øre == 782000 && ejsk_overgang_pensionist_ny.skat_efter_par23_til_par27_øre == 216000 && ejsk_overgang_pensionist_rabat.ny_ejendomsværdiskat_øre == 816000 && ejsk_overgang_pensionist_rabat.forskelsbeløb_ejendomsværdiskat_øre == 34000
+| ejsk_overgang_delvis_fritagelse_begrænser_par39_forskelsbeløbet: ejsk_overgang_delvist_fritaget_rabat -> ejsk_overgang_delvist_fritaget_rabat.kapabilitet == EjskUnderstøttet && ejsk_overgang_delvist_fritaget_rabat.par38_berettiget && ejsk_overgang_delvist_fritaget_rabat.ny_grundskyld_øre == 306000 && ejsk_overgang_delvist_fritaget_rabat.tidligere_grundskyld_øre == 200000 && ejsk_overgang_delvist_fritaget_rabat.forskelsbeløb_grundskyld_øre == 106000 && ejsk_overgang_delvist_fritaget_rabat.rabat_grundskyld_øre == 106000
 | ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat: ejsk_overgang_officielt_resultat -> ejendomsskattelov_par40_rabat_ejendomsværdiskat_øre(300000, -100000, Sandt, Sandt) == 200000 && ejendomsskattelov_par40_rabat_grundskyld_øre(300000, -100000, Sandt, Sandt) == 0
 | ejsk_overgang_delvis_overdragelse_følger_ejerandelen: ejsk_overgang_delvis_overdragelse_resultat -> ejsk_overgang_delvis_overdragelse_resultat.regelgrundlag_understøttet && ejsk_overgang_delvis_overdragelse_resultat.overgang.rabat_ejendomsværdiskat_øre == 54500 && ejsk_overgang_delvis_overdragelse_resultat.ejendomsværdiskat_øre == 254500
 | ejsk_overgang_juridisk_medejer_fjerner_grundskyldrabat: ejsk_overgang_til_juridisk_person -> ejsk_overgang_til_juridisk_person.input_gyldigt && ejsk_overgang_til_juridisk_person.ejerandel_basispoint == 5000 && ejsk_overgang_til_juridisk_person.rabat_ejendomsværdiskat_helår_øre == 50000 && ejsk_overgang_til_juridisk_person.rabat_grundskyld_helår_øre == 0
@@ -281,9 +362,12 @@
 | ejsk_overgang_omkategorisering_nulstiller_loftet: ejsk_overgang_nulstillet_stigning_2025 -> ejsk_overgang_nulstillet_stigning_2025.nulstillet_til_ordinær_grundskyld && ejsk_overgang_nulstillet_stigning_2025.grundskyld_efter_stigningsbegrænsning_øre == 816000
 | ejsk_overgang_ophørt_fritagelse_nulstiller_ikke_loftet: ejsk_overgang_fritagelse_ophørt_2025 -> ejsk_overgang_fritagelse_ophørt_2025.nulstillet_til_ordinær_grundskyld == Falskt && ejsk_overgang_fritagelse_ophørt_2025.grundskyld_efter_stigningsbegrænsning_øre == 558760
 | ejsk_overgang_offentlig_beregning_anvender_loftet_præcis_en_gang: ejsk_overgang_offentlig_stigningsberegning -> ejsk_overgang_offentlig_stigningsberegning.regelgrundlag_understøttet && ejsk_overgang_offentlig_stigningsberegning.grundskyld_før_overgang_øre == 816000 && ejsk_overgang_offentlig_stigningsberegning.grundskyld_øre == 558760 && ejsk_overgang_offentlig_stigningsberegning.samlet_ejendomsskat_øre == 558760
+| ejsk_overgang_halvårsperiode_fordeler_både_skat_og_loft: ejsk_overgang_halvårs_stigning -> ejsk_overgang_halvårs_stigning.kapabilitet == EjskUnderstøttet && ejsk_overgang_halvårs_stigning.ordinær_grundskyld_helår_øre == 816000 && ejsk_overgang_halvårs_stigning.ordinær_grundskyld_øre == 408000 && ejsk_overgang_halvårs_stigning.grundskyld_efter_stigningsbegrænsning_helår_øre == 558760 && ejsk_overgang_halvårs_stigning.grundskyld_efter_stigningsbegrænsning_øre == 279380 && ejsk_overgang_halvårs_stigning.begrænsning_øre == 128620 && ejsk_overgang_offentlig_halvårs_stigningsberegning.grundskyld_før_overgang_øre == 408000 && ejsk_overgang_offentlig_halvårs_stigningsberegning.grundskyld_øre == 279380
+| ejsk_overgang_delårsperiode_bevarer_ordinær_afrunding_når_loftet_ikke_binder: ejsk_overgang_fem_måneder_uden_bindende_loft -> ejsk_overgang_fem_måneder_uden_bindende_loft.kapabilitet == EjskUnderstøttet && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.begrænsning_øre == 0 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_før_overgang_øre == 170001 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_øre == 170001
 
 ? ejsk_overgang_officielt_eksempel_giver_1090_kroner
 ? ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet
+? ejsk_overgang_delvis_fritagelse_begrænser_par39_forskelsbeløbet
 ? ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat
 ? ejsk_overgang_delvis_overdragelse_følger_ejerandelen
 ? ejsk_overgang_juridisk_medejer_fjerner_grundskyldrabat
@@ -295,3 +379,5 @@
 ? ejsk_overgang_omkategorisering_nulstiller_loftet
 ? ejsk_overgang_ophørt_fritagelse_nulstiller_ikke_loftet
 ? ejsk_overgang_offentlig_beregning_anvender_loftet_præcis_en_gang
+? ejsk_overgang_halvårsperiode_fordeler_både_skat_og_loft
+? ejsk_overgang_delårsperiode_bevarer_ordinær_afrunding_når_loftet_ikke_binder

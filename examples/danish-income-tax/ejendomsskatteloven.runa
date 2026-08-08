@@ -1260,6 +1260,10 @@ fra 2023.
 | ejendomsskattelov_par38_vurderingskategori_omfattet(kategori: EjendomsskattelovVurderingskategori) -> kategori == EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1 || kategori == EjskBoligdelEfterEjendomsskattelovensPar3Stk1Nr3Eller4
 | ejendomsskattelov_par38_ejerkreds_omfattet(ejerkreds: EjendomsskattelovEjerkreds) -> ejerkreds == EjskKunFysiskeEjere || ejerkreds == EjskFysiskEjerSammenMedDødsbo
 | ejendomsskattelov_par38_berettiget(omfang: EjendomsskattelovOvergangsomfang, fakta: EjendomsskattelovRabat2024Fakta) -> ejendomsskattelov_ejerskabstilstand_ved_dato(fakta.ny_lov_nedslagsfakta.ejerskabshistorik, EjendomsskattelovDato(år = 2023, måned = 12, dag = 31)).ret_til_overgangsrabat && ejendomsskattelov_par38_vurderingskategori_omfattet(omfang.vurderingskategori) && ejendomsskattelov_par38_ejerkreds_omfattet(omfang.ejerkreds) && fakta.grundskyld_fritaget_basispoint < 10000
+| ejendomsskattelov_par39_ny_grundskyld_øre(fakta: EjendomsskattelovRabat2024Fakta, ny_ordinær: EjendomsskattelovOrdinærPersonEjendomResultat) -> penge_øre_nedrundet(
+    ny_ordinær.grundskyld.beskatningsgrundlag_kroner * ny_ordinær.grundskyld.grundskyld_promille_tiendedele * ny_ordinær.grundskyld.ejerandel_basispoint * (10000 - fakta.grundskyld_fritaget_basispoint),
+    100 * 10000 * 10000
+)
 | ejendomsskattelov_par40_rabat_ejendomsværdiskat_øre(forskelsbeløb_ejendomsværdiskat_øre: Heltal, forskelsbeløb_grundskyld_øre: Heltal, tværgående_opgørelse: Boolsk, berettiget: Boolsk) -> hvis berettiget { hvis tværgående_opgørelse { penge_positivt_beløb(forskelsbeløb_ejendomsværdiskat_øre + penge_mindste_beløb(forskelsbeløb_grundskyld_øre, 0)) } ellers { penge_positivt_beløb(forskelsbeløb_ejendomsværdiskat_øre) } } ellers { 0 }
 | ejendomsskattelov_par40_rabat_grundskyld_øre(forskelsbeløb_ejendomsværdiskat_øre: Heltal, forskelsbeløb_grundskyld_øre: Heltal, tværgående_opgørelse: Boolsk, berettiget: Boolsk) -> hvis berettiget { hvis tværgående_opgørelse { penge_positivt_beløb(forskelsbeløb_grundskyld_øre + penge_mindste_beløb(forskelsbeløb_ejendomsværdiskat_øre, 0)) } ellers { penge_positivt_beløb(forskelsbeløb_grundskyld_øre) } } ellers { 0 }
 | ejendomsskattelov_ny_ejendomsværdiskat_til_forskelsbeløb_øre(fakta: EjendomsskattelovRabat2024Fakta, ny_nedslag: EjendomsskattelovNedslagResultat) -> {
@@ -1277,7 +1281,7 @@ fra 2023.
     = ny_ejendomsværdiskat_øre = hvis par36_berettiget { ejendomsskattelov_ny_ejendomsværdiskat_til_forskelsbeløb_øre(fakta, ny_nedslag) } ellers { 0 }
     = tidligere_ejendomsværdiskat_øre = hvis par36_berettiget { tidligere_ejendomsværdiskat.skat_til_forskelsbeløb_øre } ellers { 0 }
     = forskelsbeløb_ejendomsværdiskat_øre = hvis par36_berettiget { ny_ejendomsværdiskat_øre - tidligere_ejendomsværdiskat_øre } ellers { 0 }
-    = ny_grundskyld_øre = hvis par38_berettiget { ny_ordinær.grundskyld.skat_øre } ellers { 0 }
+    = ny_grundskyld_øre = hvis par38_berettiget { ejendomsskattelov_par39_ny_grundskyld_øre(fakta, ny_ordinær) } ellers { 0 }
     = tidligere_grundskyld_øre = hvis par38_berettiget { ejendomsskattelov_tidligere_grundskyld_2024_øre(fakta) } ellers { 0 }
     = forskelsbeløb_grundskyld_øre = hvis par38_berettiget { ny_grundskyld_øre - tidligere_grundskyld_øre } ellers { 0 }
     = tværgående_opgørelse = par36_berettiget && par38_berettiget && fakta.grundskyld_kan_fordeles_på_samme_boligenhed
@@ -1434,7 +1438,7 @@ laveste beløb efter stk. 2.«
 # EjendomsskattelovStigningsårsfakta(kalenderår: Heltal, kommune: Kommune, grundværdi_kroner: Heltal, produktionsjord: Boolsk, ejerandel_basispoint: Heltal, almen_bolig: Boolsk, hændelse: EjendomsskattelovStigningshændelse)
 # EjendomsskattelovStigningsbegrænsningsfakta(tidligere_grundskyld_2024: EjendomsskattelovTidligereGrundskyld2024Fakta, tidligere_år: List(EjendomsskattelovStigningsårsfakta), aktuel_almen_bolig: Boolsk, aktuel_hændelse: EjendomsskattelovStigningshændelse)
 # EjendomsskattelovStigningstilstand(seneste_kalenderår: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, ordinær_grundskyld_øre: Heltal, grundskyld_efter_stigningsbegrænsning_øre: Heltal)
-# EjendomsskattelovStigningsbegrænsningsresultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par44_omfattet: Boolsk, kalenderår: Heltal, foregående_års_grundskyld_øre: Heltal, ordinær_grundskyld_øre: Heltal, stigningssats_basispoint: Heltal, nulstillet_til_ordinær_grundskyld: Boolsk, grundskyld_efter_stigningsbegrænsning_øre: Heltal, begrænsning_øre: Heltal)
+# EjendomsskattelovStigningsbegrænsningsresultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par44_omfattet: Boolsk, kalenderår: Heltal, foregående_års_grundskyld_øre: Heltal, ordinær_grundskyld_helår_øre: Heltal, ordinær_grundskyld_øre: Heltal, stigningssats_basispoint: Heltal, nulstillet_til_ordinær_grundskyld: Boolsk, grundskyld_efter_stigningsbegrænsning_helår_øre: Heltal, grundskyld_efter_stigningsbegrænsning_øre: Heltal, begrænsning_øre: Heltal)
 
 | ejendomsskattelov_par44_omfattet(vurderingskategori: EjendomsskattelovVurderingskategori, ejerkreds: EjendomsskattelovEjerkreds) -> vurderingskategori == EjskAndenVurderingskategori || ejerkreds == EjskFysiskEjerSammenMedJuridiskPerson || ejerkreds == EjskFysiskEjerUndtagetEfterKildeskattelovensPar3Stk1
 | ejendomsskattelov_stigningshændelse_nulstiller(hændelse: EjendomsskattelovStigningshændelse) -> hændelse == EjskNyopståetEjendom || hændelse == EjskOmkategoriseretEjendom || hændelse == EjskOmfattetAfPar41Stk2 || hændelse == EjskAnvendelsesændringEfterPar43Stk3 || hændelse == EjskVurderingsundtagelseOphørt || hændelse == EjskBfeNummerBortfaldet
@@ -1462,6 +1466,7 @@ laveste beløb efter stk. 2.«
         grundskyld_efter_stigningsbegrænsning_øre = hvis input_gyldigt && regelgrundlag_understøttet { grundskyld_efter_stigningsbegrænsning_øre } ellers { 0 }
     )
 }
+| ejendomsskattelov_stigningsbeløb_for_periode_øre(helårsbeløb_øre: Heltal, periode: EjendomsskattelovÅrsperiode) -> penge_øre_nedrundet(helårsbeløb_øre * ejendomsskattelov_par72_skattepligtige_dage(periode), 360)
 | ejendomsskattelov_stigningsbegrænsningsresultat(indkomstår: Heltal, omfang: EjendomsskattelovOvergangsomfang, fakta: EjendomsskattelovStigningsbegrænsningsfakta, aktuel_fakta: EjendomsskattelovOrdinærPersonEjendomFakta) -> {
     = starttilstand = EjendomsskattelovStigningstilstand(seneste_kalenderår = 2023, input_gyldigt = ejendomsskattelov_tidligere_grundskyld_2024_fakta_gyldige(fakta.tidligere_grundskyld_2024), regelgrundlag_understøttet = Sandt, ordinær_grundskyld_øre = 0, grundskyld_efter_stigningsbegrænsning_øre = 0)
     = historisk_tilstand = foldl(fakta.tidligere_år, starttilstand, |tilstand: EjendomsskattelovStigningstilstand, årsfakta: EjendomsskattelovStigningsårsfakta| ejendomsskattelov_stigningstrin(fakta.tidligere_grundskyld_2024, tilstand, årsfakta))
@@ -1469,19 +1474,26 @@ laveste beløb efter stk. 2.«
     = aktuel_årsfakta = EjendomsskattelovStigningsårsfakta(kalenderår = indkomstår, kommune = aktuel_fakta.kommune, grundværdi_kroner = aktuel_fakta.grundværdi_kroner, produktionsjord = aktuel_fakta.produktionsjord, ejerandel_basispoint = aktuel_fakta.ejerandel_basispoint, almen_bolig = fakta.aktuel_almen_bolig, hændelse = fakta.aktuel_hændelse)
     = aktuel_tilstand = ejendomsskattelov_stigningstrin(fakta.tidligere_grundskyld_2024, historisk_tilstand, aktuel_årsfakta)
     = par44_omfattet = ejendomsskattelov_par44_omfattet(omfang.vurderingskategori, omfang.ejerkreds)
-    = input_gyldigt = par44_omfattet == Falskt || aktuel_tilstand.input_gyldigt
+    = aktuel_periode_gyldig = ejendomsskattelov_par72_periode_datoer_gyldige(indkomstår, aktuel_fakta.grundskyldsperiode)
+    = input_gyldigt = par44_omfattet == Falskt || (aktuel_tilstand.input_gyldigt && aktuel_periode_gyldig)
     = kapabilitet = hvis input_gyldigt == Falskt { EjskInputUgyldigt } ellers { hvis par44_omfattet == Falskt { EjskIkkeRelevant } ellers { hvis aktuel_tilstand.regelgrundlag_understøttet { EjskUnderstøttet } ellers { EjskIkkeUnderstøttet } } }
+    = ordinær_grundskyld_helår_øre = aktuel_tilstand.ordinær_grundskyld_øre
+    = grundskyld_efter_stigningsbegrænsning_helår_øre = aktuel_tilstand.grundskyld_efter_stigningsbegrænsning_øre
+    = ordinær_grundskyld_øre = ejendomsskattelov_grundskyld_resultat(indkomstår, aktuel_fakta).skat_øre
+    = grundskyld_efter_stigningsbegrænsning_øre = hvis grundskyld_efter_stigningsbegrænsning_helår_øre < ordinær_grundskyld_helår_øre { ejendomsskattelov_stigningsbeløb_for_periode_øre(grundskyld_efter_stigningsbegrænsning_helår_øre, aktuel_fakta.grundskyldsperiode) } ellers { ordinær_grundskyld_øre }
     EjendomsskattelovStigningsbegrænsningsresultat(
         kapabilitet = kapabilitet,
         input_gyldigt = input_gyldigt,
         par44_omfattet = par44_omfattet,
         kalenderår = indkomstår,
         foregående_års_grundskyld_øre = foregående_års_grundskyld_øre,
-        ordinær_grundskyld_øre = aktuel_tilstand.ordinær_grundskyld_øre,
+        ordinær_grundskyld_helår_øre = ordinær_grundskyld_helår_øre,
+        ordinær_grundskyld_øre = ordinær_grundskyld_øre,
         stigningssats_basispoint = ejendomsskattelov_par45_stigningssats_basispoint(indkomstår, fakta.aktuel_almen_bolig),
         nulstillet_til_ordinær_grundskyld = ejendomsskattelov_stigningshændelse_nulstiller(fakta.aktuel_hændelse),
-        grundskyld_efter_stigningsbegrænsning_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { aktuel_tilstand.grundskyld_efter_stigningsbegrænsning_øre } ellers { 0 },
-        begrænsning_øre = hvis kapabilitet == EjskUnderstøttet { penge_positivt_beløb(aktuel_tilstand.ordinær_grundskyld_øre - aktuel_tilstand.grundskyld_efter_stigningsbegrænsning_øre) } ellers { 0 }
+        grundskyld_efter_stigningsbegrænsning_helår_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { grundskyld_efter_stigningsbegrænsning_helår_øre } ellers { 0 },
+        grundskyld_efter_stigningsbegrænsning_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { grundskyld_efter_stigningsbegrænsning_øre } ellers { 0 },
+        begrænsning_øre = hvis kapabilitet == EjskUnderstøttet { penge_positivt_beløb(ordinær_grundskyld_øre - grundskyld_efter_stigningsbegrænsning_øre) } ellers { 0 }
     )
 }
 --@end:ejendomsskatteloven_stigningsbegraensning--
