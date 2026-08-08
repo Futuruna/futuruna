@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-07
 TD epic: `td-56cf8d`
-Current implementation slice: `td-24963d` (den eksekverbare monetære audit klassificerer 12 offentlige og interne beregningstrin efter kroner, øre, basispoint, promille-tiendedele, reguleringsfaktor og fordelingsnævner; den beviser, at hvert afrundet skattegrundlag skal genberegnes frem for at blive sammensat af afrundede delvirkninger, bevarer øre gennem KSL §§ 60-62 C og isolerer det kanoniske helkrone-til-øre-præcisionstab som `td-16a9cb` med typet Warning-metadata)
+Current implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
 Previous implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
 Previous implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
 Previous implementation slice: `td-b0c76e` (valg af fiskerfradrag efter LL § 9 G afskærer nu kun de konkret fiskeritilknyttede rejser efter LL § 9 A, stk. 1-9, mens rejser ved andet arbejde bevares; § 9 A, stk. 12-afskæringen gælder fortsat personen, og den berørte skattefri godtgørelse omklassificeres før løn- og AM-beregningen; kilder, mellemtrin og slutresultat er identiske gennem JSON og XLSX)
@@ -46,12 +46,12 @@ Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste år
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
 Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
-Current fidelity slice: den anonymiserede årsopgørelse for 2025 afstemmer nu også boligskatterne til øret
+Current fidelity slice: den anonymiserede årsopgørelse for 2025 har et eksplicit eksternt rapportorakel på 290.590,34 kr.; den kildedrevne Futuruna-beregning giver 290.596,34 kr., og den resterende forskel på 6,00 kr. er isoleret med uafklaret proveniens frem for indbygget i lovreglerne
 Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
 Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
 Latest structural audit: `td-ba70c7` (kanonisk rækkevidde og afledte input er opgjort; afventer uafhængig gennemgang)
-Current monetary audit: `td-24963d` (12 typede trin og 14 invarianter dokumenterer enheder, afrundingstrin, ikke-additive delvirkninger og den eksakte KSL-slutopgørelse i både restskat- og overskydende-skat-retningen; ét bekræftet præcisionstab er afgrænset i `td-16a9cb`)
+Current monetary audit: `td-24963d` og `td-16a9cb` (15 typede trin, heraf 12 offentlige slutskattetrin, dokumenterer enheder, afrunding og den eksakte KSL-slutopgørelse; auditten finder nu nul bekræftede præcisionstab i den kanoniske slutskattevej)
 Previous ordinary-income completion: `td-1306f6` (typede arbejdsgiverydelser og virksomhedsresultater gennem den kanoniske § 3-gren; implementeret og verificeret, afventer uafhængig gennemgang)
 Current common-deduction completion: `td-a47465` (fagforening, A-kasse mv. og gaver med egne kildefakta, lovregler, beregningsmetadata og kanonisk samordning)
 Current exact-credit completion: `td-6fe980` (den typede dokumentmapping og den kanoniske Personskat-arbejdsbog kan føre foreløbige skatter i eksakte øre gennem hele § 60-modregningen)
@@ -328,8 +328,12 @@ der afhænger af både en regel og en værdibinding fra et tidligere modul.
 
 Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
-eller ejendomsidentifikationer. Scenariet rammer 29.059.034 øre i beregnet skat,
-3.716.680 øre i overskydende skat og 8.200 øre i resterende udbetaling præcist.
+eller ejendomsidentifikationer. Rapporten er et eksternt orakel på 29.059.034
+øre i beregnet skat, 3.716.680 øre i overskydende skat og 8.200 øre i
+resterende udbetaling. Futurunas kildedrevne skatteberegning giver 29.059.634
+øre. Forskellen på 600 øre står i et typet afstemningsresultat med
+`forskellens_proveniens_afklaret = Falskt`; den er ikke lagt ind som et
+udokumenteret skattenedslag.
 Boligskatterne er ikke længere lokale, forudberegnede formler i scenariet.
 Ejendomsskattelovens regler udleder 80-procentsgrundlagene, 150 af 360 dage,
 ejerandelen og kommunens sats fra vurderings- og periodefakta og beregner
@@ -340,11 +344,11 @@ en antagelse: ingen anden indkomst og 39.617 kr. i renteudgifter. Fra disse
 kildefakta udleder reglerne selv 39.617 kr. efter § 13, 18.875 kr. i uudnyttet
 personfradragsværdi efter § 10 og 3.169 kr. efter § 11. Den afrundede
 lønmodtagerkerne falder fra 312.321 kr. til 280.543 kr.; den særskilte
-øreberegning tilføjer derefter aktie- og boligskatter og bevarer den præcise
-afstemning. Slutbeløbet genberegnes fra det reducerede skattegrundlag. Det kan
-afvige med en krone fra at trække flere allerede afrundede delvirkninger fra
-en allerede afrundet baseline, så afstemninger skal fastholde lovens enhed og
-afrundingstrin gennem hele beregningskæden.
+øreberegning tilføjer derefter aktie- og boligskatter uden at rekonstruere
+slutskatten fra helkroneprojektioner. Slutbeløbet genberegnes fra det reducerede
+skattegrundlag. Rapportens tilbageværende forskel på 6,00 kr. kræver derfor en
+selvstændig kilde- eller dokumentforklaring; afstemninger skal fastholde lovens
+enhed og afrundingstrin gennem hele beregningskæden.
 
 Latest source-document mapping: `personskat-aarsopgoerelse-kildemapping.runa`
 modellerer den grænse, som et AI-interview eller en manuel udfyldelse af

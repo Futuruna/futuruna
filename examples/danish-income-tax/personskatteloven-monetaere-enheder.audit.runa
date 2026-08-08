@@ -7,15 +7,15 @@
 @ importer ./slutopgoerelse
 @ importer ./ejendomsskatteloven
 @ importer ./kommuneskatteloven
+@ importer ./loenmodtager - eksakt - skat
 
 # PersonskatMonetærAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
 # PersonskatMonetærEnhed = HeleKroner | Øre
 # PersonskatMonetærBeregningEnhed = Basispoint | PromilleTiendedele | ReguleringsTiendedele | Fordelingsnævner
-# PersonskatMonetærAfrunding = IngenMonetærAfrunding | NedModNulTilHelKrone | NærmesteHeleKrone | NedTilTiKroner | OpTilNærmesteHundredeKroner | NedModNulTilØre | HeleKronerMedØrerest | KronerOpskaleretTilØreUdenRest
+# PersonskatMonetærAfrunding = IngenMonetærAfrunding | NedModNulTilHelKrone | NærmesteHeleKrone | NedTilTiKroner | OpTilNærmesteHundredeKroner | NedModNulTilØre | HeleKronerMedØrerest
 # PersonskatMonetærBelægsstatus = UdtrykkeligLovregel | AdministrativVejledning | KildedrevetEksaktBeregning | KanoniskKompatibilitetsprojektion | BekræftetPræcisionstab
 # PersonskatMonetærtTrin(navn: Tekst, input_enhed: PersonskatMonetærEnhed, beregningsenheder: List(PersonskatMonetærBeregningEnhed), output_enhed: PersonskatMonetærEnhed, afrunding: PersonskatMonetærAfrunding, belæg: PersonskatMonetærBelægsstatus, offentligt_slutskattetrin: Boolsk, implementeringsissue: Tekst)
 # PersonskatMonetærAuditResultat(trin: List(PersonskatMonetærtTrin), alle_trin_navngivet: Boolsk, antal_offentlige_slutskattetrin: Heltal, antal_bekræftede_præcisionstab: Heltal)
-# PersonskatMonetærAuditAdvarsel(kode: Tekst, beskrivelse: Tekst, implementeringsissue: Tekst)
 
 = personskat_monetaer_psl_kilde = PersonskatMonetærAuditKilde(
     url = "https://www.retsinformation.dk/eli/lta/2021/1284",
@@ -47,10 +47,17 @@
     hentet_dato = "2026-08-07"
 )
 
+= personskat_monetaer_uafrundet_skat_kilde = PersonskatMonetærAuditKilde(
+    url = "https://www.retsinformation.dk/eli/mt/1986/22",
+    identifier = "Cirkulære nr. 22 af 9. december 1986, afsnit C, nr. 18",
+    hentet_dato = "2026-08-07"
+)
+
 = personskat_monetaer_procentkomponent_metadata = Metadata(
     attachments = (
         Source(value = personskat_monetaer_psl_kilde),
         DependencySource(value = personskat_monetaer_kommuneskattelov_kilde),
+        Guidance(value = personskat_monetaer_uafrundet_skat_kilde),
     )
 )
 
@@ -84,20 +91,32 @@ indkomstskatten til staten.
 
 --@begin:personskat_monetaer_procentkomponent--
 = personskat_monetaer_procentkomponent_trin = PersonskatMonetærtTrin(
-    navn = "PSL §§ 6-8 a og kommunal skat: kanonisk procentkomponent",
+    navn = "PSL §§ 6-8 a og kommunal skat: ørepræcis procentkomponent",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = Øre,
+    afrunding = NedModNulTilØre,
+    belæg = KildedrevetEksaktBeregning,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_procentkomponent_kroner_trin = PersonskatMonetærtTrin(
+    navn = "PSL §§ 6-8 a og kommunal skat: kompatibilitetsprojektion til hele kroner",
     input_enhed = HeleKroner,
     beregningsenheder = [Basispoint],
     output_enhed = HeleKroner,
     afrunding = NedModNulTilHelKrone,
     belæg = KanoniskKompatibilitetsprojektion,
     offentligt_slutskattetrin = Sandt,
-    implementeringsissue = "td-16a9cb"
+    implementeringsissue = ""
 )
 --@end:personskat_monetaer_procentkomponent--
 
 = personskat_monetaer_par12_par13_metadata = Metadata(
     attachments = (
         Source(value = personskat_monetaer_psl_kilde),
+        Guidance(value = personskat_monetaer_uafrundet_skat_kilde),
     )
 )
 
@@ -125,25 +144,47 @@ uudnyttet underskud i ægtefællens beregnede skatter efter §§ 6, 7 og 7 a og
 
 --@begin:personskat_monetaer_par12_par13--
 = personskat_monetaer_personfradrag_trin = PersonskatMonetærtTrin(
-    navn = "PSL § 12: skatteværdi af personfradrag",
+    navn = "PSL § 12: ørepræcis skatteværdi af personfradrag",
     input_enhed = HeleKroner,
     beregningsenheder = [Basispoint],
-    output_enhed = HeleKroner,
-    afrunding = NedModNulTilHelKrone,
-    belæg = KanoniskKompatibilitetsprojektion,
+    output_enhed = Øre,
+    afrunding = NedModNulTilØre,
+    belæg = KildedrevetEksaktBeregning,
     offentligt_slutskattetrin = Sandt,
-    implementeringsissue = "td-16a9cb"
+    implementeringsissue = ""
 )
 
 = personskat_monetaer_underskudsoverfoersel_trin = PersonskatMonetærtTrin(
-    navn = "PSL § 13, stk. 2: genberegning efter ægtefælleunderskud",
+    navn = "PSL § 13, stk. 2: ørepræcis genberegning efter ægtefælleunderskud",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = Øre,
+    afrunding = NedModNulTilØre,
+    belæg = KildedrevetEksaktBeregning,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_personfradrag_kroner_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 12: kompatibilitetsprojektion til hele kroner",
     input_enhed = HeleKroner,
     beregningsenheder = [Basispoint],
     output_enhed = HeleKroner,
     afrunding = NedModNulTilHelKrone,
     belæg = KanoniskKompatibilitetsprojektion,
     offentligt_slutskattetrin = Sandt,
-    implementeringsissue = "td-16a9cb"
+    implementeringsissue = ""
+)
+
+= personskat_monetaer_underskudsoverfoersel_kroner_trin = PersonskatMonetærtTrin(
+    navn = "PSL § 13, stk. 2: kompatibilitetsprojektion til hele kroner",
+    input_enhed = HeleKroner,
+    beregningsenheder = [Basispoint],
+    output_enhed = HeleKroner,
+    afrunding = NedModNulTilHelKrone,
+    belæg = KanoniskKompatibilitetsprojektion,
+    offentligt_slutskattetrin = Sandt,
+    implementeringsissue = ""
 )
 
 | personskat_monetaer_skat_øre(grundlag_kroner: Heltal, sats_basispoint: Heltal) -> grundlag_kroner * sats_basispoint / 100
@@ -461,45 +502,49 @@ kronebeløb. Tilsvarende gælder ved opkrævning af rater efter stk. 1.
 | personskat_monetaer_restskat_bevarer_øre_til_lovgraensen: personskat_monetaer_restskat_fixture -> personskat_monetaer_restskat_fixture.slutskat_med_tillæg_øre == 108280 && personskat_monetaer_restskat_fixture.modregnede_foreløbige_skatter_øre == 100000 && personskat_monetaer_restskat_fixture.restskat_øre == 8280 && personskat_monetaer_restskat_fixture.restskat_opkræves_kroner == 82 && personskat_monetaer_restskat_fixture.restskat_ikke_opkrævet_øre == 80
 --@end:personskat_monetaer_ksl_slutopgoerelse--
 
-= personskat_monetaer_præcisionstab_advarsel = PersonskatMonetærAuditAdvarsel(
-    kode = "PERSONSKAT_EXACT_FINAL_TAX_LOSS",
-    beskrivelse = "Kanonisk Personskat ganger en allerede helkroneprojekteret slutskat med 100 før den eksakte KSL-slutopgørelse; komponent- og ejendomsskatterester kan ikke genskabes.",
-    implementeringsissue = "td-16a9cb"
-)
-
-= personskat_monetaer_præcisionstab_metadata = Metadata(
+= personskat_monetaer_eksakt_slutskat_metadata = Metadata(
     attachments = (
-        Warning(value = personskat_monetaer_præcisionstab_advarsel),
+        Guidance(value = personskat_monetaer_uafrundet_skat_kilde),
+        DependencySource(value = personskat_monetaer_ksl_kilde),
     )
 )
 
---@label:personskat_monetaer_præcisionstab::meta:personskat_monetaer_præcisionstab_metadata--
+--@label:personskat_monetaer_eksakt_slutskat::meta:personskat_monetaer_eksakt_slutskat_metadata--
 ----
-Bekræftet implementeringsfund:
-Den eksakte årsopgørelse modtager i dag den kanoniske slutskat i hele kroner
-ganget med 100. En tidligere øre- eller brøkrest kan derfor ikke genskabes ved
-denne opskalering.
+Skatteberegningen sker herefter for alle skatters vedkommende på grundlag af
+uafrundede beregningsgrundlag i hele kroner. Ørebeløb medregnes ved
+skatteberegningen.
 ----
 
---@begin:personskat_monetaer_præcisionstab--
-= personskat_monetaer_præcisionstab_trin = PersonskatMonetærtTrin(
-    navn = "Kanonisk Personskat til eksakt KSL-slutopgørelse",
-    input_enhed = HeleKroner,
+--@begin:personskat_monetaer_eksakt_slutskat--
+= personskat_monetaer_eksakt_slutskat_trin = PersonskatMonetærtTrin(
+    navn = "Kanonisk ørepræcis slutskat til KSL § 60",
+    input_enhed = Øre,
     beregningsenheder = [],
     output_enhed = Øre,
-    afrunding = KronerOpskaleretTilØreUdenRest,
-    belæg = BekræftetPræcisionstab,
+    afrunding = IngenMonetærAfrunding,
+    belæg = KildedrevetEksaktBeregning,
     offentligt_slutskattetrin = Sandt,
-    implementeringsissue = "td-16a9cb"
+    implementeringsissue = ""
 )
 
-| personskat_monetaer_helkroneopskalering_genskaber_ikke_ørerest: personskat_monetaer_ejendomsskat_fixture -> personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_kroner * 100 == 601200 && personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_øre == 601205
---@end:personskat_monetaer_præcisionstab--
+= personskat_monetaer_eksakt_slutskat_fixture_øre = personskat_monetaer_kommuneskat_foer_øre + personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_øre
+= personskat_monetaer_helkronekomposition_fixture_kroner = personskat_monetaer_kommuneskat_foer_kroner + personskat_monetaer_ejendomsskat_fixture.samlet_ejendomsskat_kroner
+= personskat_monetaer_eksakt_slutskat_fixture = kildeskat_slutopgørelse_eksakt_resultat(personskat_monetaer_slutopgoerelse_input(
+    slutskat_øre = personskat_monetaer_eksakt_slutskat_fixture_øre,
+    indeholdt_øre = personskat_monetaer_eksakt_slutskat_fixture_øre + 8280
+))
+
+| personskat_monetaer_eksakt_slutskat_bevarer_komponenters_ørerester: personskat_monetaer_eksakt_slutskat_fixture -> personskat_monetaer_eksakt_slutskat_fixture_øre == 16396668 && personskat_monetaer_helkronekomposition_fixture_kroner * 100 == 16396600 && personskat_monetaer_eksakt_slutskat_fixture.slutskat_med_tillæg_øre == personskat_monetaer_eksakt_slutskat_fixture_øre && personskat_monetaer_eksakt_slutskat_fixture.overskydende_skat_øre == 8280
+--@end:personskat_monetaer_eksakt_slutskat--
 
 | personskat_monetaere_trin() -> [
     personskat_monetaer_procentkomponent_trin,
+    personskat_monetaer_procentkomponent_kroner_trin,
     personskat_monetaer_personfradrag_trin,
+    personskat_monetaer_personfradrag_kroner_trin,
     personskat_monetaer_underskudsoverfoersel_trin,
+    personskat_monetaer_underskudsoverfoersel_kroner_trin,
     personskat_monetaer_par14_trin,
     personskat_monetaer_par20_trin,
     personskat_monetaer_ksl_par48_trin,
@@ -508,7 +553,7 @@ denne opskalering.
     personskat_monetaer_par60_trin,
     personskat_monetaer_par62_udbetaling_trin,
     personskat_monetaer_par62c_opkraevning_trin,
-    personskat_monetaer_præcisionstab_trin,
+    personskat_monetaer_eksakt_slutskat_trin,
 ]
 | personskat_monetaere_offentlige_slutskattetrin() -> filter(personskat_monetaere_trin(), |trin: PersonskatMonetærtTrin| trin.offentligt_slutskattetrin)
 | personskat_monetaere_bekræftede_præcisionstab() -> filter(personskat_monetaere_trin(), |trin: PersonskatMonetærtTrin| trin.belæg == BekræftetPræcisionstab)
@@ -521,9 +566,9 @@ denne opskalering.
 
 = personskat_monetaer_audit = personskat_monetaer_audit_resultat()
 
-| personskat_monetaer_audit_har_komplet_stagekontrakt: personskat_monetaer_audit -> length(personskat_monetaer_audit.trin) == 12 && personskat_monetaer_audit.alle_trin_navngivet && personskat_monetaer_audit.antal_offentlige_slutskattetrin == 9
+| personskat_monetaer_audit_har_komplet_stagekontrakt: personskat_monetaer_audit -> length(personskat_monetaer_audit.trin) == 15 && personskat_monetaer_audit.alle_trin_navngivet && personskat_monetaer_audit.antal_offentlige_slutskattetrin == 12
 | personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere: personskat_monetaer_audit -> personskat_monetaer_procentkomponent_trin.beregningsenheder == [Basispoint] && personskat_monetaer_par14_trin.beregningsenheder == [Fordelingsnævner] && personskat_monetaer_par20_trin.beregningsenheder == [ReguleringsTiendedele] && personskat_monetaer_ejendomsskat_broek_trin.beregningsenheder == [PromilleTiendedele, Basispoint, Fordelingsnævner]
-| personskat_monetaer_audit_isolerer_kendt_præcisionstab: personskat_monetaer_audit -> personskat_monetaer_audit.antal_bekræftede_præcisionstab == 1 && head(personskat_monetaere_bekræftede_præcisionstab()).implementeringsissue == "td-16a9cb"
+| personskat_monetaer_audit_har_ingen_bekræftede_præcisionstab: personskat_monetaer_audit -> personskat_monetaer_audit.antal_bekræftede_præcisionstab == 0
 
 ? personskat_monetaer_genberegning_er_ikke_additiv_i_kroner
 ? personskat_monetaer_genberegning_er_ikke_additiv_i_øre
@@ -535,10 +580,10 @@ denne opskalering.
 ? personskat_monetaer_ørebroek_bevarer_taeller_og_naevner
 ? personskat_monetaer_overskydende_skat_bevarer_øre_til_lovgraensen
 ? personskat_monetaer_restskat_bevarer_øre_til_lovgraensen
-? personskat_monetaer_helkroneopskalering_genskaber_ikke_ørerest
+? personskat_monetaer_eksakt_slutskat_bevarer_komponenters_ørerester
 ? personskat_monetaer_audit_har_komplet_stagekontrakt
 ? personskat_monetaer_audit_adskiller_satser_og_fordelingsnaevnere
-? personskat_monetaer_audit_isolerer_kendt_præcisionstab
+? personskat_monetaer_audit_har_ingen_bekræftede_præcisionstab
 
 @ print("Personskat monetære trin: " + vis(length(personskat_monetaer_audit.trin)))
 @ print("Offentlige slutskattetrin: " + vis(personskat_monetaer_audit.antal_offentlige_slutskattetrin))

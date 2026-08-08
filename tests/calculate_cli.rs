@@ -11030,6 +11030,25 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     std::fs::remove_file(&input_path).ok();
     assert!(!output.status.success());
     let result = parse_stdout(&output);
+    let xlsx_exact_tax_result = result["results"]
+        .as_array()
+        .expect("XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-årsopgørelse-2026")
+        .expect("XLSX exact annual-assessment result");
+    assert_eq!(xlsx_exact_tax_result["result"]["slutskat_øre"], 20_872_564);
+    assert_eq!(
+        xlsx_exact_tax_result["result"]["slutskat_kroner_kompatibilitetsprojektion"],
+        208_725
+    );
+    assert_eq!(
+        xlsx_exact_tax_result["result"]["årsopgørelse"]["input"]["slutskat_øre"],
+        20_872_564
+    );
+    assert_eq!(
+        xlsx_exact_tax_result["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_øre"],
+        21_022_564
+    );
     let diagnostics = result["diagnostics"]
         .as_array()
         .expect("XLSX Personskat diagnostics");
@@ -17442,11 +17461,15 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     assert_eq!(
         result["results"][0]["result"]["årsopgørelse"]["resultat"]["slutskat_med_tillæg_øre"],
-        21_022_600
+        21_022_564
     );
     assert_eq!(
         result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_opkræves_kroner"],
-        210_226
+        210_225
+    );
+    assert_eq!(
+        result["results"][0]["result"]["årsopgørelse"]["resultat"]["restskat_ikke_opkrævet_øre"],
+        64
     );
     assert_eq!(
         result["results"][1]["result"]["aktieavance"]["personlig_indkomst_kroner"],
