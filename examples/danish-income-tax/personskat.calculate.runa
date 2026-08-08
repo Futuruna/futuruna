@@ -904,9 +904,9 @@
 )
 = personskat_felt_dis_dødsbo_bobeskatningsindkomst = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Input::bobeskatningsindkomst_kroner),
-    label = "Positiv bobeskatningsindkomst",
+    label = "Bobeskatningsindkomst",
     question = Some("Hvor stor er boets bobeskatningsindkomst før dødsboskat og fradrag efter § 30?"),
-    help = Some("Den afgrænsede beregning understøtter positiv bobeskatningsindkomst."),
+    help = Some("Angiv et positivt beløb ved overskud og et negativt beløb ved underskud. Underskud modregnes i positiv aktieindkomst og kan udløse carry back efter § 31."),
     unit = Some("kr.")
 )
 = personskat_felt_dis_dødsbo_indkomstårsforhold = TypetBeregningsfelt(
@@ -986,11 +986,25 @@
     help = Some("Angiv kalenderdagen som en gyldig ISO 8601-dato."),
     unit = Some("dag")
 )
-= personskat_felt_dis_dødsbo_aktieskatteforhold = TypetBeregningsfelt(
-    path = refof(Dødsboskattelov30Input::aktieskatteforhold::$variant),
-    label = "Aktieskatteforhold i dødsboet",
-    question = Some("Kræver boets aktieindkomst eller negative aktieskat samordning efter §§ 30-32?"),
-    help = Some("Aktieskatteinteraktion markeres eksplicit og fejler lukket, indtil den fulde dødsboaktieskat er sammensat."),
+= personskat_felt_dis_dødsbo_aktieindkomstgrundlag = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov30Input::aktieindkomstgrundlag::$variant),
+    label = "Aktieindkomst i dødsboet",
+    question = Some("Har boet en opgjort positiv eller negativ aktieindkomst i bobeskatningsperioden?"),
+    help = Some("Vælg ingen aktieindkomst eller en opgjort aktieindkomst efter dødsboskattelovens § 21. Beløbet samordnes automatisk med bobeskatningsindkomsten efter §§ 30-32."),
+    unit = None
+)
+= personskat_felt_dis_dødsbo_aktieindkomst_beløb = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov32Aktieindkomstgrundlag::Dbl32OpgjortAktieindkomstEfterPar21::aktieindkomst_kroner),
+    label = "Opgjort aktieindkomst i bobeskatningsperioden",
+    question = Some("Hvad er boets opgjorte aktieindkomst efter dødsboskattelovens § 21?"),
+    help = Some("Angiv et positivt beløb ved aktieindkomst og et negativt beløb ved aktietab. Futuruna beregner positiv eller negativ aktieskat med satserne i § 32."),
+    unit = Some("kr./bobeskatningsperiode")
+)
+= personskat_felt_dis_dødsbo_aktieindkomst_dokumentreference = TypetBeregningsfelt(
+    path = refof(Dødsboskattelov32Aktieindkomstgrundlag::Dbl32OpgjortAktieindkomstEfterPar21::dokumentreference),
+    label = "Dokumentation for boets aktieindkomst",
+    question = Some("Hvilken boopgørelse eller skatteopgørelse dokumenterer aktieindkomsten?"),
+    help = Some("Angiv en entydig dokumentreference. En opgjort aktieindkomst uden dokumentreference afvises."),
     unit = None
 )
 = personskat_felt_ægtefælle = Beregningsfelt(
@@ -10744,7 +10758,9 @@
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_år,
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_måned,
         personskat_felt_dis_dødsbo_førstafdøde_ægtefælle_dag,
-        personskat_felt_dis_dødsbo_aktieskatteforhold
+        personskat_felt_dis_dødsbo_aktieindkomstgrundlag,
+        personskat_felt_dis_dødsbo_aktieindkomst_beløb,
+        personskat_felt_dis_dødsbo_aktieindkomst_dokumentreference
     ],
     spørgsmål = [],
     beløbsfelter = [],

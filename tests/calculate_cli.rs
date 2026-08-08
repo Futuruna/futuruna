@@ -1375,7 +1375,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Valg af fiskerfradrag",
             "Dødsboets skattegrundlag efter § 30",
             "Dødsboets behandlingsform",
-            "Positiv bobeskatningsindkomst",
+            "Bobeskatningsindkomst",
             "Dødsdato (ISO 8601) - år",
             "Dødsdato (ISO 8601) - måned",
             "Dødsdato (ISO 8601) - dag",
@@ -1394,7 +1394,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Førstafdøde ægtefælles dødsdato - år",
             "Førstafdøde ægtefælles dødsdato - måned",
             "Førstafdøde ægtefælles dødsdato - dag",
-            "Aktieskatteforhold i dødsboet",
+            "Aktieindkomst i dødsboet",
+            "Opgjort aktieindkomst i bobeskatningsperioden",
+            "Dokumentation for boets aktieindkomst",
             "Kulbrinteskattegrundlag efter § 21, stk. 2",
             "Personstatus efter kulbrinteskattelovens § 21, stk. 2",
             "Arbejdsgiverens hjemting efter kulbrinteskatteloven",
@@ -1652,7 +1654,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.år",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.måned",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.ægtefælleforhold.Dbl30TidligereAfdødÆgtefælleEfterPar62.førstafdødes_dødsdato.dag",
-            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieskatteforhold",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.$variant",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.aktieindkomst_kroner",
+            "lønmodtager.personlig_indkomst.sømandsbeskatning.dødsboskattegrundlag.Søbl5Dødsboskattegrundlag.input.aktieindkomstgrundlag.Dbl32OpgjortAktieindkomstEfterPar21.dokumentreference",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.$variant",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.personstatus",
             "lønmodtager.personlig_indkomst.sømandsbeskatning.kulbrinteskattegrundlag.Søbl5BKulbrinteskattegrundlag.kildefakta.arbejdsgiverhjemting",
@@ -15285,10 +15289,20 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                     "$variant": "Dbl30TidligereAfdødÆgtefælleEfterPar62",
                     "førstafdødes_dødsdato": { "år": 2026, "måned": 7, "dag": 15 }
                 },
-                "aktieskatteforhold": { "$variant": "Dbl30IngenAktieskatteinteraktion" }
+                "aktieindkomstgrundlag": { "$variant": "Dbl32IngenAktieindkomst" }
             }
         },
         "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
+    });
+
+    let mut death_estate_share_case = death_estate_case.clone();
+    death_estate_share_case["case_id"] =
+        Value::String("personskat-dis-doedsbo-aktieindkomst-2026".into());
+    death_estate_share_case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+        ["dødsboskattegrundlag"]["input"]["aktieindkomstgrundlag"] = serde_json::json!({
+        "$variant": "Dbl32OpgjortAktieindkomstEfterPar21",
+        "aktieindkomst_kroner": 100_000,
+        "dokumentreference": "boopgørelse-aktieindkomst-2026"
     });
 
     let mut limited_taxpayer_case = death_estate_case.clone();
@@ -15362,6 +15376,10 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(death_estate_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_share_case);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -15791,6 +15809,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-doedsbo-2026")
         .expect("death-estate DIS JSON case")
         .clone();
+    let death_estate_share_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-aktieindkomst-2026")
+        .expect("death-estate share-income DIS JSON case")
+        .clone();
     let limited_taxpayer_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -15871,6 +15896,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         dis_case,
         dis_course_case,
         death_estate_case,
+        death_estate_share_case,
         limited_taxpayer_case,
         hydrocarbon_case,
         par32_mixed_case,
@@ -16648,6 +16674,40 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         hydrated_death_estate_result["result"]["sømandsbeskatning"]["input_gyldigt"],
         false
+    );
+
+    let json_death_estate_share_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-aktieindkomst-2026")
+        .expect("JSON death-estate share-income DIS result");
+    let hydrated_death_estate_share_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-aktieindkomst-2026")
+        .expect("hydrated XLSX death-estate share-income DIS result");
+    assert_eq!(
+        hydrated_death_estate_share_result["result"],
+        json_death_estate_share_result["result"]
+    );
+    let death_estate_share_annual =
+        &hydrated_death_estate_share_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+    assert_eq!(death_estate_share_annual["alle_input_gyldige"], false);
+    assert_eq!(death_estate_share_annual["beregningsklar"], false);
+    assert_eq!(
+        death_estate_share_annual["dødsbo_lempelse"]["input_gyldigt"],
+        false
+    );
+    assert_eq!(
+        death_estate_share_annual["input"]["dødsboskattegrundlag"]["input"]
+            ["aktieindkomstgrundlag"],
+        serde_json::json!({
+            "$variant": "Dbl32OpgjortAktieindkomstEfterPar21",
+            "aktieindkomst_kroner": 100_000,
+            "dokumentreference": "boopgørelse-aktieindkomst-2026"
+        })
     );
 
     let json_limited_taxpayer_result = json_result["results"]

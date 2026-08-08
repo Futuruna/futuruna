@@ -8,9 +8,9 @@
 
 = dødsboskattelov_par1_par30_lbk426 = DødsboskattelovPar1Par30KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2019/426",
-    identifier = "Dødsboskatteloven §§ 1 og 30, LBK nr. 426 af 28/03/2019 med senere ændringer",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Den gældende konsoliderede tekst og efterfølgende ændringer er kontrolleret; denne afgrænsede beregning understøtter positiv bobeskatningsindkomst uden aktieskatteinteraktion"
+    identifier = "Dødsboskatteloven §§ 1 og 30-32, LBK nr. 426 af 28/03/2019 med senere ændringer",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Den gældende konsoliderede tekst og efterfølgende ændringer er kontrolleret; beregningen omfatter samspillet mellem bobeskatningsindkomst, aktieindkomst og foreløbigt carryback efter §§ 30-32"
 )
 = dødsboskattelov_par30_vejledning = DødsboskattelovPar1Par30KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=1847072",
@@ -28,7 +28,25 @@
     url = "https://info.skat.dk/data.aspx?chk=220619&oid=2292849",
     identifier = "Den juridiske vejledning 2026-1, C.E.15.2: Oversigt over satser og grundbeløb 2024-2026",
     hentet_dato = "2026-08-08",
-    ændringsstatus = "§ 30-satserne er kontrolleret til 6.900/2.500 kr. for dødsåret 2025 og 7.200/2.700 kr. for dødsåret 2026"
+    ændringsstatus = "§ 30-satserne er kontrolleret til 6.900/2.500 kr. for dødsåret 2025 og 7.200/2.700 kr. for dødsåret 2026; § 32-grænsen er 67.500 kr. i 2025 og 79.400 kr. i 2026 med satser på 27/42 pct."
+)
+= dødsboskattelov_par30_beregningsskema_vejledning = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847071",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.5.5: Skemaer: Har afdøde og dødsboet betalt for lidt eller for meget i skat for bobeskatningsperioden?",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Rækkefølgen mellem dødsboskat, positiv og negativ aktieskat, carryback og bofradrag er kontrolleret"
+)
+= dødsboskattelov_par31_carryback_vejledning = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847069",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.5.3: Negativ skat (carry back) ved underskud i skattepligtig indkomst eller negativ aktieindkomst i bobeskatningsperioden",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Det foreløbige carryback er 30 pct. af resterende underskud plus overskydende negativ aktieskat; den endelige udbetaling kræver historiske skattebetalinger"
+)
+= dødsboskattelov_par32_aktieindkomst_vejledning = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847073",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.5.1.2: Skat af aktieindkomst i bobeskatningsperioden",
+    hentet_dato = "2026-08-08",
+    ændringsstatus = "Både positiv og negativ aktieindkomst beskattes med 27/42 pct.; grænsen fordobles ved beskatning efter § 62"
 )
 
 = dødsboskattelov_par1_metadata = Metadata(
@@ -56,6 +74,7 @@ Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskat
         Guidance(value = dødsboskattelov_par30_vejledning),
         Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
+        Guidance(value = dødsboskattelov_par30_beregningsskema_vejledning),
     )
 )
 
@@ -75,13 +94,12 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
 ----
 
 --@begin::dødsboskattelov_par30--
-# Dødsboskattelov30Aktieskatteforhold = Dbl30IngenAktieskatteinteraktion | Dbl30AktieskatteinteraktionKræverFuldBeregning
 # Dødsboskattelov30Boopgørelsestype = Dbl30OrdinærBoopgørelse | Dbl30Tillægsopgørelse
 # Dødsboskattelov30Indkomstårsforhold = Dbl30Kalenderindkomstår | Dbl30BagudforskudtIndkomstår(dødsårets_startdato: Dato) | Dbl30FremadforskudtIndkomstår(dødsårets_startdato: Dato)
 # Dødsboskattelov30Ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62 | Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato: Dato)
-# Dødsboskattelov30ReguleredeSatser(dødsår: Heltal, understøttet: Boolsk, bofradrag_pr_måned_kroner: Heltal, mellemperiodefradrag_pr_måned_kroner: Heltal, kilde: DødsboskattelovPar1Par30KildeInfo)
-# Dødsboskattelov30Input(boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, dødsdato: Dato, boopgørelsestype: Dødsboskattelov30Boopgørelsestype, boopgørelsens_skæringsdag: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold, aktieskatteforhold: Dødsboskattelov30Aktieskatteforhold)
-# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, datoer_gyldige: Boolsk, boopgørelsestype_understøttet: Boolsk, indkomstårsforhold_gyldigt: Boolsk, ægtefælleforhold_gyldigt: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, positiv_bobeskatningsindkomst_understøttet: Boolsk, aktieskatteforhold_understøttet: Boolsk, beregningsklar: Boolsk, regulerede_satser: Dødsboskattelov30ReguleredeSatser, bobeskatningsindkomstgrundlag_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, bofradragsmåneder_stk2: Heltal, mellemperiodemåneder_stk3: Heltal, ægtefællefradragsmåneder_stk4: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, samlede_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal)
+# Dødsboskattelov30ReguleredeSatser(dødsår: Heltal, understøttet: Boolsk, bofradrag_pr_måned_kroner: Heltal, mellemperiodefradrag_pr_måned_kroner: Heltal, aktieindkomst_progressionsgrænse_kroner: Heltal, aktieindkomst_lav_sats_basispoint: Heltal, aktieindkomst_høj_sats_basispoint: Heltal, kilde: DødsboskattelovPar1Par30KildeInfo)
+# Dødsboskattelov30Input(boform: Dødsboskattelov1Stk2Boform, bobeskatningsindkomst_kroner: Heltal, dødsdato: Dato, boopgørelsestype: Dødsboskattelov30Boopgørelsestype, boopgørelsens_skæringsdag: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold, aktieindkomstgrundlag: Dødsboskattelov32Aktieindkomstgrundlag)
+# Dødsboskattelov30Resultat(input: Dødsboskattelov30Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, datoer_gyldige: Boolsk, boopgørelsestype_understøttet: Boolsk, indkomstårsforhold_gyldigt: Boolsk, ægtefælleforhold_gyldigt: Boolsk, aktieindkomstgrundlag_gyldigt: Boolsk, skattepligtigt_dødsbo_efter_par1_stk2: Boolsk, skatteberegning_efter_par30_og_par32_klar: Boolsk, beregningsklar: Boolsk, regulerede_satser: Dødsboskattelov30ReguleredeSatser, bobeskatningsindkomstgrundlag_kroner: Heltal, bobeskatningsunderskud_kroner: Heltal, dødsboskattesats_basispoint: Heltal, dødsboskat_før_fradrag_kroner: Heltal, aktieskatteberegning: Dødsboskattelov32Resultat, samlet_skat_før_fradrag_kroner: Heltal, bofradragsmåneder_stk2: Heltal, mellemperiodemåneder_stk3: Heltal, ægtefællefradragsmåneder_stk4: Heltal, bofradrag_stk2_kroner: Heltal, mellemperiodefradrag_stk3_kroner: Heltal, ægtefællefradrag_stk4_kroner: Heltal, samlede_fradrag_kroner: Heltal, anvendte_fradrag_kroner: Heltal, samlet_skat_efter_fradrag_kroner: Heltal, dødsboskat_efter_fradrag_kroner: Heltal, foreløbigt_carryback_efter_par31: Dødsboskattelov31ForeløbigtCarrybackResultat)
 
 | dødsboskattelov30_sats_basispoint() -> 5000
 = dødsboskattelov_par30_ukendt_satskilde = DødsboskattelovPar1Par30KildeInfo(
@@ -95,6 +113,9 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     understøttet = Falskt,
     bofradrag_pr_måned_kroner = 0,
     mellemperiodefradrag_pr_måned_kroner = 0,
+    aktieindkomst_progressionsgrænse_kroner = 0,
+    aktieindkomst_lav_sats_basispoint = 0,
+    aktieindkomst_høj_sats_basispoint = 0,
     kilde = dødsboskattelov_par30_ukendt_satskilde
 )
 | exception dødsboskattelov30_regulerede_satser_2025 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
@@ -102,6 +123,9 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 6900,
     mellemperiodefradrag_pr_måned_kroner = 2500,
+    aktieindkomst_progressionsgrænse_kroner = 67500,
+    aktieindkomst_lav_sats_basispoint = 2700,
+    aktieindkomst_høj_sats_basispoint = 4200,
     kilde = dødsboskattelov_par30_satser_2024_2026
 ) under dødsår == 2025
 | exception dødsboskattelov30_regulerede_satser_2026 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
@@ -109,6 +133,9 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     understøttet = Sandt,
     bofradrag_pr_måned_kroner = 7200,
     mellemperiodefradrag_pr_måned_kroner = 2700,
+    aktieindkomst_progressionsgrænse_kroner = 79400,
+    aktieindkomst_lav_sats_basispoint = 2700,
+    aktieindkomst_høj_sats_basispoint = 4200,
     kilde = dødsboskattelov_par30_satser_2024_2026
 ) under dødsår == 2026
 | dødsboskattelov30_kalenderårets_startdato(dødsdato: Dato) -> Dato(år = dødsdato.år, måned = 1, dag = 1)
@@ -135,7 +162,7 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
 }
 | dødsboskattelov30_datoer_gyldige(input: Dødsboskattelov30Input) -> dato_gyldig(input.dødsdato) && dato_gyldig(input.boopgørelsens_skæringsdag) && dato_før_eller_lig_med(input.dødsdato, input.boopgørelsens_skæringsdag)
 | dødsboskattelov30_boopgørelsestype_understøttet(boopgørelsestype: Dødsboskattelov30Boopgørelsestype) -> boopgørelsestype == Dbl30OrdinærBoopgørelse
-| dødsboskattelov30_input_gyldigt(input: Dødsboskattelov30Input) -> dødsboskattelov30_regulerede_satser(input.dødsdato.år).understøttet && dødsboskattelov30_datoer_gyldige(input) && dødsboskattelov30_boopgørelsestype_understøttet(input.boopgørelsestype) && dødsboskattelov30_indkomstårsforhold_gyldigt(input.dødsdato, input.indkomstårsforhold) && dødsboskattelov30_ægtefælleforhold_gyldigt(input.dødsdato, input.indkomstårsforhold, input.ægtefælleforhold)
+| dødsboskattelov30_input_gyldigt(input: Dødsboskattelov30Input) -> dødsboskattelov30_regulerede_satser(input.dødsdato.år).understøttet && dødsboskattelov30_datoer_gyldige(input) && dødsboskattelov30_boopgørelsestype_understøttet(input.boopgørelsestype) && dødsboskattelov30_indkomstårsforhold_gyldigt(input.dødsdato, input.indkomstårsforhold) && dødsboskattelov30_ægtefælleforhold_gyldigt(input.dødsdato, input.indkomstårsforhold, input.ægtefælleforhold) && dødsboskattelov32_aktieindkomstgrundlag_gyldigt(input.aktieindkomstgrundlag)
 | dødsboskattelov30_inklusive_påbegyndte_måneder(fra_dato: Dato, til_dato: Dato) -> hvis dato_før_eller_lig_med(fra_dato, til_dato) { dato_månedsindeks(til_dato) - dato_månedsindeks(fra_dato) + 1 } ellers { 0 }
 | dødsboskattelov30_bofradragsmåneder_stk2(input: Dødsboskattelov30Input) -> hvis dødsboskattelov30_datoer_gyldige(input) {
     = måneder_efter_dødsmåneden = dato_månedsindeks(input.boopgørelsens_skæringsdag) - dato_månedsindeks(input.dødsdato)
@@ -155,12 +182,19 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     = boopgørelsestype_understøttet = dødsboskattelov30_boopgørelsestype_understøttet(input.boopgørelsestype)
     = indkomstårsforhold_gyldigt = dødsboskattelov30_indkomstårsforhold_gyldigt(input.dødsdato, input.indkomstårsforhold)
     = ægtefælleforhold_gyldigt = dødsboskattelov30_ægtefælleforhold_gyldigt(input.dødsdato, input.indkomstårsforhold, input.ægtefælleforhold)
+    = aktieindkomstgrundlag_gyldigt = dødsboskattelov32_aktieindkomstgrundlag_gyldigt(input.aktieindkomstgrundlag)
     = skattepligtigt_dødsbo = dødsboskattelov1_stk2_skattepligtigt_dødsbo(input.boform)
-    = positiv_bobeskatningsindkomst_understøttet = input.bobeskatningsindkomst_kroner >= 0
-    = aktieskatteforhold_understøttet = input.aktieskatteforhold == Dbl30IngenAktieskatteinteraktion
-    = beregningsklar = input_gyldigt && skattepligtigt_dødsbo && positiv_bobeskatningsindkomst_understøttet && aktieskatteforhold_understøttet
-    = bobeskatningsindkomstgrundlag_kroner = hvis beregningsklar { input.bobeskatningsindkomst_kroner } ellers { 0 }
+    = skatteberegning_efter_par30_og_par32_klar = input_gyldigt && skattepligtigt_dødsbo
+    = bobeskatningsindkomstgrundlag_kroner = hvis skatteberegning_efter_par30_og_par32_klar { penge_positivt_beløb(input.bobeskatningsindkomst_kroner) } ellers { 0 }
+    = bobeskatningsunderskud_kroner = hvis skatteberegning_efter_par30_og_par32_klar { penge_positivt_beløb(0 - input.bobeskatningsindkomst_kroner) } ellers { 0 }
     = dødsboskat_før_fradrag_kroner = penge_beløb_gange_basispoint_kroner(bobeskatningsindkomstgrundlag_kroner, dødsboskattelov30_sats_basispoint())
+    = aktieskatteberegning = dødsboskattelov32_resultat(input.aktieindkomstgrundlag, bobeskatningsunderskud_kroner, regulerede_satser, input.ægtefælleforhold)
+    = samlet_skat_før_nulgrænse_kroner = hvis skatteberegning_efter_par30_og_par32_klar { dødsboskat_før_fradrag_kroner + aktieskatteberegning.positiv_aktieskat_kroner - aktieskatteberegning.negativ_aktieskat_kroner } ellers { 0 }
+    = samlet_skat_før_fradrag_kroner = penge_positivt_beløb(samlet_skat_før_nulgrænse_kroner)
+    = overskydende_negativ_aktieskat_kroner = penge_positivt_beløb(0 - samlet_skat_før_nulgrænse_kroner)
+    = resterende_negativ_bobeskatningsindkomst_kroner = bobeskatningsunderskud_kroner - aktieskatteberegning.bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner
+    = foreløbigt_carryback_efter_par31 = dødsboskattelov31_foreløbigt_carryback(resterende_negativ_bobeskatningsindkomst_kroner, overskydende_negativ_aktieskat_kroner)
+    = beregningsklar = skatteberegning_efter_par30_og_par32_klar && !foreløbigt_carryback_efter_par31.kræver_komplet_skattehistorik
     = bofradragsmåneder_stk2 = hvis input_gyldigt { dødsboskattelov30_bofradragsmåneder_stk2(input) } ellers { 0 }
     = mellemperiodemåneder_stk3 = hvis input_gyldigt { dødsboskattelov30_mellemperiodemåneder_stk3(input) } ellers { 0 }
     = ægtefællefradragsmåneder_stk4 = hvis input_gyldigt { dødsboskattelov30_ægtefællefradragsmåneder_stk4(input) } ellers { 0 }
@@ -168,7 +202,8 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     = mellemperiodefradrag_stk3_kroner = mellemperiodemåneder_stk3 * regulerede_satser.mellemperiodefradrag_pr_måned_kroner
     = ægtefællefradrag_stk4_kroner = ægtefællefradragsmåneder_stk4 * regulerede_satser.mellemperiodefradrag_pr_måned_kroner
     = samlede_fradrag_kroner = bofradrag_stk2_kroner + mellemperiodefradrag_stk3_kroner + ægtefællefradrag_stk4_kroner
-    = anvendte_fradrag_kroner = hvis beregningsklar { penge_mindste_beløb(samlede_fradrag_kroner, dødsboskat_før_fradrag_kroner) } ellers { 0 }
+    = anvendte_fradrag_kroner = hvis beregningsklar { penge_mindste_beløb(samlede_fradrag_kroner, samlet_skat_før_fradrag_kroner) } ellers { 0 }
+    = samlet_skat_efter_fradrag_kroner = hvis beregningsklar { samlet_skat_før_fradrag_kroner - anvendte_fradrag_kroner } ellers { 0 }
     Dødsboskattelov30Resultat(
         input = input,
         input_gyldigt = input_gyldigt,
@@ -177,14 +212,17 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
         boopgørelsestype_understøttet = boopgørelsestype_understøttet,
         indkomstårsforhold_gyldigt = indkomstårsforhold_gyldigt,
         ægtefælleforhold_gyldigt = ægtefælleforhold_gyldigt,
+        aktieindkomstgrundlag_gyldigt = aktieindkomstgrundlag_gyldigt,
         skattepligtigt_dødsbo_efter_par1_stk2 = skattepligtigt_dødsbo,
-        positiv_bobeskatningsindkomst_understøttet = positiv_bobeskatningsindkomst_understøttet,
-        aktieskatteforhold_understøttet = aktieskatteforhold_understøttet,
+        skatteberegning_efter_par30_og_par32_klar = skatteberegning_efter_par30_og_par32_klar,
         beregningsklar = beregningsklar,
         regulerede_satser = regulerede_satser,
         bobeskatningsindkomstgrundlag_kroner = bobeskatningsindkomstgrundlag_kroner,
+        bobeskatningsunderskud_kroner = bobeskatningsunderskud_kroner,
         dødsboskattesats_basispoint = dødsboskattelov30_sats_basispoint(),
         dødsboskat_før_fradrag_kroner = dødsboskat_før_fradrag_kroner,
+        aktieskatteberegning = aktieskatteberegning,
+        samlet_skat_før_fradrag_kroner = samlet_skat_før_fradrag_kroner,
         bofradragsmåneder_stk2 = bofradragsmåneder_stk2,
         mellemperiodemåneder_stk3 = mellemperiodemåneder_stk3,
         ægtefællefradragsmåneder_stk4 = ægtefællefradragsmåneder_stk4,
@@ -193,7 +231,119 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
         ægtefællefradrag_stk4_kroner = ægtefællefradrag_stk4_kroner,
         samlede_fradrag_kroner = samlede_fradrag_kroner,
         anvendte_fradrag_kroner = anvendte_fradrag_kroner,
-        dødsboskat_efter_fradrag_kroner = hvis beregningsklar { dødsboskat_før_fradrag_kroner - anvendte_fradrag_kroner } ellers { 0 }
+        samlet_skat_efter_fradrag_kroner = samlet_skat_efter_fradrag_kroner,
+        dødsboskat_efter_fradrag_kroner = samlet_skat_efter_fradrag_kroner,
+        foreløbigt_carryback_efter_par31 = foreløbigt_carryback_efter_par31
     )
 }
 --@end::dødsboskattelov_par30--
+
+= dødsboskattelov_par31_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par1_par30_lbk426),
+        Guidance(value = dødsboskattelov_par31_carryback_vejledning),
+        Guidance(value = dødsboskattelov_par30_beregningsskema_vejledning),
+    )
+)
+
+--@label:dødsboskattelov_par31::meta:dødsboskattelov_par31_metadata--
+----
+§ 31. Hvis bobeskatningsindkomsten efter modregning af eventuel positiv aktieindkomst i bobeskatningsperioden udviser et underskud, udbetales et beløb svarende til 30 pct. af det resterende beløb til boet. Endvidere udbetales resterende negativ aktieskat efter § 30, stk. 1, 4. pkt.
+
+Stk. 2. Den samlede udbetaling efter stk. 1 kan dog ikke overstige summen af de skatter, afdøde har betalt af skattepligtig indkomst og aktieindkomst i de to senest afsluttede indkomstår forud for dødsfaldet, samt de skatter, en længstlevende ægtefælle har betalt af skattepligtig indkomst og aktieindkomst i de to senest afsluttede indkomstår før dødsfaldet, i dødsåret og i indkomstår, der fuldt ud omfattes af boperioden.
+
+Stk. 3. Skat af indkomst, som er valgt beskattet efter bestemmelsen i kildeskattelovens §§ 48 E og 48 F, indgår ikke ved opgørelsen af betalte skatter efter stk. 2.
+
+Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesboet og afdødes særbo hver for sig, fordeles udbetaling efter stk. 1 mellem de to boer efter forholdet mellem summen af bobeskatningsindkomst og aktieindkomst i bobeskatningsperioden i de to boer. Har det ene bo positiv sum af bobeskatningsindkomst og aktieindkomst i bobeskatningsperioden og det andet negativ sum, udbetales hele beløbet til det bo, der har negativ sum.
+----
+
+--@begin::dødsboskattelov_par31--
+# Dødsboskattelov31ForeløbigtCarrybackResultat(resterende_negativ_bobeskatningsindkomst_kroner: Heltal, underskudsskat_med_30_procent_kroner: Heltal, overskydende_negativ_aktieskat_kroner: Heltal, foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner: Heltal, kræver_komplet_skattehistorik: Boolsk)
+
+| dødsboskattelov31_underskudsskat_basispoint() -> 3000
+| dødsboskattelov31_foreløbigt_carryback(resterende_negativ_bobeskatningsindkomst_kroner: Heltal, overskydende_negativ_aktieskat_kroner: Heltal) -> {
+    = resterende_underskud_kroner = penge_positivt_beløb(resterende_negativ_bobeskatningsindkomst_kroner)
+    = overskydende_aktieskat_kroner = penge_positivt_beløb(overskydende_negativ_aktieskat_kroner)
+    = underskudsskat_kroner = penge_beløb_gange_basispoint_kroner(resterende_underskud_kroner, dødsboskattelov31_underskudsskat_basispoint())
+    = foreløbigt_tilbagebetalingsbeløb_kroner = underskudsskat_kroner + overskydende_aktieskat_kroner
+    Dødsboskattelov31ForeløbigtCarrybackResultat(
+        resterende_negativ_bobeskatningsindkomst_kroner = resterende_underskud_kroner,
+        underskudsskat_med_30_procent_kroner = underskudsskat_kroner,
+        overskydende_negativ_aktieskat_kroner = overskydende_aktieskat_kroner,
+        foreløbigt_tilbagebetalingsbeløb_før_historikloft_kroner = foreløbigt_tilbagebetalingsbeløb_kroner,
+        kræver_komplet_skattehistorik = foreløbigt_tilbagebetalingsbeløb_kroner > 0
+    )
+}
+--@end::dødsboskattelov_par31--
+
+= dødsboskattelov_par32_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par1_par30_lbk426),
+        Guidance(value = dødsboskattelov_par32_aktieindkomst_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2024_2026),
+    )
+)
+
+--@label:dødsboskattelov_par32::meta:dødsboskattelov_par32_metadata--
+----
+§ 32. Skat af afdødes aktieindkomst i bobeskatningsperioden nedsat med eventuelt underskud i bobeskatningsindkomsten, jf. § 30, stk. 5, beregnes således:
+
+1) 27 pct. af beløb, der ikke overstiger beløbsgrænsen i personskattelovens § 8 a, stk. 1, og
+
+2) 42 pct. af beløb, der overstiger beløbsgrænsen i personskattelovens § 8 a, stk. 1.
+
+Stk. 2. Den indeholdte udbytteskat efter kildeskattelovens § 65 indgår ved opgørelsen af de foreløbige indkomstskattebeløb i § 30 a, stk. 4.
+
+Stk. 3. Er aktieindkomsten negativ, beregnes negativ skat med
+
+1) 27 pct. af beløb, der ikke overstiger beløbsgrænsen i personskattelovens § 8 a, stk. 1, og
+
+2) 42 pct. af beløb, der overstiger beløbsgrænsen i personskattelovens § 8 a, stk. 1.
+
+Stk. 4. Skulle afdøde tillige have været beskattet af en tidligere afdød ægtefælles indkomst efter § 62, fordobles beløbsgrænsen efter personskattelovens § 8 a, stk. 1 og 2, ved anvendelsen af stk. 1-3.
+----
+
+--@begin::dødsboskattelov_par32--
+# Dødsboskattelov32Aktieindkomstgrundlag = Dbl32IngenAktieindkomst | Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner: Heltal, dokumentreference: Tekst)
+# Dødsboskattelov32Resultat(grundlag: Dødsboskattelov32Aktieindkomstgrundlag, grundlag_gyldigt: Boolsk, aktieindkomst_før_par30_stk5_kroner: Heltal, bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner: Heltal, aktieindkomst_efter_par30_stk5_kroner: Heltal, effektiv_progressionsgrænse_kroner: Heltal, lavt_skattegrundlag_kroner: Heltal, højt_skattegrundlag_kroner: Heltal, lav_sats_basispoint: Heltal, høj_sats_basispoint: Heltal, positiv_aktieskat_kroner: Heltal, negativ_aktieskat_kroner: Heltal)
+
+| dødsboskattelov32_aktieindkomstgrundlag_gyldigt(grundlag: Dødsboskattelov32Aktieindkomstgrundlag) -> match grundlag {
+    | Dbl32IngenAktieindkomst -> Sandt
+    | Dbl32OpgjortAktieindkomstEfterPar21(_, dokumentreference) -> dokumentreference != ""
+}
+| dødsboskattelov32_aktieindkomst_kroner(grundlag: Dødsboskattelov32Aktieindkomstgrundlag) -> match grundlag {
+    | Dbl32IngenAktieindkomst -> 0
+    | Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner, _) -> aktieindkomst_kroner
+}
+| dødsboskattelov32_progressionsgrænsemultiplikator(ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold) -> match ægtefælleforhold {
+    | Dbl30IntetÆgtefælleforholdEfterPar62 -> 1
+    | Dbl30TidligereAfdødÆgtefælleEfterPar62(_) -> 2
+}
+| dødsboskattelov32_resultat(grundlag: Dødsboskattelov32Aktieindkomstgrundlag, bobeskatningsunderskud_kroner: Heltal, satser: Dødsboskattelov30ReguleredeSatser, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold) -> {
+    = grundlag_gyldigt = dødsboskattelov32_aktieindkomstgrundlag_gyldigt(grundlag)
+    = beregningsgrundlag_gyldigt = grundlag_gyldigt && satser.understøttet
+    = aktieindkomst_før_modregning_kroner = hvis beregningsgrundlag_gyldigt { dødsboskattelov32_aktieindkomst_kroner(grundlag) } ellers { 0 }
+    = positiv_aktieindkomst_kroner = penge_positivt_beløb(aktieindkomst_før_modregning_kroner)
+    = underskud_modregnet_kroner = penge_mindste_beløb(penge_positivt_beløb(bobeskatningsunderskud_kroner), positiv_aktieindkomst_kroner)
+    = aktieindkomst_efter_modregning_kroner = aktieindkomst_før_modregning_kroner - underskud_modregnet_kroner
+    = effektiv_progressionsgrænse_kroner = hvis beregningsgrundlag_gyldigt { satser.aktieindkomst_progressionsgrænse_kroner * dødsboskattelov32_progressionsgrænsemultiplikator(ægtefælleforhold) } ellers { 0 }
+    = absolut_aktieindkomst_kroner = penge_positivt_beløb(aktieindkomst_efter_modregning_kroner) + penge_positivt_beløb(0 - aktieindkomst_efter_modregning_kroner)
+    = lavt_skattegrundlag_kroner = penge_mindste_beløb(absolut_aktieindkomst_kroner, effektiv_progressionsgrænse_kroner)
+    = højt_skattegrundlag_kroner = absolut_aktieindkomst_kroner - lavt_skattegrundlag_kroner
+    = beregnet_aktieskat_kroner = penge_beløb_gange_basispoint_kroner(lavt_skattegrundlag_kroner, satser.aktieindkomst_lav_sats_basispoint) + penge_beløb_gange_basispoint_kroner(højt_skattegrundlag_kroner, satser.aktieindkomst_høj_sats_basispoint)
+    Dødsboskattelov32Resultat(
+        grundlag = grundlag,
+        grundlag_gyldigt = grundlag_gyldigt,
+        aktieindkomst_før_par30_stk5_kroner = aktieindkomst_før_modregning_kroner,
+        bobeskatningsunderskud_modregnet_efter_par30_stk5_kroner = underskud_modregnet_kroner,
+        aktieindkomst_efter_par30_stk5_kroner = aktieindkomst_efter_modregning_kroner,
+        effektiv_progressionsgrænse_kroner = effektiv_progressionsgrænse_kroner,
+        lavt_skattegrundlag_kroner = lavt_skattegrundlag_kroner,
+        højt_skattegrundlag_kroner = højt_skattegrundlag_kroner,
+        lav_sats_basispoint = satser.aktieindkomst_lav_sats_basispoint,
+        høj_sats_basispoint = satser.aktieindkomst_høj_sats_basispoint,
+        positiv_aktieskat_kroner = hvis aktieindkomst_efter_modregning_kroner > 0 { beregnet_aktieskat_kroner } ellers { 0 },
+        negativ_aktieskat_kroner = hvis aktieindkomst_efter_modregning_kroner < 0 { beregnet_aktieskat_kroner } ellers { 0 }
+    )
+}
+--@end::dødsboskattelov_par32--

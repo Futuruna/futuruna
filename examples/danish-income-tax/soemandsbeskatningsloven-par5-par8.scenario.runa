@@ -203,13 +203,29 @@
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
     indkomstårsforhold = Dbl30Kalenderindkomstår,
     ægtefælleforhold = Dbl30TidligereAfdødÆgtefælleEfterPar62(førstafdødes_dødsdato = Dato(år = 2025, måned = 8, dag = 1)),
-    aktieskatteforhold = Dbl30IngenAktieskatteinteraktion
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst
 )
 = søbl_scenarie_dødsbo_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
     indkomster = [søbl_scenarie_dødsbo_fakta],
     skibsårsdrifter = [],
     andre_ligningslov7u_indkomster = [],
     dødsboskattegrundlag = Søbl5Dødsboskattegrundlag(input = søbl_scenarie_dødsboskatteinput),
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+))
+= søbl_scenarie_dødsbo_med_aktieindkomst_år = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
+    indkomster = [søbl_scenarie_dødsbo_fakta],
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = [],
+    dødsboskattegrundlag = Søbl5Dødsboskattegrundlag(input = Dødsboskattelov30Input(
+        boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+        bobeskatningsindkomst_kroner = 600000,
+        dødsdato = Dato(år = 2025, måned = 8, dag = 15),
+        boopgørelsestype = Dbl30OrdinærBoopgørelse,
+        boopgørelsens_skæringsdag = Dato(år = 2025, måned = 8, dag = 31),
+        indkomstårsforhold = Dbl30Kalenderindkomstår,
+        ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+        aktieindkomstgrundlag = Dbl32OpgjortAktieindkomstEfterPar21(aktieindkomst_kroner = 100000, dokumentreference = "boopgørelse-med-aktieindkomst")
+    )),
     kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
 ))
 = søbl_scenarie_dødsbo_manglende_grundlag = søbl5_til8_årsresultat(2025, Søbl5Til8Årsinput(
@@ -235,6 +251,7 @@
 ))
 
 | søbl_scenarie_dødsbo_lempes_i_par30_skatten: søbl_scenarie_dødsbo_år -> søbl_scenarie_dødsbo_år.alle_input_gyldige && søbl_scenarie_dødsbo_år.beregningsklar && søbl_scenarie_dødsbo_år.skattepligtskategori == SøblDødsboSkattepligtKategori && head(søbl_scenarie_dødsbo_år.indkomstresultater).retsgrundlag == SøblPar5Stk1Dødsbo && head(søbl_scenarie_dødsbo_år.indkomstresultater).beskatningsvirkning == SøblNedsættelseAfDødsboskat && søbl_scenarie_dødsbo_år.samlet_dis_personlig_indkomst_kroner == 0 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.relevant && søbl_scenarie_dødsbo_år.dødsbo_lempelse.beregningsklar && søbl_scenarie_dødsbo_år.dødsbo_lempelse.forholdsmæssig_lempelse_kroner == 86666 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.dødsboskat_efter_søbl5_kroner == 173334 && søbl_scenarie_dødsbo_år.dødsbo_lempelse.arbejdsmarkedsbidrag_kroner == 0
+| søbl_scenarie_dødsbo_med_aktieindkomst_fejler_lukket_i_lempelsen: søbl_scenarie_dødsbo_med_aktieindkomst_år -> søbl_scenarie_dødsbo_med_aktieindkomst_år.dødsbo_lempelse.relevant && søbl_scenarie_dødsbo_med_aktieindkomst_år.dødsbo_lempelse.grundlag_tilstede && søbl_scenarie_dødsbo_med_aktieindkomst_år.dødsbo_lempelse.input_gyldigt == Falskt && søbl_scenarie_dødsbo_med_aktieindkomst_år.dødsbo_lempelse.beregningsklar == Falskt && søbl_scenarie_dødsbo_med_aktieindkomst_år.alle_input_gyldige == Falskt && søbl_scenarie_dødsbo_med_aktieindkomst_år.beregningsklar == Falskt
 | søbl_scenarie_dødsbo_mangler_grundlag_fejler_lukket: søbl_scenarie_dødsbo_manglende_grundlag -> søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.relevant && søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.grundlag_tilstede == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.dødsbo_lempelse.beregningsklar == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.alle_input_gyldige == Falskt && søbl_scenarie_dødsbo_manglende_grundlag.beregningsklar == Falskt
 | søbl_scenarie_dødsbo_lempelse_begrænses_til_bobeskatningsindkomsten: søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst -> søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.alle_input_gyldige && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.beregningsklar && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dis_nettoløn_efter_bundfradrag_kroner == 700000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dis_nettoløn_i_forholdsmæssigt_grundlag_kroner == 600000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.forholdsmæssig_lempelse_kroner == 260000 && søbl_scenarie_dødsbo_dis_over_bobeskatningsindkomst.dødsbo_lempelse.dødsboskat_efter_søbl5_kroner == 0
 
@@ -566,6 +583,7 @@
 ? søbl_scenarie_dis_er_uden_am
 ? søbl_scenarie_lempelse_med_progression
 ? søbl_scenarie_dødsbo_lempes_i_par30_skatten
+? søbl_scenarie_dødsbo_med_aktieindkomst_fejler_lukket_i_lempelsen
 ? søbl_scenarie_dødsbo_mangler_grundlag_fejler_lukket
 ? søbl_scenarie_dødsbo_lempelse_begrænses_til_bobeskatningsindkomsten
 ? søbl_scenarie_begrænset_skattepligt_betaler_ingen_dansk_skat

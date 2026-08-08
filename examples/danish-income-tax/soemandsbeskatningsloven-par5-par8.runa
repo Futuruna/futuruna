@@ -612,6 +612,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     andre_indkomster = andre_indkomster
 ).resultat()
 | søbl5_til8_bundfradrag_for_kategori_kroner(kategori: Søbl5Til8Skattepligtskategori, forventet_kategori: Søbl5Til8Skattepligtskategori, ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat) -> hvis kategori == forventet_kategori { ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner } ellers { 0 }
+| søbl5_dødsboskattegrundlag_uden_aktieindkomst(input: Dødsboskattelov30Input) -> input.bobeskatningsindkomst_kroner >= 0 && input.aktieindkomstgrundlag == Dbl32IngenAktieindkomst
 | søbl5_dødsbo_lempelsesresultat(indkomstår: Heltal, kategori: Søbl5Til8Skattepligtskategori, grundlag: Søbl5Dødsboskattegrundlag, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat) -> {
     = relevant = kategori == SøblDødsboSkattepligtKategori
     = dis_nettoløn_før_bundfradrag_kroner = hvis relevant { søbl5_til8_sum_nettoløn_for_beskatningsvirkning_kroner(indkomstresultater, SøblNedsættelseAfDødsboskat) } ellers { 0 }
@@ -634,7 +635,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
         )
         | Søbl5Dødsboskattegrundlag(dødsboskatteinput) -> {
             = dødsboskat = dødsboskattelov30_resultat(dødsboskatteinput)
-            = input_gyldigt = relevant && dødsboskatteinput.dødsdato.år == indkomstår && dødsboskat.input_gyldigt && dødsboskat.skattepligtigt_dødsbo_efter_par1_stk2
+            = input_gyldigt = relevant && dødsboskatteinput.dødsdato.år == indkomstår && dødsboskat.input_gyldigt && dødsboskat.skattepligtigt_dødsbo_efter_par1_stk2 && søbl5_dødsboskattegrundlag_uden_aktieindkomst(dødsboskatteinput)
             = beregningsklar = input_gyldigt && dødsboskat.beregningsklar
             = dis_nettoløn_i_forholdsmæssigt_grundlag_kroner = hvis beregningsklar { søbl5_til8_mindste_beløb(dis_nettoløn_efter_bundfradrag_kroner, dødsboskat.bobeskatningsindkomstgrundlag_kroner) } ellers { 0 }
             = forholdsmæssig_lempelse_kroner = hvis beregningsklar && dødsboskat.bobeskatningsindkomstgrundlag_kroner > 0 { dødsboskat.dødsboskat_efter_fradrag_kroner * dis_nettoløn_i_forholdsmæssigt_grundlag_kroner / dødsboskat.bobeskatningsindkomstgrundlag_kroner } ellers { 0 }
