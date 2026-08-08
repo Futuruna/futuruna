@@ -115,7 +115,8 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
 )
 
 = negativ_aktieskat_ledger_2024 = beregn_personskat(negativ_aktieskat_ledger_input(

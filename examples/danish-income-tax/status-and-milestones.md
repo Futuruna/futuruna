@@ -1,9 +1,10 @@
 # Personskatteloven as Futuruna
 
 Status: active implementation; source-backed calculation gaps remain
-Last updated: 2026-08-07
+Last updated: 2026-08-08
 TD epic: `td-56cf8d`
-Current implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
+Current implementation slice: `td-cf68ed` (Ligningslovens § 33, stk. 1-2, og § 33 F har nu et kildedrevet domæne for almindelig creditlempelse med landelinjer, dokumenteret indkomstskat, direkte og fordelte udgifter, eksportkreditrenter, overenskomstloft og forholdsmæssigt dansk skatteloft; nedslaget indgår valgfrit for både hovedperson og ægtefælle i den kanoniske Personskat-graf og afstemmer den anonymiserede 2025-årsopgørelse præcist)
+Previous implementation slice: `td-33478d` (Sømandsbeskatningslovens § 5-lempelse beregnes nu forholdsmæssigt direkte på de ørepræcise skattekomponenter; hver brøk bevarer tæller og nævner, og både hovedpersonens og ægtefællens kanoniske slutskattevej bruger resultatet uden en mellemprojektion til hele kroner)
 Previous implementation slice: `td-16a9cb` (Personskattelovens procentkomponenter, personfradrag, underskudsgenberegning, skattelofter og AM-bidrag sammensættes nu i øre efter den officielle beregningsvejledning; helkronebeløb er eksplicitte kompatibilitetsprojektioner, og den kanoniske slutskat føres uden rekonstruktion gennem aktieskat, ejendomsskatter og KSL §§ 60-62 C)
 Previous implementation slice: `td-421749` (samtidig fraflytning og skattepligt hos begge ægtefæller udløser ABL § 38-modregning uafhængigt af den ordinære årsslutstatus; når KSL § 4, stk. 6 ophæver det skattemæssige samliv ved fraflytningen, bevares tabskilden som sporbar, men uden selvstændig PSL-medregning, mens modtagerens skattepligtige gevinst reduceres kildeordnet; 30.000 kr. tab mod 100.000 kr. gevinst giver derfor 70.000 kr. aktieindkomst og 18.900 kr. fraflytterskat i begge rolleordener gennem regler og JSON/XLSX)
 Previous implementation slice: `td-1e2380` (en videreført valutaposition bevarer nu begge kollektive KGL § 25-valg fra det foregående indkomstår; årets angivne valghistorik skal matche positionen, så et tidligere lagerprincip hverken kan udelades eller omdøbes for at omgå tilladelseskravet, og det flerårige resultat føres gennem JSON/XLSX)
@@ -47,7 +48,7 @@ Current source-document mapping slice: `td-5a52eb` (AI- eller menneskelæste år
 Previous per-holding provenance slice: `td-4e42fd` (hvert ABL-resultat bevarer sit eget typede markeds- og indberetningsgrundlag gennem § 38, § 13 A og KGL § 32; godkendt)
 Previous mixed exit-tax slice: `td-8e8561` (blandede ABL § 38-porteføljer beregnes som den kanoniske årlige slutskatteforskel med særskilt henstand for realisationsposter; godkendt)
 Previous ABL classification slice: `td-7469fc` (§ 38's aktiver og tab klassificeres fra kildefakta til personlig indkomst, kapitalindkomst eller aktieindkomst; godkendt)
-Current fidelity slice: den anonymiserede årsopgørelse for 2025 har et eksplicit eksternt rapportorakel på 290.590,34 kr.; den kildedrevne Futuruna-beregning giver 290.596,34 kr., og den resterende forskel på 6,00 kr. er isoleret med uafklaret proveniens frem for indbygget i lovreglerne
+Current fidelity slice: den anonymiserede årsopgørelse for 2025 har et eksplicit eksternt rapportorakel på 290.590,34 kr.; rapportens 6,00 kr. i creditlempelse for udenlandsk aktieudbytte er nu identificeret på kildesiden og beregnet efter Ligningslovens § 33, stk. 1-2, og § 33 F, så den kildedrevne Futuruna-beregning afstemmer med en forskel på 0 øre
 Previous canonical integration slice: `td-aea204` (ABL §§ 37-40's signerede aktieindkomstkontekst afledes fra den kanoniske Personskat-graf; afventer uafhængig gennemgang)
 Previous dependency slice: `td-86bd9a` (KGL § 32's identificerede kontrakter, flerårshistorik, tabsrækkefølge og ABL-afledte relationer er ført gennem den kanoniske Personskat-grænse; godkendt)
 Earlier implementation slice: `td-0b0a4b` (ABL §§ 35 G-35 K's valg, kildehændelser og vedvarende overdragerskat er ført gennem den kanoniske Personskat-grænse; afventer uafhængig gennemgang)
@@ -331,10 +332,15 @@ Latest pressure test: en anonymiseret privat årsopgørelse for 2025 er ført
 gennem `personskat-2025-aarsopgoerelse.scenario.runa` uden person-, adresse-
 eller ejendomsidentifikationer. Rapporten er et eksternt orakel på 29.059.034
 øre i beregnet skat, 3.716.680 øre i overskydende skat og 8.200 øre i
-resterende udbetaling. Futurunas kildedrevne skatteberegning giver 29.059.634
-øre. Forskellen på 600 øre står i et typet afstemningsresultat med
-`forskellens_proveniens_afklaret = Falskt`; den er ikke lagt ind som et
-udokumenteret skattenedslag.
+resterende udbetaling. Rapportens beregningsspecifikation viser samtidig 398
+kr. i udenlandsk aktieudbytte i dansk depot, 14.967 kr. i samlet aktieindkomst,
+4.041,09 kr. i dansk aktieskat og 6,00 kr. i betalt udenlandsk skat.
+Ligningslovens § 33, stk. 1-2, og § 33 F giver et forholdsmæssigt dansk
+skatteloft på 107,46 kr.; den mindre udenlandske skat på 6,00 kr. bliver derfor
+nedslaget.
+Futurunas skat før nedslaget er 29.059.634 øre og efter nedslaget 29.059.034
+øre. Det typede afstemningsresultat har nu
+`uforklaret_forskel_øre = 0` og `forskellens_proveniens_afklaret = Sandt`.
 Boligskatterne er ikke længere lokale, forudberegnede formler i scenariet.
 Ejendomsskattelovens regler udleder 80-procentsgrundlagene, 150 af 360 dage,
 ejerandelen og kommunens sats fra vurderings- og periodefakta og beregner
@@ -347,9 +353,18 @@ personfradragsværdi efter § 10 og 3.169 kr. efter § 11. Den afrundede
 lønmodtagerkerne falder fra 312.321 kr. til 280.543 kr.; den særskilte
 øreberegning tilføjer derefter aktie- og boligskatter uden at rekonstruere
 slutskatten fra helkroneprojektioner. Slutbeløbet genberegnes fra det reducerede
-skattegrundlag. Rapportens tilbageværende forskel på 6,00 kr. kræver derfor en
-selvstændig kilde- eller dokumentforklaring; afstemninger skal fastholde lovens
-enhed og afrundingstrin gennem hele beregningskæden.
+skattegrundlag. Den kanoniske Kildeskattelov-slutopgørelse bevarer derefter
+29.067.314 øre i modregnede foreløbige skatter, 82,80 kr. i overskydende skat,
+82 kr. til udbetaling og en rest på 80 øre, præcis som rapporten.
+
+Den genbrugelige § 33-gren fordeler udgifter efter § 33 F, undtager de
+omfattede eksportkreditrenter, begrænser hvert land efter betalt skat,
+dobbeltbeskatningsoverenskomst eller Skatteforvaltningens fastsættelse og
+begrænser til sidst det samlede nedslag til den danske skat. Hovedperson og
+ægtefælle har hver sin valgfrie `Uden`/`Med`-gren i Personskat-inputtet, så en
+almindelig skatteyder ikke skal udfylde kunstige nullinjer. Beregningsmetadata
+giver danske etiketter og kildereferencer til hele den relationelle
+arbejdsbogsflade.
 
 Latest source-document mapping: `personskat-aarsopgoerelse-kildemapping.runa`
 modellerer den grænse, som et AI-interview eller en manuel udfyldelse af
@@ -3494,7 +3509,7 @@ encoded as a temporal rule on top of the consolidation.
 
 ## Implementation Completion Snapshot
 
-As of 2026-08-04, the corpus should be treated as a source-backed first-slice
+As of 2026-08-08, the corpus should be treated as a source-backed first-slice
 full-statute implementation plus an ordinary-taxpayer calculator prototype, not
 as a complete Personskatteloven calculator.
 
@@ -4137,6 +4152,20 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 33, stk. 1-2, og § 33 F er nu implementeret for den
+  almindelige creditlempelse. Hver udenlandsk jurisdiktion bærer bruttoindkomst,
+  direkte udgifter, opkrævningsmåde, betalt skat og et eventuelt overenskomst- eller
+  myndighedsloft; dokumentation og skatteart kontrolleres, formueskat afvises,
+  og fælles udgifter fordeles efter § 33 F, mens omfattede
+  eksportkreditrenter holdes ude. Reglerne beregner både nettoudlandsindkomst,
+  det forholdsmæssige danske skatteloft og det endelige nedslag pr. land og
+  samlet. Den valgfrie gren er ført gennem hovedpersonens og ægtefællens
+  ørepræcise aktieskat, slutskat, årsopgørelse og genererede arbejdsbog. Den
+  anonymiserede 2025-årsopgørelses 398 kr. udenlandske udbytte og 6,00 kr.
+  udenlandske skat giver et dansk loft på 107,46 kr., et nedslag på 6,00 kr.
+  og en endelig afstemningsforskel på 0 øre. Fokus-, kanoniske og virkelige
+  scenarier passerer både interpreter og compiler; backend-, skema- og
+  metadata-kontroller passerer også.
 - Sømandsbeskatningslovens § 5-lempelse har nu et parallelt ørepræcist
   resultatdomæne. Bundskat, historiske og reformerede progressive statsskatter,
   § 8 c, kommune- og kirkeskat fordeles efter deres egne lovbestemte

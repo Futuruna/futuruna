@@ -129,7 +129,8 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 | fraflytter_slutskat_aktieavance(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = særlige_aktiver,
-    udbytter = []
+    udbytter = [],
+    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
 )
 | fraflytter_slutskat_personscenarie(særlige_aktiver: List(PersonskatSærligtAktieaktivFakta)) -> FraflytterSlutskatPersonscenarie(
     aktieavance = fraflytter_slutskat_aktieavance(særlige_aktiver),
@@ -291,7 +292,8 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
 = fraflytter_slutskat_ejendomsskat_aktieavance = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = fraflytter_slutskat_ejendomsskat_tabsår),
     særlige_aktiver = [fraflytter_slutskat_ejendomsskat_gevinstkilde],
-    udbytter = []
+    udbytter = [],
+    ligningslov33_aktieindkomst = UdenLigningslov33Aktieindkomst
 )
 = fraflytter_slutskat_ejendomsskat_fakta = EjendomsskattelovPersonÅrsfakta(
     person = ejendomsskattelov_ingen_person_kildefakta(),

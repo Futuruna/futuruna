@@ -1,0 +1,179 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+-- Ligningsloven § 33, stk. 1-2, og § 33 F - almindelig creditlempelse.
+--
+-- Kilde: Retsinformation, LBK nr. 1500 af 24/11/2025.
+-- Officiel tekst: https://www.retsinformation.dk/eli/lta/2025/1500
+-- XML: https://www.retsinformation.dk/eli/lta/2025/1500/dan/xml
+
+# Ligningslov33KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk1500_par33 = Ligningslov33KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven § 33, stk. 1-2, og § 33 F i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_vejledning_par33_credit = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1977310",
+    identifier = "Den juridiske vejledning 2026-2, C.F.4.1 LL § 33",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_praksis_skm2018_370_sr = Ligningslov33KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2273666",
+    identifier = "SKM2018.370.SR, credit i dansk aktieavanceskat for betalt udenlandsk indkomstskat",
+    hentet_dato = "2026-08-08"
+)
+
+= ligningsloven_par33_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par33),
+        Guidance(value = ligningsloven_vejledning_par33_credit),
+        Practice(value = ligningsloven_praksis_skm2018_370_sr),
+    )
+)
+
+--@label:ligningsloven_par33f::meta:ligningsloven_par33_metadata--
+----
+§ 33 F. Ved beregning af den maksimale nedsættelse af dansk skat, enten i
+henhold til reglerne i ligningslovens § 33 eller i henhold til bestemmelserne
+i en med fremmed stat, med Grønland eller Færøerne indgået overenskomst til
+undgåelse af dobbeltbeskatning, skal der ved opgørelsen af den indkomst, der
+oppebæres fra udlandet, fratrækkes de udgifter, der anses for at vedrøre sådan
+indkomst, jf. dog stk. 3.
+
+Stk. 2. Udgifter, der ikke kan henføres til enten den danske eller den
+udenlandske indkomst, skal fordeles efter forholdet mellem den danske og den
+udenlandske bruttoindkomst, jf. dog stk. 3.
+
+Stk. 3. Såfremt en eksportør yder lån til sin aftager i forbindelse med
+kreditsalg af varer mv., skal renteudgifter mv. som nævnt i § 5, stk. 1, i
+forbindelse hermed ikke fragå ved opgørelsen af den udenlandske indkomst.
+----
+
+--@begin:ligningsloven_par33f--
+
+# Ligningslov33Skatteområde = Ll33FremmedStat(landekode: Tekst) | Ll33Grønland | Ll33Færøerne
+# Ligningslov33Opkrævningsmåde = Ll33DirektePåligning | Ll33Indeholdelse
+# Ligningslov33UdenlandskSkatteart = Ll33Indkomstskat | Ll33SærligIndkomstskat | Ll33Formueskat
+# Ligningslov33Overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst | Ll33OverenskomstensUbetingedeKrav(maksimal_skat_øre: Heltal, dokumentreference: Tekst) | Ll33SkatteforvaltningenFastsatSkat(fradragsberettiget_udenlandsk_skat_øre: Heltal, dokumentreference: Tekst)
+# Ligningslov33LandelinjeFakta(område: Ligningslov33Skatteområde, opkrævningsmåde: Ligningslov33Opkrævningsmåde, udenlandsk_bruttoindkomst_kroner: Heltal, direkte_henførbare_udgifter_kroner: Heltal, betalt_udenlandsk_skat_øre: Heltal, skatteart: Ligningslov33UdenlandskSkatteart, betalingsdokumentreference: Tekst, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag)
+# Ligningslov33Årsinput(dansk_bruttoindkomst_kroner: Heltal, ikke_henførbare_udgifter_kroner: Heltal, eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner: Heltal, landelinjer: List(Ligningslov33LandelinjeFakta))
+# Ligningslov33FLandelinjeResultat(fakta: Ligningslov33LandelinjeFakta, input_gyldigt: Boolsk, fordelt_ikke_henførbar_udgift_kroner: Heltal, nettoindkomst_efter_par33f_kroner: Heltal)
+
+| ligningslov33_uden_kredit_input() -> Ligningslov33Årsinput(
+    dansk_bruttoindkomst_kroner = 0,
+    ikke_henførbare_udgifter_kroner = 0,
+    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    landelinjer = []
+)
+| ligningslov33_skatteområde_gyldigt(område: Ligningslov33Skatteområde) -> match område {
+    | Ll33FremmedStat(landekode) -> landekode != ""
+    | Ll33Grønland -> Sandt
+    | Ll33Færøerne -> Sandt
+}
+| ligningslov33_overenskomstgrundlag_gyldigt(grundlag: Ligningslov33Overenskomstgrundlag) -> match grundlag {
+    | Ll33IngenDobbeltbeskatningsoverenskomst -> Sandt
+    | Ll33OverenskomstensUbetingedeKrav(maksimal_skat_øre, dokumentreference) -> maksimal_skat_øre >= 0 && dokumentreference != ""
+    | Ll33SkatteforvaltningenFastsatSkat(fradragsberettiget_udenlandsk_skat_øre, dokumentreference) -> fradragsberettiget_udenlandsk_skat_øre >= 0 && dokumentreference != ""
+}
+| ligningslov33_skatteart_omfattet(skatteart: Ligningslov33UdenlandskSkatteart) -> match skatteart {
+    | Ll33Indkomstskat -> Sandt
+    | Ll33SærligIndkomstskat -> Sandt
+    | Ll33Formueskat -> Falskt
+}
+| ligningslov33_betalingsdokumentation_gyldig(fakta: Ligningslov33LandelinjeFakta) -> fakta.betalt_udenlandsk_skat_øre == 0 || fakta.betalingsdokumentreference != ""
+| ligningslov33_landelinje_fakta_gyldige(fakta: Ligningslov33LandelinjeFakta) -> ligningslov33_skatteområde_gyldigt(fakta.område) && fakta.udenlandsk_bruttoindkomst_kroner >= 0 && fakta.direkte_henførbare_udgifter_kroner >= 0 && fakta.betalt_udenlandsk_skat_øre >= 0 && ligningslov33_skatteart_omfattet(fakta.skatteart) && ligningslov33_betalingsdokumentation_gyldig(fakta) && ligningslov33_overenskomstgrundlag_gyldigt(fakta.overenskomstgrundlag)
+| ligningslov33_område_antal(linjer: List(Ligningslov33LandelinjeFakta), område: Ligningslov33Skatteområde) -> foldl(linjer, 0, |antal: Heltal, linje: Ligningslov33LandelinjeFakta| antal + hvis linje.område == område { 1 } ellers { 0 })
+| ligningslov33_skatteområder_entydige(linjer: List(Ligningslov33LandelinjeFakta)) -> all(linjer, |linje: Ligningslov33LandelinjeFakta| ligningslov33_område_antal(linjer, linje.område) == 1)
+| ligningslov33_samlet_udenlandsk_bruttoindkomst_kroner(input: Ligningslov33Årsinput) -> foldl(input.landelinjer, 0, |sum: Heltal, linje: Ligningslov33LandelinjeFakta| sum + linje.udenlandsk_bruttoindkomst_kroner)
+| ligningslov33_par33f_fordelingsgrundlag_kroner(input: Ligningslov33Årsinput) -> input.dansk_bruttoindkomst_kroner + ligningslov33_samlet_udenlandsk_bruttoindkomst_kroner(input)
+| ligningslov33_par33f_fordelingsudgifter_kroner(input: Ligningslov33Årsinput) -> input.ikke_henførbare_udgifter_kroner - input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner
+| ligningslov33_par33f_fordelt_udgift_kroner(input: Ligningslov33Årsinput, fakta: Ligningslov33LandelinjeFakta) -> hvis ligningslov33_par33f_fordelingsgrundlag_kroner(input) > 0 {
+    ligningslov33_par33f_fordelingsudgifter_kroner(input) * fakta.udenlandsk_bruttoindkomst_kroner / ligningslov33_par33f_fordelingsgrundlag_kroner(input)
+} ellers {
+    0
+}
+| ligningslov33_par33f_nettoindkomst_kroner(input: Ligningslov33Årsinput, fakta: Ligningslov33LandelinjeFakta) -> penge_positivt_beløb(fakta.udenlandsk_bruttoindkomst_kroner - fakta.direkte_henførbare_udgifter_kroner - ligningslov33_par33f_fordelt_udgift_kroner(input, fakta))
+| ligningslov33_årsinput_gyldigt(input: Ligningslov33Årsinput) -> input.dansk_bruttoindkomst_kroner >= 0 && input.ikke_henførbare_udgifter_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner >= 0 && input.eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner <= input.ikke_henførbare_udgifter_kroner && all(input.landelinjer, ligningslov33_landelinje_fakta_gyldige) && ligningslov33_skatteområder_entydige(input.landelinjer)
+| ligningslov33_par33f_landelinje_resultat(input: Ligningslov33Årsinput, fakta: Ligningslov33LandelinjeFakta) -> Ligningslov33FLandelinjeResultat(
+    fakta = fakta,
+    input_gyldigt = ligningslov33_årsinput_gyldigt(input) && ligningslov33_landelinje_fakta_gyldige(fakta),
+    fordelt_ikke_henførbar_udgift_kroner = hvis ligningslov33_årsinput_gyldigt(input) { ligningslov33_par33f_fordelt_udgift_kroner(input, fakta) } ellers { 0 },
+    nettoindkomst_efter_par33f_kroner = hvis ligningslov33_årsinput_gyldigt(input) { ligningslov33_par33f_nettoindkomst_kroner(input, fakta) } ellers { 0 }
+)
+| ligningslov33_par33f_landelinje_resultater(input: Ligningslov33Årsinput) -> map(input.landelinjer, |fakta: Ligningslov33LandelinjeFakta| ligningslov33_par33f_landelinje_resultat(input, fakta))
+
+--@end:ligningsloven_par33f--
+
+--@label:ligningsloven_par33::meta:ligningsloven_par33_metadata--
+----
+§ 33. Skat, der er betalt til fremmed stat, til Grønland eller til Færøerne og
+opkrævet af indkomst fra kilder dér, det være sig ved direkte påligning eller
+ved indeholdelse, kan fradrages i de indkomstskatter til stat og kommune, der
+skal svares af denne indkomst i Danmark. Fradragsbeløbet skal dog ikke kunne
+overstige den del af den samlede danske skat, der efter forholdet mellem den i
+fremmed stat, i Grønland eller på Færøerne beskattede del af indkomsten og hele
+den i Danmark beskattede indkomst falder på førstnævnte del af indkomsten.
+
+Stk. 2. Såfremt der med den fremmede stat, med Grønland eller med Færøerne er
+indgået en overenskomst til undgåelse af dobbeltbeskatning, skal der dog ikke
+gives fradrag for et større skattebeløb end det, som denne stat, Grønland eller
+Færøerne efter overenskomsten har et ubetinget krav på at oppebære.
+----
+
+--@begin:ligningsloven_par33--
+
+# Ligningslov33DanskSkattekreds(samlet_beskattet_indkomst_kroner: Heltal, dansk_skat_før_nedslag_øre: Heltal)
+# Ligningslov33LandelinjeResultat(par33f: Ligningslov33FLandelinjeResultat, dansk_skattekreds_gyldig: Boolsk, udenlandsk_skat_efter_overenskomst_øre: Heltal, proportionalt_dansk_skatteloft_øre: Heltal, nedslag_øre: Heltal)
+# Ligningslov33Årsresultat(input: Ligningslov33Årsinput, dansk_skattekreds: Ligningslov33DanskSkattekreds, par33f_landelinjer: List(Ligningslov33FLandelinjeResultat), landelinjer: List(Ligningslov33LandelinjeResultat), input_gyldigt: Boolsk, samlet_nedslag_før_skattecap_øre: Heltal, samlet_nedslag_øre: Heltal)
+
+| ligningslov33_dansk_skattekreds_gyldig(skattekreds: Ligningslov33DanskSkattekreds) -> skattekreds.samlet_beskattet_indkomst_kroner >= 0 && skattekreds.dansk_skat_før_nedslag_øre >= 0
+| ligningslov33_udenlandsk_skat_efter_overenskomst_øre(fakta: Ligningslov33LandelinjeFakta) -> match fakta.overenskomstgrundlag {
+    | Ll33IngenDobbeltbeskatningsoverenskomst -> fakta.betalt_udenlandsk_skat_øre
+    | Ll33OverenskomstensUbetingedeKrav(maksimal_skat_øre, _) -> penge_mindste_beløb(fakta.betalt_udenlandsk_skat_øre, maksimal_skat_øre)
+    | Ll33SkatteforvaltningenFastsatSkat(fradragsberettiget_udenlandsk_skat_øre, _) -> penge_mindste_beløb(fakta.betalt_udenlandsk_skat_øre, fradragsberettiget_udenlandsk_skat_øre)
+}
+| ligningslov33_proportionalt_dansk_skatteloft_øre(skattekreds: Ligningslov33DanskSkattekreds, nettoindkomst_efter_par33f_kroner: Heltal) -> hvis ligningslov33_dansk_skattekreds_gyldig(skattekreds) && skattekreds.samlet_beskattet_indkomst_kroner > 0 {
+    penge_mindste_beløb(
+        skattekreds.dansk_skat_før_nedslag_øre,
+        skattekreds.dansk_skat_før_nedslag_øre * nettoindkomst_efter_par33f_kroner / skattekreds.samlet_beskattet_indkomst_kroner
+    )
+} ellers {
+    0
+}
+| ligningslov33_landelinje_resultat(skattekreds: Ligningslov33DanskSkattekreds, par33f: Ligningslov33FLandelinjeResultat) -> {
+    = skattekreds_gyldig = ligningslov33_dansk_skattekreds_gyldig(skattekreds)
+    = udenlandsk_skat_efter_overenskomst_øre = hvis par33f.input_gyldigt && skattekreds_gyldig { ligningslov33_udenlandsk_skat_efter_overenskomst_øre(par33f.fakta) } ellers { 0 }
+    = proportionalt_dansk_skatteloft_øre = hvis par33f.input_gyldigt && skattekreds_gyldig { ligningslov33_proportionalt_dansk_skatteloft_øre(skattekreds, par33f.nettoindkomst_efter_par33f_kroner) } ellers { 0 }
+    Ligningslov33LandelinjeResultat(
+        par33f = par33f,
+        dansk_skattekreds_gyldig = skattekreds_gyldig,
+        udenlandsk_skat_efter_overenskomst_øre = udenlandsk_skat_efter_overenskomst_øre,
+        proportionalt_dansk_skatteloft_øre = proportionalt_dansk_skatteloft_øre,
+        nedslag_øre = penge_mindste_beløb(udenlandsk_skat_efter_overenskomst_øre, proportionalt_dansk_skatteloft_øre)
+    )
+}
+| ligningslov33_landelinje_resultater(skattekreds: Ligningslov33DanskSkattekreds, par33f_landelinjer: List(Ligningslov33FLandelinjeResultat)) -> map(par33f_landelinjer, |par33f: Ligningslov33FLandelinjeResultat| ligningslov33_landelinje_resultat(skattekreds, par33f))
+| ligningslov33_samlet_nedslag_øre(linjer: List(Ligningslov33LandelinjeResultat)) -> foldl(linjer, 0, |sum: Heltal, linje: Ligningslov33LandelinjeResultat| sum + linje.nedslag_øre)
+| ligningslov33_årsresultat(input: Ligningslov33Årsinput, skattekreds: Ligningslov33DanskSkattekreds) -> {
+    = par33f_landelinjer = ligningslov33_par33f_landelinje_resultater(input)
+    = landelinjer = ligningslov33_landelinje_resultater(skattekreds, par33f_landelinjer)
+    = input_gyldigt = ligningslov33_årsinput_gyldigt(input) && ligningslov33_dansk_skattekreds_gyldig(skattekreds)
+    = samlet_nedslag_før_skattecap_øre = hvis input_gyldigt { ligningslov33_samlet_nedslag_øre(landelinjer) } ellers { 0 }
+    Ligningslov33Årsresultat(
+        input = input,
+        dansk_skattekreds = skattekreds,
+        par33f_landelinjer = par33f_landelinjer,
+        landelinjer = landelinjer,
+        input_gyldigt = input_gyldigt,
+        samlet_nedslag_før_skattecap_øre = samlet_nedslag_før_skattecap_øre,
+        samlet_nedslag_øre = penge_mindste_beløb(samlet_nedslag_før_skattecap_øre, skattekreds.dansk_skat_før_nedslag_øre)
+    )
+}
+
+--@end:ligningsloven_par33--

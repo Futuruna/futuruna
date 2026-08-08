@@ -1,0 +1,182 @@
+@ sprog da
+
+@ importer ./ligningsloven - par33
+
+= ll33_scenarie_årsopgørelse2025_input = Ligningslov33Årsinput(
+    dansk_bruttoindkomst_kroner = 14569,
+    ikke_henførbare_udgifter_kroner = 0,
+    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    landelinjer = [
+        Ligningslov33LandelinjeFakta(
+            område = Ll33FremmedStat("anonymiseret"),
+            opkrævningsmåde = Ll33Indeholdelse,
+            udenlandsk_bruttoindkomst_kroner = 398,
+            direkte_henførbare_udgifter_kroner = 0,
+            betalt_udenlandsk_skat_øre = 600,
+            skatteart = Ll33Indkomstskat,
+            betalingsdokumentreference = "Privat årsopgørelse 2025, side 4: udenlandsk skat",
+            overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
+                fradragsberettiget_udenlandsk_skat_øre = 600,
+                dokumentreference = "Privat årsopgørelse 2025, side 4: specifikation af nedslag"
+            )
+        ),
+    ]
+)
+= ll33_scenarie_årsopgørelse2025 = ligningslov33_årsresultat(
+    ll33_scenarie_årsopgørelse2025_input,
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 14967,
+        dansk_skat_før_nedslag_øre = 404109
+    )
+)
+
+= ll33_scenarie_proportionalt_loft = ligningslov33_årsresultat(
+    Ligningslov33Årsinput(
+        dansk_bruttoindkomst_kroner = 90000,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        landelinjer = [
+            Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("AA"),
+                opkrævningsmåde = Ll33DirektePåligning,
+                udenlandsk_bruttoindkomst_kroner = 10000,
+                direkte_henførbare_udgifter_kroner = 0,
+                betalt_udenlandsk_skat_øre = 500000,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Betalingsbilag AA-2025",
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    ),
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 100000,
+        dansk_skat_før_nedslag_øre = 2700000
+    )
+)
+
+= ll33_scenarie_overenskomstloft = ligningslov33_årsresultat(
+    Ligningslov33Årsinput(
+        dansk_bruttoindkomst_kroner = 20000,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        landelinjer = [
+            Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("BB"),
+                opkrævningsmåde = Ll33Indeholdelse,
+                udenlandsk_bruttoindkomst_kroner = 80000,
+                direkte_henførbare_udgifter_kroner = 0,
+                betalt_udenlandsk_skat_øre = 2000000,
+                skatteart = Ll33SærligIndkomstskat,
+                betalingsdokumentreference = "Betalingsbilag BB-2025",
+                overenskomstgrundlag = Ll33OverenskomstensUbetingedeKrav(
+                    maksimal_skat_øre = 1500000,
+                    dokumentreference = "DBO BB-Danmark, artikel 22"
+                )
+            ),
+        ]
+    ),
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 100000,
+        dansk_skat_før_nedslag_øre = 2700000
+    )
+)
+
+= ll33_scenarie_par33f = ligningslov33_årsresultat(
+    Ligningslov33Årsinput(
+        dansk_bruttoindkomst_kroner = 60000,
+        ikke_henførbare_udgifter_kroner = 10000,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 2000,
+        landelinjer = [
+            Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("CC"),
+                opkrævningsmåde = Ll33DirektePåligning,
+                udenlandsk_bruttoindkomst_kroner = 40000,
+                direkte_henførbare_udgifter_kroner = 1000,
+                betalt_udenlandsk_skat_øre = 500000,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Betalingsbilag CC-2025",
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    ),
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 90000,
+        dansk_skat_før_nedslag_øre = 2400000
+    )
+)
+
+= ll33_scenarie_dobbelt_område = ligningslov33_årsresultat(
+    Ligningslov33Årsinput(
+        dansk_bruttoindkomst_kroner = 1000,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        landelinjer = [
+            Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("DD"),
+                opkrævningsmåde = Ll33Indeholdelse,
+                udenlandsk_bruttoindkomst_kroner = 100,
+                direkte_henførbare_udgifter_kroner = 0,
+                betalt_udenlandsk_skat_øre = 100,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Betalingsbilag DD-1",
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+            Ligningslov33LandelinjeFakta(
+                område = Ll33FremmedStat("DD"),
+                opkrævningsmåde = Ll33DirektePåligning,
+                udenlandsk_bruttoindkomst_kroner = 200,
+                direkte_henførbare_udgifter_kroner = 0,
+                betalt_udenlandsk_skat_øre = 200,
+                skatteart = Ll33Indkomstskat,
+                betalingsdokumentreference = "Betalingsbilag DD-2",
+                overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+            ),
+        ]
+    ),
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 1300,
+        dansk_skat_før_nedslag_øre = 35100
+    )
+)
+
+| ll33_scenarie_kildekrav_resultat(skatteart: Ligningslov33UdenlandskSkatteart, betalingsdokumentreference: Tekst) -> ligningslov33_årsresultat(
+    Ligningslov33Årsinput(
+        dansk_bruttoindkomst_kroner = 9000,
+        ikke_henførbare_udgifter_kroner = 0,
+        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        landelinjer = [Ligningslov33LandelinjeFakta(
+            område = Ll33FremmedStat("EE"),
+            opkrævningsmåde = Ll33Indeholdelse,
+            udenlandsk_bruttoindkomst_kroner = 1000,
+            direkte_henførbare_udgifter_kroner = 0,
+            betalt_udenlandsk_skat_øre = 27000,
+            skatteart = skatteart,
+            betalingsdokumentreference = betalingsdokumentreference,
+            overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
+        )]
+    ),
+    Ligningslov33DanskSkattekreds(
+        samlet_beskattet_indkomst_kroner = 10000,
+        dansk_skat_før_nedslag_øre = 270000
+    )
+)
+= ll33_scenarie_formueskat = ll33_scenarie_kildekrav_resultat(Ll33Formueskat, "Betalingsbilag EE-formueskat")
+= ll33_scenarie_udokumenteret_indkomstskat = ll33_scenarie_kildekrav_resultat(Ll33Indkomstskat, "")
+
+| ll33_scenarie_årsopgørelse_forklarer_seks_kroner: ll33_scenarie_årsopgørelse2025 -> ll33_scenarie_årsopgørelse2025.input_gyldigt && head(ll33_scenarie_årsopgørelse2025.landelinjer).proportionalt_dansk_skatteloft_øre == 10746 && head(ll33_scenarie_årsopgørelse2025.landelinjer).udenlandsk_skat_efter_overenskomst_øre == 600 && ll33_scenarie_årsopgørelse2025.samlet_nedslag_øre == 600
+| ll33_scenarie_proportionalt_loft_begrænser: ll33_scenarie_proportionalt_loft -> ll33_scenarie_proportionalt_loft.input_gyldigt && head(ll33_scenarie_proportionalt_loft.landelinjer).proportionalt_dansk_skatteloft_øre == 270000 && ll33_scenarie_proportionalt_loft.samlet_nedslag_øre == 270000
+| ll33_scenarie_overenskomst_begrænser: ll33_scenarie_overenskomstloft -> ll33_scenarie_overenskomstloft.input_gyldigt && head(ll33_scenarie_overenskomstloft.landelinjer).proportionalt_dansk_skatteloft_øre == 2160000 && ll33_scenarie_overenskomstloft.samlet_nedslag_øre == 1500000
+| ll33_scenarie_par33f_fordeler_netto: ll33_scenarie_par33f -> ll33_scenarie_par33f.input_gyldigt && head(ll33_scenarie_par33f.par33f_landelinjer).fordelt_ikke_henførbar_udgift_kroner == 3200 && head(ll33_scenarie_par33f.par33f_landelinjer).nettoindkomst_efter_par33f_kroner == 35800
+| ll33_scenarie_dobbelt_område_afvises: ll33_scenarie_dobbelt_område -> ll33_scenarie_dobbelt_område.input_gyldigt == Falskt && ll33_scenarie_dobbelt_område.samlet_nedslag_øre == 0
+| ll33_scenarie_formueskat_afvises: ll33_scenarie_formueskat -> ll33_scenarie_formueskat.input_gyldigt == Falskt && ll33_scenarie_formueskat.samlet_nedslag_øre == 0
+| ll33_scenarie_udokumenteret_skat_afvises: ll33_scenarie_udokumenteret_indkomstskat -> ll33_scenarie_udokumenteret_indkomstskat.input_gyldigt == Falskt && ll33_scenarie_udokumenteret_indkomstskat.samlet_nedslag_øre == 0
+
+? ll33_scenarie_årsopgørelse_forklarer_seks_kroner
+? ll33_scenarie_proportionalt_loft_begrænser
+? ll33_scenarie_overenskomst_begrænser
+? ll33_scenarie_par33f_fordeler_netto
+? ll33_scenarie_dobbelt_område_afvises
+? ll33_scenarie_formueskat_afvises
+? ll33_scenarie_udokumenteret_skat_afvises
+
+@ print("Ligningsloven § 33: 7 credit-, kilde- og nettoscenarier kontrolleret")
