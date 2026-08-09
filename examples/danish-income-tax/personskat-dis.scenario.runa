@@ -25,6 +25,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = sømandsbeskatning
 )
 | personskat_dis_lønmodtager(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatLønmodtagerInput(

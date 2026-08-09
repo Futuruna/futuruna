@@ -1,0 +1,99 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| personskat_par19_navngivningskontekst() -> MedNavngivningsskattekontekst(
+    retsgrundlag = BarnUdenForÆgteskab,
+    barnets_bopæl = HosDenAndenForælder,
+    forsørger_eller_bidragspligt_over_for_det_offentlige = Sandt
+)
+| personskat_par19_fødselsbidrag(rolle: Børnebidragslov19Skatterolle) -> Børnebidragslov19BidragFakta(
+    identifikation = "personskat-fødselsbidrag-2025",
+    indkomstår = 2025,
+    rolle = rolle,
+    hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
+    bidragsart = Fødselsbidrag,
+    bidragsydergrundlag = Far,
+    retlig_modtager = Moderen,
+    fastsættelse = FastsatAfFamilieretshuset,
+    fastsættelsesdato = Dato(år = 2025, måned = 1, dag = 10),
+    forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen,
+    forfaldsdato = Dato(år = 2025, måned = 1, dag = 10),
+    betalingsdato = Dato(år = 2025, måned = 1, dag = 10),
+    beløb_kroner = 976,
+    barnets_identifikation = "barn-2025",
+    navngivningsskattekontekst = UdenNavngivningsskattekontekst
+)
+| personskat_par19_navngivningsbidrag() -> Børnebidragslov19BidragFakta(
+    identifikation = "personskat-navngivningsbidrag-2025",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
+    bidragsart = NavngivningsbidragHerunderDåb,
+    bidragsydergrundlag = Far,
+    retlig_modtager = Moderen,
+    fastsættelse = FastsatAfFamilieretshuset,
+    fastsættelsesdato = Dato(år = 2025, måned = 2, dag = 1),
+    forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen,
+    forfaldsdato = Dato(år = 2025, måned = 2, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 2, dag = 1),
+    beløb_kroner = 1419,
+    barnets_identifikation = "barn-2025",
+    navngivningsskattekontekst = personskat_par19_navngivningskontekst()
+)
+| personskat_par19_personlig_indkomst(input: Børnebidragslov19Årsinput) -> {
+    = tom = personskat_ingen_personlig_indkomst()
+    PersonskatPersonligIndkomstInput(
+        etableringskonto = tom.etableringskonto,
+        ordinære_forhold = tom.ordinære_forhold,
+        underholdsbidrag = tom.underholdsbidrag,
+        børnebidragslov19_bidrag = input,
+        sømandsbeskatning = tom.sømandsbeskatning
+    )
+}
+| personskat_par19_lønmodtager(input: Børnebidragslov19Årsinput) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_par19_personlig_indkomst(input),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_par19_input(input: Børnebidragslov19Årsinput) -> PersonskatInput(
+    lønmodtager = personskat_par19_lønmodtager(input),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_par19_baseline = beregn_personskat(personskat_par19_input(børnebidragslov19_tomt_årsinput()))
+= personskat_par19_fødselsbidrag_yder = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))])))
+= personskat_par19_navngivningsbidrag_yder = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_navngivningsbidrag()])))
+= personskat_par19_fødselsbidrag_mor = beregn_personskat(personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(MorSomRetligBidragsmodtager)])))
+
+| personskat_par19_fødselsbidrag_giver_ikke_fradrag: personskat_par19_fødselsbidrag_yder -> personskat_par19_fødselsbidrag_yder.personlig_indkomst.børnebidragslov19_bidrag.kan_sammensættes && personskat_par19_fødselsbidrag_yder.personlig_indkomst.børnebidragslov19_bidrag.samlet_ligningsmæssigt_fradrag_kroner == 0 && personskat_par19_fødselsbidrag_yder.skat.samlede_ligningsmæssige_fradrag_kroner == personskat_par19_baseline.skat.samlede_ligningsmæssige_fradrag_kroner && personskat_par19_fødselsbidrag_yder.slutskat_øre == personskat_par19_baseline.slutskat_øre
+| personskat_par19_navngivningsbidrag_giver_børnefradrag: personskat_par19_navngivningsbidrag_yder -> personskat_par19_navngivningsbidrag_yder.personlig_indkomst.børnebidragslov19_bidrag.kan_sammensættes && personskat_par19_navngivningsbidrag_yder.personlig_indkomst.børnebidragslov19_bidrag.samlet_ligningsmæssigt_fradrag_kroner == 1419 && personskat_par19_navngivningsbidrag_yder.skat.samlede_ligningsmæssige_fradrag_kroner == personskat_par19_baseline.skat.samlede_ligningsmæssige_fradrag_kroner + 1419 && personskat_par19_navngivningsbidrag_yder.slutskat_øre < personskat_par19_baseline.slutskat_øre
+| personskat_par19_moderens_uafklarede_beskatning_stoppe_beregningen: personskat_par19_fødselsbidrag_mor -> personskat_par19_fødselsbidrag_mor.personlig_indkomst.børnebidragslov19_bidrag.alle_input_gyldige && personskat_par19_fødselsbidrag_mor.personlig_indkomst.børnebidragslov19_bidrag.alle_modtagerbeskatninger_kildeafklarede == Falskt && personskat_par19_fødselsbidrag_mor.personlig_indkomst.alle_input_gyldige == Falskt
+
+# PersonskatPar19Arbejdsbogskilde = FødselsbidragBetalt2025 | NavngivningsbidragBetalt2025
+
+@ calculate("§ 19-bidrag til kanonisk Personskat-arbejdsbog")
+| personskat_par19_kildefakta_til_arbejdsbog(kilde: PersonskatPar19Arbejdsbogskilde) -> match kilde {
+    | FødselsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_fødselsbidrag(Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt))]))
+    | NavngivningsbidragBetalt2025 -> personskat_par19_input(Børnebidragslov19Årsinput(bidrag = [personskat_par19_navngivningsbidrag()]))
+}
+
+? personskat_par19_fødselsbidrag_giver_ikke_fradrag
+? personskat_par19_navngivningsbidrag_giver_børnefradrag
+? personskat_par19_moderens_uafklarede_beskatning_stoppe_beregningen

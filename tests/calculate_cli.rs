@@ -19320,6 +19320,100 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
 }
 
 #[test]
+fn personskat_par19_contributions_round_trip_through_generated_workbook() {
+    let source_scenario = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat-par19-bidrag.scenario.runa");
+    let (source_output, workbook_output) =
+        round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
+            &source_scenario,
+            "personskat_par19_kildefakta_til_arbejdsbog",
+            &[
+                (
+                    "personskat-par19-foedselsbidrag-2025",
+                    "FødselsbidragBetalt2025",
+                ),
+                (
+                    "personskat-par19-navngivningsbidrag-2025",
+                    "NavngivningsbidragBetalt2025",
+                ),
+            ],
+            |workbook_path| {
+                let mut workbook =
+                    open_workbook_auto(workbook_path).expect("Personskat § 19 workbook");
+                let sheet = workbook_collection_sheet_name(
+                    &mut workbook,
+                    "lønmodtager.personlig_indkomst.børnebidragslov19_bidrag.bidrag",
+                );
+                let paths = workbook_column_paths(&mut workbook, &sheet);
+                let headers = workbook_headers(&mut workbook, &sheet);
+                for (path, label) in [
+                    ("identifikation", "§ 19-bidragets identifikation"),
+                    ("rolle.$variant", "Personens skattemæssige rolle i § 19-bidraget"),
+                    ("bidragsart.$variant", "§ 19-bidragets art"),
+                    (
+                        "retlig_modtager.$variant",
+                        "§ 19-bidragets retlige modtager",
+                    ),
+                    ("beløb_kroner", "Betalt eller modtaget § 19-bidrag"),
+                    (
+                        "navngivningsskattekontekst.MedNavngivningsskattekontekst.retsgrundlag.$variant",
+                        "Navngivningsbidragets familiemæssige skattegrundlag",
+                    ),
+                ] {
+                    let column = paths
+                        .iter()
+                        .position(|candidate| candidate == path)
+                        .unwrap_or_else(|| panic!("missing § 19 contribution path {path}"));
+                    assert_eq!(headers[column + 3], label);
+                }
+            },
+        );
+
+    let birth_source = &source_output["results"][0]["result"]["lønmodtager"]["personlig_indkomst"]
+        ["børnebidragslov19_bidrag"]["bidrag"][0];
+    assert_eq!(
+        birth_source["identifikation"],
+        "personskat-fødselsbidrag-2025"
+    );
+    assert_eq!(birth_source["bidragsart"]["$variant"], "Fødselsbidrag");
+    assert_eq!(birth_source["beløb_kroner"], 976);
+
+    let naming_source = &source_output["results"][1]["result"]["lønmodtager"]["personlig_indkomst"]
+        ["børnebidragslov19_bidrag"]["bidrag"][0];
+    assert_eq!(
+        naming_source["bidragsart"]["$variant"],
+        "NavngivningsbidragHerunderDåb"
+    );
+    assert_eq!(naming_source["beløb_kroner"], 1_419);
+    assert_eq!(
+        naming_source["navngivningsskattekontekst"]["$variant"],
+        "MedNavngivningsskattekontekst"
+    );
+
+    let birth_result =
+        &workbook_output["results"][0]["result"]["personlig_indkomst"]["børnebidragslov19_bidrag"];
+    assert_eq!(birth_result["resultater"][0]["officiel_sats_kroner"], 976);
+    assert_eq!(birth_result["samlet_ligningsmæssigt_fradrag_kroner"], 0);
+    assert!(birth_result["kan_sammensættes"].as_bool().unwrap());
+
+    let naming_result =
+        &workbook_output["results"][1]["result"]["personlig_indkomst"]["børnebidragslov19_bidrag"];
+    assert_eq!(
+        naming_result["resultater"][0]["officiel_sats_kroner"],
+        1_419
+    );
+    assert_eq!(
+        naming_result["resultater"][0]["ligningsmæssigt_fradrag_kroner"],
+        1_419
+    );
+    assert_eq!(
+        naming_result["samlet_ligningsmæssigt_fradrag_kroner"],
+        1_419
+    );
+    assert!(naming_result["kan_sammensættes"].as_bool().unwrap());
+}
+
+#[test]
 fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");

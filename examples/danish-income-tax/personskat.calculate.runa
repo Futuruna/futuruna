@@ -13482,6 +13482,7 @@
         forenings_og_arbejdsløshedsydelser = input.ordinære_forhold.forenings_og_arbejdsløshedsydelser
     ),
     underholdsbidrag = input.underholdsbidrag,
+    børnebidragslov19_bidrag = input.børnebidragslov19_bidrag,
     sømandsbeskatning = input.sømandsbeskatning
 )
 | personskat_ll9g_befordringsforhold_bevares(forhold: PersonskatBefordringsfradragFakta, koordinering: PersonskatLigningslov9GKoordinering) -> forhold.befordringsformål != IndtægtsgivendeArbejdsplads || personskat_ll9g_kilde_bevares(
@@ -16068,6 +16069,7 @@ fraflytningen."
         etableringskonto = resultat.etableringskonto,
         ordinære_forhold = ordinære_forhold,
         underholdsbidrag = resultat.underholdsbidrag,
+        børnebidragslov19_bidrag = resultat.børnebidragslov19_bidrag,
         sømandsbeskatning = resultat.sømandsbeskatning,
         alle_input_gyldige = resultat.alle_input_gyldige && input_gyldigt,
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner + hvis input_gyldigt { regulering.arbejdsmarkedsbidragsgrundlag_regulering_kroner } ellers { 0 },

@@ -6,6 +6,7 @@
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
     underholdsbidrag = underholdsbidrag,
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_underhold_scenarie_lønmodtager(underholdsbidrag: Ligningslov10Og11Årsinput) -> PersonskatLønmodtagerInput(

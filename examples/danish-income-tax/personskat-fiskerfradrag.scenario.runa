@@ -281,6 +281,7 @@
         forenings_og_arbejdsløshedsydelser = []
     ),
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_fiskerfradrag_input_med_ligningsfradrag_personlig_indkomst_og_bruttoløn(ligningsfradrag: PersonskatLigningsfradragInput, personlig_indkomst: PersonskatPersonligIndkomstInput, bruttoløn_kroner: Heltal) -> PersonskatInput(
@@ -324,6 +325,7 @@
         forenings_og_arbejdsløshedsydelser = []
     ),
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_fiskerfradrag_overgangsregistrering(identifikation: Tekst, fra_måned: Heltal, fra_dag: Heltal, til_måned: Heltal, til_dag: Heltal) -> Ligningslov9GRegistreringsperiode(

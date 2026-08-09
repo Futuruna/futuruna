@@ -421,6 +421,72 @@
     unit = None
 )
 
+= personskat_par19_felt_samling = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag),
+    label = "Bidrag ved fødsel, barsel, navngivning eller abort",
+    question = Some("Hvilke bidrag efter børnebidragslovens § 19 har personen betalt, retligt modtaget eller fået skattemæssigt henført i indkomståret?"),
+    help = Some("Disse poster tilkommer retligt moren eller en offentlig myndighed og skal holdes adskilt fra løbende børnebidrag. Opret én række pr. særskilt fastsat bidrag."),
+    unit = None
+)
+= personskat_par19_felt_identifikation = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::identifikation), label = "§ 19-bidragets identifikation", question = Some("Hvilken entydig identifikation har bidraget?"), help = Some("Brug en stabil reference fra afgørelsen, aftalen eller betalingsbilaget."), unit = None)
+= personskat_par19_felt_indkomstår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::indkomstår), label = "§ 19-bidragets indkomstår", question = Some("I hvilket indkomstår blev bidraget betalt eller modtaget?"), help = None, unit = Some("år"))
+= personskat_par19_felt_rolle = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::$variant),
+    label = "Personens skattemæssige rolle i § 19-bidraget",
+    question = Some("Er personen bidragsyder, moren som retlig modtager eller barnet med skattemæssig henføring af et navngivningsbidrag?"),
+    help = Some("Barnet er ikke den retlige modtager efter § 19, stk. 4. Barnets variant bruges kun til den særskilte skattemæssige henføring efter LL §§ 10-11."),
+    unit = None
+)
+= personskat_par19_felt_modtageridentitet = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::Bidragsyder::modtageridentitet_oplyst), label = "Modtageridentiteten er oplyst", question = Some("Er den krævede modtageridentitet oplyst til Skatteforvaltningen?"), help = Some("Oplysningen bruges kun, hvor navngivningsbidraget prøves som et fradragsberettiget børnebidrag."), unit = None)
+= personskat_par19_felt_betalt_af_yder = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::rolle::Bidragsyder::betalt_af_bidragsyderen_selv), label = "§ 19-bidraget er betalt af yderen selv", question = Some("Er beløbet faktisk afholdt af den person, som opgørelsen vedrører?"), help = None, unit = None)
+= personskat_par19_felt_hændelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::$variant), label = "§ 19-hændelsen", question = Some("Vedrører bidraget en fødsel eller en abort?"), help = None, unit = None)
+= personskat_par19_felt_fødselsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = None, unit = Some("år"))
+= personskat_par19_felt_fødselsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_fødselsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag blev barnet født?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_fødselsudfald = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Fødsel::udfald), label = "Fødslens udfald", question = Some("Var barnet levendefødt eller dødfødt?"), help = Some("§ 19, stk. 1, tillader bidrag, selv om barnet er dødfødt."), unit = None)
+= personskat_par19_felt_abortår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::år), label = "Abortdato (ISO 8601) - år", question = Some("I hvilket år fandt aborten sted?"), help = None, unit = Some("år"))
+= personskat_par19_felt_abortmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::måned), label = "Abortdato (ISO 8601) - måned", question = Some("I hvilken måned fandt aborten sted?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_abortdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::hændelse::Abort::abortdato::dag), label = "Abortdato (ISO 8601) - dag", question = Some("På hvilken dag fandt aborten sted?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_bidragsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::$variant),
+    label = "§ 19-bidragets art",
+    question = Some("Er beløbet et fødselsbidrag, navngivningsbidrag, barselsbidrag eller bidrag til særlige abortudgifter?"),
+    help = None,
+    unit = None
+)
+= personskat_par19_felt_barsel_normal_før = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::AlmindeligBarselsperiode::måneder_før_fødslen), label = "Almindelige barselsmåneder før fødslen", question = Some("Hvor mange af de normale to måneder før fødslen omfatter bidraget?"), help = None, unit = Some("måneder"))
+= personskat_par19_felt_barsel_normal_efter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::AlmindeligBarselsperiode::måneder_efter_fødslen), label = "Almindelige barselsmåneder efter fødslen", question = Some("Hvor mange af den normale ene måned efter fødslen omfatter bidraget?"), help = None, unit = Some("måneder"))
+= personskat_par19_felt_barsel_forlænget_før = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::måneder_før_fødslen), label = "Forlængede barselsmåneder før fødslen", question = Some("Hvor mange måneder før fødslen er fastsat under særlige omstændigheder?"), help = Some("§ 19, stk. 1, tillader højst fire måneder før fødslen."), unit = Some("måneder"))
+= personskat_par19_felt_barsel_forlænget_efter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::måneder_efter_fødslen), label = "Forlængede barselsmåneder efter fødslen", question = Some("Hvor mange måneder efter fødslen er fastsat under særlige omstændigheder?"), help = Some("§ 19, stk. 1, tillader højst ni måneder efter fødslen."), unit = Some("måneder"))
+= personskat_par19_felt_barsel_forlænget_reference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Barselsbidrag::periode::ForlængetBarselsperiode::særlige_omstændigheder_dokumentreference), label = "Dokumentation for forlænget barselsperiode", question = Some("Hvilken afgørelse dokumenterer de særlige omstændigheder og den forlængede periode?"), help = None, unit = None)
+= personskat_par19_felt_abortudgifter = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsart::Abortudgiftsbidrag::dokumenterede_særlige_udgifter_kroner), label = "Dokumenterede særlige abortudgifter", question = Some("Hvor store særlige udgifter som følge af aborten er dokumenteret?"), help = None, unit = Some("kr."))
+= personskat_par19_felt_bidragsydergrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::bidragsydergrundlag), label = "§ 19-bidragsyderens retlige grundlag", question = Some("Er yderen far, medmor, en person der har eller kan have besvangret kvinden, eller en person der samtykkede til assisteret reproduktion?"), help = None, unit = None)
+= personskat_par19_felt_retlig_modtager = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::retlig_modtager::$variant), label = "§ 19-bidragets retlige modtager", question = Some("Tilkommer bidraget moren eller en offentlig myndighed eller institution, som afholdt udgiften?"), help = Some("Modtageren følger § 19, stk. 4, og er ikke barnet."), unit = None)
+= personskat_par19_felt_offentlig_modtager_id = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::retlig_modtager::OffentligMyndighedEllerInstitution::identifikation), label = "Offentlig modtagers identifikation", question = Some("Hvilken myndighed eller institution afholdt udgiften og modtog bidraget?"), help = None, unit = None)
+= personskat_par19_felt_fastsættelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::$variant), label = "§ 19-bidragets fastsættelse", question = Some("Er bidraget fastsat af Familieretshuset, dokumenteret ved en bindende aftale eller uden dokumenteret fastsættelse?"), help = None, unit = None)
+= personskat_par19_felt_aftalereference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::DokumenteretBindendeAftale::dokumentreference), label = "Dokumentation for bindende § 19-aftale", question = Some("Hvilken dokumentreference viser den bindende aftale?"), help = None, unit = None)
+= personskat_par19_felt_fastsættelsesår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::år), label = "Fastsættelsesdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget fastsat?"), help = Some("Futuruna bruger fastsættelsesåret til den officielle sats."), unit = Some("år"))
+= personskat_par19_felt_fastsættelsesmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::måned), label = "Fastsættelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget fastsat?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_fastsættelsesdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::dag), label = "Fastsættelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget fastsat?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_forfaldsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsgrundlag::$variant), label = "§ 19-bidragets forfaldsgrundlag", question = Some("Forfaldt bidraget straks efter fødslen, ved fødslen efter en tidligere fastsættelse, på et andet fastsat tidspunkt eller straks som abortbidrag?"), help = None, unit = None)
+= personskat_par19_felt_andet_forfald_reference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsgrundlag::AndetTidspunktFastsatIAfgørelsen::dokumentreference), label = "Dokumentation for andet forfaldstidspunkt", question = Some("Hvilken afgørelse fastsætter det andet forfaldstidspunkt?"), help = None, unit = None)
+= personskat_par19_felt_forfaldsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::år), label = "§ 19-forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
+= personskat_par19_felt_forfaldsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::måned), label = "§ 19-forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_forfaldsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::forfaldsdato::dag), label = "§ 19-forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_betalingsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::år), label = "§ 19-betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
+= personskat_par19_felt_betalingsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::måned), label = "§ 19-betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_betalingsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::betalingsdato::dag), label = "§ 19-betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_beløb = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::beløb_kroner), label = "Betalt eller modtaget § 19-bidrag", question = Some("Hvor stort et § 19-bidrag blev faktisk betalt eller modtaget?"), help = None, unit = Some("kr."))
+= personskat_par19_felt_barn_id = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::barnets_identifikation), label = "Barnets identifikation ved navngivningsskat", question = Some("Hvilken stabil identifikation har barnet, når navngivningsbidraget skal prøves efter LL §§ 10-11?"), help = Some("Feltet kræves kun for navngivningsbidrag med skattemæssig henføring til yderen eller barnet."), unit = None)
+= personskat_par19_felt_navngivningskontekst = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::$variant), label = "Navngivningsbidragets skattekontekst", question = Some("Skal navngivningsbidraget prøves efter LL §§ 10-11, eller er denne skattekontekst ikke relevant for posten?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_retsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::$variant), label = "Navngivningsbidragets familiemæssige skattegrundlag", question = Some("Skyldes navngivningsbidragets skattebehandling skilsmisse, separation, faktisk adskillelse eller et barn uden for ægteskab?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_skilsmisse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Skilsmisse::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets skilsmissegrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_separation = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::Separation::fastsat_eller_ændret_efter_lovens_ikrafttrædelse), label = "Navngivningsbidragets separationsgrundlag er historisk omfattet", question = Some("Er bidraget fastsat eller ændret efter LL § 10, stk. 4's historiske ikrafttrædelse?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_adskillelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::faktisk_adskillelse_dokumenteret), label = "Faktisk adskillelse ved navngivningsbidrag er dokumenteret", question = Some("Er den faktiske adskillelse dokumenteret?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_selvstændig_statsskat = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::retsgrundlag::FaktiskAdskillelse::ægtefællerne_ansat_selvstændigt_til_statsskat), label = "Selvstændig statsskat ved navngivningsbidrag", question = Some("Er ægtefællerne ansat selvstændigt til statsskat som følge af den faktiske adskillelse?"), help = None, unit = None)
+= personskat_par19_felt_navngivning_bopæl = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::barnets_bopæl), label = "Barnets bopæl ved navngivningsbidraget", question = Some("Hvor boede barnet i relation til bidragsyderen?"), help = Some("Bidragsyderens fradrag kræver, at barnet ikke opholder sig hos yderen."), unit = None)
+= personskat_par19_felt_navngivning_forsørgerpligt = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::navngivningsskattekontekst::MedNavngivningsskattekontekst::forsørger_eller_bidragspligt_over_for_det_offentlige), label = "Offentlig forsørger- eller bidragspligt ved navngivningsbidrag", question = Some("Har bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?"), help = None, unit = None)
+
 = personskat_personlig_indkomst_beregningsmeta = TypetBeregningsmeta(
     felter = [
         personskat_personlig_indkomst_felt_arbejdsgiverydelse_id,
@@ -489,7 +555,54 @@
         personskat_underhold_felt_betalingsmåned,
         personskat_underhold_felt_betalingsdag,
         personskat_underhold_felt_beløb,
-        personskat_underhold_felt_betalt_af_yder
+        personskat_underhold_felt_betalt_af_yder,
+        personskat_par19_felt_samling,
+        personskat_par19_felt_identifikation,
+        personskat_par19_felt_indkomstår,
+        personskat_par19_felt_rolle,
+        personskat_par19_felt_modtageridentitet,
+        personskat_par19_felt_betalt_af_yder,
+        personskat_par19_felt_hændelse,
+        personskat_par19_felt_fødselsår,
+        personskat_par19_felt_fødselsmåned,
+        personskat_par19_felt_fødselsdag,
+        personskat_par19_felt_fødselsudfald,
+        personskat_par19_felt_abortår,
+        personskat_par19_felt_abortmåned,
+        personskat_par19_felt_abortdag,
+        personskat_par19_felt_bidragsart,
+        personskat_par19_felt_barsel_normal_før,
+        personskat_par19_felt_barsel_normal_efter,
+        personskat_par19_felt_barsel_forlænget_før,
+        personskat_par19_felt_barsel_forlænget_efter,
+        personskat_par19_felt_barsel_forlænget_reference,
+        personskat_par19_felt_abortudgifter,
+        personskat_par19_felt_bidragsydergrundlag,
+        personskat_par19_felt_retlig_modtager,
+        personskat_par19_felt_offentlig_modtager_id,
+        personskat_par19_felt_fastsættelse,
+        personskat_par19_felt_aftalereference,
+        personskat_par19_felt_fastsættelsesår,
+        personskat_par19_felt_fastsættelsesmåned,
+        personskat_par19_felt_fastsættelsesdag,
+        personskat_par19_felt_forfaldsgrundlag,
+        personskat_par19_felt_andet_forfald_reference,
+        personskat_par19_felt_forfaldsår,
+        personskat_par19_felt_forfaldsmåned,
+        personskat_par19_felt_forfaldsdag,
+        personskat_par19_felt_betalingsår,
+        personskat_par19_felt_betalingsmåned,
+        personskat_par19_felt_betalingsdag,
+        personskat_par19_felt_beløb,
+        personskat_par19_felt_barn_id,
+        personskat_par19_felt_navngivningskontekst,
+        personskat_par19_felt_navngivning_retsgrundlag,
+        personskat_par19_felt_navngivning_skilsmisse,
+        personskat_par19_felt_navngivning_separation,
+        personskat_par19_felt_navngivning_adskillelse,
+        personskat_par19_felt_navngivning_selvstændig_statsskat,
+        personskat_par19_felt_navngivning_bopæl,
+        personskat_par19_felt_navngivning_forsørgerpligt
     ],
     spørgsmål = [],
     beløbsfelter = [],
@@ -500,10 +613,15 @@
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
         DependencySource(value = ligningsloven_lbk1500_par10_par11),
+        DependencySource(value = børnebidragsloven_lbk773_par19),
         Guidance(value = skat_gruppeliv_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
+        Guidance(value = skat_børnebidrag_fødsel_vejledning),
+        Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+        ParameterSource(value = børnebidragsloven_satser_2025),
+        ParameterSource(value = børnebidragsloven_satser_2026),
     )
 )
 

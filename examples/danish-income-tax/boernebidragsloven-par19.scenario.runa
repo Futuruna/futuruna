@@ -1,0 +1,168 @@
+@ sprog da
+
+@ importer ./boernebidragsloven - par19
+
+| børnebidragslov19_scenarie_navngivningskontekst() -> MedNavngivningsskattekontekst(
+    retsgrundlag = BarnUdenForÆgteskab,
+    barnets_bopæl = HosDenAndenForælder,
+    forsørger_eller_bidragspligt_over_for_det_offentlige = Sandt
+)
+| børnebidragslov19_scenarie_fødselsbidrag(identifikation: Tekst, rolle: Børnebidragslov19Skatterolle, udfald: Børnebidragslov19Fødselsudfald, beløb_kroner: Heltal) -> Børnebidragslov19BidragFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    rolle = rolle,
+    hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = udfald),
+    bidragsart = Fødselsbidrag,
+    bidragsydergrundlag = Far,
+    retlig_modtager = Moderen,
+    fastsættelse = FastsatAfFamilieretshuset,
+    fastsættelsesdato = Dato(år = 2025, måned = 1, dag = 10),
+    forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen,
+    forfaldsdato = Dato(år = 2025, måned = 1, dag = 10),
+    betalingsdato = Dato(år = 2025, måned = 1, dag = 10),
+    beløb_kroner = beløb_kroner,
+    barnets_identifikation = "barn-2025",
+    navngivningsskattekontekst = UdenNavngivningsskattekontekst
+)
+| børnebidragslov19_scenarie_barselsbidrag(identifikation: Tekst, periode: Børnebidragslov19Barselsperiode, beløb_kroner: Heltal) -> Børnebidragslov19BidragFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
+    bidragsart = Barselsbidrag(periode = periode),
+    bidragsydergrundlag = Medmor,
+    retlig_modtager = Moderen,
+    fastsættelse = FastsatAfFamilieretshuset,
+    fastsættelsesdato = Dato(år = 2025, måned = 1, dag = 10),
+    forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen,
+    forfaldsdato = Dato(år = 2025, måned = 1, dag = 10),
+    betalingsdato = Dato(år = 2025, måned = 1, dag = 10),
+    beløb_kroner = beløb_kroner,
+    barnets_identifikation = "barn-2025",
+    navngivningsskattekontekst = UdenNavngivningsskattekontekst
+)
+| børnebidragslov19_scenarie_navngivningsbidrag(identifikation: Tekst, rolle: Børnebidragslov19Skatterolle, fastsættelse: Børnebidragslov19Fastsættelse, beløb_kroner: Heltal) -> Børnebidragslov19BidragFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    rolle = rolle,
+    hændelse = Fødsel(fødselsdato = Dato(år = 2025, måned = 1, dag = 10), udfald = Levendefødt),
+    bidragsart = NavngivningsbidragHerunderDåb,
+    bidragsydergrundlag = Far,
+    retlig_modtager = Moderen,
+    fastsættelse = fastsættelse,
+    fastsættelsesdato = Dato(år = 2025, måned = 2, dag = 1),
+    forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen,
+    forfaldsdato = Dato(år = 2025, måned = 2, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 2, dag = 1),
+    beløb_kroner = beløb_kroner,
+    barnets_identifikation = "barn-2025",
+    navngivningsskattekontekst = børnebidragslov19_scenarie_navngivningskontekst()
+)
+| børnebidragslov19_scenarie_abortbidrag() -> Børnebidragslov19BidragFakta(
+    identifikation = "abortudgiftsbidrag-2025",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    hændelse = Abort(abortdato = Dato(år = 2025, måned = 3, dag = 4)),
+    bidragsart = Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner = 2500),
+    bidragsydergrundlag = HarEllerKanHaveBesvangretKvinden,
+    retlig_modtager = Moderen,
+    fastsættelse = FastsatAfFamilieretshuset,
+    fastsættelsesdato = Dato(år = 2025, måned = 3, dag = 20),
+    forfaldsgrundlag = StraksVedAbortbidragetsFastsættelse,
+    forfaldsdato = Dato(år = 2025, måned = 3, dag = 20),
+    betalingsdato = Dato(år = 2025, måned = 3, dag = 20),
+    beløb_kroner = 2500,
+    barnets_identifikation = "",
+    navngivningsskattekontekst = UdenNavngivningsskattekontekst
+)
+
+= børnebidragslov19_fødsel_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
+    identifikation = "fødselsbidrag-yder-2025",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    udfald = Levendefødt,
+    beløb_kroner = 976
+))
+= børnebidragslov19_dødfødsel_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
+    identifikation = "dødfødselsbidrag-yder-2025",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    udfald = Dødfødt,
+    beløb_kroner = 976
+))
+= børnebidragslov19_fødsel_forkert_sats = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
+    identifikation = "fødselsbidrag-forkert-sats-2025",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    udfald = Levendefødt,
+    beløb_kroner = 975
+))
+= børnebidragslov19_barsel_normal = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_barselsbidrag(
+    identifikation = "barselsbidrag-normal-2025",
+    periode = AlmindeligBarselsperiode(måneder_før_fødslen = 2, måneder_efter_fødslen = 1),
+    beløb_kroner = 5097
+))
+= børnebidragslov19_barsel_forlænget = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_barselsbidrag(
+    identifikation = "barselsbidrag-forlænget-2025",
+    periode = ForlængetBarselsperiode(måneder_før_fødslen = 4, måneder_efter_fødslen = 9, særlige_omstændigheder_dokumentreference = "Familieretshusets afgørelse"),
+    beløb_kroner = 22087
+))
+= børnebidragslov19_barsel_for_lang = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_barselsbidrag(
+    identifikation = "barselsbidrag-for-lang-2025",
+    periode = ForlængetBarselsperiode(måneder_før_fødslen = 4, måneder_efter_fødslen = 10, særlige_omstændigheder_dokumentreference = "Familieretshusets afgørelse"),
+    beløb_kroner = 23786
+))
+= børnebidragslov19_navngivning_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_navngivningsbidrag(
+    identifikation = "navngivningsbidrag-yder-2025",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+    fastsættelse = FastsatAfFamilieretshuset,
+    beløb_kroner = 1419
+))
+= børnebidragslov19_navngivning_barn = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_navngivningsbidrag(
+    identifikation = "navngivningsbidrag-barn-2025",
+    rolle = BarnMedSkattemæssigHenføring,
+    fastsættelse = DokumenteretBindendeAftale(dokumentreference = "Bindende aftale om navngivningsbidrag"),
+    beløb_kroner = 2000
+))
+= børnebidragslov19_fødsel_mor = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_fødselsbidrag(
+    identifikation = "fødselsbidrag-mor-2025",
+    rolle = MorSomRetligBidragsmodtager,
+    udfald = Levendefødt,
+    beløb_kroner = 976
+))
+= børnebidragslov19_abort_yder = børnebidragslov19_bidrag_resultat(børnebidragslov19_scenarie_abortbidrag())
+= børnebidragslov19_yder_årsresultat = børnebidragslov19_årsresultat(2025, Børnebidragslov19Årsinput(bidrag = [
+    børnebidragslov19_scenarie_fødselsbidrag(
+        identifikation = "årsresultat-fødselsbidrag-2025",
+        rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+        udfald = Levendefødt,
+        beløb_kroner = 976
+    ),
+    børnebidragslov19_scenarie_navngivningsbidrag(
+        identifikation = "årsresultat-navngivningsbidrag-2025",
+        rolle = Bidragsyder(modtageridentitet_oplyst = Sandt, betalt_af_bidragsyderen_selv = Sandt),
+        fastsættelse = FastsatAfFamilieretshuset,
+        beløb_kroner = 1419
+    ),
+]))
+= børnebidragslov19_mor_årsresultat = børnebidragslov19_årsresultat(2025, Børnebidragslov19Årsinput(bidrag = [børnebidragslov19_scenarie_fødselsbidrag(
+    identifikation = "årsresultat-fødselsbidrag-mor-2025",
+    rolle = MorSomRetligBidragsmodtager,
+    udfald = Levendefødt,
+    beløb_kroner = 976
+)]))
+
+| børnebidragslov19_satser_2023_til_2026: børnebidragslov19_satsår_understøttet(2023) -> børnebidragslov19_fødselsbidrag_sats_kroner(2023) == 913 && børnebidragslov19_barselsbidrag_månedssats_kroner(2023) == 1589 && børnebidragslov19_navngivningsbidrag_sats_kroner(2023) == 1328 && børnebidragslov19_fødselsbidrag_sats_kroner(2024) == 942 && børnebidragslov19_barselsbidrag_månedssats_kroner(2024) == 1640 && børnebidragslov19_navngivningsbidrag_sats_kroner(2024) == 1370 && børnebidragslov19_fødselsbidrag_sats_kroner(2025) == 976 && børnebidragslov19_barselsbidrag_månedssats_kroner(2025) == 1699 && børnebidragslov19_navngivningsbidrag_sats_kroner(2025) == 1419 && børnebidragslov19_fødselsbidrag_sats_kroner(2026) == 1020 && børnebidragslov19_barselsbidrag_månedssats_kroner(2026) == 1775 && børnebidragslov19_navngivningsbidrag_sats_kroner(2026) == 1483
+| børnebidragslov19_fødsel_og_dødfødsel_uden_fradrag: børnebidragslov19_fødsel_yder -> børnebidragslov19_fødsel_yder.input_gyldigt && børnebidragslov19_fødsel_yder.officiel_sats_kroner == 976 && børnebidragslov19_fødsel_yder.ligningsmæssigt_fradrag_kroner == 0 && børnebidragslov19_fødsel_yder.kan_sammensættes && børnebidragslov19_dødfødsel_yder.input_gyldigt
+| børnebidragslov19_offentlig_fastsættelse_kræver_officiel_sats: børnebidragslov19_fødsel_forkert_sats -> børnebidragslov19_fødsel_forkert_sats.input_gyldigt == Falskt && børnebidragslov19_fødsel_forkert_sats.beløb_svarer_til_offentlig_fastsættelse == Falskt
+| børnebidragslov19_barselsgrænser_og_beløb: børnebidragslov19_barsel_normal -> børnebidragslov19_barsel_normal.input_gyldigt && børnebidragslov19_barsel_normal.officiel_sats_kroner == 5097 && børnebidragslov19_barsel_normal.ligningsmæssigt_fradrag_kroner == 0 && børnebidragslov19_barsel_forlænget.input_gyldigt && børnebidragslov19_barsel_forlænget.officiel_sats_kroner == 22087 && børnebidragslov19_barsel_for_lang.input_gyldigt == Falskt
+| børnebidragslov19_navngivning_bruger_ligningslovens_børnegren: børnebidragslov19_navngivning_yder -> børnebidragslov19_navngivning_yder.input_gyldigt && børnebidragslov19_navngivning_yder.navngivningsskattekontekst_gyldig && børnebidragslov19_navngivning_yder.ligningsmæssigt_fradrag_kroner == 1419 && børnebidragslov19_navngivning_barn.input_gyldigt && børnebidragslov19_navngivning_barn.personlig_indkomst_kroner == 581
+| børnebidragslov19_moderens_beskatning_fejler_lukket: børnebidragslov19_fødsel_mor -> børnebidragslov19_fødsel_mor.input_gyldigt && børnebidragslov19_fødsel_mor.modtagerbeskatning_kildeafklaret == Falskt && børnebidragslov19_fødsel_mor.kan_sammensættes == Falskt && børnebidragslov19_mor_årsresultat.kan_sammensættes == Falskt
+| børnebidragslov19_abortudgifter_er_modtagerbidrag_uden_fradrag: børnebidragslov19_abort_yder -> børnebidragslov19_abort_yder.input_gyldigt && børnebidragslov19_abort_yder.officiel_sats_kroner == 2500 && børnebidragslov19_abort_yder.ligningsmæssigt_fradrag_kroner == 0 && børnebidragslov19_abort_yder.kan_sammensættes
+| børnebidragslov19_årsresultat_samler_kun_navngivningsfradraget: børnebidragslov19_yder_årsresultat -> børnebidragslov19_yder_årsresultat.kan_sammensættes && børnebidragslov19_yder_årsresultat.samlet_ligningsmæssigt_fradrag_kroner == 1419 && børnebidragslov19_yder_årsresultat.samlet_personlig_indkomst_kroner == 0
+
+? børnebidragslov19_satser_2023_til_2026
+? børnebidragslov19_fødsel_og_dødfødsel_uden_fradrag
+? børnebidragslov19_offentlig_fastsættelse_kræver_officiel_sats
+? børnebidragslov19_barselsgrænser_og_beløb
+? børnebidragslov19_navngivning_bruger_ligningslovens_børnegren
+? børnebidragslov19_moderens_beskatning_fejler_lukket
+? børnebidragslov19_abortudgifter_er_modtagerbidrag_uden_fradrag
+? børnebidragslov19_årsresultat_samler_kun_navngivningsfradraget

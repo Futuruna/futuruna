@@ -1,0 +1,417 @@
+@ sprog da
+
+@ importer ./kalenderdato
+@ importer ./ligningsloven - par10 - par11 - underhold
+@ importer ./metadata
+
+# Børnebidragslov19KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= børnebidragsloven_lbk773_par19 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/773",
+    identifier = "Børnebidragsloven § 19 i LBK nr. 773 af 07/08/2019",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende konsolidering kontrolleret på Retsinformation"
+)
+= børnebidragsloven_bidrag_vejledning = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2020/9424",
+    identifier = "Vejledning om børne- og ægtefællebidrag, pkt. 6.1.4 og 6.2.10",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Vejledningen afgrænser bidragsarterne, deres normale forfald og Familieretshusets praksis"
+)
+= børnebidragsloven_par19_metadata = Metadata(
+    attachments = (
+        Source(value = børnebidragsloven_lbk773_par19),
+        Guidance(value = børnebidragsloven_bidrag_vejledning),
+    )
+)
+
+--@label:børnebidragsloven_par19::meta:børnebidragsloven_par19_metadata--
+----
+§ 19. Der kan pålægges faderen eller medmoderen at udrede bidrag til udgifterne
+ved fødslen og ved barnets navngivning, herunder ved dåb, og til moderens
+underhold 2 måneder før og 1 måned efter fødslen. Under særlige omstændigheder,
+navnlig i tilfælde af moderens sygdom forårsaget ved svangerskabet eller
+fødslen, kan bidrag pålægges for indtil 4 måneder før og 9 måneder efter
+fødslen. Bidraget kan pålægges, uanset at barnet er dødfødt.
+
+Stk. 2. Endvidere kan der pålægges den, der har eller kan have besvangret en
+kvinde, eller den, der har givet samtykke til, at en kvinde er behandlet med
+assisteret reproduktion, hvis barnet må antages at være blevet til ved denne
+behandling, jf. børnelovens §§ 27 eller 27 a, at udrede bidrag til de ved en
+abort forvoldte særlige udgifter.
+
+Stk. 3. Bidrag efter denne paragrafs stk. 1 forfalder, hvis barnet er født,
+straks ved bidragsfastsættelsen og ellers til de tidspunkter, der er fastsat i
+afgørelsen om bidrag efter stk. 1. Bidrag efter stk. 2 forfalder straks.
+
+Stk. 4. Bidrag i henhold til nærværende kapitel tilkommer moderen eller den
+offentlige myndighed eller institution, der har afholdt de pågældende udgifter.
+----
+
+--@begin:børnebidragsloven_par19--
+# Børnebidragslov19Fødselsudfald = Levendefødt | Dødfødt
+# Børnebidragslov19Hændelse = Fødsel(fødselsdato: Dato, udfald: Børnebidragslov19Fødselsudfald) | Abort(abortdato: Dato)
+# Børnebidragslov19Barselsperiode = AlmindeligBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal) | ForlængetBarselsperiode(måneder_før_fødslen: Heltal, måneder_efter_fødslen: Heltal, særlige_omstændigheder_dokumentreference: Tekst)
+# Børnebidragslov19Bidragsart = Fødselsbidrag | NavngivningsbidragHerunderDåb | Barselsbidrag(periode: Børnebidragslov19Barselsperiode) | Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner: Heltal)
+# Børnebidragslov19Bidragsydergrundlag = Far | Medmor | HarEllerKanHaveBesvangretKvinden | SamtykkedeTilAssisteretReproduktion
+# Børnebidragslov19RetligModtager = Moderen | OffentligMyndighedEllerInstitution(identifikation: Tekst)
+# Børnebidragslov19Fastsættelse = FastsatAfFamilieretshuset | DokumenteretBindendeAftale(dokumentreference: Tekst) | Par19UdenDokumenteretFastsættelse
+# Børnebidragslov19Forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen | VedFødslenEfterFastsættelseFørFødslen | AndetTidspunktFastsatIAfgørelsen(dokumentreference: Tekst) | StraksVedAbortbidragetsFastsættelse
+# Børnebidragslov19Skatterolle = Bidragsyder(modtageridentitet_oplyst: Boolsk, betalt_af_bidragsyderen_selv: Boolsk) | MorSomRetligBidragsmodtager | BarnMedSkattemæssigHenføring
+# Børnebidragslov19Navngivningsskattekontekst = UdenNavngivningsskattekontekst | MedNavngivningsskattekontekst(retsgrundlag: Ligningslov10Og11Retsgrundlag, barnets_bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
+# Børnebidragslov19BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Børnebidragslov19Skatterolle, hændelse: Børnebidragslov19Hændelse, bidragsart: Børnebidragslov19Bidragsart, bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag, retlig_modtager: Børnebidragslov19RetligModtager, fastsættelse: Børnebidragslov19Fastsættelse, fastsættelsesdato: Dato, forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, barnets_identifikation: Tekst, navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst)
+# Børnebidragslov19BidragResultat(fakta: Børnebidragslov19BidragFakta, input_gyldigt: Boolsk, hændelse_og_bidragsart_svarer: Boolsk, bidragsydergrundlag_opfyldt: Boolsk, retlig_modtager_gyldig: Boolsk, fastsættelse_dokumenteret: Boolsk, barselsperiode_gyldig: Boolsk, forfaldsgrundlag_opfyldt: Boolsk, satsår_understøttet: Boolsk, officiel_sats_kroner: Heltal, beløb_svarer_til_offentlig_fastsættelse: Boolsk, navngivningsskattekontekst_gyldig: Boolsk, navngivningsskat: Ligningslov10Og11BidragResultat?, modtagerbeskatning_kildeafklaret: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
+# Børnebidragslov19Årsinput(bidrag: List(Børnebidragslov19BidragFakta))
+# Børnebidragslov19Årsresultat(indkomstår: Heltal, input: Børnebidragslov19Årsinput, resultater: List(Børnebidragslov19BidragResultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, alle_modtagerbeskatninger_kildeafklarede: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
+
+| børnebidragslov19_tomt_årsinput() -> Børnebidragslov19Årsinput(bidrag = [])
+| børnebidragslov19_hændelsesdato(hændelse: Børnebidragslov19Hændelse) -> match hændelse {
+    | Fødsel(fødselsdato, _) -> fødselsdato
+    | Abort(abortdato) -> abortdato
+}
+| børnebidragslov19_fødsel(hændelse: Børnebidragslov19Hændelse) -> match hændelse {
+    | Fødsel(_, _) -> Sandt
+    | Abort(_) -> Falskt
+}
+| børnebidragslov19_abort(hændelse: Børnebidragslov19Hændelse) -> match hændelse {
+    | Fødsel(_, _) -> Falskt
+    | Abort(_) -> Sandt
+}
+| børnebidragslov19_navngivningsbidrag(art: Børnebidragslov19Bidragsart) -> match art {
+    | NavngivningsbidragHerunderDåb -> Sandt
+    | _ -> Falskt
+}
+| børnebidragslov19_hændelse_og_bidragsart_svarer(fakta: Børnebidragslov19BidragFakta) -> match fakta.bidragsart {
+    | Fødselsbidrag -> børnebidragslov19_fødsel(fakta.hændelse)
+    | NavngivningsbidragHerunderDåb -> match fakta.hændelse {
+        | Fødsel(_, Levendefødt) -> Sandt
+        | _ -> Falskt
+    }
+    | Barselsbidrag(_) -> børnebidragslov19_fødsel(fakta.hændelse)
+    | Abortudgiftsbidrag(_) -> børnebidragslov19_abort(fakta.hændelse)
+}
+| børnebidragslov19_stk1_bidragsydergrundlag(grundlag: Børnebidragslov19Bidragsydergrundlag) -> match grundlag {
+    | Far -> Sandt
+    | Medmor -> Sandt
+    | _ -> Falskt
+}
+| børnebidragslov19_stk2_bidragsydergrundlag(grundlag: Børnebidragslov19Bidragsydergrundlag) -> match grundlag {
+    | HarEllerKanHaveBesvangretKvinden -> Sandt
+    | SamtykkedeTilAssisteretReproduktion -> Sandt
+    | _ -> Falskt
+}
+| børnebidragslov19_bidragsydergrundlag_opfyldt(fakta: Børnebidragslov19BidragFakta) -> match fakta.bidragsart {
+    | Abortudgiftsbidrag(_) -> børnebidragslov19_stk2_bidragsydergrundlag(fakta.bidragsydergrundlag)
+    | _ -> børnebidragslov19_stk1_bidragsydergrundlag(fakta.bidragsydergrundlag)
+}
+| børnebidragslov19_retlig_modtager_gyldig(modtager: Børnebidragslov19RetligModtager) -> match modtager {
+    | Moderen -> Sandt
+    | OffentligMyndighedEllerInstitution(identifikation) -> identifikation != ""
+}
+| børnebidragslov19_fastsættelse_dokumenteret(fastsættelse: Børnebidragslov19Fastsættelse) -> match fastsættelse {
+    | FastsatAfFamilieretshuset -> Sandt
+    | DokumenteretBindendeAftale(dokumentreference) -> dokumentreference != ""
+    | Par19UdenDokumenteretFastsættelse -> Falskt
+}
+| børnebidragslov19_barselsperiode_gyldig(art: Børnebidragslov19Bidragsart) -> match art {
+    | Barselsbidrag(AlmindeligBarselsperiode(måneder_før, måneder_efter)) -> måneder_før >= 0 && måneder_før <= 2 && måneder_efter >= 0 && måneder_efter <= 1 && måneder_før + måneder_efter > 0
+    | Barselsbidrag(ForlængetBarselsperiode(måneder_før, måneder_efter, dokumentreference)) -> måneder_før >= 0 && måneder_før <= 4 && måneder_efter >= 0 && måneder_efter <= 9 && måneder_før + måneder_efter > 0 && dokumentreference != ""
+    | _ -> Sandt
+}
+| børnebidragslov19_forfaldsgrundlag_opfyldt(fakta: Børnebidragslov19BidragFakta) -> match fakta.hændelse {
+    | Fødsel(fødselsdato, _) -> match fakta.forfaldsgrundlag {
+        | StraksVedFastsættelsenEfterFødslen -> dato_før_eller_lig_med(fødselsdato, fakta.fastsættelsesdato) && fakta.forfaldsdato == fakta.fastsættelsesdato
+        | VedFødslenEfterFastsættelseFørFødslen -> dato_før(fakta.fastsættelsesdato, fødselsdato) && fakta.forfaldsdato == fødselsdato
+        | AndetTidspunktFastsatIAfgørelsen(dokumentreference) -> dokumentreference != "" && dato_før_eller_lig_med(fakta.fastsættelsesdato, fakta.forfaldsdato)
+        | StraksVedAbortbidragetsFastsættelse -> Falskt
+    }
+    | Abort(_) -> match fakta.forfaldsgrundlag {
+        | StraksVedAbortbidragetsFastsættelse -> fakta.forfaldsdato == fakta.fastsættelsesdato
+        | _ -> Falskt
+    }
+}
+| børnebidragslov19_barselsmåneder(art: Børnebidragslov19Bidragsart) -> match art {
+    | Barselsbidrag(AlmindeligBarselsperiode(måneder_før, måneder_efter)) -> måneder_før + måneder_efter
+    | Barselsbidrag(ForlængetBarselsperiode(måneder_før, måneder_efter, _)) -> måneder_før + måneder_efter
+    | _ -> 0
+}
+| børnebidragslov19_officiel_sats_kroner(fakta: Børnebidragslov19BidragFakta) -> match fakta.bidragsart {
+    | Fødselsbidrag -> børnebidragslov19_fødselsbidrag_sats_kroner(fakta.fastsættelsesdato.år)
+    | NavngivningsbidragHerunderDåb -> børnebidragslov19_navngivningsbidrag_sats_kroner(fakta.fastsættelsesdato.år)
+    | Barselsbidrag(_) -> børnebidragslov19_barselsbidrag_månedssats_kroner(fakta.fastsættelsesdato.år) * børnebidragslov19_barselsmåneder(fakta.bidragsart)
+    | Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner) -> dokumenterede_særlige_udgifter_kroner
+}
+| børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta: Børnebidragslov19BidragFakta) -> match fakta.fastsættelse {
+    | FastsatAfFamilieretshuset -> fakta.beløb_kroner == børnebidragslov19_officiel_sats_kroner(fakta)
+    | DokumenteretBindendeAftale(_) -> match fakta.bidragsart {
+        | Abortudgiftsbidrag(dokumenterede_særlige_udgifter_kroner) -> fakta.beløb_kroner == dokumenterede_særlige_udgifter_kroner
+        | _ -> fakta.beløb_kroner > 0
+    }
+    | Par19UdenDokumenteretFastsættelse -> Falskt
+}
+| børnebidragslov19_mor_som_retlig_modtager(modtager: Børnebidragslov19RetligModtager) -> match modtager {
+    | Moderen -> Sandt
+    | _ -> Falskt
+}
+| børnebidragslov19_rolle_og_modtager_svarer(fakta: Børnebidragslov19BidragFakta) -> match fakta.rolle {
+    | Bidragsyder(_, _) -> Sandt
+    | MorSomRetligBidragsmodtager -> børnebidragslov19_mor_som_retlig_modtager(fakta.retlig_modtager)
+    | BarnMedSkattemæssigHenføring -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart) && børnebidragslov19_mor_som_retlig_modtager(fakta.retlig_modtager)
+}
+| børnebidragslov19_navngivningsskattekontekst_krævet(fakta: Børnebidragslov19BidragFakta) -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart) && match fakta.rolle {
+    | Bidragsyder(_, _) -> Sandt
+    | BarnMedSkattemæssigHenføring -> Sandt
+    | MorSomRetligBidragsmodtager -> Falskt
+}
+| børnebidragslov19_navngivningsskattekontekst_gyldig(fakta: Børnebidragslov19BidragFakta) -> hvis børnebidragslov19_navngivningsskattekontekst_krævet(fakta) {
+    match fakta.navngivningsskattekontekst {
+        | MedNavngivningsskattekontekst(_, _, _) -> fakta.barnets_identifikation != ""
+        | UdenNavngivningsskattekontekst -> Falskt
+    }
+} ellers {
+    fakta.navngivningsskattekontekst == UdenNavngivningsskattekontekst
+}
+| børnebidragslov19_input_gyldigt(fakta: Børnebidragslov19BidragFakta) -> fakta.identifikation != "" && dato_gyldig(børnebidragslov19_hændelsesdato(fakta.hændelse)) && dato_gyldig(fakta.fastsættelsesdato) && dato_gyldig(fakta.forfaldsdato) && dato_gyldig(fakta.betalingsdato) && fakta.indkomstår == fakta.betalingsdato.år && børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år) && børnebidragslov19_hændelse_og_bidragsart_svarer(fakta) && børnebidragslov19_bidragsydergrundlag_opfyldt(fakta) && børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager) && børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse) && børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart) && børnebidragslov19_forfaldsgrundlag_opfyldt(fakta) && børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta) && børnebidragslov19_rolle_og_modtager_svarer(fakta) && børnebidragslov19_navngivningsskattekontekst_gyldig(fakta)
+--@end:børnebidragsloven_par19--
+
+= skat_børnebidrag_fødsel_vejledning = Børnebidragslov19KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061803",
+    identifier = "Den juridiske vejledning C.A.9.5: Bidrag ved fødslen",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Vejledningen afskærer fradrag for § 19-fødselsudgifter og moderens underhold"
+)
+= skat_børnebidrag_engangsbeløb_vejledning = Børnebidragslov19KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=220619&oid=1976900",
+    identifier = "Den juridiske vejledning C.A.8.5.2.2: Engangsbeløb",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Vejledningen dokumenterer fradragspraksis for dåbs- og navngivningsbidrag"
+)
+= børnebidragsloven_par19_skat_metadata = Metadata(
+    attachments = (
+        Guidance(value = skat_børnebidrag_fødsel_vejledning),
+        Guidance(value = skat_børnebidrag_engangsbeløb_vejledning),
+        Dependency(value = ligningsloven_lbk1500_par10_par11),
+    )
+)
+
+--@label:børnebidragsloven_par19_skat::meta:børnebidragsloven_par19_skat_metadata--
+----
+Bidrag, der efter pålæg efter § 19 i lov om børns forsørgelse betales af en far
+til et barn uden for ægteskab til dækning af udgifter ved fødslen og til
+moderens underhold omkring fødslen, kan ikke fratrækkes, da sådanne ydelser
+betragtes som bidrag til moderen og ikke til barnet.
+
+Fradragsretten omfatter principielt kun løbende underholdsbidrag, men efter
+praksis omfatter fradragsretten dog også visse engangsbidrag, der betales i
+anledning af et barns fødsel samt i anledning af, at barnet når
+konfirmationsalderen. Se LSRM 1946.88.LSR og afsnit C.A.9.2 om børns
+beskatning.
+
+Det samme er gældende for bidrag i anledning af dåb eller navngivning, som
+udgør et beløb svarende til det månedlige normalbidrags grundbeløb.
+----
+
+----
+Implementeringsnote: C.A.9.5 afskærer udtrykkeligt fradrag for fødselsudgifter
+og moderens underhold efter § 19, stk. 1. Abortudgiftsbidragets nulfradrag
+afledes særskilt af § 19, stk. 2 og 4, sammenholdt med Ligningslovens §§ 10-11:
+betalingen tilkommer moren eller den myndighed eller institution, der har
+afholdt udgiften, og er ikke et underholdsbidrag til et barn. De fundne
+officielle kilder afklarer ikke modtagerbeskatningen hos moren; den gren fejler
+derfor lukket.
+----
+
+--@begin:børnebidragsloven_par19_skat--
+| børnebidragslov19_ll_rolle(rolle: Børnebidragslov19Skatterolle) -> match rolle {
+    | Bidragsyder(modtageridentitet_oplyst, _) -> Bidragsyder(modtageridentitet_oplyst = modtageridentitet_oplyst)
+    | BarnMedSkattemæssigHenføring -> Bidragsmodtager
+    | MorSomRetligBidragsmodtager -> Bidragsmodtager
+}
+| børnebidragslov19_ll_fastsættelse(fastsættelse: Børnebidragslov19Fastsættelse) -> match fastsættelse {
+    | FastsatAfFamilieretshuset -> FastsatAfOffentligMyndighed
+    | DokumenteretBindendeAftale(_) -> DokumenteretPrivatAftale(fradragsvurdering = IkkeRelevantForFradraget)
+    | Par19UdenDokumenteretFastsættelse -> UdenDokumenteretFastsættelse
+}
+| børnebidragslov19_betalt_af_bidragsyderen_selv(rolle: Børnebidragslov19Skatterolle) -> match rolle {
+    | Bidragsyder(_, betalt) -> betalt
+    | _ -> Falskt
+}
+| børnebidragslov19_fødselsdato(fakta: Børnebidragslov19BidragFakta) -> match fakta.hændelse {
+    | Fødsel(fødselsdato, _) -> fødselsdato
+    | Abort(abortdato) -> abortdato
+}
+| børnebidragslov19_navngivningsskat_fakta(fakta: Børnebidragslov19BidragFakta, retsgrundlag: Ligningslov10Og11Retsgrundlag, bopæl: Ligningslov10Og11BarnetsBopæl, offentlig_forsørgerpligt: Boolsk) -> Ligningslov10Og11BidragFakta(
+    identifikation = fakta.identifikation,
+    indkomstår = fakta.indkomstår,
+    rolle = børnebidragslov19_ll_rolle(fakta.rolle),
+    retsgrundlag = retsgrundlag,
+    modtager_identifikation = fakta.barnets_identifikation,
+    modtager = Barn(fakta = Ligningslov10Og11BarnFakta(
+        fødselsdato = børnebidragslov19_fødselsdato(fakta),
+        bopæl = bopæl,
+        forsørger_eller_bidragspligt_over_for_det_offentlige = offentlig_forsørgerpligt
+    )),
+    fastsættelse = børnebidragslov19_ll_fastsættelse(fakta.fastsættelse),
+    bidragsart = DåbsEllerNavngivningsbidrag(dokumenteret_til_begivenhedsudgifter = Sandt),
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = fakta.forfaldsdato,
+    betalingsdato = fakta.betalingsdato,
+    beløb_kroner = fakta.beløb_kroner,
+    betalt_af_bidragsyderen_selv = børnebidragslov19_betalt_af_bidragsyderen_selv(fakta.rolle)
+)
+| børnebidragslov19_navngivningsskat(fakta: Børnebidragslov19BidragFakta) -> match fakta.navngivningsskattekontekst {
+    | UdenNavngivningsskattekontekst -> None
+    | MedNavngivningsskattekontekst(retsgrundlag, bopæl, offentlig_forsørgerpligt) -> Some(ligningslov10_11_bidrag_resultat(børnebidragslov19_navngivningsskat_fakta(fakta, retsgrundlag, bopæl, offentlig_forsørgerpligt)))
+}
+| børnebidragslov19_navngivningsskat_kan_sammensættes(resultat: Ligningslov10Og11BidragResultat?) -> match resultat {
+    | None -> Falskt
+    | Some(navngivningsskat) -> navngivningsskat.input_gyldigt && navngivningsskat.bidragsbetingelser_opfyldt
+}
+| børnebidragslov19_modtagerbeskatning_kildeafklaret(fakta: Børnebidragslov19BidragFakta) -> match fakta.rolle {
+    | Bidragsyder(_, _) -> Sandt
+    | BarnMedSkattemæssigHenføring -> børnebidragslov19_navngivningsbidrag(fakta.bidragsart)
+    | MorSomRetligBidragsmodtager -> Falskt
+}
+| børnebidragslov19_ligningsmæssigt_fradrag_kroner(fakta: Børnebidragslov19BidragFakta, navngivningsskat: Ligningslov10Og11BidragResultat?) -> match fakta.rolle {
+    | Bidragsyder(_, _) -> hvis børnebidragslov19_navngivningsbidrag(fakta.bidragsart) {
+        match navngivningsskat {
+            | None -> 0
+            | Some(resultat) -> resultat.ligningsmæssigt_fradrag_kroner
+        }
+    } ellers {
+        0
+    }
+    | _ -> 0
+}
+| børnebidragslov19_personlig_indkomst_kroner(fakta: Børnebidragslov19BidragFakta, navngivningsskat: Ligningslov10Og11BidragResultat?) -> match fakta.rolle {
+    | BarnMedSkattemæssigHenføring -> match navngivningsskat {
+        | None -> 0
+        | Some(resultat) -> resultat.personlig_indkomst_kroner
+    }
+    | _ -> 0
+}
+| børnebidragslov19_bidrag_resultat(fakta: Børnebidragslov19BidragFakta) -> {
+    = input_gyldigt = børnebidragslov19_input_gyldigt(fakta)
+    = navngivningsskat = børnebidragslov19_navngivningsskat(fakta)
+    = navngivningsskattekontekst_gyldig = børnebidragslov19_navngivningsskattekontekst_gyldig(fakta) && hvis børnebidragslov19_navngivningsskattekontekst_krævet(fakta) { børnebidragslov19_navngivningsskat_kan_sammensættes(navngivningsskat) } ellers { Sandt }
+    = modtagerbeskatning_kildeafklaret = børnebidragslov19_modtagerbeskatning_kildeafklaret(fakta)
+    Børnebidragslov19BidragResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        hændelse_og_bidragsart_svarer = børnebidragslov19_hændelse_og_bidragsart_svarer(fakta),
+        bidragsydergrundlag_opfyldt = børnebidragslov19_bidragsydergrundlag_opfyldt(fakta),
+        retlig_modtager_gyldig = børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager),
+        fastsættelse_dokumenteret = børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse),
+        barselsperiode_gyldig = børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart),
+        forfaldsgrundlag_opfyldt = børnebidragslov19_forfaldsgrundlag_opfyldt(fakta),
+        satsår_understøttet = børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år),
+        officiel_sats_kroner = børnebidragslov19_officiel_sats_kroner(fakta),
+        beløb_svarer_til_offentlig_fastsættelse = børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta),
+        navngivningsskattekontekst_gyldig = navngivningsskattekontekst_gyldig,
+        navngivningsskat = navngivningsskat,
+        modtagerbeskatning_kildeafklaret = modtagerbeskatning_kildeafklaret,
+        ligningsmæssigt_fradrag_kroner = hvis input_gyldigt && navngivningsskattekontekst_gyldig { børnebidragslov19_ligningsmæssigt_fradrag_kroner(fakta, navngivningsskat) } ellers { 0 },
+        personlig_indkomst_kroner = hvis input_gyldigt && navngivningsskattekontekst_gyldig && modtagerbeskatning_kildeafklaret { børnebidragslov19_personlig_indkomst_kroner(fakta, navngivningsskat) } ellers { 0 },
+        kan_sammensættes = input_gyldigt && navngivningsskattekontekst_gyldig && modtagerbeskatning_kildeafklaret
+    )
+}
+| børnebidragslov19_identifikationer_entydige(bidrag: List(Børnebidragslov19BidragFakta)) -> length(distinct(map(bidrag, |fakta: Børnebidragslov19BidragFakta| fakta.identifikation))) == length(bidrag) && all(bidrag, |fakta: Børnebidragslov19BidragFakta| fakta.identifikation != "")
+| børnebidragslov19_årsresultat(indkomstår: Heltal, input: Børnebidragslov19Årsinput) -> {
+    = identifikationer_entydige = børnebidragslov19_identifikationer_entydige(input.bidrag)
+    = resultater = map(input.bidrag, børnebidragslov19_bidrag_resultat)
+    = alle_input_gyldige = identifikationer_entydige && all(input.bidrag, |fakta: Børnebidragslov19BidragFakta| fakta.indkomstår == indkomstår) && all(resultater, |resultat: Børnebidragslov19BidragResultat| resultat.input_gyldigt && resultat.navngivningsskattekontekst_gyldig)
+    = alle_modtagerbeskatninger_kildeafklarede = all(resultater, |resultat: Børnebidragslov19BidragResultat| resultat.modtagerbeskatning_kildeafklaret)
+    = kan_sammensættes = alle_input_gyldige && alle_modtagerbeskatninger_kildeafklarede && all(resultater, |resultat: Børnebidragslov19BidragResultat| resultat.kan_sammensættes)
+    Børnebidragslov19Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        resultater = resultater,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        alle_modtagerbeskatninger_kildeafklarede = alle_modtagerbeskatninger_kildeafklarede,
+        samlet_ligningsmæssigt_fradrag_kroner = hvis kan_sammensættes { foldl(resultater, 0, |sum_kroner: Heltal, resultat: Børnebidragslov19BidragResultat| sum_kroner + resultat.ligningsmæssigt_fradrag_kroner) } ellers { 0 },
+        samlet_personlig_indkomst_kroner = hvis kan_sammensættes { foldl(resultater, 0, |sum_kroner: Heltal, resultat: Børnebidragslov19BidragResultat| sum_kroner + resultat.personlig_indkomst_kroner) } ellers { 0 },
+        kan_sammensættes = kan_sammensættes
+    )
+}
+--@end:børnebidragsloven_par19_skat--
+
+= børnebidragsloven_satser_2023 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2022/10315",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2023, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 913 kr.; barselsbidrag 1.589 kr. pr. måned; navngivningsbidrag 1.328 kr."
+)
+= børnebidragsloven_satser_2024 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2023/10046",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2024, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 942 kr.; barselsbidrag 1.640 kr. pr. måned; navngivningsbidrag 1.370 kr."
+)
+= børnebidragsloven_satser_2025 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2024/10046",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2025, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 976 kr.; barselsbidrag 1.699 kr. pr. måned; navngivningsbidrag 1.419 kr."
+)
+= børnebidragsloven_satser_2026 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2025/10225",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2026, pkt. 2.5",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Fødselsbidrag 1.020 kr.; barselsbidrag 1.775 kr. pr. måned; navngivningsbidrag 1.483 kr."
+)
+= børnebidragsloven_par19_satser_metadata = Metadata(
+    attachments = (
+        HistoricalSource(value = børnebidragsloven_satser_2023),
+        HistoricalSource(value = børnebidragsloven_satser_2024),
+        ParameterSource(value = børnebidragsloven_satser_2025),
+        ParameterSource(value = børnebidragsloven_satser_2026),
+    )
+)
+
+--@label:børnebidragsloven_par19_satser::meta:børnebidragsloven_par19_satser_metadata--
+----
+Styrelsen for Arbejdsmarked og Rekruttering har for 2023 fastsat størrelsen af
+fødselsbidraget til 913 kr. Størrelsen af barselsbidraget er fastsat til 1.589
+kr. om måneden. I 2023 er et navngivningsbidrag, herunder til dåb, 1.328 kr.
+(normalbidragets grundbeløb).
+
+Styrelsen for Arbejdsmarked og Rekruttering har for 2024 fastsat størrelsen af
+fødselsbidraget til 942 kr. Størrelsen af barselsbidraget er fastsat til 1.640
+kr. om måneden. I 2024 er et navngivningsbidrag, herunder til dåb, 1.370 kr.
+(normalbidragets grundbeløb).
+
+Styrelsen for Arbejdsmarked og Rekruttering har for 2025 fastsat størrelsen af
+fødselsbidraget til 976 kr. Størrelsen af barselsbidraget er fastsat til 1.699
+kr. om måneden. I 2025 er et navngivningsbidrag, herunder til dåb, 1.419 kr.
+(normalbidragets grundbeløb).
+
+Styrelsen for Arbejdsmarked og Rekruttering har for 2026 fastsat størrelsen af
+fødselsbidraget til 1.020 kr. Størrelsen af barselsbidraget er fastsat til
+1.775 kr. om måneden. I 2026 er et navngivningsbidrag, herunder til dåb, 1.483
+kr. (normalbidragets grundbeløb).
+----
+
+--@begin:børnebidragsloven_par19_satser--
+| børnebidragslov19_satsår_understøttet(år: Heltal) -> Falskt
+| exception børnebidragslov19_satsår_2023 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2023
+| exception børnebidragslov19_satsår_2024 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2024
+| exception børnebidragslov19_satsår_2025 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2025
+| exception børnebidragslov19_satsår_2026 børnebidragslov19_satsår_understøttet(år: Heltal) -> Sandt under år == 2026
+| børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 0
+| exception børnebidragslov19_fødselsbidrag_2023 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 913 under år == 2023
+| exception børnebidragslov19_fødselsbidrag_2024 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 942 under år == 2024
+| exception børnebidragslov19_fødselsbidrag_2025 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 976 under år == 2025
+| exception børnebidragslov19_fødselsbidrag_2026 børnebidragslov19_fødselsbidrag_sats_kroner(år: Heltal) -> 1020 under år == 2026
+| børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 0
+| exception børnebidragslov19_barselsbidrag_2023 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1589 under år == 2023
+| exception børnebidragslov19_barselsbidrag_2024 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1640 under år == 2024
+| exception børnebidragslov19_barselsbidrag_2025 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1699 under år == 2025
+| exception børnebidragslov19_barselsbidrag_2026 børnebidragslov19_barselsbidrag_månedssats_kroner(år: Heltal) -> 1775 under år == 2026
+| børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 0
+| exception børnebidragslov19_navngivningsbidrag_2023 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1328 under år == 2023
+| exception børnebidragslov19_navngivningsbidrag_2024 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1370 under år == 2024
+| exception børnebidragslov19_navngivningsbidrag_2025 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1419 under år == 2025
+| exception børnebidragslov19_navngivningsbidrag_2026 børnebidragslov19_navngivningsbidrag_sats_kroner(år: Heltal) -> 1483 under år == 2026
+--@end:børnebidragsloven_par19_satser--
