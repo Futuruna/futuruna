@@ -19228,10 +19228,16 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
         round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
             &source_scenario,
             "personskat_underhold_kildefakta_til_arbejdsbog",
-            &[(
-                "personskat-underhold-ægtefællebidrag-2025",
-                "ÆgtefællebidragBetalt2025",
-            )],
+            &[
+                (
+                    "personskat-underhold-ægtefællebidrag-2025",
+                    "ÆgtefællebidragBetalt2025",
+                ),
+                (
+                    "personskat-underhold-privat-begrænset-børnebidrag-2025",
+                    "PrivatBegrænsetBørnebidragBetalt2025",
+                ),
+            ],
             |workbook_path| {
                 let mut workbook =
                     open_workbook_auto(workbook_path).expect("Personskat support workbook");
@@ -19247,6 +19253,14 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
                     (
                         "modtager_identifikation",
                         "Bidragsmodtagerens identifikation",
+                    ),
+                    (
+                        "fastsættelse.DokumenteretPrivatAftale.fradragsvurdering.$variant",
+                        "Privataftalens fradragsvurdering",
+                    ),
+                    (
+                        "bidragsart.LøbendeUnderholdsbidrag.beløbsgrundlag",
+                        "Det løbende bidrags beløbsgrundlag",
                     ),
                     ("beløb_kroner", "Betalt eller modtaget bidrag"),
                 ] {
@@ -19264,6 +19278,14 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
         &canonical_input["lønmodtager"]["personlig_indkomst"]["underholdsbidrag"]["bidrag"][0];
     assert_eq!(contribution["identifikation"], "ægtefællebidrag-2025");
     assert_eq!(contribution["beløb_kroner"], 24_000);
+    assert_eq!(
+        contribution["fastsættelse"]["fradragsvurdering"]["$variant"],
+        "IkkeRelevantForFradraget"
+    );
+    assert_eq!(
+        contribution["bidragsart"]["beløbsgrundlag"]["$variant"],
+        "HeleForfaldsmånedensBidrag"
+    );
 
     let result = &workbook_output["results"][0]["result"];
     assert_eq!(
@@ -19274,6 +19296,26 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
         result["personlig_indkomst"]["underholdsbidrag"]["kan_sammensættes"]
             .as_bool()
             .expect("support-payment composability")
+    );
+
+    let limited_source = &source_output["results"][1]["result"]["lønmodtager"]
+        ["personlig_indkomst"]["underholdsbidrag"]["bidrag"][0];
+    assert_eq!(limited_source["beløb_kroner"], 5_000);
+    assert_eq!(
+        limited_source["fastsættelse"]["fradragsvurdering"]["anerkendt_betalt_beløb_kroner"],
+        2_000
+    );
+
+    let limited_result = &workbook_output["results"][1]["result"];
+    assert_eq!(
+        limited_result["personlig_indkomst"]["underholdsbidrag"]["resultater"][0]
+            ["fradragsberettiget_bruttobidrag_kroner"],
+        2_000
+    );
+    assert_eq!(
+        limited_result["personlig_indkomst"]["underholdsbidrag"]
+            ["samlet_ligningsmæssigt_fradrag_kroner"],
+        1_816
     );
 }
 

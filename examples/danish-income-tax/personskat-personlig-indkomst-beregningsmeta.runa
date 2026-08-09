@@ -289,17 +289,66 @@
     unit = None
 )
 = personskat_underhold_felt_fastsættelse = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse),
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::$variant),
     label = "Bidragets fastsættelse",
     question = Some("Er bidraget fastsat i en dokumenteret privat aftale, fastsat eller godkendt af en offentlig myndighed eller ikke dokumenteret?"),
     help = Some("Ved faktisk adskillelse kræver LL § 10, stk. 3, offentlig fastsættelse eller godkendelse."),
     unit = None
 )
+= personskat_underhold_felt_privat_fradragsvurdering = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::$variant),
+    label = "Privataftalens fradragsvurdering",
+    question = Some("Hvordan er et privat aftalt børnebidrag vurderet i forhold til normalbidraget og Familieretshusets vejledende beløb?"),
+    help = Some("Vurderingen er kun relevant for bidragsyderens løbende børnebidrag. Bidrag op til normalbidraget kontrolleres automatisk; højere bidrag kræver en dokumenteret sammenligning eller konkret skattemæssig afgørelse."),
+    unit = None
+)
+= personskat_underhold_felt_privat_vejledende_månedsbeløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::DokumenteretVejledendeMånedsbeløb::vejledende_månedsbeløb_kroner),
+    label = "Dokumenteret vejledende månedsbidrag",
+    question = Some("Hvilket månedligt bidrag viser det dokumenterede sammenligningsgrundlag, at Familieretshuset vejledende ville fastsætte?"),
+    help = Some("Beløbet skal mindst være normalbidraget. Futuruna kontrollerer det faktisk betalte beløb mod grænsen, også når 18-årsmåneden allerede er forholdsmæssigt betalt."),
+    unit = Some("kr./måned")
+)
+= personskat_underhold_felt_privat_vejledende_reference = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::DokumenteretVejledendeMånedsbeløb::dokumentreference),
+    label = "Reference til vejledende bidragssammenligning",
+    question = Some("Hvilket dokument underbygger det vejledende månedsbidrag?"),
+    help = Some("Henvis til den relevante afgørelse, beregning eller årlige bidragsvejledning."),
+    unit = None
+)
+= personskat_underhold_felt_privat_anerkendt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::KonkretSkattemæssigtAnerkendtBeløb::anerkendt_betalt_beløb_kroner),
+    label = "Konkret skattemæssigt anerkendt bidrag",
+    question = Some("Hvor stor en del af det faktisk betalte bidrag er konkret anerkendt som fradragsgrundlag?"),
+    help = Some("Angiv beløbet i samme betalingsperiode og beløbsgrundlag som det faktisk betalte bidrag. Modtagerens indkomst beregnes fortsat af det fulde modtagne beløb."),
+    unit = Some("kr.")
+)
+= personskat_underhold_felt_privat_anerkendt_reference = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse::DokumenteretPrivatAftale::fradragsvurdering::KonkretSkattemæssigtAnerkendtBeløb::dokumentreference),
+    label = "Reference til konkret skattemæssig vurdering",
+    question = Some("Hvilken afgørelse eller anden dokumentation fastslår det anerkendte fradragsgrundlag?"),
+    help = None,
+    unit = None
+)
 = personskat_underhold_felt_bidragstype = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::$variant),
     label = "Bidragets art",
-    question = Some("Er bidraget løbende underhold, et dåbs- eller navngivningsbidrag eller et konfirmations- eller nonfirmationsbidrag?"),
-    help = None,
+    question = Some("Er bidraget løbende underhold, uddannelsesbidrag efter 18 år, et dåbs- eller navngivningsbidrag eller et konfirmations- eller nonfirmationsbidrag?"),
+    help = Some("Fødsels- og barselsbidrag til moren er selvstændige bidragsarter og må ikke registreres som løbende børnebidrag her."),
+    unit = None
+)
+= personskat_underhold_felt_løbende_beløbsgrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::LøbendeUnderholdsbidrag::beløbsgrundlag::$variant),
+    label = "Det løbende bidrags beløbsgrundlag",
+    question = Some("Er beløbet hele forfaldsmånedens bidrag eller allerede forholdsmæssigt betalt til og med barnets 18-årsdag?"),
+    help = Some("Vælg kun det forholdsmæssige grundlag i den måned, hvor barnet fylder 18 år. Futuruna fordeler da ikke kontantbeløbet endnu en gang."),
+    unit = None
+)
+= personskat_underhold_felt_uddannelsesformål = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::UddannelsesbidragEfter18År::dokumenteret_uddannelsesformål),
+    label = "Uddannelsesformålet er dokumenteret",
+    question = Some("Er det dokumenteret, at bidraget til barnet efter 18 år er et uddannelsesbidrag?"),
+    help = Some("Bidraget giver ikke fradrag hos yderen efter LL §§ 10-11 og er fuldt skattepligtigt hos barnet."),
     unit = None
 )
 = personskat_underhold_felt_dåbsudgift_dokumenteret = TypetBeregningsfelt(
@@ -418,7 +467,14 @@
         personskat_underhold_felt_barn_bopæl,
         personskat_underhold_felt_offentlig_forsørgerpligt,
         personskat_underhold_felt_fastsættelse,
+        personskat_underhold_felt_privat_fradragsvurdering,
+        personskat_underhold_felt_privat_vejledende_månedsbeløb,
+        personskat_underhold_felt_privat_vejledende_reference,
+        personskat_underhold_felt_privat_anerkendt_beløb,
+        personskat_underhold_felt_privat_anerkendt_reference,
         personskat_underhold_felt_bidragstype,
+        personskat_underhold_felt_løbende_beløbsgrundlag,
+        personskat_underhold_felt_uddannelsesformål,
         personskat_underhold_felt_dåbsudgift_dokumenteret,
         personskat_underhold_felt_konfirmationsudgift_dokumenteret,
         personskat_underhold_felt_betalingsvej,
@@ -447,6 +503,7 @@
         Guidance(value = skat_gruppeliv_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+        Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),
     )
 )
 
