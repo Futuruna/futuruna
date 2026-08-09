@@ -265,6 +265,39 @@
     samlet_jord_anskaffelsessum_før_overførsel_kroner = 800000
 )
 
+| ebl_par5_scenarie_stk6_topniveau(anskaffelsesgrundlag: EjendomsavancePar4Anskaffelsesgrundlag, stk6_overførsel: EblPar5Stk6Overførsel) -> ejendomsavancebeskatningslov_resultat(EjendomsavancebeskatningslovInput(
+    indkomstår = 2026,
+    afståelsesdato = EblDato(år = 2026, måned = 12, dag = 31),
+    afståelse = EblAlmindeligAfståelse,
+    erhvervet_som_led_i_næring = Falskt,
+    kontant_anskaffelsessum_kroner = 200000,
+    gæld_kursværdi_ved_anskaffelse_kroner = 0,
+    par5_fakta = ebl_par5_scenarie_fakta(
+        anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
+        anskaffelsesgrundlag = anskaffelsesgrundlag,
+        fordeling = ebl_par5_scenarie_del_fordeling_uden_mælkekvoter,
+        mælkekvoter = [],
+        stk6_overførsel = stk6_overførsel,
+        reguleringsvalg = EblPar5UdenIndeksering
+    ),
+    par4_stk8_anskaffelse_udeladt_kroner = 0,
+    kontant_afståelsessum_kroner = 300000,
+    overdragne_gældsposter_kursværdi_kroner = 0,
+    par4_stk8_afståelsesværdi_udeladt_kroner = 0,
+    ejendomstype = EblLandbrugSkovNaturEllerBlandetEjendom(fakta = EblPar9Fakta(
+        kategori = EblPar9Landbrugsejendom,
+        bolig_har_tjent_til_bolig_for_ejer_eller_husstand = Falskt,
+        boligbetingelser_opfyldt_i_ejerperioden = Falskt,
+        grundbetingelse = EblPar8GrundarealUnder1400M2,
+        bolig_anskaffelsessum_kroner = 0,
+        bolig_afståelsessum_kroner = 0,
+        skadeforhold = EblPar9IngenVæsentligSkade,
+        genanbringelsesforhold = EblPar9IngenGenanbringelseEfterStk4
+    )),
+    par11_stk2_valg = EblPar11Stk2IngenNyGenanbringelse,
+    par6d_valg = EblUdenPar6DValg
+))
+
 = ebl_par5_stk6_landbrug = ebl_par5_resultat(
     ebl_par5_scenarie_fakta(
         anskaffelsesdato = EblDato(år = 1985, måned = 1, dag = 1),
@@ -295,6 +328,18 @@
     ),
     EblDato(år = 2026, måned = 12, dag = 31),
     200000
+)
+
+= ebl_par5_stk6_påkrævet_men_udeladt = ebl_par5_scenarie_stk6_topniveau(
+    anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+    stk6_overførsel = EblPar5UdenStk6Overførsel
+)
+
+= ebl_par5_stk6_påkrævet_og_oplyst = ebl_par5_scenarie_stk6_topniveau(
+    anskaffelsesgrundlag = EblPar4Stk3Nr1Anskaffelsesgrundlag,
+    stk6_overførsel = EblPar5MedStk6Overførsel(
+        fakta = ebl_par5_scenarie_stk6_fakta_landbrug
+    )
 )
 
 = ebl_par5_stk6_vurderingslov4b = ebl_par5_resultat(
@@ -396,6 +441,7 @@
 | ebl_par5_mælk_udenfor_ebl_kræver_ikke_unødvendigt_boliggrundlag: ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag -> ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.input_gyldigt && head(ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.mælkekvote_resultater).omfattet_af_ejendomsavancebeskatningsloven == Falskt && ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.mælkekvoteforhøjelse_efter_stk3_kroner == 0 && ebl_par5_mælk_udenfor_ebl_kræver_ikke_boliggrundlag.nedsættelser_efter_stk4_til_8_kroner == 0
 | ebl_par5_stk6_udleder_højeste_værdi_og_restejendomsnedslag: ebl_par5_stk6_landbrug -> ebl_par5_stk6_landbrug.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_landbrug.stk6_resultat.højeste_vurderingsværdi_kroner == 600000 && ebl_par5_stk6_landbrug.stk6_resultat.vurderingsomfattede_nedsættelser_kroner == 300000 && ebl_par5_stk6_landbrug.stk6_resultat.overførselsberettiget_beløb_for_hele_ejendommen_kroner == 300000 && ebl_par5_stk6_landbrug.stk6_overført_til_afstået_jord_kroner == 37500 && ebl_par5_stk6_landbrug.stk6_resultat.restejendommens_anskaffelsessum_nedsættes_kroner == 37500
 | ebl_par5a_stk6_regulerer_fra_indgangsåret: ebl_par5_stk6_landbrug_med_indeksering -> ebl_par5_stk6_landbrug_med_indeksering.indeksering_anvendt && ebl_par5_stk6_landbrug_med_indeksering.reguleret_stk6_overførsel_efter_par5a_kroner == ebl_par5a_reguler_beløb_kroner(37500, 1993, 2026)
+| ebl_par5_stk6_obligatorisk_overførsel_kræver_kildefakta: ebl_par5_stk6_påkrævet_men_udeladt -> ebl_par5_stk6_påkrævet_men_udeladt.input_gyldigt == Falskt && ebl_par5_stk6_påkrævet_men_udeladt.skattepligtig_fortjeneste_kroner == 0 && ebl_par5_stk6_påkrævet_og_oplyst.input_gyldigt && ebl_par5_stk6_påkrævet_og_oplyst.par5_resultat.stk6_overført_til_afstået_jord_kroner == 37500
 | ebl_par5_stk6_omfatter_vurdering_efter_dagældende_vurderingslov4b: ebl_par5_stk6_vurderingslov4b -> ebl_par5_stk6_vurderingslov4b.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_vurderingslov4b.stk6_overført_til_afstået_jord_kroner == 37500
 | ebl_par5_stk6_historisk_grundlag_kræver_anskaffelse_før_skæringsdatoen: ebl_par5_stk6_historisk_grundlag_på_skæringsdato -> ebl_par5_stk6_historisk_grundlag_på_skæringsdato.input_gyldigt == Falskt && ebl_par5_stk6_historisk_grundlag_på_skæringsdato.beregning_anvendt == Falskt && ebl_par5_stk6_historisk_grundlag_på_skæringsdato.stk6_resultat.betingelser_opfyldt == Falskt && ebl_par5_stk6_historisk_grundlag_på_skæringsdato.stk6_overført_til_afstået_jord_kroner == 0
 | ebl_par5_stk6_skov_får_først_virkning_fra_2027: ebl_par5_stk6_skov_før_2027 -> ebl_par5_stk6_skov_før_2027.stk6_resultat.betingelser_opfyldt == Falskt && ebl_par5_stk6_skov_før_2027.stk6_overført_til_afstået_jord_kroner == 0 && ebl_par5_stk6_skov_fra_2027.stk6_resultat.betingelser_opfyldt && ebl_par5_stk6_skov_fra_2027.stk6_overført_til_afstået_jord_kroner == 37500
@@ -411,6 +457,7 @@
 ? ebl_par5_mælk_udenfor_ebl_kræver_ikke_unødvendigt_boliggrundlag
 ? ebl_par5_stk6_udleder_højeste_værdi_og_restejendomsnedslag
 ? ebl_par5a_stk6_regulerer_fra_indgangsåret
+? ebl_par5_stk6_obligatorisk_overførsel_kræver_kildefakta
 ? ebl_par5_stk6_omfatter_vurdering_efter_dagældende_vurderingslov4b
 ? ebl_par5_stk6_historisk_grundlag_kræver_anskaffelse_før_skæringsdatoen
 ? ebl_par5_stk6_skov_får_først_virkning_fra_2027

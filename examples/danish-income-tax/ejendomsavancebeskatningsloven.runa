@@ -232,6 +232,21 @@ lov.
         | _ -> Falskt
     }
 }
+| ebl_par5_stk6_påkrævet_for_par9_kategori(kategori: EblPar9Ejendomskategori, afståelsesdato: EblDato) -> match kategori {
+    | EblPar9Landbrugsejendom -> ebl_par5_stk6_kategori_berettiget(EblPar5Stk6Landbrugsejendom, afståelsesdato)
+    | EblPar9Skovejendom -> ebl_par5_stk6_kategori_berettiget(EblPar5Stk6Skovejendom, afståelsesdato)
+    | EblPar9Naturejendom -> ebl_par5_stk6_kategori_berettiget(EblPar5Stk6Naturejendom, afståelsesdato)
+    | _ -> Falskt
+}
+| ebl_par5_stk6_påkrævet_for_sag(fakta: EblPar5Fakta, ejendomstype: EjendomsavanceEjendomstype, afståelsesdato: EblDato) -> ebl_par5_delafståelse(fakta.fordeling) && ebl_par5_stk6_anskaffelsesgrundlag_berettiget(fakta.anskaffelsesgrundlag) && match ejendomstype {
+    | EblLandbrugSkovNaturEllerBlandetEjendom(par9_fakta) -> ebl_par5_stk6_påkrævet_for_par9_kategori(par9_fakta.kategori, afståelsesdato)
+    | _ -> Falskt
+}
+| ebl_par5_stk6_overførsel_har_kildefakta(overførsel: EblPar5Stk6Overførsel) -> match overførsel {
+    | EblPar5UdenStk6Overførsel -> Falskt
+    | EblPar5MedStk6Overførsel(_) -> Sandt
+}
+| ebl_par5_stk6_kildefakta_tilstede_når_påkrævet(fakta: EblPar5Fakta, ejendomstype: EjendomsavanceEjendomstype, afståelsesdato: EblDato) -> ebl_par5_stk6_påkrævet_for_sag(fakta, ejendomstype, afståelsesdato) == Falskt || ebl_par5_stk6_overførsel_har_kildefakta(fakta.stk6_overførsel)
 | ebl_par5_mælkekvoter_passer_til_ejendomstype(mælkekvoter: List(EblPar5MælkekvoteFakta), ejendomstype: EjendomsavanceEjendomstype) -> hvis length(mælkekvoter) == 0 { Sandt } ellers { match ejendomstype {
     | EblLandbrugSkovNaturEllerBlandetEjendom(par9_fakta) -> par9_fakta.kategori == EblPar9Landbrugsejendom
     | _ -> Falskt
@@ -337,7 +352,7 @@ lov.
         | EblBoligejendom(fakta) -> EblPar8Behandling(ebl_par8_resultat(fakta, input.afståelsesdato, almindelig_fortjeneste_eller_tab_kroner()))
         | EblLandbrugSkovNaturEllerBlandetEjendom(fakta) -> EblPar9Behandling(ebl_par9_resultat(fakta, input.afståelsesdato, par9_beløbsgrundlag()))
     }
-    | grundbeløb_gyldige() -> input.indkomstår > 0 && ebl_dato_gyldig(input.afståelsesdato) && input.afståelsesdato.år == input.indkomstår && input.kontant_anskaffelsessum_kroner >= 0 && input.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner <= anskaffelsessum_kontantværdi_kroner() && bolig_anskaffelsessum_kroner() <= anskaffelsessum_efter_par4_stk8_kroner() && aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner() <= par5_anskaffelsessum_før_aktivt_genanbringelsesnedslag_kroner() && ebl_par5_par6c_nedslag_i_udgifter_gyldigt(input.par5_fakta) && ebl_par5_par6c_kildefakta_passer_til_ejendomstype(input.ejendomstype, input.par5_fakta) && input.kontant_afståelsessum_kroner >= 0 && input.overdragne_gældsposter_kursværdi_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner <= afståelsessum_før_par4_stk8_kroner() && bolig_afståelsessum_kroner() <= afståelsessum_kontantværdi_kroner() && ebl_par5a_valg_passer_til_ejendomstype(input.par5_fakta.reguleringsvalg, input.ejendomstype) && ebl_par5_stk6_passer_til_ejendomstype(input.par5_fakta.stk6_overførsel, input.ejendomstype) && ebl_par5_mælkekvoter_passer_til_ejendomstype(input.par5_fakta.mælkekvoter, input.ejendomstype)
+    | grundbeløb_gyldige() -> input.indkomstår > 0 && ebl_dato_gyldig(input.afståelsesdato) && input.afståelsesdato.år == input.indkomstår && input.kontant_anskaffelsessum_kroner >= 0 && input.gæld_kursværdi_ved_anskaffelse_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner >= 0 && input.par4_stk8_anskaffelse_udeladt_kroner <= anskaffelsessum_kontantværdi_kroner() && bolig_anskaffelsessum_kroner() <= anskaffelsessum_efter_par4_stk8_kroner() && aktivt_anskaffelsessumsnedslag_anvendt_før_par5_kroner() <= par5_anskaffelsessum_før_aktivt_genanbringelsesnedslag_kroner() && ebl_par5_par6c_nedslag_i_udgifter_gyldigt(input.par5_fakta) && ebl_par5_par6c_kildefakta_passer_til_ejendomstype(input.ejendomstype, input.par5_fakta) && input.kontant_afståelsessum_kroner >= 0 && input.overdragne_gældsposter_kursværdi_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner >= 0 && input.par4_stk8_afståelsesværdi_udeladt_kroner <= afståelsessum_før_par4_stk8_kroner() && bolig_afståelsessum_kroner() <= afståelsessum_kontantværdi_kroner() && ebl_par5a_valg_passer_til_ejendomstype(input.par5_fakta.reguleringsvalg, input.ejendomstype) && ebl_par5_stk6_passer_til_ejendomstype(input.par5_fakta.stk6_overførsel, input.ejendomstype) && ebl_par5_stk6_kildefakta_tilstede_når_påkrævet(input.par5_fakta, input.ejendomstype, input.afståelsesdato) && ebl_par5_mælkekvoter_passer_til_ejendomstype(input.par5_fakta.mælkekvoter, input.ejendomstype)
     | input_gyldigt_før_par6d() -> grundbeløb_gyldige() && genanbringelsesresultat().input_gyldigt && par11_stk2_resultat().input_gyldigt && par5_resultat().input_gyldigt && ebl_par8_par9_input_gyldigt(par8_par9_behandling())
     | regelgrundlag_understøttet_før_par6d() -> genanbringelsesresultat().regelgrundlag_understøttet && par11_stk2_resultat().regelgrundlag_understøttet && par5_resultat().regelgrundlag_understøttet && ebl_par8_par9_regelgrundlag_understøttet(par8_par9_behandling())
     | omfattet_af_loven() -> input.erhvervet_som_led_i_næring == Falskt && ebl_par8_par9_omfattet_af_loven(par8_par9_behandling())
