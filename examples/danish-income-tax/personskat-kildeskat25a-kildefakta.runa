@@ -17,6 +17,10 @@
 = personskat_kildeskat25a_kildefakta_metadata = Metadata(
     attachments = (
         DependencySource(value = kildeskatteloven_lbk460_par25a),
+        Guidance(value = kildeskatteloven_vejledning_samlivsstatus),
+        Guidance(value = kildeskatteloven_vejledning_par25a_samlivsophør),
+        Guidance(value = kildeskatteloven_vejledning_par25a_fri_fordeling),
+        Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
         Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
         Guidance(value = skat_ksl25a_lønaftale_vejledning),
     )
@@ -48,6 +52,12 @@ personskattelovens § 20.
 Stk. 5. Den skattepligtige indkomst, den personlige indkomst og den
 arbejdsmarkedsbidragspligtige indkomst efter stk. 1 nedsættes med det beløb,
 der overføres til den medarbejdende ægtefælle efter stk. 3.
+
+Stk. 6. Er samlivet mellem ægtefællerne ophørt i løbet af indkomståret, gælder
+stk. 1-5 ikke. Er samlivet ophørt af anden grund end en ægtefælles død,
+medregnes den i stk. 1 nævnte indkomst fra virksomheden indtil samlivets ophør
+dog ved indkomstopgørelsen for den ægtefælle, der i overvejende grad har drevet
+virksomheden.
 
 Stk. 7. En lønaftale mellem ægtefæller, der begge deltager i driften af den ene
 ægtefælles eller begges erhvervsvirksomhed, kan tillægges skattemæssig virkning,
@@ -83,11 +93,12 @@ den samme fordelingsregel for alle virksomheder i indkomståret.
 --@begin:personskat_kildeskat25a_virksomhedsfordeling--
 # PersonskatKsl25AVirksomhedsplacering = HovedpersonensVirksomhed | ÆgtefællensVirksomhed
 # PersonskatKsl25AÅrsregel = Ksl25AÅrsregelStk1 | Ksl25AÅrsregelStk3 | Ksl25AÅrsregelStk7 | Ksl25AÅrsregelStk8
-# PersonskatKsl25AVirksomhedsfordelingFakta(virksomhedsidentifikation: Tekst, virksomhedens_placering: PersonskatKsl25AVirksomhedsplacering, samliv_ophoert_i_indkomståret: Boolsk, fordeling: Kildeskat25AVirksomhedsfordelingsvalg, lønudgiftsidentifikation: Option(Tekst))
+# PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation: Tekst, fra_dato: Dato, til_dato: Dato)
+# PersonskatKsl25AVirksomhedsfordelingFakta(virksomhedsidentifikation: Tekst, virksomhedens_placering: PersonskatKsl25AVirksomhedsplacering, samlivsforløb: Kildeskat25ASamlivsforløb, virksomhedspostperioder: List(PersonskatKsl25AVirksomhedspostperiode), ordinær_ejer_efter_samlivsophør: Option(PersonskatKsl25AVirksomhedsplacering), fordeling: Kildeskat25AVirksomhedsfordelingsvalg, lønudgiftsidentifikation: Option(Tekst))
 # PersonskatKsl25APersonregulering(arbejdsmarkedsbidragsgrundlag_regulering_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner: Heltal, lønvederlag_regulering_kroner: Heltal)
-# PersonskatKsl25AVirksomhedsfordelingsresultat(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), kildevirksomhed_fundet_entydigt: Boolsk, modpart_har_ikke_samme_virksomhed: Boolsk, lønudgift_tilknyttet: Boolsk, kildeskat_resultat: Kildeskat25AVirksomhedsfordelingsresultat, input_gyldigt: Boolsk, virksomhedsdriverens_regulering: PersonskatKsl25APersonregulering, anden_ægtefælles_regulering: PersonskatKsl25APersonregulering)
+# PersonskatKsl25AVirksomhedsfordelingsresultat(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, samlivsforløbsresultat: Kildeskat25ASamlivsforløbsresultat, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), kildevirksomhed_fundet_entydigt: Boolsk, modpart_har_ikke_samme_virksomhed: Boolsk, virksomhedspostperioder_gyldige: Boolsk, delårsfordeling_understøttet: Boolsk, lønudgift_tilknyttet: Boolsk, lønperiode_respekterer_samlivsophør: Boolsk, virksomhedsresultat_før_samlivsophør: Kildeskat25AVirksomhedsbeløb, virksomhedsresultat_fra_samlivsophør: Kildeskat25AVirksomhedsbeløb, kildeskat_resultat: Kildeskat25AVirksomhedsfordelingsresultat, input_gyldigt: Boolsk, virksomhedsdriverens_regulering: PersonskatKsl25APersonregulering, anden_ægtefælles_regulering: PersonskatKsl25APersonregulering)
 # PersonskatKsl25AForløbstilstand(resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk)
-# PersonskatKsl25AParResultat(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), fordelingsidentifikationer_entydige: Boolsk, lønaftale_udelukker_stk3_og_stk8: Boolsk, fælles_virksomheder_bruger_samme_årsregel: Boolsk, stk3_samme_virksomhedsdriver: Boolsk, stk3_samlet_overført_kroner: Heltal, stk3_reguleret_årsloft_kroner: Heltal, stk3_årsloft_overholdt: Boolsk, alle_input_gyldige: Boolsk, hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering)
+# PersonskatKsl25AParResultat(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), fordelingsidentifikationer_entydige: Boolsk, samlivsforløb_ens: Boolsk, lønaftale_udelukker_stk3_og_stk8: Boolsk, fælles_virksomheder_bruger_samme_årsregel: Boolsk, stk3_samme_virksomhedsdriver: Boolsk, stk3_samlet_overført_kroner: Heltal, stk3_reguleret_årsloft_kroner: Heltal, stk3_årsloft_overholdt: Boolsk, alle_input_gyldige: Boolsk, hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering)
 
 | personskat_ksl25a_tom_personregulering() -> PersonskatKsl25APersonregulering(
     arbejdsmarkedsbidragsgrundlag_regulering_kroner = 0,
@@ -103,6 +114,7 @@ den samme fordelingsregel for alle virksomheder i indkomståret.
     fordelinger = [],
     resultater = [],
     fordelingsidentifikationer_entydige = Sandt,
+    samlivsforløb_ens = Sandt,
     lønaftale_udelukker_stk3_og_stk8 = Sandt,
     fælles_virksomheder_bruger_samme_årsregel = Sandt,
     stk3_samme_virksomhedsdriver = Sandt,

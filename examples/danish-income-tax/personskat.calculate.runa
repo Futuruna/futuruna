@@ -16141,22 +16141,64 @@ fraflytningen."
     )
     | _ -> kildeskat25a_tomt_virksomhedsbeløb()
 }
-| personskat_ksl25a_kildeskat_input(skatteår: Heltal, samlevende_ved_indkomstårets_udløb: Boolsk, fakta: PersonskatKsl25AVirksomhedsfordelingFakta, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta)) -> match kildevirksomhed {
-    | Some(virksomhed) -> Kildeskat25AVirksomhedsfordelingsinput(
-        indkomstår = skatteår,
-        samlevende_ved_indkomstårets_udgang = samlevende_ved_indkomstårets_udløb,
-        samliv_ophoert_i_indkomståret = fakta.samliv_ophoert_i_indkomståret,
-        virksomhedsresultat_efter_eventuel_løn = personskat_ksl25a_virksomhedsresultat_beløb(personskat_virksomhed_resultat(virksomhed, skatteår, Sandt)),
-        valg = fakta.fordeling
-    )
-    | None -> Kildeskat25AVirksomhedsfordelingsinput(
-        indkomstår = skatteår,
-        samlevende_ved_indkomstårets_udgang = samlevende_ved_indkomstårets_udløb,
-        samliv_ophoert_i_indkomståret = fakta.samliv_ophoert_i_indkomståret,
-        virksomhedsresultat_efter_eventuel_løn = kildeskat25a_tomt_virksomhedsbeløb(),
-        valg = fakta.fordeling
-    )
+| personskat_ksl25a_virksomhed_for_postidentifikationer(virksomhed: PersonskatOrdinærVirksomhedFakta, identifikationer: List(Tekst)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = virksomhed.identifikation,
+    indkomstår = virksomhed.indkomstår,
+    indtægter = filter(virksomhed.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| contains(identifikationer, indtægt.identifikation)),
+    udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation))
+)
+| personskat_ksl25a_virksomhedsbeløb_for_postidentifikationer(virksomhed: PersonskatOrdinærVirksomhedFakta, identifikationer: List(Tekst)) -> hvis length(identifikationer) == 0 {
+    kildeskat25a_tomt_virksomhedsbeløb()
+} ellers {
+    personskat_ksl25a_virksomhedsresultat_beløb(personskat_virksomhed_resultat(personskat_ksl25a_virksomhed_for_postidentifikationer(virksomhed, identifikationer), virksomhed.indkomstår, Sandt))
 }
+| personskat_ksl25a_postperiode_grundfakta_gyldige(indkomstår: Heltal, periode: PersonskatKsl25AVirksomhedspostperiode) -> periode.kildepost_identifikation != "" && dato_gyldig(periode.fra_dato) && dato_gyldig(periode.til_dato) && periode.fra_dato.år == indkomstår && periode.til_dato.år == indkomstår && dato_før_eller_lig_med(periode.fra_dato, periode.til_dato)
+| personskat_ksl25a_postperiode_før_samlivsophør(periode: PersonskatKsl25AVirksomhedspostperiode, ophørsdato: Dato) -> dato_før(periode.til_dato, ophørsdato)
+| personskat_ksl25a_postperiode_fra_samlivsophør(periode: PersonskatKsl25AVirksomhedspostperiode, ophørsdato: Dato) -> dato_efter_eller_lig_med(periode.fra_dato, ophørsdato)
+| personskat_ksl25a_postperiode_respekterer_samlivsophør(periode: PersonskatKsl25AVirksomhedspostperiode, ophørsdato: Dato) -> personskat_ksl25a_postperiode_før_samlivsophør(periode, ophørsdato) || personskat_ksl25a_postperiode_fra_samlivsophør(periode, ophørsdato)
+| personskat_ksl25a_postperiode_identifikationer(perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> map(perioder, |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation)
+| personskat_ksl25a_postperioder_dækker_kildevirksomheden(virksomhed: PersonskatOrdinærVirksomhedFakta, perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> {
+    = kildeidentifikationer = personskat_virksomhed_postidentifikationer(virksomhed)
+    = periodeidentifikationer = personskat_ksl25a_postperiode_identifikationer(perioder)
+    length(distinct(periodeidentifikationer)) == length(periodeidentifikationer) && length(periodeidentifikationer) == length(kildeidentifikationer) && all(kildeidentifikationer, |identifikation: Tekst| contains(periodeidentifikationer, identifikation))
+}
+| personskat_ksl25a_postperioder_gyldige(virksomhed: PersonskatOrdinærVirksomhedFakta, status: Kildeskat25ASamlivsforløbsresultat, perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> hvis status.input_gyldigt == Falskt {
+    Falskt
+} ellers hvis status.delårsperiodisering_påkrævet {
+    match status.ophørsdato {
+        | Some(ophørsdato) -> personskat_ksl25a_postperioder_dækker_kildevirksomheden(virksomhed, perioder) && all(perioder, |periode: PersonskatKsl25AVirksomhedspostperiode| personskat_ksl25a_postperiode_grundfakta_gyldige(virksomhed.indkomstår, periode) && personskat_ksl25a_postperiode_respekterer_samlivsophør(periode, ophørsdato))
+        | None -> Falskt
+    }
+} ellers {
+    length(perioder) == 0
+}
+| personskat_ksl25a_postidentifikationer_før_samlivsophør(perioder: List(PersonskatKsl25AVirksomhedspostperiode), status: Kildeskat25ASamlivsforløbsresultat) -> match status.ophørsdato {
+    | Some(ophørsdato) -> map(filter(perioder, |periode: PersonskatKsl25AVirksomhedspostperiode| personskat_ksl25a_postperiode_før_samlivsophør(periode, ophørsdato)), |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation)
+    | None -> []
+}
+| personskat_ksl25a_postidentifikationer_fra_samlivsophør(perioder: List(PersonskatKsl25AVirksomhedspostperiode), status: Kildeskat25ASamlivsforløbsresultat) -> match status.ophørsdato {
+    | Some(ophørsdato) -> map(filter(perioder, |periode: PersonskatKsl25AVirksomhedspostperiode| personskat_ksl25a_postperiode_fra_samlivsophør(periode, ophørsdato)), |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation)
+    | None -> []
+}
+| personskat_ksl25a_virksomhedsresultat_før_samlivsophør(virksomhed: PersonskatOrdinærVirksomhedFakta, status: Kildeskat25ASamlivsforløbsresultat, perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> hvis status.dødsfald_i_indkomståret {
+    kildeskat25a_tomt_virksomhedsbeløb()
+} ellers hvis status.delårsperiodisering_påkrævet {
+    personskat_ksl25a_virksomhedsbeløb_for_postidentifikationer(virksomhed, personskat_ksl25a_postidentifikationer_før_samlivsophør(perioder, status))
+} ellers {
+    personskat_ksl25a_virksomhedsresultat_beløb(personskat_virksomhed_resultat(virksomhed, virksomhed.indkomstår, Sandt))
+}
+| personskat_ksl25a_virksomhedsresultat_fra_samlivsophør(virksomhed: PersonskatOrdinærVirksomhedFakta, status: Kildeskat25ASamlivsforløbsresultat, perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> hvis status.delårsperiodisering_påkrævet {
+    personskat_ksl25a_virksomhedsbeløb_for_postidentifikationer(virksomhed, personskat_ksl25a_postidentifikationer_fra_samlivsophør(perioder, status))
+} ellers {
+    kildeskat25a_tomt_virksomhedsbeløb()
+}
+| personskat_ksl25a_kildeskat_input(skatteår: Heltal, fakta: PersonskatKsl25AVirksomhedsfordelingFakta, virksomhedsresultat_før_samlivsophør: Kildeskat25AVirksomhedsbeløb) -> Kildeskat25AVirksomhedsfordelingsinput(
+    indkomstår = skatteår,
+    samlevende_ved_indkomstårets_udgang = Sandt,
+    samliv_ophoert_i_indkomståret = Falskt,
+    virksomhedsresultat_efter_eventuel_løn = virksomhedsresultat_før_samlivsophør,
+    valg = fakta.fordeling
+)
 | personskat_ksl25a_lønudgift_matcher(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta)) -> match fakta.fordeling {
     | Ksl25AStk7Lønaftale(lønaftale) -> match kildevirksomhed {
         | Some(virksomhed) -> match fakta.lønudgiftsidentifikation {
@@ -16167,19 +16209,51 @@ fraflytningen."
     }
     | _ -> match fakta.lønudgiftsidentifikation { | Some(_) -> Falskt | None -> Sandt }
 }
+| personskat_ksl25a_lønperiode_respekterer_samlivsophør(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, status: Kildeskat25ASamlivsforløbsresultat) -> match fakta.fordeling {
+    | Ksl25AStk7Lønaftale(lønaftale) -> hvis status.dødsfald_i_indkomståret {
+        Falskt
+    } ellers hvis status.delårsperiodisering_påkrævet {
+        match status.ophørsdato {
+            | Some(ophørsdato) -> dato_før(lønaftale.lønperiodens_slutdato, ophørsdato) && match fakta.lønudgiftsidentifikation {
+                | Some(identifikation) -> length(filter(fakta.virksomhedspostperioder, |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation == identifikation && personskat_ksl25a_postperiode_før_samlivsophør(periode, ophørsdato))) == 1
+                | None -> Falskt
+            }
+            | None -> Falskt
+        }
+    } ellers {
+        Sandt
+    }
+    | _ -> Sandt
+}
 | personskat_ksl25a_personlig_indkomst_uden_nyt_am_kroner(beløb: Kildeskat25AVirksomhedsbeløb) -> hvis beløb.personlig_indkomst_kroner < 0 { beløb.personlig_indkomst_kroner } ellers { 0 }
 | personskat_ksl25a_virksomhedsregulering(mål: Kildeskat25AVirksomhedsbeløb, grundlag: Kildeskat25AVirksomhedsbeløb) -> PersonskatKsl25APersonregulering(
     arbejdsmarkedsbidragsgrundlag_regulering_kroner = mål.arbejdsmarkedsbidragspligtig_indkomst_kroner - grundlag.arbejdsmarkedsbidragspligtig_indkomst_kroner,
     personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner = personskat_ksl25a_personlig_indkomst_uden_nyt_am_kroner(mål) - personskat_ksl25a_personlig_indkomst_uden_nyt_am_kroner(grundlag),
     lønvederlag_regulering_kroner = 0
 )
-| personskat_ksl25a_anden_ægtefælles_regulering(resultat: Kildeskat25AVirksomhedsfordelingsresultat) -> match resultat.input.valg {
-    | Ksl25AStk7Lønaftale(_) -> PersonskatKsl25APersonregulering(
-        arbejdsmarkedsbidragsgrundlag_regulering_kroner = 0,
-        personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner = 0,
-        lønvederlag_regulering_kroner = resultat.anden_ægtefælle.personlig_indkomst_kroner
+| personskat_ksl25a_anden_ægtefælles_regulering(resultat: Kildeskat25AVirksomhedsfordelingsresultat, virksomhedsresultat_fra_samlivsophør: Kildeskat25AVirksomhedsbeløb) -> match resultat.input.valg {
+    | Ksl25AStk7Lønaftale(_) -> personskat_ksl25a_personregulering_plus(
+        personskat_ksl25a_virksomhedsregulering(virksomhedsresultat_fra_samlivsophør, kildeskat25a_tomt_virksomhedsbeløb()),
+        PersonskatKsl25APersonregulering(
+            arbejdsmarkedsbidragsgrundlag_regulering_kroner = 0,
+            personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner = 0,
+            lønvederlag_regulering_kroner = resultat.anden_ægtefælle.personlig_indkomst_kroner
+        )
     )
-    | _ -> personskat_ksl25a_virksomhedsregulering(resultat.anden_ægtefælle, kildeskat25a_tomt_virksomhedsbeløb())
+    | _ -> personskat_ksl25a_virksomhedsregulering(kildeskat25a_virksomhedsbeløb_plus(resultat.anden_ægtefælle, virksomhedsresultat_fra_samlivsophør), kildeskat25a_tomt_virksomhedsbeløb())
+}
+| personskat_ksl25a_resultat_fra_ophør_for_kildeplacering(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, resultat: Kildeskat25AVirksomhedsbeløb) -> match fakta.ordinær_ejer_efter_samlivsophør {
+    | Some(ejer) -> hvis ejer == fakta.virksomhedens_placering { resultat } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | None -> kildeskat25a_tomt_virksomhedsbeløb()
+}
+| personskat_ksl25a_resultat_fra_ophør_for_modpart(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, resultat: Kildeskat25AVirksomhedsbeløb) -> match fakta.ordinær_ejer_efter_samlivsophør {
+    | Some(ejer) -> hvis ejer != fakta.virksomhedens_placering { resultat } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | None -> kildeskat25a_tomt_virksomhedsbeløb()
+}
+| personskat_ksl25a_delårsfordeling_understøttet(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, status: Kildeskat25ASamlivsforløbsresultat) -> status.input_gyldigt && status.dødsfald_i_indkomståret == Falskt && hvis status.delårsperiodisering_påkrævet {
+    match fakta.ordinær_ejer_efter_samlivsophør { | Some(_) -> Sandt | None -> Falskt }
+} ellers {
+    match fakta.ordinær_ejer_efter_samlivsophør { | Some(_) -> Falskt | None -> Sandt }
 }
 | personskat_ksl25a_fordelingsresultat(input: PersonskatInput, ægtefælle_fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk, fælles_skatteår: Boolsk, fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> {
     = kildevirksomheder = personskat_ksl25a_kildevirksomheder(input, ægtefælle_fakta, fakta.virksomhedens_placering)
@@ -16187,23 +16261,56 @@ fraflytningen."
     = kildevirksomhed = personskat_ksl25a_kildevirksomhed(kildevirksomheder, fakta.virksomhedsidentifikation)
     = kildevirksomhed_fundet_entydigt = length(personskat_ksl25a_virksomheder_med_identifikation(kildevirksomheder, fakta.virksomhedsidentifikation)) == 1 && personskat_virksomhedsidentifikationer_entydige(kildevirksomheder)
     = modpart_har_ikke_samme_virksomhed = length(personskat_ksl25a_virksomheder_med_identifikation(modpartsvirksomheder, fakta.virksomhedsidentifikation)) == 0
+    = samlivsforløbsresultat = kildeskat25a_samlivsforløbsresultat(input.lønmodtager.skatteår, fakta.samlivsforløb)
+    = virksomhedspostperioder_gyldige = match kildevirksomhed {
+        | Some(virksomhed) -> personskat_ksl25a_postperioder_gyldige(virksomhed, samlivsforløbsresultat, fakta.virksomhedspostperioder)
+        | None -> Falskt
+    }
+    = delårsfordeling_understøttet = personskat_ksl25a_delårsfordeling_understøttet(fakta, samlivsforløbsresultat)
     = lønudgift_tilknyttet = personskat_ksl25a_lønudgift_matcher(fakta, kildevirksomhed)
-    = kildeskat_input = personskat_ksl25a_kildeskat_input(input.lønmodtager.skatteår, samlevende_ved_indkomstårets_udløb, fakta, kildevirksomhed)
+    = lønperiode_respekterer_samlivsophør = personskat_ksl25a_lønperiode_respekterer_samlivsophør(fakta, samlivsforløbsresultat)
+    = virksomhedsresultat_før_samlivsophør = match kildevirksomhed {
+        | Some(virksomhed) -> personskat_ksl25a_virksomhedsresultat_før_samlivsophør(virksomhed, samlivsforløbsresultat, fakta.virksomhedspostperioder)
+        | None -> kildeskat25a_tomt_virksomhedsbeløb()
+    }
+    = virksomhedsresultat_fra_samlivsophør = match kildevirksomhed {
+        | Some(virksomhed) -> personskat_ksl25a_virksomhedsresultat_fra_samlivsophør(virksomhed, samlivsforløbsresultat, fakta.virksomhedspostperioder)
+        | None -> kildeskat25a_tomt_virksomhedsbeløb()
+    }
+    = kildeskat_input = personskat_ksl25a_kildeskat_input(input.lønmodtager.skatteår, fakta, virksomhedsresultat_før_samlivsophør)
     = kildeskat_resultat = kildeskat25a_virksomhedsfordelingsresultat(kildeskat_input)
     = kildevirksomhed_gyldig = match kildevirksomhed {
         | Some(virksomhed) -> personskat_virksomhed_resultat_gyldigt(personskat_virksomhed_resultat(virksomhed, input.lønmodtager.skatteår, Sandt))
         | None -> Falskt
     }
-    = input_gyldigt = fakta.virksomhedsidentifikation != "" && fælles_skatteår && kildevirksomhed_fundet_entydigt && modpart_har_ikke_samme_virksomhed && lønudgift_tilknyttet && kildevirksomhed_gyldig && kildeskat_resultat.grundfakta_gyldige && kildeskat_resultat.hjemmel_opfyldt
+    = stk3_tilladt = match fakta.fordeling {
+        | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> samlivsforløbsresultat.stk3_tilladt_i_indkomståret
+        | _ -> Sandt
+    }
+    = samlivsstatus_matcher = samlivsforløbsresultat.skattemæssigt_samlevende_ved_indkomstårets_udgang == samlevende_ved_indkomstårets_udløb
+    = input_gyldigt = fakta.virksomhedsidentifikation != "" && fælles_skatteår && kildevirksomhed_fundet_entydigt && modpart_har_ikke_samme_virksomhed && samlivsstatus_matcher && virksomhedspostperioder_gyldige && delårsfordeling_understøttet && lønudgift_tilknyttet && lønperiode_respekterer_samlivsophør && kildevirksomhed_gyldig && stk3_tilladt && kildeskat_resultat.grundfakta_gyldige && kildeskat_resultat.hjemmel_opfyldt
     = tom_regulering = personskat_ksl25a_tom_personregulering()
-    = virksomhedsdriverens_regulering = hvis input_gyldigt { personskat_ksl25a_virksomhedsregulering(kildeskat_resultat.virksomhedsdriver, kildeskat_input.virksomhedsresultat_efter_eventuel_løn) } ellers { tom_regulering }
-    = anden_ægtefælles_regulering = hvis input_gyldigt { personskat_ksl25a_anden_ægtefælles_regulering(kildeskat_resultat) } ellers { tom_regulering }
+    = samlet_kildegrundlag = match kildevirksomhed {
+        | Some(virksomhed) -> personskat_ksl25a_virksomhedsresultat_beløb(personskat_virksomhed_resultat(virksomhed, input.lønmodtager.skatteår, Sandt))
+        | None -> kildeskat25a_tomt_virksomhedsbeløb()
+    }
+    = kildeplaceringens_resultat_fra_ophør = personskat_ksl25a_resultat_fra_ophør_for_kildeplacering(fakta, virksomhedsresultat_fra_samlivsophør)
+    = modpartens_resultat_fra_ophør = personskat_ksl25a_resultat_fra_ophør_for_modpart(fakta, virksomhedsresultat_fra_samlivsophør)
+    = virksomhedsdriverens_mål = kildeskat25a_virksomhedsbeløb_plus(kildeskat_resultat.virksomhedsdriver, kildeplaceringens_resultat_fra_ophør)
+    = virksomhedsdriverens_regulering = hvis input_gyldigt { personskat_ksl25a_virksomhedsregulering(virksomhedsdriverens_mål, samlet_kildegrundlag) } ellers { tom_regulering }
+    = anden_ægtefælles_regulering = hvis input_gyldigt { personskat_ksl25a_anden_ægtefælles_regulering(kildeskat_resultat, modpartens_resultat_fra_ophør) } ellers { tom_regulering }
     PersonskatKsl25AVirksomhedsfordelingsresultat(
         fakta = fakta,
+        samlivsforløbsresultat = samlivsforløbsresultat,
         kildevirksomhed = kildevirksomhed,
         kildevirksomhed_fundet_entydigt = kildevirksomhed_fundet_entydigt,
         modpart_har_ikke_samme_virksomhed = modpart_har_ikke_samme_virksomhed,
+        virksomhedspostperioder_gyldige = virksomhedspostperioder_gyldige,
+        delårsfordeling_understøttet = delårsfordeling_understøttet,
         lønudgift_tilknyttet = lønudgift_tilknyttet,
+        lønperiode_respekterer_samlivsophør = lønperiode_respekterer_samlivsophør,
+        virksomhedsresultat_før_samlivsophør = virksomhedsresultat_før_samlivsophør,
+        virksomhedsresultat_fra_samlivsophør = virksomhedsresultat_fra_samlivsophør,
         kildeskat_resultat = kildeskat_resultat,
         input_gyldigt = input_gyldigt,
         virksomhedsdriverens_regulering = virksomhedsdriverens_regulering,
@@ -16215,6 +16322,7 @@ fraflytningen."
     | ÆgtefællensVirksomhed -> "ægtefælle::" + fakta.virksomhedsidentifikation
 }
 | personskat_ksl25a_fordelingsidentifikationer_entydige(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> length(distinct(map(fordelinger, personskat_ksl25a_fordelingsnøgle))) == length(fordelinger)
+| personskat_ksl25a_samlivsforløb_ens(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> length(distinct(map(fordelinger, |fakta: PersonskatKsl25AVirksomhedsfordelingFakta| fakta.samlivsforløb))) <= 1
 | personskat_ksl25a_årsregel(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> match fakta.fordeling {
     | Ksl25AStk1HosVirksomhedsdriver(_, _) -> Ksl25AÅrsregelStk1
     | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> Ksl25AÅrsregelStk3
@@ -16274,17 +16382,19 @@ fraflytningen."
             ),
             |aktuel: PersonskatKsl25AForløbstilstand, fakta: PersonskatKsl25AVirksomhedsfordelingFakta| personskat_ksl25a_fordelingstrin(aktuel, input, ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, fælles_skatteår, fakta)
         )
+        = samlivsforløb_ens = personskat_ksl25a_samlivsforløb_ens(fordelinger)
         = lønaftale_udelukker_stk3_og_stk8 = personskat_ksl25a_lønaftale_udelukker_stk3_og_stk8(fordelinger)
         = fælles_virksomheder_bruger_samme_årsregel = personskat_ksl25a_fælles_virksomheder_bruger_samme_årsregel(fordelinger)
         = stk3_samme_virksomhedsdriver = personskat_ksl25a_stk3_samme_virksomhedsdriver(fordelinger)
         = stk3_samlet_overført_kroner = personskat_ksl25a_stk3_samlet_overført_kroner(tilstand.resultater)
         = stk3_reguleret_årsloft_kroner = personskat_ksl25a_stk3_reguleret_årsloft_kroner(input.lønmodtager.skatteår, fordelinger)
         = stk3_årsloft_overholdt = personskat_ksl25a_stk3_årsloft_overholdt(input.lønmodtager.skatteår, fordelinger, tilstand.resultater)
-        = alle_input_gyldige = fælles_skatteår && identifikationer_entydige && tilstand.input_gyldigt && lønaftale_udelukker_stk3_og_stk8 && fælles_virksomheder_bruger_samme_årsregel && stk3_samme_virksomhedsdriver && stk3_årsloft_overholdt
+        = alle_input_gyldige = fælles_skatteår && identifikationer_entydige && samlivsforløb_ens && tilstand.input_gyldigt && lønaftale_udelukker_stk3_og_stk8 && fælles_virksomheder_bruger_samme_årsregel && stk3_samme_virksomhedsdriver && stk3_årsloft_overholdt
         PersonskatKsl25AParResultat(
             fordelinger = fordelinger,
             resultater = tilstand.resultater,
             fordelingsidentifikationer_entydige = identifikationer_entydige,
+            samlivsforløb_ens = samlivsforløb_ens,
             lønaftale_udelukker_stk3_og_stk8 = lønaftale_udelukker_stk3_og_stk8,
             fælles_virksomheder_bruger_samme_årsregel = fælles_virksomheder_bruger_samme_årsregel,
             stk3_samme_virksomhedsdriver = stk3_samme_virksomhedsdriver,

@@ -35,9 +35,35 @@ lovtekst kontrolleres særskilt i source-status.runa.
     identifier = "Kildeskatteloven § 25 A, stk. 1-8",
     hentet_dato = "2026-07-18"
 )
+= kildeskatteloven_vejledning_samlivsstatus = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976882",
+    identifier = "Den juridiske vejledning C.A.8.1: Overordnet om ægtefællebeskatning",
+    hentet_dato = "2026-08-10"
+)
+= kildeskatteloven_vejledning_par25a_samlivsophør = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976894",
+    identifier = "Den juridiske vejledning C.A.8.4.4: Samlivsstatus ændret ved separation eller skilsmisse",
+    hentet_dato = "2026-08-10"
+)
+= kildeskatteloven_vejledning_par25a_fri_fordeling = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976892",
+    identifier = "Den juridiske vejledning C.A.8.4.2: Ægtefællers frie fordeling af virksomhedens resultat",
+    hentet_dato = "2026-08-10"
+)
+= kildeskatteloven_vejledning_par25a_dødsfald = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976895",
+    identifier = "Den juridiske vejledning C.A.8.4.5: Samlivsstatus ændret ved dødsfald",
+    hentet_dato = "2026-08-10"
+)
 
-= ksl_par25a_kildemeta = Source(
-    value = kildeskatteloven_lbk460_par25a
+= ksl_par25a_kildemeta = Metadata(
+    attachments = (
+        Source(value = kildeskatteloven_lbk460_par25a),
+        Guidance(value = kildeskatteloven_vejledning_samlivsstatus),
+        Guidance(value = kildeskatteloven_vejledning_par25a_samlivsophør),
+        Guidance(value = kildeskatteloven_vejledning_par25a_fri_fordeling),
+        Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
+    )
 )
 --@label:kildeskatteloven_par25a::meta:ksl_par25a_kildemeta--
 ----
@@ -121,6 +147,10 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 ----
 
 --@begin::kildeskatteloven_par25a--
+# Kildeskat25AFaktiskSamlivsophørsfakta(varigt_adskilt_uden_fælles_husførelse: Boolsk, samlivet_genoptaget_i_samme_indkomstår: Boolsk)
+# Kildeskat25ASamlivsophørsårsag = Ksl25ASeparation | Ksl25ASkilsmisse | Ksl25AFaktiskSamlivsophør(fakta: Kildeskat25AFaktiskSamlivsophørsfakta) | Ksl25ADødsfald
+# Kildeskat25ASamlivsforløb = Ksl25AIntetSamlivsophør | Ksl25ASamlivsophør(dato: Dato, årsag: Kildeskat25ASamlivsophørsårsag)
+# Kildeskat25ASamlivsforløbsresultat(indkomstår: Heltal, forløb: Kildeskat25ASamlivsforløb, input_gyldigt: Boolsk, samlivsophør_i_indkomståret: Boolsk, skattemæssigt_samlevende_ved_indkomstårets_udgang: Boolsk, delårsperiodisering_påkrævet: Boolsk, stk1_stk7_og_stk8_gælder_hele_indkomståret: Boolsk, stk3_tilladt_i_indkomståret: Boolsk, dødsfald_i_indkomståret: Boolsk, ophørsdato: Option(Dato))
 # Kildeskat25AStk3Input(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
 # Kildeskat25AStk3Resultat(indkomstår: Heltal, overskud_efter_stk4_kroner: Heltal, halvdelen_af_overskuddet_kroner: Heltal, reguleret_grundbeløb_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, højeste_overførsel_kroner: Heltal, stk3_betingelser_opfyldt: Boolsk, anmodet_beløb_begrænset: Boolsk, overført_til_medarbejdende_ægtefælle_kroner: Heltal, medarbejdende_ægtefælles_skattepligtige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_personlige_indkomst_kroner: Heltal, medarbejdende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_kroner: Heltal, drivende_ægtefælles_skattepligtige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_personlige_indkomst_nedsættelse_kroner: Heltal, drivende_ægtefælles_arbejdsmarkedsbidragspligtige_indkomst_nedsættelse_kroner: Heltal)
 # Kildeskat25AStk3Fortjenestefakta(samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, begge_deltaget_i_væsentligt_omfang: Boolsk, en_ægtefælle_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal, øvrigt_skattepligtigt_almindeligt_overskud_kroner: Heltal, renteudgifter_kroner: Heltal, kurstab_på_fordringer_og_gæld_kroner: Heltal, renteindtægter_kroner: Heltal, udbytteindtægter_kroner: Heltal, kursgevinster_på_fordringer_og_gæld_kroner: Heltal, lønaftale_finder_anvendelse: Boolsk, fordeling_efter_stk8_finder_anvendelse: Boolsk)
@@ -133,6 +163,61 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
 # Kildeskat25AVirksomhedsfordelingsvalg = Ksl25AStk1HosVirksomhedsdriver(begge_ægtefæller_deltager_i_driften: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk) | Ksl25AStk3TilMedarbejdendeÆgtefælle(begge_deltager_i_væsentligt_omfang: Boolsk, virksomhedsdriveren_driver_i_overvejende_grad: Boolsk, anmodet_overførsel_kroner: Heltal, arbejdsindsats_forsvarligt_maksimum_kroner: Heltal) | Ksl25AStk7Lønaftale(fakta: Kildeskat25AStk7Fakta) | Ksl25AStk8LigeligResultatfordeling(begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, anden_ægtefælles_fordelingsandel_basispoint: Heltal)
 # Kildeskat25AVirksomhedsfordelingsinput(indkomstår: Heltal, samlevende_ved_indkomstårets_udgang: Boolsk, samliv_ophoert_i_indkomståret: Boolsk, virksomhedsresultat_efter_eventuel_løn: Kildeskat25AVirksomhedsbeløb, valg: Kildeskat25AVirksomhedsfordelingsvalg)
 # Kildeskat25AVirksomhedsfordelingsresultat(input: Kildeskat25AVirksomhedsfordelingsinput, stk3_resultat: Option(Kildeskat25AStk3Resultat), stk7_resultat: Option(Kildeskat25AStk7Resultat), grundfakta_gyldige: Boolsk, hjemmel_opfyldt: Boolsk, virksomhedsdriver: Kildeskat25AVirksomhedsbeløb, anden_ægtefælle: Kildeskat25AVirksomhedsbeløb, samlet_efter_fordeling: Kildeskat25AVirksomhedsbeløb)
+
+# Kildeskat25ASamlivsforløbSag(indkomstår: Heltal, forløb: Kildeskat25ASamlivsforløb) {
+    | ophørsdato() -> match forløb {
+        | Ksl25AIntetSamlivsophør -> None
+        | Ksl25ASamlivsophør(dato, _) -> Some(dato)
+    }
+    | faktisk_samlivsophør_dokumenteret() -> match forløb {
+        | Ksl25ASamlivsophør(_, Ksl25AFaktiskSamlivsophør(fakta)) -> fakta.varigt_adskilt_uden_fælles_husførelse
+        | _ -> Sandt
+    }
+    | ophørsdato_gyldig_i_indkomståret() -> match ophørsdato() {
+        | Some(dato) -> dato_gyldig(dato) && dato.år == indkomstår
+        | None -> Sandt
+    }
+    | input_gyldigt() -> indkomstår > 0 && ophørsdato_gyldig_i_indkomståret() && faktisk_samlivsophør_dokumenteret()
+    | faktisk_samliv_genoptaget_i_samme_indkomstår() -> match forløb {
+        | Ksl25ASamlivsophør(_, Ksl25AFaktiskSamlivsophør(fakta)) -> fakta.samlivet_genoptaget_i_samme_indkomstår
+        | _ -> Falskt
+    }
+    | samlivsophør_i_indkomståret() -> input_gyldigt() && match forløb {
+        | Ksl25AIntetSamlivsophør -> Falskt
+        | Ksl25ASamlivsophør(_, Ksl25AFaktiskSamlivsophør(_)) -> faktisk_samliv_genoptaget_i_samme_indkomstår() == Falskt
+        | Ksl25ASamlivsophør(_, _) -> Sandt
+    }
+    | skattemæssigt_samlevende_ved_indkomstårets_udgang() -> input_gyldigt() && samlivsophør_i_indkomståret() == Falskt
+    | delårsperiodisering_påkrævet() -> input_gyldigt() && match forløb {
+        | Ksl25ASamlivsophør(_, Ksl25ASeparation) -> Sandt
+        | Ksl25ASamlivsophør(_, Ksl25ASkilsmisse) -> Sandt
+        | _ -> Falskt
+    }
+    | stk1_stk7_og_stk8_gælder_hele_indkomståret() -> input_gyldigt() && match forløb {
+        | Ksl25AIntetSamlivsophør -> Sandt
+        | Ksl25ASamlivsophør(_, Ksl25AFaktiskSamlivsophør(_)) -> Sandt
+        | _ -> Falskt
+    }
+    | stk3_tilladt_i_indkomståret() -> input_gyldigt() && samlivsophør_i_indkomståret() == Falskt
+    | dødsfald_i_indkomståret() -> input_gyldigt() && match forløb {
+        | Ksl25ASamlivsophør(_, Ksl25ADødsfald) -> Sandt
+        | _ -> Falskt
+    }
+    | resultat() -> Kildeskat25ASamlivsforløbsresultat(
+        indkomstår = indkomstår,
+        forløb = forløb,
+        input_gyldigt = input_gyldigt(),
+        samlivsophør_i_indkomståret = samlivsophør_i_indkomståret(),
+        skattemæssigt_samlevende_ved_indkomstårets_udgang = skattemæssigt_samlevende_ved_indkomstårets_udgang(),
+        delårsperiodisering_påkrævet = delårsperiodisering_påkrævet(),
+        stk1_stk7_og_stk8_gælder_hele_indkomståret = stk1_stk7_og_stk8_gælder_hele_indkomståret(),
+        stk3_tilladt_i_indkomståret = stk3_tilladt_i_indkomståret(),
+        dødsfald_i_indkomståret = dødsfald_i_indkomståret(),
+        ophørsdato = ophørsdato()
+    )
+}
+
+| kildeskat25a_samlivsforløbsresultat(indkomstår: Heltal, forløb: Kildeskat25ASamlivsforløb) -> Kildeskat25ASamlivsforløbSag(indkomstår, forløb).resultat()
 
 | kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> 0
 | exception kildeskat25a_stk3_regulerer_grundbeløbet kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(

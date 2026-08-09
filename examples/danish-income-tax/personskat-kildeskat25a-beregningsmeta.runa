@@ -18,10 +18,108 @@
     unit = None
 )
 = personskat_ksl25a_felt_samlivsophør = TypetBeregningsfelt(
-    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samliv_ophoert_i_indkomståret),
-    label = "Samliv ophørt i indkomståret",
-    question = Some("Ophørte samlivet mellem ægtefællerne i indkomståret?"),
-    help = Some("Angiv skattemæssigt samlivsophør. Årsfakta uden dateret periodisering kan ikke sammensættes ved ophør."),
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::$variant),
+    label = "Samlivsforløb i indkomståret",
+    question = Some("Var der et samlivsophør mellem ægtefællerne i indkomståret?"),
+    help = Some("Vælg et dateret ophør, hvis samlivet ophørte ved separation, skilsmisse, faktisk varig adskillelse eller dødsfald."),
+    unit = None
+)
+= personskat_ksl25a_felt_samlivsophørsårsag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::årsag::$variant),
+    label = "Årsag til samlivsophør",
+    question = Some("Hvorfor ophørte samlivet?"),
+    help = Some("Årsagen afgør, hvornår samlivsophøret får skattemæssig virkning."),
+    unit = None
+)
+= personskat_ksl25a_felt_samlivsophørsdato_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::dato::år),
+    label = "Samlivsophørsdato - år",
+    question = Some("I hvilket år skete samlivsophøret?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_samlivsophørsdato_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::dato::måned),
+    label = "Samlivsophørsdato - måned",
+    question = Some("I hvilken måned skete samlivsophøret?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_samlivsophørsdato_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::dato::dag),
+    label = "Samlivsophørsdato - dag",
+    question = Some("På hvilken dag skete samlivsophøret?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_faktisk_varig_adskillelse = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::årsag::Ksl25AFaktiskSamlivsophør::fakta::varigt_adskilt_uden_fælles_husførelse),
+    label = "Varig adskillelse uden fælles husførelse",
+    question = Some("Levede ægtefællerne varigt adskilt uden fælles husførelse?"),
+    help = Some("Midlertidig adskillelse på grund af arbejde eller lignende er ikke et faktisk skattemæssigt samlivsophør."),
+    unit = None
+)
+= personskat_ksl25a_felt_faktisk_samliv_genoptaget = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samlivsforløb::Ksl25ASamlivsophør::årsag::Ksl25AFaktiskSamlivsophør::fakta::samlivet_genoptaget_i_samme_indkomstår),
+    label = "Samlivet genoptaget i samme indkomstår",
+    question = Some("Genoptog ægtefællerne samlivet i det samme indkomstår?"),
+    help = Some("Et faktisk samlivsophør uden separation eller skilsmisse får ikke skattemæssig virkning, hvis samlivet genoptages i samme år."),
+    unit = None
+)
+= personskat_ksl25a_felt_postperiode_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::kildepost_identifikation),
+    label = "Virksomhedspostens identifikation",
+    question = Some("Hvilken indtægts- eller udgiftspost vedrører perioden?"),
+    help = Some("Ved separation eller skilsmisse skal hver kildepost dækkes præcis én gang og ligge helt før eller fra ophørsdatoen."),
+    unit = None
+)
+= personskat_ksl25a_felt_postperiode_fra_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::fra_dato::år),
+    label = "Virksomhedspostens startdato - år",
+    question = Some("I hvilket år begynder perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_postperiode_fra_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::fra_dato::måned),
+    label = "Virksomhedspostens startdato - måned",
+    question = Some("I hvilken måned begynder perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_postperiode_fra_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::fra_dato::dag),
+    label = "Virksomhedspostens startdato - dag",
+    question = Some("På hvilken dag begynder perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_postperiode_til_år = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::til_dato::år),
+    label = "Virksomhedspostens slutdato - år",
+    question = Some("I hvilket år slutter perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_ksl25a_felt_postperiode_til_måned = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::til_dato::måned),
+    label = "Virksomhedspostens slutdato - måned",
+    question = Some("I hvilken måned slutter perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_ksl25a_felt_postperiode_til_dag = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedspostperioder::til_dato::dag),
+    label = "Virksomhedspostens slutdato - dag",
+    question = Some("På hvilken dag slutter perioden for virksomhedsposten?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_ksl25a_felt_ordinær_ejer_efter_ophør = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::ordinær_ejer_efter_samlivsophør),
+    label = "Virksomhedens ejer efter samlivsophøret",
+    question = Some("Hvem ejer virksomheden fra det skattemæssige samlivsophør?"),
+    help = Some("Ved separation eller skilsmisse henføres resultatet fra ophørsdatoen efter de almindelige ejerregler."),
     unit = None
 )
 = personskat_ksl25a_felt_fordelingsregel = TypetBeregningsfelt(
@@ -233,6 +331,20 @@
         personskat_ksl25a_felt_virksomhedsidentifikation,
         personskat_ksl25a_felt_virksomhedens_placering,
         personskat_ksl25a_felt_samlivsophør,
+        personskat_ksl25a_felt_samlivsophørsårsag,
+        personskat_ksl25a_felt_samlivsophørsdato_år,
+        personskat_ksl25a_felt_samlivsophørsdato_måned,
+        personskat_ksl25a_felt_samlivsophørsdato_dag,
+        personskat_ksl25a_felt_faktisk_varig_adskillelse,
+        personskat_ksl25a_felt_faktisk_samliv_genoptaget,
+        personskat_ksl25a_felt_postperiode_identifikation,
+        personskat_ksl25a_felt_postperiode_fra_år,
+        personskat_ksl25a_felt_postperiode_fra_måned,
+        personskat_ksl25a_felt_postperiode_fra_dag,
+        personskat_ksl25a_felt_postperiode_til_år,
+        personskat_ksl25a_felt_postperiode_til_måned,
+        personskat_ksl25a_felt_postperiode_til_dag,
+        personskat_ksl25a_felt_ordinær_ejer_efter_ophør,
         personskat_ksl25a_felt_fordelingsregel,
         personskat_ksl25a_felt_stk1_begge_deltager,
         personskat_ksl25a_felt_stk1_driver_overvejende,
@@ -267,6 +379,10 @@
     beløbsfelter = [],
     attachments = (
         DependencySource(value = kildeskatteloven_lbk460_par25a),
+        Guidance(value = kildeskatteloven_vejledning_samlivsstatus),
+        Guidance(value = kildeskatteloven_vejledning_par25a_samlivsophør),
+        Guidance(value = kildeskatteloven_vejledning_par25a_fri_fordeling),
+        Guidance(value = kildeskatteloven_vejledning_par25a_dødsfald),
         Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
         Guidance(value = skat_ksl25a_lønaftale_vejledning),
     )
