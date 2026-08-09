@@ -1853,7 +1853,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "arbejdsdage",
             "arbejdsgiverbetalt_befordring",
             "ligningslov9d.$variant",
-            "ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
+            "ligningslov9d.MedLigningslov9D.input.faktisk_udgiftsgrundlag.Ll9dDokumenteredeFaktiskeBefordringsudgifter.beløb_kroner",
         ] {
             assert!(
                 commuting_paths.iter().any(|path| path == expected),
@@ -2879,7 +2879,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         }
         let property_tax_headers = workbook_headers(&mut workbook, &property_tax_sheet);
         for expected in [
-            "Ejendommens identifikation",
+            "Ejendomsandelens identifikation",
             "Ejendommens kommune",
             "Ejendomskategori",
             "Vurderet ejendomsværdi",
@@ -3544,7 +3544,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "lønmodtager.ligningsfradrag.befordring.forhold.arbejdsdage",
             "lønmodtager.ligningsfradrag.befordring.forhold.arbejdsgiverbetalt_befordring",
             "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.$variant",
-            "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner",
+            "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.faktisk_udgiftsgrundlag.Ll9dDokumenteredeFaktiskeBefordringsudgifter.beløb_kroner",
             "lønmodtager.erhvervsbefordring.sager.identifikation",
             "lønmodtager.erhvervsbefordring.sager.rækkefølge_i_indkomståret",
             "lønmodtager.erhvervsbefordring.sager.godtgørende_arbejdsgiver_identifikation",
@@ -11487,6 +11487,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "bruttoløn_kroner": 600_000,
             "personlig_indkomst": {
                 "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                "underholdsbidrag": { "bidrag": [] },
+                "børnebidragslov19_bidrag": { "bidrag": [] },
                 "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
                 "ordinære_forhold": {
                     "arbejdsgiverydelser": [],
@@ -13373,6 +13375,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "bruttoløn_kroner": 0,
                 "personlig_indkomst": {
                     "etableringskonto": { "$variant": "UdenEtableringskontoindskud" },
+                    "underholdsbidrag": { "bidrag": [] },
+                    "børnebidragslov19_bidrag": { "bidrag": [] },
                     "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
                     "ordinære_forhold": {
                         "arbejdsgiverydelser": [],
@@ -13522,7 +13526,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "skatteforhold": { "$variant": "StandardSkatteforhold" },
             "underskudsforhold": { "$variant": "StandardUnderskudsforhold" }
         },
-        "samlevende_ved_indkomstårets_udløb": true
+        "samlevende_ved_indkomstårets_udløb": true,
+        "kildeskat25a_fordelinger": []
     });
     spouse_case["input"]["ægtefælle"]["fakta"]["ejendomsskatter"] =
         spouse_case["input"]["ejendomsskatter"].clone();
@@ -13673,7 +13678,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "rabat": {
                 "$variant": "EjskRabatvurderingerOplyst",
                 "fakta": {
-                    "rabat_2024": {
+                    "eget_rabatgrundlag_2024": {
                         "kontekst_2024": no_pension_context_2024,
                         "ny_lov_helårsgrundlag": partial_exemption_ordinary,
                         "ny_lov_nedslagsfakta": partial_exemption_relief,
@@ -13711,6 +13716,125 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(partial_exemption_case);
+    let spouse_rebate_identifier = "aegtefaellemodtagelse-json-xlsx";
+    let spouse_rebate_ordinary_2024 = serde_json::json!({
+        "identifikation": spouse_rebate_identifier,
+        "kommune": { "$variant": "København" },
+        "kategori": { "$variant": "EjskEnBoligenhed" },
+        "beliggenhed": { "$variant": "EjskDanmark" },
+        "erhvervsmæssigt_udlejet": false,
+        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+        "ejendomsværdi_kroner": 2_250_000,
+        "grundværdi_kroner": 0,
+        "produktionsjord": false,
+        "ejendomsværdiskatteperiode": {
+            "$variant": "HeleEjendomsskatteåret"
+        },
+        "grundskyldsperiode": { "$variant": "HeleEjendomsskatteåret" },
+        "ejerandel_basispoint": 5_000
+    });
+    let spouse_rebate_source_2024 = serde_json::json!({
+        "kontekst_2024": no_pension_context_2024,
+        "ny_lov_helårsgrundlag": spouse_rebate_ordinary_2024,
+        "ny_lov_nedslagsfakta": relief_facts(1998, 7, 1),
+        "tidligere_ejendomsværdiskat": {
+            "ejendomsværdi_året_før_kroner": 1_062_500,
+            "ejendomsværdi_2001_kroner": 850_000,
+            "ejendomsværdi_2002_kroner": 850_000,
+            "historisk_begrænsning": {
+                "foregående_indkomstårs_ejendomsværdiskat_øre": null,
+                "par9b_nedsættelse_øre": 0,
+                "vurderet_helt_eller_delvis_benyttet_til_ejerbolig": true,
+                "ejerlejlighed_frigjort_for_lejemål": false,
+                "ombygning_over_100_procent": false
+            },
+            "udenlandske_ejendomsskatter": []
+        },
+        "tidligere_grundskyld": {
+            "grundværdi_efter_fradrag_og_fritagelser_kroner": 0,
+            "foregående_års_afgiftspligtige_grundværdi_kroner": 0,
+            "grundskyld_promille_2023_tiendedele": 0
+        },
+        "byggeri": { "$variant": "EjskIngenNyEllerOmbygning" },
+        "grundskyld_fritaget_basispoint": 0,
+        "grundskyld_kan_fordeles_på_samme_boligenhed": true
+    });
+    let mut spouse_rebate_recipient_relief = relief_facts(1998, 7, 1);
+    spouse_rebate_recipient_relief["ejerskabshistorik"]["ejerskifter"] = serde_json::json!([{
+        "dato": { "år": 2025, "måned": 7, "dag": 1 },
+        "art": { "$variant": "EjskOverdragelseMellemÆgtefæller" }
+    }]);
+    let mut spouse_rebate_recipient_case = property_tax_case.clone();
+    spouse_rebate_recipient_case["case_id"] =
+        Value::String("personskat-ejendomsskat-aegtefaellemodtager-2025".into());
+    spouse_rebate_recipient_case["input"]["ejendomsskatter"]["ejendomme"] = serde_json::json!([{
+        "ordinært_grundlag": {
+            "identifikation": spouse_rebate_identifier,
+            "kommune": { "$variant": "København" },
+            "kategori": { "$variant": "EjskEnBoligenhed" },
+            "beliggenhed": { "$variant": "EjskDanmark" },
+            "erhvervsmæssigt_udlejet": false,
+            "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+            "ejendomsværdi_kroner": 2_250_000,
+            "grundværdi_kroner": 0,
+            "produktionsjord": false,
+            "ejendomsværdiskatteperiode": {
+                "$variant": "EjendomsskatFraOgMed",
+                "dato": { "år": 2025, "måned": 7, "dag": 1 }
+            },
+            "grundskyldsperiode": {
+                "$variant": "EjendomsskatFraOgMed",
+                "dato": { "år": 2025, "måned": 7, "dag": 1 }
+            },
+            "ejerandel_basispoint": 5_000
+        },
+        "nedslagsfakta": spouse_rebate_recipient_relief,
+        "overgangsomfang": {
+            "vurderingskategori": {
+                "$variant": "EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1"
+            },
+            "ejerkreds": { "$variant": "EjskKunFysiskeEjere" }
+        },
+        "overgangsvurderinger": {
+            "rabat": {
+                "$variant": "EjskRabatvurderingerOplyst",
+                "fakta": {
+                    "eget_rabatgrundlag_2024": null,
+                    "hændelser": [{
+                        "dato": { "år": 2025, "måned": 7, "dag": 1 },
+                        "art": {
+                            "$variant": "EjskÆgtefælleoverdragelse",
+                            "grund": {
+                                "$variant": "EjskOverdragelseMellemÆgtefæller"
+                            },
+                            "retning": {
+                                "$variant": "EjskModtagerRabatFraÆgtefælle",
+                                "ny_ejerandel_basispoint": 5_000,
+                                "overtaget_rabatgrundlag": {
+                                    "overgangsomfang": {
+                                        "vurderingskategori": {
+                                            "$variant": "EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1"
+                                        },
+                                        "ejerkreds": {
+                                            "$variant": "EjskKunFysiskeEjere"
+                                        }
+                                    },
+                                    "rabat_2024": spouse_rebate_source_2024
+                                }
+                            }
+                        }
+                    }]
+                }
+            },
+            "stigningsbegrænsning": {
+                "$variant": "EjskIngenStigningsvurderingerOplyst"
+            }
+        }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(spouse_rebate_recipient_case);
     let mut partial_year_cap_case = property_tax_case.clone();
     partial_year_cap_case["case_id"] =
         Value::String("personskat-ejendomsskat-halvårsloft-2025".into());
@@ -14346,6 +14470,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "undladt_iværksætterkontoindskud_efter_par4_stk2_kroner": 0
             }
         },
+        "underholdsbidrag": { "bidrag": [] },
+        "børnebidragslov19_bidrag": { "bidrag": [] },
         "sømandsbeskatning": { "indkomster": [], "skibsårsdrifter": [], "andre_ligningslov7u_indkomster": [], "dødsboskattegrundlag": { "$variant": "Søbl5IntetDødsboskattegrundlag" }, "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" } },
         "ordinære_forhold": {
             "arbejdsgiverydelser": [],
@@ -15887,6 +16013,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-ejendomsskat-delvis-fritagelse-2025")
         .expect("partial property-tax exemption JSON case")
         .clone();
+    let spouse_rebate_recipient_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-aegtefaellemodtager-2025")
+        .expect("spouse rebate recipient JSON case")
+        .clone();
     let partial_year_cap_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -16047,6 +16180,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ordinary_share_loss_case,
         spouse_property_credit_case,
         partial_exemption_case,
+        spouse_rebate_recipient_case,
         partial_year_cap_case,
         annual_claim_case,
         partial_claim_case,
@@ -16499,7 +16633,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "EjskBeregnetRabat"
     );
     let partial_exemption_basis =
-        &partial_exemption_property["overgang"]["rabat"]["resultat"]["grundlag_2024"];
+        &partial_exemption_property["overgang"]["rabat"]["resultat"]["eget_grundlag_2024"];
     assert_eq!(partial_exemption_basis["ny_grundskyld_øre"], 306_000);
     assert_eq!(partial_exemption_basis["tidligere_grundskyld_øre"], 200_000);
     assert_eq!(
@@ -16507,6 +16641,43 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         106_000
     );
     assert_eq!(partial_exemption_basis["rabat_grundskyld_øre"], 106_000);
+    let json_spouse_rebate_recipient_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-aegtefaellemodtager-2025")
+        .expect("JSON spouse rebate recipient result");
+    let hydrated_spouse_rebate_recipient_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-aegtefaellemodtager-2025")
+        .expect("hydrated XLSX spouse rebate recipient result");
+    assert_eq!(
+        hydrated_spouse_rebate_recipient_result["result"],
+        json_spouse_rebate_recipient_result["result"]
+    );
+    let spouse_rebate_recipient_property =
+        &json_spouse_rebate_recipient_result["result"]["ejendomsskatter"]["ejendomsresultater"][0];
+    assert_eq!(
+        spouse_rebate_recipient_property["overgang"]["rabat"]["$variant"],
+        "EjskBeregnetRabat"
+    );
+    let spouse_rebate_recipient =
+        &spouse_rebate_recipient_property["overgang"]["rabat"]["resultat"];
+    assert_eq!(spouse_rebate_recipient["eget_grundlag_2024"], Value::Null);
+    assert_eq!(
+        spouse_rebate_recipient["rabat_ejendomsværdiskat_før_par41_stk3_øre"],
+        27_250
+    );
+    assert_eq!(
+        spouse_rebate_recipient_property["ejendomsværdiskat_før_overgang_øre"],
+        154_500
+    );
+    assert_eq!(
+        spouse_rebate_recipient_property["ejendomsværdiskat_øre"],
+        127_250
+    );
     let json_partial_year_cap_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

@@ -1858,7 +1858,7 @@
     path = refof(EjendomsskattelovPersonÅrsfakta::ejendomme),
     label = "Ejendomme med ejendomsskatter",
     question = Some("Har du ejet en bolig eller anden fast ejendom, hvor ejendomsværdiskat eller grundskyld skal indgå i årsopgørelsen?"),
-    help = Some("Tilføj én række pr. ejendom. Futuruna udleder grundlag, perioder, ejerandel, nedslag og overgangsstatus fra kildefakta og afviser beregningen, hvis nødvendige historiske vurderinger mangler."),
+    help = Some("Tilføj én række pr. fast ejerandel og skatteperiode. Del en ejendom i entydigt identificerede beregningsandele, hvis ejerandelen ændres i løbet af året; Futuruna udleder nedslag og overgangsstatus fra kildefakta."),
     unit = None
 )
 = personskat_felt_ejendomsskat_ejer_folkepensionsalder = TypetBeregningsfelt(
@@ -1968,9 +1968,9 @@
 )
 = personskat_felt_ejendomsskat_identifikation = TypetBeregningsfelt(
     path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::identifikation),
-    label = "Ejendommens identifikation",
-    question = Some("Hvilken entydig identifikation skal ejendommen have i beregningen?"),
-    help = Some("Brug en stabil, ikke-følsom identifikation, så ejendommen kan spores i resultatets forklaring."),
+    label = "Ejendomsandelens identifikation",
+    question = Some("Hvilken entydig identifikation skal denne faste ejerandel og skatteperiode have i beregningen?"),
+    help = Some("Brug en stabil, ikke-følsom identifikation. Ved ændringer i ejerandelen bruges særskilte identifikationer for de beregningsandele, som har forskellige perioder."),
     unit = None
 )
 = personskat_felt_ejendomsskat_kommune = TypetBeregningsfelt(
@@ -2047,7 +2047,7 @@
     path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::ejerandel_basispoint),
     label = "Registreret ejerandel",
     question = Some("Hvor stor en ejerandel er registreret for dig?"),
-    help = Some("Angiv andelen i basispoint, hvor 10.000 er 100 procent og 5.000 er 50 procent."),
+    help = Some("Angiv den faste andel for denne beregningsrække i basispoint, hvor 10.000 er 100 procent og 5.000 er 50 procent. Del rækken, hvis andelen ændres i perioden."),
     unit = Some("basispoint")
 )
 = personskat_felt_ejendomsskat_oprindelig_erhvervelse = TypetBeregningsfelt(
@@ -2295,6 +2295,13 @@
     help = Some("Når svaret er sandt, sammenholder Futuruna positive og negative forskelsbeløb efter § 40."),
     unit = None
 )
+= personskat_felt_ejendomsskat_eget_rabatgrundlag_2024 = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatOvergangsfakta::eget_rabatgrundlag_2024),
+    label = "Eget rabatgrundlag fra 2024",
+    question = Some("Havde du selv et rabatgrundlag for denne ejendomsandel ved overgangen i 2024?"),
+    help = Some("Lad feltet være tomt, hvis rabatten alene overtages fra en ægtefælle. Ved et eget grundlag oplyses de historiske 2024-kildefakta; Futuruna udleder rabatten."),
+    unit = None
+)
 = personskat_felt_ejendomsskat_rabathaendelser = TypetBeregningsfelt(
     path = refof(EjendomsskattelovRabatOvergangsfakta::hændelser),
     label = "Hændelser der ændrer skatterabatten",
@@ -2312,8 +2319,8 @@
 = personskat_felt_ejendomsskat_rabathaendelse_art = TypetBeregningsfelt(
     path = refof(EjendomsskattelovRabatHændelse::art::$variant),
     label = "Art af rabathændelse",
-    question = Some("Var hændelsen en delvis eller fuld overdragelse, ægtefællesuccession, bortfald af BFE-nummer eller en anvendelsesændring?"),
-    help = Some("Vælg den registrerede hændelse; Futuruna anvender undtagelserne i §§ 41 og 43."),
+    question = Some("Var hændelsen en delvis eller fuld overdragelse, ægtefællesuccession, begyndelse eller ophør af udlejning, bortfald af BFE-nummer eller en anvendelsesændring?"),
+    help = Some("Vælg den faktiske registrerede hændelse; Futuruna anvender §§ 41-43 og periodiserer virkningen efter 30/360-reglen."),
     unit = None
 )
 = personskat_felt_ejendomsskat_rabat_ny_ejerandel = TypetBeregningsfelt(
@@ -2321,6 +2328,55 @@
     label = "Ejerandel efter delvis overdragelse",
     question = Some("Hvor stor var din registrerede ejerandel efter den delvise overdragelse?"),
     help = Some("Angiv den resterende andel i basispoint; Futuruna nedsætter rabatten forholdsmæssigt."),
+    unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_aegtefaelleoverdragelsesgrund = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatHændelseArt::EjskÆgtefælleoverdragelse::grund::$variant),
+    label = "Grund for ægtefælleoverdragelsen",
+    question = Some("Skete overdragelsen mellem ægtefæller, til en længstlevende ægtefælle eller før bodeling efter skilsmisse?"),
+    help = Some("Vælg det faktiske overdragelsesforløb. Futuruna afprøver de særlige betingelser i § 43, stk. 4 og 5."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_laengstlevende_uskiftet_bo = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÆgtefælleoverdragelsesgrund::EjskLængstlevendeOvertagelse::sidder_i_uskiftet_bo),
+    label = "Længstlevende sidder i uskiftet bo",
+    question = Some("Sad den længstlevende ægtefælle i uskiftet bo ved overtagelsen?"),
+    help = Some("Oplys det dokumenterede skifteforhold; alternativt kan en faktisk overtagelse af ejendommen eller ejerandelen opfylde § 43, stk. 4."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_laengstlevende_overtog_ejendom = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÆgtefælleoverdragelsesgrund::EjskLængstlevendeOvertagelse::har_overtaget_ejendommen_eller_ejerandelen),
+    label = "Længstlevende overtog ejendommen eller andelen",
+    question = Some("Overtog den længstlevende ægtefælle den afdødes ejendom eller ejerandel?"),
+    help = Some("Oplys den faktiske overtagelse; Futuruna udleder derefter, om rabatten følger med."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_skilsmisse_bo_ikke_delt = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÆgtefælleoverdragelsesgrund::EjskSkilsmisseoverdragelse::boet_er_endnu_ikke_delt),
+    label = "Boet var endnu ikke delt ved skilsmisseoverdragelsen",
+    question = Some("Var boet endnu ikke delt, da ejendommen eller ejerandelen blev overdraget efter skilsmissen?"),
+    help = Some("Rabatten følger kun skilsmisseoverdragelsen efter § 43, stk. 5, når bodelingen endnu ikke var sket."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aegtefaelleoverdragelsesretning = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovRabatHændelseArt::EjskÆgtefælleoverdragelse::retning::$variant),
+    label = "Din retning i ægtefælleoverdragelsen",
+    question = Some("Afgav eller modtog du rabatten ved ægtefælleoverdragelsen?"),
+    help = Some("Retningen afgør, om din eksisterende rabatandel reduceres, eller om ægtefællens dokumenterede 2024-grundlag skal tilføjes."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_aegtefaelleafgiver_ny_ejerandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÆgtefælleoverdragelsesretning::EjskAfgiverRabatTilÆgtefælle::ny_ejerandel_basispoint),
+    label = "Ejerandel efter afgivelse til ægtefællen",
+    question = Some("Hvor stor en registreret ejerandel beholdt du efter overdragelsen til ægtefællen?"),
+    help = Some("Angiv 0 ved fuld overdragelse eller den resterende andel i basispoint ved delvis overdragelse."),
+    unit = Some("basispoint")
+)
+= personskat_felt_ejendomsskat_aegtefaellemodtager_ny_ejerandel = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÆgtefælleoverdragelsesretning::EjskModtagerRabatFraÆgtefælle::ny_ejerandel_basispoint),
+    label = "Ejerandel efter modtagelse fra ægtefællen",
+    question = Some("Hvor stor en registreret ejerandel havde du efter overtagelsen fra ægtefællen?"),
+    help = Some("Futuruna kontrollerer, at stigningen svarer til ejerandelen i det overtagne historiske rabatgrundlag."),
     unit = Some("basispoint")
 )
 = personskat_felt_ejendomsskat_stigningsaar = TypetBeregningsfelt(
@@ -11406,10 +11462,18 @@
         personskat_felt_ejendomsskat_grundskyldspromille_2023,
         personskat_felt_ejendomsskat_fritaget_grundandel,
         personskat_felt_ejendomsskat_samme_boligenhed,
+        personskat_felt_ejendomsskat_eget_rabatgrundlag_2024,
         personskat_felt_ejendomsskat_rabathaendelser,
         personskat_felt_ejendomsskat_rabathaendelse_aar,
         personskat_felt_ejendomsskat_rabathaendelse_art,
         personskat_felt_ejendomsskat_rabat_ny_ejerandel,
+        personskat_felt_ejendomsskat_aegtefaelleoverdragelsesgrund,
+        personskat_felt_ejendomsskat_laengstlevende_uskiftet_bo,
+        personskat_felt_ejendomsskat_laengstlevende_overtog_ejendom,
+        personskat_felt_ejendomsskat_skilsmisse_bo_ikke_delt,
+        personskat_felt_ejendomsskat_aegtefaelleoverdragelsesretning,
+        personskat_felt_ejendomsskat_aegtefaelleafgiver_ny_ejerandel,
+        personskat_felt_ejendomsskat_aegtefaellemodtager_ny_ejerandel,
         personskat_felt_ejendomsskat_stigningsaar,
         personskat_felt_ejendomsskat_stigningsaar_kalenderaar,
         personskat_felt_ejendomsskat_stigningsaar_kommune,

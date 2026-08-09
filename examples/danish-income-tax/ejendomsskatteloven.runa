@@ -1157,14 +1157,17 @@ fra 2023.
 # EjendomsskattelovTidligereEjendomsværdiskat2024Fakta(ejendomsværdi_året_før_kroner: Heltal, ejendomsværdi_2001_kroner: Heltal, ejendomsværdi_2002_kroner: Heltal, historisk_begrænsning: EjendomsskattelovEvslHistoriskeBegrænsningsfakta, udenlandske_ejendomsskatter: List(EjendomsskattelovUdenlandskEjendomsskatBetaling))
 # EjendomsskattelovTidligereGrundskyld2024Fakta(grundværdi_efter_fradrag_og_fritagelser_kroner: Heltal, foregående_års_afgiftspligtige_grundværdi_kroner: Heltal, grundskyld_promille_2023_tiendedele: Heltal)
 # EjendomsskattelovRabat2024Fakta(kontekst_2024: EjendomsskattelovPersonÅrskontekst, ny_lov_helårsgrundlag: EjendomsskattelovOrdinærPersonEjendomFakta, ny_lov_nedslagsfakta: EjendomsskattelovNedslagsfakta, tidligere_ejendomsværdiskat: EjendomsskattelovTidligereEjendomsværdiskat2024Fakta, tidligere_grundskyld: EjendomsskattelovTidligereGrundskyld2024Fakta, byggeri: EjendomsskattelovByggeriVedOvergang, grundskyld_fritaget_basispoint: Heltal, grundskyld_kan_fordeles_på_samme_boligenhed: Boolsk)
-# EjendomsskattelovRabatHændelseArt = EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskAlmindeligtFuldtEjerskifte | EjskÆgtefælleOvertagerRabat | EjskLængstlevendeÆgtefælleOvertagerRabat | EjskSkilsmisseoverdragelseFørBodeling | EjskBfeNummerBortfalder | EjskIkkeLængereEjendomEfterPar3 | EjskIkkeLængereGrundskyldskategoriEfterPar38
+# EjendomsskattelovÆgtefælleoverdragelsesgrund = EjskOverdragelseMellemÆgtefæller | EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo: Boolsk, har_overtaget_ejendommen_eller_ejerandelen: Boolsk) | EjskSkilsmisseoverdragelse(boet_er_endnu_ikke_delt: Boolsk)
+# EjendomsskattelovOvertagetRabatgrundlag(overgangsomfang: EjendomsskattelovOvergangsomfang, rabat_2024: EjendomsskattelovRabat2024Fakta)
+# EjendomsskattelovÆgtefælleoverdragelsesretning = EjskAfgiverRabatTilÆgtefælle(ny_ejerandel_basispoint: Heltal) | EjskModtagerRabatFraÆgtefælle(ny_ejerandel_basispoint: Heltal, overtaget_rabatgrundlag: EjendomsskattelovOvertagetRabatgrundlag)
+# EjendomsskattelovRabatHændelseArt = EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint: Heltal) | EjskAlmindeligtFuldtEjerskifte | EjskÆgtefælleoverdragelse(grund: EjendomsskattelovÆgtefælleoverdragelsesgrund, retning: EjendomsskattelovÆgtefælleoverdragelsesretning) | EjskBoligKanIkkeTjeneTilBoligForEjeren | EjskBoligKanIgenTjeneTilBoligForEjeren | EjskBfeNummerBortfalder | EjskIkkeLængereEjendomEfterPar3 | EjskIkkeLængereGrundskyldskategoriEfterPar38
 # EjendomsskattelovRabatHændelse(dato: EjendomsskattelovDato, art: EjendomsskattelovRabatHændelseArt)
-# EjendomsskattelovRabatOvergangsfakta(rabat_2024: EjendomsskattelovRabat2024Fakta, hændelser: List(EjendomsskattelovRabatHændelse))
+# EjendomsskattelovRabatOvergangsfakta(eget_rabatgrundlag_2024: Option(EjendomsskattelovRabat2024Fakta), hændelser: List(EjendomsskattelovRabatHændelse))
 
 # EjendomsskattelovTidligereEjendomsværdiskat2024Resultat(input_gyldigt: Boolsk, beregningsgrundlag_kroner: Heltal, skat_før_nedslag_øre: Heltal, par6_nedslag_øre: Heltal, par7_nedslag_øre: Heltal, par8_nedslag_før_par10_øre: Heltal, par10_reduktion_øre: Heltal, par9_eller_par9a_begrænset_skat_øre: Heltal, par9b_nedsættelse_øre: Heltal, udenlandsk_skat_øre: Heltal, skat_øre: Heltal, skat_til_forskelsbeløb_øre: Heltal)
 # EjendomsskattelovRabat2024Resultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, par36_berettiget: Boolsk, par38_berettiget: Boolsk, ny_ejendomsværdiskat_øre: Heltal, tidligere_ejendomsværdiskat_øre: Heltal, forskelsbeløb_ejendomsværdiskat_øre: Heltal, ny_grundskyld_øre: Heltal, tidligere_grundskyld_øre: Heltal, forskelsbeløb_grundskyld_øre: Heltal, tværgående_opgørelse: Boolsk, rabat_ejendomsværdiskat_øre: Heltal, rabat_grundskyld_øre: Heltal, samlet_rabat_øre: Heltal)
-# EjendomsskattelovRabatÅrsresultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, grundlag_2024: EjendomsskattelovRabat2024Resultat, rabat_ejendomsværdiskat_før_par41_og_42_øre: Heltal, rabat_grundskyld_før_par41_øre: Heltal, rabat_ejendomsværdiskat_øre: Heltal, rabat_grundskyld_øre: Heltal, samlet_rabat_øre: Heltal)
-# EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint: Heltal, rabat_ejendomsværdiskat_helår_øre: Heltal, rabat_grundskyld_helår_øre: Heltal, input_gyldigt: Boolsk)
+# EjendomsskattelovRabatÅrsresultat(kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk, eget_grundlag_2024: Option(EjendomsskattelovRabat2024Resultat), rabat_ejendomsværdiskat_før_par41_stk3_øre: Heltal, rabat_grundskyld_før_par41_stk3_øre: Heltal, rabat_ejendomsværdiskat_øre: Heltal, rabat_grundskyld_øre: Heltal, samlet_rabat_øre: Heltal)
+# EjendomsskattelovRabatBeløbstilstand(identifikation: Tekst, ejerandel_basispoint: Heltal, rabat_ejendomsværdiskat_helår_øre: Heltal, rabat_grundskyld_helår_øre: Heltal, kan_tjene_til_bolig_for_ejeren: Boolsk, kapabilitet: EjendomsskattelovRegelkapabilitet, input_gyldigt: Boolsk)
 # EjendomsskattelovRabatHændelsesvalidering(seneste_dato: EjendomsskattelovDato, input_gyldigt: Boolsk)
 # EjendomsskattelovRabatÅrsakkumulator(seneste_dato: EjendomsskattelovDato, seneste_dag_i_indkomståret: Heltal, beløb: EjendomsskattelovRabatBeløbstilstand, akkumuleret_ejendomsværdiskat_øre_dage: Heltal, akkumuleret_grundskyld_øre_dage: Heltal)
 
@@ -1307,9 +1310,21 @@ fra 2023.
     )
 }
 
+| ejendomsskattelov_kombiner_regelkapabilitet(venstre: EjendomsskattelovRegelkapabilitet, højre: EjendomsskattelovRegelkapabilitet) -> hvis venstre == EjskInputUgyldigt || højre == EjskInputUgyldigt { EjskInputUgyldigt } ellers { hvis venstre == EjskManglerKildefakta || højre == EjskManglerKildefakta { EjskManglerKildefakta } ellers { hvis venstre == EjskIkkeUnderstøttet || højre == EjskIkkeUnderstøttet { EjskIkkeUnderstøttet } ellers { hvis venstre == EjskUnderstøttet || højre == EjskUnderstøttet { EjskUnderstøttet } ellers { EjskIkkeRelevant } } } }
+| ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(grund: EjendomsskattelovÆgtefælleoverdragelsesgrund) -> match grund {
+    | EjskOverdragelseMellemÆgtefæller -> Sandt
+    | EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo, har_overtaget_ejendommen_eller_ejerandelen) -> sidder_i_uskiftet_bo || har_overtaget_ejendommen_eller_ejerandelen
+    | EjskSkilsmisseoverdragelse(boet_er_endnu_ikke_delt) -> boet_er_endnu_ikke_delt
+}
+| ejendomsskattelov_overtaget_rabatgrundlag_input_gyldigt(grundlag: EjendomsskattelovOvertagetRabatgrundlag) -> ejendomsskattelov_rabat_2024_fakta_gyldige(grundlag.rabat_2024)
+| ejendomsskattelov_ægtefælleoverdragelsesretning_input_gyldig(retning: EjendomsskattelovÆgtefælleoverdragelsesretning) -> match retning {
+    | EjskAfgiverRabatTilÆgtefælle(ny_ejerandel_basispoint) -> ny_ejerandel_basispoint >= 0 && ny_ejerandel_basispoint < 10000
+    | EjskModtagerRabatFraÆgtefælle(ny_ejerandel_basispoint, overtaget_rabatgrundlag) -> ny_ejerandel_basispoint > 0 && ny_ejerandel_basispoint <= 10000 && ejendomsskattelov_overtaget_rabatgrundlag_input_gyldigt(overtaget_rabatgrundlag)
+}
 | ejendomsskattelov_rabathændelse_art_input_gyldig(art: EjendomsskattelovRabatHændelseArt) -> match art {
     | EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint) -> ny_ejerandel_basispoint > 0 && ny_ejerandel_basispoint < 10000
     | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint) -> ny_ejerandel_basispoint > 0 && ny_ejerandel_basispoint < 10000
+    | EjskÆgtefælleoverdragelse(grund, retning) -> ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(grund) && ejendomsskattelov_ægtefælleoverdragelsesretning_input_gyldig(retning)
     | _ -> Sandt
 }
 | ejendomsskattelov_rabathændelsesvalideringstrin(tilstand: EjendomsskattelovRabatHændelsesvalidering, hændelse: EjendomsskattelovRabatHændelse) -> EjendomsskattelovRabatHændelsesvalidering(
@@ -1317,16 +1332,83 @@ fra 2023.
     input_gyldigt = tilstand.input_gyldigt && ejendomsskattelov_dato_gyldig(hændelse.dato) && ejendomsskattelov_dato_før_eller_lig_med(tilstand.seneste_dato, hændelse.dato) && ejendomsskattelov_dato_før_eller_lig_med(EjendomsskattelovDato(år = 2024, måned = 1, dag = 1), hændelse.dato) && ejendomsskattelov_rabathændelse_art_input_gyldig(hændelse.art)
 )
 | ejendomsskattelov_rabathændelser_input_gyldige(hændelser: List(EjendomsskattelovRabatHændelse)) -> foldl(hændelser, EjendomsskattelovRabatHændelsesvalidering(seneste_dato = EjendomsskattelovDato(år = 2024, måned = 1, dag = 1), input_gyldigt = Sandt), ejendomsskattelov_rabathændelsesvalideringstrin).input_gyldigt
+| ejendomsskattelov_eget_rabatgrundlag_2024_resultat(omfang: EjendomsskattelovOvergangsomfang, eget_rabatgrundlag_2024: Option(EjendomsskattelovRabat2024Fakta)) -> match eget_rabatgrundlag_2024 {
+    | None -> None
+    | Some(fakta) -> Some(ejendomsskattelov_rabat_2024_resultat(omfang, fakta))
+}
+| ejendomsskattelov_rabat_startbeløb(identifikation: Tekst, omfang: EjendomsskattelovOvergangsomfang, eget_rabatgrundlag_2024: Option(EjendomsskattelovRabat2024Fakta)) -> match eget_rabatgrundlag_2024 {
+    | None -> EjendomsskattelovRabatBeløbstilstand(
+        identifikation = identifikation,
+        ejerandel_basispoint = 0,
+        rabat_ejendomsværdiskat_helår_øre = 0,
+        rabat_grundskyld_helår_øre = 0,
+        kan_tjene_til_bolig_for_ejeren = Sandt,
+        kapabilitet = EjskIkkeRelevant,
+        input_gyldigt = Sandt
+    )
+    | Some(fakta) -> {
+        = resultat = ejendomsskattelov_rabat_2024_resultat(omfang, fakta)
+        EjendomsskattelovRabatBeløbstilstand(
+            identifikation = identifikation,
+            ejerandel_basispoint = fakta.ny_lov_helårsgrundlag.ejerandel_basispoint,
+            rabat_ejendomsværdiskat_helår_øre = resultat.rabat_ejendomsværdiskat_øre,
+            rabat_grundskyld_helår_øre = resultat.rabat_grundskyld_øre,
+            kan_tjene_til_bolig_for_ejeren = Sandt,
+            kapabilitet = resultat.kapabilitet,
+            input_gyldigt = resultat.input_gyldigt && fakta.ny_lov_helårsgrundlag.identifikation == identifikation
+        )
+    }
+}
+| ejendomsskattelov_rabatbeløb_skaleret(tilstand: EjendomsskattelovRabatBeløbstilstand, ny_ejerandel_basispoint: Heltal, grundskyld_bevares: Boolsk, trin_gyldigt: Boolsk) -> EjendomsskattelovRabatBeløbstilstand(
+    identifikation = tilstand.identifikation,
+    ejerandel_basispoint = ny_ejerandel_basispoint,
+    rabat_ejendomsværdiskat_helår_øre = hvis tilstand.ejerandel_basispoint > 0 { tilstand.rabat_ejendomsværdiskat_helår_øre * ny_ejerandel_basispoint / tilstand.ejerandel_basispoint } ellers { 0 },
+    rabat_grundskyld_helår_øre = hvis grundskyld_bevares && tilstand.ejerandel_basispoint > 0 { tilstand.rabat_grundskyld_helår_øre * ny_ejerandel_basispoint / tilstand.ejerandel_basispoint } ellers { 0 },
+    kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren,
+    kapabilitet = tilstand.kapabilitet,
+    input_gyldigt = tilstand.input_gyldigt && trin_gyldigt
+)
+| ejendomsskattelov_rabatbeløb_efter_ægtefælleoverdragelse(tilstand: EjendomsskattelovRabatBeløbstilstand, grund: EjendomsskattelovÆgtefælleoverdragelsesgrund, retning: EjendomsskattelovÆgtefælleoverdragelsesretning) -> match retning {
+    | EjskAfgiverRabatTilÆgtefælle(ny_ejerandel_basispoint) -> ejendomsskattelov_rabatbeløb_skaleret(
+        tilstand,
+        ny_ejerandel_basispoint,
+        Sandt,
+        ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(grund) && tilstand.ejerandel_basispoint > 0 && ny_ejerandel_basispoint >= 0 && ny_ejerandel_basispoint < tilstand.ejerandel_basispoint
+    )
+    | EjskModtagerRabatFraÆgtefælle(ny_ejerandel_basispoint, overtaget_rabatgrundlag) -> {
+        = overtaget_resultat = ejendomsskattelov_rabat_2024_resultat(overtaget_rabatgrundlag.overgangsomfang, overtaget_rabatgrundlag.rabat_2024)
+        = overtaget_ejerandel_basispoint = overtaget_rabatgrundlag.rabat_2024.ny_lov_helårsgrundlag.ejerandel_basispoint
+        = trin_gyldigt = ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(grund) && overtaget_resultat.input_gyldigt && overtaget_resultat.kapabilitet == EjskUnderstøttet && overtaget_rabatgrundlag.rabat_2024.ny_lov_helårsgrundlag.identifikation == tilstand.identifikation && ny_ejerandel_basispoint == tilstand.ejerandel_basispoint + overtaget_ejerandel_basispoint && ny_ejerandel_basispoint <= 10000
+        EjendomsskattelovRabatBeløbstilstand(
+            identifikation = tilstand.identifikation,
+            ejerandel_basispoint = ny_ejerandel_basispoint,
+            rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre + overtaget_resultat.rabat_ejendomsværdiskat_øre,
+            rabat_grundskyld_helår_øre = tilstand.rabat_grundskyld_helår_øre + overtaget_resultat.rabat_grundskyld_øre,
+            kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren,
+            kapabilitet = ejendomsskattelov_kombiner_regelkapabilitet(tilstand.kapabilitet, overtaget_resultat.kapabilitet),
+            input_gyldigt = tilstand.input_gyldigt && trin_gyldigt
+        )
+    }
+}
+| ejendomsskattelov_rabatbeløb_med_boligstatus(tilstand: EjendomsskattelovRabatBeløbstilstand, kan_tjene_til_bolig_for_ejeren: Boolsk, trin_gyldigt: Boolsk) -> EjendomsskattelovRabatBeløbstilstand(
+    identifikation = tilstand.identifikation,
+    ejerandel_basispoint = tilstand.ejerandel_basispoint,
+    rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre,
+    rabat_grundskyld_helår_øre = tilstand.rabat_grundskyld_helår_øre,
+    kan_tjene_til_bolig_for_ejeren = kan_tjene_til_bolig_for_ejeren,
+    kapabilitet = tilstand.kapabilitet,
+    input_gyldigt = tilstand.input_gyldigt && trin_gyldigt
+)
 | ejendomsskattelov_rabatbeløb_efter_hændelse(tilstand: EjendomsskattelovRabatBeløbstilstand, hændelse: EjendomsskattelovRabatHændelse) -> match hændelse.art {
-    | EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint) -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = ny_ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre * ny_ejerandel_basispoint / tilstand.ejerandel_basispoint, rabat_grundskyld_helår_øre = tilstand.rabat_grundskyld_helår_øre * ny_ejerandel_basispoint / tilstand.ejerandel_basispoint, input_gyldigt = tilstand.input_gyldigt && ny_ejerandel_basispoint < tilstand.ejerandel_basispoint)
-    | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint) -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = ny_ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre * ny_ejerandel_basispoint / tilstand.ejerandel_basispoint, rabat_grundskyld_helår_øre = 0, input_gyldigt = tilstand.input_gyldigt && ny_ejerandel_basispoint < tilstand.ejerandel_basispoint)
-    | EjskAlmindeligtFuldtEjerskifte -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = 0, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = 0, input_gyldigt = tilstand.input_gyldigt)
-    | EjskÆgtefælleOvertagerRabat -> tilstand
-    | EjskLængstlevendeÆgtefælleOvertagerRabat -> tilstand
-    | EjskSkilsmisseoverdragelseFørBodeling -> tilstand
-    | EjskBfeNummerBortfalder -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = 0, input_gyldigt = tilstand.input_gyldigt)
-    | EjskIkkeLængereEjendomEfterPar3 -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = tilstand.rabat_grundskyld_helår_øre, input_gyldigt = tilstand.input_gyldigt)
-    | EjskIkkeLængereGrundskyldskategoriEfterPar38 -> EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre, rabat_grundskyld_helår_øre = 0, input_gyldigt = tilstand.input_gyldigt)
+    | EjskDelvisOverdragelseTilFysiskePersoner(ny_ejerandel_basispoint) -> ejendomsskattelov_rabatbeløb_skaleret(tilstand, ny_ejerandel_basispoint, Sandt, ny_ejerandel_basispoint > 0 && ny_ejerandel_basispoint < tilstand.ejerandel_basispoint)
+    | EjskDelvisOverdragelseTilJuridiskePersoner(ny_ejerandel_basispoint) -> ejendomsskattelov_rabatbeløb_skaleret(tilstand, ny_ejerandel_basispoint, Falskt, ny_ejerandel_basispoint > 0 && ny_ejerandel_basispoint < tilstand.ejerandel_basispoint)
+    | EjskAlmindeligtFuldtEjerskifte -> EjendomsskattelovRabatBeløbstilstand(identifikation = tilstand.identifikation, ejerandel_basispoint = 0, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = 0, kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren, kapabilitet = tilstand.kapabilitet, input_gyldigt = tilstand.input_gyldigt)
+    | EjskÆgtefælleoverdragelse(grund, retning) -> ejendomsskattelov_rabatbeløb_efter_ægtefælleoverdragelse(tilstand, grund, retning)
+    | EjskBoligKanIkkeTjeneTilBoligForEjeren -> ejendomsskattelov_rabatbeløb_med_boligstatus(tilstand, Falskt, tilstand.kan_tjene_til_bolig_for_ejeren)
+    | EjskBoligKanIgenTjeneTilBoligForEjeren -> ejendomsskattelov_rabatbeløb_med_boligstatus(tilstand, Sandt, tilstand.kan_tjene_til_bolig_for_ejeren == Falskt)
+    | EjskBfeNummerBortfalder -> EjendomsskattelovRabatBeløbstilstand(identifikation = tilstand.identifikation, ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = 0, kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren, kapabilitet = tilstand.kapabilitet, input_gyldigt = tilstand.input_gyldigt)
+    | EjskIkkeLængereEjendomEfterPar3 -> EjendomsskattelovRabatBeløbstilstand(identifikation = tilstand.identifikation, ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = 0, rabat_grundskyld_helår_øre = tilstand.rabat_grundskyld_helår_øre, kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren, kapabilitet = tilstand.kapabilitet, input_gyldigt = tilstand.input_gyldigt)
+    | EjskIkkeLængereGrundskyldskategoriEfterPar38 -> EjendomsskattelovRabatBeløbstilstand(identifikation = tilstand.identifikation, ejerandel_basispoint = tilstand.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = tilstand.rabat_ejendomsværdiskat_helår_øre, rabat_grundskyld_helår_øre = 0, kan_tjene_til_bolig_for_ejeren = tilstand.kan_tjene_til_bolig_for_ejeren, kapabilitet = tilstand.kapabilitet, input_gyldigt = tilstand.input_gyldigt)
 }
 | ejendomsskattelov_rabatårsakkumulatortrin(indkomstår: Heltal, tilstand: EjendomsskattelovRabatÅrsakkumulator, hændelse: EjendomsskattelovRabatHændelse) -> {
     = hændelsesdag = ejendomsskattelov_par72_dagnummer(hændelse.dato)
@@ -1336,30 +1418,28 @@ fra 2023.
         seneste_dato = hændelse.dato,
         seneste_dag_i_indkomståret = hvis hændelse.dato.år == indkomstår { hændelsesdag } ellers { 1 },
         beløb = nyt_beløb,
-        akkumuleret_ejendomsværdiskat_øre_dage = tilstand.akkumuleret_ejendomsværdiskat_øre_dage + tilstand.beløb.rabat_ejendomsværdiskat_helår_øre * dage_med_tidligere_beløb,
+        akkumuleret_ejendomsværdiskat_øre_dage = tilstand.akkumuleret_ejendomsværdiskat_øre_dage + hvis tilstand.beløb.kan_tjene_til_bolig_for_ejeren { tilstand.beløb.rabat_ejendomsværdiskat_helår_øre * dage_med_tidligere_beløb } ellers { 0 },
         akkumuleret_grundskyld_øre_dage = tilstand.akkumuleret_grundskyld_øre_dage + tilstand.beløb.rabat_grundskyld_helår_øre * dage_med_tidligere_beløb
     )
 }
 | ejendomsskattelov_rabat_årsresultat(indkomstår: Heltal, omfang: EjendomsskattelovOvergangsomfang, fakta: EjendomsskattelovRabatOvergangsfakta, aktuel_fakta: EjendomsskattelovOrdinærPersonEjendomFakta, ejendomsværdiskat_før_rabat_øre: Heltal, grundskyld_før_rabat_øre: Heltal) -> {
-    = grundlag_2024 = ejendomsskattelov_rabat_2024_resultat(omfang, fakta.rabat_2024)
+    = eget_grundlag_2024 = ejendomsskattelov_eget_rabatgrundlag_2024_resultat(omfang, fakta.eget_rabatgrundlag_2024)
     = hændelser_til_og_med_året = filter(fakta.hændelser, |hændelse: EjendomsskattelovRabatHændelse| ejendomsskattelov_dato_før_eller_lig_med(hændelse.dato, EjendomsskattelovDato(år = indkomstår, måned = 12, dag = 31)))
-    = startbeløb = EjendomsskattelovRabatBeløbstilstand(ejerandel_basispoint = fakta.rabat_2024.ny_lov_helårsgrundlag.ejerandel_basispoint, rabat_ejendomsværdiskat_helår_øre = grundlag_2024.rabat_ejendomsværdiskat_øre, rabat_grundskyld_helår_øre = grundlag_2024.rabat_grundskyld_øre, input_gyldigt = grundlag_2024.input_gyldigt)
+    = startbeløb = ejendomsskattelov_rabat_startbeløb(aktuel_fakta.identifikation, omfang, fakta.eget_rabatgrundlag_2024)
     = årsakkumulator = foldl(hændelser_til_og_med_året, EjendomsskattelovRabatÅrsakkumulator(seneste_dato = EjendomsskattelovDato(år = 2024, måned = 1, dag = 1), seneste_dag_i_indkomståret = 1, beløb = startbeløb, akkumuleret_ejendomsværdiskat_øre_dage = 0, akkumuleret_grundskyld_øre_dage = 0), |tilstand: EjendomsskattelovRabatÅrsakkumulator, hændelse: EjendomsskattelovRabatHændelse| ejendomsskattelov_rabatårsakkumulatortrin(indkomstår, tilstand, hændelse))
     = resterende_dage = 361 - årsakkumulator.seneste_dag_i_indkomståret
-    = rabat_ejendomsværdiskat_før_par41_og_42_øre = (årsakkumulator.akkumuleret_ejendomsværdiskat_øre_dage + årsakkumulator.beløb.rabat_ejendomsværdiskat_helår_øre * resterende_dage) / 360
-    = rabat_grundskyld_før_par41_øre = (årsakkumulator.akkumuleret_grundskyld_øre_dage + årsakkumulator.beløb.rabat_grundskyld_helår_øre * resterende_dage) / 360
-    = ejendomsværdiskatteandel_efter_par42_basispoint = hvis aktuel_fakta.erhvervsmæssigt_udlejet { 0 } ellers { ejendomsskattelov_par72_skattepligtige_dage(aktuel_fakta.ejendomsværdiskatteperiode) * 10000 / 360 }
-    = rabat_ejendomsværdiskat_efter_par42_øre = rabat_ejendomsværdiskat_før_par41_og_42_øre * ejendomsværdiskatteandel_efter_par42_basispoint / 10000
-    = rabat_ejendomsværdiskat_øre = penge_mindste_beløb(ejendomsværdiskat_før_rabat_øre, rabat_ejendomsværdiskat_efter_par42_øre)
-    = rabat_grundskyld_øre = penge_mindste_beløb(grundskyld_før_rabat_øre, rabat_grundskyld_før_par41_øre)
-    = input_gyldigt = indkomstår >= 2024 && grundlag_2024.input_gyldigt && fakta.rabat_2024.ny_lov_helårsgrundlag.identifikation == aktuel_fakta.identifikation && ejendomsskattelov_rabathændelser_input_gyldige(fakta.hændelser) && årsakkumulator.beløb.input_gyldigt && årsakkumulator.beløb.ejerandel_basispoint == aktuel_fakta.ejerandel_basispoint
-    = kapabilitet = hvis input_gyldigt == Falskt { EjskInputUgyldigt } ellers { grundlag_2024.kapabilitet }
+    = rabat_ejendomsværdiskat_før_par41_stk3_øre = (årsakkumulator.akkumuleret_ejendomsværdiskat_øre_dage + hvis årsakkumulator.beløb.kan_tjene_til_bolig_for_ejeren { årsakkumulator.beløb.rabat_ejendomsværdiskat_helår_øre * resterende_dage } ellers { 0 }) / 360
+    = rabat_grundskyld_før_par41_stk3_øre = (årsakkumulator.akkumuleret_grundskyld_øre_dage + årsakkumulator.beløb.rabat_grundskyld_helår_øre * resterende_dage) / 360
+    = rabat_ejendomsværdiskat_øre = penge_mindste_beløb(ejendomsværdiskat_før_rabat_øre, rabat_ejendomsværdiskat_før_par41_stk3_øre)
+    = rabat_grundskyld_øre = penge_mindste_beløb(grundskyld_før_rabat_øre, rabat_grundskyld_før_par41_stk3_øre)
+    = input_gyldigt = indkomstår >= 2024 && ejendomsskattelov_rabathændelser_input_gyldige(fakta.hændelser) && årsakkumulator.beløb.input_gyldigt
+    = kapabilitet = hvis input_gyldigt == Falskt { EjskInputUgyldigt } ellers { årsakkumulator.beløb.kapabilitet }
     EjendomsskattelovRabatÅrsresultat(
         kapabilitet = kapabilitet,
         input_gyldigt = input_gyldigt,
-        grundlag_2024 = grundlag_2024,
-        rabat_ejendomsværdiskat_før_par41_og_42_øre = rabat_ejendomsværdiskat_før_par41_og_42_øre,
-        rabat_grundskyld_før_par41_øre = rabat_grundskyld_før_par41_øre,
+        eget_grundlag_2024 = eget_grundlag_2024,
+        rabat_ejendomsværdiskat_før_par41_stk3_øre = rabat_ejendomsværdiskat_før_par41_stk3_øre,
+        rabat_grundskyld_før_par41_stk3_øre = rabat_grundskyld_før_par41_stk3_øre,
         rabat_ejendomsværdiskat_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { rabat_ejendomsværdiskat_øre } ellers { 0 },
         rabat_grundskyld_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { rabat_grundskyld_øre } ellers { 0 },
         samlet_rabat_øre = hvis ejendomsskattelov_kapabilitet_beregnet(kapabilitet) { rabat_ejendomsværdiskat_øre + rabat_grundskyld_øre } ellers { 0 }
@@ -1584,7 +1664,7 @@ stigninger i grundskyld efter § 45.
     | EjskStigningsberegningUdenKildefakta(_) -> grundskyld_efter_rabat_øre
     | EjskBeregnetStigningsbegrænsning(resultat) -> hvis resultat.par44_omfattet { resultat.grundskyld_efter_stigningsbegrænsning_øre } ellers { grundskyld_efter_rabat_øre }
 }
-| ejendomsskattelov_kombiner_overgangskapabilitet(rabat: EjendomsskattelovRegelkapabilitet, stigningsbegrænsning: EjendomsskattelovRegelkapabilitet) -> hvis rabat == EjskInputUgyldigt || stigningsbegrænsning == EjskInputUgyldigt { EjskInputUgyldigt } ellers { hvis rabat == EjskManglerKildefakta || stigningsbegrænsning == EjskManglerKildefakta { EjskManglerKildefakta } ellers { hvis rabat == EjskIkkeUnderstøttet || stigningsbegrænsning == EjskIkkeUnderstøttet { EjskIkkeUnderstøttet } ellers { hvis rabat == EjskUnderstøttet || stigningsbegrænsning == EjskUnderstøttet { EjskUnderstøttet } ellers { EjskIkkeRelevant } } } }
+| ejendomsskattelov_kombiner_overgangskapabilitet(rabat: EjendomsskattelovRegelkapabilitet, stigningsbegrænsning: EjendomsskattelovRegelkapabilitet) -> ejendomsskattelov_kombiner_regelkapabilitet(rabat, stigningsbegrænsning)
 | ejendomsskattelov_overgangsresultat(kontekst: EjendomsskattelovPersonÅrskontekst, fakta: EjendomsskattelovPersonEjendomFakta, ejendomsværdiskat_før_overgang_øre: Heltal, grundskyld_før_overgang_øre: Heltal) -> {
     = rabat = ejendomsskattelov_rabatberegning(kontekst, fakta, ejendomsværdiskat_før_overgang_øre, grundskyld_før_overgang_øre)
     = stigningsbegrænsning = ejendomsskattelov_stigningsberegning(kontekst, fakta)
