@@ -4,9 +4,21 @@
 @ importer ./metadata
 @ importer ./personskat - personlig - indkomst - kildefakta
 
+= skat_ksl25a_medarbejdende_ægtefælle_vejledning = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976890",
+    identifier = "Den juridiske vejledning C.A.8.4.1.2: Fordeling efter reglen om medarbejdende ægtefælle",
+    hentet_dato = "2026-08-10"
+)
+= skat_ksl25a_lønaftale_vejledning = KildeskatKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976891",
+    identifier = "Den juridiske vejledning C.A.8.4.1.3: Lønaftale",
+    hentet_dato = "2026-08-10"
+)
 = personskat_kildeskat25a_kildefakta_metadata = Metadata(
     attachments = (
         DependencySource(value = kildeskatteloven_lbk460_par25a),
+        Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
+        Guidance(value = skat_ksl25a_lønaftale_vejledning),
     )
 )
 
@@ -60,15 +72,22 @@ begrundes i virksomhedens drift. Ved opgørelsen af skattepligtig indkomst,
 personlig indkomst, kapitalindkomst og arbejdsmarkedsbidragspligtig indkomst
 fordeles virksomhedens aktiver og passiver mellem ægtefællerne efter samme
 forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
+
+Den juridiske vejledning C.A.8.4.1.2, "Ægtefællerne driver flere virksomheder i
+fællesskab":
+
+Hvis ægtefællerne driver flere erhvervsvirksomheder i fællesskab, skal de bruge
+den samme fordelingsregel for alle virksomheder i indkomståret.
 ----
 
 --@begin:personskat_kildeskat25a_virksomhedsfordeling--
 # PersonskatKsl25AVirksomhedsplacering = HovedpersonensVirksomhed | ÆgtefællensVirksomhed
+# PersonskatKsl25AÅrsregel = Ksl25AÅrsregelStk1 | Ksl25AÅrsregelStk3 | Ksl25AÅrsregelStk7 | Ksl25AÅrsregelStk8
 # PersonskatKsl25AVirksomhedsfordelingFakta(virksomhedsidentifikation: Tekst, virksomhedens_placering: PersonskatKsl25AVirksomhedsplacering, samliv_ophoert_i_indkomståret: Boolsk, fordeling: Kildeskat25AVirksomhedsfordelingsvalg, lønudgiftsidentifikation: Option(Tekst))
 # PersonskatKsl25APersonregulering(arbejdsmarkedsbidragsgrundlag_regulering_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner: Heltal, lønvederlag_regulering_kroner: Heltal)
 # PersonskatKsl25AVirksomhedsfordelingsresultat(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), kildevirksomhed_fundet_entydigt: Boolsk, modpart_har_ikke_samme_virksomhed: Boolsk, lønudgift_tilknyttet: Boolsk, kildeskat_resultat: Kildeskat25AVirksomhedsfordelingsresultat, input_gyldigt: Boolsk, virksomhedsdriverens_regulering: PersonskatKsl25APersonregulering, anden_ægtefælles_regulering: PersonskatKsl25APersonregulering)
 # PersonskatKsl25AForløbstilstand(resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk)
-# PersonskatKsl25AParResultat(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), fordelingsidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering)
+# PersonskatKsl25AParResultat(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), fordelingsidentifikationer_entydige: Boolsk, lønaftale_udelukker_stk3_og_stk8: Boolsk, fælles_virksomheder_bruger_samme_årsregel: Boolsk, stk3_samme_virksomhedsdriver: Boolsk, stk3_samlet_overført_kroner: Heltal, stk3_reguleret_årsloft_kroner: Heltal, stk3_årsloft_overholdt: Boolsk, alle_input_gyldige: Boolsk, hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering)
 
 | personskat_ksl25a_tom_personregulering() -> PersonskatKsl25APersonregulering(
     arbejdsmarkedsbidragsgrundlag_regulering_kroner = 0,
@@ -84,6 +103,12 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
     fordelinger = [],
     resultater = [],
     fordelingsidentifikationer_entydige = Sandt,
+    lønaftale_udelukker_stk3_og_stk8 = Sandt,
+    fælles_virksomheder_bruger_samme_årsregel = Sandt,
+    stk3_samme_virksomhedsdriver = Sandt,
+    stk3_samlet_overført_kroner = 0,
+    stk3_reguleret_årsloft_kroner = 0,
+    stk3_årsloft_overholdt = Sandt,
     alle_input_gyldige = Sandt,
     hovedperson = personskat_ksl25a_tom_personregulering(),
     ægtefælle = personskat_ksl25a_tom_personregulering()

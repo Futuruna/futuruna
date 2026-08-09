@@ -19830,6 +19830,88 @@ fn personskat_par19_contributions_round_trip_through_generated_workbook() {
 }
 
 #[test]
+fn personskat_ksl25a_shared_annual_cap_round_trips_through_generated_workbook() {
+    let source_scenario = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat-kildeskat25a.scenario.runa");
+    let (source_output, workbook_output) =
+        round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
+            &source_scenario,
+            "personskat_ksl25a_kildefakta_til_arbejdsbog",
+            &[(
+                "personskat-ksl25a-stk3-over-faelles-aarsloft-2025",
+                "Stk3OverFællesÅrsloft2025",
+            )],
+            |workbook_path| {
+                let mut workbook =
+                    open_workbook_auto(workbook_path).expect("Personskat KSL § 25 A workbook");
+                let sheet = workbook_collection_sheet_name(
+                    &mut workbook,
+                    "ægtefælle.MedÆgtefælle.kildeskat25a_fordelinger",
+                );
+                let paths = workbook_column_paths(&mut workbook, &sheet);
+                let headers = workbook_headers(&mut workbook, &sheet);
+                for (path, label) in [
+                    ("virksomhedsidentifikation", "Virksomhedens identifikation"),
+                    (
+                        "fordeling.$variant",
+                        "Regel for ægtefællernes virksomhedsindkomst",
+                    ),
+                    (
+                        "fordeling.Ksl25AStk3TilMedarbejdendeÆgtefælle.anmodet_overførsel_kroner",
+                        "Anmodet overførsel til medarbejdende ægtefælle",
+                    ),
+                    (
+                        "fordeling.Ksl25AStk3TilMedarbejdendeÆgtefælle.arbejdsindsats_forsvarligt_maksimum_kroner",
+                        "Forsvarligt maksimum efter arbejdsindsatsen",
+                    ),
+                ] {
+                    let column = paths
+                        .iter()
+                        .position(|candidate| candidate == path)
+                        .unwrap_or_else(|| panic!("missing KSL § 25 A allocation path {path}"));
+                    assert_eq!(headers[column + 3], label);
+                }
+            },
+        );
+
+    let allocations = source_output["results"][0]["result"]["ægtefælle"]
+        ["kildeskat25a_fordelinger"]
+        .as_array()
+        .expect("canonical KSL § 25 A allocations");
+    assert_eq!(allocations.len(), 2);
+    for allocation in allocations {
+        assert_eq!(
+            allocation["fordeling"]["anmodet_overførsel_kroner"],
+            160_000
+        );
+    }
+
+    let result = &workbook_output["results"][0]["result"];
+    let kildeskat25a = &result["kildeskat25a"];
+    assert_eq!(kildeskat25a["stk3_samlet_overført_kroner"], 320_000);
+    assert_eq!(kildeskat25a["stk3_reguleret_årsloft_kroner"], 282_400);
+    assert!(kildeskat25a["fælles_virksomheder_bruger_samme_årsregel"]
+        .as_bool()
+        .unwrap());
+    assert!(kildeskat25a["stk3_samme_virksomhedsdriver"]
+        .as_bool()
+        .unwrap());
+    assert!(!kildeskat25a["stk3_årsloft_overholdt"].as_bool().unwrap());
+    assert!(!kildeskat25a["alle_input_gyldige"].as_bool().unwrap());
+    assert_eq!(
+        kildeskat25a["hovedperson"]["arbejdsmarkedsbidragsgrundlag_regulering_kroner"],
+        0
+    );
+    assert_eq!(
+        kildeskat25a["ægtefælle"]["arbejdsmarkedsbidragsgrundlag_regulering_kroner"],
+        0
+    );
+    assert!(!result["personlig_indkomst"]["alle_input_gyldige"]
+        .as_bool()
+        .unwrap());
+}
+
+#[test]
 fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");

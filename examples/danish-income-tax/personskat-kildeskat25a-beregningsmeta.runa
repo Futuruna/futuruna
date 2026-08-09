@@ -21,14 +21,14 @@
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::samliv_ophoert_i_indkomståret),
     label = "Samliv ophørt i indkomståret",
     question = Some("Ophørte samlivet mellem ægtefællerne i indkomståret?"),
-    help = Some("Fordelingsreglerne her anvendes kun, når samlivet ikke er ophørt i indkomståret."),
+    help = Some("Angiv skattemæssigt samlivsophør. Årsfakta uden dateret periodisering kan ikke sammensættes ved ophør."),
     unit = None
 )
 = personskat_ksl25a_felt_fordelingsregel = TypetBeregningsfelt(
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::$variant),
     label = "Regel for ægtefællernes virksomhedsindkomst",
     question = Some("Hvordan skal virksomhedens resultat behandles mellem ægtefællerne efter kildeskattelovens § 25 A?"),
-    help = Some("Vælg virksomhedsdriver, medarbejdende ægtefælle, lønaftale eller ligelig deltagelse. Futuruna validerer betingelserne for den valgte regel."),
+    help = Some("Fælles drevne virksomheder skal bruge samme årsregel. En lønaftale udelukker stk. 3 og 8 i hele indkomståret."),
     unit = None
 )
 = personskat_ksl25a_felt_stk1_begge_deltager = TypetBeregningsfelt(
@@ -63,7 +63,7 @@
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::anmodet_overførsel_kroner),
     label = "Anmodet overførsel til medarbejdende ægtefælle",
     question = Some("Hvor meget af virksomhedens overskud anmoder ægtefællerne om at overføre til den medarbejdende ægtefælle?"),
-    help = Some("Futuruna anvender automatisk halvdelsgrænsen, det regulerede grundbeløb og grænsen efter arbejdsindsatsen."),
+    help = Some("Futuruna anvender halvdelsgrænsen og arbejdsindsatsen pr. virksomhed samt det fælles regulerede årsloft på tværs af virksomheder."),
     unit = Some("kr./år")
 )
 = personskat_ksl25a_felt_stk3_arbejdsindsats_maksimum = TypetBeregningsfelt(
@@ -267,6 +267,8 @@
     beløbsfelter = [],
     attachments = (
         DependencySource(value = kildeskatteloven_lbk460_par25a),
+        Guidance(value = skat_ksl25a_medarbejdende_ægtefælle_vejledning),
+        Guidance(value = skat_ksl25a_lønaftale_vejledning),
     )
 )
 

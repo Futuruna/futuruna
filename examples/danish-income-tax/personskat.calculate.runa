@@ -16215,6 +16215,37 @@ fraflytningen."
     | ÆgtefællensVirksomhed -> "ægtefælle::" + fakta.virksomhedsidentifikation
 }
 | personskat_ksl25a_fordelingsidentifikationer_entydige(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> length(distinct(map(fordelinger, personskat_ksl25a_fordelingsnøgle))) == length(fordelinger)
+| personskat_ksl25a_årsregel(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> match fakta.fordeling {
+    | Ksl25AStk1HosVirksomhedsdriver(_, _) -> Ksl25AÅrsregelStk1
+    | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> Ksl25AÅrsregelStk3
+    | Ksl25AStk7Lønaftale(_) -> Ksl25AÅrsregelStk7
+    | Ksl25AStk8LigeligResultatfordeling(_, _, _, _, _) -> Ksl25AÅrsregelStk8
+}
+| personskat_ksl25a_fælles_virksomhed(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> match fakta.fordeling {
+    | Ksl25AStk1HosVirksomhedsdriver(begge_deltager, _) -> begge_deltager
+    | Ksl25AStk3TilMedarbejdendeÆgtefælle(_, _, _, _) -> Sandt
+    | Ksl25AStk7Lønaftale(_) -> Sandt
+    | Ksl25AStk8LigeligResultatfordeling(_, _, _, _, _) -> Sandt
+}
+| personskat_ksl25a_er_lønaftale(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> personskat_ksl25a_årsregel(fakta) == Ksl25AÅrsregelStk7
+| personskat_ksl25a_er_stk3_eller_stk8(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> personskat_ksl25a_årsregel(fakta) == Ksl25AÅrsregelStk3 || personskat_ksl25a_årsregel(fakta) == Ksl25AÅrsregelStk8
+| personskat_ksl25a_er_stk3(fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> personskat_ksl25a_årsregel(fakta) == Ksl25AÅrsregelStk3
+| personskat_ksl25a_lønaftale_udelukker_stk3_og_stk8(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> any(fordelinger, personskat_ksl25a_er_lønaftale) == Falskt || any(fordelinger, personskat_ksl25a_er_stk3_eller_stk8) == Falskt
+| personskat_ksl25a_fælles_virksomheder_bruger_samme_årsregel(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> {
+    = fælles_fordelinger = filter(fordelinger, personskat_ksl25a_fælles_virksomhed)
+    length(distinct(map(fælles_fordelinger, personskat_ksl25a_årsregel))) <= 1
+}
+| personskat_ksl25a_stk3_samme_virksomhedsdriver(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> {
+    = stk3_fordelinger = filter(fordelinger, personskat_ksl25a_er_stk3)
+    length(distinct(map(stk3_fordelinger, |fakta: PersonskatKsl25AVirksomhedsfordelingFakta| fakta.virksomhedens_placering))) <= 1
+}
+| personskat_ksl25a_stk3_overført_kroner(resultat: PersonskatKsl25AVirksomhedsfordelingsresultat) -> match resultat.kildeskat_resultat.stk3_resultat {
+    | Some(stk3) -> stk3.overført_til_medarbejdende_ægtefælle_kroner
+    | None -> 0
+}
+| personskat_ksl25a_stk3_samlet_overført_kroner(resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat)) -> foldl(resultater, 0, |sum_kroner: Heltal, resultat: PersonskatKsl25AVirksomhedsfordelingsresultat| sum_kroner + personskat_ksl25a_stk3_overført_kroner(resultat))
+| personskat_ksl25a_stk3_reguleret_årsloft_kroner(indkomstår: Heltal, fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta)) -> hvis any(fordelinger, personskat_ksl25a_er_stk3) { kildeskat25a_stk3_reguleret_grundbeløb_kroner(indkomstår) } ellers { 0 }
+| personskat_ksl25a_stk3_årsloft_overholdt(indkomstår: Heltal, fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat)) -> any(fordelinger, personskat_ksl25a_er_stk3) == Falskt || personskat_ksl25a_stk3_samlet_overført_kroner(resultater) <= personskat_ksl25a_stk3_reguleret_årsloft_kroner(indkomstår, fordelinger)
 | personskat_ksl25a_fordelingstrin(tilstand: PersonskatKsl25AForløbstilstand, input: PersonskatInput, ægtefælle_fakta: PersonskatPersonFakta, samlevende_ved_indkomstårets_udløb: Boolsk, fælles_skatteår: Boolsk, fakta: PersonskatKsl25AVirksomhedsfordelingFakta) -> {
     = resultat = personskat_ksl25a_fordelingsresultat(input, ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, fælles_skatteår, fakta)
     = hovedpersons_regulering = hvis fakta.virksomhedens_placering == HovedpersonensVirksomhed { resultat.virksomhedsdriverens_regulering } ellers { resultat.anden_ægtefælles_regulering }
@@ -16243,11 +16274,23 @@ fraflytningen."
             ),
             |aktuel: PersonskatKsl25AForløbstilstand, fakta: PersonskatKsl25AVirksomhedsfordelingFakta| personskat_ksl25a_fordelingstrin(aktuel, input, ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, fælles_skatteår, fakta)
         )
-        = alle_input_gyldige = fælles_skatteår && identifikationer_entydige && tilstand.input_gyldigt
+        = lønaftale_udelukker_stk3_og_stk8 = personskat_ksl25a_lønaftale_udelukker_stk3_og_stk8(fordelinger)
+        = fælles_virksomheder_bruger_samme_årsregel = personskat_ksl25a_fælles_virksomheder_bruger_samme_årsregel(fordelinger)
+        = stk3_samme_virksomhedsdriver = personskat_ksl25a_stk3_samme_virksomhedsdriver(fordelinger)
+        = stk3_samlet_overført_kroner = personskat_ksl25a_stk3_samlet_overført_kroner(tilstand.resultater)
+        = stk3_reguleret_årsloft_kroner = personskat_ksl25a_stk3_reguleret_årsloft_kroner(input.lønmodtager.skatteår, fordelinger)
+        = stk3_årsloft_overholdt = personskat_ksl25a_stk3_årsloft_overholdt(input.lønmodtager.skatteår, fordelinger, tilstand.resultater)
+        = alle_input_gyldige = fælles_skatteår && identifikationer_entydige && tilstand.input_gyldigt && lønaftale_udelukker_stk3_og_stk8 && fælles_virksomheder_bruger_samme_årsregel && stk3_samme_virksomhedsdriver && stk3_årsloft_overholdt
         PersonskatKsl25AParResultat(
             fordelinger = fordelinger,
             resultater = tilstand.resultater,
             fordelingsidentifikationer_entydige = identifikationer_entydige,
+            lønaftale_udelukker_stk3_og_stk8 = lønaftale_udelukker_stk3_og_stk8,
+            fælles_virksomheder_bruger_samme_årsregel = fælles_virksomheder_bruger_samme_årsregel,
+            stk3_samme_virksomhedsdriver = stk3_samme_virksomhedsdriver,
+            stk3_samlet_overført_kroner = stk3_samlet_overført_kroner,
+            stk3_reguleret_årsloft_kroner = stk3_reguleret_årsloft_kroner,
+            stk3_årsloft_overholdt = stk3_årsloft_overholdt,
             alle_input_gyldige = alle_input_gyldige,
             hovedperson = hvis alle_input_gyldige { tilstand.hovedperson } ellers { personskat_ksl25a_tom_personregulering() },
             ægtefælle = hvis alle_input_gyldige { tilstand.ægtefælle } ellers { personskat_ksl25a_tom_personregulering() }
