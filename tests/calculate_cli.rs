@@ -19589,6 +19589,10 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
                     "personskat-underhold-privat-begrænset-børnebidrag-2025",
                     "PrivatBegrænsetBørnebidragBetalt2025",
                 ),
+                (
+                    "personskat-underhold-barn-fylder-18-modtager-2025",
+                    "BarnFylder18ModtagerHeleMånedsbeløbet2025",
+                ),
             ],
             |workbook_path| {
                 let mut workbook =
@@ -19668,6 +19672,27 @@ fn personskat_support_payment_round_trips_through_generated_workbook_with_danish
         limited_result["personlig_indkomst"]["underholdsbidrag"]
             ["samlet_ligningsmæssigt_fradrag_kroner"],
         1_816
+    );
+
+    let birthday_source = &source_output["results"][2]["result"]["lønmodtager"]
+        ["personlig_indkomst"]["underholdsbidrag"]["bidrag"][0];
+    assert_eq!(birthday_source["rolle"]["$variant"], "Bidragsmodtager");
+    assert_eq!(birthday_source["beløb_kroner"], 1_603);
+    assert_eq!(
+        birthday_source["bidragsart"]["beløbsgrundlag"]["$variant"],
+        "HeleForfaldsmånedensBidrag"
+    );
+
+    let birthday_result = &workbook_output["results"][2]["result"];
+    assert_eq!(
+        birthday_result["personlig_indkomst"]["underholdsbidrag"]["resultater"][0]
+            ["dage_før_og_med_18_år_i_måneden"],
+        5
+    );
+    assert_eq!(
+        birthday_result["personlig_indkomst"]["underholdsbidrag"]
+            ["samlet_personlig_indkomst_kroner"],
+        1_335
     );
 }
 

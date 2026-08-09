@@ -299,7 +299,7 @@ tilsvarende anvendelse.
     }
 }
 | ligningslov10_11_barnets_personlige_indkomst_kroner(fakta: Ligningslov10Og11BidragFakta, dage_før_og_med_18_år: Heltal) -> match fakta.bidragsart {
-    | LøbendeUnderholdsbidrag(beløbsgrundlag) -> ligningslov10_11_løbende_barn_personlig_indkomst_kroner(fakta, beløbsgrundlag, dage_før_og_med_18_år)
+    | LøbendeUnderholdsbidrag(_) -> ligningslov10_11_løbende_barn_personlig_indkomst_kroner(fakta, dage_før_og_med_18_år)
     | UddannelsesbidragEfter18År(_) -> fakta.beløb_kroner
     | DåbsEllerNavngivningsbidrag(_) -> penge_positivt_beløb(fakta.beløb_kroner - ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(fakta.forfaldsdato.år))
     | KonfirmationsEllerNonfirmationsbidrag(_) -> penge_positivt_beløb(fakta.beløb_kroner - 3 * ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(fakta.forfaldsdato.år))
@@ -404,6 +404,8 @@ beløb, som barnet faktisk har modtaget.
 
 Underholds- og uddannelsesbidrag for tiden efter barnets fyldte 18. år er fuldt
 skattepligtigt for barnet, også når beløbet ikke overstiger normalbidraget.
+I 18-årsmåneden er hele det faktisk modtagne kontantbeløb indkomst, mens kun
+normalbidraget for dagene til og med fødselsdagen er skattefrit.
 
 Familieretshuset behandler fødsels- og barselsbidrag til moren som selvstændige
 bidragsarter. De må derfor ikke registreres som løbende børnebidrag i dette
@@ -431,14 +433,11 @@ Børnebidragslov § 19-domæne.
     | HeleForfaldsmånedensBidrag -> penge_positivt_beløb((beløb_kroner - månedlig_tærskel_kroner) * dage / 30)
     | AlleredeForholdsmæssigtTil18Årsdagen -> penge_positivt_beløb((beløb_kroner * 30 - månedlig_tærskel_kroner * dage) / 30)
 }
-| ligningslov10_11_løbende_barn_personlig_indkomst_kroner(fakta: Ligningslov10Og11BidragFakta, beløbsgrundlag: Ligningslov10Og11LøbendeBeløbsgrundlag, dage_før_og_med_18_år: Heltal) -> hvis dage_før_og_med_18_år == 0 {
+| ligningslov10_11_løbende_barn_personlig_indkomst_kroner(fakta: Ligningslov10Og11BidragFakta, dage_før_og_med_18_år: Heltal) -> hvis dage_før_og_med_18_år == 0 {
     fakta.beløb_kroner
 } ellers {
-    ligningslov10_11_periodiseret_beløb_over_tærskel_kroner(
-        beløb_kroner = fakta.beløb_kroner,
-        beløbsgrundlag = beløbsgrundlag,
-        månedlig_tærskel_kroner = ligningslov10_11_normalbidrag_pr_måned_kroner(fakta.forfaldsdato.år),
-        dage = dage_før_og_med_18_år
+    penge_positivt_beløb(
+        (fakta.beløb_kroner * 30 - ligningslov10_11_normalbidrag_pr_måned_kroner(fakta.forfaldsdato.år) * dage_før_og_med_18_år) / 30
     )
 }
 | ligningslov10_11_privat_fradragsvurdering_påkrævet(fakta: Ligningslov10Og11BidragFakta) -> ligningslov10_11_bidragsyder(fakta.rolle) && ligningslov10_11_dage_før_og_med_18_år(fakta) > 0 && match fakta.modtager {
