@@ -13778,11 +13778,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "ejendomsværdiskatteperiode": {
             "$variant": "EjendomsskatIIntervaller",
             "intervaller": [{
-                "fra_dato": { "år": 2025, "måned": 1, "dag": 1 },
-                "til_dato": { "år": 2025, "måned": 3, "dag": 31 }
-            }, {
-                "fra_dato": { "år": 2025, "måned": 7, "dag": 1 },
-                "til_dato": { "år": 2025, "måned": 12, "dag": 31 }
+                "fra_dato": { "år": 2025, "måned": 2, "dag": 1 },
+                "til_dato": { "år": 2025, "måned": 2, "dag": 28 }
             }]
         },
         "grundskyldsperiode": { "$variant": "HeleEjendomsskatteåret" },
@@ -13831,14 +13828,19 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                         "grundskyld_kan_fordeles_på_samme_boligenhed": true
                     },
                     "hændelser": [{
-                        "dato": { "år": 2025, "måned": 4, "dag": 1 },
+                        "dato": { "år": 2025, "måned": 1, "dag": 1 },
                         "art": {
                             "$variant": "EjskBoligKanIkkeTjeneTilBoligForEjeren"
                         }
                     }, {
-                        "dato": { "år": 2025, "måned": 7, "dag": 1 },
+                        "dato": { "år": 2025, "måned": 2, "dag": 1 },
                         "art": {
                             "$variant": "EjskBoligKanIgenTjeneTilBoligForEjeren"
+                        }
+                    }, {
+                        "dato": { "år": 2025, "måned": 3, "dag": 1 },
+                        "art": {
+                            "$variant": "EjskBoligKanIkkeTjeneTilBoligForEjeren"
                         }
                     }]
                 }
@@ -16806,7 +16808,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     assert_eq!(
         temporary_rental_property["ordinært_resultat"]["ejendomsværdiskat"]["periode"]
             ["skattepligtige_dage"],
-        270
+        30
     );
     let temporary_rental_rebate = &temporary_rental_property["overgang"]["rabat"]["resultat"];
     assert_eq!(
@@ -16815,13 +16817,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
     );
     assert_eq!(
         temporary_rental_property["ejendomsværdiskat_før_overgang_øre"],
-        463_500
+        51_500
     );
     assert_eq!(
         temporary_rental_rebate["rabat_ejendomsværdiskat_øre"],
-        81_750
+        9_083
     );
-    assert_eq!(temporary_rental_property["ejendomsværdiskat_øre"], 381_750);
+    assert_eq!(temporary_rental_property["ejendomsværdiskat_øre"], 42_417);
     let json_spouse_rebate_recipient_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

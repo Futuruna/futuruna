@@ -100,6 +100,28 @@
     ejerkreds = EjskKunFysiskeEjere
 )
 
+= ejsk_overgang_hel_februar_2025 = ejendomsskattelov_par72_periode_resultat(
+    2025,
+    EjendomsskatFraOgMedTilOgMed(
+        fra_dato = EjendomsskattelovDato(år = 2025, måned = 2, dag = 1),
+        til_dato = EjendomsskattelovDato(år = 2025, måned = 2, dag = 28)
+    )
+)
+= ejsk_overgang_hel_februar_2024 = ejendomsskattelov_par72_periode_resultat(
+    2024,
+    EjendomsskatFraOgMedTilOgMed(
+        fra_dato = EjendomsskattelovDato(år = 2024, måned = 2, dag = 1),
+        til_dato = EjendomsskattelovDato(år = 2024, måned = 2, dag = 29)
+    )
+)
+= ejsk_overgang_februar_2024_til_28 = ejendomsskattelov_par72_periode_resultat(
+    2024,
+    EjendomsskatFraOgMedTilOgMed(
+        fra_dato = EjendomsskattelovDato(år = 2024, måned = 2, dag = 1),
+        til_dato = EjendomsskattelovDato(år = 2024, måned = 2, dag = 28)
+    )
+)
+
 | ejsk_overgang_rabat_2024_fakta_for_ejerandel(identifikation: Tekst, ny_ejendomsværdi_kroner: Heltal, tidligere_beregningsgrundlag_kroner: Heltal, erhvervelsesdato: EjendomsskattelovDato, pensionsalder: EjendomsskattelovFolkepensionsalder, ejerandel_basispoint: Heltal) -> EjendomsskattelovRabat2024Fakta(
     kontekst_2024 = ejsk_overgang_kontekst(2024, pensionsalder),
     ny_lov_helårsgrundlag = ejsk_overgang_ordinært_grundlag(identifikation, ny_ejendomsværdi_kroner, 0, ejerandel_basispoint, EjskEnBoligenhed),
@@ -473,6 +495,8 @@
 )
 
 | ejsk_overgang_officielt_eksempel_giver_1090_kroner: ejsk_overgang_officielt_resultat -> ejsk_overgang_officielt_resultat.regelgrundlag_understøttet && ejsk_overgang_officielt_resultat.overgang.rabat_ejendomsværdiskat_øre == 109000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_før_overgang_øre == 618000 && ejsk_overgang_officielt_resultat.ejendomsværdiskat_øre == 509000
+| ejsk_overgang_par72_hel_februar_er_30_dage: ejsk_overgang_hel_februar_2025 -> ejsk_overgang_hel_februar_2025.datoer_gyldige && ejsk_overgang_hel_februar_2025.skattepligtige_dage == 30 && ejsk_overgang_hel_februar_2024.datoer_gyldige && ejsk_overgang_hel_februar_2024.skattepligtige_dage == 30
+| ejsk_overgang_par72_skudårets_28_februar_er_ikke_månedens_sidste_dag: ejsk_overgang_februar_2024_til_28 -> ejsk_overgang_februar_2024_til_28.datoer_gyldige && ejsk_overgang_februar_2024_til_28.skattepligtige_dage == 28
 | ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet: ejsk_overgang_pensionist_rabat -> ejsk_overgang_pensionist_tidligere.skat_øre == 467500 && ejsk_overgang_pensionist_tidligere.skat_til_forskelsbeløb_øre == 782000 && ejsk_overgang_pensionist_ny.skat_efter_par23_til_par27_øre == 216000 && ejsk_overgang_pensionist_rabat.ny_ejendomsværdiskat_øre == 816000 && ejsk_overgang_pensionist_rabat.forskelsbeløb_ejendomsværdiskat_øre == 34000
 | ejsk_overgang_delvis_fritagelse_begrænser_par39_forskelsbeløbet: ejsk_overgang_delvist_fritaget_rabat -> ejsk_overgang_delvist_fritaget_rabat.kapabilitet == EjskUnderstøttet && ejsk_overgang_delvist_fritaget_rabat.par38_berettiget && ejsk_overgang_delvist_fritaget_rabat.ny_grundskyld_øre == 306000 && ejsk_overgang_delvist_fritaget_rabat.tidligere_grundskyld_øre == 200000 && ejsk_overgang_delvist_fritaget_rabat.forskelsbeløb_grundskyld_øre == 106000 && ejsk_overgang_delvist_fritaget_rabat.rabat_grundskyld_øre == 106000
 | ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat: ejsk_overgang_officielt_resultat -> ejendomsskattelov_par40_rabat_ejendomsværdiskat_øre(300000, -100000, Sandt, Sandt) == 200000 && ejendomsskattelov_par40_rabat_grundskyld_øre(300000, -100000, Sandt, Sandt) == 0
@@ -494,6 +518,8 @@
 | ejsk_overgang_delårsperiode_bevarer_ordinær_afrunding_når_loftet_ikke_binder: ejsk_overgang_fem_måneder_uden_bindende_loft -> ejsk_overgang_fem_måneder_uden_bindende_loft.kapabilitet == EjskUnderstøttet && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.ordinær_grundskyld_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_helår_øre == 408002 && ejsk_overgang_fem_måneder_uden_bindende_loft.grundskyld_efter_stigningsbegrænsning_øre == 170001 && ejsk_overgang_fem_måneder_uden_bindende_loft.begrænsning_øre == 0 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_før_overgang_øre == 170001 && ejsk_overgang_offentlig_fem_måneder_uden_bindende_loft.grundskyld_øre == 170001
 
 ? ejsk_overgang_officielt_eksempel_giver_1090_kroner
+? ejsk_overgang_par72_hel_februar_er_30_dage
+? ejsk_overgang_par72_skudårets_28_februar_er_ikke_månedens_sidste_dag
 ? ejsk_overgang_pensionistnedslag_holdes_uden_for_forskelsbeløbet
 ? ejsk_overgang_delvis_fritagelse_begrænser_par39_forskelsbeløbet
 ? ejsk_overgang_par40_modregner_negativ_grundskyld_i_ejendomsværdiskat

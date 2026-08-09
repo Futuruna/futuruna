@@ -335,8 +335,8 @@ fra og med den 1. januar 2027.
 | ejendomsskattelov_dato_yyyymmdd(dato: EjendomsskattelovDato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
 | ejendomsskattelov_dato_før(venstre: EjendomsskattelovDato, højre: EjendomsskattelovDato) -> ejendomsskattelov_dato_yyyymmdd(venstre) < ejendomsskattelov_dato_yyyymmdd(højre)
 | ejendomsskattelov_dato_før_eller_lig_med(venstre: EjendomsskattelovDato, højre: EjendomsskattelovDato) -> ejendomsskattelov_dato_yyyymmdd(venstre) <= ejendomsskattelov_dato_yyyymmdd(højre)
-| ejendomsskattelov_par72_normaliseret_dag(dag: Heltal) -> hvis dag > 30 { 30 } ellers { dag }
-| ejendomsskattelov_par72_dagnummer(dato: EjendomsskattelovDato) -> (dato.måned - 1) * 30 + ejendomsskattelov_par72_normaliseret_dag(dato.dag)
+| ejendomsskattelov_par72_normaliseret_dag(dato: EjendomsskattelovDato) -> hvis dato.dag > 30 || dato.måned == 2 && dato.dag == ejendomsskattelov_dato_dage_i_måned(dato.år, dato.måned) { 30 } ellers { dato.dag }
+| ejendomsskattelov_par72_dagnummer(dato: EjendomsskattelovDato) -> (dato.måned - 1) * 30 + ejendomsskattelov_par72_normaliseret_dag(dato)
 | ejendomsskattelov_datointerval_gyldigt(indkomstår: Heltal, interval: EjendomsskattelovDatointerval) -> ejendomsskattelov_dato_gyldig(interval.fra_dato) && ejendomsskattelov_dato_gyldig(interval.til_dato) && interval.fra_dato.år == indkomstår && interval.til_dato.år == indkomstår && ejendomsskattelov_par72_dagnummer(interval.fra_dato) <= ejendomsskattelov_par72_dagnummer(interval.til_dato)
 | ejendomsskattelov_intervalvalideringstrin(indkomstår: Heltal, tilstand: EjendomsskattelovIntervalvalidering, interval: EjendomsskattelovDatointerval) -> EjendomsskattelovIntervalvalidering(
     seneste_slutdag = ejendomsskattelov_par72_dagnummer(interval.til_dato),
