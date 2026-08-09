@@ -1,0 +1,270 @@
+@ sprog da
+
+@ importer ./ligningsloven_fradrag
+@ importer ./personskat.calculate
+
+-- Fokuserede scenarier for Ligningslovens § 9 D og den kanoniske Personskat-bro.
+
+| ll9d_scenarie_egen_bil_input(skatteår: Heltal, årlige_kilometer: Heltal) -> Ligningslov9DInput(
+    skatteår = skatteår,
+    befordringsformål = Par9DArbejdsplads,
+    kvalifikationsgrundlag = Par9DKroniskSygdomMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer = årlige_kilometer),
+    faktisk_udgiftsgrundlag = Ll9dErhvervssatsForNødvendigEgenBil(årlige_kilometer = årlige_kilometer)
+)
+
+| ll9d_scenarie_dokumenteret_input(skatteår: Heltal) -> Ligningslov9DInput(
+    skatteår = skatteår,
+    befordringsformål = Par9DArbejdsplads,
+    kvalifikationsgrundlag = Par9DVarigtNedsatFunktionsevneMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner = 3000),
+    faktisk_udgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 10000)
+)
+
+| ll9d_scenarie_egenbetaling_uden_tilskud() -> Ll9dSkattepligtigeHarSelvAfholdtUdgiften(
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+
+| ll9d_scenarie_personskat_fakta(input: Ligningslov9DInput, befordringsformål: Ligningslov9CBefordringsformål, bopæl_i_yderkommune_eller_lille_ø: Boolsk, modtaget_skattefri_godtgørelse: Boolsk, arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, skattefrit_tilskud: Ligningslov9DSkattefritTilskud) -> PersonskatBefordringsfradragFakta(
+    identifikation = "ll9d-scenarie-" + vis(input.skatteår),
+    befordringsmål_identifikation = "fast-arbejds-eller-uddannelsessted",
+    arbejdsdage = 200,
+    daglige_befordringskilometer = 30,
+    bopæl_i_yderkommune_eller_lille_ø = bopæl_i_yderkommune_eller_lille_ø,
+    befordringsformål = befordringsformål,
+    modtaget_skattefri_befordringsgodtgørelse_for_strækning = modtaget_skattefri_godtgørelse,
+    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+    ligningslov9d = MedLigningslov9D(
+        input = input,
+        skattefrit_tilskud = skattefrit_tilskud
+    ),
+    fradrag_udelukket_folketingshverv_m_v = Falskt,
+    arbejdsgiverbetalt_befordring = arbejdsgiverbetalt_befordring,
+    broer = ll9c_ingen_bropassager(),
+    særlig_transport = ll9c_ingen_særlig_transport()
+)
+
+= ll9d_scenarie_2023 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2023, 6000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2024 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2024, 6000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2025 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2025, 6000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2026 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2026, 6000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2026_25000 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2026, 25000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2022 = ll9d_resultat(ll9d_scenarie_egen_bil_input(2022, 6000), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_2022_med_tilskud = ll9d_resultat(
+    input = ll9d_scenarie_egen_bil_input(2022, 6000),
+    betalingsforhold = Ll9dSkattepligtigeHarSelvAfholdtUdgiften(
+        skattefrit_tilskud = Ll9dSkattefritServicelovstilskud(beløb_kroner = 1000)
+    )
+)
+= ll9d_scenarie_dokumenteret = ll9d_resultat(ll9d_scenarie_dokumenteret_input(2026), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_delvist_servicelovsdækket = ll9d_resultat(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    betalingsforhold = Ll9dSkattepligtigeHarSelvAfholdtUdgiften(
+        skattefrit_tilskud = Ll9dSkattefritServicelovstilskud(beløb_kroner = 4000)
+    )
+)
+= ll9d_scenarie_fuldt_servicelovsdækket = ll9d_resultat(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    betalingsforhold = Ll9dSkattepligtigeHarSelvAfholdtUdgiften(
+        skattefrit_tilskud = Ll9dSkattefritServicelovstilskud(beløb_kroner = 10000)
+    )
+)
+= ll9d_scenarie_for_stort_servicelovstilskud = ll9d_resultat(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    betalingsforhold = Ll9dSkattepligtigeHarSelvAfholdtUdgiften(
+        skattefrit_tilskud = Ll9dSkattefritServicelovstilskud(beløb_kroner = 10001)
+    )
+)
+= ll9d_scenarie_arbejdsgiverbetalt = ll9d_resultat(ll9d_scenarie_dokumenteret_input(2026), Ll9dArbejdsgiverHarBetaltBefordringen)
+= ll9d_scenarie_skattefri_godtgørelse = ll9d_resultat(ll9d_scenarie_dokumenteret_input(2026), Ll9dSkattefriGodtgørelseEfterPar9BModtaget)
+= ll9d_scenarie_uden_kvalifikation = ll9d_resultat(Ligningslov9DInput(
+    skatteår = 2026,
+    befordringsformål = Par9DArbejdsplads,
+    kvalifikationsgrundlag = Par9DKvalifikationIkkeGodtgjort,
+    normaludgiftsgrundlag = Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner = 3000),
+    faktisk_udgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 10000)
+    ), ll9d_scenarie_egenbetaling_uden_tilskud())
+= ll9d_scenarie_uden_afholdt_udgift_input = Ligningslov9DInput(
+    skatteår = 2026,
+    befordringsformål = Par9DArbejdsplads,
+    kvalifikationsgrundlag = Par9DKroniskSygdomMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer = 6000),
+    faktisk_udgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 0)
+)
+= ll9d_scenarie_uden_afholdt_udgift = ll9d_resultat(ll9d_scenarie_uden_afholdt_udgift_input, Ll9dIngenUdgiftAfholdt)
+
+= ll9d_scenarie_2025_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_egen_bil_input(2025, 6000),
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+= ll9d_scenarie_2025_personskat_resultat = personskat_ll9d_resultat(ll9d_scenarie_2025_personskat_fakta, 2025)
+= ll9d_scenarie_delvist_servicelovsdækket_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    skattefrit_tilskud = Ll9dSkattefritServicelovstilskud(beløb_kroner = 4000)
+)
+= ll9d_scenarie_delvist_servicelovsdækket_personskat_resultat = personskat_ll9d_resultat(ll9d_scenarie_delvist_servicelovsdækket_personskat_fakta, 2026)
+= ll9d_scenarie_2022_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_egen_bil_input(2022, 6000),
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+= ll9d_scenarie_uden_afholdt_udgift_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_uden_afholdt_udgift_input,
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+= ll9d_scenarie_uden_afholdt_udgift_personskat_resultat = personskat_ll9d_resultat(ll9d_scenarie_uden_afholdt_udgift_personskat_fakta, 2026)
+= ll9d_scenarie_par9c_efter_uden_afholdt_udgift = ll9c_befordringsfradrag_resultat(Ligningslov9CInput(
+    skatteår = 2026,
+    arbejdsdage = 200,
+    daglige_befordringskilometer = 60,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    aftrapningsindkomst_kroner = 600000,
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+    modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+    par9d = ll9d_scenarie_uden_afholdt_udgift_personskat_resultat,
+    fradrag_udelukket_folketingshverv_m_v = Falskt,
+    fri_befordring_betalt_af_arbejdsgiver_for_hele_strækningen = Falskt,
+    broer = ll9c_ingen_bropassager(),
+    særlig_transport = ll9c_ingen_særlig_transport()
+))
+= ll9d_scenarie_arbejdsgiverbetalt_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+= ll9d_scenarie_arbejdsgiverbetalt_personskat_resultat = personskat_ll9d_resultat(ll9d_scenarie_arbejdsgiverbetalt_personskat_fakta, 2026)
+= ll9d_scenarie_dobbelt_dækning_personskat_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_dokumenteret_input(2026),
+    befordringsformål = IndtægtsgivendeArbejdsplads,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Sandt,
+    arbejdsgiverbetalt_befordring = ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+= ll9d_scenarie_su_input = Ligningslov9DInput(
+    skatteår = 2026,
+    befordringsformål = Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ,
+    kvalifikationsgrundlag = Par9DVarigtNedsatFunktionsevneMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes(årlige_kilometer = 6000),
+    faktisk_udgiftsgrundlag = Ll9dErhvervssatsForNødvendigEgenBil(årlige_kilometer = 6000)
+)
+= ll9d_scenarie_su_uden_yderområde_fakta = ll9d_scenarie_personskat_fakta(
+    input = ll9d_scenarie_su_input,
+    befordringsformål = SuUddannelsessted,
+    bopæl_i_yderkommune_eller_lille_ø = Falskt,
+    modtaget_skattefri_godtgørelse = Falskt,
+    arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+    skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+)
+
+| ll9d_satser_2023_til_2026_er_kildebårne: Sandt -> ll9d_satser_for(2023).normalfradrag_øre_pr_km == 219 && ll9d_satser_for(2023).erhverv_høj_øre_pr_km == 373 && ll9d_satser_for(2024).normalfradrag_øre_pr_km == 223 && ll9d_satser_for(2024).erhverv_høj_øre_pr_km == 379 && ll9d_satser_for(2025).normalfradrag_øre_pr_km == 223 && ll9d_satser_for(2025).erhverv_høj_øre_pr_km == 381 && ll9d_satser_for(2026).normalfradrag_øre_pr_km == 317 && ll9d_satser_for(2026).erhverv_høj_øre_pr_km == 394 && ll9d_satser_for(2026).erhverv_lav_øre_pr_km == 228 && ll9d_satser_for(2026).normalfradrag_kilde == Ll9dLov616Af2026Par1 && ll9d_satser_for(2026).erhvervssats_kilde == Ll9dSkatteraadetBek1333Af2025Par1Par4
+| ll9d_2023_historisk_resultat: ll9d_scenarie_2023 -> ll9d_scenarie_2023.input_gyldigt && ll9d_scenarie_2023.normal_befordringsudgift_kroner == 13140 && ll9d_scenarie_2023.faktisk_befordringsudgift_kroner == 22380 && ll9d_scenarie_2023.fradrag_kroner == 20380
+| ll9d_2024_historisk_resultat: ll9d_scenarie_2024 -> ll9d_scenarie_2024.normal_befordringsudgift_kroner == 13380 && ll9d_scenarie_2024.faktisk_befordringsudgift_kroner == 22740 && ll9d_scenarie_2024.fradrag_kroner == 20740
+| ll9d_2025_historisk_resultat: ll9d_scenarie_2025 -> ll9d_scenarie_2025.normal_befordringsudgift_kroner == 13380 && ll9d_scenarie_2025.faktisk_befordringsudgift_kroner == 22860 && ll9d_scenarie_2025.fradrag_kroner == 20860
+| ll9d_2026_vejledningseksempel_6000_km: ll9d_scenarie_2026 -> ll9d_scenarie_2026.normal_befordringsudgift_kroner == 19020 && ll9d_scenarie_2026.normal_befordringsudgift_over_2000_kroner == 17020 && ll9d_scenarie_2026.faktisk_befordringsudgift_kroner == 23640 && ll9d_scenarie_2026.faktisk_udgift_over_normal_kroner == 4620 && ll9d_scenarie_2026.fradrag_kroner == 21640
+| ll9d_2026_vejledningseksempel_25000_km: ll9d_scenarie_2026_25000 -> ll9d_scenarie_2026_25000.normal_befordringsudgift_kroner == 79250 && ll9d_scenarie_2026_25000.faktisk_befordringsudgift_kroner == 90200 && ll9d_scenarie_2026_25000.fradrag_kroner == 88200
+| ll9d_dokumenterede_udgifter_er_særskilt_type: ll9d_scenarie_dokumenteret -> ll9d_scenarie_dokumenteret.normal_befordringsudgift_kilde == Ll9dLigningslovLbk1500Af2025Par9D && ll9d_scenarie_dokumenteret.faktisk_befordringsudgift_kilde == Ll9dDenJuridiskeVejledning2026_2CA43324 && ll9d_scenarie_dokumenteret.fradrag_kroner == 8000
+| ll9d_delvist_servicelovstilskud_begrænser_til_egen_udgift: ll9d_scenarie_delvist_servicelovsdækket -> ll9d_scenarie_delvist_servicelovsdækket.betalingsforhold_gyldigt && ll9d_scenarie_delvist_servicelovsdækket.skattefrit_servicelovstilskud_kroner == 4000 && ll9d_scenarie_delvist_servicelovsdækket.egen_afholdt_faktisk_befordringsudgift_kroner == 6000 && ll9d_scenarie_delvist_servicelovsdækket.fradrag_før_skattefrit_tilskud_kroner == 8000 && ll9d_scenarie_delvist_servicelovsdækket.fradrag_kroner == 6000
+| ll9d_fuldt_servicelovstilskud_fjerner_par9d_fradrag: ll9d_scenarie_fuldt_servicelovsdækket -> ll9d_scenarie_fuldt_servicelovsdækket.betalingsforhold_gyldigt && ll9d_scenarie_fuldt_servicelovsdækket.egen_afholdt_faktisk_befordringsudgift_kroner == 0 && ll9d_scenarie_fuldt_servicelovsdækket.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_fuldt_servicelovsdækket.afskærer_par9c_stk1_8 == Falskt && ll9d_scenarie_fuldt_servicelovsdækket.fradrag_kroner == 0
+| ll9d_servicelovstilskud_kan_ikke_overstige_udgiften: ll9d_scenarie_for_stort_servicelovstilskud -> ll9d_scenarie_for_stort_servicelovstilskud.betalingsforhold_gyldigt == Falskt && ll9d_scenarie_for_stort_servicelovstilskud.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_for_stort_servicelovstilskud.fradrag_kroner == 0
+| ll9d_arbejdsgiverbetaling_afskærer_fradrag: ll9d_scenarie_arbejdsgiverbetalt -> ll9d_scenarie_arbejdsgiverbetalt.omfattet_af_par9d && ll9d_scenarie_arbejdsgiverbetalt.betalingsforhold_gyldigt && ll9d_scenarie_arbejdsgiverbetalt.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_arbejdsgiverbetalt.afskærer_par9c_stk1_8 == Falskt && ll9d_scenarie_arbejdsgiverbetalt.fradrag_kroner == 0
+| ll9d_skattefri_godtgørelse_afskærer_fradrag: ll9d_scenarie_skattefri_godtgørelse -> ll9d_scenarie_skattefri_godtgørelse.omfattet_af_par9d && ll9d_scenarie_skattefri_godtgørelse.betalingsforhold_gyldigt && ll9d_scenarie_skattefri_godtgørelse.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_skattefri_godtgørelse.afskærer_par9c_stk1_8 == Falskt && ll9d_scenarie_skattefri_godtgørelse.fradrag_kroner == 0
+| ll9d_manglende_kvalifikation_afskærer_fradrag: ll9d_scenarie_uden_kvalifikation -> ll9d_scenarie_uden_kvalifikation.input_gyldigt && ll9d_scenarie_uden_kvalifikation.omfattet_af_par9d == Falskt && ll9d_scenarie_uden_kvalifikation.fradrag_kroner == 0
+| ll9d_ingen_særlig_udgift_bevarer_par9c: ll9d_scenarie_uden_afholdt_udgift_personskat_resultat -> ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.omfattet_af_par9d && ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.betalingsforhold == Ll9dIngenUdgiftAfholdt && ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.betalingsforhold_gyldigt && ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.afskærer_par9c_stk1_8 == Falskt && ll9d_scenarie_uden_afholdt_udgift_personskat_resultat.fradrag_kroner == 0 && ll9d_scenarie_par9c_efter_uden_afholdt_udgift.berettiget_til_ordinært_fradrag && ll9d_scenarie_par9c_efter_uden_afholdt_udgift.samlet_befordringsfradrag_kroner == 22824
+| ll9d_personskat_accepterer_2025: ll9d_scenarie_2025_personskat_resultat -> personskat_ll9d_input_gyldigt(ll9d_scenarie_2025_personskat_fakta, 2025) && ll9d_scenarie_2025_personskat_resultat.fradrag_kroner == 20860
+| ll9d_personskat_afleder_servicelovstilskud: ll9d_scenarie_delvist_servicelovsdækket_personskat_resultat -> personskat_ll9d_input_gyldigt(ll9d_scenarie_delvist_servicelovsdækket_personskat_fakta, 2026) && ll9d_scenarie_delvist_servicelovsdækket_personskat_resultat.skattefrit_servicelovstilskud_kroner == 4000 && ll9d_scenarie_delvist_servicelovsdækket_personskat_resultat.fradrag_kroner == 6000
+| ll9d_ikke_understøttet_skatteår_fejler_lukket: ll9d_scenarie_2022 -> ll9d_scenarie_2022.input_gyldigt == Falskt && ll9d_scenarie_2022.omfattet_af_par9d == Falskt && ll9d_scenarie_2022.fradrag_kroner == 0 && personskat_ll9d_input_gyldigt(ll9d_scenarie_2022_personskat_fakta, 2022) == Falskt
+| ll9d_ikke_understøttet_skatteår_med_tilskud_fejler_lukket: ll9d_scenarie_2022_med_tilskud -> ll9d_scenarie_2022_med_tilskud.input_gyldigt == Falskt && ll9d_scenarie_2022_med_tilskud.betalingsforhold_gyldigt == Falskt && ll9d_scenarie_2022_med_tilskud.fradragsbetingelser_opfyldt == Falskt && ll9d_scenarie_2022_med_tilskud.fradrag_kroner == 0
+| ll9d_personskat_afleder_arbejdsgiverbetaling: ll9d_scenarie_arbejdsgiverbetalt_personskat_resultat -> personskat_ll9d_input_gyldigt(ll9d_scenarie_arbejdsgiverbetalt_personskat_fakta, 2026) && ll9d_scenarie_arbejdsgiverbetalt_personskat_resultat.betalingsforhold == Ll9dArbejdsgiverHarBetaltBefordringen && ll9d_scenarie_arbejdsgiverbetalt_personskat_resultat.fradrag_kroner == 0
+| ll9d_personskat_afviser_modstridende_dækning: Sandt -> personskat_ll9d_input_gyldigt(ll9d_scenarie_dobbelt_dækning_personskat_fakta, 2026) == Falskt
+| ll9d_personskat_su_kræver_yderområde: Sandt -> personskat_ll9d_input_gyldigt(ll9d_scenarie_su_uden_yderområde_fakta, 2026) == Falskt
+| ll9c_2023_kildekæder_er_eksakte: Sandt -> {
+    = satser = ll9c_satser_for(2023)
+    (
+        satser.almindelig_op_til_120_øre_pr_km == 219
+        && satser.lavindkomst_indkomstgrænse_kroner == 303000
+        && satser.almindelig_satskilder == [SkatteraadetBek1449Af2022Par1Til3]
+        && satser.yderkommune_satskilder == [SkatteraadetBek1449Af2022Par1Til3]
+        && satser.lavindkomst_satskilder == [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1449Af2022Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
+    )
+}
+| ll9c_2024_kildekæder_er_eksakte: Sandt -> {
+    = satser = ll9c_satser_for(2024)
+    (
+        satser.almindelig_op_til_120_øre_pr_km == 223
+        && satser.yderkommune_op_til_120_øre_pr_km == 247
+        && satser.lavindkomst_indkomstgrænse_kroner == 313700
+        && satser.almindelig_satskilder == [SkatteraadetBek1312Af2023Par1Til3]
+        && satser.yderkommune_satskilder == [SkatteraadetBek1312Af2023Par1Til3, LigningslovLov109Af2024Par1Nr7Til9]
+        && satser.lavindkomst_satskilder == [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1312Af2023Par1Til3, SkatteministerietPsl20Beloebsgraenser2023_2024]
+    )
+}
+| ll9c_2025_kildekæder_er_eksakte: Sandt -> {
+    = satser = ll9c_satser_for(2025)
+    (
+        satser.almindelig_op_til_120_øre_pr_km == 223
+        && satser.yderkommune_op_til_120_øre_pr_km == 247
+        && satser.lavindkomst_indkomstgrænse_kroner == 325800
+        && satser.almindelig_satskilder == [SkatteraadetBek1189Af2024Par1Til3]
+        && satser.yderkommune_satskilder == [SkatteraadetBek1189Af2024Par1Til3, LigningslovLov109Af2024Par1Nr7Til9]
+        && satser.lavindkomst_satskilder == [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1189Af2024Par1Til3, SkatteministerietPsl20Beloebsgraenser2024_2025]
+    )
+}
+| ll9c_2026_kildekæder_er_eksakte: Sandt -> {
+    = satser = ll9c_satser_for(2026)
+    (
+        satser.almindelig_op_til_120_øre_pr_km == 317
+        && satser.yderkommune_op_til_120_øre_pr_km == 351
+        && satser.lavindkomst_indkomstgrænse_kroner == 341500
+        && satser.almindelig_satskilder == [SkatteraadetBek1333Af2025Par1Til3, Lov616Af2026Par1]
+        && satser.yderkommune_satskilder == [SkatteraadetBek1333Af2025Par1Til3, LigningslovLov109Af2024Par1Nr7Til9, Lov616Af2026Par1]
+        && satser.lavindkomst_satskilder == [LigningslovLbk1500Af2025Par9C, SkatteraadetBek1333Af2025Par1Til3, Lov616Af2026Par1, SkatteministerietPsl20Beloebsgraenser2025_2026]
+    )
+}
+
+? ll9d_satser_2023_til_2026_er_kildebårne
+? ll9d_2023_historisk_resultat
+? ll9d_2024_historisk_resultat
+? ll9d_2025_historisk_resultat
+? ll9d_2026_vejledningseksempel_6000_km
+? ll9d_2026_vejledningseksempel_25000_km
+? ll9d_dokumenterede_udgifter_er_særskilt_type
+? ll9d_delvist_servicelovstilskud_begrænser_til_egen_udgift
+? ll9d_fuldt_servicelovstilskud_fjerner_par9d_fradrag
+? ll9d_servicelovstilskud_kan_ikke_overstige_udgiften
+? ll9d_arbejdsgiverbetaling_afskærer_fradrag
+? ll9d_skattefri_godtgørelse_afskærer_fradrag
+? ll9d_manglende_kvalifikation_afskærer_fradrag
+? ll9d_ingen_særlig_udgift_bevarer_par9c
+? ll9d_personskat_accepterer_2025
+? ll9d_personskat_afleder_servicelovstilskud
+? ll9d_ikke_understøttet_skatteår_fejler_lukket
+? ll9d_ikke_understøttet_skatteår_med_tilskud_fejler_lukket
+? ll9d_personskat_afleder_arbejdsgiverbetaling
+? ll9d_personskat_afviser_modstridende_dækning
+? ll9d_personskat_su_kræver_yderområde
+? ll9c_2023_kildekæder_er_eksakte
+? ll9c_2024_kildekæder_er_eksakte
+? ll9c_2025_kildekæder_er_eksakte
+? ll9c_2026_kildekæder_er_eksakte
+
+@ print("LL § 9 D: 2023-2026-satser, typede udgiftsgrundlag, tilskudsreduktion og betalingsafskæring er verificeret")

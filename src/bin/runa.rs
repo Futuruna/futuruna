@@ -13983,6 +13983,7 @@ fn fmt_normalize_line(line: &str) -> String {
 
     // Step 2: Operator spacing — normalize binary operators outside strings
     let normalized = fmt_operator_spacing(&normalized);
+    let normalized = normalized.trim_end().to_string();
 
     // Reassemble with comment
     if comment.is_empty() {
@@ -43340,6 +43341,17 @@ mod tests {
 
         assert_eq!(format_runa_source(source), expected);
         assert_eq!(format_runa_source(expected), expected);
+    }
+
+    #[test]
+    fn formatter_does_not_emit_trailing_whitespace_after_line_ending_operator() {
+        let source = "| condition: Sandt -> {\nleft==right&&\nother==value\n}\n";
+        let expected = "| condition: Sandt -> {\n    left == right &&\n    other == value\n}\n";
+
+        let formatted = format_runa_source(source);
+        assert_eq!(formatted, expected);
+        assert_eq!(format_runa_source(expected), expected);
+        assert!(formatted.lines().all(|line| line.trim_end() == line));
     }
 
     #[test]

@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-10
 TD epic: `td-56cf8d`
-Current implementation slice: `td-af7aa6` (Børnebidragslovens § 19 er nu et særskilt, kildebåret domæne for fødsels-, navngivnings-, barsels- og abortudgiftsbidrag. Reglerne bevarer den retlige modtager som moren eller den myndighed eller institution, der afholdt udgiften, og forveksler ikke bidragene med løbende børnebidrag. Fødsels-, barsels- og abortudgiftsbidrag giver intet fradrag hos yderen; navngivningsbidrag prøves gennem de eksisterende regler til Ligningslovens §§ 10-11. Den ikke udtrykkeligt kildeafklarede beskatning hos moren fejler lukket. Officielle satser for 2023-2026, den kanoniske Personskat-graf og en udfyldt XLSX-rundtur er verificeret, mens de tre virkelige årsopgørelser fortsat rammer henholdsvis 30.605.958, 39.709.195 og 29.059.034 øre.)
+Current implementation slice: `td-ed2931` (Ligningslovens § 9 D har nu officielle 2023-2026-satser med særskilt proveniens for normaludgift og faktisk udgift. Dokumenterede faktiske udgifter og erhvervssatsen for nødvendig egen bil er gensidigt udelukkende typede valg; funktionsnedsættelse eller kronisk sygdom, befordringsformål og betalingsforhold er ligeledes typede. Alle indlejrede valg og beløb har danske spørgsmål og etiketter i den genererede XLSX. Arbejdsgiverbetalt befordring eller skattefri godtgørelse efter § 9 B giver intet § 9 D-fradrag. Et skattefrit servicelovstilskud er et typet valg og begrænser efter SKM2019.292.LSR fradraget til den særlige befordringsudgift, som skatteyderen selv har afholdt. En ellers omfattet skatteyder, der ikke har afholdt en særlig udgift for befordringen, afskæres ikke fra § 9 C. Historiske år sammensættes gennem Personskat, og år uden satspakke fejler lukket. LOV nr. 616/2026 retter normalfradragssatsen til 3,17 kr.; den tidligere 2,28-sats gav fejlagtige mellemresultater, men de to slutfradrag var uændrede ved algebraisk udligning. Fortolket og kompileret scenarie, LL §§ 9 C-9 D-audit, de tre virkelige årsopgørelser og deres genererede XLSX-rundture er verificeret.)
+Previous implementation slice: `td-af7aa6` (Børnebidragslovens § 19 er nu et særskilt, kildebåret domæne for fødsels-, navngivnings-, barsels- og abortudgiftsbidrag. Reglerne bevarer den retlige modtager som moren eller den myndighed eller institution, der afholdt udgiften, og forveksler ikke bidragene med løbende børnebidrag. Fødsels-, barsels- og abortudgiftsbidrag giver intet fradrag hos yderen; navngivningsbidrag prøves gennem de eksisterende regler til Ligningslovens §§ 10-11. Den ikke udtrykkeligt kildeafklarede beskatning hos moren fejler lukket. Officielle satser for 2023-2026, den kanoniske Personskat-graf og en udfyldt XLSX-rundtur er verificeret, mens de tre virkelige årsopgørelser fortsat rammer henholdsvis 30.605.958, 39.709.195 og 29.059.034 øre.)
 Previous implementation slice: `td-196df8` (Praksis til Ligningslovens §§ 10-11 skelner nu typet mellem hele forfaldsmånedens bidrag og et kontantbeløb, der allerede er forholdsmæssigt betalt til barnets 18-årsdag. Begge grene giver samme fradrag uden dobbelt periodisering, mens forholdsmæssighed uden for 18-årsmåneden fejler lukket. Underholds- og uddannelsesbidrag efter det fyldte 18. år medregnes nu fuldt til barnets personlige indkomst og giver intet fradrag hos yderen. Private løbende børnebidrag op til normalbidraget kontrolleres direkte; højere bidrag kræver en dokumenteret vejledende sammenligning eller et konkret skattemæssigt anerkendt bruttobeløb. En konkret begrænsning rammer kun yderens fradrag og aldrig barnets faktisk modtagne indkomst. Den offentlige arbejdsbog bevarer disse indlejrede valg, danske spørgsmål og dokumentreferencer i en udfyldt XLSX-rundtur. Fødsels- og barselsbidrag er afgrænset til det særskilte § 19-domæne.)
 Earlier implementation slice: `td-d2ebcd` (Ligningslovens §§ 10-11 er nu et kildebåret årsdomæne for betalte og modtagne ægtefælle- og børnebidrag. Reglerne skelner mellem skilsmisse, separation, faktisk adskillelse og børn uden for ægteskab; anvender betalings- og forfaldsår, bopæl, forsørgerpligt, modtageridentitet, dokumenteret fastsættelse, betalingsvej, offentlig restancerækkefølge og § 10, stk. 4's historiske virkningstidspunkter; fordeler 18-årsmåneden i tredivtedele; og beregner både fradrag og personlig indkomst med officielle normalbidragssatser for 2023-2026. Den kanoniske Personskat-graf og den genererede arbejdsbog fører bidragene som en relationel tabel med danske spørgsmål. En udfyldt XLSX-rundtur bevarer et ægtefællebidrag på 24.000 kr. og giver samme fradrag, mens de tre virkelige årsopgørelser fortsat rammer henholdsvis 30.605.958, 39.709.195 og 29.059.034 øre.)
 Earlier implementation slice: `td-5fa241` (Kildeskattelovens § 25 A er nu sammensat med den kanoniske Personskat-beregning for ordinære virksomheder uden virksomhedsordningen. Virksomhedens indtægter og udgifter oplyses én gang hos virksomhedsdriveren, mens et typet pargrundlag anvender stk. 1, 3, 7 eller 8 til at henføre resultatet og arbejdsmarkedsbidragsgrundlaget mellem ægtefællerne. En lønaftale kræver dateret ikrafttræden, overholdt indeholdelse og en entydigt matchende lønudgift; dublerede fordelinger, samme virksomhed hos begge ægtefæller og manglende hjemmel fejler lukket. Positive og negative resultater bevares eksakt på tværs af parret, alle nye arbejdsbogsfelter har typede danske etiketter, og de tre virkelige årsopgørelser for 2023-2025 rammer fortsat henholdsvis 30.605.958, 39.709.195 og 29.059.034 øre.)
@@ -2465,17 +2466,21 @@ proportion and stk. 10 cap, plus § 16 I controlled-company merafkast with
 negative-merafkast carry-forward.
 
 Ligningsloven § 9 C/§ 9 D dependency coverage now includes ordinary
-befordringsfradrag with 2025/2026 rates, low-income supplement, bridge
+befordringsfradrag with 2023-2026 rates, low-income supplement, bridge
 passages, documented special transport, the 2026 SU outer-area branch and the
-§ 9 D disability/chronic-illness displacement route. § 9 D now models the
-source-backed normal-cost/factual-cost formula, including the 2026
-Skatterådet normalfradrag rate for own transport, the business-driving rate
-path for factual own-car expenses, and Den juridiske vejledning's 6.000 km and
-25.000 km examples. The § 9 D workplace route now also preserves documented
-bridge-passage deductions under § 9 C, stk. 9 while keeping the ordinary
-§ 9 C, stk. 1-8 distance deduction displaced. Remaining § 9 D dependency work
-is broader rate-table coverage across years and transport modalities, not the
-2026 own-car examples or workplace bridge carve-out.
+§ 9 D disability/chronic-illness displacement route. § 9 D models documented
+actual costs and the necessary-own-car business-rate method as exclusive typed
+choices, derives normal and actual costs from independently sourced annual
+rate packs, and excludes employer-paid transport or tax-free § 9 B
+reimbursement. A typed tax-free Serviceloven subsidy limits the deduction to
+the special transport cost borne by the taxpayer under SKM2019.292.LSR. A
+taxpayer who is otherwise within § 9 D but incurs no special expense for the
+travel remains eligible for § 9 C. LOV nr. 616/2026 raises the normal-cost
+rate to 3.17 DKK/km while the actual-cost tiers remain 3.94/2.28; the old 2.28
+normal-rate bug changed the intermediate values but happened to cancel out in both final
+guidance examples. The workplace route preserves documented bridge-passage
+deductions under § 9 C, stk. 9 while keeping the ordinary § 9 C, stk. 1-8
+distance deduction displaced. Years without a complete rate pack fail closed.
 
 Distance to full implementation: the Personskatteloven corpus is broad and the
 ordinary wage-earner/slutopgørelse path is already calculation useful.
@@ -2865,23 +2870,25 @@ Current § 4 and § 13 amendment/dependency sources:
     also supplies the 19 March 2025 balance-rule transition and the 2026
     henstand rules for tax and arbejdsmarkedsbidrag.
   - § 9 C is modeled as the ordinary befordringsfradrag slice used by
-    wage-earner scenarios, with 24 km daily floor, 120 km split, 2025/2026
+    wage-earner scenarios, with 24 km daily floor, 120 km split, 2023-2026
     rates, 2026 LOV 616 uplift, yderkommune/small-island rates,
     low-income supplement, documented special transport actual-expense
     branch, bridge deductions, reimbursement exclusion, free employer-paid
     transport value posture, and the 2026 SU-student outer-area rule with
-    education-transport rebate/godtgørelse exclusion. § 9 D now has the
-    disability/chronic-illness special-transport formula and explicitly
-    displaces § 9 C, stk. 1-8 and § 9 C, stk. 10 where applicable. Its 2026
-    own-transport path derives normal cost from Skatterådets normalfradrag
-    kilometre rate, derives factual own-car expenses from the business-driving
-    rate tiers, and validates Den juridiske vejledning's 6.000 km and 25.000
-    km examples. The workplace path preserves § 9 C, stk. 9 bridge-passage
-    deductions even though § 9 C, stk. 1-8 are displaced. The focused
-    validation files are
-    `ligningsloven-par9c-befordring.audit.runa` and
-    `loenmodtager-befordring.scenario.runa`; future work should broaden
-    § 9 D beyond the current 2026 own-car slice.
+    education-transport rebate/godtgørelse exclusion. § 9 D has the
+    disability/chronic-illness special-transport formula for 2023-2026 and
+    explicitly displaces § 9 C, stk. 1-8 and § 9 C, stk. 10 where applicable.
+    Typed choices distinguish documented actual costs from the business-rate
+    method for necessary own-car transport; payment by the employer or
+    tax-free § 9 B reimbursement is excluded. Tax-free Serviceloven subsidies
+    are typed separately and cap the deduction at the actual special expense
+    borne by the taxpayer. A person otherwise within § 9 D is not displaced
+    from § 9 C for travel where no special expense was incurred. The workplace
+    path preserves § 9 C, stk. 9 bridge-passage
+    deductions. The focused validation
+    files are `ligningsloven-par9c-befordring.audit.runa`,
+    `ligningsloven-par9d-befordring.scenario.runa` and
+    `loenmodtager-befordring.scenario.runa`.
   - §§ 9 J and 9 K are the ordinary employment/job-deduction slice used by the
     wage-earner calculator; § 9 L is modeled for extra pension deductions and
     § 26 nr. 5 transition-compensation input; § 15 P is modeled for

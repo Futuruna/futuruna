@@ -127,7 +127,7 @@
 # PersonskatErhvervsbefordringÅrshistorik(bil_motorcykelkilometer_pr_arbejdsgiver: Map(Tekst, Heltal), bil_motorcykelkilometer_til_direkte_fradrag: Heltal)
 # PersonskatErhvervsbefordringForløbstilstand(næste_rækkefølge_i_indkomståret: Heltal, historik: PersonskatErhvervsbefordringÅrshistorik, sagsresultater: List(PersonskatErhvervsbefordringSagResultat), rækkefølge_gyldig: Boolsk)
 # PersonskatErhvervsbefordringResultat(input: PersonskatErhvervsbefordringInput, sagsresultater: List(PersonskatErhvervsbefordringSagResultat), identifikationer_entydige: Boolsk, rækkefølge_gyldig: Boolsk, historik_ultimo: PersonskatErhvervsbefordringÅrshistorik, alle_input_gyldige: Boolsk, samlet_skattefri_godtgørelse_kroner: Heltal, samlet_skattepligtig_godtgørelse_kroner: Heltal, samlet_fradrag_i_personlig_indkomst_kroner: Heltal)
-# PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput)
+# PersonskatLigningslov9DInput = UdenLigningslov9D | MedLigningslov9D(input: Ligningslov9DInput, skattefrit_tilskud: Ligningslov9DSkattefritTilskud)
 # PersonskatArbejdsgiverbetaltBefordring = UdenArbejdsgiverbetaltBefordring | ArbejdsgiverbetaltOffentligTransportForHeleStrækningen | ArbejdsgiverbetaltBilTilRådighedForHeleStrækningen | AndenArbejdsgiverbetaltBefordringForHeleStrækningen
 # PersonskatBefordringsfradragFakta(identifikation: Tekst, befordringsmål_identifikation: Tekst, arbejdsdage: Heltal, daglige_befordringskilometer: Heltal, bopæl_i_yderkommune_eller_lille_ø: Boolsk, befordringsformål: Ligningslov9CBefordringsformål, modtaget_skattefri_befordringsgodtgørelse_for_strækning: Boolsk, modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning: Boolsk, ligningslov9d: PersonskatLigningslov9DInput, fradrag_udelukket_folketingshverv_m_v: Boolsk, arbejdsgiverbetalt_befordring: PersonskatArbejdsgiverbetaltBefordring, broer: Ligningslov9CBroPassager, særlig_transport: Ligningslov9CSærligTransport)
 # PersonskatBefordringsfradragInput(forhold: List(PersonskatBefordringsfradragFakta))
@@ -1650,6 +1650,90 @@
     question = Some("Hvilken form for arbejdsgiverbetalt transport havde du adgang til på hele strækningen?"),
     help = Some("Transportformen afgør, om modposten til befordringsfradraget alene er personlig indkomst eller også indgår i arbejdsmarkedsbidragsgrundlaget."),
     unit = None
+)
+= personskat_felt_ll9d_valg = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.$variant",
+    label = "Særligt befordringsfradrag efter § 9 D",
+    question = Some("Skal befordringsforholdet vurderes efter reglerne for varigt nedsat funktionsevne eller kronisk sygdom?"),
+    help = Some("Vælg kun § 9 D, når helbredstilstanden har gjort det nødvendigt at afholde særlige udgifter til befordringen."),
+    unit = None
+)
+= personskat_felt_ll9d_skatteår = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.skatteår",
+    label = "Skatteår for § 9 D-forholdet",
+    question = Some("Hvilket skatteår vedrører det særlige befordringsforhold?"),
+    help = Some("Skatteåret skal være det samme som skatteåret for den samlede Personskat-beregning."),
+    unit = Some("år")
+)
+= personskat_felt_ll9d_befordringsformål = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.befordringsformål",
+    label = "Formål med den særlige befordring",
+    question = Some("Gik befordringen til en arbejdsplads eller et uddannelsessted omfattet af § 9 D?"),
+    help = Some("Uddannelsesgrenen gælder fra 2026 for en SU-modtager med bopæl i en omfattet yderkommune eller på en omfattet ø."),
+    unit = None
+)
+= personskat_felt_ll9d_kvalifikationsgrundlag = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.kvalifikationsgrundlag",
+    label = "Helbredsmæssigt grundlag for § 9 D",
+    question = Some("Hvilket helbredsmæssigt grundlag gjorde de særlige befordringsudgifter nødvendige?"),
+    help = Some("Grundlaget skal være godtgjort som varigt nedsat funktionsevne eller kronisk sygdom med nødvendige særlige befordringsudgifter."),
+    unit = None
+)
+= personskat_felt_ll9d_normaludgiftsgrundlag = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.normaludgiftsgrundlag.$variant",
+    label = "Grundlag for normal befordringsudgift",
+    question = Some("Hvordan skal den normale befordringsudgift opgøres?"),
+    help = Some("Brug billigste offentlige befordring, når den kan anvendes; ellers opgøres udgiften for eget befordringsmiddel efter årets kilometertakst."),
+    unit = None
+)
+= personskat_felt_ll9d_offentlig_normaludgift = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.normaludgiftsgrundlag.Ll9dBilligsteOffentligeBefordringsmiddel.årlig_udgift_kroner",
+    label = "Årlig udgift til billigste offentlige befordring",
+    question = Some("Hvad kostede årets billigste anvendelige offentlige befordring på strækningen?"),
+    help = Some("Angiv den normale årlige befordringsudgift, ikke den dokumenterede særlige udgift."),
+    unit = Some("kr./år")
+)
+= personskat_felt_ll9d_normaludgift_egen_befordring_kilometer = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.normaludgiftsgrundlag.Ll9dEgetBefordringsmiddelNårOffentligBefordringIkkeKanAnvendes.årlige_kilometer",
+    label = "Årlige kilometer for normaludgift med eget befordringsmiddel",
+    question = Some("Hvor mange kilometer blev årligt tilbagelagt, når offentlig befordring ikke kunne anvendes?"),
+    help = Some("Kilometerne bruges med årets normalfradragssats uden § 9 C's reduktion for de første 24 kilometer pr. dag."),
+    unit = Some("km/år")
+)
+= personskat_felt_ll9d_faktisk_udgiftsgrundlag = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.faktisk_udgiftsgrundlag.$variant",
+    label = "Grundlag for faktisk befordringsudgift",
+    question = Some("Hvordan skal den faktiske særlige befordringsudgift opgøres?"),
+    help = Some("Vælg enten dokumenterede faktiske udgifter eller Skatterådets erhvervssatser for nødvendig kørsel i egen bil."),
+    unit = None
+)
+= personskat_felt_ll9d_dokumenteret_faktisk_udgift = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.faktisk_udgiftsgrundlag.Ll9dDokumenteredeFaktiskeBefordringsudgifter.beløb_kroner",
+    label = "Dokumenteret faktisk befordringsudgift",
+    question = Some("Hvor stor var årets dokumenterede faktiske udgift til den særlige befordring?"),
+    help = Some("Angiv den fulde dokumenterede udgift før et eventuelt skattefrit servicelovstilskud."),
+    unit = Some("kr./år")
+)
+= personskat_felt_ll9d_nødvendig_egen_bil_kilometer = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.input.faktisk_udgiftsgrundlag.Ll9dErhvervssatsForNødvendigEgenBil.årlige_kilometer",
+    label = "Årlige kilometer i nødvendig egen bil",
+    question = Some("Hvor mange kilometer blev årligt kørt i egen bil, fordi bilen var nødvendig som følge af helbredstilstanden?"),
+    help = Some("Kilometerne opgør den faktiske udgift efter Skatterådets satser for erhvervsmæssig kørsel i egen bil."),
+    unit = Some("km/år")
+)
+= personskat_felt_ll9d_skattefrit_tilskud = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.skattefrit_tilskud.$variant",
+    label = "Skattefrit tilskud til særlig befordring",
+    question = Some("Modtog du et skattefrit tilskud efter serviceloven til de særlige befordringsudgifter?"),
+    help = Some("Et skattefrit tilskud reducerer den del af udgiften, som du selv har afholdt, og dermed fradraget efter ligningslovens § 9 D."),
+    unit = None
+)
+= personskat_felt_ll9d_skattefrit_tilskud_beløb = Beregningsfelt(
+    path = "lønmodtager.ligningsfradrag.befordring.forhold.ligningslov9d.MedLigningslov9D.skattefrit_tilskud.Ll9dSkattefritServicelovstilskud.beløb_kroner",
+    label = "Skattefrit tilskud til særlig befordring",
+    question = Some("Hvor stort et skattefrit tilskud efter serviceloven modtog du til befordringen?"),
+    help = Some("Angiv kun den del af det skattefrie tilskud, som dækkede udgifterne i dette befordringsforhold."),
+    unit = Some("kr./år")
 )
 = personskat_felt_alder = Beregningsfelt(
     path = "lønmodtager.personfradrag_alder_status",
@@ -11185,8 +11269,21 @@
         Field(value = personskat_felt_befordring_identifikation),
         Field(value = personskat_felt_befordring_mål),
         Field(value = personskat_felt_arbejdsgiverbetalt_befordring),
+        Field(value = personskat_felt_ll9d_valg),
+        Field(value = personskat_felt_ll9d_skatteår),
+        Field(value = personskat_felt_ll9d_befordringsformål),
+        Field(value = personskat_felt_ll9d_kvalifikationsgrundlag),
+        Field(value = personskat_felt_ll9d_normaludgiftsgrundlag),
+        Field(value = personskat_felt_ll9d_offentlig_normaludgift),
+        Field(value = personskat_felt_ll9d_normaludgift_egen_befordring_kilometer),
+        Field(value = personskat_felt_ll9d_faktisk_udgiftsgrundlag),
+        Field(value = personskat_felt_ll9d_dokumenteret_faktisk_udgift),
+        Field(value = personskat_felt_ll9d_nødvendig_egen_bil_kilometer),
+        Field(value = personskat_felt_ll9d_skattefrit_tilskud),
+        Field(value = personskat_felt_ll9d_skattefrit_tilskud_beløb),
         Source(value = ligningsloven_2025_1500),
         DependencySource(value = arbejdsmarkedsbidragsloven_2020_121),
+        Practice(value = ligningsloven_skm2019_292_lsr),
         Guidance(value = ligningsloven_vejledning_par9c_frikort_offentlig_befordring),
         Practice(value = ligningsloven_skm2025_537_br_fri_bil),
     )
@@ -13511,15 +13608,25 @@
         Ll9GPensionsbeskatningslov49Stk1Bidrag(kildeidentifikation = bidrag.fakta.identifikation)
     ) { bidrag.fradrag_kroner } ellers { 0 }
 )
-| personskat_ll9c_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2025 || skatteår == 2026
-| personskat_ll9d_grundfakta_gyldige(input: Ligningslov9DInput) -> input.billigste_offentlige_befordring_kroner >= 0 && input.befordringsudgifter.årlige_kilometer_egen_befordring >= 0 && input.befordringsudgifter.dokumenteret_faktisk_udgift_kroner >= 0
-| personskat_ll9d_input_gyldigt(input: PersonskatLigningslov9DInput, skatteår: Heltal) -> match input {
-    | UdenLigningslov9D -> Sandt
-    | MedLigningslov9D(ll9d_input) -> skatteår == 2026 && ll9d_input.skatteår == skatteår && personskat_ll9d_grundfakta_gyldige(ll9d_input)
+| personskat_ll9c_skatteår_understøttet(skatteår: Heltal) -> skatteår >= 2023 && skatteår <= 2026
+| personskat_ll9d_har_skattefrit_servicelovstilskud(tilskud: Ligningslov9DSkattefritTilskud) -> match tilskud {
+    | Ll9dIntetSkattefritTilskud -> Falskt
+    | Ll9dSkattefritServicelovstilskud(_) -> Sandt
 }
-| personskat_ll9d_resultat(input: PersonskatLigningslov9DInput, skatteår: Heltal) -> match input {
+| personskat_ll9d_betalingsfakta_indbyrdes_gyldige(fakta: PersonskatBefordringsfradragFakta, skattefrit_tilskud: Ligningslov9DSkattefritTilskud) -> !(fakta.modtaget_skattefri_befordringsgodtgørelse_for_strækning && fakta.arbejdsgiverbetalt_befordring != UdenArbejdsgiverbetaltBefordring) && !(personskat_ll9d_har_skattefrit_servicelovstilskud(skattefrit_tilskud) && (fakta.modtaget_skattefri_befordringsgodtgørelse_for_strækning || fakta.arbejdsgiverbetalt_befordring != UdenArbejdsgiverbetaltBefordring))
+| personskat_ll9d_befordringsformål_svarer_til_forholdet(fakta: PersonskatBefordringsfradragFakta, input: Ligningslov9DInput) -> match input.befordringsformål {
+    | Par9DArbejdsplads -> fakta.befordringsformål == IndtægtsgivendeArbejdsplads
+    | Par9DUddannelsesstedForSuModtagerIYderkommuneEllerPåOmfattetØ -> fakta.befordringsformål == SuUddannelsessted && fakta.bopæl_i_yderkommune_eller_lille_ø
+    | Par9DIkkeOmfattet -> Sandt
+}
+| personskat_ll9d_input_gyldigt(fakta: PersonskatBefordringsfradragFakta, skatteår: Heltal) -> match fakta.ligningslov9d {
+    | UdenLigningslov9D -> Sandt
+    | MedLigningslov9D(ll9d_input, skattefrit_tilskud) -> ll9d_skatteår_understøttet(skatteår) && ll9d_input.skatteår == skatteår && ll9d_input_gyldigt(ll9d_input) && personskat_ll9d_befordringsformål_svarer_til_forholdet(fakta, ll9d_input) && personskat_ll9d_betalingsfakta_indbyrdes_gyldige(fakta, skattefrit_tilskud) && ll9d_betalingsforhold_gyldigt(ll9d_input, personskat_ll9d_betalingsforhold(fakta, ll9d_input, skattefrit_tilskud))
+}
+| personskat_ll9d_betalingsforhold(fakta: PersonskatBefordringsfradragFakta, input: Ligningslov9DInput, skattefrit_tilskud: Ligningslov9DSkattefritTilskud) -> hvis fakta.modtaget_skattefri_befordringsgodtgørelse_for_strækning { Ll9dSkattefriGodtgørelseEfterPar9BModtaget } ellers { hvis fakta.arbejdsgiverbetalt_befordring != UdenArbejdsgiverbetaltBefordring { Ll9dArbejdsgiverHarBetaltBefordringen } ellers { hvis ll9d_faktisk_udgiftsgrundlag_har_udgift(input.faktisk_udgiftsgrundlag) { Ll9dSkattepligtigeHarSelvAfholdtUdgiften(skattefrit_tilskud = skattefrit_tilskud) } ellers { Ll9dIngenUdgiftAfholdt } } }
+| personskat_ll9d_resultat(fakta: PersonskatBefordringsfradragFakta, skatteår: Heltal) -> match fakta.ligningslov9d {
     | UdenLigningslov9D -> ll9d_ikke_omfattet_resultat_for(skatteår)
-    | MedLigningslov9D(ll9d_input) -> hvis personskat_ll9d_input_gyldigt(input, skatteår) { ll9d_resultat(ll9d_input) } ellers { ll9d_ikke_omfattet_resultat_for(skatteår) }
+    | MedLigningslov9D(ll9d_input, skattefrit_tilskud) -> hvis personskat_ll9d_input_gyldigt(fakta, skatteår) { ll9d_resultat(ll9d_input, personskat_ll9d_betalingsforhold(fakta, ll9d_input, skattefrit_tilskud)) } ellers { ll9d_ikke_omfattet_resultat_for(skatteår) }
 }
 | personskat_befordringsgrundfakta_gyldige(fakta: PersonskatBefordringsfradragFakta) -> fakta.identifikation != "" && fakta.befordringsmål_identifikation != "" && fakta.arbejdsdage >= 0 && fakta.arbejdsdage <= 366 && fakta.daglige_befordringskilometer >= 0 && fakta.broer.storebælt_bil_motorcykel_passager >= 0 && fakta.broer.storebælt_kollektiv_passager >= 0 && fakta.broer.øresund_bil_motorcykel_passager >= 0 && fakta.særlig_transport.faktisk_dokumenteret_udgift_kroner >= 0
 | personskat_befordringsidentifikationer_entydige(input: PersonskatBefordringsfradragInput) -> length(distinct(map(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation))) == length(input.forhold) && all(input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation != "")
@@ -13544,9 +13651,9 @@
 | personskat_befordringsfradragsforhold_resultat(fakta: PersonskatBefordringsfradragFakta, lønmodtager: PersonskatLønmodtagerInput, aftrapningsindkomst_kroner: Heltal) -> {
     = skatteår_understøttet = personskat_ll9c_skatteår_understøttet(lønmodtager.skatteår)
     = grundfakta_gyldige = personskat_befordringsgrundfakta_gyldige(fakta)
-    = ligningslov9d_input_gyldigt = personskat_ll9d_input_gyldigt(fakta.ligningslov9d, lønmodtager.skatteår)
+    = ligningslov9d_input_gyldigt = personskat_ll9d_input_gyldigt(fakta, lønmodtager.skatteår)
     hvis skatteår_understøttet && grundfakta_gyldige && ligningslov9d_input_gyldigt {
-        = ligningslov9d_resultat = personskat_ll9d_resultat(fakta.ligningslov9d, lønmodtager.skatteår)
+        = ligningslov9d_resultat = personskat_ll9d_resultat(fakta, lønmodtager.skatteår)
         = ligningslov9c_input = personskat_ll9c_input(fakta, lønmodtager, aftrapningsindkomst_kroner, ligningslov9d_resultat)
         BeregnetBefordringsfradragsforhold(
             fakta = fakta,

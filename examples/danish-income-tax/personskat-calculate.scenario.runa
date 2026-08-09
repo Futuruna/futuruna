@@ -556,36 +556,30 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ll9d_input = Ligningslov9DInput(
     skatteår = 2026,
     befordringsformål = Par9DArbejdsplads,
-    godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom = Sandt,
-    særlige_udgifter_til_befordring = Sandt,
-    offentlig_befordring_kan_anvendes = Sandt,
-    billigste_offentlige_befordring_kroner = 3000,
-    befordringsudgifter = Ligningslov9DBefordringsudgifter(
-        årlige_kilometer_egen_befordring = 0,
-        dokumenteret_faktisk_udgift_kroner = 10000,
-        faktisk_udgift_opgøres_efter_erhvervssats = Falskt
-    )
+    kvalifikationsgrundlag = Par9DVarigtNedsatFunktionsevneMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner = 3000),
+    faktisk_udgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 10000)
 )
 = personskat_calculate_ll9d_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
     arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
-    ligningslov9d = MedLigningslov9D(input = personskat_calculate_ll9d_input)
+    ligningslov9d = MedLigningslov9D(
+        input = personskat_calculate_ll9d_input,
+        skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+    )
 ))))
 = personskat_calculate_ll9d_forkert_år_input = Ligningslov9DInput(
     skatteår = 2025,
     befordringsformål = Par9DArbejdsplads,
-    godtgjort_varigt_nedsat_funktionsevne_eller_kronisk_sygdom = Sandt,
-    særlige_udgifter_til_befordring = Sandt,
-    offentlig_befordring_kan_anvendes = Sandt,
-    billigste_offentlige_befordring_kroner = 3000,
-    befordringsudgifter = Ligningslov9DBefordringsudgifter(
-        årlige_kilometer_egen_befordring = 0,
-        dokumenteret_faktisk_udgift_kroner = 10000,
-        faktisk_udgift_opgøres_efter_erhvervssats = Falskt
-    )
+    kvalifikationsgrundlag = Par9DVarigtNedsatFunktionsevneMedNødvendigeSærligeUdgifter,
+    normaludgiftsgrundlag = Ll9dBilligsteOffentligeBefordringsmiddel(årlig_udgift_kroner = 3000),
+    faktisk_udgiftsgrundlag = Ll9dDokumenteredeFaktiskeBefordringsudgifter(beløb_kroner = 10000)
 )
 = personskat_calculate_ll9d_forkert_år_resultat = beregn_personskat(personskat_calculate_input_med_lønmodtager(personskat_calculate_lønmodtager_med_befordring(personskat_calculate_befordringsfakta(
     arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
-    ligningslov9d = MedLigningslov9D(input = personskat_calculate_ll9d_forkert_år_input)
+    ligningslov9d = MedLigningslov9D(
+        input = personskat_calculate_ll9d_forkert_år_input,
+        skattefrit_tilskud = Ll9dIntetSkattefritTilskud
+    )
 ))))
 
 = personskat_calculate_ordinær_position = AktieavanceOrdinærPosition(
