@@ -276,26 +276,58 @@
         )
     )
 )
-= ejsk_overgang_midlertidig_udlejning = ejendomsskattelov_rabat_årsresultat(
-    2025,
-    ejsk_overgang_ejerbolig_omfang(),
-    EjendomsskattelovRabatOvergangsfakta(
-        eget_rabatgrundlag_2024 = Some(ejsk_overgang_officielt_rabatgrundlag),
-        hændelser = [
-            EjendomsskattelovRabatHændelse(
-                dato = EjendomsskattelovDato(år = 2025, måned = 4, dag = 1),
-                art = EjskBoligKanIkkeTjeneTilBoligForEjeren
-            ),
-            EjendomsskattelovRabatHændelse(
-                dato = EjendomsskattelovDato(år = 2025, måned = 7, dag = 1),
-                art = EjskBoligKanIgenTjeneTilBoligForEjeren
-            )
-        ]
-    ),
-    ejsk_overgang_officielt_rabatgrundlag.ny_lov_helårsgrundlag,
-    618000,
-    0
+| ejsk_overgang_midlertidig_udlejning_grundlag(ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode) -> EjendomsskattelovOrdinærPersonEjendomFakta(
+    identifikation = "officielt-rabateksempel",
+    kommune = København,
+    kategori = EjskEnBoligenhed,
+    beliggenhed = EjskDanmark,
+    erhvervsmæssigt_udlejet = Falskt,
+    særlige_betingelser_for_nr6_til_nr8_opfyldt = Sandt,
+    ejendomsværdi_kroner = 2250000,
+    grundværdi_kroner = 0,
+    produktionsjord = Falskt,
+    ejendomsværdiskatteperiode = ejendomsværdiskatteperiode,
+    grundskyldsperiode = HeleEjendomsskatteåret,
+    ejerandel_basispoint = 10000
 )
+| ejsk_overgang_midlertidig_udlejning_rabatfakta() -> EjendomsskattelovRabatOvergangsfakta(
+    eget_rabatgrundlag_2024 = Some(ejsk_overgang_officielt_rabatgrundlag),
+    hændelser = [
+        EjendomsskattelovRabatHændelse(
+            dato = EjendomsskattelovDato(år = 2025, måned = 4, dag = 1),
+            art = EjskBoligKanIkkeTjeneTilBoligForEjeren
+        ),
+        EjendomsskattelovRabatHændelse(
+            dato = EjendomsskattelovDato(år = 2025, måned = 7, dag = 1),
+            art = EjskBoligKanIgenTjeneTilBoligForEjeren
+        )
+    ]
+)
+| ejsk_overgang_midlertidig_udlejning_sag(ejendomsværdiskatteperiode: EjendomsskattelovÅrsperiode) -> ejendomsskattelov_person_ejendom_resultat(
+    ejsk_overgang_kontekst(2025, EjskFolkepensionsalderIkkeOpnået),
+    EjendomsskattelovPersonEjendomFakta(
+        ordinært_grundlag = ejsk_overgang_midlertidig_udlejning_grundlag(ejendomsværdiskatteperiode),
+        nedslagsfakta = ejsk_overgang_officielt_rabatgrundlag.ny_lov_nedslagsfakta,
+        overgangsomfang = ejsk_overgang_ejerbolig_omfang(),
+        overgangsvurderinger = EjendomsskattelovOvergangsvurderinger(
+            rabat = EjskRabatvurderingerOplyst(ejsk_overgang_midlertidig_udlejning_rabatfakta()),
+            stigningsbegrænsning = EjskIngenStigningsvurderingerOplyst
+        )
+    )
+)
+= ejsk_overgang_midlertidig_udlejning = ejsk_overgang_midlertidig_udlejning_sag(
+    EjendomsskatIIntervaller(intervaller = [
+        EjendomsskattelovDatointerval(
+            fra_dato = EjendomsskattelovDato(år = 2025, måned = 1, dag = 1),
+            til_dato = EjendomsskattelovDato(år = 2025, måned = 3, dag = 31)
+        ),
+        EjendomsskattelovDatointerval(
+            fra_dato = EjendomsskattelovDato(år = 2025, måned = 7, dag = 1),
+            til_dato = EjendomsskattelovDato(år = 2025, måned = 12, dag = 31)
+        )
+    ])
+)
+= ejsk_overgang_midlertidig_udlejning_med_modstridende_perioder = ejsk_overgang_midlertidig_udlejning_sag(HeleEjendomsskatteåret)
 = ejsk_overgang_almindeligt_ejerskifte = ejendomsskattelov_rabatbeløb_efter_hændelse(
     ejsk_overgang_før_overdragelse,
     EjendomsskattelovRabatHændelse(
@@ -449,7 +481,8 @@
 | ejsk_overgang_afgivelse_til_ægtefælle_følger_overdraget_andel: ejsk_overgang_afgiver_til_ægtefælle -> ejsk_overgang_afgiver_til_ægtefælle.input_gyldigt && ejsk_overgang_afgiver_til_ægtefælle.ejerandel_basispoint == 5000 && ejsk_overgang_afgiver_til_ægtefælle.rabat_ejendomsværdiskat_helår_øre == 50000 && ejsk_overgang_afgiver_til_ægtefælle.rabat_grundskyld_helår_øre == 100000
 | ejsk_overgang_modtagelse_fra_ægtefælle_udleder_og_periodiserer_rabatten: ejsk_overgang_modtager_fra_ægtefælle -> ejsk_overgang_modtager_fra_ægtefælle.regelgrundlag_understøttet && ejsk_overgang_modtager_fra_ægtefælle.overgang.rabat_ejendomsværdiskat_øre == 27250 && ejsk_overgang_modtager_fra_ægtefælle.ejendomsværdiskat_før_overgang_øre == 154500 && ejsk_overgang_modtager_fra_ægtefælle.ejendomsværdiskat_øre == 127250
 | ejsk_overgang_ægtefællesuccession_kræver_lovens_kildefakta: ejsk_overgang_modtager_fra_ægtefælle -> ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo = Falskt, har_overtaget_ejendommen_eller_ejerandelen = Falskt)) == Falskt && ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(EjskLængstlevendeOvertagelse(sidder_i_uskiftet_bo = Sandt, har_overtaget_ejendommen_eller_ejerandelen = Falskt)) && ejendomsskattelov_ægtefælleoverdragelsesgrund_opfyldt(EjskSkilsmisseoverdragelse(boet_er_endnu_ikke_delt = Falskt)) == Falskt
-| ejsk_overgang_par42_følger_boligforhold_uden_at_genbruge_ejerperioden: ejsk_overgang_midlertidig_udlejning -> ejsk_overgang_midlertidig_udlejning.input_gyldigt && ejsk_overgang_midlertidig_udlejning.rabat_ejendomsværdiskat_før_par41_stk3_øre == 81750 && ejsk_overgang_midlertidig_udlejning.rabat_ejendomsværdiskat_øre == 81750
+| ejsk_overgang_par15_og_par42_følger_samme_boligforhold: ejsk_overgang_midlertidig_udlejning -> ejsk_overgang_midlertidig_udlejning.input_gyldigt && ejsk_overgang_midlertidig_udlejning.regelgrundlag_understøttet && ejsk_overgang_midlertidig_udlejning.ordinært_resultat.ejendomsværdiskat.periode.skattepligtige_dage == 270 && ejsk_overgang_midlertidig_udlejning.ejendomsværdiskat_før_overgang_øre == 463500 && ejsk_overgang_midlertidig_udlejning.overgang.rabat_ejendomsværdiskat_øre == 81750 && ejsk_overgang_midlertidig_udlejning.ejendomsværdiskat_øre == 381750
+| ejsk_overgang_par15_og_par42_afviser_modstridende_perioder: ejsk_overgang_midlertidig_udlejning_med_modstridende_perioder -> ejsk_overgang_midlertidig_udlejning_med_modstridende_perioder.input_gyldigt == Falskt && ejsk_overgang_midlertidig_udlejning_med_modstridende_perioder.overgangskapabilitet == EjskInputUgyldigt && ejsk_overgang_midlertidig_udlejning_med_modstridende_perioder.ejendomsværdiskat_øre == 0
 | ejsk_overgang_almindeligt_ejerskifte_fjerner_rabat: ejsk_overgang_almindeligt_ejerskifte -> ejsk_overgang_almindeligt_ejerskifte.ejerandel_basispoint == 0 && ejsk_overgang_almindeligt_ejerskifte.rabat_ejendomsværdiskat_helår_øre == 0 && ejsk_overgang_almindeligt_ejerskifte.rabat_grundskyld_helår_øre == 0
 | ejsk_overgang_2024_loft_følger_tidligere_grundskyld: ejsk_overgang_stigning_2024 -> ejsk_overgang_stigning_2024.kapabilitet == EjskUnderstøttet && ejsk_overgang_stigning_2024.ordinær_grundskyld_øre == 612000 && ejsk_overgang_stigning_2024.grundskyld_efter_stigningsbegrænsning_øre == 520000 && ejsk_overgang_stigning_2024.begrænsning_øre == 92000
 | ejsk_overgang_2025_loft_tillægger_4_75_procent_af_ordinær_skat: ejsk_overgang_stigning_2025 -> ejsk_overgang_stigning_2025.foregående_års_grundskyld_øre == 520000 && ejsk_overgang_stigning_2025.ordinær_grundskyld_øre == 816000 && ejsk_overgang_stigning_2025.stigningssats_basispoint == 475 && ejsk_overgang_stigning_2025.grundskyld_efter_stigningsbegrænsning_øre == 558760
@@ -469,7 +502,8 @@
 ? ejsk_overgang_afgivelse_til_ægtefælle_følger_overdraget_andel
 ? ejsk_overgang_modtagelse_fra_ægtefælle_udleder_og_periodiserer_rabatten
 ? ejsk_overgang_ægtefællesuccession_kræver_lovens_kildefakta
-? ejsk_overgang_par42_følger_boligforhold_uden_at_genbruge_ejerperioden
+? ejsk_overgang_par15_og_par42_følger_samme_boligforhold
+? ejsk_overgang_par15_og_par42_afviser_modstridende_perioder
 ? ejsk_overgang_almindeligt_ejerskifte_fjerner_rabat
 ? ejsk_overgang_2024_loft_følger_tidligere_grundskyld
 ? ejsk_overgang_2025_loft_tillægger_4_75_procent_af_ordinær_skat

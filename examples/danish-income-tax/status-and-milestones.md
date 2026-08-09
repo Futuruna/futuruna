@@ -3,7 +3,7 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-10
 TD epic: `td-56cf8d`
-Current implementation slice: `td-4a61a9` (Ejendomsskattelovens §§ 23-27 og 35-45 er kildebåret og sammensat med Personskat. § 43 skelner mellem afgiver og modtager ved ægtefælleoverdragelse, længstlevendes overtagelse og skilsmisse før bodeling; en modtager uden eget 2024-grundlag får rabatten udledt fra den overtagne andels historiske vurderingsfakta. § 42 bruger særskilte hændelser for perioder, hvor boligen ikke kan tjene til bolig for ejeren, så ejerperiode og boligstatus ikke periodiseres dobbelt. En 50-procents andel modtaget 1. juli giver 27.250 øre i årets rabat, 154.500 øre før overgang og 127.250 øre efter overgang. Fortolkede og kompilerede scenarier, audit, direkte JSON, genereret og genindlæst XLSX samt de præcise 2023-2024-årsopgørelser er verificeret.)
+Current implementation slice: `td-4a61a9` (Ejendomsskattelovens §§ 23-27 og 35-45 er kildebåret og sammensat med Personskat. § 43 skelner mellem afgiver og modtager ved ægtefælleoverdragelse, længstlevendes overtagelse og skilsmisse før bodeling; en modtager uden eget 2024-grundlag får rabatten udledt fra den overtagne andels historiske vurderingsfakta. § 42 bruger særskilte hændelser for perioder, hvor boligen ikke kan tjene til bolig for ejeren, så ejerperiode og boligstatus ikke periodiseres dobbelt. Ordinær ejendomsværdiskat kan nu angives i flere adskilte intervaller, og § 15-perioden skal dag for dag svare til ejerperioden sammenholdt med § 42-hændelserne; modstridende fakta fejler lukket. En 50-procents andel modtaget 1. juli giver 27.250 øre i årets rabat, 154.500 øre før overgang og 127.250 øre efter overgang. Fortolkede og kompilerede scenarier, audit, direkte JSON, genereret og genindlæst XLSX samt de præcise 2023-2024-årsopgørelser er verificeret.)
 Previous implementation slice: `td-ed2931` (Ligningslovens § 9 D har nu officielle 2023-2026-satser med særskilt proveniens for normaludgift og faktisk udgift. Dokumenterede faktiske udgifter og erhvervssatsen for nødvendig egen bil er gensidigt udelukkende typede valg; funktionsnedsættelse eller kronisk sygdom, befordringsformål og betalingsforhold er ligeledes typede. Alle indlejrede valg og beløb har danske spørgsmål og etiketter i den genererede XLSX. Arbejdsgiverbetalt befordring eller skattefri godtgørelse efter § 9 B giver intet § 9 D-fradrag. Et skattefrit servicelovstilskud er et typet valg og begrænser efter SKM2019.292.LSR fradraget til den særlige befordringsudgift, som skatteyderen selv har afholdt. En ellers omfattet skatteyder, der ikke har afholdt en særlig udgift for befordringen, afskæres ikke fra § 9 C. Historiske år sammensættes gennem Personskat, og år uden satspakke fejler lukket. LOV nr. 616/2026 retter normalfradragssatsen til 3,17 kr.; den tidligere 2,28-sats gav fejlagtige mellemresultater, men de to slutfradrag var uændrede ved algebraisk udligning. Fortolket og kompileret scenarie, LL §§ 9 C-9 D-audit, de tre virkelige årsopgørelser og deres genererede XLSX-rundture er verificeret.)
 Previous implementation slice: `td-af7aa6` (Børnebidragslovens § 19 er nu et særskilt, kildebåret domæne for fødsels-, navngivnings-, barsels- og abortudgiftsbidrag. Reglerne bevarer den retlige modtager som moren eller den myndighed eller institution, der afholdt udgiften, og forveksler ikke bidragene med løbende børnebidrag. Fødsels-, barsels- og abortudgiftsbidrag giver intet fradrag hos yderen; navngivningsbidrag prøves gennem de eksisterende regler til Ligningslovens §§ 10-11. Den ikke udtrykkeligt kildeafklarede beskatning hos moren fejler lukket. Officielle satser for 2023-2026, den kanoniske Personskat-graf og en udfyldt XLSX-rundtur er verificeret, mens de tre virkelige årsopgørelser fortsat rammer henholdsvis 30.605.958, 39.709.195 og 29.059.034 øre.)
 Previous implementation slice: `td-196df8` (Praksis til Ligningslovens §§ 10-11 skelner nu typet mellem hele forfaldsmånedens bidrag og et kontantbeløb, der allerede er forholdsmæssigt betalt til barnets 18-årsdag. Begge grene giver samme fradrag uden dobbelt periodisering, mens forholdsmæssighed uden for 18-årsmåneden fejler lukket. Underholds- og uddannelsesbidrag efter det fyldte 18. år medregnes nu fuldt til barnets personlige indkomst og giver intet fradrag hos yderen. Private løbende børnebidrag op til normalbidraget kontrolleres direkte; højere bidrag kræver en dokumenteret vejledende sammenligning eller et konkret skattemæssigt anerkendt bruttobeløb. En konkret begrænsning rammer kun yderens fradrag og aldrig barnets faktisk modtagne indkomst. Den offentlige arbejdsbog bevarer disse indlejrede valg, danske spørgsmål og dokumentreferencer i en udfyldt XLSX-rundtur. Fødsels- og barselsbidrag er afgrænset til det særskilte § 19-domæne.)
@@ -794,6 +794,27 @@ dokumenteret andel fra den registrerede dato. Samme tidslinje bærer nu også
 ejeren. Dermed periodiseres ejerskifte og udlejning hver for sig; en
 midlertidig udlejning reducerer rabatten, mens en halvårlig
 ægtefælleoverdragelse ikke længere bliver reduceret to gange.
+
+Den tværgående perioderegel er efterfølgende strammet mod Den juridiske
+vejledning C.H.4.5.4.2. Den ordinære ejendomsværdiskat efter § 15 og rabatten
+efter § 42 skal følge samme boligstatus. Årsperioden kan derfor nu bære flere
+kronologiske, ikke-overlappende datointervaller. En bolig, der ikke kan tjene
+til bolig for ejeren fra 1. april til 30. juni 2025, har 270 skattepligtige
+dage: januar-marts og juli-december. Reglerne beregner 463.500 øre før
+overgang, 81.750 øre i rabat og 381.750 øre efter overgang. Et konkurrerende
+helårsinput sammen med de samme § 42-hændelser afvises som ugyldigt. Den
+genererede arbejdsbog udstiller intervallerne i en relationel undertabel med
+danske spørgsmål, og direkte JSON, udfyldt XLSX og den kanoniske beregning
+giver identiske resultater.
+
+De lokalt ignorerede årsopgørelser for 2023 og 2024 er samtidig genudtrukket
+direkte fra PDF og kontrolleret mod de anonymiserede kildefakta. Begge
+arbejdsbogsrundture rammer myndighedens slutskat og slutafregning eksakt. En
+vigtig domæneafgrænsning blev bekræftet i 2024: beregnet AM-bidrag er 79.740
+kr., mens faktisk indeholdt AM-bidrag er 79.738 kr. Futuruna bevarer derfor
+beregningsresultatet og betalingskreditten som to forskellige fakta i stedet
+for at tvinge dem til at være ens. De private PDF-filer indgår fortsat ikke i
+git.
 
 Kildegennemgangen mod Skatteministeriets aktuelle satsoversigt og Den juridiske
 vejledning har samtidig udvidet den ordinære grænse til 2026: § 22 anvender

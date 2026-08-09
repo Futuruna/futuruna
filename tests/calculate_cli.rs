@@ -2897,6 +2897,37 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 "missing human property-tax input label {expected} on {property_tax_sheet}"
             );
         }
+        let property_tax_intervals_path = "ejendomsskatter.ejendomme.ordinært_grundlag.ejendomsværdiskatteperiode.EjendomsskatIIntervaller.intervaller";
+        let property_tax_intervals_sheet =
+            workbook_collection_sheet_name(&mut workbook, property_tax_intervals_path);
+        assert_eq!(
+            workbook_column_paths(&mut workbook, &property_tax_intervals_sheet),
+            [
+                "fra_dato.år",
+                "fra_dato.måned",
+                "fra_dato.dag",
+                "til_dato.år",
+                "til_dato.måned",
+                "til_dato.dag",
+            ]
+        );
+        let property_tax_interval_headers =
+            workbook_headers(&mut workbook, &property_tax_intervals_sheet);
+        for expected in [
+            "Startår for boligperiode",
+            "Startmåned for boligperiode",
+            "Startdag for boligperiode",
+            "Slutår for boligperiode",
+            "Slutmåned for boligperiode",
+            "Slutdag for boligperiode",
+        ] {
+            assert!(
+                property_tax_interval_headers
+                    .iter()
+                    .any(|header| header == expected),
+                "missing human property-tax interval label {expected} on {property_tax_intervals_sheet}"
+            );
+        }
         assert_eq!(
             workbook_headers(&mut workbook, &spouse_property_tax_sheet),
             property_tax_headers,
@@ -13716,6 +13747,111 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(partial_exemption_case);
+    let temporary_rental_identifier = "midlertidig-udlejning-json-xlsx";
+    let temporary_rental_relief = relief_facts(1998, 7, 1);
+    let temporary_rental_ordinary_2024 = serde_json::json!({
+        "identifikation": temporary_rental_identifier,
+        "kommune": { "$variant": "København" },
+        "kategori": { "$variant": "EjskEnBoligenhed" },
+        "beliggenhed": { "$variant": "EjskDanmark" },
+        "erhvervsmæssigt_udlejet": false,
+        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+        "ejendomsværdi_kroner": 2_250_000,
+        "grundværdi_kroner": 0,
+        "produktionsjord": false,
+        "ejendomsværdiskatteperiode": {
+            "$variant": "HeleEjendomsskatteåret"
+        },
+        "grundskyldsperiode": { "$variant": "HeleEjendomsskatteåret" },
+        "ejerandel_basispoint": 10_000
+    });
+    let temporary_rental_current = serde_json::json!({
+        "identifikation": temporary_rental_identifier,
+        "kommune": { "$variant": "København" },
+        "kategori": { "$variant": "EjskEnBoligenhed" },
+        "beliggenhed": { "$variant": "EjskDanmark" },
+        "erhvervsmæssigt_udlejet": false,
+        "særlige_betingelser_for_nr6_til_nr8_opfyldt": true,
+        "ejendomsværdi_kroner": 2_250_000,
+        "grundværdi_kroner": 0,
+        "produktionsjord": false,
+        "ejendomsværdiskatteperiode": {
+            "$variant": "EjendomsskatIIntervaller",
+            "intervaller": [{
+                "fra_dato": { "år": 2025, "måned": 1, "dag": 1 },
+                "til_dato": { "år": 2025, "måned": 3, "dag": 31 }
+            }, {
+                "fra_dato": { "år": 2025, "måned": 7, "dag": 1 },
+                "til_dato": { "år": 2025, "måned": 12, "dag": 31 }
+            }]
+        },
+        "grundskyldsperiode": { "$variant": "HeleEjendomsskatteåret" },
+        "ejerandel_basispoint": 10_000
+    });
+    let mut temporary_rental_case = property_tax_case.clone();
+    temporary_rental_case["case_id"] =
+        Value::String("personskat-ejendomsskat-midlertidig-udlejning-2025".into());
+    temporary_rental_case["input"]["ejendomsskatter"]["ejendomme"] = serde_json::json!([{
+        "ordinært_grundlag": temporary_rental_current,
+        "nedslagsfakta": temporary_rental_relief.clone(),
+        "overgangsomfang": {
+            "vurderingskategori": {
+                "$variant": "EjskEjerboligEfterEjendomsvurderingslovensPar3Stk1Nr1"
+            },
+            "ejerkreds": { "$variant": "EjskKunFysiskeEjere" }
+        },
+        "overgangsvurderinger": {
+            "rabat": {
+                "$variant": "EjskRabatvurderingerOplyst",
+                "fakta": {
+                    "eget_rabatgrundlag_2024": {
+                        "kontekst_2024": no_pension_context_2024.clone(),
+                        "ny_lov_helårsgrundlag": temporary_rental_ordinary_2024,
+                        "ny_lov_nedslagsfakta": temporary_rental_relief,
+                        "tidligere_ejendomsværdiskat": {
+                            "ejendomsværdi_året_før_kroner": 1_062_500,
+                            "ejendomsværdi_2001_kroner": 850_000,
+                            "ejendomsværdi_2002_kroner": 850_000,
+                            "historisk_begrænsning": {
+                                "foregående_indkomstårs_ejendomsværdiskat_øre": null,
+                                "par9b_nedsættelse_øre": 0,
+                                "vurderet_helt_eller_delvis_benyttet_til_ejerbolig": true,
+                                "ejerlejlighed_frigjort_for_lejemål": false,
+                                "ombygning_over_100_procent": false
+                            },
+                            "udenlandske_ejendomsskatter": []
+                        },
+                        "tidligere_grundskyld": {
+                            "grundværdi_efter_fradrag_og_fritagelser_kroner": 0,
+                            "foregående_års_afgiftspligtige_grundværdi_kroner": 0,
+                            "grundskyld_promille_2023_tiendedele": 0
+                        },
+                        "byggeri": { "$variant": "EjskIngenNyEllerOmbygning" },
+                        "grundskyld_fritaget_basispoint": 0,
+                        "grundskyld_kan_fordeles_på_samme_boligenhed": true
+                    },
+                    "hændelser": [{
+                        "dato": { "år": 2025, "måned": 4, "dag": 1 },
+                        "art": {
+                            "$variant": "EjskBoligKanIkkeTjeneTilBoligForEjeren"
+                        }
+                    }, {
+                        "dato": { "år": 2025, "måned": 7, "dag": 1 },
+                        "art": {
+                            "$variant": "EjskBoligKanIgenTjeneTilBoligForEjeren"
+                        }
+                    }]
+                }
+            },
+            "stigningsbegrænsning": {
+                "$variant": "EjskIngenStigningsvurderingerOplyst"
+            }
+        }
+    }]);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(temporary_rental_case);
     let spouse_rebate_identifier = "aegtefaellemodtagelse-json-xlsx";
     let spouse_rebate_ordinary_2024 = serde_json::json!({
         "identifikation": spouse_rebate_identifier,
@@ -16013,6 +16149,13 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-ejendomsskat-delvis-fritagelse-2025")
         .expect("partial property-tax exemption JSON case")
         .clone();
+    let temporary_rental_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-midlertidig-udlejning-2025")
+        .expect("temporary-rental property-tax JSON case")
+        .clone();
     let spouse_rebate_recipient_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -16180,6 +16323,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ordinary_share_loss_case,
         spouse_property_credit_case,
         partial_exemption_case,
+        temporary_rental_case,
         spouse_rebate_recipient_case,
         partial_year_cap_case,
         annual_claim_case,
@@ -16641,6 +16785,43 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         106_000
     );
     assert_eq!(partial_exemption_basis["rabat_grundskyld_øre"], 106_000);
+    let json_temporary_rental_result = json_result["results"]
+        .as_array()
+        .expect("JSON Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-midlertidig-udlejning-2025")
+        .expect("JSON temporary-rental property-tax result");
+    let hydrated_temporary_rental_result = hydrated_xlsx_result["results"]
+        .as_array()
+        .expect("hydrated XLSX Personskat results")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-ejendomsskat-midlertidig-udlejning-2025")
+        .expect("hydrated XLSX temporary-rental property-tax result");
+    assert_eq!(
+        hydrated_temporary_rental_result["result"],
+        json_temporary_rental_result["result"]
+    );
+    let temporary_rental_property =
+        &json_temporary_rental_result["result"]["ejendomsskatter"]["ejendomsresultater"][0];
+    assert_eq!(
+        temporary_rental_property["ordinært_resultat"]["ejendomsværdiskat"]["periode"]
+            ["skattepligtige_dage"],
+        270
+    );
+    let temporary_rental_rebate = &temporary_rental_property["overgang"]["rabat"]["resultat"];
+    assert_eq!(
+        temporary_rental_rebate["par15_og_par42_perioder_konsistente"],
+        true
+    );
+    assert_eq!(
+        temporary_rental_property["ejendomsværdiskat_før_overgang_øre"],
+        463_500
+    );
+    assert_eq!(
+        temporary_rental_rebate["rabat_ejendomsværdiskat_øre"],
+        81_750
+    );
+    assert_eq!(temporary_rental_property["ejendomsværdiskat_øre"], 381_750);
     let json_spouse_rebate_recipient_result = json_result["results"]
         .as_array()
         .expect("JSON Personskat results")

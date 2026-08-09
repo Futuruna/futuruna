@@ -2033,8 +2033,57 @@
     path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::ejendomsværdiskatteperiode::$variant),
     label = "Periode med ejendomsværdiskat",
     question = Some("Hvilken del af indkomståret kunne ejendommen tjene som bolig for dig eller din husstand?"),
-    help = Some("Vælg hele året eller angiv start og eventuel slutdato. Futuruna anvender lovens 30-dagesmåneder og 360-dagesår."),
+    help = Some("Vælg hele året, én sammenhængende periode eller flere adskilte intervaller. Futuruna anvender lovens 30-dagesmåneder og 360-dagesår."),
     unit = None
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiintervaller = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovÅrsperiode::EjendomsskatIIntervaller::intervaller),
+    label = "Intervaller med ejendomsværdiskat",
+    question = Some("I hvilke adskilte perioder kunne ejendommen tjene som bolig for dig eller din husstand?"),
+    help = Some("Tilføj intervallerne kronologisk uden overlap. Brug denne tabel, når boligen for eksempel var udlejet i en afgrænset del af året."),
+    unit = None
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_aar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::fra_dato::år),
+    label = "Startår for boligperiode",
+    question = Some("I hvilket år begyndte denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_maaned = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::fra_dato::måned),
+    label = "Startmåned for boligperiode",
+    question = Some("I hvilken måned begyndte denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_dag = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::fra_dato::dag),
+    label = "Startdag for boligperiode",
+    question = Some("På hvilken dag begyndte denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_aar = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::til_dato::år),
+    label = "Slutår for boligperiode",
+    question = Some("I hvilket år sluttede denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_maaned = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::til_dato::måned),
+    label = "Slutmåned for boligperiode",
+    question = Some("I hvilken måned sluttede denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_dag = TypetBeregningsfelt(
+    path = refof(EjendomsskattelovDatointerval::til_dato::dag),
+    label = "Slutdag for boligperiode",
+    question = Some("På hvilken dag sluttede denne periode med ejendomsværdiskat?"),
+    help = None,
+    unit = Some("dag")
 )
 = personskat_felt_ejendomsskat_grundskyldsperiode = TypetBeregningsfelt(
     path = refof(EjendomsskattelovOrdinærPersonEjendomFakta::grundskyldsperiode::$variant),
@@ -11425,6 +11474,13 @@
         personskat_felt_ejendomsskat_grundvaerdi,
         personskat_felt_ejendomsskat_produktionsjord,
         personskat_felt_ejendomsskat_ejendomsvaerdiperiode,
+        personskat_felt_ejendomsskat_ejendomsvaerdiintervaller,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_aar,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_maaned,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_fra_dag,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_aar,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_maaned,
+        personskat_felt_ejendomsskat_ejendomsvaerdiinterval_til_dag,
         personskat_felt_ejendomsskat_grundskyldsperiode,
         personskat_felt_ejendomsskat_ejerandel,
         personskat_felt_ejendomsskat_oprindelig_erhvervelse,
