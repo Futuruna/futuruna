@@ -208,6 +208,7 @@
 | personskat_ordinaer_scenario_personlig_indkomst(input: PersonskatOrdinærPersonligIndkomstInput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = input,
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_ordinaer_scenario_lønmodtager(input: PersonskatOrdinærPersonligIndkomstInput, ligningsfradrag: PersonskatLigningsfradragInput) -> PersonskatLønmodtagerInput(

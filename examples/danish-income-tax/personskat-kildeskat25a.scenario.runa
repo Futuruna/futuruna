@@ -15,6 +15,7 @@
         virksomheder_uden_virksomhedsordning = virksomheder,
         forenings_og_arbejdsløshedsydelser = []
     ),
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_ksl25a_scenarie_lønmodtager_for_år(virksomheder: List(PersonskatOrdinærVirksomhedFakta), skatteår: Heltal) -> PersonskatLønmodtagerInput(

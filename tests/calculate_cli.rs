@@ -18903,6 +18903,20 @@ fn round_trip_source_inputs_through_generated_personskat_workbook(
     source_entry: &str,
     source_cases: &[(&str, &str)],
 ) -> (Value, Value) {
+    round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
+        source_scenario,
+        source_entry,
+        source_cases,
+        |_| {},
+    )
+}
+
+fn round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
+    source_scenario: &Path,
+    source_entry: &str,
+    source_cases: &[(&str, &str)],
+    inspect_workbook: impl FnOnce(&Path),
+) -> (Value, Value) {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let fixture = root.join("examples/danish-income-tax/personskat.calculate.runa");
     let source_input_path = temp_path("json");
@@ -19028,6 +19042,7 @@ fn round_trip_source_inputs_through_generated_personskat_workbook(
         String::from_utf8_lossy(&hydrate.stderr),
         String::from_utf8_lossy(&hydrate.stdout)
     );
+    inspect_workbook(&workbook_path);
     let workbook_call = run(&[
         "call",
         fixture.to_str().expect("fixture path"),
@@ -19202,6 +19217,63 @@ fn anonymized_2023_and_2024_source_facts_round_trip_through_generated_personskat
     assert_eq!(
         result_2024["årsopgørelse"]["afregning"]["resultat"]["ikke_udbetalt_øre"],
         13
+    );
+}
+
+#[test]
+fn personskat_support_payment_round_trips_through_generated_workbook_with_danish_labels() {
+    let source_scenario = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("examples/danish-income-tax/personskat-underholdsbidrag.scenario.runa");
+    let (source_output, workbook_output) =
+        round_trip_source_inputs_through_generated_personskat_workbook_with_inspection(
+            &source_scenario,
+            "personskat_underhold_kildefakta_til_arbejdsbog",
+            &[(
+                "personskat-underhold-ægtefællebidrag-2025",
+                "ÆgtefællebidragBetalt2025",
+            )],
+            |workbook_path| {
+                let mut workbook =
+                    open_workbook_auto(workbook_path).expect("Personskat support workbook");
+                let sheet = workbook_collection_sheet_name(
+                    &mut workbook,
+                    "lønmodtager.personlig_indkomst.underholdsbidrag.bidrag",
+                );
+                let paths = workbook_column_paths(&mut workbook, &sheet);
+                let headers = workbook_headers(&mut workbook, &sheet);
+                for (path, label) in [
+                    ("identifikation", "Bidragets identifikation"),
+                    ("rolle.$variant", "Personens rolle i bidraget"),
+                    (
+                        "modtager_identifikation",
+                        "Bidragsmodtagerens identifikation",
+                    ),
+                    ("beløb_kroner", "Betalt eller modtaget bidrag"),
+                ] {
+                    let column = paths
+                        .iter()
+                        .position(|candidate| candidate == path)
+                        .unwrap_or_else(|| panic!("missing support-payment path {path}"));
+                    assert_eq!(headers[column + 3], label);
+                }
+            },
+        );
+
+    let canonical_input = &source_output["results"][0]["result"];
+    let contribution =
+        &canonical_input["lønmodtager"]["personlig_indkomst"]["underholdsbidrag"]["bidrag"][0];
+    assert_eq!(contribution["identifikation"], "ægtefællebidrag-2025");
+    assert_eq!(contribution["beløb_kroner"], 24_000);
+
+    let result = &workbook_output["results"][0]["result"];
+    assert_eq!(
+        result["personlig_indkomst"]["underholdsbidrag"]["samlet_ligningsmæssigt_fradrag_kroner"],
+        24_000
+    );
+    assert!(
+        result["personlig_indkomst"]["underholdsbidrag"]["kan_sammensættes"]
+            .as_bool()
+            .expect("support-payment composability")
     );
 }
 

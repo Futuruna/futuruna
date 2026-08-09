@@ -24,6 +24,7 @@ ligningslovens § 9 A, personskattelovens § 13 og den samlede slutskat.
 | personskat_dis_personlig_indkomst(sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     sømandsbeskatning = sømandsbeskatning
 )
 | personskat_dis_lønmodtager(bruttoløn_kroner: Heltal, sømandsbeskatning: Søbl5Til8Årsinput) -> PersonskatLønmodtagerInput(

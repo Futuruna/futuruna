@@ -1,0 +1,402 @@
+@ sprog da
+
+@ importer ./kalenderdato
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Ligningslov10Og11KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ligningsloven_lbk1500_par10_par11 = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven §§ 10-11 i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Den konsoliderede lovtekst og efterfølgende ændringer på Retsinformation er gennemgået pr. 09/08/2026"
+)
+= ligningsloven_lbk42_2023_par10_par11 = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven §§ 10-11 i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Historisk konsolidering anvendt til indkomstårene 2023 og 2024"
+)
+= skat_underholdsbidrag_børn_vejledning = Ligningslov10Og11KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=220619&oid=1976900",
+    identifier = "Den juridiske vejledning C.A.8.5.2.2: Fradrag for bidrag til børn",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Vejledningen dokumenterer betalings-, forfalds-, bopæls- og 18-årsbetingelserne samt forholdsmæssig beregning i fødselsmåneden"
+)
+= skat_underholdsbidrag_ægtefælle_vejledning = Ligningslov10Og11KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976899",
+    identifier = "Den juridiske vejledning C.A.8.5.2.1: Fradrag for bidrag til tidligere ægtefælle",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Vejledningen dokumenterer krav om betaling, forfald, dokumenterbar aftale og adskilt bopæl"
+)
+= skat_underholdsbidrag_faktisk_adskillelse_vejledning = Ligningslov10Og11KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976903",
+    identifier = "Den juridiske vejledning C.A.8.6.2: Fradrag ved faktisk samlivsophævelse",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Vejledningen dokumenterer selvstændig statsskatteansættelse og offentlig fastsættelse eller godkendelse"
+)
+= skat_underholdsbidrag_børn_uden_for_ægteskab_vejledning = Ligningslov10Og11KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2061803",
+    identifier = "Den juridiske vejledning C.A.9.5: Bidrag til børn født uden for ægteskab",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Vejledningen dokumenterer fradrag over tillægget og personlig indkomst over normalbidraget"
+)
+= ligningsloven_par10_par11_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_lbk1500_par10_par11),
+        HistoricalSource(value = ligningsloven_lbk42_2023_par10_par11),
+        Guidance(value = skat_underholdsbidrag_børn_vejledning),
+        Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
+        Guidance(value = skat_underholdsbidrag_faktisk_adskillelse_vejledning),
+        Guidance(value = skat_underholdsbidrag_børn_uden_for_ægteskab_vejledning),
+    )
+)
+
+--@label:ligningsloven_par10_par11_underholdsbidrag::meta:ligningsloven_par10_par11_metadata--
+----
+§ 10. Bidrag, som i anledning af skilsmisse eller separation udredes af den ene
+af ægtefællerne til underhold af den anden ægtefælle, kan fradrages i
+bidragsyderens skattepligtige indkomst. Bidrag, som i anledning af skilsmisse
+eller separation udredes af den ene af ægtefællerne til underhold af børn, der
+ikke opholder sig hos bidragyderen, kan fradrages i bidragyderens skattepligtige
+indkomst efter reglerne i stk. 2. Bidragene til underhold af den anden
+ægtefælle medregnes til denne ægtefælles skattepligtige indkomst. Bidragene til
+underhold af et barn medregnes til barnets skattepligtige indkomst for den del
+af bidragene, der overstiger det af socialministeren fastsatte normalbidrag.
+Særlige bidrag til barnets dåb og bidrag i anledning af, at barnet når
+konfirmationsalderen, medregnes dog ikke til barnets skattepligtige indkomst, i
+det omfang bidragene ikke overstiger for dåb 1 gang det månedlige
+normalbidrags grundbeløb og for bidrag i anledning af, at barnet når
+konfirmationsalderen, 3 gange det månedlige normalbidrags grundbeløb.
+
+Stk. 2. Fradragsretten for bidrag til underhold af børn er betinget af, at
+bidragyderen har forsørgerpligt over for det offentlige for barnet. Bidrag for
+tiden efter barnets fyldte 18. år kan ikke fradrages. Bidrag for tiden indtil
+barnets fyldte 18. år kan fradrages, i det omfang de overstiger et beløb
+svarende til det tillæg, der er fastsat i § 4, stk. 5, i lov om børnetilskud
+og forskudsvis udbetaling af børnebidrag. Betaler en bidragsskyldig til det
+offentlige et beløb til dækning af forskudsvis udbetalte børnebidrag, anses
+beløbet fortrinsvis at vedrøre de først forskudsvis udbetalte børnebidrag. I
+det omfang beløbet herved anses at vedrøre perioder, der omfattes af den
+bidragspligtiges indkomstår 2000 og senere indkomstår, finder 3. pkt.
+tilsvarende anvendelse.
+
+Stk. 3. Bestemmelserne i stk. 1 finder tillige anvendelse på underholdsbidrag
+fra den ene ægtefælle til den anden ægtefælle og til børn, der ikke opholder
+sig hos bidragyderen, når ægtefællerne på grund af faktisk adskillelse er ansat
+selvstændigt til statsskat, og bidraget er fastsat eller godkendt af det
+offentlige.
+
+Stk. 4. Bestemmelserne i stk. 1 finder, for så vidt angår bidrag i anledning
+af separation, kun anvendelse på bidrag, hvis størrelse er fastsat eller
+ændret efter ikrafttrædelsen af lov nr. 517 af 19. december 1942. Med hensyn
+til bidrag i anledning af skilsmisse finder bestemmelserne kun anvendelse på
+bidrag, der er fastsat eller ændret efter ikrafttrædelsen af lov nr. 538 af
+22. december 1941.
+
+Stk. 5. Fradragsretten efter stk. 1, 1. pkt., eller stk. 2, er betinget af, at
+bidragsyderen oplyser om identiteten af modtageren af bidraget efter
+skatteindberetningslovens § 41, stk. 2, eller oplysningerne anses for afgivet
+efter skatteindberetningslovens § 41, stk. 3.
+
+§ 11. Bidrag til underhold af børn uden for ægteskab kan fradrages i
+bidragyderens skattepligtige indkomst efter reglerne i stk. 2. Bidragene
+medregnes til barnets skattepligtige indkomst for den del af bidragene, der
+overstiger normalbidraget, jf. § 14 i lov om børnetilskud og forskudsvis
+udbetaling af børnebidrag. Særlige bidrag til barnets dåb og bidrag i anledning
+af, at barnet når konfirmationsalderen, medregnes dog ikke til barnets
+skattepligtige indkomst, i det omfang bidragene ikke overstiger for dåb 1 gang
+det månedlige normalbidrags grundbeløb og for bidrag i anledning af, at barnet
+når konfirmationsalderen, 3 gange det månedlige normalbidrags grundbeløb.
+
+Stk. 2. Fradragsretten efter stk. 1, 1. pkt., er betinget af, at der påhviler
+den skattepligtige forsørger- eller bidragspligt over for det offentlige med
+hensyn til det pågældende barn, og af, at barnet ikke opholder sig hos den
+skattepligtige. Bidrag for tiden efter barnets fyldte 18. år kan ikke
+fradrages. Bidrag for tiden indtil barnets fyldte 18. år kan fradrages, i det
+omfang de overstiger et beløb svarende til det tillæg, der er fastsat i § 4,
+stk. 5, i lov om børnetilskud og forskudsvis udbetaling af børnebidrag.
+Fradragsretten efter stk. 1, 1. pkt., er yderligere betinget af, at
+bidragsyderen oplyser om identiteten af modtageren af bidraget efter
+skatteindberetningslovens § 41, stk. 2, eller oplysningerne anses for afgivet
+efter skatteindberetningslovens § 41, stk. 3. Betaler en bidragsskyldig til det
+offentlige et beløb til dækning af forskudsvis udbetalte børnebidrag, anses
+beløbet fortrinsvis at vedrøre de først forskudsvis udbetalte børnebidrag. I
+det omfang beløbet herved anses at vedrøre perioder, der omfattes af den
+skattepligtiges indkomstår 2000 og senere indkomstår, finder 3. pkt.
+tilsvarende anvendelse.
+----
+
+--@begin:ligningsloven_par10_par11_underholdsbidrag--
+# Ligningslov10Og11Bidragsrolle = Bidragsyder(modtageridentitet_oplyst: Boolsk) | Bidragsmodtager
+# Ligningslov10Og11Retsgrundlag = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse: Boolsk) | FaktiskAdskillelse(faktisk_adskillelse_dokumenteret: Boolsk, ægtefællerne_ansat_selvstændigt_til_statsskat: Boolsk) | BarnUdenForÆgteskab
+# Ligningslov10Og11Fastsættelse = DokumenteretPrivatAftale | FastsatAfOffentligMyndighed | GodkendtAfOffentligMyndighed | UdenDokumenteretFastsættelse
+# Ligningslov10Og11BarnetsBopæl = HosBidragsyderen | HosDenAndenForælder | DeltBopælMedFolkeregisteradresseHosBidragsyderen | DeltBopælMedFolkeregisteradresseHosDenAndenForælder
+# Ligningslov10Og11BarnFakta(fødselsdato: Dato, bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
+# Ligningslov10Og11Modtager = ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen: Boolsk) | Barn(fakta: Ligningslov10Og11BarnFakta)
+# Ligningslov10Og11Bidragsart = LøbendeUnderholdsbidrag | DåbsEllerNavngivningsbidrag(dokumenteret_til_begivenhedsudgifter: Boolsk) | KonfirmationsEllerNonfirmationsbidrag(dokumenteret_til_begivenhedsudgifter: Boolsk)
+# Ligningslov10Og11Betalingsvej = BetaltTilDenBidragsberettigede | BetaltGennemUdbetalingDanmark | BetaltDirekteTilBarnet(frigørende_virkning_dokumenteret: Boolsk) | ModregnetIGensidigtBidrag(modregningen_dokumenteret: Boolsk)
+# Ligningslov10Og11Restancestatus = OrdinærBetaling | OffentligBidragsrestance(tidligste_forskudsvis_udbetalte_bidrag_dækket_først: Boolsk)
+# Ligningslov10Og11BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Ligningslov10Og11Bidragsrolle, retsgrundlag: Ligningslov10Og11Retsgrundlag, modtager_identifikation: Tekst, modtager: Ligningslov10Og11Modtager, fastsættelse: Ligningslov10Og11Fastsættelse, bidragsart: Ligningslov10Og11Bidragsart, betalingsvej: Ligningslov10Og11Betalingsvej, restancestatus: Ligningslov10Og11Restancestatus, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, betalt_af_bidragsyderen_selv: Boolsk)
+# Ligningslov10Og11BidragResultat(fakta: Ligningslov10Og11BidragFakta, input_gyldigt: Boolsk, indkomstår_matcher: Boolsk, retsgrundlag_omfattet: Boolsk, historisk_virkningstidspunkt_opfyldt: Boolsk, fastsættelse_dokumenteret: Boolsk, betaling_forfalden_og_betalt: Boolsk, betalingsvej_opfyldt: Boolsk, restancerækkefølge_opfyldt: Boolsk, modtageridentitet_oplyst: Boolsk, barnets_bopæl_opfyldt: Boolsk, offentlig_forsørgerpligt_opfyldt: Boolsk, dage_før_og_med_18_år_i_måneden: Heltal, bidragsbetingelser_opfyldt: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal)
+# Ligningslov10Og11Årsinput(bidrag: List(Ligningslov10Og11BidragFakta))
+# Ligningslov10Og11Årsresultat(indkomstår: Heltal, input: Ligningslov10Og11Årsinput, resultater: List(Ligningslov10Og11BidragResultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, løbende_børnebidragsmåneder_entydige: Boolsk, alle_input_gyldige: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
+
+| ligningslov10_11_tomt_årsinput() -> Ligningslov10Og11Årsinput(bidrag = [])
+| ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Falskt
+| exception ligningslov10_11_2023_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2023
+| exception ligningslov10_11_2024_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2024
+| exception ligningslov10_11_2025_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2025
+| exception ligningslov10_11_2026_understøttet ligningslov10_11_skatteår_understøttet(indkomstår: Heltal) -> Sandt under indkomstår == 2026
+| ligningslov10_11_bidragsyder(rolle: Ligningslov10Og11Bidragsrolle) -> match rolle {
+    | Bidragsyder(_) -> Sandt
+    | Bidragsmodtager -> Falskt
+}
+| ligningslov10_11_modtageridentitet_oplyst(rolle: Ligningslov10Og11Bidragsrolle) -> match rolle {
+    | Bidragsyder(oplyst) -> oplyst
+    | Bidragsmodtager -> Sandt
+}
+| ligningslov10_11_indkomstår_for_fakta(fakta: Ligningslov10Og11BidragFakta) -> hvis ligningslov10_11_bidragsyder(fakta.rolle) {
+    hvis fakta.betalingsdato.år > fakta.forfaldsdato.år { fakta.betalingsdato.år } ellers { fakta.forfaldsdato.år }
+} ellers {
+    fakta.betalingsdato.år
+}
+| ligningslov10_11_fastsættelse_dokumenteret(fastsættelse: Ligningslov10Og11Fastsættelse) -> fastsættelse != UdenDokumenteretFastsættelse
+| ligningslov10_11_offentligt_fastsat_eller_godkendt(fastsættelse: Ligningslov10Og11Fastsættelse) -> fastsættelse == FastsatAfOffentligMyndighed || fastsættelse == GodkendtAfOffentligMyndighed
+| ligningslov10_11_faktisk_adskillelse_opfyldt(retsgrundlag: Ligningslov10Og11Retsgrundlag, fastsættelse: Ligningslov10Og11Fastsættelse) -> match retsgrundlag {
+    | FaktiskAdskillelse(dokumenteret, selvstændigt_ansat) -> dokumenteret && selvstændigt_ansat && ligningslov10_11_offentligt_fastsat_eller_godkendt(fastsættelse)
+    | _ -> Sandt
+}
+| ligningslov10_11_historisk_virkningstidspunkt_opfyldt(retsgrundlag: Ligningslov10Og11Retsgrundlag) -> match retsgrundlag {
+    | Skilsmisse(opfyldt) -> opfyldt
+    | Separation(opfyldt) -> opfyldt
+    | _ -> Sandt
+}
+| ligningslov10_11_retsgrundlag_og_modtager_svarer(retsgrundlag: Ligningslov10Og11Retsgrundlag, modtager: Ligningslov10Og11Modtager) -> match retsgrundlag {
+    | BarnUdenForÆgteskab -> match modtager {
+        | Barn(_) -> Sandt
+        | _ -> Falskt
+    }
+    | _ -> Sandt
+}
+| ligningslov10_11_parterne_bor_adskilt(modtager: Ligningslov10Og11Modtager) -> match modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen) -> parterne_bor_sammen == Falskt
+    | Barn(_) -> Sandt
+}
+| ligningslov10_11_bidragstype_svarer(modtager: Ligningslov10Og11Modtager, bidragsart: Ligningslov10Og11Bidragsart) -> match modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(_) -> bidragsart == LøbendeUnderholdsbidrag
+    | Barn(_) -> Sandt
+}
+| ligningslov10_11_særligt_bidrag_dokumenteret(bidragsart: Ligningslov10Og11Bidragsart) -> match bidragsart {
+    | DåbsEllerNavngivningsbidrag(dokumenteret) -> dokumenteret
+    | KonfirmationsEllerNonfirmationsbidrag(dokumenteret) -> dokumenteret
+    | LøbendeUnderholdsbidrag -> Sandt
+}
+| ligningslov10_11_retsgrundlag_omfattet(fakta: Ligningslov10Og11BidragFakta) -> ligningslov10_11_retsgrundlag_og_modtager_svarer(fakta.retsgrundlag, fakta.modtager) && ligningslov10_11_parterne_bor_adskilt(fakta.modtager) && ligningslov10_11_bidragstype_svarer(fakta.modtager, fakta.bidragsart) && ligningslov10_11_særligt_bidrag_dokumenteret(fakta.bidragsart) && ligningslov10_11_faktisk_adskillelse_opfyldt(fakta.retsgrundlag, fakta.fastsættelse) && ligningslov10_11_historisk_virkningstidspunkt_opfyldt(fakta.retsgrundlag)
+| ligningslov10_11_barn_grundfakta_gyldige(modtager: Ligningslov10Og11Modtager, forfaldsdato: Dato) -> match modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(_) -> Sandt
+    | Barn(fakta) -> dato_gyldig(fakta.fødselsdato) && dato_før_eller_lig_med(fakta.fødselsdato, forfaldsdato)
+}
+| ligningslov10_11_input_gyldigt(fakta: Ligningslov10Og11BidragFakta) -> fakta.identifikation != "" && fakta.modtager_identifikation != "" && dato_gyldig(fakta.forfaldsdato) && dato_gyldig(fakta.betalingsdato) && fakta.beløb_kroner > 0 && ligningslov10_11_skatteår_understøttet(fakta.indkomstår) && fakta.indkomstår == ligningslov10_11_indkomstår_for_fakta(fakta) && ligningslov10_11_barn_grundfakta_gyldige(fakta.modtager, fakta.forfaldsdato)
+| ligningslov10_11_betaling_forfalden_og_betalt(fakta: Ligningslov10Og11BidragFakta) -> fakta.indkomstår == ligningslov10_11_indkomstår_for_fakta(fakta)
+| ligningslov10_11_betalingsvej_opfyldt(fakta: Ligningslov10Og11BidragFakta) -> match fakta.betalingsvej {
+    | BetaltTilDenBidragsberettigede -> Sandt
+    | BetaltGennemUdbetalingDanmark -> Sandt
+    | BetaltDirekteTilBarnet(frigørende_virkning_dokumenteret) -> match fakta.modtager {
+        | Barn(_) -> frigørende_virkning_dokumenteret
+        | _ -> Falskt
+    }
+    | ModregnetIGensidigtBidrag(modregningen_dokumenteret) -> match fakta.modtager {
+        | Barn(_) -> modregningen_dokumenteret
+        | _ -> Falskt
+    }
+}
+| ligningslov10_11_restancerækkefølge_opfyldt(restancestatus: Ligningslov10Og11Restancestatus) -> match restancestatus {
+    | OrdinærBetaling -> Sandt
+    | OffentligBidragsrestance(tidligste_dækket_først) -> tidligste_dækket_først
+}
+| ligningslov10_11_barnets_bopæl_opfyldt(modtager: Ligningslov10Og11Modtager) -> match modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(_) -> Sandt
+    | Barn(fakta) -> fakta.bopæl == HosDenAndenForælder || fakta.bopæl == DeltBopælMedFolkeregisteradresseHosDenAndenForælder
+}
+| ligningslov10_11_offentlig_forsørgerpligt_opfyldt(modtager: Ligningslov10Og11Modtager) -> match modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(_) -> Sandt
+    | Barn(fakta) -> fakta.forsørger_eller_bidragspligt_over_for_det_offentlige
+}
+| ligningslov10_11_dage_før_og_med_18_år_i_måneden(barn: Ligningslov10Og11BarnFakta, forfaldsdato: Dato) -> {
+    = attenårsdag = dato_plus_år(barn.fødselsdato, 18)
+    = månedsstart = Dato(år = forfaldsdato.år, måned = forfaldsdato.måned, dag = 1)
+    = månedsslut = Dato(år = forfaldsdato.år, måned = forfaldsdato.måned, dag = dato_dage_i_måned(forfaldsdato.år, forfaldsdato.måned))
+    hvis dato_før(attenårsdag, månedsstart) {
+        0
+    } ellers hvis dato_efter(attenårsdag, månedsslut) {
+        30
+    } ellers {
+        penge_mindste_beløb(attenårsdag.dag, 30)
+    }
+}
+| ligningslov10_11_dage_før_og_med_18_år(fakta: Ligningslov10Og11BidragFakta) -> match fakta.modtager {
+    | ÆgtefælleEllerTidligereÆgtefælle(_) -> 30
+    | Barn(barn) -> ligningslov10_11_dage_før_og_med_18_år_i_måneden(barn, fakta.forfaldsdato)
+}
+| ligningslov10_11_forholdsmæssigt_månedsbeløb_kroner(beløb_kroner: Heltal, dage: Heltal) -> beløb_kroner * dage / 30
+| ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 0
+| ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 0
+| ligningslov10_11_normalbidrag_pr_måned_kroner(indkomstår: Heltal) -> ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår) + ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår)
+| ligningslov10_11_bidragsbetingelser_opfyldt(fakta: Ligningslov10Og11BidragFakta) -> {
+    = fælles_betingelser = ligningslov10_11_retsgrundlag_omfattet(fakta) && ligningslov10_11_fastsættelse_dokumenteret(fakta.fastsættelse) && ligningslov10_11_betaling_forfalden_og_betalt(fakta) && ligningslov10_11_restancerækkefølge_opfyldt(fakta.restancestatus)
+    hvis ligningslov10_11_bidragsyder(fakta.rolle) {
+        fælles_betingelser && fakta.betalt_af_bidragsyderen_selv && ligningslov10_11_modtageridentitet_oplyst(fakta.rolle) && ligningslov10_11_betalingsvej_opfyldt(fakta) && ligningslov10_11_barnets_bopæl_opfyldt(fakta.modtager) && ligningslov10_11_offentlig_forsørgerpligt_opfyldt(fakta.modtager)
+    } ellers {
+        fælles_betingelser
+    }
+}
+| ligningslov10_11_børnefradrag_kroner(fakta: Ligningslov10Og11BidragFakta, dage_før_og_med_18_år: Heltal) -> match fakta.bidragsart {
+    | LøbendeUnderholdsbidrag -> penge_positivt_beløb(
+        ligningslov10_11_forholdsmæssigt_månedsbeløb_kroner(fakta.beløb_kroner - ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(fakta.forfaldsdato.år), dage_før_og_med_18_år)
+    )
+    | DåbsEllerNavngivningsbidrag(_) -> fakta.beløb_kroner
+    | KonfirmationsEllerNonfirmationsbidrag(_) -> fakta.beløb_kroner
+}
+| ligningslov10_11_ligningsmæssigt_fradrag_kroner(fakta: Ligningslov10Og11BidragFakta, betingelser_opfyldt: Boolsk, dage_før_og_med_18_år: Heltal) -> hvis betingelser_opfyldt == Falskt || ligningslov10_11_bidragsyder(fakta.rolle) == Falskt {
+    0
+} ellers {
+    match fakta.modtager {
+        | ÆgtefælleEllerTidligereÆgtefælle(_) -> fakta.beløb_kroner
+        | Barn(_) -> hvis dage_før_og_med_18_år > 0 { ligningslov10_11_børnefradrag_kroner(fakta, dage_før_og_med_18_år) } ellers { 0 }
+    }
+}
+| ligningslov10_11_barnets_personlige_indkomst_kroner(fakta: Ligningslov10Og11BidragFakta, dage_før_og_med_18_år: Heltal) -> match fakta.bidragsart {
+    | LøbendeUnderholdsbidrag -> penge_positivt_beløb(
+        ligningslov10_11_forholdsmæssigt_månedsbeløb_kroner(fakta.beløb_kroner - ligningslov10_11_normalbidrag_pr_måned_kroner(fakta.forfaldsdato.år), dage_før_og_med_18_år)
+    )
+    | DåbsEllerNavngivningsbidrag(_) -> penge_positivt_beløb(fakta.beløb_kroner - ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(fakta.forfaldsdato.år))
+    | KonfirmationsEllerNonfirmationsbidrag(_) -> penge_positivt_beløb(fakta.beløb_kroner - 3 * ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(fakta.forfaldsdato.år))
+}
+| ligningslov10_11_personlig_indkomst_kroner(fakta: Ligningslov10Og11BidragFakta, betingelser_opfyldt: Boolsk, dage_før_og_med_18_år: Heltal) -> hvis betingelser_opfyldt == Falskt || ligningslov10_11_bidragsyder(fakta.rolle) {
+    0
+} ellers {
+    match fakta.modtager {
+        | ÆgtefælleEllerTidligereÆgtefælle(_) -> fakta.beløb_kroner
+        | Barn(_) -> ligningslov10_11_barnets_personlige_indkomst_kroner(fakta, dage_før_og_med_18_år)
+    }
+}
+| ligningslov10_11_bidrag_resultat(fakta: Ligningslov10Og11BidragFakta) -> {
+    = input_gyldigt = ligningslov10_11_input_gyldigt(fakta)
+    = retsgrundlag_omfattet = ligningslov10_11_retsgrundlag_omfattet(fakta)
+    = historisk_virkningstidspunkt_opfyldt = ligningslov10_11_historisk_virkningstidspunkt_opfyldt(fakta.retsgrundlag)
+    = fastsættelse_dokumenteret = ligningslov10_11_fastsættelse_dokumenteret(fakta.fastsættelse)
+    = betaling_forfalden_og_betalt = ligningslov10_11_betaling_forfalden_og_betalt(fakta)
+    = betalingsvej_opfyldt = ligningslov10_11_betalingsvej_opfyldt(fakta)
+    = restancerækkefølge_opfyldt = ligningslov10_11_restancerækkefølge_opfyldt(fakta.restancestatus)
+    = modtageridentitet_oplyst = ligningslov10_11_modtageridentitet_oplyst(fakta.rolle)
+    = barnets_bopæl_opfyldt = ligningslov10_11_barnets_bopæl_opfyldt(fakta.modtager)
+    = offentlig_forsørgerpligt_opfyldt = ligningslov10_11_offentlig_forsørgerpligt_opfyldt(fakta.modtager)
+    = dage_før_og_med_18_år = ligningslov10_11_dage_før_og_med_18_år(fakta)
+    = bidragsbetingelser_opfyldt = input_gyldigt && ligningslov10_11_bidragsbetingelser_opfyldt(fakta)
+    Ligningslov10Og11BidragResultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        indkomstår_matcher = fakta.indkomstår == ligningslov10_11_indkomstår_for_fakta(fakta),
+        retsgrundlag_omfattet = retsgrundlag_omfattet,
+        historisk_virkningstidspunkt_opfyldt = historisk_virkningstidspunkt_opfyldt,
+        fastsættelse_dokumenteret = fastsættelse_dokumenteret,
+        betaling_forfalden_og_betalt = betaling_forfalden_og_betalt,
+        betalingsvej_opfyldt = betalingsvej_opfyldt,
+        restancerækkefølge_opfyldt = restancerækkefølge_opfyldt,
+        modtageridentitet_oplyst = modtageridentitet_oplyst,
+        barnets_bopæl_opfyldt = barnets_bopæl_opfyldt,
+        offentlig_forsørgerpligt_opfyldt = offentlig_forsørgerpligt_opfyldt,
+        dage_før_og_med_18_år_i_måneden = dage_før_og_med_18_år,
+        bidragsbetingelser_opfyldt = bidragsbetingelser_opfyldt,
+        ligningsmæssigt_fradrag_kroner = ligningslov10_11_ligningsmæssigt_fradrag_kroner(fakta, bidragsbetingelser_opfyldt, dage_før_og_med_18_år),
+        personlig_indkomst_kroner = ligningslov10_11_personlig_indkomst_kroner(fakta, bidragsbetingelser_opfyldt, dage_før_og_med_18_år)
+    )
+}
+| ligningslov10_11_identifikationer_entydige(bidrag: List(Ligningslov10Og11BidragFakta)) -> length(distinct(map(bidrag, |fakta: Ligningslov10Og11BidragFakta| fakta.identifikation))) == length(bidrag) && all(bidrag, |fakta: Ligningslov10Og11BidragFakta| fakta.identifikation != "")
+| ligningslov10_11_løbende_børnebidrag(fakta: Ligningslov10Og11BidragFakta) -> fakta.bidragsart == LøbendeUnderholdsbidrag && match fakta.modtager {
+    | Barn(_) -> Sandt
+    | _ -> Falskt
+}
+| ligningslov10_11_samme_børnebidragsmåned(a: Ligningslov10Og11BidragFakta, b: Ligningslov10Og11BidragFakta) -> a.identifikation != b.identifikation && ligningslov10_11_løbende_børnebidrag(a) && ligningslov10_11_løbende_børnebidrag(b) && a.rolle == b.rolle && a.modtager_identifikation == b.modtager_identifikation && a.forfaldsdato.år == b.forfaldsdato.år && a.forfaldsdato.måned == b.forfaldsdato.måned
+| ligningslov10_11_løbende_børnebidragsmåneder_entydige(bidrag: List(Ligningslov10Og11BidragFakta)) -> all(bidrag, |a: Ligningslov10Og11BidragFakta| all(bidrag, |b: Ligningslov10Og11BidragFakta| ligningslov10_11_samme_børnebidragsmåned(a, b) == Falskt))
+| ligningslov10_11_årsresultat(indkomstår: Heltal, input: Ligningslov10Og11Årsinput) -> {
+    = skatteår_understøttet = length(input.bidrag) == 0 || ligningslov10_11_skatteår_understøttet(indkomstår)
+    = identifikationer_entydige = ligningslov10_11_identifikationer_entydige(input.bidrag)
+    = løbende_børnebidragsmåneder_entydige = ligningslov10_11_løbende_børnebidragsmåneder_entydige(input.bidrag)
+    = resultater = map(input.bidrag, ligningslov10_11_bidrag_resultat)
+    = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && løbende_børnebidragsmåneder_entydige && all(input.bidrag, |fakta: Ligningslov10Og11BidragFakta| fakta.indkomstår == indkomstår) && all(resultater, |resultat: Ligningslov10Og11BidragResultat| resultat.input_gyldigt)
+    Ligningslov10Og11Årsresultat(
+        indkomstår = indkomstår,
+        input = input,
+        resultater = resultater,
+        skatteår_understøttet = skatteår_understøttet,
+        identifikationer_entydige = identifikationer_entydige,
+        løbende_børnebidragsmåneder_entydige = løbende_børnebidragsmåneder_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        samlet_ligningsmæssigt_fradrag_kroner = hvis alle_input_gyldige { foldl(resultater, 0, |sum_kroner: Heltal, resultat: Ligningslov10Og11BidragResultat| sum_kroner + resultat.ligningsmæssigt_fradrag_kroner) } ellers { 0 },
+        samlet_personlig_indkomst_kroner = hvis alle_input_gyldige { foldl(resultater, 0, |sum_kroner: Heltal, resultat: Ligningslov10Og11BidragResultat| sum_kroner + resultat.personlig_indkomst_kroner) } ellers { 0 },
+        kan_sammensættes = alle_input_gyldige
+    )
+}
+--@end:ligningsloven_par10_par11_underholdsbidrag--
+
+= ligningsloven_normalbidrag_2023_kilde = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2022/10315",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2023",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Grundbeløb 1.328 kr. og tillæg 172 kr. pr. måned"
+)
+= ligningsloven_normalbidrag_2024_kilde = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2023/9883",
+    identifier = "Vejledning om regulering pr. 1. januar 2024 af satser på Beskæftigelsesministeriets område",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Tabel 19: grundbeløb 1.370 kr. og tillæg 178 kr. pr. måned"
+)
+= ligningsloven_normalbidrag_2025_kilde = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2024/9967",
+    identifier = "Vejledning om regulering pr. 1. januar 2025 af satser på Beskæftigelsesministeriets område",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Tabel 19: grundbeløb 1.419 kr. og tillæg 184 kr. pr. måned"
+)
+= ligningsloven_normalbidrag_2026_kilde = Ligningslov10Og11KildeInfo(
+    url = "https://www.retsinformation.dk/eli/retsinfo/2025/10225",
+    identifier = "Indkomstoversigt for fastsættelse af børne- og ægtefællebidrag i 2026",
+    hentet_dato = "2026-08-09",
+    ændringsstatus = "Grundbeløb 1.483 kr. og tillæg 192 kr. pr. måned"
+)
+= ligningsloven_normalbidrag_metadata = Metadata(
+    attachments = (
+        HistoricalSource(value = ligningsloven_normalbidrag_2023_kilde),
+        HistoricalSource(value = ligningsloven_normalbidrag_2024_kilde),
+        ParameterSource(value = ligningsloven_normalbidrag_2025_kilde),
+        ParameterSource(value = ligningsloven_normalbidrag_2026_kilde),
+    )
+)
+
+--@label:ligningsloven_par10_par11_normalbidrag::meta:ligningsloven_normalbidrag_metadata--
+----
+Normalbidraget består i 2023 af et grundbeløb på 1.328 kr. om måneden og et
+tillæg på 172 kr. om måneden.
+
+Tabel 19 for 2024 angiver normalbidragets grundbeløb til 1.370 kr. om måneden
+og tillægget til 178 kr. om måneden.
+
+Tabel 19 for 2025 angiver normalbidragets grundbeløb til 1.419 kr. om måneden
+og tillægget til 184 kr. om måneden.
+
+Normalbidraget består i 2026 af et grundbeløb på 1.483 kr. om måneden og et
+tillæg på 192 kr. om måneden.
+----
+
+--@begin:ligningsloven_par10_par11_normalbidrag--
+| exception ligningslov10_11_2023_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1328 under indkomstår == 2023
+| exception ligningslov10_11_2024_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1370 under indkomstår == 2024
+| exception ligningslov10_11_2025_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1419 under indkomstår == 2025
+| exception ligningslov10_11_2026_normalbidrag_grundbeløb ligningslov10_11_normalbidrag_grundbeløb_pr_måned_kroner(indkomstår: Heltal) -> 1483 under indkomstår == 2026
+| exception ligningslov10_11_2023_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 172 under indkomstår == 2023
+| exception ligningslov10_11_2024_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 178 under indkomstår == 2024
+| exception ligningslov10_11_2025_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 184 under indkomstår == 2025
+| exception ligningslov10_11_2026_normalbidrag_tillæg ligningslov10_11_normalbidrag_tillæg_pr_måned_kroner(indkomstår: Heltal) -> 192 under indkomstår == 2026
+--@end:ligningsloven_par10_par11_normalbidrag--

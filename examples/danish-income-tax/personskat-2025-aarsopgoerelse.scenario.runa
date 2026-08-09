@@ -317,6 +317,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
         )],
         forenings_og_arbejdsløshedsydelser = []
     ),
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 

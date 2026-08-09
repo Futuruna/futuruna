@@ -1,0 +1,91 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| personskat_underhold_scenarie_personlig_indkomst(underholdsbidrag: Ligningslov10Og11Årsinput) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    underholdsbidrag = underholdsbidrag,
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| personskat_underhold_scenarie_lønmodtager(underholdsbidrag: Ligningslov10Og11Årsinput) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_underhold_scenarie_personlig_indkomst(underholdsbidrag),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_underhold_scenarie_input(underholdsbidrag: Ligningslov10Og11Årsinput) -> PersonskatInput(
+    lønmodtager = personskat_underhold_scenarie_lønmodtager(underholdsbidrag),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_underhold_scenarie_ægtefællebidrag(rolle: Ligningslov10Og11Bidragsrolle) -> Ligningslov10Og11BidragFakta(
+    identifikation = "ægtefællebidrag-2025",
+    indkomstår = 2025,
+    rolle = rolle,
+    retsgrundlag = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Sandt),
+    modtager_identifikation = "tidligere-ægtefælle",
+    modtager = ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen = Falskt),
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = Dato(år = 2025, måned = 12, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 12, dag = 1),
+    beløb_kroner = 24000,
+    betalt_af_bidragsyderen_selv = Sandt
+)
+| personskat_underhold_scenarie_børnebidrag() -> Ligningslov10Og11BidragFakta(
+    identifikation = "børnebidrag-marts-2025",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Sandt),
+    modtager_identifikation = "barn-a",
+    modtager = Barn(fakta = Ligningslov10Og11BarnFakta(
+        fødselsdato = Dato(år = 2012, måned = 6, dag = 10),
+        bopæl = HosDenAndenForælder,
+        forsørger_eller_bidragspligt_over_for_det_offentlige = Sandt
+    )),
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = Dato(år = 2025, måned = 3, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 3, dag = 1),
+    beløb_kroner = 1603,
+    betalt_af_bidragsyderen_selv = Sandt
+)
+
+= personskat_underhold_baseline = beregn_personskat(personskat_underhold_scenarie_input(ligningslov10_11_tomt_årsinput()))
+= personskat_underhold_ægtefælle_yder = beregn_personskat(personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_ægtefællebidrag(Bidragsyder(modtageridentitet_oplyst = Sandt))])))
+= personskat_underhold_ægtefælle_modtager = beregn_personskat(personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_ægtefællebidrag(Bidragsmodtager)])))
+= personskat_underhold_barn_yder = beregn_personskat(personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_børnebidrag()])))
+
+| personskat_underhold_ægtefællefradrag_når_skattepligtig_indkomst: personskat_underhold_ægtefælle_yder -> personskat_underhold_ægtefælle_yder.personlig_indkomst.underholdsbidrag.samlet_ligningsmæssigt_fradrag_kroner == 24000 && personskat_underhold_ægtefælle_yder.skat.samlede_ligningsmæssige_fradrag_kroner == personskat_underhold_baseline.skat.samlede_ligningsmæssige_fradrag_kroner + 24000 && personskat_underhold_ægtefælle_yder.skat.almindelig_skattepligtig_indkomst_kroner == personskat_underhold_baseline.skat.almindelig_skattepligtig_indkomst_kroner - 24000 && personskat_underhold_ægtefælle_yder.slutskat_øre < personskat_underhold_baseline.slutskat_øre
+| personskat_underhold_ægtefælleindkomst_uden_nyt_am_bidrag: personskat_underhold_ægtefælle_modtager -> personskat_underhold_ægtefælle_modtager.personlig_indkomst.underholdsbidrag.samlet_personlig_indkomst_kroner == 24000 && personskat_underhold_ægtefælle_modtager.skat.personlig_indkomst_efter_am_kroner == personskat_underhold_baseline.skat.personlig_indkomst_efter_am_kroner + 24000 && personskat_underhold_ægtefælle_modtager.skat.arbejdsmarkedsbidrag_kroner == personskat_underhold_baseline.skat.arbejdsmarkedsbidrag_kroner && personskat_underhold_ægtefælle_modtager.slutskat_øre > personskat_underhold_baseline.slutskat_øre
+| personskat_underhold_børnebidrag_anvender_kun_grundbeløbet_som_fradrag: personskat_underhold_barn_yder -> personskat_underhold_barn_yder.personlig_indkomst.underholdsbidrag.samlet_ligningsmæssigt_fradrag_kroner == 1419 && personskat_underhold_barn_yder.skat.samlede_ligningsmæssige_fradrag_kroner == personskat_underhold_baseline.skat.samlede_ligningsmæssige_fradrag_kroner + 1419 && personskat_underhold_barn_yder.slutskat_øre < personskat_underhold_baseline.slutskat_øre
+
+# PersonskatUnderholdArbejdsbogskilde = ÆgtefællebidragBetalt2025
+
+@ calculate("Underholdsbidrag til kanonisk Personskat-arbejdsbog")
+| personskat_underhold_kildefakta_til_arbejdsbog(kilde: PersonskatUnderholdArbejdsbogskilde) -> match kilde {
+    | ÆgtefællebidragBetalt2025 -> personskat_underhold_scenarie_input(Ligningslov10Og11Årsinput(bidrag = [personskat_underhold_scenarie_ægtefællebidrag(Bidragsyder(modtageridentitet_oplyst = Sandt))]))
+}
+
+? personskat_underhold_ægtefællefradrag_når_skattepligtig_indkomst
+? personskat_underhold_ægtefælleindkomst_uden_nyt_am_bidrag
+? personskat_underhold_børnebidrag_anvender_kun_grundbeløbet_som_fradrag

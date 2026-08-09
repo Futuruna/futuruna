@@ -1,0 +1,286 @@
+@ sprog da
+
+@ importer ./ligningsloven - par10 - par11 - underhold
+
+| underhold_scenarie_barn(fødselsdato: Dato, bopæl: Ligningslov10Og11BarnetsBopæl, offentlig_forsørgerpligt: Boolsk) -> Ligningslov10Og11BarnFakta(
+    fødselsdato = fødselsdato,
+    bopæl = bopæl,
+    forsørger_eller_bidragspligt_over_for_det_offentlige = offentlig_forsørgerpligt
+)
+
+| underhold_scenarie_børnebidrag(identifikation: Tekst, indkomstår: Heltal, rolle: Ligningslov10Og11Bidragsrolle, retsgrundlag: Ligningslov10Og11Retsgrundlag, fastsættelse: Ligningslov10Og11Fastsættelse, bidragsart: Ligningslov10Og11Bidragsart, barn: Ligningslov10Og11BarnFakta, forfaldsdato: Dato, beløb_kroner: Heltal) -> Ligningslov10Og11BidragFakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    rolle = rolle,
+    retsgrundlag = retsgrundlag,
+    modtager_identifikation = "barn-a",
+    modtager = Barn(fakta = barn),
+    fastsættelse = fastsættelse,
+    bidragsart = bidragsart,
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = forfaldsdato,
+    betalingsdato = forfaldsdato,
+    beløb_kroner = beløb_kroner,
+    betalt_af_bidragsyderen_selv = Sandt
+)
+
+| underhold_scenarie_ægtefællebidrag(identifikation: Tekst, rolle: Ligningslov10Og11Bidragsrolle, retsgrundlag: Ligningslov10Og11Retsgrundlag, fastsættelse: Ligningslov10Og11Fastsættelse, beløb_kroner: Heltal) -> Ligningslov10Og11BidragFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    rolle = rolle,
+    retsgrundlag = retsgrundlag,
+    modtager_identifikation = "ægtefælle-a",
+    modtager = ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen = Falskt),
+    fastsættelse = fastsættelse,
+    bidragsart = LøbendeUnderholdsbidrag,
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = Dato(år = 2025, måned = 12, dag = 1),
+    betalingsdato = Dato(år = 2025, måned = 12, dag = 1),
+    beløb_kroner = beløb_kroner,
+    betalt_af_bidragsyderen_selv = Sandt
+)
+
+= underhold_barn_under_18 = underhold_scenarie_barn(
+    fødselsdato = Dato(år = 2012, måned = 6, dag = 10),
+    bopæl = HosDenAndenForælder,
+    offentlig_forsørgerpligt = Sandt
+)
+= underhold_barn_fylder_18_i_april = underhold_scenarie_barn(
+    fødselsdato = Dato(år = 2007, måned = 4, dag = 5),
+    bopæl = HosDenAndenForælder,
+    offentlig_forsørgerpligt = Sandt
+)
+= underhold_barn_hos_bidragsyder = underhold_scenarie_barn(
+    fødselsdato = Dato(år = 2012, måned = 6, dag = 10),
+    bopæl = HosBidragsyderen,
+    offentlig_forsørgerpligt = Sandt
+)
+= underhold_barn_uden_offentlig_pligt = underhold_scenarie_barn(
+    fødselsdato = Dato(år = 2012, måned = 6, dag = 10),
+    bopæl = HosDenAndenForælder,
+    offentlig_forsørgerpligt = Falskt
+)
+= underhold_skilsmisse_omfattet = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Sandt)
+= underhold_separation_omfattet = Separation(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Sandt)
+
+= underhold_ægtefælle_yder = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_ægtefællebidrag(
+    identifikation = "ægtefælle-yder",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = DokumenteretPrivatAftale,
+    beløb_kroner = 24000
+)]))
+= underhold_ægtefælle_modtager = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_ægtefællebidrag(
+    identifikation = "ægtefælle-modtager",
+    rolle = Bidragsmodtager,
+    retsgrundlag = underhold_separation_omfattet,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    beløb_kroner = 24000
+)]))
+= underhold_ægtefælle_historisk_ikke_omfattet = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_ægtefællebidrag(
+    identifikation = "ægtefælle-historisk-ikke-omfattet",
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = Skilsmisse(fastsat_eller_ændret_efter_lovens_ikrafttrædelse = Falskt),
+    fastsættelse = DokumenteretPrivatAftale,
+    beløb_kroner = 24000
+)]))
+= underhold_faktisk_adskillelse_godkendt = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_ægtefællebidrag(
+    identifikation = "faktisk-adskillelse-godkendt",
+    rolle = Bidragsmodtager,
+    retsgrundlag = FaktiskAdskillelse(
+        faktisk_adskillelse_dokumenteret = Sandt,
+        ægtefællerne_ansat_selvstændigt_til_statsskat = Sandt
+    ),
+    fastsættelse = GodkendtAfOffentligMyndighed,
+    beløb_kroner = 18000
+)]))
+= underhold_faktisk_adskillelse_uden_offentlig_godkendelse = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_ægtefællebidrag(
+    identifikation = "faktisk-adskillelse-privat",
+    rolle = Bidragsmodtager,
+    retsgrundlag = FaktiskAdskillelse(
+        faktisk_adskillelse_dokumenteret = Sandt,
+        ægtefællerne_ansat_selvstændigt_til_statsskat = Sandt
+    ),
+    fastsættelse = DokumenteretPrivatAftale,
+    beløb_kroner = 18000
+)]))
+
+= underhold_barn_normalbidrag_yder = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-normal-yder",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_separation_omfattet,
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 3, dag = 1),
+    beløb_kroner = 1603
+)]))
+= underhold_barn_forhøjet_modtager = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-forhøjet-modtager",
+    indkomstår = 2025,
+    rolle = Bidragsmodtager,
+    retsgrundlag = BarnUdenForÆgteskab,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 3, dag = 1),
+    beløb_kroner = 2000
+)]))
+= underhold_barn_fylder_18 = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-fylder-18",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_fylder_18_i_april,
+    forfaldsdato = Dato(år = 2025, måned = 4, dag = 1),
+    beløb_kroner = 1603
+)]))
+= underhold_barn_dåb_modtager = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-dåb-modtager",
+    indkomstår = 2025,
+    rolle = Bidragsmodtager,
+    retsgrundlag = BarnUdenForÆgteskab,
+    fastsættelse = GodkendtAfOffentligMyndighed,
+    bidragsart = DåbsEllerNavngivningsbidrag(dokumenteret_til_begivenhedsudgifter = Sandt),
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 6, dag = 1),
+    beløb_kroner = 2000
+)]))
+= underhold_barn_konfirmation_modtager = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-konfirmation-modtager",
+    indkomstår = 2025,
+    rolle = Bidragsmodtager,
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    bidragsart = KonfirmationsEllerNonfirmationsbidrag(dokumenteret_til_begivenhedsudgifter = Sandt),
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 5, dag = 1),
+    beløb_kroner = 5000
+)]))
+= underhold_barn_konfirmation_yder = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [underhold_scenarie_børnebidrag(
+    identifikation = "barn-konfirmation-yder",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = FastsatAfOffentligMyndighed,
+    bidragsart = KonfirmationsEllerNonfirmationsbidrag(dokumenteret_til_begivenhedsudgifter = Sandt),
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 5, dag = 1),
+    beløb_kroner = 5000
+)]))
+
+= underhold_barn_mangler_identitet = ligningslov10_11_bidrag_resultat(underhold_scenarie_børnebidrag(
+    identifikation = "barn-mangler-identitet",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Falskt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 7, dag = 1),
+    beløb_kroner = 1603
+))
+= underhold_barn_bor_hos_yder = ligningslov10_11_bidrag_resultat(underhold_scenarie_børnebidrag(
+    identifikation = "barn-hos-yder",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_hos_bidragsyder,
+    forfaldsdato = Dato(år = 2025, måned = 8, dag = 1),
+    beløb_kroner = 1603
+))
+= underhold_barn_uden_offentlig_pligt_resultat = ligningslov10_11_bidrag_resultat(underhold_scenarie_børnebidrag(
+    identifikation = "barn-uden-pligt",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = BarnUdenForÆgteskab,
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_uden_offentlig_pligt,
+    forfaldsdato = Dato(år = 2025, måned = 9, dag = 1),
+    beløb_kroner = 1603
+))
+
+= underhold_dubleret_måned_fakta = underhold_scenarie_børnebidrag(
+    identifikation = "barn-måned-a",
+    indkomstår = 2025,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_separation_omfattet,
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    barn = underhold_barn_under_18,
+    forfaldsdato = Dato(år = 2025, måned = 10, dag = 1),
+    beløb_kroner = 1603
+)
+= underhold_dubleret_måned = ligningslov10_11_årsresultat(2025, Ligningslov10Og11Årsinput(bidrag = [
+    underhold_dubleret_måned_fakta,
+    Ligningslov10Og11BidragFakta(
+        identifikation = "barn-måned-b",
+        indkomstår = underhold_dubleret_måned_fakta.indkomstår,
+        rolle = underhold_dubleret_måned_fakta.rolle,
+        retsgrundlag = underhold_dubleret_måned_fakta.retsgrundlag,
+        modtager_identifikation = underhold_dubleret_måned_fakta.modtager_identifikation,
+        modtager = underhold_dubleret_måned_fakta.modtager,
+        fastsættelse = underhold_dubleret_måned_fakta.fastsættelse,
+        bidragsart = underhold_dubleret_måned_fakta.bidragsart,
+        betalingsvej = underhold_dubleret_måned_fakta.betalingsvej,
+        restancestatus = underhold_dubleret_måned_fakta.restancestatus,
+        forfaldsdato = underhold_dubleret_måned_fakta.forfaldsdato,
+        betalingsdato = underhold_dubleret_måned_fakta.betalingsdato,
+        beløb_kroner = 500,
+        betalt_af_bidragsyderen_selv = Sandt
+    )
+]))
+
+= underhold_tomt_ikke_understøttet_år = ligningslov10_11_årsresultat(2022, ligningslov10_11_tomt_årsinput())
+= underhold_ikke_tomt_ikke_understøttet_år = ligningslov10_11_årsresultat(2022, Ligningslov10Og11Årsinput(bidrag = [Ligningslov10Og11BidragFakta(
+    identifikation = "2022-ægtefælle",
+    indkomstår = 2022,
+    rolle = Bidragsyder(modtageridentitet_oplyst = Sandt),
+    retsgrundlag = underhold_skilsmisse_omfattet,
+    modtager_identifikation = "ægtefælle-2022",
+    modtager = ÆgtefælleEllerTidligereÆgtefælle(parterne_bor_sammen = Falskt),
+    fastsættelse = DokumenteretPrivatAftale,
+    bidragsart = LøbendeUnderholdsbidrag,
+    betalingsvej = BetaltTilDenBidragsberettigede,
+    restancestatus = OrdinærBetaling,
+    forfaldsdato = Dato(år = 2022, måned = 12, dag = 1),
+    betalingsdato = Dato(år = 2022, måned = 12, dag = 1),
+    beløb_kroner = 12000,
+    betalt_af_bidragsyderen_selv = Sandt
+)]))
+
+| underhold_ægtefællebidrag_fradrages_fuldt: underhold_ægtefælle_yder -> underhold_ægtefælle_yder.kan_sammensættes && underhold_ægtefælle_yder.samlet_ligningsmæssigt_fradrag_kroner == 24000 && underhold_ægtefælle_yder.samlet_personlig_indkomst_kroner == 0
+| underhold_ægtefællebidrag_beskattes_fuldt: underhold_ægtefælle_modtager -> underhold_ægtefælle_modtager.kan_sammensættes && underhold_ægtefælle_modtager.samlet_ligningsmæssigt_fradrag_kroner == 0 && underhold_ægtefælle_modtager.samlet_personlig_indkomst_kroner == 24000
+| underhold_historisk_virkningstidspunkt_fejler_lukket: underhold_ægtefælle_historisk_ikke_omfattet -> underhold_ægtefælle_historisk_ikke_omfattet.resultater[0].historisk_virkningstidspunkt_opfyldt == Falskt && underhold_ægtefælle_historisk_ikke_omfattet.resultater[0].retsgrundlag_omfattet == Falskt && underhold_ægtefælle_historisk_ikke_omfattet.samlet_ligningsmæssigt_fradrag_kroner == 0
+| underhold_faktisk_adskillelse_kræver_offentlig_godkendelse: underhold_faktisk_adskillelse_godkendt -> underhold_faktisk_adskillelse_godkendt.samlet_personlig_indkomst_kroner == 18000 && underhold_faktisk_adskillelse_uden_offentlig_godkendelse.samlet_personlig_indkomst_kroner == 0 && underhold_faktisk_adskillelse_uden_offentlig_godkendelse.resultater[0].retsgrundlag_omfattet == Falskt
+| underhold_normalbidrag_fratrækker_kun_tillægget: underhold_barn_normalbidrag_yder -> underhold_barn_normalbidrag_yder.kan_sammensættes && underhold_barn_normalbidrag_yder.samlet_ligningsmæssigt_fradrag_kroner == 1419
+| underhold_barn_beskattes_over_normalbidraget: underhold_barn_forhøjet_modtager -> underhold_barn_forhøjet_modtager.kan_sammensættes && underhold_barn_forhøjet_modtager.samlet_personlig_indkomst_kroner == 397
+| underhold_18_aarsmaaned_fordeles_i_tredivtedele: underhold_barn_fylder_18 -> underhold_barn_fylder_18.resultater[0].dage_før_og_med_18_år_i_måneden == 5 && underhold_barn_fylder_18.samlet_ligningsmæssigt_fradrag_kroner == 236
+| underhold_særlige_bidrag_har_lovens_skattefri_grænser: underhold_barn_dåb_modtager -> underhold_barn_dåb_modtager.samlet_personlig_indkomst_kroner == 581 && underhold_barn_konfirmation_modtager.samlet_personlig_indkomst_kroner == 743 && underhold_barn_konfirmation_yder.samlet_ligningsmæssigt_fradrag_kroner == 5000
+| underhold_manglende_identitet_bopæl_eller_pligt_giver_intet_fradrag: underhold_barn_mangler_identitet -> underhold_barn_mangler_identitet.input_gyldigt && underhold_barn_mangler_identitet.bidragsbetingelser_opfyldt == Falskt && underhold_barn_mangler_identitet.ligningsmæssigt_fradrag_kroner == 0 && underhold_barn_bor_hos_yder.barnets_bopæl_opfyldt == Falskt && underhold_barn_bor_hos_yder.ligningsmæssigt_fradrag_kroner == 0 && underhold_barn_uden_offentlig_pligt_resultat.offentlig_forsørgerpligt_opfyldt == Falskt && underhold_barn_uden_offentlig_pligt_resultat.ligningsmæssigt_fradrag_kroner == 0
+| underhold_samme_barnemåned_skal_aggregeres: underhold_dubleret_måned -> underhold_dubleret_måned.løbende_børnebidragsmåneder_entydige == Falskt && underhold_dubleret_måned.kan_sammensættes == Falskt && underhold_dubleret_måned.samlet_ligningsmæssigt_fradrag_kroner == 0
+| underhold_tomt_historisk_input_er_neutralt: underhold_tomt_ikke_understøttet_år -> underhold_tomt_ikke_understøttet_år.skatteår_understøttet && underhold_tomt_ikke_understøttet_år.kan_sammensættes && underhold_tomt_ikke_understøttet_år.samlet_ligningsmæssigt_fradrag_kroner == 0 && underhold_tomt_ikke_understøttet_år.samlet_personlig_indkomst_kroner == 0
+| underhold_ikke_tomt_ukendt_år_fejler_lukket: underhold_ikke_tomt_ikke_understøttet_år -> underhold_ikke_tomt_ikke_understøttet_år.skatteår_understøttet == Falskt && underhold_ikke_tomt_ikke_understøttet_år.kan_sammensættes == Falskt
+| underhold_historiske_normalbidrag_er_kildebelagt: underhold_tomt_ikke_understøttet_år -> ligningslov10_11_normalbidrag_pr_måned_kroner(2023) == 1500 && ligningslov10_11_normalbidrag_pr_måned_kroner(2024) == 1548 && ligningslov10_11_normalbidrag_pr_måned_kroner(2025) == 1603 && ligningslov10_11_normalbidrag_pr_måned_kroner(2026) == 1675
+
+? underhold_ægtefællebidrag_fradrages_fuldt
+? underhold_ægtefællebidrag_beskattes_fuldt
+? underhold_historisk_virkningstidspunkt_fejler_lukket
+? underhold_faktisk_adskillelse_kræver_offentlig_godkendelse
+? underhold_normalbidrag_fratrækker_kun_tillægget
+? underhold_barn_beskattes_over_normalbidraget
+? underhold_18_aarsmaaned_fordeles_i_tredivtedele
+? underhold_særlige_bidrag_har_lovens_skattefri_grænser
+? underhold_manglende_identitet_bopæl_eller_pligt_giver_intet_fradrag
+? underhold_samme_barnemåned_skal_aggregeres
+? underhold_tomt_historisk_input_er_neutralt
+? underhold_ikke_tomt_ukendt_år_fejler_lukket
+? underhold_historiske_normalbidrag_er_kildebelagt

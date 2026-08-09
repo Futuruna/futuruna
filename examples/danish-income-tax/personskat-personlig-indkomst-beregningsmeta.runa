@@ -180,6 +180,198 @@
     unit = Some("kr./år")
 )
 
+= personskat_underhold_felt_samling = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag),
+    label = "Underholds- og børnebidrag",
+    question = Some("Hvilke betalte eller modtagne underholds- og børnebidrag vedrører personen i indkomståret?"),
+    help = Some("Opret én række pr. forfaldent månedsbidrag eller særligt bidrag. Flere betalinger for samme barn og måned skal samles i én række."),
+    unit = None
+)
+= personskat_underhold_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::identifikation),
+    label = "Bidragets identifikation",
+    question = Some("Hvilken entydig identifikation har bidraget?"),
+    help = Some("Brug en stabil reference fra aftalen, afgørelsen, betalingsbilaget eller årsopgørelsen."),
+    unit = None
+)
+= personskat_underhold_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::indkomstår),
+    label = "Bidragets indkomstår",
+    question = Some("I hvilket indkomstår skal bidraget fradrages eller beskattes?"),
+    help = Some("For bidragsyderen er det som udgangspunkt betalingsåret, dog først forfaldsåret ved forudbetaling. For modtageren anvendes modtagelsesåret."),
+    unit = Some("år")
+)
+= personskat_underhold_felt_rolle = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::rolle::$variant),
+    label = "Personens rolle i bidraget",
+    question = Some("Betaler eller modtager personen dette bidrag?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_modtageridentitet_oplyst = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::rolle::Bidragsyder::modtageridentitet_oplyst),
+    label = "Modtagerens identitet er oplyst",
+    question = Some("Er modtagerens identitet oplyst til Skatteforvaltningen eller anset for afgivet efter skatteindberetningslovens § 41?"),
+    help = Some("Identitetsoplysningen er en betingelse for bidragsyderens fradrag efter LL § 10, stk. 5, og § 11, stk. 2."),
+    unit = None
+)
+= personskat_underhold_felt_retsgrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::$variant),
+    label = "Bidragets familiemæssige retsgrundlag",
+    question = Some("Skyldes bidraget skilsmisse, separation, faktisk adskillelse eller et barn uden for ægteskab?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_skilsmisse_virkningstidspunkt = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::Skilsmisse::fastsat_eller_ændret_efter_lovens_ikrafttrædelse),
+    label = "Skilsmissebidraget er omfattet af LL § 10, stk. 4",
+    question = Some("Er skilsmissebidraget fastsat eller ændret efter ikrafttrædelsen af lov nr. 538 af 22. december 1941?"),
+    help = Some("LL § 10, stk. 4, udelukker ældre uændrede skilsmissebidrag fra reglerne."),
+    unit = None
+)
+= personskat_underhold_felt_separation_virkningstidspunkt = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::Separation::fastsat_eller_ændret_efter_lovens_ikrafttrædelse),
+    label = "Separationsbidraget er omfattet af LL § 10, stk. 4",
+    question = Some("Er separationsbidraget fastsat eller ændret efter ikrafttrædelsen af lov nr. 517 af 19. december 1942?"),
+    help = Some("LL § 10, stk. 4, udelukker ældre uændrede separationsbidrag fra reglerne."),
+    unit = None
+)
+= personskat_underhold_felt_faktisk_adskillelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::FaktiskAdskillelse::faktisk_adskillelse_dokumenteret),
+    label = "Faktisk adskillelse er dokumenteret",
+    question = Some("Er det dokumenteret, at ægtefællernes samliv faktisk er ophævet?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_selvstændig_statsskat = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::retsgrundlag::FaktiskAdskillelse::ægtefællerne_ansat_selvstændigt_til_statsskat),
+    label = "Ægtefællerne er ansat selvstændigt til statsskat",
+    question = Some("Er ægtefællerne som følge af den faktiske adskillelse ansat selvstændigt til statsskat?"),
+    help = Some("Betingelsen følger af LL § 10, stk. 3."),
+    unit = None
+)
+= personskat_underhold_felt_modtager_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager_identifikation),
+    label = "Bidragsmodtagerens identifikation",
+    question = Some("Hvilken stabil identifikation har den ægtefælle eller det barn, som bidraget vedrører?"),
+    help = Some("Brug en pseudonym eller intern identifikation i delte arbejdsbøger; CPR-nummer skal ikke indgå i kode eller scenarier."),
+    unit = None
+)
+= personskat_underhold_felt_modtagerart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::$variant),
+    label = "Bidragsmodtagerens art",
+    question = Some("Vedrører bidraget en ægtefælle eller tidligere ægtefælle eller et barn?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_ægtefæller_bor_sammen = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::ÆgtefælleEllerTidligereÆgtefælle::parterne_bor_sammen),
+    label = "Parterne bor sammen",
+    question = Some("Boede bidragsyderen og ægtefællen eller den tidligere ægtefælle sammen, da bidraget vedrørte dem?"),
+    help = Some("Der er ikke fradrag for ægtefællebidrag, mens parterne bor sammen."),
+    unit = None
+)
+= personskat_underhold_felt_barn_fødselsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::år), label = "Barnets fødselsdato (ISO 8601) - år", question = Some("I hvilket år blev barnet født?"), help = Some("Fødselsdatoen bruges til at afgrænse fradraget til og med barnets 18-årsdag."), unit = Some("år"))
+= personskat_underhold_felt_barn_fødselsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::måned), label = "Barnets fødselsdato (ISO 8601) - måned", question = Some("I hvilken måned blev barnet født?"), help = None, unit = Some("måned"))
+= personskat_underhold_felt_barn_fødselsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::fødselsdato::dag), label = "Barnets fødselsdato (ISO 8601) - dag", question = Some("På hvilken dag i måneden blev barnet født?"), help = None, unit = Some("dag"))
+= personskat_underhold_felt_barn_bopæl = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::bopæl),
+    label = "Barnets bopæl i bidragsperioden",
+    question = Some("Boede barnet hos bidragsyderen, hos den anden forælder eller på delt bopæl med hvilken folkeregisteradresse?"),
+    help = Some("Ved delt bopæl er folkeregisteradressen afgørende for, hvilken forælder der kan få fradrag."),
+    unit = None
+)
+= personskat_underhold_felt_offentlig_forsørgerpligt = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::modtager::Barn::fakta::forsørger_eller_bidragspligt_over_for_det_offentlige),
+    label = "Offentlig forsørger- eller bidragspligt",
+    question = Some("Påhviler der bidragsyderen forsørger- eller bidragspligt over for det offentlige for barnet?"),
+    help = Some("Betingelsen følger af LL § 10, stk. 2, og § 11, stk. 2."),
+    unit = None
+)
+= personskat_underhold_felt_fastsættelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::fastsættelse),
+    label = "Bidragets fastsættelse",
+    question = Some("Er bidraget fastsat i en dokumenteret privat aftale, fastsat eller godkendt af en offentlig myndighed eller ikke dokumenteret?"),
+    help = Some("Ved faktisk adskillelse kræver LL § 10, stk. 3, offentlig fastsættelse eller godkendelse."),
+    unit = None
+)
+= personskat_underhold_felt_bidragstype = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::$variant),
+    label = "Bidragets art",
+    question = Some("Er bidraget løbende underhold, et dåbs- eller navngivningsbidrag eller et konfirmations- eller nonfirmationsbidrag?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_dåbsudgift_dokumenteret = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::DåbsEllerNavngivningsbidrag::dokumenteret_til_begivenhedsudgifter),
+    label = "Dåbs- eller navngivningsudgiften er dokumenteret",
+    question = Some("Er det dokumenteret, at bidraget er gået til udgifter ved barnets dåb eller navngivning?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_konfirmationsudgift_dokumenteret = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::bidragsart::KonfirmationsEllerNonfirmationsbidrag::dokumenteret_til_begivenhedsudgifter),
+    label = "Konfirmations- eller nonfirmationsudgiften er dokumenteret",
+    question = Some("Er det dokumenteret, at bidraget er gået til udgifter ved barnets konfirmation eller nonfirmation?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_betalingsvej = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::$variant),
+    label = "Bidragets betalingsvej",
+    question = Some("Blev bidraget betalt til den bidragsberettigede, gennem Udbetaling Danmark, direkte til barnet eller ved dokumenteret modregning?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_direkte_til_barn = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::BetaltDirekteTilBarnet::frigørende_virkning_dokumenteret),
+    label = "Direkte betaling til barnet har frigørende virkning",
+    question = Some("Dokumenterer aftalen, at den direkte betaling til barnet sker med frigørende virkning for bidragsyderen?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_modregning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsvej::ModregnetIGensidigtBidrag::modregningen_dokumenteret),
+    label = "Gensidig modregning er dokumenteret",
+    question = Some("Er den gensidige bidragspligt og modregningen dokumenteret?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_restancestatus = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::restancestatus::$variant),
+    label = "Bidragets restancestatus",
+    question = Some("Er betalingen ordinær eller et afdrag på en offentlig bidragsrestance?"),
+    help = None,
+    unit = None
+)
+= personskat_underhold_felt_restancerækkefølge = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::restancestatus::OffentligBidragsrestance::tidligste_forskudsvis_udbetalte_bidrag_dækket_først),
+    label = "Ældste offentlige bidragsrestance dækkes først",
+    question = Some("Er betalingen henført til de først forskudsvis udbetalte børnebidrag før senere restancer?"),
+    help = Some("Rækkefølgen følger LL § 10, stk. 2, og § 11, stk. 2."),
+    unit = None
+)
+= personskat_underhold_felt_forfaldsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::år), label = "Bidragets forfaldsdato (ISO 8601) - år", question = Some("I hvilket år forfaldt bidraget?"), help = None, unit = Some("år"))
+= personskat_underhold_felt_forfaldsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::måned), label = "Bidragets forfaldsdato (ISO 8601) - måned", question = Some("I hvilken måned forfaldt bidraget?"), help = Some("Løbende børnebidrag skal samles til én række pr. barn og forfaldsmåned."), unit = Some("måned"))
+= personskat_underhold_felt_forfaldsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::forfaldsdato::dag), label = "Bidragets forfaldsdato (ISO 8601) - dag", question = Some("På hvilken dag forfaldt bidraget?"), help = None, unit = Some("dag"))
+= personskat_underhold_felt_betalingsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::år), label = "Bidragets betalingsdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("år"))
+= personskat_underhold_felt_betalingsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::måned), label = "Bidragets betalingsdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("måned"))
+= personskat_underhold_felt_betalingsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalingsdato::dag), label = "Bidragets betalingsdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget faktisk betalt eller modtaget?"), help = None, unit = Some("dag"))
+= personskat_underhold_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::beløb_kroner),
+    label = "Betalt eller modtaget bidrag",
+    question = Some("Hvor stort et bidrag blev faktisk betalt eller modtaget for denne forfaldspost?"),
+    help = Some("Angiv bruttobeløbet før Futuruna anvender tillægget, normalbidraget eller de særlige skattefri grænser."),
+    unit = Some("kr.")
+)
+= personskat_underhold_felt_betalt_af_yder = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::underholdsbidrag::bidrag::betalt_af_bidragsyderen_selv),
+    label = "Bidraget er betalt af bidragsyderen selv",
+    question = Some("Er bidraget faktisk afholdt af den person, som kræver fradraget?"),
+    help = Some("Bidrag dækket af det offentlige uden betaling fra bidragsyderen giver ikke fradrag."),
+    unit = None
+)
+
 = personskat_personlig_indkomst_beregningsmeta = TypetBeregningsmeta(
     felter = [
         personskat_personlig_indkomst_felt_arbejdsgiverydelse_id,
@@ -206,7 +398,42 @@
         personskat_personlig_indkomst_felt_virksomhedsindtægt_beløb,
         personskat_personlig_indkomst_felt_virksomhedsudgift_id,
         personskat_personlig_indkomst_felt_virksomhedsudgift_afgrænsning,
-        personskat_personlig_indkomst_felt_virksomhedsudgift_beløb
+        personskat_personlig_indkomst_felt_virksomhedsudgift_beløb,
+        personskat_underhold_felt_samling,
+        personskat_underhold_felt_identifikation,
+        personskat_underhold_felt_indkomstår,
+        personskat_underhold_felt_rolle,
+        personskat_underhold_felt_modtageridentitet_oplyst,
+        personskat_underhold_felt_retsgrundlag,
+        personskat_underhold_felt_skilsmisse_virkningstidspunkt,
+        personskat_underhold_felt_separation_virkningstidspunkt,
+        personskat_underhold_felt_faktisk_adskillelse,
+        personskat_underhold_felt_selvstændig_statsskat,
+        personskat_underhold_felt_modtager_identifikation,
+        personskat_underhold_felt_modtagerart,
+        personskat_underhold_felt_ægtefæller_bor_sammen,
+        personskat_underhold_felt_barn_fødselsår,
+        personskat_underhold_felt_barn_fødselsmåned,
+        personskat_underhold_felt_barn_fødselsdag,
+        personskat_underhold_felt_barn_bopæl,
+        personskat_underhold_felt_offentlig_forsørgerpligt,
+        personskat_underhold_felt_fastsættelse,
+        personskat_underhold_felt_bidragstype,
+        personskat_underhold_felt_dåbsudgift_dokumenteret,
+        personskat_underhold_felt_konfirmationsudgift_dokumenteret,
+        personskat_underhold_felt_betalingsvej,
+        personskat_underhold_felt_direkte_til_barn,
+        personskat_underhold_felt_modregning,
+        personskat_underhold_felt_restancestatus,
+        personskat_underhold_felt_restancerækkefølge,
+        personskat_underhold_felt_forfaldsår,
+        personskat_underhold_felt_forfaldsmåned,
+        personskat_underhold_felt_forfaldsdag,
+        personskat_underhold_felt_betalingsår,
+        personskat_underhold_felt_betalingsmåned,
+        personskat_underhold_felt_betalingsdag,
+        personskat_underhold_felt_beløb,
+        personskat_underhold_felt_betalt_af_yder
     ],
     spørgsmål = [],
     beløbsfelter = [],
@@ -216,7 +443,10 @@
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par19_stk1),
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
+        DependencySource(value = ligningsloven_lbk1500_par10_par11),
         Guidance(value = skat_gruppeliv_vejledning),
+        Guidance(value = skat_underholdsbidrag_børn_vejledning),
+        Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
     )
 )
 
