@@ -59,8 +59,8 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
 # Børnebidragslov19Forfaldsgrundlag = StraksVedFastsættelsenEfterFødslen | VedFødslenEfterFastsættelseFørFødslen | AndetTidspunktFastsatIAfgørelsen(dokumentreference: Tekst) | StraksVedAbortbidragetsFastsættelse
 # Børnebidragslov19Skatterolle = Bidragsyder(modtageridentitet_oplyst: Boolsk, betalt_af_bidragsyderen_selv: Boolsk) | MorSomRetligBidragsmodtager | BarnMedSkattemæssigHenføring
 # Børnebidragslov19Navngivningsskattekontekst = UdenNavngivningsskattekontekst | MedNavngivningsskattekontekst(retsgrundlag: Ligningslov10Og11Retsgrundlag, barnets_bopæl: Ligningslov10Og11BarnetsBopæl, forsørger_eller_bidragspligt_over_for_det_offentlige: Boolsk)
-# Børnebidragslov19BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Børnebidragslov19Skatterolle, hændelse: Børnebidragslov19Hændelse, bidragsart: Børnebidragslov19Bidragsart, bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag, retlig_modtager: Børnebidragslov19RetligModtager, fastsættelse: Børnebidragslov19Fastsættelse, fastsættelsesdato: Dato, forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, barnets_identifikation: Tekst, navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst)
-# Børnebidragslov19BidragResultat(fakta: Børnebidragslov19BidragFakta, input_gyldigt: Boolsk, hændelse_og_bidragsart_svarer: Boolsk, bidragsydergrundlag_opfyldt: Boolsk, retlig_modtager_gyldig: Boolsk, fastsættelse_dokumenteret: Boolsk, barselsperiode_gyldig: Boolsk, forfaldsgrundlag_opfyldt: Boolsk, satsår_understøttet: Boolsk, officiel_sats_kroner: Heltal, beløb_svarer_til_offentlig_fastsættelse: Boolsk, navngivningsskattekontekst_gyldig: Boolsk, navngivningsskat: Ligningslov10Og11BidragResultat?, modtagerbeskatning_kildeafklaret: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
+# Børnebidragslov19BidragFakta(identifikation: Tekst, indkomstår: Heltal, rolle: Børnebidragslov19Skatterolle, hændelse: Børnebidragslov19Hændelse, bidragsart: Børnebidragslov19Bidragsart, bidragsydergrundlag: Børnebidragslov19Bidragsydergrundlag, retlig_modtager: Børnebidragslov19RetligModtager, fastsættelse: Børnebidragslov19Fastsættelse, ansøgningsgrundlag: Børnebidragslov19Ansøgningsgrundlag, fastsættelsesdato: Dato, forfaldsgrundlag: Børnebidragslov19Forfaldsgrundlag, forfaldsdato: Dato, betalingsdato: Dato, beløb_kroner: Heltal, barnets_identifikation: Tekst, navngivningsskattekontekst: Børnebidragslov19Navngivningsskattekontekst)
+# Børnebidragslov19BidragResultat(fakta: Børnebidragslov19BidragFakta, input_gyldigt: Boolsk, hændelse_og_bidragsart_svarer: Boolsk, bidragsydergrundlag_opfyldt: Boolsk, retlig_modtager_gyldig: Boolsk, fastsættelse_dokumenteret: Boolsk, ansøgningsgrundlag_gyldigt: Boolsk, barselsperiode_gyldig: Boolsk, forfaldsgrundlag_opfyldt: Boolsk, satsår_understøttet: Boolsk, officiel_sats_kroner: Heltal, beløb_svarer_til_offentlig_fastsættelse: Boolsk, navngivningsskattekontekst_gyldig: Boolsk, navngivningsskat: Ligningslov10Og11BidragResultat?, modtagerbeskatning_kildeafklaret: Boolsk, ligningsmæssigt_fradrag_kroner: Heltal, personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
 # Børnebidragslov19Årsinput(bidrag: List(Børnebidragslov19BidragFakta))
 # Børnebidragslov19Årsresultat(indkomstår: Heltal, input: Børnebidragslov19Årsinput, resultater: List(Børnebidragslov19BidragResultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, alle_modtagerbeskatninger_kildeafklarede: Boolsk, samlet_ligningsmæssigt_fradrag_kroner: Heltal, samlet_personlig_indkomst_kroner: Heltal, kan_sammensættes: Boolsk)
 
@@ -171,8 +171,79 @@ offentlige myndighed eller institution, der har afholdt de pågældende udgifter
 } ellers {
     fakta.navngivningsskattekontekst == UdenNavngivningsskattekontekst
 }
-| børnebidragslov19_input_gyldigt(fakta: Børnebidragslov19BidragFakta) -> fakta.identifikation != "" && dato_gyldig(børnebidragslov19_hændelsesdato(fakta.hændelse)) && dato_gyldig(fakta.fastsættelsesdato) && dato_gyldig(fakta.forfaldsdato) && dato_gyldig(fakta.betalingsdato) && fakta.indkomstår == fakta.betalingsdato.år && børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år) && børnebidragslov19_hændelse_og_bidragsart_svarer(fakta) && børnebidragslov19_bidragsydergrundlag_opfyldt(fakta) && børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager) && børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse) && børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart) && børnebidragslov19_forfaldsgrundlag_opfyldt(fakta) && børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta) && børnebidragslov19_rolle_og_modtager_svarer(fakta) && børnebidragslov19_navngivningsskattekontekst_gyldig(fakta)
+| børnebidragslov19_input_gyldigt(fakta: Børnebidragslov19BidragFakta) -> fakta.identifikation != "" && dato_gyldig(børnebidragslov19_hændelsesdato(fakta.hændelse)) && dato_gyldig(fakta.fastsættelsesdato) && dato_gyldig(fakta.forfaldsdato) && dato_gyldig(fakta.betalingsdato) && fakta.indkomstår == fakta.betalingsdato.år && børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år) && børnebidragslov19_hændelse_og_bidragsart_svarer(fakta) && børnebidragslov19_bidragsydergrundlag_opfyldt(fakta) && børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager) && børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse) && børnebidragslov19_ansøgningsgrundlag_gyldigt(fakta) && børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart) && børnebidragslov19_forfaldsgrundlag_opfyldt(fakta) && børnebidragslov19_beløb_svarer_til_offentlig_fastsættelse(fakta) && børnebidragslov19_rolle_og_modtager_svarer(fakta) && børnebidragslov19_navngivningsskattekontekst_gyldig(fakta)
 --@end:børnebidragsloven_par19--
+
+= børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11 = Børnebidragslov19KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/285",
+    identifier = "Bidragsbekendtgørelsen §§ 3-4 og 9-11 i BEK nr. 285 af 20/03/2019",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende bekendtgørelse; fristerne styrer offentlig fastsættelse af § 19-bidrag"
+)
+= børnebidragsbekendtgørelsen_par19_frist_metadata = Metadata(
+    attachments = (
+        Source(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
+        Dependency(value = børnebidragsloven_lbk773_par19),
+        Guidance(value = børnebidragsloven_bidrag_vejledning),
+    )
+)
+
+--@label:børnebidragsbekendtgørelsen_par19_frist::meta:børnebidragsbekendtgørelsen_par19_frist_metadata--
+----
+§ 3. Børnebidrag efter § 14, stk. 1, i lov om børns forsørgelse fastsættes fra
+den relevante ændring i barnets forhold, der udløste ansøgningen om bidrag,
+hvis ansøgningen er indgivet inden 2 måneder efter den pågældende begivenhed.
+
+§ 4. Selvom en ansøgning om fastsættelse af børnebidrag efter § 14, stk. 1, i
+lov om børns forsørgelse er indgivet efter udløb af fristen i § 3, fastsættes
+bidraget fra barnets fødsel, når en sag om faderskabet eller medmoderskabet til
+barnet er indledt i forbindelse med barnets fødsel, og ansøgningen om
+fastsættelse af bidrag er indgivet inden 2 måneder efter afslutningen af sagen om
+faderskab eller medmoderskab. Bidraget fastsættes dog først fra afslutningen af
+sagen om faderskab eller medmoderskab, hvis sagen om faderskab eller
+medmoderskab først afsluttes mere end 2 år efter barnets fødsel.
+
+§ 9. Uanset §§ 3-8 kan bidraget fastsættes fra et tidligere eller senere
+tidspunkt, hvis der foreligger helt særlige omstændigheder.
+
+§ 10. Der fastsættes normalt kun bidrag til udgifterne ved fødslen og ved
+barnets navngivning, herunder ved dåb, og bidrag til moderens underhold før og
+efter fødslen efter § 19, stk. 1, i lov om børns forsørgelse, hvis de tidsmæssige
+betingelser for at fastsætte bidrag til barnet fra fødslen er opfyldt.
+
+§ 11. Der fastsættes normalt kun bidrag til dækning af de ved en abort forvoldte
+særlige udgifter efter § 19, stk. 2, i lov om børns forsørgelse, hvis ansøgningen
+er indgivet inden 2 måneder efter aborten.
+----
+
+--@begin:børnebidragsbekendtgørelsen_par19_frist--
+# Børnebidragslov19Fristgrundlag = FødslenSomFristgrundlag | FaderskabEllerMedmoderskabIndledtVedFødslen(sagsafslutningsdato: Dato, sagsreference: Tekst) | AbortenSomFristgrundlag | HeltSærligeOmstændigheder(afgørelsesreference: Tekst)
+# Børnebidragslov19Ansøgningsgrundlag = Myndighedsansøgning(ansøgningsdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) | PrivatAftaleUdenMyndighedsansøgning
+
+| børnebidragslov19_fødselsfrist_gyldig(fødselsdato: Dato, ansøgningsdato: Dato, fastsættelsesdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) -> match fristgrundlag {
+    | FødslenSomFristgrundlag -> dato_før_eller_lig_med(ansøgningsdato, dato_plus_måneder(fødselsdato, 2))
+    | FaderskabEllerMedmoderskabIndledtVedFødslen(sagsafslutningsdato, sagsreference) -> dato_gyldig(sagsafslutningsdato) && sagsreference != "" && dato_før_eller_lig_med(sagsafslutningsdato, dato_plus_år(fødselsdato, 2)) && dato_før_eller_lig_med(ansøgningsdato, dato_plus_måneder(sagsafslutningsdato, 2)) && dato_før_eller_lig_med(sagsafslutningsdato, fastsættelsesdato)
+    | HeltSærligeOmstændigheder(afgørelsesreference) -> afgørelsesreference != ""
+    | AbortenSomFristgrundlag -> Falskt
+}
+| børnebidragslov19_abortfrist_gyldig(abortdato: Dato, ansøgningsdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) -> match fristgrundlag {
+    | AbortenSomFristgrundlag -> dato_før_eller_lig_med(abortdato, ansøgningsdato) && dato_før_eller_lig_med(ansøgningsdato, dato_plus_måneder(abortdato, 2))
+    | HeltSærligeOmstændigheder(afgørelsesreference) -> afgørelsesreference != ""
+    | _ -> Falskt
+}
+| børnebidragslov19_myndighedsansøgning_gyldig(fakta: Børnebidragslov19BidragFakta, ansøgningsdato: Dato, fristgrundlag: Børnebidragslov19Fristgrundlag) -> dato_gyldig(ansøgningsdato) && dato_før_eller_lig_med(ansøgningsdato, fakta.fastsættelsesdato) && match fakta.hændelse {
+    | Fødsel(fødselsdato, _) -> børnebidragslov19_fødselsfrist_gyldig(fødselsdato, ansøgningsdato, fakta.fastsættelsesdato, fristgrundlag)
+    | Abort(abortdato) -> børnebidragslov19_abortfrist_gyldig(abortdato, ansøgningsdato, fristgrundlag)
+}
+| børnebidragslov19_ansøgningsgrundlag_gyldigt(fakta: Børnebidragslov19BidragFakta) -> match fakta.fastsættelse {
+    | FastsatAfFamilieretshuset -> match fakta.ansøgningsgrundlag {
+        | Myndighedsansøgning(ansøgningsdato, fristgrundlag) -> børnebidragslov19_myndighedsansøgning_gyldig(fakta, ansøgningsdato, fristgrundlag)
+        | PrivatAftaleUdenMyndighedsansøgning -> Falskt
+    }
+    | DokumenteretBindendeAftale(_) -> fakta.ansøgningsgrundlag == PrivatAftaleUdenMyndighedsansøgning
+    | Par19UdenDokumenteretFastsættelse -> Falskt
+}
+--@end:børnebidragsbekendtgørelsen_par19_frist--
 
 = skat_børnebidrag_fødsel_vejledning = Børnebidragslov19KildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2061803",
@@ -303,6 +374,7 @@ derfor lukket.
         bidragsydergrundlag_opfyldt = børnebidragslov19_bidragsydergrundlag_opfyldt(fakta),
         retlig_modtager_gyldig = børnebidragslov19_retlig_modtager_gyldig(fakta.retlig_modtager),
         fastsættelse_dokumenteret = børnebidragslov19_fastsættelse_dokumenteret(fakta.fastsættelse),
+        ansøgningsgrundlag_gyldigt = børnebidragslov19_ansøgningsgrundlag_gyldigt(fakta),
         barselsperiode_gyldig = børnebidragslov19_barselsperiode_gyldig(fakta.bidragsart),
         forfaldsgrundlag_opfyldt = børnebidragslov19_forfaldsgrundlag_opfyldt(fakta),
         satsår_understøttet = børnebidragslov19_satsår_understøttet(fakta.fastsættelsesdato.år),

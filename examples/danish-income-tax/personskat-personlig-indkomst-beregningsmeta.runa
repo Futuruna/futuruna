@@ -465,6 +465,16 @@
 = personskat_par19_felt_offentlig_modtager_id = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::retlig_modtager::OffentligMyndighedEllerInstitution::identifikation), label = "Offentlig modtagers identifikation", question = Some("Hvilken myndighed eller institution afholdt udgiften og modtog bidraget?"), help = None, unit = None)
 = personskat_par19_felt_fastsættelse = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::$variant), label = "§ 19-bidragets fastsættelse", question = Some("Er bidraget fastsat af Familieretshuset, dokumenteret ved en bindende aftale eller uden dokumenteret fastsættelse?"), help = None, unit = None)
 = personskat_par19_felt_aftalereference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelse::DokumenteretBindendeAftale::dokumentreference), label = "Dokumentation for bindende § 19-aftale", question = Some("Hvilken dokumentreference viser den bindende aftale?"), help = None, unit = None)
+= personskat_par19_felt_ansøgningsgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::$variant), label = "§ 19-bidragets ansøgningsvej", question = Some("Blev bidraget fastsat efter en myndighedsansøgning, eller følger det alene af en privat bindende aftale?"), help = Some("En offentlig fastsættelse kræver daterede fristfakta; en privat aftale har ingen myndighedsansøgning."), unit = None)
+= personskat_par19_felt_ansøgningsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::år), label = "§ 19-ansøgningsdato (ISO 8601) - år", question = Some("I hvilket år modtog Familieretshuset ansøgningen?"), help = None, unit = Some("år"))
+= personskat_par19_felt_ansøgningsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::måned), label = "§ 19-ansøgningsdato (ISO 8601) - måned", question = Some("I hvilken måned modtog Familieretshuset ansøgningen?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_ansøgningsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::ansøgningsdato::dag), label = "§ 19-ansøgningsdato (ISO 8601) - dag", question = Some("På hvilken dag modtog Familieretshuset ansøgningen?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_fristgrundlag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::$variant), label = "§ 19-ansøgningens fristgrundlag", question = Some("Regnes fristen fra fødslen, en fødselsnær faderskabs- eller medmoderskabssag, aborten eller dokumenterede helt særlige omstændigheder?"), help = Some("Futuruna afleder fristens overholdelse fra de angivne ISO-datoer."), unit = None)
+= personskat_par19_felt_forældresagsafslutningsår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::år), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - år", question = Some("I hvilket år blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("år"))
+= personskat_par19_felt_forældresagsafslutningsmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::måned), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - måned", question = Some("I hvilken måned blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("måned"))
+= personskat_par19_felt_forældresagsafslutningsdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsafslutningsdato::dag), label = "Faderskabs- eller medmoderskabssagens afslutning (ISO 8601) - dag", question = Some("På hvilken dag blev den fødselsnære faderskabs- eller medmoderskabssag afsluttet?"), help = None, unit = Some("dag"))
+= personskat_par19_felt_forældresagsreference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::FaderskabEllerMedmoderskabIndledtVedFødslen::sagsreference), label = "Dokumentation for fødselsnær faderskabs- eller medmoderskabssag", question = Some("Hvilken sagsreference viser, at sagen blev indledt i forbindelse med fødslen?"), help = None, unit = None)
+= personskat_par19_felt_særlig_fristreference = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::ansøgningsgrundlag::Myndighedsansøgning::fristgrundlag::HeltSærligeOmstændigheder::afgørelsesreference), label = "Afgørelse om helt særlige fristomstændigheder", question = Some("Hvilken afgørelse dokumenterer fravigelsen af den almindelige ansøgningsfrist?"), help = None, unit = None)
 = personskat_par19_felt_fastsættelsesår = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::år), label = "Fastsættelsesdato (ISO 8601) - år", question = Some("I hvilket år blev bidraget fastsat?"), help = Some("Futuruna bruger fastsættelsesåret til den officielle sats."), unit = Some("år"))
 = personskat_par19_felt_fastsættelsesmåned = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::måned), label = "Fastsættelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev bidraget fastsat?"), help = None, unit = Some("måned"))
 = personskat_par19_felt_fastsættelsesdag = TypetBeregningsfelt(path = refof(PersonskatPersonligIndkomstInput::børnebidragslov19_bidrag::bidrag::fastsættelsesdato::dag), label = "Fastsættelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev bidraget fastsat?"), help = None, unit = Some("dag"))
@@ -582,6 +592,16 @@
         personskat_par19_felt_offentlig_modtager_id,
         personskat_par19_felt_fastsættelse,
         personskat_par19_felt_aftalereference,
+        personskat_par19_felt_ansøgningsgrundlag,
+        personskat_par19_felt_ansøgningsår,
+        personskat_par19_felt_ansøgningsmåned,
+        personskat_par19_felt_ansøgningsdag,
+        personskat_par19_felt_fristgrundlag,
+        personskat_par19_felt_forældresagsafslutningsår,
+        personskat_par19_felt_forældresagsafslutningsmåned,
+        personskat_par19_felt_forældresagsafslutningsdag,
+        personskat_par19_felt_forældresagsreference,
+        personskat_par19_felt_særlig_fristreference,
         personskat_par19_felt_fastsættelsesår,
         personskat_par19_felt_fastsættelsesmåned,
         personskat_par19_felt_fastsættelsesdag,
@@ -614,6 +634,7 @@
         DependencySource(value = pensionsbeskatningsloven_lbk1243_par56),
         DependencySource(value = ligningsloven_lbk1500_par10_par11),
         DependencySource(value = børnebidragsloven_lbk773_par19),
+        DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
         Guidance(value = skat_gruppeliv_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),

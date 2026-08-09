@@ -19713,6 +19713,10 @@ fn personskat_par19_contributions_round_trip_through_generated_workbook() {
                     "personskat-par19-navngivningsbidrag-2025",
                     "NavngivningsbidragBetalt2025",
                 ),
+                (
+                    "personskat-par19-foedselsbidrag-for-sent-2025",
+                    "FødselsbidragForSentAnsøgt2025",
+                ),
             ],
             |workbook_path| {
                 let mut workbook =
@@ -19730,6 +19734,14 @@ fn personskat_par19_contributions_round_trip_through_generated_workbook() {
                     (
                         "retlig_modtager.$variant",
                         "§ 19-bidragets retlige modtager",
+                    ),
+                    (
+                        "ansøgningsgrundlag.$variant",
+                        "§ 19-bidragets ansøgningsvej",
+                    ),
+                    (
+                        "ansøgningsgrundlag.Myndighedsansøgning.fristgrundlag.$variant",
+                        "§ 19-ansøgningens fristgrundlag",
                     ),
                     ("beløb_kroner", "Betalt eller modtaget § 19-bidrag"),
                     (
@@ -19788,6 +19800,33 @@ fn personskat_par19_contributions_round_trip_through_generated_workbook() {
         1_419
     );
     assert!(naming_result["kan_sammensættes"].as_bool().unwrap());
+
+    let late_source = &source_output["results"][2]["result"]["lønmodtager"]["personlig_indkomst"]
+        ["børnebidragslov19_bidrag"]["bidrag"][0];
+    assert_eq!(
+        late_source["ansøgningsgrundlag"]["$variant"],
+        "Myndighedsansøgning"
+    );
+    assert_eq!(
+        late_source["ansøgningsgrundlag"]["fristgrundlag"]["$variant"],
+        "FødslenSomFristgrundlag"
+    );
+    assert_eq!(
+        late_source["ansøgningsgrundlag"]["ansøgningsdato"]["måned"],
+        3
+    );
+    assert_eq!(
+        late_source["ansøgningsgrundlag"]["ansøgningsdato"]["dag"],
+        11
+    );
+
+    let late_result =
+        &workbook_output["results"][2]["result"]["personlig_indkomst"]["børnebidragslov19_bidrag"];
+    assert!(!late_result["resultater"][0]["ansøgningsgrundlag_gyldigt"]
+        .as_bool()
+        .unwrap());
+    assert!(!late_result["alle_input_gyldige"].as_bool().unwrap());
+    assert!(!late_result["kan_sammensættes"].as_bool().unwrap());
 }
 
 #[test]
