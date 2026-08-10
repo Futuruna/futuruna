@@ -1,0 +1,777 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+= personskat_par3_nr2_felt_fradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2),
+    label = "Virksomhedsfradrag efter personskattelovens § 3, stk. 2, nr. 2",
+    question = Some("Har virksomheden udgifter eller bidrag, der kan fradrages efter en af de henviste bestemmelser i ligningsloven?"),
+    help = Some("Opret én række pr. dokumenteret udgift eller indbetaling. Futuruna afgør fradragsretten og beløbet ud fra den valgte bestemmelse."),
+    unit = None
+)
+= personskat_par3_nr2_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::identifikation),
+    label = "Fradragspostens identifikation",
+    question = Some("Hvilken entydig identifikation skal fradragsposten have?"),
+    help = Some("Brug en stabil reference fra regnskabet eller bilaget, så samme post ikke medregnes to gange."),
+    unit = None
+)
+= personskat_par3_nr2_felt_kilde = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::$variant),
+    label = "Fradragets bestemmelse i ligningsloven",
+    question = Some("Hvilken bestemmelse i ligningsloven vedrører fradragsposten?"),
+    help = Some("Vælg § 8, stk. 1, § 8 B, § 8 K, § 8 L, § 8 N, § 14, stk. 1, § 14 F eller § 30 A."),
+    unit = None
+)
+
+= personskat_par3_nr2_ll8_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::indkomstår),
+    label = "§ 8, stk. 1 - indkomstår",
+    question = Some("Hvilket indkomstår skal udgiften vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8_felt_afholdelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::afholdelsesår),
+    label = "§ 8, stk. 1 - udgiftens afholdelsesår",
+    question = Some("I hvilket år blev udgiften afholdt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::udgiftsart),
+    label = "§ 8, stk. 1 - udgiftsart",
+    question = Some("Hvilken type salgs-, reklame-, rejse- eller repræsentationsudgift er afholdt?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::afholdt_udgift_kroner),
+    label = "§ 8, stk. 1 - afholdt udgift",
+    question = Some("Hvor stor var den afholdte udgift?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8_felt_erhverv = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::afholdt_i_forbindelse_med_skattepligtiges_erhverv),
+    label = "§ 8, stk. 1 - forbindelse med erhvervet",
+    question = Some("Blev udgiften afholdt i forbindelse med den skattepligtiges erhverv?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8_felt_salgsformål = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::formål_at_opnå_salg_af_varer_eller_tjenesteydelser),
+    label = "§ 8, stk. 1 - salgsformål",
+    question = Some("Var formålet at opnå salg af varer eller tjenesteydelser i indkomståret eller senere?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8_felt_foreningsindkomst = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8Stk1::input::foreningsindkomst_opgjort_som_procent_af_formue),
+    label = "§ 8, stk. 1 - foreningsindkomst efter formueprocent",
+    question = Some("Er indkomsten opgjort som en procentdel af formuen for en forening eller institution?"),
+    help = Some("Sådanne indkomster er afskåret efter § 8, stk. 2."),
+    unit = None
+)
+
+= personskat_par3_nr2_ll8b_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::indkomstår),
+    label = "§ 8 B - indkomstår",
+    question = Some("Hvilket indkomstår skal forsknings- eller udviklingsudgiften vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8b_felt_afholdelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::afholdelsesår),
+    label = "§ 8 B - udgiftens afholdelsesår",
+    question = Some("I hvilket år blev udgiften afholdt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8b_felt_erhvervsstart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::erhvervsstart::$variant),
+    label = "§ 8 B - virksomhedens startstatus",
+    question = Some("Er erhvervet påbegyndt, og kendes påbegyndelsesåret?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_erhvervsstartår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::erhvervsstart::Ll8BKendtErhvervspåbegyndelsesår::år),
+    label = "§ 8 B - erhvervets påbegyndelsesår",
+    question = Some("I hvilket år blev erhvervet påbegyndt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8b_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::udgiftsart),
+    label = "§ 8 B - udgiftsart",
+    question = Some("Hvilken type forsøgs-, forsknings- eller råstofudgift er afholdt?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_valg = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::valg),
+    label = "§ 8 B - fradragsvalg",
+    question = Some("Er der valgt straksfradrag eller lineær afskrivning over fem år?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::afholdt_udgift_kroner),
+    label = "§ 8 B - afholdt udgift",
+    question = Some("Hvor stor var den afholdte udgift?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8b_felt_tilknytning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::tilknytning_til_skattepligtiges_erhverv),
+    label = "§ 8 B - tilknytning til erhvervet",
+    question = Some("Har udgiften tilknytning til den skattepligtiges erhverv?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_igangværende = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::igangværende_virksomhed),
+    label = "§ 8 B - igangværende virksomhed",
+    question = Some("Vedrører udgiften en igangværende virksomhed?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_selskab = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::aktie_eller_anpartsselskab),
+    label = "§ 8 B - aktie- eller anpartsselskab",
+    question = Some("Afholdes udgiften af et aktie- eller anpartsselskab?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_tilladelse_før_start = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::told_skat_tillader_fradrag_før_erhvervsstart),
+    label = "§ 8 B - tilladelse til fradrag før erhvervsstart",
+    question = Some("Har Skatteforvaltningen tilladt fradrag før erhvervets påbegyndelse?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_overskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::selvstændigt_overskud_før_stk2_fradrag_kroner),
+    label = "§ 8 B - selvstændigt overskud før stk. 2-fradrag",
+    question = Some("Hvad er virksomhedens overskud før fradraget efter § 8 B, stk. 2?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8b_felt_renteudgifter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::renteudgifter_og_valutakurstab_i_overskud_kroner),
+    label = "§ 8 B - renter og valutakurstab i overskuddet",
+    question = Some("Hvor store renteudgifter og valutakurstab indgår i overskuddet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8b_felt_renteindtægter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner),
+    label = "§ 8 B - renter, udbytter og valutakursgevinster i overskuddet",
+    question = Some("Hvor store rente- og udbytteindtægter samt valutakursgevinster indgår i overskuddet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8b_felt_råstoftilladelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::told_skat_tillader_straksfradrag_for_stort_råstofbeløb),
+    label = "§ 8 B - tilladelse til stort råstofstraksfradrag",
+    question = Some("Har Skatteforvaltningen tilladt straksfradrag for et råstofbeløb over lovens overskudsgrænse?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8b_felt_tidligere_koncernudgifter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::tidligere_stk4_udgifter_under_koncernloft_kroner),
+    label = "§ 8 B - tidligere udgifter under koncernloftet",
+    question = Some("Hvor store tidligere § 8 B, stk. 4-udgifter er allerede medregnet under koncernloftet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8b_felt_reguleringstal = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::reguleringstal_tiendedele),
+    label = "§ 8 B - reguleringstal",
+    question = Some("Hvilket reguleringstal gælder for indkomståret?"),
+    help = Some("Angiv tallet i tiendedele, eksempelvis 117,6 som 1176."),
+    unit = Some("tiendedele")
+)
+
+= personskat_par3_nr2_ll8k_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::indkomstår),
+    label = "§ 8 K - indkomstår",
+    question = Some("Hvilket indkomstår skal plantningsudgiften vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8k_felt_afholdelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::afholdelsesår),
+    label = "§ 8 K - udgiftens afholdelsesår",
+    question = Some("I hvilket år blev plantningsudgiften afholdt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8k_felt_plantningsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::plantningsart),
+    label = "§ 8 K - plantningsart",
+    question = Some("Hvilken type plantning eller genplantning vedrører udgiften?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8k_felt_hændelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::hændelse),
+    label = "§ 8 K - særlig hændelse",
+    question = Some("Er ejendommen solgt, arealet ryddet eller leje- eller forpagtningsforholdet ophørt?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8k_felt_område = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::område),
+    label = "§ 8 K - geografisk område",
+    question = Some("Ligger plantningsarealet i EU/EØS, Grønland, Færøerne eller uden for disse områder?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8k_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::afholdt_udgift_kroner),
+    label = "§ 8 K - afholdt plantningsudgift",
+    question = Some("Hvor stor var den afholdte plantningsudgift?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8k_felt_tidligere_fradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::tidligere_fradraget_kroner),
+    label = "§ 8 K - tidligere fradraget beløb",
+    question = Some("Hvor meget af udgiften er fradraget i tidligere indkomstår?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8k_felt_årsudgifter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::årets_samlede_udgifter_pr_ejendom_kroner),
+    label = "§ 8 K - årets samlede udgifter pr. ejendom",
+    question = Some("Hvor store er indkomstårets samlede omfattede plantningsudgifter på ejendommen?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8k_felt_valgt_fradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::valgt_fradrag_kroner),
+    label = "§ 8 K - valgt fradrag",
+    question = Some("Hvor stort et fradrag ønskes anvendt i indkomståret?"),
+    help = Some("Futuruna begrænser beløbet efter lovens årsgrænse og det resterende grundlag."),
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8k_felt_fredskov = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::fredskovspligt_pålagt_og_registreret),
+    label = "§ 8 K - fredskovspligt registreret",
+    question = Some("Er fredskovspligten pålagt og registreret?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8k_felt_energiareal = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::energiafgrødeareal_kvadratmeter),
+    label = "§ 8 K - energiafgrødeareal",
+    question = Some("Hvor stort er det tilplantede energiafgrødeareal?"),
+    help = None,
+    unit = Some("m²")
+)
+= personskat_par3_nr2_ll8k_felt_lejet_jord = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::lejet_eller_forpagtet_jord),
+    label = "§ 8 K - lejet eller forpagtet jord",
+    question = Some("Er plantningen foretaget på lejet eller forpagtet jord?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8k_felt_anlægsaktiv = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom),
+    label = "§ 8 K - udgift til anlægsaktiv",
+    question = Some("Vedrører udgiften en maskine, inventar, et driftsmiddel eller fast ejendom?"),
+    help = Some("Sådanne udgifter henvises til afskrivningsreglerne frem for direkte fradrag efter § 8 K."),
+    unit = None
+)
+
+= personskat_par3_nr2_ll8l_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8L::input::indkomstår),
+    label = "§ 8 L - indkomstår",
+    question = Some("Hvilket indkomstår skal indbetalingen vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8l_felt_indbetalingsår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8L::input::indbetalingsår),
+    label = "§ 8 L - indbetalingsår",
+    question = Some("I hvilket år blev beløbet indbetalt til Landsbyggefonden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8l_felt_grundlag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8L::input::indbetalingsgrundlag),
+    label = "§ 8 L - indbetalingsgrundlag",
+    question = Some("Hvad udløste indbetalingen til Landsbyggefonden?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8l_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8L::input::indbetalt_til_landsbyggefonden_kroner),
+    label = "§ 8 L - indbetalt til Landsbyggefonden",
+    question = Some("Hvor stort et beløb blev indbetalt til Landsbyggefonden?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8l_felt_friplejebolig = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8L::input::omfattet_af_lov_om_friplejeboliger),
+    label = "§ 8 L - omfattet af friplejeboligloven",
+    question = Some("Er boligen eller servicearealet omfattet af lov om friplejeboliger?"),
+    help = None,
+    unit = None
+)
+
+= personskat_par3_nr2_ll8n_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::indkomstår),
+    label = "§ 8 N - indkomstår",
+    question = Some("Hvilket indkomstår vedrører selskabsudgiften?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll8n_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::udgiftsart),
+    label = "§ 8 N - udgiftsart",
+    question = Some("Hvilken type løn-, honorar- eller ansættelsesrelateret udgift er afholdt?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::udgift_kroner),
+    label = "§ 8 N - afholdt udgift",
+    question = Some("Hvor stor var udgiften?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8n_felt_erhverv = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::erhvervsmæssig),
+    label = "§ 8 N - erhvervsmæssig udgift",
+    question = Some("Er udgiften erhvervsmæssig?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_betalende_fradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::betalende_selskab_fradrager_for_modtagende_selskab),
+    label = "§ 8 N - betalende selskab kræver fradraget",
+    question = Some("Kræver det betalende selskab fradrag for en udgift, der vedrører det modtagende selskab?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_sambeskatning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes),
+    label = "§ 8 N - selskaberne kan sambeskattes",
+    question = Some("Sambeskattes de betalende og modtagende selskaber, eller kan de sambeskattes?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_personbeskatning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse),
+    label = "§ 8 N - personen beskattes af ydelsen",
+    question = Some("Beskattes personen af udgiften, eller er ydelsen arbejdsmarkedsbidragspligtig?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_ikke_skattepligtig_am = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig),
+    label = "§ 8 N - hypotetisk AM-pligt for ikke-skattepligtig person",
+    question = Some("Ville en ikke-skattepligtig modtager være arbejdsmarkedsbidragspligtig af ydelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll8n_felt_tidligere_udgifter = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::samlede_omfattede_udgifter_før_denne_kroner),
+    label = "§ 8 N - omfattede udgifter før denne post",
+    question = Some("Hvor store omfattede udgifter er allerede medregnet før denne post?"),
+    help = Some("Beløbet bruges til den rækkefølgeafhængige loftsberegning i stk. 3."),
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll8n_felt_grundbeløbsandel = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::grundbeløbsandel_basispoint),
+    label = "§ 8 N - andel af grundbeløbet",
+    question = Some("Hvilken andel af grundbeløbet tilhører dette selskab?"),
+    help = None,
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_par3_nr2_ll8n_felt_rettighed_udstedt = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8N::input::køberet_eller_tegningsret_oprindelig_udstedt_til_personen),
+    label = "§ 8 N - køberet eller tegningsret udstedt til personen",
+    question = Some("Blev køberetten eller tegningsretten oprindeligt udstedt til den pågældende person?"),
+    help = None,
+    unit = None
+)
+
+= personskat_par3_nr2_ll14_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::indkomstår),
+    label = "§ 14, stk. 1 - indkomstår",
+    question = Some("Hvilket indkomstår skal ejendomsudgiften vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll14_felt_anvendelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::anvendelsesår),
+    label = "§ 14, stk. 1 - udgiftens anvendelsesår",
+    question = Some("I hvilket år blev beløbet anvendt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll14_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::udgiftsart),
+    label = "§ 14, stk. 1 - udgiftsart",
+    question = Some("Hvilken ejendomsskat, forpagtningsafgift eller lignende byrde er betalt?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14_felt_ejendomsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::ejendomsart),
+    label = "§ 14 - ejendommens art efter stk. 2",
+    question = Some("Hvilken ejendomstype vedrører udgiften?"),
+    help = Some("Ejendomstypen afgør, om begrænsningen i § 14, stk. 2 finder anvendelse."),
+    unit = None
+)
+= personskat_par3_nr2_ll14_felt_fordeling = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::fordelingsgrundlag),
+    label = "§ 14 - grundlag for fordeling mellem bolig og erhverv",
+    question = Some("Hvilket grundlag er brugt til at fordele ejendommen mellem bolig og erhverv?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::anvendt_beløb_kroner),
+    label = "§ 14, stk. 1 - anvendt beløb",
+    question = Some("Hvor stort et beløb er anvendt i indkomståret?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll14_felt_erhvervsandel = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::erhvervsandel_basispoint),
+    label = "§ 14 - ejendommens erhvervsandel",
+    question = Some("Hvor stor en andel af ejendommen anvendes erhvervsmæssigt?"),
+    help = None,
+    unit = Some("basispoint; 10.000 = 100 pct.")
+)
+= personskat_par3_nr2_ll14_felt_retvisende = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14Stk1::input::fordeling_fortsat_retvisende),
+    label = "§ 14 - fordelingen er fortsat retvisende",
+    question = Some("Er den anvendte fordeling fortsat retvisende i indkomståret?"),
+    help = None,
+    unit = None
+)
+
+= personskat_par3_nr2_ll14f_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::indkomstår),
+    label = "§ 14 F - indkomstår",
+    question = Some("Hvilket indkomstår vedrører bidraget til medarbejderfonden?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll14f_felt_form = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::bidragsform),
+    label = "§ 14 F - bidragets form",
+    question = Some("Er bidraget kontant eller ydet som en gældsforpligtelse over for fonden?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14f_felt_kontant = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::kontant_bidrag_kroner),
+    label = "§ 14 F - kontant bidrag",
+    question = Some("Hvor stort er det kontante bidrag?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll14f_felt_kursværdi = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::fordringens_kursværdi_ved_stiftelsen_kroner),
+    label = "§ 14 F - fordringens kursværdi ved stiftelsen",
+    question = Some("Hvad var fordringens kursværdi, da gældsforpligtelsen blev stiftet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll14f_felt_formål = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår),
+    label = "§ 14 F - fondens medarbejderformål",
+    question = Some("Har fonden til formål at betrygge eller forbedre kårene for ansatte, tidligere ansatte eller deres pårørende?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14f_felt_pension = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::fonden_udbetaler_pensionslignende_ydelser),
+    label = "§ 14 F - fonden udbetaler pensionslignende ydelser",
+    question = Some("Udbetaler fonden pensionslignende ydelser?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14f_felt_bestyrelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte),
+    label = "§ 14 F - medarbejdervalgt bestyrelsesflertal",
+    question = Some("Er et flertal i fondsbestyrelsen valgt af og blandt de omfattede ansatte?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll14f_felt_dobbeltfradrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll14F::input::samme_bidrag_fradraget_efter_par12_stk2),
+    label = "§ 14 F - samme bidrag fradraget efter § 12, stk. 2",
+    question = Some("Er det samme bidrag allerede fradraget efter ligningslovens § 12, stk. 2?"),
+    help = Some("Det samme bidrag kan ikke fradrages efter begge bestemmelser."),
+    unit = None
+)
+
+= personskat_par3_nr2_ll30a_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::indkomstår),
+    label = "§ 30 A - indkomstår",
+    question = Some("Hvilket indkomstår skal behandlingsudgiften vurderes i?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll30a_felt_afholdelsesår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::afholdelsesår),
+    label = "§ 30 A - udgiftens afholdelsesår",
+    question = Some("I hvilket år blev udgiften afholdt?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_par3_nr2_ll30a_felt_person = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::person),
+    label = "§ 30 A - personens rolle",
+    question = Some("Vedrører udgiften den selvstændige, en medarbejdende ægtefælle eller en anden person?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_udgiftsart = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::udgiftsart),
+    label = "§ 30 A - behandlings- eller forsikringsudgift",
+    question = Some("Hvilken type behandling, medicin, rygeafvænning eller forsikringspræmie vedrører udgiften?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::afholdt_udgift_kroner),
+    label = "§ 30 A - afholdt udgift",
+    question = Some("Hvor stor var den afholdte udgift eller forsikringspræmie?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_par3_nr2_ll30a_felt_selvstændig = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::driver_selvstændig_erhvervsvirksomhed),
+    label = "§ 30 A - driver selvstændig erhvervsvirksomhed",
+    question = Some("Driver personen selvstændig erhvervsvirksomhed?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_ægtefælleoverskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3),
+    label = "§ 30 A - ægtefællen modtager overskud efter KSL § 25 A, stk. 3",
+    question = Some("Modtager ægtefællen en del af virksomhedens overskud efter kildeskattelovens § 25 A, stk. 3?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_ægtefælle_driver = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::ægtefælle_driver_ikke_i_overvejende_grad),
+    label = "§ 30 A - ægtefællen driver ikke virksomheden i overvejende grad",
+    question = Some("Er det korrekt, at ægtefællen ikke driver virksomheden i overvejende grad?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_arbejdsindsats = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::personlig_arbejdsindsats_ikke_uvæsentlig),
+    label = "§ 30 A - personlig arbejdsindsats er ikke uvæsentlig",
+    question = Some("Er personens arbejdsindsats i virksomheden ikke uvæsentlig?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_medarbejdere = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::har_eventuelle_medarbejdere),
+    label = "§ 30 A - virksomheden har medarbejdere",
+    question = Some("Har virksomheden medarbejdere ud over de selvstændige?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_undtaget_virksomhed = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere),
+    label = "§ 30 A - virksomhed undtaget efter § 4, stk. 1, nr. 9 eller 11",
+    question = Some("Er virksomheden omfattet af undtagelsen for § 4, stk. 1, nr. 9 eller 11 med mindst to ejere?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_medarbejderordning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::tilsvarende_ordning_tilbudt_medarbejderne_rettidigt),
+    label = "§ 30 A - tilsvarende ordning tilbudt medarbejderne rettidigt",
+    question = Some("Er en tilsvarende ordning tilbudt alle medarbejdere senest samtidig med den selvstændiges ordning?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_anciennitet = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::generelt_anciennitetskrav_opfyldt),
+    label = "§ 30 A - generelt anciennitetskrav opfyldt",
+    question = Some("Opfylder medarbejderordningen et eventuelt generelt anciennitetskrav?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_forsikringsvalg = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::selvstændige_har_valgt_forsikringsordning),
+    label = "§ 30 A - de selvstændige har valgt en forsikringsordning",
+    question = Some("Har den selvstændige eller de selvstændige valgt en forsikringsordning til behandlingen?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_medarbejderforsikring = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::tilsvarende_forsikring_tegnet_for_medarbejderne),
+    label = "§ 30 A - tilsvarende forsikring tegnet for medarbejderne",
+    question = Some("Er en tilsvarende forsikring tegnet for virksomhedens medarbejdere?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_uforsikringsbar = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::person_kan_ikke_forsikres_af_forsikringsmæssige_grunde),
+    label = "§ 30 A - personen kan ikke forsikres",
+    question = Some("Kan personen ikke forsikres af forsikringsmæssige grunde?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_tilsvarende_ydelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::ydelse_svarer_til_medarbejderforsikringens_ydelser),
+    label = "§ 30 A - ydelsen svarer til medarbejderforsikringens ydelser",
+    question = Some("Svarer den direkte ydelse til de ydelser, som medarbejdernes forsikring dækker?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_medicinforhold = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::medicinforhold),
+    label = "§ 30 A - medicinudgiftens periode",
+    question = Some("Ligger medicinudgiften inden for seks måneder, efter seks måneder eller under indlæggelse?"),
+    help = Some("Vælg ingen medicinudgift, når udgiftsarten ikke er medicin."),
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_lægeerklæring = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::skriftlig_lægeerklæring_om_behandlingsbehov),
+    label = "§ 30 A - skriftlig lægeerklæring om behandlingsbehov",
+    question = Some("Foreligger der en skriftlig lægeerklæring om behovet for behandlingen?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_forsikringskrav = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::forsikringsbetingelser_kræver_lægeerklæring),
+    label = "§ 30 A - forsikringsbetingelserne kræver lægeerklæring",
+    question = Some("Kræver forsikringsbetingelserne en skriftlig lægeerklæring før behandling?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_nr2_ll30a_felt_medicinpræmie = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll30A::input::præmieandel_for_medicin_ud_over_seks_måneder_kroner),
+    label = "§ 30 A - præmieandel for medicin ud over seks måneder",
+    question = Some("Hvor stor en del af forsikringspræmien vedrører medicin ud over seks måneder?"),
+    help = Some("Denne del er ikke fradragsberettiget, medmindre medicinen gives under indlæggelse."),
+    unit = Some("kr.")
+)
+
+= personskat_par3_nr2_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_par3_nr2_felt_fradrag,
+        personskat_par3_nr2_felt_identifikation,
+        personskat_par3_nr2_felt_kilde,
+        personskat_par3_nr2_ll8_felt_indkomstår,
+        personskat_par3_nr2_ll8_felt_afholdelsesår,
+        personskat_par3_nr2_ll8_felt_udgiftsart,
+        personskat_par3_nr2_ll8_felt_beløb,
+        personskat_par3_nr2_ll8_felt_erhverv,
+        personskat_par3_nr2_ll8_felt_salgsformål,
+        personskat_par3_nr2_ll8_felt_foreningsindkomst,
+        personskat_par3_nr2_ll8b_felt_indkomstår,
+        personskat_par3_nr2_ll8b_felt_afholdelsesår,
+        personskat_par3_nr2_ll8b_felt_erhvervsstart,
+        personskat_par3_nr2_ll8b_felt_erhvervsstartår,
+        personskat_par3_nr2_ll8b_felt_udgiftsart,
+        personskat_par3_nr2_ll8b_felt_valg,
+        personskat_par3_nr2_ll8b_felt_beløb,
+        personskat_par3_nr2_ll8b_felt_tilknytning,
+        personskat_par3_nr2_ll8b_felt_igangværende,
+        personskat_par3_nr2_ll8b_felt_selskab,
+        personskat_par3_nr2_ll8b_felt_tilladelse_før_start,
+        personskat_par3_nr2_ll8b_felt_overskud,
+        personskat_par3_nr2_ll8b_felt_renteudgifter,
+        personskat_par3_nr2_ll8b_felt_renteindtægter,
+        personskat_par3_nr2_ll8b_felt_råstoftilladelse,
+        personskat_par3_nr2_ll8b_felt_tidligere_koncernudgifter,
+        personskat_par3_nr2_ll8b_felt_reguleringstal,
+        personskat_par3_nr2_ll8k_felt_indkomstår,
+        personskat_par3_nr2_ll8k_felt_afholdelsesår,
+        personskat_par3_nr2_ll8k_felt_plantningsart,
+        personskat_par3_nr2_ll8k_felt_hændelse,
+        personskat_par3_nr2_ll8k_felt_område,
+        personskat_par3_nr2_ll8k_felt_beløb,
+        personskat_par3_nr2_ll8k_felt_tidligere_fradrag,
+        personskat_par3_nr2_ll8k_felt_årsudgifter,
+        personskat_par3_nr2_ll8k_felt_valgt_fradrag,
+        personskat_par3_nr2_ll8k_felt_fredskov,
+        personskat_par3_nr2_ll8k_felt_energiareal,
+        personskat_par3_nr2_ll8k_felt_lejet_jord,
+        personskat_par3_nr2_ll8k_felt_anlægsaktiv,
+        personskat_par3_nr2_ll8l_felt_indkomstår,
+        personskat_par3_nr2_ll8l_felt_indbetalingsår,
+        personskat_par3_nr2_ll8l_felt_grundlag,
+        personskat_par3_nr2_ll8l_felt_beløb,
+        personskat_par3_nr2_ll8l_felt_friplejebolig,
+        personskat_par3_nr2_ll8n_felt_indkomstår,
+        personskat_par3_nr2_ll8n_felt_udgiftsart,
+        personskat_par3_nr2_ll8n_felt_beløb,
+        personskat_par3_nr2_ll8n_felt_erhverv,
+        personskat_par3_nr2_ll8n_felt_betalende_fradrag,
+        personskat_par3_nr2_ll8n_felt_sambeskatning,
+        personskat_par3_nr2_ll8n_felt_personbeskatning,
+        personskat_par3_nr2_ll8n_felt_ikke_skattepligtig_am,
+        personskat_par3_nr2_ll8n_felt_tidligere_udgifter,
+        personskat_par3_nr2_ll8n_felt_grundbeløbsandel,
+        personskat_par3_nr2_ll8n_felt_rettighed_udstedt,
+        personskat_par3_nr2_ll14_felt_indkomstår,
+        personskat_par3_nr2_ll14_felt_anvendelsesår,
+        personskat_par3_nr2_ll14_felt_udgiftsart,
+        personskat_par3_nr2_ll14_felt_ejendomsart,
+        personskat_par3_nr2_ll14_felt_fordeling,
+        personskat_par3_nr2_ll14_felt_beløb,
+        personskat_par3_nr2_ll14_felt_erhvervsandel,
+        personskat_par3_nr2_ll14_felt_retvisende,
+        personskat_par3_nr2_ll14f_felt_indkomstår,
+        personskat_par3_nr2_ll14f_felt_form,
+        personskat_par3_nr2_ll14f_felt_kontant,
+        personskat_par3_nr2_ll14f_felt_kursværdi,
+        personskat_par3_nr2_ll14f_felt_formål,
+        personskat_par3_nr2_ll14f_felt_pension,
+        personskat_par3_nr2_ll14f_felt_bestyrelse,
+        personskat_par3_nr2_ll14f_felt_dobbeltfradrag,
+        personskat_par3_nr2_ll30a_felt_indkomstår,
+        personskat_par3_nr2_ll30a_felt_afholdelsesår,
+        personskat_par3_nr2_ll30a_felt_person,
+        personskat_par3_nr2_ll30a_felt_udgiftsart,
+        personskat_par3_nr2_ll30a_felt_beløb,
+        personskat_par3_nr2_ll30a_felt_selvstændig,
+        personskat_par3_nr2_ll30a_felt_ægtefælleoverskud,
+        personskat_par3_nr2_ll30a_felt_ægtefælle_driver,
+        personskat_par3_nr2_ll30a_felt_arbejdsindsats,
+        personskat_par3_nr2_ll30a_felt_medarbejdere,
+        personskat_par3_nr2_ll30a_felt_undtaget_virksomhed,
+        personskat_par3_nr2_ll30a_felt_medarbejderordning,
+        personskat_par3_nr2_ll30a_felt_anciennitet,
+        personskat_par3_nr2_ll30a_felt_forsikringsvalg,
+        personskat_par3_nr2_ll30a_felt_medarbejderforsikring,
+        personskat_par3_nr2_ll30a_felt_uforsikringsbar,
+        personskat_par3_nr2_ll30a_felt_tilsvarende_ydelse,
+        personskat_par3_nr2_ll30a_felt_medicinforhold,
+        personskat_par3_nr2_ll30a_felt_lægeerklæring,
+        personskat_par3_nr2_ll30a_felt_forsikringskrav,
+        personskat_par3_nr2_ll30a_felt_medicinpræmie
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par3),
+        DependencySource(value = ligningsloven_lbk1500_par8),
+        DependencySource(value = ligningsloven_lbk1500_par8b),
+        DependencySource(value = ligningsloven_lbk1500_par8k),
+        DependencySource(value = ligningsloven_lbk1500_par8l),
+        DependencySource(value = ligningsloven_lbk1500_par8n),
+        DependencySource(value = ligningsloven_lbk1500_par14),
+        DependencySource(value = ligningsloven_lbk1500_par14f),
+        DependencySource(value = ligningsloven_lbk1500_par30a),
+    )
+)
+
+--@label:PersonskatPersonligIndkomstInput::meta:personskat_par3_nr2_beregningsmeta--

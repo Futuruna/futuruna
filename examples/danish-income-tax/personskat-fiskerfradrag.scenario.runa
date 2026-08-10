@@ -101,7 +101,8 @@
         art = OrdinærDriftsindtægt,
         beløb_kroner = omsætning_kroner
     )],
-    udgifter = udgifter
+    udgifter = udgifter,
+    ligningslovsfradrag_efter_par3_stk2_nr2 = []
 )
 
 = personskat_fiskerfradrag_kildetilknytninger = [

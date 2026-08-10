@@ -1,0 +1,218 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Kanoniske scenarier for Personskattelovens § 3, stk. 2, nr. 2.
+
+Scenarierne fastholder, at de otte henviste familier i ligningsloven afledes
+fra typede kildefakta under en konkret selvstændig virksomhed og når hele
+beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
+----
+
+| psl3_nr2_scenarie_fakta(identifikation: Tekst, kilde: PersonskatPar3Nr2Ligningslovskilde) -> PersonskatPar3Nr2Ligningslovsfakta(
+    identifikation = identifikation,
+    kilde = kilde
+)
+
+| psl3_nr2_scenarie_ll8(identifikation: Tekst, foreningsindkomst: Boolsk, beløb_kroner: Heltal) -> psl3_nr2_scenarie_fakta(
+    identifikation,
+    PsPar3Nr2Ll8Stk1(input = Ligningslov8Stk1Input(
+        indkomstår = 2026,
+        afholdelsesår = 2026,
+        udgiftsart = Ll8Stk1Reklame,
+        afholdt_udgift_kroner = beløb_kroner,
+        afholdt_i_forbindelse_med_skattepligtiges_erhverv = Sandt,
+        formål_at_opnå_salg_af_varer_eller_tjenesteydelser = Sandt,
+        foreningsindkomst_opgjort_som_procent_af_formue = foreningsindkomst
+    ))
+)
+
+| psl3_nr2_scenarie_alle_familier() -> [
+    psl3_nr2_scenarie_ll8("ll8-reklame", Falskt, 12000),
+    psl3_nr2_scenarie_fakta("ll8b-forskning", PsPar3Nr2Ll8B(input = Ligningslov8BInput(
+        indkomstår = 2026,
+        afholdelsesår = 2026,
+        erhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(år = 2024),
+        udgiftsart = Ll8BForsøgsOgForskningsvirksomhed,
+        valg = Ll8BStraksfradrag,
+        afholdt_udgift_kroner = 100000,
+        tilknytning_til_skattepligtiges_erhverv = Sandt,
+        igangværende_virksomhed = Sandt,
+        aktie_eller_anpartsselskab = Falskt,
+        told_skat_tillader_fradrag_før_erhvervsstart = Falskt,
+        selvstændigt_overskud_før_stk2_fradrag_kroner = 1000000,
+        renteudgifter_og_valutakurstab_i_overskud_kroner = 0,
+        rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
+        told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
+        tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
+        reguleringstal_tiendedele = 1373
+    ))),
+    psl3_nr2_scenarie_fakta("ll8k-fredskov", PsPar3Nr2Ll8K(input = Ligningslov8KInput(
+        indkomstår = 2026,
+        afholdelsesår = 2026,
+        plantningsart = Ll8KNyplantningAfFredskov,
+        hændelse = Ll8KIngenSærhændelse,
+        område = Ll8KEuEøs,
+        afholdt_udgift_kroner = 100000,
+        tidligere_fradraget_kroner = 0,
+        årets_samlede_udgifter_pr_ejendom_kroner = 100000,
+        valgt_fradrag_kroner = 20000,
+        fredskovspligt_pålagt_og_registreret = Sandt,
+        energiafgrødeareal_kvadratmeter = 0,
+        lejet_eller_forpagtet_jord = Falskt,
+        udgift_til_maskine_inventar_driftsmiddel_eller_fast_ejendom = Falskt
+    ))),
+    psl3_nr2_scenarie_fakta("ll8l-landsbyggefonden", PsPar3Nr2Ll8L(input = Ligningslov8LInput(
+        indkomstår = 2026,
+        indbetalingsår = 2026,
+        indbetalingsgrundlag = Ll8LHuslejeindtægterOverstigerBygningsudgifter,
+        indbetalt_til_landsbyggefonden_kroner = 15000,
+        omfattet_af_lov_om_friplejeboliger = Sandt
+    ))),
+    psl3_nr2_scenarie_fakta("ll8n-løn", PsPar3Nr2Ll8N(input = Ligningslov8NInput(
+        indkomstår = 2026,
+        udgiftsart = Ll8NErhvervsmæssigLøn,
+        udgift_kroner = 10000,
+        erhvervsmæssig = Sandt,
+        betalende_selskab_fradrager_for_modtagende_selskab = Falskt,
+        betalende_og_modtagende_selskab_sambeskattes_eller_kan_sambeskattes = Falskt,
+        personen_beskattes_af_udgiften_eller_arbejdsmarkedsbidragspligtig_ydelse = Sandt,
+        ikke_skattepligtig_person_ville_være_arbejdsmarkedsbidragspligtig = Falskt,
+        samlede_omfattede_udgifter_før_denne_kroner = 0,
+        grundbeløbsandel_basispoint = 10000,
+        køberet_eller_tegningsret_oprindelig_udstedt_til_personen = Falskt
+    ))),
+    psl3_nr2_scenarie_fakta("ll14-ejendomsskat", PsPar3Nr2Ll14Stk1(input = Ligningslov14Input(
+        indkomstår = 2026,
+        anvendelsesår = 2026,
+        udgiftsart = Ll14Ejendomsskat,
+        ejendomsart = Ll14EnEllerToLejlighederTjentTilEjerbolig,
+        fordelingsgrundlag = Ll14FordelingEfterEabl4EllerAfskrivningslov45,
+        anvendt_beløb_kroner = 20000,
+        erhvervsandel_basispoint = 3000,
+        fordeling_fortsat_retvisende = Sandt
+    ))),
+    psl3_nr2_scenarie_fakta("ll14f-medarbejderfond", PsPar3Nr2Ll14F(input = Ligningslov14FInput(
+        indkomstår = 2026,
+        bidragsform = Ll14FGældsforpligtelseOverForFonden,
+        kontant_bidrag_kroner = 100000,
+        fordringens_kursværdi_ved_stiftelsen_kroner = 80000,
+        fondens_formål_betrygger_eller_forbedrer_ansatte_tidligere_ansatte_eller_pårørendes_kår = Sandt,
+        fonden_udbetaler_pensionslignende_ydelser = Falskt,
+        bestyrelsesflertal_valgt_af_og_blandt_omfattede_ansatte = Sandt,
+        samme_bidrag_fradraget_efter_par12_stk2 = Falskt
+    ))),
+    psl3_nr2_scenarie_fakta("ll30a-behandling", PsPar3Nr2Ll30A(input = Ligningslov30AInput(
+        indkomstår = 2026,
+        afholdelsesår = 2026,
+        person = Ll30ASelvstændigtErhvervsdrivende,
+        udgiftsart = Ll30ABehandlingAfAlkoholmisbrug,
+        afholdt_udgift_kroner = 25000,
+        driver_selvstændig_erhvervsvirksomhed = Sandt,
+        ægtefælle_modtager_overskud_efter_kildeskattelov25a_stk3 = Falskt,
+        ægtefælle_driver_ikke_i_overvejende_grad = Falskt,
+        personlig_arbejdsindsats_ikke_uvæsentlig = Sandt,
+        har_eventuelle_medarbejdere = Falskt,
+        virksomhed_undtaget_som_par4_stk1_nr9_eller_11_med_mindst_to_ejere = Falskt,
+        tilsvarende_ordning_tilbudt_medarbejderne_rettidigt = Falskt,
+        generelt_anciennitetskrav_opfyldt = Sandt,
+        selvstændige_har_valgt_forsikringsordning = Falskt,
+        tilsvarende_forsikring_tegnet_for_medarbejderne = Falskt,
+        person_kan_ikke_forsikres_af_forsikringsmæssige_grunde = Falskt,
+        ydelse_svarer_til_medarbejderforsikringens_ydelser = Falskt,
+        medicinforhold = Ll30AIngenMedicinudgift,
+        skriftlig_lægeerklæring_om_behandlingsbehov = Sandt,
+        forsikringsbetingelser_kræver_lægeerklæring = Falskt,
+        præmieandel_for_medicin_ud_over_seks_måneder_kroner = 0
+    ))),
+]
+
+| psl3_nr2_scenarie_virksomhed(kilder: List(PersonskatPar3Nr2Ligningslovsfakta)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = "psl3-nr2-virksomhed",
+    indkomstår = 2026,
+    indtægter = [PersonskatVirksomhedsindtægtFakta(
+        identifikation = "psl3-nr2-omsætning",
+        art = OrdinærDriftsindtægt,
+        beløb_kroner = 1000000
+    )],
+    udgifter = [],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = kilder
+)
+
+| psl3_nr2_scenarie_personlig_indkomst(kilder: List(PersonskatPar3Nr2Ligningslovsfakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
+        virksomheder_uden_virksomhedsordning = [psl3_nr2_scenarie_virksomhed(kilder)],
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    arbejdsudleje = [],
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+
+| psl3_nr2_scenarie_input(kilder: List(PersonskatPar3Nr2Ligningslovsfakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = psl3_nr2_scenarie_personlig_indkomst(kilder),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+| psl3_nr2_scenarie_beregning(kilder: List(PersonskatPar3Nr2Ligningslovsfakta)) -> beregn_personskat(psl3_nr2_scenarie_input(kilder))
+| psl3_nr2_scenarie_virksomhedsberegning(resultat: PersonskatBeregningResultat) -> match head(resultat.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning) {
+    | BeregnetOrdinærVirksomhed(beregning) -> Some(beregning)
+    | _ -> None
+}
+| psl3_nr2_scenarie_fradrag_kroner(resultat: PersonskatBeregningResultat) -> match psl3_nr2_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> beregning.par3_indkomstresultat_for_virksomheden.fradrag_i_personlig_indkomst_kroner
+    | None -> 0
+}
+| psl3_nr2_scenarie_resultatantal(resultat: PersonskatBeregningResultat) -> match psl3_nr2_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> length(beregning.par3_stk2_nr2_resultater)
+    | None -> 0
+}
+| psl3_nr2_scenarie_hjemler(resultat: PersonskatBeregningResultat) -> match psl3_nr2_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> map(beregning.par3_stk2_nr2_resultater, |kilde: PersonskatPar3Nr2Ligningslovsresultat| par3_stk2_nr2_hjemmel(kilde.grundlag))
+    | None -> []
+}
+
+= psl3_nr2_scenarie_alle = psl3_nr2_scenarie_beregning(psl3_nr2_scenarie_alle_familier())
+= psl3_nr2_scenarie_lovligt_afskåret = psl3_nr2_scenarie_beregning([psl3_nr2_scenarie_ll8("ll8-foreningsindkomst", Sandt, 12000)])
+= psl3_nr2_scenarie_negativt_beløb = psl3_nr2_scenarie_beregning([psl3_nr2_scenarie_ll8("ll8-negativ", Falskt, -1)])
+= psl3_nr2_scenarie_dobbelt_id = psl3_nr2_scenarie_beregning([
+    psl3_nr2_scenarie_ll8("samme-id", Falskt, 12000),
+    psl3_nr2_scenarie_ll8("samme-id", Falskt, 8000),
+])
+
+| psl3_nr2_alle_otte_familier_når_personskat: psl3_nr2_scenarie_alle -> psl3_nr2_scenarie_alle.personlig_indkomst.alle_input_gyldige && psl3_nr2_scenarie_resultatantal(psl3_nr2_scenarie_alle) == 8 && psl3_nr2_scenarie_fradrag_kroner(psl3_nr2_scenarie_alle) == 282000 && psl3_nr2_scenarie_alle.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 718000 && psl3_nr2_scenarie_alle.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 718000 && psl3_nr2_scenarie_alle.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidrag_kroner == 57440
+| psl3_nr2_hjemler_bevares_i_sporbarheden: psl3_nr2_scenarie_alle -> contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8Stk1) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8B) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8K) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8L) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8N) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov14Stk1) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov14F) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov30A)
+| psl3_nr2_lovlig_udelukkelse_giver_nul: psl3_nr2_scenarie_lovligt_afskåret -> psl3_nr2_scenarie_lovligt_afskåret.personlig_indkomst.alle_input_gyldige && psl3_nr2_scenarie_fradrag_kroner(psl3_nr2_scenarie_lovligt_afskåret) == 0 && psl3_nr2_scenarie_lovligt_afskåret.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 1000000
+| psl3_nr2_negativt_kildebeløb_afvises: psl3_nr2_scenarie_negativt_beløb -> psl3_nr2_scenarie_negativt_beløb.personlig_indkomst.alle_input_gyldige == Falskt && psl3_nr2_scenarie_negativt_beløb.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0 && psl3_nr2_scenarie_negativt_beløb.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 0
+| psl3_nr2_dobbelt_kildeidentifikation_afvises: psl3_nr2_scenarie_dobbelt_id -> psl3_nr2_scenarie_dobbelt_id.personlig_indkomst.alle_input_gyldige == Falskt && psl3_nr2_scenarie_dobbelt_id.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
+
+? psl3_nr2_alle_otte_familier_når_personskat
+? psl3_nr2_hjemler_bevares_i_sporbarheden
+? psl3_nr2_lovlig_udelukkelse_giver_nul
+? psl3_nr2_negativt_kildebeløb_afvises
+? psl3_nr2_dobbelt_kildeidentifikation_afvises

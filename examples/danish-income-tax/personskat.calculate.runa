@@ -14,6 +14,7 @@
 @ importer ./personskat - etableringskonto - beregningsmeta
 @ importer ./personskat - personlig - indkomst - beregningsmeta
 @ importer ./personskat - personlig - indkomst - kildefakta
+@ importer ./personskat - par3 - stk2 - nr2 - beregningsmeta
 @ importer ./personskat - kildeskat25a - beregningsmeta
 @ importer ./personskat - kildeskat25a - kildefakta
 @ importer ./personskat - pbl53a - beregningsmeta
@@ -13803,7 +13804,8 @@
     udgifter = map(
         virksomhed.udgifter,
         |udgift: PersonskatVirksomhedsudgiftFakta| personskat_ll9g_virksomhedsudgift_anvendt(virksomhed.identifikation, udgift, koordinering)
-    )
+    ),
+    ligningslovsfradrag_efter_par3_stk2_nr2 = virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2
 )
 | personskat_ll9g_personlig_indkomst_input(input: PersonskatPersonligIndkomstInput, koordinering: PersonskatLigningslov9GKoordinering) -> PersonskatPersonligIndkomstInput(
     etableringskonto = input.etableringskonto,
@@ -16314,7 +16316,8 @@ fraflytningen."
     identifikation = virksomhed.identifikation,
     indkomstår = virksomhed.indkomstår,
     indtægter = filter(virksomhed.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| contains(identifikationer, indtægt.identifikation)),
-    udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation))
+    udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation)),
+    ligningslovsfradrag_efter_par3_stk2_nr2 = filter(virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| contains(identifikationer, fradrag.identifikation))
 )
 | personskat_ksl25a_virksomhedsbeløb_for_postidentifikationer(virksomhed: PersonskatOrdinærVirksomhedFakta, identifikationer: List(Tekst)) -> hvis length(identifikationer) == 0 {
     kildeskat25a_tomt_virksomhedsbeløb()

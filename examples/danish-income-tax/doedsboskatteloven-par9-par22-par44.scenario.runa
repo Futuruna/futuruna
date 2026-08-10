@@ -11,7 +11,8 @@
     ],
     udgifter = [
         PersonskatVirksomhedsudgiftFakta(identifikation = "udgift-før-dødsfald", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 50000),
-    ]
+    ],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = []
 )
 | dødsboskattelov44_scenarie_postperioder() -> [
     PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),
@@ -96,7 +97,8 @@
             identifikation = "virksomhed-uden-førposter",
             indkomstår = 2025,
             indtægter = [PersonskatVirksomhedsindtægtFakta(identifikation = "kun-efter-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 120000)],
-            udgifter = []
+            udgifter = [],
+            ligningslovsfradrag_efter_par3_stk2_nr2 = []
         ),
         postperioder = [PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "kun-efter-dødsfald", fra_dato = Dato(år = 2025, måned = 7, dag = 2), til_dato = Dato(år = 2025, måned = 12, dag = 31))]
     ),

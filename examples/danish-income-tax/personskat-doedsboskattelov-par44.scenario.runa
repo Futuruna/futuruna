@@ -11,7 +11,8 @@
     ],
     udgifter = [
         PersonskatVirksomhedsudgiftFakta(identifikation = "udgift-før-dødsfald", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 50000),
-    ]
+    ],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = []
 )
 | personskat_dbl44_scenarie_postperioder() -> [
     PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),

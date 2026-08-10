@@ -314,7 +314,8 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
                 identifikation = "dokumenteret-driftsunderskud",
                 afgrænsning = SelvstændigErhvervsindkomstUdgift,
                 beløb_kroner = årsopgørelse2025_personlig.virksomhedsunderskud_kroner
-            )]
+            )],
+            ligningslovsfradrag_efter_par3_stk2_nr2 = []
         )],
         forenings_og_arbejdsløshedsydelser = []
     ),
