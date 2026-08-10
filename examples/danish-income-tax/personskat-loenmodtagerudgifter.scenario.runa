@@ -5,10 +5,16 @@
 
 = personskat_lønmodtagerudgift_scenarier_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par9_stk1),
+        Source(value = ligningsloven_lbk42_par9_stk3),
         Source(value = ligningsloven_lbk1500_par9_stk1),
         Source(value = ligningsloven_lbk1500_par9_stk3),
         DependencySource(value = sømandsbeskatningsloven_lbk1181_par3_til4),
+        RateSource(value = skat_oplysningsskema_2023_ligningsloven_par9_stk1),
+        RateSource(value = skat_oplysningsskema_2024_ligningsloven_par9_stk1),
         RateSource(value = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026),
+        DependencySource(value = skatteministeriet_par20_historiske_reguleringstal),
+        DependencySource(value = skatteministeriet_par20_beloebsgraenser_2025_2026),
     )
 )
 
@@ -18,6 +24,106 @@ Scenarierne er ikke lovtekst. De fastholder samspillet mellem ligningslovens
 § 9, stk. 1, og sømandsbeskatningslovens § 4 i den kanoniske
 Personskat-beregning.
 ----
+
+# PersonskatLønmodtagerudgiftÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstalskilde: Par20ReguleringstalKilde, grundbeløb_kroner: Heltal, fradrag_kroner: Heltal)
+
+| personskat_ll9_stk1_årsudgift(indkomstår: Heltal) -> Ligningslov9Stk1Udgiftsfakta(
+    identifikation = "årlig-telefonudgift",
+    indkomstår = indkomstår,
+    arbejdsforhold_identifikation = "landarbejde-år",
+    udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+    afholdt_eller_beregnet_beløb_kroner = 10000,
+    arbejdsgiver_refunderet_efter_regning_kroner = 0,
+    dokumentation = Ll9Stk1DokumenteretMedBilag
+)
+
+| personskat_ll9_stk1_års_ligningsfradrag(indkomstår: Heltal) -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
+    øvrige_lønmodtagerudgifter = Ligningslov9Stk1Årsinput(
+        skatteyderstatus = Ll9Stk1Lønmodtager,
+        udgifter = [personskat_ll9_stk1_årsudgift(indkomstår)]
+    ),
+    befordring = personskat_ingen_befordringsfradrag(),
+    rejser = ligningslov9a_intet_årsinput(),
+    faglige_kontingenter = Ligningslov13Årsinput(
+        skatteyderstatus = Ll13Lønmodtager,
+        kontingenter = []
+    ),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = []
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [])
+)
+
+| personskat_ll9_stk1_årsinput(indkomstår: Heltal) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = indkomstår,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ll9_stk1_års_ligningsfradrag(indkomstår),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+| personskat_ll9_stk1_årsberegning(indkomstår: Heltal) -> beregn_personskat(personskat_ll9_stk1_årsinput(indkomstår))
+
+= personskat_ll9_stk1_årsforventninger = [
+    PersonskatLønmodtagerudgiftÅrsforventning(
+        indkomstår = 2023,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        grundbeløb_kroner = 6700,
+        fradrag_kroner = 3300
+    ),
+    PersonskatLønmodtagerudgiftÅrsforventning(
+        indkomstår = 2024,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        grundbeløb_kroner = 7000,
+        fradrag_kroner = 3000
+    ),
+    PersonskatLønmodtagerudgiftÅrsforventning(
+        indkomstår = 2025,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        grundbeløb_kroner = 7300,
+        fradrag_kroner = 2700
+    ),
+    PersonskatLønmodtagerudgiftÅrsforventning(
+        indkomstår = 2026,
+        lovversion = Ll9Stk1Lbk1500Af2025,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        grundbeløb_kroner = 7600,
+        fradrag_kroner = 2400
+    )
+]
+
+| personskat_ll9_stk1_årsforventning_holder(forventning: PersonskatLønmodtagerudgiftÅrsforventning) -> {
+    = resultat = personskat_ll9_stk1_årsberegning(forventning.indkomstår)
+    = lønmodtagerudgifter = resultat.ligningsfradrag.øvrige_lønmodtagerudgifter
+    resultat.ligningsfradrag.alle_input_gyldige && lønmodtagerudgifter.alle_input_gyldige && lønmodtagerudgifter.grundbeløb_kroner == forventning.grundbeløb_kroner && lønmodtagerudgifter.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10000 && lønmodtagerudgifter.samlet_fradrag_kroner == forventning.fradrag_kroner && resultat.ligningsfradrag.lønmodtagerudgifter_fradrag_anvendt_kroner == forventning.fradrag_kroner && resultat.ligningsfradrag.samlet_ligningsfradrag_kroner == forventning.fradrag_kroner && resultat.skat.øvrige_ligningsmæssige_fradrag_kroner == forventning.fradrag_kroner && match lønmodtagerudgifter.grundbeløbsresultat {
+        | Some(grundbeløb) -> grundbeløb.lovversion == forventning.lovversion && grundbeløb.reguleringstal.kilde == forventning.reguleringstalskilde
+        | None -> Falskt
+    }
+}
 
 | personskat_ll9_stk1_scenarie_sømandsbeskæftigelse() -> Sømandsbeskatningslov3Beskæftigelsesfakta(
     identifikation = "sømandsarbejde-a",
@@ -182,11 +288,13 @@ Personskat-beregning.
     )
 )
 
+| personskat_ll9_stk1_årsserien_sammensættes_gennem_personskat: personskat_ll9_stk1_årsforventninger -> all(personskat_ll9_stk1_årsforventninger, |forventning: PersonskatLønmodtagerudgiftÅrsforventning| personskat_ll9_stk1_årsforventning_holder(forventning))
 | personskat_ll9_stk1_scenarie_fravalg_bevarer_fradrag: personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat -> personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat.alle_input_gyldige && personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat.lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner == 10000 && personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat.lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner == 10000 && personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat.lønmodtagerudgifter_fradrag_før_par4_kroner == 2400 && personskat_ll9_stk1_scenarie_uden_sømandsvalg_resultat.lønmodtagerudgifter_fradrag_anvendt_kroner == 2400
 | personskat_ll9_stk1_scenarie_blandet_arbejde_anvender_bundgrænse_efter_par4: personskat_ll9_stk1_scenarie_blandet_resultat -> personskat_ll9_stk1_scenarie_blandet_resultat.alle_input_gyldige && personskat_ll9_stk1_scenarie_blandet_resultat.lønmodtagerudgifter_fradragsgrundlag_før_par4_kroner == 18000 && personskat_ll9_stk1_scenarie_blandet_resultat.lønmodtagerudgifter_fradragsgrundlag_efter_par4_kroner == 9000 && personskat_ll9_stk1_scenarie_blandet_resultat.lønmodtagerudgifter_fradrag_før_par4_kroner == 10400 && personskat_ll9_stk1_scenarie_blandet_resultat.lønmodtagerudgifter_fradrag_anvendt_kroner == 1400 && personskat_ll9_stk1_scenarie_blandet_resultat.samlet_afskåret_efter_sømandsbeskatningslov4_kroner == 9000
 | personskat_ll9_stk1_scenarie_manglende_kildetilknytning_afvises: personskat_ll9_stk1_scenarie_manglende_tilknytning_resultat -> personskat_ll9_stk1_scenarie_manglende_tilknytning_resultat.sømandsbeskatningslov4_kildetilknytninger_gyldige && personskat_ll9_stk1_scenarie_manglende_tilknytning_resultat.sømandsbeskatningslov4_påkrævede_kilder_tilknyttet == Falskt && personskat_ll9_stk1_scenarie_manglende_tilknytning_resultat.alle_input_gyldige == Falskt && personskat_ll9_stk1_scenarie_manglende_tilknytning_resultat.samlet_ligningsfradrag_kroner == 0
 | personskat_ll9_stk1_scenarie_forkert_arbejdstilknytning_afvises: personskat_ll9_stk1_scenarie_forkert_tilknytning_resultat -> personskat_ll9_stk1_scenarie_forkert_tilknytning_resultat.sømandsbeskatningslov4_kildetilknytninger_gyldige == Falskt && personskat_ll9_stk1_scenarie_forkert_tilknytning_resultat.sømandsbeskatningslov4_påkrævede_kilder_tilknyttet && personskat_ll9_stk1_scenarie_forkert_tilknytning_resultat.alle_input_gyldige == Falskt && personskat_ll9_stk1_scenarie_forkert_tilknytning_resultat.samlet_ligningsfradrag_kroner == 0
 
+? personskat_ll9_stk1_årsserien_sammensættes_gennem_personskat
 ? personskat_ll9_stk1_scenarie_fravalg_bevarer_fradrag
 ? personskat_ll9_stk1_scenarie_blandet_arbejde_anvender_bundgrænse_efter_par4
 ? personskat_ll9_stk1_scenarie_manglende_kildetilknytning_afvises

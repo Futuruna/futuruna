@@ -2,6 +2,8 @@
 
 @ importer ./ligningsloven - par9 - loenmodtagerudgifter
 
+# Ligningslov9Stk1Årsforventning(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstalskilde: Par20ReguleringstalKilde, reguleringstal_tiendedele: Heltal, grundbeløb_kroner: Heltal, fradrag_kroner: Heltal)
+
 | ll9_stk1_scenarie_udgift(
     identifikation: Tekst,
     indkomstår: Heltal,
@@ -26,6 +28,59 @@
         udgifter = udgifter
     )
 )
+
+= ll9_stk1_scenarie_årsforventninger = [
+    Ligningslov9Stk1Årsforventning(
+        indkomstår = 2023,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        reguleringstal_tiendedele = 1218,
+        grundbeløb_kroner = 6700,
+        fradrag_kroner = 3300
+    ),
+    Ligningslov9Stk1Årsforventning(
+        indkomstår = 2024,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        reguleringstal_tiendedele = 1261,
+        grundbeløb_kroner = 7000,
+        fradrag_kroner = 3000
+    ),
+    Ligningslov9Stk1Årsforventning(
+        indkomstår = 2025,
+        lovversion = Ll9Stk1Lbk42Af2023,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        reguleringstal_tiendedele = 1310,
+        grundbeløb_kroner = 7300,
+        fradrag_kroner = 2700
+    ),
+    Ligningslov9Stk1Årsforventning(
+        indkomstår = 2026,
+        lovversion = Ll9Stk1Lbk1500Af2025,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        reguleringstal_tiendedele = 1373,
+        grundbeløb_kroner = 7600,
+        fradrag_kroner = 2400
+    )
+]
+
+| ll9_stk1_scenarie_årsforventning_holder(forventning: Ligningslov9Stk1Årsforventning) -> {
+    = resultat = ll9_stk1_scenarie_årsresultat(
+        indkomstår = forventning.indkomstår,
+        udgifter = [ll9_stk1_scenarie_udgift(
+            identifikation = "årsudgift",
+            indkomstår = forventning.indkomstår,
+            udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+            beløb_kroner = 10000,
+            refunderet_kroner = 0,
+            dokumentation = Ll9Stk1DokumenteretMedBilag
+        )]
+    )
+    resultat.skatteår_understøttet && resultat.alle_input_gyldige && resultat.grundbeløb_kroner == forventning.grundbeløb_kroner && resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10000 && resultat.samlet_fradrag_kroner == forventning.fradrag_kroner && match resultat.grundbeløbsresultat {
+        | Some(grundbeløb) -> grundbeløb.indkomstår == forventning.indkomstår && grundbeløb.lovversion == forventning.lovversion && grundbeløb.reguleringstal.kilde == forventning.reguleringstalskilde && grundbeløb.reguleringstal.reguleringstal_tiendedele == forventning.reguleringstal_tiendedele && grundbeløb.regulering.grundbeløb_2010_niveau_kroner == 5500 && grundbeløb.regulering.reguleret_og_afrundet_kroner == forventning.grundbeløb_kroner
+        | None -> Falskt
+    }
+}
 
 = ll9_stk1_scenarie_kursus = ll9_stk1_scenarie_udgift(
     identifikation = "kursus",
@@ -167,6 +222,31 @@
     ]
 )
 
+= ll9_stk1_scenarie_2022_uden_kildedækning = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2022,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "uden-kildedækning-2022",
+        indkomstår = 2022,
+        udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+        beløb_kroner = 10000,
+        refunderet_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+= ll9_stk1_scenarie_2027_uden_kildedækning = ll9_stk1_scenarie_årsresultat(
+    indkomstår = 2027,
+    udgifter = [ll9_stk1_scenarie_udgift(
+        identifikation = "uden-kildedækning-2027",
+        indkomstår = 2027,
+        udgiftsart = Ll9Stk1ErhvervsmæssigeTelefonsamtaler,
+        beløb_kroner = 10000,
+        refunderet_kroner = 0,
+        dokumentation = Ll9Stk1DokumenteretMedBilag
+    )]
+)
+
+| ll9_stk1_scenarie_årsserien_afledes_fra_par20: ll9_stk1_scenarie_årsforventninger -> all(ll9_stk1_scenarie_årsforventninger, |forventning: Ligningslov9Stk1Årsforventning| ll9_stk1_scenarie_årsforventning_holder(forventning))
 | ll9_stk1_scenarie_bundgrænse_anvendes_på_samlede_udgifter: ll9_stk1_scenarie_2025_resultat -> ll9_stk1_scenarie_2025_resultat.alle_input_gyldige && ll9_stk1_scenarie_2025_resultat.grundbeløb_kroner == 7300 && ll9_stk1_scenarie_2025_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10300 && ll9_stk1_scenarie_2025_resultat.samlet_fradrag_kroner == 3000
 | ll9_stk1_scenarie_intet_fradrag_ved_bundgrænsen: ll9_stk1_scenarie_præcis_bundgrænse_resultat -> ll9_stk1_scenarie_præcis_bundgrænse_resultat.grundbeløb_kroner == 7600 && ll9_stk1_scenarie_præcis_bundgrænse_resultat.samlet_fradrag_kroner == 0
 | ll9_stk1_scenarie_repræsentation_begrænses_før_bundgrænsen: ll9_stk1_scenarie_repræsentation_resultat -> head(ll9_stk1_scenarie_repræsentation_resultat.udgiftsresultater).fradragsandel_basispoint == 2500 && ll9_stk1_scenarie_repræsentation_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 10000 && ll9_stk1_scenarie_repræsentation_resultat.samlet_fradrag_kroner == 2400
@@ -174,7 +254,14 @@
 | ll9_stk1_scenarie_refusion_reducerer_egen_udgift: ll9_stk1_scenarie_refusion_resultat -> head(ll9_stk1_scenarie_refusion_resultat.udgiftsresultater).egen_udgift_kroner == 8000 && ll9_stk1_scenarie_refusion_resultat.samlet_fradrag_kroner == 700
 | ll9_stk1_scenarie_udelukkede_udgifter_giver_intet_fradrag: ll9_stk1_scenarie_udelukkede_udgifter_resultat -> ll9_stk1_scenarie_udelukkede_udgifter_resultat.alle_input_gyldige && ll9_stk1_scenarie_udelukkede_udgifter_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && ll9_stk1_scenarie_udelukkede_udgifter_resultat.samlet_fradrag_kroner == 0
 | ll9_stk1_scenarie_ugyldigt_input_fejler_lukket: ll9_stk1_scenarie_ugyldig_resultat -> ll9_stk1_scenarie_ugyldig_resultat.identifikationer_entydige == Falskt && ll9_stk1_scenarie_ugyldig_resultat.alle_input_gyldige == Falskt && ll9_stk1_scenarie_ugyldig_resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && ll9_stk1_scenarie_ugyldig_resultat.samlet_fradrag_kroner == 0
+| ll9_stk1_scenarie_uden_kildedækning_fejler_lukket(resultat: Ligningslov9Stk1Årsresultat) -> resultat.skatteår_understøttet == Falskt && resultat.alle_input_gyldige == Falskt && resultat.grundbeløb_kroner == 0 && resultat.samlet_fradragsgrundlag_før_bundgrænse_kroner == 0 && resultat.samlet_fradrag_kroner == 0 && match resultat.grundbeløbsresultat {
+    | None -> Sandt
+    | Some(_) -> Falskt
+}
+| ll9_stk1_scenarie_2022_fejler_lukket: ll9_stk1_scenarie_2022_uden_kildedækning -> ll9_stk1_scenarie_uden_kildedækning_fejler_lukket(ll9_stk1_scenarie_2022_uden_kildedækning)
+| ll9_stk1_scenarie_2027_fejler_lukket: ll9_stk1_scenarie_2027_uden_kildedækning -> ll9_stk1_scenarie_uden_kildedækning_fejler_lukket(ll9_stk1_scenarie_2027_uden_kildedækning)
 
+? ll9_stk1_scenarie_årsserien_afledes_fra_par20
 ? ll9_stk1_scenarie_bundgrænse_anvendes_på_samlede_udgifter
 ? ll9_stk1_scenarie_intet_fradrag_ved_bundgrænsen
 ? ll9_stk1_scenarie_repræsentation_begrænses_før_bundgrænsen
@@ -182,3 +269,5 @@
 ? ll9_stk1_scenarie_refusion_reducerer_egen_udgift
 ? ll9_stk1_scenarie_udelukkede_udgifter_giver_intet_fradrag
 ? ll9_stk1_scenarie_ugyldigt_input_fejler_lukket
+? ll9_stk1_scenarie_2022_fejler_lukket
+? ll9_stk1_scenarie_2027_fejler_lukket

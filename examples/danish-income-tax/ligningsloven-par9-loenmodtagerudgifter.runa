@@ -1,9 +1,16 @@
 @ sprog da
 
+@ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./metadata
 @ importer ./pengebeloeb
 
 # Ligningslov9KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= ligningsloven_lbk42_par9_stk1 = Ligningslov9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 9, stk. 1, i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10"
+)
 
 = ligningsloven_lbk1500_par9_stk1 = Ligningslov9KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
@@ -11,10 +18,34 @@
     hentet_dato = "2026-08-04"
 )
 
+= skat_oplysningsskema_2023_ligningsloven_par9_stk1 = Ligningslov9KildeInfo(
+    url = "https://skat.dk/media/1cjjbnfc/04003_januar_2024-t.pdf?id=153733",
+    identifier = "Skattestyrelsens oplysningsskema for indkomståret 2023, rubrik 58",
+    hentet_dato = "2026-08-10"
+)
+
+= skat_oplysningsskema_2024_ligningsloven_par9_stk1 = Ligningslov9KildeInfo(
+    url = "https://skat.dk/media/2znnaxgw/04003_oktober_2024-t.pdf",
+    identifier = "Skattestyrelsens oplysningsskema for indkomståret 2024, rubrik 58",
+    hentet_dato = "2026-08-10"
+)
+
 = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026 = Ligningslov9KildeInfo(
     url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven",
     identifier = "Skatteministeriets satser og beløbsgrænser for ligningsloven, § 9, stk. 1",
     hentet_dato = "2026-08-04"
+)
+
+= skatteministeriet_par20_historiske_reguleringstal = Ligningslov9KildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/skattehistorik/reguleringstallet-i-psl-20-en-historisk-oversigt",
+    identifier = "Skatteministeriets historiske reguleringstal i personskattelovens § 20",
+    hentet_dato = "2026-08-10"
+)
+
+= skatteministeriet_par20_beloebsgraenser_2025_2026 = Ligningslov9KildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2025-2026",
+    identifier = "Skatteministeriets § 20-reguleringstal og beløbsgrænser for 2025-2026",
+    hentet_dato = "2026-08-10"
 )
 
 = juridisk_vejledning_ligningslov9_stk1 = Ligningslov9KildeInfo(
@@ -31,8 +62,13 @@
 
 = ligningsloven_par9_stk1_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par9_stk1),
         Source(value = ligningsloven_lbk1500_par9_stk1),
+        RateSource(value = skat_oplysningsskema_2023_ligningsloven_par9_stk1),
+        RateSource(value = skat_oplysningsskema_2024_ligningsloven_par9_stk1),
         RateSource(value = skatteministeriet_ligningsloven_beloebsgraenser_2025_2026),
+        DependencySource(value = skatteministeriet_par20_historiske_reguleringstal),
+        DependencySource(value = skatteministeriet_par20_beloebsgraenser_2025_2026),
         Guidance(value = juridisk_vejledning_ligningslov9_stk1),
         Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
     )
@@ -40,15 +76,34 @@
 
 --@label:ligningsloven_par9_stk1_loenmodtagerudgifter::meta:ligningsloven_par9_stk1_metadata--
 ----
+Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
+enslydende § 9, stk. 1:
+
 § 9. Ved opgørelsen af den skattepligtige indkomst for lønmodtagere fradrages
 udgifter i forbindelse med udførelsen af det indtægtsgivende arbejde i det
 omfang, de samlede fradragsberettigede udgifter overstiger et grundbeløb på
 5.500 kr. (2010-niveau). Grundbeløbet reguleres efter personskattelovens § 20.
 Befordringsudgifter omfattet af § 9 B eller statsskattelovens § 6, litra a, kan
 dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
+
+Skattestyrelsens oplysningsskema for indkomståret 2023, rubrik 58:
+
+Øvrige lønmodtagerudgifter (De første 6.700 kr. skal trækkes fra inden du
+skriver beløbet)
+
+Skattestyrelsens oplysningsskema for indkomståret 2024, rubrik 58:
+
+Øvrige lønmodtagerudgifter (De første 7.000 kr. skal trækkes fra inden du
+skriver beløbet)
+
+Skatteministeriets satser og beløbsgrænser for ligningsloven, 2025-2026:
+
+Bundgrænse for visse lønmodtagerfradrag
+(§ 9, stk. 1) | 5.500 kr. | 7.300 kr. | 7.600 kr.
 ----
 
 --@begin:ligningsloven_par9_stk1_loenmodtagerudgifter--
+# Ligningslov9Stk1Lovversion = Ll9Stk1Lbk42Af2023 | Ll9Stk1Lbk1500Af2025 | Ll9Stk1LovUdenKildedækning
 # Ligningslov9Stk1Skatteyderstatus = Ll9Stk1Lønmodtager | Ll9Stk1IkkeLønmodtager
 # Ligningslov9Stk1Dokumentation = Ll9Stk1DokumenteretMedBilag | Ll9Stk1DokumenteretPåAndenKontrollerbarMåde | Ll9Stk1UdenTilstrækkeligDokumentation
 # Ligningslov9Stk1Kursusformål = Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse | Ll9Stk1GrundEllerVidereuddannelse | Ll9Stk1AndetKursusformål
@@ -57,17 +112,40 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 # Ligningslov9Stk1Udgiftsart = Ll9Stk1Kursus(formål: Ligningslov9Stk1Kursusformål) | Ll9Stk1Faglitteratur(art: Ligningslov9Stk1Litteraturart, nødvendig_for_at_varetage_arbejdet_i_året: Boolsk) | Ll9Stk1SærligtArbejdstøj(særligt_til_arbejdet: Boolsk, kan_anvendes_som_almindeligt_tøj: Boolsk) | Ll9Stk1ErhvervsmæssigeTelefonsamtaler | Ll9Stk1Arbejdsværelse(arbejdets_art_eller_omfang_gør_rummet_uegnet_som_almindeligt_opholdsrum: Boolsk) | Ll9Stk1DriftsmiddelAfskrivning(erhvervsmæssig_andel_basispoint: Heltal) | Ll9Stk1Repræsentation(aflønningsform_giver_mulighed_for_at_påvirke_indtægten: Boolsk) | Ll9Stk1AndenUdgift(beskrivelse: Tekst, forbindelse: Ligningslov9Stk1Arbejdsforbindelse) | Ll9Stk1BefordringOmfattetAfPar9B | Ll9Stk1BefordringEfterStatsskattelov6LitraA
 # Ligningslov9Stk1Udgiftsfakta(identifikation: Tekst, indkomstår: Heltal, arbejdsforhold_identifikation: Tekst, udgiftsart: Ligningslov9Stk1Udgiftsart, afholdt_eller_beregnet_beløb_kroner: Heltal, arbejdsgiver_refunderet_efter_regning_kroner: Heltal, dokumentation: Ligningslov9Stk1Dokumentation)
 # Ligningslov9Stk1Udgiftsresultat(fakta: Ligningslov9Stk1Udgiftsfakta, input_gyldigt: Boolsk, lønmodtager: Boolsk, dokumenteret: Boolsk, udgiftsart_omfattet: Boolsk, egen_udgift_kroner: Heltal, fradragsandel_basispoint: Heltal, fradragsgrundlag_før_bundgrænse_kroner: Heltal)
+# Ligningslov9Stk1Grundbeløbsresultat(indkomstår: Heltal, lovversion: Ligningslov9Stk1Lovversion, reguleringstal: Par20ReguleringstalResultat, regulering: Par20ReguleringResultat)
 # Ligningslov9Stk1Årsinput(skatteyderstatus: Ligningslov9Stk1Skatteyderstatus, udgifter: List(Ligningslov9Stk1Udgiftsfakta))
-# Ligningslov9Stk1Årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput, udgiftsresultater: List(Ligningslov9Stk1Udgiftsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, grundbeløb_kroner: Heltal, samlet_fradragsgrundlag_før_bundgrænse_kroner: Heltal, samlet_fradrag_kroner: Heltal)
+# Ligningslov9Stk1Årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput, udgiftsresultater: List(Ligningslov9Stk1Udgiftsresultat), grundbeløbsresultat: Ligningslov9Stk1Grundbeløbsresultat?, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, grundbeløb_kroner: Heltal, samlet_fradragsgrundlag_før_bundgrænse_kroner: Heltal, samlet_fradrag_kroner: Heltal)
 
 | ligningslov9_stk1_intet_årsinput() -> Ligningslov9Stk1Årsinput(
     skatteyderstatus = Ll9Stk1Lønmodtager,
     udgifter = []
 )
-| ligningslov9_stk1_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1LovUdenKildedækning
+| exception ligningslov9_stk1_lbk42_for_2023_til_2025 ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov9_stk1_lbk1500_for_2026 ligningslov9_stk1_lovversion_for(indkomstår: Heltal) -> Ll9Stk1Lbk1500Af2025 under indkomstår == 2026
+| ligningslov9_stk1_grundbeløbsresultat(indkomstår: Heltal) -> None
+| exception ligningslov9_stk1_grundbeløb_fra_par20_2023_til_2026 ligningslov9_stk1_grundbeløbsresultat(indkomstår: Heltal) -> {
+    = reguleringstal = par20_reguleringstal_resultat(indkomstår)
+    = regulering = par20_regulering_resultat(Par20ReguleringInput(
+        grundbeløb_2010_niveau_kroner = 5500,
+        reguleringstal_tiendedele = reguleringstal.reguleringstal_tiendedele
+    ))
+    Some(Ligningslov9Stk1Grundbeløbsresultat(
+        indkomstår = indkomstår,
+        lovversion = ligningslov9_stk1_lovversion_for(indkomstår),
+        reguleringstal = reguleringstal,
+        regulering = regulering
+    ))
+} under indkomstår >= 2023 && indkomstår <= 2026
+| ligningslov9_stk1_skatteår_understøttet(indkomstår: Heltal) -> match ligningslov9_stk1_grundbeløbsresultat(indkomstår) {
+    | Some(_) -> Sandt
+    | None -> Falskt
+}
 | ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 0
-| exception ligningslov9_stk1_grundbeløb_2025 ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 7300 under indkomstår == 2025
-| exception ligningslov9_stk1_grundbeløb_2026 ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> 7600 under indkomstår == 2026
+| exception ligningslov9_stk1_grundbeløb_fra_kilde ligningslov9_stk1_grundbeløb_kroner(indkomstår: Heltal) -> match ligningslov9_stk1_grundbeløbsresultat(indkomstår) {
+    | Some(resultat) -> resultat.regulering.reguleret_og_afrundet_kroner
+    | None -> 0
+} under ligningslov9_stk1_skatteår_understøttet(indkomstår)
 | ligningslov9_stk1_dokumenteret(dokumentation: Ligningslov9Stk1Dokumentation) -> dokumentation == Ll9Stk1DokumenteretMedBilag || dokumentation == Ll9Stk1DokumenteretPåAndenKontrollerbarMåde
 | ligningslov9_stk1_kursus_omfattet(formål: Ligningslov9Stk1Kursusformål) -> formål == Ll9Stk1VedligeholdelseEllerAjourføringAfFagligUddannelse
 | ligningslov9_stk1_faglitteratur_omfattet(art: Ligningslov9Stk1Litteraturart, nødvendig_for_at_varetage_arbejdet_i_året: Boolsk) -> nødvendig_for_at_varetage_arbejdet_i_året && (art == Ll9Stk1FagligtTidsskrift || art == Ll9Stk1VidenskabeligtVærk)
@@ -111,6 +189,7 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 }
 | ligningslov9_stk1_årsresultat(indkomstår: Heltal, input: Ligningslov9Stk1Årsinput) -> {
     = udgiftsresultater = map(input.udgifter, |fakta: Ligningslov9Stk1Udgiftsfakta| ligningslov9_stk1_udgiftsresultat(indkomstår = indkomstår, skatteyderstatus = input.skatteyderstatus, fakta = fakta))
+    = grundbeløbsresultat = ligningslov9_stk1_grundbeløbsresultat(indkomstår)
     = skatteår_understøttet = length(input.udgifter) == 0 || ligningslov9_stk1_skatteår_understøttet(indkomstår = indkomstår)
     = identifikationer_entydige = ligningslov9_stk1_identifikationer_entydige(udgifter = input.udgifter)
     = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(udgiftsresultater, |resultat: Ligningslov9Stk1Udgiftsresultat| resultat.input_gyldigt)
@@ -120,6 +199,7 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
         indkomstår = indkomstår,
         input = input,
         udgiftsresultater = udgiftsresultater,
+        grundbeløbsresultat = grundbeløbsresultat,
         skatteår_understøttet = skatteår_understøttet,
         identifikationer_entydige = identifikationer_entydige,
         alle_input_gyldige = alle_input_gyldige,
@@ -130,6 +210,12 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 }
 --@end:ligningsloven_par9_stk1_loenmodtagerudgifter--
 
+= ligningsloven_lbk42_par9_stk3 = Ligningslov9KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 9, stk. 3, i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10"
+)
+
 = ligningsloven_lbk1500_par9_stk3 = Ligningslov9KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 9, stk. 3, i LBK nr. 1500 af 24/11/2025",
@@ -138,6 +224,7 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 
 = ligningsloven_par9_stk3_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par9_stk3),
         Source(value = ligningsloven_lbk1500_par9_stk3),
         Guidance(value = skat_arbejdstoej_faglitteratur_og_kurser),
     )
@@ -145,6 +232,9 @@ dog ikke fradrages ved indkomstopgørelsen, jf. dog § 9 B, stk. 4.
 
 --@label:ligningsloven_par9_stk3_repraesentation::meta:ligningsloven_par9_stk3_metadata--
 ----
+Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
+enslydende § 9, stk. 3:
+
 Stk. 3. Ved opgørelsen af den skattepligtige indkomst fradrages udgifter til
 repræsentation dog kun med et beløb svarende til 25 pct. af de afholdte
 udgifter.
