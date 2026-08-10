@@ -315,7 +315,8 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
                 afgrænsning = SelvstændigErhvervsindkomstUdgift,
                 beløb_kroner = årsopgørelse2025_personlig.virksomhedsunderskud_kroner
             )],
-            ligningslovsfradrag_efter_par3_stk2_nr2 = []
+            ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+            erhvervsposter_efter_par3_stk2_nr4_til_10 = []
         )],
         forenings_og_arbejdsløshedsydelser = []
     ),

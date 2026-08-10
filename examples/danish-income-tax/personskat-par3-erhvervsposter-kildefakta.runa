@@ -1,0 +1,212 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./metadata
+
+= personskat_par3_erhvervsposter_kildefakta_metadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par3),
+        Warning(value = personskatteloven_par3_nr5_varelager_nulprocent_advarsel),
+        Warning(value = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel),
+    )
+)
+
+--@label:personskat_par3_erhvervsposter_kildefakta::meta:personskat_par3_erhvervsposter_kildefakta_metadata--
+----
+Personskatteloven § 3, stk. 2:
+
+Ved opgørelsen af den personlige indkomst fradrages
+4) forskelsbeløb og nedskrivning på husdyrbesætninger efter lov om den
+skattemæssige behandling af husdyrbesætninger §§ 2 og 8,
+5) nedskrivning af varelager efter varelagerlovens § 1, stk. 4,
+7) henlæggelser efter § 22 b og § 22 d i virksomhedsskatteloven,
+9) tilbagebetalt skattepligtig kontanthjælp i samme omfang som nævnt i
+ligningslovens § 8 O,
+10) skattemæssige afskrivninger, tab og fradrag efter afskrivningsloven og
+statsskatteloven for selvstændige erhvervsdrivende og
+----
+
+--@begin:personskat_par3_erhvervsposter_kildefakta--
+# PersonskatPar3Nr10Driftsmiddelkilde = PsPar3Nr10Al5(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) | PsPar3Nr10Al5A(input: Afskrivningslov5AInput) | PsPar3Nr10Al5B(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) | PsPar3Nr10Al5C(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) | PsPar3Nr10Al5D5E(input: AfskrivningslovForhøjetSaldoInput) | PsPar3Nr10Al6(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) | PsPar3Nr10Al6Salg(input: Afskrivningslov6SalgInput) | PsPar3Nr10Al7(input: Afskrivningslov7Input) | PsPar3Nr10Al8(input: Afskrivningslov8Input) | PsPar3Nr10Al9(input: Afskrivningslov9Input) | PsPar3Nr10Al9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | PsPar3Nr10Al11(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) | PsPar3Nr10Al12(input: Afskrivningslov12Input) | PsPar3Nr10Al13Udgang(input: Afskrivningslov13UdgangInput) | PsPar3Nr10Al13Reparation(input: Afskrivningslov13ReparationInput)
+# PersonskatPar3Nr10Bygningskilde = PsPar3Nr10Al17(input: Afskrivningslov17Input) | PsPar3Nr10Al18(input: Afskrivningslov18Input) | PsPar3Nr10Al21(input: Afskrivningslov21Input) | PsPar3Nr10Al22(input: Afskrivningslov22Input) | PsPar3Nr10Al23(input: Afskrivningslov23Input) | PsPar3Nr10Al24Samordning(fakta: EblPar10Fakta) | PsPar3Nr10Al24Fristsvigt(input: Afskrivningslov24Input) | PsPar3Nr10Al25(input: Afskrivningslov25Input) | PsPar3Nr10Al26(input: Afskrivningslov26Input) | PsPar3Nr10Al27(input: Afskrivningslov27Input)
+# PersonskatPar3Nr10Forskudsafskrivningskilde = PsPar3Nr10Al32(input: Afskrivningslov32ÅrsInput) | PsPar3Nr10Al34(input: Afskrivningslov34Input)
+# PersonskatPar3Nr10Rettighedskilde = PsPar3Nr10Al38(input: Afskrivningslov38Input) | PsPar3Nr10Al39(input: Afskrivningslov39Input) | PsPar3Nr10Al40Skatteyder(input: Afskrivningslov40Input) | PsPar3Nr10Al40Modtager(input: Afskrivningslov40Input) | PsPar3Nr10Al40A(input: Afskrivningslov40AInput) | PsPar3Nr10Al40B(input: Afskrivningslov40BInput)
+# PersonskatPar3Nr10Særregelkilde = PsPar3Nr10Al42År(input: Afskrivningslov42ÅrsInput) | PsPar3Nr10Al42Afståelse(input: Afskrivningslov42AfståelsesInput) | PsPar3Nr10Al43År(input: Afskrivningslov43ÅrsInput) | PsPar3Nr10Al43Salg(input: Afskrivningslov43SalgInput) | PsPar3Nr10Al44(input: Afskrivningslov44Input) | PsPar3Nr10Al44AÅr(input: Afskrivningslov44AÅrsInput) | PsPar3Nr10Al44AAfståelse(input: Afskrivningslov44AAfståelsesInput) | PsPar3Nr10Al44ASkade(input: Afskrivningslov44ASkadeInput) | PsPar3Nr10Al44AGenopførelse(input: Afskrivningslov44AGenopførelseInput) | PsPar3Nr10Al44B(input: Afskrivningslov44BInput) | PsPar3Nr10Al44C(input: Afskrivningslov44CInput) | PsPar3Nr10Al50(input: Afskrivningslov50SalgInput) | PsPar3Nr10Al55(input: Afskrivningslov55Input) | PsPar3Nr10Al58(input: Afskrivningslov58SalgInput) | PsPar3Nr10Al58A(input: Afskrivningslov58AInput) | PsPar3Nr10Al60(input: Afskrivningslov60Input) | PsPar3Nr10Al62Driftsmiddel(input: Afskrivningslov62DriftsmiddelSalgInput) | PsPar3Nr10Al62Miljøanlæg(input: Afskrivningslov62MiljøanlægSalgInput)
+# PersonskatPar3Nr10Afskrivningskilde = PsPar3Nr10Driftsmiddel(kilde: PersonskatPar3Nr10Driftsmiddelkilde) | PsPar3Nr10Bygning(kilde: PersonskatPar3Nr10Bygningskilde) | PsPar3Nr10Forskudsafskrivning(kilde: PersonskatPar3Nr10Forskudsafskrivningskilde) | PsPar3Nr10Rettighed(kilde: PersonskatPar3Nr10Rettighedskilde) | PsPar3Nr10Særregel(kilde: PersonskatPar3Nr10Særregelkilde) | PsPar3Nr10Statsskattelov6A(input: Statsskattelov6OrdinærAfskrivningInput)
+# PersonskatPar3Erhvervspostkilde = PsPar3Nr4Husdyr(par2_input: HusdyrPar2Input, par8_input: HusdyrPar8Input) | PsPar3Nr5Varelager(input: VarelagerPar1Input) | PsPar3Nr7Virksomhedsskattelov22B(input: Virksomhedsskattelov22BHenlæggelseInput) | PsPar3Nr7Virksomhedsskattelov22D(input: Virksomhedsskattelov22DHenlæggelseInput) | PsPar3Nr9TilbagebetaltOffentligYdelse(input: Ligningslov8OInput) | PsPar3Nr10Afskrivning(kilde: PersonskatPar3Nr10Afskrivningskilde)
+# PersonskatPar3Erhvervspostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar3Erhvervspostkilde)
+# PersonskatPar3Erhvervspostresultat(fakta: PersonskatPar3Erhvervspostfakta, par3_post: Par3Stk2Nr3Til11Post)
+
+| personskat_par3_nr10_driftsmiddelkilde_grundlag(kilde: PersonskatPar3Nr10Driftsmiddelkilde) -> match kilde {
+    | PsPar3Nr10Al5(input, parametre) -> Par3Nr10Al5(resultat = afskrivningslov5_resultat(input, parametre))
+    | PsPar3Nr10Al5A(input) -> Par3Nr10Al5A(resultat = afskrivningslov5a_resultat(input))
+    | PsPar3Nr10Al5B(input, parametre) -> Par3Nr10Al5B(resultat = afskrivningslov5b_resultat(input, parametre))
+    | PsPar3Nr10Al5C(input, parametre) -> Par3Nr10Al5C(resultat = afskrivningslov5c_resultat(input, parametre))
+    | PsPar3Nr10Al5D5E(input) -> Par3Nr10Al5D5E(resultat = afskrivningslov_forhøjet_saldo_resultat(input))
+    | PsPar3Nr10Al6(input, parametre) -> Par3Nr10Al6(resultat = afskrivningslov6_resultat(input, parametre))
+    | PsPar3Nr10Al6Salg(input) -> Par3Nr10Al6Salg(resultat = afskrivningslov6_salg_resultat(input))
+    | PsPar3Nr10Al7(input) -> Par3Nr10Al7(resultat = afskrivningslov7_resultat(input))
+    | PsPar3Nr10Al8(input) -> Par3Nr10Al8(resultat = afskrivningslov8_resultat(input))
+    | PsPar3Nr10Al9(input) -> Par3Nr10Al9(resultat = afskrivningslov9_resultat(input))
+    | PsPar3Nr10Al9EfterfølgendeSalg(input) -> Par3Nr10Al9EfterfølgendeSalg(resultat = afskrivningslov9_efterfølgende_salg_resultat(input))
+    | PsPar3Nr10Al11(input, parametre) -> Par3Nr10Al11(resultat = afskrivningslov11_resultat(input, parametre))
+    | PsPar3Nr10Al12(input) -> Par3Nr10Al12(resultat = afskrivningslov12_resultat(input))
+    | PsPar3Nr10Al13Udgang(input) -> Par3Nr10Al13(resultat = afskrivningslov13_resultat_ved_udgang(input))
+    | PsPar3Nr10Al13Reparation(input) -> Par3Nr10Al13(resultat = afskrivningslov13_resultat_ved_reparation(input))
+}
+| personskat_par3_nr10_bygningskilde_grundlagsposter(kilde: PersonskatPar3Nr10Bygningskilde) -> match kilde {
+    | PsPar3Nr10Al17(input) -> [Par3Nr10Al17(resultat = afskrivningslov17_resultat(input))]
+    | PsPar3Nr10Al18(input) -> [Par3Nr10Al18(resultat = afskrivningslov18_resultat(input))]
+    | PsPar3Nr10Al21(input) -> [Par3Nr10Al21(resultat = afskrivningslov21_resultat(input))]
+    | PsPar3Nr10Al22(input) -> [Par3Nr10Al22(resultat = afskrivningslov22_resultat(input))]
+    | PsPar3Nr10Al23(input) -> [Par3Nr10Al23(resultat = afskrivningslov23_resultat(input))]
+    | PsPar3Nr10Al24Samordning(fakta) -> match ebl_par10_afskrivningssamordningsresultat(fakta).par24_resultat {
+        | Some(resultat) -> [Par3Nr10Al24(resultat = resultat)]
+        | None -> []
+    }
+    | PsPar3Nr10Al24Fristsvigt(input) -> [Par3Nr10Al24(resultat = afskrivningslov24_fristsvigtsresultat(input))]
+    | PsPar3Nr10Al25(input) -> [Par3Nr10Al25(resultat = afskrivningslov25_resultat(input))]
+    | PsPar3Nr10Al26(input) -> [Par3Nr10Al26(resultat = afskrivningslov26_resultat(input))]
+    | PsPar3Nr10Al27(input) -> [Par3Nr10Al27(resultat = afskrivningslov27_resultat(input))]
+}
+| personskat_par3_nr10_forskudsafskrivningskilde_grundlag(kilde: PersonskatPar3Nr10Forskudsafskrivningskilde) -> match kilde {
+    | PsPar3Nr10Al32(input) -> Par3Nr10Al32(resultat = afskrivningslov32_årsresultat(input))
+    | PsPar3Nr10Al34(input) -> Par3Nr10Al34(resultat = afskrivningslov34_resultat(input))
+}
+| personskat_par3_nr10_rettighedskilde_grundlag(kilde: PersonskatPar3Nr10Rettighedskilde) -> match kilde {
+    | PsPar3Nr10Al38(input) -> Par3Nr10Al38(resultat = afskrivningslov38_resultat(input))
+    | PsPar3Nr10Al39(input) -> Par3Nr10Al39(resultat = afskrivningslov39_resultat(input))
+    | PsPar3Nr10Al40Skatteyder(input) -> Par3Nr10Al40Skatteyder(resultat = afskrivningslov40_skatteyder_resultat(afskrivningslov40_resultat(input)))
+    | PsPar3Nr10Al40Modtager(input) -> Par3Nr10Al40Modtager(resultat = afskrivningslov40_modtager_resultat(afskrivningslov40_resultat(input)))
+    | PsPar3Nr10Al40A(input) -> Par3Nr10Al40A(resultat = afskrivningslov40a_resultat(input))
+    | PsPar3Nr10Al40B(input) -> Par3Nr10Al40B(resultat = afskrivningslov40b_resultat(input))
+}
+| personskat_par3_nr10_særregelkilde_grundlag(kilde: PersonskatPar3Nr10Særregelkilde) -> match kilde {
+    | PsPar3Nr10Al42År(input) -> Par3Nr10Al42År(resultat = afskrivningslov42_års_resultat(input))
+    | PsPar3Nr10Al42Afståelse(input) -> Par3Nr10Al42Afståelse(resultat = afskrivningslov42_afståelses_resultat(input))
+    | PsPar3Nr10Al43År(input) -> Par3Nr10Al43År(resultat = afskrivningslov43_års_resultat(input))
+    | PsPar3Nr10Al43Salg(input) -> Par3Nr10Al43Salg(resultat = afskrivningslov43_salg_resultat(input))
+    | PsPar3Nr10Al44(input) -> Par3Nr10Al44(resultat = afskrivningslov44_resultat(input))
+    | PsPar3Nr10Al44AÅr(input) -> Par3Nr10Al44AÅr(resultat = afskrivningslov44a_års_resultat(input))
+    | PsPar3Nr10Al44AAfståelse(input) -> Par3Nr10Al44AAfståelse(resultat = afskrivningslov44a_afståelses_resultat(input))
+    | PsPar3Nr10Al44ASkade(input) -> Par3Nr10Al44ASkade(resultat = afskrivningslov44a_skade_resultat(input))
+    | PsPar3Nr10Al44AGenopførelse(input) -> Par3Nr10Al44AGenopførelse(resultat = afskrivningslov44a_genopførelse_resultat(input))
+    | PsPar3Nr10Al44B(input) -> Par3Nr10Al44B(resultat = afskrivningslov44b_resultat(input))
+    | PsPar3Nr10Al44C(input) -> Par3Nr10Al44C(resultat = afskrivningslov44c_resultat(input))
+    | PsPar3Nr10Al50(input) -> Par3Nr10Al50(resultat = afskrivningslov50_resultat(input))
+    | PsPar3Nr10Al55(input) -> Par3Nr10Al55(resultat = afskrivningslov55_resultat(input))
+    | PsPar3Nr10Al58(input) -> Par3Nr10Al58(resultat = afskrivningslov58_resultat(input))
+    | PsPar3Nr10Al58A(input) -> Par3Nr10Al58A(resultat = afskrivningslov58a_resultat(input))
+    | PsPar3Nr10Al60(input) -> Par3Nr10Al60(resultat = afskrivningslov60_resultat(input))
+    | PsPar3Nr10Al62Driftsmiddel(input) -> Par3Nr10Al62Driftsmiddel(resultat = afskrivningslov62_driftsmiddel_salg_resultat(input))
+    | PsPar3Nr10Al62Miljøanlæg(input) -> Par3Nr10Al62Miljøanlæg(resultat = afskrivningslov62_miljøanlæg_salg_resultat(input))
+}
+| personskat_par3_nr10_afskrivningskilde_grundlagsposter(kilde: PersonskatPar3Nr10Afskrivningskilde) -> match kilde {
+    | PsPar3Nr10Driftsmiddel(driftsmiddelkilde) -> [personskat_par3_nr10_driftsmiddelkilde_grundlag(driftsmiddelkilde)]
+    | PsPar3Nr10Bygning(bygningskilde) -> personskat_par3_nr10_bygningskilde_grundlagsposter(bygningskilde)
+    | PsPar3Nr10Forskudsafskrivning(forskudskilde) -> [personskat_par3_nr10_forskudsafskrivningskilde_grundlag(forskudskilde)]
+    | PsPar3Nr10Rettighed(rettighedskilde) -> [personskat_par3_nr10_rettighedskilde_grundlag(rettighedskilde)]
+    | PsPar3Nr10Særregel(særregelkilde) -> [personskat_par3_nr10_særregelkilde_grundlag(særregelkilde)]
+    | PsPar3Nr10Statsskattelov6A(input) -> [Par3Nr10Sl6A(resultat = statsskattelov6_ordinær_afskrivning_resultat(input))]
+}
+
+| personskat_par3_nr10_driftsmiddelkilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Driftsmiddelkilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Al5(input, _) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al5A(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al5B(input, _) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al5C(input, _) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al5D5E(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al6(input, _) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al6Salg(input) -> input.straksafskrivningsresultat.indkomstår == indkomstår
+    | PsPar3Nr10Al7(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al8(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al9(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al9EfterfølgendeSalg(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al11(input, _) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al12(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al13Udgang(input) -> input.par12_resultat.indkomstår == indkomstår
+    | PsPar3Nr10Al13Reparation(input) -> input.indkomstår == indkomstår
+}
+| personskat_par3_nr10_bygningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Bygningskilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Al17(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al18(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al21(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al22(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al23(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al24Samordning(fakta) -> match fakta.afskrivningsforhold {
+        | EblPar10AfskrivningsberettigedeBygninger(input, _) -> input.opgørelsesår == indkomstår && fakta.genopførelsesindkomstår == indkomstår
+        | EblPar10IngenAfskrivningsberettigedeBygninger -> Falskt
+    }
+    | PsPar3Nr10Al24Fristsvigt(input) -> input.opgørelsesår == indkomstår
+    | PsPar3Nr10Al25(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al26(input) -> input.par25_resultat.indkomstår == indkomstår
+    | PsPar3Nr10Al27(input) -> input.indkomstår == indkomstår
+}
+| personskat_par3_nr10_forskudsafskrivningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Forskudsafskrivningskilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Al32(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al34(input) -> input.hændelsesår == indkomstår
+}
+| personskat_par3_nr10_rettighedskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Rettighedskilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Al38(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al39(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al40Skatteyder(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al40Modtager(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al40A(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al40B(input) -> input.indkomstår == indkomstår
+}
+| personskat_par3_nr10_særregelkilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Særregelkilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Al42År(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al42Afståelse(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al43År(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al43Salg(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44AÅr(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44AAfståelse(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44ASkade(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44AGenopførelse(input) -> input.genopførelsesår == indkomstår
+    | PsPar3Nr10Al44B(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al44C(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al50(input) -> input.salgsår == indkomstår
+    | PsPar3Nr10Al55(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al58(input) -> input.afståelsesår == indkomstår
+    | PsPar3Nr10Al58A(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al60(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al62Driftsmiddel(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al62Miljøanlæg(input) -> input.par21_input.indkomstår == indkomstår
+}
+| personskat_par3_nr10_afskrivningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Afskrivningskilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr10Driftsmiddel(driftsmiddelkilde) -> personskat_par3_nr10_driftsmiddelkilde_indkomstår_matcher(driftsmiddelkilde, indkomstår)
+    | PsPar3Nr10Bygning(bygningskilde) -> personskat_par3_nr10_bygningskilde_indkomstår_matcher(bygningskilde, indkomstår)
+    | PsPar3Nr10Forskudsafskrivning(forskudskilde) -> personskat_par3_nr10_forskudsafskrivningskilde_indkomstår_matcher(forskudskilde, indkomstår)
+    | PsPar3Nr10Rettighed(rettighedskilde) -> personskat_par3_nr10_rettighedskilde_indkomstår_matcher(rettighedskilde, indkomstår)
+    | PsPar3Nr10Særregel(særregelkilde) -> personskat_par3_nr10_særregelkilde_indkomstår_matcher(særregelkilde, indkomstår)
+    | PsPar3Nr10Statsskattelov6A(_) -> Sandt
+}
+| personskat_par3_erhvervspostkilde_indkomstår_matcher(kilde: PersonskatPar3Erhvervspostkilde, indkomstår: Heltal) -> match kilde {
+    | PsPar3Nr4Husdyr(par2_input, par8_input) -> par2_input.indkomstår == indkomstår && par8_input.indkomstår == indkomstår
+    | PsPar3Nr5Varelager(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr7Virksomhedsskattelov22B(input) -> input.par22a_resultat.indkomstår == indkomstår
+    | PsPar3Nr7Virksomhedsskattelov22D(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr9TilbagebetaltOffentligYdelse(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Afskrivning(afskrivningskilde) -> personskat_par3_nr10_afskrivningskilde_indkomstår_matcher(afskrivningskilde, indkomstår)
+}
+| personskat_par3_erhvervspostfakta_grundfakta_gyldige(fakta: PersonskatPar3Erhvervspostfakta, indkomstår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && personskat_par3_erhvervspostkilde_indkomstår_matcher(fakta.kilde, fakta.indkomstår)
+
+| personskat_par3_erhvervspost_par3_post(kilde: PersonskatPar3Erhvervspostkilde) -> match kilde {
+    | PsPar3Nr4Husdyr(par2_input, par8_input) -> Par3Stk2Nr4Post(resultat = par3_stk2_nr4_resultat(Par3Stk2Nr4Input(
+        husdyr_par2_resultat = husdyr_par2_resultat(par2_input),
+        husdyr_par8_resultat = husdyr_par8_resultat(par8_input)
+    )))
+    | PsPar3Nr5Varelager(input) -> Par3Stk2Nr5Post(resultat = par3_stk2_nr5_resultat(Par3Stk2Nr5Input(varelager_par1_resultat = varelager_par1_resultat(input))))
+    | PsPar3Nr7Virksomhedsskattelov22B(input) -> Par3Stk2Nr7Post(resultat = par3_stk2_nr7_resultat_fra_par22b(virksomhedsskattelov22b_henlæggelse_resultat(input)))
+    | PsPar3Nr7Virksomhedsskattelov22D(input) -> Par3Stk2Nr7Post(resultat = par3_stk2_nr7_resultat_fra_par22d(virksomhedsskattelov22d_henlæggelse_resultat(input)))
+    | PsPar3Nr9TilbagebetaltOffentligYdelse(input) -> Par3Stk2Nr9Post(resultat = par3_stk2_nr9_resultat(ligningslov8o_resultat(input)))
+    | PsPar3Nr10Afskrivning(afskrivningskilde) -> Par3Stk2Nr10Post(resultat = par3_stk2_nr10_resultat(Par3Stk2Nr10Input(grundlagsposter = personskat_par3_nr10_afskrivningskilde_grundlagsposter(afskrivningskilde))))
+}
+| personskat_par3_erhvervspost_resultat(fakta: PersonskatPar3Erhvervspostfakta) -> PersonskatPar3Erhvervspostresultat(
+    fakta = fakta,
+    par3_post = personskat_par3_erhvervspost_par3_post(fakta.kilde)
+)
+| personskat_par3_erhvervspost_resultater(fakta: List(PersonskatPar3Erhvervspostfakta)) -> map(fakta, personskat_par3_erhvervspost_resultat)
+| personskat_par3_erhvervspost_poster(resultater: List(PersonskatPar3Erhvervspostresultat)) -> map(resultater, |resultat: PersonskatPar3Erhvervspostresultat| resultat.par3_post)
+--@end:personskat_par3_erhvervsposter_kildefakta--

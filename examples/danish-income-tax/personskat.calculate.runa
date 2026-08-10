@@ -15,6 +15,7 @@
 @ importer ./personskat - personlig - indkomst - beregningsmeta
 @ importer ./personskat - personlig - indkomst - kildefakta
 @ importer ./personskat - par3 - stk2 - nr2 - beregningsmeta
+@ importer ./personskat - par3 - erhvervsposter - beregningsmeta
 @ importer ./personskat - kildeskat25a - beregningsmeta
 @ importer ./personskat - kildeskat25a - kildefakta
 @ importer ./personskat - pbl53a - beregningsmeta
@@ -13805,7 +13806,8 @@
         virksomhed.udgifter,
         |udgift: PersonskatVirksomhedsudgiftFakta| personskat_ll9g_virksomhedsudgift_anvendt(virksomhed.identifikation, udgift, koordinering)
     ),
-    ligningslovsfradrag_efter_par3_stk2_nr2 = virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2
+    ligningslovsfradrag_efter_par3_stk2_nr2 = virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2,
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = virksomhed.erhvervsposter_efter_par3_stk2_nr4_til_10
 )
 | personskat_ll9g_personlig_indkomst_input(input: PersonskatPersonligIndkomstInput, koordinering: PersonskatLigningslov9GKoordinering) -> PersonskatPersonligIndkomstInput(
     etableringskonto = input.etableringskonto,
@@ -16317,7 +16319,8 @@ fraflytningen."
     indkomstår = virksomhed.indkomstår,
     indtægter = filter(virksomhed.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| contains(identifikationer, indtægt.identifikation)),
     udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation)),
-    ligningslovsfradrag_efter_par3_stk2_nr2 = filter(virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| contains(identifikationer, fradrag.identifikation))
+    ligningslovsfradrag_efter_par3_stk2_nr2 = filter(virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| contains(identifikationer, fradrag.identifikation)),
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = filter(virksomhed.erhvervsposter_efter_par3_stk2_nr4_til_10, |post: PersonskatPar3Erhvervspostfakta| contains(identifikationer, post.identifikation))
 )
 | personskat_ksl25a_virksomhedsbeløb_for_postidentifikationer(virksomhed: PersonskatOrdinærVirksomhedFakta, identifikationer: List(Tekst)) -> hvis length(identifikationer) == 0 {
     kildeskat25a_tomt_virksomhedsbeløb()

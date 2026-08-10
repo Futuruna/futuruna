@@ -118,7 +118,8 @@ derfor ikke beskattes hos ejeren af virksomheden, men kan fordeles mellem
     indkomstår = virksomhed.indkomstår,
     indtægter = filter(virksomhed.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| contains(identifikationer, indtægt.identifikation)),
     udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation)),
-    ligningslovsfradrag_efter_par3_stk2_nr2 = filter(virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| contains(identifikationer, fradrag.identifikation))
+    ligningslovsfradrag_efter_par3_stk2_nr2 = filter(virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| contains(identifikationer, fradrag.identifikation)),
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = filter(virksomhed.erhvervsposter_efter_par3_stk2_nr4_til_10, |post: PersonskatPar3Erhvervspostfakta| contains(identifikationer, post.identifikation))
 )
 | dødsboskattelov44_virksomhedsresultat_gyldigt(resultat: PersonskatOrdinærVirksomhedResultat) -> match resultat {
     | BeregnetOrdinærVirksomhed(_) -> Sandt

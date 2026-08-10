@@ -72,7 +72,8 @@
     indkomstår = indkomstår,
     indtægter = indtægter,
     udgifter = udgifter,
-    ligningslovsfradrag_efter_par3_stk2_nr2 = []
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )
 
 = personskat_ordinaer_tomt_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ingen_ordinær_personlig_indkomst(), 2025)

@@ -84,7 +84,8 @@
     indkomstår = 2025,
     indtægter = hvis indtægt_kroner > 0 { [PersonskatVirksomhedsindtægtFakta(identifikation = identifikation + "-indtægt", art = OrdinærDriftsindtægt, beløb_kroner = indtægt_kroner)] } ellers { [] },
     udgifter = hvis udgift_kroner > 0 { [PersonskatVirksomhedsudgiftFakta(identifikation = identifikation + "-udgift", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = udgift_kroner)] } ellers { [] },
-    ligningslovsfradrag_efter_par3_stk2_nr2 = []
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )
 | ambl_selvstændig_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,

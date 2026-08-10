@@ -18458,6 +18458,7 @@ impl TypeChecker {
             return;
         }
 
+        let parent = signature.parent;
         let fields = signature.fields;
         let expected = fields.len();
 
@@ -18479,6 +18480,32 @@ impl TypeChecker {
                             constructor, field
                         ),
                     );
+                }
+                if fields.iter().any(|candidate| candidate == field) {
+                    let expected_type = self
+                        .type_field_tys
+                        .get(&parent)
+                        .or_else(|| self.type_field_tys.get(constructor))
+                        .and_then(|field_types| field_types.get(field));
+                    let actual_type = self
+                        .infer_expr_type_name(value)
+                        .and_then(|type_name| parse_type_annotation(&type_name).ok());
+                    if let (Some(Ty::Name(expected_type)), Some(Ty::Name(actual_type))) =
+                        (expected_type, actual_type)
+                    {
+                        if self.types.contains(expected_type)
+                            && self.types.contains(&actual_type)
+                            && expected_type != &actual_type
+                        {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "constructor `{}` field `{}` expects `{}` but expression has `{}`",
+                                    constructor, field, expected_type, actual_type
+                                ),
+                            );
+                        }
+                    }
                 }
                 self.check_expr(value, None);
             }
@@ -23485,6 +23512,26 @@ mod tests {
         assert!(
             diags.is_empty(),
             "named constructor fields should type-check out of declaration order, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_rejects_named_constructor_field_with_wrong_rule_result_type() {
+        let source = r#"
+# Candidate(value: Int)
+# Final(value: Int)
+# Wrapper(result: Final)
+
+| candidate(value: Int) -> Candidate(value)
+= invalid = Wrapper(result = candidate(1))
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.iter().any(|diag| diag.message.contains(
+                "constructor `Wrapper` field `result` expects `Final` but expression has `Candidate`"
+            )),
+            "wrong named-field result type should be rejected before codegen, got: {:?}",
             diags
         );
     }

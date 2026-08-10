@@ -214,7 +214,8 @@ myndighedens beregnede skattebeløb bruges ikke som input.
         afgrænsning = SelvstændigErhvervsindkomstUdgift,
         beløb_kroner = kilde.personlig.virksomhedsudgift_kroner
     )],
-    ligningslovsfradrag_efter_par3_stk2_nr2 = []
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )] under kilde.personlig.virksomhedsindtægt_kroner > 0 || kilde.personlig.virksomhedsudgift_kroner > 0
 
 | historisk_personlig_indkomstinput(kilde: HistoriskÅrsopgørelseKilde) -> PersonskatPersonligIndkomstInput(

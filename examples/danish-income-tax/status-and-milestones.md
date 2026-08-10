@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-11
 TD epic: `td-56cf8d`
-Current implementation slice: `td-073778` (Personskattelovens § 3, stk. 2, nr. 2 afleder nu de otte henviste fradragsfamilier i Ligningslovens § 8, stk. 1, §§ 8 B, 8 K, 8 L og 8 N, § 14, stk. 1, § 14 F og § 30 A fra typede kildefakta under den konkrete selvstændige virksomhed. Calleren leverer ikke Ligningslovsresultatet, PSL-fradragsposten, hjemlen eller konklusionen om selvstændig virksomhed. Kildeidentifikationer indgår i virksomhedens identitetsmængde og bevares ved både KSL § 25 A- og dødsperiodefordeling. Et kanonisk scenarie fører alle otte grene gennem `beregn_personskat`: 282.000 kr. i fradrag reducerer 1.000.000 kr. til 718.000 kr. i personlig indkomst og AM-grundlag og giver 57.440 kr. i AM-bidrag. En lovlig § 8-udelukkelse giver nul, mens negativt kildebeløb og dubleret identifikation fejler lukket. Frontend, fire fokuserede fortolkerscenarier og den genererede Rust-kørsel består. Beregningskontrakten udleder 93 danske felter til både hovedperson og ægtefælle, i alt 186 verificerede metadatastier. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
+Current implementation slice: `td-774d3b` (Personskattelovens § 3, stk. 2, nr. 4-5, 7 og 9-10 afledes nu fra typede erhvervskilder under den konkrete selvstændige virksomhed. Adapteren dækker alle 50 eksisterende nr. 10-resultatfamilier gennem 52 kildevarianter samt husdyrbesætning, varelager, konjunktur- og indkomstudligningshenlæggelser og LL § 8 O. Calleren leverer kildefakta og nødvendige flerperiodetilstande, ikke det endelige PSL-resultat. Kildeidentifikationer og indkomstår valideres og bevares ved KSL § 25 A- og dødsperiodefordeling. Et kanonisk scenarie fører seks repræsentative kilder gennem `beregn_personskat`: 500.000 kr. i omsætning og 20.000 kr. i skattepligtig nr. 10-indtægt reduceres med 82.000 kr. i fradrag til 438.000 kr. i personlig indkomst og AM-grundlag. Varelagerets aktuelle 0-procentsvirkning er eksplicit, og dublerede identifikationer eller modstridende indkomstår fejler lukket. AL § 24 bruger det afsluttede samordningsresultat med EBL § 10 frem for det interne kandidatresultat. Den native gate afdækkede samtidig et checkerhul, så konkrete typemodstrid mellem navngivne konstruktørfelter nu afvises før Rust-generering. Frontend, fokuserede fortolkerscenarier, native udførelse, metadataindekset og det fulde Personskat-skema består. Ti danske beregningsfelter udledes for både hovedperson og ægtefælle; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
+Previous implementation slice: `td-073778` (Personskattelovens § 3, stk. 2, nr. 2 afleder nu de otte henviste fradragsfamilier i Ligningslovens § 8, stk. 1, §§ 8 B, 8 K, 8 L og 8 N, § 14, stk. 1, § 14 F og § 30 A fra typede kildefakta under den konkrete selvstændige virksomhed. Calleren leverer ikke Ligningslovsresultatet, PSL-fradragsposten, hjemlen eller konklusionen om selvstændig virksomhed. Kildeidentifikationer indgår i virksomhedens identitetsmængde og bevares ved både KSL § 25 A- og dødsperiodefordeling. Et kanonisk scenarie fører alle otte grene gennem `beregn_personskat`: 282.000 kr. i fradrag reducerer 1.000.000 kr. til 718.000 kr. i personlig indkomst og AM-grundlag og giver 57.440 kr. i AM-bidrag. En lovlig § 8-udelukkelse giver nul, mens negativt kildebeløb og dubleret identifikation fejler lukket. Frontend, fire fokuserede fortolkerscenarier og den genererede Rust-kørsel består. Beregningskontrakten udleder 93 danske felter til både hovedperson og ægtefælle, i alt 186 verificerede metadatastier. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-34e122` (Arbejdsmarkedsbidragslovens §§ 4-6 er nu én kanonisk årsopgørelse for selvstændige. § 4 aggregerer alle ordinære virksomheder før positivbeskæring, holder biblioteksafgift uden for grundlaget og fører dokumenterede saldotrancher for fremført negativ personlig indkomst med særskilt oprindelse i PBL § 18. § 5 afleder VSO-grundlaget fra årets overførsel, overførsler af opsparet overskud med tilhørende virksomhedsskat samt kapitalafkast og rentekorrektion efter VSL §§ 7, 11 og 11 a. § 6 afleder selv godtgørelsen på 8,7 pct., fører den til skattepligtig og AM-bidragspligtig indkomst og indsætter den eksakte KSL § 60-kredit; en konkurrerende caller-værdi afvises. VSL § 11 a er samtidig modelleret fra start/primo- og ultimoformuer med § 11-gældsreduktion samt rente- og nettofinansieringslofter. Alle stier når `beregn_personskat`, herunder 2026-fritagelsen for personer til og med 17 år. Fem fokuserede § 11 a-scenarier og otte kanoniske AMBL-scenarier består native; den eksisterende virksomhedskapitalintegration består fortolket, fire berørte filer består frontend på cirka 11 sekunder, og Personskat-kontrakten udleder de nye danske feltetiketter for både hovedperson og ægtefælle. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-44cd7a` (Kildeskattelovens § 2, stk. 1, nr. 3 og stk. 10, § 48 B samt Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 3 er nu ét typet arbejdsudlejedomæne for 2023-2026. Parter, arbejdssted og EEZ-aktivitet, integreret virksomhed, permanent udskillelse, dansk beskatningsret, rettidigt ordinært valg og omgørelse, dokumenteret vederlag eller subsidiær fakturasum, kost og logi samt udenlandske arbejdsgiverbidrag er kildefakta; uafklarede, dublerede eller årsmæssigt modstridende fakta fejler lukket. Den endelige gren holdes uden for den ordinære indkomstskat og udstilles særskilt, mens et gyldigt ordinært valg afleder § 8 c-statussen og fører AM-grundlag og LL § 8 M-fradrag ind i Personskat. Skattestyrelsens eksempel på 20.000 kr. giver 1.600 kr. i AM-bidrag, 5.520 kr. efter § 48 B og 7.120 kr. samlet. Den typede beregningsmetadata udstiller 36 danske arbejdsbogsfelter for både hovedperson og ægtefælle. Kilde- og kanoniske scenarier består fortolket; den kanoniske Rust-backend består med 242.552 genererede linjer. Ti berørte scenarier blev frontend-kontrolleret med seks workers på 28 sekunder mod cirka 145 sekunders summeret filtid; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-2a0b4c` (En statisk rækkeviddeanalyse af `beregn_personskat` indlæser 107 kildefiler og når 7.793 af 11.014 callable-familier. Analysen skelner nu mellem bevidste mellemtilstande og reelle kanoniske beløbshuller. `AblIkkeMedregnetISlice`, `AblUdenforDenneSlice` og de uklassificerede, lukket-fejlende varianter er ikke manglende skatteregler. De resterende væsentlige huller er afgrænset til dele af PSL § 3, stk. 2, PSL §§ 4-4 a og AMBL § 2, stk. 1, nr. 3, samt §§ 4-6. Hvert hul har et særskilt, kildebåret TD-slice. Redigeringssløjfen bruger frontend-check og fokuserede scenarier; flerfilsgates bruger `runa test --jobs 6`; native/codegen, de to dybe paraplyaudits og den fulde 303-arks rundtur køres kun ved milepæle og publicering.)
@@ -3615,8 +3616,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: about 94% complete as an executable research corpus, and
-  about 86% complete as a production-grade calculator for Personskatteloven
+- Working estimate: about 95% complete as an executable research corpus, and
+  about 89% complete as a production-grade calculator for Personskatteloven
   plus its necessary dependencies. These are deliberately separate measures:
   represented legal structure is further ahead than exact amount-level support
   for every special taxpayer, transition, cross-year history and dependency.
@@ -3624,18 +3625,19 @@ as a complete Personskatteloven calculator.
   treating its 7.793/11.014 callable ratio as a completion percentage: many
   intentionally private helpers, historical variants, scenarios and audit
   entries should not be reachable from `beregn_personskat`.
-- Canonical § 3 coverage reaches stk. 2, nr. 2, 3, 6, 8 and 11. Nr. 2 currently
-  reaches only KSL § 25 A; the delegated LL branches are tracked in `td-073778`.
-  Nr. 4-5, 7, 9 and 10 are implemented in the source chapter but await
-  canonical source-fact composition in `td-774d3b`.
+- Canonical § 3 coverage reaches all numbered branches in stk. 2. Nr. 1 uses
+  typed ordinary business expenses; nr. 2 composes KSL § 25 A and the eight
+  delegated LL families; and nr. 3-11 consume typed dependency results. The
+  nr. 10 adapter reaches all 50 result families through 52 source variants
+  while preserving taxable additions and deductions as separate legal posts.
 - Canonical § 4 coverage reaches nr. 1, 2, 3, 3 a, 4, 5, 6, 8, 13, 14 and 17
   through direct or composed annual results. Nr. 5 a, 5 b and 7 are tracked in
   `td-671407`; nr.
   9-12 and 15-16 plus § 4 a's LL § 7 N path are tracked in `td-ff038c`.
-- Canonical AM coverage now includes the source-fact path for arbejdsudleje in
-  § 2, stk. 1, nr. 3. It still lacks the complete self-employed/VSO and
-  biblioteksafgiftsforløb in §§ 4-6 (`td-34e122`), which must derive the § 6
-  credit rather than receive it as a caller-calculated KSL amount.
+- Canonical AM coverage includes the source-fact path for arbejdsudleje in
+  § 2, stk. 1, nr. 3 and the complete annual aggregation for ordinary
+  self-employment, VSO and biblioteksafgift in §§ 4-6. The § 6 amount is
+  derived by the rules and reaches KSL § 60 without a caller-calculated credit.
 - `AblIkkeMedregnetISlice`, `AblUdenforDenneSlice` and unclassified catch-all
   variants are deliberate intermediate or fail-closed states. They are not
   counted as legal omissions unless a final taxable source can terminate there
@@ -5287,13 +5289,12 @@ Review candidates to revisit deliberately, not as broad churn:
   ultimotilstand. Det aktuelle skema har hash
   `6a5ad4a81474e78e0197ccca10bb45358400ab385ba01aaf1dc6d2480672a0e0`.
 - Close the Personskatteloven implementation gaps before deeper audits.
-  § 3, stk. 2, nr. 2 is converted from a raw amount bridge to nine typed
-  dependency outcomes, and nr. 3-11 now enter the canonical calculation
-  through a closed union over their typed results. The focused aggregate
-  scenario covers every numbered branch, both income-addition branches and
-  rejection of all nine legacy raw amount categories in interpreter and
-  compiled execution. The next bounded review should rank posture-only clauses
-  and genuinely missing dependency rules by material calculation impact.
+  § 3, stk. 2 now enters the canonical calculation through typed source facts
+  and dependency results for every numbered branch. The nr. 4-5, 7 and 9-10
+  source adapter covers every existing result family, preserves additions and
+  deductions separately, and rejects inconsistent years and identities. The
+  remaining P0 implementation work is therefore concentrated in the bounded
+  § 4 and § 4 a slices.
 - Continue deepening dependency laws such as Kildeskatteloven, AM-law,
   municipal/church tax, Ligningsloven, and Opkrævningsloven only where they
   unblock Personskatteloven calculation completeness or validate a newly
@@ -5317,13 +5318,9 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Fortsæt med `td-34e122`, som forbinder AMBL §§ 4-6 for selvstændige,
-  virksomhedsordningen og biblioteksafgift, herunder det afledte § 6-beløb til
-  KSL § 60. Det må ikke længere være et caller-beregnet kreditinput.
-- Sammensæt de resterende PSL-grene i de kildeafgrænsede slices `td-073778`
-  (§ 3, stk. 2, nr. 2), `td-774d3b` (§ 3, stk. 2, nr. 4-5, 7, 9-10),
-  `td-671407` (§ 4, stk. 1, nr. 5 a, 5 b og 7) og `td-ff038c` (§ 4, stk. 1,
-  nr. 9-12 og 15-16 samt § 4 a/LL § 7 N).
+- Sammensæt de resterende PSL-grene i de kildeafgrænsede slices `td-671407`
+  (§ 4, stk. 1, nr. 5 a, 5 b og 7) og `td-ff038c` (§ 4, stk. 1, nr. 9-12 og
+  15-16 samt § 4 a/LL § 7 N).
 - Udvid under `td-d4743d` den nu afledte § 33 A-afbrydelse til andre
   kildebelagte afbrydelsesårsager og senere genoptjening. Periodemodellen skal
   da kunne bære flere lempelses- og afvisningsperioder i samme ansættelsesforhold

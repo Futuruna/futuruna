@@ -1,0 +1,242 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Kanoniske scenarier for Personskattelovens § 3, stk. 2, nr. 4-5, 7 og 9-10.
+
+Scenarierne fastholder, at de delegerede lovregler afledes fra typede
+kildefakta under en konkret selvstændig virksomhed og når hele
+beregn_personskat-kaskaden. Ugyldige relationer må ikke skabe indkomst eller
+fradrag.
+----
+
+| psl3_erhvervspost_scenarie_fakta(identifikation: Tekst, kilde: PersonskatPar3Erhvervspostkilde) -> PersonskatPar3Erhvervspostfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    kilde = kilde
+)
+
+| psl3_erhvervspost_scenarie_husdyr() -> psl3_erhvervspost_scenarie_fakta(
+    "husdyr-2026",
+    PsPar3Nr4Husdyr(
+        par2_input = HusdyrPar2Input(
+            indkomstår = 2026,
+            skatteyder = HusdyrLandbrugerPerson,
+            værdiansættelse = HusdyrNormalhandelsværdi(normalhandelsværdi_kroner = 200000),
+            ønsket_nedskrivning_kroner = 50000
+        ),
+        par8_input = HusdyrPar8Input(
+            indkomstår = 2026,
+            rettighedshaver = HusdyrPar8Landbruger,
+            grupper = [],
+            indkomstår1981_forhold = HusdyrPar8IkkeIndkomstår1981
+        )
+    )
+)
+| psl3_erhvervspost_scenarie_varelager() -> psl3_erhvervspost_scenarie_fakta(
+    "varelager-2026",
+    PsPar3Nr5Varelager(input = VarelagerPar1Input(
+        indkomstår = 2026,
+        skatteyder = VarelagerNæringsdrivendePerson,
+        varegrupper = [VarelagerPar1Post(
+            art = VarelagerVarer,
+            opgørelsesmåde = VarelagerFakturapris(
+                indkøbspris_kroner = 100000,
+                fragt_told_og_lignende_kroner = 10000
+            ),
+            fradragsberettiget_indgående_moms_kroner = 10000
+        )],
+        ønsket_nedskrivning_kroner = 20000
+    ))
+)
+| psl3_erhvervspost_scenarie_oplysningsfrist() -> skattekontrollov_oplysningsfrist_resultat(SkattekontrollovOplysningsfristInput(
+    indkomstår = 2026,
+    kilde = SkattekontrollovenLbk12Af2024Par10Stk2,
+    fristdag_dagen_før_eller_på_lørdag_søndag_helligdag = Falskt,
+    førstkommende_hverdag_yyyymmdd = 0,
+    handling_yyyymmdd = 20270701
+))
+| psl3_erhvervspost_scenarie_udligningskonto() -> VirksomhedsskattelovUdligningskontoInput(
+    betegnelse = VslIndkomstudligningskonto,
+    institution = VslDanskTilladtPengeinstitut,
+    kontoform = VslKontantforrentetIndlånskonto,
+    navn_påtegnet = Sandt,
+    adresse_påtegnet = Sandt,
+    personnummer_påtegnet = Sandt,
+    virksomhedens_regnskabsår_påtegnet = Sandt,
+    henlæggelsesår_påtegnet = Sandt,
+    indsat_beløb_kroner = 7800,
+    oplysningsfrist_resultat = psl3_erhvervspost_scenarie_oplysningsfrist()
+)
+| psl3_erhvervspost_scenarie_henlæggelse() -> psl3_erhvervspost_scenarie_fakta(
+    "henlæggelse-2026",
+    PsPar3Nr7Virksomhedsskattelov22D(input = Virksomhedsskattelov22DHenlæggelseInput(
+        indkomstår = 2026,
+        anvender_virksomhedsordningen_afsnit1 = Falskt,
+        anvender_konjunkturudligningsordningen_par22b = Falskt,
+        kunstnerindkomst = Virksomhedsskattelov22DKunstnerindkomstInput(
+            litterært_eller_skabende_kunstnerisk_arbejde = Sandt,
+            arbejdet_udført_af_skattepligtige = Sandt,
+            udført_i_ansættelsesforhold = Falskt,
+            indkomst_fra_legat_stipendium_eller_lignende = Falskt,
+            indkomst_før_ligningslov7o_lempelse_kroner = 100000,
+            ligningslov7o_stk1_nr4_lempelse_kroner = 0
+        ),
+        skattepligtig_indkomst_før_henlæggelse_kroner = 500000,
+        ønsket_henlæggelse_kroner = 10000,
+        samlede_tidligere_indskud_på_indkomstudligningskonto_kroner = 0,
+        konto = psl3_erhvervspost_scenarie_udligningskonto()
+    ))
+)
+| psl3_erhvervspost_scenarie_tilbagebetaling(indkomstår: Heltal) -> PersonskatPar3Erhvervspostfakta(
+    identifikation = "tilbagebetaling-2026",
+    indkomstår = 2026,
+    kilde = PsPar3Nr9TilbagebetaltOffentligYdelse(input = Ligningslov8OInput(
+        indkomstår = indkomstår,
+        ydelsesgrundlag = Ll8OLabPar123,
+        ydelsen_var_skattepligtig_ved_udbetaling = Sandt,
+        oprindeligt_skattepligtigt_bruttobeløb_kroner = 100000,
+        tidligere_tilbagebetalt_bruttobeløb_kroner = 0,
+        tilbagebetalt_bruttobeløb_i_indkomståret_kroner = 30000,
+        samme_beløb_tidligere_fradraget_i_udbetalingsåret = Falskt
+    ))
+)
+| psl3_erhvervspost_scenarie_sl6_afskrivning() -> psl3_erhvervspost_scenarie_fakta(
+    "statsskattelov-6a-2026",
+    PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Statsskattelov6A(input = Statsskattelov6OrdinærAfskrivningInput(
+        skatteyder = Sl6SelvstændigErhvervsdrivendePerson,
+        udgift_eller_aktiv_anvendt_til_at_erhverve_sikre_og_vedligeholde_indkomsten = Sandt,
+        ikke_omfattet_af_særlig_afskrivningslovgivning = Sandt,
+        afskrivningsgrundlag_primo_kroner = 80000,
+        dokumenteret_ordinær_værdiforringelse_i_året_kroner = 12000,
+        ønsket_ordinær_afskrivning_kroner = 15000
+    )))
+)
+| psl3_erhvervspost_scenarie_al44c_fortjeneste() -> psl3_erhvervspost_scenarie_fakta(
+    "afskrivningslov-44c-2026",
+    PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Særregel(kilde = PsPar3Nr10Al44C(input = Afskrivningslov44CInput(
+        indkomstår = 2026,
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        genstand = Al44CRetEfterLeveringskontrakt,
+        skib_eller_andet_driftsmiddel = Sandt,
+        helt_eller_delvist_erhvervsmæssigt_bestemt = Sandt,
+        kan_afskrives_efter_kapitel2_når_betingelserne_er_opfyldt = Sandt,
+        sælges_eller_opgives_i_indkomståret = Sandt,
+        leveret_til_igangværende_virksomhed = Falskt,
+        bestemt_til_at_indgå_i_virksomhedens_drift = Sandt,
+        færdiggjort_til_at_indgå_i_driften = Falskt,
+        afståelsessum_kroner = 120000,
+        anskaffelsessum_kroner = 100000,
+        forbedringsudgifter_kroner = 0,
+        forskudsafskrivninger_kroner = 0
+    ))))
+)
+
+| psl3_erhvervspost_scenarie_alle() -> [
+    psl3_erhvervspost_scenarie_husdyr(),
+    psl3_erhvervspost_scenarie_varelager(),
+    psl3_erhvervspost_scenarie_henlæggelse(),
+    psl3_erhvervspost_scenarie_tilbagebetaling(2026),
+    psl3_erhvervspost_scenarie_sl6_afskrivning(),
+    psl3_erhvervspost_scenarie_al44c_fortjeneste(),
+]
+| psl3_erhvervspost_scenarie_virksomhed(poster: List(PersonskatPar3Erhvervspostfakta)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = "psl3-erhvervsposter-virksomhed",
+    indkomstår = 2026,
+    indtægter = [PersonskatVirksomhedsindtægtFakta(
+        identifikation = "psl3-erhvervsposter-omsætning",
+        art = OrdinærDriftsindtægt,
+        beløb_kroner = 500000
+    )],
+    udgifter = [],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = poster
+)
+| psl3_erhvervspost_scenarie_personlig_indkomst(poster: List(PersonskatPar3Erhvervspostfakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
+        virksomheder_uden_virksomhedsordning = [psl3_erhvervspost_scenarie_virksomhed(poster)],
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    arbejdsudleje = [],
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| psl3_erhvervspost_scenarie_input(poster: List(PersonskatPar3Erhvervspostfakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = psl3_erhvervspost_scenarie_personlig_indkomst(poster),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| psl3_erhvervspost_scenarie_beregning(poster: List(PersonskatPar3Erhvervspostfakta)) -> beregn_personskat(psl3_erhvervspost_scenarie_input(poster))
+| psl3_erhvervspost_scenarie_virksomhedsberegning(resultat: PersonskatBeregningResultat) -> match head(resultat.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning) {
+    | BeregnetOrdinærVirksomhed(beregning) -> Some(beregning)
+    | _ -> None
+}
+| psl3_erhvervspost_scenarie_resultatantal(resultat: PersonskatBeregningResultat) -> match psl3_erhvervspost_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> length(beregning.par3_erhvervspost_resultater)
+    | None -> 0
+}
+| psl3_erhvervspost_scenarie_brutto_kroner(resultat: PersonskatBeregningResultat) -> match psl3_erhvervspost_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> beregning.par3_indkomstresultat_for_virksomheden.brutto_personlig_indkomst_kroner
+    | None -> 0
+}
+| psl3_erhvervspost_scenarie_fradrag_kroner(resultat: PersonskatBeregningResultat) -> match psl3_erhvervspost_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> beregning.par3_indkomstresultat_for_virksomheden.fradrag_i_personlig_indkomst_kroner
+    | None -> 0
+}
+| psl3_erhvervspost_scenarie_varelagerfradrag_kroner(resultat: PersonskatBeregningResultat) -> match psl3_erhvervspost_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> match beregning.par3_erhvervspost_resultater[1].par3_post {
+        | Par3Stk2Nr5Post(par3_resultat) -> par3_resultat.fradrag_i_personlig_indkomst_kroner
+        | _ -> -1
+    }
+    | None -> -1
+}
+
+= psl3_erhvervspost_scenarie_gyldigt = psl3_erhvervspost_scenarie_beregning(psl3_erhvervspost_scenarie_alle())
+= psl3_erhvervspost_scenarie_forkert_år = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_tilbagebetaling(2025)])
+= psl3_erhvervspost_scenarie_dobbelt_id = psl3_erhvervspost_scenarie_beregning([
+    psl3_erhvervspost_scenarie_husdyr(),
+    PersonskatPar3Erhvervspostfakta(
+        identifikation = "husdyr-2026",
+        indkomstår = 2026,
+        kilde = PsPar3Nr5Varelager(input = VarelagerPar1Input(
+            indkomstår = 2026,
+            skatteyder = VarelagerNæringsdrivendePerson,
+            varegrupper = [],
+            ønsket_nedskrivning_kroner = 0
+        ))
+    ),
+])
+
+| psl3_erhvervsposter_når_personskat: psl3_erhvervspost_scenarie_gyldigt -> psl3_erhvervspost_scenarie_gyldigt.personlig_indkomst.alle_input_gyldige && psl3_erhvervspost_scenarie_resultatantal(psl3_erhvervspost_scenarie_gyldigt) == 6 && psl3_erhvervspost_scenarie_brutto_kroner(psl3_erhvervspost_scenarie_gyldigt) == 520000 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_gyldigt) == 82000 && psl3_erhvervspost_scenarie_gyldigt.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 438000 && psl3_erhvervspost_scenarie_gyldigt.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 438000
+| psl3_varelager_nulprocent_bevares: psl3_erhvervspost_scenarie_gyldigt -> psl3_erhvervspost_scenarie_varelagerfradrag_kroner(psl3_erhvervspost_scenarie_gyldigt) == 0
+| psl3_erhvervspost_forkert_indkomstår_afvises: psl3_erhvervspost_scenarie_forkert_år -> psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
+| psl3_erhvervspost_dobbelt_identifikation_afvises: psl3_erhvervspost_scenarie_dobbelt_id -> psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
+
+? psl3_erhvervsposter_når_personskat
+? psl3_varelager_nulprocent_bevares
+? psl3_erhvervspost_forkert_indkomstår_afvises
+? psl3_erhvervspost_dobbelt_identifikation_afvises

@@ -137,7 +137,8 @@ beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
         beløb_kroner = 1000000
     )],
     udgifter = [],
-    ligningslovsfradrag_efter_par3_stk2_nr2 = kilder
+    ligningslovsfradrag_efter_par3_stk2_nr2 = kilder,
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )
 
 | psl3_nr2_scenarie_personlig_indkomst(kilder: List(PersonskatPar3Nr2Ligningslovsfakta)) -> PersonskatPersonligIndkomstInput(

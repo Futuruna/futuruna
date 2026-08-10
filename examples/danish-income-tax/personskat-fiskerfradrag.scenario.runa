@@ -102,7 +102,8 @@
         beløb_kroner = omsætning_kroner
     )],
     udgifter = udgifter,
-    ligningslovsfradrag_efter_par3_stk2_nr2 = []
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )
 
 = personskat_fiskerfradrag_kildetilknytninger = [

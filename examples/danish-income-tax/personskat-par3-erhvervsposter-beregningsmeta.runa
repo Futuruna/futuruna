@@ -1,0 +1,99 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+= personskat_par3_erhvervsposter_felt_liste = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10),
+    label = "Andre erhvervsposter efter personskattelovens § 3, stk. 2",
+    question = Some("Har virksomheden husdyr, varelager, udligningshenlæggelser, tilbagebetalte offentlige ydelser eller skattemæssige afskrivninger?"),
+    help = Some("Opret én række pr. dokumenteret post. Futuruna afleder beløbet og placeringen i personlig indkomst fra den valgte lovregel."),
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::identifikation),
+    label = "Erhvervspostens identifikation",
+    question = Some("Hvilken entydig identifikation skal erhvervsposten have?"),
+    help = Some("Brug en stabil reference fra regnskabet eller bilaget, så samme post ikke medregnes to gange."),
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::indkomstår),
+    label = "Erhvervspostens indkomstår",
+    question = Some("Hvilket indkomstår vedrører erhvervsposten?"),
+    help = Some("Året skal svare til både virksomheden og den delegerede lovberegning."),
+    unit = Some("år")
+)
+= personskat_par3_erhvervsposter_felt_hjemmel = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::$variant),
+    label = "Erhvervspostens hjemmel",
+    question = Some("Hvilken type erhvervspost skal beregnes?"),
+    help = Some("Vælg husdyr, varelager, virksomhedsskattehenlæggelse, tilbagebetalt offentlig ydelse eller afskrivning, tab og andet fradrag."),
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_familie = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::$variant),
+    label = "Afskrivningens lovfamilie",
+    question = Some("Hvilken familie i afskrivningsloven eller statsskatteloven vedrører posten?"),
+    help = Some("Familierne følger lovens driftsmidler, bygninger, forskudsafskrivninger, rettigheder, særregler og ordinære afskrivninger efter statsskatteloven."),
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_driftsmiddel = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::PsPar3Nr10Driftsmiddel::kilde::$variant),
+    label = "Regel for driftsmiddel eller skib",
+    question = Some("Hvilken bestemmelse for driftsmidlet eller skibet skal anvendes?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_bygning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::PsPar3Nr10Bygning::kilde::$variant),
+    label = "Regel for bygning eller installation",
+    question = Some("Hvilken bestemmelse for bygningen eller installationen skal anvendes?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_forskud = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::PsPar3Nr10Forskudsafskrivning::kilde::$variant),
+    label = "Regel for forskudsafskrivning",
+    question = Some("Vedrører posten årets forskudsafskrivning eller en efterfølgende regulering?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_rettighed = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::PsPar3Nr10Rettighed::kilde::$variant),
+    label = "Regel for rettighed eller kvote",
+    question = Some("Hvilken bestemmelse for rettigheden eller kvoten skal anvendes?"),
+    help = None,
+    unit = None
+)
+= personskat_par3_erhvervsposter_felt_nr10_særregel = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::erhvervsposter_efter_par3_stk2_nr4_til_10::kilde::PsPar3Nr10Afskrivning::kilde::PsPar3Nr10Særregel::kilde::$variant),
+    label = "Særlig afskrivningsregel",
+    question = Some("Hvilken særlig eller historisk afskrivningsregel skal anvendes?"),
+    help = None,
+    unit = None
+)
+
+= personskat_par3_erhvervsposter_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_par3_erhvervsposter_felt_liste,
+        personskat_par3_erhvervsposter_felt_identifikation,
+        personskat_par3_erhvervsposter_felt_indkomstår,
+        personskat_par3_erhvervsposter_felt_hjemmel,
+        personskat_par3_erhvervsposter_felt_nr10_familie,
+        personskat_par3_erhvervsposter_felt_nr10_driftsmiddel,
+        personskat_par3_erhvervsposter_felt_nr10_bygning,
+        personskat_par3_erhvervsposter_felt_nr10_forskud,
+        personskat_par3_erhvervsposter_felt_nr10_rettighed,
+        personskat_par3_erhvervsposter_felt_nr10_særregel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par3),
+        Warning(value = personskatteloven_par3_nr5_varelager_nulprocent_advarsel),
+        Warning(value = personskatteloven_par3_nr9_dynamisk_henvisning_advarsel),
+    )
+)
+
+--@label:PersonskatPersonligIndkomstInput::meta:personskat_par3_erhvervsposter_beregningsmeta--

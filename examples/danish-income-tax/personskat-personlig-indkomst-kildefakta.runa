@@ -9,6 +9,7 @@
 @ importer ./metadata
 @ importer ./pensionsbeskatningsloven - par49 - 49b
 @ importer ./personskat - etableringskonto - kildefakta
+@ importer ./personskat - par3 - erhvervsposter - kildefakta
 @ importer ./soemandsbeskatningsloven - par5 - par8
 
 # PersonskatPersonligIndkomstKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
@@ -446,8 +447,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatVirksomhedsindtægtsart = OrdinærDriftsindtægt | BiblioteksafgiftEfterLovOmBiblioteksafgift | KapitalindkomstEfterPersonskattelovensPar4 | AktieindkomstEfterPersonskattelovensPar4A | UklassificeretVirksomhedsindtægt
 # PersonskatVirksomhedsindtægtFakta(identifikation: Tekst, art: PersonskatVirksomhedsindtægtsart, beløb_kroner: Heltal)
 # PersonskatVirksomhedsudgiftFakta(identifikation: Tekst, afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
-# PersonskatOrdinærVirksomhedFakta(identifikation: Tekst, indkomstår: Heltal, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta))
-# PersonskatOrdinærVirksomhedBeregning(fakta: PersonskatOrdinærVirksomhedFakta, par3_stk2_nr2_resultater: List(PersonskatPar3Nr2Ligningslovsresultat), par3_input_for_virksomheden: Par3PersonligIndkomstInput, par3_indkomstresultat_for_virksomheden: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag_input_for_virksomheden: ArbejdsmarkedsbidragSelvstændigInput, biblioteksafgift_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatOrdinærVirksomhedFakta(identifikation: Tekst, indkomstår: Heltal, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
+# PersonskatOrdinærVirksomhedBeregning(fakta: PersonskatOrdinærVirksomhedFakta, par3_stk2_nr2_resultater: List(PersonskatPar3Nr2Ligningslovsresultat), par3_erhvervspost_resultater: List(PersonskatPar3Erhvervspostresultat), par3_input_for_virksomheden: Par3PersonligIndkomstInput, par3_indkomstresultat_for_virksomheden: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag_input_for_virksomheden: ArbejdsmarkedsbidragSelvstændigInput, biblioteksafgift_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatOrdinærVirksomhedResultat = UgyldigOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | IkkeUnderstøttetOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, indtægtsarter_understøttet: Boolsk, udgiftsafgrænsninger_understøttet: Boolsk) | BeregnetOrdinærVirksomhed(beregning: PersonskatOrdinærVirksomhedBeregning)
 
 | personskat_virksomhedsindtægt_grundfakta_gyldige(fakta: PersonskatVirksomhedsindtægtFakta) -> fakta.identifikation != "" && fakta.beløb_kroner >= 0
@@ -456,13 +457,16 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_virksomhedsudgift_understøttet(fakta: PersonskatVirksomhedsudgiftFakta) -> fakta.afgrænsning == SelvstændigErhvervsindkomstUdgift
 | personskat_virksomhed_postidentifikationer(fakta: PersonskatOrdinærVirksomhedFakta) -> concat(
     concat(
-        map(fakta.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| indtægt.identifikation),
-        map(fakta.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| udgift.identifikation)
+        concat(
+            map(fakta.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| indtægt.identifikation),
+            map(fakta.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| udgift.identifikation)
+        ),
+        map(fakta.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| fradrag.identifikation)
     ),
-    map(fakta.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| fradrag.identifikation)
+    map(fakta.erhvervsposter_efter_par3_stk2_nr4_til_10, |post: PersonskatPar3Erhvervspostfakta| post.identifikation)
 )
 | personskat_virksomhed_postidentifikationer_entydige(fakta: PersonskatOrdinærVirksomhedFakta) -> length(distinct(personskat_virksomhed_postidentifikationer(fakta))) == length(personskat_virksomhed_postidentifikationer(fakta))
-| personskat_virksomhed_grundfakta_gyldige(fakta: PersonskatOrdinærVirksomhedFakta) -> fakta.identifikation != "" && length(fakta.indtægter) + length(fakta.udgifter) + length(fakta.ligningslovsfradrag_efter_par3_stk2_nr2) > 0 && personskat_virksomhed_postidentifikationer_entydige(fakta) && all(fakta.indtægter, personskat_virksomhedsindtægt_grundfakta_gyldige) && all(fakta.udgifter, personskat_virksomhedsudgift_grundfakta_gyldige) && all(fakta.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| personskat_par3_nr2_ligningslovsfakta_grundfakta_gyldige(fradrag, fakta.indkomstår))
+| personskat_virksomhed_grundfakta_gyldige(fakta: PersonskatOrdinærVirksomhedFakta) -> fakta.identifikation != "" && length(fakta.indtægter) + length(fakta.udgifter) + length(fakta.ligningslovsfradrag_efter_par3_stk2_nr2) + length(fakta.erhvervsposter_efter_par3_stk2_nr4_til_10) > 0 && personskat_virksomhed_postidentifikationer_entydige(fakta) && all(fakta.indtægter, personskat_virksomhedsindtægt_grundfakta_gyldige) && all(fakta.udgifter, personskat_virksomhedsudgift_grundfakta_gyldige) && all(fakta.ligningslovsfradrag_efter_par3_stk2_nr2, |fradrag: PersonskatPar3Nr2Ligningslovsfakta| personskat_par3_nr2_ligningslovsfakta_grundfakta_gyldige(fradrag, fakta.indkomstår)) && all(fakta.erhvervsposter_efter_par3_stk2_nr4_til_10, |post: PersonskatPar3Erhvervspostfakta| personskat_par3_erhvervspostfakta_grundfakta_gyldige(post, fakta.indkomstår))
 | personskat_virksomhed_indtægtsarter_understøttet(fakta: PersonskatOrdinærVirksomhedFakta) -> all(fakta.indtægter, personskat_virksomhedsindtægt_understøttet)
 | personskat_virksomhed_udgiftsafgrænsninger_understøttet(fakta: PersonskatOrdinærVirksomhedFakta) -> all(fakta.udgifter, personskat_virksomhedsudgift_understøttet)
 | personskat_virksomhedsindtægt_par3_indkomstpost(fakta: PersonskatVirksomhedsindtægtFakta) -> Par3Indkomstpost(
@@ -474,11 +478,11 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     afgrænsning = fakta.afgrænsning,
     beløb_kroner = fakta.beløb_kroner
 )
-| personskat_virksomhed_par3_input(fakta: PersonskatOrdinærVirksomhedFakta, par3_stk2_nr2_resultater: List(PersonskatPar3Nr2Ligningslovsresultat)) -> Par3PersonligIndkomstInput(
+| personskat_virksomhed_par3_input(fakta: PersonskatOrdinærVirksomhedFakta, par3_stk2_nr2_resultater: List(PersonskatPar3Nr2Ligningslovsresultat), par3_erhvervspost_resultater: List(PersonskatPar3Erhvervspostresultat)) -> Par3PersonligIndkomstInput(
     indkomstposter = map(fakta.indtægter, personskat_virksomhedsindtægt_par3_indkomstpost),
     stk2_nr1_udgifter = map(fakta.udgifter, personskat_virksomhedsudgift_par3_stk2_nr1),
     stk2_nr2_input = Par3Stk2Nr2Input(poster = personskat_par3_nr2_ligningslovsposter(par3_stk2_nr2_resultater)),
-    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = [])
+    stk2_nr3_til_11_input = Par3Stk2Nr3Til11Input(poster = personskat_par3_erhvervspost_poster(par3_erhvervspost_resultater))
 )
 | personskat_virksomhed_biblioteksafgift_kroner(fakta: PersonskatOrdinærVirksomhedFakta) -> foldl(fakta.indtægter, 0, |sum_kroner: Heltal, indtægt: PersonskatVirksomhedsindtægtFakta| sum_kroner + hvis indtægt.art == BiblioteksafgiftEfterLovOmBiblioteksafgift { indtægt.beløb_kroner } ellers { 0 })
 | personskat_virksomhed_arbejdsmarkedsbidrag_input(fakta: PersonskatOrdinærVirksomhedFakta, par3_resultat: Par3PersonligIndkomstResultat) -> ArbejdsmarkedsbidragSelvstændigInput(
@@ -490,12 +494,14 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_virksomhed_personlig_indkomst_uden_nyt_am_kroner(par3_resultat: Par3PersonligIndkomstResultat) -> hvis par3_resultat.netto_personlig_indkomst_kroner < 0 { par3_resultat.netto_personlig_indkomst_kroner } ellers { 0 }
 | personskat_virksomhed_beregning(fakta: PersonskatOrdinærVirksomhedFakta) -> {
     = par3_stk2_nr2_resultater = personskat_par3_nr2_ligningslovsresultater(fakta.ligningslovsfradrag_efter_par3_stk2_nr2)
-    = par3_input = personskat_virksomhed_par3_input(fakta, par3_stk2_nr2_resultater)
+    = par3_erhvervspost_resultater = personskat_par3_erhvervspost_resultater(fakta.erhvervsposter_efter_par3_stk2_nr4_til_10)
+    = par3_input = personskat_virksomhed_par3_input(fakta, par3_stk2_nr2_resultater, par3_erhvervspost_resultater)
     = par3_resultat = par3_personlig_indkomst_resultat(par3_input)
     = arbejdsmarkedsbidrag_input = personskat_virksomhed_arbejdsmarkedsbidrag_input(fakta, par3_resultat)
     PersonskatOrdinærVirksomhedBeregning(
         fakta = fakta,
         par3_stk2_nr2_resultater = par3_stk2_nr2_resultater,
+        par3_erhvervspost_resultater = par3_erhvervspost_resultater,
         par3_input_for_virksomheden = par3_input,
         par3_indkomstresultat_for_virksomheden = par3_resultat,
         arbejdsmarkedsbidrag_input_for_virksomheden = arbejdsmarkedsbidrag_input,

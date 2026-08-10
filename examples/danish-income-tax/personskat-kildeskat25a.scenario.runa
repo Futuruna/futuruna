@@ -7,7 +7,8 @@
     indkomstår = 2025,
     indtægter = indtægter,
     udgifter = udgifter,
-    ligningslovsfradrag_efter_par3_stk2_nr2 = []
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
 )
 | personskat_ksl25a_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
