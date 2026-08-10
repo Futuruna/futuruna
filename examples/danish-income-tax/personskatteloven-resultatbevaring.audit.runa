@@ -1,0 +1,294 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+# PersonskatResultatAuditKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+# PersonskatResultatEnhed = ResultatIKroner | ResultatIØre
+# PersonskatResultatIdentitet = DirekteKomponentsum | TrinvisLovbestemtNedsættelse | KreditEfterKildeskatteloven | Kompatibilitetsprojektion
+# PersonskatResultatKontrakt(navn: Tekst, enhed: PersonskatResultatEnhed, identitet: PersonskatResultatIdentitet, lovgrundlag: Tekst, offentlig_resultatgrænse: Boolsk, bekræftet_mismatch: Boolsk)
+# PersonskatResultatAuditResultat(kontrakter: List(PersonskatResultatKontrakt), alle_kontrakter_navngivet: Boolsk, antal_offentlige_resultatgrænser: Heltal, antal_bekræftede_mismatch: Heltal)
+
+= personskat_resultatbevaring_psl_kilde = PersonskatResultatAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven §§ 5, 8 a og 9-13",
+    hentet_dato = "2026-08-10"
+)
+
+= personskat_resultatbevaring_reformkilde = PersonskatResultatAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2024/482",
+    identifier = "LOV nr. 482 af 22/05/2024, §§ 1 og 8",
+    hentet_dato = "2026-08-10"
+)
+
+= personskat_resultatbevaring_soebl_kilde = PersonskatResultatAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1181",
+    identifier = "Sømandsbeskatningsloven, LBK nr. 1181 af 21/09/2023, § 5",
+    hentet_dato = "2026-08-10"
+)
+
+= personskat_resultatbevaring_ejendomsskattelov_kilde = PersonskatResultatAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2023/678",
+    identifier = "Ejendomsskatteloven §§ 13, 17-19 og 31",
+    hentet_dato = "2026-08-10"
+)
+
+= personskat_resultatbevaring_ksl_kilde = PersonskatResultatAuditKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven §§ 60-62 C",
+    hentet_dato = "2026-08-10"
+)
+
+= personskat_resultatbevaring_psl_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_resultatbevaring_psl_kilde),
+        AmendmentSource(value = personskat_resultatbevaring_reformkilde),
+    )
+)
+
+--@label:personskat_resultatbevaring_psl::meta:personskat_resultatbevaring_psl_metadata--
+----
+§ 5. Indkomstskatten til staten opgøres som summen af
+1) bundskat efter § 6,
+2) topskat efter § 7,
+3) udligningsskat efter § 7 a,
+4) sundhedsbidrag efter § 8,
+5) skat af aktieindkomst efter § 8 a,
+6) skat af CFC-indkomst efter § 8 b og
+7) skat svarende til kommunal indkomstskat efter § 8 c.
+
+LOV nr. 482 af 22/05/2024, § 1, nr. 1.
+
+§ 5 affattes således:
+
+§ 5. Indkomstskatten til staten opgøres som summen af
+1) bundskat efter § 6,
+2) mellemskat efter § 7,
+3) topskat efter § 7 a,
+4) toptopskat efter § 8,
+5) skat af aktieindkomst efter § 8 a,
+6) skat af CFC-indkomst efter § 8 b og
+7) skat svarende til kommunal indkomstskat efter § 8 c.
+
+LOV nr. 482 af 22/05/2024, § 8, stk. 4.
+
+§ 1, § 2, nr. 2 og 4, og §§ 4-6 har virkning fra og med indkomståret 2026.
+
+§ 8 a, stk. 5. Er aktieindkomsten negativ, beregnes negativ skat med den i
+stk. 1 nævnte procentsats af beløb, der ikke overstiger grundbeløbet, og med
+skatteprocenten nævnt i stk. 2 af beløb, der overstiger grundbeløbet. Den
+negative skat modregnes i den skattepligtiges slutskat, og et eventuelt
+resterende beløb fremføres til modregning i slutskatten for de følgende
+indkomstår.
+----
+
+--@begin:personskat_resultatbevaring_psl--
+= personskat_resultatbevaring_loenmodtager_komponentkontrakt = PersonskatResultatKontrakt(
+    navn = "LønmodtagerSkattekomponenter",
+    enhed = ResultatIKroner,
+    identitet = DirekteKomponentsum,
+    lovgrundlag = "PSL §§ 5 og 9-13",
+    offentlig_resultatgrænse = Falskt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_loenmodtager_slutskatkontrakt = PersonskatResultatKontrakt(
+    navn = "LønmodtagerSlutskat og LønmodtagerBreakdown",
+    enhed = ResultatIKroner,
+    identitet = TrinvisLovbestemtNedsættelse,
+    lovgrundlag = "PSL §§ 9-13 og 19",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_positiv_aktieskatkontrakt = PersonskatResultatKontrakt(
+    navn = "AktieindkomstSkatResultat",
+    enhed = ResultatIKroner,
+    identitet = DirekteKomponentsum,
+    lovgrundlag = "PSL § 8 a, stk. 1-2",
+    offentlig_resultatgrænse = Falskt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_negativ_aktieskatkontrakt = PersonskatResultatKontrakt(
+    navn = "AktieindkomstNegativSkatParResultat",
+    enhed = ResultatIKroner,
+    identitet = KreditEfterKildeskatteloven,
+    lovgrundlag = "PSL § 8 a, stk. 5-6",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+| personskat_resultatbevaring_loenmodtager_foer(resultat: LønmodtagerBreakdown) -> resultat.kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner == resultat.kommuneskat_før_personfradrag_kroner + resultat.kirkeskat_før_personfradrag_kroner && resultat.samlet_indkomstskat_før_personfradrag_kroner == resultat.statslig_indkomstskat_før_personfradrag_kroner + resultat.kommunal_og_kirkelig_indkomstskat_før_personfradrag_kroner && resultat.samlet_inkl_am_før_personfradrag_kroner == resultat.arbejdsmarkedsbidrag_kroner + resultat.samlet_indkomstskat_før_personfradrag_kroner
+| personskat_resultatbevaring_loenmodtager_efter(resultat: LønmodtagerBreakdown) -> resultat.samlet_indkomstskat_efter_personfradrag_kroner == resultat.statslig_indkomstskat_efter_personfradrag_kroner + resultat.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner && resultat.samlet_inkl_am_efter_personfradrag_kroner == resultat.arbejdsmarkedsbidrag_kroner + resultat.samlet_indkomstskat_efter_personfradrag_kroner
+| personskat_resultatbevaring_loenmodtager_ikke_negativ(resultat: LønmodtagerBreakdown) -> resultat.statslig_indkomstskat_efter_personfradrag_kroner >= 0 && resultat.kommunal_og_kirkelig_indkomstskat_efter_personfradrag_kroner >= 0 && resultat.samlet_indkomstskat_efter_personfradrag_kroner >= 0 && resultat.samlet_inkl_am_efter_personfradrag_kroner >= 0
+| personskat_resultatbevaring_loenmodtager(resultat: LønmodtagerBreakdown) -> personskat_resultatbevaring_loenmodtager_foer(resultat) && personskat_resultatbevaring_loenmodtager_efter(resultat) && personskat_resultatbevaring_loenmodtager_ikke_negativ(resultat)
+
+| personskat_resultatbevaring_positiv_aktieskat(resultat: AktieindkomstSkatResultat) -> resultat.lavt_grundlag_kroner >= 0 && resultat.højt_grundlag_kroner >= 0 && resultat.endelig_skat_kroner >= 0 && resultat.slutskat_indgående_skat_kroner >= 0 && resultat.samlet_skat_kroner == resultat.endelig_skat_kroner + resultat.slutskat_indgående_skat_kroner
+| personskat_resultatbevaring_negativ_aktieskat_person(resultat: AktieindkomstNegativSkatPersonResultat) -> resultat.negativ_skat_kroner >= 0 && resultat.modregnet_i_egen_slutskat_kroner >= 0 && resultat.modregnet_i_ægtefælles_slutskat_kroner >= 0 && resultat.fremført_kroner >= 0 && resultat.negativ_skat_kroner == resultat.modregnet_i_egen_slutskat_kroner + resultat.modregnet_i_ægtefælles_slutskat_kroner + resultat.fremført_kroner
+| personskat_resultatbevaring_negativ_aktieskat_par(resultat: AktieindkomstNegativSkatParResultat) -> resultat.input_gyldigt && personskat_resultatbevaring_negativ_aktieskat_person(resultat.egen) && personskat_resultatbevaring_negativ_aktieskat_person(resultat.ægtefælle) && resultat.samlet_negativ_skat_kroner == resultat.egen.negativ_skat_kroner + resultat.ægtefælle.negativ_skat_kroner && resultat.samlet_negativ_skat_kroner == resultat.samlet_negativ_skat_modregnet_kroner + resultat.samlet_negativ_skat_fremført_kroner && resultat.samlet_slutskat_før_negativ_skat_kroner == resultat.input.egen_slutskat_før_negativ_skat_kroner + resultat.input.ægtefælles_slutskat_før_negativ_skat_kroner && resultat.samlet_slutskat_efter_negativ_skat_kroner == resultat.egen_slutskat_efter_negativ_skat_kroner + resultat.ægtefælles_slutskat_efter_negativ_skat_kroner && resultat.samlet_slutskat_før_negativ_skat_kroner == resultat.samlet_slutskat_efter_negativ_skat_kroner + resultat.samlet_negativ_skat_modregnet_kroner
+--@end:personskat_resultatbevaring_psl--
+
+= personskat_resultatbevaring_soebl_metadata = Metadata(
+    attachments = (
+        DependencySource(value = personskat_resultatbevaring_soebl_kilde),
+    )
+)
+
+--@label:personskat_resultatbevaring_soebl::meta:personskat_resultatbevaring_soebl_metadata--
+----
+§ 5. Har en person, der er skattepligtig efter kildeskattelovens § 1,
+erhvervet lønindkomst ved arbejde om bord på et dansk skib, som er registreret
+i Dansk Internationalt Skibsregister, og som udelukkende anvendes til formål,
+som vil kunne omfattes af tonnageskatteloven, nedsættes den samlede
+indkomstskat med det beløb, der forholdsmæssigt falder på denne indkomst.
+----
+
+--@begin:personskat_resultatbevaring_soebl--
+= personskat_resultatbevaring_soebl_kontrakt = PersonskatResultatKontrakt(
+    navn = "Søbl5EksaktLempelsesresultat",
+    enhed = ResultatIØre,
+    identitet = TrinvisLovbestemtNedsættelse,
+    lovgrundlag = "SØBL § 5",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+| personskat_resultatbevaring_soebl_komponentsum_øre(resultat: Søbl5EksaktLempelsesresultat) -> resultat.lempelse_før_skatteloft_øre == foldl(resultat.komponenter, 0, |sum_øre: Heltal, komponent: Søbl5EksaktLempelseskomponent| sum_øre + komponent.forholdsmæssig_lempelse_øre)
+| personskat_resultatbevaring_soebl_eksakt(resultat: Søbl5EksaktLempelsesresultat) -> resultat.input_gyldigt && personskat_resultatbevaring_soebl_komponentsum_øre(resultat) && resultat.samlet_lempelse_øre >= 0 && resultat.samlet_lempelse_øre <= resultat.højeste_lempelse_efter_par13_og_skatteloft_øre && resultat.indkomstskat_efter_dis_lempelse_øre == resultat.indkomstskat_før_dis_lempelse_øre - resultat.samlet_lempelse_øre && resultat.samlet_skat_inkl_am_efter_dis_lempelse_øre == resultat.arbejdsmarkedsbidrag_øre + resultat.indkomstskat_efter_dis_lempelse_øre && resultat.samlet_lempelse_kroner_kompatibilitetsprojektion == resultat.samlet_lempelse_øre / 100
+--@end:personskat_resultatbevaring_soebl--
+
+= personskat_resultatbevaring_ejendom_metadata = Metadata(
+    attachments = (
+        DependencySource(value = personskat_resultatbevaring_ejendomsskattelov_kilde),
+    )
+)
+
+--@label:personskat_resultatbevaring_ejendom::meta:personskat_resultatbevaring_ejendom_metadata--
+----
+§ 31. Ejendomsværdiskat af ejendomme nævnt i § 3 og grundskyld af ejendomme
+nævnt i § 3, stk. 1, nr. 3 og 4, og ejendomsvurderingslovens § 3, stk. 1,
+nr. 1, der alene er ejet af fysiske personer, opkræves af told- og
+skatteforvaltningen via forskuds- og årsopgørelsen hos den eller de fysiske
+personer, der ejer ejendommen i henhold til et autoritativt register.
+----
+
+--@begin:personskat_resultatbevaring_ejendom--
+= personskat_resultatbevaring_ejendom_kontrakt = PersonskatResultatKontrakt(
+    navn = "EjendomsskattelovPersonÅrsresultat",
+    enhed = ResultatIØre,
+    identitet = DirekteKomponentsum,
+    lovgrundlag = "Ejendomsskatteloven §§ 13, 17-19 og 31",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+| personskat_resultatbevaring_ejendom(resultat: EjendomsskattelovPersonÅrsresultat) -> resultat.identifikationer_entydige && resultat.alle_input_gyldige && resultat.regelgrundlag_understøttet && resultat.samlet_ejendomsværdiskat_øre == foldl(resultat.ejendomsresultater, 0, |sum_øre: Heltal, ejendom: EjendomsskattelovPersonEjendomResultat| sum_øre + ejendom.ejendomsværdiskat_øre) && resultat.samlet_grundskyld_øre == foldl(resultat.ejendomsresultater, 0, |sum_øre: Heltal, ejendom: EjendomsskattelovPersonEjendomResultat| sum_øre + ejendom.grundskyld_øre) && resultat.samlet_ejendomsskat_øre == resultat.samlet_ejendomsværdiskat_øre + resultat.samlet_grundskyld_øre && resultat.samlet_ejendomsskat_kroner == resultat.samlet_ejendomsskat_øre / 100
+--@end:personskat_resultatbevaring_ejendom--
+
+= personskat_resultatbevaring_ksl_metadata = Metadata(
+    attachments = (
+        Source(value = personskat_resultatbevaring_psl_kilde),
+        DependencySource(value = personskat_resultatbevaring_ksl_kilde),
+    )
+)
+
+--@label:personskat_resultatbevaring_ksl::meta:personskat_resultatbevaring_ksl_metadata--
+----
+§ 60. I den slutskat, der for et år udskrives for den skattepligtige, med
+tillæg af eventuel overført restskat m.v. efter § 61, stk. 3, og afgiften
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, modregnes nedennævnte
+beløb vedrørende samme år:
+
+g) Beløb efter personskattelovens § 8 a, stk. 5.
+
+§ 61. Den skattepligtige skal tilsvare det beløb, hvormed slutskatten med
+tillæg af eventuel overført restskat m.v. efter stk. 3, og af eventuel afgift
+omfattet af pensionsbeskatningslovens § 25 A, stk. 5-9, måtte overstige de
+foreløbige skatter, der modregnes efter § 60.
+
+Beløbet benævnes »restskat«.
+
+§ 62. Det beløb hvormed slutskatten med tillæg af eventuel overført restskat
+m.v. efter § 61, stk. 3, og af eventuel afgift omfattet af
+pensionsbeskatningslovens § 25 A, stk. 5-9, måtte være mindre end de
+foreløbige skatter, der modregnes efter § 60, benævnes »overskydende skat«.
+----
+
+--@begin:personskat_resultatbevaring_ksl--
+= personskat_resultatbevaring_ligningslov33_kontrakt = PersonskatResultatKontrakt(
+    navn = "PersonskatLigningslov33ParResultat",
+    enhed = ResultatIØre,
+    identitet = DirekteKomponentsum,
+    lovgrundlag = "LL §§ 33 og 33 F",
+    offentlig_resultatgrænse = Falskt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_personskat_kontrakt = PersonskatResultatKontrakt(
+    navn = "PersonskatBeregningResultat",
+    enhed = ResultatIØre,
+    identitet = TrinvisLovbestemtNedsættelse,
+    lovgrundlag = "PSL, SØBL § 5, LL §§ 33 og 33 A, ejendomsskatteloven og KSL § 60",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_kompatibilitetskontrakt = PersonskatResultatKontrakt(
+    navn = "PersonskatBeregningResultat.slutskat_kroner_kompatibilitetsprojektion",
+    enhed = ResultatIKroner,
+    identitet = Kompatibilitetsprojektion,
+    lovgrundlag = "Kanonisk ørepræcis slutskat",
+    offentlig_resultatgrænse = Falskt,
+    bekræftet_mismatch = Falskt
+)
+
+= personskat_resultatbevaring_slutopgoerelse_kontrakt = PersonskatResultatKontrakt(
+    navn = "KildeskatSlutopgørelseEksaktResult",
+    enhed = ResultatIØre,
+    identitet = KreditEfterKildeskatteloven,
+    lovgrundlag = "KSL §§ 60-62",
+    offentlig_resultatgrænse = Sandt,
+    bekræftet_mismatch = Falskt
+)
+
+| personskat_resultatbevaring_ligningslov33(resultat: PersonskatLigningslov33ParResultat) -> resultat.hovedpersons_nedslag_øre >= 0 && resultat.ægtefælles_nedslag_øre >= 0 && resultat.samlet_parnedslag_øre == resultat.hovedpersons_nedslag_øre + resultat.ægtefælles_nedslag_øre
+| personskat_resultatbevaring_slutopgoerelse_art(resultat: KildeskatSlutopgørelseEksaktResult) -> match resultat.art {
+    | IngenSlutopgørelsesDifference -> resultat.restskat_øre == 0 && resultat.overskydende_skat_øre == 0
+    | Restskat -> resultat.restskat_øre > 0 && resultat.overskydende_skat_øre == 0
+    | OverskydendeSkat -> resultat.restskat_øre == 0 && resultat.overskydende_skat_øre > 0
+}
+| personskat_resultatbevaring_slutopgoerelse(resultat: KildeskatSlutopgørelseEksaktResult) -> resultat.slutskat_med_tillæg_øre >= 0 && resultat.modregnede_foreløbige_skatter_øre >= 0 && resultat.restskat_øre >= 0 && resultat.overskydende_skat_øre >= 0 && resultat.slutskat_med_tillæg_øre - resultat.modregnede_foreløbige_skatter_øre == resultat.restskat_øre - resultat.overskydende_skat_øre && personskat_resultatbevaring_slutopgoerelse_art(resultat)
+
+| personskat_resultatbevaring_aarsopgoerelse(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> Sandt
+    | BeregnetÅrsopgørelse(input, slutopgørelse, _) -> input.slutskat_øre == resultat.slutskat_øre && input.kreditter.personskattelov_par8a_stk5_beløb_øre == resultat.personskattelov_par8a_stk5_kredit_øre && personskat_resultatbevaring_slutopgoerelse(slutopgørelse)
+}
+| personskat_resultatbevaring_personskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner == resultat.sømandsbeskatning.samlet_skat_inkl_am_efter_dis_lempelse_kroner + resultat.endelig_aktieindkomstskat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_kroner == resultat.samlet_skat_inkl_endelig_aktieindkomstskat_kroner + resultat.ejendomsskatter.samlet_ejendomsskat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_kroner == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_kroner - resultat.ligningslov33.hovedpersons_nedslag_øre / 100) && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_kroner == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_kroner - resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre / 100) && resultat.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner == resultat.negativ_aktieindkomstskat.egen_slutskat_efter_negativ_skat_kroner && resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner == resultat.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.egen_slutskat_efter_fremført_negativ_skat_kroner
+| personskat_resultatbevaring_personskat_eksakt(resultat: PersonskatBeregningResultat) -> resultat.samlet_skat_inkl_endelig_aktieindkomstskat_øre == resultat.eksakt_ordinær_skat_efter_dis_øre + resultat.endelig_aktieindkomstskat_øre && resultat.samlet_skat_inkl_ejendomsskatter_øre == resultat.samlet_skat_inkl_endelig_aktieindkomstskat_øre + resultat.ejendomsskatter.samlet_ejendomsskat_øre && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_øre - resultat.ligningslov33.hovedpersons_nedslag_øre) && resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre == penge_positivt_beløb(resultat.samlet_skat_inkl_ejendomsskatter_øre - resultat.hovedpersons_ligningslov33_og_33a_nedslag_øre) && resultat.slutskat_øre == resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre && resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre == penge_positivt_beløb(resultat.slutskat_øre - resultat.personskattelov_par8a_stk5_kredit_øre) && resultat.samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre >= resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre && resultat.slutskat_kroner_kompatibilitetsprojektion == resultat.slutskat_øre / 100
+| personskat_resultatbevaring_personskat(resultat: PersonskatBeregningResultat) -> personskat_resultatbevaring_loenmodtager(resultat.skat) && personskat_resultatbevaring_soebl_eksakt(resultat.sømandsbeskatning_eksakt) && personskat_resultatbevaring_positiv_aktieskat(resultat.positiv_aktieindkomstskat) && personskat_resultatbevaring_negativ_aktieskat_par(resultat.negativ_aktieindkomstskat) && personskat_resultatbevaring_ejendom(resultat.ejendomsskatter) && personskat_resultatbevaring_ligningslov33(resultat.ligningslov33) && personskat_resultatbevaring_personskat_kroner(resultat) && personskat_resultatbevaring_personskat_eksakt(resultat) && personskat_resultatbevaring_aarsopgoerelse(resultat)
+--@end:personskat_resultatbevaring_ksl--
+
+= personskat_resultatbevaring_kontrakter = [
+    personskat_resultatbevaring_loenmodtager_komponentkontrakt,
+    personskat_resultatbevaring_loenmodtager_slutskatkontrakt,
+    personskat_resultatbevaring_positiv_aktieskatkontrakt,
+    personskat_resultatbevaring_negativ_aktieskatkontrakt,
+    personskat_resultatbevaring_soebl_kontrakt,
+    personskat_resultatbevaring_ejendom_kontrakt,
+    personskat_resultatbevaring_ligningslov33_kontrakt,
+    personskat_resultatbevaring_personskat_kontrakt,
+    personskat_resultatbevaring_kompatibilitetskontrakt,
+    personskat_resultatbevaring_slutopgoerelse_kontrakt,
+]
+
+= personskat_resultatbevaring_audit = PersonskatResultatAuditResultat(
+    kontrakter = personskat_resultatbevaring_kontrakter,
+    alle_kontrakter_navngivet = all(personskat_resultatbevaring_kontrakter, |kontrakt: PersonskatResultatKontrakt| kontrakt.navn != "" && kontrakt.lovgrundlag != ""),
+    antal_offentlige_resultatgrænser = length(filter(personskat_resultatbevaring_kontrakter, |kontrakt: PersonskatResultatKontrakt| kontrakt.offentlig_resultatgrænse)),
+    antal_bekræftede_mismatch = length(filter(personskat_resultatbevaring_kontrakter, |kontrakt: PersonskatResultatKontrakt| kontrakt.bekræftet_mismatch))
+)
+
+| personskat_resultatbevaring_inventory_er_komplet: personskat_resultatbevaring_audit -> length(personskat_resultatbevaring_audit.kontrakter) == 10 && personskat_resultatbevaring_audit.alle_kontrakter_navngivet && personskat_resultatbevaring_audit.antal_offentlige_resultatgrænser == 6 && personskat_resultatbevaring_audit.antal_bekræftede_mismatch == 0
+
+? personskat_resultatbevaring_inventory_er_komplet

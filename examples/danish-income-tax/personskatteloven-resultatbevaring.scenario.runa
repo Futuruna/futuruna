@@ -1,0 +1,25 @@
+@ sprog da
+
+@ importer ./personskatteloven - resultatbevaring.audit
+@ importer ./personskat - 2025 - aarsopgoerelse.scenario
+
+----
+Scenarierne genbruger allerede kildebelagte beregninger. De indfører ikke nye
+juridiske forudsætninger eller myndighedsbeløb som beregningsinput. Formålet er
+udelukkende at kontrollere, at hvert offentligt resultat viser komponenter og
+totaler fra samme beregningstrin.
+----
+
+= personskat_resultatbevaring_negativ_aktieskat_fixture = aktieindkomst_negativ_skat_par_resultat(AktieindkomstNegativSkatParInput(
+    egen_negativ_skat_kroner = 50000,
+    ægtefælles_negativ_skat_kroner = 0,
+    egen_slutskat_før_negativ_skat_kroner = 10000,
+    ægtefælles_slutskat_før_negativ_skat_kroner = 20000,
+    samlevende_ved_årets_udløb = Sandt
+))
+
+| personskat_resultatbevaring_scenarie_negativ_aktieskat: personskat_resultatbevaring_negativ_aktieskat_fixture -> personskat_resultatbevaring_negativ_aktieskat_par(personskat_resultatbevaring_negativ_aktieskat_fixture) && personskat_resultatbevaring_negativ_aktieskat_fixture.egen.modregnet_i_egen_slutskat_kroner == 10000 && personskat_resultatbevaring_negativ_aktieskat_fixture.egen.modregnet_i_ægtefælles_slutskat_kroner == 20000 && personskat_resultatbevaring_negativ_aktieskat_fixture.egen.fremført_kroner == 20000
+| personskat_resultatbevaring_scenarie_aarsopgoerelse2025: årsopgørelse2025_kanonisk_resultat -> personskat_resultatbevaring_personskat(årsopgørelse2025_kanonisk_resultat) && årsopgørelse2025_kanonisk_resultat.positiv_aktieindkomstskat.samlet_skat_kroner > 0 && årsopgørelse2025_kanonisk_resultat.ejendomsskatter.samlet_ejendomsskat_øre > 0 && årsopgørelse2025_kanonisk_resultat.ligningslov33.hovedpersons_nedslag_øre == 600 && årsopgørelse2025_kanonisk_resultat.slutskat_øre == årsopgørelse2025_årsopgørelsens_beregnede_skat_øre
+
+? personskat_resultatbevaring_scenarie_negativ_aktieskat
+? personskat_resultatbevaring_scenarie_aarsopgoerelse2025
