@@ -19,10 +19,16 @@
     ændringsstatus = "Vejledningens 50-procentsberegning af positiv bobeskatningsindkomst er kontrolleret"
 )
 = dødsboskattelov_par30_forskudt_indkomstår_vejledning = DødsboskattelovPar1Par30KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1847115",
-    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.6.2.1: Fradrag i dødsboskatten ved forskudt indkomstår",
-    hentet_dato = "2026-08-08",
+    url = "https://info.skat.dk/data.aspx?oid=1847115&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.E.3.3.6.2.1: Fradrag i dødsboskatten ved forskudt indkomstår",
+    hentet_dato = "2026-08-10",
     ændringsstatus = "Bagudforskudte indkomstår bruger kalenderårets begyndelse; fremadforskudte indkomstår bruger dødsårets faktiske begyndelse"
+)
+= kildeskattelov_par22_lbk460 = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven § 22, stk. 1-2, LBK nr. 460 af 03/05/2024",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Forskudte indkomstår skal begynde den første i en måned; et bagudforskudt år kan tidligst begynde 1. marts i det foregående kalenderår, og et fremadforskudt år kan senest begynde 1. februar i dødsåret"
 )
 = dødsboskattelov_par30_satser_2024_2026 = DødsboskattelovPar1Par30KildeInfo(
     url = "https://info.skat.dk/data.aspx?chk=220619&oid=2292849",
@@ -101,6 +107,7 @@ Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskat
 = dødsboskattelov_par30_metadata = Metadata(
     attachments = (
         Source(value = dødsboskattelov_par1_par30_lbk426),
+        DependencySource(value = kildeskattelov_par22_lbk460),
         Guidance(value = dødsboskattelov_par30_vejledning),
         Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
@@ -121,6 +128,10 @@ Stk. 4. Skulle afdøde tillige have været beskattet af en tidligere afdød ægt
 Stk. 5. Er bobeskatningsindkomsten negativ, modregnes underskuddet i positiv aktieindkomst i bobeskatningsperioden, i det omfang det kan rummes heri.
 
 Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
+
+Kildeskatteloven § 22. Den skattepligtige indkomst opgøres på grundlag af indkomsten i indkomståret. Indkomståret er kalenderåret. Består skattepligten kun i en del af et år, er indkomståret det nævnte tidsrum. En selvstændigt erhvervsdrivende kan efter stk. 2 vælge et andet indkomstår end kalenderåret (forskudt indkomstår). Har den selvstændigt erhvervsdrivende et andet indkomstår end kalenderåret, opgøres den skattepligtige indkomst efter de regler, der gælder for det kalenderår, som det forskudte indkomstår træder i stedet for. Et bagudforskudt indkomstår kan tidligst begynde den 1. marts i kalenderåret forud for det kalenderår, som det bagudforskudte indkomstår træder i stedet for. Et fremadforskudt indkomstår kan senest begynde den 1. februar i det kalenderår, som det fremadforskudte indkomstår træder i stedet for.
+
+Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end kalenderåret, hvis det er begrundet i de forhold, der gør sig gældende for den skattepligtige, såsom hensyn til sæson, brancheændring, personaleferie eller nye forretningsforbindelser. Omlægning af et indkomstår kan kun ske, såfremt alle indkomstperioder kommer til beskatning, og såfremt intet indkomstår overspringes eller dubleres. Et indkomstår, der afviger fra kalenderåret, skal begynde den første i en måned. Den selvstændigt erhvervsdrivende skal inden udløbet af det indkomstår, der ønskes omlagt, give meddelelse herom til told- og skatteforvaltningen. Ved valg af et andet indkomstår end kalenderåret skal en samlevende ægtefælle anvende samme indkomstår, jf. dog § 100, 1. pkt.
 ----
 
 --@begin::dødsboskattelov_par30--
@@ -178,12 +189,15 @@ Stk. 6. Grundbeløbet i stk. 2-4 reguleres efter personskattelovens § 20.
     | Dbl30BagudforskudtIndkomstår(_) -> dødsboskattelov30_kalenderårets_startdato(dødsdato)
     | _ -> dødsboskattelov30_dødsårets_startdato(dødsdato, indkomstårsforhold)
 }
+| dødsboskattelov30_forskudt_indkomstår_begynder_første_i_måned(dødsårets_startdato: Dato) -> dødsårets_startdato.dag == 1
 | dødsboskattelov30_indkomstårsforhold_gyldigt(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold) -> {
     = kalenderårets_startdato = dødsboskattelov30_kalenderårets_startdato(dødsdato)
+    = tidligste_bagudforskudte_startdato = Dato(år = dødsdato.år - 1, måned = 3, dag = 1)
+    = seneste_fremadforskudte_startdato = Dato(år = dødsdato.år, måned = 2, dag = 1)
     match indkomstårsforhold {
         | Dbl30Kalenderindkomstår -> Sandt
-        | Dbl30BagudforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år - 1 && dato_før(dødsårets_startdato, kalenderårets_startdato)
-        | Dbl30FremadforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år && dato_efter(dødsårets_startdato, kalenderårets_startdato) && dato_før_eller_lig_med(dødsårets_startdato, dødsdato)
+        | Dbl30BagudforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsboskattelov30_forskudt_indkomstår_begynder_første_i_måned(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år - 1 && dato_før_eller_lig_med(tidligste_bagudforskudte_startdato, dødsårets_startdato) && dato_før(dødsårets_startdato, kalenderårets_startdato)
+        | Dbl30FremadforskudtIndkomstår(dødsårets_startdato) -> dato_gyldig(dødsårets_startdato) && dødsboskattelov30_forskudt_indkomstår_begynder_første_i_måned(dødsårets_startdato) && dødsårets_startdato.år == dødsdato.år && dato_efter(dødsårets_startdato, kalenderårets_startdato) && dato_før_eller_lig_med(dødsårets_startdato, seneste_fremadforskudte_startdato) && dato_før_eller_lig_med(dødsårets_startdato, dødsdato)
     }
 }
 | dødsboskattelov30_ægtefælleforhold_gyldigt(dødsdato: Dato, indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold, ægtefælleforhold: Dødsboskattelov30Ægtefælleforhold) -> match ægtefælleforhold {

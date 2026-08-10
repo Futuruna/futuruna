@@ -920,49 +920,49 @@
     path = refof(Dødsboskattelov30Input::indkomstårsforhold::$variant),
     label = "Afdødes indkomstårsforhold",
     question = Some("Brugte afdøde kalenderår, bagudforskudt indkomstår eller fremadforskudt indkomstår?"),
-    help = Some("Valget afgør, om fradragsperioden begynder 1. januar eller ved det forskudte dødsårs begyndelse."),
+    help = Some("Valget afgør, om fradragsperioden begynder 1. januar eller ved det forskudte dødsårs begyndelse. Et forskudt indkomstår skal opfylde datoafgrænsningen i kildeskattelovens § 22."),
     unit = None
 )
 = personskat_felt_dis_dødsbo_bagudforskudt_start_år = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::år),
     label = "Bagudforskudt dødsårs startdato - år",
     question = Some("I hvilket år begyndte det bagudforskudte dødsår?"),
-    help = Some("Udfyldes kun ved bagudforskudt indkomstår; selve § 30-fradraget begynder fortsat 1. januar i dødsåret."),
+    help = Some("Udfyldes kun ved bagudforskudt indkomstår. Startdatoen skal ligge i kalenderåret før dødsåret; selve § 30-fradraget begynder fortsat 1. januar i dødsåret."),
     unit = Some("år")
 )
 = personskat_felt_dis_dødsbo_bagudforskudt_start_måned = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::måned),
     label = "Bagudforskudt dødsårs startdato - måned",
     question = Some("I hvilken måned begyndte det bagudforskudte dødsår?"),
-    help = None,
+    help = Some("Et bagudforskudt indkomstår kan tidligst begynde 1. marts i kalenderåret før dødsåret."),
     unit = Some("måned")
 )
 = personskat_felt_dis_dødsbo_bagudforskudt_start_dag = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30BagudforskudtIndkomstår::dødsårets_startdato::dag),
     label = "Bagudforskudt dødsårs startdato - dag",
     question = Some("På hvilken dag begyndte det bagudforskudte dødsår?"),
-    help = None,
+    help = Some("Et forskudt indkomstår skal begynde den første dag i en måned."),
     unit = Some("dag")
 )
 = personskat_felt_dis_dødsbo_fremadforskudt_start_år = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::år),
     label = "Fremadforskudt dødsårs startdato - år",
     question = Some("I hvilket år begyndte det fremadforskudte dødsår?"),
-    help = Some("Udfyldes kun ved fremadforskudt indkomstår; Futuruna tæller fradragsmåneder fra denne dato."),
+    help = Some("Udfyldes kun ved fremadforskudt indkomstår. Startdatoen skal ligge i dødsåret; Futuruna tæller fradragsmåneder fra denne dato."),
     unit = Some("år")
 )
 = personskat_felt_dis_dødsbo_fremadforskudt_start_måned = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::måned),
     label = "Fremadforskudt dødsårs startdato - måned",
     question = Some("I hvilken måned begyndte det fremadforskudte dødsår?"),
-    help = None,
+    help = Some("Et fremadforskudt indkomstår kan senest begynde 1. februar i dødsåret."),
     unit = Some("måned")
 )
 = personskat_felt_dis_dødsbo_fremadforskudt_start_dag = TypetBeregningsfelt(
     path = refof(Dødsboskattelov30Indkomstårsforhold::Dbl30FremadforskudtIndkomstår::dødsårets_startdato::dag),
     label = "Fremadforskudt dødsårs startdato - dag",
     question = Some("På hvilken dag begyndte det fremadforskudte dødsår?"),
-    help = None,
+    help = Some("Et forskudt indkomstår skal begynde den første dag i en måned."),
     unit = Some("dag")
 )
 = personskat_felt_dis_dødsbo_ægtefælleforhold = TypetBeregningsfelt(

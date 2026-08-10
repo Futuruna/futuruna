@@ -15664,6 +15664,35 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "kulbrinteskattegrundlag": { "$variant": "Søbl5BIntetKulbrinteskattegrundlag" }
     });
 
+    let death_estate_shifted_year_case = |case_id: &str, indkomstårsforhold: Value| {
+        let mut case = death_estate_case.clone();
+        case["case_id"] = Value::String(case_id.into());
+        case["input"]["lønmodtager"]["personlig_indkomst"]["sømandsbeskatning"]
+            ["dødsboskattegrundlag"]["input"]["indkomstårsforhold"] = indkomstårsforhold;
+        case
+    };
+    let death_estate_shifted_year_mid_month_case = death_estate_shifted_year_case(
+        "personskat-dis-doedsbo-forskudt-midt-i-maaned-2026",
+        serde_json::json!({
+            "$variant": "Dbl30BagudforskudtIndkomstår",
+            "dødsårets_startdato": { "år": 2025, "måned": 10, "dag": 15 }
+        }),
+    );
+    let death_estate_backward_before_march_case = death_estate_shifted_year_case(
+        "personskat-dis-doedsbo-bagudfoer-marts-2026",
+        serde_json::json!({
+            "$variant": "Dbl30BagudforskudtIndkomstår",
+            "dødsårets_startdato": { "år": 2025, "måned": 2, "dag": 1 }
+        }),
+    );
+    let death_estate_forward_after_february_case = death_estate_shifted_year_case(
+        "personskat-dis-doedsbo-fremad-efter-februar-2026",
+        serde_json::json!({
+            "$variant": "Dbl30FremadforskudtIndkomstår",
+            "dødsårets_startdato": { "år": 2026, "måned": 3, "dag": 1 }
+        }),
+    );
+
     let mut death_estate_share_case = death_estate_case.clone();
     death_estate_share_case["case_id"] =
         Value::String("personskat-dis-doedsbo-aktieindkomst-2026".into());
@@ -15801,6 +15830,18 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .as_array_mut()
         .expect("Personskat JSON cases")
         .push(death_estate_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_shifted_year_mid_month_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_backward_before_march_case);
+    json_input["cases"]
+        .as_array_mut()
+        .expect("Personskat JSON cases")
+        .push(death_estate_forward_after_february_case);
     json_input["cases"]
         .as_array_mut()
         .expect("Personskat JSON cases")
@@ -16248,6 +16289,27 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         .find(|case| case["case_id"] == "personskat-dis-doedsbo-2026")
         .expect("death-estate DIS JSON case")
         .clone();
+    let death_estate_shifted_year_mid_month_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-forskudt-midt-i-maaned-2026")
+        .expect("mid-month shifted-year death-estate JSON case")
+        .clone();
+    let death_estate_backward_before_march_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-bagudfoer-marts-2026")
+        .expect("pre-March backward-shifted death-estate JSON case")
+        .clone();
+    let death_estate_forward_after_february_case = json_input["cases"]
+        .as_array()
+        .expect("Personskat JSON cases")
+        .iter()
+        .find(|case| case["case_id"] == "personskat-dis-doedsbo-fremad-efter-februar-2026")
+        .expect("post-February forward-shifted death-estate JSON case")
+        .clone();
     let death_estate_share_case = json_input["cases"]
         .as_array()
         .expect("Personskat JSON cases")
@@ -16344,6 +16406,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         dis_case,
         dis_course_case,
         death_estate_case,
+        death_estate_shifted_year_mid_month_case,
+        death_estate_backward_before_march_case,
+        death_estate_forward_after_february_case,
         death_estate_share_case,
         death_estate_carryback_case,
         limited_taxpayer_case,
@@ -17198,6 +17263,74 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         hydrated_death_estate_result["result"]["sømandsbeskatning"]["input_gyldigt"],
         false
     );
+
+    for (case_id, variant, år, måned, dag) in [
+        (
+            "personskat-dis-doedsbo-forskudt-midt-i-maaned-2026",
+            "Dbl30BagudforskudtIndkomstår",
+            2025,
+            10,
+            15,
+        ),
+        (
+            "personskat-dis-doedsbo-bagudfoer-marts-2026",
+            "Dbl30BagudforskudtIndkomstår",
+            2025,
+            2,
+            1,
+        ),
+        (
+            "personskat-dis-doedsbo-fremad-efter-februar-2026",
+            "Dbl30FremadforskudtIndkomstår",
+            2026,
+            3,
+            1,
+        ),
+    ] {
+        let json_shifted_year_result = json_result["results"]
+            .as_array()
+            .expect("JSON Personskat results")
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .expect("JSON invalid shifted-year death-estate result");
+        let hydrated_shifted_year_result = hydrated_xlsx_result["results"]
+            .as_array()
+            .expect("hydrated XLSX Personskat results")
+            .iter()
+            .find(|case| case["case_id"] == case_id)
+            .expect("hydrated XLSX invalid shifted-year death-estate result");
+        assert_eq!(
+            hydrated_shifted_year_result["result"],
+            json_shifted_year_result["result"]
+        );
+
+        let shifted_year_annual =
+            &hydrated_shifted_year_result["result"]["personlig_indkomst"]["sømandsbeskatning"];
+        assert_eq!(shifted_year_annual["alle_input_gyldige"], false);
+        assert_eq!(shifted_year_annual["beregningsklar"], false);
+        assert_eq!(
+            shifted_year_annual["dødsbo_lempelse"]["input_gyldigt"],
+            false
+        );
+        assert_eq!(
+            shifted_year_annual["dødsbo_lempelse"]["dødsboskat_før_søbl5"]
+                ["indkomstårsforhold_gyldigt"],
+            false
+        );
+        assert_eq!(
+            shifted_year_annual["dødsbo_lempelse"]["dødsboskat_før_søbl5"]
+                ["mellemperiodemåneder_stk3"],
+            0
+        );
+
+        let hydrated_shifted_year_source =
+            &shifted_year_annual["input"]["dødsboskattegrundlag"]["input"]["indkomstårsforhold"];
+        assert_eq!(hydrated_shifted_year_source["$variant"], variant);
+        assert_eq!(
+            hydrated_shifted_year_source["dødsårets_startdato"],
+            serde_json::json!({ "år": år, "måned": måned, "dag": dag })
+        );
+    }
 
     let json_death_estate_share_result = json_result["results"]
         .as_array()

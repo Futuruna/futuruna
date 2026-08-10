@@ -119,17 +119,21 @@
     aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
-= dødsbo_scenarie_umuligt_fremadforskudt_indkomstår = dødsboskattelov30_resultat(Dødsboskattelov30Input(
+| dødsbo_scenarie_forskudt_indkomstår(indkomstårsforhold: Dødsboskattelov30Indkomstårsforhold) -> dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 600000,
     dødsdato = Dato(år = 2025, måned = 4, dag = 12),
     boopgørelsestype = Dbl30OrdinærBoopgørelse,
     boopgørelsens_skæringsdag = Dato(år = 2025, måned = 10, dag = 31),
-    indkomstårsforhold = Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 5, dag = 1)),
+    indkomstårsforhold = indkomstårsforhold,
     ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
     aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
     carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
 ))
+= dødsbo_scenarie_umuligt_fremadforskudt_indkomstår = dødsbo_scenarie_forskudt_indkomstår(Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 5, dag = 1)))
+= dødsbo_scenarie_forskudt_start_ikke_første_i_måned = dødsbo_scenarie_forskudt_indkomstår(Dbl30BagudforskudtIndkomstår(dødsårets_startdato = Dato(år = 2024, måned = 10, dag = 15)))
+= dødsbo_scenarie_bagudforskudt_start_før_marts = dødsbo_scenarie_forskudt_indkomstår(Dbl30BagudforskudtIndkomstår(dødsårets_startdato = Dato(år = 2024, måned = 2, dag = 1)))
+= dødsbo_scenarie_fremadforskudt_start_efter_februar = dødsbo_scenarie_forskudt_indkomstår(Dbl30FremadforskudtIndkomstår(dødsårets_startdato = Dato(år = 2025, måned = 3, dag = 1)))
 = dødsbo_scenarie_tillægsopgørelse = dødsboskattelov30_resultat(Dødsboskattelov30Input(
     boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
     bobeskatningsindkomst_kroner = 600000,
@@ -444,6 +448,10 @@
 | dødsbo_scenarie_ugyldig_datorækkefølge_fejler_lukket: dødsbo_scenarie_skæringsdag_før_dødsfald -> dødsbo_scenarie_skæringsdag_før_dødsfald.datoer_gyldige == Falskt && dødsbo_scenarie_skæringsdag_før_dødsfald.input_gyldigt == Falskt && dødsbo_scenarie_skæringsdag_før_dødsfald.beregningsklar == Falskt
 | dødsbo_scenarie_umuligt_ægtefælleforhold_fejler_lukket: dødsbo_scenarie_umuligt_ægtefælleforhold -> dødsbo_scenarie_umuligt_ægtefælleforhold.ægtefælleforhold_gyldigt == Falskt && dødsbo_scenarie_umuligt_ægtefælleforhold.input_gyldigt == Falskt && dødsbo_scenarie_umuligt_ægtefælleforhold.beregningsklar == Falskt
 | dødsbo_scenarie_umuligt_indkomstårsforhold_fejler_lukket: dødsbo_scenarie_umuligt_fremadforskudt_indkomstår -> dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.indkomstårsforhold_gyldigt == Falskt && dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.input_gyldigt == Falskt && dødsbo_scenarie_umuligt_fremadforskudt_indkomstår.beregningsklar == Falskt
+| dødsbo_scenarie_forskudt_start_skal_være_første_i_måned: dødsbo_scenarie_forskudt_start_ikke_første_i_måned -> dødsbo_scenarie_forskudt_start_ikke_første_i_måned.indkomstårsforhold_gyldigt == Falskt && dødsbo_scenarie_forskudt_start_ikke_første_i_måned.input_gyldigt == Falskt && dødsbo_scenarie_forskudt_start_ikke_første_i_måned.mellemperiodemåneder_stk3 == 0 && dødsbo_scenarie_forskudt_start_ikke_første_i_måned.beregningsklar == Falskt
+| dødsbo_scenarie_bagudforskudt_start_kan_ikke_ligge_før_marts: dødsbo_scenarie_bagudforskudt_start_før_marts -> dødsbo_scenarie_bagudforskudt_start_før_marts.indkomstårsforhold_gyldigt == Falskt && dødsbo_scenarie_bagudforskudt_start_før_marts.input_gyldigt == Falskt && dødsbo_scenarie_bagudforskudt_start_før_marts.mellemperiodemåneder_stk3 == 0 && dødsbo_scenarie_bagudforskudt_start_før_marts.beregningsklar == Falskt
+| dødsbo_scenarie_fremadforskudt_start_kan_ikke_ligge_efter_februar: dødsbo_scenarie_fremadforskudt_start_efter_februar -> dødsbo_scenarie_fremadforskudt_start_efter_februar.indkomstårsforhold_gyldigt == Falskt && dødsbo_scenarie_fremadforskudt_start_efter_februar.input_gyldigt == Falskt && dødsbo_scenarie_fremadforskudt_start_efter_februar.mellemperiodemåneder_stk3 == 0 && dødsbo_scenarie_fremadforskudt_start_efter_februar.beregningsklar == Falskt
+| dødsbo_scenarie_forskudt_indkomstår_har_pinnede_kilder: dødsboskattelov_par30_forskudt_indkomstår_vejledning.url -> dødsboskattelov_par30_forskudt_indkomstår_vejledning.url == "https://info.skat.dk/data.aspx?oid=1847115&chk=221020" && dødsboskattelov_par30_forskudt_indkomstår_vejledning.identifier == "Den juridiske vejledning 2026-2, C.E.3.3.6.2.1: Fradrag i dødsboskatten ved forskudt indkomstår" && kildeskattelov_par22_lbk460.url == "https://www.retsinformation.dk/eli/lta/2024/460"
 | dødsbo_scenarie_tillægsopgørelse_fejler_lukket: dødsbo_scenarie_tillægsopgørelse -> dødsbo_scenarie_tillægsopgørelse.datoer_gyldige && dødsbo_scenarie_tillægsopgørelse.boopgørelsestype_understøttet == Falskt && dødsbo_scenarie_tillægsopgørelse.input_gyldigt == Falskt && dødsbo_scenarie_tillægsopgørelse.beregningsklar == Falskt
 
 ? dødsbo_scenarie_par30_beregnes_fra_kildefakta
@@ -485,6 +493,10 @@
 ? dødsbo_scenarie_ugyldig_datorækkefølge_fejler_lukket
 ? dødsbo_scenarie_umuligt_ægtefælleforhold_fejler_lukket
 ? dødsbo_scenarie_umuligt_indkomstårsforhold_fejler_lukket
+? dødsbo_scenarie_forskudt_start_skal_være_første_i_måned
+? dødsbo_scenarie_bagudforskudt_start_kan_ikke_ligge_før_marts
+? dødsbo_scenarie_fremadforskudt_start_kan_ikke_ligge_efter_februar
+? dødsbo_scenarie_forskudt_indkomstår_har_pinnede_kilder
 ? dødsbo_scenarie_tillægsopgørelse_fejler_lukket
 
 @ print("Dødsboskattelovens § 1, stk. 2, §§ 30-32 og § 67, stk. 7, er kontrolleret fra daterede kildefakta")
