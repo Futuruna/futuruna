@@ -174,13 +174,21 @@
     begge_ægtefæller_deltager_i_driften = Sandt,
     virksomhedsdriveren_driver_i_overvejende_grad = Sandt
 ))
-= personskat_ksl25a_scenarie_separation_stk1_modsat_driver_fakta = personskat_ksl25a_scenarie_delårsfakta_med_parter(
+= personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson_fakta = personskat_ksl25a_scenarie_delårsfakta_med_parter(
     Ksl25AStk1HosVirksomhedsdriver(
         begge_ægtefæller_deltager_i_driften = Sandt,
         virksomhedsdriveren_driver_i_overvejende_grad = Sandt
     ),
     Some(Ksl25AÆgtefælle),
     Ksl25AHovedperson
+)
+= personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle_fakta = personskat_ksl25a_scenarie_delårsfakta_med_parter(
+    Ksl25AStk1HosVirksomhedsdriver(
+        begge_ægtefæller_deltager_i_driften = Sandt,
+        virksomhedsdriveren_driver_i_overvejende_grad = Sandt
+    ),
+    Some(Ksl25AÆgtefælle),
+    Ksl25AÆgtefælle
 )
 = personskat_ksl25a_scenarie_separation_stk8_fakta = personskat_ksl25a_scenarie_delårsfakta(Ksl25AStk8LigeligResultatfordeling(
     begge_deltager_i_væsentligt_og_ligeligt_omfang = Sandt,
@@ -438,10 +446,17 @@
     2025,
     Falskt
 ))
-= personskat_ksl25a_scenarie_separation_stk1_modsat_driver = beregn_personskat(personskat_ksl25a_scenarie_input_med_samlivsstatus(
+= personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson = beregn_personskat(personskat_ksl25a_scenarie_input_med_samlivsstatus(
     [personskat_ksl25a_scenarie_delårsvirksomhed],
     [],
-    [personskat_ksl25a_scenarie_separation_stk1_modsat_driver_fakta],
+    [personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson_fakta],
+    2025,
+    Falskt
+))
+= personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle = beregn_personskat(personskat_ksl25a_scenarie_input_med_samlivsstatus(
+    [personskat_ksl25a_scenarie_delårsvirksomhed],
+    [],
+    [personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle_fakta],
     2025,
     Falskt
 ))
@@ -523,7 +538,8 @@
 | personskat_ksl25a_flere_stk3_virksomheder_under_årsloftet_er_gyldige: personskat_ksl25a_scenarie_stk3_under_årsloft.alle_input_gyldige -> personskat_ksl25a_scenarie_stk3_under_årsloft.alle_input_gyldige && personskat_ksl25a_scenarie_stk3_under_årsloft.stk3_samlet_overført_kroner == 240000 && personskat_ksl25a_scenarie_stk3_under_årsloft.hovedperson.arbejdsmarkedsbidragsgrundlag_regulering_kroner == -240000 && personskat_ksl25a_scenarie_stk3_under_årsloft.ægtefælle.arbejdsmarkedsbidragsgrundlag_regulering_kroner == 240000
 | personskat_ksl25a_gensidige_lønaftaler_er_samme_årsregel: personskat_ksl25a_scenarie_gensidige_lønaftaler.alle_input_gyldige -> personskat_ksl25a_scenarie_gensidige_lønaftaler.alle_input_gyldige && personskat_ksl25a_scenarie_gensidige_lønaftaler.lønaftale_udelukker_stk3_og_stk8 && personskat_ksl25a_scenarie_gensidige_lønaftaler.fælles_virksomheder_bruger_samme_årsregel && personskat_ksl25a_scenarie_gensidige_lønaftaler.hovedperson.lønvederlag_regulering_kroner == 100000 && personskat_ksl25a_scenarie_gensidige_lønaftaler.ægtefælle.lønvederlag_regulering_kroner == 100000
 | personskat_ksl25a_separation_fordeler_stk1_før_og_ejerskab_efter_ophør: personskat_ksl25a_scenarie_separation_stk1.kildeskat25a -> personskat_ksl25a_scenarie_separation_stk1.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_separation_stk1.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 120000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_separation_stk1) == 280000 && head(personskat_ksl25a_scenarie_separation_stk1.kildeskat25a.resultater).virksomhedsresultat_før_samlivsophør.arbejdsmarkedsbidragspligtig_indkomst_kroner == 120000 && head(personskat_ksl25a_scenarie_separation_stk1.kildeskat25a.resultater).virksomhedsresultat_fra_samlivsophør.arbejdsmarkedsbidragspligtig_indkomst_kroner == 280000
-| personskat_ksl25a_separation_adskiller_kilde_driver_og_efterfølgende_ejer: personskat_ksl25a_scenarie_separation_stk1_modsat_driver.kildeskat25a -> personskat_ksl25a_scenarie_separation_stk1_modsat_driver.kildeskat25a.alle_input_gyldige && head(personskat_ksl25a_scenarie_separation_stk1_modsat_driver.kildeskat25a.resultater).fakta.virksomhedsdriver_før_samlivsophør == Some(Ksl25AÆgtefælle) && head(personskat_ksl25a_scenarie_separation_stk1_modsat_driver.kildeskat25a.resultater).fakta.ordinær_ejer_efter_samlivsophør == Some(Ksl25AHovedperson) && personskat_ksl25a_scenarie_separation_stk1_modsat_driver.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 280000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_separation_stk1_modsat_driver) == 120000
+| personskat_ksl25a_separation_adskiller_kilde_driver_og_efterfølgende_ejer: personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson.kildeskat25a -> personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson.kildeskat25a.alle_input_gyldige && head(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson.kildeskat25a.resultater).fakta.virksomhedsdriver_før_samlivsophør == Some(Ksl25AÆgtefælle) && head(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson.kildeskat25a.resultater).fakta.ordinær_ejer_efter_samlivsophør == Some(Ksl25AHovedperson) && personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 280000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_hovedperson) == 120000
+| personskat_ksl25a_separation_kan_bevare_driveren_som_efterfølgende_ejer: personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.kildeskat25a -> personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.kildeskat25a.alle_input_gyldige && head(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.kildeskat25a.resultater).fakta.virksomhedens_kildeplacering == Ksl25AKildeHosHovedperson && head(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.kildeskat25a.resultater).fakta.virksomhedsdriver_før_samlivsophør == Some(Ksl25AÆgtefælle) && head(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.kildeskat25a.resultater).fakta.ordinær_ejer_efter_samlivsophør == Some(Ksl25AÆgtefælle) && personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_separation_stk1_driver_ægtefælle_ejer_ægtefælle) == 400000
 | personskat_ksl25a_separation_anvender_stk8_kun_før_ophør: personskat_ksl25a_scenarie_separation_stk8.kildeskat25a -> personskat_ksl25a_scenarie_separation_stk8.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_separation_stk8.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 72000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_separation_stk8) == 328000
 | personskat_ksl25a_samlivsophørsår_afskærer_stk3: personskat_ksl25a_scenarie_separation_stk3.alle_input_gyldige -> personskat_ksl25a_scenarie_separation_stk3.alle_input_gyldige == Falskt && head(personskat_ksl25a_scenarie_separation_stk3.resultater).samlivsforløbsresultat.stk3_tilladt_i_indkomståret == Falskt
 | personskat_ksl25a_faktisk_ophør_anvender_stk1_hele_året: personskat_ksl25a_scenarie_faktisk_ophør_stk1.kildeskat25a -> personskat_ksl25a_scenarie_faktisk_ophør_stk1.kildeskat25a.alle_input_gyldige && personskat_ksl25a_scenarie_faktisk_ophør_stk1.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 400000 && personskat_ksl25a_scenarie_ægtefælles_am_tillæg_kroner(personskat_ksl25a_scenarie_faktisk_ophør_stk1) == 0 && head(personskat_ksl25a_scenarie_faktisk_ophør_stk1.kildeskat25a.resultater).samlivsforløbsresultat.stk1_stk7_og_stk8_gælder_hele_indkomståret
@@ -561,6 +577,7 @@
 ? personskat_ksl25a_gensidige_lønaftaler_er_samme_årsregel
 ? personskat_ksl25a_separation_fordeler_stk1_før_og_ejerskab_efter_ophør
 ? personskat_ksl25a_separation_adskiller_kilde_driver_og_efterfølgende_ejer
+? personskat_ksl25a_separation_kan_bevare_driveren_som_efterfølgende_ejer
 ? personskat_ksl25a_separation_anvender_stk8_kun_før_ophør
 ? personskat_ksl25a_samlivsophørsår_afskærer_stk3
 ? personskat_ksl25a_faktisk_ophør_anvender_stk1_hele_året
