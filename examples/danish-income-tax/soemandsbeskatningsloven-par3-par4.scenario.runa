@@ -1,0 +1,109 @@
+@ sprog da
+
+@ importer ./soemandsbeskatningsloven - par3 - par4
+
+| søbl3_scenarie_beskæftigelse(indkomstår: Heltal, identifikation: Tekst, bruttotonnage: Heltal, sødage_hundrededele: Heltal) -> Sømandsbeskatningslov3Beskæftigelsesfakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    ansættelsesforhold_startdato = Dato(år = indkomstår, måned = 1, dag = 1),
+    arbejdssted = ArbejdePåSkib(
+        bruttotonnage = bruttotonnage,
+        anvendelse = ErhvervsmæssigBefordringAfGods
+    ),
+    fart = UdenForBegrænsetFart,
+    hjemsted = RegistreretMedHjemstedIDanmark,
+    flag = FlagFraEUEØSStat,
+    forhyringsvilkår = SædvanligeForhyringsvilkårForSøfolk,
+    fuldtidsomregnede_sødage_hundrededele = sødage_hundrededele
+)
+| søbl3_scenarie_årsresultat(indkomstår: Heltal, identifikation: Tekst, bruttotonnage: Heltal, sødage_hundrededele: Heltal) -> sømandsbeskatningslov3_årsresultat(
+    indkomstår = indkomstår,
+    input = Sømandsbeskatningslov3Årsinput(
+        valg = AnvendSømandsfradrag,
+        beskæftigelser = [søbl3_scenarie_beskæftigelse(
+            indkomstår = indkomstår,
+            identifikation = identifikation,
+            bruttotonnage = bruttotonnage,
+            sødage_hundrededele = sødage_hundrededele
+        )]
+    )
+)
+
+= søbl3_scenarie_2023_almindeligt_helår = søbl3_scenarie_årsresultat(
+    indkomstår = 2023,
+    identifikation = "fragtskib-2023",
+    bruttotonnage = 499,
+    sødage_hundrededele = 36500
+)
+= søbl3_scenarie_2024_forhøjet_helår = søbl3_scenarie_årsresultat(
+    indkomstår = 2024,
+    identifikation = "fragtskib-2024",
+    bruttotonnage = 500,
+    sødage_hundrededele = 36500
+)
+= søbl3_scenarie_2025_forhøjet_halvår = søbl3_scenarie_årsresultat(
+    indkomstår = 2025,
+    identifikation = "fragtskib-2025",
+    bruttotonnage = 500,
+    sødage_hundrededele = 18250
+)
+= søbl3_scenarie_2026_almindeligt_helår = søbl3_scenarie_årsresultat(
+    indkomstår = 2026,
+    identifikation = "fragtskib-2026",
+    bruttotonnage = 499,
+    sødage_hundrededele = 36500
+)
+= søbl3_scenarie_2022_uden_kildedækning = søbl3_scenarie_årsresultat(
+    indkomstår = 2022,
+    identifikation = "fragtskib-2022",
+    bruttotonnage = 500,
+    sødage_hundrededele = 36500
+)
+= søbl3_scenarie_2027_uden_kildedækning = søbl3_scenarie_årsresultat(
+    indkomstår = 2027,
+    identifikation = "fragtskib-2027",
+    bruttotonnage = 500,
+    sødage_hundrededele = 36500
+)
+= søbl3_scenarie_2022_tomt_uden_kildedækning = sømandsbeskatningslov3_årsresultat(
+    indkomstår = 2022,
+    input = sømandsbeskatningslov3_intet_årsinput()
+)
+= søbl3_scenarie_2027_tomt_uden_kildedækning = sømandsbeskatningslov3_årsresultat(
+    indkomstår = 2027,
+    input = sømandsbeskatningslov3_intet_årsinput()
+)
+
+| søbl3_scenarie_årsresultat_er_kildebelagt(resultat: Sømandsbeskatningslov3Årsresultat) -> resultat.lovversion == Søbl3Og4Lbk1181Af2023MedSenereÆndringer && resultat.skatteår_understøttet && resultat.alle_input_gyldige && resultat.fradrag_foretaget_efter_par3
+| søbl3_2023_til_2026_er_kildebelagt: søbl3_scenarie_2026_almindeligt_helår -> all(
+    [
+        søbl3_scenarie_2023_almindeligt_helår,
+        søbl3_scenarie_2024_forhøjet_helår,
+        søbl3_scenarie_2025_forhøjet_halvår,
+        søbl3_scenarie_2026_almindeligt_helår,
+    ],
+    søbl3_scenarie_årsresultat_er_kildebelagt
+)
+| søbl3_par3_beløb_og_forholdsmæssighed_følger_kilderne: søbl3_scenarie_2025_forhøjet_halvår -> søbl3_scenarie_2023_almindeligt_helår.samlet_fradrag_kroner == 56900 && søbl3_scenarie_2024_forhøjet_helår.samlet_fradrag_kroner == 105000 && søbl3_scenarie_2025_forhøjet_halvår.samlet_fradrag_kroner == 52500 && søbl3_scenarie_2026_almindeligt_helår.samlet_fradrag_kroner == 56900
+| søbl3_par4_fordeler_årsbeløb_uden_for_sømandsperioden: søbl3_scenarie_2025_forhøjet_halvår -> sømandsbeskatningslov4_kildetilknyttet_beløb_anvendt_kroner(
+    beløb_før_par4_kroner = 10000,
+    kilde = Søbl4Ligningslov13Årsfradrag,
+    arbejdstilknytning = Søbl4ÅrsbeløbUdenPeriodeopdeling,
+    resultat = søbl3_scenarie_2025_forhøjet_halvår
+) == 5000
+| søbl3_år_uden_kildedækning_fejler_lukket: søbl3_scenarie_2027_uden_kildedækning -> all(
+    [
+        søbl3_scenarie_2022_uden_kildedækning,
+        søbl3_scenarie_2027_uden_kildedækning,
+        søbl3_scenarie_2022_tomt_uden_kildedækning,
+        søbl3_scenarie_2027_tomt_uden_kildedækning,
+    ],
+    |resultat: Sømandsbeskatningslov3Årsresultat| resultat.lovversion == Søbl3Og4LovversionUdenKildedækning && resultat.skatteår_understøttet == Falskt && resultat.alle_input_gyldige == Falskt && resultat.samlet_fradrag_kroner == 0
+)
+
+? søbl3_2023_til_2026_er_kildebelagt
+? søbl3_par3_beløb_og_forholdsmæssighed_følger_kilderne
+? søbl3_par4_fordeler_årsbeløb_uden_for_sømandsperioden
+? søbl3_år_uden_kildedækning_fejler_lukket
+
+@ print("Sømandsbeskatningsloven §§ 3-4: 2023-2026, beløb, forholdsmæssighed og kildehorisont verificeret")
