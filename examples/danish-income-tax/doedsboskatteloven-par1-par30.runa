@@ -30,6 +30,12 @@
     hentet_dato = "2026-08-10",
     ændringsstatus = "Forskudte indkomstår skal begynde den første i en måned; et bagudforskudt år kan tidligst begynde 1. marts i det foregående kalenderår, og et fremadforskudt år kan senest begynde 1. februar i dødsåret"
 )
+= dødsboskattelov_par30_satser_2023_2024 = DødsboskattelovPar1Par30KildeInfo(
+    url = "https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraenser-i-skattelovgivningen-der-reguleres-efter-personskattelovens-20-2023-2024",
+    identifier = "Skatteministeriet: Beløbsgrænser i skattelovgivningen, der reguleres efter personskattelovens § 20, 2023-2024",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "§ 30-satserne er kontrolleret til 6.400/2.400 kr. for dødsåret 2023 og 6.600/2.400 kr. for dødsåret 2024; § 32-grænsen er 58.900 kr. i 2023 og 61.000 kr. i 2024"
+)
 = dødsboskattelov_par30_satser_2024_2026 = DødsboskattelovPar1Par30KildeInfo(
     url = "https://info.skat.dk/data.aspx?chk=220619&oid=2292849",
     identifier = "Den juridiske vejledning 2026-1, C.E.15.2: Oversigt over satser og grundbeløb 2024-2026",
@@ -110,6 +116,7 @@ Stk. 2. Pligt til at betale indkomstskat efter denne lovs bestemmelser om beskat
         DependencySource(value = kildeskattelov_par22_lbk460),
         Guidance(value = dødsboskattelov_par30_vejledning),
         Guidance(value = dødsboskattelov_par30_forskudt_indkomstår_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2023_2024),
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
         Guidance(value = dødsboskattelov_par30_beregningsskema_vejledning),
     )
@@ -159,6 +166,26 @@ Stk. 2. En selvstændigt erhvervsdrivende kan anvende et andet indkomstår end k
     aktieindkomst_høj_sats_basispoint = 0,
     kilde = dødsboskattelov_par30_ukendt_satskilde
 )
+| exception dødsboskattelov30_regulerede_satser_2023 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+    dødsår = 2023,
+    understøttet = Sandt,
+    bofradrag_pr_måned_kroner = 6400,
+    mellemperiodefradrag_pr_måned_kroner = 2400,
+    aktieindkomst_progressionsgrænse_kroner = 58900,
+    aktieindkomst_lav_sats_basispoint = 2700,
+    aktieindkomst_høj_sats_basispoint = 4200,
+    kilde = dødsboskattelov_par30_satser_2023_2024
+) under dødsår == 2023
+| exception dødsboskattelov30_regulerede_satser_2024 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
+    dødsår = 2024,
+    understøttet = Sandt,
+    bofradrag_pr_måned_kroner = 6600,
+    mellemperiodefradrag_pr_måned_kroner = 2400,
+    aktieindkomst_progressionsgrænse_kroner = 61000,
+    aktieindkomst_lav_sats_basispoint = 2700,
+    aktieindkomst_høj_sats_basispoint = 4200,
+    kilde = dødsboskattelov_par30_satser_2023_2024
+) under dødsår == 2024
 | exception dødsboskattelov30_regulerede_satser_2025 dødsboskattelov30_regulerede_satser(dødsår: Heltal) -> Dødsboskattelov30ReguleredeSatser(
     dødsår = 2025,
     understøttet = Sandt,
@@ -478,6 +505,7 @@ Stk. 4. Var afdøde gift ved dødsfaldet, og skiftes afdødes andel af fællesbo
     attachments = (
         Source(value = dødsboskattelov_par1_par30_lbk426),
         Guidance(value = dødsboskattelov_par32_aktieindkomst_vejledning),
+        Guidance(value = dødsboskattelov_par30_satser_2023_2024),
         Guidance(value = dødsboskattelov_par30_satser_2024_2026),
     )
 )
