@@ -1,0 +1,125 @@
+@ sprog da
+
+@ importer ./ligningsloven_fradrag
+
+# Ll9BÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, høj_sats_øre_pr_km: Heltal, lav_sats_øre_pr_km: Heltal, cykelsats_øre_pr_km: Heltal)
+
+= ll9b_årsforventninger = [
+    Ll9BÅrsforventning(
+        indkomstår = 2023,
+        lovversion = Ll9BLbk42Af2023,
+        satsversion = Ll9BBek1449Af2022,
+        høj_sats_øre_pr_km = 373,
+        lav_sats_øre_pr_km = 219,
+        cykelsats_øre_pr_km = 61
+    ),
+    Ll9BÅrsforventning(
+        indkomstår = 2024,
+        lovversion = Ll9BLbk42Af2023,
+        satsversion = Ll9BBek1312Af2023,
+        høj_sats_øre_pr_km = 379,
+        lav_sats_øre_pr_km = 223,
+        cykelsats_øre_pr_km = 62
+    ),
+    Ll9BÅrsforventning(
+        indkomstår = 2025,
+        lovversion = Ll9BLbk42Af2023,
+        satsversion = Ll9BBek1189Af2024,
+        høj_sats_øre_pr_km = 381,
+        lav_sats_øre_pr_km = 223,
+        cykelsats_øre_pr_km = 63
+    ),
+    Ll9BÅrsforventning(
+        indkomstår = 2026,
+        lovversion = Ll9BLbk1500Af2025,
+        satsversion = Ll9BBek1333Af2025,
+        høj_sats_øre_pr_km = 394,
+        lav_sats_øre_pr_km = 228,
+        cykelsats_øre_pr_km = 64
+    )
+]
+
+| ll9b_satser_svarer_til_kilden(forventning: Ll9BÅrsforventning) -> {
+    = satser = ll9b_satser_for(forventning.indkomstår)
+    satser.indkomstår == forventning.indkomstår && satser.lovversion == forventning.lovversion && satser.satsversion == forventning.satsversion && satser.skatteår_understøttet && satser.bil_motorcykel_høj_øre_pr_km == forventning.høj_sats_øre_pr_km && satser.bil_motorcykel_lav_øre_pr_km == forventning.lav_sats_øre_pr_km && satser.cykel_knallert_scooter_elløbehjul_øre_pr_km == forventning.cykelsats_øre_pr_km && satser.høj_sats_kilometerloft == 20000
+}
+
+| ll9b_firmabil_resultat(indkomstår: Heltal, dokumenteret_eget_køretøj: Boolsk, fuldt_vederlag_for_anden_arbejdsgiver: Boolsk) -> ligningslov9b_resultat(Ligningslov9BInput(
+    indkomstår = indkomstår,
+    køretøj = Ll9BEgenBil,
+    befordring = Ligningslov9BBefordring(
+        art = Ll9BMellemArbejdspladser,
+        kilometer_i_sagen = 1000,
+        kilometerhistorik = Ligningslov9BKilometerhistorik(
+            tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret = 0,
+            tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret = 0
+        ),
+        tres_dages_forhold = Ligningslov9B60DagesForhold(
+            arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder = 0,
+            sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen = 0,
+            mange_forskellige_arbejdspladser = Falskt,
+            ikke_sandsynligt_over_60_dage = Falskt,
+            skriftligt_kørselsregnskabspålæg_aktivt = Falskt,
+            kørselsregnskab_dokumenterer_erhvervsmæssig_befordring = Falskt
+        )
+    ),
+    udgifter = Ligningslov9BUdgifter(
+        har_afholdt_befordringsudgifter = Sandt,
+        dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner = 0,
+        dokumenterede_bro_tunnel_udgifter_kroner = 0
+    ),
+    fradragsforhold = Ligningslov9BFradragsforhold(
+        personrolle = Ll9BLønmodtager,
+        metode = Ll9BSkatteraadetsKilometersatser,
+        kundeopsøgende_aktivitet = Falskt,
+        antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang = 1
+    ),
+    godtgørelsesforhold = Ligningslov9BGodtgørelsesforhold(
+        udbetalt_godtgørelse_kroner = 1000,
+        form = Ll9BKilometerafregnet,
+        arbejdsgiver_har_kontrolleret_kilometer = Sandt,
+        bogføringsbilag_opfylder_par6 = Sandt,
+        modregnet_i_forud_aftalt_bruttoløn = Falskt,
+        firmabil_stillet_til_rådighed = Sandt,
+        dokumenteret_kørsel_i_eget_køretøj = dokumenteret_eget_køretøj,
+        fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver = fuldt_vederlag_for_anden_arbejdsgiver,
+        overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse = Falskt,
+        eventuel_godtgørelse_valgt_medregnet_i_indkomsten = Falskt
+    )
+))
+
+= ll9b_firmabil_2024_dokumenteret_eget_køretøj = ll9b_firmabil_resultat(
+    indkomstår = 2024,
+    dokumenteret_eget_køretøj = Sandt,
+    fuldt_vederlag_for_anden_arbejdsgiver = Falskt
+)
+= ll9b_firmabil_2024_fuldt_vederlag = ll9b_firmabil_resultat(
+    indkomstår = 2024,
+    dokumenteret_eget_køretøj = Falskt,
+    fuldt_vederlag_for_anden_arbejdsgiver = Sandt
+)
+= ll9b_firmabil_2025_dokumenteret_eget_køretøj = ll9b_firmabil_resultat(
+    indkomstår = 2025,
+    dokumenteret_eget_køretøj = Sandt,
+    fuldt_vederlag_for_anden_arbejdsgiver = Falskt
+)
+= ll9b_uden_kildedækning_2022 = ll9b_firmabil_resultat(
+    indkomstår = 2022,
+    dokumenteret_eget_køretøj = Sandt,
+    fuldt_vederlag_for_anden_arbejdsgiver = Sandt
+)
+= ll9b_uden_kildedækning_2027 = ll9b_satser_for(2027)
+
+| ll9b_alle_årssatser_er_kildetro: ll9b_årsforventninger -> all(ll9b_årsforventninger, |forventning: Ll9BÅrsforventning| ll9b_satser_svarer_til_kilden(forventning))
+| ll9b_firmabil_2024_dokumenteret_eget_køretøj_er_ikke_nok: ll9b_firmabil_2024_dokumenteret_eget_køretøj -> ll9b_firmabil_2024_dokumenteret_eget_køretøj.lovversion == Ll9BLbk42Af2023 && ll9b_firmabil_2024_dokumenteret_eget_køretøj.satsversion == Ll9BBek1312Af2023 && ll9b_firmabil_2024_dokumenteret_eget_køretøj.skatteår_understøttet && ll9b_firmabil_2024_dokumenteret_eget_køretøj.administrative_godtgørelsesbetingelser_opfyldt == Falskt && ll9b_firmabil_2024_dokumenteret_eget_køretøj.skattefri_godtgørelse_kroner == 0 && ll9b_firmabil_2024_dokumenteret_eget_køretøj.godtgørelse_personlig_indkomst_kroner == 1000
+| ll9b_firmabil_2024_fuldt_vederlag_er_undtagelsen: ll9b_firmabil_2024_fuldt_vederlag -> ll9b_firmabil_2024_fuldt_vederlag.administrative_godtgørelsesbetingelser_opfyldt && ll9b_firmabil_2024_fuldt_vederlag.skattefri_godtgørelse_kroner == 1000 && ll9b_firmabil_2024_fuldt_vederlag.godtgørelse_personlig_indkomst_kroner == 0
+| ll9b_firmabil_2025_dokumenteret_eget_køretøj_er_nok: ll9b_firmabil_2025_dokumenteret_eget_køretøj -> ll9b_firmabil_2025_dokumenteret_eget_køretøj.lovversion == Ll9BLbk42Af2023 && ll9b_firmabil_2025_dokumenteret_eget_køretøj.satsversion == Ll9BBek1189Af2024 && ll9b_firmabil_2025_dokumenteret_eget_køretøj.skatteår_understøttet && ll9b_firmabil_2025_dokumenteret_eget_køretøj.administrative_godtgørelsesbetingelser_opfyldt && ll9b_firmabil_2025_dokumenteret_eget_køretøj.skattefri_godtgørelse_kroner == 1000 && ll9b_firmabil_2025_dokumenteret_eget_køretøj.godtgørelse_personlig_indkomst_kroner == 0
+| ll9b_2022_fejler_lukket: ll9b_uden_kildedækning_2022 -> ll9b_uden_kildedækning_2022.lovversion == Ll9BLovUdenKildedækning && ll9b_uden_kildedækning_2022.satsversion == Ll9BSatsUdenKildedækning && ll9b_uden_kildedækning_2022.skatteår_understøttet == Falskt && ll9b_uden_kildedækning_2022.erhvervsmæssig_befordring == Falskt && ll9b_uden_kildedækning_2022.skattefri_godtgørelse_kroner == 0 && ll9b_uden_kildedækning_2022.godtgørelse_personlig_indkomst_kroner == 0 && ll9b_uden_kildedækning_2022.fradrag_i_personlig_indkomst_kroner == 0
+| ll9b_2027_fejler_lukket: ll9b_uden_kildedækning_2027 -> ll9b_uden_kildedækning_2027.lovversion == Ll9BLovUdenKildedækning && ll9b_uden_kildedækning_2027.satsversion == Ll9BSatsUdenKildedækning && ll9b_uden_kildedækning_2027.skatteår_understøttet == Falskt && ll9b_uden_kildedækning_2027.bil_motorcykel_høj_øre_pr_km == 0 && ll9b_uden_kildedækning_2027.høj_sats_kilometerloft == 0
+
+? ll9b_alle_årssatser_er_kildetro
+? ll9b_firmabil_2024_dokumenteret_eget_køretøj_er_ikke_nok
+? ll9b_firmabil_2024_fuldt_vederlag_er_undtagelsen
+? ll9b_firmabil_2025_dokumenteret_eget_køretøj_er_nok
+? ll9b_2022_fejler_lukket
+? ll9b_2027_fejler_lukket

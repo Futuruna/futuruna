@@ -759,16 +759,40 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
 | ligningslov8o_resultat(input: Ligningslov8OInput) -> ligningslov8o_sag(input).resultat()
 --@end::ligningsloven_par8o--
 
+= ligningsloven_lbk42_par9b = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven, LBK nr. 42 af 13/01/2023, § 9 B",
+    hentet_dato = "2026-08-10"
+)
+
 = ligningsloven_lbk1500_par9b = LigningslovFradragKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
-    identifier = "Ligningsloven § 9 B",
-    hentet_dato = "2026-07-18"
+    identifier = "Ligningsloven, LBK nr. 1500 af 24/11/2025, § 9 B",
+    hentet_dato = "2026-08-10"
+)
+
+= skatteraadet_bek1449_par4_par13 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2022/1449",
+    identifier = "BEK nr. 1449 af 22/11/2022, §§ 4-13",
+    hentet_dato = "2026-08-10"
+)
+
+= skatteraadet_bek1312_par4_par13 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1312",
+    identifier = "BEK nr. 1312 af 21/11/2023, §§ 4-13",
+    hentet_dato = "2026-08-10"
+)
+
+= skatteraadet_bek1189_par4_par14 = LigningslovFradragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1189",
+    identifier = "BEK nr. 1189 af 19/11/2024, §§ 4-14",
+    hentet_dato = "2026-08-10"
 )
 
 = skatteraadet_bek1333_par4_par14 = LigningslovFradragKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1333",
     identifier = "BEK nr. 1333 af 20/11/2025, §§ 4-14",
-    hentet_dato = "2026-07-18"
+    hentet_dato = "2026-08-10"
 )
 
 = ligningsloven_juridisk_vejledning_par9b = LigningslovFradragKildeInfo(
@@ -791,7 +815,11 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
 
 = ligningsloven_par9b_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par9b),
         Source(value = ligningsloven_lbk1500_par9b),
+        Source(value = skatteraadet_bek1449_par4_par13),
+        Source(value = skatteraadet_bek1312_par4_par13),
+        Source(value = skatteraadet_bek1189_par4_par14),
         Source(value = skatteraadet_bek1333_par4_par14),
         Guidance(value = ligningsloven_juridisk_vejledning_par9b),
         Guidance(value = ligningsloven_juridisk_vejledning_par9b_flere_arbejdsgivere),
@@ -801,7 +829,8 @@ Stk. 3. § 3, nr. 2, og §§ 4 og 5 træder i kraft den 1. januar 2026.
 
 --@label:ligningsloven_par9b::meta:ligningsloven_par9b_metadata--
 ----
-Ligningsloven, LBK nr. 1500 af 24/11/2025:
+Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
+enslydende § 9 B:
 
 § 9 B. Følgende udgifter til befordring til og fra en arbejdsplads kan
 fradrages ved opgørelsen af den skattepligtige indkomst:
@@ -835,6 +864,93 @@ efter 1. pkt. medregnes ved indkomstopgørelsen.
 Stk. 5. Reglerne i stk. 1-4 finder tilsvarende anvendelse på
 befordringsgodtgørelser, der udbetales til medlemmer af eller medhjælpere for
 bestyrelser, udvalg, kommissioner, råd og lignende.
+
+BEK nr. 1449 af 22/11/2022, uddrag af §§ 4, 5, 7 og 11:
+
+§ 4. Med virkning fra den 1. januar 2023 er godtgørelse, der udbetales til
+dækning af udgifter ved benyttelse af egen bil til erhvervsmæssig kørsel
+omfattet af ligningslovens § 9 B, skattefri, hvis den ikke overstiger følgende
+beløb:
+1) Kørsel til og med 20.000 kilometer årligt 3,73 kr. pr. kilometer.
+2) Kørsel ud over 20.000 kilometer årligt 2,19 kr. pr. kilometer.
+3) For benyttelse af egen motorcykel er satsen som for egen bil.
+4) For benyttelse af egen cykel, knallert, 45-knallert, scooter eller
+el-løbehjul er satsen 0,61 kr. pr. kilometer.
+
+§ 5. Det er en forudsætning for udbetaling af skattefri
+befordringsgodtgørelse, at arbejdsgiveren eller hvervgiveren fører kontrol med
+antallet af kørte kilometer i lønmodtagerens egen bil eller på lønmodtagerens
+egen motorcykel, cykel, knallert, 45-knallert, scooter eller el-løbehjul.
+
+§ 7. Udbetales befordringsgodtgørelse med et højere beløb end Skatterådets
+satser, anses hele beløbet for personlig indkomst, og arbejdsgiveren skal
+indberette beløbet som løn.
+Det gælder dog ikke, såfremt arbejdsgiveren eller hvervgiveren ved den endelige
+opgørelse anser det beløb, der overstiger satsen, for løn i relation til A-skat
+og arbejdsmarkedsbidrag.
+
+§ 11. Der kan ikke udbetales skattefri befordringsgodtgørelse, når
+arbejdsgiveren har stillet firmabil til rådighed for den ansatte.
+Tilsvarende gælder, hvis firmabil er stillet til rådighed af en anden
+arbejdsgiver.
+En undtagelse er dog de tilfælde, hvor lønmodtageren betaler den arbejdsgiver,
+der har stillet firmabilen til rådighed, fuldt vederlag for den kørsel, der sker
+for den arbejdsgiver, der ikke har stillet bilen til rådighed.
+
+BEK nr. 1312 af 21/11/2023, uddrag af §§ 4 og 11:
+
+§ 4. Med virkning fra den 1. januar 2024 er godtgørelse, der udbetales til
+dækning af udgifter ved benyttelse af egen bil til erhvervsmæssig kørsel
+omfattet af ligningslovens § 9 B, skattefri, hvis den ikke overstiger følgende
+beløb:
+1) Kørsel til og med 20.000 kilometer årligt 3,79 kr. pr. kilometer.
+2) Kørsel ud over 20.000 kilometer årligt 2,23 kr. pr. kilometer.
+3) For benyttelse af egen motorcykel er satsen som for egen bil.
+4) For benyttelse af egen cykel, knallert, 45-knallert, scooter eller
+el-løbehjul er satsen 0,62 kr. pr. kilometer.
+
+§ 11. Der kan ikke udbetales skattefri befordringsgodtgørelse, når
+arbejdsgiveren har stillet firmabil til rådighed for den ansatte.
+Tilsvarende gælder, hvis firmabil er stillet til rådighed af en anden
+arbejdsgiver.
+En undtagelse er dog de tilfælde, hvor lønmodtageren betaler den arbejdsgiver,
+der har stillet firmabilen til rådighed, fuldt vederlag for den kørsel, der sker
+for den arbejdsgiver, der ikke har stillet bilen til rådighed.
+
+BEK nr. 1189 af 19/11/2024, uddrag af §§ 4, 5, 7 og 11:
+
+§ 4. Med virkning fra den 1. januar 2025 er godtgørelse, der udbetales til
+dækning af udgifter ved benyttelse af egen bil til erhvervsmæssig kørsel
+omfattet af ligningslovens § 9 B, skattefri, hvis den ikke overstiger følgende
+beløb:
+1) Kørsel til og med 20.000 kilometer årligt 3,81 kr. pr. kilometer.
+2) Kørsel ud over 20.000 kilometer årligt 2,23 kr. pr. kilometer.
+3) For benyttelse af egen motorcykel er satsen som for egen bil.
+4) For benyttelse af egen cykel, knallert, 45-knallert, scooter eller
+el-løbehjul er satsen 0,63 kr. pr. kilometer.
+
+§ 5. Det er en forudsætning for udbetaling af skattefri
+befordringsgodtgørelse, at arbejdsgiveren fører kontrol med antallet af kørte
+kilometer i lønmodtagerens egen bil eller på lønmodtagerens egen motorcykel,
+cykel, knallert, 45-knallert, scooter eller el-løbehjul.
+
+§ 7. Udbetales befordringsgodtgørelse med et højere beløb end Skatterådets
+satser, anses hele beløbet for personlig indkomst, og arbejdsgiveren skal
+indberette beløbet som løn.
+Det gælder dog ikke, såfremt arbejdsgiveren ved den endelige opgørelse anser
+det beløb, der overstiger satsen, for løn i relation til A-skat og
+arbejdsmarkedsbidrag.
+
+§ 11. Der kan ikke udbetales skattefri befordringsgodtgørelse, når
+arbejdsgiveren har stillet firmabil til rådighed for den ansatte, medmindre det
+dokumenteres, at kørslen er foretaget i den ansattes egen bil.
+Tilsvarende gælder, hvis firmabil er stillet til rådighed af en anden
+arbejdsgiver.
+En undtagelse er dog de tilfælde, hvor lønmodtageren betaler den arbejdsgiver,
+der har stillet firmabilen til rådighed, fuldt vederlag for den kørsel, der sker
+for den arbejdsgiver, der ikke har stillet bilen til rådighed.
+Bestemmelsen finder tilsvarende anvendelse for den i § 4, nr. 3 og 4, nævnte
+kørsel.
 
 BEK nr. 1333 af 20/11/2025:
 
@@ -924,6 +1040,8 @@ stk. 5.
 ----
 
 --@begin::ligningsloven_par9b--
+# Ligningslov9BLovversion = Ll9BLbk42Af2023 | Ll9BLbk1500Af2025 | Ll9BLovUdenKildedækning
+# Ligningslov9BSatsversion = Ll9BBek1449Af2022 | Ll9BBek1312Af2023 | Ll9BBek1189Af2024 | Ll9BBek1333Af2025 | Ll9BSatsUdenKildedækning
 # Ligningslov9BBefordringsart = Ll9BHjemOgArbejdsplads | Ll9BMellemArbejdspladser | Ll9BIndenForSammeArbejdsplads
 # Ligningslov9BPersonrolle = Ll9BSelvstændig | Ll9BLønmodtager | Ll9BHonorarmodtager | Ll9BBestyrelsesmedlemEllerMedhjælper | Ll9BAndenIkkeLønmodtagerMedIndtægtsgivendeArbejde
 # Ligningslov9BKøretøj = Ll9BEgenBil | Ll9BEgenMotorcykel | Ll9BEgenCykelKnallertScooterEllerElløbehjul | Ll9BIkkeEgetKøretøj
@@ -936,11 +1054,60 @@ stk. 5.
 # Ligningslov9BFradragsforhold(personrolle: Ligningslov9BPersonrolle, metode: Ligningslov9BFradragsmetode, kundeopsøgende_aktivitet: Boolsk, antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang: Heltal)
 # Ligningslov9BGodtgørelsesforhold(udbetalt_godtgørelse_kroner: Heltal, form: Ligningslov9BGodtgørelsesform, arbejdsgiver_har_kontrolleret_kilometer: Boolsk, bogføringsbilag_opfylder_par6: Boolsk, modregnet_i_forud_aftalt_bruttoløn: Boolsk, firmabil_stillet_til_rådighed: Boolsk, dokumenteret_kørsel_i_eget_køretøj: Boolsk, fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver: Boolsk, overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse: Boolsk, eventuel_godtgørelse_valgt_medregnet_i_indkomsten: Boolsk)
 # Ligningslov9BInput(indkomstår: Heltal, køretøj: Ligningslov9BKøretøj, befordring: Ligningslov9BBefordring, udgifter: Ligningslov9BUdgifter, fradragsforhold: Ligningslov9BFradragsforhold, godtgørelsesforhold: Ligningslov9BGodtgørelsesforhold)
-# Ligningslov9BSatser(indkomstår: Heltal, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal)
-# Ligningslov9BResultat(indkomstår: Heltal, ny_60_dages_periode: Boolsk, stk3_formodning_anvendt: Boolsk, erhvervsmæssig_befordring: Boolsk, erhvervsmæssige_kilometer: Heltal, godtgørelses_høj_sats_kilometer: Heltal, godtgørelses_lav_sats_kilometer: Heltal, direkte_fradrags_høj_sats_kilometer: Heltal, direkte_fradrags_lav_sats_kilometer: Heltal, maksimal_skattefri_godtgørelse_kroner: Heltal, satsbaseret_direkte_fradrag_før_bro_tunnel_kroner: Heltal, administrative_godtgørelsesbetingelser_opfyldt: Boolsk, skattefri_godtgørelse_kroner: Heltal, godtgørelse_personlig_indkomst_kroner: Heltal, kundeopsøgende_flere_arbejdsgivere: Boolsk, direkte_fradragsberettiget_efter_par9b: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal, henvises_til_par9c: Boolsk)
+# Ligningslov9BSatser(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal)
+# Ligningslov9BResultat(indkomstår: Heltal, lovversion: Ligningslov9BLovversion, satsversion: Ligningslov9BSatsversion, skatteår_understøttet: Boolsk, ny_60_dages_periode: Boolsk, stk3_formodning_anvendt: Boolsk, erhvervsmæssig_befordring: Boolsk, erhvervsmæssige_kilometer: Heltal, godtgørelses_høj_sats_kilometer: Heltal, godtgørelses_lav_sats_kilometer: Heltal, direkte_fradrags_høj_sats_kilometer: Heltal, direkte_fradrags_lav_sats_kilometer: Heltal, maksimal_skattefri_godtgørelse_kroner: Heltal, satsbaseret_direkte_fradrag_før_bro_tunnel_kroner: Heltal, administrative_godtgørelsesbetingelser_opfyldt: Boolsk, skattefri_godtgørelse_kroner: Heltal, godtgørelse_personlig_indkomst_kroner: Heltal, kundeopsøgende_flere_arbejdsgivere: Boolsk, direkte_fradragsberettiget_efter_par9b: Boolsk, fradrag_i_personlig_indkomst_kroner: Heltal, henvises_til_par9c: Boolsk)
 
-| ll9b_satser_for(indkomstår: Heltal) -> Ligningslov9BSatser(
-    indkomstår = 2026,
+| ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLovUdenKildedækning
+| exception ll9b_lbk42_for_2023_til_2025 ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ll9b_lbk1500_for_2026 ll9b_lovversion_for(indkomstår: Heltal) -> Ll9BLbk1500Af2025 under indkomstår == 2026
+
+| ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BSatsUdenKildedækning
+| exception ll9b_bek1449_for_2023 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1449Af2022 under indkomstår == 2023
+| exception ll9b_bek1312_for_2024 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1312Af2023 under indkomstår == 2024
+| exception ll9b_bek1189_for_2025 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1189Af2024 under indkomstår == 2025
+| exception ll9b_bek1333_for_2026 ll9b_satsversion_for(indkomstår: Heltal) -> Ll9BBek1333Af2025 under indkomstår == 2026
+
+| ll9b_skatteår_understøttet(indkomstår: Heltal) -> ll9b_lovversion_for(indkomstår) != Ll9BLovUdenKildedækning && ll9b_satsversion_for(indkomstår) != Ll9BSatsUdenKildedækning
+| ll9b_satspakke(indkomstår: Heltal, bil_motorcykel_høj_øre_pr_km: Heltal, bil_motorcykel_lav_øre_pr_km: Heltal, cykel_knallert_scooter_elløbehjul_øre_pr_km: Heltal, høj_sats_kilometerloft: Heltal) -> Ligningslov9BSatser(
+    indkomstår = indkomstår,
+    lovversion = ll9b_lovversion_for(indkomstår),
+    satsversion = ll9b_satsversion_for(indkomstår),
+    skatteår_understøttet = ll9b_skatteår_understøttet(indkomstår),
+    bil_motorcykel_høj_øre_pr_km = bil_motorcykel_høj_øre_pr_km,
+    bil_motorcykel_lav_øre_pr_km = bil_motorcykel_lav_øre_pr_km,
+    cykel_knallert_scooter_elløbehjul_øre_pr_km = cykel_knallert_scooter_elløbehjul_øre_pr_km,
+    høj_sats_kilometerloft = høj_sats_kilometerloft
+)
+| ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+    indkomstår = indkomstår,
+    bil_motorcykel_høj_øre_pr_km = 0,
+    bil_motorcykel_lav_øre_pr_km = 0,
+    cykel_knallert_scooter_elløbehjul_øre_pr_km = 0,
+    høj_sats_kilometerloft = 0
+)
+| exception ll9b_satser_2023 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+    indkomstår = indkomstår,
+    bil_motorcykel_høj_øre_pr_km = 373,
+    bil_motorcykel_lav_øre_pr_km = 219,
+    cykel_knallert_scooter_elløbehjul_øre_pr_km = 61,
+    høj_sats_kilometerloft = 20000
+) under indkomstår == 2023
+| exception ll9b_satser_2024 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+    indkomstår = indkomstår,
+    bil_motorcykel_høj_øre_pr_km = 379,
+    bil_motorcykel_lav_øre_pr_km = 223,
+    cykel_knallert_scooter_elløbehjul_øre_pr_km = 62,
+    høj_sats_kilometerloft = 20000
+) under indkomstår == 2024
+| exception ll9b_satser_2025 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+    indkomstår = indkomstår,
+    bil_motorcykel_høj_øre_pr_km = 381,
+    bil_motorcykel_lav_øre_pr_km = 223,
+    cykel_knallert_scooter_elløbehjul_øre_pr_km = 63,
+    høj_sats_kilometerloft = 20000
+) under indkomstår == 2025
+| exception ll9b_satser_2026 ll9b_satser_for(indkomstår: Heltal) -> ll9b_satspakke(
+    indkomstår = indkomstår,
     bil_motorcykel_høj_øre_pr_km = 394,
     bil_motorcykel_lav_øre_pr_km = 228,
     cykel_knallert_scooter_elløbehjul_øre_pr_km = 64,
@@ -950,6 +1117,8 @@ stk. 5.
 | exception ll9b_positive_øre_afrundes ll9b_øre_afrundet_til_kroner(øre: Heltal) -> (øre + 50) / 100 under øre > 0
 
 # Ligningslov9BSag(input: Ligningslov9BInput) {
+    | satser() -> ll9b_satser_for(input.indkomstår)
+    | skatteår_understøttet() -> satser().skatteår_understøttet
     | arbejdsdage_til_samme_arbejdsplads() -> ligningslov_positivt_beløb(input.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder)
     | sammenhængende_arbejdsdage_siden_sidst() -> ligningslov_positivt_beløb(input.befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen)
     | ny_60_dages_periode() -> sammenhængende_arbejdsdage_siden_sidst() >= 60
@@ -958,39 +1127,43 @@ stk. 5.
     | stk3_dokumentationskrav_opfyldt() -> input.befordring.tres_dages_forhold.skriftligt_kørselsregnskabspålæg_aktivt == Falskt || input.befordring.tres_dages_forhold.kørselsregnskab_dokumenterer_erhvervsmæssig_befordring
     | stk3_formodning_anvendt() -> stk3_formodning_grundlag() && stk3_dokumentationskrav_opfyldt()
     | hjem_arbejdsplads_erhvervsmæssig() -> inden_for_60_dage() || ny_60_dages_periode() || stk3_formodning_anvendt()
-    | erhvervsmæssig_befordring() -> input.befordring.art == Ll9BMellemArbejdspladser || input.befordring.art == Ll9BIndenForSammeArbejdsplads || input.befordring.art == Ll9BHjemOgArbejdsplads && hjem_arbejdsplads_erhvervsmæssig()
+    | erhvervsmæssig_befordring() -> skatteår_understøttet() && (input.befordring.art == Ll9BMellemArbejdspladser || input.befordring.art == Ll9BIndenForSammeArbejdsplads || input.befordring.art == Ll9BHjemOgArbejdsplads && hjem_arbejdsplads_erhvervsmæssig())
     | kilometer_i_sagen() -> ligningslov_positivt_beløb(input.befordring.kilometer_i_sagen)
     | erhvervsmæssige_kilometer() -> 0
     | exception befordring_omfattet_af_stk1 erhvervsmæssige_kilometer() -> kilometer_i_sagen() under erhvervsmæssig_befordring()
     | tidligere_kilometer_hos_godtgørende_arbejdsgiver() -> ligningslov_positivt_beløb(input.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_hos_godtgørende_arbejdsgiver_i_indkomståret)
     | tidligere_kilometer_til_direkte_fradrag() -> ligningslov_positivt_beløb(input.befordring.kilometerhistorik.tidligere_erhvervsmæssige_kilometer_til_direkte_fradrag_i_indkomståret)
-    | resterende_høj_sats_kilometer_hos_godtgørende_arbejdsgiver() -> ligningslov_positivt_beløb(ll9b_satser_for(input.indkomstår).høj_sats_kilometerloft - tidligere_kilometer_hos_godtgørende_arbejdsgiver())
-    | resterende_høj_sats_kilometer_til_direkte_fradrag() -> ligningslov_positivt_beløb(ll9b_satser_for(input.indkomstår).høj_sats_kilometerloft - tidligere_kilometer_til_direkte_fradrag())
+    | resterende_høj_sats_kilometer_hos_godtgørende_arbejdsgiver() -> ligningslov_positivt_beløb(satser().høj_sats_kilometerloft - tidligere_kilometer_hos_godtgørende_arbejdsgiver())
+    | resterende_høj_sats_kilometer_til_direkte_fradrag() -> ligningslov_positivt_beløb(satser().høj_sats_kilometerloft - tidligere_kilometer_til_direkte_fradrag())
     | godtgørelses_høj_sats_kilometer() -> ligningslov_mindste_beløb(erhvervsmæssige_kilometer(), resterende_høj_sats_kilometer_hos_godtgørende_arbejdsgiver())
     | godtgørelses_lav_sats_kilometer() -> erhvervsmæssige_kilometer() - godtgørelses_høj_sats_kilometer()
     | direkte_fradrags_høj_sats_kilometer() -> ligningslov_mindste_beløb(erhvervsmæssige_kilometer(), resterende_høj_sats_kilometer_til_direkte_fradrag())
     | direkte_fradrags_lav_sats_kilometer() -> erhvervsmæssige_kilometer() - direkte_fradrags_høj_sats_kilometer()
     | kilometergodtgørelse_øre() -> 0
-    | exception egen_bil_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
-    | exception egen_motorcykel_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
-    | exception cykel_knallert_scooter_elløbehjul_sats kilometergodtgørelse_øre() -> erhvervsmæssige_kilometer() * ll9b_satser_for(input.indkomstår).cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
+    | exception egen_bil_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
+    | exception egen_motorcykel_høj_og_lav_sats kilometergodtgørelse_øre() -> godtgørelses_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + godtgørelses_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
+    | exception cykel_knallert_scooter_elløbehjul_sats kilometergodtgørelse_øre() -> erhvervsmæssige_kilometer() * satser().cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
     | direkte_fradrag_øre() -> 0
-    | exception egen_bil_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
-    | exception egen_motorcykel_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * ll9b_satser_for(input.indkomstår).bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
-    | exception cykel_knallert_scooter_elløbehjul_direkte_fradrag_sats direkte_fradrag_øre() -> erhvervsmæssige_kilometer() * ll9b_satser_for(input.indkomstår).cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
+    | exception egen_bil_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenBil
+    | exception egen_motorcykel_direkte_fradrag_høj_og_lav_sats direkte_fradrag_øre() -> direkte_fradrags_høj_sats_kilometer() * satser().bil_motorcykel_høj_øre_pr_km + direkte_fradrags_lav_sats_kilometer() * satser().bil_motorcykel_lav_øre_pr_km under input.køretøj == Ll9BEgenMotorcykel
+    | exception cykel_knallert_scooter_elløbehjul_direkte_fradrag_sats direkte_fradrag_øre() -> erhvervsmæssige_kilometer() * satser().cykel_knallert_scooter_elløbehjul_øre_pr_km under input.køretøj == Ll9BEgenCykelKnallertScooterEllerElløbehjul
     | maksimal_skattefri_godtgørelse_kroner() -> ll9b_øre_afrundet_til_kroner(kilometergodtgørelse_øre())
     | satsbaseret_direkte_fradrag_før_bro_tunnel_kroner() -> ll9b_øre_afrundet_til_kroner(direkte_fradrag_øre())
     | udbetalt_godtgørelse_kroner() -> ligningslov_positivt_beløb(input.godtgørelsesforhold.udbetalt_godtgørelse_kroner)
     | godtgørelsesmodtager_omfattet() -> input.fradragsforhold.personrolle == Ll9BLønmodtager || input.fradragsforhold.personrolle == Ll9BBestyrelsesmedlemEllerMedhjælper
     | eget_køretøj_benyttet() -> input.køretøj != Ll9BIkkeEgetKøretøj
     | godtgørelsesform_tilladt() -> input.godtgørelsesforhold.form == Ll9BKilometerafregnet || input.godtgørelsesforhold.form == Ll9BAcontoRettidigtAfregnet
-    | firmabil_betingelse_opfyldt() -> input.godtgørelsesforhold.firmabil_stillet_til_rådighed == Falskt || input.godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj || input.godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver
+    | firmabil_betingelse_opfyldt() -> Falskt
+    | exception ingen_firmabil_stillet_til_rådighed firmabil_betingelse_opfyldt() -> Sandt under input.godtgørelsesforhold.firmabil_stillet_til_rådighed == Falskt
+    | exception fuldt_vederlag_for_anden_arbejdsgivers_kørsel firmabil_betingelse_opfyldt() -> Sandt under input.godtgørelsesforhold.fuldt_vederlag_betalt_for_firmabilskørsel_for_anden_arbejdsgiver
+    | exception dokumenteret_eget_køretøj_fra_2025 firmabil_betingelse_opfyldt() -> Sandt under input.indkomstår >= 2025 && input.godtgørelsesforhold.dokumenteret_kørsel_i_eget_køretøj
     | administrative_godtgørelsesbetingelser_opfyldt() -> erhvervsmæssig_befordring() && godtgørelsesmodtager_omfattet() && eget_køretøj_benyttet() && godtgørelsesform_tilladt() && input.godtgørelsesforhold.arbejdsgiver_har_kontrolleret_kilometer && input.godtgørelsesforhold.bogføringsbilag_opfylder_par6 && input.godtgørelsesforhold.modregnet_i_forud_aftalt_bruttoløn == Falskt && firmabil_betingelse_opfyldt()
     | godtgørelse_valgt_medregnet_i_indkomsten() -> input.godtgørelsesforhold.eventuel_godtgørelse_valgt_medregnet_i_indkomsten && udbetalt_godtgørelse_kroner() > 0
     | skattefri_godtgørelse_kroner() -> 0
     | exception godtgørelse_inden_for_sats skattefri_godtgørelse_kroner() -> udbetalt_godtgørelse_kroner() under administrative_godtgørelsesbetingelser_opfyldt() && udbetalt_godtgørelse_kroner() <= maksimal_skattefri_godtgørelse_kroner() && godtgørelse_valgt_medregnet_i_indkomsten() == Falskt
     | exception overskydende_beløb_behandlet_som_løn skattefri_godtgørelse_kroner() -> maksimal_skattefri_godtgørelse_kroner() under administrative_godtgørelsesbetingelser_opfyldt() && udbetalt_godtgørelse_kroner() > maksimal_skattefri_godtgørelse_kroner() && input.godtgørelsesforhold.overskydende_beløb_behandlet_som_løn_ved_endelig_opgørelse && godtgørelse_valgt_medregnet_i_indkomsten() == Falskt
-    | godtgørelse_personlig_indkomst_kroner() -> udbetalt_godtgørelse_kroner() - skattefri_godtgørelse_kroner()
+    | godtgørelse_personlig_indkomst_kroner() -> 0
+    | exception understøttet_skatteår_klassificerer_godtgørelse godtgørelse_personlig_indkomst_kroner() -> udbetalt_godtgørelse_kroner() - skattefri_godtgørelse_kroner() under skatteår_understøttet()
     | kundeopsøgende_flere_arbejdsgivere() -> input.fradragsforhold.personrolle == Ll9BLønmodtager && input.fradragsforhold.kundeopsøgende_aktivitet && input.fradragsforhold.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang >= 2
     | ikke_lønmodtager_med_direkte_fradragsadgang() -> input.fradragsforhold.personrolle == Ll9BSelvstændig || input.fradragsforhold.personrolle == Ll9BHonorarmodtager || input.fradragsforhold.personrolle == Ll9BBestyrelsesmedlemEllerMedhjælper || input.fradragsforhold.personrolle == Ll9BAndenIkkeLønmodtagerMedIndtægtsgivendeArbejde
     | personrolle_har_direkte_fradragsadgang() -> ikke_lønmodtager_med_direkte_fradragsadgang() || kundeopsøgende_flere_arbejdsgivere()
@@ -1006,6 +1179,9 @@ stk. 5.
     | henvises_til_par9c() -> input.fradragsforhold.personrolle == Ll9BLønmodtager && erhvervsmæssig_befordring() && skattefri_godtgørelse_kroner() == 0 && direkte_fradragsberettiget_efter_par9b() == Falskt
     | resultat() -> Ligningslov9BResultat(
         indkomstår = input.indkomstår,
+        lovversion = satser().lovversion,
+        satsversion = satser().satsversion,
+        skatteår_understøttet = skatteår_understøttet(),
         ny_60_dages_periode = ny_60_dages_periode(),
         stk3_formodning_anvendt = stk3_formodning_anvendt(),
         erhvervsmæssig_befordring = erhvervsmæssig_befordring(),

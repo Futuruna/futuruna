@@ -13253,7 +13253,7 @@
 }
 
 | personskat_ingen_erhvervsbefordring() -> PersonskatErhvervsbefordringInput(sager = [])
-| personskat_ll9b_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
+| personskat_ll9b_skatteår_understøttet(skatteår: Heltal) -> ll9b_skatteår_understøttet(skatteår)
 | personskat_erhvervsbefordring_grundfakta_gyldige(fakta: PersonskatErhvervsbefordringFakta) -> fakta.identifikation != "" && fakta.rækkefølge_i_indkomståret > 0 && (fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner == 0 || fakta.godtgørende_arbejdsgiver_identifikation != "") && fakta.befordring.kilometer_i_sagen >= 0 && fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder >= 0 && fakta.befordring.tres_dages_forhold.arbejdsdage_til_samme_arbejdsplads_inklusive_aktuel_dag_i_forudgående_12_måneder <= 366 && fakta.befordring.tres_dages_forhold.sammenhængende_arbejdsdage_siden_sidst_på_arbejdspladsen >= 0 && fakta.udgifter.dokumenterede_faktiske_kørselsudgifter_eksklusive_bro_tunnel_kroner >= 0 && fakta.udgifter.dokumenterede_bro_tunnel_udgifter_kroner >= 0 && fakta.antal_arbejdsgivere_som_befordringen_vedrører_på_en_gang >= 0 && fakta.godtgørelsesforhold.udbetalt_godtgørelse_kroner >= 0
 | personskat_erhvervsbefordring_sager_med_identifikation(sager: List(PersonskatErhvervsbefordringFakta), identifikation: Tekst) -> filter(sager, |fakta: PersonskatErhvervsbefordringFakta| fakta.identifikation == identifikation)
 | personskat_erhvervsbefordring_identifikationer_entydige(input: PersonskatErhvervsbefordringInput) -> all(input.sager, |fakta: PersonskatErhvervsbefordringFakta| length(personskat_erhvervsbefordring_sager_med_identifikation(input.sager, fakta.identifikation)) == 1)
@@ -13383,6 +13383,7 @@
 | personskat_erhvervsbefordring_input_gyldigt(resultat: PersonskatErhvervsbefordringResultat) -> resultat.alle_input_gyldige
 | personskat_erhvervsbefordring_skattepligtig_løn_kroner(resultat: PersonskatErhvervsbefordringResultat) -> resultat.samlet_skattepligtig_godtgørelse_kroner
 | personskat_erhvervsbefordring_fradrag_i_personlig_indkomst_kroner(resultat: PersonskatErhvervsbefordringResultat) -> resultat.samlet_fradrag_i_personlig_indkomst_kroner
+| personskat_erhvervsbefordring_sagsresultater_til_samordning(resultat: PersonskatErhvervsbefordringResultat) -> hvis resultat.alle_input_gyldige { resultat.sagsresultater } ellers { [] }
 | personskat_ingen_befordringsfradrag() -> PersonskatBefordringsfradragInput(forhold = [])
 
 | personskat_ingen_ligningsfradrag() -> PersonskatLigningsfradragInput(
@@ -13746,7 +13747,7 @@
     )
 )
 | personskat_ll9g_erhvervsbefordring_fradrag_anvendt_kroner(resultat: PersonskatErhvervsbefordringResultat, koordinering: PersonskatLigningslov9GKoordinering) -> foldl(
-    resultat.sagsresultater,
+    personskat_erhvervsbefordring_sagsresultater_til_samordning(resultat),
     0,
     |sum_kroner: Heltal, sag: PersonskatErhvervsbefordringSagResultat| sum_kroner + hvis personskat_ll9g_kilde_bevares(
         koordinering,
@@ -13905,7 +13906,7 @@
 | personskat_søbl4_befordringskilde_findes(kildeidentifikation: Tekst, resultat: PersonskatBefordringsfradragResultat) -> any(resultat.input.forhold, |forhold: PersonskatBefordringsfradragFakta| forhold.identifikation == kildeidentifikation)
 | personskat_søbl4_påkrævede_kilder(lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, befordring: PersonskatBefordringsfradragResultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat) -> {
     = lønmodtagerudgiftskilder = flat_map(lønmodtagerudgifter.udgiftsresultater, |resultat: Ligningslov9Stk1Udgiftsresultat| hvis personskat_søbl4_lønmodtagerudgift_har_omfattet_beløb(resultat = resultat) { [personskat_søbl4_lønmodtagerudgiftskilde(resultat = resultat)] } ellers { [] })
-    = erhvervsbefordringskilder = flat_map(erhvervsbefordring.sagsresultater, |resultat: PersonskatErhvervsbefordringSagResultat| hvis personskat_søbl4_erhvervsbefordring_har_omfattet_beløb(resultat = resultat) { [personskat_søbl4_erhvervsbefordringskilde(resultat = resultat)] } ellers { [] })
+    = erhvervsbefordringskilder = flat_map(personskat_erhvervsbefordring_sagsresultater_til_samordning(erhvervsbefordring), |resultat: PersonskatErhvervsbefordringSagResultat| hvis personskat_søbl4_erhvervsbefordring_har_omfattet_beløb(resultat = resultat) { [personskat_søbl4_erhvervsbefordringskilde(resultat = resultat)] } ellers { [] })
     = befordringskilder = flat_map(befordring.forholdsresultater, |resultat: PersonskatBefordringsfradragForholdsresultat| hvis personskat_søbl4_befordringsforhold_har_omfattet_beløb(resultat = resultat) { [personskat_søbl4_befordringskilde(resultat = resultat)] } ellers { [] })
     = kontingentkilder = hvis faglige_kontingenter.samlet_fradrag_kroner > 0 { [Søbl4Ligningslov13Årsfradrag] } ellers { [] }
     = pbl49kilder = flat_map(arbejdsløshed_efterløn_og_fleksydelse.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| hvis personskat_søbl4_pbl49_stk1_har_omfattet_beløb(resultat = resultat) { [personskat_søbl4_pbl49_kilde(resultat = resultat)] } ellers { [] })
@@ -13916,7 +13917,7 @@
 | personskat_søbl4_kilder_entydige(input: Sømandsbeskatningslov4Årsinput) -> length(distinct(map(input.kildetilknytninger, |tilknytning: Sømandsbeskatningslov4Kildetilknytning| tilknytning.kilde))) == length(input.kildetilknytninger)
 | personskat_søbl4_kilde_findes(kilde: Sømandsbeskatningslov4Fradragskilde, lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, befordring: PersonskatBefordringsfradragResultat, faglige_kontingenter: Ligningslov13Årsresultat, arbejdsløshed_efterløn_og_fleksydelse: Pbl49Til49BÅrsresultat) -> match kilde {
     | Søbl4Ligningslov9Stk1Lønmodtagerudgift(kildeidentifikation) -> any(lønmodtagerudgifter.udgiftsresultater, |resultat: Ligningslov9Stk1Udgiftsresultat| resultat.fakta.identifikation == kildeidentifikation)
-    | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation) -> any(erhvervsbefordring.sagsresultater, |resultat: PersonskatErhvervsbefordringSagResultat| personskat_erhvervsbefordring_sag_identifikation(resultat = resultat) == kildeidentifikation)
+    | Søbl4Ligningslov9BErhvervsbefordring(kildeidentifikation) -> any(personskat_erhvervsbefordring_sagsresultater_til_samordning(erhvervsbefordring), |resultat: PersonskatErhvervsbefordringSagResultat| personskat_erhvervsbefordring_sag_identifikation(resultat = resultat) == kildeidentifikation)
     | Søbl4Ligningslov9COg9DBefordringsforhold(kildeidentifikation) -> personskat_søbl4_befordringskilde_findes(kildeidentifikation = kildeidentifikation, resultat = befordring)
     | Søbl4Ligningslov13Årsfradrag -> length(faglige_kontingenter.input.kontingenter) > 0
     | Søbl4Pensionsbeskatningslov49Stk1Bidrag(kildeidentifikation) -> any(arbejdsløshed_efterløn_og_fleksydelse.bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.fakta.identifikation == kildeidentifikation && personskat_søbl4_pbl49_stk1_kildetype(resultat = resultat))
@@ -13966,8 +13967,8 @@
 | personskat_søbl4_befordringsfradrag_input(input: PersonskatBefordringsfradragInput, sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> PersonskatBefordringsfradragInput(
     forhold = filter(input.forhold, |forhold: PersonskatBefordringsfradragFakta| personskat_søbl4_befordringsforhold_bevares(forhold, sømandsbeskatningslov4, sømandsfradrag))
 )
-| personskat_søbl4_erhvervsbefordring_skattefri_godtgørelse_anvendt_kroner(erhvervsbefordring: PersonskatErhvervsbefordringResultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(erhvervsbefordring.sagsresultater, 0, |sum_kroner: Heltal, resultat: PersonskatErhvervsbefordringSagResultat| sum_kroner + personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = personskat_erhvervsbefordring_sag_skattefri_godtgørelse_kroner(resultat = resultat), kilde = personskat_søbl4_erhvervsbefordringskilde(resultat = resultat), input = input, sømandsfradrag = sømandsfradrag))
-| personskat_søbl4_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring: PersonskatErhvervsbefordringResultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(erhvervsbefordring.sagsresultater, 0, |sum_kroner: Heltal, resultat: PersonskatErhvervsbefordringSagResultat| sum_kroner + personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = personskat_erhvervsbefordring_sag_fradrag_i_personlig_indkomst_kroner(resultat = resultat), kilde = personskat_søbl4_erhvervsbefordringskilde(resultat = resultat), input = input, sømandsfradrag = sømandsfradrag))
+| personskat_søbl4_erhvervsbefordring_skattefri_godtgørelse_anvendt_kroner(erhvervsbefordring: PersonskatErhvervsbefordringResultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(personskat_erhvervsbefordring_sagsresultater_til_samordning(erhvervsbefordring), 0, |sum_kroner: Heltal, resultat: PersonskatErhvervsbefordringSagResultat| sum_kroner + personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = personskat_erhvervsbefordring_sag_skattefri_godtgørelse_kroner(resultat = resultat), kilde = personskat_søbl4_erhvervsbefordringskilde(resultat = resultat), input = input, sømandsfradrag = sømandsfradrag))
+| personskat_søbl4_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring: PersonskatErhvervsbefordringResultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(personskat_erhvervsbefordring_sagsresultater_til_samordning(erhvervsbefordring), 0, |sum_kroner: Heltal, resultat: PersonskatErhvervsbefordringSagResultat| sum_kroner + personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = personskat_erhvervsbefordring_sag_fradrag_i_personlig_indkomst_kroner(resultat = resultat), kilde = personskat_søbl4_erhvervsbefordringskilde(resultat = resultat), input = input, sømandsfradrag = sømandsfradrag))
 | personskat_søbl4_lønmodtagerudgifter_fradragsgrundlag_anvendt_kroner(lønmodtagerudgifter: Ligningslov9Stk1Årsresultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(lønmodtagerudgifter.udgiftsresultater, 0, |sum_kroner: Heltal, resultat: Ligningslov9Stk1Udgiftsresultat| sum_kroner + personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = resultat.fradragsgrundlag_før_bundgrænse_kroner, kilde = personskat_søbl4_lønmodtagerudgiftskilde(resultat = resultat), input = input, sømandsfradrag = sømandsfradrag))
 | personskat_søbl4_pbl49_stk1_fradrag_anvendt_kroner(resultat: Pbl49Til49BÅrsresultat, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(resultat.bidragsresultater, 0, |sum_kroner: Heltal, bidrag: Pbl49Til49BBidragsresultat| sum_kroner + hvis personskat_søbl4_pbl49_stk1_har_omfattet_beløb(resultat = bidrag) { personskat_søbl4_beløb_anvendt_kroner(beløb_før_par4_kroner = bidrag.fradrag_kroner, kilde = personskat_søbl4_pbl49_kilde(resultat = bidrag), input = input, sømandsfradrag = sømandsfradrag) } ellers { 0 })
 | personskat_ll9g_søbl4_kilde_bevares(kilde: Sømandsbeskatningslov4Fradragskilde, koordinering: PersonskatLigningslov9GKoordinering) -> match kilde {
@@ -13978,7 +13979,7 @@
     | Søbl4Ligningslov13Årsfradrag -> Sandt
 }
 | personskat_ll9g_og_søbl4_erhvervsbefordring_fradrag_anvendt_kroner(erhvervsbefordring: PersonskatErhvervsbefordringResultat, koordinering: PersonskatLigningslov9GKoordinering, input: Sømandsbeskatningslov4Årsinput, sømandsfradrag: Sømandsbeskatningslov3Årsresultat) -> foldl(
-    erhvervsbefordring.sagsresultater,
+    personskat_erhvervsbefordring_sagsresultater_til_samordning(erhvervsbefordring),
     0,
     |sum_kroner: Heltal, resultat: PersonskatErhvervsbefordringSagResultat| {
         = søbl4_kilde = personskat_søbl4_erhvervsbefordringskilde(resultat)
