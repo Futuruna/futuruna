@@ -7,7 +7,8 @@
 --
 -- Kilder:
 -- - Personskatteloven: https://www.retsinformation.dk/eli/lta/2021/1284
--- - Ligningsloven: https://www.retsinformation.dk/eli/lta/2025/1500
+-- - Historisk ligningslov: https://www.retsinformation.dk/eli/lta/2023/42
+-- - Gældende ligningslov: https://www.retsinformation.dk/eli/lta/2025/1500
 
 ----
 Personskatteloven § 4 b:
@@ -63,15 +64,23 @@ skattepligtige direkte eller indirekte har ret til.
     aktieindkomst_indgår_i_skattepligtig_indkomst = Falskt,
     cfc_indgår_i_skattepligtig_indkomst_ved_par6_til_8a = par4b_ligningslov_cfc_audit_aggregat.indgår_i_skattepligtig_indkomst_ved_par6_til_8a
 ))
+= cfc_selskabsskat_2023_audit = selskabsskattelov_par17_stk1_sats_resultat(2023)
+= cfc_selskabsskat_2024_audit = selskabsskattelov_par17_stk1_sats_resultat(2024)
+= cfc_selskabsskat_2025_audit = selskabsskattelov_par17_stk1_sats_resultat(2025)
+= cfc_selskabsskat_2026_audit = selskabsskattelov_par17_stk1_sats_resultat(2026)
 
 | ll16h_audit_stk1_stk7_til_stk10_beløb: ll16h_positiv_fixture -> ll16h_positiv_fixture.omfattet_af_par16h == Sandt && ll16h_positiv_fixture.medregnet_cfc_indkomst_kroner == 120000
 | ll16h_audit_stk2_fritagelse_nulstiller_beløb: ll16h_eu_eøs_fritaget_fixture -> ll16h_eu_eøs_fritaget_fixture.fritaget_efter_stk2 == Sandt && ll16h_eu_eøs_fritaget_fixture.medregnet_cfc_indkomst_kroner == 0
 | ll16i_audit_stk6_og_stk7_merafkast_til_cfc: ll16i_stk6_og_7_fixture -> ll16i_stk6_og_7_fixture.positivt_merafkast_efter_fremførsel_kroner == 60000 && ll16i_stk6_og_7_fixture.medregnet_som_cfc_indkomst_kroner == 30000
+| ligningslov_cfc_audit_kildehorisont_er_eksplicit: ll16h_positiv_fixture -> ligningslov_cfc_regelversion(2022) == LlCfcUdenKildedækning && ligningslov_cfc_regelversion(2023) == LlCfcLbk42Af2023 && ligningslov_cfc_regelversion(2024) == LlCfcLbk42Af2023 && ligningslov_cfc_regelversion(2025) == LlCfcLbk42Af2023 && ligningslov_cfc_regelversion(2026) == LlCfcLbk1500Af2025 && ligningslov_cfc_regelversion(2027) == LlCfcUdenKildedækning && ll16h_positiv_fixture.regelversion == LlCfcLbk1500Af2025 && ll16h_positiv_fixture.skatteår_understøttet && ll16i_stk6_og_7_fixture.regelversion == LlCfcLbk1500Af2025 && ll16i_stk6_og_7_fixture.skatteår_understøttet
+| ligningslov_cfc_audit_selskabsskattekilde_følger_året: cfc_selskabsskat_2023_audit -> cfc_selskabsskat_2023_audit.kilde == SelskabsskattelovenLbk1241Af2022 && cfc_selskabsskat_2023_audit.cfc_sats_basispoint == 2200 && cfc_selskabsskat_2024_audit.kilde == SelskabsskattelovenLbk1241Af2022 && cfc_selskabsskat_2024_audit.cfc_sats_basispoint == 2200 && cfc_selskabsskat_2025_audit.kilde == SelskabsskattelovenLbk279Af2025 && cfc_selskabsskat_2025_audit.cfc_sats_basispoint == 2200 && cfc_selskabsskat_2026_audit.kilde == SelskabsskattelovenLbk279Af2025 && cfc_selskabsskat_2026_audit.cfc_sats_basispoint == 2200
 | par4b_audit_ligningslov_cfc_aggregeres: par4b_ligningslov_cfc_audit_aggregat -> par4b_ligningslov_cfc_audit_aggregat.cfc_indkomst_kroner == 150000 && par4b_ligningslov_cfc_audit_aggregat.positiv_cfc_indkomst_til_par8b_kroner == 150000
 | par4b_audit_cfc_udenfor_par6_til_8a_skattepligtig_indkomst: par1_cfc_udskilt_audit -> par1_cfc_udskilt_audit.cfc_indkomst_medregnet_ved_par6_til_8a_kroner == 0 && par1_cfc_udskilt_audit.cfc_indkomst_udenfor_par6_til_8a_kroner == 150000 && par1_cfc_udskilt_audit.skattepligtig_indkomst_kroner == 410000
 
 ? ll16h_audit_stk1_stk7_til_stk10_beløb
 ? ll16h_audit_stk2_fritagelse_nulstiller_beløb
 ? ll16i_audit_stk6_og_stk7_merafkast_til_cfc
+? ligningslov_cfc_audit_kildehorisont_er_eksplicit
+? ligningslov_cfc_audit_selskabsskattekilde_følger_året
 ? par4b_audit_ligningslov_cfc_aggregeres
 ? par4b_audit_cfc_udenfor_par6_til_8a_skattepligtig_indkomst

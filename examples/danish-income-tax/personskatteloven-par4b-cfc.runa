@@ -8,7 +8,8 @@
 = personskatteloven_par4b_metadata = Metadata(
     attachments = (
         Source(value = personskatteloven_2021_1284),
-        DependencySource(value = ligningsloven_2025_1500),
+        HistoricalSource(value = ligningsloven_lbk42_par16h_og_par16i_stk6_7),
+        DependencySource(value = ligningsloven_lbk1500_par16h_og_par16i_stk6_7),
     )
 )
 

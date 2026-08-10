@@ -5,7 +5,9 @@
 
 = personskat_cfc_scenarier_metadata = Metadata(
     attachments = (
-        Source(value = ligningsloven_2025_1500),
+        HistoricalSource(value = ligningsloven_lbk42_par16h_og_par16i_stk6_7),
+        Source(value = ligningsloven_lbk1500_par16h_og_par16i_stk6_7),
+        HistoricalSource(value = selskabsskatteloven_lbk1241_par17_stk1),
         DependencySource(value = selskabsskatteloven_lbk279_par17_stk1),
         DependencySource(value = personskatteloven_2021_1284),
     )
@@ -19,9 +21,9 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
 ----
 
 --@begin:personskat_cfc_scenarier--
-| personskat_cfc_scenarie_input(cfc: PersonskatCfcInput) -> PersonskatInput(
+| personskat_cfc_scenarie_input_for_år(skatteår: Heltal, cfc: PersonskatCfcInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
-        skatteår = 2026,
+        skatteår = skatteår,
         kommune = København,
         bruttoløn_kroner = 600000,
         personlig_indkomst = personskat_ingen_personlig_indkomst(),
@@ -43,6 +45,7 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
     ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| personskat_cfc_scenarie_input(cfc: PersonskatCfcInput) -> personskat_cfc_scenarie_input_for_år(2026, cfc)
 | personskat_cfc_ll16h_fakta(eu_eøs_selskab: Boolsk, reel_etablering: Boolsk, dokumentation_kan_verificeres: Boolsk) -> PersonskatCfcEfterLigningslov16HFakta(
     fuldt_skattepligtig_eller_dødsbo = Sandt,
     udenlandsk_selskab = Sandt,
@@ -73,16 +76,23 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
     fremført_negativt_merafkast_kroner = fremført_negativt_merafkast_kroner,
     ret_til_merafkast_basispoint = ret_til_merafkast_basispoint
 )
-| personskat_cfc_har_ll16h_resultat(resultater: List(PersonskatCfcPostResultat), cfc_indkomst_kroner: Heltal, fritaget: Boolsk) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
-        | BeregnetCfcEfterLigningslov16H(_, ligningslov_input, ligningslov_resultat, par4b_post) -> ligningslov_input.indkomstår == 2026 && ligningslov_resultat.dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner == 66000 && ligningslov_resultat.fritaget_efter_stk2 == fritaget && ligningslov_resultat.medregnet_cfc_indkomst_kroner == cfc_indkomst_kroner && par4b_post.beløb_kroner == cfc_indkomst_kroner
+# PersonskatCfcLl16HForventning(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, dansk_selskabsskat_kroner: Heltal, cfc_indkomst_kroner: Heltal, fritaget: Boolsk)
+# PersonskatCfcLl16IForventning(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, anvendt_fremførsel_kroner: Heltal, cfc_indkomst_kroner: Heltal)
+
+| personskat_cfc_har_ll16h_resultat(resultater: List(PersonskatCfcPostResultat), forventning: PersonskatCfcLl16HForventning) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
+        | BeregnetCfcEfterLigningslov16H(_, ligningslov_input, ligningslov_resultat, par4b_post) -> ligningslov_input.indkomstår == forventning.indkomstår && ligningslov_resultat.regelversion == forventning.regelversion && ligningslov_resultat.skatteår_understøttet && ligningslov_resultat.dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner == forventning.dansk_selskabsskat_kroner && ligningslov_resultat.fritaget_efter_stk2 == forventning.fritaget && ligningslov_resultat.medregnet_cfc_indkomst_kroner == forventning.cfc_indkomst_kroner && par4b_post.beløb_kroner == forventning.cfc_indkomst_kroner
         | _ -> Falskt
     })
-| personskat_cfc_har_ll16i_resultat(resultater: List(PersonskatCfcPostResultat), anvendt_fremførsel_kroner: Heltal, cfc_indkomst_kroner: Heltal) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
-        | BeregnetCfcEfterLigningslov16IStk6Og7(_, ligningslov_input, ligningslov_resultat, par4b_post) -> ligningslov_input.indkomstår == 2026 && ligningslov_resultat.fremført_negativt_merafkast_anvendt_kroner == anvendt_fremførsel_kroner && ligningslov_resultat.medregnet_som_cfc_indkomst_kroner == cfc_indkomst_kroner && par4b_post.beløb_kroner == cfc_indkomst_kroner
+| personskat_cfc_har_ll16i_resultat(resultater: List(PersonskatCfcPostResultat), forventning: PersonskatCfcLl16IForventning) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
+        | BeregnetCfcEfterLigningslov16IStk6Og7(_, ligningslov_input, ligningslov_resultat, par4b_post) -> ligningslov_input.indkomstår == forventning.indkomstår && ligningslov_resultat.regelversion == forventning.regelversion && ligningslov_resultat.skatteår_understøttet && ligningslov_resultat.fremført_negativt_merafkast_anvendt_kroner == forventning.anvendt_fremførsel_kroner && ligningslov_resultat.medregnet_som_cfc_indkomst_kroner == forventning.cfc_indkomst_kroner && par4b_post.beløb_kroner == forventning.cfc_indkomst_kroner
         | _ -> Falskt
     })
 | personskat_cfc_har_ugyldig_ejerandel(resultater: List(PersonskatCfcPostResultat)) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
         | UgyldigtCfcGrundlag(_, skatteår_understøttet, grundfakta_gyldige) -> skatteår_understøttet && grundfakta_gyldige == Falskt
+        | _ -> Falskt
+    })
+| personskat_cfc_har_ikke_understøttet_skatteår(resultater: List(PersonskatCfcPostResultat)) -> any(resultater, |resultat: PersonskatCfcPostResultat| match resultat {
+        | UgyldigtCfcGrundlag(_, skatteår_understøttet, grundfakta_gyldige) -> skatteår_understøttet == Falskt && grundfakta_gyldige
         | _ -> Falskt
     })
 
@@ -91,6 +101,42 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
 = personskat_cfc_ll16i_med_fremførsel = personskat_cfc_ll16i_fakta(100000, 30000, 10000, 5000)
 = personskat_cfc_ll16i_fuldt_modregnet = personskat_cfc_ll16i_fakta(100000, 30000, 100000, 5000)
 = personskat_cfc_ll16i_ugyldig_ejerandel = personskat_cfc_ll16i_fakta(100000, 30000, 10000, 12000)
+
+# PersonskatCfcHistoriskÅrsforventning(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion)
+
+= personskat_cfc_historiske_årsforventninger = [
+    PersonskatCfcHistoriskÅrsforventning(indkomstår = 2023, regelversion = LlCfcLbk42Af2023),
+    PersonskatCfcHistoriskÅrsforventning(indkomstår = 2024, regelversion = LlCfcLbk42Af2023),
+    PersonskatCfcHistoriskÅrsforventning(indkomstår = 2025, regelversion = LlCfcLbk42Af2023),
+    PersonskatCfcHistoriskÅrsforventning(indkomstår = 2026, regelversion = LlCfcLbk1500Af2025)
+]
+
+| personskat_cfc_historisk_årsresultat(forventning: PersonskatCfcHistoriskÅrsforventning) -> beregn_personskat(personskat_cfc_scenarie_input_for_år(forventning.indkomstår, PersonskatCfcInput(
+    poster = [PersonskatCfcEfterLigningslov16H(fakta = personskat_cfc_ll16h_positiv)]
+)))
+| personskat_cfc_historisk_uden_cfc_årsresultat(forventning: PersonskatCfcHistoriskÅrsforventning) -> beregn_personskat(personskat_cfc_scenarie_input_for_år(forventning.indkomstår, personskat_ingen_cfc()))
+| personskat_cfc_historisk_år_beregnes(forventning: PersonskatCfcHistoriskÅrsforventning) -> {
+    = resultat = personskat_cfc_historisk_årsresultat(forventning)
+    = uden_cfc = personskat_cfc_historisk_uden_cfc_årsresultat(forventning)
+    all([
+        resultat.cfc.alle_input_gyldige,
+        resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 120000,
+        resultat.cfc.par4b_resultat.positiv_cfc_indkomst_til_par8b_kroner == 120000,
+        resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 26400,
+        resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner - uden_cfc.skat.samlet_indkomstskat_efter_personfradrag_kroner == 26400,
+        personskat_cfc_har_ll16h_resultat(resultat.cfc.postresultater, PersonskatCfcLl16HForventning(
+            indkomstår = forventning.indkomstår,
+            regelversion = forventning.regelversion,
+            dansk_selskabsskat_kroner = 66000,
+            cfc_indkomst_kroner = 120000,
+            fritaget = Falskt
+        ))
+        ], |opfyldt: Boolsk| opfyldt)
+}
+
+| personskat_cfc_udenfor_kildehorisont_resultat(indkomstår: Heltal) -> personskat_cfc_resultat(PersonskatCfcInput(
+    poster = [PersonskatCfcEfterLigningslov16H(fakta = personskat_cfc_ll16h_positiv)]
+    ), indkomstår)
 
 = personskat_cfc_blandet_resultat = beregn_personskat(personskat_cfc_scenarie_input(PersonskatCfcInput(
     poster = [
@@ -108,14 +154,20 @@ kildefakta efter ligningslovens §§ 16 H og 16 I gennem personskattelovens
 = personskat_cfc_ugyldig_ejerandel_resultat = beregn_personskat(personskat_cfc_scenarie_input(PersonskatCfcInput(
     poster = [PersonskatCfcEfterLigningslov16IStk6Og7(fakta = personskat_cfc_ll16i_ugyldig_ejerandel)]
 )))
+= personskat_cfc_2022_uden_kildedækning = personskat_cfc_udenfor_kildehorisont_resultat(2022)
+= personskat_cfc_2027_uden_kildedækning = personskat_cfc_udenfor_kildehorisont_resultat(2027)
 
-| personskat_cfc_blandet_kildefakta_beskattes_efter_par8b: personskat_cfc_blandet_resultat -> personskat_cfc_blandet_resultat.cfc.alle_input_gyldige && personskat_cfc_blandet_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 150000 && personskat_cfc_blandet_resultat.cfc.par4b_resultat.positiv_cfc_indkomst_til_par8b_kroner == 150000 && personskat_cfc_blandet_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 33000 && personskat_cfc_blandet_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner - personskat_cfc_uden_cfc_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner == 33000 && personskat_cfc_har_ll16h_resultat(personskat_cfc_blandet_resultat.cfc.postresultater, 120000, Falskt) && personskat_cfc_har_ll16i_resultat(personskat_cfc_blandet_resultat.cfc.postresultater, 10000, 30000)
-| personskat_cfc_eu_eøs_fritagelse_bevares_i_kæden: personskat_cfc_fritaget_resultat -> personskat_cfc_fritaget_resultat.cfc.alle_input_gyldige && personskat_cfc_fritaget_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_fritaget_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 0 && personskat_cfc_har_ll16h_resultat(personskat_cfc_fritaget_resultat.cfc.postresultater, 0, Sandt)
-| personskat_cfc_negativt_merafkast_fremføres_før_par4b: personskat_cfc_fremførsel_resultat -> personskat_cfc_fremførsel_resultat.cfc.alle_input_gyldige && personskat_cfc_fremførsel_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_fremførsel_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 0 && personskat_cfc_har_ll16i_resultat(personskat_cfc_fremførsel_resultat.cfc.postresultater, 70000, 0)
+| personskat_cfc_historiske_år_beskattes_efter_par8b: personskat_cfc_historiske_årsforventninger -> all(personskat_cfc_historiske_årsforventninger, personskat_cfc_historisk_år_beregnes)
+| personskat_cfc_blandet_kildefakta_beskattes_efter_par8b: personskat_cfc_blandet_resultat -> personskat_cfc_blandet_resultat.cfc.alle_input_gyldige && personskat_cfc_blandet_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 150000 && personskat_cfc_blandet_resultat.cfc.par4b_resultat.positiv_cfc_indkomst_til_par8b_kroner == 150000 && personskat_cfc_blandet_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 33000 && personskat_cfc_blandet_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner - personskat_cfc_uden_cfc_resultat.skat.samlet_indkomstskat_efter_personfradrag_kroner == 33000 && personskat_cfc_har_ll16h_resultat(personskat_cfc_blandet_resultat.cfc.postresultater, PersonskatCfcLl16HForventning(indkomstår = 2026, regelversion = LlCfcLbk1500Af2025, dansk_selskabsskat_kroner = 66000, cfc_indkomst_kroner = 120000, fritaget = Falskt)) && personskat_cfc_har_ll16i_resultat(personskat_cfc_blandet_resultat.cfc.postresultater, PersonskatCfcLl16IForventning(indkomstår = 2026, regelversion = LlCfcLbk1500Af2025, anvendt_fremførsel_kroner = 10000, cfc_indkomst_kroner = 30000))
+| personskat_cfc_eu_eøs_fritagelse_bevares_i_kæden: personskat_cfc_fritaget_resultat -> personskat_cfc_fritaget_resultat.cfc.alle_input_gyldige && personskat_cfc_fritaget_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_fritaget_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 0 && personskat_cfc_har_ll16h_resultat(personskat_cfc_fritaget_resultat.cfc.postresultater, PersonskatCfcLl16HForventning(indkomstår = 2026, regelversion = LlCfcLbk1500Af2025, dansk_selskabsskat_kroner = 66000, cfc_indkomst_kroner = 0, fritaget = Sandt))
+| personskat_cfc_negativt_merafkast_fremføres_før_par4b: personskat_cfc_fremførsel_resultat -> personskat_cfc_fremførsel_resultat.cfc.alle_input_gyldige && personskat_cfc_fremførsel_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_fremførsel_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 0 && personskat_cfc_har_ll16i_resultat(personskat_cfc_fremførsel_resultat.cfc.postresultater, PersonskatCfcLl16IForventning(indkomstår = 2026, regelversion = LlCfcLbk1500Af2025, anvendt_fremførsel_kroner = 70000, cfc_indkomst_kroner = 0))
 | personskat_cfc_ugyldig_ejerandel_afvises: personskat_cfc_ugyldig_ejerandel_resultat -> personskat_cfc_ugyldig_ejerandel_resultat.cfc.alle_input_gyldige == Falskt && personskat_cfc_ugyldig_ejerandel_resultat.cfc.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_ugyldig_ejerandel_resultat.skat.cfc_indkomstskat_før_personfradrag_kroner == 0 && personskat_cfc_har_ugyldig_ejerandel(personskat_cfc_ugyldig_ejerandel_resultat.cfc.postresultater)
+| personskat_cfc_udenfor_kildehorisont_afvises: personskat_cfc_2022_uden_kildedækning -> personskat_cfc_2022_uden_kildedækning.alle_input_gyldige == Falskt && personskat_cfc_2022_uden_kildedækning.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_har_ikke_understøttet_skatteår(personskat_cfc_2022_uden_kildedækning.postresultater) && personskat_cfc_2027_uden_kildedækning.alle_input_gyldige == Falskt && personskat_cfc_2027_uden_kildedækning.par4b_resultat.cfc_indkomst_kroner == 0 && personskat_cfc_har_ikke_understøttet_skatteår(personskat_cfc_2027_uden_kildedækning.postresultater)
 
+? personskat_cfc_historiske_år_beskattes_efter_par8b
 ? personskat_cfc_blandet_kildefakta_beskattes_efter_par8b
 ? personskat_cfc_eu_eøs_fritagelse_bevares_i_kæden
 ? personskat_cfc_negativt_merafkast_fremføres_før_par4b
 ? personskat_cfc_ugyldig_ejerandel_afvises
+? personskat_cfc_udenfor_kildehorisont_afvises
 --@end:personskat_cfc_scenarier--

@@ -6,7 +6,9 @@
 
 = personskat_cfc_kildefakta_metadata = Metadata(
     attachments = (
-        Source(value = ligningsloven_2025_1500),
+        HistoricalSource(value = ligningsloven_lbk42_par16h_og_par16i_stk6_7),
+        Source(value = ligningsloven_lbk1500_par16h_og_par16i_stk6_7),
+        HistoricalSource(value = selskabsskatteloven_lbk1241_par17_stk1),
         DependencySource(value = selskabsskatteloven_lbk279_par17_stk1),
         DependencySource(value = personskatteloven_2021_1284),
     )
@@ -27,7 +29,7 @@
     | PersonskatCfcEfterLigningslov16H(fakta) -> fakta.udenlandsk_indkomstskat_kroner >= 0 && fakta.fremført_underskud_danske_regler_kroner >= 0 && personskat_cfc_basispoint_gyldigt(fakta.direkte_indirekte_ejerandel_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.stemmerettigheder_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.gennemsnitlig_ejerandel_basispoint) && personskat_cfc_basispoint_gyldigt(fakta.kontrolperiode_basispoint)
     | PersonskatCfcEfterLigningslov16IStk6Og7(fakta) -> fakta.fremført_negativt_merafkast_kroner >= 0 && personskat_cfc_basispoint_gyldigt(fakta.ret_til_merafkast_basispoint)
 }
-| personskat_cfc_skatteår_understøttet(skatteår: Heltal) -> skatteår == 2026
+| personskat_cfc_skatteår_understøttet(skatteår: Heltal) -> ligningslov_cfc_indkomstår_understøttet(skatteår)
 | personskat_cfc_post_gyldigt(input: PersonskatCfcPostInput, skatteår: Heltal) -> personskat_cfc_skatteår_understøttet(skatteår) && personskat_cfc_post_grundfakta_gyldige(input)
 | personskat_cfc_ll16h_input(fakta: PersonskatCfcEfterLigningslov16HFakta, skatteår: Heltal) -> Ligningslov16HInput(
     indkomstår = skatteår,

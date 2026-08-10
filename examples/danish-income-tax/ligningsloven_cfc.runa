@@ -1,7 +1,42 @@
 @ sprog da
 
+@ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./selskabsskatteloven
+
+# LigningslovCfcKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, første_indkomstår: Heltal, sidste_indkomstår: Heltal)
+
+= ligningsloven_lbk42_par16h_og_par16i_stk6_7 = LigningslovCfcKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven §§ 16 H og 16 I, stk. 6-7, i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10",
+    første_indkomstår = 2023,
+    sidste_indkomstår = 2025
+)
+
+= ligningsloven_lbk1500_par16h_og_par16i_stk6_7 = LigningslovCfcKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Ligningsloven §§ 16 H og 16 I, stk. 6-7, i LBK nr. 1500 af 24/11/2025",
+    hentet_dato = "2026-08-10",
+    første_indkomstår = 2026,
+    sidste_indkomstår = 2026
+)
+
+= ligningsloven_cfc_metadata = Metadata(
+    attachments = (
+        HistoricalSource(value = ligningsloven_lbk42_par16h_og_par16i_stk6_7),
+        Source(value = ligningsloven_lbk1500_par16h_og_par16i_stk6_7),
+        HistoricalSource(value = selskabsskatteloven_lbk1241_par17_stk1),
+        DependencySource(value = selskabsskatteloven_lbk279_par17_stk1),
+    )
+)
+
+# LigningslovCfcRegelversion = LlCfcLbk42Af2023 | LlCfcLbk1500Af2025 | LlCfcUdenKildedækning
+
+| ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcUdenKildedækning
+| exception ll_cfc_lbk42_for_indkomstår_2023_til_2025 ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ll_cfc_lbk1500_for_indkomstår_2026 ligningslov_cfc_regelversion(indkomstår: Heltal) -> LlCfcLbk1500Af2025 under indkomstår == 2026
+| ligningslov_cfc_indkomstår_understøttet(indkomstår: Heltal) -> ligningslov_cfc_regelversion(indkomstår) != LlCfcUdenKildedækning
 
 -- Ligningsloven -- CFC-afhængigheder (§§ 16 H og 16 I).
 --
@@ -19,6 +54,7 @@ StartDate: 2025-12-04
 EndDate: 2026-07-01
 ----
 
+--@label:ligningsloven_par16h::meta:ligningsloven_cfc_metadata--
 ----
 § 16 H.
 Hvis en skattepligtig omfattet af kildeskattelovens § 1 eller
@@ -100,18 +136,27 @@ Stk. 10. CFC-indkomsten efter stk. 7-9 kan ikke overstige den skattepligtiges
 andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 ----
 
+----
+Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. De modellerede dele af
+§ 16 H, stk. 1, 2, 6, 7, 9 og 10, er ordret identiske i den officielle XML og
+PDF for LBK nr. 42 af 13/01/2023. Kilderne registreres hver for sig; reglen
+vælger den historiske kilde for 2023-2025 og den gældende kilde for 2026.
+----
+
+--@begin:ligningsloven_par16h--
 # Ligningslov16HInput(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, udenlandsk_selskab: Boolsk, direkte_indirekte_ejerandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, fælleskontrol_med_nærtstående_fond_eller_trust: Boolsk, aftale_om_skattesats_eller_beskatningsgrundlag: Boolsk, hjemstat_regler_indrettet_efter_kontrollerende_aktionær: Boolsk, udenlandsk_indkomstskat_kroner: Heltal, selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner: Heltal, selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner: Heltal, aktier_ikke_investeringsselskab: Boolsk, eu_eøs_selskab: Boolsk, reel_etablering_og_økonomisk_virksomhed: Boolsk, dokumentation_kan_verificeres: Boolsk, medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12: Boolsk, gennemsnitlig_ejerandel_basispoint: Heltal, kontrolperiode_basispoint: Heltal, fremført_underskud_danske_regler_kroner: Heltal)
-# Ligningslov16HResultat(indkomstår: Heltal, dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner: Heltal, kontrollerer_selskab: Boolsk, lavskat_betingelse: Boolsk, cfc_over_halvdelen_betingelse: Boolsk, betingelser_for_stk1_til_stede: Boolsk, fritaget_efter_stk2: Boolsk, omfattet_af_par16h: Boolsk, fremført_underskud_medregnet_efter_stk9_kroner: Heltal, cfc_indkomst_efter_stk9_kroner: Heltal, andel_før_stk10_kroner: Heltal, stk10_cap_kroner: Heltal, medregnet_cfc_indkomst_kroner: Heltal)
+# Ligningslov16HResultat(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, skatteår_understøttet: Boolsk, dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner: Heltal, kontrollerer_selskab: Boolsk, lavskat_betingelse: Boolsk, cfc_over_halvdelen_betingelse: Boolsk, betingelser_for_stk1_til_stede: Boolsk, fritaget_efter_stk2: Boolsk, omfattet_af_par16h: Boolsk, fremført_underskud_medregnet_efter_stk9_kroner: Heltal, cfc_indkomst_efter_stk9_kroner: Heltal, andel_før_stk10_kroner: Heltal, stk10_cap_kroner: Heltal, medregnet_cfc_indkomst_kroner: Heltal)
 
 | ll16h_over_50_pct(basispoint: Heltal) -> basispoint > 5000
 | ll16h_kontrollerer_selskab(input: Ligningslov16HInput) -> input.udenlandsk_selskab && (ll16h_over_50_pct(input.direkte_indirekte_ejerandel_basispoint) || ll16h_over_50_pct(input.stemmerettigheder_basispoint) || input.fælleskontrol_med_nærtstående_fond_eller_trust)
-| ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), selskabsskattelov_par17_stk1_selskabsskat_basispoint(input.indkomstår))
+| ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> 0
+| exception ll16h_understøttet_indkomstår_henter_selskabsskattesats ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner), selskabsskattelov_par17_stk1_selskabsskat_basispoint(input.indkomstår)) under ligningslov_cfc_indkomstår_understøttet(input.indkomstår)
 | ll16h_lavskat_betingelse(input: Ligningslov16HInput) -> input.udenlandsk_indkomstskat_kroner * 4 < ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input) * 3
 | ll16h_cfc_over_halvdelen_betingelse(input: Ligningslov16HInput) -> input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 2 > input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner
 | ll16h_stk1_nr1_til_3_betingelser(input: Ligningslov16HInput) -> ll16h_lavskat_betingelse(input) && ll16h_cfc_over_halvdelen_betingelse(input) && input.aktier_ikke_investeringsselskab
 | ll16h_betingelser_for_stk1_til_stede(input: Ligningslov16HInput) -> input.aftale_om_skattesats_eller_beskatningsgrundlag || input.hjemstat_regler_indrettet_efter_kontrollerende_aktionær || ll16h_stk1_nr1_til_3_betingelser(input)
 | ll16h_fritaget_efter_stk2(input: Ligningslov16HInput) -> input.eu_eøs_selskab && input.reel_etablering_og_økonomisk_virksomhed && input.dokumentation_kan_verificeres
-| ll16h_omfattet_af_par16h(input: Ligningslov16HInput) -> input.fuldt_skattepligtig_eller_dødsbo && ll16h_kontrollerer_selskab(input) && ll16h_betingelser_for_stk1_til_stede(input) && ll16h_fritaget_efter_stk2(input) == Falskt && input.medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12 == Falskt
+| ll16h_omfattet_af_par16h(input: Ligningslov16HInput) -> ligningslov_cfc_indkomstår_understøttet(input.indkomstår) && input.fuldt_skattepligtig_eller_dødsbo && ll16h_kontrollerer_selskab(input) && ll16h_betingelser_for_stk1_til_stede(input) && ll16h_fritaget_efter_stk2(input) == Falskt && input.medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12 == Falskt
 | ll16h_cfc_andel_af_samlet_indkomst_basispoint(input: Ligningslov16HInput) -> 0
 | exception ll16h_stk9_andel ll16h_cfc_andel_af_samlet_indkomst_basispoint(input: Ligningslov16HInput) -> penge_mindste_beløb(10000, input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner * 10000 / input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner) under input.selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner > 0 && input.selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner > 0
 | ll16h_fremført_underskud_medregnet_efter_stk9_kroner(input: Ligningslov16HInput) -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.fremført_underskud_danske_regler_kroner), ll16h_cfc_andel_af_samlet_indkomst_basispoint(input))
@@ -125,6 +170,8 @@ andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 # Ligningslov16HSag(input: Ligningslov16HInput) {
     | resultat() -> Ligningslov16HResultat(
         indkomstår = input.indkomstår,
+        regelversion = ligningslov_cfc_regelversion(input.indkomstår),
+        skatteår_understøttet = ligningslov_cfc_indkomstår_understøttet(input.indkomstår),
         dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner = ll16h_dansk_selskabsskat17_stk1_af_samlet_indkomst_kroner(input),
         kontrollerer_selskab = ll16h_kontrollerer_selskab(input),
         lavskat_betingelse = ll16h_lavskat_betingelse(input),
@@ -141,7 +188,9 @@ andel af selskabets samlede skattepligtige indkomst efter stk. 4 og 5.
 }
 | ligningslov16h_sag(input: Ligningslov16HInput) -> Ligningslov16HSag(input)
 | ligningslov16h_resultat(input: Ligningslov16HInput) -> ligningslov16h_sag(input).resultat()
+--@end:ligningsloven_par16h--
 
+--@label:ligningsloven_par16i_stk6_og_stk7::meta:ligningsloven_cfc_metadata--
 ----
 § 16 I, stk. 6-7.
 
@@ -167,11 +216,18 @@ Kan der i et indkomstår opgøres et negativt merafkast, kan det negative
 merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
 ----
 
+----
+Den gengivne tekst er fra LBK nr. 1500 af 24/11/2025. § 16 I, stk. 6 og 7,
+er ordret identisk i den officielle XML og PDF for LBK nr. 42 af 13/01/2023.
+Kilderne og deres indkomstårshorisont følger den fælles CFC-regelversion.
+----
+
+--@begin:ligningsloven_par16i_stk6_og_stk7--
 # Ligningslov16IStk6Og7Input(indkomstår: Heltal, fuldt_skattepligtig_eller_dødsbo: Boolsk, kontrollerer_efter_par16h_stk6: Boolsk, medstifter_eller_ledelse_i_fond: Boolsk, selskab_har_fortrinsstilling_i_fond: Boolsk, selskabets_afkast_via_fond_kroner: Heltal, standardafkast_kroner: Heltal, fremført_negativt_merafkast_kroner: Heltal, ret_til_merafkast_basispoint: Heltal)
-# Ligningslov16IStk6Og7Resultat(indkomstår: Heltal, kontrollerer_selskab: Boolsk, omfattet_af_stk6: Boolsk, merafkast_før_fremførsel_kroner: Heltal, negativt_merafkast_til_fremførsel_kroner: Heltal, fremført_negativt_merafkast_anvendt_kroner: Heltal, positivt_merafkast_efter_fremførsel_kroner: Heltal, medregnet_som_cfc_indkomst_kroner: Heltal)
+# Ligningslov16IStk6Og7Resultat(indkomstår: Heltal, regelversion: LigningslovCfcRegelversion, skatteår_understøttet: Boolsk, kontrollerer_selskab: Boolsk, omfattet_af_stk6: Boolsk, merafkast_før_fremførsel_kroner: Heltal, negativt_merafkast_til_fremførsel_kroner: Heltal, fremført_negativt_merafkast_anvendt_kroner: Heltal, positivt_merafkast_efter_fremførsel_kroner: Heltal, medregnet_som_cfc_indkomst_kroner: Heltal)
 
 | ll16i_stk6_kontrollerer_selskab(input: Ligningslov16IStk6Og7Input) -> input.kontrollerer_efter_par16h_stk6 || input.medstifter_eller_ledelse_i_fond
-| ll16i_stk6_omfattet(input: Ligningslov16IStk6Og7Input) -> input.fuldt_skattepligtig_eller_dødsbo && ll16i_stk6_kontrollerer_selskab(input) && input.selskab_har_fortrinsstilling_i_fond
+| ll16i_stk6_omfattet(input: Ligningslov16IStk6Og7Input) -> ligningslov_cfc_indkomstår_understøttet(input.indkomstår) && input.fuldt_skattepligtig_eller_dødsbo && ll16i_stk6_kontrollerer_selskab(input) && input.selskab_har_fortrinsstilling_i_fond
 | ll16i_stk7_merafkast_før_fremførsel_kroner(input: Ligningslov16IStk6Og7Input) -> penge_positivt_beløb(input.selskabets_afkast_via_fond_kroner - input.standardafkast_kroner)
 | ll16i_stk7_negativt_merafkast_til_fremførsel_kroner(input: Ligningslov16IStk6Og7Input) -> penge_positivt_beløb(input.standardafkast_kroner - input.selskabets_afkast_via_fond_kroner)
 | ll16i_stk7_fremført_negativt_merafkast_anvendt_kroner(input: Ligningslov16IStk6Og7Input) -> penge_mindste_beløb(penge_positivt_beløb(input.fremført_negativt_merafkast_kroner), ll16i_stk7_merafkast_før_fremførsel_kroner(input))
@@ -182,6 +238,8 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
 # Ligningslov16IStk6Og7Sag(input: Ligningslov16IStk6Og7Input) {
     | resultat() -> Ligningslov16IStk6Og7Resultat(
         indkomstår = input.indkomstår,
+        regelversion = ligningslov_cfc_regelversion(input.indkomstår),
+        skatteår_understøttet = ligningslov_cfc_indkomstår_understøttet(input.indkomstår),
         kontrollerer_selskab = ll16i_stk6_kontrollerer_selskab(input),
         omfattet_af_stk6 = ll16i_stk6_omfattet(input),
         merafkast_før_fremførsel_kroner = ll16i_stk7_merafkast_før_fremførsel_kroner(input),
@@ -193,6 +251,7 @@ merafkast fradrages ved opgørelsen af merafkastet i senere indkomstår.
 }
 | ligningslov16i_stk6_og_7_sag(input: Ligningslov16IStk6Og7Input) -> Ligningslov16IStk6Og7Sag(input)
 | ligningslov16i_stk6_og_7_resultat(input: Ligningslov16IStk6Og7Input) -> ligningslov16i_stk6_og_7_sag(input).resultat()
+--@end:ligningsloven_par16i_stk6_og_stk7--
 
 = ll16h_positiv_fixture = ligningslov16h_resultat(Ligningslov16HInput(
     indkomstår = 2026,
