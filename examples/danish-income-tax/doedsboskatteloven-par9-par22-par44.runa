@@ -1,0 +1,369 @@
+@ sprog da
+
+@ importer ./doedsboskatteloven - par1 - par30
+@ importer ./kalenderdato
+@ importer ./metadata
+@ importer ./personskat - kildeskat25a - kildefakta
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+# DødsboskattelovPar9Par22Par44KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= dødsboskattelov_par9_par22_par44_lbk426 = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2019/426",
+    identifier = "Dødsboskatteloven § 9, stk. 1, nr. 6-7, § 22, stk. 1, nr. 6-7, og § 44, LBK nr. 426 af 28/03/2019 med senere ændringer",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Retsinformations gældende konsoliderede tekst er kontrolleret; reglerne forbinder samme rimelige arbejdsvederlag hos længstlevende og afdøde eller boet"
+)
+= dødsboskattelov_par44_dødsårsvejledning = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=215748&oid=1976895",
+    identifier = "Den juridiske vejledning 2026-1, C.A.8.4.5: Samlivsstatus ændret ved dødsfald",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Ejerhenføring, rimeligt arbejdsvederlag og KSL § 25 A, stk. 8-fordeling indtil dødsfaldet er kontrolleret"
+)
+= dødsboskattelov_par44_l90_forarbejder = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://www.folketingstidende.dk/samling/19961/lovforslag/L90/19961_L90_som_fremsat.pdf",
+    identifier = "1996-97, L 90 som fremsat, bemærkningerne til § 9, stk. 1, nr. 6-7, og § 44",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Forarbejderne beskriver § 44 som erstatning for dele af KSL § 25 A og fastslår, at dødsårets overførsel ikke har den tidligere overgrænse"
+)
+= dødsboskattelov_par9_mellemperiodevejledning = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1846885",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.2.3.2.2.3: Ægtefællers arbejdsindsats i mellemperioden for skattefritagne boer",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Reguleringerne efter § 9, stk. 1, nr. 6-7, og kravet om samme beløb hos længstlevende er kontrolleret"
+)
+= dødsboskattelov_par22_bobeskatningsvejledning = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=218856&oid=1847039",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.3.3.2.2.3: Ægtefællers arbejdsindsats i bobeskatningsperioden",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Reguleringerne efter § 22, stk. 1, nr. 6-7, og ejerens almindelige virksomhedsresultat er kontrolleret"
+)
+= dødsboskattelov_par44_længstlevendevejledning = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1847213",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.5.2.2.2.2: Arbejdsindsats i den anden ægtefælles virksomhed",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Personkreds, fire ejer- og arbejdsrelationer, samme-beløbskravet og obligatorisk afsluttende skatteansættelse er kontrolleret"
+)
+= dødsboskattelov_par44_obligatorisk_ansættelse_vejledning = DødsboskattelovPar9Par22Par44KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=214463&oid=1846862",
+    identifier = "Den juridiske vejledning 2026-1, C.E.3.2.2.3: Obligatorisk afsluttende skatteansættelse for mellemperioden",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Et valg om arbejdsvederlag udløser obligatorisk afsluttende skatteansættelse for mellemperioden"
+)
+
+= dødsboskattelov_par44_dødsårsfordeling_metadata = Metadata(
+    attachments = (
+        Guidance(value = dødsboskattelov_par44_dødsårsvejledning),
+        PreparatoryWork(value = dødsboskattelov_par44_l90_forarbejder),
+        DependencySource(value = kildeskatteloven_lbk460_par25a),
+    )
+)
+
+--@label:dødsboskattelov_par44_dødsårsfordeling::meta:dødsboskattelov_par44_dødsårsfordeling_metadata--
+----
+Den juridiske vejledning C.A.8.4.5, "Samlivsstatus ændret ved dødsfald":
+
+I det indkomstår en af ægtefællerne dør, beskattes indkomst fra virksomheden
+hos den ægtefælle, der ejer virksomheden.
+
+Dødsboskatteloven indeholder regler, der gør det muligt for dødsboet at
+bestemme, at den efterlevende ægtefælle beskattes af et rimeligt
+arbejdsvederlag for den indsats, der er ydet i virksomheden fra indkomstårets
+begyndelse til dødsfaldet. Beløbet kan så fradrages hos afdøde/boet.
+
+Hvis den afdøde har drevet den efterlevende ægtefælles erhvervsvirksomhed
+(eller har været medarbejdende ægtefælle), har den efterlevende ægtefælle
+mulighed for at bestemme, at et rimeligt arbejdsvederlag for afdødes
+arbejdsindsats i virksomhedens beskattes hos afdøde/boet. Beløbet kan så
+fradrages ved opgørelsen af den efterlevende ægtefælles skattepligtige indkomst.
+
+Reglen gælder også for ægtefæller, som opfylder betingelserne for at benytte den
+friere fordelingsregel i KSL § 25 A, stk. 8, indtil dødsfaldet. Den del af
+resultatet, som ville kunne overføres efter KSL § 25 A, stk. 8, betragtes som et
+rimeligt arbejdsvederlag. Hele virksomhedens resultat indtil dødsfaldet skal
+derfor ikke beskattes hos ejeren af virksomheden, men kan fordeles mellem
+ægtefællerne efter en fordelingsnorm begrundet i virksomhedens drift.
+----
+
+--@begin:dødsboskattelov_par44_dødsårsfordeling--
+# Dødsboskattelov44Bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo | Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo | Dbl44InsolventDødsbo | Dbl44IkkeSelvstændigtSkattesubjekt
+# Dødsboskattelov44Virksomhedsejer = Dbl44AfdødeEjerVirksomheden | Dbl44LængstlevendeEjerVirksomheden
+# Dødsboskattelov44Arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden | Dbl44IkkeEjerDeltogVæsentligtOgEjerDrevIOvervejendeGrad | Dbl44BeggeDeltogVæsentligtOgLigeligt | Dbl44IngenKvalificerendeArbejdsindsats
+# Dødsboskattelov44Arbejdsperiode(identifikation: Tekst, fra_dato: Dato, til_dato: Dato, arbejdets_art: Tekst, arbejdets_omfang: Tekst, betaling_til_sammenlignelig_tredjemand_kroner: Heltal, dokumentreference: Tekst)
+# Dødsboskattelov44Virksomhedsgrundlag(virksomhed: PersonskatOrdinærVirksomhedFakta, postperioder: List(PersonskatKsl25AVirksomhedspostperiode))
+# Dødsboskattelov44Valg = Dbl44IntetVederlagsvalg | Dbl44RimeligtArbejdsvederlagValgt(valgdato: Dato, dokumentreference: Tekst) | Dbl44FriereFordelingValgt(valgdato: Dato, hæfter_i_samme_omfang: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, lønaftale_fandt_anvendelse_i_perioden: Boolsk, andel_til_ikke_ejer_basispoint: Heltal, dokumentreference: Tekst)
+# Dødsboskattelov44Valghaver = Dbl44DødsboetVælger | Dbl44LængstlevendeVælger
+# Dødsboskattelov44Input(afdødes_identifikation: Tekst, længstlevendes_identifikation: Tekst, dødsdato: Dato, bostatus: Dødsboskattelov44Bostatus, separeret_ved_dødsfaldet: Boolsk, virksomhedsejer: Dødsboskattelov44Virksomhedsejer, arbejdsrelation: Dødsboskattelov44Arbejdsrelation, arbejdsperioder: List(Dødsboskattelov44Arbejdsperiode), virksomhedsgrundlag: Dødsboskattelov44Virksomhedsgrundlag, valg: Dødsboskattelov44Valg)
+# Dødsboskattelov44Resultat(input: Dødsboskattelov44Input, input_gyldigt: Boolsk, personkreds_omfattet: Boolsk, valg_anvendt: Boolsk, valg_gyldigt: Boolsk, valghaver: Dødsboskattelov44Valghaver, hjemmel_opfyldt: Boolsk, beregningsklar: Boolsk, friere_fordeling_efter_ksl25a_stk8_anvendt: Boolsk, virksomhedsresultat_indtil_dødsfaldet: Kildeskat25AVirksomhedsbeløb, rimeligt_arbejdsvederlag: Kildeskat25AVirksomhedsbeløb, ejerens_virksomhedsresultat_efter_vederlag: Kildeskat25AVirksomhedsbeløb, længstlevendes_regulering: Kildeskat25AVirksomhedsbeløb, afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner: Heltal, par9_stk1_nr6_anvendt: Boolsk, par9_stk1_nr7_anvendt: Boolsk, par22_stk1_nr6_anvendt: Boolsk, par22_stk1_nr7_anvendt: Boolsk, afsluttende_skatteansættelse_obligatorisk: Boolsk, fordeling_bevarer_skattepligtig_indkomst: Boolsk)
+# Dødsboskattelov9Mellemperiodeinput(dødsdato: Dato, skattepligtig_indkomst_før_par9_regulering_kroner: Heltal, dokumentreference: Tekst)
+# Dødsboskattelov9Mellemperioderesultat(input: Dødsboskattelov9Mellemperiodeinput, vederlagsresultat: Dødsboskattelov44Resultat, input_gyldigt: Boolsk, par9_regulering_kroner: Heltal, skattepligtig_indkomst_efter_par9_regulering_kroner: Heltal, afsluttende_skatteansættelse_obligatorisk: Boolsk)
+# Dødsboskattelov44Bobeskatningsresultat(input_før_par22: Dødsboskattelov30Input, vederlagsresultat: Dødsboskattelov44Resultat, input_gyldigt: Boolsk, par22_regulering_kroner: Heltal, input_efter_par22: Dødsboskattelov30Input, resultat_efter_par22: Option(Dødsboskattelov30Resultat))
+
+| dødsboskattelov44_dødsårets_startdato(input: Dødsboskattelov44Input) -> Dato(år = input.dødsdato.år, måned = 1, dag = 1)
+| dødsboskattelov44_postperiode_grundfakta_gyldige(input: Dødsboskattelov44Input, periode: PersonskatKsl25AVirksomhedspostperiode) -> periode.kildepost_identifikation != "" && dato_gyldig(periode.fra_dato) && dato_gyldig(periode.til_dato) && periode.fra_dato.år == input.dødsdato.år && periode.til_dato.år == input.dødsdato.år && dato_før_eller_lig_med(periode.fra_dato, periode.til_dato)
+| dødsboskattelov44_postperiode_respekterer_dødsfaldet(input: Dødsboskattelov44Input, periode: PersonskatKsl25AVirksomhedspostperiode) -> dato_før_eller_lig_med(periode.til_dato, input.dødsdato) || dato_efter(periode.fra_dato, input.dødsdato)
+| dødsboskattelov44_postperiode_identifikationer(perioder: List(PersonskatKsl25AVirksomhedspostperiode)) -> map(perioder, |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation)
+| dødsboskattelov44_postperioder_dækker_virksomheden(input: Dødsboskattelov44Input) -> {
+    = kildeidentifikationer = personskat_virksomhed_postidentifikationer(input.virksomhedsgrundlag.virksomhed)
+    = periodeidentifikationer = dødsboskattelov44_postperiode_identifikationer(input.virksomhedsgrundlag.postperioder)
+    length(distinct(periodeidentifikationer)) == length(periodeidentifikationer) && length(periodeidentifikationer) == length(kildeidentifikationer) && all(kildeidentifikationer, |identifikation: Tekst| contains(periodeidentifikationer, identifikation))
+}
+| dødsboskattelov44_postperioder_gyldige(input: Dødsboskattelov44Input) -> dødsboskattelov44_postperioder_dækker_virksomheden(input) && all(input.virksomhedsgrundlag.postperioder, |periode: PersonskatKsl25AVirksomhedspostperiode| dødsboskattelov44_postperiode_grundfakta_gyldige(input, periode) && dødsboskattelov44_postperiode_respekterer_dødsfaldet(input, periode))
+| dødsboskattelov44_postidentifikationer_indtil_dødsfaldet(input: Dødsboskattelov44Input) -> map(
+    filter(input.virksomhedsgrundlag.postperioder, |periode: PersonskatKsl25AVirksomhedspostperiode| dato_før_eller_lig_med(periode.til_dato, input.dødsdato)),
+    |periode: PersonskatKsl25AVirksomhedspostperiode| periode.kildepost_identifikation
+)
+| dødsboskattelov44_virksomhed_for_postidentifikationer(virksomhed: PersonskatOrdinærVirksomhedFakta, identifikationer: List(Tekst)) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = virksomhed.identifikation,
+    indkomstår = virksomhed.indkomstår,
+    indtægter = filter(virksomhed.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| contains(identifikationer, indtægt.identifikation)),
+    udgifter = filter(virksomhed.udgifter, |udgift: PersonskatVirksomhedsudgiftFakta| contains(identifikationer, udgift.identifikation))
+)
+| dødsboskattelov44_virksomhedsresultat_gyldigt(resultat: PersonskatOrdinærVirksomhedResultat) -> match resultat {
+    | BeregnetOrdinærVirksomhed(_) -> Sandt
+    | _ -> Falskt
+}
+| dødsboskattelov44_virksomhedsbeløb_fra_resultat(resultat: PersonskatOrdinærVirksomhedResultat) -> match resultat {
+    | BeregnetOrdinærVirksomhed(beregning) -> Kildeskat25AVirksomhedsbeløb(
+        skattepligtig_indkomst_kroner = beregning.par3_indkomstresultat_for_virksomheden.netto_personlig_indkomst_kroner,
+        personlig_indkomst_kroner = beregning.par3_indkomstresultat_for_virksomheden.netto_personlig_indkomst_kroner,
+        kapitalindkomst_kroner = 0,
+        arbejdsmarkedsbidragspligtig_indkomst_kroner = beregning.arbejdsmarkedsbidragsgrundlag_tillæg_kroner
+    )
+    | _ -> kildeskat25a_tomt_virksomhedsbeløb()
+}
+| dødsboskattelov44_virksomhed_indtil_dødsfaldet(input: Dødsboskattelov44Input) -> dødsboskattelov44_virksomhed_for_postidentifikationer(input.virksomhedsgrundlag.virksomhed, dødsboskattelov44_postidentifikationer_indtil_dødsfaldet(input))
+| dødsboskattelov44_kilderesultat_indtil_dødsfaldet(input: Dødsboskattelov44Input) -> personskat_virksomhed_resultat(dødsboskattelov44_virksomhed_indtil_dødsfaldet(input), input.dødsdato.år, Sandt)
+| dødsboskattelov44_virksomhedsresultat_indtil_dødsfaldet(input: Dødsboskattelov44Input) -> dødsboskattelov44_virksomhedsbeløb_fra_resultat(dødsboskattelov44_kilderesultat_indtil_dødsfaldet(input))
+| dødsboskattelov44_arbejdsperioder_overlapper(venstre: Dødsboskattelov44Arbejdsperiode, højre: Dødsboskattelov44Arbejdsperiode) -> dato_før_eller_lig_med(venstre.fra_dato, højre.til_dato) && dato_før_eller_lig_med(højre.fra_dato, venstre.til_dato)
+| dødsboskattelov44_arbejdsperiode_gyldig(input: Dødsboskattelov44Input, periode: Dødsboskattelov44Arbejdsperiode) -> periode.identifikation != "" && periode.arbejdets_art != "" && periode.arbejdets_omfang != "" && periode.dokumentreference != "" && periode.betaling_til_sammenlignelig_tredjemand_kroner >= 0 && dato_gyldig(periode.fra_dato) && dato_gyldig(periode.til_dato) && dato_efter_eller_lig_med(periode.fra_dato, dødsboskattelov44_dødsårets_startdato(input)) && dato_før_eller_lig_med(periode.fra_dato, periode.til_dato) && dato_før_eller_lig_med(periode.til_dato, input.dødsdato)
+| dødsboskattelov44_arbejdsperioder_uden_overlap(perioder: List(Dødsboskattelov44Arbejdsperiode)) -> all(
+    perioder,
+    |periode: Dødsboskattelov44Arbejdsperiode| all(perioder, |anden: Dødsboskattelov44Arbejdsperiode| periode.identifikation == anden.identifikation || dødsboskattelov44_arbejdsperioder_overlapper(periode, anden) == Falskt)
+)
+| dødsboskattelov44_arbejdsperioder_gyldige(input: Dødsboskattelov44Input) -> length(input.arbejdsperioder) > 0 && length(distinct(map(input.arbejdsperioder, |periode: Dødsboskattelov44Arbejdsperiode| periode.identifikation))) == length(input.arbejdsperioder) && dødsboskattelov44_arbejdsperioder_uden_overlap(input.arbejdsperioder) && all(input.arbejdsperioder, |periode: Dødsboskattelov44Arbejdsperiode| dødsboskattelov44_arbejdsperiode_gyldig(input, periode))
+| dødsboskattelov44_arbejdsgrundlag_gyldigt(input: Dødsboskattelov44Input) -> match input.arbejdsrelation {
+    | Dbl44IngenKvalificerendeArbejdsindsats -> length(input.arbejdsperioder) == 0
+    | _ -> dødsboskattelov44_arbejdsperioder_gyldige(input)
+}
+| dødsboskattelov44_sammenligneligt_arbejdsvederlag_kroner(input: Dødsboskattelov44Input) -> foldl(input.arbejdsperioder, 0, |sum_kroner: Heltal, periode: Dødsboskattelov44Arbejdsperiode| sum_kroner + periode.betaling_til_sammenlignelig_tredjemand_kroner)
+| dødsboskattelov44_ordinær_arbejdsrelation_opfyldt(input: Dødsboskattelov44Input) -> input.arbejdsrelation == Dbl44IkkeEjerDrevVirksomheden || input.arbejdsrelation == Dbl44IkkeEjerDeltogVæsentligtOgEjerDrevIOvervejendeGrad
+| dødsboskattelov44_friere_fordeling_valgt(valg: Dødsboskattelov44Valg) -> match valg {
+    | Dbl44FriereFordelingValgt(_, _, _, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+| dødsboskattelov44_valg_anvendt(valg: Dødsboskattelov44Valg) -> valg != Dbl44IntetVederlagsvalg
+| dødsboskattelov44_valgdato_og_reference_gyldige(dødsdato: Dato, valgdato: Dato, dokumentreference: Tekst) -> dato_gyldig(valgdato) && dato_efter_eller_lig_med(valgdato, dødsdato) && dokumentreference != ""
+| dødsboskattelov44_valg_gyldigt(input: Dødsboskattelov44Input) -> match input.valg {
+    | Dbl44IntetVederlagsvalg -> Sandt
+    | Dbl44RimeligtArbejdsvederlagValgt(valgdato, dokumentreference) -> dødsboskattelov44_valgdato_og_reference_gyldige(input.dødsdato, valgdato, dokumentreference) && dødsboskattelov44_ordinær_arbejdsrelation_opfyldt(input) && all(input.arbejdsperioder, |periode: Dødsboskattelov44Arbejdsperiode| periode.betaling_til_sammenlignelig_tredjemand_kroner > 0)
+    | Dbl44FriereFordelingValgt(valgdato, hæfter_ligeligt, sagligt_begrundet, lønaftale, andel_basispoint, dokumentreference) -> dødsboskattelov44_valgdato_og_reference_gyldige(input.dødsdato, valgdato, dokumentreference) && input.arbejdsrelation == Dbl44BeggeDeltogVæsentligtOgLigeligt && andel_basispoint > 0 && andel_basispoint < 10000 && kildeskat25a_stk8_grundbetingelser_opfyldt(
+        begge_deltager_i_væsentligt_og_ligeligt_omfang = Sandt,
+        hæfter_i_samme_omfang = hæfter_ligeligt,
+        fordeling_anmodet = Sandt,
+        fordeling_sagligt_begrundet_i_driften = sagligt_begrundet,
+        lønaftale_finder_anvendelse = lønaftale
+    )
+}
+| dødsboskattelov44_personkreds_omfattet(input: Dødsboskattelov44Input) -> (input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo || input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo) && input.separeret_ved_dødsfaldet == Falskt
+| dødsboskattelov44_input_gyldigt(input: Dødsboskattelov44Input) -> {
+    = virksomhedsresultat = personskat_virksomhed_resultat(input.virksomhedsgrundlag.virksomhed, input.dødsdato.år, Sandt)
+    = virksomhedsresultat_indtil_dødsfaldet = dødsboskattelov44_kilderesultat_indtil_dødsfaldet(input)
+    input.afdødes_identifikation != "" && input.længstlevendes_identifikation != "" && input.afdødes_identifikation != input.længstlevendes_identifikation && dato_gyldig(input.dødsdato) && input.virksomhedsgrundlag.virksomhed.identifikation != "" && dødsboskattelov44_postperioder_gyldige(input) && dødsboskattelov44_virksomhedsresultat_gyldigt(virksomhedsresultat) && dødsboskattelov44_virksomhedsresultat_gyldigt(virksomhedsresultat_indtil_dødsfaldet) && dødsboskattelov44_arbejdsgrundlag_gyldigt(input)
+}
+| dødsboskattelov44_valghaver(input: Dødsboskattelov44Input) -> hvis input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { Dbl44DødsboetVælger } ellers { Dbl44LængstlevendeVælger }
+| dødsboskattelov44_vederlag_fra_valg(input: Dødsboskattelov44Input, virksomhedsresultat: Kildeskat25AVirksomhedsbeløb) -> match input.valg {
+    | Dbl44IntetVederlagsvalg -> kildeskat25a_tomt_virksomhedsbeløb()
+    | Dbl44RimeligtArbejdsvederlagValgt(_, _) -> kildeskat25a_virksomhedsbeløb_fra_overførsel(dødsboskattelov44_sammenligneligt_arbejdsvederlag_kroner(input))
+    | Dbl44FriereFordelingValgt(_, _, _, _, andel_basispoint, _) -> kildeskat25a_virksomhedsbeløb_andel(virksomhedsresultat, andel_basispoint)
+}
+--@end:dødsboskattelov_par44_dødsårsfordeling--
+
+= dødsboskattelov_par9_stk1_nr6_nr7_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par9_par22_par44_lbk426),
+        Guidance(value = dødsboskattelov_par9_mellemperiodevejledning),
+        Guidance(value = dødsboskattelov_par44_obligatorisk_ansættelse_vejledning),
+    )
+)
+
+--@label:dødsboskattelov_par9_stk1_nr6_nr7::meta:dødsboskattelov_par9_stk1_nr6_nr7_metadata--
+----
+§ 9. Ved opgørelsen af den skattepligtige indkomst gælder følgende:
+
+6) Hvis afdødes længstlevende ægtefælle i mellemperioden har drevet en
+erhvervsvirksomhed, der tilhørte afdøde, kan der fradrages et beløb, der svarer
+til den betaling, der skulle være ydet andre for udførelsen af et arbejde af
+samme art og omfang. Tilsvarende gælder, hvis den længstlevende ægtefælle i
+mellemperioden har deltaget i væsentligt omfang i driften af en
+erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af afdøde.
+Ved anvendelsen af 1. og 2. pkt. er det en betingelse, at den længstlevende
+ægtefælle beskattes efter § 44, stk. 1.
+
+7) Hvis afdøde i mellemperioden har drevet en erhvervsvirksomhed, der tilhørte
+afdødes længstlevende ægtefælle, kan den længstlevende ægtefælle bestemme, at
+der skal medregnes et beløb, der svarer til den betaling, der skulle være ydet
+andre for udførelsen af et arbejde af samme art og omfang. Tilsvarende gælder,
+hvis afdøde i mellemperioden har deltaget i væsentligt omfang i driften af en
+erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af den
+længstlevende ægtefælle.
+----
+
+--@begin:dødsboskattelov_par9_stk1_nr6_nr7--
+| dødsboskattelov9_stk1_nr6_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { 0 - vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
+| dødsboskattelov9_stk1_nr7_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden { vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
+| dødsboskattelov9_mellemperioderesultat(input: Dødsboskattelov9Mellemperiodeinput, vederlagsresultat: Dødsboskattelov44Resultat) -> {
+    = input_gyldigt = dato_gyldig(input.dødsdato) && input.dødsdato == vederlagsresultat.input.dødsdato && input.dokumentreference != "" && vederlagsresultat.input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && vederlagsresultat.beregningsklar
+    = regulering_kroner = hvis input_gyldigt { vederlagsresultat.afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner } ellers { 0 }
+    Dødsboskattelov9Mellemperioderesultat(
+        input = input,
+        vederlagsresultat = vederlagsresultat,
+        input_gyldigt = input_gyldigt,
+        par9_regulering_kroner = regulering_kroner,
+        skattepligtig_indkomst_efter_par9_regulering_kroner = hvis input_gyldigt { input.skattepligtig_indkomst_før_par9_regulering_kroner + regulering_kroner } ellers { input.skattepligtig_indkomst_før_par9_regulering_kroner },
+        afsluttende_skatteansættelse_obligatorisk = input_gyldigt && vederlagsresultat.afsluttende_skatteansættelse_obligatorisk
+    )
+}
+--@end:dødsboskattelov_par9_stk1_nr6_nr7--
+
+= dødsboskattelov_par22_stk1_nr6_nr7_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par9_par22_par44_lbk426),
+        Guidance(value = dødsboskattelov_par22_bobeskatningsvejledning),
+    )
+)
+
+--@label:dødsboskattelov_par22_stk1_nr6_nr7::meta:dødsboskattelov_par22_stk1_nr6_nr7_metadata--
+----
+§ 22. Ved opgørelsen af bobeskatningsindkomsten gælder følgende:
+
+6) Hvis afdødes længstlevende ægtefælle i mellemperioden har drevet en
+erhvervsvirksomhed, der tilhørte afdøde, kan der fradrages et beløb, der svarer
+til den betaling, der skulle være ydet andre for udførelsen af et arbejde af
+samme art og omfang. Tilsvarende gælder, hvis den længstlevende ægtefælle i
+mellemperioden har deltaget i væsentligt omfang i driften af en
+erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af afdøde.
+Ved anvendelsen af 1. og 2. pkt. er det en betingelse, at den længstlevende
+ægtefælle beskattes efter § 44, stk. 1.
+
+7) Hvis afdøde i mellemperioden har drevet en erhvervsvirksomhed, der tilhørte
+afdødes længstlevende ægtefælle, kan den længstlevende ægtefælle bestemme, at
+der skal medregnes et beløb, der svarer til den betaling, der skulle være ydet
+andre for udførelsen af et arbejde af samme art og omfang. Tilsvarende gælder,
+hvis afdøde i mellemperioden har deltaget i væsentligt omfang i driften af en
+erhvervsvirksomhed, der tilhørte og i overvejende grad blev drevet af den
+længstlevende ægtefælle.
+----
+
+--@begin:dødsboskattelov_par22_stk1_nr6_nr7--
+| dødsboskattelov22_stk1_nr6_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { 0 - vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
+| dødsboskattelov22_stk1_nr7_regulering_kroner(input: Dødsboskattelov44Input, hjemmel_opfyldt: Boolsk, vederlag: Kildeskat25AVirksomhedsbeløb) -> hvis hjemmel_opfyldt && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden { vederlag.skattepligtig_indkomst_kroner } ellers { 0 }
+| dødsboskattelov44_bobeskatningsinput_efter_par22(input: Dødsboskattelov30Input, regulering_kroner: Heltal) -> Dødsboskattelov30Input(
+    boform = input.boform,
+    bobeskatningsindkomst_kroner = input.bobeskatningsindkomst_kroner + regulering_kroner,
+    dødsdato = input.dødsdato,
+    boopgørelsestype = input.boopgørelsestype,
+    boopgørelsens_skæringsdag = input.boopgørelsens_skæringsdag,
+    indkomstårsforhold = input.indkomstårsforhold,
+    ægtefælleforhold = input.ægtefælleforhold,
+    aktieindkomstgrundlag = input.aktieindkomstgrundlag,
+    carrybackgrundlag = input.carrybackgrundlag
+)
+| dødsboskattelov44_bobeskatningsresultat(input: Dødsboskattelov30Input, vederlagsresultat: Dødsboskattelov44Resultat) -> {
+    = input_gyldigt = input.dødsdato == vederlagsresultat.input.dødsdato && input.boform == Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark && vederlagsresultat.input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && vederlagsresultat.beregningsklar
+    = regulering_kroner = hvis input_gyldigt { vederlagsresultat.afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner } ellers { 0 }
+    = reguleret_input = dødsboskattelov44_bobeskatningsinput_efter_par22(input, regulering_kroner)
+    Dødsboskattelov44Bobeskatningsresultat(
+        input_før_par22 = input,
+        vederlagsresultat = vederlagsresultat,
+        input_gyldigt = input_gyldigt,
+        par22_regulering_kroner = regulering_kroner,
+        input_efter_par22 = reguleret_input,
+        resultat_efter_par22 = hvis input_gyldigt { Some(dødsboskattelov30_resultat(reguleret_input)) } ellers { None }
+    )
+}
+--@end:dødsboskattelov_par22_stk1_nr6_nr7--
+
+= dødsboskattelov_par44_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par9_par22_par44_lbk426),
+        Guidance(value = dødsboskattelov_par44_længstlevendevejledning),
+        Guidance(value = dødsboskattelov_par44_obligatorisk_ansættelse_vejledning),
+        PreparatoryWork(value = dødsboskattelov_par44_l90_forarbejder),
+    )
+)
+
+--@label:dødsboskattelov_par44::meta:dødsboskattelov_par44_metadata--
+----
+§ 44. Hvis den længstlevende ægtefælle i mellemperioden har drevet en
+erhvervsvirksomhed, der tilhørte afdøde, kan boet bestemme, at den
+længstlevende ægtefælle til sin skattepligtige indkomst i dødsåret skal
+medregne et beløb, der svarer til den betaling, der skulle være ydet andre for
+udførelsen af et arbejde af samme art og omfang. Tilsvarende gælder, hvis den
+længstlevende ægtefælle i mellemperioden har deltaget i væsentligt omfang i
+driften af en erhvervsvirksomhed, der tilhørte og i overvejende grad blev
+drevet af afdøde.
+
+Stk. 2. Hvis afdøde i mellemperioden har drevet en erhvervsvirksomhed, der
+tilhørte afdødes længstlevende ægtefælle, kan den længstlevende ægtefælle i sin
+skattepligtige indkomst for dødsåret fradrage et beløb, der svarer til den
+betaling, der skulle være ydet andre for udførelsen af et arbejde af samme art
+og omfang. Tilsvarende gælder, hvis afdøde i mellemperioden har deltaget i
+væsentligt omfang i driften af en erhvervsvirksomhed, der tilhørte og i
+overvejende grad blev drevet af den længstlevende ægtefælle. Ved anvendelsen af
+1. og 2. pkt. er det en betingelse, at et tilsvarende beløb medregnes ved en
+selvstændig skatteansættelse af afdødes indkomst i mellemperioden efter § 13,
+jf. § 9, stk. 1, nr. 7, eller medregnes til bobeskatningsindkomsten efter § 22,
+stk. 1, nr. 7.
+----
+
+--@begin:dødsboskattelov_par44--
+# Dødsboskattelov44Sag(input: Dødsboskattelov44Input) {
+    | input_gyldigt() -> dødsboskattelov44_input_gyldigt(input)
+    | personkreds_omfattet() -> dødsboskattelov44_personkreds_omfattet(input)
+    | valg_anvendt() -> dødsboskattelov44_valg_anvendt(input.valg)
+    | valg_gyldigt() -> dødsboskattelov44_valg_gyldigt(input)
+    | hjemmel_opfyldt() -> input_gyldigt() && personkreds_omfattet() && valg_anvendt() && valg_gyldigt()
+    | beregningsklar() -> input_gyldigt() && (valg_anvendt() == Falskt || hjemmel_opfyldt())
+    | virksomhedsresultat() -> hvis input_gyldigt() { dødsboskattelov44_virksomhedsresultat_indtil_dødsfaldet(input) } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | arbejdsvederlag() -> hvis hjemmel_opfyldt() { dødsboskattelov44_vederlag_fra_valg(input, virksomhedsresultat()) } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | ejerens_resultat_efter_vederlag() -> hvis beregningsklar() { kildeskat25a_virksomhedsbeløb_minus(virksomhedsresultat(), arbejdsvederlag()) } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | længstlevendes_regulering() -> hvis hjemmel_opfyldt() {
+        hvis input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden { arbejdsvederlag() } ellers { kildeskat25a_virksomhedsbeløb_minus(kildeskat25a_tomt_virksomhedsbeløb(), arbejdsvederlag()) }
+    } ellers { kildeskat25a_tomt_virksomhedsbeløb() }
+    | par9_nr6_regulering_kroner() -> dødsboskattelov9_stk1_nr6_regulering_kroner(input, hjemmel_opfyldt(), arbejdsvederlag())
+    | par9_nr7_regulering_kroner() -> dødsboskattelov9_stk1_nr7_regulering_kroner(input, hjemmel_opfyldt(), arbejdsvederlag())
+    | par22_nr6_regulering_kroner() -> dødsboskattelov22_stk1_nr6_regulering_kroner(input, hjemmel_opfyldt(), arbejdsvederlag())
+    | par22_nr7_regulering_kroner() -> dødsboskattelov22_stk1_nr7_regulering_kroner(input, hjemmel_opfyldt(), arbejdsvederlag())
+    | par9_nr6_anvendt() -> hjemmel_opfyldt() && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden
+    | par9_nr7_anvendt() -> hjemmel_opfyldt() && input.bostatus == Dbl44SkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden
+    | par22_nr6_anvendt() -> hjemmel_opfyldt() && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44AfdødeEjerVirksomheden
+    | par22_nr7_anvendt() -> hjemmel_opfyldt() && input.bostatus == Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo && input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden
+    | afdødes_eller_boets_regulering_kroner() -> par9_nr6_regulering_kroner() + par9_nr7_regulering_kroner() + par22_nr6_regulering_kroner() + par22_nr7_regulering_kroner()
+    | fordeling_bevarer_skattepligtig_indkomst() -> længstlevendes_regulering().skattepligtig_indkomst_kroner + afdødes_eller_boets_regulering_kroner() == 0
+    | resultat() -> Dødsboskattelov44Resultat(
+        input = input,
+        input_gyldigt = input_gyldigt(),
+        personkreds_omfattet = personkreds_omfattet(),
+        valg_anvendt = valg_anvendt(),
+        valg_gyldigt = valg_gyldigt(),
+        valghaver = dødsboskattelov44_valghaver(input),
+        hjemmel_opfyldt = hjemmel_opfyldt(),
+        beregningsklar = beregningsklar(),
+        friere_fordeling_efter_ksl25a_stk8_anvendt = hjemmel_opfyldt() && dødsboskattelov44_friere_fordeling_valgt(input.valg),
+        virksomhedsresultat_indtil_dødsfaldet = virksomhedsresultat(),
+        rimeligt_arbejdsvederlag = arbejdsvederlag(),
+        ejerens_virksomhedsresultat_efter_vederlag = ejerens_resultat_efter_vederlag(),
+        længstlevendes_regulering = længstlevendes_regulering(),
+        afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner = afdødes_eller_boets_regulering_kroner(),
+        par9_stk1_nr6_anvendt = par9_nr6_anvendt(),
+        par9_stk1_nr7_anvendt = par9_nr7_anvendt(),
+        par22_stk1_nr6_anvendt = par22_nr6_anvendt(),
+        par22_stk1_nr7_anvendt = par22_nr7_anvendt(),
+        afsluttende_skatteansættelse_obligatorisk = hjemmel_opfyldt(),
+        fordeling_bevarer_skattepligtig_indkomst = fordeling_bevarer_skattepligtig_indkomst()
+    )
+}
+
+| dødsboskattelov44_resultat(input: Dødsboskattelov44Input) -> Dødsboskattelov44Sag(input).resultat()
+--@end:dødsboskattelov_par44--

@@ -282,10 +282,17 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
     | Ksl25AStk3MedarbejdendeÆgtefælle(fakta) -> Some(kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta))
     | _ -> None
 }
+| kildeskat25a_stk8_grundbetingelser_opfyldt(begge_deltager_i_væsentligt_og_ligeligt_omfang: Boolsk, hæfter_i_samme_omfang: Boolsk, fordeling_anmodet: Boolsk, fordeling_sagligt_begrundet_i_driften: Boolsk, lønaftale_finder_anvendelse: Boolsk) -> begge_deltager_i_væsentligt_og_ligeligt_omfang && hæfter_i_samme_omfang && fordeling_anmodet && fordeling_sagligt_begrundet_i_driften && lønaftale_finder_anvendelse == Falskt
 | kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, henføring: Kildeskat25AFortjenestehenføring) -> match henføring {
     | Ksl25AStk1Virksomhedsdriver(samlevende, samliv_ophoert, begge_deltager, personen_driver, personen_driver_overvejende) -> samlevende && samliv_ophoert == Falskt && personen_driver && (begge_deltager == Falskt || personen_driver_overvejende)
     | Ksl25AStk3MedarbejdendeÆgtefælle(fakta) -> kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta).stk3_betingelser_opfyldt && kildeskat25a_stk3_resultat_fra_fortjeneste(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, fakta).overført_til_medarbejdende_ægtefælle_kroner > 0
-    | Ksl25AStk8LigeligDeltagelse(samlevende, samliv_ophoert, begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, lønaftale, andel_basispoint) -> samlevende && samliv_ophoert == Falskt && begge_ligeligt && hæfter_ligeligt && anmodet && sagligt_begrundet && lønaftale == Falskt && andel_basispoint > 0 && andel_basispoint <= 10000
+    | Ksl25AStk8LigeligDeltagelse(samlevende, samliv_ophoert, begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, lønaftale, andel_basispoint) -> samlevende && samliv_ophoert == Falskt && andel_basispoint > 0 && andel_basispoint <= 10000 && kildeskat25a_stk8_grundbetingelser_opfyldt(
+        begge_deltager_i_væsentligt_og_ligeligt_omfang = begge_ligeligt,
+        hæfter_i_samme_omfang = hæfter_ligeligt,
+        fordeling_anmodet = anmodet,
+        fordeling_sagligt_begrundet_i_driften = sagligt_begrundet,
+        lønaftale_finder_anvendelse = lønaftale
+    )
 }
 | kildeskat25a_fortjeneste_medregnet_hos_person_før_am_kroner(indkomstår: Heltal, fortjeneste_opnået_af_ægtefælle_før_am_kroner: Heltal, henføring: Kildeskat25AFortjenestehenføring) -> hvis kildeskat25a_fortjeneste_hjemmel_opfyldt(indkomstår, fortjeneste_opnået_af_ægtefælle_før_am_kroner, henføring) {
     match henføring {
@@ -409,7 +416,13 @@ forhold, som virksomhedens resultat fordeles mellem ægtefællerne.
             resultat.stk3_betingelser_opfyldt && resultat.overført_til_medarbejdende_ægtefælle_kroner > 0 && resultat.overført_til_medarbejdende_ægtefælle_kroner <= input.virksomhedsresultat_efter_eventuel_løn.personlig_indkomst_kroner && resultat.overført_til_medarbejdende_ægtefælle_kroner <= input.virksomhedsresultat_efter_eventuel_løn.arbejdsmarkedsbidragspligtig_indkomst_kroner
         }
         | Ksl25AStk7Lønaftale(fakta) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && kildeskat25a_stk7_resultat(input.indkomstår, fakta).stk7_betingelser_opfyldt
-        | Ksl25AStk8LigeligResultatfordeling(begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, andel_basispoint) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && begge_ligeligt && hæfter_ligeligt && anmodet && sagligt_begrundet && andel_basispoint > 0 && andel_basispoint < 10000
+        | Ksl25AStk8LigeligResultatfordeling(begge_ligeligt, hæfter_ligeligt, anmodet, sagligt_begrundet, andel_basispoint) -> input.samlevende_ved_indkomstårets_udgang && input.samliv_ophoert_i_indkomståret == Falskt && andel_basispoint > 0 && andel_basispoint < 10000 && kildeskat25a_stk8_grundbetingelser_opfyldt(
+            begge_deltager_i_væsentligt_og_ligeligt_omfang = begge_ligeligt,
+            hæfter_i_samme_omfang = hæfter_ligeligt,
+            fordeling_anmodet = anmodet,
+            fordeling_sagligt_begrundet_i_driften = sagligt_begrundet,
+            lønaftale_finder_anvendelse = Falskt
+        )
     }
 }
 | kildeskat25a_virksomhedsfordeling_anden_ægtefælle(input: Kildeskat25AVirksomhedsfordelingsinput) -> hvis kildeskat25a_virksomhedsfordeling_hjemmel_opfyldt(input) {

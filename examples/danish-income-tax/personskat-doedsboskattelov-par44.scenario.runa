@@ -1,0 +1,129 @@
+@ sprog da
+
+@ importer ./personskat - doedsboskattelov - par44
+
+| personskat_dbl44_scenarie_virksomhed() -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = "arkitektvirksomhed",
+    indkomstår = 2025,
+    indtægter = [
+        PersonskatVirksomhedsindtægtFakta(identifikation = "indtægt-før-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 300000),
+        PersonskatVirksomhedsindtægtFakta(identifikation = "indtægt-efter-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 120000),
+    ],
+    udgifter = [
+        PersonskatVirksomhedsudgiftFakta(identifikation = "udgift-før-dødsfald", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 50000),
+    ]
+)
+| personskat_dbl44_scenarie_postperioder() -> [
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "udgift-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-efter-dødsfald", fra_dato = Dato(år = 2025, måned = 7, dag = 2), til_dato = Dato(år = 2025, måned = 12, dag = 31)),
+]
+| personskat_dbl44_scenarie_arbejdsperioder() -> [
+    Dødsboskattelov44Arbejdsperiode(
+        identifikation = "arbejde-før-dødsfald",
+        fra_dato = Dato(år = 2025, måned = 1, dag = 1),
+        til_dato = Dato(år = 2025, måned = 7, dag = 1),
+        arbejdets_art = "arkitektarbejde og daglig virksomhedsdrift",
+        arbejdets_omfang = "32 timer ugentligt fra indkomstårets begyndelse til og med dødsdagen",
+        betaling_til_sammenlignelig_tredjemand_kroner = 80000,
+        dokumentreference = "timesedler-og-lønstatistik-2025"
+    ),
+]
+| personskat_dbl44_scenarie_vederlagsresultat(virksomhedsejer: Dødsboskattelov44Virksomhedsejer, valg: Dødsboskattelov44Valg) -> dødsboskattelov44_resultat(Dødsboskattelov44Input(
+    afdødes_identifikation = "afdøde",
+    længstlevendes_identifikation = "længstlevende",
+    dødsdato = Dato(år = 2025, måned = 7, dag = 1),
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret_ved_dødsfaldet = Falskt,
+    virksomhedsejer = virksomhedsejer,
+    arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden,
+    arbejdsperioder = personskat_dbl44_scenarie_arbejdsperioder(),
+    virksomhedsgrundlag = Dødsboskattelov44Virksomhedsgrundlag(
+        virksomhed = personskat_dbl44_scenarie_virksomhed(),
+        postperioder = personskat_dbl44_scenarie_postperioder()
+    ),
+    valg = valg
+))
+| personskat_dbl44_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> {
+    = tomt_input = personskat_ingen_personlig_indkomst()
+    PersonskatPersonligIndkomstInput(
+        etableringskonto = tomt_input.etableringskonto,
+        ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+            arbejdsgiverydelser = [],
+            virksomheder_uden_virksomhedsordning = virksomheder,
+            forenings_og_arbejdsløshedsydelser = []
+        ),
+        underholdsbidrag = tomt_input.underholdsbidrag,
+        børnebidragslov19_bidrag = tomt_input.børnebidragslov19_bidrag,
+        sømandsbeskatning = tomt_input.sømandsbeskatning
+    )
+}
+| personskat_dbl44_scenarie_input(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2025,
+        kommune = København,
+        bruttoløn_kroner = 300000,
+        personlig_indkomst = personskat_dbl44_scenarie_personlig_indkomst(virksomheder),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_dbl44_scenarie_valg = Dbl44RimeligtArbejdsvederlagValgt(
+    valgdato = Dato(år = 2025, måned = 10, dag = 1),
+    dokumentreference = "boets-valg-af-arbejdsvederlag"
+)
+= personskat_dbl44_scenarie_uden_virksomhed = personskat_dbl44_scenarie_input([])
+= personskat_dbl44_scenarie_med_virksomhed = personskat_dbl44_scenarie_input([personskat_dbl44_scenarie_virksomhed()])
+= personskat_dbl44_scenarie_afdød_ejer = personskat_dødsboskattelov44_resultat(
+    personskat_dbl44_scenarie_uden_virksomhed,
+    personskat_dbl44_scenarie_vederlagsresultat(Dbl44AfdødeEjerVirksomheden, personskat_dbl44_scenarie_valg)
+)
+= personskat_dbl44_scenarie_længstlevende_ejer = personskat_dødsboskattelov44_resultat(
+    personskat_dbl44_scenarie_med_virksomhed,
+    personskat_dbl44_scenarie_vederlagsresultat(Dbl44LængstlevendeEjerVirksomheden, personskat_dbl44_scenarie_valg)
+)
+= personskat_dbl44_scenarie_intet_valg = personskat_dødsboskattelov44_resultat(
+    personskat_dbl44_scenarie_uden_virksomhed,
+    personskat_dbl44_scenarie_vederlagsresultat(Dbl44AfdødeEjerVirksomheden, Dbl44IntetVederlagsvalg)
+)
+= personskat_dbl44_scenarie_manglende_ejervirksomhed = personskat_dødsboskattelov44_resultat(
+    personskat_dbl44_scenarie_uden_virksomhed,
+    personskat_dbl44_scenarie_vederlagsresultat(Dbl44LængstlevendeEjerVirksomheden, personskat_dbl44_scenarie_valg)
+)
+= personskat_dbl44_scenarie_baseline_uden_virksomhed = personskat_beregning_resultat(personskat_dbl44_scenarie_uden_virksomhed)
+
+| personskat_dbl44_scenarie_afdød_ejer_medregnes_i_kanonisk_personskat: personskat_dbl44_scenarie_afdød_ejer -> personskat_dbl44_scenarie_afdød_ejer.input_gyldigt && personskat_dbl44_scenarie_afdød_ejer.personskatgrundlag_før_regulering.skattepligtig_indkomst_kroner == 0 && personskat_dbl44_scenarie_afdød_ejer.personskatgrundlag_efter_regulering.skattepligtig_indkomst_kroner == 80000 && personskat_dbl44_scenarie_afdød_ejer.hovedpersonsregulering.arbejdsmarkedsbidragsgrundlag_regulering_kroner == 80000 && match personskat_dbl44_scenarie_afdød_ejer.personskatresultat {
+    | Some(resultat) -> resultat.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 80000 && resultat.slutskat_øre > personskat_dbl44_scenarie_baseline_uden_virksomhed.slutskat_øre
+    | None -> Falskt
+}
+| personskat_dbl44_scenarie_længstlevende_ejer_fradrages_en_gang: personskat_dbl44_scenarie_længstlevende_ejer -> personskat_dbl44_scenarie_længstlevende_ejer.input_gyldigt && personskat_dbl44_scenarie_længstlevende_ejer.personskatgrundlag_før_regulering.skattepligtig_indkomst_kroner == 370000 && personskat_dbl44_scenarie_længstlevende_ejer.personskatgrundlag_efter_regulering.skattepligtig_indkomst_kroner == 290000 && personskat_dbl44_scenarie_længstlevende_ejer.hovedpersonsregulering.arbejdsmarkedsbidragsgrundlag_regulering_kroner == -80000 && personskat_dbl44_scenarie_længstlevende_ejer.hovedpersonsregulering.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner == 0 && match personskat_dbl44_scenarie_længstlevende_ejer.personskatresultat {
+    | Some(resultat) -> resultat.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 290000 && resultat.slutskat_øre < personskat_beregning_resultat(personskat_dbl44_scenarie_med_virksomhed).slutskat_øre
+    | None -> Falskt
+}
+| personskat_dbl44_scenarie_intet_valg_er_identitet: personskat_dbl44_scenarie_intet_valg -> personskat_dbl44_scenarie_intet_valg.input_gyldigt && personskat_dbl44_scenarie_intet_valg.hovedpersonsregulering == personskat_ksl25a_tom_personregulering() && match personskat_dbl44_scenarie_intet_valg.personskatresultat {
+    | Some(resultat) -> resultat.slutskat_øre == personskat_dbl44_scenarie_baseline_uden_virksomhed.slutskat_øre
+    | None -> Falskt
+}
+| personskat_dbl44_scenarie_ejervirksomhed_skal_matche_kilden: personskat_dbl44_scenarie_manglende_ejervirksomhed -> personskat_dbl44_scenarie_manglende_ejervirksomhed.input_gyldigt == Falskt && personskat_dbl44_scenarie_manglende_ejervirksomhed.virksomhedsplacering_matcher == Falskt && personskat_dbl44_scenarie_manglende_ejervirksomhed.personskatresultat == None
+
+? personskat_dbl44_scenarie_afdød_ejer_medregnes_i_kanonisk_personskat
+? personskat_dbl44_scenarie_længstlevende_ejer_fradrages_en_gang
+? personskat_dbl44_scenarie_intet_valg_er_identitet
+? personskat_dbl44_scenarie_ejervirksomhed_skal_matche_kilden
+
+@ print("DBSL § 44 er sammensat med den kanoniske Personskat-beregning")

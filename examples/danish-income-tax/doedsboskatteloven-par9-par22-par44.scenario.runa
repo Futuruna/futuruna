@@ -1,0 +1,172 @@
+@ sprog da
+
+@ importer ./doedsboskatteloven - par9 - par22 - par44
+
+| dødsboskattelov44_scenarie_virksomhed() -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = "arkitektvirksomhed",
+    indkomstår = 2025,
+    indtægter = [
+        PersonskatVirksomhedsindtægtFakta(identifikation = "indtægt-før-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 300000),
+        PersonskatVirksomhedsindtægtFakta(identifikation = "indtægt-efter-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 120000),
+    ],
+    udgifter = [
+        PersonskatVirksomhedsudgiftFakta(identifikation = "udgift-før-dødsfald", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = 50000),
+    ]
+)
+| dødsboskattelov44_scenarie_postperioder() -> [
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "udgift-før-dødsfald", fra_dato = Dato(år = 2025, måned = 1, dag = 1), til_dato = Dato(år = 2025, måned = 6, dag = 30)),
+    PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "indtægt-efter-dødsfald", fra_dato = Dato(år = 2025, måned = 7, dag = 2), til_dato = Dato(år = 2025, måned = 12, dag = 31)),
+]
+| dødsboskattelov44_scenarie_arbejdsperioder(sammenligneligt_vederlag_kroner: Heltal) -> [
+    Dødsboskattelov44Arbejdsperiode(
+        identifikation = "arbejde-før-dødsfald",
+        fra_dato = Dato(år = 2025, måned = 1, dag = 1),
+        til_dato = Dato(år = 2025, måned = 7, dag = 1),
+        arbejdets_art = "arkitektarbejde og daglig virksomhedsdrift",
+        arbejdets_omfang = "32 timer ugentligt fra indkomstårets begyndelse til og med dødsdagen",
+        betaling_til_sammenlignelig_tredjemand_kroner = sammenligneligt_vederlag_kroner,
+        dokumentreference = "timesedler-og-lønstatistik-2025"
+    ),
+]
+| dødsboskattelov44_scenarie_input(virksomhedsejer: Dødsboskattelov44Virksomhedsejer, arbejdsrelation: Dødsboskattelov44Arbejdsrelation, bostatus: Dødsboskattelov44Bostatus, separeret: Boolsk, arbejdsvederlag_kroner: Heltal, valg: Dødsboskattelov44Valg) -> Dødsboskattelov44Input(
+    afdødes_identifikation = "afdøde",
+    længstlevendes_identifikation = "længstlevende",
+    dødsdato = Dato(år = 2025, måned = 7, dag = 1),
+    bostatus = bostatus,
+    separeret_ved_dødsfaldet = separeret,
+    virksomhedsejer = virksomhedsejer,
+    arbejdsrelation = arbejdsrelation,
+    arbejdsperioder = dødsboskattelov44_scenarie_arbejdsperioder(arbejdsvederlag_kroner),
+    virksomhedsgrundlag = Dødsboskattelov44Virksomhedsgrundlag(
+        virksomhed = dødsboskattelov44_scenarie_virksomhed(),
+        postperioder = dødsboskattelov44_scenarie_postperioder()
+    ),
+    valg = valg
+)
+| dødsboskattelov44_scenarie_ordinært_resultat(virksomhedsejer: Dødsboskattelov44Virksomhedsejer, arbejdsrelation: Dødsboskattelov44Arbejdsrelation) -> dødsboskattelov44_resultat(dødsboskattelov44_scenarie_input(
+    virksomhedsejer = virksomhedsejer,
+    arbejdsrelation = arbejdsrelation,
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret = Falskt,
+    arbejdsvederlag_kroner = 80000,
+    valg = Dbl44RimeligtArbejdsvederlagValgt(valgdato = Dato(år = 2025, måned = 10, dag = 1), dokumentreference = "boets-valg-af-arbejdsvederlag")
+))
+
+= dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver = dødsboskattelov44_scenarie_ordinært_resultat(Dbl44AfdødeEjerVirksomheden, Dbl44IkkeEjerDrevVirksomheden)
+= dødsboskattelov44_scenarie_afdød_ejer_længstlevende_deltager = dødsboskattelov44_scenarie_ordinært_resultat(Dbl44AfdødeEjerVirksomheden, Dbl44IkkeEjerDeltogVæsentligtOgEjerDrevIOvervejendeGrad)
+= dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver = dødsboskattelov44_scenarie_ordinært_resultat(Dbl44LængstlevendeEjerVirksomheden, Dbl44IkkeEjerDrevVirksomheden)
+= dødsboskattelov44_scenarie_længstlevende_ejer_afdød_deltager = dødsboskattelov44_scenarie_ordinært_resultat(Dbl44LængstlevendeEjerVirksomheden, Dbl44IkkeEjerDeltogVæsentligtOgEjerDrevIOvervejendeGrad)
+
+= dødsboskattelov44_scenarie_intet_valg = dødsboskattelov44_resultat(dødsboskattelov44_scenarie_input(
+    virksomhedsejer = Dbl44AfdødeEjerVirksomheden,
+    arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden,
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret = Falskt,
+    arbejdsvederlag_kroner = 80000,
+    valg = Dbl44IntetVederlagsvalg
+))
+= dødsboskattelov44_scenarie_separeret = dødsboskattelov44_resultat(dødsboskattelov44_scenarie_input(
+    virksomhedsejer = Dbl44AfdødeEjerVirksomheden,
+    arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden,
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret = Sandt,
+    arbejdsvederlag_kroner = 80000,
+    valg = Dbl44RimeligtArbejdsvederlagValgt(valgdato = Dato(år = 2025, måned = 10, dag = 1), dokumentreference = "ugyldigt-valg-for-separerede")
+))
+= dødsboskattelov44_scenarie_manglende_sammenligningsbetaling = dødsboskattelov44_resultat(dødsboskattelov44_scenarie_input(
+    virksomhedsejer = Dbl44AfdødeEjerVirksomheden,
+    arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden,
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret = Falskt,
+    arbejdsvederlag_kroner = 0,
+    valg = Dbl44RimeligtArbejdsvederlagValgt(valgdato = Dato(år = 2025, måned = 10, dag = 1), dokumentreference = "valg-uden-sammenligningsbetaling")
+))
+= dødsboskattelov44_scenarie_uden_virksomhedsposter_før_dødsfald = dødsboskattelov44_resultat(Dødsboskattelov44Input(
+    afdødes_identifikation = "afdøde",
+    længstlevendes_identifikation = "længstlevende",
+    dødsdato = Dato(år = 2025, måned = 7, dag = 1),
+    bostatus = Dbl44SkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret_ved_dødsfaldet = Falskt,
+    virksomhedsejer = Dbl44AfdødeEjerVirksomheden,
+    arbejdsrelation = Dbl44IkkeEjerDrevVirksomheden,
+    arbejdsperioder = dødsboskattelov44_scenarie_arbejdsperioder(80000),
+    virksomhedsgrundlag = Dødsboskattelov44Virksomhedsgrundlag(
+        virksomhed = PersonskatOrdinærVirksomhedFakta(
+            identifikation = "virksomhed-uden-førposter",
+            indkomstår = 2025,
+            indtægter = [PersonskatVirksomhedsindtægtFakta(identifikation = "kun-efter-dødsfald", art = OrdinærDriftsindtægt, beløb_kroner = 120000)],
+            udgifter = []
+        ),
+        postperioder = [PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation = "kun-efter-dødsfald", fra_dato = Dato(år = 2025, måned = 7, dag = 2), til_dato = Dato(år = 2025, måned = 12, dag = 31))]
+    ),
+    valg = Dbl44RimeligtArbejdsvederlagValgt(valgdato = Dato(år = 2025, måned = 10, dag = 1), dokumentreference = "valg-uden-førposter")
+))
+
+| dødsboskattelov44_scenarie_friere_fordeling(virksomhedsejer: Dødsboskattelov44Virksomhedsejer) -> dødsboskattelov44_resultat(dødsboskattelov44_scenarie_input(
+    virksomhedsejer = virksomhedsejer,
+    arbejdsrelation = Dbl44BeggeDeltogVæsentligtOgLigeligt,
+    bostatus = Dbl44IkkeSkattefritagetSelvstændigtSkiftetDødsbo,
+    separeret = Falskt,
+    arbejdsvederlag_kroner = 0,
+    valg = Dbl44FriereFordelingValgt(
+        valgdato = Dato(år = 2025, måned = 10, dag = 1),
+        hæfter_i_samme_omfang = Sandt,
+        fordeling_sagligt_begrundet_i_driften = Sandt,
+        lønaftale_fandt_anvendelse_i_perioden = Falskt,
+        andel_til_ikke_ejer_basispoint = 4000,
+        dokumentreference = "anmodning-om-friere-fordeling"
+    )
+))
+= dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer = dødsboskattelov44_scenarie_friere_fordeling(Dbl44AfdødeEjerVirksomheden)
+= dødsboskattelov44_scenarie_friere_fordeling_fra_længstlevende_ejer = dødsboskattelov44_scenarie_friere_fordeling(Dbl44LængstlevendeEjerVirksomheden)
+
+= dødsboskattelov44_scenarie_mellemperiode = dødsboskattelov9_mellemperioderesultat(
+    Dødsboskattelov9Mellemperiodeinput(
+        dødsdato = Dato(år = 2025, måned = 7, dag = 1),
+        skattepligtig_indkomst_før_par9_regulering_kroner = 400000,
+        dokumentreference = "mellemperiodeopgørelse-2025"
+    ),
+    dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver
+)
+| dødsboskattelov44_scenarie_bobeskatningsinput() -> Dødsboskattelov30Input(
+    boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+    bobeskatningsindkomst_kroner = 400000,
+    dødsdato = Dato(år = 2025, måned = 7, dag = 1),
+    boopgørelsestype = Dbl30OrdinærBoopgørelse,
+    boopgørelsens_skæringsdag = Dato(år = 2025, måned = 12, dag = 31),
+    indkomstårsforhold = Dbl30Kalenderindkomstår,
+    ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+    aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+    carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
+)
+= dødsboskattelov44_scenarie_bobeskatning_nr6 = dødsboskattelov44_bobeskatningsresultat(dødsboskattelov44_scenarie_bobeskatningsinput(), dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer)
+= dødsboskattelov44_scenarie_bobeskatning_nr7 = dødsboskattelov44_bobeskatningsresultat(dødsboskattelov44_scenarie_bobeskatningsinput(), dødsboskattelov44_scenarie_friere_fordeling_fra_længstlevende_ejer)
+
+| dødsboskattelov44_scenarie_fire_rollepermutationer: dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver -> dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.hjemmel_opfyldt && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_deltager.hjemmel_opfyldt && dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver.hjemmel_opfyldt && dødsboskattelov44_scenarie_længstlevende_ejer_afdød_deltager.hjemmel_opfyldt
+| dødsboskattelov44_scenarie_virksomhedsresultat_afledes_til_dødsdagen: dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver -> dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.virksomhedsresultat_indtil_dødsfaldet.skattepligtig_indkomst_kroner == 250000 && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.rimeligt_arbejdsvederlag.skattepligtig_indkomst_kroner == 80000 && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.ejerens_virksomhedsresultat_efter_vederlag.skattepligtig_indkomst_kroner == 170000
+| dødsboskattelov44_scenarie_par9_nr6_flytter_samme_beløb: dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver -> dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.par9_stk1_nr6_anvendt && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.længstlevendes_regulering.skattepligtig_indkomst_kroner == 80000 && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner == -80000 && dødsboskattelov44_scenarie_afdød_ejer_længstlevende_driver.fordeling_bevarer_skattepligtig_indkomst
+| dødsboskattelov44_scenarie_par9_nr7_flytter_samme_beløb: dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver -> dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver.par9_stk1_nr7_anvendt && dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver.længstlevendes_regulering.skattepligtig_indkomst_kroner == -80000 && dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver.afdødes_eller_boets_skattepligtige_indkomst_regulering_kroner == 80000 && dødsboskattelov44_scenarie_længstlevende_ejer_afdød_driver.fordeling_bevarer_skattepligtig_indkomst
+| dødsboskattelov44_scenarie_intet_valg_bevarer_ejerhenføringen: dødsboskattelov44_scenarie_intet_valg -> dødsboskattelov44_scenarie_intet_valg.beregningsklar && dødsboskattelov44_scenarie_intet_valg.valg_anvendt == Falskt && dødsboskattelov44_scenarie_intet_valg.rimeligt_arbejdsvederlag.skattepligtig_indkomst_kroner == 0 && dødsboskattelov44_scenarie_intet_valg.ejerens_virksomhedsresultat_efter_vederlag.skattepligtig_indkomst_kroner == 250000 && dødsboskattelov44_scenarie_intet_valg.afsluttende_skatteansættelse_obligatorisk == Falskt
+| dødsboskattelov44_scenarie_separation_fejler_lukket: dødsboskattelov44_scenarie_separeret -> dødsboskattelov44_scenarie_separeret.input_gyldigt && dødsboskattelov44_scenarie_separeret.personkreds_omfattet == Falskt && dødsboskattelov44_scenarie_separeret.hjemmel_opfyldt == Falskt && dødsboskattelov44_scenarie_separeret.beregningsklar == Falskt && dødsboskattelov44_scenarie_separeret.rimeligt_arbejdsvederlag.skattepligtig_indkomst_kroner == 0
+| dødsboskattelov44_scenarie_sammenligningsbetaling_kræves: dødsboskattelov44_scenarie_manglende_sammenligningsbetaling -> dødsboskattelov44_scenarie_manglende_sammenligningsbetaling.input_gyldigt && dødsboskattelov44_scenarie_manglende_sammenligningsbetaling.valg_gyldigt == Falskt && dødsboskattelov44_scenarie_manglende_sammenligningsbetaling.beregningsklar == Falskt
+| dødsboskattelov44_scenarie_kildeposter_før_dødsfaldet_kræves: dødsboskattelov44_scenarie_uden_virksomhedsposter_før_dødsfald -> dødsboskattelov44_scenarie_uden_virksomhedsposter_før_dødsfald.input_gyldigt == Falskt && dødsboskattelov44_scenarie_uden_virksomhedsposter_før_dødsfald.beregningsklar == Falskt
+| dødsboskattelov44_scenarie_friere_fordeling_bruger_kildeskat25a: dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer -> dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer.friere_fordeling_efter_ksl25a_stk8_anvendt && dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer.rimeligt_arbejdsvederlag.skattepligtig_indkomst_kroner == 100000 && dødsboskattelov44_scenarie_friere_fordeling_fra_afdød_ejer.par22_stk1_nr6_anvendt
+| dødsboskattelov44_scenarie_mellemperioden_reguleres_og_bliver_obligatorisk: dødsboskattelov44_scenarie_mellemperiode -> dødsboskattelov44_scenarie_mellemperiode.input_gyldigt && dødsboskattelov44_scenarie_mellemperiode.par9_regulering_kroner == -80000 && dødsboskattelov44_scenarie_mellemperiode.skattepligtig_indkomst_efter_par9_regulering_kroner == 320000 && dødsboskattelov44_scenarie_mellemperiode.afsluttende_skatteansættelse_obligatorisk
+| dødsboskattelov44_scenarie_bobeskatning_nr6_sænkes: dødsboskattelov44_scenarie_bobeskatning_nr6 -> dødsboskattelov44_scenarie_bobeskatning_nr6.input_gyldigt && dødsboskattelov44_scenarie_bobeskatning_nr6.par22_regulering_kroner == -100000 && dødsboskattelov44_scenarie_bobeskatning_nr6.input_efter_par22.bobeskatningsindkomst_kroner == 300000 && match dødsboskattelov44_scenarie_bobeskatning_nr6.resultat_efter_par22 { | Some(resultat) -> resultat.input.bobeskatningsindkomst_kroner == 300000 | None -> Falskt }
+| dødsboskattelov44_scenarie_bobeskatning_nr7_forhøjes: dødsboskattelov44_scenarie_bobeskatning_nr7 -> dødsboskattelov44_scenarie_bobeskatning_nr7.input_gyldigt && dødsboskattelov44_scenarie_bobeskatning_nr7.par22_regulering_kroner == 100000 && dødsboskattelov44_scenarie_bobeskatning_nr7.input_efter_par22.bobeskatningsindkomst_kroner == 500000 && match dødsboskattelov44_scenarie_bobeskatning_nr7.resultat_efter_par22 { | Some(resultat) -> resultat.input.bobeskatningsindkomst_kroner == 500000 | None -> Falskt }
+
+? dødsboskattelov44_scenarie_fire_rollepermutationer
+? dødsboskattelov44_scenarie_virksomhedsresultat_afledes_til_dødsdagen
+? dødsboskattelov44_scenarie_par9_nr6_flytter_samme_beløb
+? dødsboskattelov44_scenarie_par9_nr7_flytter_samme_beløb
+? dødsboskattelov44_scenarie_intet_valg_bevarer_ejerhenføringen
+? dødsboskattelov44_scenarie_separation_fejler_lukket
+? dødsboskattelov44_scenarie_sammenligningsbetaling_kræves
+? dødsboskattelov44_scenarie_kildeposter_før_dødsfaldet_kræves
+? dødsboskattelov44_scenarie_friere_fordeling_bruger_kildeskat25a
+? dødsboskattelov44_scenarie_mellemperioden_reguleres_og_bliver_obligatorisk
+? dødsboskattelov44_scenarie_bobeskatning_nr6_sænkes
+? dødsboskattelov44_scenarie_bobeskatning_nr7_forhøjes
+
+@ print("DBSL §§ 9, 22 og 44: ejerhenføring, arbejdsvederlag og friere fordeling kontrolleret")

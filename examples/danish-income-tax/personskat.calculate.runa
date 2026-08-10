@@ -17362,11 +17362,13 @@ fraflytningen."
         alle_åbningsgrundlag_gyldige = alle_åbningsgrundlag_gyldige
     )
 }
-| personskat_beregning_resultat_fra_aktieavance_par(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
+| personskat_beregning_resultat_fra_aktieavance_par_med_hovedpersonsregulering(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> {
     = kursgevinst_par32 = personskat_kgl_par32_parresultat(input, aktieavance_før_par32)
     = aktieavance_par = personskat_kgl_par32_justeret_aktieavance(aktieavance_før_par32, kursgevinst_par32)
     = kildeskat25a = personskat_ksl25a_parresultat(input)
-    = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32), kildeskat25a.hovedperson, kildeskat25a.alle_input_gyldige)
+    = samlet_hovedpersonsregulering = personskat_ksl25a_personregulering_plus(kildeskat25a.hovedperson, hovedpersonsregulering)
+    = samlet_hovedpersonsregulering_input_gyldigt = kildeskat25a.alle_input_gyldige && hovedpersonsregulering_input_gyldigt
+    = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32), samlet_hovedpersonsregulering, samlet_hovedpersonsregulering_input_gyldigt)
     = parberegning = personskat_parberegning_med_par32_og_ksl25a(hovedgrundlag, input.ægtefælle, aktieavance_par.ægtefælle, personskat_kgl_par32_ægtefælle_kontekst(kursgevinst_par32), kildeskat25a)
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
     = sømandsbeskatning = søbl5_lempelsesresultat(parberegning.hovedskat, hovedgrundlag.personlig_indkomst.sømandsbeskatning)
@@ -17488,17 +17490,19 @@ fraflytningen."
         )
     )
 }
+| personskat_beregning_resultat_fra_aktieavance_par(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> personskat_beregning_resultat_fra_aktieavance_par_med_hovedpersonsregulering(input, aktieavance_før_par32, personskat_ksl25a_tom_personregulering(), Sandt)
 | personskat_kgl_par32_parresultat_gyldigt(resultat: PersonskatKursgevinstPar32ParResultat) -> match resultat { | IntetPar32Kontraktforløb -> Sandt | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt }
 | personskat_ægtefælle_aktieavance_gyldig(resultat: PersonskatÆgtefælleAktieavanceResultat) -> match resultat { | IngenÆgtefælleAktieavance -> Sandt | BeregnetÆgtefælleAktieavance(aktieavance) -> aktieavance.alle_input_gyldige }
 | personskat_ægtefælles_slutskat_kroner(resultat: PersonskatBeregningResultat) -> resultat.negativ_aktieskat_fremførselsår.tidligere_fremført_negativ_skat.ægtefælles_slutskat_efter_fremført_negativ_skat_kroner
-| personskat_slutskat_parprojektion(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> {
-    = resultat = personskat_beregning_resultat_fra_aktieavance_par(input, aktieavance_før_par32)
+| personskat_slutskat_parprojektion_med_hovedpersonsregulering(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> {
+    = resultat = personskat_beregning_resultat_fra_aktieavance_par_med_hovedpersonsregulering(input, aktieavance_før_par32, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
     PersonskatSlutskatParprojektion(
         hovedperson_kroner = resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner,
         ægtefælle_kroner = personskat_ægtefælles_slutskat_kroner(resultat),
-        input_gyldigt = aktieavance_før_par32.par_gyldigt && resultat.aktieavance.alle_input_gyldige && personskat_ægtefælle_aktieavance_gyldig(aktieavance_før_par32.ægtefælle) && personskat_kgl_par32_parresultat_gyldigt(resultat.kursgevinst_par32) && resultat.ligningslov33.input_gyldigt && resultat.ligningslov33a.input_gyldigt
+        input_gyldigt = hovedpersonsregulering_input_gyldigt && aktieavance_før_par32.par_gyldigt && resultat.aktieavance.alle_input_gyldige && personskat_ægtefælle_aktieavance_gyldig(aktieavance_før_par32.ægtefælle) && personskat_kgl_par32_parresultat_gyldigt(resultat.kursgevinst_par32) && resultat.ligningslov33.input_gyldigt && resultat.ligningslov33a.input_gyldigt
     )
 }
+| personskat_slutskat_parprojektion(input: PersonskatInput, aktieavance_før_par32: PersonskatAktieavanceParResultat) -> personskat_slutskat_parprojektion_med_hovedpersonsregulering(input, aktieavance_før_par32, personskat_ksl25a_tom_personregulering(), Sandt)
 | personskat_slutskat_for_par_kroner(projektion: PersonskatSlutskatParprojektion) -> projektion.hovedperson_kroner + projektion.ægtefælle_kroner
 | personskat_par37_til40_aktuelle_resultater_for_person(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, person: PersonskatPar37Til40Skatteperson) -> hvis person == Par37Til40Hovedperson {
     filter(parresultat.hovedperson.særlige_resultater, |resultat: PersonskatSærligtAktieaktivResultat| personskat_par37_til40_resultat_har_aktuel_afledning(resultat, input.lønmodtager.skatteår))
@@ -17526,13 +17530,13 @@ fraflytningen."
         filter(aktuelle, |aktuelt: PersonskatPar37Til40AktueltResultat| aktuelt.nettogevinst_før_gulv_kroner >= 0)
     )
 }
-| personskat_par37_til40_skatteafledningstrin(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, tilstand: PersonskatPar37Til40Skatteafledningstilstand, aktuelt: PersonskatPar37Til40AktueltResultat) -> {
+| personskat_par37_til40_skatteafledningstrin_med_hovedpersonsregulering(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, tilstand: PersonskatPar37Til40Skatteafledningstilstand, aktuelt: PersonskatPar37Til40AktueltResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> {
     = uden_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, tilstand.inkluderede_resultater, aktuelt.nøgle, UdenAktuelFraflytterindkomst)
     = umiddelbar_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, tilstand.inkluderede_resultater, aktuelt.nøgle, MedAktuelUmiddelbarFraflytterindkomst)
     = fuld_par = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, tilstand.inkluderede_resultater, aktuelt.nøgle, MedAktuelFuldFraflytterindkomst)
-    = uden = personskat_slutskat_parprojektion(input, uden_par)
-    = umiddelbar = personskat_slutskat_parprojektion(input, umiddelbar_par)
-    = fuld = personskat_slutskat_parprojektion(input, fuld_par)
+    = uden = personskat_slutskat_parprojektion_med_hovedpersonsregulering(input, uden_par, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
+    = umiddelbar = personskat_slutskat_parprojektion_med_hovedpersonsregulering(input, umiddelbar_par, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
+    = fuld = personskat_slutskat_parprojektion_med_hovedpersonsregulering(input, fuld_par, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
     = ikke_positivt_resultat = aktuelt.nettogevinst_før_gulv_kroner <= 0
     = faktisk_umiddelbar_skat_kroner = personskat_slutskat_for_par_kroner(umiddelbar)
     = faktisk_fuld_skat_kroner = personskat_slutskat_for_par_kroner(fuld)
@@ -17553,21 +17557,24 @@ fraflytningen."
         input_gyldigt = kontekst_gyldig
     )
 }
-| personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat) -> {
+| personskat_par37_til40_skatteafledningstrin(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, tilstand: PersonskatPar37Til40Skatteafledningstilstand, aktuelt: PersonskatPar37Til40AktueltResultat) -> personskat_par37_til40_skatteafledningstrin_med_hovedpersonsregulering(input, parresultat, tilstand, aktuelt, personskat_ksl25a_tom_personregulering(), Sandt)
+| personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner_med_hovedpersonsregulering(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> {
     = ingen_resultatnøgle = PersonskatPar37Til40Resultatnøgle(person = Par37Til40Hovedperson, aktieaktiv_identifikation = "")
     = uden_aktuelle = personskat_par37_til40_aktieavance_parprojektion(input, parresultat, [], ingen_resultatnøgle, UdenAktuelFraflytterindkomst)
-    personskat_slutskat_for_par_kroner(personskat_slutskat_parprojektion(input, uden_aktuelle))
+    personskat_slutskat_for_par_kroner(personskat_slutskat_parprojektion_med_hovedpersonsregulering(input, uden_aktuelle, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt))
 }
-| personskat_par37_til40_skattekontekster(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat) -> foldl(
+| personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat) -> personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner_med_hovedpersonsregulering(input, parresultat, personskat_ksl25a_tom_personregulering(), Sandt)
+| personskat_par37_til40_skattekontekster_med_hovedpersonsregulering(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> foldl(
     personskat_par37_til40_resultater_i_tabsførst_rækkefølge(input, parresultat),
     PersonskatPar37Til40Skatteafledningstilstand(
         inkluderede_resultater = [],
         slutskatsposter = [],
-        seneste_skat_med_fraflytterindkomst_kroner = personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner(input, parresultat),
-        input_gyldigt = Sandt
+        seneste_skat_med_fraflytterindkomst_kroner = personskat_par37_til40_skat_uden_aktuelle_fraflytninger_kroner_med_hovedpersonsregulering(input, parresultat, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt),
+        input_gyldigt = hovedpersonsregulering_input_gyldigt
     ),
-    |tilstand: PersonskatPar37Til40Skatteafledningstilstand, aktuelt: PersonskatPar37Til40AktueltResultat| personskat_par37_til40_skatteafledningstrin(input, parresultat, tilstand, aktuelt)
+    |tilstand: PersonskatPar37Til40Skatteafledningstilstand, aktuelt: PersonskatPar37Til40AktueltResultat| personskat_par37_til40_skatteafledningstrin_med_hovedpersonsregulering(input, parresultat, tilstand, aktuelt, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
 )
+| personskat_par37_til40_skattekontekster(input: PersonskatInput, parresultat: PersonskatAktieavanceParResultat) -> personskat_par37_til40_skattekontekster_med_hovedpersonsregulering(input, parresultat, personskat_ksl25a_tom_personregulering(), Sandt)
 | personskat_par37_til40_skattekontekst_for_resultat(resultat: PersonskatSærligtAktieaktivResultat, person: PersonskatPar37Til40Skatteperson, slutskatsposter: List(PersonskatPar37Til40Slutskatspost)) -> {
     = nøgle = personskat_par37_til40_resultatnøgle(person, resultat)
     = matchende = filter(slutskatsposter, |post: PersonskatPar37Til40Slutskatspost| post.nøgle == nøgle)
@@ -17618,12 +17625,13 @@ fraflytningen."
         }
     }
 }
-| personskat_beregning_resultat(input: PersonskatInput) -> {
+| personskat_beregning_resultat_med_hovedpersonsregulering(input: PersonskatInput, hovedpersonsregulering: PersonskatKsl25APersonregulering, hovedpersonsregulering_input_gyldigt: Boolsk) -> {
     = rå_aktieavance = personskat_aktieavance_parresultat(input.aktieavance, input.lønmodtager.skatteår, input.ægtefælle)
-    = skattekontekster = personskat_par37_til40_skattekontekster(input, rå_aktieavance)
+    = skattekontekster = personskat_par37_til40_skattekontekster_med_hovedpersonsregulering(input, rå_aktieavance, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
     = aktieavance = personskat_aktieavance_parresultat_med_par37_til40_skattekontekster(input, rå_aktieavance, skattekontekster.slutskatsposter)
-    personskat_beregning_resultat_fra_aktieavance_par(input, aktieavance)
+    personskat_beregning_resultat_fra_aktieavance_par_med_hovedpersonsregulering(input, aktieavance, hovedpersonsregulering, hovedpersonsregulering_input_gyldigt)
 }
+| personskat_beregning_resultat(input: PersonskatInput) -> personskat_beregning_resultat_med_hovedpersonsregulering(input, personskat_ksl25a_tom_personregulering(), Sandt)
 | beregn_personskat_lønmodtager(input: LønmodtagerInput) -> beregn_lønmodtager(input)
 
 @ calculate("Dansk personskat")

@@ -1,0 +1,100 @@
+@ sprog da
+
+@ importer ./doedsboskatteloven - par9 - par22 - par44
+@ importer ./personskat.calculate
+
+= personskat_dødsboskattelov_par44_metadata = Metadata(
+    attachments = (
+        Source(value = dødsboskattelov_par9_par22_par44_lbk426),
+        Guidance(value = dødsboskattelov_par44_dødsårsvejledning),
+        PreparatoryWork(value = dødsboskattelov_par44_l90_forarbejder),
+        DependencySource(value = personskatteloven_lbk1284_par3),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+    )
+)
+
+--@label:personskat_dødsboskattelov_par44::meta:personskat_dødsboskattelov_par44_metadata--
+----
+§ 44. Hvis den længstlevende ægtefælle i mellemperioden har drevet en
+erhvervsvirksomhed, der tilhørte afdøde, kan boet bestemme, at den
+længstlevende ægtefælle til sin skattepligtige indkomst i dødsåret skal
+medregne et beløb, der svarer til den betaling, der skulle være ydet andre for
+udførelsen af et arbejde af samme art og omfang. Tilsvarende gælder, hvis den
+længstlevende ægtefælle i mellemperioden har deltaget i væsentligt omfang i
+driften af en erhvervsvirksomhed, der tilhørte og i overvejende grad blev
+drevet af afdøde.
+
+Stk. 2. Hvis afdøde i mellemperioden har drevet en erhvervsvirksomhed, der
+tilhørte afdødes længstlevende ægtefælle, kan den længstlevende ægtefælle i sin
+skattepligtige indkomst for dødsåret fradrage et beløb, der svarer til den
+betaling, der skulle være ydet andre for udførelsen af et arbejde af samme art
+og omfang. Tilsvarende gælder, hvis afdøde i mellemperioden har deltaget i
+væsentligt omfang i driften af en erhvervsvirksomhed, der tilhørte og i
+overvejende grad blev drevet af den længstlevende ægtefælle. Ved anvendelsen af
+1. og 2. pkt. er det en betingelse, at et tilsvarende beløb medregnes ved en
+selvstændig skatteansættelse af afdødes indkomst i mellemperioden efter § 13,
+jf. § 9, stk. 1, nr. 7, eller medregnes til bobeskatningsindkomsten efter § 22,
+stk. 1, nr. 7.
+----
+
+--@begin:personskat_dødsboskattelov_par44--
+# PersonskatDødsboskattelov44Resultat(personskatinput: PersonskatInput, vederlagsresultat: Dødsboskattelov44Resultat, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), skatteår_matcher: Boolsk, ingen_levende_ægtefælle_i_personskatinput: Boolsk, virksomhedsplacering_matcher: Boolsk, input_gyldigt: Boolsk, personskatgrundlag_før_regulering: Kildeskat25AVirksomhedsbeløb, personskatgrundlag_efter_regulering: Kildeskat25AVirksomhedsbeløb, hovedpersonsregulering: PersonskatKsl25APersonregulering, personskatresultat: Option(PersonskatBeregningResultat))
+
+| personskat_dødsboskattelov44_virksomheder(input: PersonskatInput) -> input.lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning
+| personskat_dødsboskattelov44_matchende_virksomheder(input: PersonskatInput, virksomhedsidentifikation: Tekst) -> filter(
+    personskat_dødsboskattelov44_virksomheder(input),
+    |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation == virksomhedsidentifikation
+)
+| personskat_dødsboskattelov44_ingen_levende_ægtefælle(input: PersonskatInput) -> match input.ægtefælle {
+    | UdenÆgtefælle -> Sandt
+    | MedÆgtefælle(_, _, _) -> Falskt
+}
+| personskat_dødsboskattelov44_virksomhedsbeløb(virksomhed: PersonskatOrdinærVirksomhedFakta, skatteår: Heltal) -> dødsboskattelov44_virksomhedsbeløb_fra_resultat(personskat_virksomhed_resultat(virksomhed, skatteår, Sandt))
+
+# PersonskatDødsboskattelov44Sag(personskatinput: PersonskatInput, vederlagsresultat: Dødsboskattelov44Resultat) {
+    | matchende_virksomheder() -> personskat_dødsboskattelov44_matchende_virksomheder(personskatinput, vederlagsresultat.input.virksomhedsgrundlag.virksomhed.identifikation)
+    | kildevirksomhed() -> hvis length(matchende_virksomheder()) == 1 { Some(head(matchende_virksomheder())) } ellers { None }
+    | skatteår_matcher() -> personskatinput.lønmodtager.skatteår == vederlagsresultat.input.dødsdato.år
+    | ingen_levende_ægtefælle_i_personskatinput() -> personskat_dødsboskattelov44_ingen_levende_ægtefælle(personskatinput)
+    | virksomhedsplacering_matcher() -> hvis vederlagsresultat.input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden {
+        length(matchende_virksomheder()) == 1 && head(matchende_virksomheder()) == vederlagsresultat.input.virksomhedsgrundlag.virksomhed
+    } ellers {
+        length(matchende_virksomheder()) == 0
+    }
+    | input_gyldigt() -> vederlagsresultat.beregningsklar && skatteår_matcher() && ingen_levende_ægtefælle_i_personskatinput() && virksomhedsplacering_matcher()
+    | personskatgrundlag_før_regulering() -> hvis vederlagsresultat.input.virksomhedsejer == Dbl44LængstlevendeEjerVirksomheden {
+        match kildevirksomhed() {
+            | Some(virksomhed) -> personskat_dødsboskattelov44_virksomhedsbeløb(virksomhed, personskatinput.lønmodtager.skatteår)
+            | None -> kildeskat25a_tomt_virksomhedsbeløb()
+        }
+    } ellers {
+        kildeskat25a_tomt_virksomhedsbeløb()
+    }
+    | personskatgrundlag_efter_regulering() -> kildeskat25a_virksomhedsbeløb_plus(personskatgrundlag_før_regulering(), vederlagsresultat.længstlevendes_regulering)
+    | hovedpersonsregulering() -> hvis input_gyldigt() {
+        personskat_ksl25a_virksomhedsregulering(personskatgrundlag_efter_regulering(), personskatgrundlag_før_regulering())
+    } ellers {
+        personskat_ksl25a_tom_personregulering()
+    }
+    | personskatresultat() -> hvis input_gyldigt() {
+        Some(personskat_beregning_resultat_med_hovedpersonsregulering(personskatinput, hovedpersonsregulering(), Sandt))
+    } ellers {
+        None
+    }
+    | resultat() -> PersonskatDødsboskattelov44Resultat(
+        personskatinput = personskatinput,
+        vederlagsresultat = vederlagsresultat,
+        kildevirksomhed = kildevirksomhed(),
+        skatteår_matcher = skatteår_matcher(),
+        ingen_levende_ægtefælle_i_personskatinput = ingen_levende_ægtefælle_i_personskatinput(),
+        virksomhedsplacering_matcher = virksomhedsplacering_matcher(),
+        input_gyldigt = input_gyldigt(),
+        personskatgrundlag_før_regulering = personskatgrundlag_før_regulering(),
+        personskatgrundlag_efter_regulering = personskatgrundlag_efter_regulering(),
+        hovedpersonsregulering = hovedpersonsregulering(),
+        personskatresultat = personskatresultat()
+    )
+}
+
+| personskat_dødsboskattelov44_resultat(personskatinput: PersonskatInput, vederlagsresultat: Dødsboskattelov44Resultat) -> PersonskatDødsboskattelov44Sag(personskatinput, vederlagsresultat).resultat()
+--@end:personskat_dødsboskattelov_par44--
