@@ -761,6 +761,7 @@ Ikke aktuel
         pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
         pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
         øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = 0,
+        ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner = 0,
         pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
         pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
     ),

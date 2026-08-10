@@ -294,6 +294,7 @@ myndighedens beregnede skattebeløb bruges ikke som input.
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
     pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
+    ambl_par2_stk1_nr5_årsgrundlag = ambl_par2_nr5_tomt_årsgrundlag(),
     pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(afståelser = [], ordninger = [], kvalifikationsår = [], tidligere_indbetalinger = []),
     pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),

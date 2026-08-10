@@ -1,0 +1,552 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5
+
+= ambl_par2_nr5_felt_indbetalinger = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Årsgrundlag::indbetalinger),
+    label = "Arbejdsgiverindbetalinger til udenlandske pensionsordninger",
+    question = Some("Hvilke arbejdsgiverindbetalinger til udenlandske pensionsordninger skal vurderes efter en dobbeltbeskatningsoverenskomst?"),
+    help = Some("Tilføj én række pr. indbetaling. Futuruna udleder den ikke-skattepligtige del, den skattepligtige del og hvert arbejdsmarkedsbidragsgrundlag fra de dokumenterede kildefakta. Rækkefølgen afgør kun, hvilken række der bærer et eventuelt beløb over en delt årsramme; årssummerne er uændrede."),
+    unit = None
+)
+= ambl_par2_nr5_felt_identifikation = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::identifikation),
+    label = "Indbetalingens identifikation",
+    question = Some("Hvilken entydig identifikation har arbejdsgiverens pensionsindbetaling?"),
+    help = Some("Brug en stabil reference fra lønseddel, pensionsopgørelse eller anden dokumentation."),
+    unit = None
+)
+= ambl_par2_nr5_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::indkomstår),
+    label = "Indkomstår for indbetalingen",
+    question = Some("I hvilket indkomstår blev pensionsindbetalingen foretaget?"),
+    help = Some("Indkomståret skal svare til skatteåret i den samlede Personskat-beregning."),
+    unit = Some("år")
+)
+= ambl_par2_nr5_felt_indbetalingsdato_år = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::indbetalingsdato::år),
+    label = "Indbetalingsdato - år",
+    question = Some("I hvilket år blev pensionsindbetalingen foretaget?"),
+    help = Some("Datoen anvendes blandt andet ved Nederlandenes 60-månedersgrænse."),
+    unit = Some("år")
+)
+= ambl_par2_nr5_felt_indbetalingsdato_måned = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::indbetalingsdato::måned),
+    label = "Indbetalingsdato - måned",
+    question = Some("I hvilken måned blev pensionsindbetalingen foretaget?"),
+    help = Some("Angiv måned som 1-12."),
+    unit = Some("måned")
+)
+= ambl_par2_nr5_felt_indbetalingsdato_dag = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::indbetalingsdato::dag),
+    label = "Indbetalingsdato - dag",
+    question = Some("På hvilken dag i måneden blev pensionsindbetalingen foretaget?"),
+    help = Some("Datoen valideres som en kalenderdato."),
+    unit = Some("dag")
+)
+= ambl_par2_nr5_felt_arbejdsgiverindbetaling = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::arbejdsgiverindbetaling_kroner),
+    label = "Arbejdsgiverens pensionsindbetaling",
+    question = Some("Hvor meget indbetalte arbejdsgiveren til den udenlandske pensionsordning?"),
+    help = Some("Angiv hele arbejdsgiverindbetalingen før opdeling efter overenskomstens beløbsgrænser."),
+    unit = Some("kr.")
+)
+= ambl_par2_nr5_felt_dbo_land = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Indbetalingsfakta::dbo_grundlag::$variant),
+    label = "Land og dobbeltbeskatningsoverenskomst",
+    question = Some("Hvilken dobbeltbeskatningsoverenskomst skal pensionsindbetalingen vurderes efter?"),
+    help = Some("AMBL § 2, stk. 1, nr. 5 anvendes her for Nederlandene, Schweiz, Sverige og Storbritannien."),
+    unit = None
+)
+
+= ambl_par2_nr5_felt_betingelsesreference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Betingelse::AmblNr5BetingelseDokumenteret::dokumentreference),
+    label = "Dokumentation for betingelsen",
+    question = Some("Hvilken kontrollerbar reference dokumenterer betingelsen?"),
+    help = Some("Angiv eksempelvis en kontrakt, pensionsopgørelse, myndighedsgodkendelse eller skatteresidensreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_samme_arbejdsgiver_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Arbejdsgiverrelation::AmblNr5SammeArbejdsgiver::dokumentreference),
+    label = "Dokumentation for samme arbejdsgiver",
+    question = Some("Hvilken reference dokumenterer, at arbejdsgiveren er den samme?"),
+    help = Some("Angiv eksempelvis ansættelseskontrakter før og efter flytningen."),
+    unit = None
+)
+= ambl_par2_nr5_felt_forbundne_arbejdsgivere_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Arbejdsgiverrelation::AmblNr5ForbundneArbejdsgivere::dokumentreference),
+    label = "Dokumentation for forbundne arbejdsgivere",
+    question = Some("Hvilken reference dokumenterer forbindelsen mellem arbejdsgiverne?"),
+    help = Some("Angiv eksempelvis en koncernstruktur eller anden dokumenteret kontrolrelation."),
+    unit = None
+)
+
+= ambl_par2_nr5_felt_beløbsgrænsetype = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Beløbsgrænse::$variant),
+    label = "Beløbsgrænsens type",
+    question = Some("Er beløbsrammen et dokumenteret maksimum, dokumenteret uden beløbsgrænse eller uafklaret?"),
+    help = Some("Begge landes beløbsrammer skal dokumenteres; den laveste ramme anvendes."),
+    unit = None
+)
+= ambl_par2_nr5_felt_årsramme_identifikation = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Beløbsrammer::årsramme_identifikation),
+    label = "Årsrammens identifikation",
+    question = Some("Hvilken stabil identifikation har den fælles årlige beløbsramme?"),
+    help = Some("Brug samme identifikation for alle årets indbetalinger, der deler de samme dokumenterede danske og udenlandske beløbsgrænser. Futuruna anvender da loftet én gang på tværs af indbetalingerne."),
+    unit = None
+)
+= ambl_par2_nr5_felt_beløbsgrænse_maksimum = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Beløbsgrænse::AmblNr5DokumenteretMaksimum::maksimum_kroner),
+    label = "Dokumenteret maksimumbeløb",
+    question = Some("Hvad er det dokumenterede maksimum for denne pensionsordning?"),
+    help = Some("Angiv maksimum for det relevante land, den relevante ordning og indkomståret."),
+    unit = Some("kr.")
+)
+= ambl_par2_nr5_felt_beløbsgrænse_maksimum_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Beløbsgrænse::AmblNr5DokumenteretMaksimum::dokumentreference),
+    label = "Dokumentation for maksimumbeløbet",
+    question = Some("Hvilken kilde dokumenterer maksimumbeløbet?"),
+    help = Some("Angiv en afgørelse, satskilde eller anden kontrollerbar reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_uden_beløbsgrænse_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Beløbsgrænse::AmblNr5DokumenteretUdenBeløbsgrænse::dokumentreference),
+    label = "Dokumentation for ordning uden beløbsgrænse",
+    question = Some("Hvilken kilde dokumenterer, at ordningen ikke har en beløbsgrænse?"),
+    help = Some("Angiv en kontrollerbar reference til ordningens skattebehandling."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_ordning = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Sverigefakta::ordning::$variant),
+    label = "Svensk pensionsordning",
+    question = Some("Hvilken dokumenteret svensk pensionsordning er indbetalingen foretaget til?"),
+    help = Some("Ordningen skal være omfattet af kapitel 28 eller 58 i den svenske indkomstskattelov."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_kapitel28_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskOrdning::AmblNr5SvenskOrdningKapitel28::dokumentreference),
+    label = "Dokumentation for svensk kapitel 28-ordning",
+    question = Some("Hvilken reference dokumenterer, at ordningen er omfattet af kapitel 28?"),
+    help = Some("Angiv pensionsudbyderens eller myndighedens kontrollerbare reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_kapitel58_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskOrdning::AmblNr5SvenskOrdningKapitel58::dokumentreference),
+    label = "Dokumentation for svensk kapitel 58-ordning",
+    question = Some("Hvilken reference dokumenterer, at ordningen er omfattet af kapitel 58?"),
+    help = Some("Angiv pensionsudbyderens eller myndighedens kontrollerbare reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_personstatus = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::$variant),
+    label = "Svensk grænsegænger- eller tilflytterstatus",
+    question = Some("Er personen svensk grænsegænger, tilflytter til Danmark eller ikke omfattet?"),
+    help = Some("Status afgør, om 75-procentsprøven eller kravet om tidligere pensionsdeltagelse anvendes."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_grænsegænger_hjemsted = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskGrænsegænger::hjemmehørende_i_sverige::$variant),
+    label = "Hjemmehørende i Sverige",
+    question = Some("Er svensk hjemsted dokumenteret for grænsegængeren?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_grænsegænger_dansk_arbejde = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskGrænsegænger::arbejder_og_beskattes_i_danmark::$variant),
+    label = "Arbejder og beskattes i Danmark",
+    question = Some("Er dansk arbejde og dansk beskatningsret dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_dansk_nettoindkomst = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskGrænsegænger::dansk_nettoindkomst_kroner),
+    label = "Dansk nettoarbejdsindkomst",
+    question = Some("Hvor stor er nettoindkomsten fra arbejde, som kan beskattes i Danmark?"),
+    help = Some("Beløbet er tæller i grænsegængeraftalens 75-procentsprøve."),
+    unit = Some("kr.")
+)
+= ambl_par2_nr5_felt_svensk_samlet_nettoindkomst = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskGrænsegænger::samlet_nettoindkomst_kroner),
+    label = "Samlet nettoarbejdsindkomst",
+    question = Some("Hvor stor er personens samlede nettoindkomst fra erhverv og arbejde?"),
+    help = Some("Beløbet er nævner i grænsegængeraftalens 75-procentsprøve."),
+    unit = Some("kr.")
+)
+= ambl_par2_nr5_felt_svensk_tilflytter_hjemsted = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskTilflytter::hjemmehørende_i_danmark::$variant),
+    label = "Hjemmehørende i Danmark efter tilflytning",
+    question = Some("Er dansk hjemsted dokumenteret for tilflytteren?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_svensk_tilflytter_tidligere_deltagelse = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SvenskPersonstatus::AmblNr5SvenskTilflytter::deltog_og_bidrog_umiddelbart_før::$variant),
+    label = "Deltog og bidrog umiddelbart før tilflytning",
+    question = Some("Er deltagelse og bidrag til den svenske ordning umiddelbart før tilflytningen dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_obligatorisk_ordning = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::obligatorisk_ordning::$variant),
+    label = "Obligatorisk nederlandsk pensionsordning",
+    question = Some("Er det dokumenteret, at den nederlandske pensionsordning er obligatorisk?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_skatteanerkendelse = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::skattemæssigt_anerkendt_i_nederlandene::$variant),
+    label = "Skattemæssigt anerkendt i Nederlandene",
+    question = Some("Er ordningens skattemæssige anerkendelse i Nederlandene dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_dansk_sammenlignelighed = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::godkendt_sammenlignelig_i_danmark::$variant),
+    label = "Godkendt som sammenlignelig i Danmark",
+    question = Some("Har Skattestyrelsen godkendt, at ordningen generelt svarer til en dansk skatteanerkendt pensionsordning?"),
+    help = Some("Tilknyt godkendelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_tjenesteforhold = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::personligt_arbejde_i_tjenesteforhold::$variant),
+    label = "Personligt arbejde i tjenesteforhold",
+    question = Some("Er det dokumenteret, at indbetalingen vedrører personligt arbejde i et ansættelsesforhold?"),
+    help = Some("Nederlandenes regel gælder her kun arbejdsgiverordninger."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_tidligere_ikke_hjemmehørende = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::ikke_hjemmehørende_i_danmark_umiddelbart_før::$variant),
+    label = "Ikke hjemmehørende i Danmark umiddelbart før",
+    question = Some("Er det dokumenteret, at personen ikke var hjemmehørende i Danmark umiddelbart før den danske ansættelse?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_tidligere_bidrag = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::bidrog_umiddelbart_før_dansk_ansættelse::$variant),
+    label = "Bidrog til ordningen umiddelbart før dansk ansættelse",
+    question = Some("Er fortsat bidrag til den nederlandske ordning dokumenteret fra tiden umiddelbart før den danske ansættelse?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_arbejdsgiverrelation = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::arbejdsgiverrelation::$variant),
+    label = "Nederlandsk arbejdsgiverkontinuitet",
+    question = Some("Er arbejdsgiveren den samme som eller forbundet med arbejdsgiveren før den danske ansættelse?"),
+    help = Some("Tilknyt den dokumenterede arbejdsgiverrelation."),
+    unit = None
+)
+= ambl_par2_nr5_felt_nederlandsk_startår = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::dansk_ansættelse_startdato::år),
+    label = "Dansk ansættelsesstart - år",
+    question = Some("I hvilket år begyndte det danske ansættelsesforhold?"),
+    help = Some("Startdatoen indleder overenskomstens samlede periode på højst 60 måneder."),
+    unit = Some("år")
+)
+= ambl_par2_nr5_felt_nederlandsk_startmåned = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::dansk_ansættelse_startdato::måned),
+    label = "Dansk ansættelsesstart - måned",
+    question = Some("I hvilken måned begyndte det danske ansættelsesforhold?"),
+    help = Some("Angiv måned som 1-12."),
+    unit = Some("måned")
+)
+= ambl_par2_nr5_felt_nederlandsk_startdag = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Nederlandefakta::dansk_ansættelse_startdato::dag),
+    label = "Dansk ansættelsesstart - dag",
+    question = Some("På hvilken dag begyndte det danske ansættelsesforhold?"),
+    help = Some("Datoen valideres som kalenderdato og bruges til 60-månedersgrænsen."),
+    unit = Some("dag")
+)
+= ambl_par2_nr5_felt_schweizisk_ordning = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::ordning::$variant),
+    label = "Schweizisk pensionsordning",
+    question = Some("Hvilken dokumenteret schweizisk pensionsordning er indbetalingen foretaget til?"),
+    help = Some("Ordningstypen skal være en af de ordninger, som overenskomsten og vejledningen anerkender."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_aldersforsikring_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SchweiziskOrdning::AmblNr5SchweizAldersOgEfterladteforsikring::dokumentreference),
+    label = "Dokumentation for alders- og efterladteforsikring",
+    question = Some("Hvilken reference dokumenterer den schweiziske alders- og efterladteforsikring?"),
+    help = Some("Angiv en kontrollerbar ordnings- eller myndighedsreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_invalideforsikring_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SchweiziskOrdning::AmblNr5SchweizInvalideforsikring::dokumentreference),
+    label = "Dokumentation for invalideforsikring",
+    question = Some("Hvilken reference dokumenterer den schweiziske invalideforsikring?"),
+    help = Some("Angiv en kontrollerbar ordnings- eller myndighedsreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_supplerende_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SchweiziskOrdning::AmblNr5SchweizSupplerendePension::dokumentreference),
+    label = "Dokumentation for supplerende pension",
+    question = Some("Hvilken reference dokumenterer den schweiziske supplerende pensionsordning?"),
+    help = Some("Angiv en kontrollerbar ordnings- eller myndighedsreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_beskæftigelsespension_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SchweiziskOrdning::AmblNr5SchweizBeskæftigelsesrelateretPension::dokumentreference),
+    label = "Dokumentation for beskæftigelsesrelateret pension",
+    question = Some("Hvilken reference dokumenterer den schweiziske beskæftigelsesrelaterede pensionsordning?"),
+    help = Some("Angiv en kontrollerbar ordnings- eller myndighedsreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_par82_reference = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5SchweiziskOrdning::AmblNr5SchweizIndividuelOrdningEfterPar82::dokumentreference),
+    label = "Dokumentation for individuel ordning efter artikel 82",
+    question = Some("Hvilken reference dokumenterer den schweiziske individuelle ordning efter artikel 82?"),
+    help = Some("Angiv en kontrollerbar ordnings- eller myndighedsreference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_skatteanerkendelse = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::skattemæssigt_anerkendt_i_schweiz::$variant),
+    label = "Skattemæssigt anerkendt i Schweiz",
+    question = Some("Er ordningens skattemæssige anerkendelse i Schweiz dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_dansk_sammenlignelighed = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::godkendt_sammenlignelig_i_danmark::$variant),
+    label = "Godkendt som sammenlignelig i Danmark",
+    question = Some("Har den kompetente danske myndighed godkendt ordningen som overordnet svarende til en dansk skatteanerkendt pensionsordning?"),
+    help = Some("Tilknyt godkendelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_dansk_arbejde = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::yder_personligt_arbejde_i_danmark::$variant),
+    label = "Yder personligt arbejde i Danmark",
+    question = Some("Er personligt arbejde i Danmark dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_tidligere_ikke_hjemmehørende = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::ikke_hjemmehørende_i_danmark_umiddelbart_før::$variant),
+    label = "Ikke hjemmehørende i Danmark umiddelbart før",
+    question = Some("Er det dokumenteret, at personen ikke var hjemmehørende i Danmark umiddelbart før arbejdet i Danmark?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_schweiz_tidligere_deltagelse = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Schweizfakta::deltog_umiddelbart_før_arbejde_i_danmark::$variant),
+    label = "Deltog i ordningen umiddelbart før dansk arbejde",
+    question = Some("Er deltagelsen i den schweiziske ordning umiddelbart før arbejdet i Danmark dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_dansk_hjemsted = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::hjemmehørende_i_danmark::$variant),
+    label = "Hjemmehørende i Danmark",
+    question = Some("Er dansk hjemsted dokumenteret for personen?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_skatteanerkendelse = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::skattemæssigt_anerkendt_i_storbritannien::$variant),
+    label = "Skattemæssigt anerkendt i Storbritannien",
+    question = Some("Er ordningens skattemæssige anerkendelse i Storbritannien dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_dansk_sammenlignelighed = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::godkendt_sammenlignelig_i_danmark::$variant),
+    label = "Godkendt som sammenlignelig i Danmark",
+    question = Some("Har den kompetente danske myndighed godkendt ordningen som svarende til en dansk skatteanerkendt pensionsordning?"),
+    help = Some("Tilknyt godkendelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_arbejdsgiverordning = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::ordning_i_forbindelse_med_tjenesteforhold::$variant),
+    label = "Ordning i forbindelse med tjenesteforhold",
+    question = Some("Er det dokumenteret, at den britiske ordning er knyttet til tjenesteforholdet?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_dansk_arbejde = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::personligt_arbejde_i_danmark::$variant),
+    label = "Personligt arbejde i Danmark",
+    question = Some("Er personligt arbejde i Danmark dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_tidligere_ikke_hjemmehørende = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::ikke_hjemmehørende_i_danmark_umiddelbart_før::$variant),
+    label = "Ikke hjemmehørende i Danmark umiddelbart før",
+    question = Some("Er det dokumenteret, at personen ikke var hjemmehørende i Danmark umiddelbart før arbejdet i Danmark?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_tidligere_medlemskab = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::medlem_og_bidrog_umiddelbart_før::$variant),
+    label = "Medlem og bidrog umiddelbart før",
+    question = Some("Er medlemskab af og bidrag til den britiske ordning umiddelbart før dansk hjemsted dokumenteret?"),
+    help = Some("Tilknyt betingelsens dokumentationsstatus og reference."),
+    unit = None
+)
+= ambl_par2_nr5_felt_britisk_arbejdsgiverrelation = TypetBeregningsfelt(
+    path = refof(AmblPar2Nr5Storbritannienfakta::arbejdsgiverrelation::$variant),
+    label = "Britisk arbejdsgiverkontinuitet",
+    question = Some("Er arbejdsgiveren den samme som eller forbundet med arbejdsgiveren før arbejdet i Danmark?"),
+    help = Some("Tilknyt den dokumenterede arbejdsgiverrelation."),
+    unit = None
+)
+= ambl_par2_nr5_beregningskilder = (
+    Source(value = ambl_par2_nr5_lbk121),
+    DependencySource(value = ambl_par2_nr5_sverige_2003),
+    DependencySource(value = ambl_par2_nr5_sverige_2024),
+    DependencySource(value = ambl_par2_nr5_nederlandene),
+    DependencySource(value = ambl_par2_nr5_schweiz),
+    DependencySource(value = ambl_par2_nr5_storbritannien),
+    Guidance(value = ambl_par2_nr5_vejledning_ca12_2),
+    Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+)
+
+= ambl_par2_nr5_årsgrundlag_beregningsmetadata = TypetBeregningsmeta(
+    felter = [ambl_par2_nr5_felt_indbetalinger],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_indbetaling_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_identifikation,
+        ambl_par2_nr5_felt_indkomstår,
+        ambl_par2_nr5_felt_indbetalingsdato_år,
+        ambl_par2_nr5_felt_indbetalingsdato_måned,
+        ambl_par2_nr5_felt_indbetalingsdato_dag,
+        ambl_par2_nr5_felt_arbejdsgiverindbetaling,
+        ambl_par2_nr5_felt_dbo_land
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_betingelse_beregningsmetadata = TypetBeregningsmeta(
+    felter = [ambl_par2_nr5_felt_betingelsesreference],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_arbejdsgiverrelation_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_samme_arbejdsgiver_reference,
+        ambl_par2_nr5_felt_forbundne_arbejdsgivere_reference
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_beløbsrammer_beregningsmetadata = TypetBeregningsmeta(
+    felter = [ambl_par2_nr5_felt_årsramme_identifikation],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_beløbsgrænse_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_beløbsgrænsetype,
+        ambl_par2_nr5_felt_beløbsgrænse_maksimum,
+        ambl_par2_nr5_felt_beløbsgrænse_maksimum_reference,
+        ambl_par2_nr5_felt_uden_beløbsgrænse_reference
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_sverigefakta_beregningsmetadata = TypetBeregningsmeta(
+    felter = [ambl_par2_nr5_felt_svensk_ordning],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_svensk_ordning_beregningsmetadata = TypetBeregningsmeta(
+    felter = [ambl_par2_nr5_felt_svensk_kapitel28_reference, ambl_par2_nr5_felt_svensk_kapitel58_reference],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_svensk_personstatus_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_svensk_personstatus,
+        ambl_par2_nr5_felt_svensk_grænsegænger_hjemsted,
+        ambl_par2_nr5_felt_svensk_grænsegænger_dansk_arbejde,
+        ambl_par2_nr5_felt_svensk_dansk_nettoindkomst,
+        ambl_par2_nr5_felt_svensk_samlet_nettoindkomst,
+        ambl_par2_nr5_felt_svensk_tilflytter_hjemsted,
+        ambl_par2_nr5_felt_svensk_tilflytter_tidligere_deltagelse
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_nederlandefakta_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_nederlandsk_obligatorisk_ordning,
+        ambl_par2_nr5_felt_nederlandsk_skatteanerkendelse,
+        ambl_par2_nr5_felt_nederlandsk_dansk_sammenlignelighed,
+        ambl_par2_nr5_felt_nederlandsk_tjenesteforhold,
+        ambl_par2_nr5_felt_nederlandsk_tidligere_ikke_hjemmehørende,
+        ambl_par2_nr5_felt_nederlandsk_tidligere_bidrag,
+        ambl_par2_nr5_felt_nederlandsk_arbejdsgiverrelation,
+        ambl_par2_nr5_felt_nederlandsk_startår,
+        ambl_par2_nr5_felt_nederlandsk_startmåned,
+        ambl_par2_nr5_felt_nederlandsk_startdag
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_schweizfakta_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_schweizisk_ordning,
+        ambl_par2_nr5_felt_schweiz_skatteanerkendelse,
+        ambl_par2_nr5_felt_schweiz_dansk_sammenlignelighed,
+        ambl_par2_nr5_felt_schweiz_dansk_arbejde,
+        ambl_par2_nr5_felt_schweiz_tidligere_ikke_hjemmehørende,
+        ambl_par2_nr5_felt_schweiz_tidligere_deltagelse
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_schweizisk_ordning_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_schweiz_aldersforsikring_reference,
+        ambl_par2_nr5_felt_schweiz_invalideforsikring_reference,
+        ambl_par2_nr5_felt_schweiz_supplerende_reference,
+        ambl_par2_nr5_felt_schweiz_beskæftigelsespension_reference,
+        ambl_par2_nr5_felt_schweiz_par82_reference
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+= ambl_par2_nr5_storbritannienfakta_beregningsmetadata = TypetBeregningsmeta(
+    felter = [
+        ambl_par2_nr5_felt_britisk_dansk_hjemsted,
+        ambl_par2_nr5_felt_britisk_skatteanerkendelse,
+        ambl_par2_nr5_felt_britisk_dansk_sammenlignelighed,
+        ambl_par2_nr5_felt_britisk_arbejdsgiverordning,
+        ambl_par2_nr5_felt_britisk_dansk_arbejde,
+        ambl_par2_nr5_felt_britisk_tidligere_ikke_hjemmehørende,
+        ambl_par2_nr5_felt_britisk_tidligere_medlemskab,
+        ambl_par2_nr5_felt_britisk_arbejdsgiverrelation
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = ambl_par2_nr5_beregningskilder
+)
+
+--@label:AmblPar2Nr5Årsgrundlag::meta:ambl_par2_nr5_årsgrundlag_beregningsmetadata--
+--@label:AmblPar2Nr5Indbetalingsfakta::meta:ambl_par2_nr5_indbetaling_beregningsmetadata--
+--@label:AmblPar2Nr5Betingelse::meta:ambl_par2_nr5_betingelse_beregningsmetadata--
+--@label:AmblPar2Nr5Arbejdsgiverrelation::meta:ambl_par2_nr5_arbejdsgiverrelation_beregningsmetadata--
+--@label:AmblPar2Nr5Beløbsrammer::meta:ambl_par2_nr5_beløbsrammer_beregningsmetadata--
+--@label:AmblPar2Nr5Beløbsgrænse::meta:ambl_par2_nr5_beløbsgrænse_beregningsmetadata--
+--@label:AmblPar2Nr5Sverigefakta::meta:ambl_par2_nr5_sverigefakta_beregningsmetadata--
+--@label:AmblPar2Nr5SvenskOrdning::meta:ambl_par2_nr5_svensk_ordning_beregningsmetadata--
+--@label:AmblPar2Nr5SvenskPersonstatus::meta:ambl_par2_nr5_svensk_personstatus_beregningsmetadata--
+--@label:AmblPar2Nr5Nederlandefakta::meta:ambl_par2_nr5_nederlandefakta_beregningsmetadata--
+--@label:AmblPar2Nr5Schweizfakta::meta:ambl_par2_nr5_schweizfakta_beregningsmetadata--
+--@label:AmblPar2Nr5SchweiziskOrdning::meta:ambl_par2_nr5_schweizisk_ordning_beregningsmetadata--
+--@label:AmblPar2Nr5Storbritannienfakta::meta:ambl_par2_nr5_storbritannienfakta_beregningsmetadata--

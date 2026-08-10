@@ -1,0 +1,174 @@
+@ sprog da
+
+@ importer ./arbejdsmarkedsbidragsloven - par2 - stk1 - nr5
+
+| ambl_nr5_dokumenteret(reference: Tekst) -> AmblNr5BetingelseDokumenteret(dokumentreference = reference)
+| ambl_nr5_danske_og_udenlandske_lofter(årsramme_identifikation: Tekst, dansk_maksimum_kroner: Heltal, udenlandsk_maksimum_kroner: Heltal) -> AmblPar2Nr5Beløbsrammer(
+    årsramme_identifikation = årsramme_identifikation,
+    dansk_grænse = AmblNr5DokumenteretMaksimum(
+        maksimum_kroner = dansk_maksimum_kroner,
+        dokumentreference = "dansk-beløbsgrænse"
+    ),
+    ordningslandets_grænse = AmblNr5DokumenteretMaksimum(
+        maksimum_kroner = udenlandsk_maksimum_kroner,
+        dokumentreference = "udenlandsk-beløbsgrænse"
+    )
+)
+| ambl_nr5_uden_beløbslofter(årsramme_identifikation: Tekst) -> AmblPar2Nr5Beløbsrammer(
+    årsramme_identifikation = årsramme_identifikation,
+    dansk_grænse = AmblNr5DokumenteretUdenBeløbsgrænse(
+        dokumentreference = "dansk-livrente-uden-beløbsgrænse"
+    ),
+    ordningslandets_grænse = AmblNr5DokumenteretUdenBeløbsgrænse(
+        dokumentreference = "udenlandsk-livrente-uden-beløbsgrænse"
+    )
+)
+| ambl_nr5_svensk_grænsegængergrundlag() -> AmblNr5Sverige(fakta = AmblPar2Nr5Sverigefakta(
+    ordning = AmblNr5SvenskOrdningKapitel28(
+        dokumentreference = "svensk-ordning-kapitel-28"
+    ),
+    personstatus = AmblNr5SvenskGrænsegænger(
+        hjemmehørende_i_sverige = ambl_nr5_dokumenteret("hjemsted-sverige"),
+        arbejder_og_beskattes_i_danmark = ambl_nr5_dokumenteret("dansk-arbejdsindkomst"),
+        dansk_nettoindkomst_kroner = 750000,
+        samlet_nettoindkomst_kroner = 1000000
+    ),
+    beløbsrammer = ambl_nr5_danske_og_udenlandske_lofter(
+        årsramme_identifikation = "svensk-kapitel-28-årsramme-2025",
+        dansk_maksimum_kroner = 60000,
+        udenlandsk_maksimum_kroner = 55000
+    )
+))
+| ambl_nr5_svensk_indbetaling_med_beløb(identifikation: Tekst, måned: Heltal, beløb_kroner: Heltal) -> AmblPar2Nr5Indbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    indbetalingsdato = Dato(år = 2025, måned = måned, dag = 1),
+    arbejdsgiverindbetaling_kroner = beløb_kroner,
+    dbo_grundlag = ambl_nr5_svensk_grænsegængergrundlag()
+)
+| ambl_nr5_svensk_indbetaling(identifikation: Tekst) -> ambl_nr5_svensk_indbetaling_med_beløb(identifikation, 6, 80000)
+| ambl_nr5_nederlandsk_grundlag(godkendelse: AmblPar2Nr5Betingelse) -> AmblNr5Nederlandene(fakta = AmblPar2Nr5Nederlandefakta(
+    obligatorisk_ordning = ambl_nr5_dokumenteret("obligatorisk-nederlandsk-ordning"),
+    skattemæssigt_anerkendt_i_nederlandene = ambl_nr5_dokumenteret("nederlandsk-skattegodkendelse"),
+    godkendt_sammenlignelig_i_danmark = godkendelse,
+    personligt_arbejde_i_tjenesteforhold = ambl_nr5_dokumenteret("ansættelseskontrakt"),
+    ikke_hjemmehørende_i_danmark_umiddelbart_før = ambl_nr5_dokumenteret("hjemsted-før-udstationering"),
+    bidrog_umiddelbart_før_dansk_ansættelse = ambl_nr5_dokumenteret("pensionsopgørelse-før-udstationering"),
+    arbejdsgiverrelation = AmblNr5ForbundneArbejdsgivere(
+        dokumentreference = "koncernforbindelse"
+    ),
+    dansk_ansættelse_startdato = Dato(år = 2023, måned = 1, dag = 1),
+    beløbsrammer = ambl_nr5_danske_og_udenlandske_lofter(
+        årsramme_identifikation = "nederlandsk-ordning-årsramme-2026",
+        dansk_maksimum_kroner = 60000,
+        udenlandsk_maksimum_kroner = 65000
+    )
+))
+| ambl_nr5_nederlandsk_indbetaling(identifikation: Tekst, godkendelse: AmblPar2Nr5Betingelse) -> AmblPar2Nr5Indbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    indbetalingsdato = Dato(år = 2026, måned = 12, dag = 31),
+    arbejdsgiverindbetaling_kroner = 70000,
+    dbo_grundlag = ambl_nr5_nederlandsk_grundlag(godkendelse)
+)
+| ambl_nr5_schweizisk_indbetaling(identifikation: Tekst) -> AmblPar2Nr5Indbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    indbetalingsdato = Dato(år = 2026, måned = 4, dag = 1),
+    arbejdsgiverindbetaling_kroner = 50000,
+    dbo_grundlag = AmblNr5Schweiz(fakta = AmblPar2Nr5Schweizfakta(
+        ordning = AmblNr5SchweizBeskæftigelsesrelateretPension(
+            dokumentreference = "schweizisk-bvg-ordning"
+        ),
+        skattemæssigt_anerkendt_i_schweiz = ambl_nr5_dokumenteret("schweizisk-skattegodkendelse"),
+        godkendt_sammenlignelig_i_danmark = ambl_nr5_dokumenteret("dansk-sammenlignelighedsgodkendelse"),
+        yder_personligt_arbejde_i_danmark = ambl_nr5_dokumenteret("dansk-arbejdssted"),
+        ikke_hjemmehørende_i_danmark_umiddelbart_før = ambl_nr5_dokumenteret("hjemsted-før-dansk-arbejde"),
+        deltog_umiddelbart_før_arbejde_i_danmark = ambl_nr5_dokumenteret("schweizisk-pensionsopgørelse"),
+        beløbsrammer = ambl_nr5_uden_beløbslofter("schweizisk-bvg-årsramme-2026")
+    ))
+)
+| ambl_nr5_britisk_indbetaling_uden_sammenlignelighed(identifikation: Tekst) -> AmblPar2Nr5Indbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    indbetalingsdato = Dato(år = 2026, måned = 2, dag = 1),
+    arbejdsgiverindbetaling_kroner = 40000,
+    dbo_grundlag = AmblNr5Storbritannien(fakta = AmblPar2Nr5Storbritannienfakta(
+        hjemmehørende_i_danmark = ambl_nr5_dokumenteret("dansk-hjemsted"),
+        skattemæssigt_anerkendt_i_storbritannien = ambl_nr5_dokumenteret("britisk-skattegodkendelse"),
+        godkendt_sammenlignelig_i_danmark = AmblNr5BetingelseIkkeOpfyldt,
+        ordning_i_forbindelse_med_tjenesteforhold = ambl_nr5_dokumenteret("britisk-arbejdsgiverordning"),
+        personligt_arbejde_i_danmark = ambl_nr5_dokumenteret("dansk-arbejdssted"),
+        ikke_hjemmehørende_i_danmark_umiddelbart_før = ambl_nr5_dokumenteret("hjemsted-før-tilflytning"),
+        medlem_og_bidrog_umiddelbart_før = ambl_nr5_dokumenteret("britisk-pensionsopgørelse"),
+        arbejdsgiverrelation = AmblNr5SammeArbejdsgiver(
+            dokumentreference = "samme-arbejdsgiver"
+        ),
+        beløbsrammer = ambl_nr5_uden_beløbslofter("britisk-ordning-årsramme-2026")
+    ))
+)
+
+| ambl_nr5_enkelt_indbetalingsresultat(fakta: AmblPar2Nr5Indbetalingsfakta) -> head(ambl_par2_nr5_årsresultat(fakta.indkomstår, AmblPar2Nr5Årsgrundlag(indbetalinger = [fakta])).indbetalingsresultater)
+
+= ambl_nr5_sverige_resultat = ambl_nr5_enkelt_indbetalingsresultat(ambl_nr5_svensk_indbetaling("sverige"))
+= ambl_nr5_nederlandene_resultat = ambl_nr5_enkelt_indbetalingsresultat(ambl_nr5_nederlandsk_indbetaling(
+    identifikation = "nederlandene",
+    godkendelse = ambl_nr5_dokumenteret("dansk-sammenlignelighedsgodkendelse")
+))
+= ambl_nr5_schweiz_resultat = ambl_nr5_enkelt_indbetalingsresultat(ambl_nr5_schweizisk_indbetaling("schweiz"))
+= ambl_nr5_storbritannien_resultat = ambl_nr5_enkelt_indbetalingsresultat(ambl_nr5_britisk_indbetaling_uden_sammenlignelighed("storbritannien"))
+= ambl_nr5_uafklaret_resultat = ambl_par2_nr5_årsresultat(2026, AmblPar2Nr5Årsgrundlag(
+    indbetalinger = [
+        ambl_nr5_nederlandsk_indbetaling(
+            identifikation = "uafklaret",
+            godkendelse = AmblNr5BetingelseUafklaret
+        )
+    ]
+))
+= ambl_nr5_dobbelt_identifikation_resultat = ambl_par2_nr5_årsresultat(2026, AmblPar2Nr5Årsgrundlag(
+    indbetalinger = [
+        ambl_nr5_schweizisk_indbetaling("samme-id"),
+        ambl_nr5_britisk_indbetaling_uden_sammenlignelighed("samme-id")
+    ]
+))
+= ambl_nr5_samlet_årsresultat = ambl_par2_nr5_årsresultat(2026, AmblPar2Nr5Årsgrundlag(
+    indbetalinger = [
+        ambl_nr5_nederlandsk_indbetaling(
+            identifikation = "nederlandene",
+            godkendelse = ambl_nr5_dokumenteret("dansk-sammenlignelighedsgodkendelse")
+        ),
+        ambl_nr5_schweizisk_indbetaling("schweiz"),
+        ambl_nr5_britisk_indbetaling_uden_sammenlignelighed("storbritannien")
+    ]
+))
+= ambl_nr5_delt_svensk_årsramme_resultat = ambl_par2_nr5_årsresultat(2025, AmblPar2Nr5Årsgrundlag(
+    indbetalinger = [
+        ambl_nr5_svensk_indbetaling_med_beløb("svensk-januar", 1, 30000),
+        ambl_nr5_svensk_indbetaling_med_beløb("svensk-juli", 7, 40000)
+    ]
+))
+
+| ambl_nr5_sverige_anvender_begge_landes_laveste_loft: ambl_nr5_sverige_resultat -> ambl_nr5_sverige_resultat.fakta_gyldige && ambl_nr5_sverige_resultat.dbo_betingelser_opfyldt && ambl_nr5_sverige_resultat.fælles_bortseelsesramme_kroner == 55000 && ambl_nr5_sverige_resultat.ikke_skattepligtig_efter_dbo_kroner == 55000 && ambl_nr5_sverige_resultat.skattepligtig_arbejdsgiverindbetaling_kroner == 25000
+| ambl_nr5_nederlandene_anvender_60_måneder_og_dansk_loft: ambl_nr5_nederlandene_resultat -> ambl_nr5_nederlandene_resultat.fakta_gyldige && ambl_nr5_nederlandene_resultat.dbo_betingelser_opfyldt && ambl_nr5_nederlandene_resultat.arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner == 60000 && ambl_nr5_nederlandene_resultat.arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner == 10000
+| ambl_nr5_nederlandene_afskærer_på_60_månedersdagen: ambl_nr5_nederlandene_resultat -> match ambl_nr5_nederlandsk_grundlag(ambl_nr5_dokumenteret("godkendelse")) {
+    | AmblNr5Nederlandene(fakta) -> ambl_par2_nr5_nederlandene_inden_for_60_måneder(fakta, Dato(år = 2028, måned = 1, dag = 1)) == Falskt
+    | _ -> Falskt
+}
+| ambl_nr5_schweiz_uden_beløbsloft_er_fuldt_omfattet: ambl_nr5_schweiz_resultat -> ambl_nr5_schweiz_resultat.fakta_gyldige && ambl_nr5_schweiz_resultat.dbo_betingelser_opfyldt && ambl_nr5_schweiz_resultat.ikke_skattepligtig_efter_dbo_kroner == 50000 && ambl_nr5_schweiz_resultat.skattepligtig_arbejdsgiverindbetaling_kroner == 0
+| ambl_nr5_britisk_ikke_sammenlignelig_ordning_bliver_skattepligtig: ambl_nr5_storbritannien_resultat -> ambl_nr5_storbritannien_resultat.fakta_gyldige && ambl_nr5_storbritannien_resultat.dbo_betingelser_opfyldt == Falskt && ambl_nr5_storbritannien_resultat.ikke_skattepligtig_efter_dbo_kroner == 0 && ambl_nr5_storbritannien_resultat.skattepligtig_arbejdsgiverindbetaling_kroner == 40000
+| ambl_nr5_uafklaret_kildefakta_fejler_lukket: ambl_nr5_uafklaret_resultat -> ambl_nr5_uafklaret_resultat.input_gyldigt == Falskt && ambl_nr5_uafklaret_resultat.samlet_arbejdsgiverindbetaling_kroner == 0 && ambl_nr5_uafklaret_resultat.samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner == 0
+| ambl_nr5_dobbelte_identifikationer_afvises: ambl_nr5_dobbelt_identifikation_resultat -> ambl_nr5_dobbelt_identifikation_resultat.identifikationer_entydige == Falskt && ambl_nr5_dobbelt_identifikation_resultat.input_gyldigt == Falskt && ambl_nr5_dobbelt_identifikation_resultat.samlet_arbejdsgiverindbetaling_kroner == 0
+| ambl_nr5_aarsresultat_bevarer_hele_indbetalingen: ambl_nr5_samlet_årsresultat -> ambl_nr5_samlet_årsresultat.input_gyldigt && ambl_nr5_samlet_årsresultat.samlet_arbejdsgiverindbetaling_kroner == 160000 && ambl_nr5_samlet_årsresultat.samlet_ikke_skattepligtig_efter_dbo_kroner == 110000 && ambl_nr5_samlet_årsresultat.samlet_skattepligtig_arbejdsgiverindbetaling_kroner == 50000 && ambl_nr5_samlet_årsresultat.samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner + ambl_nr5_samlet_årsresultat.samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner == ambl_nr5_samlet_årsresultat.samlet_arbejdsgiverindbetaling_kroner
+| ambl_nr5_flere_indbetalinger_deler_årsramme: ambl_nr5_delt_svensk_årsramme_resultat -> ambl_nr5_delt_svensk_årsramme_resultat.input_gyldigt && ambl_nr5_delt_svensk_årsramme_resultat.årsrammer_konsistente && ambl_nr5_delt_svensk_årsramme_resultat.samlet_arbejdsgiverindbetaling_kroner == 70000 && ambl_nr5_delt_svensk_årsramme_resultat.samlet_ikke_skattepligtig_efter_dbo_kroner == 55000 && ambl_nr5_delt_svensk_årsramme_resultat.samlet_skattepligtig_arbejdsgiverindbetaling_kroner == 15000 && head(tail(ambl_nr5_delt_svensk_årsramme_resultat.indbetalingsresultater)).tidligere_anvendt_årsramme_kroner == 30000 && head(tail(ambl_nr5_delt_svensk_årsramme_resultat.indbetalingsresultater)).ikke_skattepligtig_efter_dbo_kroner == 25000
+| ambl_nr5_sverige_kildeversioner_er_tidsafgrænsede: ambl_nr5_sverige_resultat -> ambl_par2_nr5_sverige_aftaleversion_for(2023) == AmblNr5SverigeAftale2003 && ambl_par2_nr5_sverige_aftaleversion_for(2024) == AmblNr5SverigeAftale2003 && ambl_par2_nr5_sverige_aftaleversion_for(2025) == AmblNr5SverigeAftale2024 && ambl_par2_nr5_sverige_aftaleversion_for(2026) == AmblNr5SverigeAftale2024 && ambl_par2_nr5_sverige_aftaleversion_for(2027) == AmblNr5SverigeUdenKildedækning
+
+? ambl_nr5_sverige_anvender_begge_landes_laveste_loft
+? ambl_nr5_nederlandene_anvender_60_måneder_og_dansk_loft
+? ambl_nr5_nederlandene_afskærer_på_60_månedersdagen
+? ambl_nr5_schweiz_uden_beløbsloft_er_fuldt_omfattet
+? ambl_nr5_britisk_ikke_sammenlignelig_ordning_bliver_skattepligtig
+? ambl_nr5_uafklaret_kildefakta_fejler_lukket
+? ambl_nr5_dobbelte_identifikationer_afvises
+? ambl_nr5_aarsresultat_bevarer_hele_indbetalingen
+? ambl_nr5_flere_indbetalinger_deler_årsramme
+? ambl_nr5_sverige_kildeversioner_er_tidsafgrænsede

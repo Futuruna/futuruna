@@ -1,0 +1,497 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./kalenderdato
+@ importer ./pengebeloeb
+
+# AmblPar2Nr5KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= ambl_par2_nr5_lbk121 = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 1 og 5, og § 3, nr. 3",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Senere ændringer ved LOV nr. 2226 af 29/12/2020, LOV nr. 679 af 03/06/2023 og LOV nr. 96 af 04/02/2025 gennemgået; bestemmelserne er uændrede"
+)
+
+= ambl_par2_nr5_vejledning_ca12_2 = AmblPar2Nr5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976912",
+    identifier = "Den juridiske vejledning 2026-1, C.A.12.2, Arbejdsgiverens pensionsindbetalinger",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Gældende vejledningsversion 2026-1"
+)
+
+= ambl_par2_nr5_sverige_2003 = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2003/974",
+    identifier = "Grænsegængeraftalen af 29/10/2003, artikel 2",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Anvendes for indkomstårene 2023-2024; artikel 2 blev videreført uændret i 2024-aftalen"
+)
+
+= ambl_par2_nr5_sverige_2024 = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1176",
+    identifier = "Aftale af 10/06/2024 mellem Danmark og Sverige om visse skattespørgsmål, artikel 2",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Anvendes fra indkomståret 2025"
+)
+
+= ambl_par2_nr5_nederlandene = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1997/1100",
+    identifier = "Dobbeltbeskatningsoverenskomsten mellem Danmark og Nederlandene, artikel 25, stk. 5 og 6",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Sammenholdt med Den juridiske vejledning 2026-1, C.A.10.3.3"
+)
+
+= ambl_par2_nr5_schweiz = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/ltc/2010/64",
+    identifier = "Protokol af 21/08/2009 til dobbeltbeskatningsoverenskomsten mellem Danmark og Schweiz, artikel IX-X",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Sammenholdt med Den juridiske vejledning 2026-1, C.A.10.3.3"
+)
+
+= ambl_par2_nr5_storbritannien = AmblPar2Nr5KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/1997/438",
+    identifier = "Dobbeltbeskatningsoverenskomsten mellem Danmark og Storbritannien, artikel 28, stk. 3-5",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Sammenholdt med SKM2021.381.SKTST og Den juridiske vejledning 2026-1, C.A.10.3.3; Brexit ændrer ikke anvendelsen"
+)
+
+= ambl_par2_nr5_vejledning_ca10_3_3 = AmblPar2Nr5KildeInfo(
+    url = "https://info.skat.dk/data.aspx?chk=220619&oid=2048436",
+    identifier = "Den juridiske vejledning 2026-1, C.A.10.3.3",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Gældende vejledningsversion 2026-1"
+)
+
+= ambl_par2_nr5_lovmetadata = Metadata(
+    attachments = (
+        Source(value = ambl_par2_nr5_lbk121),
+        Guidance(value = ambl_par2_nr5_vejledning_ca12_2),
+    )
+)
+
+--@label:arbejdsmarkedsbidragsloven_par2_stk1_nr5::meta:ambl_par2_nr5_lovmetadata--
+----
+§ 2. Grundlaget for arbejdsmarkedsbidrag for lønmodtagere m.v. er følgende
+indkomster, jf. dog stk. 2 og § 3:
+
+1) Ethvert vederlag i penge eller naturalier, der kan henføres til personligt
+arbejde i ansættelsesforhold, herunder løn i opsigelsesperiode, løn under
+sygdom og barsel m.v., efterbetalinger, fratrædelsesgodtgørelser, efterløns- og
+pensionslignende ydelser m.v., når sådanne ydelser har sammenhæng med et
+tidligere ansættelsesforhold eller hverv.
+
+5) Indbetalinger foretaget af arbejdsgiver til pensionsordninger etableret i
+udlandet, når indbetalingerne i medfør af en dobbeltbeskatningsoverenskomst
+ikke skal medregnes til den skattepligtige indkomst for lønmodtageren, jf. dog
+§ 3, nr. 4.
+
+§ 3. Følgende medregnes ikke i grundlaget for arbejdsmarkedsbidrag:
+
+3) Vederlag som nævnt i § 2, stk. 1, nr. 1 og 2, i det omfang sådanne
+vederlag ikke skal medregnes ved opgørelsen af den skattepligtige indkomst.
+----
+
+--@begin:arbejdsmarkedsbidragsloven_par2_stk1_nr5--
+# AmblPar2Nr5Betingelse = AmblNr5BetingelseDokumenteret(dokumentreference: Tekst) | AmblNr5BetingelseIkkeOpfyldt | AmblNr5BetingelseUafklaret
+# AmblPar2Nr5Arbejdsgiverrelation = AmblNr5SammeArbejdsgiver(dokumentreference: Tekst) | AmblNr5ForbundneArbejdsgivere(dokumentreference: Tekst) | AmblNr5IkkeSammeEllerForbundneArbejdsgivere | AmblNr5ArbejdsgiverrelationUafklaret
+# AmblPar2Nr5Beløbsgrænse = AmblNr5DokumenteretMaksimum(maksimum_kroner: Heltal, dokumentreference: Tekst) | AmblNr5DokumenteretUdenBeløbsgrænse(dokumentreference: Tekst) | AmblNr5BeløbsgrænseUafklaret
+# AmblPar2Nr5Beløbsrammer(årsramme_identifikation: Tekst, dansk_grænse: AmblPar2Nr5Beløbsgrænse, ordningslandets_grænse: AmblPar2Nr5Beløbsgrænse)
+
+| ambl_par2_nr5_betingelse_input_gyldig(betingelse: AmblPar2Nr5Betingelse) -> match betingelse {
+    | AmblNr5BetingelseDokumenteret(dokumentreference) -> dokumentreference != ""
+    | AmblNr5BetingelseIkkeOpfyldt -> Sandt
+    | AmblNr5BetingelseUafklaret -> Falskt
+}
+| ambl_par2_nr5_betingelse_opfyldt(betingelse: AmblPar2Nr5Betingelse) -> match betingelse {
+    | AmblNr5BetingelseDokumenteret(_) -> Sandt
+    | _ -> Falskt
+}
+| ambl_par2_nr5_arbejdsgiverrelation_input_gyldig(relation: AmblPar2Nr5Arbejdsgiverrelation) -> match relation {
+    | AmblNr5SammeArbejdsgiver(dokumentreference) -> dokumentreference != ""
+    | AmblNr5ForbundneArbejdsgivere(dokumentreference) -> dokumentreference != ""
+    | AmblNr5IkkeSammeEllerForbundneArbejdsgivere -> Sandt
+    | AmblNr5ArbejdsgiverrelationUafklaret -> Falskt
+}
+| ambl_par2_nr5_arbejdsgiverrelation_opfyldt(relation: AmblPar2Nr5Arbejdsgiverrelation) -> match relation {
+    | AmblNr5SammeArbejdsgiver(_) -> Sandt
+    | AmblNr5ForbundneArbejdsgivere(_) -> Sandt
+    | _ -> Falskt
+}
+| ambl_par2_nr5_beløbsgrænse_input_gyldig(grænse: AmblPar2Nr5Beløbsgrænse) -> match grænse {
+    | AmblNr5DokumenteretMaksimum(maksimum_kroner, dokumentreference) -> maksimum_kroner >= 0 && dokumentreference != ""
+    | AmblNr5DokumenteretUdenBeløbsgrænse(dokumentreference) -> dokumentreference != ""
+    | AmblNr5BeløbsgrænseUafklaret -> Falskt
+}
+| ambl_par2_nr5_beløbsrammer_input_gyldige(rammer: AmblPar2Nr5Beløbsrammer) -> rammer.årsramme_identifikation != "" && ambl_par2_nr5_beløbsgrænse_input_gyldig(rammer.dansk_grænse) && ambl_par2_nr5_beløbsgrænse_input_gyldig(rammer.ordningslandets_grænse)
+| ambl_par2_nr5_beløb_inden_for_resterende_grænse_kroner(beløb_kroner: Heltal, tidligere_anvendt_kroner: Heltal, grænse: AmblPar2Nr5Beløbsgrænse) -> match grænse {
+    | AmblNr5DokumenteretMaksimum(maksimum_kroner, _) -> penge_mindste_beløb(penge_positivt_beløb(beløb_kroner), penge_positivt_beløb(maksimum_kroner - tidligere_anvendt_kroner))
+    | AmblNr5DokumenteretUdenBeløbsgrænse(_) -> penge_positivt_beløb(beløb_kroner)
+    | AmblNr5BeløbsgrænseUafklaret -> 0
+}
+| ambl_par2_nr5_fælles_bortseelsesramme_kroner(beløb_kroner: Heltal, tidligere_anvendt_kroner: Heltal, rammer: AmblPar2Nr5Beløbsrammer) -> hvis ambl_par2_nr5_beløbsrammer_input_gyldige(rammer) {
+    penge_mindste_beløb(
+        ambl_par2_nr5_beløb_inden_for_resterende_grænse_kroner(beløb_kroner, tidligere_anvendt_kroner, rammer.dansk_grænse),
+        ambl_par2_nr5_beløb_inden_for_resterende_grænse_kroner(beløb_kroner, tidligere_anvendt_kroner, rammer.ordningslandets_grænse)
+    )
+} ellers { 0 }
+--@end:arbejdsmarkedsbidragsloven_par2_stk1_nr5--
+
+= ambl_par2_nr5_sverige_metadata = Metadata(
+    attachments = (
+        DependencySource(value = ambl_par2_nr5_sverige_2003),
+        DependencySource(value = ambl_par2_nr5_sverige_2024),
+        Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+    )
+)
+
+--@label:ambl_par2_nr5_sverige::meta:ambl_par2_nr5_sverige_metadata--
+----
+Artikel 2
+
+1. Hvis en fysisk person erhverver indkomst fra erhvervsvirksomhed, frit
+erhverv eller personligt arbejde i tjenesteforhold, som efter artikel 7, 14,
+15 eller 19 i den nordiske aftale kan beskattes eller kun kan beskattes i en
+kontraherende stat, og deltager i en pensionsordning i den anden
+kontraherende stat, skal
+
+a) bidrag, som denne person betaler til pensionsordningen, være
+fradragsberettiget i den førstnævnte stat, eller
+
+b) bidrag, som denne persons arbejdsgiver betaler til pensionsordningen, ikke
+anses som skattepligtig indkomst i den førstnævnte stat for personen samt
+være fradragsberettiget i denne stat for arbejdsgiveren.
+
+2. Bidraget skal dog alene være fradragsberettiget eller ikke anses som
+skattepligtig indkomst i den førstnævnte kontraherende stat indenfor de
+beløbsgrænser, som gælder for bidrag, der betales til en pensionsordning efter
+lovgivningen i begge de kontraherende stater.
+
+3. Denne artikel gælder kun:
+
+a) i tilfælde, hvor personen, som kan beskattes eller kun kan beskattes i den
+førstnævnte kontraherende stat af indkomst fra erhvervsvirksomhed, frit
+erhverv eller personligt arbejde i tjenesteforhold i denne stat, er
+hjemmehørende i den anden kontraherende stat, hvis indkomsten udgør mindst 75
+pct. af den pågældendes samlede indkomst fra erhvervsvirksomhed, frit erhverv
+eller personligt arbejde i tjenesteforhold med fradrag af samtlige udgifter
+afholdt for at erhverve indkomsten (nettoindtægt), eller
+
+b) i tilfælde, hvor personen, som kan beskattes eller kun kan beskattes i den
+førstnævnte kontraherende stat af indkomst fra erhvervsvirksomhed, frit
+erhverv eller personligt arbejde i tjenesteforhold i denne stat, er
+hjemmehørende i denne stat, hvis personen deltog i og bidrag blev betalt til
+pensionsordningen, umiddelbart inden den pågældende blev hjemmehørende i denne
+stat.
+
+4. Ved anvendelsen af stk. 1 skal udtrykket »pensionsordning« betyde en
+ordning, som
+
+a) for Danmarks vedkommende er omfattet af pensionsbeskatningslovens afsnit I,
+
+b) for Sveriges vedkommende er omfattet af 28 eller 58 kap. i
+indkomstskatteloven (1999:1229).
+----
+
+--@begin:ambl_par2_nr5_sverige--
+# AmblPar2Nr5SverigeAftaleversion = AmblNr5SverigeAftale2003 | AmblNr5SverigeAftale2024 | AmblNr5SverigeUdenKildedækning
+# AmblPar2Nr5SvenskOrdning = AmblNr5SvenskOrdningKapitel28(dokumentreference: Tekst) | AmblNr5SvenskOrdningKapitel58(dokumentreference: Tekst) | AmblNr5SvenskOrdningIkkeAnerkendt | AmblNr5SvenskOrdningUafklaret
+# AmblPar2Nr5SvenskPersonstatus = AmblNr5SvenskGrænsegænger(hjemmehørende_i_sverige: AmblPar2Nr5Betingelse, arbejder_og_beskattes_i_danmark: AmblPar2Nr5Betingelse, dansk_nettoindkomst_kroner: Heltal, samlet_nettoindkomst_kroner: Heltal) | AmblNr5SvenskTilflytter(hjemmehørende_i_danmark: AmblPar2Nr5Betingelse, deltog_og_bidrog_umiddelbart_før: AmblPar2Nr5Betingelse) | AmblNr5SvenskPersonIkkeOmfattet | AmblNr5SvenskPersonstatusUafklaret
+# AmblPar2Nr5Sverigefakta(ordning: AmblPar2Nr5SvenskOrdning, personstatus: AmblPar2Nr5SvenskPersonstatus, beløbsrammer: AmblPar2Nr5Beløbsrammer)
+
+| ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeUdenKildedækning
+| exception ambl_nr5_sverige_aftale_2003 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeAftale2003 under indkomstår >= 2023 && indkomstår <= 2024
+| exception ambl_nr5_sverige_aftale_2024 ambl_par2_nr5_sverige_aftaleversion_for(indkomstår: Heltal) -> AmblNr5SverigeAftale2024 under indkomstår >= 2025 && indkomstår <= 2026
+| ambl_par2_nr5_svensk_ordning_input_gyldig(ordning: AmblPar2Nr5SvenskOrdning) -> match ordning {
+    | AmblNr5SvenskOrdningKapitel28(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SvenskOrdningKapitel58(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SvenskOrdningIkkeAnerkendt -> Sandt
+    | AmblNr5SvenskOrdningUafklaret -> Falskt
+}
+| ambl_par2_nr5_svensk_ordning_anerkendt(ordning: AmblPar2Nr5SvenskOrdning) -> match ordning {
+    | AmblNr5SvenskOrdningKapitel28(_) -> Sandt
+    | AmblNr5SvenskOrdningKapitel58(_) -> Sandt
+    | _ -> Falskt
+}
+| ambl_par2_nr5_svensk_personstatus_input_gyldig(status: AmblPar2Nr5SvenskPersonstatus) -> match status {
+    | AmblNr5SvenskGrænsegænger(hjemmehørende, arbejder, dansk_netto, samlet_netto) -> ambl_par2_nr5_betingelse_input_gyldig(hjemmehørende) && ambl_par2_nr5_betingelse_input_gyldig(arbejder) && dansk_netto >= 0 && samlet_netto > 0 && dansk_netto <= samlet_netto
+    | AmblNr5SvenskTilflytter(hjemmehørende, tidligere_deltagelse) -> ambl_par2_nr5_betingelse_input_gyldig(hjemmehørende) && ambl_par2_nr5_betingelse_input_gyldig(tidligere_deltagelse)
+    | AmblNr5SvenskPersonIkkeOmfattet -> Sandt
+    | AmblNr5SvenskPersonstatusUafklaret -> Falskt
+}
+| ambl_par2_nr5_svensk_personstatus_opfyldt(status: AmblPar2Nr5SvenskPersonstatus) -> match status {
+    | AmblNr5SvenskGrænsegænger(hjemmehørende, arbejder, dansk_netto, samlet_netto) -> ambl_par2_nr5_betingelse_opfyldt(hjemmehørende) && ambl_par2_nr5_betingelse_opfyldt(arbejder) && dansk_netto * 4 >= samlet_netto * 3
+    | AmblNr5SvenskTilflytter(hjemmehørende, tidligere_deltagelse) -> ambl_par2_nr5_betingelse_opfyldt(hjemmehørende) && ambl_par2_nr5_betingelse_opfyldt(tidligere_deltagelse)
+    | _ -> Falskt
+}
+| ambl_par2_nr5_sverigefakta_input_gyldige(indkomstår: Heltal, fakta: AmblPar2Nr5Sverigefakta) -> ambl_par2_nr5_sverige_aftaleversion_for(indkomstår) != AmblNr5SverigeUdenKildedækning && ambl_par2_nr5_svensk_ordning_input_gyldig(fakta.ordning) && ambl_par2_nr5_svensk_personstatus_input_gyldig(fakta.personstatus) && ambl_par2_nr5_beløbsrammer_input_gyldige(fakta.beløbsrammer)
+| ambl_par2_nr5_sverigebetingelser_opfyldt(fakta: AmblPar2Nr5Sverigefakta) -> ambl_par2_nr5_svensk_ordning_anerkendt(fakta.ordning) && ambl_par2_nr5_svensk_personstatus_opfyldt(fakta.personstatus)
+--@end:ambl_par2_nr5_sverige--
+
+= ambl_par2_nr5_nederlandene_metadata = Metadata(
+    attachments = (
+        DependencySource(value = ambl_par2_nr5_nederlandene),
+        Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+    )
+)
+
+--@label:ambl_par2_nr5_nederlandene::meta:ambl_par2_nr5_nederlandene_metadata--
+----
+Pensionsbidrag, der er afholdt af en fysisk person i forbindelse med
+personligt arbejde i tjenesteforhold i en af staterne til en pensionsordning,
+der er oprettet og anerkendt i skattemæssig henseende i den anden stat, skal i
+en periode på i alt højst 60 måneder kunne fratrækkes ved opgørelsen af den
+fysiske persons skattepligtige indkomst i den førstnævnte stat og skal
+behandles i denne stat på samme måde og i henhold til de samme betingelser og
+begrænsninger som bidrag til en pensionsordning, der er anerkendt i
+skattemæssig henseende i denne førstnævnte stat.
+
+Den juridiske vejledning 2026-1, C.A.10.3.3:
+
+Indbetalingen skal være sket til en obligatorisk pensionsordning, der er
+oprettet og skattemæssigt anerkendt i Holland. Skattestyrelsen skal også
+godkende, at pensionsordningen generelt svarer til en pensionsordning, der er
+skattemæssigt anerkendt i Danmark.
+
+Indbetalingen skal være sket i forbindelse med personligt arbejde i
+tjenesteforhold. Bestemmelsen gælder derfor kun arbejdsgiverordninger.
+
+Pensionsopspareren var ikke hjemmehørende i Danmark og betalte bidrag til den
+hollandske pensionsordning, umiddelbart før han eller hun begyndte
+ansættelsesforholdet i Danmark.
+
+Pensionsopspareren skal være ansat af den samme arbejdsgiver som umiddelbart
+før, han eller hun begyndte ansættelsesforholdet i Danmark, eller af en
+arbejdsgiver, der er indbyrdes forbundet med den tidligere arbejdsgiver.
+----
+
+--@begin:ambl_par2_nr5_nederlandene--
+# AmblPar2Nr5Nederlandefakta(obligatorisk_ordning: AmblPar2Nr5Betingelse, skattemæssigt_anerkendt_i_nederlandene: AmblPar2Nr5Betingelse, godkendt_sammenlignelig_i_danmark: AmblPar2Nr5Betingelse, personligt_arbejde_i_tjenesteforhold: AmblPar2Nr5Betingelse, ikke_hjemmehørende_i_danmark_umiddelbart_før: AmblPar2Nr5Betingelse, bidrog_umiddelbart_før_dansk_ansættelse: AmblPar2Nr5Betingelse, arbejdsgiverrelation: AmblPar2Nr5Arbejdsgiverrelation, dansk_ansættelse_startdato: Dato, beløbsrammer: AmblPar2Nr5Beløbsrammer)
+
+| ambl_par2_nr5_nederlandefakta_input_gyldige(fakta: AmblPar2Nr5Nederlandefakta, indbetalingsdato: Dato) -> ambl_par2_nr5_betingelse_input_gyldig(fakta.obligatorisk_ordning) && ambl_par2_nr5_betingelse_input_gyldig(fakta.skattemæssigt_anerkendt_i_nederlandene) && ambl_par2_nr5_betingelse_input_gyldig(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.personligt_arbejde_i_tjenesteforhold) && ambl_par2_nr5_betingelse_input_gyldig(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_input_gyldig(fakta.bidrog_umiddelbart_før_dansk_ansættelse) && ambl_par2_nr5_arbejdsgiverrelation_input_gyldig(fakta.arbejdsgiverrelation) && dato_gyldig(fakta.dansk_ansættelse_startdato) && dato_gyldig(indbetalingsdato) && dato_efter_eller_lig_med(indbetalingsdato, fakta.dansk_ansættelse_startdato) && ambl_par2_nr5_beløbsrammer_input_gyldige(fakta.beløbsrammer)
+| ambl_par2_nr5_nederlandene_inden_for_60_måneder(fakta: AmblPar2Nr5Nederlandefakta, indbetalingsdato: Dato) -> dato_før(indbetalingsdato, dato_plus_måneder(fakta.dansk_ansættelse_startdato, 60))
+| ambl_par2_nr5_nederlandebetingelser_opfyldt(fakta: AmblPar2Nr5Nederlandefakta, indbetalingsdato: Dato) -> ambl_par2_nr5_betingelse_opfyldt(fakta.obligatorisk_ordning) && ambl_par2_nr5_betingelse_opfyldt(fakta.skattemæssigt_anerkendt_i_nederlandene) && ambl_par2_nr5_betingelse_opfyldt(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.personligt_arbejde_i_tjenesteforhold) && ambl_par2_nr5_betingelse_opfyldt(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_opfyldt(fakta.bidrog_umiddelbart_før_dansk_ansættelse) && ambl_par2_nr5_arbejdsgiverrelation_opfyldt(fakta.arbejdsgiverrelation) && ambl_par2_nr5_nederlandene_inden_for_60_måneder(fakta, indbetalingsdato)
+--@end:ambl_par2_nr5_nederlandene--
+
+= ambl_par2_nr5_schweiz_metadata = Metadata(
+    attachments = (
+        DependencySource(value = ambl_par2_nr5_schweiz),
+        Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+    )
+)
+
+--@label:ambl_par2_nr5_schweiz::meta:ambl_par2_nr5_schweiz_metadata--
+----
+3. Bidrag til en pensionskasse eller en anden lignende institution, som
+tilbyder pensionsordninger, som er oprettet og skattemæssigt anerkendt i en
+kontraherende stat, som betales af eller på vegne af en person, som yder
+personligt arbejde i den anden kontraherende stat, skal, med henblik på
+fastsættelsen af personens skattebetaling samt fortjeneste for et foretagende,
+som kan beskattes i denne anden stat, behandles i denne anden stat på samme
+måde og undergives de samme betingelser og begrænsninger som bidrag til en
+pensionsordning, som er skattemæssigt anerkendt i denne stat, under
+forudsætning af, at
+
+a) personen ikke var hjemmehørende i denne stat og var deltager i
+pensionsordningen, umiddelbart før han begyndte at yde personligt arbejde i
+denne stat, og
+
+b) pensionsordningen anerkendes af den kompetente myndighed i denne stat som
+værende overordnet svarende til pensionsordninger, der er skattemæssigt
+anerkendt i denne stat.
+----
+
+--@begin:ambl_par2_nr5_schweiz--
+# AmblPar2Nr5SchweiziskOrdning = AmblNr5SchweizAldersOgEfterladteforsikring(dokumentreference: Tekst) | AmblNr5SchweizInvalideforsikring(dokumentreference: Tekst) | AmblNr5SchweizSupplerendePension(dokumentreference: Tekst) | AmblNr5SchweizBeskæftigelsesrelateretPension(dokumentreference: Tekst) | AmblNr5SchweizIndividuelOrdningEfterPar82(dokumentreference: Tekst) | AmblNr5SchweizAndenOrdning | AmblNr5SchweizOrdningUafklaret
+# AmblPar2Nr5Schweizfakta(ordning: AmblPar2Nr5SchweiziskOrdning, skattemæssigt_anerkendt_i_schweiz: AmblPar2Nr5Betingelse, godkendt_sammenlignelig_i_danmark: AmblPar2Nr5Betingelse, yder_personligt_arbejde_i_danmark: AmblPar2Nr5Betingelse, ikke_hjemmehørende_i_danmark_umiddelbart_før: AmblPar2Nr5Betingelse, deltog_umiddelbart_før_arbejde_i_danmark: AmblPar2Nr5Betingelse, beløbsrammer: AmblPar2Nr5Beløbsrammer)
+
+| ambl_par2_nr5_schweizisk_ordning_input_gyldig(ordning: AmblPar2Nr5SchweiziskOrdning) -> match ordning {
+    | AmblNr5SchweizAldersOgEfterladteforsikring(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SchweizInvalideforsikring(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SchweizSupplerendePension(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SchweizBeskæftigelsesrelateretPension(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SchweizIndividuelOrdningEfterPar82(dokumentreference) -> dokumentreference != ""
+    | AmblNr5SchweizAndenOrdning -> Sandt
+    | AmblNr5SchweizOrdningUafklaret -> Falskt
+}
+| ambl_par2_nr5_schweizisk_ordning_anerkendt(ordning: AmblPar2Nr5SchweiziskOrdning) -> match ordning {
+    | AmblNr5SchweizAldersOgEfterladteforsikring(_) -> Sandt
+    | AmblNr5SchweizInvalideforsikring(_) -> Sandt
+    | AmblNr5SchweizSupplerendePension(_) -> Sandt
+    | AmblNr5SchweizBeskæftigelsesrelateretPension(_) -> Sandt
+    | AmblNr5SchweizIndividuelOrdningEfterPar82(_) -> Sandt
+    | _ -> Falskt
+}
+| ambl_par2_nr5_schweizfakta_input_gyldige(fakta: AmblPar2Nr5Schweizfakta) -> ambl_par2_nr5_schweizisk_ordning_input_gyldig(fakta.ordning) && ambl_par2_nr5_betingelse_input_gyldig(fakta.skattemæssigt_anerkendt_i_schweiz) && ambl_par2_nr5_betingelse_input_gyldig(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.yder_personligt_arbejde_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_input_gyldig(fakta.deltog_umiddelbart_før_arbejde_i_danmark) && ambl_par2_nr5_beløbsrammer_input_gyldige(fakta.beløbsrammer)
+| ambl_par2_nr5_schweizbetingelser_opfyldt(fakta: AmblPar2Nr5Schweizfakta) -> ambl_par2_nr5_schweizisk_ordning_anerkendt(fakta.ordning) && ambl_par2_nr5_betingelse_opfyldt(fakta.skattemæssigt_anerkendt_i_schweiz) && ambl_par2_nr5_betingelse_opfyldt(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.yder_personligt_arbejde_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_opfyldt(fakta.deltog_umiddelbart_før_arbejde_i_danmark)
+--@end:ambl_par2_nr5_schweiz--
+
+= ambl_par2_nr5_storbritannien_metadata = Metadata(
+    attachments = (
+        DependencySource(value = ambl_par2_nr5_storbritannien),
+        Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+    )
+)
+
+--@label:ambl_par2_nr5_storbritannien::meta:ambl_par2_nr5_storbritannien_metadata--
+----
+4. De nærmere betingelser i dette stykke består i, at:
+
+a) den fysiske person udøver sit personlige arbejde i tjenesteforhold i den
+førstnævnte stat for en arbejdsgiver, som var hans arbejdsgiver, umiddelbart
+før han begyndte at udføre sit arbejde i denne stat, eller er en arbejdsgiver
+forbundet med denne arbejdsgiver;
+
+b) den fysiske person var medlem af pensionsordningen, umiddelbart før han
+blev hjemmehørende i den førstnævnte stat;
+
+c) pensionsordningen er anerkendt af den kompetente myndighed i den
+førstnævnte stat som svarende til en pensionsordning, der i skattemæssig
+henseende er anerkendt af denne stat.
+
+5. Med hensyn til denne artikel:
+
+a) udtrykket »pensionsordning« betyder:
+
+(i) for Danmarks vedkommende, en tvungen ordning i forbindelse med
+tjenesteforhold (bortset fra en social pensionsordning), hvori den fysiske
+person deltager med henblik på at sikre sig pensionsgoder, eller i mangel af
+en sådan ordning, en personlig pensionsordning, og
+
+(ii) for Det Forenede Kongeriges vedkommende, en ordning i forbindelse med
+tjenesteforhold, oprettet med det ene formål at tilbyde pensionsgoder, eller i
+mangel af en sådan ordning, en personlig pensionsordning.
+----
+
+--@begin:ambl_par2_nr5_storbritannien--
+# AmblPar2Nr5Storbritannienfakta(hjemmehørende_i_danmark: AmblPar2Nr5Betingelse, skattemæssigt_anerkendt_i_storbritannien: AmblPar2Nr5Betingelse, godkendt_sammenlignelig_i_danmark: AmblPar2Nr5Betingelse, ordning_i_forbindelse_med_tjenesteforhold: AmblPar2Nr5Betingelse, personligt_arbejde_i_danmark: AmblPar2Nr5Betingelse, ikke_hjemmehørende_i_danmark_umiddelbart_før: AmblPar2Nr5Betingelse, medlem_og_bidrog_umiddelbart_før: AmblPar2Nr5Betingelse, arbejdsgiverrelation: AmblPar2Nr5Arbejdsgiverrelation, beløbsrammer: AmblPar2Nr5Beløbsrammer)
+
+| ambl_par2_nr5_storbritannienfakta_input_gyldige(fakta: AmblPar2Nr5Storbritannienfakta) -> ambl_par2_nr5_betingelse_input_gyldig(fakta.hjemmehørende_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.skattemæssigt_anerkendt_i_storbritannien) && ambl_par2_nr5_betingelse_input_gyldig(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.ordning_i_forbindelse_med_tjenesteforhold) && ambl_par2_nr5_betingelse_input_gyldig(fakta.personligt_arbejde_i_danmark) && ambl_par2_nr5_betingelse_input_gyldig(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_input_gyldig(fakta.medlem_og_bidrog_umiddelbart_før) && ambl_par2_nr5_arbejdsgiverrelation_input_gyldig(fakta.arbejdsgiverrelation) && ambl_par2_nr5_beløbsrammer_input_gyldige(fakta.beløbsrammer)
+| ambl_par2_nr5_storbritannienbetingelser_opfyldt(fakta: AmblPar2Nr5Storbritannienfakta) -> ambl_par2_nr5_betingelse_opfyldt(fakta.hjemmehørende_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.skattemæssigt_anerkendt_i_storbritannien) && ambl_par2_nr5_betingelse_opfyldt(fakta.godkendt_sammenlignelig_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.ordning_i_forbindelse_med_tjenesteforhold) && ambl_par2_nr5_betingelse_opfyldt(fakta.personligt_arbejde_i_danmark) && ambl_par2_nr5_betingelse_opfyldt(fakta.ikke_hjemmehørende_i_danmark_umiddelbart_før) && ambl_par2_nr5_betingelse_opfyldt(fakta.medlem_og_bidrog_umiddelbart_før) && ambl_par2_nr5_arbejdsgiverrelation_opfyldt(fakta.arbejdsgiverrelation)
+--@end:ambl_par2_nr5_storbritannien--
+
+= ambl_par2_nr5_samordning_metadata = Metadata(
+    attachments = (
+        Source(value = ambl_par2_nr5_lbk121),
+        DependencySource(value = ambl_par2_nr5_sverige_2003),
+        DependencySource(value = ambl_par2_nr5_sverige_2024),
+        DependencySource(value = ambl_par2_nr5_nederlandene),
+        DependencySource(value = ambl_par2_nr5_schweiz),
+        DependencySource(value = ambl_par2_nr5_storbritannien),
+        Guidance(value = ambl_par2_nr5_vejledning_ca12_2),
+        Guidance(value = ambl_par2_nr5_vejledning_ca10_3_3),
+    )
+)
+
+--@label:ambl_par2_nr5_dbo_samordning::meta:ambl_par2_nr5_samordning_metadata--
+----
+Ud over godkendte udenlandske ordninger efter PBL §§ 15 C og 15 D er det i
+visse andre tilfælde muligt at få fradrag ved den danske indkomstopgørelse for
+pensionsindbetalinger foretaget til ordninger etableret i andre lande. Dette
+kan ske i henhold til særlige bestemmelser i de dobbeltbeskatningsoverenskomster,
+som Danmark har indgået med disse lande. De pågældende lande er:
+
+Nederlandene (Holland)
+Schweiz
+Sverige (Grænsegængeraftalen)
+Storbritannien.
+
+Sådanne pensionsordninger er ikke nødvendigvis omfattet af PBL § 19, og
+indbetalingerne er derfor heller ikke nødvendigvis omfattet af reglerne for
+arbejdsgiveradministrerede ordninger, som disse er beskrevet ovenfor. Der er
+derfor behov for at regulere sådanne indbetalinger særskilt. Se AMBL § 2,
+stk. 1, nr. 5.
+----
+
+--@begin:ambl_par2_nr5_dbo_samordning--
+# AmblPar2Nr5DboGrundlag = AmblNr5Sverige(fakta: AmblPar2Nr5Sverigefakta) | AmblNr5Nederlandene(fakta: AmblPar2Nr5Nederlandefakta) | AmblNr5Schweiz(fakta: AmblPar2Nr5Schweizfakta) | AmblNr5Storbritannien(fakta: AmblPar2Nr5Storbritannienfakta)
+# AmblPar2Nr5Indbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, indbetalingsdato: Dato, arbejdsgiverindbetaling_kroner: Heltal, dbo_grundlag: AmblPar2Nr5DboGrundlag)
+# AmblPar2Nr5Indbetalingsresultat(fakta: AmblPar2Nr5Indbetalingsfakta, fakta_gyldige: Boolsk, dbo_betingelser_opfyldt: Boolsk, tidligere_anvendt_årsramme_kroner: Heltal, fælles_bortseelsesramme_kroner: Heltal, ikke_skattepligtig_efter_dbo_kroner: Heltal, skattepligtig_arbejdsgiverindbetaling_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner: Heltal)
+# AmblPar2Nr5Årsgrundlag(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta))
+# AmblPar2Nr5Fordelingstilstand(indbetalingsresultater: List(AmblPar2Nr5Indbetalingsresultat))
+# AmblPar2Nr5Årsresultat(indkomstår: Heltal, indbetalingsresultater: List(AmblPar2Nr5Indbetalingsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_hører_til_indkomståret: Boolsk, årsrammer_konsistente: Boolsk, input_gyldigt: Boolsk, samlet_arbejdsgiverindbetaling_kroner: Heltal, samlet_ikke_skattepligtig_efter_dbo_kroner: Heltal, samlet_skattepligtig_arbejdsgiverindbetaling_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner: Heltal)
+
+| ambl_par2_nr5_tomt_årsgrundlag() -> AmblPar2Nr5Årsgrundlag(indbetalinger = [])
+| ambl_par2_nr5_skatteår_understøttet(indkomstår: Heltal) -> indkomstår >= 2023 && indkomstår <= 2026
+| ambl_par2_nr5_dbo_fakta_input_gyldige(indkomstår: Heltal, indbetalingsdato: Dato, grundlag: AmblPar2Nr5DboGrundlag) -> match grundlag {
+    | AmblNr5Sverige(fakta) -> ambl_par2_nr5_sverigefakta_input_gyldige(indkomstår, fakta)
+    | AmblNr5Nederlandene(fakta) -> ambl_par2_nr5_nederlandefakta_input_gyldige(fakta, indbetalingsdato)
+    | AmblNr5Schweiz(fakta) -> ambl_par2_nr5_schweizfakta_input_gyldige(fakta)
+    | AmblNr5Storbritannien(fakta) -> ambl_par2_nr5_storbritannienfakta_input_gyldige(fakta)
+}
+| ambl_par2_nr5_dbo_betingelser_opfyldt(indbetalingsdato: Dato, grundlag: AmblPar2Nr5DboGrundlag) -> match grundlag {
+    | AmblNr5Sverige(fakta) -> ambl_par2_nr5_sverigebetingelser_opfyldt(fakta)
+    | AmblNr5Nederlandene(fakta) -> ambl_par2_nr5_nederlandebetingelser_opfyldt(fakta, indbetalingsdato)
+    | AmblNr5Schweiz(fakta) -> ambl_par2_nr5_schweizbetingelser_opfyldt(fakta)
+    | AmblNr5Storbritannien(fakta) -> ambl_par2_nr5_storbritannienbetingelser_opfyldt(fakta)
+}
+| ambl_par2_nr5_dbo_beløbsrammer(grundlag: AmblPar2Nr5DboGrundlag) -> match grundlag {
+    | AmblNr5Sverige(fakta) -> fakta.beløbsrammer
+    | AmblNr5Nederlandene(fakta) -> fakta.beløbsrammer
+    | AmblNr5Schweiz(fakta) -> fakta.beløbsrammer
+    | AmblNr5Storbritannien(fakta) -> fakta.beløbsrammer
+}
+
+# AmblPar2Nr5Indbetalingssag(fakta: AmblPar2Nr5Indbetalingsfakta, tidligere_anvendt_årsramme_kroner: Heltal) {
+    | fakta_gyldige() -> fakta.identifikation != "" && ambl_par2_nr5_skatteår_understøttet(fakta.indkomstår) && dato_gyldig(fakta.indbetalingsdato) && fakta.indbetalingsdato.år == fakta.indkomstår && fakta.arbejdsgiverindbetaling_kroner >= 0 && ambl_par2_nr5_dbo_fakta_input_gyldige(fakta.indkomstår, fakta.indbetalingsdato, fakta.dbo_grundlag)
+    | dbo_betingelser_opfyldt() -> fakta_gyldige() && ambl_par2_nr5_dbo_betingelser_opfyldt(fakta.indbetalingsdato, fakta.dbo_grundlag)
+    | fælles_bortseelsesramme_kroner() -> hvis fakta_gyldige() { ambl_par2_nr5_fælles_bortseelsesramme_kroner(fakta.arbejdsgiverindbetaling_kroner, tidligere_anvendt_årsramme_kroner, ambl_par2_nr5_dbo_beløbsrammer(fakta.dbo_grundlag)) } ellers { 0 }
+    | ikke_skattepligtig_efter_dbo_kroner() -> hvis dbo_betingelser_opfyldt() { fælles_bortseelsesramme_kroner() } ellers { 0 }
+    | skattepligtig_arbejdsgiverindbetaling_kroner() -> hvis fakta_gyldige() { fakta.arbejdsgiverindbetaling_kroner - ikke_skattepligtig_efter_dbo_kroner() } ellers { 0 }
+    | resultat() -> AmblPar2Nr5Indbetalingsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        dbo_betingelser_opfyldt = dbo_betingelser_opfyldt(),
+        tidligere_anvendt_årsramme_kroner = tidligere_anvendt_årsramme_kroner,
+        fælles_bortseelsesramme_kroner = fælles_bortseelsesramme_kroner(),
+        ikke_skattepligtig_efter_dbo_kroner = ikke_skattepligtig_efter_dbo_kroner(),
+        skattepligtig_arbejdsgiverindbetaling_kroner = skattepligtig_arbejdsgiverindbetaling_kroner(),
+        arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner = ikke_skattepligtig_efter_dbo_kroner(),
+        arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner = skattepligtig_arbejdsgiverindbetaling_kroner()
+    )
+}
+
+| ambl_par2_nr5_identifikation_unik(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta), fakta: AmblPar2Nr5Indbetalingsfakta) -> length(filter(indbetalinger, |anden: AmblPar2Nr5Indbetalingsfakta| anden.identifikation == fakta.identifikation)) == 1
+| ambl_par2_nr5_identifikationer_entydige(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta)) -> all(indbetalinger, |fakta: AmblPar2Nr5Indbetalingsfakta| ambl_par2_nr5_identifikation_unik(indbetalinger, fakta))
+| ambl_par2_nr5_samme_årsramme(første: AmblPar2Nr5Indbetalingsfakta, anden: AmblPar2Nr5Indbetalingsfakta) -> ambl_par2_nr5_dbo_beløbsrammer(første.dbo_grundlag).årsramme_identifikation == ambl_par2_nr5_dbo_beløbsrammer(anden.dbo_grundlag).årsramme_identifikation
+| ambl_par2_nr5_årsramme_konsistent(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta), fakta: AmblPar2Nr5Indbetalingsfakta) -> all(filter(indbetalinger, |anden: AmblPar2Nr5Indbetalingsfakta| ambl_par2_nr5_samme_årsramme(fakta, anden)), |anden: AmblPar2Nr5Indbetalingsfakta| ambl_par2_nr5_dbo_beløbsrammer(anden.dbo_grundlag) == ambl_par2_nr5_dbo_beløbsrammer(fakta.dbo_grundlag))
+| ambl_par2_nr5_årsrammer_konsistente(indbetalinger: List(AmblPar2Nr5Indbetalingsfakta)) -> all(indbetalinger, |fakta: AmblPar2Nr5Indbetalingsfakta| ambl_par2_nr5_årsramme_konsistent(indbetalinger, fakta))
+| ambl_par2_nr5_tidligere_anvendt_årsramme_kroner(resultater: List(AmblPar2Nr5Indbetalingsresultat), fakta: AmblPar2Nr5Indbetalingsfakta) -> foldl(resultater, 0, |sum: Heltal, resultat: AmblPar2Nr5Indbetalingsresultat| sum + hvis ambl_par2_nr5_samme_årsramme(resultat.fakta, fakta) { resultat.ikke_skattepligtig_efter_dbo_kroner } ellers { 0 })
+
+# AmblPar2Nr5Fordelingstrinsag(tilstand: AmblPar2Nr5Fordelingstilstand, fakta: AmblPar2Nr5Indbetalingsfakta) {
+    | tidligere_anvendt_årsramme_kroner() -> ambl_par2_nr5_tidligere_anvendt_årsramme_kroner(tilstand.indbetalingsresultater, fakta)
+    | indbetalingsresultat() -> AmblPar2Nr5Indbetalingssag(fakta, tidligere_anvendt_årsramme_kroner()).resultat()
+    | resultat() -> AmblPar2Nr5Fordelingstilstand(
+        indbetalingsresultater = concat(tilstand.indbetalingsresultater, [indbetalingsresultat()])
+    )
+}
+
+| ambl_par2_nr5_fordelingstrin(tilstand: AmblPar2Nr5Fordelingstilstand, fakta: AmblPar2Nr5Indbetalingsfakta) -> AmblPar2Nr5Fordelingstrinsag(tilstand, fakta).resultat()
+| ambl_par2_nr5_årsfordeling(grundlag: AmblPar2Nr5Årsgrundlag) -> foldl(grundlag.indbetalinger, AmblPar2Nr5Fordelingstilstand(indbetalingsresultater = []), ambl_par2_nr5_fordelingstrin)
+| ambl_par2_nr5_resultatsum_kroner(resultater: List(AmblPar2Nr5Indbetalingsresultat), beløb: (AmblPar2Nr5Indbetalingsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: AmblPar2Nr5Indbetalingsresultat| sum + beløb(resultat))
+
+# AmblPar2Nr5Årssag(indkomstår: Heltal, grundlag: AmblPar2Nr5Årsgrundlag) {
+    | indbetalingsresultater() -> ambl_par2_nr5_årsfordeling(grundlag).indbetalingsresultater
+    | skatteår_understøttet() -> ambl_par2_nr5_skatteår_understøttet(indkomstår)
+    | identifikationer_entydige() -> ambl_par2_nr5_identifikationer_entydige(grundlag.indbetalinger)
+    | alle_hører_til_indkomståret() -> all(grundlag.indbetalinger, |fakta: AmblPar2Nr5Indbetalingsfakta| fakta.indkomstår == indkomstår)
+    | årsrammer_konsistente() -> ambl_par2_nr5_årsrammer_konsistente(grundlag.indbetalinger)
+    | input_gyldigt() -> skatteår_understøttet() && identifikationer_entydige() && alle_hører_til_indkomståret() && årsrammer_konsistente() && all(indbetalingsresultater(), |resultat: AmblPar2Nr5Indbetalingsresultat| resultat.fakta_gyldige)
+    | sum_eller_nul(beløb: (AmblPar2Nr5Indbetalingsresultat) -> Heltal) -> hvis input_gyldigt() { ambl_par2_nr5_resultatsum_kroner(indbetalingsresultater(), beløb) } ellers { 0 }
+    | resultat() -> AmblPar2Nr5Årsresultat(
+        indkomstår = indkomstår,
+        indbetalingsresultater = indbetalingsresultater(),
+        skatteår_understøttet = skatteår_understøttet(),
+        identifikationer_entydige = identifikationer_entydige(),
+        alle_hører_til_indkomståret = alle_hører_til_indkomståret(),
+        årsrammer_konsistente = årsrammer_konsistente(),
+        input_gyldigt = input_gyldigt(),
+        samlet_arbejdsgiverindbetaling_kroner = sum_eller_nul(|resultat: AmblPar2Nr5Indbetalingsresultat| resultat.fakta.arbejdsgiverindbetaling_kroner),
+        samlet_ikke_skattepligtig_efter_dbo_kroner = sum_eller_nul(|resultat: AmblPar2Nr5Indbetalingsresultat| resultat.ikke_skattepligtig_efter_dbo_kroner),
+        samlet_skattepligtig_arbejdsgiverindbetaling_kroner = sum_eller_nul(|resultat: AmblPar2Nr5Indbetalingsresultat| resultat.skattepligtig_arbejdsgiverindbetaling_kroner),
+        samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner = sum_eller_nul(|resultat: AmblPar2Nr5Indbetalingsresultat| resultat.arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr5_kroner),
+        samlet_arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner = sum_eller_nul(|resultat: AmblPar2Nr5Indbetalingsresultat| resultat.arbejdsmarkedsbidragsgrundlag_efter_par2_stk1_nr1_kroner)
+    )
+}
+
+| ambl_par2_nr5_årsresultat(indkomstår: Heltal, grundlag: AmblPar2Nr5Årsgrundlag) -> AmblPar2Nr5Årssag(indkomstår, grundlag).resultat()
+--@end:ambl_par2_nr5_dbo_samordning--
