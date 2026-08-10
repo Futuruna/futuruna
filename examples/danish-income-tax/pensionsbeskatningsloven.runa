@@ -4,6 +4,7 @@
 @ importer ./pengebeloeb
 @ importer ./kapitel - 04 - omregning - skatteloft
 @ importer ./pensionsbeskatningsloven - aarsparametre
+@ importer ./pensionsbeskatningsloven - par14b
 @ importer ./pensionsbeskatningsloven - par15 - 15a
 @ importer ./pensionsbeskatningsloven - par15b
 
@@ -14,7 +15,8 @@
 -- XML: https://www.retsinformation.dk/eli/lta/2024/1243/dan/xml
 -- Senere ændringer gennem LOV nr. 615 af 30/06/2026 er gennemgået.
 -- §§ 15 og 15 A ligger i pensionsbeskatningsloven-par15-15a.runa, de anvendte
--- dele af § 11 A i pensionsbeskatningsloven-par11a.runa, § 15 B i
+-- dele af § 11 A i pensionsbeskatningsloven-par11a.runa, § 14 B i
+-- pensionsbeskatningsloven-par14b.runa, § 15 B i
 -- pensionsbeskatningsloven-par15b.runa, § 20 i pensionsbeskatningsloven-par20.runa
 -- og de anvendte dele af §§ 29 og 36 i pensionsbeskatningsloven-par29.runa.
 -- Ingen af de gennemgåede ændringer ændrer §§ 16, 18, 52, 53 A eller 53 B.

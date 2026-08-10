@@ -1,0 +1,87 @@
+@ sprog da
+
+@ importer ./pensionsbeskatningsloven - par14b
+
+| pbl14b_scenarieudbetaling(identifikation: Tekst, indkomstår: Heltal, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, feriemidler_kroner: Heltal, regulering_kroner: Heltal) -> Pbl14BUdbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    optjeningsgrundlag = optjeningsgrundlag,
+    oprindelse = oprindelse,
+    tilgodehavende_feriemidler_kroner = feriemidler_kroner,
+    regulering_kroner = regulering_kroner
+)
+
+= pbl14b_ferie_med_løn = pbl14b_udbetalingsresultat(pbl14b_scenarieudbetaling(
+    identifikation = "ferie-med-løn",
+    indkomstår = 2026,
+    optjeningsgrundlag = Pbl14BFerieMedLøn,
+    oprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling,
+    feriemidler_kroner = 40000,
+    regulering_kroner = 2000
+))
+= pbl14b_feriekort_uden_feriekasse = pbl14b_udbetalingsresultat(pbl14b_scenarieudbetaling(
+    identifikation = "feriekort-uden-feriekasse",
+    indkomstår = 2026,
+    optjeningsgrundlag = Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse,
+    oprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling,
+    feriemidler_kroner = 30000,
+    regulering_kroner = 1000
+))
+= pbl14b_øvrig_udbetaling = pbl14b_udbetalingsresultat(pbl14b_scenarieudbetaling(
+    identifikation = "øvrig-udbetaling",
+    indkomstår = 2026,
+    optjeningsgrundlag = Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15,
+    oprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling,
+    feriemidler_kroner = 25000,
+    regulering_kroner = 500
+))
+= pbl14b_garantifond = pbl14b_udbetalingsresultat(pbl14b_scenarieudbetaling(
+    identifikation = "garantifond",
+    indkomstår = 2026,
+    optjeningsgrundlag = Pbl14BFerieMedLøn,
+    oprindelse = Pbl14BLønmodtagernesGarantifondEfterPar8B,
+    feriemidler_kroner = 35000,
+    regulering_kroner = 1500
+))
+= pbl14b_årsresultat_gyldigt = pbl14b_årsresultat(2026, Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        pbl14b_scenarieudbetaling("ferie-med-løn", 2026, Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 40000, 2000),
+        pbl14b_scenarieudbetaling("feriekort-uden-feriekasse", 2026, Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse, Pbl14BAlmindeligArbejdsgiverindbetaling, 30000, 1000),
+        pbl14b_scenarieudbetaling("øvrig-udbetaling", 2026, Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15, Pbl14BAlmindeligArbejdsgiverindbetaling, 25000, 500),
+        pbl14b_scenarieudbetaling("garantifond", 2026, Pbl14BFerieMedLøn, Pbl14BLønmodtagernesGarantifondEfterPar8B, 35000, 1500)
+    ]
+))
+= pbl14b_årsresultat_dobbelt_identifikation = pbl14b_årsresultat(2026, Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        pbl14b_scenarieudbetaling("samme-id", 2026, Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 10000, 0),
+        pbl14b_scenarieudbetaling("samme-id", 2026, Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 20000, 0)
+    ]
+))
+= pbl14b_årsresultat_forkert_år = pbl14b_årsresultat(2026, Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        pbl14b_scenarieudbetaling("forkert-år", 2025, Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 10000, 0)
+    ]
+))
+= pbl14b_årsresultat_negativ_regulering = pbl14b_årsresultat(2026, Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        pbl14b_scenarieudbetaling("negativ-regulering", 2026, Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 10000, -1)
+    ]
+))
+
+| pbl14b_stk1_1_pkt_ferie_med_løn_er_skattepligtig: pbl14b_ferie_med_løn -> pbl14b_ferie_med_løn.fakta_gyldige && pbl14b_ferie_med_løn.hidrører_fra_stk1_1_pkt && pbl14b_ferie_med_løn.skattepligtig_indkomst_kroner == 42000 && pbl14b_ferie_med_løn.arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner == 42000
+| pbl14b_stk1_1_pkt_feriekort_uden_feriekasse_er_skattepligtig: pbl14b_feriekort_uden_feriekasse -> pbl14b_feriekort_uden_feriekasse.hidrører_fra_stk1_1_pkt && pbl14b_feriekort_uden_feriekasse.skattepligtig_indkomst_kroner == 31000
+| pbl14b_stk1_2_pkt_øvrig_udbetaling_er_fritaget: pbl14b_øvrig_udbetaling -> pbl14b_øvrig_udbetaling.fritaget_efter_stk1_2_pkt && pbl14b_øvrig_udbetaling.fritaget_efter_stk2 == Falskt && pbl14b_øvrig_udbetaling.skattepligtig_indkomst_kroner == 0 && pbl14b_øvrig_udbetaling.arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner == 0
+| pbl14b_stk2_garantifond_er_en_undtagelse: pbl14b_garantifond -> pbl14b_garantifond.hidrører_fra_stk1_1_pkt && pbl14b_garantifond.fritaget_efter_stk2 && pbl14b_garantifond.skattepligtig_indkomst_kroner == 0 && pbl14b_garantifond.arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner == 0
+| pbl14b_årsresultat_summerer_kun_skattepligtige_udbetalinger: pbl14b_årsresultat_gyldigt -> pbl14b_årsresultat_gyldigt.input_gyldigt && pbl14b_årsresultat_gyldigt.samlet_udbetaling_kroner == 135000 && pbl14b_årsresultat_gyldigt.samlet_skattepligtig_indkomst_kroner == 73000 && pbl14b_årsresultat_gyldigt.samlet_arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner == 73000 && pbl14b_årsresultat_gyldigt.samlet_fritaget_efter_stk1_kroner == 25500 && pbl14b_årsresultat_gyldigt.samlet_fritaget_efter_stk2_kroner == 36500
+| pbl14b_dobbelte_identifikationer_afvises: pbl14b_årsresultat_dobbelt_identifikation -> pbl14b_årsresultat_dobbelt_identifikation.identifikationer_entydige == Falskt && pbl14b_årsresultat_dobbelt_identifikation.input_gyldigt == Falskt && pbl14b_årsresultat_dobbelt_identifikation.samlet_skattepligtig_indkomst_kroner == 0
+| pbl14b_forkert_indkomstår_afvises: pbl14b_årsresultat_forkert_år -> pbl14b_årsresultat_forkert_år.alle_hører_til_indkomståret == Falskt && pbl14b_årsresultat_forkert_år.input_gyldigt == Falskt && pbl14b_årsresultat_forkert_år.samlet_skattepligtig_indkomst_kroner == 0
+| pbl14b_negative_beløb_afvises: pbl14b_årsresultat_negativ_regulering -> pbl14b_årsresultat_negativ_regulering.input_gyldigt == Falskt && pbl14b_årsresultat_negativ_regulering.samlet_skattepligtig_indkomst_kroner == 0
+
+? pbl14b_stk1_1_pkt_ferie_med_løn_er_skattepligtig
+? pbl14b_stk1_1_pkt_feriekort_uden_feriekasse_er_skattepligtig
+? pbl14b_stk1_2_pkt_øvrig_udbetaling_er_fritaget
+? pbl14b_stk2_garantifond_er_en_undtagelse
+? pbl14b_årsresultat_summerer_kun_skattepligtige_udbetalinger
+? pbl14b_dobbelte_identifikationer_afvises
+? pbl14b_forkert_indkomstår_afvises
+? pbl14b_negative_beløb_afvises

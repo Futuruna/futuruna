@@ -343,6 +343,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     ],
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
     pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(
         afståelser = [],
         ordninger = [],

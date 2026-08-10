@@ -44,6 +44,7 @@
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
     pbl15a_årsgrundlag = par15a_årsgrundlag,
     pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
@@ -51,11 +52,23 @@
 )
 | personskat_pensionsinput_med_aktiefradrag(indbetalinger: List(Pbl18Årsindbetaling), aktiepensionsfradrag_valg: PersonskatAktiepensionsfradragValg) -> personskat_pensionsinput_med_par15a_og_aktiefradrag(indbetalinger, personskat_tomt_par15a_årsgrundlag(), aktiepensionsfradrag_valg)
 | personskat_pensionsinput(indbetalinger: List(Pbl18Årsindbetaling)) -> personskat_pensionsinput_med_aktiefradrag(indbetalinger, UdenAktiepensionsfradragIAktieindkomst)
+| personskat_pensionsinput_med_pbl14b(pbl14b_årsgrundlag: Pbl14BÅrsgrundlag) -> PersonskatPensionsInput(
+    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+    pbl18_indbetalinger = [],
+    pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
+    pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_årsgrundlag,
+    pbl15a_årsgrundlag = personskat_tomt_par15a_årsgrundlag(),
+    pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
+    øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
+)
 | personskat_pensionsinput_med_pbl20(indbetalinger: List(Pbl18Årsindbetaling), pbl20_årsgrundlag: Pbl20Årsgrundlag) -> PersonskatPensionsInput(
     fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
     pbl15a_årsgrundlag = personskat_tomt_par15a_årsgrundlag(),
     pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
     øvrige_pbl20_årsgrundlag = pbl20_årsgrundlag,
@@ -66,6 +79,7 @@
     pbl18_indbetalinger = indbetalinger,
     pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
     pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
     pbl15a_årsgrundlag = personskat_tomt_par15a_årsgrundlag(),
     pbl15b_årsgrundlag = par15b_årsgrundlag,
     øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
@@ -225,6 +239,43 @@
             beløb_kroner = 40000,
             ligningslov9l_art = Pbl20Efterladtepension
         )
+    ]
+)
+
+| personskat_pbl14b_udbetaling(identifikation: Tekst, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, feriemidler_kroner: Heltal, regulering_kroner: Heltal) -> Pbl14BUdbetalingsfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    optjeningsgrundlag = optjeningsgrundlag,
+    oprindelse = oprindelse,
+    tilgodehavende_feriemidler_kroner = feriemidler_kroner,
+    regulering_kroner = regulering_kroner
+)
+= personskat_pbl14b_skattepligtigt_årsgrundlag = Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        personskat_pbl14b_udbetaling(
+            identifikation = "ferie-med-løn-2026",
+            optjeningsgrundlag = Pbl14BFerieMedLøn,
+            oprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling,
+            feriemidler_kroner = 48000,
+            regulering_kroner = 2000
+        )
+    ]
+)
+= personskat_pbl14b_fritaget_årsgrundlag = Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        personskat_pbl14b_udbetaling(
+            identifikation = "garantifond-2026",
+            optjeningsgrundlag = Pbl14BFerieMedLøn,
+            oprindelse = Pbl14BLønmodtagernesGarantifondEfterPar8B,
+            feriemidler_kroner = 48000,
+            regulering_kroner = 2000
+        )
+    ]
+)
+= personskat_pbl14b_ugyldigt_årsgrundlag = Pbl14BÅrsgrundlag(
+    udbetalinger = [
+        personskat_pbl14b_udbetaling("samme-id", Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 20000, 0),
+        personskat_pbl14b_udbetaling("samme-id", Pbl14BFerieMedLøn, Pbl14BAlmindeligArbejdsgiverindbetaling, 30000, 0)
     ]
 )
 
@@ -483,6 +534,9 @@
     [personskat_pension_indbetaling("egen-rate-med-undtaget-udbetaling", Pbl18EgenIndbetaling, 100000, 0)],
     personskat_pbl20_foregående_undtaget_årsgrundlag
 )))
+= personskat_pbl14b_skattepligtigt_resultat = beregn_personskat(personskat_pension_input(personskat_pensionsinput_med_pbl14b(personskat_pbl14b_skattepligtigt_årsgrundlag)))
+= personskat_pbl14b_fritaget_resultat = beregn_personskat(personskat_pension_input(personskat_pensionsinput_med_pbl14b(personskat_pbl14b_fritaget_årsgrundlag)))
+= personskat_pbl14b_ugyldigt_resultat = beregn_personskat(personskat_pension_input(personskat_pensionsinput_med_pbl14b(personskat_pbl14b_ugyldigt_årsgrundlag)))
 = personskat_par15b_over_loftet_resultat = beregn_personskat(personskat_pension_input_med_årsopgørelse(personskat_pensionsinput_med_par15b(
     [],
     personskat_par15b_over_loftet_årsgrundlag
@@ -499,10 +553,13 @@
 | personskat_par15a_fradrag_fordeles_uden_dobbeltfradrag: personskat_par15a_aktiefradrag_resultat -> personskat_par15a_aktiefradrag_resultat.pension.pbl18_årsresultat.par15a_fradrag_kroner == 100000 && personskat_par15a_aktiefradrag_resultat.pension.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner == 70000 && personskat_par15a_aktiefradrag_resultat.pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner == 30000 && personskat_par15a_aktiefradrag_resultat.aktieavance.aktieindkomst_resultat.aktieindkomst_efter_stk1_og_2_kroner == 80000 && personskat_par15a_aktiefradrag_resultat.aktieavance.aktieindkomst_kroner == 10000 && personskat_par15a_aktiefradrag_resultat.skat.personlig_indkomst_efter_am_kroner == 522000
 | personskat_ugyldig_par15a_kan_ikke_give_fradrag: personskat_ugyldig_par15a_aktiefradrag_resultat -> personskat_ugyldig_par15a_aktiefradrag_resultat.pension.pbl18_årsresultat.input_gyldigt == Falskt && personskat_ugyldig_par15a_aktiefradrag_resultat.pension.pbl18_årsresultat.par15a_fradrag_kroner == 0 && personskat_ugyldig_par15a_aktiefradrag_resultat.pension.aktiepensionsfradrag_resultat.fradrag_i_aktieindkomst_kroner == 0 && personskat_ugyldig_par15a_aktiefradrag_resultat.pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner == 0 && personskat_ugyldig_par15a_aktiefradrag_resultat.aktieavance.aktieindkomst_kroner == 80000
 | personskat_par15b_fradrag_afledes_fra_sportsindkomst_og_ordningsfakta: personskat_par15b_sportspension_resultat -> personskat_par15b_sportspension_resultat.pension.pbl18_årsresultat.input_gyldigt && personskat_par15b_sportspension_resultat.pension.pbl18_årsresultat.par15b_fradrag_kroner == 200000 && personskat_par15b_sportspension_resultat.pension.pbl18_årsresultat.rate_og_ophørende_fradrag_kroner == 0 && personskat_par15b_sportspension_resultat.pension.par3_stk2_nr3_resultat.fradrag_i_personlig_indkomst_kroner == 200000 && personskat_par15b_sportspension_resultat.skat.personlig_indkomst_efter_am_kroner == 352000 && personskat_par15b_sportspension_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner < personskat_uden_pension_resultat.skat.samlet_inkl_am_efter_personfradrag_kroner
-| personskat_pbl20_aktuel_udbetaling_bliver_personlig_indkomst: personskat_pbl20_aktuel_udbetaling_resultat -> personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.aktuelle_pbl20_resultat.samlet_personlig_indkomst_kroner == 100000 && personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner == 100000 && personskat_pbl20_aktuel_udbetaling_resultat.skat.personlig_indkomst_efter_am_kroner == 652000
+| personskat_pbl20_aktuel_udbetaling_bliver_personlig_indkomst: personskat_pbl20_aktuel_udbetaling_resultat -> personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.aktuelle_pbl20_resultat.samlet_personlig_indkomst_kroner == 100000 && personskat_pbl20_aktuel_udbetaling_resultat.pension.udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner == 100000 && personskat_pbl20_aktuel_udbetaling_resultat.skat.personlig_indkomst_efter_am_kroner == 652000
 | personskat_pbl20_foregående_udbetaling_modregnes_i_par9l: personskat_pbl20_foregående_udbetaling_resultat -> personskat_pbl20_foregående_udbetaling_resultat.pension.udbetalingsresultat.foregående_input_gyldige && personskat_pbl20_foregående_udbetaling_resultat.pension.udbetalingsresultat.samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner == 40000 && personskat_pbl20_foregående_udbetaling_resultat.pension.lønmodtager_pensionsfradrag.pbl20_udbetaling_status == Ll9lModregningspligtigPbl20Udbetaling && personskat_pbl20_foregående_udbetaling_resultat.skat.ekstra_pensionsfradrag_kroner == 3444
 | personskat_pbl20_undtagelse_udledes_fra_udbetalingens_art: personskat_pbl20_foregående_undtaget_resultat -> personskat_pbl20_foregående_undtaget_resultat.pension.udbetalingsresultat.samlet_skattepligtig_pbl20_i_foregående_indkomstår_kroner == 40000 && personskat_pbl20_foregående_undtaget_resultat.pension.udbetalingsresultat.samlet_modregningspligtig_pbl20_i_foregående_indkomstår_kroner == 0 && personskat_pbl20_foregående_undtaget_resultat.pension.lønmodtager_pensionsfradrag.pbl20_udbetaling_status == Ll9lUndtagetPbl20Udbetaling && personskat_pbl20_foregående_undtaget_resultat.skat.ekstra_pensionsfradrag_kroner == 8244
-| personskat_par15b_over_loftet_fordeles_mellem_par20_og_par29: personskat_par15b_over_loftet_resultat -> personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_pbl15b_resultat.samlet_inden_for_par15b_og_par20_kroner == 469200 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_pbl15b_resultat.samlet_overskydende_efter_par15b_kroner == 30800 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.samlet_personlig_indkomst_i_året_kroner == 469200 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner == 18480 && personskat_par15b_over_loftet_resultat.skat.personlig_indkomst_efter_am_kroner == 1021200
+| personskat_par15b_over_loftet_fordeles_mellem_par20_og_par29: personskat_par15b_over_loftet_resultat -> personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_pbl15b_resultat.samlet_inden_for_par15b_og_par20_kroner == 469200 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.aktuelle_pbl15b_resultat.samlet_overskydende_efter_par15b_kroner == 30800 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner == 469200 && personskat_par15b_over_loftet_resultat.pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner == 18480 && personskat_par15b_over_loftet_resultat.skat.personlig_indkomst_efter_am_kroner == 1021200
+| personskat_pbl14b_skattepligtig_udbetaling_føres_gennem_am: personskat_pbl14b_skattepligtigt_resultat -> personskat_pbl14b_skattepligtigt_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_pbl14b_skattepligtigt_resultat.pension.udbetalingsresultat.aktuelle_pbl14b_resultat.samlet_skattepligtig_indkomst_kroner == 50000 && personskat_pbl14b_skattepligtigt_resultat.pension.udbetalingsresultat.samlet_arbejdsmarkedsbidragspligtig_personlig_indkomst_i_året_kroner == 50000 && personskat_pbl14b_skattepligtigt_resultat.skat.bruttoløn_kroner == 650000 && personskat_pbl14b_skattepligtigt_resultat.skat.arbejdsmarkedsbidrag_kroner == 52000 && personskat_pbl14b_skattepligtigt_resultat.skat.personlig_indkomst_efter_am_kroner == 598000
+| personskat_pbl14b_stk2_udbetaling_er_neutral: personskat_pbl14b_fritaget_resultat -> personskat_pbl14b_fritaget_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige && personskat_pbl14b_fritaget_resultat.pension.udbetalingsresultat.aktuelle_pbl14b_resultat.samlet_fritaget_efter_stk2_kroner == 50000 && personskat_pbl14b_fritaget_resultat.skat.bruttoløn_kroner == personskat_uden_pension_resultat.skat.bruttoløn_kroner && personskat_pbl14b_fritaget_resultat.skat.arbejdsmarkedsbidrag_kroner == personskat_uden_pension_resultat.skat.arbejdsmarkedsbidrag_kroner && personskat_pbl14b_fritaget_resultat.skat.personlig_indkomst_efter_am_kroner == personskat_uden_pension_resultat.skat.personlig_indkomst_efter_am_kroner
+| personskat_pbl14b_ugyldigt_årsgrundlag_giver_ingen_indkomst: personskat_pbl14b_ugyldigt_resultat -> personskat_pbl14b_ugyldigt_resultat.pension.udbetalingsresultat.aktuelle_input_gyldige == Falskt && personskat_pbl14b_ugyldigt_resultat.pension.udbetalingsresultat.aktuelle_pbl14b_resultat.samlet_skattepligtig_indkomst_kroner == 0 && personskat_pbl14b_ugyldigt_resultat.skat.bruttoløn_kroner == personskat_uden_pension_resultat.skat.bruttoløn_kroner
 | personskat_par15b_afgift_indgår_automatisk_i_årsopgørelsen: personskat_par15b_over_loftet_resultat -> match personskat_par15b_over_loftet_resultat.årsopgørelse {
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, _) -> årsopgørelsesinput.pensionsbeskatningsafgift_øre == 1848000 && årsopgørelsesresultat.slutskat_med_tillæg_øre == personskat_par15b_over_loftet_resultat.slutskat_øre + 1848000
     | _ -> Falskt
@@ -520,5 +577,8 @@
 ? personskat_pbl20_foregående_udbetaling_modregnes_i_par9l
 ? personskat_pbl20_undtagelse_udledes_fra_udbetalingens_art
 ? personskat_par15b_over_loftet_fordeles_mellem_par20_og_par29
+? personskat_pbl14b_skattepligtig_udbetaling_føres_gennem_am
+? personskat_pbl14b_stk2_udbetaling_er_neutral
+? personskat_pbl14b_ugyldigt_årsgrundlag_giver_ingen_indkomst
 ? personskat_par15b_afgift_indgår_automatisk_i_årsopgørelsen
 ? personskat_sportsudbetaling_blokerer_ikke_ordinært_pensionsfradrag

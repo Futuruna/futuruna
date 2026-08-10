@@ -1,0 +1,115 @@
+@ sprog da
+
+@ importer ./metadata
+
+# Pbl14BKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
+
+= pensionsbeskatningsloven_lbk1243_par14b = Pbl14BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1243",
+    identifier = "Pensionsbeskatningsloven § 14 B",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; § 14 B er uændret"
+)
+
+= arbejdsmarkedsbidragsloven_lbk121_par2_stk1_nr6 = Pbl14BKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 6",
+    hentet_dato = "2026-08-11",
+    ændringsstatus = "Senere ændringer ved LOV nr. 2226 af 29/12/2020, LOV nr. 679 af 03/06/2023 og LOV nr. 96 af 04/02/2025 gennemgået; nr. 6 er uændret"
+)
+
+= pensionsbeskatningsloven_par14b_metadata = Metadata(
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1243_par14b),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2_stk1_nr6),
+    )
+)
+
+--@label:pensionsbeskatningsloven_par14b::meta:pensionsbeskatningsloven_par14b_metadata--
+----
+§ 14 B. Udbetaling af tilgodehavende feriemidler med tillæg af regulering,
+jf. § 13, stk. 2, og § 15 i lov om forvaltning og administration af
+tilgodehavende feriemidler, medregnes ved opgørelsen af den skattepligtige
+indkomst, i det omfang de hidrører fra ferie med løn eller feriegodtgørelse i
+feriekortordninger uden feriekasser, jf. dog stk. 2.
+
+Øvrige udbetalinger efter § 15 i lov om forvaltning og administration af
+tilgodehavende feriemidler medregnes ikke ved opgørelsen af den
+skattepligtige indkomst.
+
+Stk. 2. Krav på tilgodehavende feriemidler som nævnt i § 8 a, stk. 2, i lov
+om Lønmodtagernes Garantifond, som Lønmodtagernes Garantifond indbetaler til
+Lønmodtagernes Fond for Tilgodehavende Feriemidler efter § 8 b i lov om
+Lønmodtagernes Garantifond, medregnes ikke til lønmodtagerens skattepligtige
+indkomst.
+
+Udbetalinger af tilgodehavende feriemidler, der hidrører fra en indbetaling
+som nævnt i 1. pkt., medregnes ikke ved opgørelsen af lønmodtagerens
+skattepligtige indkomst.
+
+Af kravet betaler arbejdsgiveren en afgift på 38 pct. § 38 finder ikke
+anvendelse på denne afgift.
+
+Arbejdsmarkedsbidragsloven § 2, stk. 1:
+
+6) Udbetalinger som nævnt i pensionsbeskatningslovens § 14 B, stk. 1, 1. pkt.
+----
+
+--@begin:pensionsbeskatningsloven_par14b--
+# Pbl14BOptjeningsgrundlag = Pbl14BFerieMedLøn | Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse | Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15
+# Pbl14BOprindelse = Pbl14BAlmindeligArbejdsgiverindbetaling | Pbl14BLønmodtagernesGarantifondEfterPar8B
+# Pbl14BUdbetalingsfakta(identifikation: Tekst, indkomstår: Heltal, optjeningsgrundlag: Pbl14BOptjeningsgrundlag, oprindelse: Pbl14BOprindelse, tilgodehavende_feriemidler_kroner: Heltal, regulering_kroner: Heltal)
+# Pbl14BUdbetalingsresultat(fakta: Pbl14BUdbetalingsfakta, fakta_gyldige: Boolsk, samlet_udbetaling_kroner: Heltal, hidrører_fra_stk1_1_pkt: Boolsk, fritaget_efter_stk1_2_pkt: Boolsk, fritaget_efter_stk2: Boolsk, skattepligtig_indkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner: Heltal)
+# Pbl14BÅrsgrundlag(udbetalinger: List(Pbl14BUdbetalingsfakta))
+# Pbl14BÅrsresultat(indkomstår: Heltal, udbetalingsresultater: List(Pbl14BUdbetalingsresultat), identifikationer_entydige: Boolsk, alle_hører_til_indkomståret: Boolsk, input_gyldigt: Boolsk, samlet_udbetaling_kroner: Heltal, samlet_skattepligtig_indkomst_kroner: Heltal, samlet_arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner: Heltal, samlet_fritaget_efter_stk1_kroner: Heltal, samlet_fritaget_efter_stk2_kroner: Heltal)
+
+| pbl14b_tomt_årsgrundlag() -> Pbl14BÅrsgrundlag(udbetalinger = [])
+
+# Pbl14BUdbetalingssag(fakta: Pbl14BUdbetalingsfakta) {
+    | fakta_gyldige() -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.tilgodehavende_feriemidler_kroner >= 0 && fakta.regulering_kroner >= 0
+    | samlet_udbetaling_kroner() -> fakta.tilgodehavende_feriemidler_kroner + fakta.regulering_kroner
+    | hidrører_fra_stk1_1_pkt() -> fakta.optjeningsgrundlag == Pbl14BFerieMedLøn || fakta.optjeningsgrundlag == Pbl14BFeriegodtgørelseIFeriekortordningUdenFeriekasse
+    | skattepligtig_efter_stk1_1_pkt() -> fakta_gyldige() && hidrører_fra_stk1_1_pkt()
+    | exception pbl14b_stk2_garantifond_fritagelse skattepligtig_efter_stk1_1_pkt() -> Falskt under fakta.oprindelse == Pbl14BLønmodtagernesGarantifondEfterPar8B
+    | fritaget_efter_stk1_2_pkt() -> fakta_gyldige() && fakta.optjeningsgrundlag == Pbl14BØvrigUdbetalingEfterFeriemiddellovensPar15
+    | fritaget_efter_stk2() -> fakta_gyldige() && fakta.oprindelse == Pbl14BLønmodtagernesGarantifondEfterPar8B
+    | skattepligtig_indkomst_kroner() -> hvis skattepligtig_efter_stk1_1_pkt() { samlet_udbetaling_kroner() } ellers { 0 }
+    | resultat() -> Pbl14BUdbetalingsresultat(
+        fakta = fakta,
+        fakta_gyldige = fakta_gyldige(),
+        samlet_udbetaling_kroner = hvis fakta_gyldige() { samlet_udbetaling_kroner() } ellers { 0 },
+        hidrører_fra_stk1_1_pkt = fakta_gyldige() && hidrører_fra_stk1_1_pkt(),
+        fritaget_efter_stk1_2_pkt = fritaget_efter_stk1_2_pkt(),
+        fritaget_efter_stk2 = fritaget_efter_stk2(),
+        skattepligtig_indkomst_kroner = skattepligtig_indkomst_kroner(),
+        arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner = skattepligtig_indkomst_kroner()
+    )
+}
+
+| pbl14b_udbetalingsresultat(fakta: Pbl14BUdbetalingsfakta) -> Pbl14BUdbetalingssag(fakta).resultat()
+| pbl14b_identifikation_unik(udbetalinger: List(Pbl14BUdbetalingsfakta), fakta: Pbl14BUdbetalingsfakta) -> length(filter(udbetalinger, |anden: Pbl14BUdbetalingsfakta| anden.identifikation == fakta.identifikation)) == 1
+| pbl14b_identifikationer_entydige(udbetalinger: List(Pbl14BUdbetalingsfakta)) -> all(udbetalinger, |fakta: Pbl14BUdbetalingsfakta| pbl14b_identifikation_unik(udbetalinger, fakta))
+| pbl14b_resultatsum_kroner(resultater: List(Pbl14BUdbetalingsresultat), beløb: (Pbl14BUdbetalingsresultat) -> Heltal) -> foldl(resultater, 0, |sum: Heltal, resultat: Pbl14BUdbetalingsresultat| sum + beløb(resultat))
+
+# Pbl14BÅrssag(indkomstår: Heltal, grundlag: Pbl14BÅrsgrundlag) {
+    | udbetalingsresultater() -> map(grundlag.udbetalinger, pbl14b_udbetalingsresultat)
+    | identifikationer_entydige() -> pbl14b_identifikationer_entydige(grundlag.udbetalinger)
+    | alle_hører_til_indkomståret() -> all(grundlag.udbetalinger, |fakta: Pbl14BUdbetalingsfakta| fakta.indkomstår == indkomstår)
+    | input_gyldigt() -> indkomstår > 0 && identifikationer_entydige() && alle_hører_til_indkomståret() && all(udbetalingsresultater(), |resultat: Pbl14BUdbetalingsresultat| resultat.fakta_gyldige)
+    | sum_eller_nul(beløb: (Pbl14BUdbetalingsresultat) -> Heltal) -> hvis input_gyldigt() { pbl14b_resultatsum_kroner(udbetalingsresultater(), beløb) } ellers { 0 }
+    | resultat() -> Pbl14BÅrsresultat(
+        indkomstår = indkomstår,
+        udbetalingsresultater = udbetalingsresultater(),
+        identifikationer_entydige = identifikationer_entydige(),
+        alle_hører_til_indkomståret = alle_hører_til_indkomståret(),
+        input_gyldigt = input_gyldigt(),
+        samlet_udbetaling_kroner = sum_eller_nul(|resultat: Pbl14BUdbetalingsresultat| resultat.samlet_udbetaling_kroner),
+        samlet_skattepligtig_indkomst_kroner = sum_eller_nul(|resultat: Pbl14BUdbetalingsresultat| resultat.skattepligtig_indkomst_kroner),
+        samlet_arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner = sum_eller_nul(|resultat: Pbl14BUdbetalingsresultat| resultat.arbejdsmarkedsbidragsgrundlag_efter_ambl_par2_stk1_nr6_kroner),
+        samlet_fritaget_efter_stk1_kroner = sum_eller_nul(|resultat: Pbl14BUdbetalingsresultat| hvis resultat.fritaget_efter_stk1_2_pkt { resultat.samlet_udbetaling_kroner } ellers { 0 }),
+        samlet_fritaget_efter_stk2_kroner = sum_eller_nul(|resultat: Pbl14BUdbetalingsresultat| hvis resultat.fritaget_efter_stk2 { resultat.samlet_udbetaling_kroner } ellers { 0 })
+    )
+}
+
+| pbl14b_årsresultat(indkomstår: Heltal, grundlag: Pbl14BÅrsgrundlag) -> Pbl14BÅrssag(indkomstår, grundlag).resultat()
+--@end:pensionsbeskatningsloven_par14b--
