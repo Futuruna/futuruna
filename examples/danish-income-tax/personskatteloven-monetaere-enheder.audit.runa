@@ -43,8 +43,8 @@
 )
 
 = personskat_monetaer_par14_vejledning_kilde = PersonskatMonetærAuditKilde(
-    url = "https://info.skat.dk/data.aspx?oid=1977388",
-    identifier = "Den juridiske vejledning 2026-1, C.F.1.6.2.1",
+    url = "https://info.skat.dk/data.aspx?oid=1977388&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.1.6.2.1",
     hentet_dato = "2026-08-07"
 )
 
