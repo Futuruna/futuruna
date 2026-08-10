@@ -20,7 +20,7 @@
 = personskat_virksomhedskapital_felt_rentekorrektion = TypetBeregningsfelt(
     path = refof(PersonskatVirksomhedskapitalInput::selvstændig_beskatningsordning::MedVirksomhedsordningEfterAfsnitI::rentekorrektion::$variant),
     label = "Rentekorrektion",
-    question = Some("Skal der beregnes rentekorrektion efter virksomhedsskattelovens § 11?"),
+    question = Some("Skal der beregnes rentekorrektion efter virksomhedsskattelovens § 11 eller §§ 11 og 11 a?"),
     help = Some("Feltet findes kun under virksomhedsordningen efter afsnit I."),
     unit = None
 )
@@ -54,9 +54,106 @@
         DependencySource(value = virksomhedsskatteloven_lbk1836_par22c),
         DependencySource(value = virksomhedsskatteloven_lbk1836_par23a),
         DependencySource(value = virksomhedsskatteloven_lbk1836_par11),
+        DependencySource(value = virksomhedsskatteloven_lbk1836_par11a),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6),
     )
 )
 --@label:PersonskatVirksomhedskapitalInput::meta:personskat_virksomhedskapital_beregningsmeta--
+
+= personskat_ambl_selvstændig_felt_variant = TypetBeregningsfelt(
+    path = refof(ArbejdsmarkedsbidragSelvstændigKildeinput::$variant),
+    label = "AM-bidragsregel for selvstændig virksomhed",
+    question = Some("Anvendes arbejdsmarkedsbidragslovens § 4 eller § 5 på årets selvstændige virksomhed?"),
+    help = Some("§ 4 anvendes uden virksomhedsordningen; § 5 anvendes, når virksomhedsordningen er valgt."),
+    unit = None
+)
+= personskat_ambl_selvstændig_felt_par4_fremførsel = TypetBeregningsfelt(
+    path = refof(ArbejdsmarkedsbidragSelvstændigKildeinput::AmblPar4UdenVirksomhedsordning::fremført_negativ_personlig_indkomst),
+    label = "Fremført negativ personlig indkomst uden virksomhedsordningen",
+    question = Some("Hvilke resterende negative personlige indkomstbeløb fra tidligere år skal prøves efter arbejdsmarkedsbidragslovens § 4?"),
+    help = Some("Opret én række pr. oprindelsesår og dokumenteret saldo. Beløb fra pensionsbeskatningslovens § 18 holdes særskilt."),
+    unit = None
+)
+= personskat_ambl_selvstændig_felt_par5_fremførsel = TypetBeregningsfelt(
+    path = refof(ArbejdsmarkedsbidragSelvstændigKildeinput::AmblPar5MedVirksomhedsordning::fremført_negativ_personlig_indkomst),
+    label = "Fremført negativ personlig indkomst med virksomhedsordningen",
+    question = Some("Hvilke resterende negative personlige indkomstbeløb fra tidligere år skal prøves efter arbejdsmarkedsbidragslovens § 5?"),
+    help = Some("Opret én række pr. oprindelsesår og dokumenteret saldo. Beløb fra pensionsbeskatningslovens § 18 holdes særskilt."),
+    unit = None
+)
+= personskat_ambl_selvstændig_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ambl_selvstændig_felt_variant,
+        personskat_ambl_selvstændig_felt_par4_fremførsel,
+        personskat_ambl_selvstændig_felt_par5_fremførsel
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6),
+    )
+)
+--@label:ArbejdsmarkedsbidragSelvstændigKildeinput::meta:personskat_ambl_selvstændig_beregningsmeta--
+
+= personskat_ambl_fremført_felt_identifikation = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::identifikation), label = "Saldoens identifikation", question = Some("Hvilken entydig identifikation har den fremførte saldo?"), help = None, unit = None)
+= personskat_ambl_fremført_felt_oprindelsesår = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::oprindelsesår), label = "Saldoens oprindelsesår", question = Some("I hvilket tidligere indkomstår opstod den negative personlige indkomst?"), help = None, unit = Some("år"))
+= personskat_ambl_fremført_felt_beløb = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::resterende_beløb_primo_kroner), label = "Resterende negativ personlig indkomst primo", question = Some("Hvor meget af saldoen resterer ved indkomstårets begyndelse?"), help = None, unit = Some("kr."))
+= personskat_ambl_fremført_felt_oprindelse = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::oprindelse::$variant), label = "Saldoens oprindelse", question = Some("Stammer saldoen fra fradrag efter pensionsbeskatningslovens § 18 eller fra anden negativ personlig indkomst?"), help = Some("PBL § 18-beløb reducerer ikke arbejdsmarkedsbidragsgrundlaget efter §§ 4-5."), unit = None)
+= personskat_ambl_fremført_felt_dokument = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::dokumentreference), label = "Dokumentation for fremført saldo", question = Some("Hvilket dokument eller hvilken opgørelse dokumenterer saldoen?"), help = None, unit = None)
+= personskat_ambl_fremført_beregningsmeta = TypetBeregningsmeta(
+    felter = [personskat_ambl_fremført_felt_identifikation, personskat_ambl_fremført_felt_oprindelsesår, personskat_ambl_fremført_felt_beløb, personskat_ambl_fremført_felt_oprindelse, personskat_ambl_fremført_felt_dokument],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+    )
+)
+--@label:ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche::meta:personskat_ambl_fremført_beregningsmeta--
+
+= personskat_ambl_vso_årsfakta_felt_indkomstår = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta::indkomstår), label = "Indkomstår for virksomhedsordningens AM-fakta", question = Some("Hvilket indkomstår vedrører overførslerne fra virksomhedsordningen?"), help = None, unit = Some("år"))
+= personskat_ambl_vso_årsfakta_felt_opsparet = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta::overførsler_fra_opsparet_overskud), label = "Overførsler fra opsparet overskud", question = Some("Hvilke nettooverførsler fra tidligere års opsparede overskud og tilhørende virksomhedsskat vedrører året?"), help = Some("Opret én række pr. oprindelsesår og saldo."), unit = None)
+= personskat_ambl_vso_årsfakta_felt_biblioteksafgifter = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta::biblioteksafgifter), label = "Biblioteksafgifter i virksomhedsordningen", question = Some("Hvilke biblioteksafgifter blev modtaget i indkomståret under virksomhedsordningen?"), help = Some("Opret én række pr. udbetaling. Futuruna afleder godtgørelsen på 8,7 pct. og den tilsvarende § 60-kredit."), unit = None)
+= personskat_ambl_vso_årsfakta_beregningsmeta = TypetBeregningsmeta(
+    felter = [personskat_ambl_vso_årsfakta_felt_indkomstår, personskat_ambl_vso_årsfakta_felt_opsparet, personskat_ambl_vso_årsfakta_felt_biblioteksafgifter],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6),
+    )
+)
+--@label:ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta::meta:personskat_ambl_vso_årsfakta_beregningsmeta--
+
+= personskat_ambl_vso_overskud_felt_beløb = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta::beløb_kroner), label = "Overført beløb fra årets overskud", question = Some("Hvor meget af årets skattepligtige virksomhedsoverskud blev overført til den skattepligtige?"), help = None, unit = Some("kr."))
+= personskat_ambl_vso_overskud_felt_dokument = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta::dokumentreference), label = "Dokumentation for årets overførsel", question = Some("Hvilken VSO-konto eller opgørelse dokumenterer overførslen?"), help = None, unit = None)
+= personskat_ambl_vso_overskud_beregningsmeta = TypetBeregningsmeta(felter = [personskat_ambl_vso_overskud_felt_beløb, personskat_ambl_vso_overskud_felt_dokument], spørgsmål = [], beløbsfelter = [], attachments = Source(value = arbejdsmarkedsbidragsloven_lbk121_par5))
+--@label:ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta::meta:personskat_ambl_vso_overskud_beregningsmeta--
+
+= personskat_ambl_opsparet_felt_identifikation = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::identifikation), label = "Identifikation for opsparet overskud", question = Some("Hvilken entydig identifikation har overførslen fra opsparet overskud?"), help = None, unit = None)
+= personskat_ambl_opsparet_felt_oprindelsesår = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::oprindelsesår), label = "Oprindelsesår for opsparet overskud", question = Some("I hvilket tidligere indkomstår blev overskuddet opsparet?"), help = None, unit = Some("år"))
+= personskat_ambl_opsparet_felt_netto = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::overført_netto_kroner), label = "Overført opsparet overskud efter virksomhedsskat", question = Some("Hvor stort et nettobeløb blev overført fra det opsparede overskud?"), help = None, unit = Some("kr."))
+= personskat_ambl_opsparet_felt_skat = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::tilhørende_virksomhedsskat_kroner), label = "Tilhørende virksomhedsskat", question = Some("Hvor meget virksomhedsskat knytter sig til nettooverførslen?"), help = None, unit = Some("kr."))
+= personskat_ambl_opsparet_felt_dokument = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::dokumentreference), label = "Dokumentation for opsparet overskud", question = Some("Hvilken VSO-konto eller opgørelse dokumenterer overførslen og virksomhedsskatten?"), help = None, unit = None)
+= personskat_ambl_opsparet_beregningsmeta = TypetBeregningsmeta(felter = [personskat_ambl_opsparet_felt_identifikation, personskat_ambl_opsparet_felt_oprindelsesår, personskat_ambl_opsparet_felt_netto, personskat_ambl_opsparet_felt_skat, personskat_ambl_opsparet_felt_dokument], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = arbejdsmarkedsbidragsloven_lbk121_par5), AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5)))
+--@label:ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta::meta:personskat_ambl_opsparet_beregningsmeta--
+
+= personskat_ambl_biblioteksafgift_felt_identifikation = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::identifikation), label = "Biblioteksafgiftens identifikation", question = Some("Hvilken entydig identifikation har biblioteksafgiften?"), help = None, unit = None)
+= personskat_ambl_biblioteksafgift_felt_år = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::modtagelsesdato::år), label = "Biblioteksafgiftens modtagelsesdato (ISO 8601) - år", question = Some("I hvilket år blev biblioteksafgiften modtaget?"), help = None, unit = Some("år"))
+= personskat_ambl_biblioteksafgift_felt_måned = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::modtagelsesdato::måned), label = "Biblioteksafgiftens modtagelsesdato (ISO 8601) - måned", question = Some("I hvilken måned blev biblioteksafgiften modtaget?"), help = None, unit = Some("måned"))
+= personskat_ambl_biblioteksafgift_felt_dag = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::modtagelsesdato::dag), label = "Biblioteksafgiftens modtagelsesdato (ISO 8601) - dag", question = Some("På hvilken dag blev biblioteksafgiften modtaget?"), help = None, unit = Some("dag"))
+= personskat_ambl_biblioteksafgift_felt_beløb = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::beløb_kroner), label = "Modtaget biblioteksafgift", question = Some("Hvor stor en biblioteksafgift blev modtaget?"), help = None, unit = Some("kr."))
+= personskat_ambl_biblioteksafgift_felt_dokument = TypetBeregningsfelt(path = refof(ArbejdsmarkedsbidragBiblioteksafgiftFakta::dokumentreference), label = "Dokumentation for biblioteksafgiften", question = Some("Hvilken meddelelse eller udbetaling dokumenterer biblioteksafgiften?"), help = None, unit = None)
+= personskat_ambl_biblioteksafgift_beregningsmeta = TypetBeregningsmeta(felter = [personskat_ambl_biblioteksafgift_felt_identifikation, personskat_ambl_biblioteksafgift_felt_år, personskat_ambl_biblioteksafgift_felt_måned, personskat_ambl_biblioteksafgift_felt_dag, personskat_ambl_biblioteksafgift_felt_beløb, personskat_ambl_biblioteksafgift_felt_dokument], spørgsmål = [], beløbsfelter = [], attachments = (Source(value = arbejdsmarkedsbidragsloven_lbk121_par5), Source(value = arbejdsmarkedsbidragsloven_lbk121_par6)))
+--@label:ArbejdsmarkedsbidragBiblioteksafgiftFakta::meta:personskat_ambl_biblioteksafgift_beregningsmeta--
 
 = personskat_vsl7_felt_overskud = TypetBeregningsfelt(
     path = refof(Virksomhedsskattelov7KildeInput::skattepligtigt_overskud_kroner),
@@ -410,3 +507,79 @@
     )
 )
 --@label:Virksomhedsskattelov11KildeInput::meta:personskat_vsl11_beregningsmeta--
+
+= personskat_vsl11a_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov11AKildeInput::indkomstår),
+    label = "Indkomstår for § 11 a-rentekorrektion",
+    question = Some("Hvilket indkomstår vedrører boligen, der er stillet til rådighed for nærtstående?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_vsl11a_beregningsmeta = TypetBeregningsmeta(
+    felter = [personskat_vsl11a_felt_indkomstår],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = virksomhedsskatteloven_lbk1836_par11a),
+        DependencySource(value = virksomhedsskatteloven_lbk1836_par11),
+        RateSource(value = virksomhedsskatteloven_lbk1836_par9_par9a),
+    )
+)
+--@label:Virksomhedsskattelov11AKildeInput::meta:personskat_vsl11a_beregningsmeta--
+
+= personskat_vsl11a_formue_felt_tidspunkt = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov11AFormuefakta::tidspunkt::$variant),
+    label = "Tidspunkt for § 11 a-formueopgørelsen",
+    question = Some("Er dette opgørelsen ved virksomhedsordningens start, indkomstårets begyndelse eller indkomstårets udløb?"),
+    help = None,
+    unit = None
+)
+= personskat_vsl11a_formue_felt_aktiver = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov11AFormuefakta::aktiver),
+    label = "Aktiver i § 11 a-formueopgørelsen",
+    question = Some("Hvilke aktiver indgår på dette opgørelsestidspunkt?"),
+    help = Some("Mindst ét aktiv skal være en bolig stillet til rådighed for den nærtstående personkreds i § 11 a."),
+    unit = None
+)
+= personskat_vsl11a_formue_felt_gæld = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov11AFormuefakta::gældsposter),
+    label = "Gæld til kursværdi i § 11 a-formueopgørelsen",
+    question = Some("Hvilke gældsposter indgår på dette opgørelsestidspunkt?"),
+    help = Some("Opret én række pr. gældspost med en entydig identifikation."),
+    unit = None
+)
+= personskat_vsl11a_formue_beregningsmeta = TypetBeregningsmeta(
+    felter = [personskat_vsl11a_formue_felt_tidspunkt, personskat_vsl11a_formue_felt_aktiver, personskat_vsl11a_formue_felt_gæld],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = virksomhedsskatteloven_lbk1836_par11a),
+        DependencySource(value = virksomhedsskatteloven_lbk1836_par8),
+    )
+)
+--@label:Virksomhedsskattelov11AFormuefakta::meta:personskat_vsl11a_formue_beregningsmeta--
+
+= personskat_vsl8_gæld_felt_identifikation = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov8Gældspost::identifikation),
+    label = "Gældspostens identifikation",
+    question = Some("Hvilken entydig identifikation har gældsposten?"),
+    help = None,
+    unit = None
+)
+= personskat_vsl8_gæld_felt_kursværdi = TypetBeregningsfelt(
+    path = refof(Virksomhedsskattelov8Gældspost::kursværdi_kroner),
+    label = "Gældspostens kursværdi",
+    question = Some("Hvad er gældspostens kursværdi på opgørelsestidspunktet?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_vsl8_gæld_beregningsmeta = TypetBeregningsmeta(
+    felter = [personskat_vsl8_gæld_felt_identifikation, personskat_vsl8_gæld_felt_kursværdi],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = virksomhedsskatteloven_lbk1836_par8),
+        DependencySource(value = virksomhedsskatteloven_lbk1836_par11a),
+    )
+)
+--@label:Virksomhedsskattelov8Gældspost::meta:personskat_vsl8_gæld_beregningsmeta--

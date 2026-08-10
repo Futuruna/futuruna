@@ -2,6 +2,7 @@
 
 @ importer ./metadata
 @ importer ./pengebeloeb
+@ importer ./kalenderdato
 
 -- Arbejdsmarkedsbidragsloven — afhængig lovkilde for lønmodtagerens AM-bidrag.
 --
@@ -42,6 +43,26 @@ EndDate: 2026-06-23
     url = "https://www.retsinformation.dk/eli/lta/2020/121",
     identifier = "Arbejdsmarkedsbidragsloven § 3",
     hentet_dato = "2026-07-18"
+)
+= arbejdsmarkedsbidragsloven_lbk121_par4 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 4",
+    hentet_dato = "2026-08-11"
+)
+= arbejdsmarkedsbidragsloven_lbk121_par5 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 5",
+    hentet_dato = "2026-08-11"
+)
+= arbejdsmarkedsbidragsloven_lov2226_par5 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/2226",
+    identifier = "LOV nr. 2226 af 29/12/2020, § 5 (ændring af arbejdsmarkedsbidragslovens § 5, stk. 1)",
+    hentet_dato = "2026-08-11"
+)
+= arbejdsmarkedsbidragsloven_lbk121_par6 = ArbejdsmarkedsbidragKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/121",
+    identifier = "Arbejdsmarkedsbidragsloven § 6",
+    hentet_dato = "2026-08-11"
 )
 
 ----
@@ -267,6 +288,10 @@ Arbejdsmarkedets Tillægspension.
 | arbejdsmarkedsbidrag_ikke_skattepligtigt_vederlag_udelukkes(input: ArbejdsmarkedsbidragUdvidetLønmodtagerInput) -> arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr3_ikke_skattepligtigt_vederlag_kroner > 0 || arbejdsmarkedsbidrag_par3_udelukkelse_resultat(input).nr4_pensionsindbetaling_kroner > 0
 --@end::arbejdsmarkedsbidragsloven_par3--
 
+= arbejdsmarkedsbidragsloven_par4_metadata = Metadata(
+    attachments = Source(value = arbejdsmarkedsbidragsloven_lbk121_par4)
+)
+--@label:arbejdsmarkedsbidragsloven_par4::meta:arbejdsmarkedsbidragsloven_par4_metadata--
 ----
 § 4. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
 som ikke anvender virksomhedsordningen i virksomhedsskattelovens afsnit I,
@@ -287,12 +312,42 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 § 18, fragår dog ikke.
 ----
 
+--@begin:arbejdsmarkedsbidragsloven_par4--
 # ArbejdsmarkedsbidragSelvstændigInput(personlig_indkomst_ved_selvstændig_virksomhed_kroner: Heltal, biblioteksafgift_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
+# ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse = AmblFremførtNegativFraPbl18Pension | AmblFremførtNegativFraAndet
+# ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(identifikation: Tekst, oprindelsesår: Heltal, resterende_beløb_primo_kroner: Heltal, oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse, dokumentreference: Tekst)
+# ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstResultat(indkomstår: Heltal, trancher: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche), identifikationer_entydige: Boolsk, alle_trancher_gyldige: Boolsk, input_gyldigt: Boolsk, samlet_fremført_negativ_personlig_indkomst_kroner: Heltal, heraf_fra_pbl18_pension_kroner: Heltal, fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner: Heltal)
 
 | arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal) -> arbejdsmarkedsbidrag_positivt_beløb(fremført_negativ_personlig_indkomst_kroner - fremført_negativ_personlig_indkomst_fra_pension_kroner)
 | arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.personlig_indkomst_ved_selvstændig_virksomhed_kroner - input.biblioteksafgift_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
 | arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragSelvstændigInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
+| arbejdsmarkedsbidrag_fremført_negativ_tranche_gyldig(indkomstår: Heltal, tranche: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche) -> tranche.identifikation != "" && tranche.dokumentreference != "" && tranche.oprindelsesår > 0 && tranche.oprindelsesår < indkomstår && tranche.resterende_beløb_primo_kroner > 0
+| arbejdsmarkedsbidrag_fremført_negativ_identifikationer_entydige(trancher: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)) -> length(distinct(map(trancher, |tranche: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche| tranche.identifikation))) == length(trancher)
+| arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(indkomstår: Heltal, trancher: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)) -> {
+    = identifikationer_entydige = arbejdsmarkedsbidrag_fremført_negativ_identifikationer_entydige(trancher)
+    = alle_trancher_gyldige = all(trancher, |tranche: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche| arbejdsmarkedsbidrag_fremført_negativ_tranche_gyldig(indkomstår, tranche))
+    = samlet_kroner = foldl(trancher, 0, |sum_kroner: Heltal, tranche: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche| sum_kroner + tranche.resterende_beløb_primo_kroner)
+    = pension_kroner = foldl(trancher, 0, |sum_kroner: Heltal, tranche: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche| sum_kroner + hvis tranche.oprindelse == AmblFremførtNegativFraPbl18Pension { tranche.resterende_beløb_primo_kroner } ellers { 0 })
+    ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstResultat(
+        indkomstår = indkomstår,
+        trancher = trancher,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_trancher_gyldige = alle_trancher_gyldige,
+        input_gyldigt = indkomstår > 0 && identifikationer_entydige && alle_trancher_gyldige,
+        samlet_fremført_negativ_personlig_indkomst_kroner = hvis indkomstår > 0 && identifikationer_entydige && alle_trancher_gyldige { samlet_kroner } ellers { 0 },
+        heraf_fra_pbl18_pension_kroner = hvis indkomstår > 0 && identifikationer_entydige && alle_trancher_gyldige { pension_kroner } ellers { 0 },
+        fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner = hvis indkomstår > 0 && identifikationer_entydige && alle_trancher_gyldige { arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(samlet_kroner, pension_kroner) } ellers { 0 }
+    )
+}
+--@end:arbejdsmarkedsbidragsloven_par4--
 
+= arbejdsmarkedsbidragsloven_par5_metadata = Metadata(
+    attachments = (
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+    )
+)
+--@label:arbejdsmarkedsbidragsloven_par5::meta:arbejdsmarkedsbidragsloven_par5_metadata--
 ----
 § 5. Grundlaget for arbejdsmarkedsbidrag for selvstændigt erhvervsdrivende,
 som anvender virksomhedsordningen i virksomhedsskattelovens afsnit I, udgør
@@ -301,7 +356,7 @@ kapitalafkast efter virksomhedsskattelovens § 5, stk. 1, nr. 3, litra a, og
 overførsel af beløb fra virksomhedens konto for opsparet overskud med tillæg af
 den virksomhedsskat, der svarer hertil, til den skattepligtige samt
 rentekorrektion, der medregnes til den personlige indkomst efter
-virksomhedsskattelovens § 11, stk. 3.
+virksomhedsskattelovens § 11, stk. 3, og § 11 a, stk. 3.
 
 Stk. 2. Hvis den skattepligtige efter virksomhedsskattelovens § 23 a har valgt
 at medregne kapitalafkast som personlig indkomst, nedsættes kapitalafkastet,
@@ -312,12 +367,40 @@ Stk. 3. § 4, stk. 2 og 3, finder tilsvarende anvendelse for personer omfattet
 af stk. 1.
 ----
 
-# ArbejdsmarkedsbidragVirksomhedsordningInput(overførsel_fra_virksomhedsoverskud_kroner: Heltal, kapitalafkast_fradrag_kroner: Heltal, kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, overførsel_opsparet_overskud_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, rentekorrektion_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
+--@begin:arbejdsmarkedsbidragsloven_par5--
+# ArbejdsmarkedsbidragVirksomhedsordningInput(overførsel_fra_virksomhedsoverskud_kroner: Heltal, kapitalafkast_fradrag_kroner: Heltal, kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, overførsel_opsparet_overskud_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, rentekorrektion_par11_kroner: Heltal, rentekorrektion_par11a_kroner: Heltal, fremført_negativ_personlig_indkomst_kroner: Heltal, fremført_negativ_personlig_indkomst_fra_pension_kroner: Heltal)
+# ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(beløb_kroner: Heltal, dokumentreference: Tekst)
+# ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta(identifikation: Tekst, oprindelsesår: Heltal, overført_netto_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, dokumentreference: Tekst)
+# ArbejdsmarkedsbidragBiblioteksafgiftFakta(identifikation: Tekst, modtagelsesdato: Dato, beløb_kroner: Heltal, dokumentreference: Tekst)
+# ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta(indkomstår: Heltal, overførsel_fra_skattepligtigt_overskud: ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta, overførsler_fra_opsparet_overskud: List(ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta), biblioteksafgifter: List(ArbejdsmarkedsbidragBiblioteksafgiftFakta))
+# ArbejdsmarkedsbidragSelvstændigKildeinput = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche)) | AmblPar5MedVirksomhedsordning(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta, fremført_negativ_personlig_indkomst: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche))
 
 | arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.kapitalafkast_fradrag_kroner - input.kapitalafkast_medregnet_personlig_indkomst_kroner)
-| arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.overførsel_fra_virksomhedsoverskud_kroner - arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input) + input.overførsel_opsparet_overskud_kroner + input.tilhørende_virksomhedsskat_kroner + input.rentekorrektion_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
+| arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> arbejdsmarkedsbidrag_positivt_beløb(input.overførsel_fra_virksomhedsoverskud_kroner - arbejdsmarkedsbidrag_virksomhedsordning_kapitalafkast_fradrag_kroner(input) + input.overførsel_opsparet_overskud_kroner + input.tilhørende_virksomhedsskat_kroner + input.rentekorrektion_par11_kroner + input.rentekorrektion_par11a_kroner - arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_fradrag_kroner(input.fremført_negativ_personlig_indkomst_kroner, input.fremført_negativ_personlig_indkomst_fra_pension_kroner))
 | arbejdsmarkedsbidrag_virksomhedsordning_kroner(input: ArbejdsmarkedsbidragVirksomhedsordningInput) -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidrag_virksomhedsordning_grundlag_kroner(input), arbejdsmarkedsbidrag_sats_basispoint())
+| arbejdsmarkedsbidrag_opsparet_overskud_overførsel_gyldig(indkomstår: Heltal, fakta: ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta) -> fakta.identifikation != "" && fakta.dokumentreference != "" && fakta.oprindelsesår > 0 && fakta.oprindelsesår < indkomstår && fakta.overført_netto_kroner >= 0 && fakta.tilhørende_virksomhedsskat_kroner >= 0 && fakta.overført_netto_kroner + fakta.tilhørende_virksomhedsskat_kroner > 0
+| arbejdsmarkedsbidrag_biblioteksafgift_fakta_gyldig(indkomstår: Heltal, fakta: ArbejdsmarkedsbidragBiblioteksafgiftFakta) -> fakta.identifikation != "" && fakta.dokumentreference != "" && dato_gyldig(fakta.modtagelsesdato) && fakta.modtagelsesdato.år == indkomstår && fakta.beløb_kroner > 0
+| arbejdsmarkedsbidrag_virksomhedsordning_årsidentifikationer_entydige(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta) -> {
+    = identifikationer = concat(
+        map(fakta.overførsler_fra_opsparet_overskud, |overførsel: ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta| overførsel.identifikation),
+        map(fakta.biblioteksafgifter, |afgift: ArbejdsmarkedsbidragBiblioteksafgiftFakta| afgift.identifikation)
+    )
+    length(distinct(identifikationer)) == length(identifikationer)
+}
+| arbejdsmarkedsbidrag_virksomhedsordning_biblioteksafgift_kroner(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta) -> foldl(fakta.biblioteksafgifter, 0, |sum_kroner: Heltal, afgift: ArbejdsmarkedsbidragBiblioteksafgiftFakta| sum_kroner + afgift.beløb_kroner)
+| arbejdsmarkedsbidrag_virksomhedsordning_opsparet_netto_kroner(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta) -> foldl(fakta.overførsler_fra_opsparet_overskud, 0, |sum_kroner: Heltal, overførsel: ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta| sum_kroner + overførsel.overført_netto_kroner)
+| arbejdsmarkedsbidrag_virksomhedsordning_tilhørende_skat_kroner(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta) -> foldl(fakta.overførsler_fra_opsparet_overskud, 0, |sum_kroner: Heltal, overførsel: ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta| sum_kroner + overførsel.tilhørende_virksomhedsskat_kroner)
+| arbejdsmarkedsbidrag_virksomhedsordning_årsfakta_gyldige(fakta: ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta) -> fakta.indkomstår > 0 && fakta.overførsel_fra_skattepligtigt_overskud.beløb_kroner >= 0 && hvis fakta.overførsel_fra_skattepligtigt_overskud.beløb_kroner > 0 { fakta.overførsel_fra_skattepligtigt_overskud.dokumentreference != "" } ellers { Sandt } && arbejdsmarkedsbidrag_virksomhedsordning_årsidentifikationer_entydige(fakta) && all(fakta.overførsler_fra_opsparet_overskud, |overførsel: ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta| arbejdsmarkedsbidrag_opsparet_overskud_overførsel_gyldig(fakta.indkomstår, overførsel)) && all(fakta.biblioteksafgifter, |afgift: ArbejdsmarkedsbidragBiblioteksafgiftFakta| arbejdsmarkedsbidrag_biblioteksafgift_fakta_gyldig(fakta.indkomstår, afgift)) && arbejdsmarkedsbidrag_virksomhedsordning_biblioteksafgift_kroner(fakta) <= fakta.overførsel_fra_skattepligtigt_overskud.beløb_kroner
+| arbejdsmarkedsbidrag_selvstændig_kildeinput_gyldigt(input: ArbejdsmarkedsbidragSelvstændigKildeinput, indkomstår: Heltal) -> match input {
+    | AmblPar4UdenVirksomhedsordning(fremført) -> arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(indkomstår, fremført).input_gyldigt
+    | AmblPar5MedVirksomhedsordning(fakta, fremført) -> fakta.indkomstår == indkomstår && arbejdsmarkedsbidrag_virksomhedsordning_årsfakta_gyldige(fakta) && arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(indkomstår, fremført).input_gyldigt
+}
+--@end:arbejdsmarkedsbidragsloven_par5--
 
+= arbejdsmarkedsbidragsloven_par6_metadata = Metadata(
+    attachments = Source(value = arbejdsmarkedsbidragsloven_lbk121_par6)
+)
+--@label:arbejdsmarkedsbidragsloven_par6::meta:arbejdsmarkedsbidragsloven_par6_metadata--
 ----
 § 6. Til personer omfattet af § 5, som modtager ydelser i henhold til lov om
 biblioteksafgift, ydes en godtgørelse på 8,7 pct. af biblioteksafgiften.
@@ -332,11 +415,85 @@ slutskat for det pågældende indkomstår, jf. kildeskattelovens § 60, stk. 1,
 litra i.
 ----
 
+--@begin:arbejdsmarkedsbidragsloven_par6--
 # ArbejdsmarkedsbidragBiblioteksafgiftInput(biblioteksafgift_kroner: Heltal, modtager_omfattet_af_virksomhedsordning: Boolsk)
+# ArbejdsmarkedsbidragSelvstændigÅrsinput(skatteår: Heltal, alder_ved_indkomstårets_udløb: Heltal, virksomhedsordning_valgt: Boolsk, kildeinput: ArbejdsmarkedsbidragSelvstændigKildeinput, personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner: Heltal, biblioteksafgift_uden_virksomhedsordning_kroner: Heltal, kapitalafkastordning_personlig_indkomst_regulering_kroner: Heltal, virksomhedsordning_skattepligtigt_overskud_kroner: Heltal, virksomhedsordning_kapitalafkast_kroner: Heltal, virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, virksomhedsordning_rentekorrektion_par11_kroner: Heltal, virksomhedsordning_rentekorrektion_par11a_kroner: Heltal)
+# ArbejdsmarkedsbidragSelvstændigÅrsresultat(input: ArbejdsmarkedsbidragSelvstændigÅrsinput, fremført_negativ_personlig_indkomst: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstResultat, anvender_virksomhedsordningen: Boolsk, ordning_og_kildeinput_matcher: Boolsk, kildefakta_gyldige: Boolsk, afledte_beløb_gyldige: Boolsk, input_gyldigt: Boolsk, biblioteksafgift_kroner: Heltal, biblioteksafgift_godtgørelse_kroner: Heltal, overført_opsparet_overskud_netto_kroner: Heltal, tilhørende_virksomhedsskat_kroner: Heltal, kapitalafkast_fradrag_efter_par23a_kroner: Heltal, rentekorrektion_kroner: Heltal, personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner: Heltal, fremført_negativ_personlig_indkomst_fradrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner: Heltal, kildeskat_par60_kredit_øre: Heltal)
 
 | arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> 0
 | exception arbejdsmarkedsbidrag_biblioteksafgift_godtgøres_for_virksomhedsordning arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> penge_beløb_gange_basispoint_kroner(input.biblioteksafgift_kroner, 870) under input.modtager_omfattet_af_virksomhedsordning
 | arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_indgår_i_grundlag_kroner(input: ArbejdsmarkedsbidragBiblioteksafgiftInput) -> arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(input)
+| arbejdsmarkedsbidrag_selvstændig_anvender_virksomhedsordningen(input: ArbejdsmarkedsbidragSelvstændigKildeinput) -> match input {
+    | AmblPar4UdenVirksomhedsordning(_) -> Falskt
+    | AmblPar5MedVirksomhedsordning(_, _) -> Sandt
+}
+| arbejdsmarkedsbidrag_selvstændig_fremførte_trancher(input: ArbejdsmarkedsbidragSelvstændigKildeinput) -> match input {
+    | AmblPar4UdenVirksomhedsordning(fremført) -> fremført
+    | AmblPar5MedVirksomhedsordning(_, fremført) -> fremført
+}
+| arbejdsmarkedsbidrag_selvstændig_vso_fakta(input: ArbejdsmarkedsbidragSelvstændigKildeinput) -> match input {
+    | AmblPar5MedVirksomhedsordning(fakta, _) -> Some(fakta)
+    | _ -> None
+}
+
+# ArbejdsmarkedsbidragSelvstændigÅrssag(input: ArbejdsmarkedsbidragSelvstændigÅrsinput) {
+    | fremført_negativ_personlig_indkomst() -> arbejdsmarkedsbidrag_fremført_negativ_personlig_indkomst_resultat(input.skatteår, arbejdsmarkedsbidrag_selvstændig_fremførte_trancher(input.kildeinput))
+    | anvender_virksomhedsordningen() -> arbejdsmarkedsbidrag_selvstændig_anvender_virksomhedsordningen(input.kildeinput)
+    | ordning_og_kildeinput_matcher() -> anvender_virksomhedsordningen() == input.virksomhedsordning_valgt
+    | kildefakta_gyldige() -> arbejdsmarkedsbidrag_selvstændig_kildeinput_gyldigt(input.kildeinput, input.skatteår)
+    | vso_fakta() -> arbejdsmarkedsbidrag_selvstændig_vso_fakta(input.kildeinput)
+    | vso_overførsel_kroner() -> match vso_fakta() { | Some(fakta) -> fakta.overførsel_fra_skattepligtigt_overskud.beløb_kroner | None -> 0 }
+    | biblioteksafgift_kroner() -> match vso_fakta() { | Some(fakta) -> arbejdsmarkedsbidrag_virksomhedsordning_biblioteksafgift_kroner(fakta) | None -> input.biblioteksafgift_uden_virksomhedsordning_kroner }
+    | biblioteksafgift_godtgørelse_kroner() -> arbejdsmarkedsbidrag_biblioteksafgift_godtgørelse_kroner(ArbejdsmarkedsbidragBiblioteksafgiftInput(
+        biblioteksafgift_kroner = biblioteksafgift_kroner(),
+        modtager_omfattet_af_virksomhedsordning = anvender_virksomhedsordningen()
+    ))
+    | overført_opsparet_overskud_netto_kroner() -> match vso_fakta() { | Some(fakta) -> arbejdsmarkedsbidrag_virksomhedsordning_opsparet_netto_kroner(fakta) | None -> 0 }
+    | tilhørende_virksomhedsskat_kroner() -> match vso_fakta() { | Some(fakta) -> arbejdsmarkedsbidrag_virksomhedsordning_tilhørende_skat_kroner(fakta) | None -> 0 }
+    | kapitalafkast_fradrag_efter_par23a_kroner() -> arbejdsmarkedsbidrag_positivt_beløb(input.virksomhedsordning_kapitalafkast_kroner - input.virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner)
+    | rentekorrektion_kroner() -> input.virksomhedsordning_rentekorrektion_par11_kroner + input.virksomhedsordning_rentekorrektion_par11a_kroner
+    | afledte_beløb_gyldige() -> input.skatteår > 0 && input.alder_ved_indkomstårets_udløb >= 0 && input.biblioteksafgift_uden_virksomhedsordning_kroner >= 0 && input.virksomhedsordning_skattepligtigt_overskud_kroner >= 0 && input.virksomhedsordning_kapitalafkast_kroner >= 0 && input.virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner >= 0 && input.virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner <= input.virksomhedsordning_kapitalafkast_kroner && input.virksomhedsordning_rentekorrektion_par11_kroner >= 0 && input.virksomhedsordning_rentekorrektion_par11a_kroner >= 0 && hvis anvender_virksomhedsordningen() { input.personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner == 0 && input.biblioteksafgift_uden_virksomhedsordning_kroner == 0 && input.kapitalafkastordning_personlig_indkomst_regulering_kroner == 0 && vso_overførsel_kroner() <= input.virksomhedsordning_skattepligtigt_overskud_kroner } ellers { input.biblioteksafgift_uden_virksomhedsordning_kroner <= arbejdsmarkedsbidrag_positivt_beløb(input.personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner) && input.virksomhedsordning_skattepligtigt_overskud_kroner == 0 && input.virksomhedsordning_kapitalafkast_kroner == 0 && input.virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner == 0 && input.virksomhedsordning_rentekorrektion_par11_kroner == 0 && input.virksomhedsordning_rentekorrektion_par11a_kroner == 0 }
+    | input_gyldigt() -> ordning_og_kildeinput_matcher() && kildefakta_gyldige() && fremført_negativ_personlig_indkomst().input_gyldigt && afledte_beløb_gyldige()
+    | personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner() -> hvis anvender_virksomhedsordningen() {
+        vso_overførsel_kroner() - kapitalafkast_fradrag_efter_par23a_kroner() + overført_opsparet_overskud_netto_kroner() + tilhørende_virksomhedsskat_kroner() + rentekorrektion_kroner() + biblioteksafgift_godtgørelse_kroner()
+    } ellers {
+        input.personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner + input.kapitalafkastordning_personlig_indkomst_regulering_kroner
+    }
+    | grundlag_før_fremførsel_kroner() -> personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner()
+    | biblioteksafgift_uden_virksomhedsordning_kroner() -> hvis anvender_virksomhedsordningen() { 0 } ellers { input.biblioteksafgift_uden_virksomhedsordning_kroner }
+    | arbejdsmarkedsbidragsgrundlag_kroner() -> hvis input_gyldigt() { arbejdsmarkedsbidrag_positivt_beløb(grundlag_før_fremførsel_kroner() - biblioteksafgift_uden_virksomhedsordning_kroner() - fremført_negativ_personlig_indkomst().fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner) } ellers { 0 }
+    | arbejdsmarkedsbidragssats_basispoint() -> arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(
+        skatteår = input.skatteår,
+        alder_ved_indkomstårets_udløb = input.alder_ved_indkomstårets_udløb
+    ))
+    | arbejdsmarkedsbidrag_kroner() -> penge_beløb_gange_basispoint_kroner(arbejdsmarkedsbidragsgrundlag_kroner(), arbejdsmarkedsbidragssats_basispoint())
+    | nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner() -> hvis anvender_virksomhedsordningen() { vso_overførsel_kroner() + overført_opsparet_overskud_netto_kroner() + tilhørende_virksomhedsskat_kroner() + biblioteksafgift_godtgørelse_kroner() } ellers { input.personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner }
+    | resultat() -> ArbejdsmarkedsbidragSelvstændigÅrsresultat(
+        input = input,
+        fremført_negativ_personlig_indkomst = fremført_negativ_personlig_indkomst(),
+        anvender_virksomhedsordningen = anvender_virksomhedsordningen(),
+        ordning_og_kildeinput_matcher = ordning_og_kildeinput_matcher(),
+        kildefakta_gyldige = kildefakta_gyldige(),
+        afledte_beløb_gyldige = afledte_beløb_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        biblioteksafgift_kroner = hvis input_gyldigt() { biblioteksafgift_kroner() } ellers { 0 },
+        biblioteksafgift_godtgørelse_kroner = hvis input_gyldigt() { biblioteksafgift_godtgørelse_kroner() } ellers { 0 },
+        overført_opsparet_overskud_netto_kroner = hvis input_gyldigt() { overført_opsparet_overskud_netto_kroner() } ellers { 0 },
+        tilhørende_virksomhedsskat_kroner = hvis input_gyldigt() { tilhørende_virksomhedsskat_kroner() } ellers { 0 },
+        kapitalafkast_fradrag_efter_par23a_kroner = hvis input_gyldigt() { kapitalafkast_fradrag_efter_par23a_kroner() } ellers { 0 },
+        rentekorrektion_kroner = hvis input_gyldigt() { rentekorrektion_kroner() } ellers { 0 },
+        personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner = hvis input_gyldigt() { personlig_indkomst_ved_selvstændig_virksomhed_før_fremførsel_kroner() } ellers { 0 },
+        fremført_negativ_personlig_indkomst_fradrag_kroner = hvis input_gyldigt() { fremført_negativ_personlig_indkomst().fradrag_i_arbejdsmarkedsbidragsgrundlaget_kroner } ellers { 0 },
+        arbejdsmarkedsbidragsgrundlag_kroner = arbejdsmarkedsbidragsgrundlag_kroner(),
+        arbejdsmarkedsbidragssats_basispoint = arbejdsmarkedsbidragssats_basispoint(),
+        arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner(),
+        nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner = hvis input_gyldigt() { nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner() } ellers { 0 },
+        kildeskat_par60_kredit_øre = hvis input_gyldigt() { biblioteksafgift_godtgørelse_kroner() * 100 } ellers { 0 }
+    )
+}
+
+| arbejdsmarkedsbidrag_selvstændig_årsresultat(input: ArbejdsmarkedsbidragSelvstændigÅrsinput) -> ArbejdsmarkedsbidragSelvstændigÅrssag(input).resultat()
+--@end:arbejdsmarkedsbidragsloven_par6--
 
 ----
 § 7. Bestemmelserne i kildeskatteloven og opkrævningsloven om indeholdelse,
@@ -394,7 +551,8 @@ arbejdsmarkedsbidrag efter denne lov.
     kapitalafkast_medregnet_personlig_indkomst_kroner = 10000,
     overførsel_opsparet_overskud_kroner = 30000,
     tilhørende_virksomhedsskat_kroner = 9000,
-    rentekorrektion_kroner = 2000,
+    rentekorrektion_par11_kroner = 2000,
+    rentekorrektion_par11a_kroner = 0,
     fremført_negativ_personlig_indkomst_kroner = 20000,
     fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
 ))

@@ -1293,7 +1293,8 @@ virksomhedsunderskud.
     kapitalafkast_medregnet_personlig_indkomst_kroner = 10000,
     overførsel_opsparet_overskud_kroner = 30000,
     tilhørende_virksomhedsskat_kroner = 9000,
-    rentekorrektion_kroner = 2000,
+    rentekorrektion_par11_kroner = 2000,
+    rentekorrektion_par11a_kroner = 0,
     fremført_negativ_personlig_indkomst_kroner = 20000,
     fremført_negativ_personlig_indkomst_fra_pension_kroner = 5000
 ))

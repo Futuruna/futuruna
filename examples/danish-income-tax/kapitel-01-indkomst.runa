@@ -1111,7 +1111,7 @@ fra og med den 1. januar 2027.
 # Par4Stk1Nr6Resultat(ejendomsskattelov_hjemmel: EjendomsskattelovPar3Hjemmel, omfattet_af_ejendomsskattelov_par3: Boolsk, omfattet_af_kapitalindkomst: Boolsk, kapitalindkomst_kroner: Heltal, ikke_omfattet_af_par4_nr6_kroner: Heltal)
 # Par4Stk1Nr7Input(ligningslov8_stk3_resultat: Ligningslov8Stk3Resultat)
 # Par4Stk1Nr7Resultat(omfattet_af_ligningslov8_stk3: Boolsk, fradragsberettigede_provisioner_mv_kroner: Heltal, afskårede_provisioner_mv_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-# Par4Stk1Nr8Input(virksomhedsskattelov11_resultat: Virksomhedsskattelov11Resultat)
+# Par4Stk1Nr8Input(virksomhedsskattelov11_resultat: Virksomhedsskattelov11Resultat, virksomhedsskattelov11a_resultat: Option(Virksomhedsskattelov11AKildeResultat))
 # Par4Stk1Nr8Resultat(samlet_rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
 # Par4Stk1Nr9Virksomhedstype = AlmindeligSelvstændigVirksomhed | Ligningslov8KStk2SelvstændigVirksomhed
 # Par4Stk1Nr9Input(virksomhedstype: Par4Stk1Nr9Virksomhedstype, beløb_kroner: Heltal, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
@@ -1656,10 +1656,14 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(input: Ligningslov8Stk3Input) -> par4_stk1_nr7_kapitalpost(par4_stk1_nr7_input_fra_ligningslov8_stk3(input))
 
 # Par4Stk1Nr8Sag(input: Par4Stk1Nr8Input) {
-    | samlet_rentekorrektion_kroner() -> input.virksomhedsskattelov11_resultat.samlet_rentekorrektion_kroner
-    | personlig_indkomst_tillæg_kroner() -> input.virksomhedsskattelov11_resultat.personlig_indkomst_tillæg_kroner
-    | kapitalindkomst_fradrag_kroner() -> input.virksomhedsskattelov11_resultat.kapitalindkomst_fradrag_kroner
-    | kapitalindkomst_kroner() -> input.virksomhedsskattelov11_resultat.kapitalindkomst_kroner
+    | par11a_rentekorrektion_kroner() -> match input.virksomhedsskattelov11a_resultat {
+        | Some(resultat) -> hvis resultat.input_gyldigt { resultat.rentekorrektion_kroner } ellers { 0 }
+        | None -> 0
+    }
+    | samlet_rentekorrektion_kroner() -> input.virksomhedsskattelov11_resultat.samlet_rentekorrektion_kroner + par11a_rentekorrektion_kroner()
+    | personlig_indkomst_tillæg_kroner() -> samlet_rentekorrektion_kroner()
+    | kapitalindkomst_fradrag_kroner() -> samlet_rentekorrektion_kroner()
+    | kapitalindkomst_kroner() -> 0 - kapitalindkomst_fradrag_kroner()
     | resultat() -> Par4Stk1Nr8Resultat(
         samlet_rentekorrektion_kroner = samlet_rentekorrektion_kroner(),
         personlig_indkomst_tillæg_kroner = personlig_indkomst_tillæg_kroner(),
@@ -1670,7 +1674,8 @@ fra og med den 1. januar 2027.
 | par4_stk1_nr8_sag(input: Par4Stk1Nr8Input) -> Par4Stk1Nr8Sag(input)
 | par4_stk1_nr8_resultat(input: Par4Stk1Nr8Input) -> par4_stk1_nr8_sag(input).resultat()
 | par4_stk1_nr8_input_fra_virksomhedsskattelov11(input: Virksomhedsskattelov11Input) -> Par4Stk1Nr8Input(
-    virksomhedsskattelov11_resultat = virksomhedsskattelov11_resultat(input)
+    virksomhedsskattelov11_resultat = virksomhedsskattelov11_resultat(input),
+    virksomhedsskattelov11a_resultat = None
 )
 | par4_stk1_nr8_resultat_fra_virksomhedsskattelov11(input: Virksomhedsskattelov11Input) -> par4_stk1_nr8_resultat(par4_stk1_nr8_input_fra_virksomhedsskattelov11(input))
 | par4_stk1_nr8_kapitalpost(input: Par4Stk1Nr8Input) -> Par4Kapitalpost(
@@ -1681,10 +1686,17 @@ fra og med den 1. januar 2027.
 )
 | par4_stk1_nr8_kapitalpost_fra_virksomhedsskattelov11(input: Virksomhedsskattelov11Input) -> par4_stk1_nr8_kapitalpost(par4_stk1_nr8_input_fra_virksomhedsskattelov11(input))
 | par4_stk1_nr8_input_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> Par4Stk1Nr8Input(
-    virksomhedsskattelov11_resultat = resultat.par11_resultat
+    virksomhedsskattelov11_resultat = resultat.par11_resultat,
+    virksomhedsskattelov11a_resultat = None
 )
 | par4_stk1_nr8_resultat_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> par4_stk1_nr8_resultat(par4_stk1_nr8_input_fra_kilde(resultat))
 | par4_stk1_nr8_kapitalpost_fra_kilde(resultat: Virksomhedsskattelov11KildeResultat) -> par4_stk1_nr8_kapitalpost(par4_stk1_nr8_input_fra_kilde(resultat))
+| par4_stk1_nr8_input_fra_par11a_kilde(resultat: Virksomhedsskattelov11AKildeResultat) -> Par4Stk1Nr8Input(
+    virksomhedsskattelov11_resultat = resultat.par11_resultat.par11_resultat,
+    virksomhedsskattelov11a_resultat = Some(resultat)
+)
+| par4_stk1_nr8_resultat_fra_par11a_kilde(resultat: Virksomhedsskattelov11AKildeResultat) -> par4_stk1_nr8_resultat(par4_stk1_nr8_input_fra_par11a_kilde(resultat))
+| par4_stk1_nr8_kapitalpost_fra_par11a_kilde(resultat: Virksomhedsskattelov11AKildeResultat) -> par4_stk1_nr8_kapitalpost(par4_stk1_nr8_input_fra_par11a_kilde(resultat))
 
 # Par4Stk1Nr9Sag(input: Par4Stk1Nr9Input) {
     | effektivt_ejerantal() -> penge_positivt_beløb(input.samlet_ejerantal - input.ligningslov8p_ejere_der_ikke_medregnes)

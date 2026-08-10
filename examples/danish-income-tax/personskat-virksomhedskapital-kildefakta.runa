@@ -1,5 +1,6 @@
 @ sprog da
 
+@ importer ./arbejdsmarkedsbidragsloven
 @ importer ./kapitel - 01 - indkomst
 @ importer ./metadata
 
@@ -12,6 +13,11 @@
         DependencySource(value = virksomhedsskatteloven_lbk1836_par22c),
         DependencySource(value = virksomhedsskatteloven_lbk1836_par23a),
         DependencySource(value = virksomhedsskatteloven_lbk1836_par11),
+        DependencySource(value = virksomhedsskatteloven_lbk1836_par11a),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par4),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par5),
+        AmendmentSource(value = arbejdsmarkedsbidragsloven_lov2226_par5),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par6),
         RateSource(value = virksomhedsskatteloven_skatteministeriet_satser_par22c_par23a),
     )
 )
@@ -21,9 +27,9 @@
 # PersonskatVirksomhedsordningskapitalInput = UdenKapitalafkastEfterVirksomhedsskattelov7 | MedKapitalafkastEfterVirksomhedsskattelov7(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
 # PersonskatKapitalafkastordningInput = UdenKapitalafkastEfterVirksomhedsskattelov22A | MedKapitalafkastEfterVirksomhedsskattelov22A(par22a_input: Virksomhedsskattelov22AKildeInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
 # PersonskatMedarbejderaktiekapitalafkastInput = UdenKapitalafkastEfterVirksomhedsskattelov22C | MedKapitalafkastEfterVirksomhedsskattelov22C(par22c_input: Virksomhedsskattelov22CKildeInput)
-# PersonskatVirksomhedsrentekorrektionInput = UdenRentekorrektionEfterVirksomhedsskattelov11 | MedRentekorrektionEfterVirksomhedsskattelov11(par11_input: Virksomhedsskattelov11KildeInput)
+# PersonskatVirksomhedsrentekorrektionInput = UdenRentekorrektionEfterVirksomhedsskattelov11 | MedRentekorrektionEfterVirksomhedsskattelov11(par11_input: Virksomhedsskattelov11KildeInput) | MedRentekorrektionEfterVirksomhedsskattelov11Og11A(par11a_input: Virksomhedsskattelov11AKildeInput)
 # PersonskatSelvstændigBeskatningsordningInput = UdenVirksomhedsEllerKapitalafkastordning | MedVirksomhedsordningEfterAfsnitI(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal, rentekorrektion: PersonskatVirksomhedsrentekorrektionInput) | MedKapitalafkastordningEfterPar22A(par22a_input: Virksomhedsskattelov22AKildeInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
-# PersonskatVirksomhedskapitalInput(selvstændig_beskatningsordning: PersonskatSelvstændigBeskatningsordningInput, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastInput)
+# PersonskatVirksomhedskapitalInput(selvstændig_beskatningsordning: PersonskatSelvstændigBeskatningsordningInput, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigKildeinput, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastInput)
 
 # PersonskatVirksomhedsordningskapitalBeregning(input: PersonskatVirksomhedsordningskapitalInput, par7_resultat: Virksomhedsskattelov7KildeResultat, par23a_resultat: Virksomhedsskattelov23ABundetResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, par4_stk1_nr3_resultat: Par4Stk1Nr3Resultat, input_gyldigt: Boolsk)
 # PersonskatVirksomhedsordningskapitalResultat = IntetKapitalafkastEfterVirksomhedsskattelov7 | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning: PersonskatVirksomhedsordningskapitalBeregning)
@@ -31,12 +37,13 @@
 # PersonskatKapitalafkastordningResultat = IntetKapitalafkastEfterVirksomhedsskattelov22A | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning: PersonskatKapitalafkastordningBeregning)
 # PersonskatMedarbejderaktiekapitalafkastBeregning(input: PersonskatMedarbejderaktiekapitalafkastInput, par22c_resultat: Virksomhedsskattelov22CKildeResultat, input_gyldigt: Boolsk)
 # PersonskatMedarbejderaktiekapitalafkastResultat = IntetKapitalafkastEfterVirksomhedsskattelov22C | OpgjortKapitalafkastEfterVirksomhedsskattelov22C(beregning: PersonskatMedarbejderaktiekapitalafkastBeregning)
-# PersonskatVirksomhedsrentekorrektionBeregning(input: PersonskatVirksomhedsrentekorrektionInput, par11_resultat: Virksomhedsskattelov11KildeResultat, par4_stk1_nr8_resultat: Par4Stk1Nr8Resultat, input_gyldigt: Boolsk)
+# PersonskatVirksomhedsrentekorrektionBeregning(input: PersonskatVirksomhedsrentekorrektionInput, par11_resultat: Virksomhedsskattelov11KildeResultat, par11a_resultat: Option(Virksomhedsskattelov11AKildeResultat), par4_stk1_nr8_resultat: Par4Stk1Nr8Resultat, input_gyldigt: Boolsk)
 # PersonskatVirksomhedsrentekorrektionResultat = IngenRentekorrektionEfterVirksomhedsskattelov11 | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning: PersonskatVirksomhedsrentekorrektionBeregning)
-# PersonskatVirksomhedskapitalResultat(input: PersonskatVirksomhedskapitalInput, virksomhedsordning: PersonskatVirksomhedsordningskapitalResultat, kapitalafkastordning: PersonskatKapitalafkastordningResultat, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastResultat, rentekorrektion: PersonskatVirksomhedsrentekorrektionResultat, par4_stk1_nr3a_resultat: Par4Stk1Nr3aResultat, alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), personlig_indkomst_regulering_kroner: Heltal)
+# PersonskatVirksomhedskapitalResultat(input: PersonskatVirksomhedskapitalInput, virksomhedsordning: PersonskatVirksomhedsordningskapitalResultat, kapitalafkastordning: PersonskatKapitalafkastordningResultat, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastResultat, rentekorrektion: PersonskatVirksomhedsrentekorrektionResultat, par4_stk1_nr3a_resultat: Par4Stk1Nr3aResultat, selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt: Boolsk, virksomhedsordning_valgt: Boolsk, virksomhedsordning_skattepligtigt_overskud_kroner: Heltal, virksomhedsordning_kapitalafkast_kroner: Heltal, virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner: Heltal, virksomhedsordning_rentekorrektion_par11_kroner: Heltal, virksomhedsordning_rentekorrektion_par11a_kroner: Heltal, kapitalafkastordning_personlig_indkomst_regulering_kroner: Heltal, alle_input_gyldige: Boolsk, kapitalposter: List(Par4Kapitalpost), personlig_indkomst_regulering_kroner: Heltal)
 
 | personskat_ingen_virksomhedskapital() -> PersonskatVirksomhedskapitalInput(
     selvstændig_beskatningsordning = UdenVirksomhedsEllerKapitalafkastordning,
+    selvstændig_arbejdsmarkedsbidrag = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst = []),
     medarbejderaktier = UdenKapitalafkastEfterVirksomhedsskattelov22C
 )
 
@@ -90,7 +97,20 @@
     | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning) -> hvis beregning.input_gyldigt { [par4_stk1_nr3_kapitalpost_fra_kilder(beregning.par7_resultat, beregning.oplysningsfrist_resultat, beregning.par23a_resultat)] } ellers { [] }
     | _ -> []
 }
-| personskat_virksomhedsordningskapital_personlig_indkomst_kroner(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat {
+| personskat_virksomhedsordningskapital_personlig_indkomst_regulering_kroner(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat {
+    | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning) -> hvis beregning.input_gyldigt { 0 - beregning.par7_resultat.par7_resultat.kapitalafkast_kroner + beregning.par23a_resultat.par23a_resultat.personlig_indkomst_kroner } ellers { 0 }
+    | _ -> 0
+}
+| personskat_virksomhedsordning_valgt(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat { | OpgjortKapitalafkastEfterVirksomhedsskattelov7(_) -> Sandt | _ -> Falskt }
+| personskat_virksomhedsordning_skattepligtigt_overskud_kroner(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat {
+    | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning) -> hvis beregning.input_gyldigt { beregning.par7_resultat.input.skattepligtigt_overskud_kroner } ellers { 0 }
+    | _ -> 0
+}
+| personskat_virksomhedsordning_kapitalafkast_kroner(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat {
+    | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning) -> hvis beregning.input_gyldigt { beregning.par7_resultat.par7_resultat.kapitalafkast_kroner } ellers { 0 }
+    | _ -> 0
+}
+| personskat_virksomhedsordning_par23a_kroner(resultat: PersonskatVirksomhedsordningskapitalResultat) -> match resultat {
     | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning) -> hvis beregning.input_gyldigt { beregning.par23a_resultat.par23a_resultat.personlig_indkomst_kroner } ellers { 0 }
     | _ -> 0
 }
@@ -127,6 +147,7 @@
     | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning) -> hvis beregning.input_gyldigt { beregning.par23a_resultat.par23a_resultat.personlig_indkomst_kroner } ellers { 0 }
     | _ -> 0
 }
+| personskat_kapitalafkastordning_personlig_indkomst_regulering_kroner(resultat: PersonskatKapitalafkastordningResultat) -> 0 - personskat_kapitalafkastordning_kapitalafkast_kroner(resultat) + personskat_kapitalafkastordning_par23a_kroner(resultat)
 
 | personskat_medarbejderaktiekapitalafkast_resultat(input: PersonskatMedarbejderaktiekapitalafkastInput, skatteår: Heltal) -> match input {
     | UdenKapitalafkastEfterVirksomhedsskattelov22C -> IntetKapitalafkastEfterVirksomhedsskattelov22C
@@ -159,8 +180,19 @@
         OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning = PersonskatVirksomhedsrentekorrektionBeregning(
             input = input,
             par11_resultat = par11_resultat,
+            par11a_resultat = None,
             par4_stk1_nr8_resultat = par4_stk1_nr8_resultat_fra_kilde(par11_resultat),
             input_gyldigt = par11_resultat.input_gyldigt && par11_input.indkomstår == skatteår
+        ))
+    }
+    | MedRentekorrektionEfterVirksomhedsskattelov11Og11A(par11a_input) -> {
+        = par11a_resultat = virksomhedsskattelov11a_kilde_resultat(par11a_input)
+        OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning = PersonskatVirksomhedsrentekorrektionBeregning(
+            input = input,
+            par11_resultat = par11a_resultat.par11_resultat,
+            par11a_resultat = Some(par11a_resultat),
+            par4_stk1_nr8_resultat = par4_stk1_nr8_resultat_fra_par11a_kilde(par11a_resultat),
+            input_gyldigt = par11a_resultat.input_gyldigt && par11a_input.indkomstår == skatteår
         ))
     }
 }
@@ -169,9 +201,22 @@
     | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning) -> beregning.input_gyldigt
 }
 | personskat_virksomhedsrentekorrektion_poster(resultat: PersonskatVirksomhedsrentekorrektionResultat) -> match resultat {
-    | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning) -> hvis beregning.input_gyldigt { [par4_stk1_nr8_kapitalpost_fra_kilde(beregning.par11_resultat)] } ellers { [] }
+    | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning) -> hvis beregning.input_gyldigt { match beregning.par11a_resultat { | Some(par11a) -> [par4_stk1_nr8_kapitalpost_fra_par11a_kilde(par11a)] | None -> [par4_stk1_nr8_kapitalpost_fra_kilde(beregning.par11_resultat)] } } ellers { [] }
     | _ -> []
 }
+| personskat_virksomhedsrentekorrektion_par11_kroner(resultat: PersonskatVirksomhedsrentekorrektionResultat) -> match resultat {
+    | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning) -> hvis beregning.input_gyldigt { beregning.par11_resultat.par11_resultat.samlet_rentekorrektion_kroner } ellers { 0 }
+    | _ -> 0
+}
+| personskat_virksomhedsrentekorrektion_par11a_kroner(resultat: PersonskatVirksomhedsrentekorrektionResultat) -> match resultat {
+    | OpgjortRentekorrektionEfterVirksomhedsskattelov11(beregning) -> match beregning.par11a_resultat { | Some(par11a) -> hvis beregning.input_gyldigt { par11a.rentekorrektion_kroner } ellers { 0 } | None -> 0 }
+    | _ -> 0
+}
+| personskat_selvstændig_arbejdsmarkedsbidrag_ordning_matcher(ordning: PersonskatSelvstændigBeskatningsordningInput, kildeinput: ArbejdsmarkedsbidragSelvstændigKildeinput) -> match ordning {
+    | MedVirksomhedsordningEfterAfsnitI(_, _, _, _) -> match kildeinput { | AmblPar5MedVirksomhedsordning(_, _) -> Sandt | _ -> Falskt }
+    | _ -> match kildeinput { | AmblPar4UdenVirksomhedsordning(_) -> Sandt | _ -> Falskt }
+}
+| personskat_selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> personskat_selvstændig_arbejdsmarkedsbidrag_ordning_matcher(input.selvstændig_beskatningsordning, input.selvstændig_arbejdsmarkedsbidrag) && arbejdsmarkedsbidrag_selvstændig_kildeinput_gyldigt(input.selvstændig_arbejdsmarkedsbidrag, skatteår)
 
 | personskat_virksomhedskapital_resultat(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> {
     = virksomhedsordning = personskat_virksomhedsordningskapital_resultat(personskat_virksomhedsordningskapital_input(input.selvstændig_beskatningsordning), skatteår)
@@ -183,6 +228,14 @@
     = par22a_kapitalafkast_kroner = personskat_kapitalafkastordning_kapitalafkast_kroner(kapitalafkastordning)
     = par23a_personlig_indkomst_kroner = personskat_kapitalafkastordning_par23a_kroner(kapitalafkastordning)
     = par22c_kapitalafkast_kroner = personskat_medarbejderaktiekapitalafkast_kroner(medarbejderaktier)
+    = selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt = personskat_selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt(input, skatteår)
+    = virksomhedsordning_valgt = personskat_virksomhedsordning_valgt(virksomhedsordning)
+    = virksomhedsordning_skattepligtigt_overskud_kroner = personskat_virksomhedsordning_skattepligtigt_overskud_kroner(virksomhedsordning)
+    = virksomhedsordning_kapitalafkast_kroner = personskat_virksomhedsordning_kapitalafkast_kroner(virksomhedsordning)
+    = virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner = personskat_virksomhedsordning_par23a_kroner(virksomhedsordning)
+    = virksomhedsordning_rentekorrektion_par11_kroner = personskat_virksomhedsrentekorrektion_par11_kroner(rentekorrektion)
+    = virksomhedsordning_rentekorrektion_par11a_kroner = personskat_virksomhedsrentekorrektion_par11a_kroner(rentekorrektion)
+    = kapitalafkastordning_personlig_indkomst_regulering_kroner = personskat_kapitalafkastordning_personlig_indkomst_regulering_kroner(kapitalafkastordning)
     = par4_stk1_nr3a_resultat = par4_stk1_nr3a_resultat_fra_kildebeløb(par22a_kapitalafkast_kroner, par23a_personlig_indkomst_kroner, par22c_kapitalafkast_kroner)
     = par22_poster = hvis par22_input_gyldige && par22_angivet { [par4_stk1_nr3a_kapitalpost_fra_resultat(par4_stk1_nr3a_resultat)] } ellers { [] }
     PersonskatVirksomhedskapitalResultat(
@@ -192,9 +245,17 @@
         medarbejderaktier = medarbejderaktier,
         rentekorrektion = rentekorrektion,
         par4_stk1_nr3a_resultat = par4_stk1_nr3a_resultat,
-        alle_input_gyldige = personskat_virksomhedsordningskapital_input_gyldigt(virksomhedsordning) && par22_input_gyldige && personskat_virksomhedsrentekorrektion_input_gyldigt(rentekorrektion),
+        selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt = selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt,
+        virksomhedsordning_valgt = virksomhedsordning_valgt,
+        virksomhedsordning_skattepligtigt_overskud_kroner = virksomhedsordning_skattepligtigt_overskud_kroner,
+        virksomhedsordning_kapitalafkast_kroner = virksomhedsordning_kapitalafkast_kroner,
+        virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner = virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner,
+        virksomhedsordning_rentekorrektion_par11_kroner = virksomhedsordning_rentekorrektion_par11_kroner,
+        virksomhedsordning_rentekorrektion_par11a_kroner = virksomhedsordning_rentekorrektion_par11a_kroner,
+        kapitalafkastordning_personlig_indkomst_regulering_kroner = kapitalafkastordning_personlig_indkomst_regulering_kroner,
+        alle_input_gyldige = personskat_virksomhedsordningskapital_input_gyldigt(virksomhedsordning) && par22_input_gyldige && personskat_virksomhedsrentekorrektion_input_gyldigt(rentekorrektion) && selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt,
         kapitalposter = concat(concat(personskat_virksomhedsordningskapital_poster(virksomhedsordning), par22_poster), personskat_virksomhedsrentekorrektion_poster(rentekorrektion)),
-        personlig_indkomst_regulering_kroner = personskat_virksomhedsordningskapital_personlig_indkomst_kroner(virksomhedsordning) - par22a_kapitalafkast_kroner + par23a_personlig_indkomst_kroner - par22c_kapitalafkast_kroner
+        personlig_indkomst_regulering_kroner = personskat_virksomhedsordningskapital_personlig_indkomst_regulering_kroner(virksomhedsordning) + kapitalafkastordning_personlig_indkomst_regulering_kroner - par22c_kapitalafkast_kroner
     )
 }
 --@end:personskat_virksomhedskapital_kildefakta--

@@ -69,6 +69,11 @@
     identifier = "Virksomhedsskatteloven § 11",
     hentet_dato = "2026-07-31"
 )
+= virksomhedsskatteloven_lbk1836_par11a = VirksomhedsskattelovKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1836",
+    identifier = "Virksomhedsskatteloven § 11 a",
+    hentet_dato = "2026-08-11"
+)
 = virksomhedsskatteloven_nationalbank_statbank_dnruupi_par9 = VirksomhedsskattelovKildeInfo(
     url = "https://api.statbank.dk/v1/tableinfo/DNRUUPI?lang=da",
     identifier = "DNRUUPI AL20/EFFR/1100/Z01/ALLE/ALLE januar-juni 2025 og 2026",
@@ -124,6 +129,10 @@
 = virksomhedsskatteloven_par11_kildebelæg = Kildebelæg(
     kilde = virksomhedsskatteloven_lbk1836_par11,
     mål = refof(virksomhedsskattelov11_kilde_resultat)
+)
+= virksomhedsskatteloven_par11a_kildebelæg = Kildebelæg(
+    kilde = virksomhedsskatteloven_lbk1836_par11a,
+    mål = refof(virksomhedsskattelov11a_kilde_resultat)
 )
 
 ----
@@ -1694,6 +1703,136 @@ indkomstår.
 | virksomhedsskattelov11_kilde_sag(input: Virksomhedsskattelov11KildeInput) -> Virksomhedsskattelov11KildeSag(input)
 | virksomhedsskattelov11_kilde_resultat(input: Virksomhedsskattelov11KildeInput) -> virksomhedsskattelov11_kilde_sag(input).resultat()
 --@end:virksomhedsskatteloven_par11--
+
+= virksomhedsskatteloven_par11a_metadata = Metadata(
+    attachments = (
+        Source(value = virksomhedsskatteloven_par11a_kildebelæg),
+        RateSource(value = virksomhedsskatteloven_par9_par9a_kildebelæg),
+        DependencySource(value = virksomhedsskatteloven_par11_kildebelæg),
+    )
+)
+
+--@label:virksomhedsskatteloven_par11a::meta:virksomhedsskatteloven_par11a_metadata--
+----
+§ 11 a. Stiller den skattepligtige fast ejendom til rådighed som bolig for
+dennes eller ægtefællens forældre og bedsteforældre samt børn og børnebørn og
+disses ægtefæller, beregnes rentekorrektion.
+
+Rentekorrektionen beregnes med et beløb, der svarer til
+rentekorrektionssatsen efter § 9 a ganget med den talmæssigt største andel af
+gælden til kursværdien i virksomhedsordningen på tidspunktet, hvor anvendelsen
+af virksomhedsordningen for ejendommen påbegyndes, eller for efterfølgende
+indkomstår ved indkomstårets begyndelse eller ved indkomstårets udløb.
+
+Rentekorrektionsbeløbet kan højst udgøre en andel af virksomhedens
+nettorenteudgifter forhøjet med kurstab og nedsat med kursgevinster, der er
+skattepligtige efter kursgevinstloven.
+
+Den i 2. og 3. pkt. nævnte andel opgøres på grundlag af den kontante
+anskaffelsessum for ejendommen med tillæg af anskaffelsessum for ombygning,
+forbedringer m.v., som er foretaget efter anskaffelsen af ejendommen, i forhold
+til de samlede aktiver i virksomhedsordningen.
+
+Værdien af øvrige aktiver opgøres efter bestemmelserne i § 3, stk. 4, 2.-8.
+pkt., mens fast ejendom, der ikke er omfattet af 1. pkt., medregnes til den
+kontante anskaffelsessum.
+
+Har den skattepligtige valgt at anvende 18. alm. vurdering med tillæg af
+eventuel ikke medregnet anskaffelsessum for ombygning, forbedringer m.v., jf.
+§ 8, stk. 2, 2. pkt., skal den faste ejendom medregnes til denne værdi.
+
+Stk. 2. Er der beregnet rentekorrektion efter § 11, stk. 1, skal et beløb
+svarende til det grundlag, hvoraf der er beregnet rentekorrektion efter § 11,
+stk. 1, fratrækkes gælden i virksomhedsordningen ved beregning af
+rentekorrektion efter stk. 1.
+
+Er rentekorrektionsbeløbet efter stk. 1 med tillæg af
+rentekorrektionsbeløbet efter § 11, stk. 1, større end virksomhedens
+nettorenteudgifter forhøjet med kurstab og nedsat med kursgevinster, der er
+skattepligtige efter kursgevinstloven, reduceres rentekorrektionsbeløbet efter
+stk. 1, således at det samlede rentekorrektionsbeløb efter stk. 1 og § 11,
+stk. 1, svarer til virksomhedens nettorenteudgifter forhøjet med kurstab og
+nedsat med kursgevinster, der er skattepligtige efter kursgevinstloven.
+
+Stk. 3. Rentekorrektionsbeløbet efter stk. 1 medregnes i den personlige
+indkomst og fradrages i kapitalindkomsten for det pågældende indkomstår.
+----
+
+--@begin:virksomhedsskatteloven_par11a--
+# Virksomhedsskattelov11AOpgørelsestidspunkt = Vsl11AVirksomhedsordningensStart | Vsl11AIndkomståretsBegyndelse | Vsl11AIndkomståretsUdløb
+# Virksomhedsskattelov11AFormuefakta(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt, aktiver: List(Virksomhedsskattelov8Aktiv), gældsposter: List(Virksomhedsskattelov8Gældspost))
+# Virksomhedsskattelov11AFormueresultat(fakta: Virksomhedsskattelov11AFormuefakta, input_gyldigt: Boolsk, samlede_aktiver_kroner: Heltal, nærtstående_boligaktiver_kroner: Heltal, gæld_til_kursværdi_kroner: Heltal, gæld_efter_par11_stk1_grundlag_kroner: Heltal, nærtstående_gældsandel_kroner: Heltal, nærtstående_nettofinansieringsandel_kroner: Heltal)
+# Virksomhedsskattelov11AKildeInput(indkomstår: Heltal, start_eller_primo: Virksomhedsskattelov11AFormuefakta, ultimo: Virksomhedsskattelov11AFormuefakta, par11_input: Virksomhedsskattelov11KildeInput)
+# Virksomhedsskattelov11AKildeResultat(input: Virksomhedsskattelov11AKildeInput, par11_resultat: Virksomhedsskattelov11KildeResultat, start_eller_primo: Virksomhedsskattelov11AFormueresultat, ultimo: Virksomhedsskattelov11AFormueresultat, opgørelsestidspunkter_gyldige: Boolsk, nærtstående_ejendomme_ens: Boolsk, input_gyldigt: Boolsk, største_nærtstående_gældsandel_kroner: Heltal, rentekorrektion_før_loft_kroner: Heltal, nettofinansieringsandelsloft_kroner: Heltal, loft_efter_par11_stk1_kroner: Heltal, rentekorrektion_kroner: Heltal, personlig_indkomst_tillæg_kroner: Heltal, kapitalindkomst_fradrag_kroner: Heltal, kapitalindkomst_kroner: Heltal)
+
+| virksomhedsskattelov11a_nærtstående_aktiver(fakta: Virksomhedsskattelov11AFormuefakta) -> filter(fakta.aktiver, virksomhedsskattelov8_aktiv_er_nærtstående_bolig)
+| virksomhedsskattelov11a_nærtstående_identifikationer(fakta: Virksomhedsskattelov11AFormuefakta) -> map(virksomhedsskattelov11a_nærtstående_aktiver(fakta), |aktiv: Virksomhedsskattelov8Aktiv| aktiv.identifikation)
+| virksomhedsskattelov11a_nærtstående_ejendomme_ens(venstre: Virksomhedsskattelov11AFormuefakta, højre: Virksomhedsskattelov11AFormuefakta) -> {
+    = venstre_identifikationer = virksomhedsskattelov11a_nærtstående_identifikationer(venstre)
+    = højre_identifikationer = virksomhedsskattelov11a_nærtstående_identifikationer(højre)
+    length(venstre_identifikationer) == length(højre_identifikationer) && all(venstre_identifikationer, |identifikation: Tekst| any(højre_identifikationer, |anden: Tekst| anden == identifikation))
+}
+| virksomhedsskattelov11a_formue_input_gyldigt(fakta: Virksomhedsskattelov11AFormuefakta) -> virksomhedsskattelov8_aktividentifikationer_entydige(fakta.aktiver) && virksomhedsskattelov8_gældsidentifikationer_entydige(fakta.gældsposter) && all(fakta.aktiver, virksomhedsskattelov8_aktiv_input_gyldigt) && all(fakta.gældsposter, virksomhedsskattelov8_gældspost_gyldig) && length(virksomhedsskattelov11a_nærtstående_aktiver(fakta)) > 0 && virksomhedsskattelov8_samlede_aktiver_kroner(map(fakta.aktiver, virksomhedsskattelov8_aktiv_resultat)) > 0
+| virksomhedsskattelov11a_nærtstående_aktivværdi_kroner(fakta: Virksomhedsskattelov11AFormuefakta) -> foldl(virksomhedsskattelov11a_nærtstående_aktiver(fakta), 0, |sum_kroner: Heltal, aktiv: Virksomhedsskattelov8Aktiv| sum_kroner + virksomhedsskattelov8_aktiv_værdi_kroner(aktiv))
+| virksomhedsskattelov11a_formue_resultat(fakta: Virksomhedsskattelov11AFormuefakta, par11_stk1_grundlag_kroner: Heltal, nettofinansieringsudgifter_kroner: Heltal) -> {
+    = input_gyldigt = virksomhedsskattelov11a_formue_input_gyldigt(fakta)
+    = samlede_aktiver_kroner = virksomhedsskattelov8_samlede_aktiver_kroner(map(fakta.aktiver, virksomhedsskattelov8_aktiv_resultat))
+    = nærtstående_boligaktiver_kroner = virksomhedsskattelov11a_nærtstående_aktivværdi_kroner(fakta)
+    = gæld_til_kursværdi_kroner = virksomhedsskattelov8_gæld_til_kursværdi_kroner(fakta.gældsposter)
+    = gæld_efter_par11_stk1_grundlag_kroner = penge_positivt_beløb(gæld_til_kursværdi_kroner - par11_stk1_grundlag_kroner)
+    Virksomhedsskattelov11AFormueresultat(
+        fakta = fakta,
+        input_gyldigt = input_gyldigt,
+        samlede_aktiver_kroner = hvis input_gyldigt { samlede_aktiver_kroner } ellers { 0 },
+        nærtstående_boligaktiver_kroner = hvis input_gyldigt { nærtstående_boligaktiver_kroner } ellers { 0 },
+        gæld_til_kursværdi_kroner = hvis input_gyldigt { gæld_til_kursværdi_kroner } ellers { 0 },
+        gæld_efter_par11_stk1_grundlag_kroner = hvis input_gyldigt { gæld_efter_par11_stk1_grundlag_kroner } ellers { 0 },
+        nærtstående_gældsandel_kroner = hvis input_gyldigt { gæld_efter_par11_stk1_grundlag_kroner * nærtstående_boligaktiver_kroner / samlede_aktiver_kroner } ellers { 0 },
+        nærtstående_nettofinansieringsandel_kroner = hvis input_gyldigt { penge_positivt_beløb(nettofinansieringsudgifter_kroner) * nærtstående_boligaktiver_kroner / samlede_aktiver_kroner } ellers { 0 }
+    )
+}
+| virksomhedsskattelov11a_starttidspunkt_gyldigt(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt) -> tidspunkt == Vsl11AVirksomhedsordningensStart || tidspunkt == Vsl11AIndkomståretsBegyndelse
+| virksomhedsskattelov11a_ultimotidspunkt_gyldigt(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt) -> tidspunkt == Vsl11AIndkomståretsUdløb
+| virksomhedsskattelov11a_loftet_rentekorrektion_kroner(formue: Virksomhedsskattelov11AFormueresultat, rentekorrektionssats_basispoint: Heltal) -> penge_mindste_beløb(penge_beløb_gange_basispoint_kroner(formue.nærtstående_gældsandel_kroner, rentekorrektionssats_basispoint), formue.nærtstående_nettofinansieringsandel_kroner)
+
+# Virksomhedsskattelov11ASag(input: Virksomhedsskattelov11AKildeInput) {
+    | par11_resultat() -> virksomhedsskattelov11_kilde_resultat(input.par11_input)
+    | start_eller_primo() -> virksomhedsskattelov11a_formue_resultat(input.start_eller_primo, par11_resultat().par11_resultat.stk1_indskudskonto_grundlag_kroner, input.par11_input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner)
+    | ultimo() -> virksomhedsskattelov11a_formue_resultat(input.ultimo, par11_resultat().par11_resultat.stk1_indskudskonto_grundlag_kroner, input.par11_input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner)
+    | opgørelsestidspunkter_gyldige() -> virksomhedsskattelov11a_starttidspunkt_gyldigt(input.start_eller_primo.tidspunkt) && virksomhedsskattelov11a_ultimotidspunkt_gyldigt(input.ultimo.tidspunkt)
+    | nærtstående_ejendomme_ens() -> virksomhedsskattelov11a_nærtstående_ejendomme_ens(input.start_eller_primo, input.ultimo)
+    | input_gyldigt() -> input.indkomstår > 0 && input.par11_input.indkomstår == input.indkomstår && par11_resultat().input_gyldigt && start_eller_primo().input_gyldigt && ultimo().input_gyldigt && opgørelsestidspunkter_gyldige() && nærtstående_ejendomme_ens()
+    | største_nærtstående_gældsandel_kroner() -> penge_største_beløb(start_eller_primo().nærtstående_gældsandel_kroner, ultimo().nærtstående_gældsandel_kroner)
+    | rentekorrektionssats_basispoint() -> par11_resultat().par9_og_9a_resultat.rentekorrektionssats_efter_par9a_basispoint
+    | rentekorrektion_før_loft_kroner() -> penge_beløb_gange_basispoint_kroner(største_nærtstående_gældsandel_kroner(), rentekorrektionssats_basispoint())
+    | start_eller_primo_loftet_kroner() -> virksomhedsskattelov11a_loftet_rentekorrektion_kroner(start_eller_primo(), rentekorrektionssats_basispoint())
+    | ultimo_loftet_kroner() -> virksomhedsskattelov11a_loftet_rentekorrektion_kroner(ultimo(), rentekorrektionssats_basispoint())
+    | nettofinansieringsandelsloft_kroner() -> penge_største_beløb(start_eller_primo().nærtstående_nettofinansieringsandel_kroner, ultimo().nærtstående_nettofinansieringsandel_kroner)
+    | loftet_før_par11_stk1_kroner() -> penge_største_beløb(start_eller_primo_loftet_kroner(), ultimo_loftet_kroner())
+    | loft_efter_par11_stk1_kroner() -> penge_positivt_beløb(input.par11_input.nettofinansieringsudgifter_efter_kursgevinstlov_kroner - par11_resultat().par11_resultat.stk1_rentekorrektion_kroner)
+    | rentekorrektion_kroner() -> hvis input_gyldigt() { penge_mindste_beløb(loftet_før_par11_stk1_kroner(), loft_efter_par11_stk1_kroner()) } ellers { 0 }
+    | resultat() -> Virksomhedsskattelov11AKildeResultat(
+        input = input,
+        par11_resultat = par11_resultat(),
+        start_eller_primo = start_eller_primo(),
+        ultimo = ultimo(),
+        opgørelsestidspunkter_gyldige = opgørelsestidspunkter_gyldige(),
+        nærtstående_ejendomme_ens = nærtstående_ejendomme_ens(),
+        input_gyldigt = input_gyldigt(),
+        største_nærtstående_gældsandel_kroner = hvis input_gyldigt() { største_nærtstående_gældsandel_kroner() } ellers { 0 },
+        rentekorrektion_før_loft_kroner = hvis input_gyldigt() { rentekorrektion_før_loft_kroner() } ellers { 0 },
+        nettofinansieringsandelsloft_kroner = hvis input_gyldigt() { nettofinansieringsandelsloft_kroner() } ellers { 0 },
+        loft_efter_par11_stk1_kroner = hvis input_gyldigt() { loft_efter_par11_stk1_kroner() } ellers { 0 },
+        rentekorrektion_kroner = rentekorrektion_kroner(),
+        personlig_indkomst_tillæg_kroner = rentekorrektion_kroner(),
+        kapitalindkomst_fradrag_kroner = rentekorrektion_kroner(),
+        kapitalindkomst_kroner = 0 - rentekorrektion_kroner()
+    )
+}
+
+| virksomhedsskattelov11a_kilde_sag(input: Virksomhedsskattelov11AKildeInput) -> Virksomhedsskattelov11ASag(input)
+| virksomhedsskattelov11a_kilde_resultat(input: Virksomhedsskattelov11AKildeInput) -> virksomhedsskattelov11a_kilde_sag(input).resultat()
+--@end:virksomhedsskatteloven_par11a--
 
 = vsl7_overskudsloft_input = Virksomhedsskattelov7Input(
     indkomstår = 2026,

@@ -1,0 +1,58 @@
+@ sprog da
+
+@ importer ./virksomhedsskatteloven
+
+| vsl11a_scenarie_nærtstående_ejendom(identifikation: Tekst) -> Virksomhedsskattelov8Aktiv(
+    identifikation = identifikation,
+    værdiansættelse = Vsl8FastEjendom(fakta = Virksomhedsskattelov8FastEjendomFakta(
+        anskaffelsesår = 2020,
+        kontant_anskaffelsessum_kroner = 400000,
+        anskaffelsessum_for_ombygning_og_forbedringer_efter_anskaffelsen_kroner = 0,
+        værdiansættelse = Vsl8KontantAnskaffelsessum,
+        boliganvendelse = Vsl8StilletTilRådighedSomNærtståendeBolig(relation = Vsl8SkattepligtigesEllerÆgtefællesBarn)
+    ))
+)
+| vsl11a_scenarie_aktiver(ejendomsidentifikation: Tekst) -> [
+    vsl11a_scenarie_nærtstående_ejendom(ejendomsidentifikation),
+    Virksomhedsskattelov8Aktiv(
+        identifikation = "driftsmidler",
+        værdiansættelse = Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(afskrivningsberettiget_saldoværdi_kroner = 600000)
+    ),
+]
+| vsl11a_scenarie_formue(tidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt, ejendomsidentifikation: Tekst, gæld_kroner: Heltal) -> Virksomhedsskattelov11AFormuefakta(
+    tidspunkt = tidspunkt,
+    aktiver = vsl11a_scenarie_aktiver(ejendomsidentifikation),
+    gældsposter = [Virksomhedsskattelov8Gældspost(identifikation = "realkredit", kursværdi_kroner = gæld_kroner)]
+)
+| vsl11a_scenarie_par11_input() -> Virksomhedsskattelov11KildeInput(
+    indkomstår = 2025,
+    negativ_indskudskonto_start_eller_primo_abs_kroner = 20000,
+    negativ_indskudskonto_ultimo_abs_kroner = 10000,
+    negativt_afkastgrundlag_start_eller_primo_abs_kroner = 20000,
+    negativt_afkastgrundlag_ultimo_abs_kroner = 10000,
+    nettofinansieringsudgifter_efter_kursgevinstlov_kroner = 50000,
+    overført_efter_par5_stk1_nr5_og_stk2_kroner = 0,
+    indskud_efter_par3_stk1_kroner = 0
+)
+| vsl11a_scenarie_input(starttidspunkt: Virksomhedsskattelov11AOpgørelsestidspunkt, start_ejendom: Tekst, ultimo_ejendom: Tekst) -> Virksomhedsskattelov11AKildeInput(
+    indkomstår = 2025,
+    start_eller_primo = vsl11a_scenarie_formue(starttidspunkt, start_ejendom, 500000),
+    ultimo = vsl11a_scenarie_formue(Vsl11AIndkomståretsUdløb, ultimo_ejendom, 400000),
+    par11_input = vsl11a_scenarie_par11_input()
+)
+
+= vsl11a_scenarie_resultat = virksomhedsskattelov11a_kilde_resultat(vsl11a_scenarie_input(Vsl11AIndkomståretsBegyndelse, "familiebolig", "familiebolig"))
+= vsl11a_scenarie_skiftet_ejendom = virksomhedsskattelov11a_kilde_resultat(vsl11a_scenarie_input(Vsl11AIndkomståretsBegyndelse, "familiebolig-primo", "familiebolig-ultimo"))
+= vsl11a_scenarie_forkert_starttidspunkt = virksomhedsskattelov11a_kilde_resultat(vsl11a_scenarie_input(Vsl11AIndkomståretsUdløb, "familiebolig", "familiebolig"))
+
+| vsl11a_scenarie_par11_grundlag_reducerer_gælden: vsl11a_scenarie_resultat -> vsl11a_scenarie_resultat.input_gyldigt && vsl11a_scenarie_resultat.par11_resultat.par11_resultat.stk1_indskudskonto_grundlag_kroner == 20000 && vsl11a_scenarie_resultat.start_eller_primo.gæld_efter_par11_stk1_grundlag_kroner == 480000 && vsl11a_scenarie_resultat.start_eller_primo.nærtstående_gældsandel_kroner == 192000
+| vsl11a_scenarie_største_statusdag_og_lofter_anvendes: vsl11a_scenarie_resultat -> vsl11a_scenarie_resultat.største_nærtstående_gældsandel_kroner == 192000 && vsl11a_scenarie_resultat.rentekorrektion_før_loft_kroner == 9600 && vsl11a_scenarie_resultat.nettofinansieringsandelsloft_kroner == 20000 && vsl11a_scenarie_resultat.loft_efter_par11_stk1_kroner == 49000 && vsl11a_scenarie_resultat.rentekorrektion_kroner == 9600
+| vsl11a_scenarie_kapital_og_personlig_indkomst_balancerer: vsl11a_scenarie_resultat -> vsl11a_scenarie_resultat.personlig_indkomst_tillæg_kroner == 9600 && vsl11a_scenarie_resultat.kapitalindkomst_fradrag_kroner == 9600 && vsl11a_scenarie_resultat.kapitalindkomst_kroner == -9600
+| vsl11a_scenarie_ejendomsskift_afvises: vsl11a_scenarie_skiftet_ejendom -> vsl11a_scenarie_skiftet_ejendom.nærtstående_ejendomme_ens == Falskt && vsl11a_scenarie_skiftet_ejendom.input_gyldigt == Falskt && vsl11a_scenarie_skiftet_ejendom.rentekorrektion_kroner == 0
+| vsl11a_scenarie_forkert_statusdag_afvises: vsl11a_scenarie_forkert_starttidspunkt -> vsl11a_scenarie_forkert_starttidspunkt.opgørelsestidspunkter_gyldige == Falskt && vsl11a_scenarie_forkert_starttidspunkt.input_gyldigt == Falskt && vsl11a_scenarie_forkert_starttidspunkt.rentekorrektion_kroner == 0
+
+? vsl11a_scenarie_par11_grundlag_reducerer_gælden
+? vsl11a_scenarie_største_statusdag_og_lofter_anvendes
+? vsl11a_scenarie_kapital_og_personlig_indkomst_balancerer
+? vsl11a_scenarie_ejendomsskift_afvises
+? vsl11a_scenarie_forkert_statusdag_afvises

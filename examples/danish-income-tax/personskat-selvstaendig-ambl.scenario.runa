@@ -1,0 +1,242 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| ambl_selvstændig_scenarie_fremført(identifikation: Tekst, beløb_kroner: Heltal, oprindelse: ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstOprindelse) -> ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche(
+    identifikation = identifikation,
+    oprindelsesår = 2024,
+    resterende_beløb_primo_kroner = beløb_kroner,
+    oprindelse = oprindelse,
+    dokumentreference = "PSL § 13-saldo"
+)
+| ambl_selvstændig_scenarie_årsinput(kildeinput: ArbejdsmarkedsbidragSelvstændigKildeinput, virksomhedsordning_valgt: Boolsk, personlig_indkomst_kroner: Heltal, biblioteksafgift_kroner: Heltal, kapitalafkastordning_regulering_kroner: Heltal, vso_overskud_kroner: Heltal, vso_kapitalafkast_kroner: Heltal, vso_par23a_kroner: Heltal, vso_par11_kroner: Heltal, vso_par11a_kroner: Heltal) -> ArbejdsmarkedsbidragSelvstændigÅrsinput(
+    skatteår = 2025,
+    alder_ved_indkomstårets_udløb = 35,
+    virksomhedsordning_valgt = virksomhedsordning_valgt,
+    kildeinput = kildeinput,
+    personlig_indkomst_fra_virksomheder_uden_virksomhedsordning_kroner = personlig_indkomst_kroner,
+    biblioteksafgift_uden_virksomhedsordning_kroner = biblioteksafgift_kroner,
+    kapitalafkastordning_personlig_indkomst_regulering_kroner = kapitalafkastordning_regulering_kroner,
+    virksomhedsordning_skattepligtigt_overskud_kroner = vso_overskud_kroner,
+    virksomhedsordning_kapitalafkast_kroner = vso_kapitalafkast_kroner,
+    virksomhedsordning_kapitalafkast_medregnet_personlig_indkomst_kroner = vso_par23a_kroner,
+    virksomhedsordning_rentekorrektion_par11_kroner = vso_par11_kroner,
+    virksomhedsordning_rentekorrektion_par11a_kroner = vso_par11a_kroner
+)
+| ambl_selvstændig_scenarie_uden_vso(trancher: List(ArbejdsmarkedsbidragFremførtNegativPersonligIndkomstTranche), personlig_indkomst_kroner: Heltal, biblioteksafgift_kroner: Heltal) -> arbejdsmarkedsbidrag_selvstændig_årsresultat(ambl_selvstændig_scenarie_årsinput(
+    kildeinput = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst = trancher),
+    virksomhedsordning_valgt = Falskt,
+    personlig_indkomst_kroner = personlig_indkomst_kroner,
+    biblioteksafgift_kroner = biblioteksafgift_kroner,
+    kapitalafkastordning_regulering_kroner = 0,
+    vso_overskud_kroner = 0,
+    vso_kapitalafkast_kroner = 0,
+    vso_par23a_kroner = 0,
+    vso_par11_kroner = 0,
+    vso_par11a_kroner = 0
+))
+| ambl_selvstændig_scenarie_vso_fakta() -> ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta(
+    indkomstår = 2025,
+    overførsel_fra_skattepligtigt_overskud = ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(
+        beløb_kroner = 100000,
+        dokumentreference = "VSO-konto for overført overskud"
+    ),
+    overførsler_fra_opsparet_overskud = [ArbejdsmarkedsbidragOpsparetOverskudOverførselFakta(
+        identifikation = "opsparet-2024",
+        oprindelsesår = 2024,
+        overført_netto_kroner = 30000,
+        tilhørende_virksomhedsskat_kroner = 9000,
+        dokumentreference = "VSO-konto for opsparet overskud"
+    )],
+    biblioteksafgifter = [ArbejdsmarkedsbidragBiblioteksafgiftFakta(
+        identifikation = "biblioteksafgift-2025",
+        modtagelsesdato = Dato(år = 2025, måned = 4, dag = 15),
+        beløb_kroner = 10000,
+        dokumentreference = "Biblioteksafgiftsmeddelelse"
+    )]
+)
+
+= ambl_selvstændig_scenarie_aggregeret = ambl_selvstændig_scenarie_uden_vso([], 60000, 0)
+= ambl_selvstændig_scenarie_biblioteksafgift = ambl_selvstændig_scenarie_uden_vso([], 100000, 10000)
+= ambl_selvstændig_scenarie_fremførsel = ambl_selvstændig_scenarie_uden_vso([
+    ambl_selvstændig_scenarie_fremført("ordinært-underskud", 40000, AmblFremførtNegativFraAndet),
+    ambl_selvstændig_scenarie_fremført("pensionsunderskud", 10000, AmblFremførtNegativFraPbl18Pension),
+    ], 100000, 0)
+= ambl_selvstændig_scenarie_dobbelt_fremførselsid = ambl_selvstændig_scenarie_uden_vso([
+    ambl_selvstændig_scenarie_fremført("samme-id", 20000, AmblFremførtNegativFraAndet),
+    ambl_selvstændig_scenarie_fremført("samme-id", 10000, AmblFremførtNegativFraPbl18Pension),
+    ], 100000, 0)
+= ambl_selvstændig_scenarie_vso = arbejdsmarkedsbidrag_selvstændig_årsresultat(ambl_selvstændig_scenarie_årsinput(
+    kildeinput = AmblPar5MedVirksomhedsordning(fakta = ambl_selvstændig_scenarie_vso_fakta(), fremført_negativ_personlig_indkomst = []),
+    virksomhedsordning_valgt = Sandt,
+    personlig_indkomst_kroner = 0,
+    biblioteksafgift_kroner = 0,
+    kapitalafkastordning_regulering_kroner = 0,
+    vso_overskud_kroner = 100000,
+    vso_kapitalafkast_kroner = 10000,
+    vso_par23a_kroner = 4000,
+    vso_par11_kroner = 3000,
+    vso_par11a_kroner = 2000
+))
+
+| ambl_selvstændig_scenarie_virksomhed(identifikation: Tekst, indtægt_kroner: Heltal, udgift_kroner: Heltal) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    indtægter = hvis indtægt_kroner > 0 { [PersonskatVirksomhedsindtægtFakta(identifikation = identifikation + "-indtægt", art = OrdinærDriftsindtægt, beløb_kroner = indtægt_kroner)] } ellers { [] },
+    udgifter = hvis udgift_kroner > 0 { [PersonskatVirksomhedsudgiftFakta(identifikation = identifikation + "-udgift", afgrænsning = SelvstændigErhvervsindkomstUdgift, beløb_kroner = udgift_kroner)] } ellers { [] }
+)
+| ambl_selvstændig_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
+        virksomheder_uden_virksomhedsordning = virksomheder,
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    arbejdsudleje = [],
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| ambl_selvstændig_scenarie_virksomhedskapital(ordning: PersonskatSelvstændigBeskatningsordningInput, kildeinput: ArbejdsmarkedsbidragSelvstændigKildeinput) -> PersonskatVirksomhedskapitalInput(
+    selvstændig_beskatningsordning = ordning,
+    selvstændig_arbejdsmarkedsbidrag = kildeinput,
+    medarbejderaktier = UdenKapitalafkastEfterVirksomhedsskattelov22C
+)
+| ambl_selvstændig_scenarie_kapitalindkomst(virksomhedskapital: PersonskatVirksomhedskapitalInput) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = virksomhedskapital,
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = UdenKursgevinst,
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    omkostninger = []
+)
+| ambl_selvstændig_scenarie_personskatinput(personlig_indkomst: PersonskatPersonligIndkomstInput, virksomhedskapital: PersonskatVirksomhedskapitalInput, årsopgørelse: PersonskatÅrsopgørelseInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2025,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personlig_indkomst,
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = ambl_selvstændig_scenarie_kapitalindkomst(virksomhedskapital),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = årsopgørelse
+)
+| ambl_selvstændig_scenarie_par7_input() -> Virksomhedsskattelov7KildeInput(
+    par8_input = Virksomhedsskattelov8Input(
+        indkomstår = 2025,
+        opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+        aktiver = [Virksomhedsskattelov8Aktiv(identifikation = "driftsmiddel", værdiansættelse = Vsl8UdelukkendeErhvervsmæssigtDriftsmiddelEllerSkib(afskrivningsberettiget_saldoværdi_kroner = 500000))],
+        fradragsposter = Virksomhedsskattelov8Fradragsposter(
+            gældsposter = [],
+            afsat_efter_par4_kroner = 0,
+            afsat_efter_par10_stk1_kroner = 0,
+            indestående_på_mellemregningskonto_efter_par4a_kroner = 0,
+            tidligere_indkomstårs_beløb_omfattet_af_par4b_stk1_kroner = 0,
+            overførsler_til_privatøkonomien = []
+        )
+    ),
+    skattepligtigt_overskud_kroner = 100000,
+    regnskabsperiode_hele_måneder = 12
+)
+| ambl_selvstændig_scenarie_vso_virksomhedskapital() -> ambl_selvstændig_scenarie_virksomhedskapital(
+    MedVirksomhedsordningEfterAfsnitI(
+        par7_input = ambl_selvstændig_scenarie_par7_input(),
+        oplysningsfrist_input = skattekontrollov_par10_stk2_oplysningsfrist_input(2025, 20260701),
+        ønsket_medregnet_efter_par23a_kroner = 4000,
+        rentekorrektion = UdenRentekorrektionEfterVirksomhedsskattelov11
+    ),
+    AmblPar5MedVirksomhedsordning(fakta = ArbejdsmarkedsbidragVirksomhedsordningÅrsfakta(
+        indkomstår = 2025,
+        overførsel_fra_skattepligtigt_overskud = ArbejdsmarkedsbidragVirksomhedsoverskudOverførselFakta(beløb_kroner = 100000, dokumentreference = "VSO-årskonto"),
+        overførsler_fra_opsparet_overskud = [],
+        biblioteksafgifter = [ArbejdsmarkedsbidragBiblioteksafgiftFakta(
+            identifikation = "biblioteksafgift",
+            modtagelsesdato = Dato(år = 2025, måned = 5, dag = 1),
+            beløb_kroner = 10000,
+            dokumentreference = "Biblioteksafgiftsmeddelelse"
+        )]
+        ), fremført_negativ_personlig_indkomst = [])
+)
+| ambl_selvstændig_scenarie_kreditter(am_lov_par6_beløb_øre: Heltal) -> KildeskatPar60KreditterØre(
+    a_skat_og_am_indeholdt_øre = 0,
+    par68_indbetalt_øre = 0,
+    b_skat_betalt_øre = 0,
+    udbytteskat_modregningsberettiget_øre = 0,
+    frivillig_indbetaling_par59_øre = 0,
+    virksomhedsordning_beløb_øre = 0,
+    personskattelov_par8a_stk5_beløb_øre = 0,
+    afskrivningslov_acontoskat_øre = 0,
+    am_lov_par6_beløb_øre = am_lov_par6_beløb_øre,
+    seniornedslag_øre = 0,
+    energiafgiftskompensation_øre = 0,
+    tilbagebetalt_par55_øre = 0
+)
+
+= ambl_selvstændig_scenarie_to_virksomheder = beregn_personskat(ambl_selvstændig_scenarie_personskatinput(
+    ambl_selvstændig_scenarie_personlig_indkomst([
+        ambl_selvstændig_scenarie_virksomhed("overskud", 100000, 0),
+        ambl_selvstændig_scenarie_virksomhed("underskud", 0, 40000),
+    ]),
+    ambl_selvstændig_scenarie_virksomhedskapital(UdenVirksomhedsEllerKapitalafkastordning, AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst = [])),
+    UdenÅrsopgørelse
+))
+= ambl_selvstændig_scenarie_vso_personskat = beregn_personskat(ambl_selvstændig_scenarie_personskatinput(
+    personskat_ingen_personlig_indkomst(),
+    ambl_selvstændig_scenarie_vso_virksomhedskapital(),
+    MedEksaktÅrsopgørelse(
+        overført_restskat_mv_øre = 0,
+        øvrig_pensionsbeskatningsafgift_øre = 0,
+        kreditter = ambl_selvstændig_scenarie_kreditter(0),
+        afregningsfakta = UdenSlutopgørelsesafregning
+    )
+))
+= ambl_selvstændig_scenarie_vso_personskat_med_indsendt_par6_kredit = beregn_personskat(ambl_selvstændig_scenarie_personskatinput(
+    personskat_ingen_personlig_indkomst(),
+    ambl_selvstændig_scenarie_vso_virksomhedskapital(),
+    MedEksaktÅrsopgørelse(
+        overført_restskat_mv_øre = 0,
+        øvrig_pensionsbeskatningsafgift_øre = 0,
+        kreditter = ambl_selvstændig_scenarie_kreditter(12345),
+        afregningsfakta = UdenSlutopgørelsesafregning
+    )
+))
+
+| ambl_selvstændig_scenarie_årsaggregering: ambl_selvstændig_scenarie_aggregeret -> ambl_selvstændig_scenarie_aggregeret.input_gyldigt && ambl_selvstændig_scenarie_aggregeret.arbejdsmarkedsbidragsgrundlag_kroner == 60000 && ambl_selvstændig_scenarie_aggregeret.arbejdsmarkedsbidrag_kroner == 4800
+| ambl_selvstændig_scenarie_biblioteksafgift_udelukkes_uden_vso: ambl_selvstændig_scenarie_biblioteksafgift -> ambl_selvstændig_scenarie_biblioteksafgift.input_gyldigt && ambl_selvstændig_scenarie_biblioteksafgift.biblioteksafgift_kroner == 10000 && ambl_selvstændig_scenarie_biblioteksafgift.arbejdsmarkedsbidragsgrundlag_kroner == 90000
+| ambl_selvstændig_scenarie_pensionsoprindelse_undtages_fra_fremførsel: ambl_selvstændig_scenarie_fremførsel -> ambl_selvstændig_scenarie_fremførsel.fremført_negativ_personlig_indkomst.samlet_fremført_negativ_personlig_indkomst_kroner == 50000 && ambl_selvstændig_scenarie_fremførsel.fremført_negativ_personlig_indkomst.heraf_fra_pbl18_pension_kroner == 10000 && ambl_selvstændig_scenarie_fremførsel.fremført_negativ_personlig_indkomst_fradrag_kroner == 40000 && ambl_selvstændig_scenarie_fremførsel.arbejdsmarkedsbidragsgrundlag_kroner == 60000
+| ambl_selvstændig_scenarie_dobbelt_fremførselsid_afvises: ambl_selvstændig_scenarie_dobbelt_fremførselsid -> ambl_selvstændig_scenarie_dobbelt_fremførselsid.fremført_negativ_personlig_indkomst.identifikationer_entydige == Falskt && ambl_selvstændig_scenarie_dobbelt_fremførselsid.input_gyldigt == Falskt && ambl_selvstændig_scenarie_dobbelt_fremførselsid.arbejdsmarkedsbidragsgrundlag_kroner == 0
+| ambl_selvstændig_scenarie_vso_kaskaden: ambl_selvstændig_scenarie_vso -> ambl_selvstændig_scenarie_vso.input_gyldigt && ambl_selvstændig_scenarie_vso.biblioteksafgift_godtgørelse_kroner == 870 && ambl_selvstændig_scenarie_vso.kapitalafkast_fradrag_efter_par23a_kroner == 6000 && ambl_selvstændig_scenarie_vso.rentekorrektion_kroner == 5000 && ambl_selvstændig_scenarie_vso.arbejdsmarkedsbidragsgrundlag_kroner == 138870 && ambl_selvstændig_scenarie_vso.nyt_personligt_bruttobeløb_til_kanonisk_sammensætning_kroner == 139870 && ambl_selvstændig_scenarie_vso.kildeskat_par60_kredit_øre == 87000
+| ambl_selvstændig_scenarie_to_virksomheder_når_personskat: ambl_selvstændig_scenarie_to_virksomheder -> ambl_selvstændig_scenarie_to_virksomheder.selvstændig_arbejdsmarkedsbidrag.input_gyldigt && ambl_selvstændig_scenarie_to_virksomheder.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 60000 && ambl_selvstændig_scenarie_to_virksomheder.skat.bruttoløn_kroner == 60000 && ambl_selvstændig_scenarie_to_virksomheder.skat.øvrig_personlig_indkomst_kroner == 0 && ambl_selvstændig_scenarie_to_virksomheder.skat.arbejdsmarkedsbidrag_kroner == 4800 && ambl_selvstændig_scenarie_to_virksomheder.skat.personlig_indkomst_efter_am_kroner == 55200
+| ambl_selvstændig_scenarie_par6_kredit_når_årsopgørelsen: ambl_selvstændig_scenarie_vso_personskat -> ambl_selvstændig_scenarie_vso_personskat.selvstændig_arbejdsmarkedsbidrag.input_gyldigt && ambl_selvstændig_scenarie_vso_personskat.selvstændig_arbejdsmarkedsbidrag.biblioteksafgift_godtgørelse_kroner == 870 && ambl_selvstændig_scenarie_vso_personskat.arbejdsmarkedsbidragslov_par6_kredit_øre == 87000 && ambl_selvstændig_scenarie_vso_personskat.kildeskat_ambl_par6_kredit_input_gyldigt
+| ambl_selvstændig_scenarie_indsendt_par6_kredit_afvises_og_afledes: ambl_selvstændig_scenarie_vso_personskat_med_indsendt_par6_kredit -> ambl_selvstændig_scenarie_vso_personskat_med_indsendt_par6_kredit.arbejdsmarkedsbidragslov_par6_kredit_øre == 87000 && ambl_selvstændig_scenarie_vso_personskat_med_indsendt_par6_kredit.kildeskat_ambl_par6_kredit_input_gyldigt == Falskt
+
+? ambl_selvstændig_scenarie_årsaggregering
+? ambl_selvstændig_scenarie_biblioteksafgift_udelukkes_uden_vso
+? ambl_selvstændig_scenarie_pensionsoprindelse_undtages_fra_fremførsel
+? ambl_selvstændig_scenarie_dobbelt_fremførselsid_afvises
+? ambl_selvstændig_scenarie_vso_kaskaden
+? ambl_selvstændig_scenarie_to_virksomheder_når_personskat
+? ambl_selvstændig_scenarie_par6_kredit_når_årsopgørelsen
+? ambl_selvstændig_scenarie_indsendt_par6_kredit_afvises_og_afledes

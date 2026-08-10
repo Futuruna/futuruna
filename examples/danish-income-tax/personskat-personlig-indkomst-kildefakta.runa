@@ -364,16 +364,16 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 ----
 
 --@begin:personskat_ordinaer_virksomhedsindkomst--
-# PersonskatVirksomhedsindtægtsart = OrdinærDriftsindtægt | KapitalindkomstEfterPersonskattelovensPar4 | AktieindkomstEfterPersonskattelovensPar4A | UklassificeretVirksomhedsindtægt
+# PersonskatVirksomhedsindtægtsart = OrdinærDriftsindtægt | BiblioteksafgiftEfterLovOmBiblioteksafgift | KapitalindkomstEfterPersonskattelovensPar4 | AktieindkomstEfterPersonskattelovensPar4A | UklassificeretVirksomhedsindtægt
 # PersonskatVirksomhedsindtægtFakta(identifikation: Tekst, art: PersonskatVirksomhedsindtægtsart, beløb_kroner: Heltal)
 # PersonskatVirksomhedsudgiftFakta(identifikation: Tekst, afgrænsning: Par3Stk2Nr1Udgiftsafgrænsning, beløb_kroner: Heltal)
 # PersonskatOrdinærVirksomhedFakta(identifikation: Tekst, indkomstår: Heltal, indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta))
-# PersonskatOrdinærVirksomhedBeregning(fakta: PersonskatOrdinærVirksomhedFakta, par3_input_for_virksomheden: Par3PersonligIndkomstInput, par3_indkomstresultat_for_virksomheden: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag_input_for_virksomheden: ArbejdsmarkedsbidragSelvstændigInput, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatOrdinærVirksomhedBeregning(fakta: PersonskatOrdinærVirksomhedFakta, par3_input_for_virksomheden: Par3PersonligIndkomstInput, par3_indkomstresultat_for_virksomheden: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag_input_for_virksomheden: ArbejdsmarkedsbidragSelvstændigInput, biblioteksafgift_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatOrdinærVirksomhedResultat = UgyldigOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | IkkeUnderstøttetOrdinærVirksomhed(fakta: PersonskatOrdinærVirksomhedFakta, indtægtsarter_understøttet: Boolsk, udgiftsafgrænsninger_understøttet: Boolsk) | BeregnetOrdinærVirksomhed(beregning: PersonskatOrdinærVirksomhedBeregning)
 
 | personskat_virksomhedsindtægt_grundfakta_gyldige(fakta: PersonskatVirksomhedsindtægtFakta) -> fakta.identifikation != "" && fakta.beløb_kroner >= 0
 | personskat_virksomhedsudgift_grundfakta_gyldige(fakta: PersonskatVirksomhedsudgiftFakta) -> fakta.identifikation != "" && fakta.beløb_kroner >= 0
-| personskat_virksomhedsindtægt_understøttet(fakta: PersonskatVirksomhedsindtægtFakta) -> fakta.art == OrdinærDriftsindtægt
+| personskat_virksomhedsindtægt_understøttet(fakta: PersonskatVirksomhedsindtægtFakta) -> fakta.art == OrdinærDriftsindtægt || fakta.art == BiblioteksafgiftEfterLovOmBiblioteksafgift
 | personskat_virksomhedsudgift_understøttet(fakta: PersonskatVirksomhedsudgiftFakta) -> fakta.afgrænsning == SelvstændigErhvervsindkomstUdgift
 | personskat_virksomhed_postidentifikationer(fakta: PersonskatOrdinærVirksomhedFakta) -> concat(
     map(fakta.indtægter, |indtægt: PersonskatVirksomhedsindtægtFakta| indtægt.identifikation),
@@ -385,7 +385,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_virksomhed_udgiftsafgrænsninger_understøttet(fakta: PersonskatOrdinærVirksomhedFakta) -> all(fakta.udgifter, personskat_virksomhedsudgift_understøttet)
 | personskat_virksomhedsindtægt_par3_indkomstpost(fakta: PersonskatVirksomhedsindtægtFakta) -> Par3Indkomstpost(
     indgår_i_skattepligtig_indkomst = Sandt,
-    er_kapitalindkomst = fakta.art != OrdinærDriftsindtægt,
+    er_kapitalindkomst = fakta.art == KapitalindkomstEfterPersonskattelovensPar4,
     beløb_kroner = fakta.beløb_kroner
 )
 | personskat_virksomhedsudgift_par3_stk2_nr1(fakta: PersonskatVirksomhedsudgiftFakta) -> Par3Stk2Nr1UdgiftInput(
@@ -396,9 +396,10 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     map(fakta.indtægter, personskat_virksomhedsindtægt_par3_indkomstpost),
     map(fakta.udgifter, personskat_virksomhedsudgift_par3_stk2_nr1)
 )
-| personskat_virksomhed_arbejdsmarkedsbidrag_input(par3_resultat: Par3PersonligIndkomstResultat) -> ArbejdsmarkedsbidragSelvstændigInput(
+| personskat_virksomhed_biblioteksafgift_kroner(fakta: PersonskatOrdinærVirksomhedFakta) -> foldl(fakta.indtægter, 0, |sum_kroner: Heltal, indtægt: PersonskatVirksomhedsindtægtFakta| sum_kroner + hvis indtægt.art == BiblioteksafgiftEfterLovOmBiblioteksafgift { indtægt.beløb_kroner } ellers { 0 })
+| personskat_virksomhed_arbejdsmarkedsbidrag_input(fakta: PersonskatOrdinærVirksomhedFakta, par3_resultat: Par3PersonligIndkomstResultat) -> ArbejdsmarkedsbidragSelvstændigInput(
     personlig_indkomst_ved_selvstændig_virksomhed_kroner = par3_resultat.netto_personlig_indkomst_kroner,
-    biblioteksafgift_kroner = 0,
+    biblioteksafgift_kroner = personskat_virksomhed_biblioteksafgift_kroner(fakta),
     fremført_negativ_personlig_indkomst_kroner = 0,
     fremført_negativ_personlig_indkomst_fra_pension_kroner = 0
 )
@@ -406,12 +407,13 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_virksomhed_beregning(fakta: PersonskatOrdinærVirksomhedFakta) -> {
     = par3_input = personskat_virksomhed_par3_input(fakta)
     = par3_resultat = par3_personlig_indkomst_resultat(par3_input)
-    = arbejdsmarkedsbidrag_input = personskat_virksomhed_arbejdsmarkedsbidrag_input(par3_resultat)
+    = arbejdsmarkedsbidrag_input = personskat_virksomhed_arbejdsmarkedsbidrag_input(fakta, par3_resultat)
     PersonskatOrdinærVirksomhedBeregning(
         fakta = fakta,
         par3_input_for_virksomheden = par3_input,
         par3_indkomstresultat_for_virksomheden = par3_resultat,
         arbejdsmarkedsbidrag_input_for_virksomheden = arbejdsmarkedsbidrag_input,
+        biblioteksafgift_kroner = personskat_virksomhed_biblioteksafgift_kroner(fakta),
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = arbejdsmarkedsbidrag_selvstændig_uden_virksomhedsordning_grundlag_kroner(arbejdsmarkedsbidrag_input),
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = personskat_virksomhed_personlig_indkomst_uden_nyt_am_kroner(par3_resultat)
     )
@@ -444,13 +446,21 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | BeregnetOrdinærVirksomhed(beregning) -> beregning.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner
     | _ -> 0
 }
+| personskat_virksomhed_resultat_personlig_indkomst_kroner(resultat: PersonskatOrdinærVirksomhedResultat) -> match resultat {
+    | BeregnetOrdinærVirksomhed(beregning) -> beregning.par3_indkomstresultat_for_virksomheden.netto_personlig_indkomst_kroner
+    | _ -> 0
+}
+| personskat_virksomhed_resultat_biblioteksafgift_kroner(resultat: PersonskatOrdinærVirksomhedResultat) -> match resultat {
+    | BeregnetOrdinærVirksomhed(beregning) -> beregning.biblioteksafgift_kroner
+    | _ -> 0
+}
 --@end:personskat_ordinaer_virksomhedsindkomst--
 
 --@begin:personskat_personlig_indkomst_kildefakta--
 # PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta)
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
-# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, selvstændig_personlig_indkomst_før_fremførsel_kroner: Heltal, selvstændig_biblioteksafgift_kroner: Heltal, selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner: Heltal, selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, arbejdsudleje: List(KildeskattelovArbejdsudlejeInput), underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
 # PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, arbejdsudleje: List(KildeskattelovArbejdsudlejeResultat), arbejdsudlejeidentifikationer_entydige: Boolsk, underholdsbidrag: Ligningslov10Og11Årsresultat, børnebidragslov19_bidrag: Børnebidragslov19Årsresultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal, endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner: Heltal, endelig_arbejdsudlejeskat_kroner: Heltal, samlet_endelig_arbejdsudlejebeskatning_kroner: Heltal)
 
@@ -519,9 +529,13 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     | virksomheder() -> personskat_virksomhed_resultater(input.virksomheder_uden_virksomhedsordning, skatteår, virksomhedsidentifikationer_entydige())
     | forenings_og_arbejdsløshedsydelser() -> personskat_forenings_og_arbejdsløshedsydelse_resultater(input.forenings_og_arbejdsløshedsydelser, skatteår, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige())
     | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_resultat_gyldigt) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
-    | arbejdsmarkedsbidragsgrundlag_tillæg_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat)) + foldl(personlige_arbejdsvederlag(), 0, |sum_kroner: Heltal, resultat: PersonskatPersonligtArbejdsvederlagResultat| sum_kroner + personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
+    | selvstændig_personlig_indkomst_før_fremførsel_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_kroner(resultat))
+    | selvstændig_biblioteksafgift_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_biblioteksafgift_kroner(resultat))
+    | selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
+    | selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner() -> foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat))
+    | arbejdsmarkedsbidragsgrundlag_tillæg_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat)) + foldl(personlige_arbejdsvederlag(), 0, |sum_kroner: Heltal, resultat: PersonskatPersonligtArbejdsvederlagResultat| sum_kroner + personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat)) + selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner()
     | arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_med_indeholdt_bidrag_kroner(resultat))
-    | personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(forenings_og_arbejdsløshedsydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat| sum_kroner + personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat))
+    | personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner() + foldl(forenings_og_arbejdsløshedsydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat| sum_kroner + personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat))
     | resultat() -> PersonskatOrdinærPersonligIndkomstResultat(
         input = input,
         arbejdsgiverydelser = arbejdsgiverydelser(),
@@ -533,6 +547,10 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         virksomhedsidentifikationer_entydige = virksomhedsidentifikationer_entydige(),
         forenings_og_arbejdsløshedsydelsesidentifikationer_entydige = forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(),
         alle_input_gyldige = alle_input_gyldige(),
+        selvstændig_personlig_indkomst_før_fremførsel_kroner = selvstændig_personlig_indkomst_før_fremførsel_kroner(),
+        selvstændig_biblioteksafgift_kroner = selvstændig_biblioteksafgift_kroner(),
+        selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner = selvstændig_arbejdsmarkedsbidragsgrundlag_før_årsaggregering_kroner(),
+        selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner = selvstændig_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_før_årsaggregering_kroner(),
         arbejdsmarkedsbidragsgrundlag_tillæg_kroner = arbejdsmarkedsbidragsgrundlag_tillæg_kroner(),
         arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(),
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner()

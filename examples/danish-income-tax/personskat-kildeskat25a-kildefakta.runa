@@ -96,17 +96,19 @@ den samme fordelingsregel for alle virksomheder i indkomståret.
 # PersonskatKsl25AÅrsregel = Ksl25AÅrsregelStk1 | Ksl25AÅrsregelStk3 | Ksl25AÅrsregelStk7 | Ksl25AÅrsregelStk8
 # PersonskatKsl25AVirksomhedspostperiode(kildepost_identifikation: Tekst, fra_dato: Dato, til_dato: Dato)
 # PersonskatKsl25AVirksomhedsfordelingFakta(virksomhedsidentifikation: Tekst, virksomhedens_kildeplacering: PersonskatKsl25AKildeplacering, virksomhedsdriver_før_samlivsophør: Option(PersonskatKsl25APart), samlivsforløb: Kildeskat25ASamlivsforløb, virksomhedspostperioder: List(PersonskatKsl25AVirksomhedspostperiode), ordinær_ejer_efter_samlivsophør: Option(PersonskatKsl25APart), fordeling: Kildeskat25AVirksomhedsfordelingsvalg, lønudgiftsidentifikation: Option(Tekst))
-# PersonskatKsl25APersonregulering(arbejdsmarkedsbidragsgrundlag_regulering_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner: Heltal, lønvederlag_regulering_kroner: Heltal)
+# PersonskatKsl25APersonregulering(selvstændig_personlig_indkomst_regulering_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_regulering_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner: Heltal, lønvederlag_regulering_kroner: Heltal)
 # PersonskatKsl25AVirksomhedsfordelingsresultat(fakta: PersonskatKsl25AVirksomhedsfordelingFakta, samlivsforløbsresultat: Kildeskat25ASamlivsforløbsresultat, kildevirksomhed: Option(PersonskatOrdinærVirksomhedFakta), kildevirksomhed_fundet_entydigt: Boolsk, modpart_har_ikke_samme_virksomhed: Boolsk, virksomhedsdriver_angivet_gyldigt: Boolsk, virksomhedspostperioder_gyldige: Boolsk, delårsfordeling_understøttet: Boolsk, lønudgift_tilknyttet: Boolsk, lønperiode_respekterer_samlivsophør: Boolsk, virksomhedsresultat_før_samlivsophør: Kildeskat25AVirksomhedsbeløb, virksomhedsresultat_fra_samlivsophør: Kildeskat25AVirksomhedsbeløb, kildeskat_resultat: Kildeskat25AVirksomhedsfordelingsresultat, input_gyldigt: Boolsk, hovedpersons_regulering: PersonskatKsl25APersonregulering, ægtefælles_regulering: PersonskatKsl25APersonregulering)
 # PersonskatKsl25AForløbstilstand(resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk)
 # PersonskatKsl25AParResultat(fordelinger: List(PersonskatKsl25AVirksomhedsfordelingFakta), resultater: List(PersonskatKsl25AVirksomhedsfordelingsresultat), fordelingsidentifikationer_entydige: Boolsk, samlivsforløb_ens: Boolsk, lønaftale_udelukker_stk3_og_stk8: Boolsk, fælles_virksomheder_bruger_samme_årsregel: Boolsk, stk3_samme_virksomhedsdriver: Boolsk, stk3_samlet_overført_kroner: Heltal, stk3_reguleret_årsloft_kroner: Heltal, stk3_årsloft_overholdt: Boolsk, alle_input_gyldige: Boolsk, hovedperson: PersonskatKsl25APersonregulering, ægtefælle: PersonskatKsl25APersonregulering)
 
 | personskat_ksl25a_tom_personregulering() -> PersonskatKsl25APersonregulering(
+    selvstændig_personlig_indkomst_regulering_kroner = 0,
     arbejdsmarkedsbidragsgrundlag_regulering_kroner = 0,
     personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner = 0,
     lønvederlag_regulering_kroner = 0
 )
 | personskat_ksl25a_personregulering_plus(venstre: PersonskatKsl25APersonregulering, højre: PersonskatKsl25APersonregulering) -> PersonskatKsl25APersonregulering(
+    selvstændig_personlig_indkomst_regulering_kroner = venstre.selvstændig_personlig_indkomst_regulering_kroner + højre.selvstændig_personlig_indkomst_regulering_kroner,
     arbejdsmarkedsbidragsgrundlag_regulering_kroner = venstre.arbejdsmarkedsbidragsgrundlag_regulering_kroner + højre.arbejdsmarkedsbidragsgrundlag_regulering_kroner,
     personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner = venstre.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner + højre.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_regulering_kroner,
     lønvederlag_regulering_kroner = venstre.lønvederlag_regulering_kroner + højre.lønvederlag_regulering_kroner
