@@ -5962,11 +5962,25 @@
     question = "Hvad var den videreførte skattemæssige værdi ved indkomstårets begyndelse?",
     unit = "kr."
 )
+= personskat_felt_kgl_årsnetto_position_primo_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtPositionPrimo::opgørelsesprincip),
+    label = "Opgørelsesprincip for den videreførte åbningsværdi",
+    question = Some("Efter hvilket princip blev fordringens skattemæssige værdi opgjort i det foregående indkomstår?"),
+    help = Some("Brug princippet fra forrige års Futuruna-resultat. For obligationer på et reguleret marked kontrolleres det mod den videreførte valghistorik efter KGL § 25."),
+    unit = None
+)
 = personskat_felt_kgl_årsnetto_mængdeposition_primo_år = Beregningsbeløbsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtMængdepositionPrimo::fra_indkomstår),
     label = "Indkomstår for de videreførte trancher",
     question = "Fra hvilket umiddelbart foregående indkomstår videreføres trancherne?",
     unit = "år"
+)
+= personskat_felt_kgl_årsnetto_mængdeposition_primo_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtMængdepositionPrimo::opgørelsesprincip),
+    label = "Opgørelsesprincip for de videreførte trancher",
+    question = Some("Efter hvilket princip blev tranchepositionens skattemæssige værdi opgjort i det foregående indkomstår?"),
+    help = Some("Brug princippet fra forrige års Futuruna-resultat. For obligationer på et reguleret marked kontrolleres det mod den videreførte valghistorik efter KGL § 25."),
+    unit = None
 )
 = personskat_felt_kgl_årsnetto_mængdeposition_trancher = Beregningsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::fordringer::position_primo::KglÅrsnettoVidereførtMængdepositionPrimo::trancher),
@@ -6077,6 +6091,13 @@
     label = "Minimumsbevisets anskaffelsessum fra tidligere år",
     question = "Hvilken skattemæssig anskaffelsessum videreføres fra det foregående indkomstår?",
     unit = "kr."
+)
+= personskat_felt_kgl_årsnetto_abl22_position_primo_princip = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::position_primo::KglÅrsnettoVidereførtPositionPrimo::opgørelsesprincip),
+    label = "Opgørelsesprincip for minimumsbevisets åbningsværdi",
+    question = Some("Efter hvilket princip blev minimumsbevisets skattemæssige værdi opgjort i det foregående indkomstår?"),
+    help = Some("Et obligationsbaseret minimumsbevis efter ABL § 22 videreføres her med realisationsprincippet."),
+    unit = None
 )
 = personskat_felt_kgl_årsnetto_abl22_anskaffelsessum = Beregningsbeløbsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::hændelser::KglÅrsnettoAnskaffelse::anskaffelsessum_kroner),
@@ -12390,10 +12411,13 @@
         personskat_felt_kgl_valuta_primo_valutavalg_princip,
         personskat_felt_kgl_valuta_årsændring,
         personskat_felt_kgl_årsnetto_position_primo,
+        personskat_felt_kgl_årsnetto_position_primo_princip,
+        personskat_felt_kgl_årsnetto_mængdeposition_primo_princip,
         personskat_felt_kgl_årsnetto_mængdeposition_trancher,
         personskat_felt_kgl_årsnetto_hændelser,
         personskat_felt_kgl_årsnetto_mængdeafståelse_art,
         personskat_felt_kgl_årsnetto_abl22_position_primo,
+        personskat_felt_kgl_årsnetto_abl22_position_primo_princip,
         personskat_felt_kgl_årsnetto_abl22_hændelser,
         personskat_felt_kgl_ægtefælles_skatteyder_identifikation,
         personskat_felt_kgl_gæld_frigørelsesart,

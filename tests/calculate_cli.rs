@@ -4231,7 +4231,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "position_primo.$variant",
             "position_primo.KglÅrsnettoVidereførtPositionPrimo.fra_indkomstår",
             "position_primo.KglÅrsnettoVidereførtPositionPrimo.skattemæssig_værdi_kroner",
+            "position_primo.KglÅrsnettoVidereførtPositionPrimo.opgørelsesprincip",
             "position_primo.KglÅrsnettoVidereførtMængdepositionPrimo.fra_indkomstår",
+            "position_primo.KglÅrsnettoVidereførtMængdepositionPrimo.opgørelsesprincip",
         ] {
             assert!(
                 kgl_annual_claim_paths.iter().any(|path| path == expected),
@@ -4261,6 +4263,8 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Fordringens position ved årets begyndelse",
             "Indkomstår for de videreførte trancher",
             "Skattemæssig værdi ved årets begyndelse",
+            "Opgørelsesprincip for den videreførte åbningsværdi",
+            "Opgørelsesprincip for de videreførte trancher",
         ] {
             assert!(
                 kgl_annual_claim_headers
@@ -4428,6 +4432,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Minimumsbevisets identifikation",
             "Minimumsbevisets position ved årets begyndelse",
             "Minimumsbevisets anskaffelsessum fra tidligere år",
+            "Opgørelsesprincip for minimumsbevisets åbningsværdi",
         ] {
             assert!(
                 kgl_abl22_headers.iter().any(|header| header == expected),
@@ -14233,6 +14238,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         "position_primo": {
             "$variant": "KglÅrsnettoVidereførtMængdepositionPrimo",
             "fra_indkomstår": 2025,
+            "opgørelsesprincip": { "$variant": "KglRealisationsprincip" },
             "fordringsgruppe": {
                 "$variant": "KglÅrsnettoFondskode",
                 "fondskode": "DK0000000001",

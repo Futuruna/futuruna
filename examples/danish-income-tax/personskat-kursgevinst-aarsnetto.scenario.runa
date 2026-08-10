@@ -54,7 +54,7 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
     identifikation = identifikation,
     kilde = personskat_kgl_årsnetto_almindelig_fordringskilde(),
     fordringsgruppe = kgl_årsnetto_tom_fordringsgruppe(),
-    position_primo = KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår = fra_indkomstår, skattemæssig_værdi_kroner = anskaffelsessum_kroner),
+    position_primo = KglÅrsnettoVidereførtPositionPrimo(fra_indkomstår = fra_indkomstår, skattemæssig_værdi_kroner = anskaffelsessum_kroner, opgørelsesprincip = KglRealisationsprincip),
     hændelser = [KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner)]
 )
 
@@ -100,6 +100,59 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
     vedrører_ikke_indbetalt_selskabskapital = Falskt,
     par22_hændelse = KglIngenPar22Hændelse
 )
+
+| personskat_kgl_årsnetto_par25_kategorivalg(position_primo: KglÅrsnettoPar25ValgPrimo, aktuelt_princip: KursgevinstlovOpgørelsesprincip) -> KglÅrsnettoPar25KategoriÅrsvalg(
+    position_primo = position_primo,
+    aktuelt_princip = aktuelt_princip,
+    ændringstilladelse = KglÅrsnettoIngenPar25Ændringstilladelse
+)
+| personskat_kgl_årsnetto_par25_årsvalg(obligationsposition_primo: KglÅrsnettoPar25ValgPrimo, aktuelt_obligationsprincip: KursgevinstlovOpgørelsesprincip) -> KglÅrsnettoPar25Årsvalg(
+    obligationer_på_reguleret_marked = personskat_kgl_årsnetto_par25_kategorivalg(obligationsposition_primo, aktuelt_obligationsprincip),
+    valutakursændringer = personskat_kgl_årsnetto_par25_kategorivalg(KglÅrsnettoIntetPar25ValgPrimo, KglRealisationsprincip)
+)
+| personskat_kgl_årsnetto_markedsnoteret_obligationskilde() -> KglÅrsnettoFordringskilde(
+    fordringsart = KglÅrsnettoObligation,
+    markedsfakta = KglÅrsnettoOptagetPåReguleretMarked(oplysningsstatus = KglÅrsnettoOplystRettidigt),
+    debitorrelation = KglÅrsnettoUafhængigDebitor,
+    næringsforhold = KglÅrsnettoIkkeNæringsdrivende,
+    erhvervelsesgrundlag = KglÅrsnettoAlmindeligErhvervelse,
+    dba_status = KglÅrsnettoIngenDbaBegrænsning
+)
+| personskat_kgl_årsnetto_ny_markedsnoteret_obligation() -> KglÅrsnettoFordringsforløb(
+    identifikation = "noteret-obligation",
+    kilde = personskat_kgl_årsnetto_markedsnoteret_obligationskilde(),
+    fordringsgruppe = kgl_årsnetto_tom_fordringsgruppe(),
+    position_primo = KglÅrsnettoIngenPositionPrimo,
+    hændelser = [
+        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = 100000),
+        KglÅrsnettoUltimoværdi(værdi_kroner = 120000),
+    ]
+)
+| personskat_kgl_årsnetto_videreført_markedsnoteret_obligation(position_ultimo: KglÅrsnettoPositionUltimo) -> KglÅrsnettoFordringsforløb(
+    identifikation = "noteret-obligation",
+    kilde = personskat_kgl_årsnetto_markedsnoteret_obligationskilde(),
+    fordringsgruppe = kgl_årsnetto_tom_fordringsgruppe(),
+    position_primo = kgl_årsnetto_position_primo_fra_ultimo(position_ultimo),
+    hændelser = [KglÅrsnettoUltimoværdi(værdi_kroner = 130000)]
+)
+| personskat_kgl_årsnetto_par25_resultat(indkomstår: Heltal, valg: KglÅrsnettoPar25Årsvalg, fordring: KglÅrsnettoFordringsforløb) -> personskat_kursgevinst_resultat(
+    MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "par25-obligationsperson",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = [],
+        øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+            par25_valg = valg,
+            fordringer = [fordring],
+            valutainstrumenter = [],
+            obligationsbaserede_minimumsbeviser = []
+        ),
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    )),
+    indkomstår,
+    IngenEjendomsavance
+)
+| personskat_kgl_årsnetto_fordringsposition_ultimo(resultat: PersonskatKursgevinstResultat) -> resultat.øvrige_instrumentresultat.fordringsresultater[0].forløb.position_ultimo
 
 | personskat_kgl_årsnetto_resultat(fordringer: List(KglÅrsnettoFordringsforløb), obligationsbeviser: List(KglÅrsnettoAbl22Forløb), gældsposter: List(KursgevinstlovGældFakta)) -> personskat_kursgevinst_resultat(
     MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
@@ -159,6 +212,26 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
     [],
     []
 )
+= personskat_kgl_årsnetto_scenarie_obligationslager_2025 = personskat_kgl_årsnetto_par25_resultat(
+    2025,
+    personskat_kgl_årsnetto_par25_årsvalg(KglÅrsnettoIntetPar25ValgPrimo, KglLagerprincip),
+    personskat_kgl_årsnetto_ny_markedsnoteret_obligation()
+)
+= personskat_kgl_årsnetto_scenarie_obligationslager_2026 = personskat_kgl_årsnetto_par25_resultat(
+    2026,
+    personskat_kgl_årsnetto_par25_årsvalg(KglÅrsnettoVidereførtPar25Valg(fra_indkomstår = 2025, princip = KglLagerprincip), KglLagerprincip),
+    personskat_kgl_årsnetto_videreført_markedsnoteret_obligation(personskat_kgl_årsnetto_fordringsposition_ultimo(personskat_kgl_årsnetto_scenarie_obligationslager_2025))
+)
+= personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026 = personskat_kgl_årsnetto_par25_resultat(
+    2026,
+    personskat_kgl_årsnetto_par25_årsvalg(KglÅrsnettoIntetPar25ValgPrimo, KglLagerprincip),
+    personskat_kgl_årsnetto_videreført_markedsnoteret_obligation(personskat_kgl_årsnetto_fordringsposition_ultimo(personskat_kgl_årsnetto_scenarie_obligationslager_2025))
+)
+= personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026 = personskat_kgl_årsnetto_par25_resultat(
+    2026,
+    personskat_kgl_årsnetto_par25_årsvalg(KglÅrsnettoVidereførtPar25Valg(fra_indkomstår = 2025, princip = KglRealisationsprincip), KglLagerprincip),
+    personskat_kgl_årsnetto_videreført_markedsnoteret_obligation(personskat_kgl_årsnetto_fordringsposition_ultimo(personskat_kgl_årsnetto_scenarie_obligationslager_2025))
+)
 
 | personskat_kgl_årsnetto_gevinst_afledes: personskat_kgl_årsnetto_scenarie_gevinst -> personskat_kgl_årsnetto_scenarie_gevinst.input_gyldigt && personskat_kgl_årsnetto_scenarie_gevinst.årets_samlede_netto_efter_par14_kroner == 3000 && length(personskat_kgl_årsnetto_scenarie_gevinst.kursgevinstlov_resultater) == 1 && personskat_kgl_årsnetto_scenarie_gevinst.kursgevinstlov_resultater[0].netto_efter_kursgevinstloven_kroner == 3000 && personskat_kgl_årsnetto_scenarie_gevinst.kapitalposter[0].beløb_kroner == 3000
 | personskat_kgl_årsnetto_tab_afledes: personskat_kgl_årsnetto_scenarie_tab -> personskat_kgl_årsnetto_scenarie_tab.input_gyldigt && personskat_kgl_årsnetto_scenarie_tab.årets_samlede_netto_efter_par14_kroner == -3000 && personskat_kgl_årsnetto_scenarie_tab.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 3000 && personskat_kgl_årsnetto_scenarie_tab.kapitalposter[0].beløb_kroner == -3000
@@ -168,6 +241,9 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
 | personskat_kgl_årsnetto_for_gammel_position_afvises: personskat_kgl_årsnetto_scenarie_for_gammel_position -> personskat_kgl_årsnetto_scenarie_for_gammel_position.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_for_gammel_position.øvrige_instrumentresultat.fordringsresultater[0].forløb.input_gyldigt == Falskt && length(personskat_kgl_årsnetto_scenarie_for_gammel_position.kursgevinstlov_resultater) == 0
 | personskat_kgl_årsnetto_par17_overstyrer_par14_og_par15: personskat_kgl_årsnetto_scenarie_par17_over_par14_15 -> personskat_kgl_årsnetto_scenarie_par17_over_par14_15.input_gyldigt && personskat_kgl_årsnetto_scenarie_par17_over_par14_15.årets_samlede_netto_efter_par14_kroner == 0 && personskat_kgl_årsnetto_scenarie_par17_over_par14_15.øvrige_instrumentresultat.fordringsresultater[0].opgørelser[0].kursgevinstlov_input.fordring.tabsgrundlag == KglFordringstabEfterPar17Statsskattelov6A && personskat_kgl_årsnetto_scenarie_par17_over_par14_15.øvrige_instrumentresultat.fordringsresultater[0].opgørelser[0].kursgevinstlov_input.fordring.tabsbegrænsning == KglFordringstabIkkeAfskåret && personskat_kgl_årsnetto_scenarie_par17_over_par14_15.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 3000 && personskat_kgl_årsnetto_scenarie_par17_over_par14_15.kursgevinstlov_resultater[0].personlig_reklassifikation == KglPar17Fordringstab
 | personskat_kgl_årsnetto_par18_overstyrer_par17_uden_at_miste_tabsgrundlaget: personskat_kgl_årsnetto_scenarie_par18_over_par17 -> personskat_kgl_årsnetto_scenarie_par18_over_par17.input_gyldigt && personskat_kgl_årsnetto_scenarie_par18_over_par17.årets_samlede_netto_efter_par14_kroner == 0 && personskat_kgl_årsnetto_scenarie_par18_over_par17.øvrige_instrumentresultat.fordringsresultater[0].opgørelser[0].kursgevinstlov_input.fordring.tabsgrundlag == KglFordringstabEfterPar17Statsskattelov6A && personskat_kgl_årsnetto_scenarie_par18_over_par17.øvrige_instrumentresultat.fordringsresultater[0].opgørelser[0].kursgevinstlov_input.fordring.tabsbegrænsning == KglFordringstabDbaAfskåret && personskat_kgl_årsnetto_scenarie_par18_over_par17.kursgevinstlov_resultater[0].bruttotab_kroner == 3000 && personskat_kgl_årsnetto_scenarie_par18_over_par17.kursgevinstlov_resultater[0].fradragsberettiget_tab_kroner == 0 && personskat_kgl_årsnetto_scenarie_par18_over_par17.kursgevinstlov_resultater[0].tab_afskåret_kroner == 3000 && personskat_kgl_årsnetto_scenarie_par18_over_par17.kursgevinstlov_resultater[0].personlig_reklassifikation == KglIngenPersonligReklassifikation
+| personskat_kgl_årsnetto_obligationslager_videreføres_med_princip: personskat_kgl_årsnetto_scenarie_obligationslager_2026 -> personskat_kgl_årsnetto_scenarie_obligationslager_2026.input_gyldigt && personskat_kgl_årsnetto_scenarie_obligationslager_2026.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt && personskat_kgl_årsnetto_scenarie_obligationslager_2026.årets_samlede_netto_efter_par14_kroner == 10000 && match personskat_kgl_årsnetto_fordringsposition_ultimo(personskat_kgl_årsnetto_scenarie_obligationslager_2026) { | KglÅrsnettoAktivPositionUltimo(2026, 130000, KglLagerprincip) -> Sandt | _ -> Falskt }
+| personskat_kgl_årsnetto_obligationslager_kan_ikke_udelade_valghistorik: personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026 -> personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026.øvrige_instrumentresultat.fordringsresultater[0].input_gyldigt == Falskt && length(personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026.øvrige_instrumentresultat.fordringsresultater[0].opgørelser) == 0 && length(personskat_kgl_årsnetto_scenarie_obligationslager_udeladt_historik_2026.kursgevinstlov_resultater) == 0
+| personskat_kgl_årsnetto_obligationslager_kan_ikke_ændre_tidligere_princip: personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026 -> personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026.øvrige_instrumentresultat.par25_valgresultat.input_gyldigt == Falskt && personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026.øvrige_instrumentresultat.fordringsresultater[0].input_gyldigt == Falskt && length(personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026.øvrige_instrumentresultat.fordringsresultater[0].opgørelser) == 0 && length(personskat_kgl_årsnetto_scenarie_obligationslager_modstridende_historik_2026.kursgevinstlov_resultater) == 0
 
 ? personskat_kgl_årsnetto_gevinst_afledes
 ? personskat_kgl_årsnetto_tab_afledes
@@ -177,6 +253,9 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
 ? personskat_kgl_årsnetto_for_gammel_position_afvises
 ? personskat_kgl_årsnetto_par17_overstyrer_par14_og_par15
 ? personskat_kgl_årsnetto_par18_overstyrer_par17_uden_at_miste_tabsgrundlaget
+? personskat_kgl_årsnetto_obligationslager_videreføres_med_princip
+? personskat_kgl_årsnetto_obligationslager_kan_ikke_udelade_valghistorik
+? personskat_kgl_årsnetto_obligationslager_kan_ikke_ændre_tidligere_princip
 
-@ print("Kursgevinstlovens årsnetto: 8 kildefaktabaserede scenarier kontrolleret")
+@ print("Kursgevinstlovens årsnetto: 11 kildefaktabaserede scenarier kontrolleret")
 --@end:personskat_kursgevinst_årsnetto_scenarier--
