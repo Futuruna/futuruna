@@ -1,0 +1,92 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./metadata
+
+= personskat_par4_abl_mellemklassifikation_advarsel = PersonskattelovKildeAdvarsel(
+    kode = "PSL-PAR4-ABL-MELLEMKLASSIFIKATION",
+    besked = "AblUdenforDenneSlice og AblIkkeMedregnetISlice er bevidste mellemklassifikationer i aktieavancekaskaden. En afsluttende kilde efter personskattelovens § 4, stk. 1, nr. 5 b, skal derimod være kildeklassificeret som aktieavancebeskatningslovens § 19 C eller § 22; ellers afvises hele den kanoniske postliste uden beløbspåvirkning."
+)
+
+= personskat_par4_finansielle_poster_kildefakta_metadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+        DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+        Warning(value = personskat_par4_abl_mellemklassifikation_advarsel),
+    )
+)
+
+--@label:personskat_par4_finansielle_poster_kildefakta::meta:personskat_par4_finansielle_poster_kildefakta_metadata--
+----
+§ 4. Kapitalindkomst omfatter det samlede nettobeløb af
+5 a) skattepligtig gevinst og fradragsberettiget tab ved afståelse af
+medlemsbeviser i foreninger m.v., der er skattepligtige efter selskabsskattelovens
+§ 1, stk. 1, nr. 6, bortset fra investeringsforeninger,
+5 b) beløb, der er modtaget fra et pengeinstitut, realkreditinstitut,
+fondsmæglerselskab, investeringsforvaltningsselskab, en forvalter af alternative
+investeringsfonde, en finansiel rådgiver eller en investeringsrådgiver, som
+følge af at det pågældende pengeinstitut m.v. har modtaget gebyrer, provisioner
+eller andre pengeydelser fra et investeringsinstitut, og som vedrører investering
+i en aktie eller et investeringsbevis omfattet af aktieavancebeskatningslovens
+§§ 19 C eller 22,
+7) de i ligningslovens § 8, stk. 3, omhandlede provisioner mv.,
+----
+
+--@begin:personskat_par4_finansielle_poster_kildefakta--
+# PersonskatPar4FinansielPostkilde = PsPar4Nr5AMedlemsbevis(opgjort_gevinst_eller_tab_kroner: Heltal, selskabsskattelov1_stk1_nr6_input: Selskabsskattelov1Stk1Nr6Input) | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner: Heltal, formidler: Par4Stk1Nr5bFormidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput) | PsPar4Nr7Provision(input: Ligningslov8Stk3Input)
+# PersonskatPar4FinansielPostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4FinansielPostkilde)
+# PersonskatPar4FinansielPostLovresultat = PsPar4Nr5ALovresultat(resultat: Par4Stk1Nr5aResultat) | PsPar4Nr5BLovresultat(resultat: Par4Stk1Nr5bResultat) | PsPar4Nr7Lovresultat(resultat: Par4Stk1Nr7Resultat)
+# PersonskatPar4FinansielPostresultat(fakta: PersonskatPar4FinansielPostfakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4FinansielPostLovresultat, kapitalpost: Par4Kapitalpost)
+
+| personskat_par4_nr5a_input(opgjort_gevinst_eller_tab_kroner: Heltal, selskabsskattelov1_stk1_nr6_input: Selskabsskattelov1Stk1Nr6Input) -> par4_stk1_nr5a_input_fra_selskabsskattelov1_stk1_nr6(
+    beløb_kroner = opgjort_gevinst_eller_tab_kroner,
+    input = selskabsskattelov1_stk1_nr6_input
+)
+| personskat_par4_nr5b_input(modtaget_beløb_kroner: Heltal, formidler: Par4Stk1Nr5bFormidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut: Boolsk, aktieavance_aktivklassifikation_input: AktieavanceAktivklassifikationInput) -> Par4Stk1Nr5bInput(
+    beløb_kroner = modtaget_beløb_kroner,
+    formidler = formidler,
+    formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut = formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut,
+    aktieavance_aktivklassifikation_input = aktieavance_aktivklassifikation_input
+)
+
+| personskat_par4_nr5b_aktivklassifikation_afsluttet(input: AktieavanceAktivklassifikationInput) -> {
+    = resultat = aktieavance_aktivklassifikation_resultat(input)
+    resultat.input_gyldigt && (resultat.effektiv_aktiv == AblInvesteringsselskab19C || resultat.effektiv_aktiv == AblMinimumsbevis22)
+}
+| personskat_par4_finansiel_postkilde_grundfakta_gyldige(kilde: PersonskatPar4FinansielPostkilde, indkomstår: Heltal) -> match kilde {
+    | PsPar4Nr5AMedlemsbevis(_, _) -> indkomstår > 0
+    | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner, _, _, aktieavance_aktivklassifikation_input) -> modtaget_beløb_kroner >= 0 && aktieavance_aktivklassifikation_input.indkomstår == indkomstår && personskat_par4_nr5b_aktivklassifikation_afsluttet(aktieavance_aktivklassifikation_input)
+    | PsPar4Nr7Provision(input) -> input.indkomstår == indkomstår && input.udgift_kroner >= 0 && input.løbetid_måneder >= 0
+}
+| personskat_par4_finansiel_postfakta_grundfakta_gyldige(fakta: PersonskatPar4FinansielPostfakta, skatteår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == skatteår && personskat_par4_finansiel_postkilde_grundfakta_gyldige(fakta.kilde, fakta.indkomstår)
+| personskat_par4_finansiel_post_identifikation_unik(alle_fakta: List(PersonskatPar4FinansielPostfakta), fakta: PersonskatPar4FinansielPostfakta) -> length(filter(alle_fakta, |anden: PersonskatPar4FinansielPostfakta| anden.identifikation == fakta.identifikation)) == 1
+| personskat_par4_finansielle_postidentifikationer_entydige(fakta: List(PersonskatPar4FinansielPostfakta)) -> all(fakta, |post: PersonskatPar4FinansielPostfakta| post.identifikation != "" && personskat_par4_finansiel_post_identifikation_unik(fakta, post))
+
+| personskat_par4_finansiel_post_lovresultat(kilde: PersonskatPar4FinansielPostkilde) -> match kilde {
+    | PsPar4Nr5AMedlemsbevis(opgjort_gevinst_eller_tab_kroner, selskabsskattelov1_stk1_nr6_input) -> PsPar4Nr5ALovresultat(resultat = par4_stk1_nr5a_resultat(personskat_par4_nr5a_input(opgjort_gevinst_eller_tab_kroner, selskabsskattelov1_stk1_nr6_input)))
+    | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input) -> PsPar4Nr5BLovresultat(resultat = par4_stk1_nr5b_resultat(personskat_par4_nr5b_input(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input)))
+    | PsPar4Nr7Provision(input) -> PsPar4Nr7Lovresultat(resultat = par4_stk1_nr7_resultat_fra_ligningslov8_stk3(input))
+}
+| personskat_par4_finansiel_post_kapitalpost(kilde: PersonskatPar4FinansielPostkilde) -> match kilde {
+    | PsPar4Nr5AMedlemsbevis(opgjort_gevinst_eller_tab_kroner, selskabsskattelov1_stk1_nr6_input) -> par4_stk1_nr5a_kapitalpost(personskat_par4_nr5a_input(opgjort_gevinst_eller_tab_kroner, selskabsskattelov1_stk1_nr6_input))
+    | PsPar4Nr5BFormidlerbeløb(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input) -> par4_stk1_nr5b_kapitalpost(personskat_par4_nr5b_input(modtaget_beløb_kroner, formidler, formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut, aktieavance_aktivklassifikation_input))
+    | PsPar4Nr7Provision(input) -> par4_stk1_nr7_kapitalpost_fra_ligningslov8_stk3(input)
+}
+| personskat_par4_finansiel_post_resultat(alle_fakta: List(PersonskatPar4FinansielPostfakta), fakta: PersonskatPar4FinansielPostfakta, skatteår: Heltal) -> {
+    = identifikation_unik = fakta.identifikation != "" && personskat_par4_finansiel_post_identifikation_unik(alle_fakta, fakta)
+    = grundfakta_gyldige = personskat_par4_finansiel_postfakta_grundfakta_gyldige(fakta, skatteår)
+    PersonskatPar4FinansielPostresultat(
+        fakta = fakta,
+        identifikation_unik = identifikation_unik,
+        grundfakta_gyldige = grundfakta_gyldige,
+        input_gyldigt = identifikation_unik && grundfakta_gyldige,
+        lovresultat = personskat_par4_finansiel_post_lovresultat(fakta.kilde),
+        kapitalpost = personskat_par4_finansiel_post_kapitalpost(fakta.kilde)
+    )
+}
+| personskat_par4_finansielle_postresultater(fakta: List(PersonskatPar4FinansielPostfakta), skatteår: Heltal) -> map(fakta, |post: PersonskatPar4FinansielPostfakta| personskat_par4_finansiel_post_resultat(fakta, post, skatteår))
+| personskat_par4_finansielle_postresultater_gyldige(resultater: List(PersonskatPar4FinansielPostresultat)) -> all(resultater, |resultat: PersonskatPar4FinansielPostresultat| resultat.input_gyldigt)
+| personskat_par4_finansielle_kapitalposter(resultater: List(PersonskatPar4FinansielPostresultat)) -> hvis personskat_par4_finansielle_postresultater_gyldige(resultater) { map(resultater, |resultat: PersonskatPar4FinansielPostresultat| resultat.kapitalpost) } ellers { [] }
+--@end:personskat_par4_finansielle_poster_kildefakta--

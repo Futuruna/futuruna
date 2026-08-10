@@ -144,6 +144,7 @@
         )),
         kursgevinst = personskat_par6d_scenarie_kursgevinst_med_ægtefælleidentifikation(skatteyder_identifikation, ægtefælles_skatteyder_identifikation),
         fremleje = UdenFremlejeEfterLigningslov15Q,
+        finansielle_poster = [],
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),

@@ -452,6 +452,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 
@@ -534,6 +535,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 = årsopgørelse2025_ægtefælle_personfakta = PersonskatPersonFakta(

@@ -402,6 +402,7 @@ myndighedens beregnede skattebeløb bruges ikke som input.
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 

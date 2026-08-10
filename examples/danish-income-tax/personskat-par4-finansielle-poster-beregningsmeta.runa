@@ -1,0 +1,109 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - par4 - finansielle - poster - kildefakta
+
+= personskat_par4_finansielle_poster_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::identifikation),
+    label = "Postens identifikation",
+    question = Some("Hvilken entydig bilags- eller kontoreference har posten?"),
+    help = Some("Brug en stabil reference, så samme beløb ikke kan medregnes to gange."),
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::indkomstår),
+    label = "Postens indkomstår",
+    question = Some("Hvilket indkomstår vedrører posten?"),
+    help = Some("Året skal svare til skatteåret og til eventuelle delegerede klassifikationer."),
+    unit = Some("år")
+)
+= personskat_par4_finansielle_poster_felt_hjemmel = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::$variant),
+    label = "Finansiel posts hjemmel",
+    question = Some("Vedrører posten medlemsbevis, formidlerbetaling eller provision?"),
+    help = Some("Valget afgør, hvilke kildefakta der skal udfyldes, og hvilken regelkaskade Futuruna anvender."),
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_nr5a_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr5AMedlemsbevis::opgjort_gevinst_eller_tab_kroner),
+    label = "Opgjort gevinst eller tab på medlemsbevis",
+    question = Some("Hvad er den opgjorte gevinst eller det fradragsberettigede tab?"),
+    help = Some("Angiv gevinst som positivt beløb og tab som negativt beløb."),
+    unit = Some("DKK")
+)
+= personskat_par4_finansielle_poster_felt_nr5a_enhed = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr5AMedlemsbevis::selskabsskattelov1_stk1_nr6_input::enhed),
+    label = "Foreningens eller enhedens art",
+    question = Some("Hvilken type forening eller anden enhed er medlemsbeviset udstedt af?"),
+    help = Some("Investeringsforeninger er udtrykkeligt undtaget fra personskattelovens § 4, stk. 1, nr. 5 a."),
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_nr5b_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr5BFormidlerbeløb::modtaget_beløb_kroner),
+    label = "Beløb modtaget fra investeringsformidler",
+    question = Some("Hvor meget har du modtaget fra formidleren?"),
+    help = None,
+    unit = Some("DKK")
+)
+= personskat_par4_finansielle_poster_felt_nr5b_formidler = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr5BFormidlerbeløb::formidler),
+    label = "Type investeringsformidler",
+    question = Some("Hvilken type formidler udbetalte beløbet?"),
+    help = Some("Kun de formidlertyper, der er nævnt i § 4, stk. 1, nr. 5 b, omfattes."),
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_nr5b_institutbetaling = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr5BFormidlerbeløb::formidler_har_modtaget_gebyrer_provisioner_eller_pengeydelser_fra_investeringsinstitut),
+    label = "Formidleren modtog betaling fra investeringsinstituttet",
+    question = Some("Skyldes din udbetaling, at formidleren modtog gebyr, provision eller anden pengeydelse fra investeringsinstituttet?"),
+    help = None,
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_nr7_art = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr7Provision::input::art),
+    label = "Provisionens eller præmiens art",
+    question = Some("Hvilken type provision, præmie eller kautionsydelse har du betalt?"),
+    help = None,
+    unit = None
+)
+= personskat_par4_finansielle_poster_felt_nr7_udgift = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr7Provision::input::udgift_kroner),
+    label = "Betalt provision eller præmie",
+    question = Some("Hvor stor var udgiften?"),
+    help = None,
+    unit = Some("DKK")
+)
+= personskat_par4_finansielle_poster_felt_nr7_løbetid = TypetBeregningsfelt(
+    path = refof(PersonskatPar4FinansielPostfakta::kilde::PsPar4Nr7Provision::input::løbetid_måneder),
+    label = "Lånets eller kautionens løbetid",
+    question = Some("Hvor mange måneder er løbetiden?"),
+    help = Some("For stiftelsesprovisioner og andre engangsydelser kræver ligningslovens § 8, stk. 3, en løbetid under to år."),
+    unit = Some("måneder")
+)
+
+= personskat_par4_finansielle_poster_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_par4_finansielle_poster_felt_identifikation,
+        personskat_par4_finansielle_poster_felt_indkomstår,
+        personskat_par4_finansielle_poster_felt_hjemmel,
+        personskat_par4_finansielle_poster_felt_nr5a_beløb,
+        personskat_par4_finansielle_poster_felt_nr5a_enhed,
+        personskat_par4_finansielle_poster_felt_nr5b_beløb,
+        personskat_par4_finansielle_poster_felt_nr5b_formidler,
+        personskat_par4_finansielle_poster_felt_nr5b_institutbetaling,
+        personskat_par4_finansielle_poster_felt_nr7_art,
+        personskat_par4_finansielle_poster_felt_nr7_udgift,
+        personskat_par4_finansielle_poster_felt_nr7_løbetid
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+        DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+        Warning(value = personskat_par4_abl_mellemklassifikation_advarsel),
+    )
+)
+
+--@label:PersonskatPar4FinansielPostfakta::meta:personskat_par4_finansielle_poster_beregningsmeta--

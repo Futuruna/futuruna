@@ -66,6 +66,7 @@
         ejendomsavance = personskat_ebl_par10_stk9_årsinput,
         kursgevinst = UdenKursgevinst,
         fremleje = UdenFremlejeEfterLigningslov15Q,
+        finansielle_poster = [],
         omkostninger = []
     ),
     2026,

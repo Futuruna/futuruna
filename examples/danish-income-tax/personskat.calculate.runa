@@ -16,6 +16,7 @@
 @ importer ./personskat - personlig - indkomst - kildefakta
 @ importer ./personskat - par3 - stk2 - nr2 - beregningsmeta
 @ importer ./personskat - par3 - erhvervsposter - beregningsmeta
+@ importer ./personskat - par4 - finansielle - poster - beregningsmeta
 @ importer ./personskat - kildeskat25a - beregningsmeta
 @ importer ./personskat - kildeskat25a - kildefakta
 @ importer ./personskat - pbl53a - beregningsmeta
@@ -187,8 +188,8 @@
 # PersonskatFremlejeResultat = IngenFremlejeEfterLigningslov15Q | UgyldigtFremlejegrundlag(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, stk4_samordning_gyldig: Boolsk) | BeregnetFremlejeEfterLigningslov15Q(fakta: PersonskatFremlejeFakta, ligningslov15q_input: Ligningslov15QInput, ligningslov15q_resultat: Ligningslov15QResultat, par4_resultat: Par4Stk1Nr17Resultat)
 # PersonskatKapitalomkostningInput(identifikation: Tekst, anvendelsesår: Heltal, anvendelse: Par4Stk2Omkostningsanvendelse, omkostningsart: Ligningslov17COmkostningsart, næringsstatus: Næringsstatus, beløb_kroner: Heltal)
 # PersonskatKapitalomkostningsresultat(input: PersonskatKapitalomkostningInput, identifikation_unik: Boolsk, input_gyldigt: Boolsk, par4_resultat: Par4Stk2Omkostningsresultat)
-# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, virksomhedskapital: PersonskatVirksomhedskapitalInput, pbl53a: PersonskatPbl53AInput, ejendomsdrift: PersonskatEjendomsdriftInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, virksomhedskapital_input_gyldigt: Boolsk, pbl53a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, virksomhedskapital_resultat: PersonskatVirksomhedskapitalResultat, pbl53a_resultat: PersonskatPbl53AResultat, ejendomsdrift_resultat: PersonskatEjendomsdriftResultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, omkostningsresultater: List(PersonskatKapitalomkostningsresultat), kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, virksomhedskapital: PersonskatVirksomhedskapitalInput, pbl53a: PersonskatPbl53AInput, ejendomsdrift: PersonskatEjendomsdriftInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, finansielle_poster: List(PersonskatPar4FinansielPostfakta), omkostninger: List(PersonskatKapitalomkostningInput))
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, virksomhedskapital_input_gyldigt: Boolsk, pbl53a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, finansielle_postidentifikationer_entydige: Boolsk, finansielle_poster_gyldige: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, virksomhedskapital_resultat: PersonskatVirksomhedskapitalResultat, pbl53a_resultat: PersonskatPbl53AResultat, ejendomsdrift_resultat: PersonskatEjendomsdriftResultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, finansielle_postresultater: List(PersonskatPar4FinansielPostresultat), omkostningsresultater: List(PersonskatKapitalomkostningsresultat), kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatUdbytteAktiv = PersonskatAlmindeligAktie | PersonskatAndelsbevis(forrentning: AndelsforeningUdlodning) | PersonskatInvesteringsselskabsandel(klassifikation: AktieavancePar19BPar19CInput, par17_modprøve: AktieavancePar17Modprøve) | PersonskatMinimumsinstitutsbevis(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve) | PersonskatMedarbejderejeandel
 # PersonskatUdbytteFakta(identifikation: Tekst, udlodder: Ligningslov16AOrdinærUdlodder, modtager: Ligningslov16AOrdinærModtager, aktiv: PersonskatUdbytteAktiv, beløb_kroner: Heltal, par13a_kildefakta: AktieavancePar13AUdbytteKildefakta)
@@ -1776,6 +1777,13 @@
     question = Some("Hvor store fradragsberettigede renteudgifter har du i indkomståret?"),
     help = Some("Angiv den samlede renteudgift, der indgår i kapitalindkomsten."),
     unit = Some("kr./år")
+)
+= personskat_felt_finansielle_poster = TypetBeregningsfelt(
+    path = refof(PersonskatKapitalindkomstInput::finansielle_poster),
+    label = "Særlige finansielle kapitalposter",
+    question = Some("Har du gevinst eller tab på medlemsbeviser, formidlerbetalinger eller fradragsberettigede provisioner?"),
+    help = Some("Tilføj hver post særskilt. Futuruna klassificerer den efter personskattelovens § 4, stk. 1, nr. 5 a, 5 b eller 7 og de henviste særregler."),
+    unit = None
 )
 = personskat_felt_kapitalomkostninger = Beregningsfelt(
     path = pathof(PersonskatInput::kapitalindkomst::omkostninger),
@@ -11526,6 +11534,15 @@
         Source(value = personskatteloven_2021_1284),
     )
 )
+= personskat_metadata_finansielle_poster = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_finansielle_poster),
+        Source(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = selskabsskatteloven_lbk279_par1_stk1_nr1_nr6),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+        DependencySource(value = ligningsloven_par8_stk3_lbk1500),
+    )
+)
 = personskat_metadata_kapitalomkostninger = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_kapitalomkostninger),
@@ -13143,6 +13160,7 @@
     ),
     kapitalindkomst = (
         personskat_metadata_renteindtægter,
+        personskat_metadata_finansielle_poster,
         personskat_metadata_kapitalomkostninger,
         personskat_meta_ejendomsdrift,
         personskat_metadata_fremleje,
@@ -15932,9 +15950,12 @@ fraflytningen."
     | ejendomsavance_resultat() -> personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag_resultat(), kursgevinst_resultat(), skatteår)
     | fremleje_resultat() -> personskat_fremleje_resultat(input.fremleje, skatteår)
     | fremleje_input_gyldigt() -> personskat_fremleje_input_gyldigt(fremleje_resultat())
+    | finansielle_postresultater() -> personskat_par4_finansielle_postresultater(input.finansielle_poster, skatteår)
+    | finansielle_postidentifikationer_entydige() -> personskat_par4_finansielle_postidentifikationer_entydige(input.finansielle_poster)
+    | finansielle_poster_gyldige() -> finansielle_postidentifikationer_entydige() && personskat_par4_finansielle_postresultater_gyldige(finansielle_postresultater())
     | omkostningsresultater() -> map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostningsresultat(input.omkostninger, omkostning, skatteår))
     | omkostninger_gyldige() -> all(omkostningsresultater(), |resultat: PersonskatKapitalomkostningsresultat| resultat.input_gyldigt)
-    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && virksomhedskapital_input_gyldigt() && pbl53a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && fremleje_input_gyldigt() && omkostninger_gyldige()
+    | alle_input_gyldige() -> skatteår > 0 && rentegrundlag_gyldigt() && ligningslov6_input_gyldigt() && ligningslov6a_input_gyldigt() && virksomhedskapital_input_gyldigt() && pbl53a_input_gyldigt() && ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() && fremleje_input_gyldigt() && finansielle_poster_gyldige() && omkostninger_gyldige()
     | ligningslov6_resultat() -> personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
     | ligningslov6_resultat_anvendt() -> personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_resultat() -> personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -15955,9 +15976,10 @@ fraflytningen."
     | ejendomsavanceposter() -> hvis ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() { personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat()) } ellers { [] }
     | kursgevinstposter() -> kursgevinst_resultat().kapitalposter
     | fremlejeposter() -> personskat_fremleje_kapitalposter(fremleje_resultat())
+    | finansielle_poster() -> personskat_par4_finansielle_kapitalposter(finansielle_postresultater())
     | kapitalomkostninger() -> personskat_kapitalomkostninger_til_par4(omkostningsresultater())
     | kapitalindkomst_resultat() -> par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-        poster = concat(concat(concat(concat(concat(concat(concat(renteposter(), virksomhedskapitalposter()), pbl53a_poster()), ejendomsdriftposter()), ejendomsavanceposter()), kursgevinstposter()), fremlejeposter()), aktieavance.kapitalposter),
+        poster = concat(concat(concat(concat(concat(concat(concat(concat(renteposter(), virksomhedskapitalposter()), pbl53a_poster()), ejendomsdriftposter()), ejendomsavanceposter()), kursgevinstposter()), fremlejeposter()), finansielle_poster()), aktieavance.kapitalposter),
         omkostninger = kapitalomkostninger()
     ))
     | resultat() -> {
@@ -15974,9 +15996,12 @@ fraflytningen."
         = fordelt_ejendomsavance = personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag, kursgevinst, skatteår)
         = fremleje = personskat_fremleje_resultat(input.fremleje, skatteår)
         = fremleje_er_gyldig = personskat_fremleje_input_gyldigt(fremleje)
+        = finansielle_postresultater_resultat = personskat_par4_finansielle_postresultater(input.finansielle_poster, skatteår)
+        = finansielle_postidentifikationer_er_entydige = personskat_par4_finansielle_postidentifikationer_entydige(input.finansielle_poster)
+        = finansielle_poster_er_gyldige = finansielle_postidentifikationer_er_entydige && personskat_par4_finansielle_postresultater_gyldige(finansielle_postresultater_resultat)
         = omkostningsresultater_resultat = map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostningsresultat(input.omkostninger, omkostning, skatteår))
         = omkostninger_er_gyldige = all(omkostningsresultater_resultat, |resultat: PersonskatKapitalomkostningsresultat| resultat.input_gyldigt)
-        = alle_input_er_gyldige = skatteår > 0 && rentegrundlag_er_gyldigt && ligningslov6_er_gyldig && ligningslov6a_er_gyldig && virksomhedskapital.alle_input_gyldige && pbl53a.alle_input_gyldige && ejendomsavance_er_gyldig && kursgevinst_er_gyldig && fremleje_er_gyldig && omkostninger_er_gyldige
+        = alle_input_er_gyldige = skatteår > 0 && rentegrundlag_er_gyldigt && ligningslov6_er_gyldig && ligningslov6a_er_gyldig && virksomhedskapital.alle_input_gyldige && pbl53a.alle_input_gyldige && ejendomsavance_er_gyldig && kursgevinst_er_gyldig && fremleje_er_gyldig && finansielle_poster_er_gyldige && omkostninger_er_gyldige
         = ligningslov6 = personskat_ligningslov6_resultat(input.renter.ligningslov6, skatteår)
         = ligningslov6_anvendt = personskat_ligningslov6_resultat_anvendt(input.renter.ligningslov6, skatteår)
         = ligningslov6a = personskat_ligningslov6a_resultat(input.renter.ligningslov6a, skatteår)
@@ -15994,9 +16019,10 @@ fraflytningen."
         = ejendomsdriftposter_resultat = personskat_ejendomsdrift_kapitalposter(ejendomsdrift)
         = ejendomsavanceposter_resultat = hvis ejendomsavance_er_gyldig && kursgevinst_er_gyldig { personskat_ejendomsavance_kapitalposter(fordelt_ejendomsavance) } ellers { [] }
         = fremlejeposter_resultat = personskat_fremleje_kapitalposter(fremleje)
+        = finansielle_poster_resultat = personskat_par4_finansielle_kapitalposter(finansielle_postresultater_resultat)
         = kapitalomkostninger_resultat = personskat_kapitalomkostninger_til_par4(omkostningsresultater_resultat)
         = samlet_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-            poster = concat(concat(concat(concat(concat(concat(concat(renteposter_resultat, virksomhedskapital.kapitalposter), pbl53a.kapitalposter), ejendomsdriftposter_resultat), ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), aktieavance.kapitalposter),
+            poster = concat(concat(concat(concat(concat(concat(concat(concat(renteposter_resultat, virksomhedskapital.kapitalposter), pbl53a.kapitalposter), ejendomsdriftposter_resultat), ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), finansielle_poster_resultat), aktieavance.kapitalposter),
             omkostninger = kapitalomkostninger_resultat
         ))
         PersonskatKapitalindkomstResultat(
@@ -16009,6 +16035,8 @@ fraflytningen."
             ejendomsavance_input_gyldigt = ejendomsavance_er_gyldig,
             kursgevinst_input_gyldigt = kursgevinst_er_gyldig,
             fremleje_input_gyldigt = fremleje_er_gyldig,
+            finansielle_postidentifikationer_entydige = finansielle_postidentifikationer_er_entydige,
+            finansielle_poster_gyldige = finansielle_poster_er_gyldige,
             omkostninger_gyldige = omkostninger_er_gyldige,
             alle_input_gyldige = alle_input_er_gyldige,
             ligningslov6_resultat = ligningslov6,
@@ -16020,6 +16048,7 @@ fraflytningen."
             ejendomsavance_resultat = fordelt_ejendomsavance,
             kursgevinst_resultat = kursgevinst,
             fremleje_resultat = fremleje,
+            finansielle_postresultater = finansielle_postresultater_resultat,
             omkostningsresultater = omkostningsresultater_resultat,
             kapitalindkomst_resultat = samlet_kapitalindkomst
         )
@@ -16042,6 +16071,7 @@ fraflytningen."
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 | personskat_intet_selvstændigt_pensionsoverskud() -> Pbl18SelvstændigOverskudInput(

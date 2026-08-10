@@ -17562,6 +17562,7 @@ struct TypeConstructorSignature {
     positional: bool,
     fields: Vec<String>,
     field_types: Vec<Option<String>>,
+    field_tys: Vec<Option<String>>,
 }
 
 impl TypeConstructorSignature {
@@ -17951,19 +17952,41 @@ impl TypeChecker {
             tc.types.insert(name.to_string());
         }
         // Prelude constructors
-        tc.register_constructor_signature("Option", "None", true, vec![], vec![]);
-        tc.register_constructor_signature("Option", "Some", true, vec!["_0".into()], vec![None]);
-        tc.register_constructor_signature("Result", "Ok", true, vec!["_0".into()], vec![None]);
-        tc.register_constructor_signature("Result", "Err", true, vec!["_0".into()], vec![None]);
+        tc.register_constructor_signature("Option", "None", true, vec![], vec![], vec![]);
+        tc.register_constructor_signature(
+            "Option",
+            "Some",
+            true,
+            vec!["_0".into()],
+            vec![None],
+            vec![None],
+        );
+        tc.register_constructor_signature(
+            "Result",
+            "Ok",
+            true,
+            vec!["_0".into()],
+            vec![None],
+            vec![None],
+        );
+        tc.register_constructor_signature(
+            "Result",
+            "Err",
+            true,
+            vec!["_0".into()],
+            vec![None],
+            vec![None],
+        );
         tc.register_constructor_signature(
             "Pair",
             "Pair",
             false,
             vec!["fst".into(), "snd".into()],
             vec![None, None],
+            vec![None, None],
         );
-        tc.register_constructor_signature("Bool", "True", true, vec![], vec![]);
-        tc.register_constructor_signature("Bool", "False", true, vec![], vec![]);
+        tc.register_constructor_signature("Bool", "True", true, vec![], vec![], vec![]);
+        tc.register_constructor_signature("Bool", "False", true, vec![], vec![], vec![]);
         // Prelude type variants (for exhaustiveness checking)
         tc.type_variants
             .insert("Option".into(), vec!["Some".into(), "None".into()]);
@@ -18301,12 +18324,14 @@ impl TypeChecker {
         positional: bool,
         fields: Vec<String>,
         field_types: Vec<Option<String>>,
+        field_tys: Vec<Option<String>>,
     ) {
         let signature = TypeConstructorSignature {
             parent: parent.to_string(),
             positional,
             fields,
             field_types,
+            field_tys,
         };
         let signatures = self
             .constructor_signatures
@@ -18458,8 +18483,8 @@ impl TypeChecker {
             return;
         }
 
-        let parent = signature.parent;
         let fields = signature.fields;
+        let field_tys = signature.field_tys;
         let expected = fields.len();
 
         let field_set: BTreeSet<&str> = fields.iter().map(|field| field.as_str()).collect();
@@ -18482,16 +18507,17 @@ impl TypeChecker {
                     );
                 }
                 if fields.iter().any(|candidate| candidate == field) {
-                    let expected_type = self
-                        .type_field_tys
-                        .get(&parent)
-                        .or_else(|| self.type_field_tys.get(constructor))
-                        .and_then(|field_types| field_types.get(field));
+                    let expected_type = fields
+                        .iter()
+                        .position(|candidate| candidate == field)
+                        .and_then(|index| field_tys.get(index))
+                        .and_then(|field_ty| field_ty.as_ref())
+                        .and_then(|field_ty| parse_type_annotation(field_ty).ok());
                     let actual_type = self
                         .infer_expr_type_name(value)
                         .and_then(|type_name| parse_type_annotation(&type_name).ok());
                     if let (Some(Ty::Name(expected_type)), Some(Ty::Name(actual_type))) =
-                        (expected_type, actual_type)
+                        (expected_type.as_ref(), actual_type)
                     {
                         if self.types.contains(expected_type)
                             && self.types.contains(&actual_type)
@@ -19969,6 +19995,11 @@ impl TypeChecker {
                                 .iter()
                                 .map(|field| Self::type_name_from_ty(&field.ty))
                                 .collect(),
+                            variant
+                                .fields
+                                .iter()
+                                .map(|field| Some(field.ty.to_string()))
+                                .collect(),
                         );
                         variant_names.push(variant.name.clone());
                         let variant_field_names: BTreeSet<String> = variant
@@ -20054,6 +20085,10 @@ impl TypeChecker {
                         params
                             .iter()
                             .map(|param| param.ty.as_ref().and_then(Self::type_name_from_ty))
+                            .collect(),
+                        params
+                            .iter()
+                            .map(|param| param.ty.as_ref().map(ToString::to_string))
                             .collect(),
                     );
                     self.functions.insert(name.clone(), params.len());
@@ -23532,6 +23567,24 @@ mod tests {
                 "constructor `Wrapper` field `result` expects `Final` but expression has `Candidate`"
             )),
             "wrong named-field result type should be rejected before codegen, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_uses_variant_specific_named_field_types() {
+        let source = r#"
+# FirstInput(value: Int)
+# SecondInput(value: Int)
+# Choice = First(input: FirstInput) | Second(input: SecondInput)
+
+| second_input(value: Int) -> SecondInput(value)
+= valid = Second(input = second_input(1))
+"#;
+        let diags = check_source_for_diagnostics(source);
+        assert!(
+            diags.is_empty(),
+            "same-named fields on different variants must keep their own types, got: {:?}",
             diags
         );
     }

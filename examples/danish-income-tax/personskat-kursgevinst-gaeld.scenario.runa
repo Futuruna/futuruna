@@ -76,6 +76,7 @@ indkomstklassifikation og skatteberegning deterministisk.
             par32_kontraktforløb = UdenPar32Kontraktforløb
         )),
         fremleje = UdenFremlejeEfterLigningslov15Q,
+        finansielle_poster = [],
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),

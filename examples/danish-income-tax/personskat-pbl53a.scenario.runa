@@ -23,6 +23,7 @@ skattepligtige resultater indgår i den samlede kapitalindkomst.
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 | personskat_pbl53a_scenarie(input: PersonskatPbl53AInput) -> PersonskatInput(

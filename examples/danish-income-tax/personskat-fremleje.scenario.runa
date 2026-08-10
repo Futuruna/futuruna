@@ -36,6 +36,7 @@ Futuruna selv afleder fradrag, kapitalindkomst og ugyldige metodevalg.
         ejendomsavance = UdenEjendomsavance,
         kursgevinst = UdenKursgevinst,
         fremleje = fremleje,
+        finansielle_poster = [],
         omkostninger = []
     ),
     aktieavance = personskat_ingen_aktieavance(),

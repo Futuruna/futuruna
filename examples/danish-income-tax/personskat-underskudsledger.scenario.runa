@@ -40,6 +40,7 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 

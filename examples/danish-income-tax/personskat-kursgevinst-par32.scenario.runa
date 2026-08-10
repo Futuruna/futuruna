@@ -74,6 +74,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = kursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 | personskat_par32_scenarie_input(kursgevinst: PersonskatKursgevinstInput, aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(

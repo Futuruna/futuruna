@@ -122,6 +122,7 @@
     ejendomsavance = UdenEjendomsavance,
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 | personskat_virksomhedskapital_scenarie_personskatinput(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(

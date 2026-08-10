@@ -201,6 +201,7 @@ nedslaget i personens slutskat.
     )),
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
     omkostninger = []
 )
 | personskat_ligningslov33_scenarie_par6_årsinput(handelsværdi_kroner: Heltal) -> Ligningslov33PersonÅrsinput(
