@@ -4,13 +4,28 @@
 
 | personskat_ordinaer_scenario_input(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = arbejdsgiverydelser,
+    personlige_arbejdsvederlag = [],
     virksomheder_uden_virksomhedsordning = virksomheder,
     forenings_og_arbejdsløshedsydelser = []
 )
 | personskat_ordinaer_scenario_input_med_forenings_og_arbejdsløshedsydelser(ydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = [],
+    personlige_arbejdsvederlag = [],
     virksomheder_uden_virksomhedsordning = [],
     forenings_og_arbejdsløshedsydelser = ydelser
+)
+| personskat_ordinaer_scenario_input_med_arbejdsvederlag(vederlag: List(PersonskatPersonligtArbejdsvederlagFakta)) -> PersonskatOrdinærPersonligIndkomstInput(
+    arbejdsgiverydelser = [],
+    personlige_arbejdsvederlag = vederlag,
+    virksomheder_uden_virksomhedsordning = [],
+    forenings_og_arbejdsløshedsydelser = []
+)
+| personskat_ordinaer_scenario_arbejdsvederlag(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal) -> PersonskatPersonligtArbejdsvederlagFakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    forhold = forhold,
+    vederlagsform = vederlagsform,
+    skattepligtig_værdi_kroner = skattepligtig_værdi_kroner
 )
 | personskat_ordinaer_scenario_foreningsydelse(identifikation: Tekst, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse) -> PersonskatForeningsydelseEfterLigningslov13(fakta = Ligningslov13ForeningsydelseFakta(
     identifikation = identifikation,
@@ -60,6 +75,75 @@
 )
 
 = personskat_ordinaer_tomt_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ingen_ordinær_personlig_indkomst(), 2025)
+= personskat_ordinaer_honorar = personskat_ordinaer_scenario_arbejdsvederlag(
+    identifikation = "honorar-personligt-arbejde",
+    indkomstår = 2025,
+    forhold = PsArbejdeUdenAnsættelse,
+    vederlagsform = PsArbejdsvederlagIPenge,
+    skattepligtig_værdi_kroner = 50000
+)
+= personskat_ordinaer_honorar_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([personskat_ordinaer_honorar]), 2025)
+= personskat_ordinaer_naturaliehonorar_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "honorar-fri-telefon",
+        indkomstår = 2025,
+        forhold = PsArbejdeUdenAnsættelse,
+        vederlagsform = PsArbejdsvederlagINaturalie(art = AmFriTelefon),
+        skattepligtig_værdi_kroner = 3200
+    )
+    ]), 2025)
+= personskat_ordinaer_ansættelsesvederlag_i_nr2_gren = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "løn-i-forkert-gren",
+        indkomstår = 2025,
+        forhold = PsArbejdeIAnsættelse,
+        vederlagsform = PsArbejdsvederlagIPenge,
+        skattepligtig_værdi_kroner = 50000
+    )
+    ]), 2025)
+= personskat_ordinaer_selvstændigt_vederlag_i_nr2_gren = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "virksomhedsindtægt-i-forkert-gren",
+        indkomstår = 2025,
+        forhold = PsSelvstændigtArbejde,
+        vederlagsform = PsArbejdsvederlagIPenge,
+        skattepligtig_værdi_kroner = 50000
+    )
+    ]), 2025)
+= personskat_ordinaer_ugyldigt_naturaliehonorar = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "naturalie-uden-for-stk2",
+        indkomstår = 2025,
+        forhold = PsArbejdeUdenAnsættelse,
+        vederlagsform = PsArbejdsvederlagINaturalie(art = AmIkkePar2Stk2Naturalia),
+        skattepligtig_værdi_kroner = 3200
+    )
+    ]), 2025)
+= personskat_ordinaer_dubleret_arbejdsvederlag = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "samme-honorar",
+        indkomstår = 2025,
+        forhold = PsArbejdeUdenAnsættelse,
+        vederlagsform = PsArbejdsvederlagIPenge,
+        skattepligtig_værdi_kroner = 20000
+    ),
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "samme-honorar",
+        indkomstår = 2025,
+        forhold = PsArbejdeUdenAnsættelse,
+        vederlagsform = PsArbejdsvederlagIPenge,
+        skattepligtig_værdi_kroner = 30000
+    )
+    ]), 2025)
+= personskat_ordinaer_arbejdsvederlag_forkert_år = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input_med_arbejdsvederlag([
+    personskat_ordinaer_scenario_arbejdsvederlag(
+        identifikation = "honorar-forkert-år",
+        indkomstår = 2024,
+        forhold = PsArbejdeUdenAnsættelse,
+        vederlagsform = PsArbejdsvederlagIPenge,
+        skattepligtig_værdi_kroner = 50000
+    )
+    ]), 2025)
 = personskat_ordinaer_gruppeliv_efter_am_resultat = personskat_ordinær_personlig_indkomst_resultat(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("gruppeliv-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
     ], []), 2025)
@@ -268,6 +352,7 @@
 = personskat_ordinaer_canonical_gruppeliv_efter_am = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-pbl19", 2025, GruppelivSomUadskiltDelAfPbl19Ordning(personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = 507))
     ], []))
+= personskat_ordinaer_canonical_honorar = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input_med_arbejdsvederlag([personskat_ordinaer_honorar]))
 = personskat_ordinaer_canonical_gruppeliv_direkte = personskat_ordinaer_scenario_beregn(personskat_ordinaer_scenario_input([
     personskat_ordinaer_scenario_arbejdsgiverydelse("canonical-direkte", 2025, DirekteArbejdsgiverbetaltGruppeliv(præmie_før_arbejdsmarkedsbidrag_kroner = 1000))
     ], []))
@@ -296,6 +381,14 @@
 ]))
 
 | personskat_ordinaer_tomt_input_er_neutralt: personskat_ordinaer_tomt_resultat -> personskat_ordinaer_tomt_resultat.alle_input_gyldige && personskat_ordinaer_tomt_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_tomt_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
+| personskat_ordinaer_honorar_bruger_par3_og_am_par2_nr2: personskat_ordinaer_honorar_resultat -> personskat_ordinaer_honorar_resultat.alle_input_gyldige && personskat_ordinaer_honorar_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 50000 && match head(personskat_ordinaer_honorar_resultat.personlige_arbejdsvederlag) {
+    | BeregnetPersonligtArbejdsvederlag(beregning) -> beregning.par3_indkomstresultat_for_vederlaget.netto_personlig_indkomst_kroner == 50000 && beregning.arbejdsmarkedsbidrag.par2_stk1_nr2_udenfor_ansættelse_kroner == 50000 && beregning.arbejdsmarkedsbidrag.grundlag_kroner == 50000 && beregning.arbejdsmarkedsbidrag.bidrag_kroner == 4000
+    | _ -> Falskt
+}
+| personskat_ordinaer_naturaliehonorar_bruger_skattepligtig_værdi: personskat_ordinaer_naturaliehonorar_resultat -> personskat_ordinaer_naturaliehonorar_resultat.alle_input_gyldige && personskat_ordinaer_naturaliehonorar_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 3200
+| personskat_ordinaer_nr2_afgrænser_løn_og_selvstændig_virksomhed: personskat_ordinaer_ansættelsesvederlag_i_nr2_gren -> personskat_ordinaer_ansættelsesvederlag_i_nr2_gren.alle_input_gyldige && personskat_ordinaer_ansættelsesvederlag_i_nr2_gren.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_selvstændigt_vederlag_i_nr2_gren.alle_input_gyldige && personskat_ordinaer_selvstændigt_vederlag_i_nr2_gren.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_nr2_afviser_naturalie_uden_for_stk2: personskat_ordinaer_ugyldigt_naturaliehonorar -> personskat_ordinaer_ugyldigt_naturaliehonorar.alle_input_gyldige == Falskt && personskat_ordinaer_ugyldigt_naturaliehonorar.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0
+| personskat_ordinaer_nr2_kræver_entydige_ider_og_samme_år: personskat_ordinaer_dubleret_arbejdsvederlag -> personskat_ordinaer_dubleret_arbejdsvederlag.alle_input_gyldige == Falskt && personskat_ordinaer_dubleret_arbejdsvederlag.personlige_arbejdsvederlagsidentifikationer_entydige == Falskt && personskat_ordinaer_arbejdsvederlag_forkert_år.alle_input_gyldige == Falskt
 | personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag: personskat_ordinaer_gruppeliv_efter_am_resultat -> personskat_ordinaer_gruppeliv_efter_am_resultat.alle_input_gyldige && personskat_ordinaer_gruppeliv_efter_am_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_gruppeliv_efter_am_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 507
 | personskat_ordinaer_direkte_gruppeliv_er_am_grundlag: personskat_ordinaer_gruppeliv_direkte_resultat -> personskat_ordinaer_gruppeliv_direkte_resultat.alle_input_gyldige && personskat_ordinaer_gruppeliv_direkte_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 1000 && personskat_ordinaer_gruppeliv_direkte_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
 | personskat_ordinaer_pbl19_aldersopsparing_er_personlig_indkomst_efter_am: personskat_ordinaer_pbl19_aldersopsparing_resultat -> personskat_ordinaer_pbl19_aldersopsparing_par19_resultat.input_gyldigt && personskat_ordinaer_pbl19_aldersopsparing_par19_resultat.særlig_ordningsundtagelse && personskat_ordinaer_pbl19_aldersopsparing_par19_resultat.bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner == 0 && personskat_ordinaer_pbl19_aldersopsparing_par19_resultat.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner == 990 && personskat_ordinaer_pbl19_aldersopsparing_resultat.alle_input_gyldige && personskat_ordinaer_pbl19_aldersopsparing_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_pbl19_aldersopsparing_resultat.arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner == 990 && personskat_ordinaer_pbl19_aldersopsparing_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 911
@@ -319,6 +412,7 @@
 | personskat_ordinaer_par31_undtagelser_bliver_skattefri: personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat -> personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.alle_input_gyldige && personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_ordinaer_skattefri_forenings_og_arbejdsløshedsydelser_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
 | personskat_ordinaer_forenings_og_arbejdsløshedsydelser_kræver_entydige_ider: personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat -> personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.forenings_og_arbejdsløshedsydelsesidentifikationer_entydige == Falskt && personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.alle_input_gyldige == Falskt && personskat_ordinaer_dubleret_forenings_og_arbejdsløshedsydelse_resultat.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner == 0
 | personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst: personskat_ordinaer_canonical_gruppeliv_efter_am -> personskat_ordinaer_canonical_gruppeliv_efter_am.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.øvrig_personlig_indkomst_kroner == 507 && personskat_ordinaer_canonical_gruppeliv_efter_am.skat.arbejdsmarkedsbidrag_kroner == 48000
+| personskat_ordinaer_canonical_honorar_medregnes_præcis_en_gang: personskat_ordinaer_canonical_honorar -> personskat_ordinaer_canonical_honorar.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_honorar.skat.bruttoløn_kroner == 650000 && personskat_ordinaer_canonical_honorar.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_honorar.skat.arbejdsmarkedsbidrag_kroner == 52000 && personskat_ordinaer_canonical_honorar.skat.personlig_indkomst_efter_am_kroner == 598000
 | personskat_ordinaer_canonical_direkte_gruppeliv_får_am: personskat_ordinaer_canonical_gruppeliv_direkte -> personskat_ordinaer_canonical_gruppeliv_direkte.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_gruppeliv_direkte.skat.bruttoløn_kroner == 601000 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_gruppeliv_direkte.skat.arbejdsmarkedsbidrag_kroner == 48080
 | personskat_ordinaer_canonical_pbl19_aldersopsparing_medregnes_uden_nyt_am: personskat_ordinaer_canonical_pbl19_aldersopsparing -> personskat_ordinaer_canonical_pbl19_aldersopsparing.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_pbl19_aldersopsparing.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_pbl19_aldersopsparing.skat.øvrig_personlig_indkomst_kroner == 911 && personskat_ordinaer_canonical_pbl19_aldersopsparing.skat.arbejdsmarkedsbidrag_kroner == 48000
 | personskat_ordinaer_canonical_virksomhedsoverskud_får_am: personskat_ordinaer_canonical_virksomhedsoverskud -> personskat_ordinaer_canonical_virksomhedsoverskud.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_virksomhedsoverskud.skat.bruttoløn_kroner == 660000 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_virksomhedsoverskud.skat.arbejdsmarkedsbidrag_kroner == 52800
@@ -329,6 +423,11 @@
 | personskat_ordinaer_canonical_par31_undtagelser_er_neutrale: personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser -> personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.personlig_indkomst.alle_input_gyldige && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.bruttoløn_kroner == 600000 && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.øvrig_personlig_indkomst_kroner == 0 && personskat_ordinaer_canonical_skattefri_forenings_og_arbejdsløshedsydelser.skat.arbejdsmarkedsbidrag_kroner == 48000
 
 ? personskat_ordinaer_tomt_input_er_neutralt
+? personskat_ordinaer_honorar_bruger_par3_og_am_par2_nr2
+? personskat_ordinaer_naturaliehonorar_bruger_skattepligtig_værdi
+? personskat_ordinaer_nr2_afgrænser_løn_og_selvstændig_virksomhed
+? personskat_ordinaer_nr2_afviser_naturalie_uden_for_stk2
+? personskat_ordinaer_nr2_kræver_entydige_ider_og_samme_år
 ? personskat_ordinaer_gruppeliv_efter_am_kommer_ikke_i_nyt_am_grundlag
 ? personskat_ordinaer_direkte_gruppeliv_er_am_grundlag
 ? personskat_ordinaer_pbl19_aldersopsparing_er_personlig_indkomst_efter_am
@@ -352,6 +451,7 @@
 ? personskat_ordinaer_par31_undtagelser_bliver_skattefri
 ? personskat_ordinaer_forenings_og_arbejdsløshedsydelser_kræver_entydige_ider
 ? personskat_ordinaer_canonical_gruppeliv_efter_am_bevares_som_personlig_indkomst
+? personskat_ordinaer_canonical_honorar_medregnes_præcis_en_gang
 ? personskat_ordinaer_canonical_direkte_gruppeliv_får_am
 ? personskat_ordinaer_canonical_pbl19_aldersopsparing_medregnes_uden_nyt_am
 ? personskat_ordinaer_canonical_virksomhedsoverskud_får_am

@@ -50,6 +50,7 @@
         etableringskonto = tomt_input.etableringskonto,
         ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
             arbejdsgiverydelser = [],
+            personlige_arbejdsvederlag = [],
             virksomheder_uden_virksomhedsordning = virksomheder,
             forenings_og_arbejdsløshedsydelser = []
         ),

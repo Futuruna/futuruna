@@ -13730,6 +13730,7 @@
     etableringskonto = input.etableringskonto,
     ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
         arbejdsgiverydelser = input.ordinære_forhold.arbejdsgiverydelser,
+        personlige_arbejdsvederlag = input.ordinære_forhold.personlige_arbejdsvederlag,
         virksomheder_uden_virksomhedsordning = map(
             input.ordinære_forhold.virksomheder_uden_virksomhedsordning,
             |virksomhed: PersonskatOrdinærVirksomhedFakta| personskat_ll9g_virksomhed_anvendt(virksomhed, koordinering)
@@ -16506,9 +16507,11 @@ fraflytningen."
 | personskat_ksl25a_ordinære_forhold(resultat: PersonskatOrdinærPersonligIndkomstResultat, regulering: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk) -> PersonskatOrdinærPersonligIndkomstResultat(
     input = resultat.input,
     arbejdsgiverydelser = resultat.arbejdsgiverydelser,
+    personlige_arbejdsvederlag = resultat.personlige_arbejdsvederlag,
     virksomheder_uden_virksomhedsordning = resultat.virksomheder_uden_virksomhedsordning,
     forenings_og_arbejdsløshedsydelser = resultat.forenings_og_arbejdsløshedsydelser,
     arbejdsgiverydelsesidentifikationer_entydige = resultat.arbejdsgiverydelsesidentifikationer_entydige,
+    personlige_arbejdsvederlagsidentifikationer_entydige = resultat.personlige_arbejdsvederlagsidentifikationer_entydige,
     virksomhedsidentifikationer_entydige = resultat.virksomhedsidentifikationer_entydige,
     forenings_og_arbejdsløshedsydelsesidentifikationer_entydige = resultat.forenings_og_arbejdsløshedsydelsesidentifikationer_entydige,
     alle_input_gyldige = resultat.alle_input_gyldige && input_gyldigt,

@@ -305,6 +305,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
                 årsopgørelse2025_arbejdsgiveradministreret_samlepost
             )
         ],
+        personlige_arbejdsvederlag = [],
         virksomheder_uden_virksomhedsordning = [PersonskatOrdinærVirksomhedFakta(
             identifikation = "virksomhed-med-underskud",
             indkomstår = 2025,

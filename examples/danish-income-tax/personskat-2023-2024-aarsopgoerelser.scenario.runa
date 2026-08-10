@@ -236,6 +236,7 @@ myndighedens beregnede skattebeløb bruges ikke som input.
                 )
             )
         ],
+        personlige_arbejdsvederlag = [],
         virksomheder_uden_virksomhedsordning = historisk_virksomheder(kilde),
         forenings_og_arbejdsløshedsydelser = []
     ),

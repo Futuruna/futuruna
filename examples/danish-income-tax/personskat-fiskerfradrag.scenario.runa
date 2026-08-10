@@ -269,6 +269,7 @@
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
         arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
         virksomheder_uden_virksomhedsordning = [
             personskat_fiskerfradrag_virksomhed("fiskeri", 100000, [
                 personskat_fiskerfradrag_virksomhedsudgift("telefon-og-arbejdstøj", 20000),
@@ -321,6 +322,7 @@
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
         arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
         virksomheder_uden_virksomhedsordning = [],
         forenings_og_arbejdsløshedsydelser = []
     ),

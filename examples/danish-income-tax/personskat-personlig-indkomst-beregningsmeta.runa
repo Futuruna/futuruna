@@ -123,6 +123,56 @@
     unit = Some("kr./år")
 )
 
+= personskat_personlig_indkomst_felt_arbejdsvederlag_samling = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag),
+    label = "Honorarer og andet personligt arbejdsvederlag",
+    question = Some("Hvilke særskilte vederlag for personligt arbejde fremgår af kilderne ud over den almindelige løn?"),
+    help = Some("Opret én række pr. vederlag. Futuruna bruger forholdet til betaleren til at skelne AM-lovens § 2, stk. 1, nr. 2 fra løn og selvstændig virksomhed."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_id = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::identifikation),
+    label = "Arbejdsvederlagets identifikation",
+    question = Some("Hvilken entydig identifikation har vederlaget?"),
+    help = Some("Brug en stabil reference fra aftalen, bilaget eller indberetningen, så samme vederlag ikke medregnes to gange."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_år = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::indkomstår),
+    label = "Arbejdsvederlagets indkomstår",
+    question = Some("Hvilket indkomstår vedrører vederlaget?"),
+    help = Some("Indkomståret skal være det samme som skatteåret i Personskat-beregningen."),
+    unit = Some("år")
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_forhold = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::forhold::$variant),
+    label = "Forholdet bag arbejdsvederlaget",
+    question = Some("Blev arbejdet udført i et ansættelsesforhold, uden for ansættelse eller som selvstændig erhvervsvirksomhed?"),
+    help = Some("Kun personligt arbejde uden for ansættelse og uden for selvstændig virksomhed hører til AM-lovens § 2, stk. 1, nr. 2 i denne gren."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_form = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::vederlagsform::$variant),
+    label = "Arbejdsvederlagets form",
+    question = Some("Blev vederlaget modtaget i penge eller som et naturalie?"),
+    help = Some("Naturalier skal desuden klassificeres efter den udtømmende liste i AM-lovens § 2, stk. 2."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_naturalie = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::vederlagsform::PsArbejdsvederlagINaturalie::art::$variant),
+    label = "Arbejdsvederlagets naturalietype",
+    question = Some("Hvilken naturalietype efter AM-lovens § 2, stk. 2 blev modtaget?"),
+    help = Some("Vælg den dokumenterede lovkategori. En naturalie uden for § 2, stk. 2 beregnes ikke som denne type vederlag."),
+    unit = None
+)
+= personskat_personlig_indkomst_felt_arbejdsvederlag_værdi = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::personlige_arbejdsvederlag::skattepligtig_værdi_kroner),
+    label = "Arbejdsvederlagets skattepligtige værdi",
+    question = Some("Hvad er vederlagets skattepligtige værdi i indkomståret?"),
+    help = Some("For naturalier bruges den skattemæssigt opgjorte værdi. Angiv ikke beløbet efter arbejdsmarkedsbidrag."),
+    unit = Some("kr./år")
+)
+
 = personskat_personlig_indkomst_felt_virksomhed_id = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::identifikation),
     label = "Virksomhedens identifikation",
@@ -516,6 +566,13 @@
         personskat_personlig_indkomst_felt_naturalie_værdi,
         personskat_personlig_indkomst_felt_uklassificeret_ydelse_beskrivelse,
         personskat_personlig_indkomst_felt_uklassificeret_ydelse_beløb,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_samling,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_id,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_år,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_forhold,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_form,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_naturalie,
+        personskat_personlig_indkomst_felt_arbejdsvederlag_værdi,
         personskat_personlig_indkomst_felt_virksomhed_id,
         personskat_personlig_indkomst_felt_virksomhed_år,
         personskat_personlig_indkomst_felt_virksomhedsindtægt_id,
@@ -636,6 +693,7 @@
         DependencySource(value = børnebidragsloven_lbk773_par19),
         DependencySource(value = børnebidragsbekendtgørelsen_bek285_par3_par4_par9_par10_par11),
         Guidance(value = skat_gruppeliv_vejledning),
+        Guidance(value = skat_honorar_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_vejledning),
         Guidance(value = skat_underholdsbidrag_ægtefælle_vejledning),
         Guidance(value = skat_underholdsbidrag_børn_beskatning_vejledning),

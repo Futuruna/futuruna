@@ -22,6 +22,11 @@
     identifier = "Den juridiske vejledning C.A.10.4.3.10: Gruppelivsforsikring",
     hentet_dato = "2026-08-03"
 )
+= skat_honorar_vejledning = PersonskatPersonligIndkomstKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976769",
+    identifier = "Den juridiske vejledning C.A.3.1.2: Honorar",
+    hentet_dato = "2026-08-11"
+)
 = arbejdsmarkedsbidragsloven_lbk121_par4 = PersonskatPersonligIndkomstKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2020/121",
     identifier = "Arbejdsmarkedsbidragsloven § 4",
@@ -207,6 +212,127 @@ nævnt i § 29 A, stk. 1.
 }
 --@end:personskat_arbejdsgiverydelser--
 
+= personskat_personligt_arbejdsvederlag_metadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par3),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        Guidance(value = skat_honorar_vejledning),
+    )
+)
+
+--@label:personskat_personligt_arbejdsvederlag::meta:personskat_personligt_arbejdsvederlag_metadata--
+----
+Personskatteloven § 3, stk. 1:
+
+Personlig indkomst omfatter alle de indkomster, der indgår i den
+skattepligtige indkomst, og som ikke er kapitalindkomst.
+
+Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 2:
+
+2) Ethvert vederlag, som indgår i den personlige indkomst, i penge eller
+naturalier modtaget uden for ansættelsesforhold, når der ikke er tale om
+selvstændig erhvervsvirksomhed, herunder efterbetalinger m.v. i forbindelse
+hermed samt den skattepligtige værdi af udbytter som nævnt i ligningslovens
+§ 16 A, stk. 5.
+
+Arbejdsmarkedsbidragsloven § 2, stk. 2:
+
+Stk. 2. Vederlag i form af naturalier som nævnt i stk. 1 indgår i grundlaget
+for arbejdsmarkedsbidrag med den skattepligtige værdi.
+
+Ved naturalier forstås i denne lov:
+1) Fri kost og logi.
+2) Bil, som helt eller delvis vederlagsfrit stilles til rådighed for den
+skattepligtige.
+3) Fri telefon, herunder fri datakommunikationsforbindelse, jf. ligningslovens
+§ 16, stk. 3, nr. 3, og stk. 12.
+4) Fri sommerbolig omfattet af ligningslovens § 16, stk. 5, 2.-4. og 8. pkt.
+5) Fri lystbåd omfattet af ligningslovens § 16, stk. 6, 2.-4. og 9. pkt.
+6) Fri helårsbolig omfattet af ligningslovens § 16, stk. 9, bortset fra de
+tilfælde, der er nævnt i ligningslovens § 16, stk. 9, 13. pkt.
+7) Aktier, tegningsretter til aktier eller køberetter til aktier omfattet af
+ligningslovens § 16 eller § 28, stk. 1 eller 2, jf. statsskattelovens § 4.
+8) Arbejdsgiverbetalte sundhedsbehandlinger m.v. og den arbejdsgiverbetalte
+præmie for forsikringer, der dækker de pågældende behandlinger m.v.
+----
+
+--@begin:personskat_personligt_arbejdsvederlag--
+# PersonskatPersonligtArbejdsvederlagsforhold = PsArbejdeUdenAnsættelse | PsArbejdeIAnsættelse | PsSelvstændigtArbejde
+# PersonskatPersonligtArbejdsvederlagsform = PsArbejdsvederlagIPenge | PsArbejdsvederlagINaturalie(art: ArbejdsmarkedsbidragNaturaliaArt)
+# PersonskatPersonligtArbejdsvederlagFakta(identifikation: Tekst, indkomstår: Heltal, forhold: PersonskatPersonligtArbejdsvederlagsforhold, vederlagsform: PersonskatPersonligtArbejdsvederlagsform, skattepligtig_værdi_kroner: Heltal)
+# PersonskatPersonligtArbejdsvederlagBeregning(fakta: PersonskatPersonligtArbejdsvederlagFakta, par3_indkomstpost: Par3Indkomstpost, par3_indkomstresultat_for_vederlaget: Par3PersonligIndkomstResultat, arbejdsmarkedsbidrag: ArbejdsmarkedsbidragLønmodtagerGrundlagResultat)
+# PersonskatPersonligtArbejdsvederlagResultat = UgyldigtPersonligtArbejdsvederlag(fakta: PersonskatPersonligtArbejdsvederlagFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk, grundfakta_gyldige: Boolsk) | PersonligtArbejdsvederlagUdenForPar2Stk1Nr2(fakta: PersonskatPersonligtArbejdsvederlagFakta) | BeregnetPersonligtArbejdsvederlag(beregning: PersonskatPersonligtArbejdsvederlagBeregning)
+
+| personskat_personligt_arbejdsvederlagsform_gyldig(form: PersonskatPersonligtArbejdsvederlagsform) -> match form {
+    | PsArbejdsvederlagIPenge -> Sandt
+    | PsArbejdsvederlagINaturalie(art) -> arbejdsmarkedsbidrag_par2_stk2_naturalia_resultat(ArbejdsmarkedsbidragNaturaliaPost(
+        art = art,
+        skattepligtig_værdi_kroner = 0,
+        nævnt_i_par2_stk1 = Sandt
+    )).par2_stk2_art_omfattet
+}
+| personskat_personligt_arbejdsvederlag_grundfakta_gyldige(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> fakta.identifikation != "" && fakta.indkomstår > 0 && fakta.skattepligtig_værdi_kroner >= 0 && personskat_personligt_arbejdsvederlagsform_gyldig(fakta.vederlagsform)
+| personskat_personligt_arbejdsvederlag_omfattet_af_par2_stk1_nr2(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> fakta.forhold == PsArbejdeUdenAnsættelse
+| personskat_personligt_arbejdsvederlag_par3_indkomstpost(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> Par3Indkomstpost(
+    indgår_i_skattepligtig_indkomst = Sandt,
+    er_kapitalindkomst = Falskt,
+    beløb_kroner = fakta.skattepligtig_værdi_kroner
+)
+| personskat_personligt_arbejdsvederlag_am_input(fakta: PersonskatPersonligtArbejdsvederlagFakta) -> ArbejdsmarkedsbidragUdvidetLønmodtagerInput(
+    ansættelsesvederlag_skatteværdi_kroner = 0,
+    udenfor_ansættelse_skatteværdi_kroner = fakta.skattepligtig_værdi_kroner,
+    rådighed_danmark_skatteværdi_kroner = 0,
+    arbejdsgiver_pension_kroner = 0,
+    udenlandsk_pension_kroner = 0,
+    pbl14b_udbetaling_kroner = 0,
+    fælles_firmapension_kroner = 0,
+    sømandsvederlag_kroner = 0,
+    biblioteksafgift_kroner = 0,
+    ikke_skattepligtigt_vederlag_kroner = 0,
+    pensionsindbetaling_af_ikke_skattepligtigt_vederlag_kroner = 0,
+    obligatorisk_atp_pension_kroner = 0
+)
+
+# PersonskatPersonligtArbejdsvederlagSag(fakta: PersonskatPersonligtArbejdsvederlagFakta, skatteår: Heltal, identifikation_unik: Boolsk) {
+    | grundfakta_gyldige() -> personskat_personligt_arbejdsvederlag_grundfakta_gyldige(fakta)
+    | skatteår_matcher() -> fakta.indkomstår == skatteår
+    | omfattet_af_par2_stk1_nr2() -> personskat_personligt_arbejdsvederlag_omfattet_af_par2_stk1_nr2(fakta)
+    | par3_indkomstpost() -> personskat_personligt_arbejdsvederlag_par3_indkomstpost(fakta)
+    | beregning() -> PersonskatPersonligtArbejdsvederlagBeregning(
+        fakta = fakta,
+        par3_indkomstpost = par3_indkomstpost(),
+        par3_indkomstresultat_for_vederlaget = par3_personlig_indkomst_resultat(personskat_tomt_par3_personlig_indkomst_input([par3_indkomstpost()], [])),
+        arbejdsmarkedsbidrag = arbejdsmarkedsbidrag_lønmodtager_grundlag_resultat(personskat_personligt_arbejdsvederlag_am_input(fakta))
+    )
+    | resultat() -> hvis identifikation_unik == Falskt || skatteår_matcher() == Falskt || grundfakta_gyldige() == Falskt {
+        UgyldigtPersonligtArbejdsvederlag(
+            fakta = fakta,
+            identifikation_unik = identifikation_unik,
+            skatteår_matcher = skatteår_matcher(),
+            grundfakta_gyldige = grundfakta_gyldige()
+        )
+    } ellers hvis omfattet_af_par2_stk1_nr2() == Falskt {
+        PersonligtArbejdsvederlagUdenForPar2Stk1Nr2(fakta = fakta)
+    } ellers {
+        BeregnetPersonligtArbejdsvederlag(beregning = beregning())
+    }
+}
+
+| personskat_personligt_arbejdsvederlag_resultat(fakta: PersonskatPersonligtArbejdsvederlagFakta, skatteår: Heltal, identifikation_unik: Boolsk) -> PersonskatPersonligtArbejdsvederlagSag(
+    fakta = fakta,
+    skatteår = skatteår,
+    identifikation_unik = identifikation_unik
+).resultat()
+| personskat_personligt_arbejdsvederlag_resultat_gyldigt(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
+    | UgyldigtPersonligtArbejdsvederlag(_, _, _, _) -> Falskt
+    | _ -> Sandt
+}
+| personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat: PersonskatPersonligtArbejdsvederlagResultat) -> match resultat {
+    | BeregnetPersonligtArbejdsvederlag(beregning) -> beregning.arbejdsmarkedsbidrag.grundlag_kroner
+    | _ -> 0
+}
+--@end:personskat_personligt_arbejdsvederlag--
+
 --@label:personskat_ordinaer_virksomhedsindkomst::meta:personskat_personlig_indkomst_kildefakta_metadata--
 ----
 Personskatteloven § 3, stk. 2, nr. 1:
@@ -322,13 +448,14 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 --@begin:personskat_personlig_indkomst_kildefakta--
 # PersonskatForeningsOgArbejdsløshedsydelseFakta = PersonskatForeningsydelseEfterLigningslov13(fakta: Ligningslov13ForeningsydelseFakta) | PersonskatArbejdsløshedsforsikringsudbetalingEfterPbl49(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta)
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
-# PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
-# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
+# PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
+# PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
 # PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
 # PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, underholdsbidrag: Ligningslov10Og11Årsresultat, børnebidragslov19_bidrag: Børnebidragslov19Årsresultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
 
 | personskat_ingen_ordinær_personlig_indkomst() -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = [],
+    personlige_arbejdsvederlag = [],
     virksomheder_uden_virksomhedsordning = [],
     forenings_og_arbejdsløshedsydelser = []
 )
@@ -340,6 +467,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_arbejdsgiverydelsesidentifikationer_entydige(fakta: List(PersonskatArbejdsgiverydelseFakta)) -> length(distinct(map(fakta, |post: PersonskatArbejdsgiverydelseFakta| post.identifikation))) == length(fakta)
+| personskat_personlige_arbejdsvederlagsidentifikationer_entydige(fakta: List(PersonskatPersonligtArbejdsvederlagFakta)) -> length(distinct(map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| post.identifikation))) == length(fakta)
 | personskat_virksomhedsidentifikationer_entydige(fakta: List(PersonskatOrdinærVirksomhedFakta)) -> length(distinct(map(fakta, |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation))) == length(fakta)
 | personskat_forenings_og_arbejdsløshedsydelse_identifikation(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta) -> match fakta {
     | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> ydelse.identifikation
@@ -351,6 +479,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 }
 | personskat_forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> length(distinct(map(fakta, personskat_forenings_og_arbejdsløshedsydelse_identifikation))) == length(fakta)
 | personskat_arbejdsgiverydelse_resultater(fakta: List(PersonskatArbejdsgiverydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatArbejdsgiverydelseFakta| personskat_arbejdsgiverydelse_resultat(post, skatteår, identifikationer_entydige))
+| personskat_personligt_arbejdsvederlag_resultater(fakta: List(PersonskatPersonligtArbejdsvederlagFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_personligt_arbejdsvederlag_resultat(post, skatteår, identifikationer_entydige))
 | personskat_virksomhed_resultater(fakta: List(PersonskatOrdinærVirksomhedFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |virksomhed: PersonskatOrdinærVirksomhedFakta| personskat_virksomhed_resultat(virksomhed, skatteår, identifikationer_entydige))
 | personskat_forenings_og_arbejdsløshedsydelse_resultat(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, skatteår: Heltal, identifikation_unik: Boolsk) -> hvis identifikation_unik == Falskt || personskat_forenings_og_arbejdsløshedsydelse_indkomstår(fakta) != skatteår {
     UgyldigForeningsEllerArbejdsløshedsydelse(
@@ -378,21 +507,25 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 
 # PersonskatOrdinærPersonligIndkomstSag(input: PersonskatOrdinærPersonligIndkomstInput, skatteår: Heltal) {
     | arbejdsgiverydelsesidentifikationer_entydige() -> personskat_arbejdsgiverydelsesidentifikationer_entydige(input.arbejdsgiverydelser)
+    | personlige_arbejdsvederlagsidentifikationer_entydige() -> personskat_personlige_arbejdsvederlagsidentifikationer_entydige(input.personlige_arbejdsvederlag)
     | virksomhedsidentifikationer_entydige() -> personskat_virksomhedsidentifikationer_entydige(input.virksomheder_uden_virksomhedsordning)
     | forenings_og_arbejdsløshedsydelsesidentifikationer_entydige() -> personskat_forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(input.forenings_og_arbejdsløshedsydelser)
     | arbejdsgiverydelser() -> personskat_arbejdsgiverydelse_resultater(input.arbejdsgiverydelser, skatteår, arbejdsgiverydelsesidentifikationer_entydige())
+    | personlige_arbejdsvederlag() -> personskat_personligt_arbejdsvederlag_resultater(input.personlige_arbejdsvederlag, skatteår, personlige_arbejdsvederlagsidentifikationer_entydige())
     | virksomheder() -> personskat_virksomhed_resultater(input.virksomheder_uden_virksomhedsordning, skatteår, virksomhedsidentifikationer_entydige())
     | forenings_og_arbejdsløshedsydelser() -> personskat_forenings_og_arbejdsløshedsydelse_resultater(input.forenings_og_arbejdsløshedsydelser, skatteår, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige())
-    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
-    | arbejdsmarkedsbidragsgrundlag_tillæg_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
+    | alle_input_gyldige() -> all(arbejdsgiverydelser(), personskat_arbejdsgiverydelse_resultat_gyldigt) && all(personlige_arbejdsvederlag(), personskat_personligt_arbejdsvederlag_resultat_gyldigt) && all(virksomheder(), personskat_virksomhed_resultat_gyldigt) && all(forenings_og_arbejdsløshedsydelser(), personskat_forenings_og_arbejdsløshedsydelse_resultat_gyldigt)
+    | arbejdsmarkedsbidragsgrundlag_tillæg_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_kroner(resultat)) + foldl(personlige_arbejdsvederlag(), 0, |sum_kroner: Heltal, resultat: PersonskatPersonligtArbejdsvederlagResultat| sum_kroner + personskat_personligt_arbejdsvederlag_resultat_am_grundlag_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_am_grundlag_kroner(resultat))
     | arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_am_grundlag_med_indeholdt_bidrag_kroner(resultat))
     | personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner() -> foldl(arbejdsgiverydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatArbejdsgiverydelseResultat| sum_kroner + personskat_arbejdsgiverydelse_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(virksomheder(), 0, |sum_kroner: Heltal, resultat: PersonskatOrdinærVirksomhedResultat| sum_kroner + personskat_virksomhed_resultat_personlig_indkomst_uden_nyt_am_kroner(resultat)) + foldl(forenings_og_arbejdsløshedsydelser(), 0, |sum_kroner: Heltal, resultat: PersonskatForeningsOgArbejdsløshedsydelseResultat| sum_kroner + personskat_forenings_og_arbejdsløshedsydelse_skattepligtigt_beløb_kroner(resultat))
     | resultat() -> PersonskatOrdinærPersonligIndkomstResultat(
         input = input,
         arbejdsgiverydelser = arbejdsgiverydelser(),
+        personlige_arbejdsvederlag = personlige_arbejdsvederlag(),
         virksomheder_uden_virksomhedsordning = virksomheder(),
         forenings_og_arbejdsløshedsydelser = forenings_og_arbejdsløshedsydelser(),
         arbejdsgiverydelsesidentifikationer_entydige = arbejdsgiverydelsesidentifikationer_entydige(),
+        personlige_arbejdsvederlagsidentifikationer_entydige = personlige_arbejdsvederlagsidentifikationer_entydige(),
         virksomhedsidentifikationer_entydige = virksomhedsidentifikationer_entydige(),
         forenings_og_arbejdsløshedsydelsesidentifikationer_entydige = forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(),
         alle_input_gyldige = alle_input_gyldige(),
