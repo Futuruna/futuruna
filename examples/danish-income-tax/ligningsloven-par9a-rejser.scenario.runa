@@ -3,6 +3,7 @@
 @ importer ./ligningsloven - par9a - rejser
 
 # Ll9AScenarieGodtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol)
+# Ll9AÅrsforventning(indkomstår: Heltal, lovversion: Ligningslov9ALovversion, satsversion: Ligningslov9ASatsversion, reguleringstalskilde: Par20ReguleringstalKilde, reguleringstal_tiendedele: Heltal, kostsats_kroner: Heltal, logisats_kroner: Heltal, årsloft_kroner: Heltal, rejsefradrag_kroner: Heltal)
 
 | ll9a_scenarie_godtgørelse(kost_kroner: Heltal, logi_kroner: Heltal, kontrol: Ligningslov9AGodtgørelseskontrol) -> Ll9AScenarieGodtgørelse(
     kost_kroner = kost_kroner,
@@ -151,6 +152,18 @@
     dobbelt_husførelse = dobbelt_husførelse,
     ekstern_udelukkelse = ekstern_udelukkelse
 )
+| ll9a_scenarie_årsresultat_i_indkomstår(indkomstår: Heltal, rejser: List(Ligningslov9ARejsefakta)) -> ligningslov9a_årsresultat(
+    indkomstår = indkomstår,
+    input = Ligningslov9AÅrsinput(
+        personrolle = Ll9AAlmindeligLønmodtager,
+        rejser = rejser,
+        udenlandske_indkomstkilder = [],
+        arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
+        ølogi = UdenØlogifradrag,
+        dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
+    ),
+    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+)
 | ll9a_scenarie_årsresultat_med_udelukkelseskontekst(rejser: List(Ligningslov9ARejsefakta), udelukkelseskontekst: Ligningslov9AUdelukkelseskontekst) -> ligningslov9a_årsresultat_med_udelukkelseskontekst(
     indkomstår = 2026,
     input = Ligningslov9AÅrsinput(
@@ -260,6 +273,74 @@
     Ll9AIntetFradragForDobbeltHusførelse,
     Ll9AIngenEksternUdelukkelse
 )
+
+= ll9a_scenarie_årsforventninger = [
+    Ll9AÅrsforventning(
+        indkomstår = 2023,
+        lovversion = Ll9ALbk42Af2023,
+        satsversion = Ll9ASkm2022_613Sktst,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        reguleringstal_tiendedele = 1218,
+        kostsats_kroner = 555,
+        logisats_kroner = 238,
+        årsloft_kroner = 30500,
+        rejsefradrag_kroner = 786
+    ),
+    Ll9AÅrsforventning(
+        indkomstår = 2024,
+        lovversion = Ll9ALbk42Af2023,
+        satsversion = Ll9ASkm2023_613Sktst,
+        reguleringstalskilde = SkatteministerietPar20HistoriskOversigt,
+        reguleringstal_tiendedele = 1261,
+        kostsats_kroner = 574,
+        logisats_kroner = 246,
+        årsloft_kroner = 31600,
+        rejsefradrag_kroner = 840
+    ),
+    Ll9AÅrsforventning(
+        indkomstår = 2025,
+        lovversion = Ll9ALbk42Af2023,
+        satsversion = Ll9ASkm2024_643Sktst,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        reguleringstal_tiendedele = 1310,
+        kostsats_kroner = 597,
+        logisats_kroner = 256,
+        årsloft_kroner = 32800,
+        rejsefradrag_kroner = 906
+    ),
+    Ll9AÅrsforventning(
+        indkomstår = 2026,
+        lovversion = Ll9ALbk1500Af2025,
+        satsversion = Ll9ASkm2025_725Sktst,
+        reguleringstalskilde = SkatteministerietPar20Beløbsgrænser2025_2026,
+        reguleringstal_tiendedele = 1373,
+        kostsats_kroner = 625,
+        logisats_kroner = 268,
+        årsloft_kroner = 34400,
+        rejsefradrag_kroner = 986
+    )
+]
+
+| ll9a_scenarie_årsforventning_holder(forventning: Ll9AÅrsforventning) -> {
+    = resultat = ll9a_scenarie_årsresultat_i_indkomstår(
+        indkomstår = forventning.indkomstår,
+        rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, forventning.indkomstår)]
+    )
+    = satser = resultat.satser
+    resultat.alle_input_gyldige && resultat.skatteår_understøttet && satser.skatteår_understøttet && satser.lovversion == forventning.lovversion && satser.satsversion == forventning.satsversion && satser.kost_og_småfornødenheder_pr_døgn_kroner == forventning.kostsats_kroner && satser.logi_pr_døgn_kroner == forventning.logisats_kroner && satser.årligt_fælles_fradragsloft_kroner == forventning.årsloft_kroner && resultat.samlet_skattefri_godtgørelse_kroner == 800 && resultat.samlet_rejsefradrag_efter_årsloft_kroner == forventning.rejsefradrag_kroner && match satser.reguleringstal {
+        | Some(reguleringstal) -> reguleringstal.kilde == forventning.reguleringstalskilde && reguleringstal.reguleringstal_tiendedele == forventning.reguleringstal_tiendedele
+        | None -> Falskt
+    } && match satser.kostregulering {
+        | Some(regulering) -> regulering.grundbeløb_2010_niveau_kroner == 455 && regulering.reguleret_og_oprundet_kroner == forventning.kostsats_kroner
+        | None -> Falskt
+    } && match satser.logiregulering {
+        | Some(regulering) -> regulering.grundbeløb_2010_niveau_kroner == 195 && regulering.reguleret_og_oprundet_kroner == forventning.logisats_kroner
+        | None -> Falskt
+    } && match satser.fradragsloftregulering {
+        | Some(regulering) -> regulering.grundbeløb_2010_niveau_kroner == 25000 && regulering.reguleret_og_afrundet_kroner == forventning.årsloft_kroner
+        | None -> Falskt
+    }
+}
 
 = ll9a_scenarie_faktiske_udgifter_resultat = ll9a_scenarie_årsresultat(
     [ll9a_scenarie_rejse(
@@ -536,17 +617,13 @@
     ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
 )
 
-= ll9a_scenarie_ikke_understøttet_år_resultat = ligningslov9a_årsresultat(
-    indkomstår = 2024,
-    input = Ligningslov9AÅrsinput(
-        personrolle = Ll9AAlmindeligLønmodtager,
-        rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, 2024)],
-        udenlandske_indkomstkilder = [],
-        arbejdshistorik = ll9a_scenarie_tom_arbejdshistorik(),
-        ølogi = UdenØlogifradrag,
-        dobbelt_husførelse = Ll9AIntetFradragForDobbeltHusførelse
-    ),
-    ekstern_udelukkelse = Ll9AIngenEksternUdelukkelse
+= ll9a_scenarie_2022_uden_kildedækning = ll9a_scenarie_årsresultat_i_indkomstår(
+    indkomstår = 2022,
+    rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, 2022)]
+)
+= ll9a_scenarie_2027_uden_kildedækning = ll9a_scenarie_årsresultat_i_indkomstår(
+    indkomstår = 2027,
+    rejser = [ll9a_scenarie_rejse_i_indkomstår(ll9a_scenarie_almindelig_rejse, 2027)]
 )
 
 | ll9a_scenarie_rejse_med_kost_og_logidøgn(identifikation: Tekst, varighed_minutter: Heltal, kost: Ligningslov9AKostfakta, logidøgn: List(Ligningslov9ALogidøgn)) -> Ligningslov9ARejsefakta(
@@ -909,6 +986,7 @@
     )
 )
 
+| ll9a_scenarie_årsserien_afledes_fra_par20: ll9a_scenarie_årsforventninger -> all(ll9a_scenarie_årsforventninger, |forventning: Ll9AÅrsforventning| ll9a_scenarie_årsforventning_holder(forventning))
 | ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag: ll9a_scenarie_almindeligt_resultat -> ll9a_scenarie_almindeligt_resultat.alle_input_gyldige && ll9a_scenarie_almindeligt_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_almindeligt_resultat.samlet_skattepligtig_godtgørelse_kroner == 0 && ll9a_scenarie_almindeligt_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 986
 | ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning: ll9a_scenarie_faktiske_udgifter_resultat -> ll9a_scenarie_faktiske_udgifter_resultat.samlet_skattefri_godtgørelse_kroner == 800 && ll9a_scenarie_faktiske_udgifter_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1700
 | ll9a_scenarie_over_sats_gør_hele_kostgodtgørelsen_skattepligtig: ll9a_scenarie_over_sats_resultat -> ll9a_scenarie_over_sats_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_over_sats_resultat.samlet_skattepligtig_godtgørelse_kroner == 1300 && ll9a_scenarie_over_sats_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 1786
@@ -932,7 +1010,9 @@
 }
 | ll9a_scenarie_ukendt_kildeudelukkelse_fejler_lukket: ll9a_scenarie_ukendt_kildeudelukkelse_resultat -> ll9a_scenarie_ukendt_kildeudelukkelse_resultat.rejseudelukkelser_gyldige == Falskt && ll9a_scenarie_ukendt_kildeudelukkelse_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ukendt_kildeudelukkelse_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
 | ll9a_scenarie_ugyldig_reset_fejler_lukket: ll9a_scenarie_ugyldig_reset_resultat -> ll9a_scenarie_ugyldig_reset_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ugyldig_reset_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ugyldig_reset_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
-| ll9a_scenarie_ikke_understøttet_år_fejler_lukket: ll9a_scenarie_ikke_understøttet_år_resultat -> ll9a_scenarie_ikke_understøttet_år_resultat.skatteår_understøttet == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.alle_input_gyldige == Falskt && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattefri_godtgørelse_kroner == 0 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && ll9a_scenarie_ikke_understøttet_år_resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_uden_kildedækning_fejler_lukket(resultat: Ligningslov9AÅrsresultat) -> resultat.skatteår_understøttet == Falskt && resultat.alle_input_gyldige == Falskt && resultat.satser.skatteår_understøttet == Falskt && resultat.satser.lovversion == Ll9ALovUdenKildedækning && resultat.satser.satsversion == Ll9ASatsUdenKildedækning && resultat.samlet_skattefri_godtgørelse_kroner == 0 && resultat.samlet_skattepligtig_godtgørelse_kroner == 800 && resultat.samlet_rejsefradrag_efter_årsloft_kroner == 0
+| ll9a_scenarie_2022_fejler_lukket: ll9a_scenarie_2022_uden_kildedækning -> ll9a_scenarie_uden_kildedækning_fejler_lukket(ll9a_scenarie_2022_uden_kildedækning)
+| ll9a_scenarie_2027_fejler_lukket: ll9a_scenarie_2027_uden_kildedækning -> ll9a_scenarie_uden_kildedækning_fejler_lukket(ll9a_scenarie_2027_uden_kildedækning)
 | ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn: ll9a_scenarie_blandede_logidøgn_resultat -> {
     = rejse = head(ll9a_scenarie_blandede_logidøgn_resultat.rejseresultater)
     rejse.input_gyldigt && rejse.standardsats_logi_kroner == 268 && rejse.logifradrag_kroner == 718 && rejse.logidøgnresultater[0].fradrag_kroner == 268 && rejse.logidøgnresultater[1].standardsats_logi_kroner == 0 && rejse.logidøgnresultater[1].fradrag_kroner == 300 && rejse.logidøgnresultater[2].standardsats_logi_kroner == 0 && rejse.logidøgnresultater[2].fradrag_kroner == 150
@@ -964,6 +1044,7 @@
 }
 | ll9a_scenarie_overlapkontrol_er_indkomstårslokal: ll9a_scenarie_årslokal_overlap_a -> ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(2025, ll9a_scenarie_årslokal_overlap_a, ll9a_scenarie_årslokal_overlap_b) && ligningslov9a_ølogi_ophold_overlapper_i_indkomståret(2026, ll9a_scenarie_årslokal_overlap_a, ll9a_scenarie_årslokal_overlap_b) == Falskt
 
+? ll9a_scenarie_årsserien_afledes_fra_par20
 ? ll9a_scenarie_almindelig_fordeler_godtgørelse_og_fradrag
 ? ll9a_scenarie_faktiske_udgifter_fratrækker_skattefri_dækning
 ? ll9a_scenarie_over_sats_gør_hele_kostgodtgørelsen_skattepligtig
@@ -984,7 +1065,8 @@
 ? ll9a_scenarie_kildeudelukkelse_omklassificerer_kun_den_valgte_rejse
 ? ll9a_scenarie_ukendt_kildeudelukkelse_fejler_lukket
 ? ll9a_scenarie_ugyldig_reset_fejler_lukket
-? ll9a_scenarie_ikke_understøttet_år_fejler_lukket
+? ll9a_scenarie_2022_fejler_lukket
+? ll9a_scenarie_2027_fejler_lukket
 ? ll9a_scenarie_logiprincip_kan_skifte_fra_døgn_til_døgn
 ? ll9a_scenarie_opdelt_overskud_bevarer_satsdelen_skattefri
 ? ll9a_scenarie_kostprincip_gælder_for_hele_rejsen
