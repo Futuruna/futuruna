@@ -42,6 +42,33 @@
     kontingentperiodeundtagelser = [],
     kildetilknytninger = []
 )
+| ll9g_scenarie_historisk_input(indkomstår: Heltal, status: Ligningslov9GRegistreringsstatus) -> {
+    = arbejdsforhold_identifikation = "fiskerarbejde-" + vis(indkomstår)
+    Ligningslov9GÅrsinput(
+        valg = Ll9GVælgFiskerfradrag,
+        registreringer = [Ligningslov9GRegistreringsperiode(
+            identifikation = "fiskerregistrering-" + vis(indkomstår),
+            status = status,
+            fra_dato = Dato(år = indkomstår, måned = 1, dag = 1),
+            til_dato = Dato(år = indkomstår, måned = 12, dag = 31)
+        )],
+        arbejdsforhold = [Ligningslov9GArbejdsforhold(
+            identifikation = arbejdsforhold_identifikation,
+            erhvervsform = Ll9GAnsatFisker,
+            fra_dato = Dato(år = indkomstår, måned = 1, dag = 1),
+            til_dato = Dato(år = indkomstår, måned = 12, dag = 31)
+        )],
+        fangstture = [Ligningslov9GFangsttur(
+            identifikation = "tolvtimers-fangsttur-" + vis(indkomstår),
+            arbejdsforhold_identifikation = arbejdsforhold_identifikation,
+            afgang_fra_havn = ll9g_scenarie_tidspunkt(indkomstår, 6, 1, 0, 0),
+            ankomst_til_havn = ll9g_scenarie_tidspunkt(indkomstår, 6, 1, 12, 0)
+        )],
+        selvstændige_udgiftsvurderinger = [],
+        kontingentperiodeundtagelser = [],
+        kildetilknytninger = []
+    )
+}
 | ll9g_scenarie_nytårsinput(fangsttur: Ligningslov9GFangsttur) -> Ligningslov9GÅrsinput(
     valg = Ll9GVælgFiskerfradrag,
     registreringer = [Ligningslov9GRegistreringsperiode(
@@ -178,6 +205,22 @@
 = ll9g_scenarie_nytår_præcis_fireogtyve_timer_2026 = ligningslov9g_årsresultat(2026, ll9g_scenarie_nytårsinput(ll9g_scenarie_nytårstur_præcis_fireogtyve_timer))
 = ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2025 = ligningslov9g_årsresultat(2025, ll9g_scenarie_nytårsinput(ll9g_scenarie_nytårstur_fireogtyve_timer_et_minut))
 = ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2026 = ligningslov9g_årsresultat(2026, ll9g_scenarie_nytårsinput(ll9g_scenarie_nytårstur_fireogtyve_timer_et_minut))
+= ll9g_scenarie_2023_b_status = ligningslov9g_årsresultat(
+    indkomstår = 2023,
+    input = ll9g_scenarie_historisk_input(indkomstår = 2023, status = Ll9GErhvervsfiskerMedBStatus)
+)
+= ll9g_scenarie_2024_a_status = ligningslov9g_årsresultat(
+    indkomstår = 2024,
+    input = ll9g_scenarie_historisk_input(indkomstår = 2024, status = Ll9GErhvervsfiskerMedAStatus)
+)
+= ll9g_scenarie_2022_uden_kildedækning = ligningslov9g_årsresultat(
+    indkomstår = 2022,
+    input = ll9g_scenarie_historisk_input(indkomstår = 2022, status = Ll9GErhvervsfiskerMedAStatus)
+)
+= ll9g_scenarie_2027_uden_kildedækning = ligningslov9g_årsresultat(
+    indkomstår = 2027,
+    input = ll9g_scenarie_historisk_input(indkomstår = 2027, status = Ll9GErhvervsfiskerMedAStatus)
+)
 
 | ll9g_scenarie_havdagsgrænser_udledes: ll9g_scenarie_valgt -> ll9g_scenarie_valgt.alle_input_gyldige && ll9g_scenarie_valgt.registreret_som_erhvervsfisker_i_indkomståret && ll9g_scenarie_valgt.påbegyndte_havdage_før_årsloft == 4 && ll9g_scenarie_valgt.samlet_fradrag_kroner == 760
 | ll9g_scenarie_valget_gælder_hele_indkomståret: ll9g_scenarie_fravalgt -> ll9g_scenarie_fravalgt.kan_vælge_fiskerfradrag && ll9g_scenarie_fravalgt.fradrag_foretaget_efter_par9g == Falskt && ll9g_scenarie_fravalgt.samlet_fradrag_kroner == 0
@@ -190,6 +233,9 @@
 | ll9g_scenarie_nytårstur_fordeles_uden_dobbeltregning: ll9g_scenarie_nytår_tredive_timer_2026 -> ll9g_scenarie_nytår_tredive_timer_2025.alle_input_gyldige && ll9g_scenarie_nytår_tredive_timer_2026.alle_input_gyldige && head(ll9g_scenarie_nytår_tredive_timer_2026.fangstturresultater).samlede_påbegyndte_havdage_på_fangstturen == 2 && ll9g_scenarie_nytår_tredive_timer_2025.påbegyndte_havdage_før_årsloft == 1 && ll9g_scenarie_nytår_tredive_timer_2026.påbegyndte_havdage_før_årsloft == 1 && ll9g_scenarie_nytår_tredive_timer_2025.påbegyndte_havdage_før_årsloft + ll9g_scenarie_nytår_tredive_timer_2026.påbegyndte_havdage_før_årsloft == head(ll9g_scenarie_nytår_tredive_timer_2026.fangstturresultater).samlede_påbegyndte_havdage_på_fangstturen && ll9g_scenarie_nytår_tredive_timer_2025.samlet_fradrag_kroner == 190 && ll9g_scenarie_nytår_tredive_timer_2026.samlet_fradrag_kroner == 190
 | ll9g_scenarie_præcis_fireogtyve_timer_starter_kun_en_havdag: ll9g_scenarie_nytår_præcis_fireogtyve_timer_2026 -> head(ll9g_scenarie_nytår_præcis_fireogtyve_timer_2025.fangstturresultater).samlede_påbegyndte_havdage_på_fangstturen == 1 && ll9g_scenarie_nytår_præcis_fireogtyve_timer_2025.påbegyndte_havdage_før_årsloft == 1 && ll9g_scenarie_nytår_præcis_fireogtyve_timer_2026.påbegyndte_havdage_før_årsloft == 0 && ll9g_scenarie_nytår_præcis_fireogtyve_timer_2026.kan_vælge_fiskerfradrag == Falskt
 | ll9g_scenarie_et_minut_over_fireogtyve_starter_ny_havdag: ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2026 -> head(ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2026.fangstturresultater).samlede_påbegyndte_havdage_på_fangstturen == 2 && ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2025.påbegyndte_havdage_før_årsloft == 1 && ll9g_scenarie_nytår_fireogtyve_timer_et_minut_2026.påbegyndte_havdage_før_årsloft == 1
+| ll9g_scenarie_2023_b_status_er_kildebelagt: ll9g_scenarie_2023_b_status -> ll9g_scenarie_2023_b_status.lovversion == Ll9GLbk42Af2023 && ll9g_scenarie_2023_b_status.skatteår_understøttet && ll9g_scenarie_2023_b_status.alle_input_gyldige && ll9g_scenarie_2023_b_status.fradrag_foretaget_efter_par9g && ll9g_scenarie_2023_b_status.sats_pr_havdag_kroner == 190 && ll9g_scenarie_2023_b_status.årsloft_kroner == 41800 && ll9g_scenarie_2023_b_status.samlet_fradrag_kroner == 190
+| ll9g_scenarie_2024_a_status_er_kildebelagt: ll9g_scenarie_2024_a_status -> ll9g_scenarie_2024_a_status.lovversion == Ll9GLbk42Af2023 && ll9g_scenarie_2024_a_status.skatteår_understøttet && ll9g_scenarie_2024_a_status.alle_input_gyldige && ll9g_scenarie_2024_a_status.fradrag_foretaget_efter_par9g && ll9g_scenarie_2024_a_status.samlet_fradrag_kroner == 190
+| ll9g_scenarie_uden_for_kildedækning_fejler_lukket: ll9g_scenarie_2027_uden_kildedækning -> ll9g_scenarie_2022_uden_kildedækning.lovversion == Ll9GLovUdenKildedækning && ll9g_scenarie_2022_uden_kildedækning.skatteår_understøttet == Falskt && ll9g_scenarie_2022_uden_kildedækning.alle_input_gyldige == Falskt && ll9g_scenarie_2022_uden_kildedækning.samlet_fradrag_kroner == 0 && ll9g_scenarie_2027_uden_kildedækning.lovversion == Ll9GLovUdenKildedækning && ll9g_scenarie_2027_uden_kildedækning.skatteår_understøttet == Falskt && ll9g_scenarie_2027_uden_kildedækning.alle_input_gyldige == Falskt && ll9g_scenarie_2027_uden_kildedækning.samlet_fradrag_kroner == 0
 
 ? ll9g_scenarie_havdagsgrænser_udledes
 ? ll9g_scenarie_valget_gælder_hele_indkomståret
@@ -202,5 +248,8 @@
 ? ll9g_scenarie_nytårstur_fordeles_uden_dobbeltregning
 ? ll9g_scenarie_præcis_fireogtyve_timer_starter_kun_en_havdag
 ? ll9g_scenarie_et_minut_over_fireogtyve_starter_ny_havdag
+? ll9g_scenarie_2023_b_status_er_kildebelagt
+? ll9g_scenarie_2024_a_status_er_kildebelagt
+? ll9g_scenarie_uden_for_kildedækning_fejler_lukket
 
-@ print("LL § 9 G: registrering, årsfordelte havdage, årsloft og kildetilknytning verificeret")
+@ print("LL § 9 G: 2023-2026, registrering, årsfordelte havdage, årsloft og kildetilknytning verificeret")

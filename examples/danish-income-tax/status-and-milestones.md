@@ -4220,6 +4220,17 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Ligningslovens § 9 G understøtter nu indkomstårene 2023-2026 med typet
+  lovversionsproveniens. LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af
+  24/11/2025 har enslydende personkreds, havdagssats på 190 kr.,
+  tolvtimersgrænse, årsvalg, årsloft på 41.800 kr. og afskæringsregler. Den
+  allerede kildebelagte ændringslov fra 2024 bevarer B-status med
+  overgangsvirkning fra 1. juli 2021, så både A- og B-status kan anvendes i den
+  historiske horisont. Årsresultatet bærer den anvendte lovversion gennem den
+  kanoniske Personskat-beregning; ikke-tomme 2022- og 2027-input fejler lukket.
+  Fjorten fokuserede og 21 kanoniske scenarier passerer fortolker og genereret
+  Rust sammen med metadata-stilkontrollen. Den fulde XLSX-rundtur er fortsat
+  reserveret til næste samlede publiceringscheckpoint.
 - Ligningslovens § 9, stk. 1's bundgrænse understøtter nu 2023-2026 og
   afledes for hvert år af grundbeløbet på 5.500 kr., Personskattelovens
   § 20-reguleringstallet og den lovbestemte afrunding. Reglerne rammer de

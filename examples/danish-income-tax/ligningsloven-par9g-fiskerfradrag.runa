@@ -6,6 +6,12 @@
 # Ligningslov9GKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 # Ligningslov9GÅrsfordelingsfortolkning(princip: Tekst, begrundelse: Tekst, eksplicit_årsskiftepraksis_fundet: Boolsk)
 
+= ligningsloven_lbk42_2023_par9g = Ligningslov9GKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 9 G i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "§ 9 G's personkreds, havdagssats, minimumsvarighed, årsvalg, årsloft og afskæringsregler er enslydende med LBK nr. 1500 af 24/11/2025"
+)
 = ligningsloven_lbk1500_par9g = Ligningslov9GKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 9 G i LBK nr. 1500 af 24/11/2025",
@@ -43,6 +49,7 @@
 )
 = ligningsloven_par9g_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_2023_par9g),
         Source(value = ligningsloven_lbk1500_par9g),
         DependencySource(value = fiskeriloven_lbk205_par14),
         AmendmentSource(value = fiskeriloven_lov333_par9_og_par10_stk4),
@@ -54,6 +61,9 @@
 
 --@label:ligningsloven_par9g_fiskerfradrag::meta:ligningsloven_par9g_metadata--
 ----
+Ligningsloven, LBK nr. 42 af 13/01/2023 og LBK nr. 1500 af 24/11/2025,
+enslydende § 9 G:
+
 § 9 G. Personer, der ved indkomstårets udløb er, eller som i løbet af
 indkomståret har været registreret som erhvervsfiskere efter fiskeriloven, kan
 ved opgørelsen af den skattepligtige indkomst fradrage 190 kr. pr. påbegyndt
@@ -94,6 +104,7 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
 ----
 
 --@begin::ligningsloven_par9g_fiskerfradrag--
+# Ligningslov9GLovversion = Ll9GLbk42Af2023 | Ll9GLbk1500Af2025 | Ll9GLovUdenKildedækning
 # Ligningslov9GFradragsvalg = Ll9GFravælgFiskerfradrag | Ll9GVælgFiskerfradrag
 # Ligningslov9GRegistreringsstatus = Ll9GErhvervsfiskerMedAStatus | Ll9GErhvervsfiskerMedBStatus
 # Ligningslov9GErhvervsform = Ll9GAnsatFisker | Ll9GSelvstændigFisker
@@ -110,7 +121,7 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
 # Ligningslov9GKildetilknytning(kilde: Ligningslov9GFradragskilde, arbejdstilknytning: Ligningslov9GArbejdstilknytning)
 # Ligningslov9GÅrsinput(valg: Ligningslov9GFradragsvalg, registreringer: List(Ligningslov9GRegistreringsperiode), arbejdsforhold: List(Ligningslov9GArbejdsforhold), fangstture: List(Ligningslov9GFangsttur), selvstændige_udgiftsvurderinger: List(Ligningslov9GSelvstændigUdgiftsvurdering), kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse), kildetilknytninger: List(Ligningslov9GKildetilknytning))
 # Ligningslov9GFangstturResultat(fakta: Ligningslov9GFangsttur, input_gyldigt: Boolsk, arbejdsforhold_fundet: Boolsk, tur_inden_for_arbejdsforhold: Boolsk, fangsttur_overlapper_indkomståret: Boolsk, varighed_minutter: Heltal, mindst_tolvtimers_fangsttur: Boolsk, samlede_påbegyndte_havdage_på_fangstturen: Heltal, påbegyndte_havdage: Heltal)
-# Ligningslov9GÅrsresultat(indkomstår: Heltal, input: Ligningslov9GÅrsinput, fangstturresultater: List(Ligningslov9GFangstturResultat), skatteår_understøttet: Boolsk, registreringsidentifikationer_entydige: Boolsk, arbejdsforholdsidentifikationer_entydige: Boolsk, fangstturidentifikationer_entydige: Boolsk, fangstture_ikke_overlappende: Boolsk, selvstændige_udgiftsvurderinger_entydige: Boolsk, selvstændige_udgiftsvurderinger_grundgyldige: Boolsk, kontingentperiodeundtagelser_entydige: Boolsk, kontingentperiodeundtagelser_grundgyldige: Boolsk, kildetilknytninger_entydige: Boolsk, kildetilknytninger_grundgyldige: Boolsk, alle_input_gyldige: Boolsk, registreret_som_erhvervsfisker_i_indkomståret: Boolsk, kan_vælge_fiskerfradrag: Boolsk, fradrag_foretaget_efter_par9g: Boolsk, påbegyndte_havdage_før_årsloft: Heltal, havdage_efter_årsloft: Heltal, sats_pr_havdag_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal)
+# Ligningslov9GÅrsresultat(indkomstår: Heltal, lovversion: Ligningslov9GLovversion, input: Ligningslov9GÅrsinput, fangstturresultater: List(Ligningslov9GFangstturResultat), skatteår_understøttet: Boolsk, registreringsidentifikationer_entydige: Boolsk, arbejdsforholdsidentifikationer_entydige: Boolsk, fangstturidentifikationer_entydige: Boolsk, fangstture_ikke_overlappende: Boolsk, selvstændige_udgiftsvurderinger_entydige: Boolsk, selvstændige_udgiftsvurderinger_grundgyldige: Boolsk, kontingentperiodeundtagelser_entydige: Boolsk, kontingentperiodeundtagelser_grundgyldige: Boolsk, kildetilknytninger_entydige: Boolsk, kildetilknytninger_grundgyldige: Boolsk, alle_input_gyldige: Boolsk, registreret_som_erhvervsfisker_i_indkomståret: Boolsk, kan_vælge_fiskerfradrag: Boolsk, fradrag_foretaget_efter_par9g: Boolsk, påbegyndte_havdage_før_årsloft: Heltal, havdage_efter_årsloft: Heltal, sats_pr_havdag_kroner: Heltal, årsloft_kroner: Heltal, samlet_fradrag_kroner: Heltal)
 
 | ligningslov9g_intet_årsinput() -> Ligningslov9GÅrsinput(
     valg = Ll9GFravælgFiskerfradrag,
@@ -121,7 +132,10 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
     kontingentperiodeundtagelser = [],
     kildetilknytninger = []
 )
-| ligningslov9g_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLovUdenKildedækning
+| exception ligningslov9g_lbk42_for_2023_til_2025 ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov9g_lbk1500_for_2026 ligningslov9g_lovversion_for(indkomstår: Heltal) -> Ll9GLbk1500Af2025 under indkomstår == 2026
+| ligningslov9g_skatteår_understøttet(indkomstår: Heltal) -> ligningslov9g_lovversion_for(indkomstår) != Ll9GLovUdenKildedækning
 | ligningslov9g_årets_første_dato(indkomstår: Heltal) -> Dato(år = indkomstår, måned = 1, dag = 1)
 | ligningslov9g_årets_sidste_dato(indkomstår: Heltal) -> Dato(år = indkomstår, måned = 12, dag = 31)
 | ligningslov9g_datoperiode_gyldig(fra_dato: Dato, til_dato: Dato) -> dato_før_eller_lig_med(fra_dato, til_dato)
@@ -206,6 +220,7 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
 }
 | ligningslov9g_årsresultat(indkomstår: Heltal, input: Ligningslov9GÅrsinput) -> {
     = fangstturresultater = map(input.fangstture, |tur: Ligningslov9GFangsttur| ligningslov9g_fangsttur_resultat(indkomstår, input, tur))
+    = lovversion = ligningslov9g_lovversion_for(indkomstår)
     = skatteår_understøttet = length(input.registreringer) == 0 && length(input.arbejdsforhold) == 0 && length(input.fangstture) == 0 || ligningslov9g_skatteår_understøttet(indkomstår)
     = registreringsidentifikationer_entydige = ligningslov9g_registreringsidentifikationer_entydige(input.registreringer)
     = arbejdsforholdsidentifikationer_entydige = ligningslov9g_arbejdsforholdsidentifikationer_entydige(input.arbejdsforhold)
@@ -225,6 +240,7 @@ Fortolkningen er typet i metadata, så den kan findes og efterprøves særskilt.
     = fradrag_foretaget_efter_par9g = input.valg == Ll9GVælgFiskerfradrag && kan_vælge_fiskerfradrag
     Ligningslov9GÅrsresultat(
         indkomstår = indkomstår,
+        lovversion = lovversion,
         input = input,
         fangstturresultater = fangstturresultater,
         skatteår_understøttet = skatteår_understøttet,
