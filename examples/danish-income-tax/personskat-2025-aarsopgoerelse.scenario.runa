@@ -580,16 +580,17 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
         indkomstår = 2025,
         dansk_bruttoindkomst_kroner = 14569,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [Ligningslov33PersonKreditgruppe(
             identifikation = "udenlandsk-aktieudbytte",
             grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            indkomstfakta = Ligningslov33Indkomstfakta(
-                område = Ll33FremmedStat("anonymiseret"),
-                udenlandsk_bruttoindkomst_kroner = 398,
-                direkte_henførbare_udgifter_kroner = 0
-            ),
+            område = Ll33FremmedStat("anonymiseret"),
+            indkomstposter = [ligningslov33_bruttoindkomstpost(
+                identifikation = "udenlandsk-aktieudbytte-brutto",
+                beløb_kroner = 398,
+                indkomstkategorier = [Ll33Aktieindkomstkategori],
+                dokumentreference = "Anonymiseret privat årsopgørelse 2025, side 2"
+            )],
             skattebetalinger = [Ligningslov33Skattebetaling(
                 opkrævningsmåde = Ll33Indeholdelse,
                 betalt_udenlandsk_skat_øre = 600,
@@ -600,14 +601,6 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
                     dokumentreference = "Anonymiseret privat årsopgørelse 2025, side 4"
                 )
             )],
-            udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-                skattepligtig_nettoindkomst_efter_par33f_kroner = 0,
-                personlig_nettoindkomst_efter_par33f_kroner = 0,
-                positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
-                aktienettoindkomst_efter_par33f_kroner = 398,
-                cfc_nettoindkomst_efter_par33f_kroner = 0,
-                arbejdsmarkedsbidragsgrundlag_kroner = 0
-            ),
             lønlempelsesstatus = Ll33IngenLønindkomst
         )],
         par6_kreditter = [],

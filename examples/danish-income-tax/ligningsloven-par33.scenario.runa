@@ -191,37 +191,18 @@
 = ll33_scenarie_formueskat = ll33_scenarie_kildekrav_resultat(Ll33Formueskat, "Betalingsbilag EE-formueskat")
 = ll33_scenarie_udokumenteret_indkomstskat = ll33_scenarie_kildekrav_resultat(Ll33Indkomstskat, "")
 
-| ll33_person_scenarie_udenlandsk_indkomst(
-    skattepligtig_kroner: Heltal,
-    personlig_kroner: Heltal,
-    positiv_kapital_kroner: Heltal,
-    aktie_kroner: Heltal,
-    cfc_kroner: Heltal,
-    am_grundlag_kroner: Heltal
-) -> Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-    skattepligtig_nettoindkomst_efter_par33f_kroner = skattepligtig_kroner,
-    personlig_nettoindkomst_efter_par33f_kroner = personlig_kroner,
-    positiv_kapitalnettoindkomst_efter_par33f_kroner = positiv_kapital_kroner,
-    aktienettoindkomst_efter_par33f_kroner = aktie_kroner,
-    cfc_nettoindkomst_efter_par33f_kroner = cfc_kroner,
-    arbejdsmarkedsbidragsgrundlag_kroner = am_grundlag_kroner
-)
 | ll33_person_scenarie_kreditgruppe(
     identifikation: Tekst,
     landekode: Tekst,
     grupperingsgrundlag: Ligningslov33Kreditgrupperingsgrundlag,
-    udenlandsk_bruttoindkomst_kroner: Heltal,
+    indkomstposter: List(Ligningslov33Indkomstpost),
     betalt_udenlandsk_skat_øre: Heltal,
-    indkomst: Ligningslov33UdenlandskIndkomstEfterDanskeRegler,
     lønlempelsesstatus: Ligningslov33Lønlempelsesstatus
 ) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = grupperingsgrundlag,
-    indkomstfakta = Ligningslov33Indkomstfakta(
-        område = Ll33FremmedStat(landekode),
-        udenlandsk_bruttoindkomst_kroner = udenlandsk_bruttoindkomst_kroner,
-        direkte_henførbare_udgifter_kroner = 0
-    ),
+    område = Ll33FremmedStat(landekode),
+    indkomstposter = indkomstposter,
     skattebetalinger = [Ligningslov33Skattebetaling(
         opkrævningsmåde = Ll33Indeholdelse,
         betalt_udenlandsk_skat_øre = betalt_udenlandsk_skat_øre,
@@ -229,7 +210,6 @@
         betalingsdokumentreference = "Dokumentation " + identifikation,
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
     )],
-    udenlandsk_indkomst_efter_danske_regler = indkomst,
     lønlempelsesstatus = lønlempelsesstatus
 )
 
@@ -237,15 +217,18 @@
     Ligningslov33PersonÅrsinput(
         indkomstår = 2025,
         dansk_bruttoindkomst_kroner = 14569,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [ll33_person_scenarie_kreditgruppe(
             identifikation = "udenlandsk-udbytte",
             landekode = "anonymiseret",
             grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            udenlandsk_bruttoindkomst_kroner = 398,
+            indkomstposter = [ligningslov33_bruttoindkomstpost(
+                identifikation = "udenlandsk-udbytte-brutto",
+                beløb_kroner = 398,
+                indkomstkategorier = [Ll33Aktieindkomstkategori],
+                dokumentreference = "Udbyttebilag 2025"
+            )],
             betalt_udenlandsk_skat_øre = 600,
-            indkomst = ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 398, 0, 0),
             lønlempelsesstatus = Ll33IngenLønindkomst
         )],
         par6_kreditter = [],
@@ -265,15 +248,17 @@
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 300000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [ll33_person_scenarie_kreditgruppe(
             identifikation = "ordinær-udenlandsk-løn",
             landekode = "AA",
             grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            udenlandsk_bruttoindkomst_kroner = 200000,
+            indkomstposter = [
+                ligningslov33_bruttoindkomstpost("ordinær-løn-brutto", 200000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33Arbejdsmarkedsbidragskategori], "Lønbilag AA-2026"),
+                ligningslov33_direkte_udgiftspost("ordinær-løn-personlig-udgift", 16000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori], "Udgiftsbilag AA-2026-1"),
+                ligningslov33_direkte_udgiftspost("ordinær-løn-ligningsudgift", 34000, [Ll33SkattepligtigIndkomstkategori], "Udgiftsbilag AA-2026-2"),
+            ],
             betalt_udenlandsk_skat_øre = 9000000,
-            indkomst = ll33_person_scenarie_udenlandsk_indkomst(150000, 184000, 0, 0, 0, 200000),
             lønlempelsesstatus = Ll33OrdinærCreditlempetLønindkomst
         )],
         par6_kreditter = [],
@@ -291,15 +276,72 @@
     )
 )
 
+= ll33_person_scenarie_blandede_kategorier = ligningslov33_person_årsresultat(
+    Ligningslov33PersonÅrsinput(
+        indkomstår = 2026,
+        dansk_bruttoindkomst_kroner = 300000,
+        ikke_henførbare_udgifter = [
+            ligningslov33_fordelingsudgift("fælles-finansiering", 45000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Finansieringsbilag 2026"),
+            ligningslov33_undtaget_eksportkreditrente("eksportkredit", 9000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Eksportkreditbilag 2026"),
+        ],
+        kreditgrupper = [ll33_person_scenarie_kreditgruppe(
+            identifikation = "blandet-udenlandsk-indkomst",
+            landekode = "MX",
+            grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
+            indkomstposter = [
+                ligningslov33_bruttoindkomstpost("blandet-løn", 100000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33Arbejdsmarkedsbidragskategori], "Lønbilag MX-2026"),
+                ligningslov33_bruttoindkomstpost("blandet-rente", 50000, [Ll33SkattepligtigIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Rentebilag MX-2026"),
+                ligningslov33_direkte_udgiftspost("blandet-renteudgift", 60000, [Ll33SkattepligtigIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Renteudgiftsbilag MX-2026"),
+            ],
+            betalt_udenlandsk_skat_øre = 1000000,
+            lønlempelsesstatus = Ll33OrdinærCreditlempetLønindkomst
+        )],
+        par6_kreditter = [],
+        fragtskat_åbningssaldi = []
+    ),
+    Ligningslov33PersonDanskSkattekreds(
+        komponenter = [
+            Ligningslov33DanskSkattekomponent(Ll33KommunalIndkomstskat, Ll33SkattepligtigIndkomst(500000), 12500000),
+            Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar6, Ll33PersonligOgPositivKapitalindkomst(600000), 7200000),
+            Ligningslov33DanskSkattekomponent(Ll33ArbejdsmarkedsbidragslovPar1, Ll33Arbejdsmarkedsbidragsgrundlag(700000), 5600000),
+        ],
+        samlet_dansk_indkomstskat_tilgængelig_øre = 25300000
+    )
+)
+
+= ll33_person_scenarie_dobbelt_kildepost = ligningslov33_person_årsresultat(
+    Ligningslov33PersonÅrsinput(
+        indkomstår = 2026,
+        dansk_bruttoindkomst_kroner = 100000,
+        ikke_henførbare_udgifter = [],
+        kreditgrupper = [ll33_person_scenarie_kreditgruppe(
+            identifikation = "dobbelt-kildepost",
+            landekode = "MX",
+            grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
+            indkomstposter = [
+                ligningslov33_bruttoindkomstpost("samme-post", 50000, [Ll33Aktieindkomstkategori], "Indkomstbilag A"),
+                ligningslov33_bruttoindkomstpost("samme-post", 50000, [Ll33Aktieindkomstkategori], "Indkomstbilag B"),
+            ],
+            betalt_udenlandsk_skat_øre = 1000000,
+            lønlempelsesstatus = Ll33IngenLønindkomst
+        )],
+        par6_kreditter = [],
+        fragtskat_åbningssaldi = []
+    ),
+    Ligningslov33PersonDanskSkattekreds(
+        komponenter = [Ligningslov33DanskSkattekomponent(Ll33PersonskattelovPar8A, Ll33Aktieindkomst(100000), 2700000)],
+        samlet_dansk_indkomstskat_tilgængelig_øre = 2700000
+    )
+)
+
 = ll33_person_scenarie_to_kreditgrupper_samme_land = ligningslov33_person_årsresultat(
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 70000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [
-            ll33_person_scenarie_kreditgruppe("kildeskat-1", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 1"), 10000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0), Ll33IngenLønindkomst),
-            ll33_person_scenarie_kreditgruppe("kildeskat-2", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 2"), 20000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 20000, 0, 0), Ll33IngenLønindkomst),
+            ll33_person_scenarie_kreditgruppe("kildeskat-1", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 1"), [ligningslov33_bruttoindkomstpost("kildeskat-1-brutto", 10000, [Ll33Aktieindkomstkategori], "Indkomstbilag 1")], 1000000, Ll33IngenLønindkomst),
+            ll33_person_scenarie_kreditgruppe("kildeskat-2", "ZZ", Ll33SærskiltKildebeskattetCredit("Kildeskattebilag 2"), [ligningslov33_bruttoindkomstpost("kildeskat-2-brutto", 20000, [Ll33Aktieindkomstkategori], "Indkomstbilag 2")], 1000000, Ll33IngenLønindkomst),
         ],
         par6_kreditter = [],
         fragtskat_åbningssaldi = []
@@ -314,11 +356,10 @@
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 70000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [
-            ll33_person_scenarie_kreditgruppe("samlet-1", "ZZ", Ll33SamletIndkomstFraSkatteområdet, 10000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0), Ll33IngenLønindkomst),
-            ll33_person_scenarie_kreditgruppe("samlet-2", "ZZ", Ll33SamletIndkomstFraSkatteområdet, 20000, 1000000, ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 20000, 0, 0), Ll33IngenLønindkomst),
+            ll33_person_scenarie_kreditgruppe("samlet-1", "ZZ", Ll33SamletIndkomstFraSkatteområdet, [ligningslov33_bruttoindkomstpost("samlet-1-brutto", 10000, [Ll33Aktieindkomstkategori], "Indkomstbilag samlet 1")], 1000000, Ll33IngenLønindkomst),
+            ll33_person_scenarie_kreditgruppe("samlet-2", "ZZ", Ll33SamletIndkomstFraSkatteområdet, [ligningslov33_bruttoindkomstpost("samlet-2-brutto", 20000, [Ll33Aktieindkomstkategori], "Indkomstbilag samlet 2")], 1000000, Ll33IngenLønindkomst),
         ],
         par6_kreditter = [],
         fragtskat_åbningssaldi = []
@@ -333,15 +374,13 @@
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 90000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [ll33_person_scenarie_kreditgruppe(
             "udokumenteret-kildeskat",
             "ZZ",
             Ll33SærskiltKildebeskattetCredit(""),
-            10000,
+            [ligningslov33_bruttoindkomstpost("udokumenteret-kildeskat-brutto", 10000, [Ll33Aktieindkomstkategori], "Indkomstbilag udokumenteret kildeskat")],
             1000000,
-            ll33_person_scenarie_udenlandsk_indkomst(0, 0, 0, 10000, 0, 0),
             Ll33IngenLønindkomst
         )],
         par6_kreditter = [],
@@ -357,15 +396,17 @@
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 100000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = [ll33_person_scenarie_kreditgruppe(
             "udelukket-løn",
             "YY",
             Ll33SamletIndkomstFraSkatteområdet,
-            100000,
+            [
+                ligningslov33_bruttoindkomstpost("udelukket-løn-brutto", 100000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33Arbejdsmarkedsbidragskategori], "Lønbilag YY-2026"),
+                ligningslov33_direkte_udgiftspost("udelukket-løn-personlig-udgift", 8000, [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori], "Udgiftsbilag YY-2026-1"),
+                ligningslov33_direkte_udgiftspost("udelukket-løn-ligningsudgift", 12000, [Ll33SkattepligtigIndkomstkategori], "Udgiftsbilag YY-2026-2"),
+            ],
             1000000,
-            ll33_person_scenarie_udenlandsk_indkomst(80000, 92000, 0, 0, 0, 100000),
             status
         )],
         par6_kreditter = [],
@@ -395,18 +436,18 @@
     identifikation = "par6-fast-ejendom",
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
     område = Ll33FremmedStat(landekode = "XX"),
-    udenlandsk_bruttoindkomst_kroner = 120000,
-    direkte_henførbare_udgifter_kroner = 20000,
+    indkomstposter = [
+        ligningslov33_bruttoindkomstpost("par6-fast-ejendom-brutto", 120000, [Ll33SkattepligtigIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Ejendomsavancebilag XX-2026"),
+        ligningslov33_direkte_udgiftspost("par6-fast-ejendom-udgift", 20000, [Ll33SkattepligtigIndkomstkategori, Ll33PositivKapitalindkomstkategori], "Ejendomsavanceudgift XX-2026"),
+    ],
     overenskomstgrundlag = overenskomstgrundlag,
-    udenlandsk_indkomst_efter_danske_regler = ll33_person_scenarie_udenlandsk_indkomst(100000, 0, 0, 0, 0, 0),
     lønlempelsesstatus = Ll33IngenLønindkomst
 )
 | ll33_par6_scenarie_resultat(fakta: Ligningslov33Par6Kreditfakta, ordinære_grupper: List(Ligningslov33PersonKreditgruppe)) -> ligningslov33_person_årsresultat(
     Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
         dansk_bruttoindkomst_kroner = 400000,
-        ikke_henførbare_udgifter_kroner = 0,
-        eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+        ikke_henførbare_udgifter = [],
         kreditgrupper = ordinære_grupper,
         par6_kreditter = [fakta],
         fragtskat_åbningssaldi = []
@@ -471,9 +512,8 @@
         "ordinær-samme-land",
         "XX",
         Ll33SamletIndkomstFraSkatteområdet,
-        10000,
+        [ligningslov33_bruttoindkomstpost("ordinær-samme-land-brutto", 10000, [Ll33SkattepligtigIndkomstkategori], "Indkomstbilag ordinær samme land")],
         100000,
-        ll33_person_scenarie_udenlandsk_indkomst(10000, 0, 0, 0, 0, 0),
         Ll33IngenLønindkomst
     )]
 )
@@ -506,6 +546,14 @@
 | ll33_person_scenarie_årsopgørelse_forklarer_seks_kroner: ll33_person_scenarie_årsopgørelse2025 -> ll33_person_scenarie_årsopgørelse2025.input_gyldigt && head(head(ll33_person_scenarie_årsopgørelse2025.kreditgrupper).komponenter).proportionalt_dansk_skatteloft_øre == 10746 && ll33_person_scenarie_årsopgørelse2025.samlet_nedslag_øre == 600
 | ll33_person_scenarie_løn_fordeles_pr_skattekomponent: ll33_person_scenarie_løn -> ll33_person_scenarie_løn.input_gyldigt && head(ll33_person_scenarie_løn.kreditgrupper).proportionalt_dansk_skatteloft_øre == 7678000 && ll33_person_scenarie_løn.samlet_nedslag_øre == 7678000
 | ll33_person_scenarie_aktiekomponent_uden_aktieindkomst_er_nul: ll33_person_scenarie_løn -> head(tail(tail(tail(tail(head(ll33_person_scenarie_løn.kreditgrupper).komponenter))))).proportionalt_dansk_skatteloft_øre == 0
+| ll33_person_scenarie_blandede_kategorier_afledes_fra_samme_kilder: ll33_person_scenarie_blandede_kategorier -> {
+    = par33f = head(ll33_person_scenarie_blandede_kategorier.kreditgrupper).par33f
+    = skattepligtig = head(filter(par33f.kategoriresultater, |resultat: Ligningslov33Indkomstkategoriresultat| resultat.kategori == Ll33SkattepligtigIndkomstkategori))
+    = personlig = head(filter(par33f.kategoriresultater, |resultat: Ligningslov33Indkomstkategoriresultat| resultat.kategori == Ll33PersonligIndkomstkategori))
+    = kapital = head(filter(par33f.kategoriresultater, |resultat: Ligningslov33Indkomstkategoriresultat| resultat.kategori == Ll33PositivKapitalindkomstkategori))
+    ll33_person_scenarie_blandede_kategorier.input_gyldigt && par33f.indkomstfakta.udenlandsk_bruttoindkomst_kroner == 150000 && par33f.indkomstfakta.direkte_henførbare_udgifter_kroner == 60000 && par33f.fordelt_ikke_henførbar_udgift_kroner == 15000 && par33f.nettoindkomst_efter_par33f_kroner == 75000 && skattepligtig.nettoindkomst_efter_par33f_kroner == 75000 && personlig.nettoindkomst_efter_par33f_kroner == 90000 && kapital.nettoindkomst_efter_par33f_kroner == -15000 && par33f.udenlandsk_indkomst_efter_danske_regler.positiv_kapitalnettoindkomst_efter_par33f_kroner == 0 && par33f.udenlandsk_indkomst_efter_danske_regler.arbejdsmarkedsbidragsgrundlag_kroner == 100000
+}
+| ll33_person_scenarie_dobbelt_kildepost_afvises: ll33_person_scenarie_dobbelt_kildepost -> ll33_person_scenarie_dobbelt_kildepost.input_gyldigt == Falskt && ll33_person_scenarie_dobbelt_kildepost.samlet_nedslag_øre == 0
 | ll33_person_scenarie_særskilte_kildeskatter_samme_land: ll33_person_scenarie_to_kreditgrupper_samme_land -> ll33_person_scenarie_to_kreditgrupper_samme_land.input_gyldigt && ll33_person_scenarie_to_kreditgrupper_samme_land.samlet_nedslag_øre == 810000
 | ll33_person_scenarie_samme_land_skal_samles: ll33_person_scenarie_to_samlede_grupper_samme_land -> ll33_person_scenarie_to_samlede_grupper_samme_land.input_gyldigt == Falskt && ll33_person_scenarie_to_samlede_grupper_samme_land.samlet_nedslag_øre == 0
 | ll33_person_scenarie_særskilt_kildeskat_kræver_dokumentation: ll33_person_scenarie_udokumenteret_særskilt_kildeskat -> ll33_person_scenarie_udokumenteret_særskilt_kildeskat.input_gyldigt == Falskt && ll33_person_scenarie_udokumenteret_særskilt_kildeskat.samlet_nedslag_øre == 0
@@ -529,6 +577,8 @@
 ? ll33_person_scenarie_årsopgørelse_forklarer_seks_kroner
 ? ll33_person_scenarie_løn_fordeles_pr_skattekomponent
 ? ll33_person_scenarie_aktiekomponent_uden_aktieindkomst_er_nul
+? ll33_person_scenarie_blandede_kategorier_afledes_fra_samme_kilder
+? ll33_person_scenarie_dobbelt_kildepost_afvises
 ? ll33_person_scenarie_særskilte_kildeskatter_samme_land
 ? ll33_person_scenarie_samme_land_skal_samles
 ? ll33_person_scenarie_særskilt_kildeskat_kræver_dokumentation

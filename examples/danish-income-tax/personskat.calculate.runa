@@ -7592,24 +7592,59 @@
     unit = Some("kr./år")
 )
 = personskat_felt_ligningslov33_ikke_henførbare_udgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov33PersonÅrsinput::ikke_henførbare_udgifter_kroner),
+    path = refof(Ligningslov33PersonÅrsinput::ikke_henførbare_udgifter),
     label = "Ikke direkte henførbare udgifter",
-    question = Some("Hvor store udgifter kan ikke henføres direkte til dansk eller udenlandsk indkomst?"),
-    help = Some("Futuruna fordeler udgifterne efter forholdet mellem dansk og udenlandsk bruttoindkomst."),
+    question = Some("Hvilke dokumenterede udgifter kan ikke henføres direkte til dansk eller udenlandsk indkomst?"),
+    help = Some("Registrer hver udgift særskilt. Futuruna fordeler almindelige fællesudgifter efter forholdet mellem dansk og udenlandsk bruttoindkomst."),
+    unit = None
+)
+= personskat_felt_ligningslov33_ikke_henførbar_udgift_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov33IkkeHenførbarUdgift::identifikation),
+    label = "Fællesudgiftens identifikation",
+    question = Some("Hvilken entydig identifikation skal fællesudgiften have?"),
+    help = Some("Brug en stabil reference, som kan afstemmes mod udgiftsbilaget."),
+    unit = None
+)
+= personskat_felt_ligningslov33_ikke_henførbar_udgift_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov33IkkeHenførbarUdgift::beløb_kroner),
+    label = "Fællesudgiftens beløb",
+    question = Some("Hvor stort er det dokumenterede udgiftsbeløb?"),
+    help = None,
     unit = Some("kr./år")
 )
-= personskat_felt_ligningslov33_eksportkreditrenter = TypetBeregningsfelt(
-    path = refof(Ligningslov33PersonÅrsinput::eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner),
-    label = "Undtagne eksportkreditrenter",
-    question = Some("Hvor stor en del af de fælles udgifter er renteudgifter omfattet af § 33 F, stk. 3?"),
-    help = Some("Disse renteudgifter skal ikke fragå ved opgørelsen af den udenlandske indkomst."),
-    unit = Some("kr./år")
+= personskat_felt_ligningslov33_ikke_henførbar_udgift_behandling = TypetBeregningsfelt(
+    path = refof(Ligningslov33IkkeHenførbarUdgift::behandling),
+    label = "Fællesudgiftens behandling",
+    question = Some("Skal udgiften fordeles efter § 33 F, stk. 2, eller er den en eksportkreditrente undtaget efter stk. 3?"),
+    help = Some("Eksportkreditrenter omfattet af stk. 3 registreres, men fragår ikke ved opgørelsen af den udenlandske indkomst."),
+    unit = None
+)
+= personskat_felt_ligningslov33_ikke_henførbar_udgift_indkomstkategorier = TypetBeregningsfelt(
+    path = refof(Ligningslov33IkkeHenførbarUdgift::indkomstkategorier),
+    label = "Indkomstkategorier for fællesudgiften",
+    question = Some("Hvilke danske indkomstgrundlag vedrører fællesudgiften?"),
+    help = Some("Vælg kun de indkomstkategorier, hvor udgiften skal indgå i den særskilte lempelsesbrøk."),
+    unit = None
+)
+= personskat_felt_ligningslov33_ikke_henførbar_udgift_dokumentreference = TypetBeregningsfelt(
+    path = refof(Ligningslov33IkkeHenførbarUdgift::dokumentreference),
+    label = "Dokumentation for fællesudgiften",
+    question = Some("Hvilket dokument underbygger udgiften og dens behandling?"),
+    help = None,
+    unit = None
 )
 = personskat_felt_ligningslov33_kreditgrupper = TypetBeregningsfelt(
     path = refof(Ligningslov33PersonÅrsinput::kreditgrupper),
     label = "Udenlandske kreditgrupper",
     question = Some("Hvilke udenlandske indkomster og skatter skal lempelsesberegningen omfatte?"),
     help = Some("Tilføj én samlet indkomstgruppe pr. skatteområde. Gruppens dokumenterede skattebetalinger registreres særskilt under samme danske skatteloft. Opret kun flere indkomstgrupper for samme område, når en indkomst er særskilt kildebeskattet og dokumenteret."),
+    unit = None
+)
+= personskat_felt_ligningslov33_indkomstposter = TypetBeregningsfelt(
+    path = refof(Ligningslov33PersonKreditgruppe::indkomstposter),
+    label = "Indkomst- og udgiftsposter i kreditgruppen",
+    question = Some("Hvilke dokumenterede bruttoindtægter og direkte henførbare udgifter indgår i kreditgruppen?"),
+    help = Some("Registrer posterne efter danske regler og markér de indkomstgrundlag, som hver post indgår i. Futuruna afleder herefter alle § 33 F-nettobeløb."),
     unit = None
 )
 = personskat_felt_ligningslov33_skattebetalinger = TypetBeregningsfelt(
@@ -7696,19 +7731,12 @@
     help = None,
     unit = None
 )
-= personskat_felt_ligningslov33_par6_bruttoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33Par6Kreditfakta::udenlandsk_bruttoindkomst_kroner),
-    label = "Bruttoindkomst ved den fiktive afståelse",
-    question = Some("Hvor stor er den udenlandske bruttoindkomst, der knytter sig til den fiktive afståelse?"),
-    help = Some("Beløbet bruges til fordeling af fælles udgifter efter § 33 F og er ikke nødvendigvis aktivets handelsværdi."),
-    unit = Some("kr.")
-)
-= personskat_felt_ligningslov33_par6_direkte_udgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov33Par6Kreditfakta::direkte_henførbare_udgifter_kroner),
-    label = "Direkte udgifter ved den fiktive afståelse",
-    question = Some("Hvor store udgifter vedrører direkte fortjenesten ved den fiktive afståelse?"),
-    help = None,
-    unit = Some("kr.")
+= personskat_felt_ligningslov33_par6_indkomstposter = TypetBeregningsfelt(
+    path = refof(Ligningslov33Par6Kreditfakta::indkomstposter),
+    label = "Indkomst- og udgiftsposter ved den fiktive afståelse",
+    question = Some("Hvilke dokumenterede bruttoindtægter og direkte henførbare udgifter knytter sig til den fiktive afståelse?"),
+    help = Some("Bruttoindtægten bruges til § 33 F-fordelingen og er ikke nødvendigvis aktivets handelsværdi. Markér de danske indkomstgrundlag for hver post."),
+    unit = None
 )
 = personskat_felt_ligningslov33_par6_overenskomstgrundlag = TypetBeregningsfelt(
     path = refof(Ligningslov33Par6Kreditfakta::overenskomstgrundlag::$variant),
@@ -7801,50 +7829,43 @@
     help = Some("§ 33 kan ikke anvendes på lønindkomst, der lempes efter § 33 A eller sømandsbeskatningslovens §§ 5-8."),
     unit = None
 )
-= personskat_felt_ligningslov33_skattepligtig_nettoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::skattepligtig_nettoindkomst_efter_par33f_kroner),
-    label = "Udenlandsk skattepligtig nettoindkomst",
-    question = Some("Hvor stor er gruppens udenlandske nettoindkomst efter danske regler og § 33 F i grundlaget for skattepligtig indkomst?"),
+= personskat_felt_ligningslov33_indkomstpost_identifikation = TypetBeregningsfelt(
+    path = refof(Ligningslov33Indkomstpost::identifikation),
+    label = "Indkomstpostens identifikation",
+    question = Some("Hvilken entydig identifikation skal indkomst- eller udgiftsposten have?"),
+    help = Some("Brug en stabil reference, som kan afstemmes mod postens bilag."),
+    unit = None
+)
+= personskat_felt_ligningslov33_indkomstpost_art = TypetBeregningsfelt(
+    path = refof(Ligningslov33Indkomstpost::art),
+    label = "Indkomstpostens art",
+    question = Some("Er posten en udenlandsk bruttoindtægt eller en direkte henførbar udgift?"),
     help = None,
+    unit = None
+)
+= personskat_felt_ligningslov33_indkomstpost_beløb = TypetBeregningsfelt(
+    path = refof(Ligningslov33Indkomstpost::beløb_kroner),
+    label = "Indkomstpostens beløb",
+    question = Some("Hvor stort er postens dokumenterede beløb?"),
+    help = Some("Angiv beløbet positivt; postens art afgør, om beløbet er en indtægt eller udgift."),
     unit = Some("kr./år")
 )
-= personskat_felt_ligningslov33_personlig_nettoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::personlig_nettoindkomst_efter_par33f_kroner),
-    label = "Udenlandsk personlig nettoindkomst",
-    question = Some("Hvor stor er gruppens udenlandske nettoindkomst efter danske regler og § 33 F i grundlaget for personlig indkomst?"),
-    help = None,
-    unit = Some("kr./år")
+= personskat_felt_ligningslov33_indkomstpost_indkomstkategorier = TypetBeregningsfelt(
+    path = refof(Ligningslov33Indkomstpost::indkomstkategorier),
+    label = "Indkomstpostens danske indkomstgrundlag",
+    question = Some("Hvilke danske indkomstgrundlag indgår posten i?"),
+    help = Some("En lønindtægt kan eksempelvis indgå i skattepligtig indkomst, personlig indkomst og AM-bidragsgrundlaget, mens en direkte udgift kun markeres i de grundlag, den faktisk reducerer."),
+    unit = None
 )
-= personskat_felt_ligningslov33_positiv_kapitalnettoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::positiv_kapitalnettoindkomst_efter_par33f_kroner),
-    label = "Udenlandsk positiv kapitalnettoindkomst",
-    question = Some("Hvor stor er gruppens positive udenlandske kapitalnettoindkomst efter danske regler og § 33 F?"),
+= personskat_felt_ligningslov33_indkomstpost_dokumentreference = TypetBeregningsfelt(
+    path = refof(Ligningslov33Indkomstpost::dokumentreference),
+    label = "Dokumentation for indkomstposten",
+    question = Some("Hvilket dokument underbygger postens beløb og kategorisering?"),
     help = None,
-    unit = Some("kr./år")
-)
-= personskat_felt_ligningslov33_aktienettoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::aktienettoindkomst_efter_par33f_kroner),
-    label = "Udenlandsk aktienettoindkomst",
-    question = Some("Hvor stor er gruppens udenlandske aktienettoindkomst efter danske regler og § 33 F?"),
-    help = None,
-    unit = Some("kr./år")
-)
-= personskat_felt_ligningslov33_cfc_nettoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::cfc_nettoindkomst_efter_par33f_kroner),
-    label = "Udenlandsk CFC-nettoindkomst",
-    question = Some("Hvor stor er gruppens udenlandske CFC-nettoindkomst efter danske regler og § 33 F?"),
-    help = None,
-    unit = Some("kr./år")
-)
-= personskat_felt_ligningslov33_am_grundlag = TypetBeregningsfelt(
-    path = refof(Ligningslov33UdenlandskIndkomstEfterDanskeRegler::arbejdsmarkedsbidragsgrundlag_kroner),
-    label = "Udenlandsk AM-bidragsgrundlag",
-    question = Some("Hvor stor en del af gruppens udenlandske løn indgår i det danske arbejdsmarkedsbidragsgrundlag?"),
-    help = None,
-    unit = Some("kr./år")
+    unit = None
 )
 = personskat_felt_ligningslov33_område = TypetBeregningsfelt(
-    path = refof(Ligningslov33Indkomstfakta::område::$variant),
+    path = refof(Ligningslov33PersonKreditgruppe::område::$variant),
     label = "Skatteområde",
     question = Some("Er indkomsten fra en fremmed stat, Grønland eller Færøerne?"),
     help = None,
@@ -7863,20 +7884,6 @@
     question = Some("Blev den udenlandske skat pålignet direkte eller indeholdt ved udbetalingen?"),
     help = None,
     unit = None
-)
-= personskat_felt_ligningslov33_udenlandsk_bruttoindkomst = TypetBeregningsfelt(
-    path = refof(Ligningslov33Indkomstfakta::udenlandsk_bruttoindkomst_kroner),
-    label = "Udenlandsk bruttoindkomst",
-    question = Some("Hvor stor var gruppens udenlandske bruttoindkomst?"),
-    help = None,
-    unit = Some("kr./år")
-)
-= personskat_felt_ligningslov33_direkte_udgifter = TypetBeregningsfelt(
-    path = refof(Ligningslov33Indkomstfakta::direkte_henførbare_udgifter_kroner),
-    label = "Direkte udgifter til udenlandsk indkomst",
-    question = Some("Hvor store udgifter vedrører direkte gruppens udenlandske indkomst?"),
-    help = Some("Beløbet trækkes fra før det forholdsmæssige danske skatteloft beregnes."),
-    unit = Some("kr./år")
 )
 = personskat_felt_ligningslov33_betalt_udenlandsk_skat = TypetBeregningsfelt(
     path = refof(Ligningslov33Skattebetaling::betalt_udenlandsk_skat_øre),
@@ -12596,8 +12603,13 @@
         Field(value = personskat_felt_ligningslov33_indkomstår),
         Field(value = personskat_felt_ligningslov33_dansk_bruttoindkomst),
         Field(value = personskat_felt_ligningslov33_ikke_henførbare_udgifter),
-        Field(value = personskat_felt_ligningslov33_eksportkreditrenter),
+        Field(value = personskat_felt_ligningslov33_ikke_henførbar_udgift_identifikation),
+        Field(value = personskat_felt_ligningslov33_ikke_henførbar_udgift_beløb),
+        Field(value = personskat_felt_ligningslov33_ikke_henførbar_udgift_behandling),
+        Field(value = personskat_felt_ligningslov33_ikke_henførbar_udgift_indkomstkategorier),
+        Field(value = personskat_felt_ligningslov33_ikke_henførbar_udgift_dokumentreference),
         Field(value = personskat_felt_ligningslov33_kreditgrupper),
+        Field(value = personskat_felt_ligningslov33_indkomstposter),
         Field(value = personskat_felt_ligningslov33_skattebetalinger),
         Field(value = personskat_felt_ligningslov33_par6_kreditter),
         Field(value = personskat_felt_ligningslov33_fragtskat_åbningssaldi),
@@ -12610,8 +12622,7 @@
         Field(value = personskat_felt_ligningslov33_par6_identifikation),
         Field(value = personskat_felt_ligningslov33_par6_grupperingsgrundlag),
         Field(value = personskat_felt_ligningslov33_par6_område),
-        Field(value = personskat_felt_ligningslov33_par6_bruttoindkomst),
-        Field(value = personskat_felt_ligningslov33_par6_direkte_udgifter),
+        Field(value = personskat_felt_ligningslov33_par6_indkomstposter),
         Field(value = personskat_felt_ligningslov33_par6_overenskomstgrundlag),
         Field(value = personskat_felt_ligningslov33_par6_lønlempelsesstatus),
         Field(value = personskat_felt_ligningslov33_par6_aktiv_identifikation),
@@ -12625,17 +12636,14 @@
         Field(value = personskat_felt_ligningslov33_grupperingsgrundlag),
         Field(value = personskat_felt_ligningslov33_særskilt_kildeskat_dokumentreference),
         Field(value = personskat_felt_ligningslov33_lønlempelsesstatus),
-        Field(value = personskat_felt_ligningslov33_skattepligtig_nettoindkomst),
-        Field(value = personskat_felt_ligningslov33_personlig_nettoindkomst),
-        Field(value = personskat_felt_ligningslov33_positiv_kapitalnettoindkomst),
-        Field(value = personskat_felt_ligningslov33_aktienettoindkomst),
-        Field(value = personskat_felt_ligningslov33_cfc_nettoindkomst),
-        Field(value = personskat_felt_ligningslov33_am_grundlag),
+        Field(value = personskat_felt_ligningslov33_indkomstpost_identifikation),
+        Field(value = personskat_felt_ligningslov33_indkomstpost_art),
+        Field(value = personskat_felt_ligningslov33_indkomstpost_beløb),
+        Field(value = personskat_felt_ligningslov33_indkomstpost_indkomstkategorier),
+        Field(value = personskat_felt_ligningslov33_indkomstpost_dokumentreference),
         Field(value = personskat_felt_ligningslov33_område),
         Field(value = personskat_felt_ligningslov33_landekode),
         Field(value = personskat_felt_ligningslov33_opkrævningsmåde),
-        Field(value = personskat_felt_ligningslov33_udenlandsk_bruttoindkomst),
-        Field(value = personskat_felt_ligningslov33_direkte_udgifter),
         Field(value = personskat_felt_ligningslov33_betalt_udenlandsk_skat),
         Field(value = personskat_felt_ligningslov33_skatteart),
         Field(value = personskat_felt_ligningslov33_betalingsdokumentreference),
@@ -12713,6 +12721,7 @@
         DependencySource(value = kildeskatteloven_lbk460_par10),
         Guidance(value = ligningsloven_vejledning_par33_credit),
         Guidance(value = ligningsloven_vejledning_par33_personberegning),
+        Guidance(value = ligningsloven_vejledning_par33f_nettoprincip),
         Guidance(value = ligningsloven_vejledning_par33a_stk1),
         Guidance(value = ligningsloven_vejledning_par33a_42_dages_regel),
         Guidance(value = ligningsloven_ligningsvejledning_2003_par33a_opholdseksempel),
@@ -16935,8 +16944,7 @@ fraflytningen."
 | personskat_tomt_ligningslov33_årsinput(indkomstår: Heltal) -> Ligningslov33PersonÅrsinput(
     indkomstår = indkomstår,
     dansk_bruttoindkomst_kroner = 0,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    ikke_henførbare_udgifter = [],
     kreditgrupper = [],
     par6_kreditter = [],
     fragtskat_åbningssaldi = []
@@ -17036,8 +17044,8 @@ fraflytningen."
 }
 | personskat_ligningslov33_par6_fast_ejendomsindkomst_konsistent(årsinput: Ligningslov33PersonÅrsinput, kredit: Ligningslov33Par6Kreditfakta, ejendomsavance: EjendomsavancebeskatningslovResultat) -> {
     = par33f = ligningslov33_person_par33f_resultat(årsinput, ligningslov33_par6_kreditgruppe(kredit))
-    = indkomst = kredit.udenlandsk_indkomst_efter_danske_regler
-    par33f.input_gyldigt && kredit.udenlandsk_bruttoindkomst_kroner == ejendomsavance.skattepligtig_fortjeneste_kroner && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner > 0 && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner <= par33f.nettoindkomst_efter_par33f_kroner && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner == indkomst.positiv_kapitalnettoindkomst_efter_par33f_kroner && indkomst.personlig_nettoindkomst_efter_par33f_kroner == 0 && indkomst.aktienettoindkomst_efter_par33f_kroner == 0 && indkomst.cfc_nettoindkomst_efter_par33f_kroner == 0 && indkomst.arbejdsmarkedsbidragsgrundlag_kroner == 0
+    = indkomst = par33f.udenlandsk_indkomst_efter_danske_regler
+    par33f.input_gyldigt && par33f.indkomstfakta.udenlandsk_bruttoindkomst_kroner == ejendomsavance.skattepligtig_fortjeneste_kroner && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner > 0 && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner <= par33f.nettoindkomst_efter_par33f_kroner && indkomst.skattepligtig_nettoindkomst_efter_par33f_kroner == indkomst.positiv_kapitalnettoindkomst_efter_par33f_kroner && indkomst.personlig_nettoindkomst_efter_par33f_kroner == 0 && indkomst.aktienettoindkomst_efter_par33f_kroner == 0 && indkomst.cfc_nettoindkomst_efter_par33f_kroner == 0 && indkomst.arbejdsmarkedsbidragsgrundlag_kroner == 0
 }
 | personskat_ligningslov33_par6_fast_ejendom_konsistent(årsinput: Ligningslov33PersonÅrsinput, kredit: Ligningslov33Par6Kreditfakta, grundlag: PersonskatPersonGrundlagResultat) -> {
     = identifikation = kredit.grundlag.kildeskat10_aktivfakta.identifikation

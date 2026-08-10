@@ -64,11 +64,21 @@ nedslaget i personens slutskat.
 | personskat_ligningslov33_scenarie_kreditgruppe(identifikation: Tekst, udenlandsk_bruttoløn_kroner: Heltal, betalt_udenlandsk_skat_øre: Heltal, lønlempelsesstatus: Ligningslov33Lønlempelsesstatus) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    indkomstfakta = Ligningslov33Indkomstfakta(
-        område = Ll33FremmedStat("SE"),
-        udenlandsk_bruttoindkomst_kroner = udenlandsk_bruttoløn_kroner,
-        direkte_henførbare_udgifter_kroner = 0
-    ),
+    område = Ll33FremmedStat("SE"),
+    indkomstposter = [
+        ligningslov33_bruttoindkomstpost(
+            identifikation = identifikation + "-bruttoløn",
+            beløb_kroner = udenlandsk_bruttoløn_kroner,
+            indkomstkategorier = [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori, Ll33Arbejdsmarkedsbidragskategori],
+            dokumentreference = identifikation
+        ),
+        ligningslov33_direkte_udgiftspost(
+            identifikation = identifikation + "-direkte-udgift",
+            beløb_kroner = udenlandsk_bruttoløn_kroner * 8 / 100,
+            indkomstkategorier = [Ll33SkattepligtigIndkomstkategori, Ll33PersonligIndkomstkategori],
+            dokumentreference = identifikation + " udgiftsbilag"
+        ),
+    ],
     skattebetalinger = [Ligningslov33Skattebetaling(
         opkrævningsmåde = Ll33DirektePåligning,
         betalt_udenlandsk_skat_øre = betalt_udenlandsk_skat_øre,
@@ -76,21 +86,12 @@ nedslaget i personens slutskat.
         betalingsdokumentreference = identifikation,
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
     )],
-    udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-        skattepligtig_nettoindkomst_efter_par33f_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
-        personlig_nettoindkomst_efter_par33f_kroner = udenlandsk_bruttoløn_kroner * 92 / 100,
-        positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
-        aktienettoindkomst_efter_par33f_kroner = 0,
-        cfc_nettoindkomst_efter_par33f_kroner = 0,
-        arbejdsmarkedsbidragsgrundlag_kroner = udenlandsk_bruttoløn_kroner
-    ),
     lønlempelsesstatus = lønlempelsesstatus
 )
 | personskat_ligningslov33_scenarie_årsinput(dansk_bruttoindkomst_kroner: Heltal, gruppe: Ligningslov33PersonKreditgruppe) -> Ligningslov33PersonÅrsinput(
     indkomstår = 2026,
     dansk_bruttoindkomst_kroner = dansk_bruttoindkomst_kroner,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    ikke_henførbare_udgifter = [],
     kreditgrupper = [gruppe],
     par6_kreditter = [],
     fragtskat_åbningssaldi = []
@@ -130,11 +131,13 @@ nedslaget i personens slutskat.
 | personskat_ligningslov33_scenarie_fragtskattegruppe() -> Ligningslov33PersonKreditgruppe(
     identifikation = "norsk-fragtskat-2026",
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    indkomstfakta = Ligningslov33Indkomstfakta(
-        område = Ll33FremmedStat(landekode = "NO"),
-        udenlandsk_bruttoindkomst_kroner = 100000,
-        direkte_henførbare_udgifter_kroner = 0
-    ),
+    område = Ll33FremmedStat(landekode = "NO"),
+    indkomstposter = [ligningslov33_bruttoindkomstpost(
+        identifikation = "norsk-fragtskat-bruttoindkomst-2026",
+        beløb_kroner = 100000,
+        indkomstkategorier = [Ll33SkattepligtigIndkomstkategori],
+        dokumentreference = "Norsk indkomstbilag 2026"
+    )],
     skattebetalinger = [Ligningslov33Skattebetaling(
         opkrævningsmåde = Ll33DirektePåligning,
         betalt_udenlandsk_skat_øre = 100000,
@@ -142,21 +145,12 @@ nedslaget i personens slutskat.
         betalingsdokumentreference = "Norsk fragtskattebilag 2026",
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
     )],
-    udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-        skattepligtig_nettoindkomst_efter_par33f_kroner = 100000,
-        personlig_nettoindkomst_efter_par33f_kroner = 0,
-        positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
-        aktienettoindkomst_efter_par33f_kroner = 0,
-        cfc_nettoindkomst_efter_par33f_kroner = 0,
-        arbejdsmarkedsbidragsgrundlag_kroner = 0
-    ),
     lønlempelsesstatus = Ll33IngenLønindkomst
 )
 | personskat_ligningslov33_scenarie_fragtskat_årsinput(indkomstår: Heltal) -> Ligningslov33PersonÅrsinput(
     indkomstår = indkomstår,
     dansk_bruttoindkomst_kroner = 600000,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    ikke_henførbare_udgifter = [],
     kreditgrupper = [personskat_ligningslov33_scenarie_fragtskattegruppe()],
     par6_kreditter = [],
     fragtskat_åbningssaldi = [Ligningslov33FragtskatSaldo(
@@ -212,8 +206,7 @@ nedslaget i personens slutskat.
 | personskat_ligningslov33_scenarie_par6_årsinput(handelsværdi_kroner: Heltal) -> Ligningslov33PersonÅrsinput(
     indkomstår = 2026,
     dansk_bruttoindkomst_kroner = 600000,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    ikke_henførbare_udgifter = [],
     kreditgrupper = [],
     par6_kreditter = [Ligningslov33Par6Kreditfakta(
         grundlag = Ligningslov33Par6Kreditgrundlag(
@@ -231,17 +224,13 @@ nedslaget i personens slutskat.
         identifikation = "par6-udenlandsk-fast-ejendom",
         grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
         område = Ll33FremmedStat(landekode = "XX"),
-        udenlandsk_bruttoindkomst_kroner = 90000,
-        direkte_henførbare_udgifter_kroner = 0,
+        indkomstposter = [ligningslov33_bruttoindkomstpost(
+            identifikation = "par6-udenlandsk-fast-ejendom-bruttoindkomst",
+            beløb_kroner = 90000,
+            indkomstkategorier = [Ll33SkattepligtigIndkomstkategori, Ll33PositivKapitalindkomstkategori],
+            dokumentreference = "Udenlandsk ejendomsavancebilag XX-2026"
+        )],
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst,
-        udenlandsk_indkomst_efter_danske_regler = Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-            skattepligtig_nettoindkomst_efter_par33f_kroner = 90000,
-            personlig_nettoindkomst_efter_par33f_kroner = 0,
-            positiv_kapitalnettoindkomst_efter_par33f_kroner = 90000,
-            aktienettoindkomst_efter_par33f_kroner = 0,
-            cfc_nettoindkomst_efter_par33f_kroner = 0,
-            arbejdsmarkedsbidragsgrundlag_kroner = 0
-        ),
         lønlempelsesstatus = Ll33IngenLønindkomst
     )],
     fragtskat_åbningssaldi = []

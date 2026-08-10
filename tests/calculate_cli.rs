@@ -3725,7 +3725,11 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "negativ_aktieskat_fremførsel.ægtefælle.$variant",
             "ligningslov33.hovedperson.$variant",
             "ligningslov33.hovedperson.MedLigningslov33.input.indkomstår",
-            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.indkomstfakta.område.$variant",
+            "ligningslov33.hovedperson.MedLigningslov33.input.ikke_henførbare_udgifter.beløb_kroner",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.område.$variant",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.indkomstposter.art",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.indkomstposter.beløb_kroner",
+            "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.indkomstposter.indkomstkategorier",
             "ligningslov33.hovedperson.MedLigningslov33.input.kreditgrupper.skattebetalinger.skatteart",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.$variant",
             "ligningslov33.hovedperson.MedLigningslov33.input.fragtskat_åbningssaldi.område.Ll33FremmedStat.landekode",
@@ -16045,21 +16049,25 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "input": {
                 "indkomstår": 2026,
                 "dansk_bruttoindkomst_kroner": 600_000,
-                "ikke_henførbare_udgifter_kroner": 0,
-                "eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner": 0,
+                "ikke_henførbare_udgifter": [],
                 "kreditgrupper": [{
                     "identifikation": "norsk-fragtskat-2026",
                     "grupperingsgrundlag": {
                         "$variant": "Ll33SamletIndkomstFraSkatteområdet"
                     },
-                    "indkomstfakta": {
-                        "område": {
-                            "$variant": "Ll33FremmedStat",
-                            "landekode": "NO"
-                        },
-                        "udenlandsk_bruttoindkomst_kroner": 100_000,
-                        "direkte_henførbare_udgifter_kroner": 0
+                    "område": {
+                        "$variant": "Ll33FremmedStat",
+                        "landekode": "NO"
                     },
+                    "indkomstposter": [{
+                        "identifikation": "norsk-fragtskat-bruttoindkomst-2026",
+                        "art": { "$variant": "Ll33UdenlandskBruttoindtægt" },
+                        "beløb_kroner": 100_000,
+                        "indkomstkategorier": [{
+                            "$variant": "Ll33SkattepligtigIndkomstkategori"
+                        }],
+                        "dokumentreference": "Norsk indkomstbilag 2026"
+                    }],
                     "skattebetalinger": [{
                         "opkrævningsmåde": { "$variant": "Ll33DirektePåligning" },
                         "betalt_udenlandsk_skat_øre": 100_000,
@@ -16079,14 +16087,6 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                             "$variant": "Ll33IngenDobbeltbeskatningsoverenskomst"
                         }
                     }],
-                    "udenlandsk_indkomst_efter_danske_regler": {
-                        "skattepligtig_nettoindkomst_efter_par33f_kroner": 100_000,
-                        "personlig_nettoindkomst_efter_par33f_kroner": 0,
-                        "positiv_kapitalnettoindkomst_efter_par33f_kroner": 0,
-                        "aktienettoindkomst_efter_par33f_kroner": 0,
-                        "cfc_nettoindkomst_efter_par33f_kroner": 0,
-                        "arbejdsmarkedsbidragsgrundlag_kroner": 0
-                    },
                     "lønlempelsesstatus": { "$variant": "Ll33IngenLønindkomst" }
                 }],
                 "par6_kreditter": [],

@@ -22,14 +22,6 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 
 --@begin:ligningslov33_fragtskat_scenarier--
 
-| ll33_fragtskat_scenarie_indkomst() -> Ligningslov33UdenlandskIndkomstEfterDanskeRegler(
-    skattepligtig_nettoindkomst_efter_par33f_kroner = 100000,
-    personlig_nettoindkomst_efter_par33f_kroner = 0,
-    positiv_kapitalnettoindkomst_efter_par33f_kroner = 0,
-    aktienettoindkomst_efter_par33f_kroner = 0,
-    cfc_nettoindkomst_efter_par33f_kroner = 0,
-    arbejdsmarkedsbidragsgrundlag_kroner = 0
-)
 | ll33_fragtskat_scenarie_skattebetaling(identifikation: Tekst, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> Ligningslov33Skattebetaling(
     opkrævningsmåde = Ll33DirektePåligning,
     betalt_udenlandsk_skat_øre = betalt_skat_øre,
@@ -40,13 +32,14 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 | ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(identifikation: Tekst, skatteområde: Ligningslov33Skatteområde, skattebetalinger: List(Ligningslov33Skattebetaling)) -> Ligningslov33PersonKreditgruppe(
     identifikation = identifikation,
     grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-    indkomstfakta = Ligningslov33Indkomstfakta(
-        område = skatteområde,
-        udenlandsk_bruttoindkomst_kroner = 100000,
-        direkte_henførbare_udgifter_kroner = 0
-    ),
+    område = skatteområde,
+    indkomstposter = [ligningslov33_bruttoindkomstpost(
+        identifikation = identifikation + "-bruttoindkomst",
+        beløb_kroner = 100000,
+        indkomstkategorier = [Ll33SkattepligtigIndkomstkategori],
+        dokumentreference = "Indkomstbilag " + identifikation
+    )],
     skattebetalinger = skattebetalinger,
-    udenlandsk_indkomst_efter_danske_regler = ll33_fragtskat_scenarie_indkomst(),
     lønlempelsesstatus = Ll33IngenLønindkomst
 )
 | ll33_fragtskat_scenarie_gruppe(identifikation: Tekst, område: Ligningslov33Skatteområde, skatteart: Ligningslov33UdenlandskSkatteart, betalt_skat_øre: Heltal, overenskomstgrundlag: Ligningslov33Overenskomstgrundlag) -> ll33_fragtskat_scenarie_gruppe_med_skattebetalinger(
@@ -77,8 +70,7 @@ anvendelsesrækkefølge, som ikke findes i den gældende bestemmelse.
 | ll33_fragtskat_scenarie_årsinput(indkomstår: Heltal, kreditgrupper: List(Ligningslov33PersonKreditgruppe), åbningssaldi: List(Ligningslov33FragtskatSaldo)) -> Ligningslov33PersonÅrsinput(
     indkomstår = indkomstår,
     dansk_bruttoindkomst_kroner = 0,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
+    ikke_henførbare_udgifter = [],
     kreditgrupper = kreditgrupper,
     par6_kreditter = [],
     fragtskat_åbningssaldi = åbningssaldi
