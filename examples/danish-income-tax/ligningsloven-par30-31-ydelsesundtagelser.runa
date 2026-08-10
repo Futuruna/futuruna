@@ -6,6 +6,12 @@
 
 # Ligningslov30Og31KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
+= ligningsloven_lbk42_par30 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 30, stk. 1-6, i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "De modellerede bestemmelser er ordret identiske med LBK nr. 1500 af 24/11/2025"
+)
 = ligningsloven_lbk1500_par30 = Ligningslov30Og31KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 30, stk. 1-6, i LBK nr. 1500 af 24/11/2025",
@@ -26,6 +32,7 @@
 )
 = ligningsloven_par30_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par30),
         Source(value = ligningsloven_lbk1500_par30),
         Guidance(value = juridisk_vejledning_ligningslov30_personkreds),
         Guidance(value = juridisk_vejledning_ligningslov30_betingelser),
@@ -103,6 +110,12 @@ el.lign.
 | ligningslov30_betingelser_opfyldt(relation: Ligningslov30Og31Yderrelation, fakta: Ligningslov30Behandlingsfakta) -> ligningslov30_yderrelation_omfattet(relation) && fakta.generel_ordning_for_personkredsen && ligningslov30_lægeerklæring_opfyldt(fakta) && ligningslov30_medicinperiode_opfyldt(fakta) && ligningslov30_ydelsesart_opfyldt(fakta.ydelsesart)
 --@end:ligningsloven_par30_behandlingsydelser--
 
+= ligningsloven_lbk42_par31 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 31 i LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Den modellerede § 31 er ordret identisk med LBK nr. 1500 af 24/11/2025 før tilføjelsen af stk. 3, nr. 5, fra 01/07/2026"
+)
 = ligningsloven_lbk1500_par31 = Ligningslov30Og31KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 31 i LBK nr. 1500 af 24/11/2025",
@@ -114,6 +127,24 @@ el.lign.
     identifier = "LOV nr. 1630 af 16/12/2025, § 2, nr. 1, og § 3, stk. 2",
     hentet_dato = "2026-08-04",
     ændringsstatus = "Gældende fra 01/07/2026"
+)
+= skatterådet_befordringssats_2023 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2022/1449",
+    identifier = "BEK nr. 1449 af 22/11/2022, § 1: Skatterådets befordringssats for 2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende for indkomståret 2023"
+)
+= skatterådet_befordringssats_2024 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1312",
+    identifier = "BEK nr. 1312 af 21/11/2023, § 1: Skatterådets befordringssats for 2024",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende for indkomståret 2024"
+)
+= skatterådet_befordringssats_2025 = Ligningslov30Og31KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/1189",
+    identifier = "BEK nr. 1189 af 10/10/2024, § 1: Skatterådets befordringssats for 2025",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende for indkomståret 2025"
 )
 = skatterådet_befordringssats_2026 = Ligningslov30Og31KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1333",
@@ -129,11 +160,18 @@ el.lign.
 )
 = ligningsloven_par31_metadata = Metadata(
     attachments = (
+        Source(value = ligningsloven_lbk42_par31),
         Source(value = ligningsloven_lbk1500_par31),
+        DependencySource(value = ligningsloven_lbk42_par9a),
         DependencySource(value = ligningsloven_lbk1500_par9a_stk2_og_stk3),
         AmendmentSource(value = ligningsloven_lov1630_par2_og_par3),
+        RateSource(value = skatteforvaltningen_rejsesatser_2023),
+        RateSource(value = skatteforvaltningen_rejsesatser_2024),
         RateSource(value = skatteforvaltningen_rejsesatser_2025),
         RateSource(value = skatteforvaltningen_rejsesatser_2026),
+        RateSource(value = skatterådet_befordringssats_2023),
+        RateSource(value = skatterådet_befordringssats_2024),
+        RateSource(value = skatterådet_befordringssats_2025),
         RateSource(value = skatterådet_befordringssats_2026),
         Guidance(value = juridisk_vejledning_ligningslov31),
     )
@@ -264,10 +302,22 @@ I § 31, stk. 3, indsættes som nr. 5:
 --@begin:ligningsloven_par31_uddannelsesydelser--
 # Ligningslov31Uddannelsesydelsesart = Ll31SkoleEllerDeltagerbetaling(almindeligt_kørekort: Boolsk, yder_har_lovpligt_til_at_betale_kørekortet: Boolsk) | Ll31BøgerOgMaterialer(relevante_for_uddannelsen_eller_kurset: Boolsk) | Ll31FaktiskeLogiudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31FaktiskeKostudgifter(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, kosten_indtages_på_uddannelses_eller_kursusstedet: Boolsk, dokumenterede_udgifter_kroner: Heltal) | Ll31SatsgodtgørelseLogi(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, udelukket_transportarbejde_efter_par9a_stk2_nr4: Boolsk) | Ll31SatsgodtgørelseKostOgSmåfornødenheder(afstand_udelukker_overnatning_på_sædvanlig_bopæl: Boolsk, fulde_døgn: Heltal, påbegyndte_timer_efter_fulde_døgn: Heltal, opholdets_måned_nr: Heltal, fri_morgenmad_antal: Heltal, fri_frokost_antal: Heltal, fri_aftensmad_antal: Heltal) | Ll31BefordringIEgenBilEllerMotorcykel(kilometer_ad_normal_transportvej: Heltal, adgang_til_fri_befordring_for_strækningen: Boolsk, modtaget_par9b_godtgørelse_for_samme_strækning: Boolsk, tidligere_valgt_par9b_for_samme_uddannelse_eller_kursus: Boolsk) | Ll31FaktiskeUdgifterTilAndenBefordring(dokumenterede_udgifter_kroner: Heltal) | Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026: Boolsk)
 # Ligningslov31Uddannelsesfakta(uddannelsen_eller_kurset_udelukkende_privat: Boolsk, ydelsesart: Ligningslov31Uddannelsesydelsesart)
+# Ligningslov30Og31Lovversion = Ll30Og31Lbk42Af2023 | Ll30Og31Lbk1500Af2025 | Ll30Og31LovversionUdenKildedækning
+# Ligningslov31Befordringssatsversion = Ll31Bek1449Af2022 | Ll31Bek1312Af2023 | Ll31Bek1189Af2024 | Ll31Bek1333Af2025 | Ll31BefordringssatsUdenKildedækning
 
-| ligningslov30_og_31_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
-| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 223 under indkomstår == 2025
-| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 228 under indkomstår == 2026
+| ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31LovversionUdenKildedækning
+| exception ligningslov30_og_31_lbk42_for_2023_til_2025 ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31Lbk42Af2023 under indkomstår >= 2023 && indkomstår <= 2025
+| exception ligningslov30_og_31_lbk1500_for_2026 ligningslov30_og_31_lovversion_for(indkomstår: Heltal) -> Ll30Og31Lbk1500Af2025 under indkomstår == 2026
+| ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31BefordringssatsUdenKildedækning
+| exception ligningslov31_bek1449_for_2023 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1449Af2022 under indkomstår == 2023
+| exception ligningslov31_bek1312_for_2024 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1312Af2023 under indkomstår == 2024
+| exception ligningslov31_bek1189_for_2025 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1189Af2024 under indkomstår == 2025
+| exception ligningslov31_bek1333_for_2026 ligningslov31_befordringssatsversion_for(indkomstår: Heltal) -> Ll31Bek1333Af2025 under indkomstår == 2026
+| ligningslov30_og_31_skatteår_understøttet(indkomstår: Heltal) -> ligningslov30_og_31_lovversion_for(indkomstår) != Ll30Og31LovversionUdenKildedækning && ligningslov31_befordringssatsversion_for(indkomstår) != Ll31BefordringssatsUdenKildedækning && ligningslov9a_skatteår_understøttet(indkomstår)
+| ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 0
+| exception ligningslov31_befordringssats_2023 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 219 under indkomstår == 2023
+| exception ligningslov31_befordringssats_2024_og_2025 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 223 under indkomstår == 2024 || indkomstår == 2025
+| exception ligningslov31_befordringssats_2026 ligningslov31_befordring_øre_pr_kilometer(indkomstår: Heltal) -> 228 under indkomstår == 2026
 | ligningslov31_yderrelation_omfattet(relation: Ligningslov30Og31Yderrelation) -> relation == Ll30Og31Arbejdsgiver || relation == Ll30Og31AftaleOmPersonligtArbejde || relation == Ll30Og31KollektivtOrgan || relation == Ll30Og31Fagforening || relation == Ll30Og31Arbejdsløshedskasse || relation == Ll30Og31PensionskasseEllerLignende || relation == Ll30Og31ArbejdsgivernesUddannelsesbidrag
 | ligningslov31_mulige_måltidsdage(fulde_døgn: Heltal, påbegyndte_timer: Heltal) -> fulde_døgn + hvis påbegyndte_timer > 0 { 1 } ellers { 0 }
 | ligningslov31_ydelsesart_input_gyldig(art: Ligningslov31Uddannelsesydelsesart) -> match art {
@@ -302,7 +352,7 @@ I § 31, stk. 3, indsættes som nr. 5:
 
 # Ligningslov30Og31Undtagelse = Ll30Og31UdenUndtagelse | Ll30Og31BehandlingsydelseEfterPar30(fakta: Ligningslov30Behandlingsfakta) | Ll30Og31UddannelsesydelseEfterPar31(fakta: Ligningslov31Uddannelsesfakta)
 # Ligningslov30Og31Undtagelseshjemmel = Ll30Og31IngenAnvendtUndtagelse | Ll30Og31UndtagelseEfterPar30 | Ll30Og31UndtagelseEfterPar31
-# Ligningslov30Og31Undtagelsesresultat(indkomstår: Heltal, yderrelation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse, input_gyldigt: Boolsk, yderrelation_omfattet: Boolsk, undtagelsesbetingelser_opfyldt: Boolsk, anvendt_hjemmel: Ligningslov30Og31Undtagelseshjemmel, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
+# Ligningslov30Og31Undtagelsesresultat(indkomstår: Heltal, yderrelation: Ligningslov30Og31Yderrelation, beløb_kroner: Heltal, undtagelse: Ligningslov30Og31Undtagelse, lovversion: Ligningslov30Og31Lovversion, befordringssatsversion: Ligningslov31Befordringssatsversion, input_gyldigt: Boolsk, yderrelation_omfattet: Boolsk, undtagelsesbetingelser_opfyldt: Boolsk, anvendt_hjemmel: Ligningslov30Og31Undtagelseshjemmel, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
 | ligningslov30_og_31_undtagelse_input_gyldig(undtagelse: Ligningslov30Og31Undtagelse) -> match undtagelse {
     | Ll30Og31UdenUndtagelse -> Sandt
@@ -334,6 +384,8 @@ I § 31, stk. 3, indsættes som nr. 5:
         yderrelation = relation,
         beløb_kroner = beløb_kroner,
         undtagelse = undtagelse,
+        lovversion = ligningslov30_og_31_lovversion_for(indkomstår),
+        befordringssatsversion = ligningslov31_befordringssatsversion_for(indkomstår),
         input_gyldigt = input_gyldigt,
         yderrelation_omfattet = yderrelation_omfattet,
         undtagelsesbetingelser_opfyldt = betingelser_opfyldt,

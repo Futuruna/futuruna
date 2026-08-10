@@ -37845,6 +37845,23 @@ impl RustCodegen {
             .unwrap_or(false)
     }
 
+    fn static_call_bypasses_non_callable_local(&self, name: &str, arity: usize) -> bool {
+        if !self.local_bindings.contains(name) {
+            return false;
+        }
+        let Some(local_ty) = self.lookup_var_fir_ty(name) else {
+            return false;
+        };
+        if matches!(local_ty, FirTy::Arrow(_, _))
+            || matches!(local_ty, FirTy::Unknown | FirTy::Var(_))
+        {
+            return false;
+        }
+        self.types
+            .fn_types_by_arity
+            .contains_key(&(name.to_string(), arity))
+    }
+
     fn fir_arrow_arity(ty: &FirTy) -> usize {
         let mut count = 0;
         let mut current = ty;
@@ -38664,6 +38681,9 @@ impl RustCodegen {
                     ExprKind::Field(_obj, fn_name) => Some(fn_name.as_str()),
                     _ => None,
                 };
+                let bypass_non_callable_local = resolved_fn_name.is_some_and(|name| {
+                    self.static_call_bypasses_non_callable_local(name, args.len())
+                });
 
                 // Prolog rule functions: take &str, not String
                 let is_prolog_call = resolved_fn_name
@@ -39615,9 +39635,10 @@ impl RustCodegen {
                     let mut leading_args = Vec::new();
                     if self.binary_global_env_arg_in_scope
                         && self.binary_global_env_fns.contains(name.as_str())
-                        && !self.current_borrow_params.contains(name.as_str())
-                        && !self.var_types.contains_key(name)
-                        && !self.local_bindings.contains(name.as_str())
+                        && (bypass_non_callable_local
+                            || (!self.current_borrow_params.contains(name.as_str())
+                                && !self.var_types.contains_key(name)
+                                && !self.local_bindings.contains(name.as_str())))
                     {
                         leading_args.push(if self.binary_global_value_refs_in_scope {
                             "__fut_globals".to_string()
@@ -39645,14 +39666,20 @@ impl RustCodegen {
                         let mut all_args = leading_args;
                         all_args.extend(args_str.clone());
                         all_args.extend(effect_args);
-                        return format!("{}({})", sanitize_name(name), all_args.join(", "));
+                        let target = if bypass_non_callable_local {
+                            format!("self::{}", sanitize_name(name))
+                        } else {
+                            sanitize_name(name)
+                        };
+                        return format!("{}({})", target, all_args.join(", "));
                     }
                 }
 
                 // FnMut nested call fix: f(f(x)) needs temporaries to avoid
                 // double mutable borrow. Pre-bind inner calls to temps.
                 if let ExprKind::Var(name) = &func.as_ref().kind {
-                    let needs_temp = args.iter().any(|a| Self::expr_calls_var(a, name));
+                    let needs_temp = !bypass_non_callable_local
+                        && args.iter().any(|a| Self::expr_calls_var(a, name));
                     if needs_temp {
                         let mut parts = Vec::new();
                         let mut temp_count = 0;
@@ -39703,7 +39730,12 @@ impl RustCodegen {
                     }
                 }
 
-                let f = self.emit_expr(func);
+                let f = match &func.as_ref().kind {
+                    ExprKind::Var(name) if bypass_non_callable_local => {
+                        format!("self::{}", sanitize_name(name))
+                    }
+                    _ => self.emit_expr(func),
+                };
                 let call = format!("{}({})", f, args_str.join(", "));
                 // Value-returning Prolog functions return Option<T> — default on missing fact
                 if let ExprKind::Var(name) = &func.as_ref().kind {
@@ -51768,6 +51800,22 @@ for x in [1, 2] {
 "#;
         let output = compile_and_run_test_program(source);
         assert_eq!(output.trim(), "42");
+    }
+
+    #[test]
+    fn compiled_non_callable_binding_does_not_hide_same_named_rule_call() {
+        let source = r#"
+= bias = 1
+| evaluate(value: Int) -> value + bias
+= evaluate = evaluate(40)
+= later = evaluate(41)
+@ print(show(evaluate))
+@ print(show(later))
+"#;
+
+        let expected = "41\n42";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
     }
 
     #[test]

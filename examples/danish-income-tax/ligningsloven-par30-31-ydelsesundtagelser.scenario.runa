@@ -70,6 +70,11 @@
     uddannelsen_eller_kurset_udelukkende_privat = Falskt,
     ydelsesart = Ll31AubTilskudEllerRefusion(modtaget_fra_og_med_1_juli_2026 = Sandt)
 )))
+= ll30_scenarie_behandling_2023 = ligningslov30_og_31_undtagelsesresultat(2023, Ll30Og31Arbejdsløshedskasse, 1000, ll30_scenarie_misbrugsbehandling(Sandt, Ll30IngenMedicindækning))
+= ll31_scenarie_befordring_2023_på_sats = ligningslov30_og_31_undtagelsesresultat(2023, Ll30Og31Arbejdsløshedskasse, 219, ll31_scenarie_befordring(100))
+= ll31_scenarie_befordring_2023_over_sats = ligningslov30_og_31_undtagelsesresultat(2023, Ll30Og31Arbejdsløshedskasse, 220, ll31_scenarie_befordring(100))
+= ll31_scenarie_befordring_2024_på_sats = ligningslov30_og_31_undtagelsesresultat(2024, Ll30Og31Arbejdsløshedskasse, 223, ll31_scenarie_befordring(100))
+= ll30_scenarie_uden_for_kildehorisont = ligningslov30_og_31_undtagelsesresultat(2022, Ll30Og31Arbejdsløshedskasse, 1000, ll30_scenarie_misbrugsbehandling(Sandt, Ll30IngenMedicindækning))
 
 | ll30_uden_undtagelse_er_skattepligtig: ll30_scenarie_uden_undtagelse -> ll30_scenarie_uden_undtagelse.input_gyldigt && ll30_scenarie_uden_undtagelse.skattepligtigt_beløb_kroner == 1000 && ll30_scenarie_uden_undtagelse.skattefri_beløb_kroner == 0
 | ll30_behandling_med_betingelser_er_skattefri: ll30_scenarie_behandling_skattefri -> ll30_scenarie_behandling_skattefri.anvendt_hjemmel == Ll30Og31UndtagelseEfterPar30 && ll30_scenarie_behandling_skattefri.skattefri_beløb_kroner == 1000
@@ -84,6 +89,10 @@
 | ll31_kostsatsen_gælder_i_måned_12: ll31_scenarie_kostsats -> ll31_scenarie_kostsats.skattefri_beløb_kroner == 625
 | ll31_logisatsen_respekterer_par9a_transportundtagelsen: ll31_scenarie_logisats -> ll31_scenarie_logisats.skattefri_beløb_kroner == 268 && ll31_scenarie_logisats_for_udelukket_transportarbejde.skattepligtigt_beløb_kroner == 268
 | ll31_aub_ændringen_gælder_fra_1_juli_2026: ll31_scenarie_aub_efter_ikrafttræden -> ll31_scenarie_aub_før_ikrafttræden.skattepligtigt_beløb_kroner == 5000 && ll31_scenarie_aub_efter_ikrafttræden.skattefri_beløb_kroner == 5000
+| ll30_historisk_2023_regelgrundlag_er_kildedækket: ll30_scenarie_behandling_2023 -> ll30_scenarie_behandling_2023.input_gyldigt && ll30_scenarie_behandling_2023.lovversion == Ll30Og31Lbk42Af2023 && ll30_scenarie_behandling_2023.befordringssatsversion == Ll31Bek1449Af2022 && ll30_scenarie_behandling_2023.skattefri_beløb_kroner == 1000
+| ll31_befordring_bruger_219_øre_i_2023: ll31_scenarie_befordring_2023_på_sats -> ll31_scenarie_befordring_2023_på_sats.skattefri_beløb_kroner == 219 && ll31_scenarie_befordring_2023_over_sats.skattepligtigt_beløb_kroner == 220
+| ll31_befordring_bruger_223_øre_i_2024: ll31_scenarie_befordring_2024_på_sats -> ll31_scenarie_befordring_2024_på_sats.input_gyldigt && ll31_scenarie_befordring_2024_på_sats.befordringssatsversion == Ll31Bek1312Af2023 && ll31_scenarie_befordring_2024_på_sats.skattefri_beløb_kroner == 223
+| ll30_og_31_fejler_lukket_uden_for_kildehorisonten: ll30_scenarie_uden_for_kildehorisont -> ll30_scenarie_uden_for_kildehorisont.input_gyldigt == Falskt && ll30_scenarie_uden_for_kildehorisont.lovversion == Ll30Og31LovversionUdenKildedækning && ll30_scenarie_uden_for_kildehorisont.skattefri_beløb_kroner == 0 && ll30_scenarie_uden_for_kildehorisont.skattepligtigt_beløb_kroner == 0
 
 ? ll30_uden_undtagelse_er_skattepligtig
 ? ll30_behandling_med_betingelser_er_skattefri
@@ -98,3 +107,7 @@
 ? ll31_kostsatsen_gælder_i_måned_12
 ? ll31_logisatsen_respekterer_par9a_transportundtagelsen
 ? ll31_aub_ændringen_gælder_fra_1_juli_2026
+? ll30_historisk_2023_regelgrundlag_er_kildedækket
+? ll31_befordring_bruger_219_øre_i_2023
+? ll31_befordring_bruger_223_øre_i_2024
+? ll30_og_31_fejler_lukket_uden_for_kildehorisonten

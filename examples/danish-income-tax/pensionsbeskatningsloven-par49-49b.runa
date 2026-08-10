@@ -5,6 +5,18 @@
 
 # Pbl49KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
+= pensionsbeskatningsloven_lbk1327_par49_til55 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2020/1327",
+    identifier = "Pensionsbeskatningsloven §§ 49-49 B, § 54, stk. 2, og § 55 i LBK nr. 1327 af 10/09/2020",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "De modellerede bestemmelser er ordret identiske med LBK nr. 1243 af 26/11/2024 bortset fra § 49, stk. 3, som LOV nr. 609 af 31/05/2023 gav virkning fra indkomståret 2024"
+)
+= pensionsbeskatningsloven_lov609_par1_og_par3 = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/609",
+    identifier = "LOV nr. 609 af 31/05/2023, § 1, nr. 1, og § 3, stk. 2",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Indsætter pensionsbeskatningslovens § 49, stk. 3, med virkning fra og med indkomståret 2024"
+)
 = pensionsbeskatningsloven_lbk1243_par49 = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/1243",
     identifier = "Pensionsbeskatningsloven § 49, stk. 1 og 3, i LBK nr. 1243 af 26/11/2024",
@@ -37,7 +49,9 @@
 )
 = pensionsbeskatningsloven_par49_metadata = Metadata(
     attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
         Source(value = pensionsbeskatningsloven_lbk1243_par49),
+        AmendmentSource(value = pensionsbeskatningsloven_lov609_par1_og_par3),
         Guidance(value = skat_pbl49_bidrag_vejledning),
         Guidance(value = juridisk_vejledning_pbl49_bidrag),
     )
@@ -64,9 +78,17 @@ stk. 1, 1. pkt., er betinget af, at der i indkomståret er indbetalt mindst
 hjemsted i et andet land inden for EU/EØS end Danmark skal opfylde betingelserne
 for anerkendelse af en arbejdsløshedskasse i § 32, stk. 1, nr. 1, og stk. 2, i
 lov om arbejdsløshedsforsikring m.v.
+
+LOV nr. 609 af 31/05/2023, § 3:
+
+Stk. 1. Loven træder i kraft den 1. juni 2023.
+
+Stk. 2. Loven har virkning fra og med indkomståret 2024.
 ----
 
 --@begin::pensionsbeskatningsloven_par49_fradrag--
+# Pbl49Lovversion = Pbl49Lbk1327MedÆndringerTilOgMed2023 | Pbl49Lbk1243MedSenereÆndringer | Pbl49LovversionUdenKildedækning
+# Pbl49PrivatForsikringsminimumVersion = Pbl49Stk3IkkeAnvendeligFør2024 | Pbl49Stk3Minimum1300Fra2024 | Pbl49Stk3UdenKildedækning
 # Pbl49ArbejdsløshedskasseStatus = Pbl49DanskAnerkendtArbejdsløshedskasse | Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49EUEØSArbejdsløshedskasseIkkeAnerkendtEfterArbejdsløshedsforsikringslov32 | Pbl49ArbejdsløshedskasseUdenForEUEØS | Pbl49IkkeArbejdsløshedskasse
 # Pbl49DanskIndkomstgrundlag = Pbl49Kildeskattelov2Stk1Nr1Eller4 | Pbl49Kildeskattelov2Stk1Nr12Dagpenge | Pbl49AndetIndkomstgrundlag
 # Pbl49Skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark | Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D | Pbl49BegrænsetSkattepligtig(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk) | Pbl49FuldtSkattepligtigMenDobbeltbeskatningshjemmehørendeIUdlandet(indkomstgrundlag: Pbl49DanskIndkomstgrundlag, udgiften_kan_fradrages_i_udlandet: Boolsk)
@@ -74,10 +96,17 @@ lov om arbejdsløshedsforsikring m.v.
 # Pbl49Til49BBidragsfakta(identifikation: Tekst, indkomstår: Heltal, betalt_beløb_kroner: Heltal, art: Pbl49Til49BBidragsart)
 # Pbl49Til49BÅrsinput(skattepligtsposition: Pbl49Skattepligtsposition, bidrag: List(Pbl49Til49BBidragsfakta))
 # Pbl49Til49BHjemmel = Pbl49IngenFradragshjemmel | Pbl49Arbejdsløshedsforsikringsfradrag | Pbl49AEfterlønsfradrag | Pbl49BFleksydelsesfradrag
-# Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
-# Pbl49Til49BÅrsresultat(indkomstår: Heltal, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
+# Pbl49Til49BBidragsresultat(fakta: Pbl49Til49BBidragsfakta, input_gyldigt: Boolsk, arbejdsløshedskasse_opfyldt: Boolsk, skattepligtsbetingelse_opfyldt: Boolsk, privat_forsikringsminimum_finder_anvendelse: Boolsk, privat_forsikrings_minimum_opfyldt: Boolsk, skatteyderrelation_opfyldt: Boolsk, ordningsbetingelser_opfyldt: Boolsk, fradragsberettiget: Boolsk, hjemmel: Pbl49Til49BHjemmel, fradrag_kroner: Heltal)
+# Pbl49Til49BÅrsresultat(indkomstår: Heltal, lovversion: Pbl49Lovversion, privat_forsikringsminimum_version: Pbl49PrivatForsikringsminimumVersion, input: Pbl49Til49BÅrsinput, bidragsresultater: List(Pbl49Til49BBidragsresultat), skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, akassemedlemskab_indbetalt_kroner: Heltal, samlet_fradrag_kroner: Heltal, ikke_fradraget_kroner: Heltal)
 
-| pbl49_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2024 || indkomstår == 2025 || indkomstår == 2026
+| pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49LovversionUdenKildedækning
+| exception pbl49_lbk1327_for_2023 pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49Lbk1327MedÆndringerTilOgMed2023 under indkomstår == 2023
+| exception pbl49_lbk1243_for_2024_til_2026 pbl49_lovversion_for(indkomstår: Heltal) -> Pbl49Lbk1243MedSenereÆndringer under indkomstår >= 2024 && indkomstår <= 2026
+| pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3UdenKildedækning
+| exception pbl49_stk3_ikke_anvendelig_i_2023 pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3IkkeAnvendeligFør2024 under indkomstår == 2023
+| exception pbl49_stk3_minimum_fra_2024 pbl49_privataftaleminimum_version_for(indkomstår: Heltal) -> Pbl49Stk3Minimum1300Fra2024 under indkomstår >= 2024 && indkomstår <= 2026
+| pbl49_skatteår_understøttet(indkomstår: Heltal) -> pbl49_lovversion_for(indkomstår) != Pbl49LovversionUdenKildedækning && pbl49_privataftaleminimum_version_for(indkomstår) != Pbl49Stk3UdenKildedækning
+| pbl49_stk3_finder_anvendelse(indkomstår: Heltal) -> pbl49_privataftaleminimum_version_for(indkomstår) == Pbl49Stk3Minimum1300Fra2024
 | pbl49_arbejdsløshedskasse_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status != Pbl49IkkeArbejdsløshedskasse
 | pbl49_stk3_akassemedlemskab_opfyldt(status: Pbl49ArbejdsløshedskasseStatus) -> status == Pbl49DanskAnerkendtArbejdsløshedskasse || status == Pbl49EUEØSArbejdsløshedskasseAnerkendtEfterArbejdsløshedsforsikringslov32 || status == Pbl49ArbejdsløshedskasseUdenForEUEØS
 | pbl49_relevant_dansk_indkomst(indkomstgrundlag: Pbl49DanskIndkomstgrundlag) -> indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr1Eller4 || indkomstgrundlag == Pbl49Kildeskattelov2Stk1Nr12Dagpenge
@@ -105,7 +134,10 @@ lov om arbejdsløshedsforsikring m.v.
 )
 = pensionsbeskatningsloven_par49_stk2_metadata = Metadata(
     attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
         Source(value = pensionsbeskatningsloven_lbk1243_par49_stk2),
+        DependencySource(value = ligningsloven_lbk42_par30),
+        DependencySource(value = ligningsloven_lbk42_par31),
         DependencySource(value = ligningsloven_lbk1500_par30),
         DependencySource(value = ligningsloven_lbk1500_par31),
         Guidance(value = juridisk_vejledning_pbl49_udbetaling),
@@ -122,7 +154,7 @@ udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31
 # Pbl49Arbejdsløshedsforsikringsudbetalingsart = Pbl49UdbetalingFraArbejdsløshedskasse | Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring | Pbl49UdbetalingFraAndenEllerSammensatForsikring
 # Pbl49SkatteyderrelationEfterPar55 = Pbl49SkatteyderenErEjer | Pbl49SkatteyderenErBerettigetEfterEjersDød | Pbl49EnAndenErSkattepligtigEfterPar55
 # Pbl49ArbejdsløshedsforsikringsudbetalingFakta(identifikation: Tekst, indkomstår: Heltal, beløb_kroner: Heltal, art: Pbl49Arbejdsløshedsforsikringsudbetalingsart, skatteyderrelation: Pbl49SkatteyderrelationEfterPar55, undtagelse: Ligningslov30Og31Undtagelse)
-# Pbl49ArbejdsløshedsforsikringsudbetalingResultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta, input_gyldigt: Boolsk, udbetalingsart_omfattet: Boolsk, skatteyderen_er_skattepligtig_efter_par55: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
+# Pbl49ArbejdsløshedsforsikringsudbetalingResultat(fakta: Pbl49ArbejdsløshedsforsikringsudbetalingFakta, lovversion: Pbl49Lovversion, input_gyldigt: Boolsk, udbetalingsart_omfattet: Boolsk, skatteyderen_er_skattepligtig_efter_par55: Boolsk, undtagelsesresultat: Ligningslov30Og31Undtagelsesresultat, kan_sammensættes: Boolsk, skattefri_beløb_kroner: Heltal, skattepligtigt_beløb_kroner: Heltal)
 
 | pbl49_udbetalingsart_omfattet(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> art == Pbl49UdbetalingFraArbejdsløshedskasse || art == Pbl49UdbetalingFraPrivatArbejdsløshedsforsikring
 | pbl49_udbetaling_yderrelation(art: Pbl49Arbejdsløshedsforsikringsudbetalingsart) -> hvis art == Pbl49UdbetalingFraArbejdsløshedskasse { Ll30Og31Arbejdsløshedskasse } ellers { Ll30Og31AndenYder }
@@ -136,7 +168,10 @@ udbetalinger fra arbejdsløshedsforsikring, jf. dog ligningslovens §§ 30 og 31
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte fradragsregel er uændret"
 )
 = pensionsbeskatningsloven_par49a_metadata = Metadata(
-    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par49a)
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49a),
+    )
 )
 
 --@label:pensionsbeskatningsloven_par49a_efterloensfradrag::meta:pensionsbeskatningsloven_par49a_metadata--
@@ -160,7 +195,10 @@ efterlønsordningen, jf. lov om arbejdsløshedsforsikring m.v. § 77, stk. 4.
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte fradragsregel er uændret"
 )
 = pensionsbeskatningsloven_par49b_metadata = Metadata(
-    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par49b)
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
+        Source(value = pensionsbeskatningsloven_lbk1243_par49b),
+    )
 )
 
 --@label:pensionsbeskatningsloven_par49b_fleksydelsesfradrag::meta:pensionsbeskatningsloven_par49b_metadata--
@@ -184,7 +222,10 @@ bidrag til fleksydelsesordningen, jf. lov om fleksydelse § 7.
     ændringsstatus = "Senere ændringer gennem LOV nr. 615 af 30/06/2026 gennemgået; den anvendte ejerregel er uændret"
 )
 = pensionsbeskatningsloven_par54_stk2_metadata = Metadata(
-    attachments = Source(value = pensionsbeskatningsloven_lbk1243_par54_stk2)
+    attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
+        Source(value = pensionsbeskatningsloven_lbk1243_par54_stk2),
+    )
 )
 
 --@label:pensionsbeskatningsloven_par54_ejer_af_forsikringen::meta:pensionsbeskatningsloven_par54_stk2_metadata--
@@ -213,6 +254,7 @@ fuldt skattepligtig her i landet.
 )
 = pensionsbeskatningsloven_par55_metadata = Metadata(
     attachments = (
+        Source(value = pensionsbeskatningsloven_lbk1327_par49_til55),
         Source(value = pensionsbeskatningsloven_lbk1243_par55),
         Guidance(value = juridisk_vejledning_pbl49_udbetaling),
     )
@@ -242,6 +284,7 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
     = kan_sammensættes = input_gyldigt && udbetalingsart_omfattet
     Pbl49ArbejdsløshedsforsikringsudbetalingResultat(
         fakta = fakta,
+        lovversion = pbl49_lovversion_for(fakta.indkomstår),
         input_gyldigt = input_gyldigt,
         udbetalingsart_omfattet = udbetalingsart_omfattet,
         skatteyderen_er_skattepligtig_efter_par55 = skatteyderen_er_skattepligtig_efter_par55,
@@ -253,6 +296,12 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
 }
 --@end:pensionsbeskatningsloven_par55_udbetalingsmodtager--
 
+= kildeskatteloven_lbk1330_par2_stk9_og_par5a_5b = Pbl49KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1330",
+    identifier = "Kildeskatteloven § 2, stk. 9, og §§ 5 A-5 B i LBK nr. 1330 af 20/11/2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "De modellerede bestemmelser er ordret identiske med LBK nr. 460 af 03/05/2024"
+)
 = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b = Pbl49KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2024/460",
     identifier = "Kildeskatteloven § 2, stk. 9, og §§ 5 A-5 B i LBK nr. 460 af 03/05/2024",
@@ -261,6 +310,7 @@ efter ægtefællens død i henhold til policen m.v. er berettiget til pension, j
 )
 = pensionsbeskatningsloven_par49_til49b_samordning_metadata = Metadata(
     attachments = (
+        Source(value = kildeskatteloven_lbk1330_par2_stk9_og_par5a_5b),
         Source(value = kildeskatteloven_lbk460_par2_stk9_og_par5a_5b),
         Guidance(value = juridisk_vejledning_pbl49_bidrag),
         Guidance(value = juridisk_vejledning_pbl49a_efterløn),
@@ -308,7 +358,7 @@ fradragsberettigede efter pensionsbeskatningsloven.
 | pbl49a_49b_skattepligtsbetingelse_opfyldt(position: Pbl49Skattepligtsposition) -> position == Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark || position == Pbl49GrænsegængerEfterKildeskattelovensPar5ATil5D
 
 # Pbl49Til49BBidragSag(indkomstår: Heltal, skattepligtsposition: Pbl49Skattepligtsposition, akassemedlemskab_indbetalt_kroner: Heltal, fakta: Pbl49Til49BBidragsfakta) {
-    | input_gyldigt() -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0
+    | input_gyldigt() -> pbl49_skatteår_understøttet(indkomstår) && fakta.identifikation != "" && fakta.indkomstår == indkomstår && fakta.betalt_beløb_kroner >= 0
     | er_akassekontingent() -> match fakta.art { | Pbl49Akassekontingent(_, _) -> Sandt | _ -> Falskt }
     | er_privat_arbejdsløshedsforsikring() -> match fakta.art { | Pbl49PrivatArbejdsløshedsforsikring(_, _) -> Sandt | _ -> Falskt }
     | er_seniormedlemskontingent() -> match fakta.art { | Pbl49Seniormedlemskontingent(_, _) -> Sandt | _ -> Falskt }
@@ -321,7 +371,8 @@ fradragsberettigede efter pensionsbeskatningsloven.
         | _ -> Sandt
     }
     | skattepligtsbetingelse_opfyldt() -> hvis er_efterlønsbidrag() || er_fleksydelsesbidrag() { pbl49a_49b_skattepligtsbetingelse_opfyldt(skattepligtsposition) } ellers { pbl49_skattepligtsbetingelse_opfyldt(skattepligtsposition) }
-    | privat_forsikrings_minimum_opfyldt() -> er_privat_arbejdsløshedsforsikring() == Falskt || akassemedlemskab_indbetalt_kroner >= 1300
+    | privat_forsikringsminimum_finder_anvendelse() -> er_privat_arbejdsløshedsforsikring() && pbl49_stk3_finder_anvendelse(indkomstår)
+    | privat_forsikrings_minimum_opfyldt() -> privat_forsikringsminimum_finder_anvendelse() == Falskt || akassemedlemskab_indbetalt_kroner >= 1300
     | skatteyderrelation_opfyldt() -> match fakta.art {
         | Pbl49Akassekontingent(_, skatteyderen_er_medlem_og_forsikret) -> skatteyderen_er_medlem_og_forsikret
         | _ -> pbl54_ejer_og_forsikrede_opfyldt(fakta.art)
@@ -343,6 +394,7 @@ fradragsberettigede efter pensionsbeskatningsloven.
         input_gyldigt = input_gyldigt(),
         arbejdsløshedskasse_opfyldt = arbejdsløshedskasse_opfyldt(),
         skattepligtsbetingelse_opfyldt = skattepligtsbetingelse_opfyldt(),
+        privat_forsikringsminimum_finder_anvendelse = privat_forsikringsminimum_finder_anvendelse(),
         privat_forsikrings_minimum_opfyldt = privat_forsikrings_minimum_opfyldt(),
         skatteyderrelation_opfyldt = skatteyderrelation_opfyldt(),
         ordningsbetingelser_opfyldt = ordningsbetingelser_opfyldt(),
@@ -359,13 +411,15 @@ fradragsberettigede efter pensionsbeskatningsloven.
 | pbl49_til49b_årsresultat(indkomstår: Heltal, input: Pbl49Til49BÅrsinput) -> {
     = akassemedlemskab_indbetalt_kroner = pbl49_akassemedlemskab_indbetalt_kroner(input.bidrag, indkomstår)
     = bidragsresultater = map(input.bidrag, |fakta: Pbl49Til49BBidragsfakta| pbl49_til49b_bidrag_resultat(indkomstår, input.skattepligtsposition, akassemedlemskab_indbetalt_kroner, fakta))
-    = skatteår_understøttet = length(input.bidrag) == 0 || pbl49_skatteår_understøttet(indkomstår)
+    = skatteår_understøttet = pbl49_skatteår_understøttet(indkomstår)
     = identifikationer_entydige = pbl49_til49b_identifikationer_entydige(input.bidrag)
     = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && all(bidragsresultater, |resultat: Pbl49Til49BBidragsresultat| resultat.input_gyldigt)
     = fradrag_før_validering_kroner = pbl49_til49b_fradrag_kroner(bidragsresultater)
     = samlet_fradrag_kroner = hvis alle_input_gyldige { fradrag_før_validering_kroner } ellers { 0 }
     Pbl49Til49BÅrsresultat(
         indkomstår = indkomstår,
+        lovversion = pbl49_lovversion_for(indkomstår),
+        privat_forsikringsminimum_version = pbl49_privataftaleminimum_version_for(indkomstår),
         input = input,
         bidragsresultater = bidragsresultater,
         skatteår_understøttet = skatteår_understøttet,

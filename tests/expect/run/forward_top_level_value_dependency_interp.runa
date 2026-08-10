@@ -4,6 +4,7 @@
 -- expect-stdout: transitive=42
 -- expect-stdout: callable-before-shadow=42
 -- expect-stdout: same-name=42
+-- expect-stdout: callable-after-non-callable-shadow=43
 -- expect-stdout: callable-after-shadow=42
 
 # ForwardInput(value: Int)
@@ -16,6 +17,7 @@
 = early_input = ForwardInput(value = computed())
 = callable_before_shadow = evaluate(41)
 = evaluate = evaluate(41)
+= callable_after_non_callable_shadow = evaluate(42)
 = shadowed = |value: Int| value + 2
 = callable_after_shadow = shadowed(40)
 = later_direct_value = 41
@@ -25,4 +27,5 @@
 @ print("transitive=" + show(early_input.value))
 @ print("callable-before-shadow=" + show(callable_before_shadow))
 @ print("same-name=" + show(evaluate))
+@ print("callable-after-non-callable-shadow=" + show(callable_after_non_callable_shadow))
 @ print("callable-after-shadow=" + show(callable_after_shadow))
