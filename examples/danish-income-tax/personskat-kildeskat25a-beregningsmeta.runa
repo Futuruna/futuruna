@@ -7,14 +7,21 @@
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedsidentifikation),
     label = "Virksomhedens identifikation",
     question = Some("Hvilken af ægtefællernes virksomheder vedrører denne fordeling?"),
-    help = Some("Brug den samme entydige identifikation som på virksomhedens indtægter og udgifter. Virksomheden skal kun oplyses hos den ægtefælle, der driver den."),
+    help = Some("Brug den samme entydige identifikation som på virksomhedens indtægter og udgifter. Virksomheden skal kun oplyses dér, hvor de oprindelige kildeposter er registreret."),
     unit = None
 )
-= personskat_ksl25a_felt_virksomhedens_placering = TypetBeregningsfelt(
-    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedens_placering),
-    label = "Virksomhedens placering",
+= personskat_ksl25a_felt_virksomhedens_kildeplacering = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedens_kildeplacering),
+    label = "Virksomhedens kildeplacering",
     question = Some("Er virksomheden oplyst hos hovedpersonen eller ægtefællen?"),
-    help = Some("Placeringen udpeger virksomhedens oprindelige kildefakta; resultatet fordeles derefter efter kildeskattelovens § 25 A."),
+    help = Some("Kildeplaceringen udpeger kun de oprindelige indtægter og udgifter. Den afgør ikke, hvem der driver eller ejer virksomheden."),
+    unit = None
+)
+= personskat_ksl25a_felt_virksomhedsdriver = TypetBeregningsfelt(
+    path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::virksomhedsdriver_før_samlivsophør),
+    label = "Virksomhedsdriver før samlivsophør",
+    question = Some("Hvem driver virksomheden, eller driver den i overvejende grad, før et eventuelt samlivsophør?"),
+    help = Some("Angiv hovedpersonen eller ægtefællen ved stk. 1, 3 og 7. Lad feltet være tomt ved ligelig resultatfordeling efter stk. 8."),
     unit = None
 )
 = personskat_ksl25a_felt_samlivsophør = TypetBeregningsfelt(
@@ -139,7 +146,7 @@
 = personskat_ksl25a_felt_stk1_driver_overvejende = TypetBeregningsfelt(
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk1HosVirksomhedsdriver::virksomhedsdriveren_driver_i_overvejende_grad),
     label = "Virksomhedsdriveren driver i overvejende grad",
-    question = Some("Driver den ægtefælle, som virksomheden er oplyst hos, virksomheden i overvejende grad?"),
+    question = Some("Driver den angivne virksomhedsdriver virksomheden i overvejende grad?"),
     help = Some("Oplysningen er nødvendig efter § 25 A, stk. 1, når begge ægtefæller deltager i driften."),
     unit = None
 )
@@ -153,7 +160,7 @@
 = personskat_ksl25a_felt_stk3_driver_overvejende = TypetBeregningsfelt(
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk3TilMedarbejdendeÆgtefælle::virksomhedsdriveren_driver_i_overvejende_grad),
     label = "Én ægtefælle driver i overvejende grad",
-    question = Some("Driver den ægtefælle, som virksomheden er oplyst hos, virksomheden i overvejende grad?"),
+    question = Some("Driver den angivne virksomhedsdriver virksomheden i overvejende grad?"),
     help = None,
     unit = None
 )
@@ -320,16 +327,17 @@
 )
 = personskat_ksl25a_felt_stk8_andel = TypetBeregningsfelt(
     path = refof(PersonskatKsl25AVirksomhedsfordelingFakta::fordeling::Ksl25AStk8LigeligResultatfordeling::anden_ægtefælles_fordelingsandel_basispoint),
-    label = "Den anden ægtefælles andel af resultatet",
-    question = Some("Hvor stor en andel af virksomhedens resultat skal henføres til den anden ægtefælle?"),
-    help = Some("Angiv andelen i basispoint; 5.000 svarer til 50 procent."),
+    label = "Den anden parts andel af resultatet",
+    question = Some("Hvor stor en andel skal henføres til den part, som virksomhedens kildeposter ikke er registreret hos?"),
+    help = Some("Ved stk. 8 bruges kildeplaceringen kun som fordelingsanker. Angiv andelen i basispoint; 5.000 svarer til 50 procent."),
     unit = Some("basispoint")
 )
 
 = personskat_kildeskat25a_beregningsmeta = TypetBeregningsmeta(
     felter = [
         personskat_ksl25a_felt_virksomhedsidentifikation,
-        personskat_ksl25a_felt_virksomhedens_placering,
+        personskat_ksl25a_felt_virksomhedens_kildeplacering,
+        personskat_ksl25a_felt_virksomhedsdriver,
         personskat_ksl25a_felt_samlivsophør,
         personskat_ksl25a_felt_samlivsophørsårsag,
         personskat_ksl25a_felt_samlivsophørsdato_år,
