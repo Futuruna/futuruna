@@ -80,6 +80,7 @@ fn main_inner() {
     let mut use_fir = false; // --fir flag for `runa emit --fir`
     let mut emit_imports = false; // --imports flag for `runa emit --imports`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
+    let mut test_jobs = 1usize; // --jobs flag for `runa test`
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
     let mut stress_save_failures = None;
@@ -111,6 +112,10 @@ fn main_inner() {
                 test_compile = true;
                 i += 1;
             }
+            "--run" if mode == "test-file" => {
+                test_compile = true;
+                i += 1;
+            }
             "--test" if mode == "from-rust" => {
                 test_compile = true;
                 i += 1;
@@ -137,6 +142,25 @@ fn main_inner() {
             }
             "--check-codegen" if mode == "test" => {
                 check_codegen = true;
+                i += 1;
+            }
+            "--jobs" if mode == "test" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --jobs requires a positive integer");
+                    std::process::exit(1);
+                }
+                test_jobs = parse_test_job_count(&args[i + 1]).unwrap_or_else(|message| {
+                    eprintln!("error: {}", message);
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
+            arg if mode == "test" && arg.starts_with("--jobs=") => {
+                test_jobs =
+                    parse_test_job_count(&arg["--jobs=".len()..]).unwrap_or_else(|message| {
+                        eprintln!("error: {}", message);
+                        std::process::exit(1);
+                    });
                 i += 1;
             }
             "--imports" if mode == "lint-library" => {
@@ -365,6 +389,7 @@ fn main_inner() {
                 eprintln!("  --output PATH      Write a contract, template, or result");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
+                eprintln!("  test --jobs N  Run N independent test files concurrently");
                 eprintln!();
                 eprintln!("Cache environment:");
                 eprintln!(
@@ -422,6 +447,7 @@ fn main_inner() {
                 eprintln!("  runa expect tests/expect    Run compiler expectation cases");
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
+                eprintln!("  runa test --jobs 4 examples/my-corpus");
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
@@ -496,6 +522,10 @@ fn main_inner() {
                 mode = "test";
                 i += 1;
             }
+            "__test-file" => {
+                mode = "test-file";
+                i += 1;
+            }
             "fmt" => {
                 mode = "fmt";
                 i += 1;
@@ -549,6 +579,16 @@ fn main_inner() {
         }
     }
 
+    // Internal child-process entrypoint used by parallel test workers.
+    if mode == "test-file" {
+        let test_file = filename.as_deref().unwrap_or_else(|| {
+            eprintln!("error: __test-file requires a .runa file");
+            std::process::exit(1);
+        });
+        run_test_file_child(test_file, use_prelude, test_compile);
+        return;
+    }
+
     // ── runa init [name] — create new project ──
     if mode == "init" {
         let name = filename.as_deref().unwrap_or("my-project");
@@ -580,25 +620,33 @@ fn main_inner() {
 
     // ── runa test --roundtrip [dir] — round-trip comparison ──
     if mode == "test-roundtrip" {
+        if test_jobs != 1 {
+            eprintln!("error: --jobs is not supported with runa test --roundtrip");
+            std::process::exit(1);
+        }
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_roundtrip_tests(test_dir, use_prelude);
         return;
     }
     // ── runa test [--run] [--check-codegen] [dir] — test runner ──
     if mode == "test" && check_codegen {
+        if test_jobs != 1 {
+            eprintln!("error: --jobs is not supported with runa test --check-codegen");
+            std::process::exit(1);
+        }
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_codegen_check(test_dir, use_prelude);
         return;
     }
     if mode == "test" {
         let test_dir = filename.as_deref().unwrap_or("tests");
-        run_tests(test_dir, use_prelude, test_compile);
+        run_tests(test_dir, use_prelude, test_compile, test_jobs);
         // Also run error tests if they exist and no specific dir was given
         if filename.is_none() {
             let error_dir = std::path::Path::new(test_dir).join("errors");
             if error_dir.is_dir() {
                 eprintln!();
-                run_tests(&error_dir.to_string_lossy(), use_prelude, false);
+                run_tests(&error_dir.to_string_lossy(), use_prelude, false, test_jobs);
             }
         }
         return;
@@ -6354,30 +6402,195 @@ fn panic_payload_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
     }
 }
 
-fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
-    use std::process::Command;
-    use std::time::Instant;
+fn parse_test_job_count(raw: &str) -> Result<usize, String> {
+    let jobs = raw
+        .parse::<usize>()
+        .map_err(|_| format!("--jobs requires a positive integer, got '{}'", raw))?;
+    if jobs == 0 {
+        return Err("--jobs requires a positive integer, got '0'".to_string());
+    }
+    Ok(jobs)
+}
 
+fn collect_test_paths(dir: &str) -> Vec<std::path::PathBuf> {
     let path = std::path::Path::new(dir);
     if !path.is_dir() {
         eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
         std::process::exit(1);
     }
 
-    let mut entries: Vec<_> = std::fs::read_dir(path)
-        .unwrap_or_else(|e| {
-            eprintln!("Cannot read {}: {}", dir, e);
+    let mut paths = std::fs::read_dir(path)
+        .unwrap_or_else(|error| {
+            eprintln!("Cannot read {}: {}", dir, error);
             std::process::exit(1);
         })
-        .filter_map(|e| e.ok())
-        .filter(|e| e.path().extension().map(|x| x == "runa").unwrap_or(false))
-        .collect();
-    entries.sort_by_key(|e| e.file_name());
-
-    if entries.is_empty() {
+        .filter_map(|entry| entry.ok().map(|entry| entry.path()))
+        .filter(|path| {
+            path.extension()
+                .map(|extension| extension == "runa")
+                .unwrap_or(false)
+        })
+        .collect::<Vec<_>>();
+    paths.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
+    if paths.is_empty() {
         eprintln!("No .runa files found in {}", dir);
         std::process::exit(1);
     }
+    paths
+}
+
+fn run_test_file_child(filename: &str, use_prelude: bool, compile_mode: bool) {
+    let file_path = std::path::PathBuf::from(filename);
+    let display_dir = file_path
+        .parent()
+        .map(|parent| parent.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string());
+    run_test_paths_serial(
+        &display_dir,
+        std::slice::from_ref(&file_path),
+        use_prelude,
+        compile_mode,
+        false,
+    );
+}
+
+fn run_tests_parallel(
+    dir: &str,
+    paths: &[std::path::PathBuf],
+    use_prelude: bool,
+    compile_mode: bool,
+    jobs: usize,
+) {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::Instant;
+
+    let total = paths.len();
+    let worker_count = jobs.min(total);
+    let mode_label = if compile_mode {
+        "runa test --run"
+    } else {
+        "runa test"
+    };
+    eprintln!(
+        "\x1b[1m{}\x1b[0m: running {} tests from {}/ with {} jobs\n",
+        mode_label, total, dir, worker_count
+    );
+
+    let suite_start = Instant::now();
+    let self_bin = std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("runa"));
+    let next_index = AtomicUsize::new(0);
+    let results = std::thread::scope(|scope| {
+        let mut handles = Vec::with_capacity(worker_count);
+        for _ in 0..worker_count {
+            let next_index = &next_index;
+            let self_bin = &self_bin;
+            handles.push(scope.spawn(move || {
+                let mut worker_results = Vec::new();
+                loop {
+                    let index = next_index.fetch_add(1, Ordering::Relaxed);
+                    if index >= paths.len() {
+                        break;
+                    }
+                    let mut command = std::process::Command::new(&self_bin);
+                    command.arg("__test-file");
+                    if compile_mode {
+                        command.arg("--run");
+                    }
+                    command.arg(&paths[index]);
+                    if !use_prelude {
+                        command.arg("--no-prelude");
+                    }
+                    worker_results.push((index, command.output()));
+                }
+                worker_results
+            }));
+        }
+
+        let mut ordered = (0..total).map(|_| None).collect::<Vec<_>>();
+        for handle in handles {
+            let worker_results = handle.join().unwrap_or_else(|payload| {
+                panic!(
+                    "parallel test worker panicked: {}",
+                    panic_payload_to_string(payload)
+                )
+            });
+            for (index, output) in worker_results {
+                ordered[index] = Some(output);
+            }
+        }
+        ordered
+            .into_iter()
+            .map(|output| output.expect("parallel test worker omitted a result"))
+            .collect::<Vec<_>>()
+    });
+
+    let mut failures = Vec::new();
+    for (path, output) in paths.iter().zip(results) {
+        let name = path
+            .file_name()
+            .map(|name| name.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        match output {
+            Ok(output) => {
+                let mut stdout = std::io::stdout().lock();
+                let _ = IoWrite::write_all(&mut stdout, &output.stdout);
+                let _ = IoWrite::flush(&mut stdout);
+                let mut stderr = std::io::stderr().lock();
+                let _ = IoWrite::write_all(&mut stderr, &output.stderr);
+                let _ = IoWrite::flush(&mut stderr);
+                if !output.status.success() {
+                    failures.push(name);
+                }
+            }
+            Err(error) => {
+                eprintln!(
+                    "  \x1b[1;31mFAIL\x1b[0m  {} — cannot execute: {}",
+                    name, error
+                );
+                failures.push(name);
+            }
+        }
+    }
+
+    let suite_time = short_duration(suite_start.elapsed());
+    eprintln!();
+    if failures.is_empty() {
+        eprintln!(
+            "\x1b[1;32mAll {} tests passed\x1b[0m in {}.",
+            total, suite_time
+        );
+    } else {
+        eprintln!(
+            "\x1b[1;31m{} of {} tests failed\x1b[0m in {}:",
+            failures.len(),
+            total,
+            suite_time
+        );
+        for failure in failures {
+            eprintln!("  - {}", failure);
+        }
+        std::process::exit(1);
+    }
+}
+
+fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize) {
+    let paths = collect_test_paths(dir);
+    if jobs == 1 {
+        run_test_paths_serial(dir, &paths, use_prelude, compile_mode, true);
+    } else {
+        run_tests_parallel(dir, &paths, use_prelude, compile_mode, jobs);
+    }
+}
+
+fn run_test_paths_serial(
+    dir: &str,
+    entries: &[std::path::PathBuf],
+    use_prelude: bool,
+    compile_mode: bool,
+    show_suite: bool,
+) {
+    use std::process::Command;
+    use std::time::Instant;
 
     let total = entries.len();
     let mut failed = 0usize;
@@ -6388,10 +6601,12 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
     } else {
         "runa test"
     };
-    eprintln!(
-        "\x1b[1m{}\x1b[0m: running {} tests from {}/\n",
-        mode_label, total, dir
-    );
+    if show_suite {
+        eprintln!(
+            "\x1b[1m{}\x1b[0m: running {} tests from {}/\n",
+            mode_label, total, dir
+        );
+    }
 
     let suite_start = Instant::now();
 
@@ -6402,8 +6617,7 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
         std::path::PathBuf::new() // unused
     };
 
-    for entry in &entries {
-        let file_path = entry.path();
+    for file_path in entries {
         let name = file_path
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -6666,6 +6880,13 @@ fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool) {
                 }
             }
         }
+    }
+
+    if !show_suite {
+        if failed > 0 {
+            std::process::exit(1);
+        }
+        return;
     }
 
     let suite_elapsed = suite_start.elapsed();
@@ -43196,6 +43417,14 @@ fn fresh_generated_rust_name(base: &str, used: &mut BTreeSet<String>) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_job_count_requires_a_positive_integer() {
+        assert_eq!(parse_test_job_count("1"), Ok(1));
+        assert_eq!(parse_test_job_count("8"), Ok(8));
+        assert!(parse_test_job_count("0").is_err());
+        assert!(parse_test_job_count("auto").is_err());
+    }
 
     #[test]
     fn compiler_executable_fingerprint_cache_reuses_and_invalidates_exact_hashes() {
