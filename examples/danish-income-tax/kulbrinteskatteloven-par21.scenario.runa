@@ -12,12 +12,23 @@
 )
 | kulbrinte_scenarie_resultat(indkomstår: Heltal, bruttoindtægt_kroner: Heltal, kildefakta: Kulbrinteskattelov21Stk2Kildefakta) -> kulbrinteskattelov21_stk2_resultat(Kulbrinteskattelov21Stk2Input(indkomstår = indkomstår, bruttoindtægt_kroner = bruttoindtægt_kroner, kildefakta = kildefakta))
 
+= kulbrinte_scenarie_historisk_2023 = kulbrinte_scenarie_resultat(
+    indkomstår = 2023,
+    bruttoindtægt_kroner = 500000,
+    kildefakta = kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40)
+)
+= kulbrinte_scenarie_historisk_2024 = kulbrinte_scenarie_resultat(
+    indkomstår = 2024,
+    bruttoindtægt_kroner = 500000,
+    kildefakta = kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40)
+)
 = kulbrinte_scenarie_bruttoskat = kulbrinte_scenarie_resultat(2025, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
 = kulbrinte_scenarie_ung_2026 = kulbrinte_scenarie_resultat(2026, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 17))
 = kulbrinte_scenarie_dbo_afskærer = kulbrinte_scenarie_resultat(2025, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDobbeltbeskatningsaftaleAfskærerDanskBeskatning, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
 = kulbrinte_scenarie_ksl_valg = kulbrinte_scenarie_resultat(2025, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteValgtKildeskattelov2Stk1Nr1, 40))
 = kulbrinte_scenarie_uafklaret_dbo = kulbrinte_scenarie_resultat(2025, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretUafklaret, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
-= kulbrinte_scenarie_ikke_understøttet_år = kulbrinte_scenarie_resultat(2024, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
+= kulbrinte_scenarie_ikke_understøttet_2022 = kulbrinte_scenarie_resultat(2022, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
+= kulbrinte_scenarie_ikke_understøttet_2027 = kulbrinte_scenarie_resultat(2027, 500000, kulbrinte_scenarie_kildefakta(KulbrinteDanskBeskatningsretBekræftet, KulbrinteEndeligBruttoskatEfterPar21Stk2, 40))
 = kulbrinte_scenarie_dansk_arbejdsgiver = kulbrinte_scenarie_resultat(2025, 500000, Kulbrinteskattelov21Stk2Kildefakta(
     personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,
     arbejdsgiverhjemting = KulbrinteArbejdsgiverMedHjemtingIDanmark,
@@ -28,19 +39,23 @@
 ))
 
 | kulbrinte_scenarie_30_pct_plus_am: kulbrinte_scenarie_bruttoskat -> kulbrinte_scenarie_bruttoskat.input_gyldigt && kulbrinte_scenarie_bruttoskat.grundbetingelser_opfyldt && kulbrinte_scenarie_bruttoskat.beregningsklar && kulbrinte_scenarie_bruttoskat.bruttoskattegrundlag_kroner == 500000 && kulbrinte_scenarie_bruttoskat.endelig_indkomstskat_kroner == 150000 && kulbrinte_scenarie_bruttoskat.arbejdsmarkedsbidrag_kroner == 40000 && kulbrinte_scenarie_bruttoskat.samlet_skat_kroner == 190000
+| kulbrinte_scenarie_2023_2024_bærer_historisk_lovversion: kulbrinte_scenarie_historisk_2023 -> kulbrinte_scenarie_historisk_2023.lovversion == KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer && kulbrinte_scenarie_historisk_2023.beregningsklar && kulbrinte_scenarie_historisk_2023.indkomstskattesats_basispoint == 3000 && kulbrinte_scenarie_historisk_2023.samlet_skat_kroner == 190000 && kulbrinte_scenarie_historisk_2024.lovversion == KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer && kulbrinte_scenarie_historisk_2024.beregningsklar && kulbrinte_scenarie_historisk_2024.samlet_skat_kroner == 190000
+| kulbrinte_scenarie_2025_2026_bærer_gældende_lovversion: kulbrinte_scenarie_bruttoskat -> kulbrinte_scenarie_bruttoskat.lovversion == KulbrintePar21Stk2Lbk477Af2025 && kulbrinte_scenarie_ung_2026.lovversion == KulbrintePar21Stk2Lbk477Af2025
 | kulbrinte_scenarie_am_sats_følger_personen: kulbrinte_scenarie_ung_2026 -> kulbrinte_scenarie_ung_2026.beregningsklar && kulbrinte_scenarie_ung_2026.endelig_indkomstskat_kroner == 150000 && kulbrinte_scenarie_ung_2026.arbejdsmarkedsbidragssats_basispoint == 0 && kulbrinte_scenarie_ung_2026.arbejdsmarkedsbidrag_kroner == 0
 | kulbrinte_scenarie_dbo_fjerner_dansk_skat: kulbrinte_scenarie_dbo_afskærer -> kulbrinte_scenarie_dbo_afskærer.dansk_beskatningsret_afklaret && kulbrinte_scenarie_dbo_afskærer.dansk_beskatningsret == Falskt && kulbrinte_scenarie_dbo_afskærer.beregningsklar && kulbrinte_scenarie_dbo_afskærer.samlet_skat_kroner == 0
 | kulbrinte_scenarie_ksl_valg_fejler_lukket: kulbrinte_scenarie_ksl_valg -> kulbrinte_scenarie_ksl_valg.input_gyldigt && kulbrinte_scenarie_ksl_valg.grundbetingelser_opfyldt && kulbrinte_scenarie_ksl_valg.kræver_kildeskattelov2_stk1_nr1_beregning && kulbrinte_scenarie_ksl_valg.beregningsklar == Falskt && kulbrinte_scenarie_ksl_valg.samlet_skat_kroner == 0
 | kulbrinte_scenarie_uafklaret_dbo_fejler_lukket: kulbrinte_scenarie_uafklaret_dbo -> kulbrinte_scenarie_uafklaret_dbo.dansk_beskatningsret_afklaret == Falskt && kulbrinte_scenarie_uafklaret_dbo.beregningsklar == Falskt && kulbrinte_scenarie_uafklaret_dbo.samlet_skat_kroner == 0
 | kulbrinte_scenarie_forkert_personkreds_afvises: kulbrinte_scenarie_dansk_arbejdsgiver -> kulbrinte_scenarie_dansk_arbejdsgiver.input_gyldigt && kulbrinte_scenarie_dansk_arbejdsgiver.grundbetingelser_opfyldt == Falskt && kulbrinte_scenarie_dansk_arbejdsgiver.beregningsklar == Falskt
-| kulbrinte_scenarie_ikke_understøttet_år_fejler_lukket: kulbrinte_scenarie_ikke_understøttet_år -> kulbrinte_scenarie_ikke_understøttet_år.skatteår_understøttet == Falskt && kulbrinte_scenarie_ikke_understøttet_år.input_gyldigt == Falskt && kulbrinte_scenarie_ikke_understøttet_år.beregningsklar == Falskt && kulbrinte_scenarie_ikke_understøttet_år.samlet_skat_kroner == 0
+| kulbrinte_scenarie_ikke_understøttede_år_fejler_lukket: kulbrinte_scenarie_ikke_understøttet_2022 -> kulbrinte_scenarie_ikke_understøttet_2022.lovversion == KulbrintePar21Stk2LovversionUdenKildedækning && kulbrinte_scenarie_ikke_understøttet_2022.skatteår_understøttet == Falskt && kulbrinte_scenarie_ikke_understøttet_2022.input_gyldigt == Falskt && kulbrinte_scenarie_ikke_understøttet_2022.beregningsklar == Falskt && kulbrinte_scenarie_ikke_understøttet_2022.indkomstskattesats_basispoint == 0 && kulbrinte_scenarie_ikke_understøttet_2022.arbejdsmarkedsbidragssats_basispoint == 0 && kulbrinte_scenarie_ikke_understøttet_2022.samlet_skat_kroner == 0 && kulbrinte_scenarie_ikke_understøttet_2027.lovversion == KulbrintePar21Stk2LovversionUdenKildedækning && kulbrinte_scenarie_ikke_understøttet_2027.input_gyldigt == Falskt && kulbrinte_scenarie_ikke_understøttet_2027.samlet_skat_kroner == 0
 
 ? kulbrinte_scenarie_30_pct_plus_am
+? kulbrinte_scenarie_2023_2024_bærer_historisk_lovversion
+? kulbrinte_scenarie_2025_2026_bærer_gældende_lovversion
 ? kulbrinte_scenarie_am_sats_følger_personen
 ? kulbrinte_scenarie_dbo_fjerner_dansk_skat
 ? kulbrinte_scenarie_ksl_valg_fejler_lukket
 ? kulbrinte_scenarie_uafklaret_dbo_fejler_lukket
 ? kulbrinte_scenarie_forkert_personkreds_afvises
-? kulbrinte_scenarie_ikke_understøttet_år_fejler_lukket
+? kulbrinte_scenarie_ikke_understøttede_år_fejler_lukket
 
 @ print("Kulbrinteskattelovens § 21, stk. 2, kontrolleret med bruttoskat, AM-bidrag, valg og DBO")

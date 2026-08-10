@@ -6,11 +6,35 @@
 
 # KulbrinteskattelovPar21KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, ændringsstatus: Tekst)
 
+= kulbrinteskattelov_par21_lbk1820 = KulbrinteskattelovPar21KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1820",
+    identifier = "Kulbrinteskatteloven § 21, stk. 2, LBK nr. 1820 af 16/09/2021",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "§ 21, stk. 2, bærer indkomstårene 2023-2024; de efterfølgende love nr. 502, 710 og 1564 af 2023 ændrer ikke bestemmelsen"
+)
+= kulbrinteskattelov_par21_lov502 = KulbrinteskattelovPar21KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/502",
+    identifier = "LOV nr. 502 af 16/05/2023 § 12",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Indsætter § 27 D om det midlertidige solidaritetsbidrag og ændrer ikke § 21, stk. 2"
+)
+= kulbrinteskattelov_par21_lov710 = KulbrinteskattelovPar21KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/710",
+    identifier = "LOV nr. 710 af 13/06/2023 § 3",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Indfører regler om CO2-lagring og ændrer ikke § 21, stk. 2"
+)
+= kulbrinteskattelov_par21_lov1564 = KulbrinteskattelovPar21KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1564",
+    identifier = "LOV nr. 1564 af 12/12/2023 §§ 5 og 7, stk. 2",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Ændrer alene § 21, stk. 1, med virkning fra indkomståret 2023 og ændrer ikke stk. 2"
+)
 = kulbrinteskattelov_par21_lbk477 = KulbrinteskattelovPar21KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/477",
     identifier = "Kulbrinteskatteloven § 21, stk. 2, LBK nr. 477 af 07/05/2025",
-    hentet_dato = "2026-08-06",
-    ændringsstatus = "Gældende konsoliderede § 21, stk. 2, kontrolleret"
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Gældende konsoliderede § 21, stk. 2, bærer indkomstårene 2025-2026"
 )
 = kulbrinteskattelov_par21_vejledning = KulbrinteskattelovPar21KildeInfo(
     url = "https://www.retsinformation.dk/eli/retsinfo/2026/9439",
@@ -22,6 +46,10 @@
 = kulbrinteskattelov_par21_metadata = Metadata(
     attachments = (
         Source(value = kulbrinteskattelov_par21_lbk477),
+        HistoricalSource(value = kulbrinteskattelov_par21_lbk1820),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov502),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov710),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov1564),
         DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par3),
         Guidance(value = kulbrinteskattelov_par21_vejledning),
     )
@@ -38,15 +66,22 @@ Stk. 2. Personer, som ikke er omfattet af kildeskattelovens § 1, og som arbejde
 # Kulbrinteskattelov21Stk2Indkomstkategori = KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag | KulbrinteIndtægtEfterPar4 | KulbrinteAndenErhvervsindkomst | KulbrinteIndkomstUdenForLoven
 # Kulbrinteskattelov21Stk2DanskBeskatningsret = KulbrinteDanskBeskatningsretBekræftet | KulbrinteDobbeltbeskatningsaftaleAfskærerDanskBeskatning | KulbrinteDanskBeskatningsretUafklaret
 # Kulbrinteskattelov21Stk2Beskatningsvalg = KulbrinteEndeligBruttoskatEfterPar21Stk2 | KulbrinteValgtKildeskattelov2Stk1Nr1
+# Kulbrinteskattelov21Stk2Lovversion = KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer | KulbrintePar21Stk2Lbk477Af2025 | KulbrintePar21Stk2LovversionUdenKildedækning
 # Kulbrinteskattelov21Stk2Kildefakta(personstatus: Kulbrinteskattelov21Stk2Personstatus, arbejdsgiverhjemting: Kulbrinteskattelov21Stk2Arbejdsgiverhjemting, indkomstkategori: Kulbrinteskattelov21Stk2Indkomstkategori, dansk_beskatningsret: Kulbrinteskattelov21Stk2DanskBeskatningsret, beskatningsvalg: Kulbrinteskattelov21Stk2Beskatningsvalg, alder_ved_indkomstårets_udløb: Heltal)
 # Kulbrinteskattelov21Stk2Input(indkomstår: Heltal, bruttoindtægt_kroner: Heltal, kildefakta: Kulbrinteskattelov21Stk2Kildefakta)
-# Kulbrinteskattelov21Stk2Resultat(input: Kulbrinteskattelov21Stk2Input, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, grundbetingelser_opfyldt: Boolsk, dansk_beskatningsret_afklaret: Boolsk, dansk_beskatningsret: Boolsk, endelig_bruttoskat_valgt: Boolsk, kræver_kildeskattelov2_stk1_nr1_beregning: Boolsk, beregningsklar: Boolsk, bruttoskattegrundlag_kroner: Heltal, indkomstskattesats_basispoint: Heltal, endelig_indkomstskat_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_kroner: Heltal)
+# Kulbrinteskattelov21Stk2Resultat(input: Kulbrinteskattelov21Stk2Input, lovversion: Kulbrinteskattelov21Stk2Lovversion, input_gyldigt: Boolsk, skatteår_understøttet: Boolsk, grundbetingelser_opfyldt: Boolsk, dansk_beskatningsret_afklaret: Boolsk, dansk_beskatningsret: Boolsk, endelig_bruttoskat_valgt: Boolsk, kræver_kildeskattelov2_stk1_nr1_beregning: Boolsk, beregningsklar: Boolsk, bruttoskattegrundlag_kroner: Heltal, indkomstskattesats_basispoint: Heltal, endelig_indkomstskat_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, arbejdsmarkedsbidrag_kroner: Heltal, samlet_skat_kroner: Heltal)
 
-| kulbrinteskattelov21_stk2_indkomstskattesats_basispoint() -> 3000
-| kulbrinteskattelov21_stk2_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2LovversionUdenKildedækning
+| exception kulbrinte_par21_stk2_lbk1820_for_2023_2024 kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2024
+| exception kulbrinte_par21_stk2_lbk477_for_2025_2026 kulbrinteskattelov21_stk2_lovversion_for(indkomstår: Heltal) -> KulbrintePar21Stk2Lbk477Af2025 under indkomstår >= 2025 && indkomstår <= 2026
+| kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 0
+| exception kulbrinte_par21_stk2_lbk1820_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk1820Af2021MedSenereÆndringer
+| exception kulbrinte_par21_stk2_lbk477_sats kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion: Kulbrinteskattelov21Stk2Lovversion) -> 3000 under lovversion == KulbrintePar21Stk2Lbk477Af2025
+| kulbrinteskattelov21_stk2_skatteår_understøttet(indkomstår: Heltal) -> kulbrinteskattelov21_stk2_lovversion_for(indkomstår = indkomstår) != KulbrintePar21Stk2LovversionUdenKildedækning
 | kulbrinteskattelov21_stk2_input_gyldigt(input: Kulbrinteskattelov21Stk2Input) -> kulbrinteskattelov21_stk2_skatteår_understøttet(input.indkomstår) && input.bruttoindtægt_kroner >= 0 && input.kildefakta.alder_ved_indkomstårets_udløb >= 0 && input.kildefakta.alder_ved_indkomstårets_udløb <= 130
 | kulbrinteskattelov21_stk2_grundbetingelser_opfyldt(kildefakta: Kulbrinteskattelov21Stk2Kildefakta) -> kildefakta.personstatus == KulbrintePersonIkkeOmfattetAfKildeskattelov1 && kildefakta.arbejdsgiverhjemting == KulbrinteArbejdsgiverUdenHjemtingIDanmark && kildefakta.indkomstkategori == KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag
 | kulbrinteskattelov21_stk2_resultat(input: Kulbrinteskattelov21Stk2Input) -> {
+    = lovversion = kulbrinteskattelov21_stk2_lovversion_for(indkomstår = input.indkomstår)
     = input_gyldigt = kulbrinteskattelov21_stk2_input_gyldigt(input)
     = skatteår_understøttet = kulbrinteskattelov21_stk2_skatteår_understøttet(input.indkomstår)
     = grundbetingelser_opfyldt = kulbrinteskattelov21_stk2_grundbetingelser_opfyldt(input.kildefakta)
@@ -56,11 +91,13 @@ Stk. 2. Personer, som ikke er omfattet af kildeskattelovens § 1, og som arbejde
     = kræver_kildeskattelov2_stk1_nr1_beregning = input_gyldigt && grundbetingelser_opfyldt && dansk_beskatningsret && endelig_bruttoskat_valgt == Falskt
     = beregningsklar = input_gyldigt && grundbetingelser_opfyldt && dansk_beskatningsret_afklaret && (dansk_beskatningsret == Falskt || endelig_bruttoskat_valgt)
     = bruttoskattegrundlag_kroner = hvis beregningsklar && dansk_beskatningsret && endelig_bruttoskat_valgt { input.bruttoindtægt_kroner } ellers { 0 }
-    = endelig_indkomstskat_kroner = penge_beløb_gange_basispoint_kroner(bruttoskattegrundlag_kroner, kulbrinteskattelov21_stk2_indkomstskattesats_basispoint())
-    = arbejdsmarkedsbidragssats_basispoint = arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(skatteår = input.indkomstår, alder_ved_indkomstårets_udløb = input.kildefakta.alder_ved_indkomstårets_udløb))
+    = indkomstskattesats_basispoint = kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(lovversion = lovversion)
+    = endelig_indkomstskat_kroner = penge_beløb_gange_basispoint_kroner(bruttoskattegrundlag_kroner, indkomstskattesats_basispoint)
+    = arbejdsmarkedsbidragssats_basispoint = hvis input_gyldigt { arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(skatteår = input.indkomstår, alder_ved_indkomstårets_udløb = input.kildefakta.alder_ved_indkomstårets_udløb)) } ellers { 0 }
     = arbejdsmarkedsbidrag_kroner = hvis beregningsklar && dansk_beskatningsret && endelig_bruttoskat_valgt { arbejdsmarkedsbidrag_for_person_kroner(bruttoskattegrundlag_kroner, ArbejdsmarkedsbidragPersonSatsInput(skatteår = input.indkomstår, alder_ved_indkomstårets_udløb = input.kildefakta.alder_ved_indkomstårets_udløb)) } ellers { 0 }
     Kulbrinteskattelov21Stk2Resultat(
         input = input,
+        lovversion = lovversion,
         input_gyldigt = input_gyldigt,
         skatteår_understøttet = skatteår_understøttet,
         grundbetingelser_opfyldt = grundbetingelser_opfyldt,
@@ -70,7 +107,7 @@ Stk. 2. Personer, som ikke er omfattet af kildeskattelovens § 1, og som arbejde
         kræver_kildeskattelov2_stk1_nr1_beregning = kræver_kildeskattelov2_stk1_nr1_beregning,
         beregningsklar = beregningsklar,
         bruttoskattegrundlag_kroner = bruttoskattegrundlag_kroner,
-        indkomstskattesats_basispoint = kulbrinteskattelov21_stk2_indkomstskattesats_basispoint(),
+        indkomstskattesats_basispoint = indkomstskattesats_basispoint,
         endelig_indkomstskat_kroner = endelig_indkomstskat_kroner,
         arbejdsmarkedsbidragssats_basispoint = arbejdsmarkedsbidragssats_basispoint,
         arbejdsmarkedsbidrag_kroner = arbejdsmarkedsbidrag_kroner,

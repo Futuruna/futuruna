@@ -11341,7 +11341,11 @@
     beløbsfelter = [],
     attachments = (
         Source(value = søbl5_til8_lbk1181),
+        HistoricalSource(value = kulbrinteskattelov_par21_lbk1820),
         DependencySource(value = kulbrinteskattelov_par21_lbk477),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov502),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov710),
+        AmendmentSource(value = kulbrinteskattelov_par21_lov1564),
     )
 )
 = personskat_metadata_ægtefællegrundlag = PersonskatMetadata(

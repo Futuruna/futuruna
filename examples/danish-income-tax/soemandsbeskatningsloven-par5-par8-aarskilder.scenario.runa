@@ -32,6 +32,33 @@
         beløb_kroner = beløb_kroner
     )
 )
+| søbl5_til8_årskilde_kulbrinteindkomst(indkomstår: Heltal, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
+    identifikation = "kulbrinte-dis-historisk",
+    indkomstår = indkomstår,
+    person = Søbl5Til8Personfakta(
+        skattepligt = SøblKulbrinteskattepligtigEfterPar21Stk2,
+        statsborgerskab = SøblAndetStatsborgerskab,
+        relation = SøblAlmindeligLønmodtager
+    ),
+    skib = Søbl5Til8Skibsfakta(
+        identifikation = "kulbrinte-eu-skib",
+        registrering = SøblUdenlandskSkibRegistreretIEUEØS(SøblEUEØSFlag),
+        bruttotonnage = 12000,
+        arbejdsgiverstatus = SøblUdenlandskArbejdsgiverGodkendtEfterPar11A
+    ),
+    arbejde = Søbl5Til8Arbejdsfakta(
+        anvendelse = SøblUdelukkendeAnvendtTil(SøblTransportAfGodsMellemForskelligeDestinationer),
+        arbejdsområde = SøblArbejdeUdenForEUEØS,
+        passagerrute = SøblIngenPassagersejlads,
+        arbejdsrolle = SøblNormalDriftsbesætning,
+        par8_valg = SøblAnvendPar10RefusionEllerAlmindeligBeskatning
+    ),
+    løn = Søbl5Til8Lønfakta(
+        indkomsttype = SøblLønVedArbejdeOmBord,
+        løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+        beløb_kroner = beløb_kroner
+    )
+)
 | søbl5_til8_årskilde_input(indkomster: List(Søbl5Til8Indkomstfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> Søbl5Til8Årsinput(
     indkomster = indkomster,
     skibsårsdrifter = [],
@@ -108,29 +135,34 @@
     indkomstresultater = [],
     ligningslov7u_bundfradrag = søbl5_til8_årskilde_2023_bundfradrag
 )
-= søbl5_til8_årskilde_2023_kulbrinteafhængighed = søbl5b_kulbrinte_lempelsesresultat(
+= søbl5_til8_årskilde_2023_kulbrinteafhængighed = søbl5_til8_årsresultat(
     indkomstår = 2023,
-    kategori = SøblKulbrinteSkattepligtKategori,
-    grundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = Kulbrinteskattelov21Stk2Kildefakta(
-        personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,
-        arbejdsgiverhjemting = KulbrinteArbejdsgiverUdenHjemtingIDanmark,
-        indkomstkategori = KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag,
-        dansk_beskatningsret = KulbrinteDanskBeskatningsretBekræftet,
-        beskatningsvalg = KulbrinteEndeligBruttoskatEfterPar21Stk2,
-        alder_ved_indkomstårets_udløb = 40
-    )),
-    indkomstresultater = [],
-    ligningslov7u_bundfradrag = søbl5_til8_årskilde_2023_bundfradrag
+    input = Søbl5Til8Årsinput(
+        indkomster = [søbl5_til8_årskilde_kulbrinteindkomst(indkomstår = 2023, beløb_kroner = 500000)],
+        skibsårsdrifter = [],
+        andre_ligningslov7u_indkomster = [],
+        dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+        kulbrinteskattegrundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = Kulbrinteskattelov21Stk2Kildefakta(
+            personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,
+            arbejdsgiverhjemting = KulbrinteArbejdsgiverUdenHjemtingIDanmark,
+            indkomstkategori = KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag,
+            dansk_beskatningsret = KulbrinteDanskBeskatningsretBekræftet,
+            beskatningsvalg = KulbrinteEndeligBruttoskatEfterPar21Stk2,
+            alder_ved_indkomstårets_udløb = 40
+        ))
+    )
 )
 
 | søbl5_til8_årskilde_2023_understøttes: søbl5_til8_årskilde_2023 -> søbl5_til8_årskilde_2023.lovversion == Søbl5Til8Lbk1181Af2023MedSenereÆndringer && søbl5_til8_årskilde_2023.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer && søbl5_til8_årskilde_2023.alle_input_gyldige && søbl5_til8_årskilde_2023.beregningsklar && søbl5_til8_årskilde_2023.samlet_dis_personlig_indkomst_kroner == 500000
 | søbl5_til8_årskilde_2024_fordeler_7u: søbl5_til8_årskilde_2024 -> søbl5_til8_årskilde_2024.lovversion == Søbl5Til8Lbk1181Af2023MedSenereÆndringer && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.fuldt_bundfradrag_kroner == 8000 && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && søbl5_til8_årskilde_2024.samlet_dis_personlig_indkomst_kroner == 18000 && søbl5_til8_årskilde_2024.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 54000
 | søbl5_til8_årskilde_2025_og_2026_bevares: søbl5_til8_årskilde_2025_tom -> søbl5_til8_årskilde_2025_tom.alle_input_gyldige && søbl5_til8_årskilde_2025_tom.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer && søbl5_til8_årskilde_2026_tom.alle_input_gyldige && søbl5_til8_årskilde_2026_tom.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk1500Af2025
 | søbl5_til8_årskilde_udenfor_horisont_afvises: søbl5_til8_årskilde_2022_med_indkomst -> søbl5_til8_årskilde_2022_med_indkomst.skatteår_understøttet == Falskt && søbl5_til8_årskilde_2022_med_indkomst.alle_input_gyldige == Falskt && søbl5_til8_årskilde_2022_med_indkomst.samlet_ordinær_bruttoløn_kroner == 0 && søbl5_til8_årskilde_2022_tom.alle_input_gyldige == Falskt && søbl5_til8_årskilde_2027_tom.alle_input_gyldige == Falskt
-| søbl5_til8_årskilde_2023_valgfrie_afhængigheder_forbliver_lukkede: søbl5_til8_årskilde_2023_dødsboafhængighed -> søbl5_til8_årskilde_2023_dødsboafhængighed.relevant && søbl5_til8_årskilde_2023_dødsboafhængighed.grundlag_tilstede && søbl5_til8_årskilde_2023_dødsboafhængighed.input_gyldigt == Falskt && søbl5_til8_årskilde_2023_dødsboafhængighed.beregningsklar == Falskt && søbl5_til8_årskilde_2023_kulbrinteafhængighed.relevant && søbl5_til8_årskilde_2023_kulbrinteafhængighed.grundlag_tilstede && søbl5_til8_årskilde_2023_kulbrinteafhængighed.input_gyldigt == Falskt && søbl5_til8_årskilde_2023_kulbrinteafhængighed.beregningsklar == Falskt
+| søbl5_til8_årskilde_2023_dødsboafhængighed_forbliver_lukket: søbl5_til8_årskilde_2023_dødsboafhængighed -> søbl5_til8_årskilde_2023_dødsboafhængighed.relevant && søbl5_til8_årskilde_2023_dødsboafhængighed.grundlag_tilstede && søbl5_til8_årskilde_2023_dødsboafhængighed.input_gyldigt == Falskt && søbl5_til8_årskilde_2023_dødsboafhængighed.beregningsklar == Falskt
+| søbl5_til8_årskilde_2023_kulbrinteafhængighed_beregnes: søbl5_til8_årskilde_2023_kulbrinteafhængighed -> søbl5_til8_årskilde_2023_kulbrinteafhængighed.alle_input_gyldige && søbl5_til8_årskilde_2023_kulbrinteafhængighed.beregningsklar && søbl5_til8_årskilde_2023_kulbrinteafhængighed.skattepligtskategori == SøblKulbrinteSkattepligtKategori && head(søbl5_til8_årskilde_2023_kulbrinteafhængighed.indkomstresultater).retsgrundlag == SøblPar5B && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.relevant && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.grundlag_tilstede && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.input_gyldigt && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.beregningsklar && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.løn_efter_bundfradrag_kroner == 500000 && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.indkomstskattenedsættelse_kroner == 150000 && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.arbejdsmarkedsbidragsfritagelse_kroner == 40000 && søbl5_til8_årskilde_2023_kulbrinteafhængighed.kulbrinte_lempelse.samlet_skat_efter_søbl5b_kroner == 0
 
 ? søbl5_til8_årskilde_2023_understøttes
 ? søbl5_til8_årskilde_2024_fordeler_7u
 ? søbl5_til8_årskilde_2025_og_2026_bevares
 ? søbl5_til8_årskilde_udenfor_horisont_afvises
-? søbl5_til8_årskilde_2023_valgfrie_afhængigheder_forbliver_lukkede
+? søbl5_til8_årskilde_2023_dødsboafhængighed_forbliver_lukket
+? søbl5_til8_årskilde_2023_kulbrinteafhængighed_beregnes
