@@ -1,0 +1,55 @@
+@ sprog da
+
+@ importer ./kapitel - 03 - personfradrag
+@ importer ./ejendomsskatteloven
+@ importer ./ligningsloven_kapitalindkomst
+@ importer ./afskrivningsloven
+@ importer ./aktieavancebeskatningsloven - par19 - 20a
+
+= tidskilde_par10_2022_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2022)
+= tidskilde_par10_2023_adresse = personfradrag_par10_retsadresse(Under18Ugift, 2023)
+
+= tidskilde_ejsk_par22_før_ikrafttræden = ejendomsskattelov_par22_satsadresse(EjendomsskattelovDato(år = 2025, måned = 6, dag = 30))
+= tidskilde_ejsk_par22_fra_ikrafttræden = ejendomsskattelov_par22_satsadresse(EjendomsskattelovDato(år = 2025, måned = 7, dag = 1))
+
+= tidskilde_ll12b_2025 = ll12b_regime(Dato(år = 2025, måned = 12, dag = 31))
+= tidskilde_ll12b_2026 = ll12b_regime(Dato(år = 2026, måned = 1, dag = 1))
+
+= tidskilde_al40_før_2026 = afskrivningslov40_henstandsovergang_resultat(Afskrivningslov40HenstandsovergangInput(
+    aftaledato = AfskrivningslovDato(år = 2025, måned = 12, dag = 31),
+    gensidigt_bebyrdende_aftale = Sandt,
+    aktiv_omfattet_af_par40_stk1_eller_stk2 = Sandt,
+    vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 = Sandt
+))
+
+= tidskilde_al40_fra_2026 = afskrivningslov40_henstandsovergang_resultat(Afskrivningslov40HenstandsovergangInput(
+    aftaledato = AfskrivningslovDato(år = 2026, måned = 1, dag = 1),
+    gensidigt_bebyrdende_aftale = Sandt,
+    aktiv_omfattet_af_par40_stk1_eller_stk2 = Sandt,
+    vederlag_helt_eller_delvis_løbende_ydelse_efter_ligningslov12b_stk1_til_stk5 = Sandt
+))
+
+| tidskilde_abl_par19_ucits(indkomstår: Heltal) -> aktieavance_par19_resultat(AktieavancePar19Input(
+    indkomstår = indkomstår,
+    virksomhedsgrundlag = AblPar19UcitsEfterDirektiv2009_65_EF,
+    institutsundtagelse = AblPar19IngenInstitutsundtagelse
+))
+
+= tidskilde_abl_2022 = tidskilde_abl_par19_ucits(2022)
+= tidskilde_abl_2023 = tidskilde_abl_par19_ucits(2023)
+= tidskilde_abl_2026 = tidskilde_abl_par19_ucits(2026)
+= tidskilde_abl_2027 = tidskilde_abl_par19_ucits(2027)
+
+| tidskilde_par10_renummerering_følges: tidskilde_par10_2022_adresse -> personfradrag_par10_regelversion(2022) == Par10Lbk1284FørIndkomstår2023 && tidskilde_par10_2022_adresse.grundbeløb_stk == 2 && tidskilde_par10_2022_adresse.ægtefælleoverførsel_stk == 3 && personfradrag_par10_regelversion(2023) == Par10Lov1564FraIndkomstår2023 && tidskilde_par10_2023_adresse.grundbeløb_stk == 1 && tidskilde_par10_2023_adresse.ægtefælleoverførsel_stk == 2
+| tidskilde_par10_under18_virkning_fra_2023: tidskilde_par10_2022_adresse -> personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2022) == 31500 && personfradrag_grundbeløb_2010_niveau(Under18Ugift, 2023) == 39350 && personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2022) == personfradrag_grundbeløb_2010_niveau(Fyldt18EllerGift, 2023)
+| tidskilde_ejsk_par22_renummerering_følges: tidskilde_ejsk_par22_før_ikrafttræden -> tidskilde_ejsk_par22_før_ikrafttræden == EjskPar22Stk2Før1Juli2025 && tidskilde_ejsk_par22_fra_ikrafttræden == EjskPar22Stk1Fra1Juli2025 && ejendomsskattelov_par22_grundbeløb_kroner(2025) == 9200000
+| tidskilde_ll12b_regimeskifte_følges: tidskilde_ll12b_2025 -> tidskilde_ll12b_2025 == Ll12B19Marts2025Til31December2025 && tidskilde_ll12b_2026 == Ll12BFra1Januar2026
+| tidskilde_al40_regimeskifte_følges: tidskilde_al40_før_2026 -> tidskilde_al40_før_2026.regime == Al40TidligereStk7 && tidskilde_al40_før_2026.tidligere_afskrivningslov40_stk7_fortsætter && tidskilde_al40_fra_2026.regime == Al40Ligningslov12BHenstandFra2026 && tidskilde_al40_fra_2026.henvises_til_ligningslov12b_fra_2026
+| tidskilde_abl_horisont_lukker_udenfor_kilderne: tidskilde_abl_2023 -> tidskilde_abl_2022.input_gyldigt == Falskt && tidskilde_abl_2023.input_gyldigt && tidskilde_abl_2026.input_gyldigt && tidskilde_abl_2027.input_gyldigt == Falskt
+
+? tidskilde_par10_renummerering_følges
+? tidskilde_par10_under18_virkning_fra_2023
+? tidskilde_ejsk_par22_renummerering_følges
+? tidskilde_ll12b_regimeskifte_følges
+? tidskilde_al40_regimeskifte_følges
+? tidskilde_abl_horisont_lukker_udenfor_kilderne

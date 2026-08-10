@@ -1,0 +1,67 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+@ importer ./ligningsloven - par9a - rejser.calculate
+@ importer ./investeringsklassifikation.calculate
+
+# OffentligBeregningskæde(navn: Tekst, entry: ProgramReference, metadata: ProgramReference, første_indkomstår: Heltal, sidste_indkomstår: Heltal, tidskilder: List(ProgramReference))
+
+= tidskilde_personskat_offentlig = OffentligBeregningskæde(
+    navn = "Dansk personskat",
+    entry = refof(beregn_personskat),
+    metadata = refof(personskat_beregningsmetadata),
+    første_indkomstår = 2023,
+    sidste_indkomstår = 2026,
+    tidskilder = [
+        refof(personskatteloven_lbk1284_par10),
+        refof(personskatteloven_lov1564_par10_og_virkning)
+    ]
+)
+
+= tidskilde_rejser_offentlig = OffentligBeregningskæde(
+    navn = "Ligningsloven § 9 A rejser",
+    entry = refof(beregn_ligningslov9a_rejser),
+    metadata = refof(ligningslov9a_beregningsmeta),
+    første_indkomstår = 2025,
+    sidste_indkomstår = 2026,
+    tidskilder = [
+        refof(ligningsloven_lbk1500_par9a),
+        refof(skatteforvaltningen_rejsesatser_2025),
+        refof(skatteforvaltningen_rejsesatser_2026)
+    ]
+)
+
+| tidskilde_abl_offentlig(navn: Tekst, entry: ProgramReference) -> OffentligBeregningskæde(
+    navn = navn,
+    entry = entry,
+    metadata = refof(abl_investeringsklassifikation_beregning_metadata),
+    første_indkomstår = 2023,
+    sidste_indkomstår = 2026,
+    tidskilder = [
+        refof(aktieavancebeskatningsloven_lbk172_par19_til_par22),
+        refof(aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        refof(aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
+        refof(aktieavancebeskatningsloven_lbk1098_par19b_til_par22)
+    ]
+)
+
+= tidskilde_abl_par19_offentlig = tidskilde_abl_offentlig("ABL § 19 investeringsselskab", refof(klassificer_investeringsselskab_efter_par19))
+= tidskilde_abl_par19a_til20a_offentlig = tidskilde_abl_offentlig("ABL §§ 19 A-20 A investeringsbevis", refof(klassificer_investeringsbevis_efter_par19a_til20a))
+= tidskilde_abl_par19b_par19c_offentlig = tidskilde_abl_offentlig("ABL §§ 19 B-19 C investeringsselskab", refof(klassificer_investeringsselskab))
+= tidskilde_abl_par21_par22_offentlig = tidskilde_abl_offentlig("ABL §§ 21-22 minimumsinstitut", refof(klassificer_minimumsinstitut))
+
+= tidskilde_offentlige_beregningskæder = [
+    tidskilde_personskat_offentlig,
+    tidskilde_rejser_offentlig,
+    tidskilde_abl_par19_offentlig,
+    tidskilde_abl_par19a_til20a_offentlig,
+    tidskilde_abl_par19b_par19c_offentlig,
+    tidskilde_abl_par21_par22_offentlig
+]
+
+| tidskilde_offentlig_beregningskæde_gyldig(kæde: OffentligBeregningskæde) -> kæde.navn != "" && kæde.første_indkomstår > 0 && kæde.sidste_indkomstår >= kæde.første_indkomstår && length(kæde.tidskilder) > 0
+| tidskilde_offentligt_inventory_er_komplet: tidskilde_offentlige_beregningskæder -> length(tidskilde_offentlige_beregningskæder) == 6 && length(distinct(map(tidskilde_offentlige_beregningskæder, |kæde: OffentligBeregningskæde| kæde.navn))) == 6 && all(tidskilde_offentlige_beregningskæder, tidskilde_offentlig_beregningskæde_gyldig)
+| tidskilde_abl_offentlige_entries_deler_horisont: tidskilde_offentlige_beregningskæder -> all(filter(tidskilde_offentlige_beregningskæder, |kæde: OffentligBeregningskæde| contains(kæde.navn, "ABL")), |kæde: OffentligBeregningskæde| kæde.første_indkomstår == 2023 && kæde.sidste_indkomstår == 2026 && length(kæde.tidskilder) == 4)
+
+? tidskilde_offentligt_inventory_er_komplet
+? tidskilde_abl_offentlige_entries_deler_horisont

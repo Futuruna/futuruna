@@ -462,10 +462,14 @@ Loven træder i kraft den 1. juli 2025.
 # EjendomsskattelovGrundskyldResultat(periode: EjendomsskattelovPeriodeResultat, kommune: Kommune, grundskyld_promille_tiendedele: Heltal, beskatningsgrundlag_kroner: Heltal, ejerandel_basispoint: Heltal, beregning: PengeØreBeregning, skat_øre: Heltal, skat_kroner: Heltal, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk)
 # EjendomsskattelovOrdinærPersonEjendomResultat(indkomstår: Heltal, fakta: EjendomsskattelovOrdinærPersonEjendomFakta, ejendomsværdiskat: EjendomsskattelovEjendomsværdiskatResultat, grundskyld: EjendomsskattelovGrundskyldResultat, input_gyldigt: Boolsk, regelgrundlag_understøttet: Boolsk, samlet_ejendomsskat_øre: Heltal, samlet_ejendomsskat_kroner: Heltal)
 # EjendomsskattelovOrdinærPersonÅrsresultat(indkomstår: Heltal, ejendomsresultater: List(EjendomsskattelovOrdinærPersonEjendomResultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, regelgrundlag_understøttet: Boolsk, samlet_ejendomsværdiskat_øre: Heltal, samlet_grundskyld_øre: Heltal, samlet_ejendomsskat_øre: Heltal, samlet_ejendomsskat_kroner: Heltal)
+# EjendomsskattelovPar22Satsadresse = EjskPar22Stk2Før1Juli2025 | EjskPar22Stk1Fra1Juli2025 | EjskPar22UgyldigSatsadresse
 
 | ejendomsskattelov_tom_øre_beregning() -> PengeØreBeregning(tæller = 0, nævner = 1, øre_nedrundet = 0)
 | ejendomsskattelov_ejerandel_gyldig(ejerandel_basispoint: Heltal) -> ejerandel_basispoint > 0 && ejerandel_basispoint <= 10000
 | ejendomsskattelov_par13_beskatningsgrundlag_kroner(ejendomsværdi_kroner: Heltal) -> ejendomsværdi_kroner * 80 / 100
+| ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22UgyldigSatsadresse
+| exception ejsk_par22_stk2_før_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22Stk2Før1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) < 20250701
+| exception ejsk_par22_stk1_fra_lov562_ikrafttræden ejendomsskattelov_par22_satsadresse(dato: EjendomsskattelovDato) -> EjskPar22Stk1Fra1Juli2025 under ejendomsskattelov_dato_gyldig(dato) && ejendomsskattelov_dato_yyyymmdd(dato) >= 20250701
 | ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 0
 | exception ejsk_par22_grundbeløb_2024_2025 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 9200000 under indkomstår == 2024 || indkomstår == 2025
 | exception ejsk_par22_grundbeløb_2026 ejendomsskattelov_par22_grundbeløb_kroner(indkomstår: Heltal) -> 9007000 under indkomstår == 2026

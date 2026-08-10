@@ -27,6 +27,11 @@
 = aktieavancebeskatningsloven_par19_til_par20a_metadata = Metadata(
     attachments = (
         Source(value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
+        HistoricalSource(value = aktieavancebeskatningsloven_lbk172_par19_til_par22),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par19),
         Warning(value = aktieavance_par19_hovedsagelig_fortolkningsgrænse),
     )
@@ -147,7 +152,7 @@ Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er de
 # AktieavancePar19Sag(input: AktieavancePar19Input) {
     | aktivmasse_resultat() -> aktieavance_par19_aktivmasse_resultat(aktieavance_par19_aktivmasse_fra_grundlag(input.virksomhedsgrundlag))
     | effektivt_deltagerantal() -> aktieavance_par19_effektivt_deltagerantal(aktieavance_par19_deltagere_fra_grundlag(input.virksomhedsgrundlag))
-    | input_gyldigt() -> input.indkomstår > 0 && match input.virksomhedsgrundlag { | AblPar19UcitsEfterDirektiv2009_65_EF -> Sandt | AblPar19AndenVirksomhedEndInvesteringIVærdipapirer -> Sandt | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_værdipapirvirksomhed_input_gyldig(data) }
+    | input_gyldigt() -> aktieavance_investeringsklassifikation_indkomstår_understøttet(input.indkomstår) && match input.virksomhedsgrundlag { | AblPar19UcitsEfterDirektiv2009_65_EF -> Sandt | AblPar19AndenVirksomhedEndInvesteringIVærdipapirer -> Sandt | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_værdipapirvirksomhed_input_gyldig(data) }
     | tilbagekøbsbetingelser_opfyldt() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> aktieavance_par19_tilbagekøbsbetingelser_opfyldt(data.tilbagekøbsordning) | _ -> Falskt }
     | kollektiv_investering_mindst_8_deltagere() -> input_gyldigt() && effektivt_deltagerantal() >= 8
     | datterselskabsundtagelse_finder_anvendelse() -> input_gyldigt() && match input.virksomhedsgrundlag { | AblPar19VirksomhedKunMedInvesteringIVærdipapirer(data) -> data.datterselskabsvurdering == AblPar19DatterselskabsformueHovedsageligAndreVærdier | _ -> Falskt }
@@ -204,7 +209,7 @@ Stk. 2. For de investeringsinstitutter, der har mindre end otte deltagere, er de
 # AktieavancePar19ATil20ASag(input: AktieavancePar19ATil20AInput) {
     | skattepligtsresultat() -> aktieavance_par6_par7_resultat(input.skattepligtsgrundlag)
     | udstederstatus_efter_par19() -> aktieavance_par19a_til20a_udstederstatus(input.aktivgrundlag)
-    | input_gyldigt() -> input.indkomstår > 0 && aktieavance_par19a_til20a_aktivgrundlag_input_gyldigt(input.aktivgrundlag) && aktieavance_par19a_til20a_indkomstår_matcher(input.aktivgrundlag, input.indkomstår)
+    | input_gyldigt() -> aktieavance_investeringsklassifikation_indkomstår_understøttet(input.indkomstår) && aktieavance_par19a_til20a_aktivgrundlag_input_gyldigt(input.aktivgrundlag) && aktieavance_par19a_til20a_indkomstår_matcher(input.aktivgrundlag, input.indkomstår)
     | par19a_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && match input.aktivgrundlag { | AblPar19AGrundlag(_, undtagelse) -> udstederstatus_efter_par19() != AblPar19IkkeInvesteringsselskab && undtagelse == AblPar19AIngenUndtagelse | _ -> Falskt }
     | par20_stk1_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par6 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis
     | par20_stk2_finder_anvendelse() -> input_gyldigt() && skattepligtsresultat().omfattet_af_par7 && input.aktivgrundlag == AblPar20AkkumulerendeInvesteringsforeningsbevis

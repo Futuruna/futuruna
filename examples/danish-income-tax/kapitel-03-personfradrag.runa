@@ -26,6 +26,34 @@
 -- Sømandsbeskatningsloven, LBK nr. 1181 af 21/09/2023:
 -- https://www.retsinformation.dk/eli/lta/2023/1181
 
+# PersonskattelovPar10KildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+
+= personskatteloven_lbk1284_par10 = PersonskattelovPar10KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1284",
+    identifier = "Personskatteloven § 10 i LBK nr. 1284 af 14/06/2021",
+    hentet_dato = "2026-08-10"
+)
+
+= personskatteloven_lov1564_par10_og_virkning = PersonskattelovPar10KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1564",
+    identifier = "LOV nr. 1564 af 12/12/2023, § 1, nr. 2-4, og § 7, stk. 1-2",
+    hentet_dato = "2026-08-10"
+)
+
+= personskatteloven_par10_lbk1284_metadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par10),
+    )
+)
+
+= personskatteloven_par10_lov1564_metadata = Metadata(
+    attachments = (
+        AmendmentSource(value = personskatteloven_lov1564_par10_og_virkning),
+        TransitionSource(value = personskatteloven_lov1564_par10_og_virkning),
+    )
+)
+
+--@label:personskatteloven_par10_lbk1284::meta:personskatteloven_par10_lbk1284_metadata--
 ----
 § 10. For her i landet fuldt skattepligtige personer udgør personfradragets
 grundbeløb 42.000 kr. (2010-niveau). For indkomståret 2019 udgør grundbeløbet
@@ -73,6 +101,7 @@ på personer, der ansøger om opholdstilladelse efter udlændingelovens § 7.
 Stk. 7. De nævnte grundbeløb reguleres efter § 20.
 ----
 
+--@label:personskatteloven_par10_lov1564::meta:personskatteloven_par10_lov1564_metadata--
 ----
 Lov nr. 1564 af 12/12/2023, § 1:
 
@@ -93,19 +122,38 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 
 4. I § 10, stk. 4, 2. pkt., der bliver stk. 3, 2. pkt., ændres »stk. 3« til:
 »stk. 2«.
+
+Lov nr. 1564 af 12/12/2023, § 7:
+
+Stk. 1. Loven træder i kraft den 1. januar 2024.
+
+Stk. 2. §§ 1 og 5 har virkning fra og med indkomståret 2023.
 ----
 
+--@begin:personskatteloven_par10_lbk1284--
+--@begin:personskatteloven_par10_lov1564--
 # PersonfradragAlderStatus = Fyldt18EllerGift | Under18Ugift
 # PersonfradragSkattepligt = FuldtSkattepligtigHerILandet | KildeskattelovPar2HelårRelevantIndtægt | KildeskattelovPar2DelårValgtRelevantIndtægt | KildeskattelovPar2DelårIkkeValgt | Kildeskattelov48Eller48FIndkomst | SømandsbeskatningPar9Indkomst | OpholdstilladelseUdl7Ansøger
 # ÆgtefællePersonfradragStatus = IkkeGiftEllerIkkeSamlevende | GiftSamlevendeVedÅretsUdløb
+# PersonfradragPar10Regelversion = Par10Lbk1284FørIndkomstår2023 | Par10Lov1564FraIndkomstår2023
+# PersonfradragPar10Retsadresse(grundbeløb_stk: Heltal, ægtefælleoverførsel_stk: Heltal, forskerordning_stk: Heltal, kildeskattelov_par2_helår_stk: Heltal, kildeskattelov_par2_delår_stk: Heltal, regulering_stk: Heltal)
 # PersonfradragPar10Input(skatteår: Heltal, alder_status: PersonfradragAlderStatus, skattepligt: PersonfradragSkattepligt, valg_dato_yyyymmdd: Heltal, omvalg_dato_yyyymmdd: Heltal)
-# PersonfradragPar10Resultat(personfradrag_anvendes: Boolsk, personfradrag_kroner: Heltal, valgfrist_yyyymmdd: Heltal, omvalgsfrist_yyyymmdd: Heltal, delårsvalg_rettidigt: Boolsk, omvalg_rettidigt: Boolsk, afskåret_af_sømandsbeskatning: Boolsk, afskåret_af_opholdstilladelse: Boolsk, afskåret_af_forskerordning: Boolsk)
-# Par10Stk3ÆgtefælleStatsskatInput(ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ægtefælle_par6_skat_kroner: Heltal, ægtefælle_par7_skat_kroner: Heltal, ægtefælle_par7a_skat_kroner: Heltal, ægtefælle_par8_skat_kroner: Heltal, ægtefælle_par8a_stk2_skat_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
-# Par10Stk3ÆgtefælleStatsskatResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, overført_par8_skatteværdi_kroner: Heltal, overført_par6_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
+# PersonfradragPar10Resultat(regelversion: PersonfradragPar10Regelversion, retsadresse: PersonfradragPar10Retsadresse, personfradrag_anvendes: Boolsk, personfradrag_kroner: Heltal, valgfrist_yyyymmdd: Heltal, omvalgsfrist_yyyymmdd: Heltal, delårsvalg_rettidigt: Boolsk, omvalg_rettidigt: Boolsk, afskåret_af_sømandsbeskatning: Boolsk, afskåret_af_opholdstilladelse: Boolsk, afskåret_af_forskerordning: Boolsk)
+# Par10ÆgtefælleStatsskatInput(ubrugt_par8_skatteværdi_kroner: Heltal, ubrugt_par6_skatteværdi_kroner: Heltal, ægtefælle_par6_skat_kroner: Heltal, ægtefælle_par7_skat_kroner: Heltal, ægtefælle_par7a_skat_kroner: Heltal, ægtefælle_par8_skat_kroner: Heltal, ægtefælle_par8a_stk2_skat_kroner: Heltal, gift_samlevende_ved_årets_udløb: Boolsk)
+# Par10ÆgtefælleStatsskatResultat(par6_efter_kroner: Heltal, par7_efter_kroner: Heltal, par7a_efter_kroner: Heltal, par8_efter_kroner: Heltal, par8a_stk2_efter_kroner: Heltal, overført_par8_skatteværdi_kroner: Heltal, overført_par6_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
 # Par10ÆgtefællePersonfradragKilde(statslig_nedsættelse: Par9StatsskatPersonfradragResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat)
 # Par10ÆgtefællePersonfradragSkatter(par6_skat_kroner: Heltal, par7_skat_kroner: Heltal, par7a_skat_kroner: Heltal, par8_skat_kroner: Heltal, par8a_stk2_skat_kroner: Heltal, par8c_skat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal)
 # Par10ÆgtefællePersonfradragInput(kilde: Par10ÆgtefællePersonfradragKilde, modtagers_skatter: Par10ÆgtefællePersonfradragSkatter, gift_samlevende_ved_årets_udløb: Boolsk)
-# Par10ÆgtefællePersonfradragResultat(statslig_nedsættelse: Par10Stk3ÆgtefælleStatsskatResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat, overført_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
+# Par10ÆgtefællePersonfradragResultat(statslig_nedsættelse: Par10ÆgtefælleStatsskatResultat, ikke_statslig_nedsættelse: Par9IkkeStatPersonfradragResultat, overført_skatteværdi_kroner: Heltal, anvendt_skatteværdi_kroner: Heltal, ubrugt_efter_ægtefælle_kroner: Heltal, afskåret_uden_samliv_kroner: Heltal)
+
+| personfradrag_par10_regelversion(skatteår: Heltal) -> Par10Lbk1284FørIndkomstår2023
+| exception par10_lov1564_har_virkning_fra_indkomstår2023 personfradrag_par10_regelversion(skatteår: Heltal) -> Par10Lov1564FraIndkomstår2023 under skatteår >= 2023
+| personfradrag_par10_grundbeløb_stk(status: PersonfradragAlderStatus, skatteår: Heltal) -> 1
+| exception par10_under18_historisk_stk2 personfradrag_par10_grundbeløb_stk(status: PersonfradragAlderStatus, skatteår: Heltal) -> 2 under status == Under18Ugift && skatteår < 2023
+| personfradrag_par10_retsadresse(status: PersonfradragAlderStatus, skatteår: Heltal) -> match personfradrag_par10_regelversion(skatteår) {
+    | Par10Lbk1284FørIndkomstår2023 -> PersonfradragPar10Retsadresse(grundbeløb_stk = personfradrag_par10_grundbeløb_stk(status, skatteår), ægtefælleoverførsel_stk = 3, forskerordning_stk = 4, kildeskattelov_par2_helår_stk = 5, kildeskattelov_par2_delår_stk = 6, regulering_stk = 7)
+    | Par10Lov1564FraIndkomstår2023 -> PersonfradragPar10Retsadresse(grundbeløb_stk = 1, ægtefælleoverførsel_stk = 2, forskerordning_stk = 3, kildeskattelov_par2_helår_stk = 4, kildeskattelov_par2_delår_stk = 5, regulering_stk = 6)
+}
 
 | personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 42000 under status == Fyldt18EllerGift
 | exception voksen_2019 personfradrag_grundbeløb_2010_niveau(status: PersonfradragAlderStatus, skatteår: Heltal) -> 41300 under status == Fyldt18EllerGift && skatteår == 2019
@@ -136,11 +184,13 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
     | afskåret_af_forskerordning() -> input.skattepligt == Kildeskattelov48Eller48FIndkomst
     | personfradrag_anvendes() -> Falskt
     | exception par10_fuldt_skattepligtig personfradrag_anvendes() -> Sandt under input.skattepligt == FuldtSkattepligtigHerILandet
-    | exception par10_stk5_ksl_par2_helår personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2HelårRelevantIndtægt
-    | exception par10_stk6_ksl_par2_delår_rettidigt_valgt personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt && delårsvalg_rettidigt()
+    | exception par10_ksl_par2_helår_anvendes personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2HelårRelevantIndtægt
+    | exception par10_ksl_par2_delår_rettidigt_valgt_anvendes personfradrag_anvendes() -> Sandt under input.skattepligt == KildeskattelovPar2DelårValgtRelevantIndtægt && delårsvalg_rettidigt()
     | personfradrag_kroner() -> 0
     | exception par10_personfradrag_beløb personfradrag_kroner() -> personfradrag_beløb_for(input.skatteår, input.alder_status) under personfradrag_anvendes()
     | resultat() -> PersonfradragPar10Resultat(
+        regelversion = personfradrag_par10_regelversion(input.skatteår),
+        retsadresse = personfradrag_par10_retsadresse(input.alder_status, input.skatteår),
         personfradrag_anvendes = personfradrag_anvendes(),
         personfradrag_kroner = personfradrag_kroner(),
         valgfrist_yyyymmdd = personfradrag_par10_valgfrist_yyyymmdd(input.skatteår),
@@ -155,12 +205,12 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 | personfradrag_par10_sag(input: PersonfradragPar10Input) -> PersonfradragPar10Sag(input)
 | personfradrag_par10_resultat(input: PersonfradragPar10Input) -> personfradrag_par10_sag(input).resultat()
 
-# Par10Stk3ÆgtefælleStatsskatSag(input: Par10Stk3ÆgtefælleStatsskatInput) {
+# Par10ÆgtefælleStatsskatSag(input: Par10ÆgtefælleStatsskatInput) {
     | overførsel_tilladt() -> input.gift_samlevende_ved_årets_udløb
     | overført_par8_skatteværdi_kroner() -> 0
-    | exception par10_stk3_par8værdi_overføres_til_samlevende_ægtefælle overført_par8_skatteværdi_kroner() -> input.ubrugt_par8_skatteværdi_kroner under overførsel_tilladt()
+    | exception par10_par8værdi_overføres_til_samlevende_ægtefælle overført_par8_skatteværdi_kroner() -> input.ubrugt_par8_skatteværdi_kroner under overførsel_tilladt()
     | overført_par6_skatteværdi_kroner() -> 0
-    | exception par10_stk3_par6værdi_overføres_til_samlevende_ægtefælle overført_par6_skatteværdi_kroner() -> input.ubrugt_par6_skatteværdi_kroner under overførsel_tilladt()
+    | exception par10_par6værdi_overføres_til_samlevende_ægtefælle overført_par6_skatteværdi_kroner() -> input.ubrugt_par6_skatteværdi_kroner under overførsel_tilladt()
     | par9_input() -> Par9StatsskatPersonfradragInput(
         par6_skat_kroner = input.ægtefælle_par6_skat_kroner,
         par7_skat_kroner = input.ægtefælle_par7_skat_kroner,
@@ -175,8 +225,8 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
     | ubrugt_efter_ægtefælle_kroner() -> par9_resultat().ubrugt_skatteværdi_kroner
     | anvendt_skatteværdi_kroner() -> samlet_overført_skatteværdi_kroner() - ubrugt_efter_ægtefælle_kroner()
     | afskåret_uden_samliv_kroner() -> 0
-    | exception par10_stk3_kræver_samliv afskåret_uden_samliv_kroner() -> input.ubrugt_par8_skatteværdi_kroner + input.ubrugt_par6_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
-    | resultat() -> Par10Stk3ÆgtefælleStatsskatResultat(
+    | exception par10_ægtefælleoverførsel_kræver_samliv afskåret_uden_samliv_kroner() -> input.ubrugt_par8_skatteværdi_kroner + input.ubrugt_par6_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb == Falskt
+    | resultat() -> Par10ÆgtefælleStatsskatResultat(
         par6_efter_kroner = par9_resultat().par6_efter_kroner,
         par7_efter_kroner = par9_resultat().par7_efter_kroner,
         par7a_efter_kroner = par9_resultat().par7a_efter_kroner,
@@ -189,8 +239,8 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
         afskåret_uden_samliv_kroner = afskåret_uden_samliv_kroner()
     )
 }
-| par10_stk3_ægtefælle_statsskat_sag(input: Par10Stk3ÆgtefælleStatsskatInput) -> Par10Stk3ÆgtefælleStatsskatSag(input)
-| par10_stk3_ægtefælle_statsskat_resultat(input: Par10Stk3ÆgtefælleStatsskatInput) -> par10_stk3_ægtefælle_statsskat_sag(input).resultat()
+| par10_ægtefælle_statsskat_sag(input: Par10ÆgtefælleStatsskatInput) -> Par10ÆgtefælleStatsskatSag(input)
+| par10_ægtefælle_statsskat_resultat(input: Par10ÆgtefælleStatsskatInput) -> par10_ægtefælle_statsskat_sag(input).resultat()
 
 # Par10ÆgtefællePersonfradragSag(input: Par10ÆgtefællePersonfradragInput) {
     | overført_par8c_skatteværdi_kroner() -> 0
@@ -199,7 +249,7 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
     | exception par10_ægtefælle_kommunal_skatteværdi overført_kommunal_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kommunal_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
     | overført_kirkelig_skatteværdi_kroner() -> 0
     | exception par10_ægtefælle_kirkelig_skatteværdi overført_kirkelig_skatteværdi_kroner() -> input.kilde.ikke_statslig_nedsættelse.ubrugt_kirkelig_skatteværdi_kroner under input.gift_samlevende_ved_årets_udløb
-    | statslig_nedsættelse() -> par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+    | statslig_nedsættelse() -> par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
         ubrugt_par8_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par8_skatteværdi_kroner,
         ubrugt_par6_skatteværdi_kroner = input.kilde.statslig_nedsættelse.ubrugt_par6_skatteværdi_kroner,
         ægtefælle_par6_skat_kroner = input.modtagers_skatter.par6_skat_kroner,
@@ -243,49 +293,49 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 = par10_fuld_skattepligt = personfradrag_anvendes_for(FuldtSkattepligtigHerILandet)
 = par10_forskerordning_afskåret = personfradrag_anvendes_for(Kildeskattelov48Eller48FIndkomst)
 = par10_ægtefælleoverførsel = ubrugt_personfradrag_skatteværdi_overføres_til_ægtefælle(GiftSamlevendeVedÅretsUdløb)
-= par10_stk5_helår = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_ksl_par2_helår = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= par10_stk6_delår_rettidigt = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_ksl_par2_delår_rettidigt = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
     valg_dato_yyyymmdd = 20270701,
     omvalg_dato_yyyymmdd = 20280630
 ))
-= par10_stk6_delår_for_sen = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_ksl_par2_delår_for_sen = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
     valg_dato_yyyymmdd = 20270702,
     omvalg_dato_yyyymmdd = 20280701
 ))
-= par10_stk5_sømandsbeskatning_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_sømandsbeskatning_resultat_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = SømandsbeskatningPar9Indkomst,
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= par10_stk5_opholdstilladelse_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_opholdstilladelse_resultat_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = OpholdstilladelseUdl7Ansøger,
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= par10_stk4_forskerordning_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
+= par10_forskerordning_resultat_afskåret = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = Kildeskattelov48Eller48FIndkomst,
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= par10_stk3_ægtefælle_statsskat = par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+= par10_ægtefælle_statsskat = par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
     ubrugt_par8_skatteværdi_kroner = 1000,
     ubrugt_par6_skatteværdi_kroner = 500,
     ægtefælle_par6_skat_kroner = 200,
@@ -295,7 +345,7 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
     ægtefælle_par8a_stk2_skat_kroner = 1000,
     gift_samlevende_ved_årets_udløb = Sandt
 ))
-= par10_stk3_ikke_samlevende = par10_stk3_ægtefælle_statsskat_resultat(Par10Stk3ÆgtefælleStatsskatInput(
+= par10_ægtefælle_ikke_samlevende = par10_ægtefælle_statsskat_resultat(Par10ÆgtefælleStatsskatInput(
     ubrugt_par8_skatteværdi_kroner = 1000,
     ubrugt_par6_skatteværdi_kroner = 500,
     ægtefælle_par6_skat_kroner = 200,
@@ -314,14 +364,17 @@ bliver stk. 4, 1. pkt., og stk. 6, 1. pkt., der bliver stk. 5, 1. pkt., ændres
 | par10_fuld_skattepligtig_får_fradrag: par10_fuld_skattepligt -> par10_fuld_skattepligt == Sandt
 | par10_forskerordning_afskæres: par10_forskerordning_afskåret -> par10_forskerordning_afskåret == Falskt
 | par10_ubrugt_overføres: par10_ægtefælleoverførsel -> par10_ægtefælleoverførsel == Sandt
-| par10_stk5_helår_relevant_ksl2_får_personfradrag: par10_stk5_helår -> par10_stk5_helår.personfradrag_anvendes == Sandt && par10_stk5_helår.personfradrag_kroner == 54100
-| par10_stk6_delår_rettidigt_valgt_får_personfradrag: par10_stk6_delår_rettidigt -> par10_stk6_delår_rettidigt.delårsvalg_rettidigt == Sandt && par10_stk6_delår_rettidigt.omvalg_rettidigt == Sandt && par10_stk6_delår_rettidigt.personfradrag_kroner == 54100
-| par10_stk6_delår_for_sen_afskæres: par10_stk6_delår_for_sen -> par10_stk6_delår_for_sen.delårsvalg_rettidigt == Falskt && par10_stk6_delår_for_sen.omvalg_rettidigt == Falskt && par10_stk6_delår_for_sen.personfradrag_anvendes == Falskt
-| par10_stk5_sømandsbeskatning_afskærer: par10_stk5_sømandsbeskatning_afskåret -> par10_stk5_sømandsbeskatning_afskåret.afskåret_af_sømandsbeskatning == Sandt && par10_stk5_sømandsbeskatning_afskåret.personfradrag_kroner == 0
-| par10_stk5_opholdstilladelse_afskærer: par10_stk5_opholdstilladelse_afskåret -> par10_stk5_opholdstilladelse_afskåret.afskåret_af_opholdstilladelse == Sandt && par10_stk5_opholdstilladelse_afskåret.personfradrag_anvendes == Falskt
-| par10_stk4_forskerordning_afskærer: par10_stk4_forskerordning_afskåret -> par10_stk4_forskerordning_afskåret.afskåret_af_forskerordning == Sandt && par10_stk4_forskerordning_afskåret.personfradrag_anvendes == Falskt
-| par10_stk3_samlevende_ægtefælle_får_uudnyttet_statsværdi: par10_stk3_ægtefælle_statsskat -> par10_stk3_ægtefælle_statsskat.overført_par8_skatteværdi_kroner == 1000 && par10_stk3_ægtefælle_statsskat.overført_par6_skatteværdi_kroner == 500 && par10_stk3_ægtefælle_statsskat.par6_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par7_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par7a_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par8_efter_kroner == 0 && par10_stk3_ægtefælle_statsskat.par8a_stk2_efter_kroner == 700 && par10_stk3_ægtefælle_statsskat.anvendt_skatteværdi_kroner == 1500
-| par10_stk3_kræver_samliv_ved_årets_udløb: par10_stk3_ikke_samlevende -> par10_stk3_ikke_samlevende.overført_par8_skatteværdi_kroner == 0 && par10_stk3_ikke_samlevende.overført_par6_skatteværdi_kroner == 0 && par10_stk3_ikke_samlevende.par6_efter_kroner == 200 && par10_stk3_ikke_samlevende.par7_efter_kroner == 600 && par10_stk3_ikke_samlevende.par8_efter_kroner == 300 && par10_stk3_ikke_samlevende.afskåret_uden_samliv_kroner == 1500
+| par10_helår_relevant_ksl2_får_personfradrag: par10_ksl_par2_helår -> par10_ksl_par2_helår.personfradrag_anvendes == Sandt && par10_ksl_par2_helår.personfradrag_kroner == 54100
+| par10_delår_rettidigt_valgt_får_personfradrag: par10_ksl_par2_delår_rettidigt -> par10_ksl_par2_delår_rettidigt.delårsvalg_rettidigt == Sandt && par10_ksl_par2_delår_rettidigt.omvalg_rettidigt == Sandt && par10_ksl_par2_delår_rettidigt.personfradrag_kroner == 54100
+| par10_delår_for_sen_afskæres: par10_ksl_par2_delår_for_sen -> par10_ksl_par2_delår_for_sen.delårsvalg_rettidigt == Falskt && par10_ksl_par2_delår_for_sen.omvalg_rettidigt == Falskt && par10_ksl_par2_delår_for_sen.personfradrag_anvendes == Falskt
+| par10_sømandsbeskatning_afskærer: par10_sømandsbeskatning_resultat_afskåret -> par10_sømandsbeskatning_resultat_afskåret.afskåret_af_sømandsbeskatning == Sandt && par10_sømandsbeskatning_resultat_afskåret.personfradrag_kroner == 0
+| par10_opholdstilladelse_afskærer: par10_opholdstilladelse_resultat_afskåret -> par10_opholdstilladelse_resultat_afskåret.afskåret_af_opholdstilladelse == Sandt && par10_opholdstilladelse_resultat_afskåret.personfradrag_anvendes == Falskt
+| par10_forskerordning_afskærer_resultat: par10_forskerordning_resultat_afskåret -> par10_forskerordning_resultat_afskåret.afskåret_af_forskerordning == Sandt && par10_forskerordning_resultat_afskåret.personfradrag_anvendes == Falskt
+| par10_samlevende_ægtefælle_får_uudnyttet_statsværdi: par10_ægtefælle_statsskat -> par10_ægtefælle_statsskat.overført_par8_skatteværdi_kroner == 1000 && par10_ægtefælle_statsskat.overført_par6_skatteværdi_kroner == 500 && par10_ægtefælle_statsskat.par6_efter_kroner == 0 && par10_ægtefælle_statsskat.par7_efter_kroner == 0 && par10_ægtefælle_statsskat.par7a_efter_kroner == 0 && par10_ægtefælle_statsskat.par8_efter_kroner == 0 && par10_ægtefælle_statsskat.par8a_stk2_efter_kroner == 700 && par10_ægtefælle_statsskat.anvendt_skatteværdi_kroner == 1500
+| par10_ægtefælleoverførsel_kræver_samliv_ved_årets_udløb: par10_ægtefælle_ikke_samlevende -> par10_ægtefælle_ikke_samlevende.overført_par8_skatteværdi_kroner == 0 && par10_ægtefælle_ikke_samlevende.overført_par6_skatteværdi_kroner == 0 && par10_ægtefælle_ikke_samlevende.par6_efter_kroner == 200 && par10_ægtefælle_ikke_samlevende.par7_efter_kroner == 600 && par10_ægtefælle_ikke_samlevende.par8_efter_kroner == 300 && par10_ægtefælle_ikke_samlevende.afskåret_uden_samliv_kroner == 1500
+
+--@end:personskatteloven_par10_lov1564--
+--@end:personskatteloven_par10_lbk1284--
 
 ----
 § 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke

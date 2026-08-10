@@ -128,7 +128,7 @@ Officiel XML-metadata for 2025/96, hentet 2026-07-18:
 Status: Valid
 ----
 
-# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | VirksomhedsskattelovUdligningsIndtægtsføringDækket | Par3Nr3PensionDækket | Par3Nr4Nr5HusdyrVarelagerDækket | Par3Nr8Nr9LigningslovDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10Stk3ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | SkatteårParameterpakkeKildeDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovNaturaliaDækket | ArbejdsmarkedsbidragslovPar3UdelukkelseDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | KommuneskattelovDelårIndkomstskatDækket | KommuneskattelovSkattekommuneFordelingDækket | KommuneskattelovAfregningDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7NationalbankDataDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LigningslovPar9DBefordringDækket | LigningslovPar9DAfskæringDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4EjendomsskattelovDækket | Par4aPensionsfradragDækket | Par4aAktieavancebeskatningslovDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par20ReguleringstalKildeDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par27MinisterbemyndigelseDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
+# AuditSignal = HistoriskKildeTilAktuelBeregning | KildeMetadataHorisontUdløbet | PersonskatAendringskilderDækket | PengeAfrundingsposturDækket | IndkomsttaxonomiDækket | VirksomhedsskattelovUdligningsIndtægtsføringDækket | Par3Nr3PensionDækket | Par3Nr4Nr5HusdyrVarelagerDækket | Par3Nr8Nr9LigningslovDækket | PersonfradragNormalfixtureDækket | Par9PersonfradragNedsættelseDækket | Par10PersonfradragSkattepligtDækket | Par10ÆgtefællePersonfradragDækket | Par11NegativKapitalNedslagDækket | Par12PersonfradragOmfordelingDækket | SkatteårParameterpakkeKildeDækket | Skatteår2026ReformDækket | Par7ReformPar20TærskelDækket | ReformStatskatParameterKildeDækket | ReformPersonligStatsskatDækket | MellemskatKapitalDækket | Par6BundskatSatsKildeDækket | Par6ÆgtefælleKapitalModregningDækket | Par7ÆgtefælleKapitalStk5Dækket | Par7ÆgtefælleKapitalFordelingDækket | Par7aUdligningsskatDækket | Par8SundhedsbidragDækket | ArbejdsmarkedsbidragslovAlmindeligLønDækket | ArbejdsmarkedsbidragslovNaturaliaDækket | ArbejdsmarkedsbidragslovPar3UdelukkelseDækket | ArbejdsmarkedsbidragslovSærtilfældeDækket | KommuneskattelovAlmindeligIndkomstskatDækket | KommuneskattelovDelårIndkomstskatDækket | KommuneskattelovSkattekommuneFordelingDækket | KommuneskattelovAfregningDækket | FolkekirkensØkonomiKirkeskatDækket | KildeskattelovAIndkomstIndeholdelseDækket | KildeskattelovESkattekortIndeholdelseDækket | KildeskattebekendtgørelseForskudskortDækket | ForskudsregistreringIndeholdelsesprocentDækket | KildeskattelovSlutopgørelseDækket | KildeskattelovRestskatTimingDækket | KildeskattelovBSkatKalenderDækket | KildeskattelovPar62ARenterDækket | KildeskattelovRestskatRateMinimumTension | KildeskattelovRestskatMinimumsplanDækket | KildeskattelovRestskatRateplanDækket | OpkrævningslovBetalingsfristDækket | OpkrævningslovPar7RenteDækket | OpkrævningslovPar7NationalbankDataDækket | OpkrævningslovPar7DagligRenteDækket | OpkrævningslovPar7TværårRenteDækket | LigningslovLønmodtagerfradragDækket | LigningslovPar9DBefordringDækket | LigningslovPar9DAfskæringDækket | LønmodtagerDomainModelDækket | FiktivHusholdningScenarieDækket | HusholdningBenefitCliffAuditDækket | SkatDkEksternFixtureDækket | AktieindkomstSlutopgørelseDækket | AktieindkomstNegativSlutopgørelseDækket | AktieindkomstNegativParSlutopgørelseDækket | Par8aUdbytteskatStk3Dækket | Par8aNegativAktieindkomstStk6Dækket | Par8bCfcSkatDækket | Par8cKommunalLignendeSkatDækket | Par4EjendomsskattelovDækket | Par4aPensionsfradragDækket | Par4aAktieavancebeskatningslovDækket | PersonskatBombAuditDækket | KonfiskatoriskEffektivSatsAuditDækket | Par13UnderskudsmekanikDækket | Par13NegativPersonligStk4Dækket | Par13BeløbsbegrænsningerDækket | Par13AfhængigeKilderValideret | Par13KompleksCalculatorDækket | Par14HelårsomregningDækket | Par14LønmodtagerHelårsomregningDækket | Par14Par19EksternDifferentialDækket | Par19SkatteloftDækket | Par19SkatteloftKildeDækket | Par19SkatteloftCalculatorDækket | Par19KapitalSkatteloftCalculatorDækket | Par19HøjKommuneskatCalculatorDækket | Par20ReguleringDækket | Par20ReguleringstalKildeDækket | Par26KompensationDækket | Par26ÅrskomponenterDækket | Par26Stk7ÆgtefælleTopskatDækket | Par27MinisterbemyndigelseDækket | Par28TerritorialAfgrænsningDækket | TopskatTærskelAktivererKlint
 
 | audit_signal(signal: AuditSignal) -> Sandt
 
@@ -344,21 +344,21 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     gift_samlevende_ved_årets_udløb = Sandt,
     ikke_rummet_i_tidligere_indkomst_eller_skat = Sandt
 ))
-= m5_par10_stk5_helår_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
+= m5_par10_helår_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2HelårRelevantIndtægt,
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= m5_par10_stk6_delår_rettidigt_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
+= m5_par10_delår_rettidigt_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
     valg_dato_yyyymmdd = 20270701,
     omvalg_dato_yyyymmdd = 20280630
 ))
-= m5_par10_stk6_delår_for_sen_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
+= m5_par10_delår_for_sen_fixture = personfradrag_par10_resultat(PersonfradragPar10Input(
     skatteår = 2026,
     alder_status = Fyldt18EllerGift,
     skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
@@ -386,8 +386,8 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
     valg_dato_yyyymmdd = 0,
     omvalg_dato_yyyymmdd = 0
 ))
-= m5_par10_stk3_ægtefælle_statsskat_fixture = par10_stk3_ægtefælle_statsskat
-= m5_par10_stk3_ikke_samlevende_fixture = par10_stk3_ikke_samlevende
+= m5_par10_ægtefælle_statsskat_fixture = par10_ægtefælle_statsskat
+= m5_par10_ægtefælle_ikke_samlevende_fixture = par10_ægtefælle_ikke_samlevende
 = m5_par10_under18_2026_2010niveau_fixture = par10_under18_2026_2010niveau
 = m5_par10_under18_2026_parameter_fixture = par10_under18_2026
 = m5_par12_statsskat_omfordeling_fixture = personfradrag_statsskat_nedsættelse_resultat(PersonfradragStatsskatNedsættelseInput(
@@ -485,13 +485,13 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_par13_reform_par8_modregning_dækket: par13_modregning_toptopskat_fixture -> par13_modregning_toptopskat_fixture.par8_efter_kroner == 2000 && par13_modregning_toptopskat_fixture.par8a_stk2_efter_kroner == 20000
 | m5_par13_lønmodtager_underskud_dækket: m5_par13_lønmodtager_underskud_fixture -> m5_par13_lønmodtager_underskud_fixture.almindelig_skattepligtig_indkomst_kroner == -70300 && m5_par13_lønmodtager_underskud_fixture.kommuneskat_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_underskud_skatteværdi_kroner == 16520 && m5_par13_lønmodtager_underskud_fixture.statslig_indkomstskat_efter_par13_før_personfradrag_kroner == 0 && m5_par13_lønmodtager_underskud_fixture.par13_ubenyttet_skatteværdi_kroner == 5471 && m5_par13_lønmodtager_underskud_fixture.par13_dækket_underskud_ved_skattemodregning_kroner == 47017 && m5_par13_lønmodtager_underskud_fixture.par13_fremført_underskud_kroner == 23283 && m5_par13_lønmodtager_underskud_fixture.samlet_inkl_am_efter_personfradrag_kroner == 8000
 | m5_par13_lønmodtager_ægtefælleoverførsel_dækket: m5_par13_lønmodtager_ægtefælle_fixture -> m5_par13_lønmodtager_ægtefælle_fixture.par13_resterende_underskud_efter_skattemodregning_kroner == 23283 && m5_par13_lønmodtager_ægtefælle_fixture.par13_ægtefælle_fradrag_kroner == 15000 && m5_par13_lønmodtager_ægtefælle_fixture.par13_fremført_underskud_kroner == 8283
-| m5_par10_stk5_helår_ksl2_dækket: m5_par10_stk5_helår_fixture -> m5_par10_stk5_helår_fixture.personfradrag_anvendes == Sandt && m5_par10_stk5_helår_fixture.personfradrag_kroner == 54100
-| m5_par10_stk6_delår_rettidigt_dækket: m5_par10_stk6_delår_rettidigt_fixture -> m5_par10_stk6_delår_rettidigt_fixture.valgfrist_yyyymmdd == 20270701 && m5_par10_stk6_delår_rettidigt_fixture.delårsvalg_rettidigt == Sandt && m5_par10_stk6_delår_rettidigt_fixture.omvalg_rettidigt == Sandt && m5_par10_stk6_delår_rettidigt_fixture.personfradrag_kroner == 54100
-| m5_par10_stk6_delår_for_sen_dækket: m5_par10_stk6_delår_for_sen_fixture -> m5_par10_stk6_delår_for_sen_fixture.delårsvalg_rettidigt == Falskt && m5_par10_stk6_delår_for_sen_fixture.omvalg_rettidigt == Falskt && m5_par10_stk6_delår_for_sen_fixture.personfradrag_anvendes == Falskt
+| m5_par10_helår_ksl2_dækket: m5_par10_helår_fixture -> m5_par10_helår_fixture.personfradrag_anvendes == Sandt && m5_par10_helår_fixture.personfradrag_kroner == 54100
+| m5_par10_delår_rettidigt_dækket: m5_par10_delår_rettidigt_fixture -> m5_par10_delår_rettidigt_fixture.valgfrist_yyyymmdd == 20270701 && m5_par10_delår_rettidigt_fixture.delårsvalg_rettidigt == Sandt && m5_par10_delår_rettidigt_fixture.omvalg_rettidigt == Sandt && m5_par10_delår_rettidigt_fixture.personfradrag_kroner == 54100
+| m5_par10_delår_for_sen_dækket: m5_par10_delår_for_sen_fixture -> m5_par10_delår_for_sen_fixture.delårsvalg_rettidigt == Falskt && m5_par10_delår_for_sen_fixture.omvalg_rettidigt == Falskt && m5_par10_delår_for_sen_fixture.personfradrag_anvendes == Falskt
 | m5_par10_under18_lov1564_dækket: m5_par10_under18_2026_2010niveau_fixture -> m5_par10_under18_2026_2010niveau_fixture == 39350 && m5_par10_under18_2026_parameter_fixture == 54100
 | m5_par10_undtagelser_dækket: m5_par10_sømand_fixture -> m5_par10_sømand_fixture.afskåret_af_sømandsbeskatning == Sandt && m5_par10_sømand_fixture.personfradrag_kroner == 0 && m5_par10_ophold_fixture.afskåret_af_opholdstilladelse == Sandt && m5_par10_ophold_fixture.personfradrag_anvendes == Falskt && m5_par10_forsker_fixture.afskåret_af_forskerordning == Sandt && m5_par10_forsker_fixture.personfradrag_kroner == 0
-| m5_par10_stk3_ægtefælle_personfradrag_statsværdi_dækket: m5_par10_stk3_ægtefælle_statsskat_fixture -> m5_par10_stk3_ægtefælle_statsskat_fixture.overført_par8_skatteværdi_kroner == 1000 && m5_par10_stk3_ægtefælle_statsskat_fixture.overført_par6_skatteværdi_kroner == 500 && m5_par10_stk3_ægtefælle_statsskat_fixture.par6_efter_kroner == 0 && m5_par10_stk3_ægtefælle_statsskat_fixture.par7_efter_kroner == 0 && m5_par10_stk3_ægtefælle_statsskat_fixture.par7a_efter_kroner == 0 && m5_par10_stk3_ægtefælle_statsskat_fixture.par8_efter_kroner == 0 && m5_par10_stk3_ægtefælle_statsskat_fixture.par8a_stk2_efter_kroner == 700 && m5_par10_stk3_ægtefælle_statsskat_fixture.anvendt_skatteværdi_kroner == 1500
-| m5_par10_stk3_kræver_samliv_dækket: m5_par10_stk3_ikke_samlevende_fixture -> m5_par10_stk3_ikke_samlevende_fixture.overført_par8_skatteværdi_kroner == 0 && m5_par10_stk3_ikke_samlevende_fixture.overført_par6_skatteværdi_kroner == 0 && m5_par10_stk3_ikke_samlevende_fixture.par6_efter_kroner == 200 && m5_par10_stk3_ikke_samlevende_fixture.par7_efter_kroner == 600 && m5_par10_stk3_ikke_samlevende_fixture.par8_efter_kroner == 300 && m5_par10_stk3_ikke_samlevende_fixture.afskåret_uden_samliv_kroner == 1500
+| m5_par10_ægtefælle_personfradrag_statsværdi_dækket: m5_par10_ægtefælle_statsskat_fixture -> m5_par10_ægtefælle_statsskat_fixture.overført_par8_skatteværdi_kroner == 1000 && m5_par10_ægtefælle_statsskat_fixture.overført_par6_skatteværdi_kroner == 500 && m5_par10_ægtefælle_statsskat_fixture.par6_efter_kroner == 0 && m5_par10_ægtefælle_statsskat_fixture.par7_efter_kroner == 0 && m5_par10_ægtefælle_statsskat_fixture.par7a_efter_kroner == 0 && m5_par10_ægtefælle_statsskat_fixture.par8_efter_kroner == 0 && m5_par10_ægtefælle_statsskat_fixture.par8a_stk2_efter_kroner == 700 && m5_par10_ægtefælle_statsskat_fixture.anvendt_skatteværdi_kroner == 1500
+| m5_par10_ægtefælleoverførsel_kræver_samliv_dækket: m5_par10_ægtefælle_ikke_samlevende_fixture -> m5_par10_ægtefælle_ikke_samlevende_fixture.overført_par8_skatteværdi_kroner == 0 && m5_par10_ægtefælle_ikke_samlevende_fixture.overført_par6_skatteværdi_kroner == 0 && m5_par10_ægtefælle_ikke_samlevende_fixture.par6_efter_kroner == 200 && m5_par10_ægtefælle_ikke_samlevende_fixture.par7_efter_kroner == 600 && m5_par10_ægtefælle_ikke_samlevende_fixture.par8_efter_kroner == 300 && m5_par10_ægtefælle_ikke_samlevende_fixture.afskåret_uden_samliv_kroner == 1500
 | m5_par9_par8_skatteværdi_overløb_dækket: m5_par9_par8_skatteværdi_fixture -> m5_par9_par8_skatteværdi_fixture.par8_efter_kroner == 0 && m5_par9_par8_skatteværdi_fixture.par6_efter_kroner == 30 && m5_par9_par8_skatteværdi_fixture.par7_efter_kroner == 300
 | m5_par9_par6_skatteværdi_overløb_dækket: m5_par9_par6_skatteværdi_fixture -> m5_par9_par6_skatteværdi_fixture.par6_efter_kroner == 0 && m5_par9_par6_skatteværdi_fixture.par8_efter_kroner == 30 && m5_par9_par6_skatteværdi_fixture.par7_efter_kroner == 300
 | m5_par9_ikke_stat_personfradrag_dækket: m5_par9_ikke_stat_personfradrag_fixture -> m5_par9_ikke_stat_personfradrag_fixture.par8c_efter_kroner == 61475 && m5_par9_ikke_stat_personfradrag_fixture.kommuneskat_efter_kroner == 82226 && m5_par9_ikke_stat_personfradrag_fixture.kirkeskat_efter_kroner == 2800 && m5_par9_ikke_stat_personfradrag_fixture.samlet_efter_kroner == 146501
@@ -507,7 +507,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | m5_audit_personfradrag_normalfixture_signal: audit_signal(PersonfradragNormalfixtureDækket) -> audit_signal(PersonfradragNormalfixtureDækket) == Sandt
 | m5_audit_par9_personfradrag_signal: audit_signal(Par9PersonfradragNedsættelseDækket) -> audit_signal(Par9PersonfradragNedsættelseDækket) == Sandt
 | m5_audit_par10_skattepligt_signal: audit_signal(Par10PersonfradragSkattepligtDækket) -> audit_signal(Par10PersonfradragSkattepligtDækket) == Sandt
-| m5_audit_par10_stk3_ægtefælle_personfradrag_signal: audit_signal(Par10Stk3ÆgtefællePersonfradragDækket) -> audit_signal(Par10Stk3ÆgtefællePersonfradragDækket) == Sandt
+| m5_audit_par10_ægtefælle_personfradrag_signal: audit_signal(Par10ÆgtefællePersonfradragDækket) -> audit_signal(Par10ÆgtefællePersonfradragDækket) == Sandt
 | m5_audit_par11_signal: audit_signal(Par11NegativKapitalNedslagDækket) -> audit_signal(Par11NegativKapitalNedslagDækket) == Sandt
 | m5_audit_par12_omfordeling_signal: audit_signal(Par12PersonfradragOmfordelingDækket) -> audit_signal(Par12PersonfradragOmfordelingDækket) == Sandt
 | m5_audit_par7a_udligningsskat_signal: audit_signal(Par7aUdligningsskatDækket) -> audit_signal(Par7aUdligningsskatDækket) == Sandt
@@ -548,13 +548,13 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_par13_reform_par8_modregning_dækket
 ? m5_par13_lønmodtager_underskud_dækket
 ? m5_par13_lønmodtager_ægtefælleoverførsel_dækket
-? m5_par10_stk5_helår_ksl2_dækket
-? m5_par10_stk6_delår_rettidigt_dækket
-? m5_par10_stk6_delår_for_sen_dækket
+? m5_par10_helår_ksl2_dækket
+? m5_par10_delår_rettidigt_dækket
+? m5_par10_delår_for_sen_dækket
 ? m5_par10_under18_lov1564_dækket
 ? m5_par10_undtagelser_dækket
-? m5_par10_stk3_ægtefælle_personfradrag_statsværdi_dækket
-? m5_par10_stk3_kræver_samliv_dækket
+? m5_par10_ægtefælle_personfradrag_statsværdi_dækket
+? m5_par10_ægtefælleoverførsel_kræver_samliv_dækket
 ? m5_par12_omfordeler_uudnyttet_skatteværdi
 ? m5_par11_2012_satskilde_dækket
 ? m5_par11_2026_satskilde_dækket
@@ -564,7 +564,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 ? m5_par11_ubrugt_til_ægtefælle_dækket
 ? m5_audit_personfradrag_normalfixture_signal
 ? m5_audit_par10_skattepligt_signal
-? m5_audit_par10_stk3_ægtefælle_personfradrag_signal
+? m5_audit_par10_ægtefælle_personfradrag_signal
 ? m5_audit_par11_signal
 ? m5_audit_par12_omfordeling_signal
 ? m5_audit_par7a_udligningsskat_signal

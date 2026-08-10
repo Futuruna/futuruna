@@ -7,13 +7,54 @@
 
 = aktieavancebeskatningsloven_lbk1098_par19b_til_par22 = AktieavanceInvesteringsklassifikationKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22",
-    hentet_dato = "2026-07-18"
+    identifier = "Aktieavancebeskatningsloven §§ 19 B-19 C og §§ 21-22 i LBK nr. 1098 af 27/08/2025",
+    hentet_dato = "2026-08-10"
 )
 
-= abl_par19b_til_par22_kildemeta = Source(
-    value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22
+= aktieavancebeskatningsloven_lbk172_par19_til_par22 = AktieavanceInvesteringsklassifikationKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/172",
+    identifier = "Historisk grundtekst for aktieavancebeskatningslovens §§ 19-22 i LBK nr. 172 af 29/01/2021; ordlydsuddrag viser de senere ændrede § 19 B, stk. 4, og § 21, stk. 2",
+    hentet_dato = "2026-08-10"
 )
+
+= aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13 = AktieavanceInvesteringsklassifikationKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2021/1179",
+    identifier = "LOV nr. 1179 af 08/06/2021, § 2, nr. 1-2, og § 13, stk. 1 og 3",
+    hentet_dato = "2026-08-10"
+)
+
+= aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8 = AktieavanceInvesteringsklassifikationKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1563",
+    identifier = "LOV nr. 1563 af 12/12/2023, § 2, nr. 10-11, og § 8, stk. 1",
+    hentet_dato = "2026-08-10"
+)
+
+= abl_par19b_til_par22_kildemeta = Metadata(
+    attachments = (
+        Source(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+    )
+)
+
+= abl_par19b_til_par22_historisk_kildemeta = Metadata(
+    attachments = (
+        HistoricalSource(value = aktieavancebeskatningsloven_lbk172_par19_til_par22),
+    )
+)
+
+= abl_par19b_til_par22_lov1179_kildemeta = Metadata(
+    attachments = (
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+    )
+)
+
+= abl_par19b_til_par22_lov1563_kildemeta = Metadata(
+    attachments = (
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
+    )
+)
+
 --@label:aktieavancebeskatningsloven_par19b_til_par22::meta:abl_par19b_til_par22_kildemeta--
 ----
 § 19 B. Gevinst og tab på aktier og investeringsbeviser m.v. udstedt af et
@@ -150,7 +191,71 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 § 17 nævnte tilfælde.
 ----
 
+--@label:aktieavancebeskatningsloven_par19b_og_par21_historisk::meta:abl_par19b_til_par22_historisk_kildemeta--
+----
+Aktieavancebeskatningsloven, LBK nr. 172 af 29/01/2021:
+
+§ 19 B, stk. 4. Meddelelse efter stk. 2, 1. pkt., om status som aktiebaseret
+investeringsselskab skal indsendes til told- og skatteforvaltningen senest den
+1. november i kalenderåret før det kalenderår, som meddelelsen skal have
+virkning fra.
+
+§ 21, stk. 2, 1. pkt. Et investeringsinstitut med minimumsbeskatning er
+aktiebaseret, hvis 50 pct. eller mere af instituttets aktivmasse i løbet af
+instituttets indkomstår gennemsnitligt er placeret i værdipapirer m.v. omfattet
+af denne lov, bortset fra aktier m.v. omfattet af § 19 C og investeringsbeviser
+omfattet af § 22.
+----
+
+--@label:aktieavancebeskatningsloven_par19b_og_par21_lov1179::meta:abl_par19b_til_par22_lov1179_kildemeta--
+----
+Lov nr. 1179 af 08/06/2021, § 2:
+
+I aktieavancebeskatningsloven, jf. lovbekendtgørelse nr. 172 af 29. januar
+2021, foretages følgende ændringer:
+
+1. I § 19 B, stk. 4, indsættes som 2. pkt.:
+
+»For et nyoprettet investeringsselskab kan valg af status som aktiebaseret
+investeringsselskab, jf. stk. 2, have virkning fra det kalenderår, hvori
+investeringsselskabet er oprettet, hvis valget træffes samtidig med oprettelsen
+og der indsendes en meddelelse herom til told- og skatteforvaltningen senest
+2 måneder efter oprettelsen, dog senest den 1. november i oprettelsesåret.«
+
+2. I § 21, stk. 2, 1. pkt., ændres »instituttets indkomstår« til: »hvert
+kalenderår«.
+
+Lov nr. 1179 af 08/06/2021, § 13:
+
+Stk. 1. Loven træder i kraft den 1. juli 2021, jf. dog stk. 2.
+
+Stk. 3. § 2, nr. 2-4, og § 8, nr. 2-13, har virkning fra og med den 1. januar
+2022.
+----
+
+--@label:aktieavancebeskatningsloven_par20_til_par22_lov1563::meta:abl_par19b_til_par22_lov1563_kildemeta--
+----
+Lov nr. 1563 af 12/12/2023, § 2:
+
+I aktieavancebeskatningsloven, jf. lovbekendtgørelse nr. 172 af 29. januar
+2021, som ændret ved § 2 i lov nr. 1179 af 8. juni 2021, § 3 i lov nr. 2610 af
+28. december 2021 og § 345 i lov nr. 718 af 13. juni 2023, foretages følgende
+ændringer:
+
+10. I § 20, stk. 2, og § 21, stk. 1, ændres »§§ 12-14« til: »§§ 12, 13 A,
+14«.
+
+11. I § 22, stk. 6, 1. pkt., ændres »12-13 A« til: »12, 13 A«.
+
+Lov nr. 1563 af 12/12/2023, § 8:
+
+Stk. 1. Loven træder i kraft den 1. januar 2024.
+----
+
 --@begin:aktieavancebeskatningsloven_par19b_til_par22--
+--@begin:aktieavancebeskatningsloven_par19b_og_par21_historisk--
+--@begin:aktieavancebeskatningsloven_par19b_og_par21_lov1179--
+--@begin:aktieavancebeskatningsloven_par20_til_par22_lov1563--
 # AktieavanceInvesteringsdato(år: Heltal, måned: Heltal, dag: Heltal)
 # AktieavanceInvesteringsaktivArt = AblKvalificerendeAktieaktiv | AblAktivOmfattetAfPar19C | AblInvesteringsbevisOmfattetAfPar22 | AblAndetVærdipapir | AblAndetAktiv
 # AktieavanceInvesteringsaktiv = AblDirekteInvesteringsaktiv(art: AktieavanceInvesteringsaktivArt, gennemsnitlig_værdi_kroner: Heltal) | AblKglPar29Til33Aktiv(underliggende_art: AktieavanceInvesteringsaktivArt, underliggende_gennemsnitlig_værdi_kroner: Heltal)
@@ -173,6 +278,8 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 # AktieavancePar21Par22Resultat(input: AktieavancePar21Par22Input, input_gyldigt: Boolsk, aktivmasse_resultat: AktieavanceInvesteringsaktivmasseResultat, oplysninger_rettidige_efter_par21_stk5: Boolsk, skiftet_skattemæssig_status: Boolsk, skal_offentliggøre_manglende_overholdelse: Boolsk, effektiv_status: AktieavancePar21Par22Status)
 
 # AktieavanceInvesteringsklassifikation = AblIngenInvesteringsklassifikation | AblPar19BPar19CKlassifikation(input: AktieavancePar19BPar19CInput) | AblPar21Par22Klassifikation(input: AktieavancePar21Par22Input)
+
+| aktieavance_investeringsklassifikation_indkomstår_understøttet(indkomstår: Heltal) -> indkomstår >= 2023 && indkomstår <= 2026
 
 | aktieavance_investerings_skudår(år: Heltal) -> år % 400 == 0 || (år % 4 == 0 && år % 100 != 0)
 | aktieavance_investerings_dage_i_måned(år: Heltal, måned: Heltal) -> match måned { | 2 -> hvis aktieavance_investerings_skudår(år) { 29 } ellers { 28 } | 4 -> 30 | 6 -> 30 | 9 -> 30 | 11 -> 30 | _ -> 31 }
@@ -264,7 +371,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | aktieavance_investeringsaktivmasse_summering(input: AktieavanceInvesteringsaktivmasse) -> foldl(input.ejerposter, aktieavance_investeringsaktiv_direkte_summering(input.direkte_aktiver), |opsamling: AktieavanceInvesteringsaktivsummering, ejerpost: AktieavanceInvesteringsEjerpost| aktieavance_investeringsaktiv_summering_læg_sammen(opsamling, aktieavance_investerings_ejerpost_summering(ejerpost, input.indkomstår)))
 | aktieavance_investeringsaktivmasse_resultat_fra_summering(input: AktieavanceInvesteringsaktivmasse, summering: AktieavanceInvesteringsaktivsummering) -> AktieavanceInvesteringsaktivmasseResultat(
     input = input,
-    input_gyldigt = input.indkomstår > 0 && summering.input_gyldigt && summering.medregnet_aktivmasse_kroner > 0,
+    input_gyldigt = aktieavance_investeringsklassifikation_indkomstår_understøttet(input.indkomstår) && summering.input_gyldigt && summering.medregnet_aktivmasse_kroner > 0,
     medregnet_aktivmasse_kroner = summering.medregnet_aktivmasse_kroner,
     kvalificerende_aktiver_kroner = summering.kvalificerende_aktiver_kroner,
     øvrige_værdipapirer_kroner = summering.øvrige_værdipapirer_kroner,
@@ -286,7 +393,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 
 # AktieavancePar19BPar19CSag(input: AktieavancePar19BPar19CInput) {
     | aktivmasse_resultat() -> aktieavance_investeringsaktivmasse_resultat(input.aktivmasse)
-    | input_gyldigt() -> input.indkomstår > 0 && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par19b_meddelelse_input_gyldigt(input.indkomstår, input.meddelelse) && aktieavance_par19b_oplysninger_input_gyldigt(input.oplysninger)
+    | input_gyldigt() -> aktieavance_investeringsklassifikation_indkomstår_understøttet(input.indkomstår) && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par19b_meddelelse_input_gyldigt(input.indkomstår, input.meddelelse) && aktieavance_par19b_oplysninger_input_gyldigt(input.oplysninger)
     | meddelelse_rettidig() -> input_gyldigt() && aktieavance_par19b_meddelelse_rettidig(input.indkomstår, input.meddelelse)
     | anbringelsesbetingelser_efter_stk2_opfyldt() -> input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct && aktivmasse_resultat().resterende_aktivmasse_kun_værdipapirer
     | oplysninger_rettidige_efter_stk6() -> input_gyldigt() && aktieavance_par19b_oplysninger_rettidige(input.indkomstår, input.oplysninger)
@@ -319,7 +426,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 
 # AktieavancePar21Par22Sag(input: AktieavancePar21Par22Input) {
     | aktivmasse_resultat() -> aktieavance_investeringsaktivmasse_resultat(input.aktivmasse)
-    | input_gyldigt() -> input.indkomstår > 0 && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par21_oplysninger_input_gyldigt(input.oplysninger)
+    | input_gyldigt() -> aktieavance_investeringsklassifikation_indkomstår_understøttet(input.indkomstår) && input.aktivmasse.indkomstår == input.indkomstår && aktivmasse_resultat().input_gyldigt && aktieavance_par21_oplysninger_input_gyldigt(input.oplysninger)
     | oplysninger_rettidige_efter_par21_stk5() -> input_gyldigt() && aktieavance_par21_oplysninger_rettidige(input.oplysninger)
     | skiftet_skattemæssig_status() -> input_gyldigt() && aktivmasse_resultat().kvalificerende_andel_mindst_50_pct == Falskt
     | skal_offentliggøre_manglende_overholdelse() -> skiftet_skattemæssig_status()
@@ -339,4 +446,7 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | aktieavance_par21_par22_resultat(input: AktieavancePar21Par22Input) -> AktieavancePar21Par22Sag(input).resultat()
 | aktieavance_par21_par22_resultat_gyldigt(resultat: AktieavancePar21Par22Resultat) -> resultat == aktieavance_par21_par22_resultat(resultat.input)
 | aktieavance_investeringsklassifikation_gyldig(klassifikation: AktieavanceInvesteringsklassifikation) -> match klassifikation { | AblIngenInvesteringsklassifikation -> Sandt | AblPar19BPar19CKlassifikation(input) -> aktieavance_par19b_par19c_resultat(input).input_gyldigt | AblPar21Par22Klassifikation(input) -> aktieavance_par21_par22_resultat(input).input_gyldigt }
+--@end:aktieavancebeskatningsloven_par20_til_par22_lov1563--
+--@end:aktieavancebeskatningsloven_par19b_og_par21_lov1179--
+--@end:aktieavancebeskatningsloven_par19b_og_par21_historisk--
 --@end:aktieavancebeskatningsloven_par19b_til_par22--

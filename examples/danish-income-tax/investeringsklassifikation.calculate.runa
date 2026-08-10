@@ -8,6 +8,11 @@
     attachments = (
         Source(value = aktieavancebeskatningsloven_lbk1098_par19_til_par20a),
         Source(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+        HistoricalSource(value = aktieavancebeskatningsloven_lbk172_par19_til_par22),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1179_par2_nr1_2_og_par13),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
+        TransitionSource(value = aktieavancebeskatningsloven_lov1563_par2_nr10_11_og_par8),
     )
 )
 
