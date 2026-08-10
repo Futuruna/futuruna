@@ -1,0 +1,136 @@
+@ sprog da
+
+@ importer ./soemandsbeskatningsloven - par5 - par8
+
+| søbl5_til8_årskilde_person() -> Søbl5Til8Personfakta(
+    skattepligt = SøblFuldtSkattepligtigEfterKsl1,
+    statsborgerskab = SøblStatsborgerIEUEØS,
+    relation = SøblAlmindeligLønmodtager
+)
+| søbl5_til8_årskilde_skib() -> Søbl5Til8Skibsfakta(
+    identifikation = "dis-skib",
+    registrering = SøblDanskSkibRegistreretIDIS,
+    bruttotonnage = 12000,
+    arbejdsgiverstatus = SøblDanskArbejdsgiver
+)
+| søbl5_til8_årskilde_arbejde() -> Søbl5Til8Arbejdsfakta(
+    anvendelse = SøblUdelukkendeAnvendtTil(SøblTransportAfGodsMellemForskelligeDestinationer),
+    arbejdsområde = SøblArbejdeIndenForEUEØS,
+    passagerrute = SøblIngenPassagersejlads,
+    arbejdsrolle = SøblNormalDriftsbesætning,
+    par8_valg = SøblAnvendPar10RefusionEllerAlmindeligBeskatning
+)
+| søbl5_til8_årskilde_indkomst(indkomstår: Heltal, identifikation: Tekst, indkomsttype: Søbl5Til8Indkomsttype, løngrundlag: Søbl5Til8Løngrundlag, beløb_kroner: Heltal) -> Søbl5Til8Indkomstfakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    person = søbl5_til8_årskilde_person(),
+    skib = søbl5_til8_årskilde_skib(),
+    arbejde = søbl5_til8_årskilde_arbejde(),
+    løn = Søbl5Til8Lønfakta(
+        indkomsttype = indkomsttype,
+        løngrundlag = løngrundlag,
+        beløb_kroner = beløb_kroner
+    )
+)
+| søbl5_til8_årskilde_input(indkomster: List(Søbl5Til8Indkomstfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) -> Søbl5Til8Årsinput(
+    indkomster = indkomster,
+    skibsårsdrifter = [],
+    andre_ligningslov7u_indkomster = andre_ligningslov7u_indkomster,
+    dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag,
+    kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag
+)
+
+= søbl5_til8_årskilde_2023 = søbl5_til8_årsresultat(
+    indkomstår = 2023,
+    input = søbl5_til8_årskilde_input(
+        indkomster = [søbl5_til8_årskilde_indkomst(
+            indkomstår = 2023,
+            identifikation = "dis-2023",
+            indkomsttype = SøblLønVedArbejdeOmBord,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 500000
+        )],
+        andre_ligningslov7u_indkomster = []
+    )
+)
+
+= søbl5_til8_årskilde_2024 = søbl5_til8_årsresultat(
+    indkomstår = 2024,
+    input = søbl5_til8_årskilde_input(
+        indkomster = [søbl5_til8_årskilde_indkomst(
+            indkomstår = 2024,
+            identifikation = "dis-7u-2024",
+            indkomsttype = SøblLigningslov7UYdelseMedDirekteTilknytning,
+            løngrundlag = SøblSkattefriNettolønFastsatUnderHensynTilFritagelsen,
+            beløb_kroner = 20000
+        )],
+        andre_ligningslov7u_indkomster = [Søbl5Til8AndenLigningslov7UIndkomstfakta(
+            identifikation = "anden-7u-2024",
+            beløb_kroner = 60000
+        )]
+    )
+)
+
+= søbl5_til8_årskilde_2022_med_indkomst = søbl5_til8_årsresultat(
+    indkomstår = 2022,
+    input = søbl5_til8_årskilde_input(
+        indkomster = [søbl5_til8_årskilde_indkomst(
+            indkomstår = 2022,
+            identifikation = "uden-kildedækning-2022",
+            indkomsttype = SøblLønVedArbejdeOmBord,
+            løngrundlag = SøblOrdinærBruttoløn,
+            beløb_kroner = 100000
+        )],
+        andre_ligningslov7u_indkomster = []
+    )
+)
+
+= søbl5_til8_årskilde_2022_tom = søbl5_til8_årsresultat(2022, søbl5_til8_intet_årsinput())
+= søbl5_til8_årskilde_2025_tom = søbl5_til8_årsresultat(2025, søbl5_til8_intet_årsinput())
+= søbl5_til8_årskilde_2026_tom = søbl5_til8_årsresultat(2026, søbl5_til8_intet_årsinput())
+= søbl5_til8_årskilde_2027_tom = søbl5_til8_årsresultat(2027, søbl5_til8_intet_årsinput())
+
+= søbl5_til8_årskilde_2023_bundfradrag = søbl5_til8_ligningslov7u_bundfradragsresultat(2023, [], [])
+= søbl5_til8_årskilde_2023_dødsboafhængighed = søbl5_dødsbo_lempelsesresultat(
+    indkomstår = 2023,
+    kategori = SøblDødsboSkattepligtKategori,
+    grundlag = Søbl5Dødsboskattegrundlag(input = Dødsboskattelov30Input(
+        boform = Dbl1Stk2BoBehandlesHeltEllerDelvistIDanmark,
+        bobeskatningsindkomst_kroner = 600000,
+        dødsdato = Dato(år = 2023, måned = 8, dag = 15),
+        boopgørelsestype = Dbl30OrdinærBoopgørelse,
+        boopgørelsens_skæringsdag = Dato(år = 2023, måned = 8, dag = 31),
+        indkomstårsforhold = Dbl30Kalenderindkomstår,
+        ægtefælleforhold = Dbl30IntetÆgtefælleforholdEfterPar62,
+        aktieindkomstgrundlag = Dbl32IngenAktieindkomst,
+        carrybackgrundlag = Dbl31IngenDokumenteretCarrybackgrundlag
+    )),
+    indkomstresultater = [],
+    ligningslov7u_bundfradrag = søbl5_til8_årskilde_2023_bundfradrag
+)
+= søbl5_til8_årskilde_2023_kulbrinteafhængighed = søbl5b_kulbrinte_lempelsesresultat(
+    indkomstår = 2023,
+    kategori = SøblKulbrinteSkattepligtKategori,
+    grundlag = Søbl5BKulbrinteskattegrundlag(kildefakta = Kulbrinteskattelov21Stk2Kildefakta(
+        personstatus = KulbrintePersonIkkeOmfattetAfKildeskattelov1,
+        arbejdsgiverhjemting = KulbrinteArbejdsgiverUdenHjemtingIDanmark,
+        indkomstkategori = KulbrinteLønEllerAndetIkkeErhvervsmæssigtVederlag,
+        dansk_beskatningsret = KulbrinteDanskBeskatningsretBekræftet,
+        beskatningsvalg = KulbrinteEndeligBruttoskatEfterPar21Stk2,
+        alder_ved_indkomstårets_udløb = 40
+    )),
+    indkomstresultater = [],
+    ligningslov7u_bundfradrag = søbl5_til8_årskilde_2023_bundfradrag
+)
+
+| søbl5_til8_årskilde_2023_understøttes: søbl5_til8_årskilde_2023 -> søbl5_til8_årskilde_2023.lovversion == Søbl5Til8Lbk1181Af2023MedSenereÆndringer && søbl5_til8_årskilde_2023.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer && søbl5_til8_årskilde_2023.alle_input_gyldige && søbl5_til8_årskilde_2023.beregningsklar && søbl5_til8_årskilde_2023.samlet_dis_personlig_indkomst_kroner == 500000
+| søbl5_til8_årskilde_2024_fordeler_7u: søbl5_til8_årskilde_2024 -> søbl5_til8_årskilde_2024.lovversion == Søbl5Til8Lbk1181Af2023MedSenereÆndringer && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.fuldt_bundfradrag_kroner == 8000 && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_dis_kroner == 2000 && søbl5_til8_årskilde_2024.ligningslov7u_bundfradrag.bundfradrag_fordelt_til_anden_indkomst_kroner == 6000 && søbl5_til8_årskilde_2024.samlet_dis_personlig_indkomst_kroner == 18000 && søbl5_til8_årskilde_2024.samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner == 54000
+| søbl5_til8_årskilde_2025_og_2026_bevares: søbl5_til8_årskilde_2025_tom -> søbl5_til8_årskilde_2025_tom.alle_input_gyldige && søbl5_til8_årskilde_2025_tom.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer && søbl5_til8_årskilde_2026_tom.alle_input_gyldige && søbl5_til8_årskilde_2026_tom.ligningslov7u_lovversion == Søbl5Til8Ll7ULbk1500Af2025
+| søbl5_til8_årskilde_udenfor_horisont_afvises: søbl5_til8_årskilde_2022_med_indkomst -> søbl5_til8_årskilde_2022_med_indkomst.skatteår_understøttet == Falskt && søbl5_til8_årskilde_2022_med_indkomst.alle_input_gyldige == Falskt && søbl5_til8_årskilde_2022_med_indkomst.samlet_ordinær_bruttoløn_kroner == 0 && søbl5_til8_årskilde_2022_tom.alle_input_gyldige == Falskt && søbl5_til8_årskilde_2027_tom.alle_input_gyldige == Falskt
+| søbl5_til8_årskilde_2023_valgfrie_afhængigheder_forbliver_lukkede: søbl5_til8_årskilde_2023_dødsboafhængighed -> søbl5_til8_årskilde_2023_dødsboafhængighed.relevant && søbl5_til8_årskilde_2023_dødsboafhængighed.grundlag_tilstede && søbl5_til8_årskilde_2023_dødsboafhængighed.input_gyldigt == Falskt && søbl5_til8_årskilde_2023_dødsboafhængighed.beregningsklar == Falskt && søbl5_til8_årskilde_2023_kulbrinteafhængighed.relevant && søbl5_til8_årskilde_2023_kulbrinteafhængighed.grundlag_tilstede && søbl5_til8_årskilde_2023_kulbrinteafhængighed.input_gyldigt == Falskt && søbl5_til8_årskilde_2023_kulbrinteafhængighed.beregningsklar == Falskt
+
+? søbl5_til8_årskilde_2023_understøttes
+? søbl5_til8_årskilde_2024_fordeler_7u
+? søbl5_til8_årskilde_2025_og_2026_bevares
+? søbl5_til8_årskilde_udenfor_horisont_afvises
+? søbl5_til8_årskilde_2023_valgfrie_afhængigheder_forbliver_lukkede

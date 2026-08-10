@@ -32,7 +32,13 @@
     url = "https://www.retsinformation.dk/eli/lta/2025/1500",
     identifier = "Ligningsloven § 7 U, LBK nr. 1500 af 24/11/2025",
     hentet_dato = "2026-08-06",
-    ændringsstatus = "Bundfradraget på 8.000 kr. gælder for de understøttede indkomstår 2025 og 2026"
+    ændringsstatus = "Bundfradraget på 8.000 kr. bærer det understøttede indkomstår 2026"
+)
+= søbl5_til8_ligningslov7u_lbk42 = Søbl5Til8KildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/42",
+    identifier = "Ligningsloven § 7 U, LBK nr. 42 af 13/01/2023",
+    hentet_dato = "2026-08-10",
+    ændringsstatus = "Bundfradraget på 8.000 kr. bærer de understøttede indkomstår 2023-2025; LBK nr. 1500 af 24/11/2025 bærer 2026"
 )
 = søbl5_til8_tonnageskattelov = Søbl5Til8KildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2021/500",
@@ -227,20 +233,27 @@ Stk. 5. Personer, som kan anvende stk. 1-3, er ikke omfattet af ligningslovens �
 # Søbl5Dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag | Søbl5Dødsboskattegrundlag(input: Dødsboskattelov30Input)
 # Søbl5BKulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag | Søbl5BKulbrinteskattegrundlag(kildefakta: Kulbrinteskattelov21Stk2Kildefakta)
 # Søbl5Til8Årsinput(indkomster: List(Søbl5Til8Indkomstfakta), skibsårsdrifter: List(Søbl6Skibsårsdriftfakta), andre_ligningslov7u_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), dødsboskattegrundlag: Søbl5Dødsboskattegrundlag, kulbrinteskattegrundlag: Søbl5BKulbrinteskattegrundlag)
+# Søbl5Til8Lovversion = Søbl5Til8Lbk1181Af2023MedSenereÆndringer | Søbl5Til8LovversionUdenKildedækning
+# Søbl5Til8Ligningslov7ULovversion = Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer | Søbl5Til8Ll7ULbk1500Af2025 | Søbl5Til8Ll7ULovversionUdenKildedækning
 # Søbl5Til8Beskatningsvirkning = SøblIngenDISVirkning | SøblNedsættelseAfSamletIndkomstskat | SøblNedsættelseAfDødsboskat | SøblIngenDanskSkatEfterPar5Stk2 | SøblKulbrinteskattelov21Stk2Virkning
 # Søbl5Til8Retsgrundlag = SøblIntetRetsgrundlag | SøblPar5Stk1 | SøblPar5Stk1Dødsbo | SøblPar5Stk2 | SøblPar5B | SøblPar6 | SøblPar7 | SøblPar8
 # Søbl6Skibsårsdriftresultat(fakta: Søbl6Skibsårsdriftfakta, input_gyldigt: Boolsk, søtransportminutter_før_ventetid: Heltal, aktive_minutter_før_ventetid: Heltal, ventetid_til_søtransport_tæller: Heltal, ventetid_til_andre_aktiviteter_tæller: Heltal, ventetidsfordeling_nævner: Heltal, søtransport_inkl_fordelt_ventetid_tæller: Heltal, samlet_driftstid_tæller: Heltal, samlet_driftstid_minutter: Heltal, søtransportandel_mindst_halvdelen: Boolsk)
 # Søbl6IndkomstÅrsdriftsrelation = Søbl6ÅrsdriftIkkePåkrævet | Søbl6ÅrsdriftMangler | Søbl6ÅrsdriftFlertydig | Søbl6ÅrsdriftUgyldig(resultat: Søbl6Skibsårsdriftresultat) | Søbl6ÅrsdriftTilknyttet(resultat: Søbl6Skibsårsdriftresultat)
 # Søbl6Årsdriftsgrundlagsresultat(indkomstår: Heltal, resultater: List(Søbl6Skibsårsdriftresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, alle_fakta_anvendt: Boolsk, skibsfakta_konsistente: Boolsk, alle_bugserindkomster_tilknyttet: Boolsk, input_gyldigt: Boolsk)
 # Søbl5Til8Indkomstresultat(fakta: Søbl5Til8Indkomstfakta, årsdriftsrelation: Søbl6IndkomstÅrsdriftsrelation, input_gyldigt: Boolsk, arbejdsrolle_omfattet: Boolsk, aflønningsbetingelse_opfyldt: Boolsk, indkomsttype_omfattet: Boolsk, nettolønsbetingelse_opfyldt: Boolsk, tonnageskatteaktivitet_opfyldt: Boolsk, par5_opfyldt: Boolsk, par5b_opfyldt: Boolsk, par6_opfyldt: Boolsk, par7_opfyldt: Boolsk, par8_opfyldt: Boolsk, kan_anvende_par5_til8: Boolsk, retsgrundlag: Søbl5Til8Retsgrundlag, beskatningsvirkning: Søbl5Til8Beskatningsvirkning, dis_personlig_indkomst_kroner: Heltal, ordinær_bruttoløn_kroner: Heltal, uafklaret_nettoløn_kroner: Heltal, arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk)
-# Søbl5Til8Ligningslov7UBundfradragsresultat(indkomstår: Heltal, andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), input_gyldigt: Boolsk, andre_indkomstidentifikationer_entydige: Boolsk, direkte_dis_nettoløn_før_bundfradrag_kroner: Heltal, anden_indkomst_før_bundfradrag_kroner: Heltal, samlet_indkomst_før_bundfradrag_kroner: Heltal, fuldt_bundfradrag_kroner: Heltal, anvendt_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, bundfradrag_fordelt_til_anden_indkomst_kroner: Heltal, direkte_dis_nettoløn_efter_bundfradrag_kroner: Heltal, anden_indkomst_efter_bundfradrag_kroner: Heltal)
+# Søbl5Til8Ligningslov7UBundfradragsresultat(indkomstår: Heltal, lovversion: Søbl5Til8Ligningslov7ULovversion, andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta), input_gyldigt: Boolsk, andre_indkomstidentifikationer_entydige: Boolsk, direkte_dis_nettoløn_før_bundfradrag_kroner: Heltal, anden_indkomst_før_bundfradrag_kroner: Heltal, samlet_indkomst_før_bundfradrag_kroner: Heltal, fuldt_bundfradrag_kroner: Heltal, anvendt_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, bundfradrag_fordelt_til_anden_indkomst_kroner: Heltal, direkte_dis_nettoløn_efter_bundfradrag_kroner: Heltal, anden_indkomst_efter_bundfradrag_kroner: Heltal)
 # Søbl5DødsboLempelsesresultat(relevant: Boolsk, grundlag_tilstede: Boolsk, input_gyldigt: Boolsk, beregningsklar: Boolsk, dødsboskat_før_søbl5: Option(Dødsboskattelov30Resultat), dis_nettoløn_før_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, dis_nettoløn_efter_bundfradrag_kroner: Heltal, dis_nettoløn_i_forholdsmæssigt_grundlag_kroner: Heltal, forholdsmæssig_lempelse_kroner: Heltal, dødsboskat_efter_søbl5_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
 # Søbl5BegrænsetSkattefritagelsesresultat(relevant: Boolsk, input_gyldigt: Boolsk, beregningsklar: Boolsk, løn_før_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, løn_uden_dansk_skat_kroner: Heltal, dansk_indkomstskat_kroner: Heltal, arbejdsmarkedsbidrag_kroner: Heltal)
 # Søbl5BKulbrinteLempelsesresultat(relevant: Boolsk, grundlag_tilstede: Boolsk, input_gyldigt: Boolsk, beregningsklar: Boolsk, kulbrinteskat_før_søbl5b: Option(Kulbrinteskattelov21Stk2Resultat), løn_før_bundfradrag_kroner: Heltal, bundfradrag_fordelt_til_dis_kroner: Heltal, løn_efter_bundfradrag_kroner: Heltal, indkomstskattenedsættelse_kroner: Heltal, arbejdsmarkedsbidragsfritagelse_kroner: Heltal, samlet_skat_efter_søbl5b_kroner: Heltal)
-# Søbl5Til8Årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput, årsdriftsgrundlag: Søbl6Årsdriftsgrundlagsresultat, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat, skattepligtskategori: Søbl5Til8Skattepligtskategori, skattepligtskategorier_konsistente: Boolsk, dødsbo_lempelse: Søbl5DødsboLempelsesresultat, begrænset_skattefritagelse: Søbl5BegrænsetSkattefritagelsesresultat, kulbrinte_lempelse: Søbl5BKulbrinteLempelsesresultat, ikke_standard_beregningsklar: Boolsk, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner: Heltal, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
+# Søbl5Til8Årsresultat(indkomstår: Heltal, lovversion: Søbl5Til8Lovversion, ligningslov7u_lovversion: Søbl5Til8Ligningslov7ULovversion, input: Søbl5Til8Årsinput, årsdriftsgrundlag: Søbl6Årsdriftsgrundlagsresultat, indkomstresultater: List(Søbl5Til8Indkomstresultat), ligningslov7u_bundfradrag: Søbl5Til8Ligningslov7UBundfradragsresultat, skattepligtskategori: Søbl5Til8Skattepligtskategori, skattepligtskategorier_konsistente: Boolsk, dødsbo_lempelse: Søbl5DødsboLempelsesresultat, begrænset_skattefritagelse: Søbl5BegrænsetSkattefritagelsesresultat, kulbrinte_lempelse: Søbl5BKulbrinteLempelsesresultat, ikke_standard_beregningsklar: Boolsk, skatteår_understøttet: Boolsk, identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, beregningsklar: Boolsk, kanonisk_fuld_skattepligt_understøttet: Boolsk, kan_anvende_par5_til8: Boolsk, samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner: Heltal, samlet_dis_personlig_indkomst_kroner: Heltal, samlet_ordinær_bruttoløn_kroner: Heltal, samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner: Heltal, samlet_uafklaret_nettoløn_kroner: Heltal, samlet_arbejdsmarkedsbidrag_af_dis_indkomst_kroner: Heltal, ligningslov9a_stk1_til9_afskåret: Boolsk, par13_stk5_lempelsesgrundlag: Par13Stk5Lempelsesgrundlag)
 
 | søbl5_til8_intet_årsinput() -> Søbl5Til8Årsinput(indkomster = [], skibsårsdrifter = [], andre_ligningslov7u_indkomster = [], dødsboskattegrundlag = Søbl5IntetDødsboskattegrundlag, kulbrinteskattegrundlag = Søbl5BIntetKulbrinteskattegrundlag)
-| søbl5_til8_skatteår_understøttet(indkomstår: Heltal) -> indkomstår == 2025 || indkomstår == 2026
+| søbl5_til8_lovversion_for(indkomstår: Heltal) -> Søbl5Til8LovversionUdenKildedækning
+| exception søbl5_til8_lbk1181_for_2023_til_2026 søbl5_til8_lovversion_for(indkomstår: Heltal) -> Søbl5Til8Lbk1181Af2023MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2026
+| søbl5_til8_ligningslov7u_lovversion_for(indkomstår: Heltal) -> Søbl5Til8Ll7ULovversionUdenKildedækning
+| exception søbl5_til8_ll7u_lbk42_for_2023_til_2025 søbl5_til8_ligningslov7u_lovversion_for(indkomstår: Heltal) -> Søbl5Til8Ll7ULbk42Af2023MedSenereÆndringer under indkomstår >= 2023 && indkomstår <= 2025
+| exception søbl5_til8_ll7u_lbk1500_for_2026 søbl5_til8_ligningslov7u_lovversion_for(indkomstår: Heltal) -> Søbl5Til8Ll7ULbk1500Af2025 under indkomstår == 2026
+| søbl5_til8_skatteår_understøttet(indkomstår: Heltal) -> søbl5_til8_lovversion_for(indkomstår = indkomstår) != Søbl5Til8LovversionUdenKildedækning && søbl5_til8_ligningslov7u_lovversion_for(indkomstår = indkomstår) != Søbl5Til8Ll7ULovversionUdenKildedækning
 | søbl5_til8_skattepligtskategori(skattepligt: Søbl5Til8Skattepligt) -> match skattepligt {
     | SøblFuldtSkattepligtigEfterKsl1 -> SøblFuldSkattepligtKategori
     | SøblBegrænsetSkattepligtigEfterKsl2Stk2 -> SøblBegrænsetSkattepligtKategori
@@ -327,6 +340,7 @@ Stk. 2. Skattefritagelse efter stk. 1 er betinget af, at arbejdsgiveren er godke
 = søbl5_til8_par6_metadata = Metadata(
     attachments = (
         Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
         DependencySource(value = søbl5_til8_bek940),
         DependencySource(value = søbl5_til8_tonnageskattelov),
     )
@@ -424,6 +438,7 @@ Stk. 2. Ved anvendelsen af stk. 1 fordeles ventetid forholdsmæssigt mellem den 
 = søbl5_til8_par7_metadata = Metadata(
     attachments = (
         Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
         Guidance(value = søbl5_til8_juridisk_vejledning),
     )
 )
@@ -444,6 +459,7 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
 = søbl5_til8_par8_metadata = Metadata(
     attachments = (
         Source(value = søbl5_til8_lbk1181),
+        AmendmentSource(value = søbl5_til8_lov333),
         DependencySource(value = søbl5_til8_bek940),
         Guidance(value = søbl5_til8_juridisk_vejledning),
     )
@@ -471,6 +487,7 @@ Stk. 2. Ved anvendelsen af stk. 1 er det en betingelse, at skibet er registreret
     attachments = (
         Source(value = søbl5_til8_bek940),
         DependencySource(value = søbl5_til8_lbk1181),
+        DependencySource(value = søbl5_til8_ligningslov7u_lbk42),
         DependencySource(value = søbl5_til8_ligningslov7u_lbk1500),
     )
 )
@@ -500,13 +517,12 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 
 --@begin::søbl5_til8_bek940_par4_til7--
 | søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 0
-| exception søbl5_til8_ligningslov7u_bundfradrag_2025 søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under indkomstår == 2025
-| exception søbl5_til8_ligningslov7u_bundfradrag_2026 søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under indkomstår == 2026
+| exception søbl5_til8_ligningslov7u_bundfradrag_med_kildedækning søbl5_til8_ligningslov7u_bundfradrag_kroner(indkomstår: Heltal) -> 8000 under søbl5_til8_ligningslov7u_lovversion_for(indkomstår = indkomstår) != Søbl5Til8Ll7ULovversionUdenKildedækning
 | søbl5_til8_mindste_beløb(a_kroner: Heltal, b_kroner: Heltal) -> hvis a_kroner < b_kroner { a_kroner } ellers { b_kroner }
 
 # Søbl5Til8Indkomstsag(indkomstår: Heltal, fakta: Søbl5Til8Indkomstfakta, årsdriftsresultater: List(Søbl6Skibsårsdriftresultat)) {
     | årsdriftsrelation() -> søbl6_indkomst_årsdriftsrelation(fakta, årsdriftsresultater)
-    | input_gyldigt() -> fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta) && søbl6_årsdriftsrelation_gyldig(årsdriftsrelation())
+    | input_gyldigt() -> søbl5_til8_skatteår_understøttet(indkomstår = indkomstår) && fakta.indkomstår == indkomstår && søbl5_til8_fakta_gyldige(fakta) && søbl6_årsdriftsrelation_gyldig(årsdriftsrelation())
     | arbejdsrolle_omfattet() -> søbl5_til8_arbejdsrolle_omfattet(fakta.arbejde.arbejdsrolle)
     | aflønningsbetingelse_opfyldt() -> søbl5_til8_aflønningsbetingelse_opfyldt(fakta.person.relation)
     | indkomsttype_omfattet() -> søbl5_til8_indkomsttype_omfattet(fakta.løn.indkomsttype)
@@ -578,6 +594,7 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 }
 
 # Søbl5Til8Ligningslov7UBundfradragssag(indkomstår: Heltal, indkomstresultater: List(Søbl5Til8Indkomstresultat), andre_indkomster: List(Søbl5Til8AndenLigningslov7UIndkomstfakta)) {
+    | lovversion() -> søbl5_til8_ligningslov7u_lovversion_for(indkomstår = indkomstår)
     | direkte_dis_nettoløn_før_bundfradrag_kroner() -> søbl5_til8_sum(indkomstresultater, søbl5_til8_direkte_ligningslov7u_dis_nettoløn_kroner)
     | anden_indkomst_før_bundfradrag_kroner() -> foldl(andre_indkomster, 0, |sum_kroner: Heltal, fakta: Søbl5Til8AndenLigningslov7UIndkomstfakta| sum_kroner + fakta.beløb_kroner)
     | samlet_indkomst_før_bundfradrag_kroner() -> direkte_dis_nettoløn_før_bundfradrag_kroner() + anden_indkomst_før_bundfradrag_kroner()
@@ -586,11 +603,12 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     | bundfradrag_fordelt_til_dis_kroner() -> hvis samlet_indkomst_før_bundfradrag_kroner() > 0 { anvendt_bundfradrag_kroner() * direkte_dis_nettoløn_før_bundfradrag_kroner() / samlet_indkomst_før_bundfradrag_kroner() } ellers { 0 }
     | bundfradrag_fordelt_til_anden_indkomst_kroner() -> anvendt_bundfradrag_kroner() - bundfradrag_fordelt_til_dis_kroner()
     | andre_indkomstidentifikationer_entydige() -> søbl5_til8_andre_ligningslov7u_identifikationer_entydige(andre_indkomster)
-    | input_gyldigt() -> (samlet_indkomst_før_bundfradrag_kroner() == 0 || søbl5_til8_skatteår_understøttet(indkomstår)) && søbl5_til8_andre_ligningslov7u_input_gyldige(andre_indkomster)
+    | input_gyldigt() -> lovversion() != Søbl5Til8Ll7ULovversionUdenKildedækning && søbl5_til8_andre_ligningslov7u_input_gyldige(andre_indkomster)
     | direkte_dis_nettoløn_efter_bundfradrag_kroner() -> hvis input_gyldigt() { direkte_dis_nettoløn_før_bundfradrag_kroner() - bundfradrag_fordelt_til_dis_kroner() } ellers { 0 }
     | anden_indkomst_efter_bundfradrag_kroner() -> hvis input_gyldigt() { anden_indkomst_før_bundfradrag_kroner() - bundfradrag_fordelt_til_anden_indkomst_kroner() } ellers { 0 }
     | resultat() -> Søbl5Til8Ligningslov7UBundfradragsresultat(
         indkomstår = indkomstår,
+        lovversion = lovversion(),
         andre_indkomster = andre_indkomster,
         input_gyldigt = input_gyldigt(),
         andre_indkomstidentifikationer_entydige = andre_indkomstidentifikationer_entydige(),
@@ -718,6 +736,8 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
 | exception søbl6_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar6 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.retsgrundlag == SøblPar6)
 | exception søbl5_par13_lempelse søbl5_til8_par13_lempelsesgrundlag(resultater: List(Søbl5Til8Indkomstresultat)) -> SømandsbeskatningslovPar5 under any(resultater, |resultat: Søbl5Til8Indkomstresultat| resultat.kan_anvende_par5_til8)
 | søbl5_til8_årsresultat(indkomstår: Heltal, input: Søbl5Til8Årsinput) -> {
+    = lovversion = søbl5_til8_lovversion_for(indkomstår = indkomstår)
+    = ligningslov7u_lovversion = søbl5_til8_ligningslov7u_lovversion_for(indkomstår = indkomstår)
     = årsdriftsgrundlag = søbl6_årsdriftsgrundlagsresultat(indkomstår, input.indkomster, input.skibsårsdrifter)
     = indkomstresultater = map(input.indkomster, |fakta: Søbl5Til8Indkomstfakta| søbl5_til8_indkomstresultat_med_årsdrifter(indkomstår = indkomstår, fakta = fakta, årsdriftsresultater = årsdriftsgrundlag.resultater))
     = ligningslov7u_bundfradrag = søbl5_til8_ligningslov7u_bundfradragsresultat(indkomstår, indkomstresultater, input.andre_ligningslov7u_indkomster)
@@ -727,17 +747,19 @@ Stk. 5. Virksomhederne kan ved arbejde uden for EU/EØS vælge at anvende refusi
     = begrænset_skattefritagelse = søbl5_begrænset_skattefritagelsesresultat(skattepligtskategori, indkomstresultater, ligningslov7u_bundfradrag)
     = kulbrinte_lempelse = søbl5b_kulbrinte_lempelsesresultat(indkomstår, skattepligtskategori, input.kulbrinteskattegrundlag, indkomstresultater, ligningslov7u_bundfradrag)
     = ikke_standard_beregningsklar = dødsbo_lempelse.beregningsklar && begrænset_skattefritagelse.beregningsklar && kulbrinte_lempelse.beregningsklar
-    = skatteår_understøttet = length(input.indkomster) == 0 && length(input.skibsårsdrifter) == 0 && length(input.andre_ligningslov7u_indkomster) == 0 || søbl5_til8_skatteår_understøttet(indkomstår)
+    = skatteår_understøttet = lovversion != Søbl5Til8LovversionUdenKildedækning && ligningslov7u_lovversion != Søbl5Til8Ll7ULovversionUdenKildedækning
     = identifikationer_entydige = søbl5_til8_alle_årsidentifikationer_entydige(input)
     = alle_input_gyldige = skatteår_understøttet && identifikationer_entydige && skattepligtskategorier_konsistente && årsdriftsgrundlag.input_gyldigt && ligningslov7u_bundfradrag.input_gyldigt && dødsbo_lempelse.input_gyldigt && begrænset_skattefritagelse.input_gyldigt && kulbrinte_lempelse.input_gyldigt && all(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.input_gyldigt)
     = samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.dis_personlig_indkomst_kroner)
     = fuld_skattepligt_bundfradrag_fordelt_til_dis_kroner = søbl5_til8_bundfradrag_for_kategori_kroner(skattepligtskategori, SøblFuldSkattepligtKategori, ligningslov7u_bundfradrag)
     = samlet_dis_personlig_indkomst_kroner = hvis alle_input_gyldige { samlet_dis_personlig_indkomst_før_ligningslov7u_bundfradrag_kroner - fuld_skattepligt_bundfradrag_fordelt_til_dis_kroner } ellers { 0 }
-    = samlet_ordinær_bruttoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ordinær_bruttoløn_kroner)
+    = samlet_ordinær_bruttoløn_kroner = hvis alle_input_gyldige { søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.ordinær_bruttoløn_kroner) } ellers { 0 }
     = samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner = hvis alle_input_gyldige { ligningslov7u_bundfradrag.anden_indkomst_efter_bundfradrag_kroner } ellers { 0 }
     = samlet_uafklaret_nettoløn_kroner = søbl5_til8_sum(indkomstresultater, |resultat: Søbl5Til8Indkomstresultat| resultat.uafklaret_nettoløn_kroner)
     Søbl5Til8Årsresultat(
         indkomstår = indkomstår,
+        lovversion = lovversion,
+        ligningslov7u_lovversion = ligningslov7u_lovversion,
         input = input,
         årsdriftsgrundlag = årsdriftsgrundlag,
         indkomstresultater = indkomstresultater,
