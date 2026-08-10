@@ -67,6 +67,7 @@
         kursgevinst = UdenKursgevinst,
         fremleje = UdenFremlejeEfterLigningslov15Q,
         finansielle_poster = [],
+        særlige_kapitalposter = [],
         omkostninger = []
     ),
     2026,

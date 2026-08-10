@@ -75,7 +75,8 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
 | fraflytterskat_kontekst_aktieinput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta)) -> PersonskatAktieavanceInput(
     ordinært_aktieår = ordinært_aktieår,
     særlige_aktiver = særlige_aktiver,
-    udbytter = udbytter
+    udbytter = udbytter,
+    ligningslov7n_poster = []
 )
 
 = fraflytterskat_kontekst_negativ_position = AktieavanceOrdinærPosition(

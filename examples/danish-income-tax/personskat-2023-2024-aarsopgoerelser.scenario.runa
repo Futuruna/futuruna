@@ -385,7 +385,8 @@ myndighedens beregnede skattebeløb bruges ikke som input.
             AblPar17UndtagetEfterPar19B
         )
     ],
-    udbytter = [historisk_almindeligt_udbytte(kilde)]
+    udbytter = [historisk_almindeligt_udbytte(kilde)],
+    ligningslov7n_poster = []
 )
 
 | historisk_kapitalindkomstinput(kilde: HistoriskÅrsopgørelseKilde, renteudgift_kroner: Heltal, renteindtægt_kroner: Heltal) -> PersonskatKapitalindkomstInput(
@@ -403,6 +404,7 @@ myndighedens beregnede skattebeløb bruges ikke som input.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 

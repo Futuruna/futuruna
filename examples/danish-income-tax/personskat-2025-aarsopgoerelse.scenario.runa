@@ -435,7 +435,8 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
         årsopgørelse2025_investeringsudlodning,
         årsopgørelse2025_almindeligt_udbytte("øvrig-aktieindkomst", 14569),
         årsopgørelse2025_almindeligt_udbytte("udenlandsk-aktieudbytte", 398)
-    ]
+    ],
+    ligningslov7n_poster = []
 )
 
 = årsopgørelse2025_kapitalindkomstinput = PersonskatKapitalindkomstInput(
@@ -453,6 +454,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 
@@ -536,6 +538,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 = årsopgørelse2025_ægtefælle_personfakta = PersonskatPersonFakta(

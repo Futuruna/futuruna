@@ -41,6 +41,7 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 

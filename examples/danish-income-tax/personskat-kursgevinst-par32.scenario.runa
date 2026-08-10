@@ -75,6 +75,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     kursgevinst = kursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 | personskat_par32_scenarie_input(kursgevinst: PersonskatKursgevinstInput, aktieavance: PersonskatAktieavanceInput) -> PersonskatInput(
@@ -150,7 +151,8 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     aktieavance = PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par32_scenarie_aktieår),
         særlige_aktiver = [],
-        udbytter = []
+        udbytter = [],
+        ligningslov7n_poster = []
     )
 ))
 
@@ -208,7 +210,8 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
             kilde = PersonskatAktieaktivEfterPar17(fakta = personskat_par32_scenarie_par17_fakta),
             markedsstatus = AblOptagetTilHandelPåReguleretMarked
         )],
-        udbytter = []
+        udbytter = [],
+        ligningslov7n_poster = []
     )
 ))
 
@@ -347,7 +350,8 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
             personskat_par32_scenarie_særligt_aktiv_fra_abl("par32-abl19b-aktie", abl19b_aktieindkomst_input, AblPar17UndtagetEfterPar19B),
             personskat_par32_scenarie_særligt_aktiv_fra_abl("par32-abl19c-kapital", abl19c_kapital_input, AblPar17UndtagetEfterPar19C)
         ],
-        udbytter = []
+        udbytter = [],
+        ligningslov7n_poster = []
     )
 )
 

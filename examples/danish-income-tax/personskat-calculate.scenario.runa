@@ -159,6 +159,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = [
         PersonskatKapitalomkostningInput(
             identifikation = "dokumenteret-kapitalomkostning-1",
@@ -185,6 +186,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = [
         PersonskatKapitalomkostningInput(
             identifikation = "finansieringsomkostning",
@@ -211,6 +213,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = [
         PersonskatKapitalomkostningInput(
             identifikation = "depotgebyr-1",
@@ -237,6 +240,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = [
         PersonskatKapitalomkostningInput(
             identifikation = "ugyldigt-anvendelsesår-1",
@@ -282,6 +286,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )))
 
@@ -300,6 +305,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = fremleje,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 | personskat_calculate_fremlejefakta(bruttolejeindtægt_kroner: Heltal, tidligere_anvendt_par15p_stk3: Boolsk, stk4_samordning: PersonskatLigningslov15QStk4Input) -> PersonskatFremlejeFakta(
@@ -430,6 +436,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     kursgevinst = UdenKursgevinst,
     fremleje = UdenFremlejeEfterLigningslov15Q,
     finansielle_poster = [],
+    særlige_kapitalposter = [],
     omkostninger = []
 )
 = personskat_calculate_ejendomsavance_resultat = beregn_personskat(personskat_calculate_input_med_kapitalindkomst(personskat_calculate_kapitalindkomst_med_ejendomsavance(MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
@@ -622,7 +629,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 = personskat_calculate_par5a_position = AktieavanceOrdinærPosition(
     selskabsidentifikation = "DK-PAR5A-1",
@@ -668,7 +676,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par5a_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_par5a_aktieår),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 = personskat_calculate_boligret_afståelse = AblOrdinærAfståelse(
     kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
@@ -713,7 +722,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_boligret_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_boligret_aktieår),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 | personskat_calculate_par17_kildefakta_fra_abl_input(input: AktieavancebeskatningslovInput, instrument: AktieavancePar17Instrument) -> PersonskatPar17Kildefakta(
     indkomstår = input.indkomstår,
@@ -746,12 +756,14 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_19c_kapital_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-kapital", abl19c_kapital_input, AblPar17UndtagetEfterPar19C)],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 = personskat_calculate_19c_personlig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl19c-personlig", abl19c_hvis17_input, AblPar17UndtagetEfterPar19C)],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
@@ -771,7 +783,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ugyldig_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [personskat_calculate_øvrigt_særligt_aktiv_fra_abl("abl22-ugyldig", personskat_calculate_ugyldig_22_input, AblPar17InvesteringsbevisIMinimumsinstitut)],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 | personskat_calculate_par17_kildefakta(skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> PersonskatPar17Kildefakta(
     indkomstår = 2026,
@@ -789,7 +802,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatAktieaktivEfterPar17(fakta = fakta),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 = personskat_calculate_par17_stk1_resultat = personskat_calculate_resultat_med_par17_kildefakta(personskat_calculate_par17_kildefakta(
     skattepligtsgrundlag = AblPar7PersonEfterKildeskatteloven,
@@ -876,7 +890,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatMedarbejderejeordningEfterPar35G(fakta = personskat_calculate_par35_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 | personskat_calculate_par35_spor_afledt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par35_forløbsresultat {
     | Some(forløb) -> forløb.input_gyldigt && forløb.umiddelbar_skattepligtig_gevinst_kroner == 50000 && forløb.årets_nye_forfald_kroner == 22000 && forløb.årets_betalte_overdragerskat_kroner == 0 && forløb.årets_saldobortfald_kroner == 0 && forløb.tilstand_ultimo.overdragerskat_saldo_kroner == 22000 && length(forløb.tilstand_ultimo.beholdning) == 0 && length(forløb.hændelsesresultater) == 1 && head(forløb.hændelsesresultater).post.rækkefølge_i_indkomståret == 1 && aktieavance_par35_hændelsesidentifikation(head(forløb.hændelsesresultater).post.hændelse) == "personskat-par35-salg-2026"
@@ -939,7 +954,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         kilde = PersonskatFraflytteraktierEfterPar37Til40(fakta = personskat_calculate_par37_til40_forløbsinput),
         markedsstatus = AblIkkeOptagetTilHandel
     )],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )))
 | personskat_calculate_par37_til40_spor_afledt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.par37_til40_forløbsresultat {
     | Some(forløb) -> forløb.input_gyldigt && forløb.årets_beregnede_fraflytterskat_kroner == 30090 && forløb.årets_nye_henstand_kroner == 30090 && forløb.årets_skat_til_betaling_ved_fraflytning_kroner == 0 && forløb.tilstand_ultimo.henstandssaldo_kroner == 30090 && length(forløb.tilstand_ultimo.beholdning) == 1
@@ -965,7 +981,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 | personskat_calculate_aktieinput_med_udbytter(udbytter: List(PersonskatUdbytteFakta)) -> PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [],
-    udbytter = udbytter
+    udbytter = udbytter,
+    ligningslov7n_poster = []
 )
 
 = personskat_calculate_udbytte_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
@@ -1109,14 +1126,16 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
         ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_ordinært_aktieår),
         særlige_aktiver = [],
-        udbytter = []
+        udbytter = [],
+        ligningslov7n_poster = []
     )),
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
 = personskat_calculate_ligningslov33_aktieinput = PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [],
-    udbytter = [personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)]
+    udbytter = [personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)],
+    ligningslov7n_poster = []
 )
 = personskat_calculate_ligningslov33_input = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
@@ -1224,7 +1243,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_stort_ordinært_tabsinput = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )
 | personskat_calculate_personfakta_med_aktieavance(aktieavance: PersonskatAktieavanceInput) -> PersonskatPersonFakta(
     lønmodtager = personskat_calculate_lønmodtager,
@@ -1369,7 +1389,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_stort_ordinært_tabsinput_2025 = PersonskatAktieavanceInput(
     ordinært_aktieår = MedOrdinærtAktieår(input = personskat_calculate_stort_ordinært_tabsår_2025),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )
 = personskat_calculate_ejendomsskat_og_stort_aktietab_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance_fra(
     personskat_calculate_ejendomsskat_input,
@@ -1455,7 +1476,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],
-    udbytter = []
+    udbytter = [],
+    ligningslov7n_poster = []
 )
 = personskat_calculate_par13a_par12_klassifikation = AktieavanceAktivklassifikationInput(
     indkomstår = 2026,
@@ -1477,7 +1499,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_par13a_ægtefællefakta = PersonskatPersonFakta(
     lønmodtager = personskat_calculate_lønmodtager,
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [], udbytter = [personskat_calculate_par13a_ægtefælleudbytte]),
+    aktieavance = PersonskatAktieavanceInput(ordinært_aktieår = UdenOrdinærtAktieår, særlige_aktiver = [], udbytter = [personskat_calculate_par13a_ægtefælleudbytte], ligningslov7n_poster = []),
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,

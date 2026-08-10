@@ -1,0 +1,92 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - ligningslov7n - kildefakta
+
+= personskat_ligningslov7n_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::identifikation),
+    label = "Postens identifikation",
+    question = Some("Hvilken entydig bilags- eller selskabsreference har posten?"),
+    help = Some("Brug en stabil reference, så samme indskud, udbetaling, fortjeneste eller tab ikke medregnes to gange."),
+    unit = None
+)
+= personskat_ligningslov7n_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::indkomstår),
+    label = "Postens indkomstår",
+    question = Some("Hvilket indkomstår vedrører posten?"),
+    help = Some("Året skal svare til skatteåret. Futuruna anvender posterne i deres angivne rækkefølge til det fælles årsloft."),
+    unit = Some("år")
+)
+= personskat_ligningslov7n_felt_selskab = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::selskab),
+    label = "Medarbejderinvesteringsselskabets status",
+    question = Some("Er selskabet dansk, godkendelsespligtigt i EU/EØS eller ikke omfattet af § 7 N?"),
+    help = None,
+    unit = None
+)
+= personskat_ligningslov7n_felt_postart = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::postart),
+    label = "Postens art efter ligningslovens § 7 N",
+    question = Some("Vedrører posten arbejdsgiverindskud, udbetaling, fortjeneste, tab eller tilbagekaldelsesværdi?"),
+    help = Some("Postarten bestemmer, om beløbet føres til arbejdsmarkedsbidragspligtig personlig indkomst, øvrig personlig indkomst eller aktieindkomst."),
+    unit = None
+)
+= personskat_ligningslov7n_felt_beløb = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::beløb_kroner),
+    label = "Beløb før skat",
+    question = Some("Hvor stort er indskuddet, udbetalingen, fortjenesten, tabet eller værdien?"),
+    help = Some("Angiv tab som et positivt tabsbeløb; § 4 a-kaskaden danner selv det negative aktieindkomstbeløb."),
+    unit = Some("DKK")
+)
+= personskat_ligningslov7n_felt_løn = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::kontant_løn_minus_amb_fra_arbejdsgiver_kroner),
+    label = "Kontant løn efter arbejdsmarkedsbidrag fra arbejdsgiveren",
+    question = Some("Hvad var den kontante løn minus arbejdsmarkedsbidrag fra den arbejdsgiver, som foretog indskuddet?"),
+    help = Some("Feltet bruges kun ved arbejdsgiverindskud til at beregne loftet på 7,5 pct."),
+    unit = Some("DKK/år")
+)
+= personskat_ligningslov7n_felt_registreret = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::registreret_i_erhvervsstyrelsen),
+    label = "Registreret i Erhvervsstyrelsen",
+    question = Some("Er det danske medarbejderinvesteringsselskab registreret i Erhvervsstyrelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_ligningslov7n_felt_eu_godkendt = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::godkendt_eu_eøs_selskab),
+    label = "EU/EØS-selskabet er godkendt",
+    question = Some("Har Skatteforvaltningen godkendt det medarbejderinvesteringsselskabslignende selskab i EU/EØS?"),
+    help = None,
+    unit = None
+)
+= personskat_ligningslov7n_felt_tilbagekaldt = TypetBeregningsfelt(
+    path = refof(PersonskatLigningslov7NFakta::godkendelse_tilbagekaldt),
+    label = "EU/EØS-godkendelsen er tilbagekaldt",
+    question = Some("Er selskabets godkendelse tilbagekaldt i indkomståret?"),
+    help = Some("Ved tilbagekaldelse skal postarten være tilbagekaldelsesværdi, som medregnes i den skattepligtige indkomst."),
+    unit = None
+)
+
+= personskat_ligningslov7n_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_ligningslov7n_felt_identifikation,
+        personskat_ligningslov7n_felt_indkomstår,
+        personskat_ligningslov7n_felt_selskab,
+        personskat_ligningslov7n_felt_postart,
+        personskat_ligningslov7n_felt_beløb,
+        personskat_ligningslov7n_felt_løn,
+        personskat_ligningslov7n_felt_registreret,
+        personskat_ligningslov7n_felt_eu_godkendt,
+        personskat_ligningslov7n_felt_tilbagekaldt
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = ligningsloven_par7n_lbk1500),
+        DependencySource(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = personskatteloven_lbk1284_par4a),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    )
+)
+
+--@label:PersonskatLigningslov7NFakta::meta:personskat_ligningslov7n_beregningsmeta--

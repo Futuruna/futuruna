@@ -1,0 +1,81 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Kanonisk årsforløb for ligningslovens § 7 N og personskattelovens § 4, stk. 7,
+og § 4 a.
+
+To arbejdsgiverindskud deler personens årlige loft. Futuruna afleder den
+tidligere bortsete del fra de forudgående poster; den kan ikke angives af
+kalderen. Udbetaling, tab og tilbagekaldelse føres videre til hver sin
+lovbestemte indkomstkategori.
+----
+
+| ll7n_scenarie_fakta(identifikation: Tekst, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, løn_efter_amb_kroner: Heltal, registreret: Boolsk, eu_godkendt: Boolsk, tilbagekaldt: Boolsk) -> PersonskatLigningslov7NFakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    selskab = selskab,
+    postart = postart,
+    beløb_kroner = beløb_kroner,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = løn_efter_amb_kroner,
+    registreret_i_erhvervsstyrelsen = registreret,
+    godkendt_eu_eøs_selskab = eu_godkendt,
+    godkendelse_tilbagekaldt = tilbagekaldt
+)
+| ll7n_scenarie_poster() -> [
+    ll7n_scenarie_fakta("dansk-indskud", Ll7NMedarbejderinvesteringsselskabStk1, Ll7NArbejdsgiverindskud, 20000, 400000, Sandt, Falskt, Falskt),
+    ll7n_scenarie_fakta("eu-indskud", Ll7NMedarbejderinvesteringsselskabslignendeStk3, Ll7NArbejdsgiverindskud, 20000, 400000, Falskt, Sandt, Falskt),
+    ll7n_scenarie_fakta("udbetaling", Ll7NMedarbejderinvesteringsselskabslignendeStk3, Ll7NUdbytteEllerUdbetaling, 12000, 0, Falskt, Sandt, Falskt),
+    ll7n_scenarie_fakta("tab", Ll7NMedarbejderinvesteringsselskabStk1, Ll7NTab, 7000, 0, Sandt, Falskt, Falskt),
+    ll7n_scenarie_fakta("tilbagekaldelse", Ll7NMedarbejderinvesteringsselskabslignendeStk3, Ll7NTilbagekaldelsesværdi, 45000, 0, Falskt, Sandt, Sandt),
+]
+| ll7n_scenarie_aktieavance(poster: List(PersonskatLigningslov7NFakta)) -> {
+    = tom = personskat_ingen_aktieavance()
+    PersonskatAktieavanceInput(
+        ordinært_aktieår = tom.ordinært_aktieår,
+        særlige_aktiver = tom.særlige_aktiver,
+        udbytter = tom.udbytter,
+        ligningslov7n_poster = poster
+    )
+}
+| ll7n_scenarie_input(poster: List(PersonskatLigningslov7NFakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = ll7n_scenarie_aktieavance(poster),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| ll7n_scenarie_beregning(poster: List(PersonskatLigningslov7NFakta)) -> beregn_personskat(ll7n_scenarie_input(poster))
+
+= ll7n_scenarie_gyldigt = ll7n_scenarie_beregning(ll7n_scenarie_poster())
+= ll7n_scenarie_modstridende_selskab = ll7n_scenarie_beregning([
+    ll7n_scenarie_fakta("modstridende", Ll7NMedarbejderinvesteringsselskabStk1, Ll7NArbejdsgiverindskud, 20000, 400000, Sandt, Sandt, Falskt)
+])
+= ll7n_scenarie_dobbelt_id = ll7n_scenarie_beregning([
+    ll7n_scenarie_fakta("samme-id", Ll7NMedarbejderinvesteringsselskabStk1, Ll7NArbejdsgiverindskud, 20000, 400000, Sandt, Falskt, Falskt),
+    ll7n_scenarie_fakta("samme-id", Ll7NMedarbejderinvesteringsselskabStk1, Ll7NTab, 7000, 0, Sandt, Falskt, Falskt)
+])
+
+| ll7n_scenarie_personloft_afledes_paa_tvaers_af_selskaber: ll7n_scenarie_gyldigt -> ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.alle_input_gyldige && ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.samlet_bortset_arbejdsgiverindskud_kroner == 30000 && ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.arbejdsgiverindskud_skattepligtigt_kroner == 10000 && ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.postresultater[0].tidligere_bortset_arbejdsgiverindskud_i_året_kroner == 0 && ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.postresultater[1].tidligere_bortset_arbejdsgiverindskud_i_året_kroner == 20000 && ll7n_scenarie_gyldigt.aktieavance.ligningslov7n_resultat.postresultater[1].ligningslov_resultat.arbejdsgiverindskud_bortses_kroner == 10000
+| ll7n_scenarie_kategorier_naar_beregn_personskat: ll7n_scenarie_gyldigt -> ll7n_scenarie_gyldigt.aktieavance.alle_input_gyldige && ll7n_scenarie_gyldigt.aktieavance.arbejdsmarkedsbidragsgrundlag_kroner == 10000 && ll7n_scenarie_gyldigt.aktieavance.øvrig_personlig_indkomst_kroner == 45000 && ll7n_scenarie_gyldigt.aktieavance.personlig_indkomst_kroner == 67000 && ll7n_scenarie_gyldigt.aktieavance.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner == 12000 && ll7n_scenarie_gyldigt.aktieavance.kapitalindkomst_kroner == 0 && ll7n_scenarie_gyldigt.aktieavance.aktieindkomst_kroner == -7000
+| ll7n_scenarie_am_og_personlig_indkomst_rammes_en_gang: ll7n_scenarie_gyldigt -> ll7n_scenarie_gyldigt.skat.bruttoløn_kroner == 10000 && ll7n_scenarie_gyldigt.skat.arbejdsmarkedsbidrag_kroner == 800 && ll7n_scenarie_gyldigt.skat.øvrig_personlig_indkomst_kroner == 57000 && ll7n_scenarie_gyldigt.skat.personlig_indkomst_efter_am_kroner == 66200
+| ll7n_scenarie_modstridende_selskab_fejler_lukket: ll7n_scenarie_modstridende_selskab -> ll7n_scenarie_modstridende_selskab.aktieavance.alle_input_gyldige == Falskt && ll7n_scenarie_modstridende_selskab.aktieavance.ligningslov7n_resultat.alle_input_gyldige == Falskt && length(ll7n_scenarie_modstridende_selskab.aktieavance.kapitalposter) == 0 && length(ll7n_scenarie_modstridende_selskab.aktieavance.aktieposter) == 0 && ll7n_scenarie_modstridende_selskab.aktieavance.personlig_indkomst_kroner == 0
+| ll7n_scenarie_dubletter_fejler_lukket: ll7n_scenarie_dobbelt_id -> ll7n_scenarie_dobbelt_id.aktieavance.ligningslov7n_resultat.identifikationer_entydige == Falskt && ll7n_scenarie_dobbelt_id.aktieavance.alle_input_gyldige == Falskt && ll7n_scenarie_dobbelt_id.aktieavance.aktieindkomst_kroner == 0

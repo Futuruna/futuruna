@@ -1,0 +1,160 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat - par4 - saerlige - kapitalposter - kildefakta
+
+= personskat_par4_særlig_felt_identifikation = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::identifikation), label = "Postens identifikation", question = Some("Hvilken entydig bilags- eller aftalereference har posten?"), help = Some("Brug en stabil reference, så samme retsforhold ikke medregnes to gange."), unit = None)
+= personskat_par4_særlig_felt_indkomstår = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::indkomstår), label = "Postens indkomstår", question = Some("Hvilket indkomstår vedrører posten?"), help = Some("Året skal svare til skatteåret og den delegerede lovberegning."), unit = Some("år"))
+= personskat_par4_særlig_felt_hjemmel = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::$variant), label = "Kapitalpostens hjemmel", question = Some("Hvilken bestemmelse i personskattelovens § 4 vedrører posten?"), help = Some("Valget åbner de kildefakta, som den valgte regelkaskade kræver."), unit = None)
+
+= personskat_par4_særlig_felt_nr9_virksomhedsindtægter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::indtægter), label = "Nr. 9-virksomhedens indtægtsposter", question = Some("Hvilke indtægter indgår i virksomhedens resultat?"), help = Some("Futuruna opgør nettobeløbet gennem § 3, før § 4 klassificerer det."), unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsindtægt_id = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::indtægter::identifikation), label = "Nr. 9-indtægtspostens identifikation", question = Some("Hvilken entydig reference har indtægtsposten?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsindtægt_art = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::indtægter::art), label = "Nr. 9-indtægtspostens skattemæssige art", question = Some("Hvilken type virksomhedsindtægt er posten?"), help = Some("Denne opgørelse understøtter ordinær driftsindtægt og biblioteksafgift; andre indkomstarter skal til deres egne regler."), unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsindtægt_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::indtægter::beløb_kroner), label = "Nr. 9-virksomhedsindtægt", question = Some("Hvor stort er indtægtspostens bruttobeløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr9_virksomhedsudgifter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::udgifter), label = "Nr. 9-virksomhedens udgiftsposter", question = Some("Hvilke udgifter indgår i virksomhedens resultat?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsudgift_id = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::udgifter::identifikation), label = "Nr. 9-udgiftspostens identifikation", question = Some("Hvilken entydig reference har udgiftsposten?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsudgift_art = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::udgifter::afgrænsning), label = "Nr. 9-udgiftens afgrænsning efter PSL § 3", question = Some("Hvilken lovbestemt udgiftskategori tilhører posten?"), help = Some("Renter og andre poster, som § 3 udtrykkeligt sender til § 4, må ikke føres som ordinær driftsudgift."), unit = None)
+= personskat_par4_særlig_felt_nr9_virksomhedsudgift_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::udgifter::beløb_kroner), label = "Nr. 9-virksomhedsudgift", question = Some("Hvor stort er udgiftspostens beløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr9_ligningslovsfradrag = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::ligningslovsfradrag_efter_par3_stk2_nr2), label = "Nr. 9-virksomhedsfradrag efter PSL § 3, stk. 2, nr. 2", question = Some("Har virksomheden fradrag efter en af de henviste bestemmelser i ligningsloven?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr9_erhvervsposter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhed::erhvervsposter_efter_par3_stk2_nr4_til_10), label = "Andre erhvervsposter for nr. 9-virksomheden efter PSL § 3, stk. 2", question = Some("Har virksomheden andre lovbestemte erhvervsposter, afskrivninger eller tab?"), help = None, unit = None)
+
+= personskat_par4_særlig_felt_nr11_virksomhedsindtægter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::indtægter), label = "Nr. 11-udlejningsvirksomhedens indtægtsposter", question = Some("Hvilke indtægter indgår i udlejningsvirksomhedens resultat?"), help = Some("Futuruna opgør nettobeløbet gennem § 3, før § 4 klassificerer det."), unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsindtægt_id = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::indtægter::identifikation), label = "Nr. 11-indtægtspostens identifikation", question = Some("Hvilken entydig reference har indtægtsposten?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsindtægt_art = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::indtægter::art), label = "Nr. 11-indtægtspostens skattemæssige art", question = Some("Hvilken type virksomhedsindtægt er posten?"), help = Some("Denne opgørelse understøtter ordinær driftsindtægt og biblioteksafgift; andre indkomstarter skal til deres egne regler."), unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsindtægt_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::indtægter::beløb_kroner), label = "Nr. 11-virksomhedsindtægt", question = Some("Hvor stort er indtægtspostens bruttobeløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr11_virksomhedsudgifter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::udgifter), label = "Nr. 11-udlejningsvirksomhedens udgiftsposter", question = Some("Hvilke udgifter indgår i udlejningsvirksomhedens resultat?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsudgift_id = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::udgifter::identifikation), label = "Nr. 11-udgiftspostens identifikation", question = Some("Hvilken entydig reference har udgiftsposten?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsudgift_art = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::udgifter::afgrænsning), label = "Nr. 11-udgiftens afgrænsning efter PSL § 3", question = Some("Hvilken lovbestemt udgiftskategori tilhører posten?"), help = Some("Renter og andre poster, som § 3 udtrykkeligt sender til § 4, må ikke føres som ordinær driftsudgift."), unit = None)
+= personskat_par4_særlig_felt_nr11_virksomhedsudgift_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::udgifter::beløb_kroner), label = "Nr. 11-virksomhedsudgift", question = Some("Hvor stort er udgiftspostens beløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr11_ligningslovsfradrag = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::ligningslovsfradrag_efter_par3_stk2_nr2), label = "Nr. 11-virksomhedsfradrag efter PSL § 3, stk. 2, nr. 2", question = Some("Har virksomheden fradrag efter en af de henviste bestemmelser i ligningsloven?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_erhvervsposter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::virksomhed::erhvervsposter_efter_par3_stk2_nr4_til_10), label = "Andre erhvervsposter for nr. 11-virksomheden efter PSL § 3, stk. 2", question = Some("Har virksomheden andre lovbestemte erhvervsposter, afskrivninger eller tab?"), help = None, unit = None)
+
+= personskat_par4_særlig_felt_nr9_type = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::virksomhedstype), label = "Virksomhedstype efter PSL § 4, nr. 9", question = Some("Er virksomheden almindelig eller omfattet af ligningslovens § 8 K, stk. 2?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr9_ejere = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::samlet_ejerantal), label = "Samlet antal ejere", question = Some("Hvor mange ejere har virksomheden før undtagelsen i § 4, stk. 9?"), help = None, unit = Some("ejere"))
+= personskat_par4_særlig_felt_nr9_personlige_ejere = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::personligt_ejerantal), label = "Antal personlige ejere", question = Some("Hvor mange af ejerne er personlige ejere?"), help = None, unit = Some("ejere"))
+= personskat_par4_særlig_felt_nr9_ll8p = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::ligningslov8p_ejere_der_ikke_medregnes), label = "Ejere undtaget efter ligningslovens § 8 P", question = Some("Hvor mange ejere af vedvarende energi-anlæg skal holdes uden for ejerantallet?"), help = None, unit = Some("ejere"))
+= personskat_par4_særlig_felt_nr9_deltagelse = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr9Virksomhed::klassifikation::deltager_væsentligt_i_drift), label = "Væsentlig deltagelse i driften", question = Some("Deltager den skattepligtige i virksomhedens drift i væsentligt omfang?"), help = Some("Væsentlig deltagelse afskærer klassifikation som kapitalindkomst efter nr. 9."), unit = None)
+
+= personskat_par4_særlig_felt_nr11_aktiv = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::aktiv), label = "Udlejningsaktivets art", question = Some("Udlejes et afskrivningsberettiget driftsmiddel eller et skib?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_anskaffelse = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::anskaffelse), label = "Aktivets anskaffelsesperiode", question = Some("Er aktivet anskaffet før den 19. maj 1993?"), help = Some("Kun ældre aktiver kan omfattes af Skatterådets undtagelse i § 4, stk. 8."), unit = None)
+= personskat_par4_særlig_felt_nr11_tilladelse = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::skatteråds_tilladelse), label = "Skatterådets tilladelse", question = Some("Har Skatterådet tilladt, at nr. 11 ikke anvendes?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_skøn = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::rådets_skøn), label = "Skatterådets konkrete skøn", question = Some("Har Skatterådet anset generationsskifte eller særlige omstændigheder for godtgjort?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr11_deltagelse = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr11Udlejningsvirksomhed::klassifikation::deltager_væsentligt_i_drift), label = "Væsentlig deltagelse i udlejningsdriften", question = Some("Deltager den skattepligtige i udlejningsvirksomhedens drift i væsentligt omfang?"), help = None, unit = None)
+
+= personskat_par4_særlig_felt_nr10_år = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr10Ligningslov14A::input::indbetalingsår), label = "Indbetalingens år", question = Some("I hvilket år blev indbetalingen foretaget?"), help = None, unit = Some("år"))
+= personskat_par4_særlig_felt_nr10_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr10Ligningslov14A::input::indbetaling_kroner), label = "Indbetaling efter ligningslovens § 14 A", question = Some("Hvor stort er det indbetalte beløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr10_realkredit = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr10Ligningslov14A::input::indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt), label = "Indbetaling efter realkreditinstitutlovens § 10 b", question = Some("Er indbetalingen omfattet af den henviste realkreditbestemmelse?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr10_landbrug = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr10Ligningslov14A::input::indbetaling_efter_landbrugsfinansieringsinstitut4b), label = "Indbetaling efter landbrugsfinansieringsinstitutlovens § 4 b", question = Some("Er indbetalingen omfattet af den henviste landbrugsfinansieringsbestemmelse?"), help = None, unit = None)
+
+= personskat_par4_særlig_felt_nr12_rolle = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::rolle), label = "Rolle ved vederlaget", question = Some("Har personen krav på vederlaget eller pligt til at betale det?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr12_art = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::art), label = "Vederlagets art efter ligningslovens § 5 C", question = Some("Vedrører vederlaget renter eller provisioner og præmier?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr12_beløb = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::vederlag_kroner), label = "Vederlag efter ligningslovens § 5 C", question = Some("Hvor stort er vederlaget?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr12_afviklingsår = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::handelsafviklingsår), label = "Handlens afviklingsår", question = Some("I hvilket år blev handlen afviklet?"), help = None, unit = Some("år"))
+= personskat_par4_særlig_felt_nr12_renteår = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::tilsvarende_renter_forfaldsår), label = "De tilsvarende renters forfaldsår", question = Some("I hvilket år forfalder de tilsvarende renter?"), help = None, unit = Some("år"))
+= personskat_par4_særlig_felt_nr12_renter = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::tilsvarende_renter_kroner), label = "Tilsvarende renter", question = Some("Hvor stort er det tilsvarende rentebeløb?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr12_fordeling = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::anvender_par5_stk5_fordeling), label = "Anvender fordeling efter ligningslovens § 5, stk. 5", question = Some("Fordeles renterne efter § 5, stk. 5?"), help = Some("Denne fordeling undtager vederlaget fra § 5 C, stk. 1."), unit = None)
+= personskat_par4_særlig_felt_nr12_erhvervelse = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::erhvervelse_af_rentebærende_fordring_eller_gæld), label = "Erhvervelse af rentebærende fordring eller gæld", question = Some("Vedrører betalingen erhvervelse af en rentebærende fordring eller gæld?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr12_dba = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr12Ligningslov5C::input::dba_afskærer_rente_eller_kursgevinst), label = "Dobbeltbeskatningsoverenskomst afskærer indkomsten", question = Some("Afskærer en dobbeltbeskatningsoverenskomst rente- eller kursgevinstbeskatningen?"), help = Some("Det kan afskære betalerens fradrag efter § 5 C, stk. 3."), unit = None)
+
+= personskat_par4_særlig_felt_nr15_rolle = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::rolle), label = "Rolle i aftalen om løbende ydelse", question = Some("Er personen modtager, yder, forpligtelses-overtager eller tredjemand?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr15_dato_år = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::aftaledato::år), label = "Aftaledato (ISO 8601) - år", question = Some("I hvilket år blev aftalen indgået?"), help = None, unit = Some("år"))
+= personskat_par4_særlig_felt_nr15_dato_måned = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::aftaledato::måned), label = "Aftaledato (ISO 8601) - måned", question = Some("I hvilken måned blev aftalen indgået?"), help = None, unit = Some("måned"))
+= personskat_par4_særlig_felt_nr15_dato_dag = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::aftaledato::dag), label = "Aftaledato (ISO 8601) - dag", question = Some("På hvilken dag blev aftalen indgået?"), help = None, unit = Some("dag"))
+= personskat_par4_særlig_felt_nr15_kapitaliseret = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::aftale::kapitaliseret_værdi_kroner), label = "Den løbende ydelses kapitaliserede værdi", question = Some("Hvad er den kapitaliserede værdi af den løbende ydelse?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr15_saldo = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::position::saldo_primo_kroner), label = "Saldo ved årets begyndelse", question = Some("Hvad er saldoen før årets begivenhed?"), help = Some("Saldoen kan være negativ efter reglerne om løbende ydelser."), unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr15_henstand = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::position::henstandsgrundlag::$variant), label = "Ubetalt henstandsgrundlag", question = Some("Findes der et ubetalt henstandsgrundlag, som skal fragå?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr15_begivenhed = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::begivenhed::$variant), label = "Årets begivenhed for den løbende ydelse", question = Some("Hvilken betaling, afståelse, overdragelse eller ophør skete i året?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr15_årlig_betaling = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::begivenhed::Ll12BÅrligBetaling::betalte_ydelser_kroner), label = "Årets betalte løbende ydelser", question = Some("Hvor meget blev betalt i løbende ydelser i året?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr15_ophørsbetaling = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr15Ligningslov12B::input::begivenhed::Ll12BYdelseOphører::betalte_ydelser_kroner), label = "Betalte ydelser i ophørsåret", question = Some("Hvor meget blev betalt, da den løbende ydelse ophørte?"), help = None, unit = Some("DKK"))
+
+= personskat_par4_særlig_felt_nr16_begivenhed = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::begivenhed), label = "Saldoopgørelsens begivenhed", question = Some("Er dette en årlig saldoopgørelse eller året, hvor sidste aktiv afstås eller udløber?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_status = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::saldo_status), label = "Saldoens status efter afskrivningslovens § 40 C", question = Some("Er saldoen omfattet af § 40 C?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_primo = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::saldo_primo_kroner), label = "§ 40 C-saldo ved årets begyndelse", question = Some("Hvad er saldoværdien ved indkomstårets begyndelse?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr16_bevægelser = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året), label = "Årets bevægelser på § 40 C-saldoen", question = Some("Hvilke anskaffelser og afståelser påvirker saldoen i året?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_bevægelsesart = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året::$variant), label = "Saldobevægelsens art", question = Some("Er bevægelsen en anskaffelse, afståelse eller tom post?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_anskaffelsesart = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året::Al40CAnskaffelse::kvoteart), label = "Det anskaffede aktivs art", question = Some("Hvilken type rettighed eller kvote er anskaffet?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_anskaffelsessum = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året::Al40CAnskaffelse::anskaffelsessum_kroner), label = "Anskaffelsessum på saldoen", question = Some("Hvor stor er anskaffelsessummen?"), help = None, unit = Some("DKK"))
+= personskat_par4_særlig_felt_nr16_afståelsesart = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året::Al40CAfståelse::kvoteart), label = "Det afståede aktivs art", question = Some("Hvilken type rettighed eller kvote er afstået?"), help = None, unit = None)
+= personskat_par4_særlig_felt_nr16_afståelsessum = TypetBeregningsfelt(path = refof(PersonskatPar4SærligKapitalpostfakta::kilde::PsPar4Nr16Afskrivningslov40C::input::bevægelser_i_året::Al40CAfståelse::afståelsessum_kroner), label = "Afståelsessum på saldoen", question = Some("Hvor stor er afståelsessummen?"), help = None, unit = Some("DKK"))
+
+= personskat_par4_særlige_kapitalposter_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_par4_særlig_felt_identifikation,
+        personskat_par4_særlig_felt_indkomstår,
+        personskat_par4_særlig_felt_hjemmel,
+        personskat_par4_særlig_felt_nr9_virksomhedsindtægter,
+        personskat_par4_særlig_felt_nr9_virksomhedsindtægt_id,
+        personskat_par4_særlig_felt_nr9_virksomhedsindtægt_art,
+        personskat_par4_særlig_felt_nr9_virksomhedsindtægt_beløb,
+        personskat_par4_særlig_felt_nr9_virksomhedsudgifter,
+        personskat_par4_særlig_felt_nr9_virksomhedsudgift_id,
+        personskat_par4_særlig_felt_nr9_virksomhedsudgift_art,
+        personskat_par4_særlig_felt_nr9_virksomhedsudgift_beløb,
+        personskat_par4_særlig_felt_nr9_ligningslovsfradrag,
+        personskat_par4_særlig_felt_nr9_erhvervsposter,
+        personskat_par4_særlig_felt_nr11_virksomhedsindtægter,
+        personskat_par4_særlig_felt_nr11_virksomhedsindtægt_id,
+        personskat_par4_særlig_felt_nr11_virksomhedsindtægt_art,
+        personskat_par4_særlig_felt_nr11_virksomhedsindtægt_beløb,
+        personskat_par4_særlig_felt_nr11_virksomhedsudgifter,
+        personskat_par4_særlig_felt_nr11_virksomhedsudgift_id,
+        personskat_par4_særlig_felt_nr11_virksomhedsudgift_art,
+        personskat_par4_særlig_felt_nr11_virksomhedsudgift_beløb,
+        personskat_par4_særlig_felt_nr11_ligningslovsfradrag,
+        personskat_par4_særlig_felt_nr11_erhvervsposter,
+        personskat_par4_særlig_felt_nr9_type,
+        personskat_par4_særlig_felt_nr9_ejere,
+        personskat_par4_særlig_felt_nr9_personlige_ejere,
+        personskat_par4_særlig_felt_nr9_ll8p,
+        personskat_par4_særlig_felt_nr9_deltagelse,
+        personskat_par4_særlig_felt_nr11_aktiv,
+        personskat_par4_særlig_felt_nr11_anskaffelse,
+        personskat_par4_særlig_felt_nr11_tilladelse,
+        personskat_par4_særlig_felt_nr11_skøn,
+        personskat_par4_særlig_felt_nr11_deltagelse,
+        personskat_par4_særlig_felt_nr10_år,
+        personskat_par4_særlig_felt_nr10_beløb,
+        personskat_par4_særlig_felt_nr10_realkredit,
+        personskat_par4_særlig_felt_nr10_landbrug,
+        personskat_par4_særlig_felt_nr12_rolle,
+        personskat_par4_særlig_felt_nr12_art,
+        personskat_par4_særlig_felt_nr12_beløb,
+        personskat_par4_særlig_felt_nr12_afviklingsår,
+        personskat_par4_særlig_felt_nr12_renteår,
+        personskat_par4_særlig_felt_nr12_renter,
+        personskat_par4_særlig_felt_nr12_fordeling,
+        personskat_par4_særlig_felt_nr12_erhvervelse,
+        personskat_par4_særlig_felt_nr12_dba,
+        personskat_par4_særlig_felt_nr15_rolle,
+        personskat_par4_særlig_felt_nr15_dato_år,
+        personskat_par4_særlig_felt_nr15_dato_måned,
+        personskat_par4_særlig_felt_nr15_dato_dag,
+        personskat_par4_særlig_felt_nr15_kapitaliseret,
+        personskat_par4_særlig_felt_nr15_saldo,
+        personskat_par4_særlig_felt_nr15_henstand,
+        personskat_par4_særlig_felt_nr15_begivenhed,
+        personskat_par4_særlig_felt_nr15_årlig_betaling,
+        personskat_par4_særlig_felt_nr15_ophørsbetaling,
+        personskat_par4_særlig_felt_nr16_begivenhed,
+        personskat_par4_særlig_felt_nr16_status,
+        personskat_par4_særlig_felt_nr16_primo,
+        personskat_par4_særlig_felt_nr16_bevægelser,
+        personskat_par4_særlig_felt_nr16_bevægelsesart,
+        personskat_par4_særlig_felt_nr16_anskaffelsesart,
+        personskat_par4_særlig_felt_nr16_anskaffelsessum,
+        personskat_par4_særlig_felt_nr16_afståelsesart,
+        personskat_par4_særlig_felt_nr16_afståelsessum
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = ligningsloven_par14a_lbk1500),
+        DependencySource(value = ligningsloven_par5c_lbk1500),
+        DependencySource(value = ligningslov12b_lbk1500),
+        AmendmentSource(value = ligningslov12b_lov749),
+        DependencySource(value = afskrivningsloven_lbk1222),
+    )
+)
+
+--@label:PersonskatPar4SærligKapitalpostfakta::meta:personskat_par4_særlige_kapitalposter_beregningsmeta--

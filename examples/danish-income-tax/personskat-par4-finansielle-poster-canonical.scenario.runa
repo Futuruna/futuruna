@@ -108,6 +108,7 @@ må ikke påvirke kapitalindkomst eller personlig indkomst.
         kursgevinst = tom.kursgevinst,
         fremleje = tom.fremleje,
         finansielle_poster = poster,
+        særlige_kapitalposter = [],
         omkostninger = tom.omkostninger
     )
 }

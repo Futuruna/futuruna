@@ -1,0 +1,186 @@
+@ sprog da
+
+@ importer ./arbejdsmarkedsbidragsloven
+@ importer ./kapitel - 01 - indkomst
+@ importer ./metadata
+
+= personskat_ligningslov7n_kildefakta_metadata = Metadata(
+    attachments = (
+        Source(value = ligningsloven_par7n_lbk1500),
+        DependencySource(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = personskatteloven_lbk1284_par4a),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+    )
+)
+
+--@label:personskat_ligningslov7n_kildefakta::meta:personskat_ligningslov7n_kildefakta_metadata--
+----
+§ 7 N. Ved opgørelsen af den skattepligtige indkomst for medarbejderdeltagere,
+der deltager i en medarbejderinvesteringsordning efter lov om
+medarbejderinvesteringsselskaber, medregnes ikke beløb, der indskydes af
+arbejdsgiveren i et medarbejderinvesteringsselskab, der er registreret i
+Erhvervsstyrelsen, jf. § 7 i lov om medarbejderinvesteringsselskaber.
+
+Stk. 2. Beløbet som nævnt i stk. 1 kan højst udgøre 7,5 pct. af
+medarbejderdeltagerens kontante løn minus arbejdsmarkedsbidrag fra den
+pågældende arbejdsgiver i indkomståret, dog maksimalt 30.000 kr. årligt. Ved
+deltagelse i flere medarbejderinvesteringsselskaber gælder grænsen for at
+bortse fra arbejdsgivernes indskud på 30.000 kr. årligt for den enkelte person.
+
+Stk. 3. Ved indskud i selskaber med hjemsted i et andet land inden for EU/EØS
+end Danmark er det en betingelse for bortseelse efter stk. 1, at told- og
+skatteforvaltningen har godkendt det pågældende selskab, herunder dets
+vedtægter, og at godkendelsen ikke er tilbagekaldt, jf. stk. 7.
+
+Stk. 4. Godkendelse efter stk. 3 sker, når følgende betingelser er opfyldt:
+1) Selskabet skal være gyldigt stiftet og registreret efter sit hjemlands
+regler.
+2) Selskabet skal kunne sidestilles med et medarbejderinvesteringsselskab med
+hjemsted i Danmark, jf. lov om medarbejderinvesteringsselskaber.
+3) Selskabet skal indvillige i at påtage sig de forpligtelser m.v., der stilles
+til medarbejderinvesteringsselskaber med hjemsted i Danmark.
+4) Det skal være muligt via direktivet om gensidig bistand mellem
+medlemsstaternes kompetente myndigheder inden for området direkte skatter,
+visse punktafgifter og afgiftsbelastning af forsikringspræmier, en
+dobbeltbeskatningsoverenskomst eller anden aftale om udveksling af oplysninger
+at verificere selskabets dokumentation vedrørende selskabet.
+
+Stk. 5. Godkendelse kan kun ske, efter at told- og skatteforvaltningen har
+indhentet udtalelse fra Erhvervsstyrelsen om, hvorvidt det pågældende selskab
+kan sidestilles med et medarbejderinvesteringsselskab med hjemsted i Danmark,
+jf. lov om medarbejderinvesteringsselskaber.
+
+Stk. 6. Ved indskud i selskaber med hjemsted i et andet land inden for EU/EØS
+end Danmark er det endvidere en betingelse for bortseelse efter stk. 1, at
+vedtægtsændringer godkendes af told- og skatteforvaltningen, ligesom selskabet
+kun med told- og skatteforvaltningens godkendelse kan foretage eller medvirke
+til ekstraordinære dispositioner, som kan medføre risiko for, at vedtægten ikke
+kan overholdes, eller at selskabet ikke fortsat vil kunne eksistere.
+Godkendelser kan kun ske, efter at told- og skatteforvaltningen har indhentet
+udtalelse fra Erhvervsstyrelsen om, hvorvidt vedtægtsændringerne og
+dispositionerne ville være blevet godkendt, hvis selskabet havde haft hjemsted
+i Danmark.
+
+Stk. 7. Told- og skatteforvaltningen kan tilbagekalde en godkendelse efter
+stk. 3, hvis betingelserne for godkendelse ikke længere er opfyldt, eller hvis
+der uden told- og skatteforvaltningens godkendelse foretages vedtægtsændringer
+eller dispositioner som nævnt i stk. 6. Tilbagekaldes godkendelsen, medregnes
+værdien af medarbejderdeltagerens investeringsandel ved opgørelsen af den
+skattepligtige indkomst på tidspunktet for tilbagekaldelsen.
+
+Stk. 8. Omregning af fremmed valuta i forbindelse med indeholdelse af
+indkomstskat af udbytter m.v. sker til Nationalbankens middelkurs på
+indeholdelsestidspunktet.
+
+Stk. 9. Skatteministeren kan fastsætte nærmere regler om godkendelse af
+selskaber m.v. efter stk. 3, om efterfølgende godkendelser efter stk. 6 og om
+tilbagekaldelse efter stk. 7.
+
+Personskatteloven § 4, stk. 7:
+
+Stk. 7. Uanset stk. 1, nr. 4 og 5, medregnes udbetalinger og fortjenester
+vedrørende andele i medarbejderinvesteringsselskaber, jf. ligningslovens § 7 N,
+stk. 1, og andele i medarbejderinvesteringsselskabslignende selskaber, jf.
+ligningslovens § 7 N, stk. 3, til den personlige indkomst.
+
+Personskatteloven § 4 a, stk. 1 og 2:
+
+§ 4 a. Aktieindkomst omfatter det samlede beløb af
+1) aktieudbytte omfattet af ligningslovens § 16 A, bortset fra udbytte som nævnt
+i § 4, stk. 1, nr. 4,
+2) afståelsessummer omfattet af ligningslovens § 16 B, stk. 1,
+3) beløb som nævnt i ligningslovens § 16 B, stk. 2, nr. 1-4,
+4) beløb som nævnt i ligningslovens § 16 B, stk. 2, nr. 5, der ikke skal
+medregnes ved opgørelsen af den skattepligtige indkomst i det
+virksomhedsomdannende selskab,
+5) skattepligtig gevinst og fradragsberettiget tab efter
+aktieavancebeskatningsloven og
+6) beløb omfattet af ligningslovens § 16 I, stk. 1.
+
+Stk. 2. Aktieindkomst efter stk. 1 omfatter ikke udbytte af aktier eller andele,
+der er omfattet af aktieavancebeskatningslovens § 19 C. Aktieindkomst omfatter
+endvidere ikke udbytte efter ligningslovens § 16 A, stk. 5.
+----
+
+--@begin:personskat_ligningslov7n_kildefakta--
+# PersonskatLigningslov7NFakta(identifikation: Tekst, indkomstår: Heltal, selskab: Ligningslov7NSelskab, postart: Ligningslov7NPostart, beløb_kroner: Heltal, kontant_løn_minus_amb_fra_arbejdsgiver_kroner: Heltal, registreret_i_erhvervsstyrelsen: Boolsk, godkendt_eu_eøs_selskab: Boolsk, godkendelse_tilbagekaldt: Boolsk)
+# PersonskatLigningslov7NPostresultat(fakta: PersonskatLigningslov7NFakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, ligningslov_input: Ligningslov7NInput, ligningslov_resultat: Ligningslov7NResultat, par4_stk7_resultat: Par4Stk7Ligningslov7NResultat, par4a_resultat: Par4aLigningslov7NResultat, input_gyldigt: Boolsk, kapitalpost: Par4Kapitalpost, aktiepost: Par4aAktiepost)
+# PersonskatLigningslov7NForløbstilstand(tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, postresultater: List(PersonskatLigningslov7NPostresultat), alle_input_gyldige: Boolsk)
+# PersonskatLigningslov7NÅrsresultat(fakta: List(PersonskatLigningslov7NFakta), postresultater: List(PersonskatLigningslov7NPostresultat), identifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, samlet_bortset_arbejdsgiverindskud_kroner: Heltal, arbejdsgiverindskud_skattepligtigt_kroner: Heltal, tilbagekaldelsesværdi_skattepligtig_kroner: Heltal, øvrig_personlig_indkomst_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, kapitalposter: List(Par4Kapitalpost), aktieposter: List(Par4aAktiepost))
+
+| personskat_ligningslov7n_selskabsforhold_gyldige(fakta: PersonskatLigningslov7NFakta) -> match fakta.selskab {
+    | Ll7NIkkeOmfattetSelskab -> fakta.registreret_i_erhvervsstyrelsen == Falskt && fakta.godkendt_eu_eøs_selskab == Falskt && fakta.godkendelse_tilbagekaldt == Falskt
+    | Ll7NMedarbejderinvesteringsselskabStk1 -> fakta.godkendt_eu_eøs_selskab == Falskt && fakta.godkendelse_tilbagekaldt == Falskt
+    | Ll7NMedarbejderinvesteringsselskabslignendeStk3 -> fakta.registreret_i_erhvervsstyrelsen == Falskt && (fakta.godkendelse_tilbagekaldt == Falskt || fakta.godkendt_eu_eøs_selskab)
+}
+| personskat_ligningslov7n_postforhold_gyldige(fakta: PersonskatLigningslov7NFakta) -> (fakta.postart == Ll7NArbejdsgiverindskud || fakta.kontant_løn_minus_amb_fra_arbejdsgiver_kroner == 0) && (fakta.postart == Ll7NTilbagekaldelsesværdi) == fakta.godkendelse_tilbagekaldt && (fakta.postart != Ll7NTilbagekaldelsesværdi || fakta.selskab == Ll7NMedarbejderinvesteringsselskabslignendeStk3 && fakta.godkendt_eu_eøs_selskab)
+| personskat_ligningslov7n_grundfakta_gyldige(fakta: PersonskatLigningslov7NFakta, skatteår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == skatteår && fakta.indkomstår > 0 && fakta.beløb_kroner >= 0 && fakta.kontant_løn_minus_amb_fra_arbejdsgiver_kroner >= 0 && personskat_ligningslov7n_selskabsforhold_gyldige(fakta) && personskat_ligningslov7n_postforhold_gyldige(fakta)
+| personskat_ligningslov7n_identifikation_unik(alle_fakta: List(PersonskatLigningslov7NFakta), fakta: PersonskatLigningslov7NFakta) -> fakta.identifikation != "" && length(filter(alle_fakta, |anden: PersonskatLigningslov7NFakta| anden.identifikation == fakta.identifikation)) == 1
+| personskat_ligningslov7n_identifikationer_entydige(fakta: List(PersonskatLigningslov7NFakta)) -> length(distinct(map(fakta, |post: PersonskatLigningslov7NFakta| post.identifikation))) == length(fakta) && all(fakta, |post: PersonskatLigningslov7NFakta| post.identifikation != "")
+| personskat_ligningslov7n_input(fakta: PersonskatLigningslov7NFakta, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal) -> Ligningslov7NInput(
+    indkomstår = fakta.indkomstår,
+    selskab = fakta.selskab,
+    postart = fakta.postart,
+    beløb_kroner = fakta.beløb_kroner,
+    kontant_løn_minus_amb_fra_arbejdsgiver_kroner = fakta.kontant_løn_minus_amb_fra_arbejdsgiver_kroner,
+    tidligere_bortset_arbejdsgiverindskud_i_året_kroner = tidligere_bortset_arbejdsgiverindskud_i_året_kroner,
+    registreret_i_erhvervsstyrelsen = fakta.registreret_i_erhvervsstyrelsen,
+    godkendt_eu_eøs_selskab = fakta.godkendt_eu_eøs_selskab,
+    godkendelse_tilbagekaldt = fakta.godkendelse_tilbagekaldt
+)
+| personskat_ligningslov7n_postresultat(alle_fakta: List(PersonskatLigningslov7NFakta), skatteår: Heltal, tidligere_bortset_arbejdsgiverindskud_i_året_kroner: Heltal, fakta: PersonskatLigningslov7NFakta) -> {
+    = identifikation_unik = personskat_ligningslov7n_identifikation_unik(alle_fakta, fakta)
+    = grundfakta_gyldige = personskat_ligningslov7n_grundfakta_gyldige(fakta, skatteår)
+    = ligningslov_input = personskat_ligningslov7n_input(fakta, tidligere_bortset_arbejdsgiverindskud_i_året_kroner)
+    = ligningslov_resultat = ligningslov7n_resultat(ligningslov_input)
+    = par4_stk7_resultat = par4_stk7_ligningslov7n_resultat_fra_ligningslov7n(ligningslov_input)
+    = par4a_resultat = par4a_ligningslov7n_resultat_fra_ligningslov7n(ligningslov_input)
+    = input_gyldigt = identifikation_unik && grundfakta_gyldige
+    PersonskatLigningslov7NPostresultat(
+        fakta = fakta,
+        identifikation_unik = identifikation_unik,
+        grundfakta_gyldige = grundfakta_gyldige,
+        tidligere_bortset_arbejdsgiverindskud_i_året_kroner = tidligere_bortset_arbejdsgiverindskud_i_året_kroner,
+        ligningslov_input = ligningslov_input,
+        ligningslov_resultat = ligningslov_resultat,
+        par4_stk7_resultat = par4_stk7_resultat,
+        par4a_resultat = par4a_resultat,
+        input_gyldigt = input_gyldigt,
+        kapitalpost = hvis input_gyldigt { par4_stk7_ligningslov7n_kapitalpost_fra_ligningslov7n(ligningslov_input) } ellers { Par4Kapitalpost(art = MedarbejderinvesteringsselskabBeløb, beløb_kroner = 0, personlig_reklassifikation = IngenPersonligReklassifikation, personlig_indkomst_tillæg_kroner = 0) },
+        aktiepost = hvis input_gyldigt { par4a_aktiepost_fra_ligningslov7n(ligningslov_input) } ellers { Par4aAktiepost(art = AktieFortjenesteTab, beløb_kroner = 0, afgrænsning = AktiepostUdenforStk1, personlig_reklassifikation = IngenAktieTilPersonligUndtagelse) }
+    )
+}
+| personskat_ligningslov7n_forløbstrin(alle_fakta: List(PersonskatLigningslov7NFakta), skatteår: Heltal, tilstand: PersonskatLigningslov7NForløbstilstand, fakta: PersonskatLigningslov7NFakta) -> {
+    = resultat = personskat_ligningslov7n_postresultat(alle_fakta, skatteår, tilstand.tidligere_bortset_arbejdsgiverindskud_i_året_kroner, fakta)
+    PersonskatLigningslov7NForløbstilstand(
+        tidligere_bortset_arbejdsgiverindskud_i_året_kroner = tilstand.tidligere_bortset_arbejdsgiverindskud_i_året_kroner + hvis resultat.input_gyldigt { resultat.ligningslov_resultat.arbejdsgiverindskud_bortses_kroner } ellers { 0 },
+        postresultater = concat(tilstand.postresultater, [resultat]),
+        alle_input_gyldige = tilstand.alle_input_gyldige && resultat.input_gyldigt
+    )
+}
+| personskat_ligningslov7n_forløb(fakta: List(PersonskatLigningslov7NFakta), skatteår: Heltal) -> foldl(
+    fakta,
+    PersonskatLigningslov7NForløbstilstand(tidligere_bortset_arbejdsgiverindskud_i_året_kroner = 0, postresultater = [], alle_input_gyldige = Sandt),
+    |tilstand: PersonskatLigningslov7NForløbstilstand, post: PersonskatLigningslov7NFakta| personskat_ligningslov7n_forløbstrin(fakta, skatteår, tilstand, post)
+)
+| personskat_ligningslov7n_årsresultat(fakta: List(PersonskatLigningslov7NFakta), skatteår: Heltal) -> {
+    = forløb = personskat_ligningslov7n_forløb(fakta, skatteår)
+    = identifikationer_entydige = personskat_ligningslov7n_identifikationer_entydige(fakta)
+    = alle_input_gyldige = identifikationer_entydige && forløb.alle_input_gyldige
+    = arbejdsgiverindskud_skattepligtigt_kroner = hvis alle_input_gyldige { foldl(forløb.postresultater, 0, |sum: Heltal, resultat: PersonskatLigningslov7NPostresultat| sum + resultat.ligningslov_resultat.arbejdsgiverindskud_skattepligtigt_kroner) } ellers { 0 }
+    = tilbagekaldelsesværdi_skattepligtig_kroner = hvis alle_input_gyldige { foldl(forløb.postresultater, 0, |sum: Heltal, resultat: PersonskatLigningslov7NPostresultat| sum + resultat.ligningslov_resultat.tilbagekaldelsesværdi_skattepligtig_kroner) } ellers { 0 }
+    PersonskatLigningslov7NÅrsresultat(
+        fakta = fakta,
+        postresultater = forløb.postresultater,
+        identifikationer_entydige = identifikationer_entydige,
+        alle_input_gyldige = alle_input_gyldige,
+        samlet_bortset_arbejdsgiverindskud_kroner = hvis alle_input_gyldige { forløb.tidligere_bortset_arbejdsgiverindskud_i_året_kroner } ellers { 0 },
+        arbejdsgiverindskud_skattepligtigt_kroner = arbejdsgiverindskud_skattepligtigt_kroner,
+        tilbagekaldelsesværdi_skattepligtig_kroner = tilbagekaldelsesværdi_skattepligtig_kroner,
+        øvrig_personlig_indkomst_kroner = tilbagekaldelsesværdi_skattepligtig_kroner,
+        arbejdsmarkedsbidragsgrundlag_kroner = arbejdsgiverindskud_skattepligtigt_kroner,
+        kapitalposter = hvis alle_input_gyldige { map(forløb.postresultater, |resultat: PersonskatLigningslov7NPostresultat| resultat.kapitalpost) } ellers { [] },
+        aktieposter = hvis alle_input_gyldige { map(forløb.postresultater, |resultat: PersonskatLigningslov7NPostresultat| resultat.aktiepost) } ellers { [] }
+    )
+}
+--@end:personskat_ligningslov7n_kildefakta--

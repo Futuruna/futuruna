@@ -165,7 +165,8 @@ ikke som et ubundet resultatfelt.
     aktieavance = PersonskatAktieavanceInput(
         ordinært_aktieår = UdenOrdinærtAktieår,
         særlige_aktiver = [],
-        udbytter = personskat_investeringsudlodninger
+        udbytter = personskat_investeringsudlodninger,
+        ligningslov7n_poster = []
     ),
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
     cfc = personskat_ingen_cfc(),

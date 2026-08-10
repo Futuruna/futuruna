@@ -1,0 +1,174 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Kanoniske scenarier for personskattelovens § 4, stk. 1, nr. 9-12 og 15-16.
+
+Virksomhedsbeløbene opgøres fra indtægter og udgifter gennem den eksisterende
+§ 3-kaskade, før § 4 klassificerer resultatet. Ugyldige kildefakta og dubletter
+skal derfor afvises samlet uden beløbspåvirkning.
+----
+
+| psl4_særlig_scenarie_virksomhed(nøgle: Tekst, indtægt_kroner: Heltal, udgift_kroner: Heltal) -> PersonskatPar4Virksomhedsopgørelseskilde(
+    indtægter = [PersonskatVirksomhedsindtægtFakta(
+        identifikation = nøgle + "-indtægt",
+        art = OrdinærDriftsindtægt,
+        beløb_kroner = indtægt_kroner
+    )],
+    udgifter = [PersonskatVirksomhedsudgiftFakta(
+        identifikation = nøgle + "-udgift",
+        afgrænsning = SelvstændigErhvervsindkomstUdgift,
+        beløb_kroner = udgift_kroner
+    )],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
+)
+| psl4_særlig_scenarie_fakta(identifikation: Tekst, kilde: PersonskatPar4SærligKapitalpostkilde) -> PersonskatPar4SærligKapitalpostfakta(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    kilde = kilde
+)
+| psl4_særlig_scenarie_nr9(identifikation: Tekst, indtægt_kroner: Heltal, udgift_kroner: Heltal, deltager_væsentligt: Boolsk) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr9Virksomhed(klassifikation = PersonskatPar4Nr9Virksomhedsklassifikation(
+        virksomhed = psl4_særlig_scenarie_virksomhed(identifikation, indtægt_kroner, udgift_kroner),
+        virksomhedstype = AlmindeligSelvstændigVirksomhed,
+        samlet_ejerantal = 12,
+        personligt_ejerantal = 12,
+        ligningslov8p_ejere_der_ikke_medregnes = 1,
+        deltager_væsentligt_i_drift = deltager_væsentligt
+    ))
+)
+| psl4_særlig_scenarie_nr10(identifikation: Tekst) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr10Ligningslov14A(input = Ligningslov14AInput(
+        indkomstår = 2026,
+        indbetalingsår = 2026,
+        indbetaling_kroner = 9000,
+        indbetaling_efter_realkreditinstitutlov10b_stk3_4pkt = Sandt,
+        indbetaling_efter_landbrugsfinansieringsinstitut4b = Falskt,
+        udbetalingsår = 0,
+        udbetaling_kroner = 0,
+        udbetaling_fra_restgældsreguleringsfond = Falskt
+    ))
+)
+| psl4_særlig_scenarie_nr11(identifikation: Tekst, anskaffelse: Anskaffelsesstatus, tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr11Udlejningsvirksomhed(klassifikation = PersonskatPar4Nr11Udlejningsklassifikation(
+        virksomhed = psl4_særlig_scenarie_virksomhed(identifikation, 50000, 10000),
+        aktiv = AfskrivningsberettigetDriftsmiddel,
+        anskaffelse = anskaffelse,
+        skatteråds_tilladelse = tilladelse,
+        rådets_skøn = rådets_skøn,
+        deltager_væsentligt_i_drift = Falskt
+    ))
+)
+| psl4_særlig_scenarie_nr12(identifikation: Tekst) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr12Ligningslov5C(input = Ligningslov5CInput(
+        indkomstår = 2026,
+        rolle = Ll5CForpligtetTilAtBetaleVederlag,
+        art = Ll5CVedhængendeEllerGodskrevneRenter,
+        vederlag_kroner = 12000,
+        handelsafviklingsår = 2026,
+        tilsvarende_renter_forfaldsår = 2027,
+        tilsvarende_renter_kroner = 12000,
+        anvender_par5_stk5_fordeling = Falskt,
+        erhvervelse_af_rentebærende_fordring_eller_gæld = Sandt,
+        dba_afskærer_rente_eller_kursgevinst = Falskt
+    ))
+)
+| psl4_særlig_scenarie_nr15(identifikation: Tekst) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr15Ligningslov12B(input = Ligningslov12BInput(
+        indkomstår = 2026,
+        rolle = Ll12BModtager,
+        aftale = ll12b_standard_aftale_2026,
+        position = Ligningslov12BPosition(
+            saldo_primo_kroner = 10000,
+            henstandsgrundlag = Ll12BIntetUbetaltHenstandsgrundlag
+        ),
+        begivenhed = Ll12BÅrligBetaling(betalte_ydelser_kroner = 18000),
+        årsfordeling = ll12b_standard_årsfordeling,
+        ophørsfordeling = ll12b_standard_ophørsfordeling
+    ))
+)
+| psl4_særlig_scenarie_nr16(identifikation: Tekst) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr16Afskrivningslov40C(input = Afskrivningslov40CInput(
+        indkomstår = 2026,
+        begivenhed = Al40CÅrligSaldoopgørelse,
+        saldo_status = Al40CSaldoOmfattet,
+        saldo_primo_kroner = 10000,
+        bevægelser_i_året = [Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 25000)]
+    ))
+)
+| psl4_særlig_scenarie_poster() -> [
+    psl4_særlig_scenarie_nr9("nr9-passiv", 100000, 20000, Falskt),
+    psl4_særlig_scenarie_nr9("nr9-aktiv", 50000, 10000, Sandt),
+    psl4_særlig_scenarie_nr10("nr10-indbetaling"),
+    psl4_særlig_scenarie_nr11("nr11-passiv", PåEllerEfter19Maj1993, TilladelseIkkeGivet, IkkeGodtgjort),
+    psl4_særlig_scenarie_nr11("nr11-tilladelse", Før19Maj1993, TilladelseGivet, Godtgjort),
+    psl4_særlig_scenarie_nr12("nr12-vederlag"),
+    psl4_særlig_scenarie_nr15("nr15-loebende-ydelse"),
+    psl4_særlig_scenarie_nr16("nr16-negativ-saldo"),
+]
+
+| psl4_særlig_scenarie_kapitalindkomst(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> {
+    = tom = personskat_ingen_kapitalindkomst()
+    PersonskatKapitalindkomstInput(
+        renter = tom.renter,
+        virksomhedskapital = tom.virksomhedskapital,
+        pbl53a = tom.pbl53a,
+        ejendomsdrift = tom.ejendomsdrift,
+        ejendomsavance = tom.ejendomsavance,
+        kursgevinst = tom.kursgevinst,
+        fremleje = tom.fremleje,
+        finansielle_poster = [],
+        særlige_kapitalposter = poster,
+        omkostninger = tom.omkostninger
+    )
+}
+| psl4_særlig_scenarie_input(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = psl4_særlig_scenarie_kapitalindkomst(poster),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| psl4_særlig_scenarie_beregning(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> beregn_personskat(psl4_særlig_scenarie_input(poster))
+| psl4_særlig_scenarie_nr9_netto_afledt(resultat: PersonskatPar4SærligKapitalpostresultat) -> match resultat.lovresultat {
+    | PsPar4Nr9Lovresultat(nr9) -> personskat_virksomhed_resultat_personlig_indkomst_kroner(nr9.virksomhedsresultat) == 80000 && nr9.par4_resultat.kapitalindkomst_kroner == 80000
+    | _ -> Falskt
+}
+
+= psl4_særlig_scenarie_gyldigt = psl4_særlig_scenarie_beregning(psl4_særlig_scenarie_poster())
+= psl4_særlig_scenarie_ugyldig_virksomhed = psl4_særlig_scenarie_beregning([psl4_særlig_scenarie_nr9("ugyldig", -1, 0, Falskt)])
+= psl4_særlig_scenarie_dobbelt_id = psl4_særlig_scenarie_beregning([
+    psl4_særlig_scenarie_nr10("samme-id"),
+    psl4_særlig_scenarie_nr16("samme-id")
+])
+
+| psl4_særlig_scenarie_alle_grene_når_beregn_personskat: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_gyldigt.kapitalindkomst.alle_input_gyldige && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_postidentifikationer_entydige && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalposter_gyldige && length(psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater) == 8 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 122000
+| psl4_særlig_scenarie_nr9_beregnes_fra_regnskab: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_nr9_netto_afledt(psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[0])
+| psl4_særlig_scenarie_betingelser_og_undtagelser_anvendes: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[1].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[4].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[2].kapitalpost.beløb_kroner == -9000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[3].kapitalpost.beløb_kroner == 40000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[5].kapitalpost.beløb_kroner == -12000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[6].kapitalpost.beløb_kroner == 8000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[7].kapitalpost.beløb_kroner == 15000
+| psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket: psl4_særlig_scenarie_ugyldig_virksomhed -> psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| psl4_særlig_scenarie_dubletter_fejler_lukket: psl4_særlig_scenarie_dobbelt_id -> psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_postidentifikationer_entydige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0

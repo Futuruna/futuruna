@@ -1,0 +1,179 @@
+@ sprog da
+
+@ importer ./kapitel - 01 - indkomst
+@ importer ./metadata
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+= personskat_par4_saerlige_kapitalposter_kildefakta_metadata = Metadata(
+    attachments = (
+        Source(value = personskatteloven_lbk1284_par4),
+        DependencySource(value = ligningsloven_par14a_lbk1500),
+        DependencySource(value = ligningsloven_par5c_lbk1500),
+        DependencySource(value = ligningslov12b_lbk1500),
+        AmendmentSource(value = ligningslov12b_lov749),
+        DependencySource(value = afskrivningsloven_lbk1222),
+    )
+)
+
+--@label:personskat_par4_saerlige_kapitalposter_kildefakta::meta:personskat_par4_saerlige_kapitalposter_kildefakta_metadata--
+----
+§ 4. Kapitalindkomst omfatter det samlede nettobeløb af
+9) indkomst ved selvstændig erhvervsvirksomhed, når antallet af ejere er større
+end 10 og den skattepligtige ikke deltager i virksomhedens drift i væsentligt
+omfang, samt indkomst ved selvstændig erhvervsvirksomhed efter ligningslovens
+§ 8 K, stk. 2, når antallet af personlige ejere er større end 2 og den
+skattepligtige ikke deltager i virksomhedens drift i væsentligt omfang,
+10) indbetalinger som nævnt i ligningslovens § 14 A, stk. 1,
+11) indkomst fra udlejning af afskrivningsberettigede driftsmidler og skibe
+uanset antal ejere, når den skattepligtige ikke deltager i virksomhedens drift
+i væsentligt omfang,
+12) vederlag, der omfattes af ligningslovens § 5 C,
+15) beløb, der er skattepligtige eller fradragsberettigede efter ligningslovens
+§ 12 B, stk. 4-7 eller stk. 9,
+16) beløb, der er skattepligtige eller fradragsberettigede efter
+afskrivningslovens § 40 C, og
+
+Stk. 8. Skatterådet kan tillade, at reglen i stk. 1, nr. 11, ikke skal anvendes
+for indkomst ved udlejning af aktiver, som er anskaffet inden den 19. maj 1993,
+når det efter rådets skøn må anses som godtgjort, at udlejningen indgår i et
+generationsskifte, eller særlige omstændigheder i øvrigt taler derfor.
+
+Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningslovens
+§ 8 P, stk. 2 og 3, medregnes ikke ved opgørelsen af antallet af ejere i stk. 1, nr. 9.
+----
+
+--@begin:personskat_par4_saerlige_kapitalposter_kildefakta--
+# PersonskatPar4Virksomhedsopgørelseskilde(indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
+# PersonskatPar4Nr9Virksomhedsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, virksomhedstype: Par4Stk1Nr9Virksomhedstype, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
+# PersonskatPar4Nr11Udlejningsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, aktiv: Par4Stk1Nr11Udlejningsaktiv, anskaffelse: Anskaffelsesstatus, skatteråds_tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn, deltager_væsentligt_i_drift: Boolsk)
+# PersonskatPar4SærligKapitalpostkilde = PsPar4Nr9Virksomhed(klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation) | PsPar4Nr10Ligningslov14A(input: Ligningslov14AInput) | PsPar4Nr11Udlejningsvirksomhed(klassifikation: PersonskatPar4Nr11Udlejningsklassifikation) | PsPar4Nr12Ligningslov5C(input: Ligningslov5CInput) | PsPar4Nr15Ligningslov12B(input: Ligningslov12BInput) | PsPar4Nr16Afskrivningslov40C(input: Afskrivningslov40CInput)
+# PersonskatPar4SærligKapitalpostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4SærligKapitalpostkilde)
+# PersonskatPar4Nr9Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr9Input, par4_resultat: Par4Stk1Nr9Resultat)
+# PersonskatPar4Nr10Kilderesultat(ligningslov_resultat: Ligningslov14AResultat, par4_input: Par4Stk1Nr10Input, par4_resultat: Par4Stk1Nr10Resultat)
+# PersonskatPar4Nr11Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr11Input, par4_resultat: Par4Stk1Nr11Resultat)
+# PersonskatPar4Nr12Kilderesultat(ligningslov_resultat: Ligningslov5CResultat, par4_input: Par4Stk1Nr12Input, par4_resultat: Par4Stk1Nr12Resultat)
+# PersonskatPar4Nr15Kilderesultat(ligningslov_resultat: Ligningslov12BResultat, par4_input: Par4Stk1Nr15Input, par4_resultat: Par4Stk1Nr15Resultat)
+# PersonskatPar4Nr16Kilderesultat(afskrivningslov_resultat: Afskrivningslov40CResultat, par4_input: Par4Stk1Nr16Input, par4_resultat: Par4Stk1Nr16Resultat)
+# PersonskatPar4SærligKapitalpostLovresultat = PsPar4Nr9Lovresultat(resultat: PersonskatPar4Nr9Kilderesultat) | PsPar4Nr10Lovresultat(resultat: PersonskatPar4Nr10Kilderesultat) | PsPar4Nr11Lovresultat(resultat: PersonskatPar4Nr11Kilderesultat) | PsPar4Nr12Lovresultat(resultat: PersonskatPar4Nr12Kilderesultat) | PsPar4Nr15Lovresultat(resultat: PersonskatPar4Nr15Kilderesultat) | PsPar4Nr16Lovresultat(resultat: PersonskatPar4Nr16Kilderesultat)
+# PersonskatPar4SærligKapitalpostresultat(fakta: PersonskatPar4SærligKapitalpostfakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4SærligKapitalpostLovresultat, kapitalpost: Par4Kapitalpost)
+
+| personskat_par4_virksomhedsfakta(fakta: PersonskatPar4SærligKapitalpostfakta, kilde: PersonskatPar4Virksomhedsopgørelseskilde) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = fakta.identifikation,
+    indkomstår = fakta.indkomstår,
+    indtægter = kilde.indtægter,
+    udgifter = kilde.udgifter,
+    ligningslovsfradrag_efter_par3_stk2_nr2 = kilde.ligningslovsfradrag_efter_par3_stk2_nr2,
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = kilde.erhvervsposter_efter_par3_stk2_nr4_til_10
+)
+| personskat_par4_virksomhedskilde_grundfakta_gyldige(fakta: PersonskatPar4SærligKapitalpostfakta, kilde: PersonskatPar4Virksomhedsopgørelseskilde) -> {
+    = virksomhed = personskat_par4_virksomhedsfakta(fakta, kilde)
+    personskat_virksomhed_grundfakta_gyldige(virksomhed) && personskat_virksomhed_indtægtsarter_understøttet(virksomhed) && personskat_virksomhed_udgiftsafgrænsninger_understøttet(virksomhed)
+}
+| personskat_par4_nr9_ejergrundlag_gyldigt(klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation) -> klassifikation.samlet_ejerantal >= 0 && klassifikation.personligt_ejerantal >= 0 && klassifikation.personligt_ejerantal <= klassifikation.samlet_ejerantal && klassifikation.ligningslov8p_ejere_der_ikke_medregnes >= 0 && klassifikation.ligningslov8p_ejere_der_ikke_medregnes <= klassifikation.personligt_ejerantal
+| personskat_par4_nr10_grundfakta_gyldige(input: Ligningslov14AInput) -> input.indkomstår > 0 && input.indbetalingsår >= 0 && input.indbetaling_kroner >= 0 && input.udbetalingsår >= 0 && input.udbetaling_kroner >= 0 && (input.indbetaling_kroner == 0 || input.indbetalingsår > 0) && (input.udbetaling_kroner == 0 || input.udbetalingsår > 0)
+| personskat_par4_nr12_grundfakta_gyldige(input: Ligningslov5CInput) -> input.indkomstår > 0 && input.vederlag_kroner >= 0 && input.handelsafviklingsår >= 0 && input.tilsvarende_renter_forfaldsår >= 0 && input.tilsvarende_renter_kroner >= 0 && (input.vederlag_kroner == 0 || input.handelsafviklingsår > 0) && (input.tilsvarende_renter_kroner == 0 || input.tilsvarende_renter_forfaldsår > 0)
+| personskat_par4_særlig_kilde_grundfakta_gyldige(fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == skatteår && match fakta.kilde {
+    | PsPar4Nr9Virksomhed(klassifikation) -> personskat_par4_virksomhedskilde_grundfakta_gyldige(fakta, klassifikation.virksomhed) && personskat_par4_nr9_ejergrundlag_gyldigt(klassifikation)
+    | PsPar4Nr10Ligningslov14A(input) -> input.indkomstår == fakta.indkomstår && personskat_par4_nr10_grundfakta_gyldige(input)
+    | PsPar4Nr11Udlejningsvirksomhed(klassifikation) -> personskat_par4_virksomhedskilde_grundfakta_gyldige(fakta, klassifikation.virksomhed)
+    | PsPar4Nr12Ligningslov5C(input) -> input.indkomstår == fakta.indkomstår && personskat_par4_nr12_grundfakta_gyldige(input)
+    | PsPar4Nr15Ligningslov12B(input) -> input.indkomstår == fakta.indkomstår
+    | PsPar4Nr16Afskrivningslov40C(input) -> input.indkomstår == fakta.indkomstår
+}
+| personskat_par4_særlig_post_identifikation_unik(fakta: List(PersonskatPar4SærligKapitalpostfakta), post: PersonskatPar4SærligKapitalpostfakta) -> post.identifikation != "" && length(filter(fakta, |anden: PersonskatPar4SærligKapitalpostfakta| anden.identifikation == post.identifikation)) == 1
+| personskat_par4_særlige_postidentifikationer_entydige(fakta: List(PersonskatPar4SærligKapitalpostfakta)) -> length(distinct(map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation))) == length(fakta) && all(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation != "")
+
+| personskat_par4_nr9_kilderesultat(fakta: PersonskatPar4SærligKapitalpostfakta, klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation, skatteår: Heltal, identifikation_unik: Boolsk) -> {
+    = virksomhedsresultat = personskat_virksomhed_resultat(personskat_par4_virksomhedsfakta(fakta, klassifikation.virksomhed), skatteår, identifikation_unik)
+    = par4_input = Par4Stk1Nr9Input(
+        virksomhedstype = klassifikation.virksomhedstype,
+        beløb_kroner = personskat_virksomhed_resultat_personlig_indkomst_kroner(virksomhedsresultat),
+        samlet_ejerantal = klassifikation.samlet_ejerantal,
+        personligt_ejerantal = klassifikation.personligt_ejerantal,
+        ligningslov8p_ejere_der_ikke_medregnes = klassifikation.ligningslov8p_ejere_der_ikke_medregnes,
+        deltager_væsentligt_i_drift = klassifikation.deltager_væsentligt_i_drift
+    )
+    PersonskatPar4Nr9Kilderesultat(
+        virksomhedsresultat = virksomhedsresultat,
+        par4_input = par4_input,
+        par4_resultat = par4_stk1_nr9_resultat(par4_input)
+    )
+}
+| personskat_par4_nr10_kilderesultat(input: Ligningslov14AInput) -> {
+    = ligningslov_resultat = ligningslov14a_resultat(input)
+    = par4_input = Par4Stk1Nr10Input(ligningslov14a_resultat = ligningslov_resultat)
+    PersonskatPar4Nr10Kilderesultat(ligningslov_resultat = ligningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr10_resultat(par4_input))
+}
+| personskat_par4_nr11_kilderesultat(fakta: PersonskatPar4SærligKapitalpostfakta, klassifikation: PersonskatPar4Nr11Udlejningsklassifikation, skatteår: Heltal, identifikation_unik: Boolsk) -> {
+    = virksomhedsresultat = personskat_virksomhed_resultat(personskat_par4_virksomhedsfakta(fakta, klassifikation.virksomhed), skatteår, identifikation_unik)
+    = par4_input = Par4Stk1Nr11Input(
+        aktiv = klassifikation.aktiv,
+        beløb_kroner = personskat_virksomhed_resultat_personlig_indkomst_kroner(virksomhedsresultat),
+        anskaffelse = klassifikation.anskaffelse,
+        skatteråds_tilladelse = klassifikation.skatteråds_tilladelse,
+        rådets_skøn = klassifikation.rådets_skøn,
+        deltager_væsentligt_i_drift = klassifikation.deltager_væsentligt_i_drift
+    )
+    PersonskatPar4Nr11Kilderesultat(
+        virksomhedsresultat = virksomhedsresultat,
+        par4_input = par4_input,
+        par4_resultat = par4_stk1_nr11_resultat(par4_input)
+    )
+}
+| personskat_par4_nr12_kilderesultat(input: Ligningslov5CInput) -> {
+    = ligningslov_resultat = ligningslov5c_resultat(input)
+    = par4_input = Par4Stk1Nr12Input(ligningslov5c_resultat = ligningslov_resultat)
+    PersonskatPar4Nr12Kilderesultat(ligningslov_resultat = ligningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr12_resultat(par4_input))
+}
+| personskat_par4_nr15_kilderesultat(input: Ligningslov12BInput) -> {
+    = ligningslov_resultat = ligningslov12b_resultat(input)
+    = par4_input = Par4Stk1Nr15Input(ligningslov12b_resultat = ligningslov_resultat)
+    PersonskatPar4Nr15Kilderesultat(ligningslov_resultat = ligningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr15_resultat(par4_input))
+}
+| personskat_par4_nr16_kilderesultat(input: Afskrivningslov40CInput) -> {
+    = afskrivningslov_resultat = afskrivningslov40c_resultat(input)
+    = par4_input = Par4Stk1Nr16Input(afskrivningslov40c_resultat = afskrivningslov_resultat)
+    PersonskatPar4Nr16Kilderesultat(afskrivningslov_resultat = afskrivningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr16_resultat(par4_input))
+}
+| personskat_par4_særlig_post_lovresultat(fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal, identifikation_unik: Boolsk) -> match fakta.kilde {
+    | PsPar4Nr9Virksomhed(klassifikation) -> PsPar4Nr9Lovresultat(resultat = personskat_par4_nr9_kilderesultat(fakta, klassifikation, skatteår, identifikation_unik))
+    | PsPar4Nr10Ligningslov14A(input) -> PsPar4Nr10Lovresultat(resultat = personskat_par4_nr10_kilderesultat(input))
+    | PsPar4Nr11Udlejningsvirksomhed(klassifikation) -> PsPar4Nr11Lovresultat(resultat = personskat_par4_nr11_kilderesultat(fakta, klassifikation, skatteår, identifikation_unik))
+    | PsPar4Nr12Ligningslov5C(input) -> PsPar4Nr12Lovresultat(resultat = personskat_par4_nr12_kilderesultat(input))
+    | PsPar4Nr15Ligningslov12B(input) -> PsPar4Nr15Lovresultat(resultat = personskat_par4_nr15_kilderesultat(input))
+    | PsPar4Nr16Afskrivningslov40C(input) -> PsPar4Nr16Lovresultat(resultat = personskat_par4_nr16_kilderesultat(input))
+}
+| personskat_par4_særlig_post_lovresultat_gyldigt(resultat: PersonskatPar4SærligKapitalpostLovresultat) -> match resultat {
+    | PsPar4Nr9Lovresultat(nr9) -> personskat_virksomhed_resultat_gyldigt(nr9.virksomhedsresultat)
+    | PsPar4Nr10Lovresultat(_) -> Sandt
+    | PsPar4Nr11Lovresultat(nr11) -> personskat_virksomhed_resultat_gyldigt(nr11.virksomhedsresultat)
+    | PsPar4Nr12Lovresultat(_) -> Sandt
+    | PsPar4Nr15Lovresultat(nr15) -> nr15.ligningslov_resultat.input_gyldigt
+    | PsPar4Nr16Lovresultat(nr16) -> nr16.afskrivningslov_resultat.input_gyldigt
+}
+| personskat_par4_særlig_post_kapitalpost(resultat: PersonskatPar4SærligKapitalpostLovresultat) -> match resultat {
+    | PsPar4Nr9Lovresultat(nr9) -> par4_stk1_nr9_kapitalpost(nr9.par4_input)
+    | PsPar4Nr10Lovresultat(nr10) -> par4_stk1_nr10_kapitalpost(nr10.par4_input)
+    | PsPar4Nr11Lovresultat(nr11) -> par4_stk1_nr11_kapitalpost(nr11.par4_input)
+    | PsPar4Nr12Lovresultat(nr12) -> par4_stk1_nr12_kapitalpost(nr12.par4_input)
+    | PsPar4Nr15Lovresultat(nr15) -> par4_stk1_nr15_kapitalpost(nr15.par4_input)
+    | PsPar4Nr16Lovresultat(nr16) -> par4_stk1_nr16_kapitalpost(nr16.par4_input)
+}
+| personskat_par4_særlig_post_resultat(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal) -> {
+    = identifikation_unik = personskat_par4_særlig_post_identifikation_unik(alle_fakta, fakta)
+    = grundfakta_gyldige = personskat_par4_særlig_kilde_grundfakta_gyldige(fakta, skatteår)
+    = lovresultat = personskat_par4_særlig_post_lovresultat(fakta, skatteår, identifikation_unik)
+    = input_gyldigt = identifikation_unik && grundfakta_gyldige && personskat_par4_særlig_post_lovresultat_gyldigt(lovresultat)
+    PersonskatPar4SærligKapitalpostresultat(
+        fakta = fakta,
+        identifikation_unik = identifikation_unik,
+        grundfakta_gyldige = grundfakta_gyldige,
+        input_gyldigt = input_gyldigt,
+        lovresultat = lovresultat,
+        kapitalpost = hvis input_gyldigt { personskat_par4_særlig_post_kapitalpost(lovresultat) } ellers { Par4Kapitalpost(art = PassivSelvstændigErhvervsvirksomhed, beløb_kroner = 0, personlig_reklassifikation = IngenPersonligReklassifikation, personlig_indkomst_tillæg_kroner = 0) }
+    )
+}
+| personskat_par4_særlige_postresultater(fakta: List(PersonskatPar4SærligKapitalpostfakta), skatteår: Heltal) -> map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| personskat_par4_særlig_post_resultat(fakta, post, skatteår))
+| personskat_par4_særlige_postresultater_gyldige(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> all(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.input_gyldigt)
+| personskat_par4_særlige_kapitalposter(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> hvis personskat_par4_særlige_postresultater_gyldige(resultater) { map(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.kapitalpost) } ellers { [] }
+--@end:personskat_par4_saerlige_kapitalposter_kildefakta--
