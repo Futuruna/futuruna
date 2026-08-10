@@ -19,20 +19,20 @@
 )
 
 = ligningsloven_vejledning_par33_credit = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977310",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.1 LL § 33",
+    url = "https://info.skat.dk/data.aspx?oid=1977310&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.4.1 LL § 33",
     hentet_dato = "2026-08-08"
 )
 
 = ligningsloven_vejledning_par33_personberegning = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977330",
-    identifier = "Den juridiske vejledning 2026-1, C.F.4.3.1 Generelt om lempelsesberegningerne",
+    url = "https://info.skat.dk/data.aspx?oid=1977330&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.4.3.1 Generelt om lempelsesberegningerne",
     hentet_dato = "2026-08-08"
 )
 
 = ligningsloven_vejledning_par33f_nettoprincip = Ligningslov33KildeInfo(
-    url = "https://info.skat.dk/data.aspx?oid=1977823",
-    identifier = "Den juridiske vejledning 2026-1, C.F.2.3 Nettoprincippet",
+    url = "https://info.skat.dk/data.aspx?oid=1977823&chk=221020",
+    identifier = "Den juridiske vejledning 2026-2, C.F.2.3 Nettoprincippet",
     hentet_dato = "2026-08-10"
 )
 
