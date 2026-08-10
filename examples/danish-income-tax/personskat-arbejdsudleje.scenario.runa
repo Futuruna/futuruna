@@ -1,0 +1,91 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+| personskat_arbejdsudleje_scenarie_input(identifikation: Tekst, valg: KildeskattelovArbejdsudlejeBeskatningsvalg) -> KildeskattelovArbejdsudlejeInput(
+    identifikation = identifikation,
+    indkomstår = 2025,
+    alder_ved_indkomstårets_udløb = 40,
+    parter = KildeskattelovArbejdsudlejeParter(
+        person_identifikation = "Oliver",
+        udenlandsk_arbejdsgiver_identifikation = "DE-B",
+        dansk_hvervgiver_identifikation = "DK-A",
+        personstatus = ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1,
+        ansættelsesforhold = AnsatHosUdenlandskUdlejer,
+        udlejerstatus = UdenlandskUdlejerUdenDanskFastDriftssted,
+        hvervgiverstatus = DanskHvervgiverMedHjemtingEllerFastDriftssted
+    ),
+    arbejde = KildeskattelovArbejdsudlejeArbejde(
+        arbejdssted = ArbejdePåDanskLandEllerSøterritorium,
+        tilknytning = ArbejdeErKerneydelse,
+        udskillelse = ArbejdetErIkkePermanentUdskilt
+    ),
+    dansk_beskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet,
+    beskatningsvalg = valg,
+    vederlag = DokumenteretArbejdsudlejevederlag(
+        løn_bonus_provision_tillæg_kroner = 18000,
+        ferie_og_afspadsering_kroner = 0,
+        rejse_og_befordringsgodtgørelse_kroner = 2000,
+        fri_kost_og_logi = IngenFriKostEllerLogi,
+        andre_skattepligtige_personalegoder_kroner = 0
+    ),
+    udenlandsk_arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+        bidrag_kroner = 0,
+        bidrag_vedrører_indkomstår = 2025,
+        obligatorisk = Falskt,
+        omfattet_af_eu_socialsikringsforordning = Falskt,
+        aftale_om_at_bidrag_påhviler_lønmodtageren = Falskt
+    )
+)
+| personskat_arbejdsudleje_scenarie_personlig_indkomst(arbejdsudleje: List(KildeskattelovArbejdsudlejeInput)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    arbejdsudleje = arbejdsudleje,
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| personskat_arbejdsudleje_scenarie_lønmodtager(arbejdsudleje: List(KildeskattelovArbejdsudlejeInput)) -> PersonskatLønmodtagerInput(
+    skatteår = 2025,
+    kommune = København,
+    bruttoløn_kroner = 0,
+    personlig_indkomst = personskat_arbejdsudleje_scenarie_personlig_indkomst(arbejdsudleje),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_arbejdsudleje_scenarie_personskat(arbejdsudleje: List(KildeskattelovArbejdsudlejeInput)) -> PersonskatInput(
+    lønmodtager = personskat_arbejdsudleje_scenarie_lønmodtager(arbejdsudleje),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_arbejdsudleje_scenarie_beregn(arbejdsudleje: List(KildeskattelovArbejdsudlejeInput)) -> beregn_personskat(personskat_arbejdsudleje_scenarie_personskat(arbejdsudleje))
+
+= personskat_arbejdsudleje_endelig_input = personskat_arbejdsudleje_scenarie_input("arbejdsudleje-endelig", EndeligArbejdsudlejeskatEfterPar48B)
+= personskat_arbejdsudleje_ordinær_input = personskat_arbejdsudleje_scenarie_input("arbejdsudleje-ordinær", ValgtOrdinærBeskatningEfterPar2Stk1Nr1(Dato(2026, 5, 1), None))
+= personskat_arbejdsudleje_endelig_resultat = personskat_arbejdsudleje_scenarie_beregn([personskat_arbejdsudleje_endelig_input])
+= personskat_arbejdsudleje_ordinær_resultat = personskat_arbejdsudleje_scenarie_beregn([personskat_arbejdsudleje_ordinær_input])
+= personskat_arbejdsudleje_dublet_resultat = personskat_arbejdsudleje_scenarie_beregn([personskat_arbejdsudleje_endelig_input, personskat_arbejdsudleje_endelig_input])
+
+| personskat_arbejdsudleje_endelig_skat_holdes_uden_for_ordinær_indkomst: personskat_arbejdsudleje_endelig_resultat -> personskat_arbejdsudleje_endelig_resultat.personlig_indkomst.alle_input_gyldige && personskat_arbejdsudleje_endelig_resultat.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 0 && personskat_arbejdsudleje_endelig_resultat.skat.bruttoløn_kroner == 0 && personskat_arbejdsudleje_endelig_resultat.skat.arbejdsmarkedsbidrag_kroner == 0
+| personskat_arbejdsudleje_endelig_skat_er_synlig_i_slutresultatet: personskat_arbejdsudleje_endelig_resultat -> personskat_arbejdsudleje_endelig_resultat.personlig_indkomst.endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner == 1600 && personskat_arbejdsudleje_endelig_resultat.personlig_indkomst.endelig_arbejdsudlejeskat_kroner == 5520 && personskat_arbejdsudleje_endelig_resultat.personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner == 7120 && personskat_arbejdsudleje_endelig_resultat.slutskat_inkl_endelig_arbejdsudlejebeskatning_øre == personskat_arbejdsudleje_endelig_resultat.slutskat_øre + 712000
+| personskat_arbejdsudleje_ordinært_valg_følger_den_ordinære_regelkaskade: personskat_arbejdsudleje_ordinær_resultat -> personskat_arbejdsudleje_ordinær_resultat.personlig_indkomst.alle_input_gyldige && personskat_arbejdsudleje_ordinær_resultat.personlig_indkomst.arbejdsmarkedsbidragsgrundlag_tillæg_kroner == 20000 && personskat_arbejdsudleje_ordinær_resultat.personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner == 0 && personskat_arbejdsudleje_ordinær_resultat.skat.bruttoløn_kroner == 20000 && personskat_arbejdsudleje_ordinær_resultat.skat.arbejdsmarkedsbidrag_kroner == 1600 && personskat_arbejdsudleje_ordinær_resultat.skat.kommunal_lignende_statsskat_før_personfradrag_kroner > 0 && personskat_arbejdsudleje_ordinær_resultat.skat.kommuneskat_før_personfradrag_kroner == 0 && personskat_arbejdsudleje_ordinær_resultat.slutskat_inkl_endelig_arbejdsudlejebeskatning_øre == personskat_arbejdsudleje_ordinær_resultat.slutskat_øre
+| personskat_arbejdsudleje_dublet_fejler_lukket: personskat_arbejdsudleje_dublet_resultat -> personskat_arbejdsudleje_dublet_resultat.personlig_indkomst.arbejdsudlejeidentifikationer_entydige == Falskt && personskat_arbejdsudleje_dublet_resultat.personlig_indkomst.alle_input_gyldige == Falskt && personskat_arbejdsudleje_dublet_resultat.personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner == 0 && personskat_arbejdsudleje_dublet_resultat.slutskat_inkl_endelig_arbejdsudlejebeskatning_øre == personskat_arbejdsudleje_dublet_resultat.slutskat_øre
+
+? personskat_arbejdsudleje_endelig_skat_holdes_uden_for_ordinær_indkomst
+? personskat_arbejdsudleje_endelig_skat_er_synlig_i_slutresultatet
+? personskat_arbejdsudleje_ordinært_valg_følger_den_ordinære_regelkaskade
+? personskat_arbejdsudleje_dublet_fejler_lukket
+
+@ print("Arbejdsudleje er sammensat kanonisk uden dobbeltbeskatning af den endelige § 48 B-gren")

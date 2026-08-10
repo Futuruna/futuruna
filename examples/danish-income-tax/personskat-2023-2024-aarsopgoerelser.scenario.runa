@@ -240,6 +240,7 @@ myndighedens beregnede skattebeløb bruges ikke som input.
         virksomheder_uden_virksomhedsordning = historisk_virksomheder(kilde),
         forenings_og_arbejdsløshedsydelser = []
     ),
+    arbejdsudleje = [],
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()

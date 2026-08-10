@@ -54,6 +54,7 @@
             virksomheder_uden_virksomhedsordning = virksomheder,
             forenings_og_arbejdsløshedsydelser = []
         ),
+        arbejdsudleje = [],
         underholdsbidrag = tomt_input.underholdsbidrag,
         børnebidragslov19_bidrag = tomt_input.børnebidragslov19_bidrag,
         sømandsbeskatning = tomt_input.sømandsbeskatning

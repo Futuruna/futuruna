@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-11
 TD epic: `td-56cf8d`
-Current implementation slice: `td-2a0b4c` (En statisk rækkeviddeanalyse af `beregn_personskat` indlæser 107 kildefiler og når 7.793 af 11.014 callable-familier. Analysen skelner nu mellem bevidste mellemtilstande og reelle kanoniske beløbshuller. `AblIkkeMedregnetISlice`, `AblUdenforDenneSlice` og de uklassificerede, lukket-fejlende varianter er ikke manglende skatteregler. De resterende væsentlige huller er afgrænset til dele af PSL § 3, stk. 2, PSL §§ 4-4 a og AMBL § 2, stk. 1, nr. 3, samt §§ 4-6. Hvert hul har et særskilt, kildebåret TD-slice. Redigeringssløjfen bruger frontend-check og fokuserede scenarier; flerfilsgates bruger `runa test --jobs 6`; native/codegen, de to dybe paraplyaudits og den fulde 303-arks rundtur køres kun ved milepæle og publicering.)
+Current implementation slice: `td-44cd7a` (Kildeskattelovens § 2, stk. 1, nr. 3 og stk. 10, § 48 B samt Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 3 er nu ét typet arbejdsudlejedomæne for 2023-2026. Parter, arbejdssted og EEZ-aktivitet, integreret virksomhed, permanent udskillelse, dansk beskatningsret, rettidigt ordinært valg og omgørelse, dokumenteret vederlag eller subsidiær fakturasum, kost og logi samt udenlandske arbejdsgiverbidrag er kildefakta; uafklarede, dublerede eller årsmæssigt modstridende fakta fejler lukket. Den endelige gren holdes uden for den ordinære indkomstskat og udstilles særskilt, mens et gyldigt ordinært valg afleder § 8 c-statussen og fører AM-grundlag og LL § 8 M-fradrag ind i Personskat. Skattestyrelsens eksempel på 20.000 kr. giver 1.600 kr. i AM-bidrag, 5.520 kr. efter § 48 B og 7.120 kr. samlet. Den typede beregningsmetadata udstiller 36 danske arbejdsbogsfelter for både hovedperson og ægtefælle. Kilde- og kanoniske scenarier består fortolket; den kanoniske Rust-backend består med 242.552 genererede linjer. Ti berørte scenarier blev frontend-kontrolleret med seks workers på 28 sekunder mod cirka 145 sekunders summeret filtid; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
+Previous implementation slice: `td-2a0b4c` (En statisk rækkeviddeanalyse af `beregn_personskat` indlæser 107 kildefiler og når 7.793 af 11.014 callable-familier. Analysen skelner nu mellem bevidste mellemtilstande og reelle kanoniske beløbshuller. `AblIkkeMedregnetISlice`, `AblUdenforDenneSlice` og de uklassificerede, lukket-fejlende varianter er ikke manglende skatteregler. De resterende væsentlige huller er afgrænset til dele af PSL § 3, stk. 2, PSL §§ 4-4 a og AMBL § 2, stk. 1, nr. 3, samt §§ 4-6. Hvert hul har et særskilt, kildebåret TD-slice. Redigeringssløjfen bruger frontend-check og fokuserede scenarier; flerfilsgates bruger `runa test --jobs 6`; native/codegen, de to dybe paraplyaudits og den fulde 303-arks rundtur køres kun ved milepæle og publicering.)
 Previous implementation slice: `td-e054bf` (Arbejdsgiverbidrag til udenlandske pensionsordninger efter Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 5, er nu et særskilt, kildebåret årsdomæne for Danmarksoverenskomsterne med Nederlandene, Schweiz, Sverige og Storbritannien. De traktatspecifikke betingelser, arbejdsgiverrelationen, dokumentationen og eventuelle beløbsgrænser afleder henholdsvis et AM-pligtigt, ikke-skattepligtigt nr. 5-grundlag og et almindeligt skatte- og AM-pligtigt nr. 1-beløb; uafklarede eller modstridende fakta fejler lukket. Dokumenterede beløbsgrænser bæres af en stabil årsramme, så flere indbetalinger bruger loftet én gang: 30.000 kr. og 40.000 kr. under en ramme på 55.000 kr. giver 55.000 kr. uden indkomstbeskatning og 15.000 kr. som almindeligt skattepligtigt vederlag. Den kanoniske Personskat-graf bevarer forskellen: 50.000 kr. i kvalificerende schweizisk arbejdsgiverbidrag oven i 600.000 kr. i løn giver 52.000 kr. i samlet AM-bidrag, men fortsat kun 552.000 kr. i personlig indkomst og uændret LL § 9 J-grundlag. Typede beregningsmetadata udstiller danske spørgsmål og officielle retskilder. Det fokuserede domæne- og Personskat-scenarie holdes i egne filer; den kanoniske AMBL-regression tager cirka 10 sekunder i stedet for at udvide den cirka 90 sekunder lange pensionssuite. Redigeringssløjfen bruger frontend-checks og fokuserede scenarier, flerfilsgaten bruger `runa test --jobs 6`, og serialiseret native/codegen samt den fulde 303-arks rundtur forbliver milepæls- og publiceringschecks.)
 Previous implementation slice: `td-53399d` (Pensionsbeskatningslovens § 14 B og Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 6, er nu typede kildefakta i den kanoniske Personskat-graf. Feriegodtgørelse med løn og feriekort uden feriekasse medregnes med hovedstol og regulering, mens øvrige § 15-udbetalinger og beløb fra Lønmodtagernes Garantifond fritages. Det afledte beløb føres særskilt til personlig indkomst før nyt AM-bidrag og til AM-grundlaget, så eksisterende PBL §§ 15 B og 20-udbetalinger fortsat ikke får et nyt bidrag. Et beløb på 50.000 kr. sammen med 600.000 kr. i løn giver præcis 650.000 kr. i AM-grundlag, 52.000 kr. i arbejdsmarkedsbidrag og 598.000 kr. i personlig indkomst efter bidrag; den fritagne variant er neutral. Otte fokuserede og seksten kanoniske invarianter består fortolket, den kanoniske graf består native, og de virkelige 2023/2024-årsopgørelser bevarer slutskatterne 30.605.958 og 39.709.195 øre. Beregningsmetadata udstiller danske etiketter og typede retskilder. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-586f1e` (Honorar og andet vederlag for personligt arbejde uden for ansættelse og uden for selvstændig erhvervsvirksomhed er nu typede kildefakta i den kanoniske Personskat-graf. Personskattelovens § 3, stk. 1, Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 2, og stk. 2 bærer reglerne; Den juridiske vejledning C.A.3.1.2 bærer honorarafgrænsningen. Penge og lovens otte naturaliekategorier føres til personlig indkomst og AM-grundlag, mens ansættelsesløn og selvstændig virksomhed er neutrale i netop denne gren. Ugyldige naturalier, dublerede identifikationer og forkert indkomstår fejler synligt. Et honorar på 50.000 kr. sammen med 600.000 kr. i løn giver præcis 650.000 kr. i AM-grundlag, 52.000 kr. i arbejdsmarkedsbidrag og 598.000 kr. i personlig indkomst efter bidrag. Alle 39 fokuserede invarianter består fortolket og native, og de virkelige 2023/2024-årsopgørelser bevarer slutskatterne 30.605.958 og 39.709.195 øre. Arbejdsgangen bruger hurtige frontend- og fortolkergates under redigering, filparallelisme ved flerfilstest og én native milepæl pr. samlet slice; den fulde 303-arks rundtur er fortsat et publiceringscheckpoint.)
@@ -3215,6 +3216,13 @@ encoded as a temporal rule on top of the consolidation.
 - `kapitel-05-afsluttende-bestemmelser.runa` exists and checks with
   `runa check`.
 - `arbejdsmarkedsbidragsloven.runa` exists and checks with `runa check`.
+- `kildeskatteloven-arbejdsudleje.runa` og dets fokuserede
+  `.scenario.runa`-fil implementerer KSL § 2, stk. 1, nr. 3 og stk. 10,
+  § 48 B samt AMBL § 2, stk. 1, nr. 3 for 2023-2026. Den kanoniske
+  `personskat-arbejdsudleje.scenario.runa` holder endelig arbejdsudlejeskat
+  uden for den ordinære slutskat og fører kun et gyldigt ordinært valg gennem
+  det almindelige AM- og indkomstforløb. Den særskilte beregningsmetadata er
+  projiceret til både hovedpersonens og ægtefællens arbejdsbogsfelter.
 - `arbejdsmarkedsbidrag-loenmodtager.scenario.runa` exists and checks/runs
   with `runa run`.
 - `kommuneskatteloven.runa` exists and checks with `runa check`.
@@ -3605,8 +3613,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: about 93% complete as an executable research corpus, and
-  about 85% complete as a production-grade calculator for Personskatteloven
+- Working estimate: about 94% complete as an executable research corpus, and
+  about 86% complete as a production-grade calculator for Personskatteloven
   plus its necessary dependencies. These are deliberately separate measures:
   represented legal structure is further ahead than exact amount-level support
   for every special taxpayer, transition, cross-year history and dependency.
@@ -3622,10 +3630,10 @@ as a complete Personskatteloven calculator.
   through direct or composed annual results. Nr. 5 a, 5 b and 7 are tracked in
   `td-671407`; nr.
   9-12 and 15-16 plus § 4 a's LL § 7 N path are tracked in `td-ff038c`.
-- Canonical AM coverage still lacks the source-fact path for arbejdsudleje in
-  § 2, stk. 1, nr. 3 (`td-44cd7a`) and the complete self-employed/VSO and
-  biblioteksafgiftsforløb in §§ 4-6 (`td-34e122`). The latter must derive the
-  § 6 credit rather than receive it as a caller-calculated KSL amount.
+- Canonical AM coverage now includes the source-fact path for arbejdsudleje in
+  § 2, stk. 1, nr. 3. It still lacks the complete self-employed/VSO and
+  biblioteksafgiftsforløb in §§ 4-6 (`td-34e122`), which must derive the § 6
+  credit rather than receive it as a caller-calculated KSL amount.
 - `AblIkkeMedregnetISlice`, `AblUdenforDenneSlice` and unclassified catch-all
   variants are deliberate intermediate or fail-closed states. They are not
   counted as legal omissions unless a final taxable source can terminate there
@@ -4248,6 +4256,17 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Arbejdsudleje efter KSL § 2, stk. 1, nr. 3 og stk. 10, § 48 B samt AMBL
+  § 2, stk. 1, nr. 3 er sammensat fra typede kildefakta. Reglerne skelner
+  mellem endelig arbejdsudlejebeskatning og et rettidigt valg af ordinær
+  beskatning, afleder § 8 c-statussen for det ordinære valg, prøver Danmarks
+  beskatningsret, EEZ-grenen og permanent
+  udskillelse, og bruger dokumenteret bruttovederlag eller fakturasummen som
+  subsidiært grundlag. Skattestyrelsens 20.000-kr.-eksempel giver præcis 7.120
+  kr. samlet skat. Et positivt udenlandsk arbejdsgiverbidrag fra et andet år,
+  uafklarede fakta og dublerede identifikationer fejler lukket. Den genererede
+  kontrakt bruger danske spørgsmål og labels for alle arbejdsudlejefelter hos
+  både hovedperson og ægtefælle.
 - Pensionsbeskatningslovens § 14 B og Arbejdsmarkedsbidragslovens § 2,
   stk. 1, nr. 6, er implementeret som et særskilt årsdomæne for feriepenge.
   Reglerne afleder skattepligt, garantifondsundtagelsen, personlig indkomst og
@@ -5296,11 +5315,7 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Implementer først `td-44cd7a`: afled arbejdsudleje efter
-  Arbejdsmarkedsbidragslovens § 2, stk. 1, nr. 3, fra typede kildefakta og før
-  både personlig indkomst og AM-grundlag gennem den kanoniske Personskat-graf.
-  Dette er det mindste selvstændige resterende beløbsslice.
-- Fortsæt derefter med `td-34e122`, som forbinder AMBL §§ 4-6 for selvstændige,
+- Fortsæt med `td-34e122`, som forbinder AMBL §§ 4-6 for selvstændige,
   virksomhedsordningen og biblioteksafgift, herunder det afledte § 6-beløb til
   KSL § 60. Det må ikke længere være et caller-beregnet kreditinput.
 - Sammensæt de resterende PSL-grene i de kildeafgrænsede slices `td-073778`

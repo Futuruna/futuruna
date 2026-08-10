@@ -1,0 +1,314 @@
+@ sprog da
+
+@ importer ./kildeskatteloven - arbejdsudleje
+@ importer ./metadata
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+= personskat_arbejdsudleje_felt_samling = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje),
+    label = "Arbejdsudlejede personer",
+    question = Some("Hvilke vederlag vedrører personer, som en udenlandsk arbejdsgiver har stillet til rådighed for en dansk virksomhed?"),
+    help = Some("Opret én række pr. arbejdsudlejeforhold. Futuruna afgrænser selv KSL § 2, stk. 1, nr. 3 og beregner enten den endelige skat eller den ordinære Personskat-gren."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_identifikation = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::identifikation),
+    label = "Arbejdsudlejeforholdets identifikation",
+    question = Some("Hvilken entydig identifikation har arbejdsudlejeforholdet?"),
+    help = Some("Brug en stabil reference fra kontrakten, fakturaen eller indeholdelsesbilaget, så samme forhold ikke medregnes to gange."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::indkomstår),
+    label = "Arbejdsudlejens indkomstår",
+    question = Some("Hvilket indkomstår vedrører arbejdsudlejevederlaget?"),
+    help = Some("Året skal være det samme som Personskat-beregningens skatteår."),
+    unit = Some("år")
+)
+= personskat_arbejdsudleje_felt_alder = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::alder_ved_indkomstårets_udløb),
+    label = "Den arbejdsudlejedes alder ved årets udløb",
+    question = Some("Hvor gammel er personen ved indkomstårets udløb?"),
+    help = Some("Alderen bruges til arbejdsmarkedsbidragets lovbestemte aldersafgrænsning."),
+    unit = Some("år")
+)
+= personskat_arbejdsudleje_felt_person_id = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::person_identifikation),
+    label = "Den arbejdsudlejedes identifikation",
+    question = Some("Hvilken stabil identifikation har den arbejdsudlejede person?"),
+    help = None,
+    unit = None
+)
+= personskat_arbejdsudleje_felt_udenlandsk_arbejdsgiver_id = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::udenlandsk_arbejdsgiver_identifikation),
+    label = "Den udenlandske arbejdsgivers identifikation",
+    question = Some("Hvilken stabil identifikation har personens udenlandske arbejdsgiver?"),
+    help = Some("Brug eksempelvis virksomhedens udenlandske registreringsnummer eller kontraktpartens entydige reference."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_dansk_hvervgiver_id = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::dansk_hvervgiver_identifikation),
+    label = "Den danske hvervgivers identifikation",
+    question = Some("Hvilken stabil identifikation har den danske virksomhed, som arbejdet udføres for?"),
+    help = Some("Brug normalt CVR-nummeret eller en anden entydig reference."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_personstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::personstatus::$variant),
+    label = "Personens skattepligtsstatus",
+    question = Some("Er personen uden for KSL § 1 og § 2, stk. 1, nr. 1, eller er personen allerede omfattet af en af disse bestemmelser?"),
+    help = Some("Brug uafklaret status, når bopæl og den almindelige begrænsede skattepligt ikke er dokumenteret."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_ansættelsesforhold = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::ansættelsesforhold::$variant),
+    label = "Personens ansættelsesforhold",
+    question = Some("Er personen ansat hos den udenlandske udlejer, direkte hos den danske hvervgiver eller selvstændigt erhvervsdrivende?"),
+    help = Some("Arbejdsudlejegrenen kræver et ansættelsesforhold hos den udenlandske udlejer."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_udlejerstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::udlejerstatus::$variant),
+    label = "Den udenlandske udlejers danske status",
+    question = Some("Har udlejeren hjemting eller fast driftssted i Danmark?"),
+    help = Some("Denne arbejdsudlejegren omfatter en udenlandsk arbejdsgiver uden dansk fast driftssted."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_hvervgiverstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::parter::hvervgiverstatus::$variant),
+    label = "Den danske hvervgivers status",
+    question = Some("Har hvervgiveren hjemting eller fast driftssted i Danmark?"),
+    help = None,
+    unit = None
+)
+= personskat_arbejdsudleje_felt_arbejdssted = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::arbejde::arbejdssted::$variant),
+    label = "Arbejdsstedets retlige område",
+    question = Some("Udføres arbejdet på dansk land- eller søterritorium, i Danmarks eksklusive økonomiske zone eller uden for disse områder?"),
+    help = Some("Arbejde i den eksklusive økonomiske zone kræver desuden en aktivitet omfattet af KSL § 2, stk. 1, nr. 3."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_eez_aktivitet = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::arbejde::arbejdssted::ArbejdeIDanskEez::aktivitet::$variant),
+    label = "Aktiviteten i Danmarks eksklusive økonomiske zone",
+    question = Some("Hvilken aktivitet vedrører arbejdet i Danmarks eksklusive økonomiske zone?"),
+    help = Some("Fra 2024 omfatter reglen bestemte kabler, rørledninger, kontinentalsokkelressourcer og drift af kunstige øer, installationer eller anlæg."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_tilknytning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::arbejde::tilknytning::$variant),
+    label = "Arbejdets tilknytning til den danske virksomhed",
+    question = Some("Er arbejdet en kerneydelse, en naturlig del af driften eller uden for begge dele?"),
+    help = Some("KSL § 2, stk. 1, nr. 3 kræver, at arbejdet er en integreret del af virksomheden."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_udskillelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::arbejde::udskillelse::$variant),
+    label = "Arbejdets permanente udskillelse",
+    question = Some("Er opgaven permanent udskilt til en selvstændig udenlandsk virksomhed, ikke permanent udskilt eller afhængig af ansvar og risiko?"),
+    help = Some("Et permanent udskilt arbejdsområde falder uden for arbejdsudlejereglen."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_ansvar_og_risiko = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::arbejde::udskillelse::UdskillelseVurderesEfterAnsvarOgRisiko::vurdering::$variant),
+    label = "Det væsentligste ansvar og den økonomiske risiko",
+    question = Some("Bærer den danske hvervgiver eller den udenlandske leverandør det væsentligste ansvar og den økonomiske risiko for arbejdsresultatet?"),
+    help = Some("Brug uafklaret, når kontrakt og faktisk udførelse ikke giver et dokumenteret svar."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_beskatningsret = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::dansk_beskatningsret::$variant),
+    label = "Danmarks beskatningsret efter en eventuel DBO",
+    question = Some("Er dansk beskatningsret bekræftet, afskåret af en dobbeltbeskatningsoverenskomst eller endnu uafklaret?"),
+    help = Some("Lovens interne hjemmel beregnes ikke som dansk skat, før den internationale beskatningsret er afklaret."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_beskatningsvalg = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::beskatningsvalg::$variant),
+    label = "Valg af beskatningsform",
+    question = Some("Skal vederlaget endeligt beskattes efter KSL § 48 B, eller er ordinær beskatning efter KSL § 2, stk. 1, nr. 1 valgt?"),
+    help = Some("Et ordinært valg kræver en rettidig valgdato. En rettidig omgørelse fører forholdet tilbage til den endelige arbejdsudlejeskat."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_valgår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::beskatningsvalg::ValgtOrdinærBeskatningEfterPar2Stk1Nr1::valgdato::år),
+    label = "Valgdato for ordinær beskatning (ISO 8601) - år",
+    question = Some("I hvilket år blev ordinær beskatning valgt?"),
+    help = Some("Valget skal være truffet senest 1. maj året efter indkomståret."),
+    unit = Some("år")
+)
+= personskat_arbejdsudleje_felt_valgmåned = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::beskatningsvalg::ValgtOrdinærBeskatningEfterPar2Stk1Nr1::valgdato::måned),
+    label = "Valgdato for ordinær beskatning (ISO 8601) - måned",
+    question = Some("I hvilken måned blev ordinær beskatning valgt?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_arbejdsudleje_felt_valgdag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::beskatningsvalg::ValgtOrdinærBeskatningEfterPar2Stk1Nr1::valgdato::dag),
+    label = "Valgdato for ordinær beskatning (ISO 8601) - dag",
+    question = Some("På hvilken dag blev ordinær beskatning valgt?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_arbejdsudleje_felt_omgørelsesdato = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::beskatningsvalg::ValgtOrdinærBeskatningEfterPar2Stk1Nr1::omgørelsesdato),
+    label = "Omgørelsesdato for ordinært valg (ISO 8601)",
+    question = Some("På hvilken dato blev valget omgjort, hvis det blev omgjort?"),
+    help = Some("Lad datoen være tom, når valget står ved magt. Omgørelse kan ske til og med 30. juni i det andet kalenderår efter indkomståret."),
+    unit = Some("dato")
+)
+= personskat_arbejdsudleje_felt_vederlagsform = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::$variant),
+    label = "Arbejdsudlejevederlagets opgørelsesform",
+    question = Some("Er personens vederlag dokumenteret særskilt, eller må hele fakturasummen bruges som grundlag?"),
+    help = Some("Brug kun fakturasummen, når personens bruttoindtægt ikke kan dokumenteres særskilt."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_løn = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::løn_bonus_provision_tillæg_kroner),
+    label = "Løn, bonus, provision og tillæg",
+    question = Some("Hvor stort dokumenteret vederlag består af løn, bonus, provision og tillæg?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_ferie = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::ferie_og_afspadsering_kroner),
+    label = "Ferie- og afspadseringsvederlag",
+    question = Some("Hvor stort dokumenteret vederlag vedrører ferie og afspadsering?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_rejsegodtgørelse = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::rejse_og_befordringsgodtgørelse_kroner),
+    label = "Rejse- og befordringsgodtgørelse",
+    question = Some("Hvor stor godtgørelse til rejse, ophold og befordring har personen modtaget?"),
+    help = Some("Godtgørelsen indgår som udgangspunkt i bruttoindtægten efter KSL § 48 B."),
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_kost_logi_art = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::fri_kost_og_logi::$variant),
+    label = "Fri kost og logi",
+    question = Some("Er der ingen fri kost eller logi, et skattepligtigt gode eller dokumenteret dækning efter regning på en skattemæssig rejse?"),
+    help = Some("Kun dokumenteret dækning efter regning på en skattemæssig rejse holdes uden for bruttoindtægten."),
+    unit = None
+)
+= personskat_arbejdsudleje_felt_kost_logi_skattepligtig = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::fri_kost_og_logi::SkattepligtigFriKostOgLogi::skattepligtig_værdi_kroner),
+    label = "Skattepligtig værdi af fri kost og logi",
+    question = Some("Hvad er den skattemæssige værdi af fri kost og logi?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_kost_logi_efter_regning = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::fri_kost_og_logi::FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse::dækket_beløb_kroner),
+    label = "Kost og logi dækket efter regning på skattemæssig rejse",
+    question = Some("Hvor stort dokumenteret beløb er dækket efter regning på en skattemæssig rejse?"),
+    help = Some("Beløbet vises i resultatet, men indgår ikke i arbejdsudlejeskattens bruttoindtægt."),
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_andre_goder = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::DokumenteretArbejdsudlejevederlag::andre_skattepligtige_personalegoder_kroner),
+    label = "Andre skattepligtige personalegoder",
+    question = Some("Hvad er den samlede skattepligtige værdi af andre personalegoder?"),
+    help = None,
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_fakturasum = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::vederlag::ArbejdsudlejevederlagEfterFakturasum::fakturasum_kroner),
+    label = "Fakturasum som subsidiært arbejdsudlejegrundlag",
+    question = Some("Hvad er den samlede fakturasum, når personens bruttoindtægt ikke kan dokumenteres særskilt?"),
+    help = Some("Hele fakturasummen anvendes som bruttoindtægt; brug derfor ikke feltet, når vederlaget kan opdeles."),
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_arbejdsgiverbidrag = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::udenlandsk_arbejdsgiverbidrag::bidrag_kroner),
+    label = "Udenlandsk obligatorisk socialt arbejdsgiverbidrag",
+    question = Some("Hvor stort udenlandsk socialt arbejdsgiverbidrag påhviler efter aftale lønmodtageren?"),
+    help = Some("Et kvalificeret bidrag fradrages efter LL § 8 M før beregningen af KSL § 48 B-skatten eller i personlig indkomst ved ordinært valg."),
+    unit = Some("kr./år")
+)
+= personskat_arbejdsudleje_felt_arbejdsgiverbidragsår = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::udenlandsk_arbejdsgiverbidrag::bidrag_vedrører_indkomstår),
+    label = "Indkomstår for det udenlandske arbejdsgiverbidrag",
+    question = Some("Hvilket indkomstår vedrører det udenlandske arbejdsgiverbidrag?"),
+    help = Some("Et positivt bidrag skal vedrøre samme indkomstår som arbejdsudlejevederlaget."),
+    unit = Some("år")
+)
+= personskat_arbejdsudleje_felt_arbejdsgiverbidrag_obligatorisk = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::udenlandsk_arbejdsgiverbidrag::obligatorisk),
+    label = "Arbejdsgiverbidraget er obligatorisk",
+    question = Some("Er det udenlandske sociale arbejdsgiverbidrag obligatorisk?"),
+    help = None,
+    unit = None
+)
+= personskat_arbejdsudleje_felt_arbejdsgiverbidrag_eu = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::udenlandsk_arbejdsgiverbidrag::omfattet_af_eu_socialsikringsforordning),
+    label = "Arbejdsgiverbidraget er omfattet af EU's socialsikringsforordning",
+    question = Some("Er bidraget omfattet af EU's forordninger om social sikring?"),
+    help = None,
+    unit = None
+)
+= personskat_arbejdsudleje_felt_arbejdsgiverbidrag_aftale = TypetBeregningsfelt(
+    path = refof(PersonskatPersonligIndkomstInput::arbejdsudleje::udenlandsk_arbejdsgiverbidrag::aftale_om_at_bidrag_påhviler_lønmodtageren),
+    label = "Aftale om at arbejdsgiverbidraget påhviler lønmodtageren",
+    question = Some("Er det aftalt, at arbejdsgiverbidraget økonomisk påhviler lønmodtageren?"),
+    help = Some("Fradraget efter LL § 8 M kræver, at bidraget efter aftale påhviler lønmodtageren."),
+    unit = None
+)
+
+= personskat_arbejdsudleje_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        personskat_arbejdsudleje_felt_samling,
+        personskat_arbejdsudleje_felt_identifikation,
+        personskat_arbejdsudleje_felt_indkomstår,
+        personskat_arbejdsudleje_felt_alder,
+        personskat_arbejdsudleje_felt_person_id,
+        personskat_arbejdsudleje_felt_udenlandsk_arbejdsgiver_id,
+        personskat_arbejdsudleje_felt_dansk_hvervgiver_id,
+        personskat_arbejdsudleje_felt_personstatus,
+        personskat_arbejdsudleje_felt_ansættelsesforhold,
+        personskat_arbejdsudleje_felt_udlejerstatus,
+        personskat_arbejdsudleje_felt_hvervgiverstatus,
+        personskat_arbejdsudleje_felt_arbejdssted,
+        personskat_arbejdsudleje_felt_eez_aktivitet,
+        personskat_arbejdsudleje_felt_tilknytning,
+        personskat_arbejdsudleje_felt_udskillelse,
+        personskat_arbejdsudleje_felt_ansvar_og_risiko,
+        personskat_arbejdsudleje_felt_beskatningsret,
+        personskat_arbejdsudleje_felt_beskatningsvalg,
+        personskat_arbejdsudleje_felt_valgår,
+        personskat_arbejdsudleje_felt_valgmåned,
+        personskat_arbejdsudleje_felt_valgdag,
+        personskat_arbejdsudleje_felt_omgørelsesdato,
+        personskat_arbejdsudleje_felt_vederlagsform,
+        personskat_arbejdsudleje_felt_løn,
+        personskat_arbejdsudleje_felt_ferie,
+        personskat_arbejdsudleje_felt_rejsegodtgørelse,
+        personskat_arbejdsudleje_felt_kost_logi_art,
+        personskat_arbejdsudleje_felt_kost_logi_skattepligtig,
+        personskat_arbejdsudleje_felt_kost_logi_efter_regning,
+        personskat_arbejdsudleje_felt_andre_goder,
+        personskat_arbejdsudleje_felt_fakturasum,
+        personskat_arbejdsudleje_felt_arbejdsgiverbidrag,
+        personskat_arbejdsudleje_felt_arbejdsgiverbidragsår,
+        personskat_arbejdsudleje_felt_arbejdsgiverbidrag_obligatorisk,
+        personskat_arbejdsudleje_felt_arbejdsgiverbidrag_eu,
+        personskat_arbejdsudleje_felt_arbejdsgiverbidrag_aftale
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (
+        Source(value = kildeskattelov_arbejdsudleje_lbk460),
+        HistoricalSource(value = kildeskattelov_arbejdsudleje_lbk1330),
+        AmendmentSource(value = kildeskattelov_arbejdsudleje_lov710),
+        DependencySource(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        DependencySource(value = ligningsloven_lbk1500_par8m),
+        Guidance(value = kildeskattelov_arbejdsudleje_vejledning),
+        Guidance(value = kildeskattelov_arbejdsudleje_am_vejledning),
+        Guidance(value = kildeskattelov_arbejdsudleje_skat_dk),
+        Warning(value = kildeskattelov_arbejdsudleje_par48b_henvisningsadvarsel),
+    )
+)
+
+--@label:PersonskatPersonligIndkomstInput::meta:personskat_arbejdsudleje_beregningsmeta--

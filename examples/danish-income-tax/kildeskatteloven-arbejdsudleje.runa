@@ -1,0 +1,315 @@
+@ sprog da
+
+@ importer ./arbejdsmarkedsbidragsloven
+@ importer ./kalenderdato
+@ importer ./ligningsloven_fradrag
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# KildeskattelovArbejdsudlejeKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Tekst, status: Tekst)
+
+= kildeskattelov_arbejdsudleje_lbk1330 = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/1330",
+    identifier = "Kildeskatteloven § 2, stk. 1, nr. 3, og stk. 10 samt § 48 B, LBK nr. 1330 af 20/11/2023",
+    hentet_dato = "2026-08-11",
+    status = "Historisk konsolidering for indkomståret 2023"
+)
+= kildeskattelov_arbejdsudleje_lbk460 = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2024/460",
+    identifier = "Kildeskatteloven § 2, stk. 1, nr. 3, og stk. 10 samt § 48 B, LBK nr. 460 af 03/05/2024",
+    hentet_dato = "2026-08-11",
+    status = "Gældende konsolidering med senere ændringer kontrolleret gennem LOV nr. 615 af 30/06/2026"
+)
+= kildeskattelov_arbejdsudleje_lov710 = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2023/710",
+    identifier = "LOV nr. 710 af 13/06/2023 § 1, nr. 3",
+    hentet_dato = "2026-08-11",
+    status = "Udvider § 2, stk. 1, nr. 3 til kvalificeret arbejde i Danmarks eksklusive økonomiske zone fra indkomståret 2024"
+)
+= kildeskattelov_arbejdsudleje_vejledning = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=2090675",
+    identifier = "Den juridiske vejledning C.F.3.1.4.1: Udlejning af arbejdskraft (arbejdsudleje) - gældende regler",
+    hentet_dato = "2026-08-11",
+    status = "Afgrænsning, bruttogrundlag, kost og logi, fakturasum og endelig beskatning kontrolleret"
+)
+= kildeskattelov_arbejdsudleje_am_vejledning = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://info.skat.dk/data.aspx?oid=1976912",
+    identifier = "Den juridiske vejledning C.A.12.2: Personer i ansættelsesforhold",
+    hentet_dato = "2026-08-11",
+    status = "Bekræfter AMBL § 2, stk. 1, nr. 3 og kravet om dansk beskatningsret til vederlaget"
+)
+= kildeskattelov_arbejdsudleje_skat_dk = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://skat.dk/erhverv/ansatte-og-loen/udenlandsk-arbejdskraft/leje-af-medarbejdere-fra-udlandet",
+    identifier = "Skattestyrelsen: Leje af medarbejdere fra udlandet",
+    hentet_dato = "2026-08-11",
+    status = "Officiel beregningsrækkefølge: 8 pct. AM-bidrag og derefter 30 pct. arbejdsudlejeskat"
+)
+= kildeskattelov_arbejdsudleje_par48b_henvisningsadvarsel = KildeskattelovArbejdsudlejeKildeInfo(
+    url = "https://www.retsinformation.dk/eli/lta/2025/1500",
+    identifier = "Henvisningsspænding mellem KSL § 48 B, stk. 2 og gældende LL § 8 M",
+    hentet_dato = "2026-08-11",
+    status = "KSL § 48 B, stk. 2 henviser fortsat til LL § 8 M, stk. 5, mens den materielle fradragsregel står i gældende LL § 8 M, stk. 4; beregningen anvender den materielle stk. 4-regel"
+)
+
+= kildeskattelov_arbejdsudleje_par2_metadata = Metadata(
+    attachments = (
+        Source(value = kildeskattelov_arbejdsudleje_lbk460),
+        HistoricalSource(value = kildeskattelov_arbejdsudleje_lbk1330),
+        AmendmentSource(value = kildeskattelov_arbejdsudleje_lov710),
+        Guidance(value = kildeskattelov_arbejdsudleje_vejledning),
+    )
+)
+
+--@label:kildeskattelov_arbejdsudleje_par2_stk1_nr3::meta:kildeskattelov_arbejdsudleje_par2_metadata--
+----
+§ 2. Pligt til at svare indkomstskat til staten påhviler endvidere personer,
+der ikke er omfattet af § 1, og dødsboer, der behandles i udlandet, jf.
+dødsboskattelovens § 1, stk. 3, for så vidt de pågældende personer eller
+dødsboer:
+
+3) Erhverver indkomst i form af vederlag for personligt arbejde i forbindelse
+med at være stillet til rådighed for at udføre arbejde for en virksomhed her i
+landet, når arbejdet udgør en integreret del af virksomheden. 1. pkt. omfatter
+også vederlag for personligt arbejde for en virksomhed vedrørende etablering,
+drift og benyttelse af kunstige øer, installationer og anlæg i Danmarks
+eksklusive økonomiske zone. 2. pkt. finder dog kun anvendelse på virksomhed i
+Danmarks eksklusive økonomiske zone vedrørende kabler og rørledninger, som
+fortsætter ind på Danmarks land- eller søterritorium eller har forbindelse med
+efterforskning eller udnyttelse af den danske kontinentalsokkels ressourcer
+eller driften af kunstige øer, installationer og anlæg på den danske
+kontinentalsokkel. Det er uden betydning for skattepligten, hvilken form
+vederlaget udbetales i.
+----
+
+--@begin::kildeskattelov_arbejdsudleje_par2_stk1_nr3--
+# KildeskattelovArbejdsudlejePersonstatus = ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1 | ArbejdsudlejetOmfattetAfKsl1 | ArbejdsudlejetOmfattetAfKsl2Stk1Nr1 | ArbejdsudlejetPersonstatusUafklaret
+# KildeskattelovArbejdsudlejeAnsættelsesforhold = AnsatHosUdenlandskUdlejer | DirekteAnsatHosDanskHvervgiver | SelvstændigtErhvervsdrivende | ArbejdsudlejeAnsættelsesforholdUafklaret
+# KildeskattelovArbejdsudlejeUdlejerstatus = UdenlandskUdlejerUdenDanskFastDriftssted | UdenlandskUdlejerMedDanskFastDriftssted | DanskUdlejer | ArbejdsudlejeUdlejerstatusUafklaret
+# KildeskattelovArbejdsudlejeHvervgiverstatus = DanskHvervgiverMedHjemtingEllerFastDriftssted | HvervgiverUdenDanskHjemtingEllerFastDriftssted | ArbejdsudlejeHvervgiverstatusUafklaret
+# KildeskattelovArbejdsudlejeEezAktivitet = EezKabelEllerRørledningFortsætterTilDanskTerritorium | EezKabelEllerRørledningForbundetMedKontinentalsokkelressourcer | EezKabelEllerRørledningForbundetMedDriftAfKunstigØInstallationEllerAnlæg | EezAndenAktivitet | EezAktivitetUafklaret
+# KildeskattelovArbejdsudlejeArbejdssted = ArbejdePåDanskLandEllerSøterritorium | ArbejdeIDanskEez(aktivitet: KildeskattelovArbejdsudlejeEezAktivitet) | ArbejdeUdenForDanskTerritoriumOgEez | ArbejdsstedUafklaret
+# KildeskattelovArbejdsudlejeTilknytning = ArbejdeErKerneydelse | ArbejdeErNaturligDelAfDrift | ArbejdeErIkkeDelAfKerneydelseEllerDrift | ArbejdetsTilknytningUafklaret
+# KildeskattelovArbejdsudlejeAnsvarOgRisiko = DanskHvervgiverBærerVæsentligsteAnsvarOgRisiko | UdenlandskLeverandørBærerVæsentligsteAnsvarOgRisiko | AnsvarOgRisikoUafklaret
+# KildeskattelovArbejdsudlejeUdskillelse = ArbejdetErIkkePermanentUdskilt | ArbejdetErPermanentUdskiltTilSelvstændigUdenlandskVirksomhed | UdskillelseVurderesEfterAnsvarOgRisiko(vurdering: KildeskattelovArbejdsudlejeAnsvarOgRisiko) | ArbejdetsUdskillelseUafklaret
+# KildeskattelovArbejdsudlejeParter(person_identifikation: Tekst, udenlandsk_arbejdsgiver_identifikation: Tekst, dansk_hvervgiver_identifikation: Tekst, personstatus: KildeskattelovArbejdsudlejePersonstatus, ansættelsesforhold: KildeskattelovArbejdsudlejeAnsættelsesforhold, udlejerstatus: KildeskattelovArbejdsudlejeUdlejerstatus, hvervgiverstatus: KildeskattelovArbejdsudlejeHvervgiverstatus)
+# KildeskattelovArbejdsudlejeArbejde(arbejdssted: KildeskattelovArbejdsudlejeArbejdssted, tilknytning: KildeskattelovArbejdsudlejeTilknytning, udskillelse: KildeskattelovArbejdsudlejeUdskillelse)
+
+| kildeskat_arbejdsudleje_personstatus_afklaret(status: KildeskattelovArbejdsudlejePersonstatus) -> status != ArbejdsudlejetPersonstatusUafklaret
+| kildeskat_arbejdsudleje_ansættelsesforhold_afklaret(forhold: KildeskattelovArbejdsudlejeAnsættelsesforhold) -> forhold != ArbejdsudlejeAnsættelsesforholdUafklaret
+| kildeskat_arbejdsudleje_udlejerstatus_afklaret(status: KildeskattelovArbejdsudlejeUdlejerstatus) -> status != ArbejdsudlejeUdlejerstatusUafklaret
+| kildeskat_arbejdsudleje_hvervgiverstatus_afklaret(status: KildeskattelovArbejdsudlejeHvervgiverstatus) -> status != ArbejdsudlejeHvervgiverstatusUafklaret
+| kildeskat_arbejdsudleje_eez_aktivitet_afklaret(aktivitet: KildeskattelovArbejdsudlejeEezAktivitet) -> aktivitet != EezAktivitetUafklaret
+| kildeskat_arbejdsudleje_eez_aktivitet_omfattet(aktivitet: KildeskattelovArbejdsudlejeEezAktivitet) -> aktivitet == EezKabelEllerRørledningFortsætterTilDanskTerritorium || aktivitet == EezKabelEllerRørledningForbundetMedKontinentalsokkelressourcer || aktivitet == EezKabelEllerRørledningForbundetMedDriftAfKunstigØInstallationEllerAnlæg
+| kildeskat_arbejdsudleje_arbejdssted_afklaret(arbejdssted: KildeskattelovArbejdsudlejeArbejdssted) -> match arbejdssted {
+    | ArbejdeIDanskEez(aktivitet) -> kildeskat_arbejdsudleje_eez_aktivitet_afklaret(aktivitet)
+    | ArbejdsstedUafklaret -> Falskt
+    | _ -> Sandt
+}
+| kildeskat_arbejdsudleje_arbejdssted_omfattet(arbejdssted: KildeskattelovArbejdsudlejeArbejdssted, indkomstår: Heltal) -> match arbejdssted {
+    | ArbejdePåDanskLandEllerSøterritorium -> Sandt
+    | ArbejdeIDanskEez(aktivitet) -> indkomstår >= 2024 && kildeskat_arbejdsudleje_eez_aktivitet_omfattet(aktivitet)
+    | _ -> Falskt
+}
+| kildeskat_arbejdsudleje_tilknytning_afklaret(tilknytning: KildeskattelovArbejdsudlejeTilknytning) -> tilknytning != ArbejdetsTilknytningUafklaret
+| kildeskat_arbejdsudleje_ansvar_og_risiko_afklaret(vurdering: KildeskattelovArbejdsudlejeAnsvarOgRisiko) -> vurdering != AnsvarOgRisikoUafklaret
+| kildeskat_arbejdsudleje_udskillelse_afklaret(udskillelse: KildeskattelovArbejdsudlejeUdskillelse) -> match udskillelse {
+    | UdskillelseVurderesEfterAnsvarOgRisiko(vurdering) -> kildeskat_arbejdsudleje_ansvar_og_risiko_afklaret(vurdering)
+    | ArbejdetsUdskillelseUafklaret -> Falskt
+    | _ -> Sandt
+}
+| kildeskat_arbejdsudleje_permanent_udskilt(udskillelse: KildeskattelovArbejdsudlejeUdskillelse) -> match udskillelse {
+    | ArbejdetErPermanentUdskiltTilSelvstændigUdenlandskVirksomhed -> Sandt
+    | UdskillelseVurderesEfterAnsvarOgRisiko(vurdering) -> vurdering == UdenlandskLeverandørBærerVæsentligsteAnsvarOgRisiko
+    | _ -> Falskt
+}
+| kildeskat_arbejdsudleje_integreret_del(arbejde: KildeskattelovArbejdsudlejeArbejde) -> (arbejde.tilknytning == ArbejdeErKerneydelse || arbejde.tilknytning == ArbejdeErNaturligDelAfDrift) && kildeskat_arbejdsudleje_permanent_udskilt(arbejde.udskillelse) == Falskt
+| kildeskat_arbejdsudleje_afgrænsning_afklaret(parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde) -> kildeskat_arbejdsudleje_personstatus_afklaret(parter.personstatus) && kildeskat_arbejdsudleje_ansættelsesforhold_afklaret(parter.ansættelsesforhold) && kildeskat_arbejdsudleje_udlejerstatus_afklaret(parter.udlejerstatus) && kildeskat_arbejdsudleje_hvervgiverstatus_afklaret(parter.hvervgiverstatus) && kildeskat_arbejdsudleje_arbejdssted_afklaret(arbejde.arbejdssted) && kildeskat_arbejdsudleje_tilknytning_afklaret(arbejde.tilknytning) && kildeskat_arbejdsudleje_udskillelse_afklaret(arbejde.udskillelse)
+| kildeskat_arbejdsudleje_grundbetingelser_opfyldt(parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde, indkomstår: Heltal) -> parter.personstatus == ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1 && parter.ansættelsesforhold == AnsatHosUdenlandskUdlejer && parter.udlejerstatus == UdenlandskUdlejerUdenDanskFastDriftssted && parter.hvervgiverstatus == DanskHvervgiverMedHjemtingEllerFastDriftssted && kildeskat_arbejdsudleje_arbejdssted_omfattet(arbejde.arbejdssted, indkomstår) && kildeskat_arbejdsudleje_integreret_del(arbejde)
+--@end::kildeskattelov_arbejdsudleje_par2_stk1_nr3--
+
+--@label:kildeskattelov_arbejdsudleje_par2_stk10::meta:kildeskattelov_arbejdsudleje_par2_metadata--
+----
+Stk. 10. Skattepligten i medfør af stk. 1, nr. 3, er endeligt opfyldt ved
+indeholdelse af skat efter § 48 B og erlæggelse af arbejdsmarkedsbidrag.
+Tilsvarende gælder for skattepligten i medfør af stk. 1, nr. 1 og 13-21, når
+den skattepligtige ansøger om opholdstilladelse efter udlændingelovens § 7.
+Personer, som er omfattet af stk. 1, nr. 3, kan dog vælge at blive beskattet,
+som om den pågældende var omfattet af stk. 1, nr. 1. Valget skal træffes senest
+den 1. maj i året efter det pågældende indkomstår. Valget kan omgøres til og
+med den 30. juni i det andet kalenderår efter indkomstårets udløb.
+----
+
+--@begin::kildeskattelov_arbejdsudleje_par2_stk10--
+# KildeskattelovArbejdsudlejeBeskatningsvalg = EndeligArbejdsudlejeskatEfterPar48B | ValgtOrdinærBeskatningEfterPar2Stk1Nr1(valgdato: Dato, omgørelsesdato: Option(Dato)) | ArbejdsudlejebeskatningsvalgUafklaret
+
+| kildeskat_arbejdsudleje_valgfrist(indkomstår: Heltal) -> Dato(år = indkomstår + 1, måned = 5, dag = 1)
+| kildeskat_arbejdsudleje_omgørelsesfrist(indkomstår: Heltal) -> Dato(år = indkomstår + 2, måned = 6, dag = 30)
+| kildeskat_arbejdsudleje_valg_afklaret(valg: KildeskattelovArbejdsudlejeBeskatningsvalg) -> valg != ArbejdsudlejebeskatningsvalgUafklaret
+| kildeskat_arbejdsudleje_valgdato_rettidig(valgdato: Dato, indkomstår: Heltal) -> dato_gyldig(valgdato) && dato_før_eller_lig_med(valgdato, kildeskat_arbejdsudleje_valgfrist(indkomstår))
+| kildeskat_arbejdsudleje_omgørelsesdato_rettidig(omgørelsesdato: Dato, valgdato: Dato, indkomstår: Heltal) -> dato_gyldig(omgørelsesdato) && dato_efter_eller_lig_med(omgørelsesdato, valgdato) && dato_før_eller_lig_med(omgørelsesdato, kildeskat_arbejdsudleje_omgørelsesfrist(indkomstår))
+| kildeskat_arbejdsudleje_valg_gyldigt(valg: KildeskattelovArbejdsudlejeBeskatningsvalg, indkomstår: Heltal) -> match valg {
+    | EndeligArbejdsudlejeskatEfterPar48B -> Sandt
+    | ValgtOrdinærBeskatningEfterPar2Stk1Nr1(valgdato, omgørelsesdato) -> kildeskat_arbejdsudleje_valgdato_rettidig(valgdato, indkomstår) && match omgørelsesdato {
+        | Some(dato) -> kildeskat_arbejdsudleje_omgørelsesdato_rettidig(dato, valgdato, indkomstår)
+        | None -> Sandt
+    }
+    | ArbejdsudlejebeskatningsvalgUafklaret -> Falskt
+}
+| kildeskat_arbejdsudleje_valg_omgjort_rettidigt(valg: KildeskattelovArbejdsudlejeBeskatningsvalg, indkomstår: Heltal) -> match valg {
+    | ValgtOrdinærBeskatningEfterPar2Stk1Nr1(valgdato, Some(omgørelsesdato)) -> kildeskat_arbejdsudleje_valgdato_rettidig(valgdato, indkomstår) && kildeskat_arbejdsudleje_omgørelsesdato_rettidig(omgørelsesdato, valgdato, indkomstår)
+    | _ -> Falskt
+}
+| kildeskat_arbejdsudleje_ordinær_beskatning_valgt(valg: KildeskattelovArbejdsudlejeBeskatningsvalg, indkomstår: Heltal) -> match valg {
+    | ValgtOrdinærBeskatningEfterPar2Stk1Nr1(_, None) -> kildeskat_arbejdsudleje_valg_gyldigt(valg, indkomstår)
+    | _ -> Falskt
+}
+| kildeskat_arbejdsudleje_endelig_beskatning_valgt(valg: KildeskattelovArbejdsudlejeBeskatningsvalg, indkomstår: Heltal) -> valg == EndeligArbejdsudlejeskatEfterPar48B || kildeskat_arbejdsudleje_valg_omgjort_rettidigt(valg, indkomstår)
+--@end::kildeskattelov_arbejdsudleje_par2_stk10--
+
+= kildeskattelov_arbejdsudleje_am_metadata = Metadata(
+    attachments = (
+        Source(value = arbejdsmarkedsbidragsloven_lbk121_par2),
+        DependencySource(value = kildeskattelov_arbejdsudleje_lbk460),
+        Guidance(value = kildeskattelov_arbejdsudleje_skat_dk),
+        Guidance(value = kildeskattelov_arbejdsudleje_am_vejledning),
+    )
+)
+
+--@label:kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3::meta:kildeskattelov_arbejdsudleje_am_metadata--
+----
+Arbejdsmarkedsbidragsloven § 2, stk. 1, nr. 3:
+
+3) Ethvert vederlag i penge eller naturalier for at være stillet til rådighed
+for at udføre arbejde her i landet af en virksomhed, der ikke har hjemting her
+i landet.
+----
+
+--@begin::kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3--
+# KildeskattelovArbejdsudlejeFriKostLogi = IngenFriKostEllerLogi | SkattepligtigFriKostOgLogi(skattepligtig_værdi_kroner: Heltal) | FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse(dækket_beløb_kroner: Heltal)
+# KildeskattelovArbejdsudlejeVederlag = DokumenteretArbejdsudlejevederlag(løn_bonus_provision_tillæg_kroner: Heltal, ferie_og_afspadsering_kroner: Heltal, rejse_og_befordringsgodtgørelse_kroner: Heltal, fri_kost_og_logi: KildeskattelovArbejdsudlejeFriKostLogi, andre_skattepligtige_personalegoder_kroner: Heltal) | ArbejdsudlejevederlagEfterFakturasum(fakturasum_kroner: Heltal)
+
+| kildeskat_arbejdsudleje_fri_kost_logi_input_gyldigt(fri_kost_logi: KildeskattelovArbejdsudlejeFriKostLogi) -> match fri_kost_logi {
+    | IngenFriKostEllerLogi -> Sandt
+    | SkattepligtigFriKostOgLogi(værdi) -> værdi >= 0
+    | FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse(beløb) -> beløb >= 0
+}
+| kildeskat_arbejdsudleje_vederlag_input_gyldigt(vederlag: KildeskattelovArbejdsudlejeVederlag) -> match vederlag {
+    | DokumenteretArbejdsudlejevederlag(løn, ferie, rejse, fri_kost_logi, andre_goder) -> løn >= 0 && ferie >= 0 && rejse >= 0 && kildeskat_arbejdsudleje_fri_kost_logi_input_gyldigt(fri_kost_logi) && andre_goder >= 0
+    | ArbejdsudlejevederlagEfterFakturasum(fakturasum) -> fakturasum >= 0
+}
+| kildeskat_arbejdsudleje_skattepligtig_fri_kost_logi_kroner(fri_kost_logi: KildeskattelovArbejdsudlejeFriKostLogi) -> match fri_kost_logi {
+    | SkattepligtigFriKostOgLogi(værdi) -> penge_positivt_beløb(værdi)
+    | _ -> 0
+}
+| kildeskat_arbejdsudleje_udelukket_fri_kost_logi_kroner(fri_kost_logi: KildeskattelovArbejdsudlejeFriKostLogi) -> match fri_kost_logi {
+    | FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse(beløb) -> penge_positivt_beløb(beløb)
+    | _ -> 0
+}
+| kildeskat_arbejdsudleje_bruttoindtægt_kroner(vederlag: KildeskattelovArbejdsudlejeVederlag) -> match vederlag {
+    | DokumenteretArbejdsudlejevederlag(løn, ferie, rejse, fri_kost_logi, andre_goder) -> penge_positivt_beløb(løn) + penge_positivt_beløb(ferie) + penge_positivt_beløb(rejse) + kildeskat_arbejdsudleje_skattepligtig_fri_kost_logi_kroner(fri_kost_logi) + penge_positivt_beløb(andre_goder)
+    | ArbejdsudlejevederlagEfterFakturasum(fakturasum) -> penge_positivt_beløb(fakturasum)
+}
+--@end::kildeskattelov_arbejdsudleje_ambl_par2_stk1_nr3--
+
+= kildeskattelov_arbejdsudleje_par48b_metadata = Metadata(
+    attachments = (
+        Source(value = kildeskattelov_arbejdsudleje_lbk460),
+        HistoricalSource(value = kildeskattelov_arbejdsudleje_lbk1330),
+        DependencySource(value = ligningsloven_lbk1500_par8m),
+        Guidance(value = kildeskattelov_arbejdsudleje_vejledning),
+        Guidance(value = kildeskattelov_arbejdsudleje_skat_dk),
+        Warning(value = kildeskattelov_arbejdsudleje_par48b_henvisningsadvarsel),
+    )
+)
+
+--@label:kildeskattelov_arbejdsudleje_par48b::meta:kildeskattelov_arbejdsudleje_par48b_metadata--
+----
+§ 48 B. For personer, der efter § 2, stk. 1, nr. 3, er skattepligtige af
+vederlag for personligt arbejde i forbindelse med at være stillet til rådighed
+for at udføre arbejde her i landet, beregnes skatten som 30 pct. af
+bruttoindtægten, herunder eventuel godtgørelse til dækning af udgifter til
+rejse og ophold m.v. Tilsvarende gælder for personer, som ansøger om
+opholdstilladelse efter udlændingelovens § 7, og som erhverver indkomst
+omfattet af § 2, stk. 1, nr. 1 og 13-21.
+
+Stk. 2. For personer, der er omfattet af stk. 1, og som også er omfattet af
+ligningslovens § 8 M, stk. 5, beregnes skatten som 30 pct. af bruttoindtægten
+beregnet efter stk. 1 med fradrag af de udenlandske obligatoriske sociale
+arbejdsgiverbidrag, som påhviler lønmodtageren.
+----
+
+--@begin::kildeskattelov_arbejdsudleje_par48b--
+# KildeskattelovArbejdsudlejeDanskBeskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet | DobbeltbeskatningsaftaleAfskærerDanskBeskatningsretTilVederlaget | ArbejdsudlejeDanskBeskatningsretUafklaret
+# KildeskattelovArbejdsudlejeLovversion = ArbejdsudlejeLbk1330Af2023 | ArbejdsudlejeLbk460Af2024MedSenereÆndringer | ArbejdsudlejeLovversionUdenKildedækning
+# KildeskattelovArbejdsudlejeInput(identifikation: Tekst, indkomstår: Heltal, alder_ved_indkomstårets_udløb: Heltal, parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde, dansk_beskatningsret: KildeskattelovArbejdsudlejeDanskBeskatningsret, beskatningsvalg: KildeskattelovArbejdsudlejeBeskatningsvalg, vederlag: KildeskattelovArbejdsudlejeVederlag, udenlandsk_arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput)
+# KildeskattelovArbejdsudlejeResultat(input: KildeskattelovArbejdsudlejeInput, lovversion: KildeskattelovArbejdsudlejeLovversion, skatteår_understøttet: Boolsk, input_gyldigt: Boolsk, afgrænsning_afklaret: Boolsk, grundbetingelser_opfyldt: Boolsk, dansk_beskatningsret_afklaret: Boolsk, dansk_beskatningsret: Boolsk, beskatningsvalg_afklaret: Boolsk, beskatningsvalg_gyldigt: Boolsk, ordinær_beskatning_valgt: Boolsk, valg_omgjort_rettidigt: Boolsk, endelig_beskatning: Boolsk, kan_sammensættes: Boolsk, bruttoindtægt_kroner: Heltal, udelukket_fri_kost_logi_kroner: Heltal, arbejdsmarkedsbidragssats_basispoint: Heltal, endeligt_arbejdsmarkedsbidragsgrundlag_kroner: Heltal, endeligt_arbejdsmarkedsbidrag_kroner: Heltal, udenlandsk_arbejdsgiverbidrag: Ligningslov8MResultat, kildeskat_par48b_grundlag_kroner: Heltal, kildeskat_par48b_sats_basispoint: Heltal, endelig_arbejdsudlejeskat_kroner: Heltal, samlet_endelig_skat_kroner: Heltal, ordinært_arbejdsmarkedsbidragsgrundlag_kroner: Heltal, ordinært_fradrag_i_personlig_indkomst_kroner: Heltal)
+
+| kildeskat_arbejdsudleje_lovversion_for(indkomstår: Heltal) -> ArbejdsudlejeLovversionUdenKildedækning
+| exception arbejdsudleje_lbk1330_for_2023 kildeskat_arbejdsudleje_lovversion_for(indkomstår: Heltal) -> ArbejdsudlejeLbk1330Af2023 under indkomstår == 2023
+| exception arbejdsudleje_lbk460_for_2024_2026 kildeskat_arbejdsudleje_lovversion_for(indkomstår: Heltal) -> ArbejdsudlejeLbk460Af2024MedSenereÆndringer under indkomstår >= 2024 && indkomstår <= 2026
+| kildeskat_arbejdsudleje_skatteår_understøttet(indkomstår: Heltal) -> kildeskat_arbejdsudleje_lovversion_for(indkomstår) != ArbejdsudlejeLovversionUdenKildedækning
+| kildeskat_arbejdsudleje_beskatningsret_afklaret(beskatningsret: KildeskattelovArbejdsudlejeDanskBeskatningsret) -> beskatningsret != ArbejdsudlejeDanskBeskatningsretUafklaret
+| kildeskat_arbejdsudleje_parter_identificeret(parter: KildeskattelovArbejdsudlejeParter) -> parter.person_identifikation != "" && parter.udenlandsk_arbejdsgiver_identifikation != "" && parter.dansk_hvervgiver_identifikation != ""
+| kildeskat_arbejdsudleje_input_gyldigt(input: KildeskattelovArbejdsudlejeInput) -> input.identifikation != "" && kildeskat_arbejdsudleje_skatteår_understøttet(input.indkomstår) && input.alder_ved_indkomstårets_udløb >= 0 && input.alder_ved_indkomstårets_udløb <= 130 && kildeskat_arbejdsudleje_parter_identificeret(input.parter) && kildeskat_arbejdsudleje_vederlag_input_gyldigt(input.vederlag) && input.udenlandsk_arbejdsgiverbidrag.bidrag_kroner >= 0 && (input.udenlandsk_arbejdsgiverbidrag.bidrag_kroner == 0 || input.udenlandsk_arbejdsgiverbidrag.bidrag_vedrører_indkomstår == input.indkomstår)
+| kildeskat_arbejdsudleje_tomt_am_input() -> Ligningslov8MArbejdsmarkedsbidragInput(hjemmel = Ll8MAmblIkkeOmfattet, bidrag_kroner = 0, bidrag_vedrører_indkomstår = 0, arbejdsgiver_indeholdelsespligtig = Falskt)
+| kildeskat_arbejdsudleje_tomt_socialt_bidrag() -> Ligningslov8MUdenlandskSocialtBidragInput(bidrag_kroner = 0, bidrag_vedrører_indkomstår = 0, obligatorisk = Falskt, ikke_hjemmehørende_i_fremmed_stat_grønland_eller_færøerne_efter_dbo = Falskt, omfattet_af_eu_socialsikringsforordning = Falskt, omfattet_af_mellemfolkelig_aftale_som_danmark_har_tiltrådt = Falskt)
+| kildeskat_arbejdsudleje_udenlandsk_arbejdsgiverbidrag_resultat(input: KildeskattelovArbejdsudlejeInput) -> ligningslov8m_resultat(Ligningslov8MInput(indkomstår = input.indkomstår, kildeskattepligt = Ll8MKildeskattelovPar2Stk1Nr3, arbejdsmarkedsbidrag = kildeskat_arbejdsudleje_tomt_am_input(), udenlandsk_socialt_bidrag = kildeskat_arbejdsudleje_tomt_socialt_bidrag(), udenlandsk_arbejdsgiverbidrag = input.udenlandsk_arbejdsgiverbidrag))
+
+# KildeskattelovArbejdsudlejeSag(input: KildeskattelovArbejdsudlejeInput) {
+    | lovversion() -> kildeskat_arbejdsudleje_lovversion_for(input.indkomstår)
+    | skatteår_understøttet() -> kildeskat_arbejdsudleje_skatteår_understøttet(input.indkomstår)
+    | input_gyldigt() -> kildeskat_arbejdsudleje_input_gyldigt(input)
+    | afgrænsning_afklaret() -> kildeskat_arbejdsudleje_afgrænsning_afklaret(input.parter, input.arbejde)
+    | grundbetingelser_opfyldt() -> kildeskat_arbejdsudleje_grundbetingelser_opfyldt(input.parter, input.arbejde, input.indkomstår)
+    | dansk_beskatningsret_afklaret() -> kildeskat_arbejdsudleje_beskatningsret_afklaret(input.dansk_beskatningsret)
+    | dansk_beskatningsret() -> input.dansk_beskatningsret == ArbejdsudlejeDanskBeskatningsretBekræftet
+    | beskatningsvalg_afklaret() -> kildeskat_arbejdsudleje_valg_afklaret(input.beskatningsvalg)
+    | beskatningsvalg_gyldigt() -> kildeskat_arbejdsudleje_valg_gyldigt(input.beskatningsvalg, input.indkomstår)
+    | ordinær_beskatning_valgt() -> kildeskat_arbejdsudleje_ordinær_beskatning_valgt(input.beskatningsvalg, input.indkomstår)
+    | valg_omgjort_rettidigt() -> kildeskat_arbejdsudleje_valg_omgjort_rettidigt(input.beskatningsvalg, input.indkomstår)
+    | endelig_beskatning() -> kildeskat_arbejdsudleje_endelig_beskatning_valgt(input.beskatningsvalg, input.indkomstår)
+    | kan_sammensættes() -> input_gyldigt() && afgrænsning_afklaret() && (grundbetingelser_opfyldt() == Falskt || dansk_beskatningsret_afklaret() && (dansk_beskatningsret() == Falskt || beskatningsvalg_afklaret() && beskatningsvalg_gyldigt()))
+    | dansk_skattepligtigt_bruttobeløb_kroner() -> hvis kan_sammensættes() && grundbetingelser_opfyldt() && dansk_beskatningsret() { kildeskat_arbejdsudleje_bruttoindtægt_kroner(input.vederlag) } ellers { 0 }
+    | arbejdsmarkedsbidragssats_basispoint() -> hvis kan_sammensættes() && grundbetingelser_opfyldt() && dansk_beskatningsret() { arbejdsmarkedsbidrag_sats_for_person_basispoint(ArbejdsmarkedsbidragPersonSatsInput(skatteår = input.indkomstår, alder_ved_indkomstårets_udløb = input.alder_ved_indkomstårets_udløb)) } ellers { 0 }
+    | beregnet_arbejdsmarkedsbidrag_kroner() -> penge_beløb_gange_basispoint_kroner(dansk_skattepligtigt_bruttobeløb_kroner(), arbejdsmarkedsbidragssats_basispoint())
+    | udenlandsk_arbejdsgiverbidrag() -> kildeskat_arbejdsudleje_udenlandsk_arbejdsgiverbidrag_resultat(input)
+    | fradragsberettiget_udenlandsk_arbejdsgiverbidrag_kroner() -> udenlandsk_arbejdsgiverbidrag().udenlandsk_arbejdsgiverbidrag_fradrag_kroner
+    | endeligt_arbejdsmarkedsbidragsgrundlag_kroner() -> hvis endelig_beskatning() && kan_sammensættes() && grundbetingelser_opfyldt() && dansk_beskatningsret() { dansk_skattepligtigt_bruttobeløb_kroner() } ellers { 0 }
+    | endeligt_arbejdsmarkedsbidrag_kroner() -> hvis endelig_beskatning() { beregnet_arbejdsmarkedsbidrag_kroner() } ellers { 0 }
+    | kildeskat_par48b_grundlag_kroner() -> hvis endelig_beskatning() && kan_sammensættes() { penge_positivt_beløb(dansk_skattepligtigt_bruttobeløb_kroner() - endeligt_arbejdsmarkedsbidrag_kroner() - fradragsberettiget_udenlandsk_arbejdsgiverbidrag_kroner()) } ellers { 0 }
+    | kildeskat_par48b_sats_basispoint() -> hvis endelig_beskatning() && kan_sammensættes() { 3000 } ellers { 0 }
+    | endelig_arbejdsudlejeskat_kroner() -> penge_beløb_gange_basispoint_kroner(kildeskat_par48b_grundlag_kroner(), kildeskat_par48b_sats_basispoint())
+    | ordinært_arbejdsmarkedsbidragsgrundlag_kroner() -> hvis ordinær_beskatning_valgt() && kan_sammensættes() && grundbetingelser_opfyldt() && dansk_beskatningsret() { dansk_skattepligtigt_bruttobeløb_kroner() } ellers { 0 }
+    | ordinært_fradrag_i_personlig_indkomst_kroner() -> hvis ordinær_beskatning_valgt() && kan_sammensættes() && grundbetingelser_opfyldt() && dansk_beskatningsret() { fradragsberettiget_udenlandsk_arbejdsgiverbidrag_kroner() } ellers { 0 }
+    | resultat() -> KildeskattelovArbejdsudlejeResultat(
+        input = input,
+        lovversion = lovversion(),
+        skatteår_understøttet = skatteår_understøttet(),
+        input_gyldigt = input_gyldigt(),
+        afgrænsning_afklaret = afgrænsning_afklaret(),
+        grundbetingelser_opfyldt = grundbetingelser_opfyldt(),
+        dansk_beskatningsret_afklaret = dansk_beskatningsret_afklaret(),
+        dansk_beskatningsret = dansk_beskatningsret(),
+        beskatningsvalg_afklaret = beskatningsvalg_afklaret(),
+        beskatningsvalg_gyldigt = beskatningsvalg_gyldigt(),
+        ordinær_beskatning_valgt = ordinær_beskatning_valgt(),
+        valg_omgjort_rettidigt = valg_omgjort_rettidigt(),
+        endelig_beskatning = endelig_beskatning(),
+        kan_sammensættes = kan_sammensættes(),
+        bruttoindtægt_kroner = dansk_skattepligtigt_bruttobeløb_kroner(),
+        udelukket_fri_kost_logi_kroner = match input.vederlag { | DokumenteretArbejdsudlejevederlag(_, _, _, fri_kost_logi, _) -> kildeskat_arbejdsudleje_udelukket_fri_kost_logi_kroner(fri_kost_logi) | _ -> 0 },
+        arbejdsmarkedsbidragssats_basispoint = arbejdsmarkedsbidragssats_basispoint(),
+        endeligt_arbejdsmarkedsbidragsgrundlag_kroner = endeligt_arbejdsmarkedsbidragsgrundlag_kroner(),
+        endeligt_arbejdsmarkedsbidrag_kroner = endeligt_arbejdsmarkedsbidrag_kroner(),
+        udenlandsk_arbejdsgiverbidrag = udenlandsk_arbejdsgiverbidrag(),
+        kildeskat_par48b_grundlag_kroner = kildeskat_par48b_grundlag_kroner(),
+        kildeskat_par48b_sats_basispoint = kildeskat_par48b_sats_basispoint(),
+        endelig_arbejdsudlejeskat_kroner = endelig_arbejdsudlejeskat_kroner(),
+        samlet_endelig_skat_kroner = endeligt_arbejdsmarkedsbidrag_kroner() + endelig_arbejdsudlejeskat_kroner(),
+        ordinært_arbejdsmarkedsbidragsgrundlag_kroner = ordinært_arbejdsmarkedsbidragsgrundlag_kroner(),
+        ordinært_fradrag_i_personlig_indkomst_kroner = ordinært_fradrag_i_personlig_indkomst_kroner()
+    )
+}
+
+| kildeskat_arbejdsudleje_resultat(input: KildeskattelovArbejdsudlejeInput) -> KildeskattelovArbejdsudlejeSag(input).resultat()
+--@end::kildeskattelov_arbejdsudleje_par48b--

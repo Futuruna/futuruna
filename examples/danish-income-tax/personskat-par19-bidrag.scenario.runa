@@ -58,6 +58,7 @@
     PersonskatPersonligIndkomstInput(
         etableringskonto = tom.etableringskonto,
         ordinære_forhold = tom.ordinære_forhold,
+        arbejdsudleje = [],
         underholdsbidrag = tom.underholdsbidrag,
         børnebidragslov19_bidrag = input,
         sømandsbeskatning = tom.sømandsbeskatning

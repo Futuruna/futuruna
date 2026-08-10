@@ -3,6 +3,7 @@
 @ importer ./arbejdsmarkedsbidragsloven
 @ importer ./boernebidragsloven - par19
 @ importer ./kapitel - 01 - indkomst
+@ importer ./kildeskatteloven - arbejdsudleje
 @ importer ./ligningsloven - kontingenter - gaver
 @ importer ./ligningsloven - par10 - par11 - underhold
 @ importer ./metadata
@@ -450,8 +451,8 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatForeningsOgArbejdsløshedsydelseResultat = UgyldigForeningsEllerArbejdsløshedsydelse(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, identifikation_unik: Boolsk, skatteår_matcher: Boolsk) | BeregnetForeningsydelseEfterLigningslov13(resultat: Ligningslov13ForeningsydelseResultat) | BeregnetArbejdsløshedsforsikringsudbetalingEfterPbl49(resultat: Pbl49ArbejdsløshedsforsikringsudbetalingResultat)
 # PersonskatOrdinærPersonligIndkomstInput(arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseFakta), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagFakta), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedFakta), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseFakta))
 # PersonskatOrdinærPersonligIndkomstResultat(input: PersonskatOrdinærPersonligIndkomstInput, arbejdsgiverydelser: List(PersonskatArbejdsgiverydelseResultat), personlige_arbejdsvederlag: List(PersonskatPersonligtArbejdsvederlagResultat), virksomheder_uden_virksomhedsordning: List(PersonskatOrdinærVirksomhedResultat), forenings_og_arbejdsløshedsydelser: List(PersonskatForeningsOgArbejdsløshedsydelseResultat), arbejdsgiverydelsesidentifikationer_entydige: Boolsk, personlige_arbejdsvederlagsidentifikationer_entydige: Boolsk, virksomhedsidentifikationer_entydige: Boolsk, forenings_og_arbejdsløshedsydelsesidentifikationer_entydige: Boolsk, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal)
-# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
-# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, underholdsbidrag: Ligningslov10Og11Årsresultat, børnebidragslov19_bidrag: Børnebidragslov19Årsresultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal)
+# PersonskatPersonligIndkomstInput(etableringskonto: PersonskatEtableringskontoInput, ordinære_forhold: PersonskatOrdinærPersonligIndkomstInput, arbejdsudleje: List(KildeskattelovArbejdsudlejeInput), underholdsbidrag: Ligningslov10Og11Årsinput, børnebidragslov19_bidrag: Børnebidragslov19Årsinput, sømandsbeskatning: Søbl5Til8Årsinput)
+# PersonskatPersonligIndkomstResultat(input: PersonskatPersonligIndkomstInput, etableringskonto: PersonskatEtableringskontoResultat, ordinære_forhold: PersonskatOrdinærPersonligIndkomstResultat, arbejdsudleje: List(KildeskattelovArbejdsudlejeResultat), arbejdsudlejeidentifikationer_entydige: Boolsk, underholdsbidrag: Ligningslov10Og11Årsresultat, børnebidragslov19_bidrag: Børnebidragslov19Årsresultat, sømandsbeskatning: Søbl5Til8Årsresultat, alle_input_gyldige: Boolsk, arbejdsmarkedsbidragsgrundlag_tillæg_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal, personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner: Heltal, fradrag_i_personlig_indkomst_kroner: Heltal, ligningsmæssigt_fradrag_kroner: Heltal, endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner: Heltal, endelig_arbejdsudlejeskat_kroner: Heltal, samlet_endelig_arbejdsudlejebeskatning_kroner: Heltal)
 
 | personskat_ingen_ordinær_personlig_indkomst() -> PersonskatOrdinærPersonligIndkomstInput(
     arbejdsgiverydelser = [],
@@ -462,12 +463,14 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_ingen_personlig_indkomst() -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = personskat_ingen_ordinær_personlig_indkomst(),
+    arbejdsudleje = [],
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
 )
 | personskat_arbejdsgiverydelsesidentifikationer_entydige(fakta: List(PersonskatArbejdsgiverydelseFakta)) -> length(distinct(map(fakta, |post: PersonskatArbejdsgiverydelseFakta| post.identifikation))) == length(fakta)
 | personskat_personlige_arbejdsvederlagsidentifikationer_entydige(fakta: List(PersonskatPersonligtArbejdsvederlagFakta)) -> length(distinct(map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| post.identifikation))) == length(fakta)
+| personskat_arbejdsudlejeidentifikationer_entydige(fakta: List(KildeskattelovArbejdsudlejeInput)) -> length(distinct(map(fakta, |post: KildeskattelovArbejdsudlejeInput| post.identifikation))) == length(fakta)
 | personskat_virksomhedsidentifikationer_entydige(fakta: List(PersonskatOrdinærVirksomhedFakta)) -> length(distinct(map(fakta, |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation))) == length(fakta)
 | personskat_forenings_og_arbejdsløshedsydelse_identifikation(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta) -> match fakta {
     | PersonskatForeningsydelseEfterLigningslov13(ydelse) -> ydelse.identifikation
@@ -480,6 +483,7 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 | personskat_forenings_og_arbejdsløshedsydelsesidentifikationer_entydige(fakta: List(PersonskatForeningsOgArbejdsløshedsydelseFakta)) -> length(distinct(map(fakta, personskat_forenings_og_arbejdsløshedsydelse_identifikation))) == length(fakta)
 | personskat_arbejdsgiverydelse_resultater(fakta: List(PersonskatArbejdsgiverydelseFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatArbejdsgiverydelseFakta| personskat_arbejdsgiverydelse_resultat(post, skatteår, identifikationer_entydige))
 | personskat_personligt_arbejdsvederlag_resultater(fakta: List(PersonskatPersonligtArbejdsvederlagFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |post: PersonskatPersonligtArbejdsvederlagFakta| personskat_personligt_arbejdsvederlag_resultat(post, skatteår, identifikationer_entydige))
+| personskat_arbejdsudlejeresultater(fakta: List(KildeskattelovArbejdsudlejeInput)) -> map(fakta, |post: KildeskattelovArbejdsudlejeInput| kildeskat_arbejdsudleje_resultat(post))
 | personskat_virksomhed_resultater(fakta: List(PersonskatOrdinærVirksomhedFakta), skatteår: Heltal, identifikationer_entydige: Boolsk) -> map(fakta, |virksomhed: PersonskatOrdinærVirksomhedFakta| personskat_virksomhed_resultat(virksomhed, skatteår, identifikationer_entydige))
 | personskat_forenings_og_arbejdsløshedsydelse_resultat(fakta: PersonskatForeningsOgArbejdsløshedsydelseFakta, skatteår: Heltal, identifikation_unik: Boolsk) -> hvis identifikation_unik == Falskt || personskat_forenings_og_arbejdsløshedsydelse_indkomstår(fakta) != skatteår {
     UgyldigForeningsEllerArbejdsløshedsydelse(
@@ -540,6 +544,13 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
 # PersonskatPersonligIndkomstSag(input: PersonskatPersonligIndkomstInput, skatteår: Heltal) {
     | etableringskonto() -> personskat_etableringskonto_resultat(input.etableringskonto, skatteår)
     | ordinære_forhold() -> personskat_ordinær_personlig_indkomst_resultat(input.ordinære_forhold, skatteår)
+    | arbejdsudlejeidentifikationer_entydige() -> personskat_arbejdsudlejeidentifikationer_entydige(input.arbejdsudleje)
+    | arbejdsudleje() -> personskat_arbejdsudlejeresultater(input.arbejdsudleje)
+    | arbejdsudleje_alle_gyldige() -> arbejdsudlejeidentifikationer_entydige() && all(arbejdsudleje(), |resultat: KildeskattelovArbejdsudlejeResultat| resultat.kan_sammensættes)
+    | arbejdsudleje_ordinært_am_grundlag_kroner() -> hvis arbejdsudlejeidentifikationer_entydige() { foldl(arbejdsudleje(), 0, |sum_kroner: Heltal, resultat: KildeskattelovArbejdsudlejeResultat| sum_kroner + resultat.ordinært_arbejdsmarkedsbidragsgrundlag_kroner) } ellers { 0 }
+    | arbejdsudleje_ordinært_personligt_fradrag_kroner() -> hvis arbejdsudlejeidentifikationer_entydige() { foldl(arbejdsudleje(), 0, |sum_kroner: Heltal, resultat: KildeskattelovArbejdsudlejeResultat| sum_kroner + resultat.ordinært_fradrag_i_personlig_indkomst_kroner) } ellers { 0 }
+    | arbejdsudleje_endeligt_am_kroner() -> hvis arbejdsudlejeidentifikationer_entydige() { foldl(arbejdsudleje(), 0, |sum_kroner: Heltal, resultat: KildeskattelovArbejdsudlejeResultat| sum_kroner + resultat.endeligt_arbejdsmarkedsbidrag_kroner) } ellers { 0 }
+    | arbejdsudleje_endelig_indkomstskat_kroner() -> hvis arbejdsudlejeidentifikationer_entydige() { foldl(arbejdsudleje(), 0, |sum_kroner: Heltal, resultat: KildeskattelovArbejdsudlejeResultat| sum_kroner + resultat.endelig_arbejdsudlejeskat_kroner) } ellers { 0 }
     | underholdsbidrag() -> ligningslov10_11_årsresultat(skatteår, input.underholdsbidrag)
     | børnebidragslov19_bidrag() -> børnebidragslov19_årsresultat(skatteår, input.børnebidragslov19_bidrag)
     | sømandsbeskatning() -> søbl5_til8_årsresultat(skatteår, input.sømandsbeskatning)
@@ -547,15 +558,20 @@ og præmier til pensionsordninger m.v. som nævnt i pensionsbeskatningslovens
         input = input,
         etableringskonto = etableringskonto(),
         ordinære_forhold = ordinære_forhold(),
+        arbejdsudleje = arbejdsudleje(),
+        arbejdsudlejeidentifikationer_entydige = arbejdsudlejeidentifikationer_entydige(),
         underholdsbidrag = underholdsbidrag(),
         børnebidragslov19_bidrag = børnebidragslov19_bidrag(),
         sømandsbeskatning = sømandsbeskatning(),
-        alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige && underholdsbidrag().kan_sammensættes && børnebidragslov19_bidrag().kan_sammensættes && sømandsbeskatning().alle_input_gyldige && sømandsbeskatning().beregningsklar && sømandsbeskatning().kanonisk_fuld_skattepligt_understøttet,
-        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner + sømandsbeskatning().samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
+        alle_input_gyldige = personskat_etableringskonto_input_gyldigt(etableringskonto()) && ordinære_forhold().alle_input_gyldige && arbejdsudleje_alle_gyldige() && underholdsbidrag().kan_sammensættes && børnebidragslov19_bidrag().kan_sammensættes && sømandsbeskatning().alle_input_gyldige && sømandsbeskatning().beregningsklar && sømandsbeskatning().kanonisk_fuld_skattepligt_understøttet,
+        arbejdsmarkedsbidragsgrundlag_tillæg_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_tillæg_kroner + arbejdsudleje_ordinært_am_grundlag_kroner() + sømandsbeskatning().samlet_ordinær_bruttoløn_kroner + sømandsbeskatning().samlet_anden_ligningslov7u_indkomst_efter_bundfradrag_kroner,
         arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = ordinære_forhold().arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner,
         personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner = ordinære_forhold().personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + underholdsbidrag().samlet_personlig_indkomst_kroner + børnebidragslov19_bidrag().samlet_personlig_indkomst_kroner + sømandsbeskatning().samlet_dis_personlig_indkomst_kroner,
-        fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()),
-        ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto()) + underholdsbidrag().samlet_ligningsmæssigt_fradrag_kroner + børnebidragslov19_bidrag().samlet_ligningsmæssigt_fradrag_kroner
+        fradrag_i_personlig_indkomst_kroner = personskat_etableringskonto_personligt_fradrag_kroner(etableringskonto()) + arbejdsudleje_ordinært_personligt_fradrag_kroner(),
+        ligningsmæssigt_fradrag_kroner = personskat_etableringskonto_ligningsfradrag_kroner(etableringskonto()) + underholdsbidrag().samlet_ligningsmæssigt_fradrag_kroner + børnebidragslov19_bidrag().samlet_ligningsmæssigt_fradrag_kroner,
+        endeligt_arbejdsmarkedsbidrag_fra_arbejdsudleje_kroner = arbejdsudleje_endeligt_am_kroner(),
+        endelig_arbejdsudlejeskat_kroner = arbejdsudleje_endelig_indkomstskat_kroner(),
+        samlet_endelig_arbejdsudlejebeskatning_kroner = arbejdsudleje_endeligt_am_kroner() + arbejdsudleje_endelig_indkomstskat_kroner()
     )
 }
 

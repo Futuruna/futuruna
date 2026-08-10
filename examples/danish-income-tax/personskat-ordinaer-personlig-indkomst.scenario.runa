@@ -292,6 +292,7 @@
 | personskat_ordinaer_scenario_personlig_indkomst(input: PersonskatOrdinærPersonligIndkomstInput) -> PersonskatPersonligIndkomstInput(
     etableringskonto = UdenEtableringskontoindskud,
     ordinære_forhold = input,
+    arbejdsudleje = [],
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()

@@ -281,6 +281,7 @@
         ],
         forenings_og_arbejdsløshedsydelser = []
     ),
+    arbejdsudleje = [],
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()
@@ -326,6 +327,7 @@
         virksomheder_uden_virksomhedsordning = [],
         forenings_og_arbejdsløshedsydelser = []
     ),
+    arbejdsudleje = [],
     underholdsbidrag = ligningslov10_11_tomt_årsinput(),
     børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
     sømandsbeskatning = søbl5_til8_intet_årsinput()

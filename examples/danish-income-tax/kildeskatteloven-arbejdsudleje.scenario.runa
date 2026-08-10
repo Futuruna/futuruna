@@ -1,0 +1,122 @@
+@ sprog da
+
+@ importer ./kildeskatteloven - arbejdsudleje
+
+| arbejdsudleje_scenarie_parter(personstatus: KildeskattelovArbejdsudlejePersonstatus, ansættelsesforhold: KildeskattelovArbejdsudlejeAnsættelsesforhold, udlejerstatus: KildeskattelovArbejdsudlejeUdlejerstatus) -> KildeskattelovArbejdsudlejeParter(
+    person_identifikation = "Oliver",
+    udenlandsk_arbejdsgiver_identifikation = "DE-B",
+    dansk_hvervgiver_identifikation = "DK-A",
+    personstatus = personstatus,
+    ansættelsesforhold = ansættelsesforhold,
+    udlejerstatus = udlejerstatus,
+    hvervgiverstatus = DanskHvervgiverMedHjemtingEllerFastDriftssted
+)
+| arbejdsudleje_scenarie_arbejde(tilknytning: KildeskattelovArbejdsudlejeTilknytning, udskillelse: KildeskattelovArbejdsudlejeUdskillelse) -> KildeskattelovArbejdsudlejeArbejde(
+    arbejdssted = ArbejdePåDanskLandEllerSøterritorium,
+    tilknytning = tilknytning,
+    udskillelse = udskillelse
+)
+| arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(indkomstår: Heltal) -> Ligningslov8MUdenlandskArbejdsgiverbidragInput(
+    bidrag_kroner = 0,
+    bidrag_vedrører_indkomstår = indkomstår,
+    obligatorisk = Falskt,
+    omfattet_af_eu_socialsikringsforordning = Falskt,
+    aftale_om_at_bidrag_påhviler_lønmodtageren = Falskt
+)
+| arbejdsudleje_scenarie_input(indkomstår: Heltal, alder: Heltal, parter: KildeskattelovArbejdsudlejeParter, arbejde: KildeskattelovArbejdsudlejeArbejde, beskatningsret: KildeskattelovArbejdsudlejeDanskBeskatningsret, valg: KildeskattelovArbejdsudlejeBeskatningsvalg, vederlag: KildeskattelovArbejdsudlejeVederlag, arbejdsgiverbidrag: Ligningslov8MUdenlandskArbejdsgiverbidragInput) -> KildeskattelovArbejdsudlejeInput(
+    identifikation = "arbejdsudleje-1",
+    indkomstår = indkomstår,
+    alder_ved_indkomstårets_udløb = alder,
+    parter = parter,
+    arbejde = arbejde,
+    dansk_beskatningsret = beskatningsret,
+    beskatningsvalg = valg,
+    vederlag = vederlag,
+    udenlandsk_arbejdsgiverbidrag = arbejdsgiverbidrag
+)
+| arbejdsudleje_scenarie_standardinput(indkomstår: Heltal, alder: Heltal, valg: KildeskattelovArbejdsudlejeBeskatningsvalg, vederlag: KildeskattelovArbejdsudlejeVederlag) -> arbejdsudleje_scenarie_input(
+    indkomstår = indkomstår,
+    alder = alder,
+    parter = arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted),
+    arbejde = arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt),
+    beskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet,
+    valg = valg,
+    vederlag = vederlag,
+    arbejdsgiverbidrag = arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(indkomstår)
+)
+| arbejdsudleje_scenarie_resultat(input: KildeskattelovArbejdsudlejeInput) -> kildeskat_arbejdsudleje_resultat(input)
+
+= arbejdsudleje_scenarie_oliver = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(
+    indkomstår = 2025,
+    alder = 40,
+    valg = EndeligArbejdsudlejeskatEfterPar48B,
+    vederlag = DokumenteretArbejdsudlejevederlag(
+        løn_bonus_provision_tillæg_kroner = 18000,
+        ferie_og_afspadsering_kroner = 0,
+        rejse_og_befordringsgodtgørelse_kroner = 2000,
+        fri_kost_og_logi = IngenFriKostEllerLogi,
+        andre_skattepligtige_personalegoder_kroner = 0
+    )
+))
+= arbejdsudleje_scenarie_fakturasum = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2025, 40, EndeligArbejdsudlejeskatEfterPar48B, ArbejdsudlejevederlagEfterFakturasum(fakturasum_kroner = 30000)))
+= arbejdsudleje_scenarie_rejsekost = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2025, 40, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, FriKostOgLogiDækketEfterRegningPåSkattemæssigRejse(dækket_beløb_kroner = 4000), 0)))
+= arbejdsudleje_scenarie_ung_2026 = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2026, 17, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0)))
+= arbejdsudleje_scenarie_arbejdsgiverbidrag = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(
+    indkomstår = 2025,
+    alder = 40,
+    parter = arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted),
+    arbejde = arbejdsudleje_scenarie_arbejde(ArbejdeErNaturligDelAfDrift, ArbejdetErIkkePermanentUdskilt),
+    beskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet,
+    valg = EndeligArbejdsudlejeskatEfterPar48B,
+    vederlag = DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0),
+    arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(1000, 2025, Sandt, Sandt, Sandt)
+))
+= arbejdsudleje_scenarie_arbejdsgiverbidrag_forkert_år = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(
+    indkomstår = 2025,
+    alder = 40,
+    parter = arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted),
+    arbejde = arbejdsudleje_scenarie_arbejde(ArbejdeErNaturligDelAfDrift, ArbejdetErIkkePermanentUdskilt),
+    beskatningsret = ArbejdsudlejeDanskBeskatningsretBekræftet,
+    valg = EndeligArbejdsudlejeskatEfterPar48B,
+    vederlag = DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0),
+    arbejdsgiverbidrag = Ligningslov8MUdenlandskArbejdsgiverbidragInput(1000, 2024, Sandt, Sandt, Sandt)
+))
+= arbejdsudleje_scenarie_ordinært_valg = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2025, 40, ValgtOrdinærBeskatningEfterPar2Stk1Nr1(Dato(2026, 5, 1), None), DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0)))
+= arbejdsudleje_scenarie_rettidig_omgørelse = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2025, 40, ValgtOrdinærBeskatningEfterPar2Stk1Nr1(Dato(2026, 5, 1), Some(Dato(2027, 6, 30))), DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0)))
+= arbejdsudleje_scenarie_for_sent_valg = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_standardinput(2025, 40, ValgtOrdinærBeskatningEfterPar2Stk1Nr1(Dato(2026, 5, 2), None), DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0)))
+= arbejdsudleje_scenarie_dbo_afskærer = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt), DobbeltbeskatningsaftaleAfskærerDanskBeskatningsretTilVederlaget, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+= arbejdsudleje_scenarie_fuld_skattepligt = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetOmfattetAfKsl1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt), ArbejdsudlejeDanskBeskatningsretBekræftet, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+= arbejdsudleje_scenarie_selvstændig = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, SelvstændigtErhvervsdrivende, UdenlandskUdlejerUdenDanskFastDriftssted), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt), ArbejdsudlejeDanskBeskatningsretBekræftet, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+= arbejdsudleje_scenarie_fast_driftssted = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerMedDanskFastDriftssted), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt), ArbejdsudlejeDanskBeskatningsretBekræftet, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+= arbejdsudleje_scenarie_permanent_udskilt = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, UdenlandskUdlejerUdenDanskFastDriftssted), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErPermanentUdskiltTilSelvstændigUdenlandskVirksomhed), ArbejdsudlejeDanskBeskatningsretBekræftet, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+= arbejdsudleje_scenarie_uafklaret = arbejdsudleje_scenarie_resultat(arbejdsudleje_scenarie_input(2025, 40, arbejdsudleje_scenarie_parter(ArbejdsudlejetIkkeOmfattetAfKsl1EllerKsl2Stk1Nr1, AnsatHosUdenlandskUdlejer, ArbejdsudlejeUdlejerstatusUafklaret), arbejdsudleje_scenarie_arbejde(ArbejdeErKerneydelse, ArbejdetErIkkePermanentUdskilt), ArbejdsudlejeDanskBeskatningsretBekræftet, EndeligArbejdsudlejeskatEfterPar48B, DokumenteretArbejdsudlejevederlag(20000, 0, 0, IngenFriKostEllerLogi, 0), arbejdsudleje_scenarie_tomt_arbejdsgiverbidrag(2025)))
+
+| arbejdsudleje_oliver_35_6_procent: arbejdsudleje_scenarie_oliver -> arbejdsudleje_scenarie_oliver.kan_sammensættes && arbejdsudleje_scenarie_oliver.bruttoindtægt_kroner == 20000 && arbejdsudleje_scenarie_oliver.endeligt_arbejdsmarkedsbidrag_kroner == 1600 && arbejdsudleje_scenarie_oliver.kildeskat_par48b_grundlag_kroner == 18400 && arbejdsudleje_scenarie_oliver.endelig_arbejdsudlejeskat_kroner == 5520 && arbejdsudleje_scenarie_oliver.samlet_endelig_skat_kroner == 7120
+| arbejdsudleje_fakturasum_er_subsidiært_grundlag: arbejdsudleje_scenarie_fakturasum -> arbejdsudleje_scenarie_fakturasum.bruttoindtægt_kroner == 30000 && arbejdsudleje_scenarie_fakturasum.samlet_endelig_skat_kroner == 10680
+| arbejdsudleje_rejsekost_efter_regning_udelukkes: arbejdsudleje_scenarie_rejsekost -> arbejdsudleje_scenarie_rejsekost.bruttoindtægt_kroner == 20000 && arbejdsudleje_scenarie_rejsekost.udelukket_fri_kost_logi_kroner == 4000 && arbejdsudleje_scenarie_rejsekost.samlet_endelig_skat_kroner == 7120
+| arbejdsudleje_unge_am_fritagelse_fra_2026: arbejdsudleje_scenarie_ung_2026 -> arbejdsudleje_scenarie_ung_2026.arbejdsmarkedsbidragssats_basispoint == 0 && arbejdsudleje_scenarie_ung_2026.endeligt_arbejdsmarkedsbidrag_kroner == 0 && arbejdsudleje_scenarie_ung_2026.endelig_arbejdsudlejeskat_kroner == 6000
+| arbejdsudleje_arbejdsgiverbidrag_reducerer_par48b_grundlag: arbejdsudleje_scenarie_arbejdsgiverbidrag -> arbejdsudleje_scenarie_arbejdsgiverbidrag.udenlandsk_arbejdsgiverbidrag.udenlandsk_arbejdsgiverbidrag_fradrag_kroner == 1000 && arbejdsudleje_scenarie_arbejdsgiverbidrag.kildeskat_par48b_grundlag_kroner == 17400 && arbejdsudleje_scenarie_arbejdsgiverbidrag.endelig_arbejdsudlejeskat_kroner == 5220 && arbejdsudleje_scenarie_arbejdsgiverbidrag.samlet_endelig_skat_kroner == 6820
+| arbejdsudleje_arbejdsgiverbidrag_fra_forkert_år_fejler_lukket: arbejdsudleje_scenarie_arbejdsgiverbidrag_forkert_år -> arbejdsudleje_scenarie_arbejdsgiverbidrag_forkert_år.input_gyldigt == Falskt && arbejdsudleje_scenarie_arbejdsgiverbidrag_forkert_år.kan_sammensættes == Falskt && arbejdsudleje_scenarie_arbejdsgiverbidrag_forkert_år.samlet_endelig_skat_kroner == 0
+| arbejdsudleje_rettidigt_ordinært_valg_ruter_til_personskat: arbejdsudleje_scenarie_ordinært_valg -> arbejdsudleje_scenarie_ordinært_valg.kan_sammensættes && arbejdsudleje_scenarie_ordinært_valg.ordinær_beskatning_valgt && arbejdsudleje_scenarie_ordinært_valg.endelig_beskatning == Falskt && arbejdsudleje_scenarie_ordinært_valg.ordinært_arbejdsmarkedsbidragsgrundlag_kroner == 20000 && arbejdsudleje_scenarie_ordinært_valg.samlet_endelig_skat_kroner == 0
+| arbejdsudleje_rettidig_omgørelse_genskaber_endelig_skat: arbejdsudleje_scenarie_rettidig_omgørelse -> arbejdsudleje_scenarie_rettidig_omgørelse.valg_omgjort_rettidigt && arbejdsudleje_scenarie_rettidig_omgørelse.endelig_beskatning && arbejdsudleje_scenarie_rettidig_omgørelse.samlet_endelig_skat_kroner == 7120
+| arbejdsudleje_for_sent_valg_fejler_lukket: arbejdsudleje_scenarie_for_sent_valg -> arbejdsudleje_scenarie_for_sent_valg.beskatningsvalg_gyldigt == Falskt && arbejdsudleje_scenarie_for_sent_valg.kan_sammensættes == Falskt && arbejdsudleje_scenarie_for_sent_valg.samlet_endelig_skat_kroner == 0
+| arbejdsudleje_dbo_afskærer_dansk_skat: arbejdsudleje_scenarie_dbo_afskærer -> arbejdsudleje_scenarie_dbo_afskærer.kan_sammensættes && arbejdsudleje_scenarie_dbo_afskærer.dansk_beskatningsret == Falskt && arbejdsudleje_scenarie_dbo_afskærer.samlet_endelig_skat_kroner == 0
+| arbejdsudleje_ordinære_og_selvstændige_forhold_udelukkes: arbejdsudleje_scenarie_fuld_skattepligt -> arbejdsudleje_scenarie_fuld_skattepligt.grundbetingelser_opfyldt == Falskt && arbejdsudleje_scenarie_fuld_skattepligt.samlet_endelig_skat_kroner == 0 && arbejdsudleje_scenarie_selvstændig.grundbetingelser_opfyldt == Falskt && arbejdsudleje_scenarie_selvstændig.samlet_endelig_skat_kroner == 0
+| arbejdsudleje_fast_driftssted_og_permanent_udskillelse_udelukkes: arbejdsudleje_scenarie_fast_driftssted -> arbejdsudleje_scenarie_fast_driftssted.grundbetingelser_opfyldt == Falskt && arbejdsudleje_scenarie_permanent_udskilt.grundbetingelser_opfyldt == Falskt
+| arbejdsudleje_uafklarede_fakta_fejler_lukket: arbejdsudleje_scenarie_uafklaret -> arbejdsudleje_scenarie_uafklaret.afgrænsning_afklaret == Falskt && arbejdsudleje_scenarie_uafklaret.kan_sammensættes == Falskt && arbejdsudleje_scenarie_uafklaret.samlet_endelig_skat_kroner == 0
+
+? arbejdsudleje_oliver_35_6_procent
+? arbejdsudleje_fakturasum_er_subsidiært_grundlag
+? arbejdsudleje_rejsekost_efter_regning_udelukkes
+? arbejdsudleje_unge_am_fritagelse_fra_2026
+? arbejdsudleje_arbejdsgiverbidrag_reducerer_par48b_grundlag
+? arbejdsudleje_arbejdsgiverbidrag_fra_forkert_år_fejler_lukket
+? arbejdsudleje_rettidigt_ordinært_valg_ruter_til_personskat
+? arbejdsudleje_rettidig_omgørelse_genskaber_endelig_skat
+? arbejdsudleje_for_sent_valg_fejler_lukket
+? arbejdsudleje_dbo_afskærer_dansk_skat
+? arbejdsudleje_ordinære_og_selvstændige_forhold_udelukkes
+? arbejdsudleje_fast_driftssted_og_permanent_udskillelse_udelukkes
+? arbejdsudleje_uafklarede_fakta_fejler_lukket
+
+@ print("Kildeskattelovens arbejdsudleje er kontrolleret med afgrænsning, AM-bidrag, § 48 B, valg og undtagelser")
