@@ -135,14 +135,14 @@ statsskatteloven for selvstændige erhvervsdrivende og
     | PsPar3Nr10Al5C(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al5D5E(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al6(input) -> input.indkomstår == indkomstår
-    | PsPar3Nr10Al6Salg(input) -> input.straksafskrivningsresultat.indkomstår == indkomstår
+    | PsPar3Nr10Al6Salg(input) -> input.straksafskrivningsinput.indkomstår == indkomstår
     | PsPar3Nr10Al7(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al8(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al9(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al9EfterfølgendeSalg(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al11(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al12(input) -> input.indkomstår == indkomstår
-    | PsPar3Nr10Al13Udgang(input) -> input.par12_resultat.indkomstår == indkomstår
+    | PsPar3Nr10Al13Udgang(input) -> input.par12_input.indkomstår == indkomstår
     | PsPar3Nr10Al13Reparation(input) -> input.indkomstår == indkomstår
 }
 | personskat_par3_nr10_bygningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Bygningskilde, indkomstår: Heltal) -> match kilde {

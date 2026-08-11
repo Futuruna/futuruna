@@ -1258,7 +1258,7 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 # Afskrivningslov6Udlejningsforhold(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse_i_anskaffelsesåret: Afskrivningslov5UdlejningsTilladelse)
 # Afskrivningslov6Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov6Aktivgrundlag, udlejningsforhold: Afskrivningslov6Udlejningsforhold, valg: Afskrivningslov6Valg)
 # Afskrivningslov6Resultat(indkomstår: Heltal, anskaffelsesår: Heltal, skatteyder: AfskrivningslovSkatteyder, valg: Afskrivningslov6Valg, omfattet_af_par6_stk1_modellen: Boolsk, kort_levetid_betingelse_opfyldt: Boolsk, småaktiv_betingelse_opfyldt: Boolsk, forskning_betingelse_opfyldt: Boolsk, valg_hjemmel_opfyldt: Boolsk, omfattet_af_stk3: Boolsk, udskydelse_efter_stk3_gælder: Boolsk, første_mulige_fradragsår: Heltal, fradragsår_opfyldt: Boolsk, valg_gyldigt: Boolsk, forskningsudgift_under_loft_kroner: Heltal, forskningsudgift_over_loft_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, anskaffelsessum_fradraget_senest_i_indkomståret_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal)
-# Afskrivningslov6SalgInput(straksafskrivningsresultat: Afskrivningslov6Resultat, salgssum_kroner: Heltal, leveret_i_indkomståret: Boolsk, virksomhed_sælges_eller_ophører_i_indkomståret: Boolsk)
+# Afskrivningslov6SalgInput(straksafskrivningsinput: Afskrivningslov6Input, salgssum_kroner: Heltal, leveret_i_indkomståret: Boolsk, virksomhed_sælges_eller_ophører_i_indkomståret: Boolsk)
 # Afskrivningslov6SalgResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_stk2: Boolsk, omfattet_af_stk4: Boolsk, behandles_efter_par9: Boolsk, salgssum_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal, netto_beløb_til_skattepligtig_indkomst_kroner: Heltal, skattepligtig_indtægtsføring_kroner: Heltal, fradragsberettiget_negativt_beløb_kroner: Heltal)
 
 | afskrivningslov6_aktiv_resultat(input: Afskrivningslov6Input) -> afskrivningslov_par1_par2_resultat(input.aktivgrundlag.aktiv_input)
@@ -1330,20 +1330,21 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
     ufradraget_anskaffelsessum_kroner = penge_positivt_beløb(input.aktivgrundlag.anskaffelsessum_kroner) - afskrivningslov6_anskaffelsessum_fradraget_senest_i_indkomståret_kroner(input, parametre)
 )
 
-| afskrivningslov6_salg_omfattet_af_stk2(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && input.straksafskrivningsresultat.omfattet_af_stk3 == Falskt && input.straksafskrivningsresultat.valg != Al6IngenStraksafskrivning && input.straksafskrivningsresultat.anskaffelsessum_fradraget_senest_i_indkomståret_kroner > 0 && input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner == 0
-| afskrivningslov6_salg_omfattet_af_stk4(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && input.straksafskrivningsresultat.omfattet_af_stk3 && input.straksafskrivningsresultat.valg_hjemmel_opfyldt && input.straksafskrivningsresultat.valg != Al6IngenStraksafskrivning
+| afskrivningslov6_salg_straksafskrivningsresultat(input: Afskrivningslov6SalgInput) -> afskrivningslov6_resultat(input.straksafskrivningsinput, afskrivningslov_årsparametre(afskrivningslov6_anskaffelsesår(input.straksafskrivningsinput)))
+| afskrivningslov6_salg_omfattet_af_stk2(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && afskrivningslov6_salg_straksafskrivningsresultat(input).omfattet_af_stk3 == Falskt && afskrivningslov6_salg_straksafskrivningsresultat(input).valg != Al6IngenStraksafskrivning && afskrivningslov6_salg_straksafskrivningsresultat(input).anskaffelsessum_fradraget_senest_i_indkomståret_kroner > 0 && afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner == 0
+| afskrivningslov6_salg_omfattet_af_stk4(input: Afskrivningslov6SalgInput) -> input.leveret_i_indkomståret && afskrivningslov6_salg_straksafskrivningsresultat(input).omfattet_af_stk3 && afskrivningslov6_salg_straksafskrivningsresultat(input).valg_hjemmel_opfyldt && afskrivningslov6_salg_straksafskrivningsresultat(input).valg != Al6IngenStraksafskrivning
 | afskrivningslov6_salg_behandles_efter_par9(input: Afskrivningslov6SalgInput) -> input.virksomhed_sælges_eller_ophører_i_indkomståret && (afskrivningslov6_salg_omfattet_af_stk2(input) || afskrivningslov6_salg_omfattet_af_stk4(input))
 | afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> 0
 | exception al6_stk2_salgssum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) under afskrivningslov6_salg_omfattet_af_stk2(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
-| exception al6_stk4_salgssum_efter_ufradraget_anskaffelsessum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) - input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner under afskrivningslov6_salg_omfattet_af_stk4(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
+| exception al6_stk4_salgssum_efter_ufradraget_anskaffelsessum afskrivningslov6_salg_netto_beløb_kroner(input: Afskrivningslov6SalgInput) -> penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner under afskrivningslov6_salg_omfattet_af_stk4(input) && afskrivningslov6_salg_behandles_efter_par9(input) == Falskt
 | afskrivningslov6_salg_resultat(input: Afskrivningslov6SalgInput) -> Afskrivningslov6SalgResultat(
-    indkomstår = input.straksafskrivningsresultat.indkomstår,
-    skatteyder = input.straksafskrivningsresultat.skatteyder,
+    indkomstår = afskrivningslov6_salg_straksafskrivningsresultat(input).indkomstår,
+    skatteyder = afskrivningslov6_salg_straksafskrivningsresultat(input).skatteyder,
     omfattet_af_stk2 = afskrivningslov6_salg_omfattet_af_stk2(input),
     omfattet_af_stk4 = afskrivningslov6_salg_omfattet_af_stk4(input),
     behandles_efter_par9 = afskrivningslov6_salg_behandles_efter_par9(input),
     salgssum_kroner = penge_positivt_beløb(input.salgssum_kroner),
-    ufradraget_anskaffelsessum_kroner = input.straksafskrivningsresultat.ufradraget_anskaffelsessum_kroner,
+    ufradraget_anskaffelsessum_kroner = afskrivningslov6_salg_straksafskrivningsresultat(input).ufradraget_anskaffelsessum_kroner,
     netto_beløb_til_skattepligtig_indkomst_kroner = afskrivningslov6_salg_netto_beløb_kroner(input),
     skattepligtig_indtægtsføring_kroner = penge_positivt_beløb(afskrivningslov6_salg_netto_beløb_kroner(input)),
     fradragsberettiget_negativt_beløb_kroner = penge_positivt_beløb(0 - afskrivningslov6_salg_netto_beløb_kroner(input))
@@ -1844,7 +1845,7 @@ den skattepligtige indkomst.
 
 --@begin:afskrivningsloven_par13--
 # Afskrivningslov13Behandling = Al13UdgårAfDriften | Al13RepareresOgFortsætter
-# Afskrivningslov13UdgangInput(par12_resultat: Afskrivningslov12Resultat)
+# Afskrivningslov13UdgangInput(par12_input: Afskrivningslov12Input)
 # Afskrivningslov13ReparationInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, årets_benyttelse: AfskrivningslovBenyttelse, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov11Årsopgørelse))
 # Afskrivningslov13Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, behandling: Afskrivningslov13Behandling, omfattet_af_par13: Boolsk, afskrivning_i_skadeåret_afskåret: Boolsk, skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, fradragsberettiget_reparationsoverskud_kroner: Heltal, samlet_skattepligtigt_beløb_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
@@ -1861,18 +1862,19 @@ den skattepligtige indkomst.
     afskrivningslov13_foretagne_afskrivninger_kroner(input.tidligere_årsopgørelser),
     afskrivningslov13_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser)
 ) under afskrivningslov13_reparation_omfattet(input) && input.forsikrings_eller_erstatningssum_kroner > input.reparationsudgifter_kroner
+| afskrivningslov13_udgang_par12_resultat(input: Afskrivningslov13UdgangInput) -> afskrivningslov12_resultat(input.par12_input)
 | afskrivningslov13_resultat_ved_udgang(input: Afskrivningslov13UdgangInput) -> Afskrivningslov13Resultat(
-    indkomstår = input.par12_resultat.indkomstår,
-    skatteyder = input.par12_resultat.skatteyder,
-    aktivart = input.par12_resultat.aktivart,
+    indkomstår = afskrivningslov13_udgang_par12_resultat(input).indkomstår,
+    skatteyder = afskrivningslov13_udgang_par12_resultat(input).skatteyder,
+    aktivart = afskrivningslov13_udgang_par12_resultat(input).aktivart,
     behandling = Al13UdgårAfDriften,
-    omfattet_af_par13 = input.par12_resultat.omfattet_af_par12,
-    afskrivning_i_skadeåret_afskåret = input.par12_resultat.omfattet_af_par12,
-    skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner = input.par12_resultat.skattepligtig_fortjeneste_kroner,
-    fradragsberettiget_tab_kroner = input.par12_resultat.fradragsberettiget_tab_kroner,
+    omfattet_af_par13 = afskrivningslov13_udgang_par12_resultat(input).omfattet_af_par12,
+    afskrivning_i_skadeåret_afskåret = afskrivningslov13_udgang_par12_resultat(input).omfattet_af_par12,
+    skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner = afskrivningslov13_udgang_par12_resultat(input).skattepligtig_fortjeneste_kroner,
+    fradragsberettiget_tab_kroner = afskrivningslov13_udgang_par12_resultat(input).fradragsberettiget_tab_kroner,
     fradragsberettiget_reparationsoverskud_kroner = 0,
-    samlet_skattepligtigt_beløb_kroner = input.par12_resultat.skattepligtig_fortjeneste_kroner,
-    samlet_fradrag_i_skattepligtig_indkomst_kroner = input.par12_resultat.fradragsberettiget_tab_kroner
+    samlet_skattepligtigt_beløb_kroner = afskrivningslov13_udgang_par12_resultat(input).skattepligtig_fortjeneste_kroner,
+    samlet_fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov13_udgang_par12_resultat(input).fradragsberettiget_tab_kroner
 )
 | afskrivningslov13_resultat_ved_reparation(input: Afskrivningslov13ReparationInput) -> Afskrivningslov13Resultat(
     indkomstår = input.indkomstår,

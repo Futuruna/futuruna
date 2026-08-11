@@ -150,7 +150,7 @@
     tilladelse_i_anskaffelsesåret = Al5UdlejningstilladelseGældende
 )
 
-= al6_software_som_småaktiv = afskrivningslov6_resultat(Afskrivningslov6Input(
+= al6_software_som_småaktiv_input = Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = Afskrivningslov6Aktivgrundlag(
         aktiv_input = al_selvstændig_software,
@@ -164,7 +164,9 @@
     ),
     udlejningsforhold = al6_ingen_udlejning,
     valg = Al6Småaktiv
-    ), al_2026_parametre)
+)
+
+= al6_software_som_småaktiv = afskrivningslov6_resultat(al6_software_som_småaktiv_input, al_2026_parametre)
 
 = al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
@@ -215,14 +217,14 @@
     ), al_2026_parametre)
 
 = al6_stk2_salg_af_straksafskrevet_småaktiv = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
-    straksafskrivningsresultat = al6_software_som_småaktiv,
+    straksafskrivningsinput = al6_software_som_småaktiv_input,
     salgssum_kroner = 20000,
     leveret_i_indkomståret = Sandt,
     virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
 ))
 
 = al6_stk2_salg_henvist_til_par9 = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
-    straksafskrivningsresultat = al6_software_som_småaktiv,
+    straksafskrivningsinput = al6_software_som_småaktiv_input,
     salgssum_kroner = 20000,
     leveret_i_indkomståret = Sandt,
     virksomhed_sælges_eller_ophører_i_indkomståret = Sandt
@@ -239,19 +241,23 @@
     forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner = 0
 )
 
-= al6_selskabsudlejning_anskaffelsesår = afskrivningslov6_resultat(Afskrivningslov6Input(
+= al6_selskabsudlejning_anskaffelsesår_input = Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = al6_selskabsudlejnings_småaktiv,
     udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
     valg = Al6Småaktiv
-    ), al_2026_parametre)
+)
 
-= al6_selskabsudlejning_året_efter = afskrivningslov6_resultat(Afskrivningslov6Input(
+= al6_selskabsudlejning_anskaffelsesår = afskrivningslov6_resultat(al6_selskabsudlejning_anskaffelsesår_input, al_2026_parametre)
+
+= al6_selskabsudlejning_året_efter_input = Afskrivningslov6Input(
     indkomstår = 2027,
     aktivgrundlag = al6_selskabsudlejnings_småaktiv,
     udlejningsforhold = al6_selskabsudlejning_uden_tilladelse,
     valg = Al6Småaktiv
-    ), al_2026_parametre)
+)
+
+= al6_selskabsudlejning_året_efter = afskrivningslov6_resultat(al6_selskabsudlejning_året_efter_input, al_2026_parametre)
 
 = al6_selskabsudlejning_med_tilladelse_i_anskaffelsesåret = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
@@ -261,14 +267,14 @@
     ), al_2026_parametre)
 
 = al6_stk4_salg_i_anskaffelsesåret_med_negativt_beløb = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
-    straksafskrivningsresultat = al6_selskabsudlejning_anskaffelsesår,
+    straksafskrivningsinput = al6_selskabsudlejning_anskaffelsesår_input,
     salgssum_kroner = 20000,
     leveret_i_indkomståret = Sandt,
     virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
 ))
 
 = al6_stk4_salg_efter_fuldt_fradrag = afskrivningslov6_salg_resultat(Afskrivningslov6SalgInput(
-    straksafskrivningsresultat = al6_selskabsudlejning_året_efter,
+    straksafskrivningsinput = al6_selskabsudlejning_året_efter_input,
     salgssum_kroner = 20000,
     leveret_i_indkomståret = Sandt,
     virksomhed_sælges_eller_ophører_i_indkomståret = Falskt
@@ -869,7 +875,7 @@
     benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser = al11_officiel_salgs_historik)
 ))
 
-= al12_officielt_tab = afskrivningslov12_resultat(Afskrivningslov12Input(
+= al12_officielt_tab_input = Afskrivningslov12Input(
     indkomstår = 2026,
     aktiv_input = al_blandet_60_pct_maskine,
     anskaffelsessum_kroner = 160000,
@@ -877,7 +883,9 @@
     forbedringsudgifter_i_salgsåret_kroner = 800,
     salgssum_kroner = 47000,
     benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser = al11_officiel_salgs_historik)
-))
+)
+
+= al12_officielt_tab = afskrivningslov12_resultat(al12_officielt_tab_input)
 
 = al12_samme_år_fortjeneste = afskrivningslov12_resultat(Afskrivningslov12Input(
     indkomstår = 2026,
@@ -927,7 +935,7 @@
 ))
 
 = al13_udgang_ved_skade = afskrivningslov13_resultat_ved_udgang(Afskrivningslov13UdgangInput(
-    par12_resultat = al12_officielt_tab
+    par12_input = al12_officielt_tab_input
 ))
 
 = par3_nr10_blandet_input = Par3Stk2Nr10Input(
