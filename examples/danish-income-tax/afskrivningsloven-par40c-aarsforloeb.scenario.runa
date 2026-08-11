@@ -1,0 +1,220 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+
+| al40c_årsforløb_betalingsrettighed(lot_id: Tekst, enheder: Heltal, anskaffelsessum_kroner: Heltal) -> Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = lot_id,
+        rettighedsnøgle = "betalingsrettighed",
+        erhvervelsesdato = AfskrivningslovDato(år = 2024, måned = 3, dag = 1),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = enheder
+    ),
+    aktivgrundlag = Al40CBetalingsrettighedsgrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = anskaffelsessum_kroner)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = anskaffelsessum_kroner
+)
+
+| al40c_årsforløb_primosaldo(saldo_ultimo_kroner: Heltal) -> Al40CPrimosaldoFraForrigeÅr(position = Afskrivningslov40CSaldoposition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    indkomstår = 2025,
+    saldo_ultimo_kroner = saldo_ultimo_kroner
+))
+
+= al40c_årsforløb_position_primo = al40c_årsforløb_betalingsrettighed("betaling-2024", 10, 10000)
+
+= al40c_årsforløb_delvist_salg = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [Al40CÅrsafståelse(
+        identifikation = "delvist-salg",
+        lot_id = "betaling-2024",
+        hændelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 1),
+        afståede_enheder = 5,
+        afståelsessum_kroner = 25000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )]
+))
+
+= al40c_årsforløb_sidste_salg = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [Al40CÅrsafståelse(
+        identifikation = "sidste-salg",
+        lot_id = "betaling-2024",
+        hændelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 1),
+        afståede_enheder = 10,
+        afståelsessum_kroner = 25000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )]
+))
+
+= al40c_årsforløb_sidste_udløb = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [Al40CÅrsudløb(
+        identifikation = "sidste-udløb",
+        lot_id = "betaling-2024",
+        hændelsesdato = AfskrivningslovDato(år = 2026, måned = 7, dag = 1),
+        udløbne_enheder = 10,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )]
+))
+
+= al40c_årsforløb_ny_position = Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = "betaling-2026",
+        rettighedsnøgle = "betalingsrettighed",
+        erhvervelsesdato = AfskrivningslovDato(år = 2026, måned = 1, dag = 10),
+        erhvervelsesrækkefølge = 1,
+        resterende_enheder = 10
+    ),
+    aktivgrundlag = Al40CBetalingsrettighedsgrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 7000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 7000
+)
+
+= al40c_årsforløb_anskaffelse_og_salg = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = Al40CFørsteSaldoår,
+    positioner_primo = [],
+    hændelser_i_året = [
+        Al40CÅrsanskaffelse(identifikation = "anskaffelse", position = al40c_årsforløb_ny_position),
+        Al40CÅrsafståelse(
+            identifikation = "salg",
+            lot_id = "betaling-2026",
+            hændelsesdato = AfskrivningslovDato(år = 2026, måned = 12, dag = 1),
+            afståede_enheder = 10,
+            afståelsessum_kroner = 12000,
+            mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+        )
+    ]
+))
+
+| al40c_årsforløb_mælkeposition(lot_id: Tekst, erhvervelsesår: Heltal, rækkefølge: Heltal) -> Afskrivningslov40CPosition(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    lot = AfskrivningslovKvoteLot(
+        lot_id = lot_id,
+        rettighedsnøgle = "mælkekvote",
+        erhvervelsesdato = AfskrivningslovDato(år = erhvervelsesår, måned = 1, dag = 1),
+        erhvervelsesrækkefølge = rækkefølge,
+        resterende_enheder = 10
+    ),
+    aktivgrundlag = Al40CMælkekvotegrundlag(
+        anskaffelsesgrundlag = Al40CSærskiltAnskaffelsessum(anskaffelsessum_kroner = 5000)
+    ),
+    resterende_anskaffelsesgrundlag_kroner = 5000
+)
+
+= al40c_årsforløb_gammel_mælk = al40c_årsforløb_mælkeposition("mælk-2004", 2004, 1)
+= al40c_årsforløb_ny_mælk = al40c_årsforløb_mælkeposition("mælk-2005", 2005, 2)
+= al40c_årsforløb_fifo_afvist = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_gammel_mælk, al40c_årsforløb_ny_mælk],
+    hændelser_i_året = [Al40CÅrsafståelse(
+        identifikation = "mælk-salg",
+        lot_id = "mælk-2005",
+        hændelsesdato = AfskrivningslovDato(år = 2026, måned = 5, dag = 1),
+        afståede_enheder = 10,
+        afståelsessum_kroner = 10000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )]
+))
+
+= al40c_årsforløb_dobbelt_lot = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo, al40c_årsforløb_position_primo],
+    hændelser_i_året = []
+))
+
+= al40c_årsforløb_første_år_med_primoaktiv = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = Al40CFørsteSaldoår,
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = []
+))
+
+= al40c_årsforløb_positiv_primosaldo_uden_aktiv = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [],
+    hændelser_i_året = []
+))
+
+= al40c_årsforløb_manglende_lot = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [Al40CÅrsafståelse(
+        identifikation = "ukendt-salg",
+        lot_id = "findes-ikke",
+        hændelsesdato = AfskrivningslovDato(år = 2026, måned = 8, dag = 1),
+        afståede_enheder = 1,
+        afståelsessum_kroner = 1000,
+        mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+    )]
+))
+
+= al40c_årsforløb_dobbelt_hændelse = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [
+        Al40CÅrsafståelse(identifikation = "samme", lot_id = "betaling-2024", hændelsesdato = AfskrivningslovDato(år = 2026, måned = 3, dag = 1), afståede_enheder = 2, afståelsessum_kroner = 2000, mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant),
+        Al40CÅrsafståelse(identifikation = "samme", lot_id = "betaling-2024", hændelsesdato = AfskrivningslovDato(år = 2026, måned = 4, dag = 1), afståede_enheder = 2, afståelsessum_kroner = 2000, mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant)
+    ]
+))
+
+= al40c_årsforløb_omvendt_kronologi = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = al40c_årsforløb_primosaldo(10000),
+    positioner_primo = [al40c_årsforløb_position_primo],
+    hændelser_i_året = [
+        Al40CÅrsafståelse(identifikation = "sen", lot_id = "betaling-2024", hændelsesdato = AfskrivningslovDato(år = 2026, måned = 9, dag = 1), afståede_enheder = 2, afståelsessum_kroner = 2000, mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant),
+        Al40CÅrsafståelse(identifikation = "tidlig", lot_id = "betaling-2024", hændelsesdato = AfskrivningslovDato(år = 2026, måned = 8, dag = 1), afståede_enheder = 2, afståelsessum_kroner = 2000, mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant)
+    ]
+))
+
+| al40c_årsforløb_delvist_salg_indtægtsfører_negativ_saldo: al40c_årsforløb_delvist_salg -> al40c_årsforløb_delvist_salg.input_gyldigt && al40c_årsforløb_delvist_salg.sidste_saldoaktiv_afstået_eller_udløbet == Falskt && al40c_årsforløb_delvist_salg.afskrivningslov_input.begivenhed == Al40CÅrligSaldoopgørelse && al40c_årsforløb_delvist_salg.afskrivningslov_resultat.negativ_saldo_indtægtsført_kroner == 15000 && head(al40c_årsforløb_delvist_salg.positioner_ultimo).lot.resterende_enheder == 5
+| al40c_årsforløb_sidste_salg_afleder_fortjeneste: al40c_årsforløb_sidste_salg -> al40c_årsforløb_sidste_salg.input_gyldigt && al40c_årsforløb_sidste_salg.sidste_saldoaktiv_afstået_eller_udløbet && al40c_årsforløb_sidste_salg.afskrivningslov_input.begivenhed == Al40CSidsteAktivAfståetEllerUdløbet && al40c_årsforløb_sidste_salg.afskrivningslov_resultat.afståelsesår_fortjeneste_kroner == 15000 && al40c_årsforløb_sidste_salg.saldoposition_ultimo.saldo_ultimo_kroner == 0
+| al40c_årsforløb_sidste_udløb_afleder_tab: al40c_årsforløb_sidste_udløb -> al40c_årsforløb_sidste_udløb.input_gyldigt && al40c_årsforløb_sidste_udløb.sidste_saldoaktiv_afstået_eller_udløbet && al40c_årsforløb_sidste_udløb.afskrivningslov_resultat.afståelsesår_tab_kroner == 10000 && al40c_årsforløb_sidste_udløb.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == -10000
+| al40c_årsforløb_anskaffelse_og_salg_bruger_kildefakta: al40c_årsforløb_anskaffelse_og_salg -> al40c_årsforløb_anskaffelse_og_salg.input_gyldigt && length(al40c_årsforløb_anskaffelse_og_salg.bevægelser_i_året) == 2 && al40c_årsforløb_anskaffelse_og_salg.afskrivningslov_resultat.anskaffelsessummer_i_året_kroner == 7000 && al40c_årsforløb_anskaffelse_og_salg.afskrivningslov_resultat.afståelsessummer_i_året_kroner == 12000 && al40c_årsforløb_anskaffelse_og_salg.afskrivningslov_resultat.afståelsesår_fortjeneste_kroner == 5000
+| al40c_årsforløb_fifo_afviser_ny_mælk_før_gammel: al40c_årsforløb_fifo_afvist -> al40c_årsforløb_fifo_afvist.input_gyldigt == Falskt && head(al40c_årsforløb_fifo_afvist.hændelsesresultater).hændelse_gyldig == Falskt && match head(al40c_årsforløb_fifo_afvist.hændelsesresultater).aktiv_resultat { | Some(resultat) -> resultat.fifo_betingelse_opfyldt == Falskt | None -> Falskt } && al40c_årsforløb_fifo_afvist.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| al40c_årsforløb_dobbelt_lot_fejler_lukket: al40c_årsforløb_dobbelt_lot -> al40c_årsforløb_dobbelt_lot.positioner_primo_gyldige == Falskt && al40c_årsforløb_dobbelt_lot.input_gyldigt == Falskt && al40c_årsforløb_dobbelt_lot.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| al40c_årsforløb_første_år_kræver_tomt_åbningslager: al40c_årsforløb_første_år_med_primoaktiv -> al40c_årsforløb_første_år_med_primoaktiv.primosaldo_gyldig == Falskt && al40c_årsforløb_første_år_med_primoaktiv.input_gyldigt == Falskt && al40c_årsforløb_første_år_med_primoaktiv.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| al40c_årsforløb_positiv_primosaldo_kræver_saldoaktiv: al40c_årsforløb_positiv_primosaldo_uden_aktiv -> al40c_årsforløb_positiv_primosaldo_uden_aktiv.primosaldo_gyldig == Falskt && al40c_årsforløb_positiv_primosaldo_uden_aktiv.input_gyldigt == Falskt && al40c_årsforløb_positiv_primosaldo_uden_aktiv.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| al40c_årsforløb_manglende_lot_muterer_ikke: al40c_årsforløb_manglende_lot -> al40c_årsforløb_manglende_lot.input_gyldigt == Falskt && head(al40c_årsforløb_manglende_lot.hændelsesresultater).lot_identitet_gyldig == Falskt && head(al40c_årsforløb_manglende_lot.hændelsesresultater).positioner_før == head(al40c_årsforløb_manglende_lot.hændelsesresultater).positioner_efter
+| al40c_årsforløb_dobbelt_hændelse_muterer_kun_første_gang: al40c_årsforløb_dobbelt_hændelse -> al40c_årsforløb_dobbelt_hændelse.hændelsesidentifikationer_entydige == Falskt && al40c_årsforløb_dobbelt_hændelse.input_gyldigt == Falskt && al40c_årsforløb_dobbelt_hændelse.hændelsesresultater[1].identifikation_unik == Falskt && al40c_årsforløb_dobbelt_hændelse.hændelsesresultater[1].positioner_før == al40c_årsforløb_dobbelt_hændelse.hændelsesresultater[1].positioner_efter && head(al40c_årsforløb_dobbelt_hændelse.positioner_ultimo).lot.resterende_enheder == 8
+| al40c_årsforløb_omvendt_kronologi_fejler_lukket: al40c_årsforløb_omvendt_kronologi -> al40c_årsforløb_omvendt_kronologi.hændelser_kronologiske == Falskt && al40c_årsforløb_omvendt_kronologi.input_gyldigt == Falskt && al40c_årsforløb_omvendt_kronologi.hændelsesresultater[1].positioner_før == al40c_årsforløb_omvendt_kronologi.hændelsesresultater[1].positioner_efter
+
+? al40c_årsforløb_delvist_salg_indtægtsfører_negativ_saldo
+? al40c_årsforløb_sidste_salg_afleder_fortjeneste
+? al40c_årsforløb_sidste_udløb_afleder_tab
+? al40c_årsforløb_anskaffelse_og_salg_bruger_kildefakta
+? al40c_årsforløb_fifo_afviser_ny_mælk_før_gammel
+? al40c_årsforløb_dobbelt_lot_fejler_lukket
+? al40c_årsforløb_første_år_kræver_tomt_åbningslager
+? al40c_årsforløb_positiv_primosaldo_kræver_saldoaktiv
+? al40c_årsforløb_manglende_lot_muterer_ikke
+? al40c_årsforløb_dobbelt_hændelse_muterer_kun_første_gang
+? al40c_årsforløb_omvendt_kronologi_fejler_lukket

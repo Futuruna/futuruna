@@ -5325,6 +5325,14 @@ eller andele af kvoter for de først afståede.
 # Afskrivningslov40CAktivInput(indkomstår: Heltal, position: Afskrivningslov40CPosition, lager: List(Afskrivningslov40CPosition), hændelse: Afskrivningslov40CAktivhændelse)
 # Afskrivningslov40CAktivResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, kvoteart: Afskrivningslov40CKvoteart, hændelse: Afskrivningslov40CAktivhændelse, position_gyldig: Boolsk, lager_gyldigt: Boolsk, omfattet_af_par40c: Boolsk, hændelse_gyldig: Boolsk, fifo_betingelse_opfyldt: Boolsk, gammel_mælkekvote_indgår_ved_afståelsen: Boolsk, forpagterregel_anvendt: Boolsk, disponerede_enheder: Heltal, anskaffelsessum_henført_til_hændelsen_kroner: Heltal, afståelsessum_kroner: Heltal, bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), resterende_enheder: Heltal, resterende_anskaffelsesgrundlag_kroner: Heltal, position_efter: Afskrivningslov40CPosition)
 
+# Afskrivningslov40CSaldoposition(skatteyder: AfskrivningslovSkatteyder, indkomstår: Heltal, saldo_ultimo_kroner: Heltal)
+# Afskrivningslov40CPrimosaldo = Al40CFørsteSaldoår | Al40CPrimosaldoFraForrigeÅr(position: Afskrivningslov40CSaldoposition)
+# Afskrivningslov40CÅrshændelse = Al40CÅrsanskaffelse(identifikation: Tekst, position: Afskrivningslov40CPosition) | Al40CÅrsvederlagsfriModtagelse(identifikation: Tekst, position: Afskrivningslov40CPosition) | Al40CÅrsafståelse(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, afståede_enheder: Heltal, afståelsessum_kroner: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CÅrsudløb(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, udløbne_enheder: Heltal, mælkekvote_ejendomsforløb: Afskrivningslov40CMælkekvoteEjendomsforløb) | Al40CÅrsforpagterAfgiverVederlagsfrit(identifikation: Tekst, lot_id: Tekst, hændelsesdato: AfskrivningslovDato, afgivne_enheder: Heltal)
+# Afskrivningslov40CÅrskildefakta(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, primosaldo: Afskrivningslov40CPrimosaldo, positioner_primo: List(Afskrivningslov40CPosition), hændelser_i_året: List(Afskrivningslov40CÅrshændelse))
+# Afskrivningslov40CÅrshændelsesresultat(hændelse: Afskrivningslov40CÅrshændelse, hændelsesdato: AfskrivningslovDato, identifikation_unik: Boolsk, kronologi_gyldig: Boolsk, lot_identitet_gyldig: Boolsk, aktiv_resultat: Option(Afskrivningslov40CAktivResultat), hændelse_gyldig: Boolsk, omfattet_afslutning: Boolsk, positioner_før: List(Afskrivningslov40CPosition), positioner_efter: List(Afskrivningslov40CPosition), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse))
+# Afskrivningslov40CÅrsforløbstilstand(positioner: List(Afskrivningslov40CPosition), seneste_hændelsesdato: Option(AfskrivningslovDato), hændelsesidentifikationer: List(Tekst), hændelsesresultater: List(Afskrivningslov40CÅrshændelsesresultat), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), alle_hændelser_gyldige: Boolsk, har_omfattet_afslutning: Boolsk)
+# Afskrivningslov40CÅrsresultat(kildefakta: Afskrivningslov40CÅrskildefakta, primosaldo_gyldig: Boolsk, positioner_primo_gyldige: Boolsk, hændelsesidentifikationer_entydige: Boolsk, hændelser_kronologiske: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk, hændelsesresultater: List(Afskrivningslov40CÅrshændelsesresultat), positioner_ultimo: List(Afskrivningslov40CPosition), bevægelser_i_året: List(Afskrivningslov40CSaldobevægelse), sidste_saldoaktiv_afstået_eller_udløbet: Boolsk, afskrivningslov_input: Afskrivningslov40CInput, afskrivningslov_resultat: Afskrivningslov40CResultat, saldoposition_ultimo: Afskrivningslov40CSaldoposition)
+
 | afskrivningslov40c_mælkekvote_startdato() -> AfskrivningslovDato(år = 1993, måned = 5, dag = 19)
 | afskrivningslov40c_mælkekvote_ny_saldodato() -> AfskrivningslovDato(år = 2005, måned = 1, dag = 1)
 | afskrivningslov40c_sukkerroe_saldodato() -> AfskrivningslovDato(år = 2006, måned = 10, dag = 4)
@@ -5510,6 +5518,139 @@ eller andele af kvoter for de først afståede.
 }
 | afskrivningslov40c_sag(input: Afskrivningslov40CInput) -> Afskrivningslov40CSag(input)
 | afskrivningslov40c_resultat(input: Afskrivningslov40CInput) -> afskrivningslov40c_sag(input).resultat()
+
+| afskrivningslov40c_fysisk_person(skatteyder: AfskrivningslovSkatteyder) -> skatteyder == AlSelvstændigErhvervsdrivendePerson || skatteyder == AlAndenFysiskPerson
+| afskrivningslov40c_primosaldo_kroner(primosaldo: Afskrivningslov40CPrimosaldo) -> match primosaldo { | Al40CFørsteSaldoår -> 0 | Al40CPrimosaldoFraForrigeÅr(position) -> position.saldo_ultimo_kroner }
+| afskrivningslov40c_primosaldo_gyldig(kildefakta: Afskrivningslov40CÅrskildefakta) -> match kildefakta.primosaldo {
+    | Al40CFørsteSaldoår -> length(kildefakta.positioner_primo) == 0
+    | Al40CPrimosaldoFraForrigeÅr(position) -> position.skatteyder == kildefakta.skatteyder && position.indkomstår + 1 == kildefakta.indkomstår && position.saldo_ultimo_kroner >= 0 && (position.saldo_ultimo_kroner == 0 || any(kildefakta.positioner_primo, |aktiv: Afskrivningslov40CPosition| aktiv.lot.resterende_enheder > 0 && afskrivningslov40c_position_på_saldo_i_indkomstår(aktiv, kildefakta.indkomstår)))
+}
+| afskrivningslov40c_positioner_primo_gyldige(kildefakta: Afskrivningslov40CÅrskildefakta) -> all(kildefakta.positioner_primo, |position: Afskrivningslov40CPosition| position.skatteyder == kildefakta.skatteyder && position.lot.lot_id != "" && position.lot.rettighedsnøgle != "" && position.lot.resterende_enheder > 0 && afskrivningslov40c_indgangsdato(position).år < kildefakta.indkomstår && afskrivningslov40c_position_gyldig(position) && afskrivningslov40c_position_unik_i_lager(kildefakta.positioner_primo, position))
+| afskrivningslov40c_position_på_saldo_i_indkomstår(position: Afskrivningslov40CPosition, indkomstår: Heltal) -> match position.aktivgrundlag {
+    | Al40CBetalingsrettighedsgrundlag(_) -> Sandt
+    | Al40CMælkekvotegrundlag(_) -> afskrivningslov40c_mælkekvote_fra_2005(position)
+    | Al40CSukkerroegrundlag(_) -> afskrivningslov_dato_yyyymmdd(afskrivningslov40c_indgangsdato(position)) <= indkomstår * 10000 + 1231
+}
+| afskrivningslov40c_årshændelsesidentifikation(hændelse: Afskrivningslov40CÅrshændelse) -> match hændelse {
+    | Al40CÅrsanskaffelse(identifikation, _) -> identifikation
+    | Al40CÅrsvederlagsfriModtagelse(identifikation, _) -> identifikation
+    | Al40CÅrsafståelse(identifikation, _, _, _, _, _) -> identifikation
+    | Al40CÅrsudløb(identifikation, _, _, _, _) -> identifikation
+    | Al40CÅrsforpagterAfgiverVederlagsfrit(identifikation, _, _, _) -> identifikation
+}
+| afskrivningslov40c_årshændelsesdato(hændelse: Afskrivningslov40CÅrshændelse) -> match hændelse {
+    | Al40CÅrsanskaffelse(_, position) -> afskrivningslov40c_indgangsdato(position)
+    | Al40CÅrsvederlagsfriModtagelse(_, position) -> position.lot.erhvervelsesdato
+    | Al40CÅrsafståelse(_, _, hændelsesdato, _, _, _) -> hændelsesdato
+    | Al40CÅrsudløb(_, _, hændelsesdato, _, _) -> hændelsesdato
+    | Al40CÅrsforpagterAfgiverVederlagsfrit(_, _, hændelsesdato, _) -> hændelsesdato
+}
+| afskrivningslov40c_årshændelse_til_aktivhændelse(hændelse: Afskrivningslov40CÅrshændelse) -> match hændelse {
+    | Al40CÅrsanskaffelse(_, _) -> Al40CAnskaffelsePåSaldo
+    | Al40CÅrsvederlagsfriModtagelse(_, _) -> Al40CBortforpagterModtagerVederlagsfrit
+    | Al40CÅrsafståelse(_, _, hændelsesdato, afståede_enheder, afståelsessum_kroner, ejendomsforløb) -> Al40CAktivAfstået(hændelsesdato = hændelsesdato, afståede_enheder = afståede_enheder, afståelsessum_kroner = afståelsessum_kroner, mælkekvote_ejendomsforløb = ejendomsforløb)
+    | Al40CÅrsudløb(_, _, hændelsesdato, udløbne_enheder, ejendomsforløb) -> Al40CAktivUdløbet(hændelsesdato = hændelsesdato, udløbne_enheder = udløbne_enheder, mælkekvote_ejendomsforløb = ejendomsforløb)
+    | Al40CÅrsforpagterAfgiverVederlagsfrit(_, _, hændelsesdato, afgivne_enheder) -> Al40CForpagterAfgiverVederlagsfrit(hændelsesdato = hændelsesdato, afgivne_enheder = afgivne_enheder)
+}
+| afskrivningslov40c_årshændelse_lot_id(hændelse: Afskrivningslov40CÅrshændelse) -> match hændelse {
+    | Al40CÅrsanskaffelse(_, position) -> position.lot.lot_id
+    | Al40CÅrsvederlagsfriModtagelse(_, position) -> position.lot.lot_id
+    | Al40CÅrsafståelse(_, lot_id, _, _, _, _) -> lot_id
+    | Al40CÅrsudløb(_, lot_id, _, _, _) -> lot_id
+    | Al40CÅrsforpagterAfgiverVederlagsfrit(_, lot_id, _, _) -> lot_id
+}
+| afskrivningslov40c_årshændelse_er_tilgang(hændelse: Afskrivningslov40CÅrshændelse) -> match hændelse { | Al40CÅrsanskaffelse(_, _) -> Sandt | Al40CÅrsvederlagsfriModtagelse(_, _) -> Sandt | _ -> Falskt }
+| afskrivningslov40c_positioner_med_lot_id(positioner: List(Afskrivningslov40CPosition), lot_id: Tekst) -> filter(positioner, |position: Afskrivningslov40CPosition| position.lot.lot_id == lot_id)
+| afskrivningslov40c_erstat_position(positioner: List(Afskrivningslov40CPosition), position_efter: Afskrivningslov40CPosition) -> map(positioner, |position: Afskrivningslov40CPosition| hvis position.lot.lot_id == position_efter.lot.lot_id { position_efter } ellers { position })
+| afskrivningslov40c_kronologi_gyldig(seneste_hændelsesdato: Option(AfskrivningslovDato), hændelsesdato: AfskrivningslovDato) -> match seneste_hændelsesdato { | None -> Sandt | Some(seneste) -> afskrivningslov_dato_yyyymmdd(seneste) <= afskrivningslov_dato_yyyymmdd(hændelsesdato) }
+
+# Afskrivningslov40CÅrshændelseSag(kildefakta: Afskrivningslov40CÅrskildefakta, tilstand: Afskrivningslov40CÅrsforløbstilstand, hændelse: Afskrivningslov40CÅrshændelse) {
+    | identifikation() -> afskrivningslov40c_årshændelsesidentifikation(hændelse)
+    | hændelsesdato() -> afskrivningslov40c_årshændelsesdato(hændelse)
+    | matchende_positioner() -> afskrivningslov40c_positioner_med_lot_id(tilstand.positioner, afskrivningslov40c_årshændelse_lot_id(hændelse))
+    | identifikation_unik() -> identifikation() != "" && contains(tilstand.hændelsesidentifikationer, identifikation()) == Falskt
+    | kronologi_gyldig() -> afskrivningslov40c_kronologi_gyldig(tilstand.seneste_hændelsesdato, hændelsesdato())
+    | lot_identitet_gyldig() -> match hændelse {
+        | Al40CÅrsanskaffelse(_, position) -> position.skatteyder == kildefakta.skatteyder && position.lot.lot_id != "" && position.lot.rettighedsnøgle != "" && length(matchende_positioner()) == 0
+        | Al40CÅrsvederlagsfriModtagelse(_, position) -> position.skatteyder == kildefakta.skatteyder && position.lot.lot_id != "" && position.lot.rettighedsnøgle != "" && length(matchende_positioner()) == 0
+        | _ -> afskrivningslov40c_årshændelse_lot_id(hændelse) != "" && length(matchende_positioner()) == 1
+    }
+    | aktiv_resultat() -> match hændelse {
+        | Al40CÅrsanskaffelse(_, position) -> Some(afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(indkomstår = kildefakta.indkomstår, position = position, lager = concat(tilstand.positioner, [position]), hændelse = Al40CAnskaffelsePåSaldo)))
+        | Al40CÅrsvederlagsfriModtagelse(_, position) -> Some(afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(indkomstår = kildefakta.indkomstår, position = position, lager = concat(tilstand.positioner, [position]), hændelse = Al40CBortforpagterModtagerVederlagsfrit)))
+        | _ -> hvis length(matchende_positioner()) == 1 { Some(afskrivningslov40c_aktiv_resultat(Afskrivningslov40CAktivInput(indkomstår = kildefakta.indkomstår, position = head(matchende_positioner()), lager = tilstand.positioner, hændelse = afskrivningslov40c_årshændelse_til_aktivhændelse(hændelse)))) } ellers { None }
+    }
+    | aktiv_resultat_gyldigt() -> match aktiv_resultat() { | Some(resultat) -> resultat.position_gyldig && resultat.lager_gyldigt && resultat.hændelse_gyldig && resultat.fifo_betingelse_opfyldt | None -> Falskt }
+    | hændelse_gyldig() -> identifikation_unik() && kronologi_gyldig() && lot_identitet_gyldig() && aktiv_resultat_gyldigt()
+    | bevægelser_i_året() -> hvis hændelse_gyldig() { match aktiv_resultat() { | Some(resultat) -> filter(resultat.bevægelser_i_året, |bevægelse: Afskrivningslov40CSaldobevægelse| bevægelse != Al40CIngenSaldobevægelse) | None -> [] } } ellers { [] }
+    | positioner_efter() -> hvis hændelse_gyldig() { match aktiv_resultat() { | Some(resultat) -> hvis afskrivningslov40c_årshændelse_er_tilgang(hændelse) { concat(tilstand.positioner, [resultat.position_efter]) } ellers { afskrivningslov40c_erstat_position(tilstand.positioner, resultat.position_efter) } | None -> tilstand.positioner } } ellers { tilstand.positioner }
+    | omfattet_afslutning() -> hændelse_gyldig() && match aktiv_resultat() { | Some(resultat) -> resultat.omfattet_af_par40c && afskrivningslov40c_disposition(resultat.hændelse) | None -> Falskt }
+    | resultat() -> Afskrivningslov40CÅrshændelsesresultat(
+        hændelse = hændelse,
+        hændelsesdato = hændelsesdato(),
+        identifikation_unik = identifikation_unik(),
+        kronologi_gyldig = kronologi_gyldig(),
+        lot_identitet_gyldig = lot_identitet_gyldig(),
+        aktiv_resultat = aktiv_resultat(),
+        hændelse_gyldig = hændelse_gyldig(),
+        omfattet_afslutning = omfattet_afslutning(),
+        positioner_før = tilstand.positioner,
+        positioner_efter = positioner_efter(),
+        bevægelser_i_året = bevægelser_i_året()
+    )
+}
+| afskrivningslov40c_årshændelsesresultat(kildefakta: Afskrivningslov40CÅrskildefakta, tilstand: Afskrivningslov40CÅrsforløbstilstand, hændelse: Afskrivningslov40CÅrshændelse) -> Afskrivningslov40CÅrshændelseSag(kildefakta, tilstand, hændelse).resultat()
+| afskrivningslov40c_årsforløbstrin(kildefakta: Afskrivningslov40CÅrskildefakta, tilstand: Afskrivningslov40CÅrsforløbstilstand, hændelse: Afskrivningslov40CÅrshændelse) -> {
+    = resultat = afskrivningslov40c_årshændelsesresultat(kildefakta, tilstand, hændelse)
+    Afskrivningslov40CÅrsforløbstilstand(
+        positioner = resultat.positioner_efter,
+        seneste_hændelsesdato = hvis resultat.hændelse_gyldig { Some(resultat.hændelsesdato) } ellers { tilstand.seneste_hændelsesdato },
+        hændelsesidentifikationer = concat(tilstand.hændelsesidentifikationer, [afskrivningslov40c_årshændelsesidentifikation(hændelse)]),
+        hændelsesresultater = concat(tilstand.hændelsesresultater, [resultat]),
+        bevægelser_i_året = concat(tilstand.bevægelser_i_året, resultat.bevægelser_i_året),
+        alle_hændelser_gyldige = tilstand.alle_hændelser_gyldige && resultat.hændelse_gyldig,
+        har_omfattet_afslutning = tilstand.har_omfattet_afslutning || resultat.omfattet_afslutning
+    )
+}
+
+# Afskrivningslov40CÅrsSag(kildefakta: Afskrivningslov40CÅrskildefakta) {
+    | primosaldo_gyldig() -> afskrivningslov40c_primosaldo_gyldig(kildefakta)
+    | positioner_primo_gyldige() -> afskrivningslov40c_positioner_primo_gyldige(kildefakta)
+    | forløb() -> foldl(kildefakta.hændelser_i_året, Afskrivningslov40CÅrsforløbstilstand(positioner = kildefakta.positioner_primo, seneste_hændelsesdato = None, hændelsesidentifikationer = [], hændelsesresultater = [], bevægelser_i_året = [], alle_hændelser_gyldige = Sandt, har_omfattet_afslutning = Falskt), |tilstand: Afskrivningslov40CÅrsforløbstilstand, hændelse: Afskrivningslov40CÅrshændelse| afskrivningslov40c_årsforløbstrin(kildefakta, tilstand, hændelse))
+    | hændelsesidentifikationer_entydige() -> length(forløb().hændelsesidentifikationer) == length(distinct(forløb().hændelsesidentifikationer))
+    | hændelser_kronologiske() -> all(forløb().hændelsesresultater, |resultat: Afskrivningslov40CÅrshændelsesresultat| resultat.kronologi_gyldig)
+    | alle_hændelser_gyldige() -> forløb().alle_hændelser_gyldige && hændelsesidentifikationer_entydige() && hændelser_kronologiske()
+    | input_gyldigt() -> kildefakta.indkomstår > 0 && afskrivningslov40c_fysisk_person(kildefakta.skatteyder) && primosaldo_gyldig() && positioner_primo_gyldige() && alle_hændelser_gyldige()
+    | har_aktive_saldoaktiver_ultimo() -> any(forløb().positioner, |position: Afskrivningslov40CPosition| position.lot.resterende_enheder > 0 && afskrivningslov40c_position_på_saldo_i_indkomstår(position, kildefakta.indkomstår))
+    | sidste_saldoaktiv_afstået_eller_udløbet() -> input_gyldigt() && forløb().har_omfattet_afslutning && har_aktive_saldoaktiver_ultimo() == Falskt
+    | begivenhed() -> hvis sidste_saldoaktiv_afstået_eller_udløbet() { Al40CSidsteAktivAfståetEllerUdløbet } ellers { Al40CÅrligSaldoopgørelse }
+    | afskrivningslov_input() -> Afskrivningslov40CInput(
+        indkomstår = kildefakta.indkomstår,
+        begivenhed = begivenhed(),
+        saldo_status = hvis input_gyldigt() { Al40CSaldoOmfattet } ellers { Al40CUdenForSaldo },
+        saldo_primo_kroner = afskrivningslov40c_primosaldo_kroner(kildefakta.primosaldo),
+        bevægelser_i_året = forløb().bevægelser_i_året
+    )
+    | afskrivningslov_resultat() -> afskrivningslov40c_resultat(afskrivningslov_input())
+    | saldoposition_ultimo() -> Afskrivningslov40CSaldoposition(skatteyder = kildefakta.skatteyder, indkomstår = kildefakta.indkomstår, saldo_ultimo_kroner = afskrivningslov_resultat().saldo_efter_regulering_kroner)
+    | resultat() -> Afskrivningslov40CÅrsresultat(
+        kildefakta = kildefakta,
+        primosaldo_gyldig = primosaldo_gyldig(),
+        positioner_primo_gyldige = positioner_primo_gyldige(),
+        hændelsesidentifikationer_entydige = hændelsesidentifikationer_entydige(),
+        hændelser_kronologiske = hændelser_kronologiske(),
+        alle_hændelser_gyldige = alle_hændelser_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        hændelsesresultater = forløb().hændelsesresultater,
+        positioner_ultimo = forløb().positioner,
+        bevægelser_i_året = forløb().bevægelser_i_året,
+        sidste_saldoaktiv_afstået_eller_udløbet = sidste_saldoaktiv_afstået_eller_udløbet(),
+        afskrivningslov_input = afskrivningslov_input(),
+        afskrivningslov_resultat = afskrivningslov_resultat(),
+        saldoposition_ultimo = saldoposition_ultimo()
+    )
+}
+| afskrivningslov40c_årsresultat(kildefakta: Afskrivningslov40CÅrskildefakta) -> Afskrivningslov40CÅrsSag(kildefakta).resultat()
 
 # Afskrivningslov40CNegativSaldoIndtægtsføring(indkomstår: Heltal, indtægtsført_kroner: Heltal)
 # Afskrivningslov40CEjendomstabInput(indkomstår: Heltal, ejendomskategori: AfskrivningslovEjendomskategori, fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner: Heltal, negativ_saldo_historik: List(Afskrivningslov40CNegativSaldoIndtægtsføring))

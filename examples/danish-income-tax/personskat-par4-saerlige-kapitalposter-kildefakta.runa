@@ -46,14 +46,14 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 # PersonskatPar4Virksomhedsopgørelseskilde(indtægter: List(PersonskatVirksomhedsindtægtFakta), udgifter: List(PersonskatVirksomhedsudgiftFakta), ligningslovsfradrag_efter_par3_stk2_nr2: List(PersonskatPar3Nr2Ligningslovsfakta), erhvervsposter_efter_par3_stk2_nr4_til_10: List(PersonskatPar3Erhvervspostfakta))
 # PersonskatPar4Nr9Virksomhedsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, virksomhedstype: Par4Stk1Nr9Virksomhedstype, samlet_ejerantal: Heltal, personligt_ejerantal: Heltal, ligningslov8p_ejere_der_ikke_medregnes: Heltal, deltager_væsentligt_i_drift: Boolsk)
 # PersonskatPar4Nr11Udlejningsklassifikation(virksomhed: PersonskatPar4Virksomhedsopgørelseskilde, aktiv: Par4Stk1Nr11Udlejningsaktiv, anskaffelse: Anskaffelsesstatus, skatteråds_tilladelse: SkatterådsTilladelse, rådets_skøn: RådetsSkøn, deltager_væsentligt_i_drift: Boolsk)
-# PersonskatPar4SærligKapitalpostkilde = PsPar4Nr9Virksomhed(klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation) | PsPar4Nr10Ligningslov14A(input: Ligningslov14AInput) | PsPar4Nr11Udlejningsvirksomhed(klassifikation: PersonskatPar4Nr11Udlejningsklassifikation) | PsPar4Nr12Ligningslov5C(input: Ligningslov5CInput) | PsPar4Nr15Ligningslov12B(input: Ligningslov12BInput) | PsPar4Nr16Afskrivningslov40C(input: Afskrivningslov40CInput)
+# PersonskatPar4SærligKapitalpostkilde = PsPar4Nr9Virksomhed(klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation) | PsPar4Nr10Ligningslov14A(input: Ligningslov14AInput) | PsPar4Nr11Udlejningsvirksomhed(klassifikation: PersonskatPar4Nr11Udlejningsklassifikation) | PsPar4Nr12Ligningslov5C(input: Ligningslov5CInput) | PsPar4Nr15Ligningslov12B(input: Ligningslov12BInput) | PsPar4Nr16Afskrivningslov40C(kildefakta: Afskrivningslov40CÅrskildefakta)
 # PersonskatPar4SærligKapitalpostfakta(identifikation: Tekst, indkomstår: Heltal, kilde: PersonskatPar4SærligKapitalpostkilde)
 # PersonskatPar4Nr9Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr9Input, par4_resultat: Par4Stk1Nr9Resultat)
 # PersonskatPar4Nr10Kilderesultat(ligningslov_resultat: Ligningslov14AResultat, par4_input: Par4Stk1Nr10Input, par4_resultat: Par4Stk1Nr10Resultat)
 # PersonskatPar4Nr11Kilderesultat(virksomhedsresultat: PersonskatOrdinærVirksomhedResultat, par4_input: Par4Stk1Nr11Input, par4_resultat: Par4Stk1Nr11Resultat)
 # PersonskatPar4Nr12Kilderesultat(ligningslov_resultat: Ligningslov5CResultat, par4_input: Par4Stk1Nr12Input, par4_resultat: Par4Stk1Nr12Resultat)
 # PersonskatPar4Nr15Kilderesultat(ligningslov_resultat: Ligningslov12BResultat, par4_input: Par4Stk1Nr15Input, par4_resultat: Par4Stk1Nr15Resultat)
-# PersonskatPar4Nr16Kilderesultat(afskrivningslov_resultat: Afskrivningslov40CResultat, par4_input: Par4Stk1Nr16Input, par4_resultat: Par4Stk1Nr16Resultat)
+# PersonskatPar4Nr16Kilderesultat(afskrivningslov_årsresultat: Afskrivningslov40CÅrsresultat, par4_input: Par4Stk1Nr16Input, par4_resultat: Par4Stk1Nr16Resultat)
 # PersonskatPar4SærligKapitalpostLovresultat = PsPar4Nr9Lovresultat(resultat: PersonskatPar4Nr9Kilderesultat) | PsPar4Nr10Lovresultat(resultat: PersonskatPar4Nr10Kilderesultat) | PsPar4Nr11Lovresultat(resultat: PersonskatPar4Nr11Kilderesultat) | PsPar4Nr12Lovresultat(resultat: PersonskatPar4Nr12Kilderesultat) | PsPar4Nr15Lovresultat(resultat: PersonskatPar4Nr15Kilderesultat) | PsPar4Nr16Lovresultat(resultat: PersonskatPar4Nr16Kilderesultat)
 # PersonskatPar4SærligKapitalpostresultat(fakta: PersonskatPar4SærligKapitalpostfakta, identifikation_unik: Boolsk, virksomhedsidentifikation_adskilt_fra_personlig_indkomst: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4SærligKapitalpostLovresultat, kapitalpost: Par4Kapitalpost)
 
@@ -78,7 +78,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | PsPar4Nr11Udlejningsvirksomhed(klassifikation) -> personskat_par4_virksomhedskilde_grundfakta_gyldige(fakta, klassifikation.virksomhed)
     | PsPar4Nr12Ligningslov5C(input) -> input.indkomstår == fakta.indkomstår && personskat_par4_nr12_grundfakta_gyldige(input)
     | PsPar4Nr15Ligningslov12B(input) -> input.indkomstår == fakta.indkomstår
-    | PsPar4Nr16Afskrivningslov40C(input) -> input.indkomstår == fakta.indkomstår
+    | PsPar4Nr16Afskrivningslov40C(kildefakta) -> kildefakta.indkomstår == fakta.indkomstår
 }
 | personskat_par4_særlig_post_identifikation_unik(fakta: List(PersonskatPar4SærligKapitalpostfakta), post: PersonskatPar4SærligKapitalpostfakta) -> post.identifikation != "" && length(filter(fakta, |anden: PersonskatPar4SærligKapitalpostfakta| anden.identifikation == post.identifikation)) == 1
 | personskat_par4_særlige_postidentifikationer_entydige(fakta: List(PersonskatPar4SærligKapitalpostfakta)) -> length(distinct(map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation))) == length(fakta) && all(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation != "")
@@ -140,10 +140,10 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     = par4_input = Par4Stk1Nr15Input(ligningslov12b_resultat = ligningslov_resultat)
     PersonskatPar4Nr15Kilderesultat(ligningslov_resultat = ligningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr15_resultat(par4_input))
 }
-| personskat_par4_nr16_kilderesultat(input: Afskrivningslov40CInput) -> {
-    = afskrivningslov_resultat = afskrivningslov40c_resultat(input)
-    = par4_input = Par4Stk1Nr16Input(afskrivningslov40c_resultat = afskrivningslov_resultat)
-    PersonskatPar4Nr16Kilderesultat(afskrivningslov_resultat = afskrivningslov_resultat, par4_input = par4_input, par4_resultat = par4_stk1_nr16_resultat(par4_input))
+| personskat_par4_nr16_kilderesultat(kildefakta: Afskrivningslov40CÅrskildefakta) -> {
+    = afskrivningslov_årsresultat = afskrivningslov40c_årsresultat(kildefakta)
+    = par4_input = Par4Stk1Nr16Input(afskrivningslov40c_resultat = afskrivningslov_årsresultat.afskrivningslov_resultat)
+    PersonskatPar4Nr16Kilderesultat(afskrivningslov_årsresultat = afskrivningslov_årsresultat, par4_input = par4_input, par4_resultat = par4_stk1_nr16_resultat(par4_input))
 }
 | personskat_par4_særlig_post_lovresultat(fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal, identifikation_unik: Boolsk) -> match fakta.kilde {
     | PsPar4Nr9Virksomhed(klassifikation) -> PsPar4Nr9Lovresultat(resultat = personskat_par4_nr9_kilderesultat(fakta, klassifikation, skatteår, identifikation_unik))
@@ -151,7 +151,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | PsPar4Nr11Udlejningsvirksomhed(klassifikation) -> PsPar4Nr11Lovresultat(resultat = personskat_par4_nr11_kilderesultat(fakta, klassifikation, skatteår, identifikation_unik))
     | PsPar4Nr12Ligningslov5C(input) -> PsPar4Nr12Lovresultat(resultat = personskat_par4_nr12_kilderesultat(input))
     | PsPar4Nr15Ligningslov12B(input) -> PsPar4Nr15Lovresultat(resultat = personskat_par4_nr15_kilderesultat(input))
-    | PsPar4Nr16Afskrivningslov40C(input) -> PsPar4Nr16Lovresultat(resultat = personskat_par4_nr16_kilderesultat(input))
+    | PsPar4Nr16Afskrivningslov40C(kildefakta) -> PsPar4Nr16Lovresultat(resultat = personskat_par4_nr16_kilderesultat(kildefakta))
 }
 | personskat_par4_særlig_post_lovresultat_gyldigt(resultat: PersonskatPar4SærligKapitalpostLovresultat) -> match resultat {
     | PsPar4Nr9Lovresultat(nr9) -> personskat_virksomhed_resultat_gyldigt(nr9.virksomhedsresultat)
@@ -159,7 +159,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | PsPar4Nr11Lovresultat(nr11) -> personskat_virksomhed_resultat_gyldigt(nr11.virksomhedsresultat)
     | PsPar4Nr12Lovresultat(_) -> Sandt
     | PsPar4Nr15Lovresultat(nr15) -> nr15.ligningslov_resultat.input_gyldigt
-    | PsPar4Nr16Lovresultat(nr16) -> nr16.afskrivningslov_resultat.input_gyldigt
+    | PsPar4Nr16Lovresultat(nr16) -> nr16.afskrivningslov_årsresultat.input_gyldigt
 }
 | personskat_par4_særlig_post_kapitalpost(resultat: PersonskatPar4SærligKapitalpostLovresultat) -> match resultat {
     | PsPar4Nr9Lovresultat(nr9) -> par4_stk1_nr9_kapitalpost(nr9.par4_input)
