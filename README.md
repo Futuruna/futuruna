@@ -138,6 +138,8 @@ runa verify program.runa    # Verify invariants via Z3
 runa hashes program.runa    # Show content-addressed hashes
 runa test                   # Run all tests/*.runa (interpreted)
 runa test --jobs 4 tests/scenarios # Run independent test files with four workers
+runa test --kind scenario --jobs 4 examples/my-corpus # Run only .scenario.runa files
+runa test --kind audit examples/my-corpus # Run only .audit.runa files
 runa test --run             # Run all tests/*.runa (compiled)
 runa test --roundtrip tests # Compare interpreter vs compiled output
 runa expect tests/expect    # Run compiletest-style compiler expectations

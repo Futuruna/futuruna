@@ -86,3 +86,64 @@ fn test_runner_rejects_zero_jobs() {
     assert!(String::from_utf8_lossy(&roundtrip.stderr)
         .contains("--jobs is not supported with runa test --roundtrip"));
 }
+
+#[test]
+fn test_runner_selects_scenarios_and_audits_with_parallel_jobs() {
+    let dir = temp_test_dir();
+    std::fs::write(dir.join("b.scenario.runa"), "@ print(\"scenario-beta\")\n")
+        .expect("write scenario fixture");
+    std::fs::write(dir.join("a.scenario.runa"), "@ print(\"scenario-alpha\")\n")
+        .expect("write scenario fixture");
+    std::fs::write(dir.join("c.audit.runa"), "@ print(\"audit\")\n").expect("write audit fixture");
+    std::fs::write(dir.join("library.runa"), "@ print(\"library\")\n")
+        .expect("write regular fixture");
+
+    let dir_arg = dir.to_str().expect("UTF-8 fixture path");
+    let scenarios = run(&["test", "--kind", "scenario", "--jobs=2", dir_arg]);
+    let audits = run(&["test", "--kind=audit", "--jobs", "2", dir_arg]);
+    let all = run(&["test", "--kind", "all", "--jobs", "2", dir_arg]);
+    std::fs::remove_dir_all(&dir).ok();
+
+    assert!(
+        scenarios.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&scenarios.stdout),
+        String::from_utf8_lossy(&scenarios.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&scenarios.stdout),
+        "scenario-alpha\nscenario-beta\n"
+    );
+    assert!(
+        audits.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&audits.stdout),
+        String::from_utf8_lossy(&audits.stderr)
+    );
+    assert_eq!(String::from_utf8_lossy(&audits.stdout), "audit\n");
+    assert!(
+        all.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&all.stdout),
+        String::from_utf8_lossy(&all.stderr)
+    );
+    assert_eq!(
+        String::from_utf8_lossy(&all.stdout),
+        "scenario-alpha\nscenario-beta\naudit\nlibrary\n"
+    );
+
+    let scenario_stderr = String::from_utf8_lossy(&scenarios.stderr);
+    assert!(scenario_stderr.contains("running 2 tests"));
+    assert!(scenario_stderr.contains("a.scenario.runa"));
+    assert!(scenario_stderr.contains("b.scenario.runa"));
+    assert!(!scenario_stderr.contains("c.audit.runa"));
+    assert!(!scenario_stderr.contains("library.runa"));
+}
+
+#[test]
+fn test_runner_rejects_unknown_test_kind() {
+    let output = run(&["test", "--kind", "benchmark"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr)
+        .contains("--kind requires all, scenario, or audit, got 'benchmark'"));
+}

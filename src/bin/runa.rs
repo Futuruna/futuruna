@@ -81,6 +81,7 @@ fn main_inner() {
     let mut emit_imports = false; // --imports flag for `runa emit --imports`
     let mut check_codegen = false; // --check-codegen flag for `runa test --check-codegen`
     let mut test_jobs = 1usize; // --jobs flag for `runa test`
+    let mut test_file_kind = TestFileKind::All; // --kind flag for `runa test`
     let mut lint_import_graph = false; // --imports flag for `runa lint-library`
     let mut stress_seed = None;
     let mut stress_save_failures = None;
@@ -158,6 +159,25 @@ fn main_inner() {
             arg if mode == "test" && arg.starts_with("--jobs=") => {
                 test_jobs =
                     parse_test_job_count(&arg["--jobs=".len()..]).unwrap_or_else(|message| {
+                        eprintln!("error: {}", message);
+                        std::process::exit(1);
+                    });
+                i += 1;
+            }
+            "--kind" if mode == "test" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --kind requires all, scenario, or audit");
+                    std::process::exit(1);
+                }
+                test_file_kind = parse_test_file_kind(&args[i + 1]).unwrap_or_else(|message| {
+                    eprintln!("error: {}", message);
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
+            arg if mode == "test" && arg.starts_with("--kind=") => {
+                test_file_kind =
+                    parse_test_file_kind(&arg["--kind=".len()..]).unwrap_or_else(|message| {
                         eprintln!("error: {}", message);
                         std::process::exit(1);
                     });
@@ -390,6 +410,9 @@ fn main_inner() {
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
                 eprintln!("  --save-failures DIR  Save failing stress cases for replay");
                 eprintln!("  test --jobs N  Run N independent test files concurrently");
+                eprintln!(
+                    "  test --kind KIND  Select all, scenario, or audit files (default: all)"
+                );
                 eprintln!();
                 eprintln!("Cache environment:");
                 eprintln!(
@@ -448,6 +471,7 @@ fn main_inner() {
                 eprintln!("  runa test                   Run all tests");
                 eprintln!("  runa test --run             Run all tests (compiled)");
                 eprintln!("  runa test --jobs 4 examples/my-corpus");
+                eprintln!("  runa test --kind scenario --jobs 4 examples/my-corpus");
                 eprintln!("  runa stress-gen 100 --seed 42 --save-failures /tmp/futuruna-diff");
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
@@ -624,6 +648,10 @@ fn main_inner() {
             eprintln!("error: --jobs is not supported with runa test --roundtrip");
             std::process::exit(1);
         }
+        if test_file_kind != TestFileKind::All {
+            eprintln!("error: --kind is not supported with runa test --roundtrip");
+            std::process::exit(1);
+        }
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_roundtrip_tests(test_dir, use_prelude);
         return;
@@ -634,19 +662,35 @@ fn main_inner() {
             eprintln!("error: --jobs is not supported with runa test --check-codegen");
             std::process::exit(1);
         }
+        if test_file_kind != TestFileKind::All {
+            eprintln!("error: --kind is not supported with runa test --check-codegen");
+            std::process::exit(1);
+        }
         let test_dir = filename.as_deref().unwrap_or("tests");
         run_codegen_check(test_dir, use_prelude);
         return;
     }
     if mode == "test" {
         let test_dir = filename.as_deref().unwrap_or("tests");
-        run_tests(test_dir, use_prelude, test_compile, test_jobs);
+        run_tests(
+            test_dir,
+            use_prelude,
+            test_compile,
+            test_jobs,
+            test_file_kind,
+        );
         // Also run error tests if they exist and no specific dir was given
         if filename.is_none() {
             let error_dir = std::path::Path::new(test_dir).join("errors");
             if error_dir.is_dir() {
                 eprintln!();
-                run_tests(&error_dir.to_string_lossy(), use_prelude, false, test_jobs);
+                run_tests(
+                    &error_dir.to_string_lossy(),
+                    use_prelude,
+                    false,
+                    test_jobs,
+                    test_file_kind,
+                );
             }
         }
         return;
@@ -6412,7 +6456,47 @@ fn parse_test_job_count(raw: &str) -> Result<usize, String> {
     Ok(jobs)
 }
 
-fn collect_test_paths(dir: &str) -> Vec<std::path::PathBuf> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum TestFileKind {
+    All,
+    Scenario,
+    Audit,
+}
+
+impl TestFileKind {
+    fn matches(self, path: &std::path::Path) -> bool {
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            return false;
+        };
+        match self {
+            Self::All => true,
+            Self::Scenario => name.ends_with(".scenario.runa"),
+            Self::Audit => name.ends_with(".audit.runa"),
+        }
+    }
+
+    fn description(self) -> &'static str {
+        match self {
+            Self::All => ".runa",
+            Self::Scenario => ".scenario.runa",
+            Self::Audit => ".audit.runa",
+        }
+    }
+}
+
+fn parse_test_file_kind(raw: &str) -> Result<TestFileKind, String> {
+    match raw {
+        "all" => Ok(TestFileKind::All),
+        "scenario" => Ok(TestFileKind::Scenario),
+        "audit" => Ok(TestFileKind::Audit),
+        _ => Err(format!(
+            "--kind requires all, scenario, or audit, got '{}'",
+            raw
+        )),
+    }
+}
+
+fn collect_test_paths(dir: &str, kind: TestFileKind) -> Vec<std::path::PathBuf> {
     let path = std::path::Path::new(dir);
     if !path.is_dir() {
         eprintln!("\x1b[1;31merror\x1b[0m: '{}' is not a directory", dir);
@@ -6429,11 +6513,12 @@ fn collect_test_paths(dir: &str) -> Vec<std::path::PathBuf> {
             path.extension()
                 .map(|extension| extension == "runa")
                 .unwrap_or(false)
+                && kind.matches(path)
         })
         .collect::<Vec<_>>();
     paths.sort_by(|left, right| left.file_name().cmp(&right.file_name()));
     if paths.is_empty() {
-        eprintln!("No .runa files found in {}", dir);
+        eprintln!("No {} files found in {}", kind.description(), dir);
         std::process::exit(1);
     }
     paths
@@ -6573,8 +6658,8 @@ fn run_tests_parallel(
     }
 }
 
-fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize) {
-    let paths = collect_test_paths(dir);
+fn run_tests(dir: &str, use_prelude: bool, compile_mode: bool, jobs: usize, kind: TestFileKind) {
+    let paths = collect_test_paths(dir, kind);
     if jobs == 1 {
         run_test_paths_serial(dir, &paths, use_prelude, compile_mode, true);
     } else {
