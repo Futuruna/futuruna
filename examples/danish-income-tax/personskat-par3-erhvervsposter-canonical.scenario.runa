@@ -113,6 +113,23 @@ fradrag.
         ønsket_ordinær_afskrivning_kroner = 15000
     )))
 )
+| psl3_erhvervspost_scenarie_al5(sats_basispoint: Heltal) -> psl3_erhvervspost_scenarie_fakta(
+    "afskrivningslov-5-2026",
+    PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Driftsmiddel(kilde = PsPar3Nr10Al5(input = Afskrivningslov5Input(
+        indkomstår = 2026,
+        aktiv_resultat = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+            skatteyder = AlSelvstændigErhvervsdrivendePerson,
+            aktivart = AlMaskine,
+            erhvervsmæssig_anvendelsesandel_basispoint = 10000
+        )),
+        saldoordning = AlPar5AlmindeligSaldo,
+        saldoværdi_primo_kroner = 100000,
+        anskaffelsessummer_i_året_kroner = 0,
+        forbedringsudgifter_i_året_kroner = 0,
+        salgssummer_i_året_kroner = 0,
+        valg = Al5OrdinærAfskrivning(sats_basispoint = sats_basispoint)
+    ))))
+)
 | psl3_erhvervspost_scenarie_al44c_fortjeneste() -> psl3_erhvervspost_scenarie_fakta(
     "afskrivningslov-44c-2026",
     PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Særregel(kilde = PsPar3Nr10Al44C(input = Afskrivningslov44CInput(
@@ -217,6 +234,8 @@ fradrag.
 
 = psl3_erhvervspost_scenarie_gyldigt = psl3_erhvervspost_scenarie_beregning(psl3_erhvervspost_scenarie_alle())
 = psl3_erhvervspost_scenarie_forkert_år = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_tilbagebetaling(2025)])
+= psl3_erhvervspost_scenarie_al5_25_procent = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al5(2500)])
+= psl3_erhvervspost_scenarie_al5_26_procent = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al5(2600)])
 = psl3_erhvervspost_scenarie_dobbelt_id = psl3_erhvervspost_scenarie_beregning([
     psl3_erhvervspost_scenarie_husdyr(),
     PersonskatPar3Erhvervspostfakta(
@@ -233,10 +252,12 @@ fradrag.
 
 | psl3_erhvervsposter_når_personskat: psl3_erhvervspost_scenarie_gyldigt -> psl3_erhvervspost_scenarie_gyldigt.personlig_indkomst.alle_input_gyldige && psl3_erhvervspost_scenarie_resultatantal(psl3_erhvervspost_scenarie_gyldigt) == 6 && psl3_erhvervspost_scenarie_brutto_kroner(psl3_erhvervspost_scenarie_gyldigt) == 520000 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_gyldigt) == 82000 && psl3_erhvervspost_scenarie_gyldigt.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 438000 && psl3_erhvervspost_scenarie_gyldigt.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 438000
 | psl3_varelager_nulprocent_bevares: psl3_erhvervspost_scenarie_gyldigt -> psl3_erhvervspost_scenarie_varelagerfradrag_kroner(psl3_erhvervspost_scenarie_gyldigt) == 0
+| psl3_al5_afleder_lovens_25_procent_loft: psl3_erhvervspost_scenarie_al5_25_procent -> psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al5_25_procent) == 25000 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al5_26_procent) == 0
 | psl3_erhvervspost_forkert_indkomstår_afvises: psl3_erhvervspost_scenarie_forkert_år -> psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
 | psl3_erhvervspost_dobbelt_identifikation_afvises: psl3_erhvervspost_scenarie_dobbelt_id -> psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
 
 ? psl3_erhvervsposter_når_personskat
 ? psl3_varelager_nulprocent_bevares
+? psl3_al5_afleder_lovens_25_procent_loft
 ? psl3_erhvervspost_forkert_indkomstår_afvises
 ? psl3_erhvervspost_dobbelt_identifikation_afvises

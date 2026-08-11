@@ -1,0 +1,27 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+
+----
+Scenarier for de offentliggjorte årsparametre til afskrivningsloven.
+
+Scenarierne fastholder de offentliggjorte beløbsgrænser og satser for
+2023-2026, som de kanoniske Personskat-kildefakta afleder fra indkomståret.
+----
+
+= al_årsparametre_2023 = afskrivningslov_årsparametre(2023)
+= al_årsparametre_2024 = afskrivningslov_årsparametre(2024)
+= al_årsparametre_2025 = afskrivningslov_årsparametre(2025)
+= al_årsparametre_2026 = afskrivningslov_årsparametre(2026)
+
+| al_årsparametre_2023_følger_offentliggjorte_satser: al_årsparametre_2023 -> al_årsparametre_2023.kilde == AlSkatteministerietSatser2023_2024 && al_årsparametre_2023.småsaldigrænse_kroner == 32000 && al_årsparametre_2023.småaktivgrænse_kroner == 32000 && al_årsparametre_2023.blandet_småaktivgrænse_kroner == 15000 && al_årsparametre_2023.dok_og_bedding_minimum_kroner == 856800 && al_årsparametre_2023.forskningsloft_kroner == 0 && al_årsparametre_2023.forskning_sats_under_loft_basispoint == 10800 && al_årsparametre_2023.forskning_sats_over_loft_basispoint == 10800
+| al_årsparametre_2024_følger_offentliggjorte_satser: al_årsparametre_2024 -> al_årsparametre_2024.kilde == AlSkatteministerietSatser2023_2024 && al_årsparametre_2024.småsaldigrænse_kroner == 33100 && al_årsparametre_2024.småaktivgrænse_kroner == 33100 && al_årsparametre_2024.blandet_småaktivgrænse_kroner == 15600 && al_årsparametre_2024.dok_og_bedding_minimum_kroner == 887000 && al_årsparametre_2024.forskningsloft_kroner == 0 && al_årsparametre_2024.forskning_sats_under_loft_basispoint == 10800 && al_årsparametre_2024.forskning_sats_over_loft_basispoint == 10800
+| al_årsparametre_2025_følger_offentliggjorte_satser: al_årsparametre_2025 -> al_årsparametre_2025.kilde == AlSkatteministerietSatser2025_2026 && al_årsparametre_2025.småsaldigrænse_kroner == 34400 && al_årsparametre_2025.småaktivgrænse_kroner == 34400 && al_årsparametre_2025.blandet_småaktivgrænse_kroner == 16200 && al_årsparametre_2025.dok_og_bedding_minimum_kroner == 921500 && al_årsparametre_2025.forskningsloft_kroner == 0 && al_årsparametre_2025.forskning_sats_under_loft_basispoint == 10800 && al_årsparametre_2025.forskning_sats_over_loft_basispoint == 10800
+| al_årsparametre_2026_følger_offentliggjorte_satser: al_årsparametre_2026 -> al_årsparametre_2026.kilde == AlSkatteministerietSatser2025_2026 && al_årsparametre_2026.småsaldigrænse_kroner == 36000 && al_årsparametre_2026.småaktivgrænse_kroner == 36000 && al_årsparametre_2026.blandet_småaktivgrænse_kroner == 16900 && al_årsparametre_2026.dok_og_bedding_minimum_kroner == 965800 && al_årsparametre_2026.forskningsloft_kroner == 1088800000 && al_årsparametre_2026.forskning_sats_under_loft_basispoint == 11400 && al_årsparametre_2026.forskning_sats_over_loft_basispoint == 11000
+| al_årsparametre_afviser_ikke_understøttede_år: al_årsparametre_2023 -> afskrivningslov_årsparametre_understøttet(2022) == Falskt && afskrivningslov_årsparametre_understøttet(2027) == Falskt
+
+? al_årsparametre_2023_følger_offentliggjorte_satser
+? al_årsparametre_2024_følger_offentliggjorte_satser
+? al_årsparametre_2025_følger_offentliggjorte_satser
+? al_årsparametre_2026_følger_offentliggjorte_satser
+? al_årsparametre_afviser_ikke_understøttede_år

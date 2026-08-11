@@ -34,9 +34,15 @@
     hentet_dato = "2026-07-18"
 )
 
-= afskrivningsloven_2026_satser = AfskrivningslovKildeInfo(
+= afskrivningsloven_2023_2024_satser = AfskrivningslovKildeInfo(
+    url = "https://web.archive.org/web/20240414165910id_/https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven",
+    identifier = "Skatteministeriet, Afskrivningsloven, satser og beløbsgrænser 2023-2024, offentliggjort 05/12/2023",
+    hentet_dato = "2026-08-11"
+)
+
+= afskrivningsloven_2025_2026_satser = AfskrivningslovKildeInfo(
     url = "https://skm.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/afskrivningsloven",
-    identifier = "Skatteministeriet, Afskrivningsloven, satser og beløbsgrænser 2026",
+    identifier = "Skatteministeriet, Afskrivningsloven, satser og beløbsgrænser 2025-2026",
     hentet_dato = "2026-07-18"
 )
 
@@ -524,52 +530,75 @@ tilbehør tages ud af virksomhedsordningen.
 )
 --@end:afskrivningsloven_par4--
 
-= afskrivningsloven_2026_parametre_metadata = Metadata(
+= afskrivningsloven_2023_2026_parametre_metadata = Metadata(
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
---@label:afskrivningsloven_2026_parametre::meta:afskrivningsloven_2026_parametre_metadata--
+--@label:afskrivningsloven_2023_2026_parametre::meta:afskrivningsloven_2023_2026_parametre_metadata--
 ----
-Skatteministeriets offentliggjorte 2026-satser til afskrivningsloven:
+Skatteministeriets offentliggjorte satser til afskrivningsloven:
 
-Småsaldigrænse (§ 5): 36.000 kr.
-Småaktivgrænse (§ 6): 36.000 kr.
-Småaktivgrænse for delvist erhvervsmæssigt benyttede aktiver (§ 11):
-16.900 kr.
-Minimumsanskaffelsessum for dok- og beddingsanlæg (§ 10): 965.800 kr.
-Loft over forhøjet afskrivningsgrundlag for udgifter til forsknings- og
-forsøgsvirksomhed (§ 6, stk. 1): 1.088,8 mio. kr.
+Satser og beløbsgrænser                     2023        2024
+Småsaldigrænse (§ 5)                       32.000 kr.  33.100 kr.
+Småaktivgrænse (§ 6)                       32.000 kr.  33.100 kr.
+Min. anskaffelsessum for dok- og
+beddingsanlæg mv. (§ 10)                  856.800 kr. 887.000 kr.
+Småaktivgrænse (§ 11)                      15.000 kr.  15.600 kr.
+
+Satser og beløbsgrænser                     2025        2026
+Småsaldigrænse (§ 5)                       34.400 kr.  36.000 kr.
+Småaktivgrænse (§ 6)                       34.400 kr.  36.000 kr.
+Loft over forhøjet afskrivningsgrundlag
+for forskning og forsøg (§ 6, stk. 1)              -  1.088,8 mio. kr.
+Min. anskaffelsessum for dok- og
+beddingsanlæg mv. (§ 10)                  921.500 kr. 965.800 kr.
+Småaktivgrænse (§ 11)                      16.200 kr.  16.900 kr.
 ----
 
---@begin:afskrivningsloven_2026_parametre--
-# AfskrivningslovÅrsparameterKilde = AlSkatteministerietSatser2026
+--@begin:afskrivningsloven_2023_2026_parametre--
+# AfskrivningslovÅrsparameterKilde = AlSkatteministerietSatser2023_2024 | AlSkatteministerietSatser2025_2026
 # AfskrivningslovÅrsparametre(indkomstår: Heltal, kilde: AfskrivningslovÅrsparameterKilde, småsaldigrænse_kroner: Heltal, småaktivgrænse_kroner: Heltal, blandet_småaktivgrænse_kroner: Heltal, dok_og_bedding_minimum_kroner: Heltal, forskningsloft_kroner: Heltal, højeste_ordinære_sats_basispoint: Heltal, par5b_højeste_sats_basispoint: Heltal, par5b_nybygget_førsteårs_sats_basispoint: Heltal, par5c_stk1_højeste_sats_basispoint: Heltal, par5c_stk2_højeste_sats_basispoint: Heltal, forskning_sats_under_loft_basispoint: Heltal, forskning_sats_over_loft_basispoint: Heltal)
 
+| afskrivningslov_årsparametre_understøttet(indkomstår: Heltal) -> indkomstår >= 2023 && indkomstår <= 2026
+| afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> AlSkatteministerietSatser2023_2024 under indkomstår >= 2023 && indkomstår <= 2024
+| afskrivningslov_årsparameter_kilde(indkomstår: Heltal) -> AlSkatteministerietSatser2025_2026 under indkomstår >= 2025 && indkomstår <= 2026
+| afskrivningslov_reguleret_årsgrænse_kroner(indkomstår: Heltal, grundbeløb_2010_niveau_kroner: Heltal) -> par20_reguleret_og_afrundet_kroner(Par20ReguleringInput(
+    grundbeløb_2010_niveau_kroner = grundbeløb_2010_niveau_kroner,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(indkomstår)
+))
+| afskrivningslov_forskningsloft_kroner(indkomstår: Heltal) -> 0
+| exception afskrivningslov_forskningsloft_2026 afskrivningslov_forskningsloft_kroner(indkomstår: Heltal) -> 1088800000 under indkomstår == 2026
+| afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal) -> 10800
+| exception afskrivningslov_forskning_under_loft_2026 afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår: Heltal) -> 11400 under indkomstår == 2026
+| afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 10800
+| exception afskrivningslov_forskning_over_loft_2026 afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår: Heltal) -> 11000 under indkomstår == 2026
 | afskrivningslov_årsparametre(indkomstår: Heltal) -> AfskrivningslovÅrsparametre(
     indkomstår = indkomstår,
-    kilde = AlSkatteministerietSatser2026,
-    småsaldigrænse_kroner = 36000,
-    småaktivgrænse_kroner = 36000,
-    blandet_småaktivgrænse_kroner = 16900,
-    dok_og_bedding_minimum_kroner = 965800,
-    forskningsloft_kroner = 1088800000,
+    kilde = afskrivningslov_årsparameter_kilde(indkomstår),
+    småsaldigrænse_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 26200),
+    småaktivgrænse_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 26200),
+    blandet_småaktivgrænse_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 12300),
+    dok_og_bedding_minimum_kroner = afskrivningslov_reguleret_årsgrænse_kroner(indkomstår, 703400),
+    forskningsloft_kroner = afskrivningslov_forskningsloft_kroner(indkomstår),
     højeste_ordinære_sats_basispoint = 2500,
     par5b_højeste_sats_basispoint = 1200,
     par5b_nybygget_førsteårs_sats_basispoint = 2000,
     par5c_stk1_højeste_sats_basispoint = 1500,
     par5c_stk2_højeste_sats_basispoint = 700,
-    forskning_sats_under_loft_basispoint = 11400,
-    forskning_sats_over_loft_basispoint = 11000
-) under indkomstår == 2026
---@end:afskrivningsloven_2026_parametre--
+    forskning_sats_under_loft_basispoint = afskrivningslov_forskning_sats_under_loft_basispoint(indkomstår),
+    forskning_sats_over_loft_basispoint = afskrivningslov_forskning_sats_over_loft_basispoint(indkomstår)
+) under afskrivningslov_årsparametre_understøttet(indkomstår)
+--@end:afskrivningsloven_2023_2026_parametre--
 
 = afskrivningsloven_par5_metadata = Metadata(
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -857,7 +886,8 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par5c_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -1147,7 +1177,8 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         GuidanceSource(value = afskrivningsloven_par6_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -1546,7 +1577,8 @@ for det indkomstår, hvori salget finder sted.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_dok_bedding_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -1588,7 +1620,8 @@ også behandles efter de nævnte regler.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par11_par13_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -3566,7 +3599,8 @@ af §§ 5 B og 5 C.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par29_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -5418,7 +5452,8 @@ anvendelsen af reglen i 1. pkt. med indtræden af skattepligt her i landet.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par42_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -5519,7 +5554,8 @@ de foretagne afskrivninger, herunder forlods afskrivninger.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par43_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -5869,7 +5905,8 @@ stk. 1, 3. pkt.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_par44a_par44b_juridisk_vejledning),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
@@ -6120,7 +6157,8 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
 = afskrivningsloven_par46_metadata = Metadata(
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
-        ParameterSource(value = afskrivningsloven_2026_satser),
+        ParameterSource(value = afskrivningsloven_2023_2024_satser),
+        ParameterSource(value = afskrivningsloven_2025_2026_satser),
     )
 )
 
