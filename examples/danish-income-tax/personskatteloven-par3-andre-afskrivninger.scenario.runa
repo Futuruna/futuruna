@@ -67,14 +67,14 @@
     reel_risiko_for_opsigelse = Sandt,
     køberet_til_lokalerne_afviger_fra_markedsvilkår = Falskt
 )
-= al_andre_par14_erhverv = afskrivningslov14_resultat(Afskrivningslov14Input(
+= al_andre_par14_erhverv_input = Afskrivningslov14Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al14AndenErhvervsanvendelse,
     erhvervsmæssigt_benyttet = Sandt,
     postsortering_med_industrielt_præg = Falskt,
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
-))
+)
 = al_andre_par39_tiårig_position = Afskrivningslov39Position(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anskaffelses_eller_forbedringsår = 2024,
@@ -119,7 +119,7 @@
         lokaler_anvendes_til_andet_end_beboelse = Sandt,
         lejevilkår = Al39LøbendeLejemål,
         kontrol = al_andre_nærtstående_uden_opsigelsesrisiko39,
-        par14_status = Al39LokalerOmfattetAfPar14(resultat = al_andre_par14_erhverv)
+        par14_status = Al39LokalerOmfattetAfPar14(input = al_andre_par14_erhverv_input)
     ),
     hændelse = Al39FortsatLejemål,
     valgt_afskrivning_kroner = 15000

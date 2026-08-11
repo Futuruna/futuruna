@@ -4307,7 +4307,7 @@ afskrivninger.
 # Afskrivningslov39Lejevilkår = Al39LøbendeLejemål | Al39BestemtTidsrum(antal_år: Heltal) | Al39UdlejerUopsigeligFastPeriode(antal_år: Heltal) | Al39UdlejerUopsigeligUdenTidsbegrænsning
 # Afskrivningslov39NærtståendeRelation = Al39IkkeNærtstående | Al39Ægtefælle | Al39ForælderEllerBedsteforælder | Al39BarnEllerBarnebarn | Al39ÆgtefælleTilBarnEllerBarnebarn | Al39DødsboEfterNærtstående | Al39StedbarnsEllerAdoptivforhold
 # Afskrivningslov39Kontrol(part_kapitalandel_basispoint: Heltal, part_stemmerettigheder_basispoint: Heltal, part_ejerandel_basispoint: Heltal, part_anden_bestemmende_indflydelse: Boolsk, relation_mellem_udlejer_og_lejer: Afskrivningslov39NærtståendeRelation, lejemål_mellem_selskaber_eller_mellem_person_og_selskab: Boolsk, nærtstående_kapitalandel_basispoint: Heltal, nærtstående_stemmerettigheder_basispoint: Heltal, nærtstående_ejerandel_basispoint: Heltal, nærtstående_anden_bestemmende_indflydelse: Boolsk, reel_risiko_for_opsigelse: Boolsk, køberet_til_lokalerne_afviger_fra_markedsvilkår: Boolsk)
-# Afskrivningslov39Par14Status = Al39LokalerIkkeOmfattetAfPar14 | Al39LokalerOmfattetAfPar14(resultat: Afskrivningslov14Resultat)
+# Afskrivningslov39Par14Status = Al39LokalerIkkeOmfattetAfPar14 | Al39LokalerOmfattetAfPar14(input: Afskrivningslov14Input)
 # Afskrivningslov39Position(skatteyder: AfskrivningslovSkatteyder, anskaffelses_eller_forbedringsår: Heltal, afskrivningsberettigede_udgifter_kroner: Heltal, tidligere_foretagne_afskrivninger_kroner: Heltal, lokaler_anvendes_erhvervsmæssigt: Boolsk, lokaler_anvendes_til_andet_end_beboelse: Boolsk, lejevilkår: Afskrivningslov39Lejevilkår, kontrol: Afskrivningslov39Kontrol, par14_status: Afskrivningslov39Par14Status)
 # Afskrivningslov39Hændelse = Al39FortsatLejemål | Al39LejemålOphørt(afståelsessum_kroner: Heltal) | Al39LokalerNedrevet | Al39LejerErhververBygning(restbeløb_indgår_i_købesummen: Boolsk) | Al39LejedeLokalerAfstået(afståelsessum_kroner: Heltal)
 # Afskrivningslov39Input(indkomstår: Heltal, position: Afskrivningslov39Position, hændelse: Afskrivningslov39Hændelse, valgt_afskrivning_kroner: Heltal)
@@ -4318,13 +4318,13 @@ afskrivninger.
 | afskrivningslov39_bestemmende_indflydelse(kontrol: Afskrivningslov39Kontrol) -> kontrol.part_kapitalandel_basispoint > 5000 || kontrol.part_stemmerettigheder_basispoint > 5000 || kontrol.part_ejerandel_basispoint > 5000 || kontrol.part_anden_bestemmende_indflydelse
 | afskrivningslov39_nærtstående_bestemmende_indflydelse(kontrol: Afskrivningslov39Kontrol) -> kontrol.nærtstående_kapitalandel_basispoint > 5000 || kontrol.nærtstående_stemmerettigheder_basispoint > 5000 || kontrol.nærtstående_ejerandel_basispoint > 5000 || kontrol.nærtstående_anden_bestemmende_indflydelse
 | afskrivningslov39_lejemål_omfattet_af_stk2(kontrol: Afskrivningslov39Kontrol) -> ((afskrivningslov39_bestemmende_indflydelse(kontrol) || afskrivningslov39_nærtstående(kontrol.relation_mellem_udlejer_og_lejer)) && kontrol.reel_risiko_for_opsigelse == Falskt) || (kontrol.lejemål_mellem_selskaber_eller_mellem_person_og_selskab && afskrivningslov39_nærtstående_bestemmende_indflydelse(kontrol)) || kontrol.køberet_til_lokalerne_afviger_fra_markedsvilkår
-| afskrivningslov39_par14_resultat(status: Afskrivningslov39Par14Status) -> match status {
+| afskrivningslov39_par14_omfattet(status: Afskrivningslov39Par14Status) -> match status {
     | Al39LokalerIkkeOmfattetAfPar14 -> Falskt
-    | Al39LokalerOmfattetAfPar14(resultat) -> resultat.omfattet_af_par14
+    | Al39LokalerOmfattetAfPar14(input) -> afskrivningslov14_resultat(input).omfattet_af_par14
 }
 | afskrivningslov39_par14_skatteyder_matcher(position: Afskrivningslov39Position) -> match position.par14_status {
     | Al39LokalerIkkeOmfattetAfPar14 -> Sandt
-    | Al39LokalerOmfattetAfPar14(resultat) -> resultat.skatteyder == position.skatteyder
+    | Al39LokalerOmfattetAfPar14(input) -> afskrivningslov14_resultat(input).skatteyder == position.skatteyder
 }
 | afskrivningslov39_lejeperiode_år(lejevilkår: Afskrivningslov39Lejevilkår) -> match lejevilkår {
     | Al39BestemtTidsrum(antal_år) -> antal_år
@@ -4348,7 +4348,7 @@ afskrivninger.
     | position_gyldig() -> input.position.anskaffelses_eller_forbedringsår > 0 && input.position.afskrivningsberettigede_udgifter_kroner > 0 && input.position.tidligere_foretagne_afskrivninger_kroner >= 0 && input.position.tidligere_foretagne_afskrivninger_kroner <= afskrivningsgrundlag_kroner() && afskrivningslov39_kontrol_gyldig(input.position.kontrol) && afskrivningslov39_par14_skatteyder_matcher(input.position) && (afskrivningslov39_lejeperiode_år(input.position.lejevilkår) > 0 || match input.position.lejevilkår { | Al39LøbendeLejemål -> Sandt | Al39UdlejerUopsigeligUdenTidsbegrænsning -> Sandt | _ -> Falskt })
     | omfattet_af_par39() -> position_gyldig() && input.position.lokaler_anvendes_erhvervsmæssigt && input.position.lokaler_anvendes_til_andet_end_beboelse
     | stk2_lejemål() -> afskrivningslov39_lejemål_omfattet_af_stk2(input.position.kontrol)
-    | par14_undtagelse() -> stk2_lejemål() && afskrivningslov39_par14_resultat(input.position.par14_status)
+    | par14_undtagelse() -> stk2_lejemål() && afskrivningslov39_par14_omfattet(input.position.par14_status)
     | afskrivningsberettiget() -> omfattet_af_par39() && (stk2_lejemål() == Falskt || par14_undtagelse())
     | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - input.position.tidligere_foretagne_afskrivninger_kroner)
     | bruger_par17_sats() -> par14_undtagelse() || input.position.lejevilkår == Al39UdlejerUopsigeligUdenTidsbegrænsning
