@@ -146,6 +146,10 @@ statsskatteloven for selvstændige erhvervsdrivende og
     | PsPar3Nr10Al13Udgang(input) -> input.par12_input.indkomstår == indkomstår
     | PsPar3Nr10Al13Reparation(input) -> input.indkomstår == indkomstår
 }
+| personskat_par3_nr10_driftsmiddelkilde_input_gyldigt(kilde: PersonskatPar3Nr10Driftsmiddelkilde) -> match kilde {
+    | PsPar3Nr10Al5(input) -> afskrivningslov5_resultat(input, afskrivningslov_årsparametre(input.indkomstår)).valg_gyldigt
+    | _ -> Sandt
+}
 | personskat_par3_nr10_bygningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Bygningskilde, indkomstår: Heltal) -> match kilde {
     | PsPar3Nr10Al17(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al17Par19(input) -> afskrivningslov17_par19_indkomstår_matcher(input, indkomstår)
@@ -219,6 +223,10 @@ statsskatteloven for selvstændige erhvervsdrivende og
     | PsPar3Nr10Særregel(særregelkilde) -> personskat_par3_nr10_særregelkilde_indkomstår_matcher(særregelkilde, indkomstår)
     | PsPar3Nr10Statsskattelov6A(_) -> Sandt
 }
+| personskat_par3_nr10_afskrivningskilde_input_gyldigt(kilde: PersonskatPar3Nr10Afskrivningskilde) -> match kilde {
+    | PsPar3Nr10Driftsmiddel(driftsmiddelkilde) -> personskat_par3_nr10_driftsmiddelkilde_input_gyldigt(driftsmiddelkilde)
+    | _ -> Sandt
+}
 | personskat_par3_erhvervspostkilde_årsparametre_understøttet(kilde: PersonskatPar3Erhvervspostkilde) -> match kilde {
     | PsPar3Nr10Afskrivning(afskrivningskilde) -> personskat_par3_nr10_afskrivningskilde_årsparametre_understøttet(afskrivningskilde)
     | _ -> Sandt
@@ -231,7 +239,11 @@ statsskatteloven for selvstændige erhvervsdrivende og
     | PsPar3Nr9TilbagebetaltOffentligYdelse(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Afskrivning(afskrivningskilde) -> personskat_par3_nr10_afskrivningskilde_indkomstår_matcher(afskrivningskilde, indkomstår)
 }
-| personskat_par3_erhvervspostfakta_grundfakta_gyldige(fakta: PersonskatPar3Erhvervspostfakta, indkomstår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && personskat_par3_erhvervspostkilde_indkomstår_matcher(fakta.kilde, fakta.indkomstår) && personskat_par3_erhvervspostkilde_årsparametre_understøttet(fakta.kilde)
+| personskat_par3_erhvervspostkilde_input_gyldigt(kilde: PersonskatPar3Erhvervspostkilde) -> match kilde {
+    | PsPar3Nr10Afskrivning(afskrivningskilde) -> personskat_par3_nr10_afskrivningskilde_input_gyldigt(afskrivningskilde)
+    | _ -> Sandt
+}
+| personskat_par3_erhvervspostfakta_grundfakta_gyldige(fakta: PersonskatPar3Erhvervspostfakta, indkomstår: Heltal) -> fakta.identifikation != "" && fakta.indkomstår == indkomstår && personskat_par3_erhvervspostkilde_indkomstår_matcher(fakta.kilde, fakta.indkomstår) && personskat_par3_erhvervspostkilde_årsparametre_understøttet(fakta.kilde) && personskat_par3_erhvervspostkilde_input_gyldigt(fakta.kilde)
 
 | personskat_par3_erhvervspost_par3_post(kilde: PersonskatPar3Erhvervspostkilde) -> match kilde {
     | PsPar3Nr4Husdyr(par2_input, par8_input) -> Par3Stk2Nr4Post(resultat = par3_stk2_nr4_resultat(Par3Stk2Nr4Input(

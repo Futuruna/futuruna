@@ -661,9 +661,9 @@ tilladelsen.
 --@begin:afskrivningsloven_par5--
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
 # Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
-# Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input)
+# Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input) | Al5Par33ForskudsafskrevneAktiver(input: Afskrivningslov33Input)
 # Afskrivningslov5Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov5Aktivgrundlag, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
-# Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
+# Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, anskaffelsessummer_til_saldo_kroner: Heltal, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 # Afskrivningslov5UdlejningsSkatteyderStatus = Al5SelskabPar1Stk1Nr1Nr2EllerNr4 | Al5AndenSkatteyder
 # Afskrivningslov5UdlejningsTilladelse = Al5IngenUdlejningstilladelse | Al5UdlejningstilladelseGældende | Al5UdlejningstilladelseBortfaldet
 # Afskrivningslov5UdlejningsaktivInput(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, anskaffelsesår: Heltal, indkomstår: Heltal, anskaffelsessum_kroner: Heltal, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse: Afskrivningslov5UdlejningsTilladelse, valgt_særskilt_afskrivning_basispoint: Heltal, solgt_i_indkomståret: Boolsk, salgssum_kroner: Heltal)
@@ -672,20 +672,25 @@ tilladelsen.
 | afskrivningslov5_skatteyder(input: Afskrivningslov5Input) -> match input.aktivgrundlag {
     | Al5Kapitel2Aktiv(aktiv_input) -> afskrivningslov_par1_par2_resultat(aktiv_input).skatteyder
     | Al5Par10DokEllerBedding(par10_input) -> par10_input.skatteyder
+    | Al5Par33ForskudsafskrevneAktiver(par33_input) -> afskrivningslov33_resultat(par33_input).skatteyder
 }
 | afskrivningslov5_aktivgrundlag_indkomstår_matcher(aktivgrundlag: Afskrivningslov5Aktivgrundlag, indkomstår: Heltal) -> match aktivgrundlag {
     | Al5Kapitel2Aktiv(_) -> Sandt
     | Al5Par10DokEllerBedding(par10_input) -> par10_input.indkomstår == indkomstår
+    | Al5Par33ForskudsafskrevneAktiver(par33_input) -> afskrivningslov33_resultat(par33_input).indkomstår == indkomstår
 }
 | afskrivningslov5_indkomstår_matcher(input: Afskrivningslov5Input, indkomstår: Heltal) -> input.indkomstår == indkomstår && afskrivningslov5_aktivgrundlag_indkomstår_matcher(input.aktivgrundlag, indkomstår)
+| afskrivningslov5_par33_supplerende_beløb_gyldige(input: Afskrivningslov5Input) -> input.øvrige_anskaffelsessummer_i_året_kroner >= 0 && input.forbedringsudgifter_i_året_kroner >= 0 && input.salgssummer_i_året_kroner >= 0
 | afskrivningslov5_aktiv_omfattet(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.aktivgrundlag {
     | Al5Kapitel2Aktiv(aktiv_input) -> afskrivningslov_par1_par2_resultat(aktiv_input).omfattet_af_kapitel2 && afskrivningslov_par1_par2_resultat(aktiv_input).udelukkende_erhvervsmæssigt_benyttet
     | Al5Par10DokEllerBedding(par10_input) -> afskrivningslov10_resultat(par10_input, parametre).valg_gyldigt
+    | Al5Par33ForskudsafskrevneAktiver(par33_input) -> afskrivningslov33_resultat(par33_input).input_gyldigt && afskrivningslov5_par33_supplerende_beløb_gyldige(input)
 }
 | afskrivningslov5_omfattet(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5_aktiv_omfattet(input, parametre) && input.saldoordning == AlPar5AlmindeligSaldo
 | afskrivningslov5_anskaffelsessummer_til_saldo_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.aktivgrundlag {
     | Al5Kapitel2Aktiv(_) -> penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner)
     | Al5Par10DokEllerBedding(par10_input) -> penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner) + afskrivningslov10_resultat(par10_input, parametre).anskaffelsessum_til_par5_saldo_kroner
+    | Al5Par33ForskudsafskrevneAktiver(par33_input) -> hvis afskrivningslov33_resultat(par33_input).input_gyldigt && afskrivningslov33_resultat(par33_input).indkomstår == input.indkomstår && afskrivningslov5_par33_supplerende_beløb_gyldige(input) { input.øvrige_anskaffelsessummer_i_året_kroner + afskrivningslov33_resultat(par33_input).samlet_resterende_anskaffelsessum_til_par5_kroner } ellers { 0 }
 }
 | afskrivningslov5_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> input.saldoværdi_primo_kroner + afskrivningslov5_anskaffelsessummer_til_saldo_kroner(input, parametre) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
 | afskrivningslov5_valgt_ordinær_sats_basispoint(valg: Afskrivningslov5Valg) -> match valg {
@@ -711,6 +716,7 @@ tilladelsen.
     omfattet_af_par5 = afskrivningslov5_omfattet(input, parametre),
     valg = input.valg,
     valg_gyldigt = afskrivningslov5_valg_gyldigt(input, parametre),
+    anskaffelsessummer_til_saldo_kroner = afskrivningslov5_anskaffelsessummer_til_saldo_kroner(input, parametre),
     saldoværdi_før_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre),
     afskrivningsberettiget_saldoværdi_kroner = penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)),
     højeste_ordinære_afskrivning_kroner = penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)), parametre.højeste_ordinære_sats_basispoint),
@@ -4041,7 +4047,7 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 --@begin:afskrivningsloven_par33--
 # Afskrivningslov33Input(position_før_anskaffelser: AfskrivningslovForskudsPosition, anskaffelser_i_indkomståret: List(AfskrivningslovForskudsAnskaffelse))
 # Afskrivningslov33AktivResultat(identifikation: Tekst, faktisk_anskaffelsessum_kroner: Heltal, del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, forskudsafskrivning_henført_til_aktivet_kroner: Heltal, forlods_afskrivning_efter_etableringskontoloven_kroner: Heltal, resterende_anskaffelsessum_til_par5_kroner: Heltal)
-# Afskrivningslov33Resultat(skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, samlet_faktisk_anskaffelsessum_i_indkomståret_kroner: Heltal, samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, samlede_forskudsafskrivninger_henført_til_aktiver_kroner: Heltal, aktiv_resultater: List(Afskrivningslov33AktivResultat))
+# Afskrivningslov33Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, input_gyldigt: Boolsk, samlet_faktisk_anskaffelsessum_i_indkomståret_kroner: Heltal, samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner: Heltal, samlet_forskudsafskrivningsprocent_basispoint: Heltal, samlede_forskudsafskrivninger_henført_til_aktiver_kroner: Heltal, samlet_resterende_anskaffelsessum_til_par5_kroner: Heltal, aktiv_resultater: List(Afskrivningslov33AktivResultat))
 
 | afskrivningslov33_reduktion_før_kroner(position: AfskrivningslovForskudsPosition) -> afskrivningslov32_reduktion_af_forskudsgrundlag_i_år_kroner(position, 9999)
 | afskrivningslov33_position_med_anskaffelser(input: Afskrivningslov33Input) -> AfskrivningslovForskudsPosition(
@@ -4051,6 +4057,8 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 )
 | afskrivningslov33_samlet_reduktion_i_indkomståret_kroner(input: Afskrivningslov33Input) -> penge_positivt_beløb(afskrivningslov33_reduktion_før_kroner(afskrivningslov33_position_med_anskaffelser(input)) - afskrivningslov33_reduktion_før_kroner(input.position_før_anskaffelser))
 | afskrivningslov33_forholdsmæssig_del_kroner(samlet_beløb_kroner: Heltal, aktivets_anskaffelsessum_kroner: Heltal, resterende_anskaffelsessummer_kroner: Heltal) -> hvis resterende_anskaffelsessummer_kroner > 0 { samlet_beløb_kroner * aktivets_anskaffelsessum_kroner / resterende_anskaffelsessummer_kroner } ellers { 0 }
+| afskrivningslov33_indkomstår(input: Afskrivningslov33Input) -> hvis length(input.anskaffelser_i_indkomståret) > 0 { afskrivningslov32_anskaffelsesår(head(input.anskaffelser_i_indkomståret)) } ellers { 0 }
+| afskrivningslov33_samlet_resterende_anskaffelsessum_til_par5_kroner(resultater: List(Afskrivningslov33AktivResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: Afskrivningslov33AktivResultat| sum + resultat.resterende_anskaffelsessum_til_par5_kroner)
 | afskrivningslov33_aktiv_resultat(anskaffelse: AfskrivningslovForskudsAnskaffelse, grundlagsreduktion_kroner: Heltal, forskudsafskrivning_kroner: Heltal, samlet_sats_basispoint: Heltal) -> Afskrivningslov33AktivResultat(
     identifikation = anskaffelse.identifikation,
     faktisk_anskaffelsessum_kroner = anskaffelse.faktisk_anskaffelsessum_for_skatteyder_kroner,
@@ -4082,21 +4090,25 @@ resterende anskaffelsessum behandles efter reglerne i § 5, stk. 1-3.
 
 # Afskrivningslov33Sag(input: Afskrivningslov33Input) {
     | position_gyldig() -> afskrivningslov32_position_gyldig(input.position_før_anskaffelser)
-    | anskaffelser_gyldige() -> afskrivningslov32_anskaffelser_gyldige(input.position_før_anskaffelser.aftale, input.anskaffelser_i_indkomståret) && afskrivningslov32_anskaffelser_entydige(concat(input.position_før_anskaffelser.anskaffelser, input.anskaffelser_i_indkomståret))
+    | anskaffelser_gyldige() -> length(input.anskaffelser_i_indkomståret) > 0 && afskrivningslov32_anskaffelser_gyldige(input.position_før_anskaffelser.aftale, input.anskaffelser_i_indkomståret) && afskrivningslov32_anskaffelser_entydige(concat(input.position_før_anskaffelser.anskaffelser, input.anskaffelser_i_indkomståret))
     | samme_indkomstår() -> length(input.anskaffelser_i_indkomståret) == 0 || all(input.anskaffelser_i_indkomståret, |anskaffelse: AfskrivningslovForskudsAnskaffelse| afskrivningslov32_anskaffelsesår(anskaffelse) == afskrivningslov32_anskaffelsesår(head(input.anskaffelser_i_indkomståret)))
-    | input_gyldigt() -> position_gyldig() && anskaffelser_gyldige() && samme_indkomstår()
+    | indkomstår() -> afskrivningslov33_indkomstår(input)
+    | input_gyldigt() -> position_gyldig() && anskaffelser_gyldige() && samme_indkomstår() && indkomstår() > 0
     | samlet_anskaffelsessum_kroner() -> afskrivningslov32_samlet_faktisk_anskaffelsessum_kroner(input.anskaffelser_i_indkomståret)
     | grundlagsreduktion_kroner() -> hvis input_gyldigt() { afskrivningslov33_samlet_reduktion_i_indkomståret_kroner(input) } ellers { 0 }
     | samlet_sats_basispoint() -> afskrivningslov31_hidtil_anvendt_sats_basispoint(input.position_før_anskaffelser)
     | forskudsafskrivning_henført_kroner() -> penge_beløb_gange_basispoint_kroner(grundlagsreduktion_kroner(), samlet_sats_basispoint())
     | aktiv_resultater() -> hvis input_gyldigt() { afskrivningslov33_fordel_aktiver(input.anskaffelser_i_indkomståret, grundlagsreduktion_kroner(), forskudsafskrivning_henført_kroner(), samlet_anskaffelsessum_kroner(), samlet_sats_basispoint()) } ellers { [] }
+    | samlet_resterende_anskaffelsessum_til_par5_kroner() -> hvis input_gyldigt() { afskrivningslov33_samlet_resterende_anskaffelsessum_til_par5_kroner(aktiv_resultater()) } ellers { 0 }
     | resultat() -> Afskrivningslov33Resultat(
+        indkomstår = indkomstår(),
         skatteyder = input.position_før_anskaffelser.aftale.skatteyder,
         input_gyldigt = input_gyldigt(),
         samlet_faktisk_anskaffelsessum_i_indkomståret_kroner = samlet_anskaffelsessum_kroner(),
         samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner = grundlagsreduktion_kroner(),
         samlet_forskudsafskrivningsprocent_basispoint = samlet_sats_basispoint(),
         samlede_forskudsafskrivninger_henført_til_aktiver_kroner = forskudsafskrivning_henført_kroner(),
+        samlet_resterende_anskaffelsessum_til_par5_kroner = samlet_resterende_anskaffelsessum_til_par5_kroner(),
         aktiv_resultater = aktiv_resultater()
     )
 }

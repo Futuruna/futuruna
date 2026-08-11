@@ -128,6 +128,80 @@
 = al_forskud_par3_år1 = par3_stk2_nr10_post_resultat(Par3Nr10Al32(resultat = al_forskud_år1))
 = al_forskud_par3_par34 = par3_stk2_nr10_post_resultat(Par3Nr10Al34(resultat = al_forskud_par34_frist))
 
+= al_forskud_par33_til_par5_aftale = AfskrivningslovForskudsAftale(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    aktiv_input = al_forskud_skib_input,
+    saldoart = Al28Par5Saldo,
+    aftaleform = Al28BindendeSkibsbygningsaftale,
+    bestillings_eller_planlægningsdato = AfskrivningslovDato(år = 2023, måned = 1, dag = 15),
+    virksomhedsidentifikation = "Rederiet-2023",
+    planlagte_aktiver = [
+        AfskrivningslovForskudsPlanlagtAktiv(identifikation = "skib-2026-a", planlagt_leverings_eller_færdiggørelsesår = 2026, aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner = 2000000),
+        AfskrivningslovForskudsPlanlagtAktiv(identifikation = "skib-2026-b", planlagt_leverings_eller_færdiggørelsesår = 2026, aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_kroner = 1000000),
+    ],
+    selskab_omfattet_af_selskabsskattelov1_stk1_nr1_2_eller_4 = Falskt,
+    aktiver_erhverves_med_henblik_på_udlejning_eller_er_udlejet = Falskt,
+    tilladelse_efter_par5_stk6 = Falskt
+)
+= al_forskud_par33_til_par5_startposition = AfskrivningslovForskudsPosition(
+    aftale = al_forskud_par33_til_par5_aftale,
+    årsposter = [],
+    anskaffelser = []
+)
+| al_forskud_par33_til_par5_år(position: AfskrivningslovForskudsPosition, indkomstår: Heltal) -> afskrivningslov32_årsresultat(Afskrivningslov32ÅrsInput(
+    position = position,
+    indkomstår = indkomstår,
+    nye_anskaffelser = [],
+    valgt_forskudsafskrivningssats_basispoint = 1000
+))
+= al_forskud_par33_til_par5_2023 = al_forskud_par33_til_par5_år(al_forskud_par33_til_par5_startposition, 2023)
+= al_forskud_par33_til_par5_2024 = al_forskud_par33_til_par5_år(al_forskud_par33_til_par5_2023.position_efter, 2024)
+= al_forskud_par33_til_par5_2025 = al_forskud_par33_til_par5_år(al_forskud_par33_til_par5_2024.position_efter, 2025)
+| al_forskud_par33_til_par5_anskaffelse(identifikation: Tekst, indkomstår: Heltal, faktisk_anskaffelsessum_kroner: Heltal, forlods_afskrivning_kroner: Heltal) -> AfskrivningslovForskudsAnskaffelse(
+    identifikation = identifikation,
+    par3_input = Afskrivningslov3Input(
+        anskaffelsesdato = AfskrivningslovDato(år = indkomstår, måned = 6, dag = 30),
+        leveret_til_igangværende_virksomhed = Sandt,
+        bestemt_til_virksomhedens_drift = Sandt,
+        færdiggjort_til_at_indgå_i_driften = Sandt
+    ),
+    faktisk_anskaffelsessum_for_skatteyder_kroner = faktisk_anskaffelsessum_kroner,
+    forlods_afskrivning_efter_etableringskontoloven_kroner = forlods_afskrivning_kroner
+)
+= al_forskud_par33_til_par5_skib_a = al_forskud_par33_til_par5_anskaffelse("skib-2026-a", 2026, 2000000, 100000)
+= al_forskud_par33_til_par5_skib_b = al_forskud_par33_til_par5_anskaffelse("skib-2026-b", 2026, 1000000, 0)
+| al_forskud_par33_til_par5_input(anskaffelser: List(AfskrivningslovForskudsAnskaffelse)) -> Afskrivningslov33Input(
+    position_før_anskaffelser = al_forskud_par33_til_par5_2025.position_efter,
+    anskaffelser_i_indkomståret = anskaffelser
+)
+= al_forskud_par33_til_par5_gyldigt_input = al_forskud_par33_til_par5_input([
+    al_forskud_par33_til_par5_skib_a,
+    al_forskud_par33_til_par5_skib_b,
+])
+= al_forskud_par33_til_par5_resultat = afskrivningslov33_resultat(al_forskud_par33_til_par5_gyldigt_input)
+| al_forskud_par5_fra_par33(indkomstår: Heltal, par33_input: Afskrivningslov33Input, øvrige_anskaffelser_kroner: Heltal) -> afskrivningslov5_resultat(Afskrivningslov5Input(
+    indkomstår = indkomstår,
+    aktivgrundlag = Al5Par33ForskudsafskrevneAktiver(input = par33_input),
+    saldoordning = AlPar5AlmindeligSaldo,
+    saldoværdi_primo_kroner = 0,
+    øvrige_anskaffelsessummer_i_året_kroner = øvrige_anskaffelser_kroner,
+    forbedringsudgifter_i_året_kroner = 0,
+    salgssummer_i_året_kroner = 0,
+    valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
+    ), afskrivningslov_årsparametre(indkomstår))
+= al_forskud_par5_fra_par33_gyldigt = al_forskud_par5_fra_par33(2026, al_forskud_par33_til_par5_gyldigt_input, 85950)
+= al_forskud_par5_fra_par33_tomt = al_forskud_par5_fra_par33(2026, al_forskud_par33_til_par5_input([]), 85950)
+= al_forskud_par5_fra_par33_dobbelt = al_forskud_par5_fra_par33(2026, al_forskud_par33_til_par5_input([
+    al_forskud_par33_til_par5_skib_a,
+    al_forskud_par33_til_par5_skib_a,
+    ]), 85950)
+= al_forskud_par5_fra_par33_blandede_år = al_forskud_par5_fra_par33(2026, al_forskud_par33_til_par5_input([
+    al_forskud_par33_til_par5_skib_a,
+    al_forskud_par33_til_par5_anskaffelse("skib-2026-b", 2025, 1000000, 0),
+    ]), 85950)
+= al_forskud_par5_fra_par33_forkert_år = al_forskud_par5_fra_par33(2025, al_forskud_par33_til_par5_gyldigt_input, 85950)
+= al_forskud_par5_fra_par33_negativt_supplerende_beløb = al_forskud_par5_fra_par33(2026, al_forskud_par33_til_par5_gyldigt_input, -1)
+
 | scenarie_al29_regulerer_grundbeløbet: al_forskud_par29 -> al_forskud_grundbeløb_2026.reguleret_grundbeløb_kroner == 1931600 && al_forskud_par29.samlet_aftalt_eller_beregnet_anskaffelsessum_for_skatteyder_og_virksomhed_kroner == 3131600 && al_forskud_par29.omfattet_af_par29
 | scenarie_al31_oprindeligt_grundlag: al_forskud_startposition -> afskrivningslov31_resultat(al_forskud_startposition).oprindeligt_forskudsafskrivningsgrundlag_kroner == 1200000
 | scenarie_al31_år1_tolvpct: al_forskud_år1 -> al_forskud_år1.behandling_gyldig && al_forskud_år1.forskudsafskrivning_kroner == 144000 && al_forskud_år1.resterende_forskudsafskrivningsgrundlag_ved_årets_udløb_kroner == 1200000
@@ -145,6 +219,9 @@
 | scenarie_al37_er_ophævet: afskrivningslov37_status() -> afskrivningslov37_status() == Al37Ophævet
 | scenarie_par3_nr10_modtager_forskudsafskrivning: al_forskud_par3_år1 -> al_forskud_par3_år1.hjemmel == Par3Nr10Afskrivningslov32 && al_forskud_par3_år1.skattemæssig_afskrivning_kroner == 144000 && al_forskud_par3_år1.fradrag_i_personlig_indkomst_kroner == 144000
 | scenarie_par3_nr10_modtager_par34_forhøjelse: al_forskud_par3_par34 -> al_forskud_par3_par34.hjemmel == Par3Nr10Afskrivningslov34 && al_forskud_par3_par34.skattepligtig_indtægtsføring_kroner == 118830 && al_forskud_par3_par34.indtægtsføring_i_personlig_indkomst_kroner == 118830
+| scenarie_al33_resterende_anskaffelsessum_føres_til_par5: al_forskud_par5_fra_par33_gyldigt -> al_forskud_par33_til_par5_resultat.input_gyldigt && al_forskud_par33_til_par5_resultat.indkomstår == 2026 && al_forskud_par33_til_par5_resultat.samlet_del_der_fragår_i_forskudsafskrivningsgrundlaget_kroner == 1286500 && al_forskud_par33_til_par5_resultat.samlede_forskudsafskrivninger_henført_til_aktiver_kroner == 385950 && al_forskud_par33_til_par5_resultat.samlet_resterende_anskaffelsessum_til_par5_kroner == 2514050 && al_forskud_par5_fra_par33_gyldigt.valg_gyldigt && al_forskud_par5_fra_par33_gyldigt.anskaffelsessummer_til_saldo_kroner == 2600000 && al_forskud_par5_fra_par33_gyldigt.fradrag_i_skattepligtig_indkomst_kroner == 650000
+| scenarie_al33_ugyldige_anskaffelser_fejler_lukket_i_par5: al_forskud_par5_fra_par33_tomt -> al_forskud_par5_fra_par33_tomt.valg_gyldigt == Falskt && al_forskud_par5_fra_par33_tomt.anskaffelsessummer_til_saldo_kroner == 0 && al_forskud_par5_fra_par33_tomt.fradrag_i_skattepligtig_indkomst_kroner == 0 && al_forskud_par5_fra_par33_dobbelt.valg_gyldigt == Falskt && al_forskud_par5_fra_par33_dobbelt.anskaffelsessummer_til_saldo_kroner == 0 && al_forskud_par5_fra_par33_blandede_år.valg_gyldigt == Falskt && al_forskud_par5_fra_par33_blandede_år.anskaffelsessummer_til_saldo_kroner == 0
+| scenarie_al33_år_og_supplerende_beløb_fejler_lukket_i_par5: al_forskud_par5_fra_par33_forkert_år -> al_forskud_par5_fra_par33_forkert_år.valg_gyldigt == Falskt && al_forskud_par5_fra_par33_forkert_år.anskaffelsessummer_til_saldo_kroner == 0 && al_forskud_par5_fra_par33_forkert_år.fradrag_i_skattepligtig_indkomst_kroner == 0 && al_forskud_par5_fra_par33_negativt_supplerende_beløb.valg_gyldigt == Falskt && al_forskud_par5_fra_par33_negativt_supplerende_beløb.anskaffelsessummer_til_saldo_kroner == 0 && al_forskud_par5_fra_par33_negativt_supplerende_beløb.fradrag_i_skattepligtig_indkomst_kroner == 0
 
 ? scenarie_al29_regulerer_grundbeløbet
 ? scenarie_al31_oprindeligt_grundlag
@@ -163,5 +240,8 @@
 ? scenarie_al37_er_ophævet
 ? scenarie_par3_nr10_modtager_forskudsafskrivning
 ? scenarie_par3_nr10_modtager_par34_forhøjelse
+? scenarie_al33_resterende_anskaffelsessum_føres_til_par5
+? scenarie_al33_ugyldige_anskaffelser_fejler_lukket_i_par5
+? scenarie_al33_år_og_supplerende_beløb_fejler_lukket_i_par5
 
 @ print("Afskrivningsloven §§ 28-37 scenarier: forskudsgrundlag, anskaffelser, fordeling, efterbeskatning og succession kontrolleret")
