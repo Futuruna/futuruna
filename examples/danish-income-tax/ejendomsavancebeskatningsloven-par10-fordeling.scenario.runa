@@ -149,6 +149,7 @@
     tilknyttet_art = Al14BygningEllerLokale
 )
 = ebl_par10_afskrivningsscenarie_nedskrevet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "genopført-erhvervsbygning",
     aktiv = AlK3Bygning(input = ebl_par10_afskrivningsscenarie_bygning),
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,

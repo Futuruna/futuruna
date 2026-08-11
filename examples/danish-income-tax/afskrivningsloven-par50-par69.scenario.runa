@@ -339,6 +339,7 @@
 
 = al62_miljøbygning = AlK3Bygning(input = Afskrivningslov14Input(skatteyder = AlSelvstændigErhvervsdrivendePerson, anvendelse = Al14AndenErhvervsanvendelse, erhvervsmæssigt_benyttet = Sandt, postsortering_med_industrielt_præg = Falskt, tilknytning = Al14IkkeTilknyttet, tilknyttet_art = Al14BygningEllerLokale))
 = al62_miljøværdi_før_overgang = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "miljøbygning",
     aktiv = al62_miljøbygning,
     grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner = 100000, straksfradrag_som_ikke_medregnes_kroner = 0, afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 20000, fratrukne_afskrivninger_kroner = 20000)]),
     par39_historik = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)

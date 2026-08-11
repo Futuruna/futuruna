@@ -148,6 +148,7 @@
 = al15_ejerlejlighed_afskåret = afskrivningslov15_resultat(al15_ejerlejlighed_afskåret_input)
 
 = al16_hotel_2023_input = Afskrivningslov16Input(
+    aktiv_identifikation = "hotel",
     aktiv = AlK3Bygning(input = al14_hotel_input),
     hændelse = Al16Anskaffelse,
     indkomstår = 2023,
@@ -158,6 +159,7 @@
 = al16_hotel_2023 = afskrivningslov16_resultat(al16_hotel_2023_input)
 
 = al16_hotel_2022_input = Afskrivningslov16Input(
+    aktiv_identifikation = "hotel",
     aktiv = AlK3Bygning(input = al14_hotel_input),
     hændelse = Al16Anskaffelse,
     indkomstår = 2022,
@@ -168,6 +170,7 @@
 = al16_hotel_2022 = afskrivningslov16_resultat(al16_hotel_2022_input)
 
 = al16_blandet_installation_2023_input = Afskrivningslov16Input(
+    aktiv_identifikation = "blandet-installation",
     aktiv = AlK3Installation(input = al15_blandet_input),
     hændelse = Al16Anskaffelse,
     indkomstår = 2023,
@@ -178,6 +181,7 @@
 = al16_blandet_installation_2023 = afskrivningslov16_resultat(al16_blandet_installation_2023_input)
 
 = al16_gårdsplads_2023_input = Afskrivningslov16Input(
+    aktiv_identifikation = "gårdsplads",
     aktiv = AlK3Bygning(input = al14_tilknyttet_gårdsplads_input),
     hændelse = Al16Anskaffelse,
     indkomstår = 2023,
@@ -443,6 +447,8 @@
 ))
 
 = al19_under_25_og_under_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
+    aktiv_identifikation = "hotel",
+    ejerbolig_identifikation = None,
     bygning_input = al14_hotel_input,
     anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,
@@ -453,6 +459,8 @@
 ))
 
 = al19_under_25_men_mindst_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
+    aktiv_identifikation = "hotel",
+    ejerbolig_identifikation = None,
     bygning_input = al14_hotel_input,
     anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1500,
@@ -466,6 +474,8 @@
 ))
 
 = al19_ejerbolig_udgår = afskrivningslov19_resultat(Afskrivningslov19Input(
+    aktiv_identifikation = "hotel-med-ejerbolig",
+    ejerbolig_identifikation = None,
     bygning_input = al14_hotel_input,
     anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 200000),
     samlet_etageareal_kvadratmeter = 1000,
@@ -479,6 +489,8 @@
 ))
 
 = al19_stk2_udelukket_bygning_afskæres = afskrivningslov19_resultat(Afskrivningslov19Input(
+    aktiv_identifikation = "kontor",
+    ejerbolig_identifikation = None,
     bygning_input = al14_kontor_input,
     anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,

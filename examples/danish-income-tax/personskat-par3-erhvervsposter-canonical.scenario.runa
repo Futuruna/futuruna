@@ -232,6 +232,7 @@ fradrag.
 | psl3_erhvervspost_scenarie_al19_input(indkomstår: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, valg: List(Afskrivningslov17Par19Valg)) -> Afskrivningslov17Par19Input(
     indkomstår = indkomstår,
     par16_input = Afskrivningslov16Input(
+        aktiv_identifikation = "hotel",
         aktiv = AlK3Bygning(input = psl3_erhvervspost_scenarie_al19_bygning()),
         hændelse = Al16Anskaffelse,
         indkomstår = 2023,
@@ -240,6 +241,8 @@ fradrag.
         benyttes_erhvervsmæssigt = Sandt
     ),
     par19_input = Afskrivningslov19Input(
+        aktiv_identifikation = "hotel",
+        ejerbolig_identifikation = None,
         bygning_input = psl3_erhvervspost_scenarie_al19_bygning(),
         anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
         samlet_etageareal_kvadratmeter = 1000,

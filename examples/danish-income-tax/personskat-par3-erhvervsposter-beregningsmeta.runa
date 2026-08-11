@@ -97,3 +97,55 @@
 )
 
 --@label:PersonskatPersonligIndkomstInput::meta:personskat_par3_erhvervsposter_beregningsmeta--
+
+= personskat_al16_aktividentifikation_beregningsmeta = TypetBeregningsmeta(
+    felter = [TypetBeregningsfelt(
+        path = refof(Afskrivningslov16Input::aktiv_identifikation),
+        label = "Aktivets identifikation",
+        question = Some("Hvilken stabil identifikation har bygningen eller installationen?"),
+        help = Some("Identifikationen skal være den samme i aktivets anskaffelsesforløb og i en eventuel fordeling efter afskrivningslovens § 45."),
+        unit = None
+    )],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Source(value = afskrivningsloven_lbk1222),)
+)
+
+= personskat_al19_aktividentifikation_beregningsmeta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(
+            path = refof(Afskrivningslov19Input::aktiv_identifikation),
+            label = "Bygningens identifikation",
+            question = Some("Hvilken stabil identifikation har bygningen?"),
+            help = Some("Ved en fordeling efter afskrivningslovens § 45 skal identifikationen svare til præcis bygningens fordelingspost."),
+            unit = None
+        ),
+        TypetBeregningsfelt(
+            path = refof(Afskrivningslov19Input::ejerbolig_identifikation),
+            label = "Ejerboligens identifikation",
+            question = Some("Hvilken stabil identifikation har ejerboligdelen i § 45-fordelingen?"),
+            help = Some("Feltet bruges, når bygningen har ejerboligareal og anskaffelsessummen kommer fra en skriftlig § 45-fordeling."),
+            unit = None
+        )
+    ],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Source(value = afskrivningsloven_lbk1222),)
+)
+
+= personskat_al21_aktividentifikation_beregningsmeta = TypetBeregningsmeta(
+    felter = [TypetBeregningsfelt(
+        path = refof(Afskrivningslov21NedskrevetVærdiInput::aktiv_identifikation),
+        label = "Det afståede aktivs identifikation",
+        question = Some("Hvilken stabil identifikation har den afståede bygning eller installation?"),
+        help = Some("Identifikationen skal svare til aktivets fordelingspost, når salgssummen kommer fra afskrivningslovens § 45."),
+        unit = None
+    )],
+    spørgsmål = [],
+    beløbsfelter = [],
+    attachments = (Source(value = afskrivningsloven_lbk1222),)
+)
+
+--@label:Afskrivningslov16Input::meta:personskat_al16_aktividentifikation_beregningsmeta--
+--@label:Afskrivningslov19Input::meta:personskat_al19_aktividentifikation_beregningsmeta--
+--@label:Afskrivningslov21NedskrevetVærdiInput::meta:personskat_al21_aktividentifikation_beregningsmeta--

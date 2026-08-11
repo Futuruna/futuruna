@@ -2103,8 +2103,8 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 --@begin:afskrivningsloven_par16--
 # AfskrivningslovKapitel3Aktiv = AlK3Bygning(input: Afskrivningslov14Input) | AlK3Installation(input: Afskrivningslov15Input)
 # Afskrivningslov16Hændelse = Al16Anskaffelse | Al16OmbygningEllerForbedring
-# Afskrivningslov16Input(aktiv: AfskrivningslovKapitel3Aktiv, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk)
-# Afskrivningslov16Resultat(aktiv: AfskrivningslovKapitel3Aktiv, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, aktiv_omfattet_af_kapitel3: Boolsk, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk, betingelser_opfyldt: Boolsk, afskrivningsberettiget_fra_indkomstår: Heltal)
+# Afskrivningslov16Input(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk)
+# Afskrivningslov16Resultat(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, aktiv_omfattet_af_kapitel3: Boolsk, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk, betingelser_opfyldt: Boolsk, afskrivningsberettiget_fra_indkomstår: Heltal)
 
 | afskrivningslov_kapitel3_aktiv_skatteyder(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
     | AlK3Bygning(input) -> input.skatteyder
@@ -2126,12 +2126,13 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 # Afskrivningslov16Sag(input: Afskrivningslov16Input) {
     | aktiv_omfattet_af_kapitel3() -> afskrivningslov_kapitel3_aktiv_omfattet(input.aktiv)
     | betingelser_opfyldt() -> match input.hændelse {
-        | Al16Anskaffelse -> aktiv_omfattet_af_kapitel3() && input.erhvervet_eller_opført && input.benyttes_erhvervsmæssigt
-        | Al16OmbygningEllerForbedring -> aktiv_omfattet_af_kapitel3() && input.udgift_afholdt && input.benyttes_erhvervsmæssigt
+        | Al16Anskaffelse -> input.aktiv_identifikation != "" && aktiv_omfattet_af_kapitel3() && input.erhvervet_eller_opført && input.benyttes_erhvervsmæssigt
+        | Al16OmbygningEllerForbedring -> input.aktiv_identifikation != "" && aktiv_omfattet_af_kapitel3() && input.udgift_afholdt && input.benyttes_erhvervsmæssigt
     }
     | afskrivningsberettiget_fra_indkomstår() -> 0
     | exception al16_betingelser_fastlægger_første_år afskrivningsberettiget_fra_indkomstår() -> input.indkomstår under betingelser_opfyldt()
     | resultat() -> Afskrivningslov16Resultat(
+        aktiv_identifikation = input.aktiv_identifikation,
         aktiv = input.aktiv,
         skatteyder = afskrivningslov_kapitel3_aktiv_skatteyder(input.aktiv),
         hændelse = input.hændelse,
@@ -2229,7 +2230,7 @@ først erhvervede ideelle andel for den først afståede.
     | par16_resultat() -> afskrivningslov16_resultat(input.par16_input)
     | par20_resultat() -> afskrivningslov20_resultat(input.par20_input)
     | afskrivningsgrundlagsresultat() -> afskrivningslov45_kontantværdi_resultat(input.afskrivningsgrundlag)
-    | afskrivningsgrundlag_gyldigt() -> afskrivningsgrundlagsresultat().input_gyldigt && afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(input.afskrivningsgrundlag, par16_resultat().aktiv)
+    | afskrivningsgrundlag_gyldigt() -> afskrivningsgrundlagsresultat().input_gyldigt && afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(input.afskrivningsgrundlag, par16_resultat().aktiv, par16_resultat().aktiv_identifikation)
     | afskrivningsgrundlag_kroner() -> hvis afskrivningsgrundlag_gyldigt() { afskrivningsgrundlagsresultat().kontantværdi_kroner } ellers { 0 }
     | anskaffelsesår() -> par16_resultat().afskrivningsberettiget_fra_indkomstår
     | erhvervet_før_2023() -> anskaffelsesår() > 0 && anskaffelsesår() < 2023
@@ -2482,10 +2483,10 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 # Afskrivningslov19Historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval), gyldig: Boolsk)
 # Afskrivningslov19Anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal) | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling: Afskrivningslov45FordeltKontantværdiInput, boligfordeling: Option(Afskrivningslov45FordeltKontantværdiInput))
 # Afskrivningslov19AnskaffelsessumResultat(input: Afskrivningslov19Anskaffelsessum, input_gyldigt: Boolsk, samlet_anskaffelsessum_før_ejerbolig_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, anskaffelsessum_efter_ejerbolig_kroner: Heltal)
-# Afskrivningslov19Input(bygning_input: Afskrivningslov14Input, anskaffelsessum: Afskrivningslov19Anskaffelsessum, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov19Input(aktiv_identifikation: Tekst, ejerbolig_identifikation: Option(Tekst), bygning_input: Afskrivningslov14Input, anskaffelsessum: Afskrivningslov19Anskaffelsessum, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
 # Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, samlet_anskaffelsessum_før_ejerbolig_kroner: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
 
-# Afskrivningslov19AnskaffelsessumSag(input: Afskrivningslov19Anskaffelsessum, ejerbolig_etageareal_kvadratmeter: Heltal) {
+# Afskrivningslov19AnskaffelsessumSag(input: Afskrivningslov19Anskaffelsessum, aktiv_identifikation: Tekst, ejerbolig_identifikation: Option(Tekst), ejerbolig_etageareal_kvadratmeter: Heltal) {
     | bygningsresultat() -> match input {
         | Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner, _) -> afskrivningslov45_kontantværdi_resultat(Al45OplystKontantværdi(beløb_kroner = samlet_anskaffelsessum_kroner))
         | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling, _) -> afskrivningslov45_kontantværdi_resultat(Al45FordeltKontantværdi(input = bygningsfordeling))
@@ -2500,11 +2501,11 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
         | _ -> Falskt
     }
     | par45_input_gyldigt() -> match input {
-        | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling, Some(boligfordeling)) -> ejerbolig_etageareal_kvadratmeter > 0 && bygningsfordeling.kategori == Al45Bygning && boligfordeling.kategori == Al45Bolig && bygningsfordeling.fordelings_input == boligfordeling.fordelings_input && bygningsresultat().input_gyldigt && boligresultat().input_gyldigt
-        | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling, None) -> ejerbolig_etageareal_kvadratmeter == 0 && bygningsfordeling.kategori == Al45Bygning && bygningsresultat().input_gyldigt
+        | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling, Some(boligfordeling)) -> ejerbolig_etageareal_kvadratmeter > 0 && afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(bygningsfordeling, Al45Bygning, aktiv_identifikation) && match ejerbolig_identifikation { | Some(identifikation) -> afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(boligfordeling, Al45Bolig, identifikation) | None -> Falskt } && bygningsfordeling.fordelings_input == boligfordeling.fordelings_input && bygningsresultat().input_gyldigt && boligresultat().input_gyldigt
+        | Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling, None) -> ejerbolig_etageareal_kvadratmeter == 0 && ejerbolig_identifikation == None && afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(bygningsfordeling, Al45Bygning, aktiv_identifikation) && bygningsresultat().input_gyldigt
         | _ -> Falskt
     }
-    | input_gyldigt() -> hvis ejerbolig_etageareal_kvadratmeter >= 0 { oplyst_input_gyldigt() || par45_input_gyldigt() } ellers { Falskt }
+    | input_gyldigt() -> hvis aktiv_identifikation != "" && ejerbolig_etageareal_kvadratmeter >= 0 { oplyst_input_gyldigt() || par45_input_gyldigt() } ellers { Falskt }
     | ejerbolig_anskaffelsessum_kroner() -> hvis input_gyldigt() { boligresultat().kontantværdi_kroner } ellers { 0 }
     | anskaffelsessum_efter_ejerbolig_kroner() -> hvis input_gyldigt() {
         match input {
@@ -2521,7 +2522,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
         anskaffelsessum_efter_ejerbolig_kroner = anskaffelsessum_efter_ejerbolig_kroner()
     )
 }
-| afskrivningslov19_anskaffelsessum_resultat(input: Afskrivningslov19Anskaffelsessum, ejerbolig_etageareal_kvadratmeter: Heltal) -> Afskrivningslov19AnskaffelsessumSag(input, ejerbolig_etageareal_kvadratmeter).resultat()
+| afskrivningslov19_anskaffelsessum_resultat(input: Afskrivningslov19Anskaffelsessum, aktiv_identifikation: Tekst, ejerbolig_identifikation: Option(Tekst), ejerbolig_etageareal_kvadratmeter: Heltal) -> Afskrivningslov19AnskaffelsessumSag(input, aktiv_identifikation, ejerbolig_identifikation, ejerbolig_etageareal_kvadratmeter).resultat()
 
 | afskrivningslov19_interval_beløb_kroner(interval: Afskrivningslov19Interval) -> penge_positivt_beløb(interval.til_kroner - interval.fra_kroner)
 | afskrivningslov19_interval_gyldigt(interval: Afskrivningslov19Interval, afskrivningsberettigede_indkomstår_for_bygningen: Heltal) -> interval.fra_kroner >= 0 && interval.til_kroner > interval.fra_kroner && interval.afskrivningsberettigede_indkomstår >= 0 && interval.afskrivningsberettigede_indkomstår <= afskrivningsberettigede_indkomstår_for_bygningen && interval.anvendt_afskrivningsprocent_basispoint >= 0 && interval.anvendt_afskrivningsprocent_basispoint <= interval.maksimalt_mulig_afskrivningsprocent_basispoint && interval.maksimalt_mulig_afskrivningsprocent_basispoint <= 10000
@@ -2566,7 +2567,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 
 # Afskrivningslov19Sag(input: Afskrivningslov19Input) {
     | bygning_resultat() -> afskrivningslov14_resultat(input.bygning_input)
-    | anskaffelsessum_resultat() -> afskrivningslov19_anskaffelsessum_resultat(input.anskaffelsessum, input.ejerbolig_etageareal_kvadratmeter)
+    | anskaffelsessum_resultat() -> afskrivningslov19_anskaffelsessum_resultat(input.anskaffelsessum, input.aktiv_identifikation, input.ejerbolig_identifikation, input.ejerbolig_etageareal_kvadratmeter)
     | anskaffelsessum_gyldig() -> anskaffelsessum_resultat().input_gyldigt
     | samlet_etageareal_kvadratmeter() -> penge_positivt_beløb(input.samlet_etageareal_kvadratmeter)
     | ejerbolig_etageareal_kvadratmeter() -> penge_mindste_beløb(penge_positivt_beløb(input.ejerbolig_etageareal_kvadratmeter), samlet_etageareal_kvadratmeter())
@@ -2704,7 +2705,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     | par19_resultat() -> afskrivningslov19_resultat(input.par19_input)
     | par20_resultat() -> afskrivningslov20_resultat(input.par20_input)
     | satsresultat() -> afskrivningslov17_resultat(afskrivningslov17_par19_satsinput(input, par19_resultat().aktuelt_afskrivningsberettiget_grundlag_kroner))
-    | grundlag_gyldigt() -> input.indkomstår > 0 && input.indkomstår == par20_resultat().indkomstår && par16_resultat().aktiv == bygning() && par20_resultat().aktiv == bygning() && par16_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().begivenhed_matcher_aktiv && par16_resultat().afskrivningsberettiget_fra_indkomstår > 0 && input.indkomstår >= par16_resultat().afskrivningsberettiget_fra_indkomstår && par19_resultat().omfattet_af_par19 && par19_resultat().intervaller_gyldige && satsresultat().aktiv_omfattet
+    | grundlag_gyldigt() -> input.indkomstår > 0 && input.indkomstår == par20_resultat().indkomstår && par16_resultat().aktiv_identifikation == input.par19_input.aktiv_identifikation && par16_resultat().aktiv == bygning() && par20_resultat().aktiv == bygning() && par16_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().begivenhed_matcher_aktiv && par16_resultat().afskrivningsberettiget_fra_indkomstår > 0 && input.indkomstår >= par16_resultat().afskrivningsberettiget_fra_indkomstår && par19_resultat().omfattet_af_par19 && par19_resultat().intervaller_gyldige && satsresultat().aktiv_omfattet
     | kan_afskrives_i_indkomståret() -> grundlag_gyldigt() && satsresultat().kan_afskrives_i_indkomståret
     | beregningsintervaller() -> hvis kan_afskrives_i_indkomståret() { par19_resultat().intervaller } ellers { [] }
     | interval_resultater() -> afskrivningslov17_par19_interval_resultater(beregningsintervaller(), satsresultat().højeste_sats_basispoint, input.valg)
@@ -2870,8 +2871,8 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 # Afskrivningslov21Par19Delgrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsberettigede_indkomstår_for_grundlaget: Heltal, intervaller: List(Afskrivningslov19Interval))
 # Afskrivningslov21Grundlag = Al21OrdinærtGrundlag(samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, straksfradrag_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost)) | Al21Par19Grundlag(bygningshistorik: Afskrivningslov19Historik, forbedringsgrundlag: List(Afskrivningslov21Par19Delgrundlag)) | Al21BlandetInstallation(samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner: Heltal, straksfradrag_før_salgsåret_som_ikke_medregnes_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, straksfradrag_i_salgsåret_som_ikke_medregnes_kroner: Heltal, afskrivningsposter: List(Afskrivningslov21Afskrivningspost))
 # Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner: Heltal, foretagne_afskrivninger_kroner: Heltal)
-# Afskrivningslov21NedskrevetVærdiInput(aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, par39_historik: Afskrivningslov21Par39Historik)
-# Afskrivningslov21NedskrevetVærdiResultat(skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, grundlag_gyldigt: Boolsk, blandet_installation_efter_par15_stk3: Boolsk, samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, afskrivningsberettiget_anskaffelsesgrundlag_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal)
+# Afskrivningslov21NedskrevetVærdiInput(aktiv_identifikation: Tekst, aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, par39_historik: Afskrivningslov21Par39Historik)
+# Afskrivningslov21NedskrevetVærdiResultat(aktiv_identifikation: Tekst, skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag, grundlag_gyldigt: Boolsk, blandet_installation_efter_par15_stk3: Boolsk, samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, afskrivningsberettiget_anskaffelsesgrundlag_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal)
 # Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer: Boolsk, køber_er_selskab_mv: Boolsk, kapitalandel_basispoint: Heltal, stemmerettigheder_basispoint: Heltal, anden_bestemmende_indflydelse: Boolsk)
 # Afskrivningslov21Input(indkomstår: Heltal, nedskrevet_værdi_input: Afskrivningslov21NedskrevetVærdiInput, salg_gennemført: Boolsk, samlet_salgssum: Afskrivningslov45Kontantværdikilde, kontrol: Afskrivningslov21Kontrol)
 # Afskrivningslov21Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par21: Boolsk, par24_finder_anvendelse: Boolsk, grundlag_gyldigt: Boolsk, blandet_installation_efter_par15_stk3: Boolsk, samlede_anskaffelses_og_forbedringsudgifter_kroner: Heltal, afskrivningsberettiget_anskaffelsesgrundlag_kroner: Heltal, samlet_salgssum_kroner: Heltal, salgssum_til_par21_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal, nedskrevet_værdi_kroner: Heltal, rå_fortjeneste_kroner: Heltal, rå_tab_kroner: Heltal, beregnede_genvundne_afskrivninger_før_par24_kroner: Heltal, beregnet_tab_før_par24_og_kontrol_kroner: Heltal, bestemmende_indflydelse: Boolsk, tab_afskåret_efter_stk5_kroner: Heltal, skattepligtige_genvundne_afskrivninger_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
@@ -2952,7 +2953,7 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 }
 
 # Afskrivningslov21NedskrevetVærdiSag(input: Afskrivningslov21NedskrevetVærdiInput) {
-    | grundlag_gyldigt() -> afskrivningslov21_par39_gyldig(input.par39_historik) && afskrivningslov21_grundlag_gyldigt(input.aktiv, input.grundlag)
+    | grundlag_gyldigt() -> input.aktiv_identifikation != "" && afskrivningslov21_par39_gyldig(input.par39_historik) && afskrivningslov21_grundlag_gyldigt(input.aktiv, input.grundlag)
     | par39_afskrivninger_kroner() -> hvis grundlag_gyldigt() { penge_positivt_beløb(input.par39_historik.foretagne_afskrivninger_kroner) } ellers { 0 }
     | samlede_anskaffelsesudgifter_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_samlede_anskaffelsesudgifter_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
     | afskrivningsberettiget_anskaffelsesgrundlag_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_afskrivningsberettiget_anskaffelsesgrundlag_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
@@ -2961,6 +2962,7 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
     | maksimalt_mulige_afskrivninger_kroner() -> hvis grundlag_gyldigt() { afskrivningslov21_grundlag_maksimalt_mulige_afskrivninger_kroner(input.grundlag) + par39_afskrivninger_kroner() } ellers { 0 }
     | nedskrevet_værdi_kroner() -> penge_positivt_beløb(afskrivningsberettiget_anskaffelsesgrundlag_kroner() - beregnede_afskrivninger_kroner())
     | resultat() -> Afskrivningslov21NedskrevetVærdiResultat(
+        aktiv_identifikation = input.aktiv_identifikation,
         skatteyder = afskrivningslov_kapitel3_aktiv_skatteyder(input.aktiv),
         aktiv = input.aktiv,
         grundlag = input.grundlag,
@@ -2981,7 +2983,7 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 # Afskrivningslov21Sag(input: Afskrivningslov21Input, beregningsværdi: Afskrivningslov21NedskrevetVærdiResultat) {
     | værdi() -> beregningsværdi
     | salgssum_resultat() -> afskrivningslov45_kontantværdi_resultat(input.samlet_salgssum)
-    | salgssum_gyldig() -> salgssum_resultat().input_gyldigt && afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(input.samlet_salgssum, værdi().aktiv)
+    | salgssum_gyldig() -> salgssum_resultat().input_gyldigt && afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(input.samlet_salgssum, værdi().aktiv, værdi().aktiv_identifikation)
     | omfattet_af_par21() -> input.salg_gennemført && værdi().grundlag_gyldigt && salgssum_gyldig()
     | samlet_salgssum_kroner() -> hvis salgssum_gyldig() { salgssum_resultat().kontantværdi_kroner } ellers { 0 }
     | salgssum_til_par21_kroner() -> samlet_salgssum_kroner()
@@ -6529,11 +6531,12 @@ skal sælgers salgssum for det pågældende aktiv ændres tilsvarende.
 }
 | afskrivningslov45_kontantværdi_sag(kilde: Afskrivningslov45Kontantværdikilde) -> Afskrivningslov45KontantværdiSag(kilde)
 | afskrivningslov45_kontantværdi_resultat(kilde: Afskrivningslov45Kontantværdikilde) -> afskrivningslov45_kontantværdi_sag(kilde).resultat()
-| afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(kilde: Afskrivningslov45Kontantværdikilde, aktiv: AfskrivningslovKapitel3Aktiv) -> match kilde {
+| afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(input: Afskrivningslov45FordeltKontantværdiInput, kategori: Afskrivningslov45Aktivkategori, aktiv_identifikation: Tekst) -> aktiv_identifikation != "" && input.kategori == kategori && input.nøgle == Al45IndividueltAktiv(identifikation = aktiv_identifikation)
+| afskrivningslov45_kontantværdikilde_matcher_kapitel3_aktiv(kilde: Afskrivningslov45Kontantværdikilde, aktiv: AfskrivningslovKapitel3Aktiv, aktiv_identifikation: Tekst) -> aktiv_identifikation != "" && match kilde {
     | Al45OplystKontantværdi(_) -> Sandt
     | Al45FordeltKontantværdi(input) -> match aktiv {
-        | AlK3Bygning(_) -> input.kategori == Al45Bygning
-        | AlK3Installation(_) -> input.kategori == Al45Installation
+        | AlK3Bygning(_) -> afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(input, Al45Bygning, aktiv_identifikation)
+        | AlK3Installation(_) -> afskrivningslov45_fordelt_kontantværdi_matcher_aktiv(input, Al45Installation, aktiv_identifikation)
     }
 }
 
@@ -7429,6 +7432,7 @@ afskrivninger, der i forbindelse med salg opgøres efter reglerne i denne lovs
     | samlede_maksimalt_mulige_afskrivninger_kroner() -> hvis omfattet() { oprindelig_værdi().samlede_maksimalt_mulige_afskrivninger_kroner } ellers { 0 }
     | nedskrevet_værdi_kroner() -> hvis omfattet() { penge_positivt_beløb(oprindelig_værdi().afskrivningsberettiget_anskaffelsesgrundlag_kroner - samlede_beregnede_afskrivninger_kroner()) } ellers { 0 }
     | justeret_værdi() -> Afskrivningslov21NedskrevetVærdiResultat(
+        aktiv_identifikation = oprindelig_værdi().aktiv_identifikation,
         skatteyder = oprindelig_værdi().skatteyder,
         aktiv = oprindelig_værdi().aktiv,
         grundlag = oprindelig_værdi().grundlag,

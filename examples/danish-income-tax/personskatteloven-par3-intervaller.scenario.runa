@@ -15,6 +15,8 @@
 )
 
 | al19_interval_input(afskrivningsberettiget_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Input(
+    aktiv_identifikation = "interval-bygning",
+    ejerbolig_identifikation = None,
     bygning_input = al19_interval_bygning,
     anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,
@@ -63,7 +65,8 @@
 ]
 = al19_ugyldig_historik = afskrivningslov19_resultat(al19_interval_input(350, 10, al19_interval_med_hul))
 
-| al17_par19_par16_input(anskaffelsesår: Heltal) -> Afskrivningslov16Input(
+| al17_par19_par16_input(aktiv_identifikation: Tekst, anskaffelsesår: Heltal) -> Afskrivningslov16Input(
+    aktiv_identifikation = aktiv_identifikation,
     aktiv = AlK3Bygning(input = al19_interval_bygning),
     hændelse = Al16Anskaffelse,
     indkomstår = anskaffelsesår,
@@ -79,7 +82,7 @@
 )
 | al17_par19_input(par19_input: Afskrivningslov19Input, anskaffelsesår: Heltal, begivenhed: Afskrivningslov20Begivenhed, valg: List(Afskrivningslov17Par19Valg)) -> Afskrivningslov17Par19Input(
     indkomstår = 2026,
-    par16_input = al17_par19_par16_input(anskaffelsesår),
+    par16_input = al17_par19_par16_input("interval-bygning", anskaffelsesår),
     par19_input = par19_input,
     par20_input = al17_par19_par20_input(begivenhed),
     antaget_levetid_år = 0,
@@ -96,6 +99,15 @@
     2023,
     Al20FortsatErhvervsmæssigAnvendelse,
     [Al17Par19ValgtAfskrivningsprocent(fra_kroner = 0, til_kroner = 500000, sats_basispoint = 300)]
+))
+= al17_par19_forskellige_aktividentifikationer_afvises = afskrivningslov17_par19_resultat(Afskrivningslov17Par19Input(
+    indkomstår = 2026,
+    par16_input = al17_par19_par16_input("anden-bygning", 2023),
+    par19_input = al19_interval_input(500, 3, al17_par19_halvt_grundlag_efter_tre_år),
+    par20_input = al17_par19_par20_input(Al20FortsatErhvervsmæssigAnvendelse),
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = [Al17Par19ValgtAfskrivningsprocent(fra_kroner = 0, til_kroner = 500000, sats_basispoint = 300)]
 ))
 = al17_par19_arealforøgelse_2026 = afskrivningslov17_par19_resultat(al17_par19_input(
     al19_interval_input(750, 3, al17_par19_halvt_grundlag_efter_tre_år),
@@ -147,6 +159,8 @@
 ]
 = al17_par19_ejerbolig_udelukkes = afskrivningslov17_par19_resultat(al17_par19_input(
     Afskrivningslov19Input(
+        aktiv_identifikation = "interval-bygning",
+        ejerbolig_identifikation = None,
         bygning_input = al19_interval_bygning,
         anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 200000),
         samlet_etageareal_kvadratmeter = 1000,
@@ -165,6 +179,7 @@
 | scenarie_al19_officiel_senere_forøgelse: al19_senere_forøgelse_til_35 -> al19_senere_forøgelse_til_35.intervaller_gyldige && al19_senere_forøgelse_til_35.intervaller == al19_senere_forøgelse_til_35_forventet && al19_senere_forøgelse_til_35.forøgelse_som_særskilt_grundlag_kroner == 100000 && al19_senere_forøgelse_til_35.samlede_foretagne_afskrivninger_kroner == 250000 && al19_senere_forøgelse_til_35.samlede_maksimalt_mulige_afskrivninger_kroner == 250000
 | scenarie_al19_historik_skal_dække_hele_anskaffelsessummen: al19_ugyldig_historik -> al19_ugyldig_historik.intervaller_gyldige == Falskt && al19_ugyldig_historik.intervaller == []
 | scenarie_al17_par19_afleder_årets_intervalafskrivning: al17_par19_ordinær_2026 -> al17_par19_ordinær_2026.input_gyldigt && al17_par19_ordinær_2026.højeste_sats_basispoint == 300 && al17_par19_ordinær_2026.højeste_afskrivning_i_indkomståret_kroner == 15000 && al17_par19_ordinær_2026.fradrag_i_skattepligtig_indkomst_kroner == 15000 && al17_par19_ordinær_2026.historik_ultimo.gyldig && head(al17_par19_ordinær_2026.historik_ultimo.intervaller).anvendt_afskrivningsprocent_basispoint == 1200 && head(al17_par19_ordinær_2026.historik_ultimo.intervaller).maksimalt_mulig_afskrivningsprocent_basispoint == 1200
+| scenarie_al17_par19_kræver_samme_aktividentifikation: al17_par19_forskellige_aktividentifikationer_afvises -> al17_par19_forskellige_aktividentifikationer_afvises.grundlag_gyldigt == Falskt && al17_par19_forskellige_aktividentifikationer_afvises.input_gyldigt == Falskt && al17_par19_forskellige_aktividentifikationer_afvises.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al17_par19_forøgelse_bevarer_særskilte_grundlag: al17_par19_arealforøgelse_2026 -> al17_par19_arealforøgelse_2026.input_gyldigt && al17_par19_arealforøgelse_2026.par19_resultat.forøgelse_som_særskilt_grundlag_kroner == 250000 && length(al17_par19_arealforøgelse_2026.interval_resultater) == 3 && al17_par19_arealforøgelse_2026.fradrag_i_skattepligtig_indkomst_kroner == 22500 && al17_par19_arealforøgelse_2026.historik_ultimo.intervaller[0].anvendt_afskrivningsprocent_basispoint == 1200 && al17_par19_arealforøgelse_2026.historik_ultimo.intervaller[1].anvendt_afskrivningsprocent_basispoint == 300
 | scenarie_al17_par19_valg_og_arealkrav_fejler_lukket: al17_par19_dobbelt_valg_afvises -> al17_par19_dobbelt_valg_afvises.input_gyldigt == Falskt && al17_par19_dobbelt_valg_afvises.fradrag_i_skattepligtig_indkomst_kroner == 0 && al17_par19_under_arealkrav_afvises.grundlag_gyldigt == Falskt && al17_par19_under_arealkrav_afvises.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al17_par19_hundrede_procent_og_par20_begrænser: al17_par19_sidste_procent -> al17_par19_sidste_procent.input_gyldigt && al17_par19_sidste_procent.højeste_afskrivning_i_indkomståret_kroner == 5000 && al17_par19_sidste_procent.fradrag_i_skattepligtig_indkomst_kroner == 5000 && head(al17_par19_sidste_procent.historik_ultimo.intervaller).anvendt_afskrivningsprocent_basispoint == 10000 && al17_par19_over_100_procent_afvises.input_gyldigt == Falskt && al17_par19_over_100_procent_afvises.fradrag_i_skattepligtig_indkomst_kroner == 0 && al17_par19_salg_afskærer_2026.input_gyldigt && al17_par19_salg_afskærer_2026.kan_afskrives_i_indkomståret == Falskt && al17_par19_salg_afskærer_2026.fradrag_i_skattepligtig_indkomst_kroner == 0 && al17_par19_salg_afskærer_2026.historik_ultimo.afskrivningsberettigede_indkomstår_for_bygningen == 3
@@ -175,6 +190,7 @@
 ? scenarie_al19_officiel_senere_forøgelse
 ? scenarie_al19_historik_skal_dække_hele_anskaffelsessummen
 ? scenarie_al17_par19_afleder_årets_intervalafskrivning
+? scenarie_al17_par19_kræver_samme_aktividentifikation
 ? scenarie_al17_par19_forøgelse_bevarer_særskilte_grundlag
 ? scenarie_al17_par19_valg_og_arealkrav_fejler_lukket
 ? scenarie_al17_par19_hundrede_procent_og_par20_begrænser

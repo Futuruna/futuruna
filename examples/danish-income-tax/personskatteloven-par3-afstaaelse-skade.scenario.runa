@@ -46,6 +46,7 @@
 )
 
 = al21_officiel_bygningsværdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "officiel-bygning",
     aktiv = al21_bygning,
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 1500000,
@@ -80,6 +81,7 @@
 )
 
 = al21_officiel_par19_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "officiel-par19-bygning",
     aktiv = al21_bygning,
     grundlag = Al21Par19Grundlag(bygningshistorik = al21_officiel_par19_historik, forbedringsgrundlag = []),
     par39_historik = al21_tom_par39
@@ -88,6 +90,7 @@
 = al21_officielt_par19_salg = al21_salg(al21_officiel_par19_værdi_input, 3000000)
 
 = al21_officiel_blandet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "officiel-blandet-installation",
     aktiv = al21_blandet_installation,
     grundlag = Al21BlandetInstallation(
         samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
@@ -103,6 +106,7 @@
 = al21_officiel_blandet_salg_125000 = al21_salg(al21_officiel_blandet_værdi_input, 125000)
 
 = al22_officiel_blandet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "officiel-blandet-installation",
     aktiv = al21_blandet_installation,
     grundlag = Al21BlandetInstallation(
         samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
@@ -125,6 +129,7 @@
 ))
 
 = al23_officiel_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+    aktiv_identifikation = "officiel-bygning",
     aktiv = al21_bygning,
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,

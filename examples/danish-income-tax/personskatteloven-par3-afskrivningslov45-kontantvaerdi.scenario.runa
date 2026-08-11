@@ -46,6 +46,35 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 = al45_kontantvaerdi_installation = al45_kontantvaerdi_kilde(Al45Installation, "ventilation")
 = al45_kontantvaerdi_manglende_aktiv = al45_kontantvaerdi_kilde(Al45Bygning, "ukendt")
 
+= al45_kontantvaerdi_to_bygninger_fordeling = Afskrivningslov45FordelingsInput(
+    kontantomregning_input = Afskrivningslov45KontantomregningInput(
+        kontant_del_kroner = 1200000,
+        gældsposter = [],
+        afståelsessituation = Sandt
+    ),
+    overdragne_aktiver = [
+        Afskrivningslov45OverdragetAktiv(kategori = Al45Bygning, identifikation = "hotel"),
+        Afskrivningslov45OverdragetAktiv(kategori = Al45Bygning, identifikation = "lager"),
+        Afskrivningslov45OverdragetAktiv(kategori = Al45Bolig, identifikation = "ejerbolig")
+    ],
+    fordelingsposter = [
+        Afskrivningslov45Fordelingspost(kategori = Al45Bygning, nøgle = Al45IndividueltAktiv(identifikation = "hotel"), fordelt_kontantværdi_kroner = 900000),
+        Afskrivningslov45Fordelingspost(kategori = Al45Bygning, nøgle = Al45IndividueltAktiv(identifikation = "lager"), fordelt_kontantværdi_kroner = 200000),
+        Afskrivningslov45Fordelingspost(kategori = Al45Bolig, nøgle = Al45IndividueltAktiv(identifikation = "ejerbolig"), fordelt_kontantværdi_kroner = 100000)
+    ],
+    skriftligt_aftalt_af_sælger_og_køber = Sandt
+)
+
+| al45_kontantvaerdi_to_bygninger_valg(kategori: Afskrivningslov45Aktivkategori, identifikation: Tekst) -> Afskrivningslov45FordeltKontantværdiInput(
+    fordelings_input = al45_kontantvaerdi_to_bygninger_fordeling,
+    kategori = kategori,
+    nøgle = Al45IndividueltAktiv(identifikation = identifikation)
+)
+
+= al45_kontantvaerdi_lagerfordeling = al45_kontantvaerdi_to_bygninger_valg(Al45Bygning, "lager")
+= al45_kontantvaerdi_lager = Al45FordeltKontantværdi(input = al45_kontantvaerdi_lagerfordeling)
+= al45_kontantvaerdi_to_bygninger_boligfordeling = al45_kontantvaerdi_to_bygninger_valg(Al45Bolig, "ejerbolig")
+
 = al45_kontantvaerdi_ubalanceret_fordeling = Al45FordeltKontantværdi(input = Afskrivningslov45FordeltKontantværdiInput(
     fordelings_input = Afskrivningslov45FordelingsInput(
         kontantomregning_input = al45_kontantvaerdi_fordeling.kontantomregning_input,
@@ -71,6 +100,7 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 )
 
 = al45_kontantvaerdi_par16_input = Afskrivningslov16Input(
+    aktiv_identifikation = "hotel",
     aktiv = AlK3Bygning(input = al45_kontantvaerdi_bygning_input),
     hændelse = Al16Anskaffelse,
     indkomstår = 2023,
@@ -100,8 +130,11 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 = al45_kontantvaerdi_par17 = afskrivningslov17_resultat(al45_kontantvaerdi_par17_input(al45_kontantvaerdi_bygning))
 = al45_kontantvaerdi_par17_kategorifejl = afskrivningslov17_resultat(al45_kontantvaerdi_par17_input(al45_kontantvaerdi_installation))
 = al45_kontantvaerdi_par17_ubalanceret = afskrivningslov17_resultat(al45_kontantvaerdi_par17_input(al45_kontantvaerdi_ubalanceret_fordeling))
+= al45_kontantvaerdi_par17_forkert_bygning = afskrivningslov17_resultat(al45_kontantvaerdi_par17_input(al45_kontantvaerdi_lager))
 
 | al45_kontantvaerdi_par19_input(anskaffelsessum: Afskrivningslov19Anskaffelsessum) -> Afskrivningslov19Input(
+    aktiv_identifikation = "hotel",
+    ejerbolig_identifikation = Some("ejerbolig"),
     bygning_input = al45_kontantvaerdi_bygning_input,
     anskaffelsessum = anskaffelsessum,
     samlet_etageareal_kvadratmeter = 1000,
@@ -113,10 +146,12 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 
 = al45_kontantvaerdi_par19 = afskrivningslov19_resultat(al45_kontantvaerdi_par19_input(Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling = al45_kontantvaerdi_bygningsfordeling, boligfordeling = Some(al45_kontantvaerdi_boligfordeling))))
 = al45_kontantvaerdi_par19_mangler_boligfordeling = afskrivningslov19_resultat(al45_kontantvaerdi_par19_input(Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling = al45_kontantvaerdi_bygningsfordeling, boligfordeling = None)))
+= al45_kontantvaerdi_par19_forkert_bygning = afskrivningslov19_resultat(al45_kontantvaerdi_par19_input(Al19FordeltAnskaffelsessumEfterPar45(bygningsfordeling = al45_kontantvaerdi_lagerfordeling, boligfordeling = Some(al45_kontantvaerdi_to_bygninger_boligfordeling))))
 
-= al45_kontantvaerdi_par21 = afskrivningslov21_resultat(Afskrivningslov21Input(
+| al45_kontantvaerdi_par21_input(salgssum: Afskrivningslov45Kontantværdikilde) -> Afskrivningslov21Input(
     indkomstår = 2026,
     nedskrevet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
+        aktiv_identifikation = "hotel",
         aktiv = AlK3Bygning(input = al45_kontantvaerdi_bygning_input),
         grundlag = Al21OrdinærtGrundlag(
             samlede_anskaffelses_og_forbedringsudgifter_kroner = 900000,
@@ -126,7 +161,7 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
         par39_historik = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
     ),
     salg_gennemført = Sandt,
-    samlet_salgssum = al45_kontantvaerdi_bygning,
+    samlet_salgssum = salgssum,
     kontrol = Afskrivningslov21Kontrol(
         sælgerne_er_en_eller_flere_personer = Sandt,
         køber_er_selskab_mv = Falskt,
@@ -134,7 +169,10 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
         stemmerettigheder_basispoint = 0,
         anden_bestemmende_indflydelse = Falskt
     )
-))
+)
+
+= al45_kontantvaerdi_par21 = afskrivningslov21_resultat(al45_kontantvaerdi_par21_input(al45_kontantvaerdi_bygning))
+= al45_kontantvaerdi_par21_forkert_bygning = afskrivningslov21_resultat(al45_kontantvaerdi_par21_input(al45_kontantvaerdi_lager))
 
 | al45_kontantvaerdi_personskat_fakta(kilde: Afskrivningslov45Kontantværdikilde) -> PersonskatPar3Erhvervspostfakta(
     identifikation = "hotel-afskrivning-2026",
@@ -145,6 +183,7 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 = al45_kontantvaerdi_personskat_gyldig = al45_kontantvaerdi_personskat_fakta(al45_kontantvaerdi_bygning)
 = al45_kontantvaerdi_personskat_kategorifejl = al45_kontantvaerdi_personskat_fakta(al45_kontantvaerdi_installation)
 = al45_kontantvaerdi_personskat_ubalanceret = al45_kontantvaerdi_personskat_fakta(al45_kontantvaerdi_ubalanceret_fordeling)
+= al45_kontantvaerdi_personskat_forkert_bygning = al45_kontantvaerdi_personskat_fakta(al45_kontantvaerdi_lager)
 
 | scenarie_al45_fordelt_kontantvaerdi_er_entydig: al45_kontantvaerdi_bygning -> afskrivningslov45_kontantværdi_resultat(al45_kontantvaerdi_bygning).input_gyldigt && afskrivningslov45_kontantværdi_resultat(al45_kontantvaerdi_bygning).kontantværdi_kroner == 900000 && afskrivningslov45_kontantværdi_resultat(al45_kontantvaerdi_manglende_aktiv).input_gyldigt == Falskt && afskrivningslov45_kontantværdi_resultat(al45_kontantvaerdi_manglende_aktiv).kontantværdi_kroner == 0
 | scenarie_al45_par17_afleder_afskrivningsgrundlaget: al45_kontantvaerdi_par17 -> al45_kontantvaerdi_par17.afskrivningsgrundlag_kroner == 900000 && al45_kontantvaerdi_par17.valg_gyldigt && al45_kontantvaerdi_par17.fradrag_i_skattepligtig_indkomst_kroner == 27000
@@ -153,6 +192,7 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 | scenarie_al45_kategorifejl_og_ubalanceret_fordeling_fejler_lukket: al45_kontantvaerdi_par17_kategorifejl -> al45_kontantvaerdi_par17_kategorifejl.aktiv_omfattet == Falskt && al45_kontantvaerdi_par17_kategorifejl.fradrag_i_skattepligtig_indkomst_kroner == 0 && al45_kontantvaerdi_par17_ubalanceret.aktiv_omfattet == Falskt && al45_kontantvaerdi_par17_ubalanceret.fradrag_i_skattepligtig_indkomst_kroner == 0
 | scenarie_al45_kildefejl_afvises_foer_personskat: al45_kontantvaerdi_personskat_gyldig -> personskat_par3_erhvervspostfakta_grundfakta_gyldige(al45_kontantvaerdi_personskat_gyldig, 2026) && personskat_par3_erhvervspostfakta_grundfakta_gyldige(al45_kontantvaerdi_personskat_kategorifejl, 2026) == Falskt && personskat_par3_erhvervspostfakta_grundfakta_gyldige(al45_kontantvaerdi_personskat_ubalanceret, 2026) == Falskt
 | scenarie_al45_oplyst_kontantvaerdi_er_bagudkompatibel: al45_kontantvaerdi_bygning -> afskrivningslov45_kontantværdi_resultat(Al45OplystKontantværdi(beløb_kroner = 900000)).input_gyldigt && afskrivningslov45_kontantværdi_resultat(Al45OplystKontantværdi(beløb_kroner = 900000)).kontantværdi_kroner == 900000 && afskrivningslov45_kontantværdi_resultat(Al45OplystKontantværdi(beløb_kroner = -1)).input_gyldigt == Falskt
+| scenarie_al45_to_bygninger_kan_ikke_bytte_fordeling: al45_kontantvaerdi_par17_forkert_bygning -> al45_kontantvaerdi_par17_forkert_bygning.aktiv_omfattet == Falskt && al45_kontantvaerdi_par17_forkert_bygning.fradrag_i_skattepligtig_indkomst_kroner == 0 && al45_kontantvaerdi_par19_forkert_bygning.omfattet_af_par19 == Falskt && al45_kontantvaerdi_par19_forkert_bygning.anskaffelsessum_efter_ejerbolig_kroner == 0 && al45_kontantvaerdi_par21_forkert_bygning.omfattet_af_par21 == Falskt && al45_kontantvaerdi_par21_forkert_bygning.samlet_salgssum_kroner == 0 && personskat_par3_erhvervspostfakta_grundfakta_gyldige(al45_kontantvaerdi_personskat_forkert_bygning, 2026) == Falskt
 
 ? scenarie_al45_fordelt_kontantvaerdi_er_entydig
 ? scenarie_al45_par17_afleder_afskrivningsgrundlaget
@@ -161,3 +201,4 @@ Lovtekst og kildeankre ligger i de importerede lovmoduler.
 ? scenarie_al45_kategorifejl_og_ubalanceret_fordeling_fejler_lukket
 ? scenarie_al45_kildefejl_afvises_foer_personskat
 ? scenarie_al45_oplyst_kontantvaerdi_er_bagudkompatibel
+? scenarie_al45_to_bygninger_kan_ikke_bytte_fordeling
