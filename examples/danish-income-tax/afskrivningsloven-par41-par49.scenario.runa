@@ -125,16 +125,15 @@
     værdi_efter_skaden_kroner = 50000,
     udgift_til_udbedring_kroner = 10000
 ))
-= al44a_forsikringsafståelse = afskrivningslov44a_afståelses_resultat(Afskrivningslov44AAfståelsesInput(
+= al44a_forsikringsafståelse_input = Afskrivningslov44AAfståelsesInput(
     indkomstår = 2026,
     position = al44a_position,
     hændelse = Al44AAndenBortskaffelse,
     afståelsessum_eller_handelsværdi_kroner = 150000,
     kontrol = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Falskt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
-))
+)
 = al44a_genopførelse = afskrivningslov44a_genopførelse_resultat(Afskrivningslov44AGenopførelseInput(
-    position_før_skade = al44a_position,
-    par44a_forsikringsafståelse = al44a_forsikringsafståelse,
+    forsikringsafståelse_input = al44a_forsikringsafståelse_input,
     modtaget_erstatnings_eller_forsikringssum_kroner = 150000,
     genopførelse_foretages = Sandt,
     genopførelsesudgift_kroner = 20000,
@@ -212,7 +211,7 @@
     forskudsafskrivninger_kroner = 10000
 ))
 
-= al45_kontantomregning = afskrivningslov45_kontantomregning_resultat(Afskrivningslov45KontantomregningInput(
+= al45_kontantomregning_input = Afskrivningslov45KontantomregningInput(
     kontant_del_kroner = 100000,
     gældsposter = [Afskrivningslov45Gældspost(
         identifikation = "fiskerilån-1992",
@@ -223,9 +222,10 @@
         kurs_ved_stiftelse_eller_overtagelse_basispoint = 9500
     )],
     afståelsessituation = Sandt
-))
+)
+= al45_kontantomregning = afskrivningslov45_kontantomregning_resultat(al45_kontantomregning_input)
 = al45_fordeling = afskrivningslov45_fordelings_resultat(Afskrivningslov45FordelingsInput(
-    kontantomregning = al45_kontantomregning,
+    kontantomregning_input = al45_kontantomregning_input,
     overdragne_aktiver = [
         Afskrivningslov45OverdragetAktiv(kategori = Al45DriftsmidlerOgSkibe, identifikation = "skib-1"),
         Afskrivningslov45OverdragetAktiv(kategori = Al45DriftsmidlerOgSkibe, identifikation = "maskine-1"),
