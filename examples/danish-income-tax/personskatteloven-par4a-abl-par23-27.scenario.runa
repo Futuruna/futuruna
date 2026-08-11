@@ -298,15 +298,16 @@
 = abl_par27_andel = AktieavancePar27OprindeligAndel(
     selskabsidentifikation = "DK-MIN-1",
     kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
-    anskaffelsestidspunkt = AktieavancePar27Dato(år = 2020, måned = 5, dag = 15),
+    anskaffelsestidspunkt = Dato(år = 2020, måned = 5, dag = 15),
     anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner = 10000)
 )
 = abl_par27_tillæg = aktieavance_par27_resultat(
     abl_par27_andel,
     AktieavancePar27Hændelse(
+        investeringsinstitut_identifikation = "DK-MIN-1",
         minimumsindkomstens_kalenderår = 2026,
         manglende_effektiv_udbetaling_kroner = 2000,
-        årlig_regnskabsgodkendelse = AktieavancePar27Dato(år = 2027, måned = 8, dag = 15),
+        årlig_regnskabsgodkendelse = Dato(år = 2027, måned = 8, dag = 15),
         institutsstatus = AblPar27UcitsMinimumsinstitut,
         stk2_vilkår = AktieavancePar27Stk2Vilkår(
             behandles_som_nyt_indskud_med_nominel_forøgelse = Falskt,
@@ -357,7 +358,7 @@
 | scenarie_abl_par26_stk2_ll7n_basis_er_nul: abl_par26_ll7n_anskaffelse -> aktieavance_ordinaer_anskaffelsessum_kroner(abl_par26_ll7n_anskaffelse) == 0
 | scenarie_abl_par26_stk2_fradragsberettiget_underkurs_bruger_handelsværdi: abl_par26_markedsprisinput -> aktieavance_par26_stk2_afståelsessum_kroner(abl_par26_markedsprisinput) == 9000
 | scenarie_abl_par26_stk6_holder_ll7n_adskilt: abl_par26_stk6_ll7n_salg -> abl_par26_stk6_ll7n_salg.hændelse_gyldig && abl_par26_stk6_ll7n_salg.valgt_hændelsesresultat.bruttogevinst_kroner == 7500 && aktieavance_ordinaer_position_antal_aktier(abl_par26_stk6_ll7n_salg.beholdning_efter.ll7n_position) == 5 && aktieavance_ordinaer_position_antal_aktier(abl_par26_stk6_ll7n_salg.beholdning_efter.anden_position) == 10 && abl_par26_stk6_ll7n_salg.beholdning_efter.anden_position.anskaffelsessum_kroner == 10000
-| scenarie_abl_par27_tillæg_bevarer_tid_og_forhøjer_basis: abl_par27_tillæg -> abl_par27_tillæg.reglen_finder_anvendelse && abl_par27_tillæg.anskaffelsestidspunkt_efter == AktieavancePar27Dato(år = 2020, måned = 5, dag = 15) && abl_par27_tillæg.tillægstidspunkt == AblPar27Tillægstidspunkt(dato = AktieavancePar27Dato(år = 2027, måned = 6, dag = 30)) && abl_par27_tillæg.position_efter.anskaffelsessum_kroner == 12000
+| scenarie_abl_par27_tillæg_bevarer_tid_og_forhøjer_basis: abl_par27_tillæg -> abl_par27_tillæg.reglen_finder_anvendelse && abl_par27_tillæg.anskaffelsestidspunkt_efter == Dato(år = 2020, måned = 5, dag = 15) && abl_par27_tillæg.tillægstidspunkt == AblPar27Tillægstidspunkt(dato = Dato(år = 2027, måned = 6, dag = 30)) && abl_par27_tillæg.position_efter.anskaffelsessum_kroner == 12000
 | scenarie_abl_par27_basis_følger_senere_salg_til_par4a: abl_par27_par4a -> abl_par27_salg.anskaffelsessum_henført_til_afståelse_kroner == 6000 && abl_par27_salg.bruttogevinst_kroner == 2000 && abl_par27_par4a.aktieindkomst_kroner == 2000
 
 ? scenarie_abl_par23_stk1_er_standard_for_person

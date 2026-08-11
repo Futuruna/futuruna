@@ -411,8 +411,10 @@
     investeringsbeviser = [AktieavancePar13AInvesteringsbevisInput(
         indkomstår = 2025,
         art = AblPar21AktiebaseretMinimumsbevis,
+        afståelsesdato = Dato(år = 2025, måned = 12, dag = 31),
+        afståelsens_rækkefølge_på_dagen = 1,
         afståelsessum_kroner = 50000,
-        anskaffelsessum_kroner = 100000,
+        anskaffelsesgrundlag = AblInvesteringsbevisDirekteAnskaffelsessum(kroner = 100000),
         oplysningsstatus = AblOplystRettidigt
     )],
     fremført_tab_efter_par13a_kroner = 50000

@@ -245,14 +245,26 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
 )
 = abl_par44_statusgevinstår = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
-    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(210000, AblOrdinærIngenPar5AFaktaPåkrævet)])],
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = abl_par44_tom_ordinær_position,
+        hændelser = [
+            AktieavanceOrdinærKildehændelse(identifikation = "par44-gevinst-statusændring", dato = Dato(år = 2026, måned = 7, dag = 1), rækkefølge_på_dagen = 1, hændelse = abl_par44_statusændringshændelse),
+            AktieavanceOrdinærKildehændelse(identifikation = "par44-gevinst-afståelse", dato = Dato(år = 2026, måned = 8, dag = 1), rækkefølge_på_dagen = 1, hændelse = abl_par44_scenarie_afståelse(210000, AblOrdinærIngenPar5AFaktaPåkrævet))
+        ]
+    )],
     rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 ))
 = abl_par44_statustabår = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
-    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_statusændringshændelse, abl_par44_scenarie_afståelse(120000, abl_par44_scenarie_par5a_fakta())])],
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = abl_par44_tom_ordinær_position,
+        hændelser = [
+            AktieavanceOrdinærKildehændelse(identifikation = "par44-tab-statusændring", dato = Dato(år = 2026, måned = 7, dag = 1), rækkefølge_på_dagen = 1, hændelse = abl_par44_statusændringshændelse),
+            AktieavanceOrdinærKildehændelse(identifikation = "par44-tab-afståelse", dato = Dato(år = 2026, måned = 8, dag = 1), rækkefølge_på_dagen = 1, hændelse = abl_par44_scenarie_afståelse(120000, abl_par44_scenarie_par5a_fakta()))
+        ]
+    )],
     rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
@@ -277,7 +289,10 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
 )
 = abl_par44_tidligere_statusændring_i_aktuelt_år = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
-    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = abl_par44_tom_ordinær_position, hændelser = [abl_par44_tidligere_statusændringshændelse])],
+    hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = abl_par44_tom_ordinær_position,
+        hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "par44-tidligere-statusændring", dato = Dato(år = 2025, måned = 7, dag = 1), rækkefølge_på_dagen = 1, hændelse = abl_par44_tidligere_statusændringshændelse)]
+    )],
     rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0

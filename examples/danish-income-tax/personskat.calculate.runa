@@ -6908,6 +6908,34 @@
     help = Some("Vælg den kategori, der fremgår af depot- eller skattedokumentationen."),
     unit = None
 )
+= personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_år = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisInput::afståelsesdato::år),
+    label = "Investeringsbevisets afståelsesår",
+    question = Some("I hvilket år blev investeringsbeviset afstået?"),
+    help = Some("Datoen bruges til at afgrænse, hvilke anskaffelsessumtillæg efter ABL § 27 der ligger før afståelsen."),
+    unit = Some("år")
+)
+= personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_måned = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisInput::afståelsesdato::måned),
+    label = "Investeringsbevisets afståelsesmåned",
+    question = Some("I hvilken måned blev investeringsbeviset afstået?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_dag = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisInput::afståelsesdato::dag),
+    label = "Investeringsbevisets afståelsesdag",
+    question = Some("På hvilken dag blev investeringsbeviset afstået?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesrækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisInput::afståelsens_rækkefølge_på_dagen),
+    label = "Investeringsbevisets afståelsesrækkefølge på dagen",
+    question = Some("Hvilket løbenummer havde afståelsen blandt samme dags § 27-tillæg og afståelser?"),
+    help = Some("Et § 27-tillæg på afståelsesdatoen medregnes kun, når det ligger tidligere i dagens rækkefølge."),
+    unit = None
+)
 = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsessum = TypetBeregningsfelt(
     path = refof(AktieavancePar13AInvesteringsbevisInput::afståelsessum_kroner),
     label = "Investeringsbevisets afståelsessum",
@@ -6915,10 +6943,17 @@
     help = None,
     unit = Some("kr.")
 )
-= personskat_felt_ordinært_aktieår_investeringsbevis_anskaffelsessum = TypetBeregningsfelt(
-    path = refof(AktieavancePar13AInvesteringsbevisInput::anskaffelsessum_kroner),
-    label = "Investeringsbevisets anskaffelsessum",
-    question = Some("Hvad var den dokumenterede anskaffelsessum for investeringsbeviset?"),
+= personskat_felt_ordinært_aktieår_investeringsbevis_anskaffelsesgrundlag = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisInput::anskaffelsesgrundlag::$variant),
+    label = "Investeringsbevisets anskaffelsesgrundlag",
+    question = Some("Er anskaffelsessummen oplyst direkte, eller skal den afledes med tillæg efter ABL § 27?"),
+    help = Some("Brug § 27-forløbet for et aktiebaseret minimumsbeskattet investeringsbevis med manglende effektive udbetalinger."),
+    unit = None
+)
+= personskat_felt_ordinært_aktieår_investeringsbevis_direkte_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag::AblInvesteringsbevisDirekteAnskaffelsessum::kroner),
+    label = "Investeringsbevisets direkte anskaffelsessum",
+    question = Some("Hvad var den dokumenterede anskaffelsessum, når der ikke skal afledes tillæg efter ABL § 27?"),
     help = None,
     unit = Some("kr.")
 )
@@ -9018,8 +9053,204 @@
 = personskat_felt_aktiehændelser = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser",
     label = "Aktiehændelser",
-    question = Some("Hvilke anskaffelser eller afståelser skete for denne aktiebeholdning?"),
-    help = Some("Tilføj hændelserne i den rækkefølge, de skal behandles for beholdningen."),
+    question = Some("Hvilke anskaffelser, statusændringer eller afståelser skete for denne aktiebeholdning?"),
+    help = Some("Tilføj hver hændelse med stabil identifikation, dato og rækkefølge på dagen."),
+    unit = None
+)
+= personskat_felt_aktiehændelse_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::identifikation),
+    label = "Aktiehændelsens identifikation",
+    question = Some("Hvilken stabil identifikation skal denne aktiehændelse have?"),
+    help = Some("Identifikationen skal være entydig på tværs af årets ordinære aktiehændelser."),
+    unit = None
+)
+= personskat_felt_aktiehændelse_dato_år = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::dato::år),
+    label = "Aktiehændelsens år",
+    question = Some("I hvilket år fik aktiehændelsen skattemæssig virkning?"),
+    help = Some("Året skal svare til det ordinære aktieårs indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_aktiehændelse_dato_måned = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::dato::måned),
+    label = "Aktiehændelsens måned",
+    question = Some("I hvilken måned fik aktiehændelsen skattemæssig virkning?"),
+    help = Some("Datoen bruges sammen med rækkefølgen på dagen til at opgøre beholdningen kronologisk."),
+    unit = Some("måned")
+)
+= personskat_felt_aktiehændelse_dato_dag = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::dato::dag),
+    label = "Aktiehændelsens dag",
+    question = Some("På hvilken dag fik aktiehændelsen skattemæssig virkning?"),
+    help = Some("For en statusændring efter ABL § 44 kontrolleres datoen mod den dato, reglerne selv afleder."),
+    unit = Some("dag")
+)
+= personskat_felt_aktiehændelse_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::rækkefølge_på_dagen),
+    label = "Aktiehændelsens rækkefølge på dagen",
+    question = Some("Hvilket løbenummer havde aktiehændelsen blandt samme dags hændelser?"),
+    help = Some("Brug positive, stigende heltal, når flere hændelser har samme dato."),
+    unit = None
+)
+= personskat_felt_aktiehændelse_art = TypetBeregningsfelt(
+    path = refof(AktieavanceOrdinærKildehændelse::hændelse::$variant),
+    label = "Aktiehændelsens art",
+    question = Some("Er hændelsen en anskaffelse, en statusændring efter § 44 eller en afståelse?"),
+    help = Some("Valget bestemmer, hvilke kildeoplysninger der skal udfyldes for hændelsen."),
+    unit = None
+)
+= personskat_felt_par27_kildehændelse_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Kildehændelse::identifikation),
+    label = "§ 27-hændelsens identifikation",
+    question = Some("Hvilken stabil identifikation skal denne manglende effektive udbetaling have?"),
+    help = Some("Identifikationen skal være entydig i andelens samlede § 27-forløb."),
+    unit = None
+)
+= personskat_felt_par27_kildehændelse_dato_år = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Kildehændelse::dato::år),
+    label = "År for § 27-tillægget",
+    question = Some("I hvilket år blev den manglende udbetaling tillagt anskaffelsessummen?"),
+    help = Some("Datoen kontrolleres mod regnskabsgodkendelsen og 30. juni-grænsen i ABL § 27."),
+    unit = Some("år")
+)
+= personskat_felt_par27_kildehændelse_dato_måned = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Kildehændelse::dato::måned),
+    label = "Måned for § 27-tillægget",
+    question = Some("I hvilken måned blev den manglende udbetaling tillagt anskaffelsessummen?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_par27_kildehændelse_dato_dag = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Kildehændelse::dato::dag),
+    label = "Dag for § 27-tillægget",
+    question = Some("På hvilken dag blev den manglende udbetaling tillagt anskaffelsessummen?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_par27_kildehændelse_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Kildehændelse::rækkefølge_på_dagen),
+    label = "§ 27-hændelsens rækkefølge på dagen",
+    question = Some("Hvilket løbenummer havde § 27-hændelsen blandt samme dags tillæg?"),
+    help = Some("Brug positive, stigende heltal, når flere tillæg har samme dato."),
+    unit = None
+)
+= personskat_felt_par27_oprindelig_andel_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::selskabsidentifikation),
+    label = "Den oprindelige andels institutidentifikation",
+    question = Some("Hvilket investeringsinstitut har udstedt den oprindelige andel?"),
+    help = Some("Identifikationen binder alle § 27-tillæg til den samme andel."),
+    unit = None
+)
+= personskat_felt_par27_oprindelig_andel_kapitalmængde = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::kapitalmængde::$variant),
+    label = "Den oprindelige andels kapitalmængde",
+    question = Some("Hvordan er antallet eller kapitalmængden for den oprindelige andel dokumenteret?"),
+    help = Some("Kapitalmængden bruges til at fordele den regulerede anskaffelsessum ved en delafståelse."),
+    unit = None
+)
+= personskat_felt_par27_oprindelig_anskaffelsessum_art = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::anskaffelsessum::$variant),
+    label = "Dokumentation for den oprindelige anskaffelsessum",
+    question = Some("Kan den oprindelige anskaffelsessum fastslås?"),
+    help = Some("Hvis anskaffelsessummen ikke kan fastslås, sætter ABL § 27, stk. 3, den til 0 kr."),
+    unit = None
+)
+= personskat_felt_par27_oprindelig_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Anskaffelsessum::AblPar27KendtAnskaffelsessum::kroner),
+    label = "Den oprindelige anskaffelsessum",
+    question = Some("Hvad var den dokumenterede oprindelige anskaffelsessum før § 27-tillæg?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par27_afstået_kapitalmængde = TypetBeregningsfelt(
+    path = refof(AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag::AblInvesteringsbevisAnskaffelsessumEfterPar27::afstået_kapitalmængde::$variant),
+    label = "Afstået kapitalmængde efter § 27-regulering",
+    question = Some("Hvor stor en del af den § 27-regulerede beholdning blev afstået?"),
+    help = Some("Futuruna henfører den samlede regulerede anskaffelsessum efter gennemsnitsmetoden."),
+    unit = None
+)
+= personskat_felt_par27_oprindelig_anskaffelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::anskaffelsestidspunkt::år),
+    label = "Den oprindelige andels anskaffelsesår",
+    question = Some("I hvilket år blev den oprindelige andel anskaffet?"),
+    help = Some("ABL § 27 bevarer den oprindelige andels anskaffelsestidspunkt."),
+    unit = Some("år")
+)
+= personskat_felt_par27_oprindelig_anskaffelsesmåned = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::anskaffelsestidspunkt::måned),
+    label = "Den oprindelige andels anskaffelsesmåned",
+    question = Some("I hvilken måned blev den oprindelige andel anskaffet?"),
+    help = Some("Måneden indgår i det bevarede anskaffelsestidspunkt."),
+    unit = Some("måned")
+)
+= personskat_felt_par27_oprindelig_anskaffelsesdag = TypetBeregningsfelt(
+    path = refof(AktieavancePar27OprindeligAndel::anskaffelsestidspunkt::dag),
+    label = "Den oprindelige andels anskaffelsesdag",
+    question = Some("På hvilken dag blev den oprindelige andel anskaffet?"),
+    help = Some("Dagen indgår i det bevarede anskaffelsestidspunkt."),
+    unit = Some("dag")
+)
+= personskat_felt_par27_institut = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::investeringsinstitut_identifikation),
+    label = "Investeringsinstituttet bag minimumsindkomsten",
+    question = Some("Hvilket investeringsinstitut vedrører den manglende effektive udbetaling?"),
+    help = Some("Identifikationen skal svare til den oprindelige andel, hvis anskaffelsessummen skal forhøjes."),
+    unit = None
+)
+= personskat_felt_par27_minimumsindkomstår = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::minimumsindkomstens_kalenderår),
+    label = "Kalenderår for minimumsindkomsten",
+    question = Some("Hvilket kalenderår hidrører minimumsindkomsten fra?"),
+    help = Some("Tillægstidspunktet kan senest være den 30. juni i det følgende år."),
+    unit = Some("år")
+)
+= personskat_felt_par27_manglende_udbetaling = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::manglende_effektiv_udbetaling_kroner),
+    label = "Manglende effektiv udbetaling",
+    question = Some("Hvor stor en del af minimumsindkomsten blev ikke effektivt udbetalt?"),
+    help = Some("Beløbet bliver et tillæg til anskaffelsessummen, når betingelserne i ABL § 27 er opfyldt."),
+    unit = Some("kr.")
+)
+= personskat_felt_par27_regnskabsgodkendelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::årlig_regnskabsgodkendelse::år),
+    label = "År for regnskabsgodkendelsen",
+    question = Some("I hvilket år godkendte investeringsinstituttet årsregnskabet?"),
+    help = Some("Året kan ikke ligge før kalenderåret for den minimumsindkomst, som godkendelsen vedrører."),
+    unit = Some("år")
+)
+= personskat_felt_par27_regnskabsgodkendelsesmåned = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::årlig_regnskabsgodkendelse::måned),
+    label = "Måned for regnskabsgodkendelsen",
+    question = Some("I hvilken måned godkendte investeringsinstituttet årsregnskabet?"),
+    help = Some("Reglen bruger godkendelsesdatoen, dog senest den 30. juni i det følgende år."),
+    unit = Some("måned")
+)
+= personskat_felt_par27_regnskabsgodkendelsesdag = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::årlig_regnskabsgodkendelse::dag),
+    label = "Dag for regnskabsgodkendelsen",
+    question = Some("På hvilken dag godkendte investeringsinstituttet årsregnskabet?"),
+    help = Some("Dagen indgår i den lovbestemte tillægsdato."),
+    unit = Some("dag")
+)
+= personskat_felt_par27_institutsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::institutsstatus),
+    label = "Investeringsinstituttets status efter ABL § 27",
+    question = Some("Er instituttet et UCITS-minimumsinstitut, et andet lagerbeskattet minimumsinstitut eller uden for bestemmelsen?"),
+    help = Some("Stk. 1 omfatter UCITS-institutter; stk. 4 udvider reglen til visse andre lagerbeskattede minimumsinstitutter."),
+    unit = None
+)
+= personskat_felt_par27_nyt_indskud = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::stk2_vilkår::behandles_som_nyt_indskud_med_nominel_forøgelse),
+    label = "Manglende udbetaling behandlet som nyt indskud",
+    question = Some("Behandlede instituttet den manglende udbetaling som et nyt indskud, der forøgede de nominelle andele?"),
+    help = Some("Dette er den første afgrænsning i ABL § 27, stk. 2."),
+    unit = None
+)
+= personskat_felt_par27_likvidationsudlodning = TypetBeregningsfelt(
+    path = refof(AktieavancePar27Hændelse::stk2_vilkår::er_likvidationsudlodning_efter_ll16a_stk3_nr1),
+    label = "Likvidationsudlodning efter LL § 16 A",
+    question = Some("Er beløbet en likvidationsudlodning efter ligningslovens § 16 A, stk. 3, nr. 1?"),
+    help = Some("Dette er den anden afgrænsning i ABL § 27, stk. 2."),
     unit = None
 )
 = personskat_felt_aktie_par5a_kildefakta = TypetBeregningsfelt(
@@ -9142,112 +9373,112 @@
     unit = Some("kr.")
 )
 = personskat_felt_aktie_boligret = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.$variant",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.$variant",
     label = "Boligret efter ABL § 15",
     question = Some("Er værdipapiret forbundet med brugsret til en beboelseslejlighed?"),
     help = Some("Boligretten kan gøre både gevinst og tab skattefri, når betingelserne i ejendomsavancebeskatningslovens § 8, stk. 4, er opfyldt."),
     unit = None
 )
 = personskat_felt_aktie_boligret_udsteder = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.$variant",
     label = "Udsteder af værdipapiret med boligret",
     question = Some("Er udstederen et registreret kapitalselskab, en forening eller en skattemæssigt transparent eller anden enhed?"),
     help = Some("Skattefrihed efter ABL § 15 forudsætter, at udstederen er et selvstændigt skattesubjekt efter selskabsskattelovens § 1, stk. 1, nr. 1 eller 6."),
     unit = None
 )
 = personskat_felt_aktie_boligret_kapitalselskabsform = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.selskabsform",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.selskabsform",
     label = "Kapitalselskabets registrerede form",
     question = Some("Hvilken registreret selskabsform har udstederen?"),
     help = Some("Registrerede aktie- og anpartsselskaber kan være selvstændige skattesubjekter efter selskabsskattelovens § 1, stk. 1, nr. 1."),
     unit = None
 )
 = personskat_felt_aktie_boligret_kapitalselskab_hjemsted = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.hjemmehørende_i_danmark",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Kapitalselskabsudsteder.sel_input.hjemmehørende_i_danmark",
     label = "Kapitalselskabets skattemæssige hjemsted",
     question = Some("Er kapitalselskabet hjemmehørende i Danmark?"),
     help = Some("Selskabsskattelovens § 1 omfatter de opregnede selskaber og foreninger, der er hjemmehørende her i landet."),
     unit = None
 )
 = personskat_felt_aktie_boligret_foreningstype = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.enhed",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.enhed",
     label = "Foreningens juridiske type",
     question = Some("Hvilken juridisk type har den forening eller institution, der har udstedt andelsbeviset?"),
     help = Some("Typen indgår i vurderingen efter selskabsskattelovens § 1, stk. 1, nr. 6."),
     unit = None
 )
 = personskat_felt_aktie_boligret_forening_hjemsted = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.hjemmehørende_i_danmark",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.hjemmehørende_i_danmark",
     label = "Foreningens skattemæssige hjemsted",
     question = Some("Er foreningen hjemmehørende i Danmark?"),
     help = Some("Selskabsskattelovens § 1, stk. 1, nr. 6, omfatter kun de opregnede foreninger m.v., der er hjemmehørende her i landet."),
     unit = None
 )
 = personskat_felt_aktie_boligret_forening_par3 = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_par3_undtagelse",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_par3_undtagelse",
     label = "Undtagelse efter selskabsskattelovens § 3",
     question = Some("Er foreningen omfattet af en skattefri undtagelse i selskabsskattelovens § 3?"),
     help = Some("En § 3-undtagelse afskærer skattepligt efter selskabsskattelovens § 1, stk. 1, nr. 6."),
     unit = None
 )
 = personskat_felt_aktie_boligret_forening_fondsbeskatning = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_fondsbeskatningsloven",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.udsteder.AblPar15Foreningsudsteder.sel_input.omfattet_af_fondsbeskatningsloven",
     label = "Foreningen er omfattet af fondsbeskatningsloven",
     question = Some("Er foreningen omfattet af fondsbeskatningsloven?"),
     help = Some("En forening omfattet af fondsbeskatningsloven er ikke skattepligtig efter selskabsskattelovens § 1, stk. 1, nr. 6."),
     unit = None
 )
 = personskat_felt_aktie_boligret_værdipapirstatus = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.værdipapirstatus",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.værdipapirstatus",
     label = "Værdipapirets ABL-status",
     question = Some("Er aktien, anparten eller andelsbeviset omfattet af aktieavancebeskatningsloven ved afståelse?"),
     help = Some("Et værdipapir uden for aktieavancebeskatningsloven kan ikke behandles som en ordinær ABL-afståelse eller fritages efter ABL § 15."),
     unit = None
 )
 = personskat_felt_aktie_boligret_værdipapir = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.værdipapir_forbundet_med_brugsret_til_beboelseslejlighed",
     label = "Værdipapir med boligret",
     question = Some("Er aktien, andelsbeviset eller det lignende værdipapir knyttet til brugsretten til lejligheden?"),
     help = Some("ABL § 15 og EBL § 8, stk. 4, omfatter kun værdipapirer, som er forbundet med den konkrete boligret."),
     unit = None
 )
 = personskat_felt_aktie_boligret_flerlejlighedsejendom = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.udsteder_ejer_direkte_ejendom_med_flere_beboelseslejligheder",
     label = "Udstederens ejendom med flere boliger",
     question = Some("Ejer selskabet eller foreningen direkte den ejendom med flere beboelseslejligheder, som boligretten vedrører?"),
     help = Some("Boligretsfritagelsen forudsætter, at udstederen direkte ejer ejendommen med de flere beboelseslejligheder."),
     unit = None
 )
 = personskat_felt_aktie_boligret_beboelse = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.lejlighed_har_tjent_til_bolig_mens_skattefrihedsbetingelser_var_opfyldt_i_ejertiden",
     label = "Boligbrug i kvalificerende periode",
     question = Some("Har lejligheden tjent til bolig for ejeren eller husstanden i en del af den ejerperiode, hvor skattefrihedsbetingelserne var opfyldt?"),
     help = Some("Feltet kræver tidsmæssigt overlap mellem boligbrug og den periode, hvor værdipapiret kunne afstås skattefrit efter EBL § 8, stk. 4."),
     unit = None
 )
 = personskat_felt_aktie_boligret_grundforhold = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.$variant",
     label = "Grundareal knyttet til lejligheden",
     question = Some("Hører der et bestemt grundareal til lejligheden?"),
     help = Some("Hvis et bestemt grundareal hører til lejligheden, skal grundbetingelsen i EBL § 8, stk. 1, også prøves."),
     unit = None
 )
 = personskat_felt_aktie_boligret_grundbetingelse = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.EblPar8Stk4MedBestemtGrundareal.grundbetingelse",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.fakta.grundforhold.EblPar8Stk4MedBestemtGrundareal.grundbetingelse",
     label = "Grundbetingelse efter EBL § 8",
     question = Some("Hvilken grundbetingelse er opfyldt for det bestemte grundareal?"),
     help = Some("Vælg under 1.400 m², manglende udstykningsmulighed, værdiforringelse over 20 pct. eller at ingen betingelse er opfyldt."),
     unit = None
 )
 = personskat_felt_aktie_boligret_afståelsesform = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.$variant",
     label = "Afståelsesform for boligret",
     question = Some("Er værdipapiret afstået almindeligt eller som likvidationsprovenu?"),
     help = Some("Likvidationsprovenu er kun skattefrit efter ABL § 15, stk. 2, når det udloddes i selskabets endelige opløsningsår."),
     unit = None
 )
 = personskat_felt_aktie_boligret_endeligt_opløsningsår = Beregningsfelt(
-    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.AblPar15Likvidationsprovenu.udloddet_i_endeligt_opløsningsår",
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.hændelsesforløb.hændelser.hændelse.AblOrdinærAfståelse.vilkår.boligret.AblBoligretEfterPar15.afståelsesform.AblPar15Likvidationsprovenu.udloddet_i_endeligt_opløsningsår",
     label = "Udloddet i endeligt opløsningsår",
     question = Some("Blev likvidationsprovenuet udloddet i det kalenderår, hvor selskabet endeligt blev opløst?"),
     help = Some("Et nej betyder, at gevinst eller tab fortsætter gennem de almindelige regler i aktieavancebeskatningsloven."),
@@ -12912,8 +13143,13 @@
         Field(value = personskat_felt_ordinært_aktieår_investeringsbeviser),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_indkomstår),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_art),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_år),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_måned),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_dag),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesrækkefølge),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsessum),
-        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_anskaffelsessum),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_anskaffelsesgrundlag),
+        Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_direkte_anskaffelsessum),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_oplysning),
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
     )
@@ -13315,7 +13551,36 @@
     attachments = (
         Field(value = personskat_felt_aktiebeholdninger),
         Field(value = personskat_felt_aktiehændelser),
+        Field(value = personskat_felt_aktiehændelse_identifikation),
+        Field(value = personskat_felt_aktiehændelse_dato_år),
+        Field(value = personskat_felt_aktiehændelse_dato_måned),
+        Field(value = personskat_felt_aktiehændelse_dato_dag),
+        Field(value = personskat_felt_aktiehændelse_rækkefølge),
+        Field(value = personskat_felt_aktiehændelse_art),
+        Field(value = personskat_felt_par27_kildehændelse_identifikation),
+        Field(value = personskat_felt_par27_kildehændelse_dato_år),
+        Field(value = personskat_felt_par27_kildehændelse_dato_måned),
+        Field(value = personskat_felt_par27_kildehændelse_dato_dag),
+        Field(value = personskat_felt_par27_kildehændelse_rækkefølge),
+        Field(value = personskat_felt_par27_oprindelig_andel_identifikation),
+        Field(value = personskat_felt_par27_oprindelig_andel_kapitalmængde),
+        Field(value = personskat_felt_par27_oprindelig_anskaffelsessum_art),
+        Field(value = personskat_felt_par27_oprindelig_anskaffelsessum),
+        Field(value = personskat_felt_par27_afstået_kapitalmængde),
+        Field(value = personskat_felt_par27_oprindelig_anskaffelsesår),
+        Field(value = personskat_felt_par27_oprindelig_anskaffelsesmåned),
+        Field(value = personskat_felt_par27_oprindelig_anskaffelsesdag),
+        Field(value = personskat_felt_par27_institut),
+        Field(value = personskat_felt_par27_minimumsindkomstår),
+        Field(value = personskat_felt_par27_manglende_udbetaling),
+        Field(value = personskat_felt_par27_regnskabsgodkendelsesår),
+        Field(value = personskat_felt_par27_regnskabsgodkendelsesmåned),
+        Field(value = personskat_felt_par27_regnskabsgodkendelsesdag),
+        Field(value = personskat_felt_par27_institutsstatus),
+        Field(value = personskat_felt_par27_nyt_indskud),
+        Field(value = personskat_felt_par27_likvidationsudlodning),
         Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par27),
     )
 )
 = personskat_metadata_aktie_par5a = PersonskatMetadata(

@@ -6,12 +6,12 @@
 @ importer ./aktieavancebeskatningsloven - par19 - 20a
 @ importer ./aktieavancebeskatningsloven - par33a
 
--- Aktieavancebeskatningsloven §§ 23-27 -- opgørelsesprincipper og
+-- Aktieavancebeskatningsloven §§ 23-26 -- opgørelsesprincipper og
 -- anskaffelsessumsregler, som bygger videre på de ordinære aktiepositioner.
 
-= aktieavancebeskatningsloven_lbk1098_par23_til_par27 = AktieavancebeskatningslovKildeInfo(
+= aktieavancebeskatningsloven_lbk1098_par23_til_par26 = AktieavancebeskatningslovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/2025/1098",
-    identifier = "Aktieavancebeskatningsloven §§ 23-27",
+    identifier = "Aktieavancebeskatningsloven §§ 23-26",
     hentet_dato = "2026-07-18"
 )
 = aktieavancebeskatningsloven_lbk1098_par19d = AktieavancebeskatningslovKildeInfo(
@@ -29,20 +29,20 @@
     identifier = "Den juridiske vejledning C.B.2.1.7.2: realisationsprincippet eller lagerprincippet",
     hentet_dato = "2026-07-18"
 )
-= aktieavance_par23_til_par27_afhængighedsgrænse = AktieavancebeskatningslovDækningsgrænse(
-    område = "Aktieavancebeskatningsloven §§ 23-27",
+= aktieavance_par23_til_par26_afhængighedsgrænse = AktieavancebeskatningslovDækningsgrænse(
+    område = "Aktieavancebeskatningsloven §§ 23-26",
     beskrivelse = "§§ 6-7 afledes og integritetskontrolleres som ét kildebundet skattepligtsresultat. Øvrige valg og opgørelser tager klassifikationer efter §§ 9, 17, 19 A-20 A og 22 samt LL §§ 16 A-16 C som typede juridiske resultater; de afhængige bestemmelsers egne klassifikationsprøver ligger i deres respektive korpus.",
     status = "Øvrige afhængige klassifikationer kræves"
 )
 
 = aktieavancebeskatningsloven_par23_og_par23a_metadata = Metadata(
     attachments = (
-        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par6_og_par7),
         DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19d),
         AmendmentSource(value = aktieavancebeskatningsloven_lov1691_par3_nr6_par9_stk4_og_7),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
-        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Warning(value = aktieavance_par23_til_par26_afhængighedsgrænse),
     )
 )
 
@@ -391,8 +391,8 @@ skattekontrollovens § 2.
 
 = aktieavancebeskatningsloven_par24_metadata = Metadata(
     attachments = (
-        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+        Warning(value = aktieavance_par23_til_par26_afhængighedsgrænse),
     )
 )
 
@@ -484,7 +484,7 @@ forbindelse med opgørelsen af gevinst og tab efter stk. 1 og 2.
 
 = aktieavancebeskatningsloven_rettigheder_mtf_overgang_metadata = Metadata(
     attachments = (
-        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
         AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par2_nr12_14_par8_stk6),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
     )
@@ -533,8 +533,8 @@ regler anvendelse.
 
 = aktieavancebeskatningsloven_par26_resterende_grene_metadata = Metadata(
     attachments = (
-        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
+        Warning(value = aktieavance_par23_til_par26_afhængighedsgrænse),
     )
 )
 
@@ -645,91 +645,3 @@ bort fra andele, hvor indbetalingen har været omfattet af ligningslovens § 7 N
 
 | aktieavance_par26_stk6_hændelsesresultat(beholdning: AktieavancePar26Stk6Beholdning, hændelse: AktieavancePar26Stk6Hændelse) -> AktieavancePar26Stk6HændelsesSag(beholdning, hændelse).resultat()
 --@end:aktieavancebeskatningsloven_par26_resterende_grene--
-
-= aktieavancebeskatningsloven_par27_metadata = Metadata(
-    attachments = (
-        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par27),
-        Warning(value = aktieavance_par23_til_par27_afhængighedsgrænse),
-    )
-)
-
---@label:aktieavancebeskatningsloven_par27::meta:aktieavancebeskatningsloven_par27_metadata--
-----
-§ 27. I tilfælde, hvor der ikke foretages effektiv udbetaling af
-minimumsindkomsten fra et investeringsinstitut med minimumsbeskatning, jf.
-ligningslovens § 16 C, der er et investeringsinstitut i henhold til
-Europa-Parlamentets og Rådets direktiv 2009/65/EF, jf. bilag 1, anses den
-manglende effektive udbetaling som et tillæg til den oprindelige andel, der
-anses for anskaffet på samme tidspunkt som den oprindelige andel, og med en
-anskaffelsessum, der svarer til den manglende betaling. Den manglende effektive
-udbetaling anses for tillagt den oprindelige andel på tidspunktet for
-investeringsinstituttets årlige godkendelse af regnskabet, dog senest den 30.
-juni i året efter det kalenderår, som minimumsindkomsten hidrører fra.
-
-Stk. 2. Stk. 1 finder dog kun anvendelse, hvis
-1) den manglende udbetaling ikke behandles af instituttet som et nyt indskud,
-der medfører en forøgelse af modtagerens nominelle andele i instituttet, eller
-2) der ikke er tale om den i ligningslovens § 16 A, stk. 3, nr. 1, nævnte
-likvidationsudlodning, der kun medtages med det udloddede beløb.
-
-Stk. 3. Hvis anskaffelsessummen ikke kan fastslås, ansættes den til 0 kr.
-
-Stk. 4. Stk. 1-3 finder tilsvarende anvendelse ved manglende effektiv
-udbetaling til skattepligtige, der beskattes af værdistigninger på
-investeringsbeviser i investeringsinstitutter med minimumsbeskatning efter et
-lagerprincip, selv om instituttet ikke er et investeringsinstitut i henhold til
-Europa-Parlamentets og Rådets direktiv 2009/65/EF.
-----
-
---@begin:aktieavancebeskatningsloven_par27--
-# AktieavancePar27Dato(år: Heltal, måned: Heltal, dag: Heltal)
-# AktieavancePar27Anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner: Heltal) | AblPar27UkendtAnskaffelsessum
-# AktieavancePar27OprindeligAndel(selskabsidentifikation: Tekst, kapitalmængde: AktieavanceOrdinærKapitalmængde, anskaffelsestidspunkt: AktieavancePar27Dato, anskaffelsessum: AktieavancePar27Anskaffelsessum)
-# AktieavancePar27Institutsstatus = AblPar27UcitsMinimumsinstitut | AblPar27IkkeUcitsMenLagerbeskattetMinimumsinstitut | AblPar27InstitutUdenforBestemmelsen
-# AktieavancePar27Stk2Vilkår(behandles_som_nyt_indskud_med_nominel_forøgelse: Boolsk, er_likvidationsudlodning_efter_ll16a_stk3_nr1: Boolsk)
-# AktieavancePar27Hændelse(minimumsindkomstens_kalenderår: Heltal, manglende_effektiv_udbetaling_kroner: Heltal, årlig_regnskabsgodkendelse: AktieavancePar27Dato, institutsstatus: AktieavancePar27Institutsstatus, stk2_vilkår: AktieavancePar27Stk2Vilkår)
-# AktieavancePar27Tillægstidspunkt = AblIntetPar27Tillægstidspunkt | AblPar27Tillægstidspunkt(dato: AktieavancePar27Dato)
-# AktieavancePar27Resultat(andel: AktieavancePar27OprindeligAndel, hændelse: AktieavancePar27Hændelse, reglen_finder_anvendelse: Boolsk, anskaffelsestidspunkt_efter: AktieavancePar27Dato, tillægstidspunkt: AktieavancePar27Tillægstidspunkt, position_før: AktieavanceOrdinærPosition, position_efter: AktieavanceOrdinærPosition)
-
-| aktieavance_par27_skudår(år: Heltal) -> år % 400 == 0 || år % 4 == 0 && år % 100 != 0
-| aktieavance_par27_dage_i_måned(år: Heltal, måned: Heltal) -> hvis måned < 1 || måned > 12 { 0 } ellers { hvis måned == 2 { hvis aktieavance_par27_skudår(år) { 29 } ellers { 28 } } ellers { hvis måned == 4 || måned == 6 || måned == 9 || måned == 11 { 30 } ellers { 31 } } }
-| aktieavance_par27_dato_gyldig(dato: AktieavancePar27Dato) -> dato.år > 0 && dato.dag >= 1 && dato.dag <= aktieavance_par27_dage_i_måned(dato.år, dato.måned)
-| aktieavance_par27_dato_nøgle(dato: AktieavancePar27Dato) -> dato.år * 10000 + dato.måned * 100 + dato.dag
-| aktieavance_par27_tidligste_dato(venstre: AktieavancePar27Dato, højre: AktieavancePar27Dato) -> hvis aktieavance_par27_dato_nøgle(venstre) <= aktieavance_par27_dato_nøgle(højre) { venstre } ellers { højre }
-| aktieavance_par27_anskaffelsessum_kroner(anskaffelsessum: AktieavancePar27Anskaffelsessum) -> match anskaffelsessum { | AblPar27KendtAnskaffelsessum(kroner) -> kroner | AblPar27UkendtAnskaffelsessum -> 0 }
-| aktieavance_par27_institut_omfattet(status: AktieavancePar27Institutsstatus) -> status == AblPar27UcitsMinimumsinstitut || status == AblPar27IkkeUcitsMenLagerbeskattetMinimumsinstitut
-| aktieavance_par27_stk2_betingelse_opfyldt(vilkår: AktieavancePar27Stk2Vilkår) -> vilkår.behandles_som_nyt_indskud_med_nominel_forøgelse == Falskt || vilkår.er_likvidationsudlodning_efter_ll16a_stk3_nr1 == Falskt
-| aktieavance_par27_position_fra_andel(andel: AktieavancePar27OprindeligAndel) -> AktieavanceOrdinærPosition(
-    selskabsidentifikation = andel.selskabsidentifikation,
-    kapitalmængde = andel.kapitalmængde,
-    anskaffelsessum_kroner = aktieavance_par27_anskaffelsessum_kroner(andel.anskaffelsessum)
-)
-
-# AktieavancePar27Sag(andel: AktieavancePar27OprindeligAndel, hændelse: AktieavancePar27Hændelse) {
-    | position_før() -> aktieavance_par27_position_fra_andel(andel)
-    | andel_gyldig() -> aktieavance_ordinaer_position_gyldig(position_før()) && aktieavance_ordinaer_position_antal_aktier(position_før()) > 0 && aktieavance_par27_dato_gyldig(andel.anskaffelsestidspunkt)
-    | hændelse_gyldig() -> hændelse.minimumsindkomstens_kalenderår > 0 && hændelse.manglende_effektiv_udbetaling_kroner >= 0 && aktieavance_par27_dato_gyldig(hændelse.årlig_regnskabsgodkendelse) && hændelse.årlig_regnskabsgodkendelse.år >= hændelse.minimumsindkomstens_kalenderår
-    | reglen_finder_anvendelse() -> andel_gyldig() && hændelse_gyldig() && aktieavance_par27_institut_omfattet(hændelse.institutsstatus) && aktieavance_par27_stk2_betingelse_opfyldt(hændelse.stk2_vilkår)
-    | seneste_tillægsdato() -> AktieavancePar27Dato(år = hændelse.minimumsindkomstens_kalenderår + 1, måned = 6, dag = 30)
-    | faktisk_tillægsdato() -> aktieavance_par27_tidligste_dato(hændelse.årlig_regnskabsgodkendelse, seneste_tillægsdato())
-    | tillægstidspunkt() -> AblIntetPar27Tillægstidspunkt
-    | exception abl_par27_stk1_tillægstidspunkt tillægstidspunkt() -> AblPar27Tillægstidspunkt(dato = faktisk_tillægsdato()) under reglen_finder_anvendelse()
-    | position_efter() -> position_før()
-    | exception abl_par27_stk1_anskaffelsessumtillæg position_efter() -> AktieavanceOrdinærPosition(
-        selskabsidentifikation = position_før().selskabsidentifikation,
-        kapitalmængde = position_før().kapitalmængde,
-        anskaffelsessum_kroner = position_før().anskaffelsessum_kroner + hændelse.manglende_effektiv_udbetaling_kroner
-    ) under reglen_finder_anvendelse()
-    | resultat() -> AktieavancePar27Resultat(
-        andel = andel,
-        hændelse = hændelse,
-        reglen_finder_anvendelse = reglen_finder_anvendelse(),
-        anskaffelsestidspunkt_efter = andel.anskaffelsestidspunkt,
-        tillægstidspunkt = tillægstidspunkt(),
-        position_før = position_før(),
-        position_efter = position_efter()
-    )
-}
-
-| aktieavance_par27_resultat(andel: AktieavancePar27OprindeligAndel, hændelse: AktieavancePar27Hændelse) -> AktieavancePar27Sag(andel, hændelse).resultat()
---@end:aktieavancebeskatningsloven_par27--

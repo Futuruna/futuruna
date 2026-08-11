@@ -126,7 +126,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     indkomstår = 2026,
     hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
         position_primo = personskat_par32_scenarie_aktieposition,
-        hændelser = [personskat_par32_scenarie_aktiesalg]
+        hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "par32-underliggende-aktiesalg", dato = Dato(år = 2026, måned = 12, dag = 1), rækkefølge_på_dagen = 1, hændelse = personskat_par32_scenarie_aktiesalg)]
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],

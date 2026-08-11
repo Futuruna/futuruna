@@ -285,7 +285,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     indkomstår = 2026,
     hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
         position_primo = fraflytter_slutskat_ejendomsskat_tabsposition,
-        hændelser = [fraflytter_slutskat_ejendomsskat_tabsafståelse]
+        hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "fraflytterskat-ejendomsskat-tabsalg", dato = Dato(år = 2026, måned = 12, dag = 1), rækkefølge_på_dagen = 1, hændelse = fraflytter_slutskat_ejendomsskat_tabsafståelse)]
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],

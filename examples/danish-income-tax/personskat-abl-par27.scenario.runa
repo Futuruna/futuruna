@@ -1,0 +1,237 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet validerer, at et anskaffelsessumtillæg efter ABL § 27 føres gennem
+et identificeret og dateret forløb for et aktiebaseret investeringsinstitut
+med minimumsbeskatning. Den afledte anskaffelsessum bruges ved en senere
+delafståelse gennem beregn_personskat. Scenariet er ikke lovtekst.
+----
+
+= personskat_par27_andel_primo = AktieavancePar27OprindeligAndel(
+    selskabsidentifikation = "DK-MIN-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsestidspunkt = Dato(år = 2020, måned = 5, dag = 15),
+    anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner = 10000)
+)
+= personskat_par27_hændelse_2025 = AktieavancePar27Hændelse(
+    investeringsinstitut_identifikation = "DK-MIN-1",
+    minimumsindkomstens_kalenderår = 2025,
+    manglende_effektiv_udbetaling_kroner = 2000,
+    årlig_regnskabsgodkendelse = Dato(år = 2026, måned = 8, dag = 15),
+    institutsstatus = AblPar27UcitsMinimumsinstitut,
+    stk2_vilkår = AktieavancePar27Stk2Vilkår(
+        behandles_som_nyt_indskud_med_nominel_forøgelse = Falskt,
+        er_likvidationsudlodning_efter_ll16a_stk3_nr1 = Falskt
+    )
+)
+= personskat_par27_hændelse_2024 = AktieavancePar27Hændelse(
+    investeringsinstitut_identifikation = "DK-MIN-1",
+    minimumsindkomstens_kalenderår = 2024,
+    manglende_effektiv_udbetaling_kroner = 1000,
+    årlig_regnskabsgodkendelse = Dato(år = 2025, måned = 8, dag = 15),
+    institutsstatus = AblPar27UcitsMinimumsinstitut,
+    stk2_vilkår = personskat_par27_hændelse_2025.stk2_vilkår
+)
+= personskat_par27_kildehændelse_2025 = AktieavancePar27Kildehændelse(
+    identifikation = "minimumsindkomst-2025",
+    dato = Dato(år = 2026, måned = 6, dag = 30),
+    rækkefølge_på_dagen = 1,
+    hændelse = personskat_par27_hændelse_2025
+)
+= personskat_par27_kildehændelse_2024 = AktieavancePar27Kildehændelse(
+    identifikation = "minimumsindkomst-2024",
+    dato = Dato(år = 2025, måned = 6, dag = 30),
+    rækkefølge_på_dagen = 1,
+    hændelse = personskat_par27_hændelse_2024
+)
+= personskat_par27_forløb = AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [personskat_par27_kildehændelse_2025]
+)
+= personskat_par27_investeringsbevis = AktieavancePar13AInvesteringsbevisInput(
+    indkomstår = 2026,
+    art = AblPar21AktiebaseretMinimumsbevis,
+    afståelsesdato = Dato(år = 2026, måned = 7, dag = 1),
+    afståelsens_rækkefølge_på_dagen = 1,
+    afståelsessum_kroner = 8000,
+    anskaffelsesgrundlag = AblInvesteringsbevisAnskaffelsessumEfterPar27(
+        forløb = personskat_par27_forløb,
+        afstået_kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5)
+    ),
+    oplysningsstatus = AblOplystRettidigt
+)
+= personskat_par27_aktieår = AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    rettighedsforløb = [],
+    investeringsbeviser = [personskat_par27_investeringsbevis],
+    fremført_tab_efter_par13a_kroner = 0
+)
+= personskat_par27_lønmodtager = PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = 600000,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+= personskat_par27_input = PersonskatInput(
+    lønmodtager = personskat_par27_lønmodtager,
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = PersonskatAktieavanceInput(
+        ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par27_aktieår),
+        særlige_aktiver = [],
+        udbytter = [],
+        ligningslov7n_poster = []
+    ),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+= personskat_par27_resultat = beregn_personskat(personskat_par27_input)
+
+= personskat_par27_forkert_institut = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [AktieavancePar27Kildehændelse(
+        identifikation = "forkert-institut",
+        dato = Dato(år = 2026, måned = 6, dag = 30),
+        rækkefølge_på_dagen = 1,
+        hændelse = AktieavancePar27Hændelse(
+            investeringsinstitut_identifikation = "DK-ANDET-INSTITUT",
+            minimumsindkomstens_kalenderår = 2025,
+            manglende_effektiv_udbetaling_kroner = 2000,
+            årlig_regnskabsgodkendelse = Dato(år = 2026, måned = 8, dag = 15),
+            institutsstatus = AblPar27UcitsMinimumsinstitut,
+            stk2_vilkår = personskat_par27_hændelse_2025.stk2_vilkår
+        )
+    )]
+))
+= personskat_par27_forkert_rækkefølge = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [personskat_par27_kildehændelse_2025, personskat_par27_kildehændelse_2024]
+))
+= personskat_par27_dubleret_identifikation = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [
+        personskat_par27_kildehændelse_2024,
+        AktieavancePar27Kildehændelse(
+            identifikation = "minimumsindkomst-2024",
+            dato = Dato(år = 2026, måned = 6, dag = 30),
+            rækkefølge_på_dagen = 1,
+            hændelse = personskat_par27_hændelse_2025
+        )
+    ]
+))
+= personskat_par27_dubleret_minimumsindkomstår = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [
+        personskat_par27_kildehændelse_2025,
+        AktieavancePar27Kildehændelse(
+            identifikation = "minimumsindkomst-2025-dublet-med-ny-identitet",
+            dato = Dato(år = 2026, måned = 6, dag = 30),
+            rækkefølge_på_dagen = 2,
+            hændelse = personskat_par27_hændelse_2025
+        )
+    ]
+))
+= personskat_par27_forkert_tillægsdato = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = personskat_par27_andel_primo,
+    hændelser = [AktieavancePar27Kildehændelse(
+        identifikation = "forkert-tillægsdato",
+        dato = Dato(år = 2026, måned = 7, dag = 2),
+        rækkefølge_på_dagen = 1,
+        hændelse = personskat_par27_hændelse_2025
+    )]
+))
+= personskat_par27_andel_anskaffet_efter_tillæg = aktieavance_par27_forløbsresultat(AktieavancePar27Forløbsinput(
+    andel_primo = AktieavancePar27OprindeligAndel(
+        selskabsidentifikation = "DK-MIN-1",
+        kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+        anskaffelsestidspunkt = Dato(år = 2026, måned = 7, dag = 1),
+        anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner = 10000)
+    ),
+    hændelser = [personskat_par27_kildehændelse_2025]
+))
+= personskat_par27_tillæg_efter_afståelse = aktieavance_par13a_investeringsbevis_resultat(AktieavancePar13AInvesteringsbevisInput(
+    indkomstår = 2026,
+    art = AblPar21AktiebaseretMinimumsbevis,
+    afståelsesdato = Dato(år = 2026, måned = 6, dag = 29),
+    afståelsens_rækkefølge_på_dagen = 1,
+    afståelsessum_kroner = 8000,
+    anskaffelsesgrundlag = AblInvesteringsbevisAnskaffelsessumEfterPar27(
+        forløb = personskat_par27_forløb,
+        afstået_kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5)
+    ),
+    oplysningsstatus = AblOplystRettidigt
+))
+= personskat_par27_sammedags_tillæg_efter_afståelse = aktieavance_par13a_investeringsbevis_resultat(AktieavancePar13AInvesteringsbevisInput(
+    indkomstår = 2026,
+    art = AblPar21AktiebaseretMinimumsbevis,
+    afståelsesdato = Dato(år = 2026, måned = 6, dag = 30),
+    afståelsens_rækkefølge_på_dagen = 1,
+    afståelsessum_kroner = 8000,
+    anskaffelsesgrundlag = AblInvesteringsbevisAnskaffelsessumEfterPar27(
+        forløb = AktieavancePar27Forløbsinput(
+            andel_primo = personskat_par27_andel_primo,
+            hændelser = [AktieavancePar27Kildehændelse(
+                identifikation = "minimumsindkomst-2025-senere-på-dagen",
+                dato = Dato(år = 2026, måned = 6, dag = 30),
+                rækkefølge_på_dagen = 2,
+                hændelse = personskat_par27_hændelse_2025
+            )]
+        ),
+        afstået_kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 5)
+    ),
+    oplysningsstatus = AblOplystRettidigt
+))
+
+| personskat_par27_statusspor_gyldigt(resultat: PersonskatBeregningResultat) -> match resultat.aktieavance.ordinært_aktieår {
+    | BeregnetOrdinærtAktieår(årsresultat) -> {
+        = investeringsbevisresultat = head(årsresultat.investeringsbevis_resultater)
+        (årsresultat.alle_input_gyldige
+            && investeringsbevisresultat.input_gyldigt
+            && investeringsbevisresultat.skattepost.art == AblSkattepostAktiebaseretMinimumsbevisEfterPar21
+            && investeringsbevisresultat.anskaffelsessum_henført_til_afståelse_kroner == 6000
+            && investeringsbevisresultat.bruttogevinst_kroner == 2000
+            && (match investeringsbevisresultat.par27_forløbsresultat {
+                    | Some(forløbsresultat) -> forløbsresultat.input_gyldigt && forløbsresultat.position_ultimo.anskaffelsessum_kroner == 12000 && head(forløbsresultat.hændelsesresultater).tillægstidspunkt == AblPar27Tillægstidspunkt(dato = Dato(år = 2026, måned = 6, dag = 30))
+                    | None -> Falskt
+                })
+            && (match investeringsbevisresultat.position_efter {
+                    | Some(position) -> aktieavance_ordinaer_position_antal_aktier(position) == 5 && position.anskaffelsessum_kroner == 6000
+                    | None -> Falskt
+                }))
+    }
+    | _ -> Falskt
+}
+
+| scenarie_personskat_par27_basis_når_slutskatten: personskat_par27_resultat -> personskat_par27_resultat.aktieavance.alle_input_gyldige && personskat_par27_statusspor_gyldigt(personskat_par27_resultat) && personskat_par27_resultat.aktieavance.aktieindkomst_kroner == 2000 && personskat_par27_resultat.endelig_aktieindkomstskat_kroner == 540
+| scenarie_personskat_par27_afviser_forkert_institut: personskat_par27_forkert_institut -> personskat_par27_forkert_institut.input_gyldigt == Falskt && personskat_par27_forkert_institut.alle_hændelser_anvendt == Falskt && personskat_par27_forkert_institut.position_ultimo.anskaffelsessum_kroner == 10000
+| scenarie_personskat_par27_afviser_omvendt_kronologi: personskat_par27_forkert_rækkefølge -> personskat_par27_forkert_rækkefølge.kronologi_gyldig == Falskt && personskat_par27_forkert_rækkefølge.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_dubleret_hændelsesidentifikation: personskat_par27_dubleret_identifikation -> personskat_par27_dubleret_identifikation.hændelsesidentifikationer_entydige == Falskt && personskat_par27_dubleret_identifikation.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_dubleret_minimumsindkomstår: personskat_par27_dubleret_minimumsindkomstår -> personskat_par27_dubleret_minimumsindkomstår.hændelsesidentifikationer_entydige && personskat_par27_dubleret_minimumsindkomstår.minimumsindkomstår_entydige == Falskt && personskat_par27_dubleret_minimumsindkomstår.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_caller_angivet_forkert_tillægsdato: personskat_par27_forkert_tillægsdato -> personskat_par27_forkert_tillægsdato.tillægsdatoer_matcher == Falskt && personskat_par27_forkert_tillægsdato.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_andel_anskaffet_efter_tillæg: personskat_par27_andel_anskaffet_efter_tillæg -> personskat_par27_andel_anskaffet_efter_tillæg.alle_hændelser_anvendt == Falskt && personskat_par27_andel_anskaffet_efter_tillæg.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_tillæg_efter_afståelse: personskat_par27_tillæg_efter_afståelse -> personskat_par27_tillæg_efter_afståelse.anskaffelsesgrundlag_gyldigt == Falskt && personskat_par27_tillæg_efter_afståelse.input_gyldigt == Falskt
+| scenarie_personskat_par27_afviser_sammedags_tillæg_efter_afståelse: personskat_par27_sammedags_tillæg_efter_afståelse -> personskat_par27_sammedags_tillæg_efter_afståelse.anskaffelsesgrundlag_gyldigt == Falskt && personskat_par27_sammedags_tillæg_efter_afståelse.input_gyldigt == Falskt
+
+? scenarie_personskat_par27_basis_når_slutskatten
+? scenarie_personskat_par27_afviser_forkert_institut
+? scenarie_personskat_par27_afviser_omvendt_kronologi
+? scenarie_personskat_par27_afviser_dubleret_hændelsesidentifikation
+? scenarie_personskat_par27_afviser_dubleret_minimumsindkomstår
+? scenarie_personskat_par27_afviser_caller_angivet_forkert_tillægsdato
+? scenarie_personskat_par27_afviser_andel_anskaffet_efter_tillæg
+? scenarie_personskat_par27_afviser_tillæg_efter_afståelse
+? scenarie_personskat_par27_afviser_sammedags_tillæg_efter_afståelse

@@ -303,7 +303,7 @@
             identifikation = "virksomhedsafståelse-2026",
             afståelsesdato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
             grundlag = Pbl15AHovedaktionæraktier,
-            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedsafståelse-2026", 80000),
+            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedsafståelse-2026", 2026, 80000),
             alder_hele_år_ved_afståelsen = 60,
             passiv_kapital = Pbl15APassivKapitalFakta(
                 seneste_tre_regnskabsperioder = [

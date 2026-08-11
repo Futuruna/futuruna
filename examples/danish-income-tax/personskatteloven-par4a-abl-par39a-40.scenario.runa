@@ -115,7 +115,7 @@
 )
 = abl39a_afståelse_i_ikke_understøttet_år_resultat = aktieavance_par39a_hændelsesresultat(
     tilstand = abl39a_tilstand,
-    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_halvdelen_af_a_i_år(skatteår = 2023))
+    hændelse = AblPar39AAfståelse(data = abl39a_afståelse_halvdelen_af_a_i_år(skatteår = 2022))
 )
 = abl39a_betaling_af_a_fordring = aktieavance_par39a_hændelsesresultat(
     tilstand = abl39a_afståelse_halvdelen_af_a_resultat.tilstand_efter,
@@ -640,7 +640,7 @@
     input = abl39b_tilflytning_med_saldo_input_i_år(skatteår = 2026)
 )
 = abl39b_tilflytning_i_ikke_understøttet_år_resultat = aktieavance_par39b_resultat(
-    input = abl39b_tilflytning_med_saldo_input_i_år(skatteår = 2023)
+    input = abl39b_tilflytning_med_saldo_input_i_år(skatteår = 2022)
 )
 = abl39b_ægtefælletilstand = AktieavancePar39ATilstand(
     beholdning = [abl39b_gevinstparti_1, abl39b_gevinstparti_2],

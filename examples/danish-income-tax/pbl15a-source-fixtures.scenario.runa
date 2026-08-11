@@ -60,7 +60,7 @@
     opretter_deltog_i_driften_i_væsentligt_omfang = Sandt
 )
 
-| pbl15a_fixture_hovedaktionær_fortjenestegrundlag(identifikation: Tekst, fortjeneste_kroner: Heltal) -> Pbl15AFortjenestegrundlag(
+| pbl15a_fixture_hovedaktionær_fortjenestegrundlag(identifikation: Tekst, indkomstår: Heltal, fortjeneste_kroner: Heltal) -> Pbl15AFortjenestegrundlag(
     afskrivningslovsposter = [],
     ejendomsavance = Pbl15AUdenEjendomsavance,
     aktieavance = Pbl15AMedAktieavance(
@@ -74,7 +74,11 @@
                         anskaffelsessum_kroner = 100000
                     ),
                     hændelser = [
-                        AblOrdinærAfståelse(
+                        AktieavanceOrdinærKildehændelse(
+                            identifikation = identifikation + "-aktiesalg",
+                            dato = Dato(år = indkomstår, måned = 7, dag = 1),
+                            rækkefølge_på_dagen = 1,
+                            hændelse = AblOrdinærAfståelse(
                             kapitalmængde = AblPålydendeAktiekapital(antal_aktier = 100, samlet_pålydende_kroner = 100000),
                             afståelsessum_kroner = 100000 + fortjeneste_kroner,
                             vilkår = AktieavanceOrdinærAfståelsesvilkår(
@@ -87,6 +91,7 @@
                                 boligret = AblUdenBoligret
                             ),
                             par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+                            )
                         )
                     ]
                 )

@@ -123,8 +123,10 @@ fordringer og gæld omfattet af kursgevinstlovens §§ 14 og 23 overstiger
 | kgl_par32_aktieklasse_scenarie_investeringsbevis(indkomstår: Heltal, art: AktieavancePar13AInvesteringsbevisArt, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal) -> aktieavance_par13a_investeringsbevis_resultat(AktieavancePar13AInvesteringsbevisInput(
     indkomstår = indkomstår,
     art = art,
+    afståelsesdato = Dato(år = indkomstår, måned = 12, dag = 31),
+    afståelsens_rækkefølge_på_dagen = 1,
     afståelsessum_kroner = afståelsessum_kroner,
-    anskaffelsessum_kroner = anskaffelsessum_kroner,
+    anskaffelsesgrundlag = AblInvesteringsbevisDirekteAnskaffelsessum(kroner = anskaffelsessum_kroner),
     oplysningsstatus = AblOplystRettidigt
 ))
 | kgl_par32_aktieklasse_scenarie_par13a_årsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost)) -> AktieavanceOrdinærÅrsinput(

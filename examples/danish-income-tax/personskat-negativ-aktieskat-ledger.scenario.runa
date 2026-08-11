@@ -110,7 +110,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
         indkomstår = skatteår,
         hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
             position_primo = negativ_aktieskat_ledger_tabsposition,
-            hændelser = [negativ_aktieskat_ledger_tabsafståelse]
+            hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "negativ-aktieskat-tabsalg", dato = Dato(år = skatteår, måned = 12, dag = 1), rækkefølge_på_dagen = 1, hændelse = negativ_aktieskat_ledger_tabsafståelse)]
         )],
         rettighedsforløb = [],
         investeringsbeviser = [],

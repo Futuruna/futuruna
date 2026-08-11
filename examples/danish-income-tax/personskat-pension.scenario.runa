@@ -402,7 +402,7 @@
             identifikation = "virksomhedssalg-1",
             afståelsesdato = Pbl15ADato(år = 2026, måned = 7, dag = 1),
             grundlag = Pbl15AHovedaktionæraktier,
-            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedssalg-1", 100000),
+            fortjenestegrundlag = pbl15a_fixture_hovedaktionær_fortjenestegrundlag("virksomhedssalg-1", 2026, 100000),
             alder_hele_år_ved_afståelsen = 60,
             passiv_kapital = Pbl15APassivKapitalFakta(
                 seneste_tre_regnskabsperioder = [
@@ -474,7 +474,7 @@
     hændelsesforløb = [
         AktieavanceOrdinærHændelsesforløbInput(
             position_primo = personskat_par15a_aktieposition,
-            hændelser = [personskat_par15a_aktieafståelse]
+            hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "par15a-hovedaktionærsalg", dato = Dato(år = 2026, måned = 12, dag = 1), rækkefølge_på_dagen = 1, hændelse = personskat_par15a_aktieafståelse)]
         )
     ],
     rettighedsforløb = [],

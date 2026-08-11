@@ -89,13 +89,13 @@
     næringsvirksomhed_med_værdipapirer_eller_finansiering = Falskt
 )
 
-| pbl15a_scenarie_hovedaktionær_fortjenestegrundlag(identifikation: Tekst, fortjeneste_kroner: Heltal) -> pbl15a_fixture_hovedaktionær_fortjenestegrundlag(identifikation, fortjeneste_kroner)
+| pbl15a_scenarie_hovedaktionær_fortjenestegrundlag(identifikation: Tekst, indkomstår: Heltal, fortjeneste_kroner: Heltal) -> pbl15a_fixture_hovedaktionær_fortjenestegrundlag(identifikation, indkomstår, fortjeneste_kroner)
 
 | pbl15a_scenarie_afståelse(identifikation: Tekst, afståelsesår: Heltal, fortjeneste_kroner: Heltal, alder: Heltal) -> Pbl15AAfståelsesfakta(
     identifikation = identifikation,
     afståelsesdato = pbl15a_scenarie_dato(afståelsesår, 7, 1),
     grundlag = Pbl15AHovedaktionæraktier,
-    fortjenestegrundlag = pbl15a_scenarie_hovedaktionær_fortjenestegrundlag(identifikation, fortjeneste_kroner),
+    fortjenestegrundlag = pbl15a_scenarie_hovedaktionær_fortjenestegrundlag(identifikation, afståelsesår, fortjeneste_kroner),
     alder_hele_år_ved_afståelsen = alder,
     passiv_kapital = pbl15a_scenarie_aktiv_kapital(afståelsesår),
     udlejning_af_afskrivningsberettigede_driftsmidler_eller_skibe = Falskt,

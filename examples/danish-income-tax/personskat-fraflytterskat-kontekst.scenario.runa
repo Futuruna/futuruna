@@ -111,7 +111,7 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
     indkomstår = 2026,
     hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(
         position_primo = fraflytterskat_kontekst_negativ_position,
-        hændelser = [fraflytterskat_kontekst_negativ_afståelse]
+        hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "fraflytterskat-negativt-aktiesalg", dato = Dato(år = 2026, måned = 12, dag = 1), rækkefølge_på_dagen = 1, hændelse = fraflytterskat_kontekst_negativ_afståelse)]
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],

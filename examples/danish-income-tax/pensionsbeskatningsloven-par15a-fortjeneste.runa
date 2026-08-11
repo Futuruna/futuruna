@@ -62,7 +62,7 @@ som medregnes ved personens indkomstopgørelse.
 
 # Pbl15AAktieavancepost(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput)
 # Pbl15AAktieavancegrundlag = Pbl15AUdenAktieavance | Pbl15AMedAktieavance(poster: List(Pbl15AAktieavancepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag)
-# Pbl15AAktieavancepostresultat(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput, resultat: AktieavanceOrdinærHændelsesforløbResultat, kilde_gyldig: Boolsk, indeholder_hovedaktionærafståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk)
+# Pbl15AAktieavancepostresultat(identifikation: Tekst, input: AktieavanceOrdinærHændelsesforløbInput, resultat: AktieavanceOrdinærÅrshændelsesforløbResultat, kilde_gyldig: Boolsk, indeholder_hovedaktionærafståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk)
 # Pbl15AAktieavancekilderesultat(grundlag: Pbl15AAktieavancegrundlag, postresultater: List(Pbl15AAktieavancepostresultat), årsresultat: Option(AktieavanceOrdinærÅrsresultat), kilder_gyldige: Boolsk, indeholder_afståelse: Boolsk, alle_afståelser_er_hovedaktionæraktier: Boolsk, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
 # Pbl15AKursgevinstpost(identifikation: Tekst, input: KursgevinstlovInput)
@@ -212,14 +212,18 @@ som medregnes ved personens indkomstopgørelse.
 }
 
 | pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær(resultat: AktieavanceOrdinærHændelsesresultat) -> aktieavance_ordinaer_er_afståelse(resultat.hændelse) == Falskt || aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).hovedaktionæraktier
-| pbl15a_aktieavancepost_resultat(post: Pbl15AAktieavancepost) -> Pbl15AAktieavancepostresultat(
-    identifikation = post.identifikation,
-    input = post.input,
-    resultat = aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser),
-    kilde_gyldig = post.identifikation != "" && aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).alle_hændelser_gyldige,
-    indeholder_hovedaktionærafståelse = any(aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse) && aktieavance_ordinaer_afståelsesvilkår(resultat.hændelse).hovedaktionæraktier),
-    alle_afståelser_er_hovedaktionæraktier = all(aktieavance_ordinaer_hændelsesforløb(post.input.position_primo, post.input.hændelser).hændelsesresultater, pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær)
-)
+| pbl15a_aktieavancepost_resultat(indkomstår: Heltal, post: Pbl15AAktieavancepost) -> {
+    = resultat = aktieavance_ordinaer_årshændelsesforløb(indkomstår, post.input)
+    Pbl15AAktieavancepostresultat(
+        identifikation = post.identifikation,
+        input = post.input,
+        resultat = resultat,
+        kilde_gyldig = post.identifikation != "" && resultat.alle_hændelser_gyldige,
+        indeholder_hovedaktionærafståelse = any(resultat.hændelsesresultater, |hændelsesresultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(hændelsesresultat.hændelse) && aktieavance_ordinaer_afståelsesvilkår(hændelsesresultat.hændelse).hovedaktionæraktier),
+        alle_afståelser_er_hovedaktionæraktier = all(resultat.hændelsesresultater, pbl15a_aktieavance_hændelsesresultat_er_hovedaktionær)
+    )
+}
+| pbl15a_aktieavancepost_resultater(indkomstår: Heltal, poster: List(Pbl15AAktieavancepost)) -> map(poster, |post: Pbl15AAktieavancepost| pbl15a_aktieavancepost_resultat(indkomstår, post))
 | pbl15a_aktieavance_skatteposter(postresultater: List(Pbl15AAktieavancepostresultat)) -> flat_map(postresultater, |post: Pbl15AAktieavancepostresultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(post.resultat.hændelsesresultater))
 | pbl15a_aktieavance_årsresultat(indkomstår: Heltal, postresultater: List(Pbl15AAktieavancepostresultat), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag) -> aktieavance_ordinaer_årsresultat(AktieavanceOrdinærÅrsinput(
     indkomstår = indkomstår,
@@ -229,16 +233,20 @@ som medregnes ved personens indkomstopgørelse.
 ))
 | pbl15a_aktieavance_kilderesultat(indkomstår: Heltal, grundlag: Pbl15AAktieavancegrundlag) -> match grundlag {
     | Pbl15AUdenAktieavance -> Pbl15AAktieavancekilderesultat(grundlag = grundlag, postresultater = [], årsresultat = None, kilder_gyldige = Sandt, indeholder_afståelse = Falskt, alle_afståelser_er_hovedaktionæraktier = Sandt, skattepligtig_fortjeneste_kroner = 0, fradragsberettiget_tab_kroner = 0)
-    | Pbl15AMedAktieavance(poster, fremført_tab, modregningsgrundlag) -> Pbl15AAktieavancekilderesultat(
-        grundlag = grundlag,
-        postresultater = map(poster, pbl15a_aktieavancepost_resultat),
-        årsresultat = Some(pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag)),
-        kilder_gyldige = length(poster) > 0 && fremført_tab >= 0 && all(map(poster, pbl15a_aktieavancepost_resultat), |resultat: Pbl15AAktieavancepostresultat| resultat.kilde_gyldig),
-        indeholder_afståelse = any(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| any(post.resultat.hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse))),
-        alle_afståelser_er_hovedaktionæraktier = all(map(poster, pbl15a_aktieavancepost_resultat), |post: Pbl15AAktieavancepostresultat| post.alle_afståelser_er_hovedaktionæraktier),
-        skattepligtig_fortjeneste_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag).skattepligtige_gevinster_efter_par12_kroner,
-        fradragsberettiget_tab_kroner = pbl15a_aktieavance_årsresultat(indkomstår, map(poster, pbl15a_aktieavancepost_resultat), fremført_tab, modregningsgrundlag).fradragsberettiget_tab_i_egen_aktieindkomst_kroner
-    )
+    | Pbl15AMedAktieavance(poster, fremført_tab, modregningsgrundlag) -> {
+        = postresultater = pbl15a_aktieavancepost_resultater(indkomstår, poster)
+        = årsresultat = pbl15a_aktieavance_årsresultat(indkomstår, postresultater, fremført_tab, modregningsgrundlag)
+        Pbl15AAktieavancekilderesultat(
+            grundlag = grundlag,
+            postresultater = postresultater,
+            årsresultat = Some(årsresultat),
+            kilder_gyldige = length(poster) > 0 && fremført_tab >= 0 && all(postresultater, |resultat: Pbl15AAktieavancepostresultat| resultat.kilde_gyldig),
+            indeholder_afståelse = any(postresultater, |post: Pbl15AAktieavancepostresultat| any(post.resultat.hændelsesresultater, |resultat: AktieavanceOrdinærHændelsesresultat| aktieavance_ordinaer_er_afståelse(resultat.hændelse))),
+            alle_afståelser_er_hovedaktionæraktier = all(postresultater, |post: Pbl15AAktieavancepostresultat| post.alle_afståelser_er_hovedaktionæraktier),
+            skattepligtig_fortjeneste_kroner = årsresultat.skattepligtige_gevinster_efter_par12_kroner,
+            fradragsberettiget_tab_kroner = årsresultat.fradragsberettiget_tab_i_egen_aktieindkomst_kroner
+        )
+    }
 }
 
 | pbl15a_kursgevinstpost_resultat(indkomstår: Heltal, post: Pbl15AKursgevinstpost) -> Pbl15AKursgevinstpostresultat(

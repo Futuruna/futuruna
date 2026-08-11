@@ -85,7 +85,7 @@
     "hovedaktionær",
     2026,
     Pbl15AHovedaktionæraktier,
-    pbl15a_fixture_hovedaktionær_fortjenestegrundlag("hovedaktionæraktier", 400000)
+    pbl15a_fixture_hovedaktionær_fortjenestegrundlag("hovedaktionæraktier", 2026, 400000)
 )).resultat()
 
 = pbl15a_fortjeneste_scenarie_ægtefælle = Pbl15AAfståelsesSag(pbl15a_fixture_afståelse(
