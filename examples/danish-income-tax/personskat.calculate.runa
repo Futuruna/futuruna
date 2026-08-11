@@ -15945,12 +15945,12 @@ fraflytningen."
     | _ -> []
 }
 
-# PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) {
+# PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) {
     | reklassifikation() -> personskat_kapital_reklassifikation(input.renter.næringsstatus)
     | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
     | ligningslov6_input_gyldigt() -> personskat_ligningslov6_input_gyldigt(input.renter.ligningslov6, skatteår)
     | ligningslov6a_input_gyldigt() -> personskat_ligningslov6a_input_gyldigt(input.renter.ligningslov6a, skatteår)
-    | virksomhedskapital_resultat() -> personskat_virksomhedskapital_resultat(input.virksomhedskapital, skatteår)
+    | virksomhedskapital_resultat() -> personskat_virksomhedskapital_resultat_med_kontekst(input.virksomhedskapital, skatteår, kapitalafkastordningskontekst)
     | virksomhedskapital_input_gyldigt() -> virksomhedskapital_resultat().alle_input_gyldige
     | pbl53a_resultat() -> personskat_pbl53a_resultat(input.pbl53a, skatteår)
     | pbl53a_input_gyldigt() -> pbl53a_resultat().alle_input_gyldige
@@ -16002,7 +16002,7 @@ fraflytningen."
         = rentegrundlag_er_gyldigt = input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
         = ligningslov6_er_gyldig = personskat_ligningslov6_input_gyldigt(input.renter.ligningslov6, skatteår)
         = ligningslov6a_er_gyldig = personskat_ligningslov6a_input_gyldigt(input.renter.ligningslov6a, skatteår)
-        = virksomhedskapital = personskat_virksomhedskapital_resultat(input.virksomhedskapital, skatteår)
+        = virksomhedskapital = personskat_virksomhedskapital_resultat_med_kontekst(input.virksomhedskapital, skatteår, kapitalafkastordningskontekst)
         = pbl53a = personskat_pbl53a_resultat(input.pbl53a, skatteår)
         = ejendomsavancegrundlag = personskat_ejendomsavance_resultat(input.ejendomsavance, skatteår)
         = ejendomsavance_er_gyldig = personskat_ejendomsavance_input_gyldigt(ejendomsavancegrundlag)
@@ -16077,7 +16077,8 @@ fraflytningen."
     }
 }
 
-| personskat_kapitalindkomst_resultat_med_par32(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) -> PersonskatKapitalindkomstSag(input, skatteår, aktieavance, par32).resultat()
+| personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) -> PersonskatKapitalindkomstSag(input, skatteår, aktieavance, par32, kapitalafkastordningskontekst).resultat()
+| personskat_kapitalindkomst_resultat_med_par32(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(input, skatteår, aktieavance, par32, UdenAfledtKapitalafkastordningskontekst)
 | personskat_kapitalindkomst_resultat(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat) -> personskat_kapitalindkomst_resultat_med_par32(input, skatteår, aktieavance, UdenPar32Årsresultat)
 | personskat_ingen_kapitalindkomst() -> PersonskatKapitalindkomstInput(
     renter = PersonskatRenteInput(
@@ -16736,7 +16737,37 @@ fraflytningen."
     )
 }
 
-# PersonskatPersonGrundlagSag(fakta_før_kildeskat25a: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a_regulering: PersonskatKsl25APersonregulering, kildeskat25a_input_gyldigt: Boolsk) {
+| personskat_personlig_indkomst_efter_kildeskat25a(fakta_før_kildeskat25a: PersonskatPersonFakta, regulering: PersonskatKsl25APersonregulering, input_gyldigt: Boolsk) -> {
+    = fakta = personskat_ksl25a_personfakta(fakta_før_kildeskat25a, regulering, input_gyldigt)
+    = fiskerfradragssamordning = personskat_ll9g_koordinering(fakta.lønmodtager)
+    = personlig_indkomst_før_kildeskat25a = personskat_personlig_indkomst_resultat(
+        personskat_ll9g_personlig_indkomst_input(fakta.lønmodtager.personlig_indkomst, fiskerfradragssamordning),
+        fakta.lønmodtager.skatteår
+    )
+    personskat_ksl25a_personlig_indkomst(personlig_indkomst_før_kildeskat25a, regulering, input_gyldigt)
+}
+| personskat_anvender_virksomhedsordningen(input: PersonskatVirksomhedskapitalInput) -> match input.selvstændig_beskatningsordning {
+    | MedVirksomhedsordningEfterAfsnitI(_, _, _, _) -> Sandt
+    | _ -> Falskt
+}
+| personskat_kapitalafkastordning_personkontekst(personlig_indkomst: PersonskatPersonligIndkomstResultat, virksomhedskapital: PersonskatVirksomhedskapitalInput) -> PersonskatKapitalafkastordningPersonkontekst(
+    personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner,
+    anvender_virksomhedsordningen = personskat_anvender_virksomhedsordningen(virksomhedskapital),
+    input_gyldigt = personlig_indkomst.alle_input_gyldige
+)
+| personskat_kapitalafkastordning_ægtefællekontekst(input: PersonskatInput, kildeskat25a: PersonskatKsl25AParResultat) -> match input.ægtefælle {
+    | UdenÆgtefælle -> None
+    | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, _) -> hvis samlevende_ved_indkomstårets_udløb && input.lønmodtager.skatteår == ægtefælle_fakta.lønmodtager.skatteår {
+        Some(personskat_kapitalafkastordning_personkontekst(
+            personskat_personlig_indkomst_efter_kildeskat25a(ægtefælle_fakta, kildeskat25a.ægtefælle, kildeskat25a.alle_input_gyldige),
+            ægtefælle_fakta.kapitalindkomst.virksomhedskapital
+        ))
+    } ellers {
+        None
+    }
+}
+
+# PersonskatPersonGrundlagSag(fakta_før_kildeskat25a: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a_regulering: PersonskatKsl25APersonregulering, kildeskat25a_input_gyldigt: Boolsk, ægtefælle_kapitalafkastordningskontekst: Option(PersonskatKapitalafkastordningPersonkontekst)) {
     | fakta() -> personskat_ksl25a_personfakta(fakta_før_kildeskat25a, kildeskat25a_regulering, kildeskat25a_input_gyldigt)
     | fiskerfradragssamordning() -> personskat_ll9g_koordinering(fakta().lønmodtager)
     | personlig_indkomst_før_kildeskat25a() -> personskat_personlig_indkomst_resultat(
@@ -16744,7 +16775,11 @@ fraflytningen."
         fakta().lønmodtager.skatteår
     )
     | personlig_indkomst() -> personskat_ksl25a_personlig_indkomst(personlig_indkomst_før_kildeskat25a(), kildeskat25a_regulering, kildeskat25a_input_gyldigt)
-    | kapitalindkomst() -> personskat_kapitalindkomst_resultat_med_par32(fakta().kapitalindkomst, fakta().lønmodtager.skatteår, aktieavance_før_pensionsfradrag, par32)
+    | kapitalafkastordningskontekst() -> MedAfledtKapitalafkastordningskontekst(
+        skattepligtig = personskat_kapitalafkastordning_personkontekst(personlig_indkomst(), fakta().kapitalindkomst.virksomhedskapital),
+        ægtefælle = ægtefælle_kapitalafkastordningskontekst
+    )
+    | kapitalindkomst() -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(fakta().kapitalindkomst, fakta().lønmodtager.skatteår, aktieavance_før_pensionsfradrag, par32, kapitalafkastordningskontekst())
     | selvstændig_arbejdsmarkedsbidrag() -> personskat_selvstændig_arbejdsmarkedsbidrag_resultat(fakta().lønmodtager, personlig_indkomst(), kapitalindkomst())
     | erhvervsbefordring() -> personskat_erhvervsbefordring_resultat(fakta().lønmodtager.erhvervsbefordring, fakta().lønmodtager.skatteår)
     | foreløbigt_ligningsfradrag() -> personskat_ligningsfradrag_resultat(fakta().lønmodtager.ligningsfradrag, fakta().lønmodtager, erhvervsbefordring(), personlig_indkomst(), UdenLigningslov12Indkomstgrundlag)
@@ -16809,7 +16844,8 @@ fraflytningen."
         individuelle_skatteforhold = individuelle_skatteforhold()
     )
 }
-| personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a_regulering: PersonskatKsl25APersonregulering, kildeskat25a_input_gyldigt: Boolsk) -> PersonskatPersonGrundlagSag(fakta, aktieavance_før_pensionsfradrag, par32, kildeskat25a_regulering, kildeskat25a_input_gyldigt).resultat()
+| personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a_og_kapitalafkastkontekst(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a_regulering: PersonskatKsl25APersonregulering, kildeskat25a_input_gyldigt: Boolsk, ægtefælle_kapitalafkastordningskontekst: Option(PersonskatKapitalafkastordningPersonkontekst)) -> PersonskatPersonGrundlagSag(fakta, aktieavance_før_pensionsfradrag, par32, kildeskat25a_regulering, kildeskat25a_input_gyldigt, ægtefælle_kapitalafkastordningskontekst).resultat()
+| personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kildeskat25a_regulering: PersonskatKsl25APersonregulering, kildeskat25a_input_gyldigt: Boolsk) -> personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a_og_kapitalafkastkontekst(fakta, aktieavance_før_pensionsfradrag, par32, kildeskat25a_regulering, kildeskat25a_input_gyldigt, None)
 | personskat_person_grundlag_med_aktieavance_og_par32(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) -> personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(fakta, aktieavance_før_pensionsfradrag, par32, personskat_ksl25a_tom_personregulering(), Sandt)
 | personskat_person_grundlag_med_aktieavance(fakta: PersonskatPersonFakta, aktieavance_før_pensionsfradrag: PersonskatAktieavanceResultat) -> personskat_person_grundlag_med_aktieavance_og_par32(fakta, aktieavance_før_pensionsfradrag, UdenPar32Årsresultat)
 | personskat_person_grundlag(fakta: PersonskatPersonFakta) -> personskat_person_grundlag_med_aktieavance(fakta, personskat_aktieavance_resultat(fakta.aktieavance, fakta.lønmodtager.skatteår))
@@ -16932,7 +16968,12 @@ fraflytningen."
         )
     }
     | MedÆgtefælle(ægtefælle_fakta, samlevende_ved_indkomstårets_udløb, _) -> {
-        = ægtefællegrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(ægtefælle_fakta, personskat_ægtefælle_aktieavance_resultat(ægtefælle_fakta, ægtefælle_aktieavance), ægtefælle_par32, kildeskat25a.ægtefælle, kildeskat25a.alle_input_gyldige)
+        = hovedperson_kapitalafkastordningskontekst = hvis samlevende_ved_indkomstårets_udløb && hovedgrundlag.fakta.lønmodtager.skatteår == ægtefælle_fakta.lønmodtager.skatteår {
+            Some(personskat_kapitalafkastordning_personkontekst(hovedgrundlag.personlig_indkomst, hovedgrundlag.fakta.kapitalindkomst.virksomhedskapital))
+        } ellers {
+            None
+        }
+        = ægtefællegrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a_og_kapitalafkastkontekst(ægtefælle_fakta, personskat_ægtefælle_aktieavance_resultat(ægtefælle_fakta, ægtefælle_aktieavance), ægtefælle_par32, kildeskat25a.ægtefælle, kildeskat25a.alle_input_gyldige, hovedperson_kapitalafkastordningskontekst)
         = fælles_skatteår = hovedgrundlag.fakta.lønmodtager.skatteår == ægtefællegrundlag.fakta.lønmodtager.skatteår
         = aktieindkomst_samlevende_ved_indkomstårets_udløb = samlevende_ved_indkomstårets_udløb && fælles_skatteår
         = aktieindkomst_parår = personskat_aktieindkomst_parårsresultat(
@@ -17653,7 +17694,7 @@ fraflytningen."
     = kildeskat25a = personskat_ksl25a_parresultat(input)
     = samlet_hovedpersonsregulering = personskat_ksl25a_personregulering_plus(kildeskat25a.hovedperson, hovedpersonsregulering)
     = samlet_hovedpersonsregulering_input_gyldigt = kildeskat25a.alle_input_gyldige && hovedpersonsregulering_input_gyldigt
-    = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32), samlet_hovedpersonsregulering, samlet_hovedpersonsregulering_input_gyldigt)
+    = hovedgrundlag = personskat_person_grundlag_med_aktieavance_og_par32_og_ksl25a_og_kapitalafkastkontekst(personskat_hovedperson_fakta(input), aktieavance_par.hovedperson, personskat_kgl_par32_hovedperson_kontekst(kursgevinst_par32), samlet_hovedpersonsregulering, samlet_hovedpersonsregulering_input_gyldigt, personskat_kapitalafkastordning_ægtefællekontekst(input, kildeskat25a))
     = parberegning = personskat_parberegning_med_par32_og_ksl25a(hovedgrundlag, input.ægtefælle, aktieavance_par.ægtefælle, personskat_kgl_par32_ægtefælle_kontekst(kursgevinst_par32), kildeskat25a)
     = skat = lønmodtager_breakdown_fra_model(parberegning.hovedskat)
     = sømandsbeskatning = søbl5_lempelsesresultat(parberegning.hovedskat, hovedgrundlag.personlig_indkomst.sømandsbeskatning)

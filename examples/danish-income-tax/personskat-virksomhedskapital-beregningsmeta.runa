@@ -278,99 +278,78 @@
 --@label:SkattekontrollovOplysningsfristInput::meta:personskat_oplysningsfrist_beregningsmeta--
 
 = personskat_vsl22a_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::indkomstår),
+    path = refof(PersonskatKapitalafkastordningKildeinput::indkomstår),
     label = "Indkomstår for kapitalafkastordningen",
     question = Some("Hvilket indkomstår vedrører § 22 a-opgørelsen?"),
     help = None,
     unit = Some("år")
 )
 = personskat_vsl22a_felt_ægtefælle = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::ægtefælle::$variant),
-    label = "Ægtefælle ved årets udgang",
-    question = Some("Var personen gift og samlevende med ægtefællen ved indkomstårets udgang?"),
-    help = None,
+    path = refof(PersonskatKapitalafkastordningKildeinput::ægtefællegrundlag::$variant),
+    label = "Ægtefællens § 22 a-grundlag",
+    question = Some("Skal ægtefællens aktiver og kapitalindkomst indgå i fællesgrundlaget efter § 22 a, stk. 4?"),
+    help = Some("Angiv kun grundlaget, når ægtefællerne er gift og samlevende ved indkomstårets udgang. Futuruna kontrollerer dette mod den kanoniske ægtefællerelation."),
     unit = None
 )
 = personskat_vsl22a_felt_fordeling = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::virksomhedsfordeling::$variant),
+    path = refof(PersonskatKapitalafkastordningKildeinput::virksomhedsfordeling::$variant),
     label = "Virksomhedsfordeling mellem ægtefæller",
     question = Some("Driver ægtefællerne hver sin virksomhed, eller driver én af dem den fælles virksomhed?"),
     help = None,
     unit = None
 )
 = personskat_vsl22a_felt_driver = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::virksomhedsfordeling::Vsl22AÉnVirksomhed::drevet_af_person_identifikation),
+    path = refof(PersonskatKapitalafkastordningKildeinput::virksomhedsfordeling::Vsl22AÉnVirksomhed::drevet_af_person_identifikation),
     label = "Personen som driver den fælles virksomhed",
     question = Some("Hvilken personidentifikation tilhører den ægtefælle, der driver virksomheden?"),
     help = None,
     unit = None
 )
-= personskat_vsl22a_felt_valg = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::vælger_kapitalafkastordning),
-    label = "Valg af kapitalafkastordningen",
-    question = Some("Vælger den skattepligtige at anvende kapitalafkastordningen for året?"),
-    help = None,
-    unit = None
-)
 = personskat_vsl22a_felt_periode = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22AKildeInput::periode_hele_måneder),
+    path = refof(PersonskatKapitalafkastordningKildeinput::periode_hele_måneder),
     label = "§ 22 a-periodens hele måneder",
     question = Some("Hvor mange hele måneder skal kapitalafkastet beregnes for?"),
     help = None,
     unit = Some("måneder")
 )
 = personskat_vsl22a_beregningsmeta = TypetBeregningsmeta(
-    felter = [personskat_vsl22a_felt_indkomstår, personskat_vsl22a_felt_ægtefælle, personskat_vsl22a_felt_fordeling, personskat_vsl22a_felt_driver, personskat_vsl22a_felt_valg, personskat_vsl22a_felt_periode],
+    felter = [personskat_vsl22a_felt_indkomstår, personskat_vsl22a_felt_ægtefælle, personskat_vsl22a_felt_fordeling, personskat_vsl22a_felt_driver, personskat_vsl22a_felt_periode],
     spørgsmål = [],
     beløbsfelter = [],
     attachments = Source(value = virksomhedsskatteloven_lbk1836_par22a)
 )
---@label:Virksomhedsskattelov22AKildeInput::meta:personskat_vsl22a_beregningsmeta--
+--@label:PersonskatKapitalafkastordningKildeinput::meta:personskat_vsl22a_beregningsmeta--
 
 = personskat_vsl22a_person_felt_identifikation = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::person_identifikation),
+    path = refof(PersonskatKapitalafkastordningPersongrundlag::person_identifikation),
     label = "Personidentifikation",
     question = Some("Hvilken entydig identifikation har personen i ægtefælleopgørelsen?"),
     help = None,
     unit = None
 )
-= personskat_vsl22a_person_felt_vso = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::anvender_virksomhedsordningen),
-    label = "Anvender virksomhedsordningen",
-    question = Some("Anvender personen virksomhedsordningen i dette indkomstår?"),
-    help = Some("Aktiver og indkomst for en ægtefælle i virksomhedsordningen holdes uden for § 22 a-fællesgrundlaget."),
-    unit = None
-)
 = personskat_vsl22a_person_felt_tidspunkt = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::opgørelsestidspunkt),
+    path = refof(PersonskatKapitalafkastordningPersongrundlag::opgørelsestidspunkt),
     label = "Opgørelsestidspunkt for personens aktiver",
     question = Some("Opgøres personens aktiver ved indkomstårets begyndelse eller ved start af en ny virksomhed?"),
     help = None,
     unit = None
 )
 = personskat_vsl22a_person_felt_aktiver = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::aktiver),
+    path = refof(PersonskatKapitalafkastordningPersongrundlag::aktiver),
     label = "Personens § 22 a-aktiver",
     question = Some("Hvilke erhvervsmæssige og eventuelt blandet anvendte aktiver skal prøves efter § 22 a, stk. 4-8?"),
     help = None,
     unit = None
 )
 = personskat_vsl22a_person_felt_kreditorer = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::varekreditorer),
+    path = refof(PersonskatKapitalafkastordningPersongrundlag::varekreditorer),
     label = "Varekreditorer",
     question = Some("Hvilke varekreditorer skal fragå ved opgørelsen af arbejdskapitalen efter stk. 7?"),
     help = None,
     unit = None
 )
-= personskat_vsl22a_person_felt_personlig_indkomst = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner),
-    label = "Personlig nettoindkomst fra virksomheden",
-    question = Some("Hvad er personens nettoindkomst fra selvstændig erhvervsvirksomhed før § 22 a-afkastet?"),
-    help = Some("Beløbet må være negativt og indgår i loftet efter § 22 a, stk. 3."),
-    unit = Some("kr.")
-)
 = personskat_vsl22a_person_felt_kapitalindkomst = TypetBeregningsfelt(
-    path = refof(Virksomhedsskattelov22APersongrundlag::nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner),
+    path = refof(PersonskatKapitalafkastordningPersongrundlag::nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner),
     label = "Nettokapitalindkomst før § 22 a",
     question = Some("Hvad er personens nettokapitalindkomst, når § 22 a samt personskattelovens § 4, stk. 1, nr. 9 og 11 holdes ude?"),
     help = Some("Beløbet må være negativt og indgår i loftet efter § 22 a, stk. 3."),
@@ -379,18 +358,16 @@
 = personskat_vsl22a_person_beregningsmeta = TypetBeregningsmeta(
     felter = [
         personskat_vsl22a_person_felt_identifikation,
-        personskat_vsl22a_person_felt_vso,
         personskat_vsl22a_person_felt_tidspunkt,
         personskat_vsl22a_person_felt_aktiver,
         personskat_vsl22a_person_felt_kreditorer,
-        personskat_vsl22a_person_felt_personlig_indkomst,
         personskat_vsl22a_person_felt_kapitalindkomst
     ],
     spørgsmål = [],
     beløbsfelter = [],
     attachments = Source(value = virksomhedsskatteloven_lbk1836_par22a)
 )
---@label:Virksomhedsskattelov22APersongrundlag::meta:personskat_vsl22a_person_beregningsmeta--
+--@label:PersonskatKapitalafkastordningPersongrundlag::meta:personskat_vsl22a_person_beregningsmeta--
 
 = personskat_vsl22a_aktiv_felt_identifikation = TypetBeregningsfelt(
     path = refof(Virksomhedsskattelov22AAktiv::identifikation),

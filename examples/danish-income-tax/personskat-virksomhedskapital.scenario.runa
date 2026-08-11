@@ -23,9 +23,8 @@
     skattepligtigt_overskud_kroner = 100000,
     regnskabsperiode_hele_måneder = 12
 )
-| personskat_virksomhedskapital_scenarie_par22a_person() -> Virksomhedsskattelov22APersongrundlag(
+| personskat_virksomhedskapital_scenarie_par22a_person() -> PersonskatKapitalafkastordningPersongrundlag(
     person_identifikation = "skattepligtig",
-    anvender_virksomhedsordningen = Falskt,
     opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
     aktiver = [Virksomhedsskattelov22AAktiv(
         identifikation = "§ 22 a-driftsmiddel",
@@ -36,17 +35,23 @@
         )
     )],
     varekreditorer = [],
-    personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = 100000,
     nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner = 0
 )
-| personskat_virksomhedskapital_scenarie_par22a_input(indkomstår: Heltal, vælger_kapitalafkastordning: Boolsk) -> Virksomhedsskattelov22AKildeInput(
+| personskat_virksomhedskapital_scenarie_par22a_ægtefælleperson() -> PersonskatKapitalafkastordningPersongrundlag(
+    person_identifikation = "ægtefælle",
+    opgørelsestidspunkt = Vsl8IndkomståretsBegyndelse,
+    aktiver = [],
+    varekreditorer = [],
+    nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner = 0
+)
+| personskat_virksomhedskapital_scenarie_par22a_input_med_ægtefælle(indkomstår: Heltal, ægtefællegrundlag: PersonskatKapitalafkastordningÆgtefællegrundlag) -> PersonskatKapitalafkastordningKildeinput(
     indkomstår = indkomstår,
     skattepligtig = personskat_virksomhedskapital_scenarie_par22a_person(),
-    ægtefælle = Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang,
+    ægtefællegrundlag = ægtefællegrundlag,
     virksomhedsfordeling = Vsl22AÉnVirksomhed(drevet_af_person_identifikation = "skattepligtig"),
-    vælger_kapitalafkastordning = vælger_kapitalafkastordning,
     periode_hele_måneder = 12
 )
+| personskat_virksomhedskapital_scenarie_par22a_input(indkomstår: Heltal) -> personskat_virksomhedskapital_scenarie_par22a_input_med_ægtefælle(indkomstår, UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A)
 | personskat_virksomhedskapital_scenarie_par22c_input(indkomstår: Heltal) -> Virksomhedsskattelov22CKildeInput(
     indkomstår = indkomstår,
     vælger_kapitalafkastordning = Sandt,
@@ -98,15 +103,31 @@
         par22c_input = personskat_virksomhedskapital_scenarie_par22c_input(indkomstår)
     )
 )
-| personskat_virksomhedskapital_scenarie_kao_input(indkomstår: Heltal, vælger_kapitalafkastordning: Boolsk) -> PersonskatVirksomhedskapitalInput(
+| personskat_virksomhedskapital_scenarie_kao_input_med_ægtefælle(indkomstår: Heltal, ægtefællegrundlag: PersonskatKapitalafkastordningÆgtefællegrundlag) -> PersonskatVirksomhedskapitalInput(
     selvstændig_beskatningsordning = MedKapitalafkastordningEfterPar22A(
-        par22a_input = personskat_virksomhedskapital_scenarie_par22a_input(indkomstår, vælger_kapitalafkastordning),
+        kildeinput = personskat_virksomhedskapital_scenarie_par22a_input_med_ægtefælle(indkomstår, ægtefællegrundlag),
         ønsket_medregnet_efter_par23a_kroner = 4000
     ),
     selvstændig_arbejdsmarkedsbidrag = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst = []),
     medarbejderaktier = MedKapitalafkastEfterVirksomhedsskattelov22C(
         par22c_input = personskat_virksomhedskapital_scenarie_par22c_input(indkomstår)
     )
+)
+| personskat_virksomhedskapital_scenarie_kao_input(indkomstår: Heltal) -> personskat_virksomhedskapital_scenarie_kao_input_med_ægtefælle(indkomstår, UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A)
+| personskat_virksomhedskapital_scenarie_uden_kao_input(indkomstår: Heltal) -> PersonskatVirksomhedskapitalInput(
+    selvstændig_beskatningsordning = UdenVirksomhedsEllerKapitalafkastordning,
+    selvstændig_arbejdsmarkedsbidrag = AmblPar4UdenVirksomhedsordning(fremført_negativ_personlig_indkomst = []),
+    medarbejderaktier = MedKapitalafkastEfterVirksomhedsskattelov22C(
+        par22c_input = personskat_virksomhedskapital_scenarie_par22c_input(indkomstår)
+    )
+)
+| personskat_virksomhedskapital_scenarie_kao_kontekst(personlig_nettoindkomst_kroner: Heltal) -> MedAfledtKapitalafkastordningskontekst(
+    skattepligtig = PersonskatKapitalafkastordningPersonkontekst(
+        personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = personlig_nettoindkomst_kroner,
+        anvender_virksomhedsordningen = Falskt,
+        input_gyldigt = Sandt
+    ),
+    ægtefælle = None
 )
 | personskat_virksomhedskapital_scenarie_kapitalindkomst(virksomhedskapital: PersonskatVirksomhedskapitalInput) -> PersonskatKapitalindkomstInput(
     renter = PersonskatRenteInput(
@@ -126,12 +147,37 @@
     særlige_kapitalposter = [],
     omkostninger = []
 )
-| personskat_virksomhedskapital_scenarie_personskatinput(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
+| personskat_virksomhedskapital_scenarie_virksomhed(identifikation: Tekst, indkomstår: Heltal, indtægt_kroner: Heltal) -> PersonskatOrdinærVirksomhedFakta(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    indtægter = [PersonskatVirksomhedsindtægtFakta(
+        identifikation = identifikation + "-indtægt",
+        art = OrdinærDriftsindtægt,
+        beløb_kroner = indtægt_kroner
+    )],
+    udgifter = [],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
+)
+| personskat_virksomhedskapital_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
+        virksomheder_uden_virksomhedsordning = virksomheder,
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    arbejdsudleje = [],
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+| personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder_og_ægtefælle(kapitalindkomst: PersonskatKapitalindkomstInput, virksomheder: List(PersonskatOrdinærVirksomhedFakta), ægtefælle: PersonskatÆgtefælleInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
         kommune = København,
         bruttoløn_kroner = 600000,
-        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        personlig_indkomst = personskat_virksomhedskapital_scenarie_personlig_indkomst(virksomheder),
         erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
@@ -144,57 +190,119 @@
     cfc = personskat_ingen_cfc(),
     skatteforhold = StandardSkatteforhold,
     underskudsforhold = StandardUnderskudsforhold,
-    ægtefælle = UdenÆgtefælle,
+    ægtefælle = ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder(kapitalindkomst: PersonskatKapitalindkomstInput, virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder_og_ægtefælle(kapitalindkomst, virksomheder, UdenÆgtefælle)
+| personskat_virksomhedskapital_scenarie_personskatinput(kapitalindkomst: PersonskatKapitalindkomstInput) -> personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder(kapitalindkomst, [])
+| personskat_virksomhedskapital_scenarie_ægtefællefakta() -> personskat_hovedperson_fakta(personskat_virksomhedskapital_scenarie_personskatinput(personskat_ingen_kapitalindkomst()))
+| personskat_virksomhedskapital_scenarie_ksl25a_stk8_fordeling() -> PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "fælles-virksomhed",
+    virksomhedens_kildeplacering = Ksl25AKildeHosHovedperson,
+    virksomhedsdriver_før_samlivsophør = None,
+    samlivsforløb = Ksl25AIntetSamlivsophør,
+    virksomhedspostperioder = [],
+    ordinær_ejer_efter_samlivsophør = None,
+    fordeling = Ksl25AStk8LigeligResultatfordeling(
+        begge_deltager_i_væsentligt_og_ligeligt_omfang = Sandt,
+        hæfter_i_samme_omfang = Sandt,
+        fordeling_anmodet = Sandt,
+        fordeling_sagligt_begrundet_i_driften = Sandt,
+        anden_ægtefælles_fordelingsandel_basispoint = 4000
+    ),
+    lønudgiftsidentifikation = None
+)
+| personskat_virksomhedskapital_scenarie_ægtefælleinput() -> MedÆgtefælle(
+    fakta = personskat_virksomhedskapital_scenarie_ægtefællefakta(),
+    samlevende_ved_indkomstårets_udløb = Sandt,
+    kildeskat25a_fordelinger = [personskat_virksomhedskapital_scenarie_ksl25a_stk8_fordeling()]
+)
 
+= personskat_virksomhedskapital_scenarie_ordinær_virksomhed = personskat_virksomhedskapital_scenarie_virksomhed("fælles-virksomhed", 2026, 100000)
 = personskat_virksomhedskapital_scenarie_vso_resultat = personskat_virksomhedskapital_resultat(
     personskat_virksomhedskapital_scenarie_vso_input(2026, 20270701),
     2026
 )
-= personskat_virksomhedskapital_scenarie_kao_resultat = personskat_virksomhedskapital_resultat(
-    personskat_virksomhedskapital_scenarie_kao_input(2026, Sandt),
+= personskat_virksomhedskapital_scenarie_kao_resultat = personskat_virksomhedskapital_resultat_med_kontekst(
+    personskat_virksomhedskapital_scenarie_kao_input(2026),
+    2026,
+    personskat_virksomhedskapital_scenarie_kao_kontekst(100000)
+)
+= personskat_virksomhedskapital_scenarie_kao_uden_kontekst = personskat_virksomhedskapital_resultat(
+    personskat_virksomhedskapital_scenarie_kao_input(2026),
     2026
 )
 = personskat_virksomhedskapital_scenarie_sen_overførsel = personskat_virksomhedskapital_resultat(
     personskat_virksomhedskapital_scenarie_vso_input(2026, 20270702),
     2026
 )
-= personskat_virksomhedskapital_scenarie_kao_uden_valg = personskat_virksomhedskapital_resultat(
-    personskat_virksomhedskapital_scenarie_kao_input(2026, Falskt),
-    2026
-)
-= personskat_virksomhedskapital_scenarie_forkert_år = personskat_virksomhedskapital_resultat(
-    personskat_virksomhedskapital_scenarie_kao_input(2025, Sandt),
-    2026
+= personskat_virksomhedskapital_scenarie_forkert_år = personskat_virksomhedskapital_resultat_med_kontekst(
+    personskat_virksomhedskapital_scenarie_kao_input(2025),
+    2026,
+    personskat_virksomhedskapital_scenarie_kao_kontekst(100000)
 )
 = personskat_virksomhedskapital_scenarie_personskat_vso = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput(
     personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_vso_input(2026, 20270701))
 ))
-= personskat_virksomhedskapital_scenarie_personskat_kao = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput(
-    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_kao_input(2026, Sandt))
+= personskat_virksomhedskapital_scenarie_personskat_kao = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder(
+    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_kao_input(2026)),
+    [personskat_virksomhedskapital_scenarie_ordinær_virksomhed]
+))
+= personskat_virksomhedskapital_scenarie_personskat_kao_sammenligningsgrundlag = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder(
+    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_uden_kao_input(2026)),
+    [personskat_virksomhedskapital_scenarie_ordinær_virksomhed]
+))
+= personskat_virksomhedskapital_scenarie_personskat_kao_uden_virksomhedsindkomst = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput(
+    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_kao_input(2026))
+))
+= personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder_og_ægtefælle(
+    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_kao_input_med_ægtefælle(2026, MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag = personskat_virksomhedskapital_scenarie_par22a_ægtefælleperson()))),
+    [personskat_virksomhedskapital_scenarie_ordinær_virksomhed],
+    personskat_virksomhedskapital_scenarie_ægtefælleinput()
+))
+= personskat_virksomhedskapital_scenarie_personskat_kao_modstridende_ægtefællegrundlag = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput_med_virksomheder(
+    personskat_virksomhedskapital_scenarie_kapitalindkomst(personskat_virksomhedskapital_scenarie_kao_input_med_ægtefælle(2026, MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag = personskat_virksomhedskapital_scenarie_par22a_ægtefælleperson()))),
+    [personskat_virksomhedskapital_scenarie_ordinær_virksomhed]
 ))
 = personskat_virksomhedskapital_scenarie_personskat_uden = beregn_personskat(personskat_virksomhedskapital_scenarie_personskatinput(
     personskat_ingen_kapitalindkomst()
 ))
+
+| personskat_virksomhedskapital_scenarie_afledt_par22a_personlig_indkomst_kroner(resultat: PersonskatBeregningResultat) -> match resultat.kapitalindkomst.virksomhedskapital_resultat.kapitalafkastordning {
+    | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning) -> beregning.afledt_par22a_input.skattepligtig.personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner
+    | IntetKapitalafkastEfterVirksomhedsskattelov22A -> 0
+}
+| personskat_virksomhedskapital_scenarie_afledt_par22a_ægtefælleindkomst_kroner(resultat: PersonskatBeregningResultat) -> match resultat.kapitalindkomst.virksomhedskapital_resultat.kapitalafkastordning {
+    | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning) -> match beregning.afledt_par22a_input.ægtefælle {
+        | Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag) -> grundlag.personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner
+        | Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang -> 0
+    }
+    | IntetKapitalafkastEfterVirksomhedsskattelov22A -> 0
+}
 
 | personskat_virksomhedskapital_scenarie_vso_kildegrene_indgår_i_par4: personskat_virksomhedskapital_scenarie_vso_resultat -> personskat_virksomhedskapital_scenarie_vso_resultat.alle_input_gyldige && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[0].art == KapitalafkastVsl7 && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[0].beløb_kroner == 4000 && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[1].art == KapitalafkastVsl22 && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[1].beløb_kroner == 20000 && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[2].art == Rentekorrektion && personskat_virksomhedskapital_scenarie_vso_resultat.kapitalposter[2].beløb_kroner == -3000
 | personskat_virksomhedskapital_scenarie_kao_par23a_er_bundet_i_par4_nr3a: personskat_virksomhedskapital_scenarie_kao_resultat.par4_stk1_nr3a_resultat -> personskat_virksomhedskapital_scenarie_kao_resultat.alle_input_gyldige && personskat_virksomhedskapital_scenarie_kao_resultat.par4_stk1_nr3a_resultat.kapitalafkast_efter_virksomhedsskattelov22a_kroner == 10000 && personskat_virksomhedskapital_scenarie_kao_resultat.par4_stk1_nr3a_resultat.medregnet_personlig_indkomst_efter_par23a_kroner == 4000 && personskat_virksomhedskapital_scenarie_kao_resultat.par4_stk1_nr3a_resultat.kapitalafkast_22a_efter_par23a_kroner == 6000 && personskat_virksomhedskapital_scenarie_kao_resultat.par4_stk1_nr3a_resultat.kapitalafkast_efter_virksomhedsskattelov22c_kroner == 20000 && personskat_virksomhedskapital_scenarie_kao_resultat.kapitalposter[0].beløb_kroner == 26000
 | personskat_virksomhedskapital_scenarie_ordninger_er_gensidigt_udelukkende: personskat_virksomhedskapital_scenarie_vso_resultat -> personskat_virksomhedskapital_scenarie_vso_resultat.kapitalafkastordning == IntetKapitalafkastEfterVirksomhedsskattelov22A && personskat_virksomhedskapital_scenarie_kao_resultat.virksomhedsordning == IntetKapitalafkastEfterVirksomhedsskattelov7 && personskat_virksomhedskapital_scenarie_kao_resultat.rentekorrektion == IngenRentekorrektionEfterVirksomhedsskattelov11
 | personskat_virksomhedskapital_scenarie_personlig_regulering_er_signed: personskat_virksomhedskapital_scenarie_vso_resultat -> personskat_virksomhedskapital_scenarie_vso_resultat.personlig_indkomst_regulering_kroner == -24000 && personskat_virksomhedskapital_scenarie_kao_resultat.personlig_indkomst_regulering_kroner == -26000
 | personskat_virksomhedskapital_scenarie_sen_overførsel_nulstiller_kun_par7: personskat_virksomhedskapital_scenarie_sen_overførsel -> personskat_virksomhedskapital_scenarie_sen_overførsel.alle_input_gyldige && personskat_virksomhedskapital_scenarie_sen_overførsel.kapitalposter[0].beløb_kroner == 0 && personskat_virksomhedskapital_scenarie_sen_overførsel.kapitalposter[1].beløb_kroner == 20000 && personskat_virksomhedskapital_scenarie_sen_overførsel.kapitalposter[2].beløb_kroner == -3000
-| personskat_virksomhedskapital_scenarie_kao_kræver_valget: personskat_virksomhedskapital_scenarie_kao_uden_valg -> personskat_virksomhedskapital_scenarie_kao_uden_valg.alle_input_gyldige == Falskt && personskat_virksomhedskapital_scenarie_kao_uden_valg.kapitalposter == []
+| personskat_virksomhedskapital_scenarie_kao_kræver_afledt_kontekst: personskat_virksomhedskapital_scenarie_kao_uden_kontekst -> personskat_virksomhedskapital_scenarie_kao_uden_kontekst.alle_input_gyldige == Falskt && personskat_virksomhedskapital_scenarie_kao_uden_kontekst.kapitalposter == []
 | personskat_virksomhedskapital_scenarie_år_skal_matche_personskat: personskat_virksomhedskapital_scenarie_forkert_år -> personskat_virksomhedskapital_scenarie_forkert_år.alle_input_gyldige == Falskt && personskat_virksomhedskapital_scenarie_forkert_år.kapitalposter == []
-| personskat_virksomhedskapital_scenarie_kæderne_når_beregn_personskat: personskat_virksomhedskapital_scenarie_personskat_vso -> personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 21000 && personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner == 3000 && personskat_virksomhedskapital_scenarie_personskat_vso.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 99000 && personskat_virksomhedskapital_scenarie_personskat_vso.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidrag_kroner == 7920 && personskat_virksomhedskapital_scenarie_personskat_vso.skat.personlig_indkomst_efter_am_kroner == personskat_virksomhedskapital_scenarie_personskat_uden.skat.personlig_indkomst_efter_am_kroner + 71080 && personskat_virksomhedskapital_scenarie_personskat_kao.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_personskat_kao.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 26000 && personskat_virksomhedskapital_scenarie_personskat_kao.skat.personlig_indkomst_efter_am_kroner == personskat_virksomhedskapital_scenarie_personskat_uden.skat.personlig_indkomst_efter_am_kroner - 26000
+| personskat_virksomhedskapital_scenarie_kæderne_når_beregn_personskat: personskat_virksomhedskapital_scenarie_personskat_vso -> personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 21000 && personskat_virksomhedskapital_scenarie_personskat_vso.kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner == 3000 && personskat_virksomhedskapital_scenarie_personskat_vso.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 99000 && personskat_virksomhedskapital_scenarie_personskat_vso.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidrag_kroner == 7920 && personskat_virksomhedskapital_scenarie_personskat_vso.skat.personlig_indkomst_efter_am_kroner == personskat_virksomhedskapital_scenarie_personskat_uden.skat.personlig_indkomst_efter_am_kroner + 71080 && personskat_virksomhedskapital_scenarie_personskat_kao.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_personskat_kao.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 26000 && personskat_virksomhedskapital_scenarie_personskat_kao.skat.personlig_indkomst_efter_am_kroner == personskat_virksomhedskapital_scenarie_personskat_kao_sammenligningsgrundlag.skat.personlig_indkomst_efter_am_kroner - 6000
+| personskat_virksomhedskapital_scenarie_kao_loft_afledes_fra_ordinær_virksomhed: personskat_virksomhedskapital_scenarie_personskat_kao -> personskat_virksomhedskapital_scenarie_afledt_par22a_personlig_indkomst_kroner(personskat_virksomhedskapital_scenarie_personskat_kao) == 100000 && personskat_virksomhedskapital_scenarie_afledt_par22a_personlig_indkomst_kroner(personskat_virksomhedskapital_scenarie_personskat_kao_uden_virksomhedsindkomst) == 0 && personskat_virksomhedskapital_scenarie_personskat_kao_uden_virksomhedsindkomst.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_personskat_kao_uden_virksomhedsindkomst.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 20000
+| personskat_virksomhedskapital_scenarie_kao_respekterer_ksl25a_ægtefællefordeling: personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller -> personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller.kildeskat25a.alle_input_gyldige && personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller.kapitalindkomst.virksomhedskapital_input_gyldigt && personskat_virksomhedskapital_scenarie_afledt_par22a_personlig_indkomst_kroner(personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller) == 60000 && personskat_virksomhedskapital_scenarie_afledt_par22a_ægtefælleindkomst_kroner(personskat_virksomhedskapital_scenarie_personskat_kao_ægtefæller) == 40000
+| personskat_virksomhedskapital_scenarie_kao_modstridende_ægtefællegrundlag_afvises: personskat_virksomhedskapital_scenarie_personskat_kao_modstridende_ægtefællegrundlag -> personskat_virksomhedskapital_scenarie_personskat_kao_modstridende_ægtefællegrundlag.kapitalindkomst.virksomhedskapital_input_gyldigt == Falskt && personskat_virksomhedskapital_scenarie_personskat_kao_modstridende_ægtefællegrundlag.kapitalindkomst.virksomhedskapital_resultat.kapitalposter == []
 
 ? personskat_virksomhedskapital_scenarie_vso_kildegrene_indgår_i_par4
 ? personskat_virksomhedskapital_scenarie_kao_par23a_er_bundet_i_par4_nr3a
 ? personskat_virksomhedskapital_scenarie_ordninger_er_gensidigt_udelukkende
 ? personskat_virksomhedskapital_scenarie_personlig_regulering_er_signed
 ? personskat_virksomhedskapital_scenarie_sen_overførsel_nulstiller_kun_par7
-? personskat_virksomhedskapital_scenarie_kao_kræver_valget
+? personskat_virksomhedskapital_scenarie_kao_kræver_afledt_kontekst
 ? personskat_virksomhedskapital_scenarie_år_skal_matche_personskat
 ? personskat_virksomhedskapital_scenarie_kæderne_når_beregn_personskat
+? personskat_virksomhedskapital_scenarie_kao_loft_afledes_fra_ordinær_virksomhed
+? personskat_virksomhedskapital_scenarie_kao_respekterer_ksl25a_ægtefællefordeling
+? personskat_virksomhedskapital_scenarie_kao_modstridende_ægtefællegrundlag_afvises

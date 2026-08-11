@@ -25,15 +25,20 @@
 --@label:personskat_virksomhedskapital_kildefakta::meta:personskat_virksomhedskapital_kildefakta_metadata--
 --@begin:personskat_virksomhedskapital_kildefakta--
 # PersonskatVirksomhedsordningskapitalInput = UdenKapitalafkastEfterVirksomhedsskattelov7 | MedKapitalafkastEfterVirksomhedsskattelov7(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
-# PersonskatKapitalafkastordningInput = UdenKapitalafkastEfterVirksomhedsskattelov22A | MedKapitalafkastEfterVirksomhedsskattelov22A(par22a_input: Virksomhedsskattelov22AKildeInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
+# PersonskatKapitalafkastordningPersongrundlag(person_identifikation: Tekst, opgørelsestidspunkt: Virksomhedsskattelov8Opgørelsestidspunkt, aktiver: List(Virksomhedsskattelov22AAktiv), varekreditorer: List(Virksomhedsskattelov22AVarekreditor), nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner: Heltal)
+# PersonskatKapitalafkastordningÆgtefællegrundlag = UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A | MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag: PersonskatKapitalafkastordningPersongrundlag)
+# PersonskatKapitalafkastordningKildeinput(indkomstår: Heltal, skattepligtig: PersonskatKapitalafkastordningPersongrundlag, ægtefællegrundlag: PersonskatKapitalafkastordningÆgtefællegrundlag, virksomhedsfordeling: Virksomhedsskattelov22AVirksomhedsfordeling, periode_hele_måneder: Heltal)
+# PersonskatKapitalafkastordningPersonkontekst(personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner: Heltal, anvender_virksomhedsordningen: Boolsk, input_gyldigt: Boolsk)
+# PersonskatKapitalafkastordningKontekst = UdenAfledtKapitalafkastordningskontekst | MedAfledtKapitalafkastordningskontekst(skattepligtig: PersonskatKapitalafkastordningPersonkontekst, ægtefælle: Option(PersonskatKapitalafkastordningPersonkontekst))
+# PersonskatKapitalafkastordningInput = UdenKapitalafkastEfterVirksomhedsskattelov22A | MedKapitalafkastEfterVirksomhedsskattelov22A(kildeinput: PersonskatKapitalafkastordningKildeinput, ønsket_medregnet_efter_par23a_kroner: Heltal)
 # PersonskatMedarbejderaktiekapitalafkastInput = UdenKapitalafkastEfterVirksomhedsskattelov22C | MedKapitalafkastEfterVirksomhedsskattelov22C(par22c_input: Virksomhedsskattelov22CKildeInput)
 # PersonskatVirksomhedsrentekorrektionInput = UdenRentekorrektionEfterVirksomhedsskattelov11 | MedRentekorrektionEfterVirksomhedsskattelov11(par11_input: Virksomhedsskattelov11KildeInput) | MedRentekorrektionEfterVirksomhedsskattelov11Og11A(par11a_input: Virksomhedsskattelov11AKildeInput)
-# PersonskatSelvstændigBeskatningsordningInput = UdenVirksomhedsEllerKapitalafkastordning | MedVirksomhedsordningEfterAfsnitI(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal, rentekorrektion: PersonskatVirksomhedsrentekorrektionInput) | MedKapitalafkastordningEfterPar22A(par22a_input: Virksomhedsskattelov22AKildeInput, ønsket_medregnet_efter_par23a_kroner: Heltal)
+# PersonskatSelvstændigBeskatningsordningInput = UdenVirksomhedsEllerKapitalafkastordning | MedVirksomhedsordningEfterAfsnitI(par7_input: Virksomhedsskattelov7KildeInput, oplysningsfrist_input: SkattekontrollovOplysningsfristInput, ønsket_medregnet_efter_par23a_kroner: Heltal, rentekorrektion: PersonskatVirksomhedsrentekorrektionInput) | MedKapitalafkastordningEfterPar22A(kildeinput: PersonskatKapitalafkastordningKildeinput, ønsket_medregnet_efter_par23a_kroner: Heltal)
 # PersonskatVirksomhedskapitalInput(selvstændig_beskatningsordning: PersonskatSelvstændigBeskatningsordningInput, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigKildeinput, medarbejderaktier: PersonskatMedarbejderaktiekapitalafkastInput)
 
 # PersonskatVirksomhedsordningskapitalBeregning(input: PersonskatVirksomhedsordningskapitalInput, par7_resultat: Virksomhedsskattelov7KildeResultat, par23a_resultat: Virksomhedsskattelov23ABundetResultat, oplysningsfrist_resultat: SkattekontrollovOplysningsfristResultat, par4_stk1_nr3_resultat: Par4Stk1Nr3Resultat, input_gyldigt: Boolsk)
 # PersonskatVirksomhedsordningskapitalResultat = IntetKapitalafkastEfterVirksomhedsskattelov7 | OpgjortKapitalafkastEfterVirksomhedsskattelov7(beregning: PersonskatVirksomhedsordningskapitalBeregning)
-# PersonskatKapitalafkastordningBeregning(input: PersonskatKapitalafkastordningInput, par22a_resultat: Virksomhedsskattelov22AKildeResultat, par23a_resultat: Virksomhedsskattelov23ABundetResultat, input_gyldigt: Boolsk)
+# PersonskatKapitalafkastordningBeregning(input: PersonskatKapitalafkastordningInput, kontekst: PersonskatKapitalafkastordningKontekst, afledt_par22a_input: Virksomhedsskattelov22AKildeInput, kontekst_gyldig: Boolsk, par22a_resultat: Virksomhedsskattelov22AKildeResultat, par23a_resultat: Virksomhedsskattelov23ABundetResultat, input_gyldigt: Boolsk)
 # PersonskatKapitalafkastordningResultat = IntetKapitalafkastEfterVirksomhedsskattelov22A | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning: PersonskatKapitalafkastordningBeregning)
 # PersonskatMedarbejderaktiekapitalafkastBeregning(input: PersonskatMedarbejderaktiekapitalafkastInput, par22c_resultat: Virksomhedsskattelov22CKildeResultat, input_gyldigt: Boolsk)
 # PersonskatMedarbejderaktiekapitalafkastResultat = IntetKapitalafkastEfterVirksomhedsskattelov22C | OpgjortKapitalafkastEfterVirksomhedsskattelov22C(beregning: PersonskatMedarbejderaktiekapitalafkastBeregning)
@@ -56,8 +61,8 @@
     | _ -> UdenKapitalafkastEfterVirksomhedsskattelov7
 }
 | personskat_kapitalafkastordning_input(ordning: PersonskatSelvstændigBeskatningsordningInput) -> match ordning {
-    | MedKapitalafkastordningEfterPar22A(par22a_input, ønsket_medregnet_efter_par23a_kroner) -> MedKapitalafkastEfterVirksomhedsskattelov22A(
-        par22a_input = par22a_input,
+    | MedKapitalafkastordningEfterPar22A(kildeinput, ønsket_medregnet_efter_par23a_kroner) -> MedKapitalafkastEfterVirksomhedsskattelov22A(
+        kildeinput = kildeinput,
         ønsket_medregnet_efter_par23a_kroner = ønsket_medregnet_efter_par23a_kroner
     )
     | _ -> UdenKapitalafkastEfterVirksomhedsskattelov22A
@@ -115,9 +120,60 @@
     | _ -> 0
 }
 
-| personskat_kapitalafkastordning_resultat(input: PersonskatKapitalafkastordningInput, skatteår: Heltal) -> match input {
+| personskat_kapitalafkastordning_tom_personkontekst() -> PersonskatKapitalafkastordningPersonkontekst(
+    personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = 0,
+    anvender_virksomhedsordningen = Falskt,
+    input_gyldigt = Falskt
+)
+| personskat_kapitalafkastordning_skattepligtig_kontekst(kontekst: PersonskatKapitalafkastordningKontekst) -> match kontekst {
+    | MedAfledtKapitalafkastordningskontekst(skattepligtig, _) -> skattepligtig
+    | UdenAfledtKapitalafkastordningskontekst -> personskat_kapitalafkastordning_tom_personkontekst()
+}
+| personskat_kapitalafkastordning_ægtefælle_kontekst(kontekst: PersonskatKapitalafkastordningKontekst) -> match kontekst {
+    | MedAfledtKapitalafkastordningskontekst(_, ægtefælle) -> ægtefælle
+    | UdenAfledtKapitalafkastordningskontekst -> None
+}
+| personskat_kapitalafkastordning_persongrundlag(kilde: PersonskatKapitalafkastordningPersongrundlag, kontekst: PersonskatKapitalafkastordningPersonkontekst) -> Virksomhedsskattelov22APersongrundlag(
+    person_identifikation = kilde.person_identifikation,
+    anvender_virksomhedsordningen = kontekst.anvender_virksomhedsordningen,
+    opgørelsestidspunkt = kilde.opgørelsestidspunkt,
+    aktiver = kilde.aktiver,
+    varekreditorer = kilde.varekreditorer,
+    personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner = kontekst.personlig_nettoindkomst_fra_selvstændig_erhvervsvirksomhed_kroner,
+    nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner = kilde.nettokapitalindkomst_uden_par22a_og_personskattelov4_stk1_nr9_og_nr11_kroner
+)
+| personskat_kapitalafkastordning_ægtefælle(kilde: PersonskatKapitalafkastordningÆgtefællegrundlag, kontekst: Option(PersonskatKapitalafkastordningPersonkontekst)) -> match kilde {
+    | MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(grundlag) -> match kontekst {
+        | Some(personkontekst) -> Vsl22AGiftOgSamlevendeVedIndkomståretsUdgang(grundlag = personskat_kapitalafkastordning_persongrundlag(grundlag, personkontekst))
+        | None -> Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang
+    }
+    | UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A -> Vsl22AIkkeGiftEllerIkkeSamlevendeVedIndkomståretsUdgang
+}
+| personskat_kapitalafkastordning_ægtefællegrundlag_matcher(kilde: PersonskatKapitalafkastordningÆgtefællegrundlag, kontekst: Option(PersonskatKapitalafkastordningPersonkontekst)) -> match kilde {
+    | MedÆgtefællegrundlagEfterVirksomhedsskattelov22A(_) -> match kontekst { | Some(personkontekst) -> personkontekst.input_gyldigt | None -> Falskt }
+    | UdenÆgtefællegrundlagEfterVirksomhedsskattelov22A -> kontekst == None
+}
+| personskat_kapitalafkastordning_kontekst_gyldig(kildeinput: PersonskatKapitalafkastordningKildeinput, kontekst: PersonskatKapitalafkastordningKontekst) -> match kontekst {
+    | UdenAfledtKapitalafkastordningskontekst -> Falskt
+    | MedAfledtKapitalafkastordningskontekst(skattepligtig, ægtefælle) -> skattepligtig.input_gyldigt && skattepligtig.anvender_virksomhedsordningen == Falskt && personskat_kapitalafkastordning_ægtefællegrundlag_matcher(kildeinput.ægtefællegrundlag, ægtefælle)
+}
+| personskat_kapitalafkastordning_afledt_par22a_input(kildeinput: PersonskatKapitalafkastordningKildeinput, kontekst: PersonskatKapitalafkastordningKontekst) -> {
+    = skattepligtig_kontekst = personskat_kapitalafkastordning_skattepligtig_kontekst(kontekst)
+    = ægtefælle_kontekst = personskat_kapitalafkastordning_ægtefælle_kontekst(kontekst)
+    Virksomhedsskattelov22AKildeInput(
+        indkomstår = kildeinput.indkomstår,
+        skattepligtig = personskat_kapitalafkastordning_persongrundlag(kildeinput.skattepligtig, skattepligtig_kontekst),
+        ægtefælle = personskat_kapitalafkastordning_ægtefælle(kildeinput.ægtefællegrundlag, ægtefælle_kontekst),
+        virksomhedsfordeling = kildeinput.virksomhedsfordeling,
+        vælger_kapitalafkastordning = Sandt,
+        periode_hele_måneder = kildeinput.periode_hele_måneder
+    )
+}
+| personskat_kapitalafkastordning_resultat_med_kontekst(input: PersonskatKapitalafkastordningInput, skatteår: Heltal, kontekst: PersonskatKapitalafkastordningKontekst) -> match input {
     | UdenKapitalafkastEfterVirksomhedsskattelov22A -> IntetKapitalafkastEfterVirksomhedsskattelov22A
-    | MedKapitalafkastEfterVirksomhedsskattelov22A(par22a_input, ønsket_medregnet_efter_par23a_kroner) -> {
+    | MedKapitalafkastEfterVirksomhedsskattelov22A(kildeinput, ønsket_medregnet_efter_par23a_kroner) -> {
+        = par22a_input = personskat_kapitalafkastordning_afledt_par22a_input(kildeinput, kontekst)
+        = kontekst_gyldig = personskat_kapitalafkastordning_kontekst_gyldig(kildeinput, kontekst)
         = par22a_resultat = virksomhedsskattelov22a_kilde_resultat(par22a_input)
         = par23a_resultat = virksomhedsskattelov23a_bundet_resultat(Virksomhedsskattelov23ABundetInput(
             kilde = Vsl23AKapitalafkastEfterPar22A(input = par22a_input),
@@ -125,12 +181,16 @@
         ))
         OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning = PersonskatKapitalafkastordningBeregning(
             input = input,
+            kontekst = kontekst,
+            afledt_par22a_input = par22a_input,
+            kontekst_gyldig = kontekst_gyldig,
             par22a_resultat = par22a_resultat,
             par23a_resultat = par23a_resultat,
-            input_gyldigt = par22a_resultat.input_gyldigt && par23a_resultat.input_gyldigt && par22a_input.vælger_kapitalafkastordning && par22a_input.indkomstår == skatteår
+            input_gyldigt = kontekst_gyldig && par22a_resultat.input_gyldigt && par23a_resultat.input_gyldigt && par22a_input.indkomstår == skatteår
         ))
     }
 }
+| personskat_kapitalafkastordning_resultat(input: PersonskatKapitalafkastordningInput, skatteår: Heltal) -> personskat_kapitalafkastordning_resultat_med_kontekst(input, skatteår, UdenAfledtKapitalafkastordningskontekst)
 | personskat_kapitalafkastordning_input_gyldigt(resultat: PersonskatKapitalafkastordningResultat) -> match resultat {
     | IntetKapitalafkastEfterVirksomhedsskattelov22A -> Sandt
     | OpgjortKapitalafkastEfterVirksomhedsskattelov22A(beregning) -> beregning.input_gyldigt
@@ -218,9 +278,9 @@
 }
 | personskat_selvstændig_arbejdsmarkedsbidrag_kildeinput_gyldigt(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> personskat_selvstændig_arbejdsmarkedsbidrag_ordning_matcher(input.selvstændig_beskatningsordning, input.selvstændig_arbejdsmarkedsbidrag) && arbejdsmarkedsbidrag_selvstændig_kildeinput_gyldigt(input.selvstændig_arbejdsmarkedsbidrag, skatteår)
 
-| personskat_virksomhedskapital_resultat(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> {
+| personskat_virksomhedskapital_resultat_med_kontekst(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) -> {
     = virksomhedsordning = personskat_virksomhedsordningskapital_resultat(personskat_virksomhedsordningskapital_input(input.selvstændig_beskatningsordning), skatteår)
-    = kapitalafkastordning = personskat_kapitalafkastordning_resultat(personskat_kapitalafkastordning_input(input.selvstændig_beskatningsordning), skatteår)
+    = kapitalafkastordning = personskat_kapitalafkastordning_resultat_med_kontekst(personskat_kapitalafkastordning_input(input.selvstændig_beskatningsordning), skatteår, kapitalafkastordningskontekst)
     = medarbejderaktier = personskat_medarbejderaktiekapitalafkast_resultat(input.medarbejderaktier, skatteår)
     = rentekorrektion = personskat_virksomhedsrentekorrektion_resultat(personskat_virksomhedsrentekorrektion_input(input.selvstændig_beskatningsordning), skatteår)
     = par22_input_gyldige = personskat_kapitalafkastordning_input_gyldigt(kapitalafkastordning) && personskat_medarbejderaktiekapitalafkast_input_gyldigt(medarbejderaktier)
@@ -258,4 +318,5 @@
         personlig_indkomst_regulering_kroner = personskat_virksomhedsordningskapital_personlig_indkomst_regulering_kroner(virksomhedsordning) + kapitalafkastordning_personlig_indkomst_regulering_kroner - par22c_kapitalafkast_kroner
     )
 }
+| personskat_virksomhedskapital_resultat(input: PersonskatVirksomhedskapitalInput, skatteår: Heltal) -> personskat_virksomhedskapital_resultat_med_kontekst(input, skatteår, UdenAfledtKapitalafkastordningskontekst)
 --@end:personskat_virksomhedskapital_kildefakta--
