@@ -27,39 +27,39 @@
     kontantkonto_og_depot_i_samme_pengeinstitut = Falskt
 )
 
-= al_selvstændig_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_selvstændig_maskine = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     aktivart = AlMaskine,
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
-))
+)
 
-= al_selvstændig_software = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_selvstændig_software = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     aktivart = AlSoftware,
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
-))
+)
 
-= al_selvstændig_skib = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_selvstændig_skib = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     aktivart = AlSkib,
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
-))
+)
 
-= al_selskab_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_selskab_maskine = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelskabEllerForening,
     aktivart = AlMaskine,
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
-))
+)
 
-= al_selskab_skib = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_selskab_skib = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelskabEllerForening,
     aktivart = AlSkib,
     erhvervsmæssig_anvendelsesandel_basispoint = 10000
-))
+)
 
 = al5_ordinær_selvstændig = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 100000,
     anskaffelsessummer_i_året_kroner = 40000,
@@ -70,7 +70,7 @@
 
 = al5_ordinær_selskab = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selskab_maskine,
+    aktiv_input = al_selskab_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 100000,
     anskaffelsessummer_i_året_kroner = 40000,
@@ -81,7 +81,7 @@
 
 = al5_fuld_småsaldo = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 36000,
     anskaffelsessummer_i_året_kroner = 0,
@@ -92,7 +92,7 @@
 
 = al5_fuld_over_småsaldogrænsen = afskrivningslov5_resultat(Afskrivningslov5Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 36001,
     anskaffelsessummer_i_året_kroner = 0,
@@ -103,7 +103,7 @@
 
 = al5a_valgt_tab = afskrivningslov5a_resultat(Afskrivningslov5AInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 100000,
     anskaffelsessum_kroner = 80000,
@@ -114,7 +114,7 @@
 
 = al5a_tab_med_negativ_saldo = afskrivningslov5a_resultat(Afskrivningslov5AInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     saldoværdi_primo_kroner = 40000,
     anskaffelsessum_kroner = 80000,
@@ -123,12 +123,14 @@
     vælger_tabsfradrag = Sandt
 ))
 
-= al3_anskaffet_2026 = afskrivningslov3_resultat(Afskrivningslov3Input(
+= al3_anskaffet_2026_input = Afskrivningslov3Input(
     anskaffelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 30),
     leveret_til_igangværende_virksomhed = Sandt,
     bestemt_til_virksomhedens_drift = Sandt,
     færdiggjort_til_at_indgå_i_driften = Sandt
-))
+)
+
+= al3_anskaffet_2026 = afskrivningslov3_resultat(al3_anskaffet_2026_input)
 
 = al6_ingen_udlejning = Afskrivningslov6Udlejningsforhold(
     skatteyder_status = Al5AndenSkatteyder,
@@ -151,8 +153,8 @@
 = al6_software_som_småaktiv = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = Afskrivningslov6Aktivgrundlag(
-        aktiv_resultat = al_selvstændig_software,
-        anskaffelsesresultat = al3_anskaffet_2026,
+        aktiv_input = al_selvstændig_software,
+        anskaffelsesinput = al3_anskaffet_2026_input,
         anskaffelsessum_kroner = 35000,
         samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
         fysisk_levetid_år = 0,
@@ -167,8 +169,8 @@
 = al6_software_kan_ikke_vælges_som_kort_fysisk_levetid = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = Afskrivningslov6Aktivgrundlag(
-        aktiv_resultat = al_selvstændig_software,
-        anskaffelsesresultat = al3_anskaffet_2026,
+        aktiv_input = al_selvstændig_software,
+        anskaffelsesinput = al3_anskaffet_2026_input,
         anskaffelsessum_kroner = 70000,
         samlet_anskaffelsessum_for_funktionsenhed_kroner = 70000,
         fysisk_levetid_år = 2,
@@ -183,8 +185,8 @@
 = al6_skib_er_ikke_småaktiv_efter_nr2 = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = Afskrivningslov6Aktivgrundlag(
-        aktiv_resultat = al_selvstændig_skib,
-        anskaffelsesresultat = al3_anskaffet_2026,
+        aktiv_input = al_selvstændig_skib,
+        anskaffelsesinput = al3_anskaffet_2026_input,
         anskaffelsessum_kroner = 35000,
         samlet_anskaffelsessum_for_funktionsenhed_kroner = 35000,
         fysisk_levetid_år = 2,
@@ -199,8 +201,8 @@
 = al6_forskning_krydser_2026_loftet = afskrivningslov6_resultat(Afskrivningslov6Input(
     indkomstår = 2026,
     aktivgrundlag = Afskrivningslov6Aktivgrundlag(
-        aktiv_resultat = al_selvstændig_maskine,
-        anskaffelsesresultat = al3_anskaffet_2026,
+        aktiv_input = al_selvstændig_maskine,
+        anskaffelsesinput = al3_anskaffet_2026_input,
         anskaffelsessum_kroner = 200000,
         samlet_anskaffelsessum_for_funktionsenhed_kroner = 200000,
         fysisk_levetid_år = 10,
@@ -227,8 +229,8 @@
 ))
 
 = al6_selskabsudlejnings_småaktiv = Afskrivningslov6Aktivgrundlag(
-    aktiv_resultat = al_selskab_maskine,
-    anskaffelsesresultat = al3_anskaffet_2026,
+    aktiv_input = al_selskab_maskine,
+    anskaffelsesinput = al3_anskaffet_2026_input,
     anskaffelsessum_kroner = 30000,
     samlet_anskaffelsessum_for_funktionsenhed_kroner = 30000,
     fysisk_levetid_år = 5,
@@ -286,12 +288,12 @@
     færdiggjort_til_at_indgå_i_driften = Sandt
 ))
 
-= al3_anskaffet_2022 = afskrivningslov3_resultat(Afskrivningslov3Input(
+= al3_anskaffet_2022_input = Afskrivningslov3Input(
     anskaffelsesdato = AfskrivningslovDato(år = 2022, måned = 12, dag = 31),
     leveret_til_igangværende_virksomhed = Sandt,
     bestemt_til_virksomhedens_drift = Sandt,
     færdiggjort_til_at_indgå_i_driften = Sandt
-))
+)
 
 = al4_erhverv_til_privat = afskrivningslov4_resultat(Afskrivningslov4Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
@@ -383,7 +385,7 @@
 
 = al5b_bareboat_selvstændig = afskrivningslov5b_resultat(Afskrivningslov5BInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_skib,
+    aktiv_input = al_selvstændig_skib,
     bruttotonnage = 20,
     erhvervsmæssig_transport_af_passagerer_eller_gods = Sandt,
     skatteydergrundlag = Al5BIntetSkatteydergrundlag,
@@ -402,7 +404,7 @@
 
 = al5b_nybygget_selskab = afskrivningslov5b_resultat(Afskrivningslov5BInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selskab_skib,
+    aktiv_input = al_selskab_skib,
     bruttotonnage = 200,
     erhvervsmæssig_transport_af_passagerer_eller_gods = Sandt,
     skatteydergrundlag = Al5BSelskabPar1Stk1Nr1Nr2EllerStk6,
@@ -428,7 +430,7 @@
 
 = al5c_lang_levetid_15_pct = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoart = Al5CStk1LangLevetid,
     aktivkategori = Al5COlieGasAnlæg,
     afskrives_efter_kapitel3 = Falskt,
@@ -442,7 +444,7 @@
 
 = al5c_infrastruktur_7_pct = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoart = Al5CStk2Infrastruktur,
     aktivkategori = Al5CTransmission,
     afskrives_efter_kapitel3 = Falskt,
@@ -456,7 +458,7 @@
 
 = al5c_fuld_småsaldo = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoart = Al5CStk2Infrastruktur,
     aktivkategori = Al5CTransmission,
     afskrives_efter_kapitel3 = Falskt,
@@ -470,7 +472,7 @@
 
 = al5c_softwaredel_afskåret = afskrivningslov5c_resultat(Afskrivningslov5CInput(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoart = Al5CStk2Infrastruktur,
     aktivkategori = Al5CTransmission,
     afskrives_efter_kapitel3 = Falskt,
@@ -489,7 +491,7 @@
     saldoværdi_primo_kroner = 0,
     anskaffelser = [
         AfskrivningslovForhøjetAnskaffelse(
-            par3_resultat = al3_anskaffet_2022,
+            par3_input = al3_anskaffet_2022_input,
             anskaffelsessum_kroner = 100000,
             fabriksnyt = Sandt,
             udelukkende_erhvervsmæssigt_benyttet = Sandt,
@@ -519,7 +521,7 @@
     saldoværdi_primo_kroner = 0,
     anskaffelser = [
         AfskrivningslovForhøjetAnskaffelse(
-            par3_resultat = al3_anskaffet_2026,
+            par3_input = al3_anskaffet_2026_input,
             anskaffelsessum_kroner = 100000,
             fabriksnyt = Sandt,
             udelukkende_erhvervsmæssigt_benyttet = Sandt,
@@ -528,7 +530,7 @@
             nummerpladevilkår_opfyldt = Falskt
         ),
         AfskrivningslovForhøjetAnskaffelse(
-            par3_resultat = al3_anskaffet_2026,
+            par3_input = al3_anskaffet_2026_input,
             anskaffelsessum_kroner = 50000,
             fabriksnyt = Sandt,
             udelukkende_erhvervsmæssigt_benyttet = Sandt,
@@ -543,7 +545,7 @@
 
 = al7_reparation_over_erstatning = afskrivningslov7_resultat(Afskrivningslov7Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     reparationsudgifter_kroner = 20000,
     forsikrings_eller_erstatningssum_kroner = 8000,
@@ -552,7 +554,7 @@
 
 = al7_erstatning_over_reparation = afskrivningslov7_resultat(Afskrivningslov7Input(
     indkomstår = 2026,
-    aktiv_resultat = al_selvstændig_maskine,
+    aktiv_input = al_selvstændig_maskine,
     saldoordning = AlPar5AlmindeligSaldo,
     reparationsudgifter_kroner = 8000,
     forsikrings_eller_erstatningssum_kroner = 20000,
@@ -775,15 +777,15 @@
     samlet_benyttelse_enheder = 100000
 )
 
-= al_blandet_60_pct_maskine = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+= al_blandet_60_pct_maskine = AfskrivningslovPar1Par2Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     aktivart = AlMaskine,
     erhvervsmæssig_anvendelsesandel_basispoint = 6000
-))
+)
 
 = al11_ordinær_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     afskrivningskategori = Al11Par5Stk1,
     uafskrevet_beløb_primo_kroner = 0,
     anskaffelsessum_i_året_kroner = 100000,
@@ -794,7 +796,7 @@
 
 = al11_fuldt_blandet_småaktiv = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     afskrivningskategori = Al11Par5Stk1,
     uafskrevet_beløb_primo_kroner = 16900,
     anskaffelsessum_i_året_kroner = 0,
@@ -805,7 +807,7 @@
 
 = al11_blandet_over_småaktivgrænsen = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     afskrivningskategori = Al11Par5Stk1,
     uafskrevet_beløb_primo_kroner = 16901,
     anskaffelsessum_i_året_kroner = 0,
@@ -816,7 +818,7 @@
 
 = al11_par5c_stk1_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     afskrivningskategori = Al11Par5CStk1,
     uafskrevet_beløb_primo_kroner = 100000,
     anskaffelsessum_i_året_kroner = 0,
@@ -827,7 +829,7 @@
 
 = al11_par5c_stk2_blandet = afskrivningslov11_resultat(Afskrivningslov11Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     afskrivningskategori = Al11Par5CStk2,
     uafskrevet_beløb_primo_kroner = 100000,
     anskaffelsessum_i_året_kroner = 0,
@@ -859,7 +861,7 @@
 
 = al12_officiel_fortjeneste = afskrivningslov12_resultat(Afskrivningslov12Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     anskaffelsessum_kroner = 160000,
     forbedringsudgifter_før_salgsåret_kroner = 0,
     forbedringsudgifter_i_salgsåret_kroner = 800,
@@ -869,7 +871,7 @@
 
 = al12_officielt_tab = afskrivningslov12_resultat(Afskrivningslov12Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     anskaffelsessum_kroner = 160000,
     forbedringsudgifter_før_salgsåret_kroner = 0,
     forbedringsudgifter_i_salgsåret_kroner = 800,
@@ -879,7 +881,7 @@
 
 = al12_samme_år_fortjeneste = afskrivningslov12_resultat(Afskrivningslov12Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     anskaffelsessum_kroner = 100000,
     forbedringsudgifter_før_salgsåret_kroner = 0,
     forbedringsudgifter_i_salgsåret_kroner = 0,
@@ -889,7 +891,7 @@
 
 = al12_samme_år_tab = afskrivningslov12_resultat(Afskrivningslov12Input(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     anskaffelsessum_kroner = 100000,
     forbedringsudgifter_før_salgsåret_kroner = 0,
     forbedringsudgifter_i_salgsåret_kroner = 0,
@@ -908,7 +910,7 @@
 
 = al13_reparationsudgift_over_erstatning = afskrivningslov13_resultat_ved_reparation(Afskrivningslov13ReparationInput(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     reparationsudgifter_kroner = 20000,
     forsikrings_eller_erstatningssum_kroner = 8000,
@@ -917,7 +919,7 @@
 
 = al13_erstatning_over_reparationsudgift = afskrivningslov13_resultat_ved_reparation(Afskrivningslov13ReparationInput(
     indkomstår = 2026,
-    aktiv_resultat = al_blandet_60_pct_maskine,
+    aktiv_input = al_blandet_60_pct_maskine,
     årets_benyttelse = al_blandet_60_pct_benyttelse,
     reparationsudgifter_kroner = 8000,
     forsikrings_eller_erstatningssum_kroner = 20000,

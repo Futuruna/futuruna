@@ -661,14 +661,15 @@ tilladelsen.
 --@begin:afskrivningsloven_par5--
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
 # Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
-# Afskrivningslov5Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
+# Afskrivningslov5Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
 # Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 # Afskrivningslov5UdlejningsSkatteyderStatus = Al5SelskabPar1Stk1Nr1Nr2EllerNr4 | Al5AndenSkatteyder
 # Afskrivningslov5UdlejningsTilladelse = Al5IngenUdlejningstilladelse | Al5UdlejningstilladelseGældende | Al5UdlejningstilladelseBortfaldet
 # Afskrivningslov5UdlejningsaktivInput(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, anskaffelsesår: Heltal, indkomstår: Heltal, anskaffelsessum_kroner: Heltal, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse: Afskrivningslov5UdlejningsTilladelse, valgt_særskilt_afskrivning_basispoint: Heltal, solgt_i_indkomståret: Boolsk, salgssum_kroner: Heltal)
 # Afskrivningslov5UdlejningsaktivResultat(anskaffelsesår: Heltal, indkomstår: Heltal, omfattet_af_stk4: Boolsk, udskydelse_gælder: Boolsk, år_efter_anskaffelsen: Heltal, valgt_særskilt_afskrivning_basispoint: Heltal, valgt_særskilt_afskrivning_gyldig: Boolsk, andet_indkomstårs_afskrivning_kroner: Heltal, særskilt_afskrivning_i_indkomståret_kroner: Heltal, uafskrevet_anskaffelsessum_kroner: Heltal, beløb_til_afskrivningssaldo_kroner: Heltal, tidligt_salg_omfattet_af_stk5: Boolsk, fortjeneste_kroner: Heltal, tab_kroner: Heltal, saldoændring_ved_tidligt_salg_kroner: Heltal)
 
-| afskrivningslov5_omfattet(input: Afskrivningslov5Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.saldoordning == AlPar5AlmindeligSaldo
+| afskrivningslov5_aktiv_resultat(input: Afskrivningslov5Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
+| afskrivningslov5_omfattet(input: Afskrivningslov5Input) -> afskrivningslov5_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov5_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && input.saldoordning == AlPar5AlmindeligSaldo
 | afskrivningslov5_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5Input) -> input.saldoværdi_primo_kroner + penge_positivt_beløb(input.anskaffelsessummer_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
 | afskrivningslov5_valgt_ordinær_sats_basispoint(valg: Afskrivningslov5Valg) -> match valg {
     | Al5OrdinærAfskrivning(sats_basispoint) -> penge_positivt_beløb(sats_basispoint)
@@ -688,7 +689,7 @@ tilladelsen.
 | exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
 | afskrivningslov5_resultat(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov5_aktiv_resultat(input).skatteyder,
     saldoordning = input.saldoordning,
     omfattet_af_par5 = afskrivningslov5_omfattet(input),
     valg = input.valg,
@@ -762,11 +763,12 @@ efter § 5.
 ----
 
 --@begin:afskrivningsloven_par5a--
-# Afskrivningslov5AInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessum_kroner: Heltal, samtlige_foretagne_afskrivninger_kroner: Heltal, salgssum_kroner: Heltal, vælger_tabsfradrag: Boolsk)
+# Afskrivningslov5AInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessum_kroner: Heltal, samtlige_foretagne_afskrivninger_kroner: Heltal, salgssum_kroner: Heltal, vælger_tabsfradrag: Boolsk)
 # Afskrivningslov5AResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5a_modellen: Boolsk, vælger_tabsfradrag: Boolsk, uafskrevet_anskaffelsessum_kroner: Heltal, beregnet_tab_kroner: Heltal, saldoformindskelse_fører_til_negativ_saldo: Boolsk, saldoformindskelse_kroner: Heltal, tab_afskåret_af_saldogrænsen_kroner: Heltal, tabsvalg_gyldigt: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_formindskelse_kroner: Heltal)
 
+| afskrivningslov5a_aktiv_resultat(input: Afskrivningslov5AInput) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov5a_saldoordning_omfattet(saldoordning: AfskrivningslovSaldoordning) -> saldoordning != AlPar5CInfrastruktursaldo
-| afskrivningslov5a_omfattet_af_modellen(input: Afskrivningslov5AInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && afskrivningslov5a_saldoordning_omfattet(input.saldoordning)
+| afskrivningslov5a_omfattet_af_modellen(input: Afskrivningslov5AInput) -> afskrivningslov5a_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov5a_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && afskrivningslov5a_saldoordning_omfattet(input.saldoordning)
 | afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) - penge_positivt_beløb(input.samtlige_foretagne_afskrivninger_kroner))
 | afskrivningslov5a_beregnet_tab_kroner(input: Afskrivningslov5AInput) -> penge_positivt_beløb(afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input) - penge_positivt_beløb(input.salgssum_kroner))
 | afskrivningslov5a_saldoformindskelse_fører_til_negativ_saldo(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner - afskrivningslov5a_uafskrevet_anskaffelsessum_kroner(input) < 0
@@ -779,7 +781,7 @@ efter § 5.
 | exception al5a_uafskrevet_del_fjernes_fra_saldo afskrivningslov5a_saldoværdi_efter_formindskelse_kroner(input: Afskrivningslov5AInput) -> input.saldoværdi_primo_kroner - afskrivningslov5a_saldoformindskelse_kroner(input) under afskrivningslov5a_tabsvalg_gyldigt(input)
 | afskrivningslov5a_resultat(input: Afskrivningslov5AInput) -> Afskrivningslov5AResultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov5a_aktiv_resultat(input).skatteyder,
     saldoordning = input.saldoordning,
     omfattet_af_par5a_modellen = afskrivningslov5a_omfattet_af_modellen(input),
     vælger_tabsfradrag = input.vælger_tabsfradrag,
@@ -834,15 +836,16 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
 
 --@begin:afskrivningsloven_par5b--
 # Afskrivningslov5BSkatteydergrundlag = Al5BSelskabPar1Stk1Nr1Nr2EllerStk6 | Al5BBegrænsetSkattepligtigEuPar2Stk1LitraA | Al5BIntetSkatteydergrundlag
-# Afskrivningslov5BInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, bruttotonnage: Heltal, erhvervsmæssig_transport_af_passagerer_eller_gods: Boolsk, skatteydergrundlag: Afskrivningslov5BSkatteydergrundlag, bareboat_udlejet_eller_erhvervet_til_bareboat: Boolsk, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valgt_saldosats_basispoint: Heltal, nybygget_førsteårs_anskaffelsessum_kroner: Heltal, nybygget_skib: Boolsk, første_afskrivningsår: Boolsk, undergivet_tonnageskat: Boolsk, valgt_nybygget_førsteårs_sats_basispoint: Heltal)
+# Afskrivningslov5BInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, bruttotonnage: Heltal, erhvervsmæssig_transport_af_passagerer_eller_gods: Boolsk, skatteydergrundlag: Afskrivningslov5BSkatteydergrundlag, bareboat_udlejet_eller_erhvervet_til_bareboat: Boolsk, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valgt_saldosats_basispoint: Heltal, nybygget_førsteårs_anskaffelsessum_kroner: Heltal, nybygget_skib: Boolsk, første_afskrivningsår: Boolsk, undergivet_tonnageskat: Boolsk, valgt_nybygget_førsteårs_sats_basispoint: Heltal)
 # Afskrivningslov5BResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_par5b: Boolsk, alene_omfattet_af_stk1_nr1_eller_nr2: Boolsk, valgt_saldosats_basispoint: Heltal, saldovalg_gyldigt: Boolsk, afskrivningsberettiget_saldoværdi_kroner: Heltal, saldoafskrivning_kroner: Heltal, nybygget_førsteårsvalg_gyldigt: Boolsk, nybygget_førsteårsafskrivning_kroner: Heltal, nybygget_rest_til_næste_års_saldo_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal, saldoværdi_til_næste_indkomstår_kroner: Heltal)
 # Afskrivningslov5BSaldooverførselRetning = Al5SaldoTil5BSaldo | Al5BSaldoTil5Saldo
 # Afskrivningslov5BSaldooverførselInput(retning: Afskrivningslov5BSaldooverførselRetning, eksisterende_kildesaldo_kroner: Heltal, regnskabsmæssig_værdi_berørte_skibe_kroner: Heltal, regnskabsmæssig_værdi_øvrige_aktiver_kroner: Heltal)
 # Afskrivningslov5BSaldooverførselResultat(retning: Afskrivningslov5BSaldooverførselRetning, grundlag_gyldigt: Boolsk, eksisterende_kildesaldo_kroner: Heltal, overført_saldoværdi_kroner: Heltal, resterende_kildesaldo_kroner: Heltal, tillæg_til_modtagersaldo_kroner: Heltal)
 
+| afskrivningslov5b_aktiv_resultat(input: Afskrivningslov5BInput) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov5b_skatteydergrundlag_omfattet(grundlag: Afskrivningslov5BSkatteydergrundlag) -> grundlag != Al5BIntetSkatteydergrundlag
-| afskrivningslov5b_skatteydergrundlag_matcher(input: Afskrivningslov5BInput) -> afskrivningslov5b_skatteydergrundlag_omfattet(input.skatteydergrundlag) && input.aktiv_resultat.skatteyder == AlSelskabEllerForening
-| afskrivningslov5b_omfattet(input: Afskrivningslov5BInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.aktiv_resultat.aktivart == AlSkib && input.bruttotonnage >= 20 && input.erhvervsmæssig_transport_af_passagerer_eller_gods && (afskrivningslov5b_skatteydergrundlag_matcher(input) || input.bareboat_udlejet_eller_erhvervet_til_bareboat)
+| afskrivningslov5b_skatteydergrundlag_matcher(input: Afskrivningslov5BInput) -> afskrivningslov5b_skatteydergrundlag_omfattet(input.skatteydergrundlag) && afskrivningslov5b_aktiv_resultat(input).skatteyder == AlSelskabEllerForening
+| afskrivningslov5b_omfattet(input: Afskrivningslov5BInput) -> afskrivningslov5b_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov5b_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && afskrivningslov5b_aktiv_resultat(input).aktivart == AlSkib && input.bruttotonnage >= 20 && input.erhvervsmæssig_transport_af_passagerer_eller_gods && (afskrivningslov5b_skatteydergrundlag_matcher(input) || input.bareboat_udlejet_eller_erhvervet_til_bareboat)
 | afskrivningslov5b_alene_nr1_eller_nr2(input: Afskrivningslov5BInput) -> afskrivningslov5b_skatteydergrundlag_matcher(input) && input.bareboat_udlejet_eller_erhvervet_til_bareboat == Falskt
 | afskrivningslov5b_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5BInput) -> input.saldoværdi_primo_kroner + penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
 | afskrivningslov5b_saldovalg_gyldigt(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5b_omfattet(input) && input.indkomstår == parametre.indkomstår && input.valgt_saldosats_basispoint >= 0 && input.valgt_saldosats_basispoint <= parametre.par5b_højeste_sats_basispoint
@@ -855,7 +858,7 @@ tilsvarende anvendelse, når skibe omfattet af stk. 1 og 2 bliver omfattet af §
 | exception al5b_nybygget_rest_til_næste_saldo afskrivningslov5b_nybygget_rest_til_næste_år_kroner(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(input.nybygget_førsteårs_anskaffelsessum_kroner) - afskrivningslov5b_nybygget_førsteårsafskrivning_kroner(input, parametre) under afskrivningslov5b_nybygget_førsteårsvalg_gyldigt(input, parametre)
 | afskrivningslov5b_resultat(input: Afskrivningslov5BInput, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5BResultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov5b_aktiv_resultat(input).skatteyder,
     omfattet_af_par5b = afskrivningslov5b_omfattet(input),
     alene_omfattet_af_stk1_nr1_eller_nr2 = afskrivningslov5b_alene_nr1_eller_nr2(input),
     valgt_saldosats_basispoint = input.valgt_saldosats_basispoint,
@@ -938,9 +941,10 @@ senere.
 # Afskrivningslov5CSaldoart = Al5CStk1LangLevetid | Al5CStk2Infrastruktur
 # Afskrivningslov5CAktivkategori = Al5CSkib20TIkkePar5B | Al5CLuftfartøj | Al5CRullendeJernbanemateriel | Al5COlieGasAnlæg | Al5CVarmeElOver1MW | Al5CVandindvindingsanlæg | Al5CSpildevandsanlæg | Al5CTransportLagringDistribution | Al5CTransmission | Al5CFastJernbanemateriel | Al5CVindmølleOver1MW | Al5CAndetAktiv
 # Afskrivningslov5CValg = Al5CIngenAfskrivning | Al5COrdinærAfskrivning(sats_basispoint: Heltal) | Al5CFuldRestsaldo
-# Afskrivningslov5CInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoart: Afskrivningslov5CSaldoart, aktivkategori: Afskrivningslov5CAktivkategori, afskrives_efter_kapitel3: Boolsk, software_eller_hardware_del: Boolsk, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5CValg)
+# Afskrivningslov5CInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoart: Afskrivningslov5CSaldoart, aktivkategori: Afskrivningslov5CAktivkategori, afskrives_efter_kapitel3: Boolsk, software_eller_hardware_del: Boolsk, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5CValg)
 # Afskrivningslov5CResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoart: Afskrivningslov5CSaldoart, aktivkategori: Afskrivningslov5CAktivkategori, aktivkategori_matcher_saldo: Boolsk, omfattet_af_par5c: Boolsk, valg: Afskrivningslov5CValg, valg_gyldigt: Boolsk, højeste_sats_basispoint: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 
+| afskrivningslov5c_aktiv_resultat(input: Afskrivningslov5CInput) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov5c_stk1_kategori(kategori: Afskrivningslov5CAktivkategori, indkomstår: Heltal) -> match kategori {
     | Al5CSkib20TIkkePar5B -> Sandt
     | Al5CLuftfartøj -> Sandt
@@ -957,7 +961,7 @@ senere.
     | Al5CStk1LangLevetid -> afskrivningslov5c_stk1_kategori(input.aktivkategori, input.indkomstår)
     | Al5CStk2Infrastruktur -> afskrivningslov5c_stk2_kategori(input.aktivkategori)
 }
-| afskrivningslov5c_omfattet(input: Afskrivningslov5CInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && afskrivningslov5c_kategori_matcher_saldo(input) && input.afskrives_efter_kapitel3 == Falskt && input.software_eller_hardware_del == Falskt
+| afskrivningslov5c_omfattet(input: Afskrivningslov5CInput) -> afskrivningslov5c_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov5c_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && afskrivningslov5c_kategori_matcher_saldo(input) && input.afskrives_efter_kapitel3 == Falskt && input.software_eller_hardware_del == Falskt
 | afskrivningslov5c_højeste_sats_basispoint(saldoart: Afskrivningslov5CSaldoart, parametre: AfskrivningslovÅrsparametre) -> match saldoart {
     | Al5CStk1LangLevetid -> parametre.par5c_stk1_højeste_sats_basispoint
     | Al5CStk2Infrastruktur -> parametre.par5c_stk2_højeste_sats_basispoint
@@ -977,7 +981,7 @@ senere.
 | exception al5c_fuld_småsaldofradrag afskrivningslov5c_fradrag_kroner(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5c_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5c_valg_gyldigt(input, parametre) && input.valg == Al5CFuldRestsaldo
 | afskrivningslov5c_resultat(input: Afskrivningslov5CInput, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5CResultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov5c_aktiv_resultat(input).skatteyder,
     saldoart = input.saldoart,
     aktivkategori = input.aktivkategori,
     aktivkategori_matcher_saldo = afskrivningslov5c_kategori_matcher_saldo(input),
@@ -1091,12 +1095,13 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
 
 --@begin:afskrivningsloven_par5d_par5e--
 # AfskrivningslovForhøjetAktivkategori = AlForhøjetPersonbil | AlForhøjetSkib | AlForhøjetSoftware | AlForhøjetFossildrevetMaskine | AlForhøjetFossildrevetAndetDriftsmiddel | AlForhøjetAndetKøretøj | AlForhøjetAndetDriftsmiddel
-# AfskrivningslovForhøjetAnskaffelse(par3_resultat: Afskrivningslov3Resultat, anskaffelsessum_kroner: Heltal, fabriksnyt: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, straksafskrevet_efter_par6_stk1: Boolsk, aktivkategori: AfskrivningslovForhøjetAktivkategori, nummerpladevilkår_opfyldt: Boolsk)
+# AfskrivningslovForhøjetAnskaffelse(par3_input: Afskrivningslov3Input, anskaffelsessum_kroner: Heltal, fabriksnyt: Boolsk, udelukkende_erhvervsmæssigt_benyttet: Boolsk, straksafskrevet_efter_par6_stk1: Boolsk, aktivkategori: AfskrivningslovForhøjetAktivkategori, nummerpladevilkår_opfyldt: Boolsk)
 # AfskrivningslovForhøjetSalg(salgssum_kroner: Heltal)
 # AfskrivningslovForhøjetSaldoValg = AlForhøjetIngenAfskrivning | AlForhøjetOrdinærAfskrivning(sats_basispoint: Heltal)
 # AfskrivningslovForhøjetSaldoInput(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelser: List(AfskrivningslovForhøjetAnskaffelse), salg: List(AfskrivningslovForhøjetSalg), valg: AfskrivningslovForhøjetSaldoValg)
 # AfskrivningslovForhøjetSaldoResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, saldoordning_aktiv_i_indkomståret: Boolsk, forhøjelsesprocent_basispoint: Heltal, gyldige_anskaffelsessummer_kroner: Heltal, afskårne_anskaffelsessummer_kroner: Heltal, forhøjede_anskaffelsessummer_kroner: Heltal, salgssummer_kroner: Heltal, forhøjede_salgssummer_kroner: Heltal, valg: AfskrivningslovForhøjetSaldoValg, valg_gyldigt: Boolsk, afskrivningsberettiget_saldoværdi_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal, sammenlægges_med_par5_ved_årets_udgang: Boolsk, saldo_til_par5_næste_indkomstår_kroner: Heltal, særskilt_saldo_til_næste_indkomstår_kroner: Heltal)
 
+| afskrivningslov_forhøjet_anskaffelse_par3_resultat(anskaffelse: AfskrivningslovForhøjetAnskaffelse) -> afskrivningslov3_resultat(anskaffelse.par3_input)
 | afskrivningslov_forhøjet_saldoordning(saldoordning: AfskrivningslovSaldoordning) -> saldoordning == AlPar5DMidlertidig116Saldo || saldoordning == AlPar5EMidlertidig108Saldo
 | afskrivningslov_forhøjet_procent_basispoint(saldoordning: AfskrivningslovSaldoordning) -> match saldoordning {
     | AlPar5DMidlertidig116Saldo -> 11600
@@ -1134,7 +1139,7 @@ saldoværdi behandles fra og med indkomståret 2031 efter § 5.
     | AlPar5EMidlertidig108Saldo -> afskrivningslov5e_aktivkategori_tilladt(anskaffelse)
     | _ -> Falskt
 }
-| afskrivningslov_forhøjet_anskaffelse_gyldig(input: AfskrivningslovForhøjetSaldoInput, anskaffelse: AfskrivningslovForhøjetAnskaffelse) -> afskrivningslov_forhøjet_saldo_aktiv_i_år(input.saldoordning, input.indkomstår) && anskaffelse.par3_resultat.anskaffet_efter_par3 && anskaffelse.par3_resultat.anskaffelsesdato.år == input.indkomstår && afskrivningslov_forhøjet_anskaffelsesdato_i_vindue(input.saldoordning, anskaffelse.par3_resultat.anskaffelsesdato) && anskaffelse.fabriksnyt && anskaffelse.udelukkende_erhvervsmæssigt_benyttet && anskaffelse.straksafskrevet_efter_par6_stk1 == Falskt && afskrivningslov_forhøjet_aktivkategori_tilladt(input.saldoordning, anskaffelse)
+| afskrivningslov_forhøjet_anskaffelse_gyldig(input: AfskrivningslovForhøjetSaldoInput, anskaffelse: AfskrivningslovForhøjetAnskaffelse) -> afskrivningslov_forhøjet_saldo_aktiv_i_år(input.saldoordning, input.indkomstår) && afskrivningslov_forhøjet_anskaffelse_par3_resultat(anskaffelse).anskaffet_efter_par3 && afskrivningslov_forhøjet_anskaffelse_par3_resultat(anskaffelse).anskaffelsesdato.år == input.indkomstår && afskrivningslov_forhøjet_anskaffelsesdato_i_vindue(input.saldoordning, afskrivningslov_forhøjet_anskaffelse_par3_resultat(anskaffelse).anskaffelsesdato) && anskaffelse.fabriksnyt && anskaffelse.udelukkende_erhvervsmæssigt_benyttet && anskaffelse.straksafskrevet_efter_par6_stk1 == Falskt && afskrivningslov_forhøjet_aktivkategori_tilladt(input.saldoordning, anskaffelse)
 | afskrivningslov_forhøjet_gyldige_anskaffelser_kroner(input: AfskrivningslovForhøjetSaldoInput) -> foldl(input.anskaffelser, 0, |sum, anskaffelse| sum + if afskrivningslov_forhøjet_anskaffelse_gyldig(input, anskaffelse) { penge_positivt_beløb(anskaffelse.anskaffelsessum_kroner) } else { 0 })
 | afskrivningslov_forhøjet_afskårne_anskaffelser_kroner(input: AfskrivningslovForhøjetSaldoInput) -> foldl(input.anskaffelser, 0, |sum, anskaffelse| sum + if afskrivningslov_forhøjet_anskaffelse_gyldig(input, anskaffelse) { 0 } else { penge_positivt_beløb(anskaffelse.anskaffelsessum_kroner) })
 | afskrivningslov_forhøjet_salgssummer_kroner(input: AfskrivningslovForhøjetSaldoInput) -> foldl(input.salg, 0, |sum, salgspost| sum + penge_positivt_beløb(salgspost.salgssum_kroner))
@@ -1249,15 +1254,17 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 
 --@begin:afskrivningsloven_par6--
 # Afskrivningslov6Valg = Al6IngenStraksafskrivning | Al6KortFysiskLevetid | Al6Småaktiv | Al6ForsøgsOgForskningsaktiv
-# Afskrivningslov6Aktivgrundlag(aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsesresultat: Afskrivningslov3Resultat, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal)
+# Afskrivningslov6Aktivgrundlag(aktiv_input: AfskrivningslovPar1Par2Input, anskaffelsesinput: Afskrivningslov3Input, anskaffelsessum_kroner: Heltal, samlet_anskaffelsessum_for_funktionsenhed_kroner: Heltal, fysisk_levetid_år: Heltal, anvendes_til_forsøgs_og_forskningsvirksomhed: Boolsk, anvendes_til_råstofefterforskning: Boolsk, forskningsudgifter_omfattet_af_loftet_før_dette_aktiv_kroner: Heltal)
 # Afskrivningslov6Udlejningsforhold(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse_i_anskaffelsesåret: Afskrivningslov5UdlejningsTilladelse)
 # Afskrivningslov6Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov6Aktivgrundlag, udlejningsforhold: Afskrivningslov6Udlejningsforhold, valg: Afskrivningslov6Valg)
 # Afskrivningslov6Resultat(indkomstår: Heltal, anskaffelsesår: Heltal, skatteyder: AfskrivningslovSkatteyder, valg: Afskrivningslov6Valg, omfattet_af_par6_stk1_modellen: Boolsk, kort_levetid_betingelse_opfyldt: Boolsk, småaktiv_betingelse_opfyldt: Boolsk, forskning_betingelse_opfyldt: Boolsk, valg_hjemmel_opfyldt: Boolsk, omfattet_af_stk3: Boolsk, udskydelse_efter_stk3_gælder: Boolsk, første_mulige_fradragsår: Heltal, fradragsår_opfyldt: Boolsk, valg_gyldigt: Boolsk, forskningsudgift_under_loft_kroner: Heltal, forskningsudgift_over_loft_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, anskaffelsessum_fradraget_senest_i_indkomståret_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal)
 # Afskrivningslov6SalgInput(straksafskrivningsresultat: Afskrivningslov6Resultat, salgssum_kroner: Heltal, leveret_i_indkomståret: Boolsk, virksomhed_sælges_eller_ophører_i_indkomståret: Boolsk)
 # Afskrivningslov6SalgResultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, omfattet_af_stk2: Boolsk, omfattet_af_stk4: Boolsk, behandles_efter_par9: Boolsk, salgssum_kroner: Heltal, ufradraget_anskaffelsessum_kroner: Heltal, netto_beløb_til_skattepligtig_indkomst_kroner: Heltal, skattepligtig_indtægtsføring_kroner: Heltal, fradragsberettiget_negativt_beløb_kroner: Heltal)
 
-| afskrivningslov6_anskaffelsesår(input: Afskrivningslov6Input) -> input.aktivgrundlag.anskaffelsesresultat.anskaffelsesdato.år
-| afskrivningslov6_omfattet_af_modellen(input: Afskrivningslov6Input) -> input.aktivgrundlag.aktiv_resultat.omfattet_af_kapitel2 && input.aktivgrundlag.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.aktivgrundlag.anskaffelsesresultat.anskaffet_efter_par3 && input.indkomstår >= afskrivningslov6_anskaffelsesår(input)
+| afskrivningslov6_aktiv_resultat(input: Afskrivningslov6Input) -> afskrivningslov_par1_par2_resultat(input.aktivgrundlag.aktiv_input)
+| afskrivningslov6_anskaffelsesresultat(input: Afskrivningslov6Input) -> afskrivningslov3_resultat(input.aktivgrundlag.anskaffelsesinput)
+| afskrivningslov6_anskaffelsesår(input: Afskrivningslov6Input) -> afskrivningslov6_anskaffelsesresultat(input).anskaffelsesdato.år
+| afskrivningslov6_omfattet_af_modellen(input: Afskrivningslov6Input) -> afskrivningslov6_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov6_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && afskrivningslov6_anskaffelsesresultat(input).anskaffet_efter_par3 && input.indkomstår >= afskrivningslov6_anskaffelsesår(input)
 | afskrivningslov6_aktiv_er_driftsmiddel(aktivart: AfskrivningslovAktivart) -> match aktivart {
     | AlMaskine -> Sandt
     | AlInventar -> Sandt
@@ -1265,8 +1272,8 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
     | AlSoftware -> Sandt
     | _ -> Falskt
 }
-| afskrivningslov6_kort_levetid_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktivgrundlag.aktiv_resultat.aktivart) && input.aktivgrundlag.aktiv_resultat.aktivart != AlSoftware && input.aktivgrundlag.fysisk_levetid_år > 0 && input.aktivgrundlag.fysisk_levetid_år <= 3
-| afskrivningslov6_småaktiv_betingelse(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(input.aktivgrundlag.aktiv_resultat.aktivart) && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) > 0 && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) <= parametre.småaktivgrænse_kroner
+| afskrivningslov6_kort_levetid_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(afskrivningslov6_aktiv_resultat(input).aktivart) && afskrivningslov6_aktiv_resultat(input).aktivart != AlSoftware && input.aktivgrundlag.fysisk_levetid_år > 0 && input.aktivgrundlag.fysisk_levetid_år <= 3
+| afskrivningslov6_småaktiv_betingelse(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_modellen(input) && afskrivningslov6_aktiv_er_driftsmiddel(afskrivningslov6_aktiv_resultat(input).aktivart) && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) > 0 && penge_positivt_beløb(input.aktivgrundlag.samlet_anskaffelsessum_for_funktionsenhed_kroner) <= parametre.småaktivgrænse_kroner
 | afskrivningslov6_forskning_betingelse(input: Afskrivningslov6Input) -> afskrivningslov6_omfattet_af_modellen(input) && input.aktivgrundlag.anvendes_til_forsøgs_og_forskningsvirksomhed && input.aktivgrundlag.anvendes_til_råstofefterforskning == Falskt
 | afskrivningslov6_årsparametre_matcher_anskaffelsen(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_anskaffelsesår(input) == parametre.indkomstår
 | afskrivningslov6_valg_hjemmel_opfyldt(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
@@ -1280,7 +1287,7 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
     | Al6Småaktiv -> afskrivningslov6_småaktiv_betingelse(input, parametre) && afskrivningslov6_årsparametre_matcher_anskaffelsen(input, parametre)
     | _ -> Falskt
 }
-| afskrivningslov6_stk3_skatteyder(input: Afskrivningslov6Input) -> input.aktivgrundlag.aktiv_resultat.skatteyder == AlSelskabEllerForening && input.udlejningsforhold.skatteyder_status == Al5SelskabPar1Stk1Nr1Nr2EllerNr4
+| afskrivningslov6_stk3_skatteyder(input: Afskrivningslov6Input) -> afskrivningslov6_aktiv_resultat(input).skatteyder == AlSelskabEllerForening && input.udlejningsforhold.skatteyder_status == Al5SelskabPar1Stk1Nr1Nr2EllerNr4
 | afskrivningslov6_omfattet_af_stk3(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_stk3_skatteyder(input) && afskrivningslov6_stk3_valg_hjemmel_opfyldt(input, parametre) && input.udlejningsforhold.erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen
 | afskrivningslov6_udskydelse_efter_stk3_gælder(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_omfattet_af_stk3(input, parametre) && input.udlejningsforhold.tilladelse_i_anskaffelsesåret != Al5UdlejningstilladelseGældende
 | afskrivningslov6_første_mulige_fradragsår(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov6_anskaffelsesår(input) + if afskrivningslov6_udskydelse_efter_stk3_gælder(input, parametre) { 1 } else { 0 }
@@ -1304,7 +1311,7 @@ indkomstår, hvori leveringen finder sted, jf. dog § 9.
 | afskrivningslov6_resultat(input: Afskrivningslov6Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov6Resultat(
     indkomstår = input.indkomstår,
     anskaffelsesår = afskrivningslov6_anskaffelsesår(input),
-    skatteyder = input.aktivgrundlag.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov6_aktiv_resultat(input).skatteyder,
     valg = input.valg,
     omfattet_af_par6_stk1_modellen = afskrivningslov6_omfattet_af_modellen(input),
     kort_levetid_betingelse_opfyldt = afskrivningslov6_kort_levetid_betingelse(input),
@@ -1362,17 +1369,18 @@ aktivet i den stand, det var i ved skadens indtræden.
 ----
 
 --@begin:afskrivningsloven_par7--
-# Afskrivningslov7Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, saldoordning: AfskrivningslovSaldoordning, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgifter_sætter_aktivet_i_stand_som_ved_skaden: Boolsk)
+# Afskrivningslov7Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgifter_sætter_aktivet_i_stand_som_ved_skaden: Boolsk)
 # Afskrivningslov7Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par7: Boolsk, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, reduktion_af_saldoværdi_kroner: Heltal)
 
-| afskrivningslov7_omfattet(input: Afskrivningslov7Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && input.aktiv_resultat.udelukkende_erhvervsmæssigt_benyttet && input.udgifter_sætter_aktivet_i_stand_som_ved_skaden
+| afskrivningslov7_aktiv_resultat(input: Afskrivningslov7Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
+| afskrivningslov7_omfattet(input: Afskrivningslov7Input) -> afskrivningslov7_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov7_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && input.udgifter_sætter_aktivet_i_stand_som_ved_skaden
 | afskrivningslov7_reparationsfradrag_kroner(input: Afskrivningslov7Input) -> 0
 | exception al7_reparation_over_erstatning afskrivningslov7_reparationsfradrag_kroner(input: Afskrivningslov7Input) -> penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner) under afskrivningslov7_omfattet(input)
 | afskrivningslov7_saldoreduktion_kroner(input: Afskrivningslov7Input) -> 0
 | exception al7_erstatning_over_reparation afskrivningslov7_saldoreduktion_kroner(input: Afskrivningslov7Input) -> penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner - input.reparationsudgifter_kroner) under afskrivningslov7_omfattet(input)
 | afskrivningslov7_resultat(input: Afskrivningslov7Input) -> Afskrivningslov7Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
+    skatteyder = afskrivningslov7_aktiv_resultat(input).skatteyder,
     saldoordning = input.saldoordning,
     omfattet_af_par7 = afskrivningslov7_omfattet(input),
     reparationsudgifter_kroner = penge_positivt_beløb(input.reparationsudgifter_kroner),
@@ -1658,10 +1666,11 @@ tilsvarende anvendelse.
 # AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal)
 # Afskrivningslov11Afskrivningskategori = Al11Par5Stk1 | Al11Par5CStk1 | Al11Par5CStk2
 # Afskrivningslov11Valg = Al11IngenAfskrivning | Al11OrdinærAfskrivning(sats_basispoint: Heltal) | Al11FuldRestfradrag
-# Afskrivningslov11Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, afskrivningskategori: Afskrivningslov11Afskrivningskategori, uafskrevet_beløb_primo_kroner: Heltal, anskaffelsessum_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, årets_benyttelse: AfskrivningslovBenyttelse, valg: Afskrivningslov11Valg)
+# Afskrivningslov11Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, afskrivningskategori: Afskrivningslov11Afskrivningskategori, uafskrevet_beløb_primo_kroner: Heltal, anskaffelsessum_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, årets_benyttelse: AfskrivningslovBenyttelse, valg: Afskrivningslov11Valg)
 # Afskrivningslov11Årsopgørelse(indkomstår: Heltal, benyttelse: AfskrivningslovBenyttelse, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
 # Afskrivningslov11Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, afskrivningskategori: Afskrivningslov11Afskrivningskategori, blandet_benyttet: Boolsk, valg: Afskrivningslov11Valg, valg_gyldigt: Boolsk, højeste_sats_basispoint: Heltal, afskrivningsgrundlag_før_årets_afskrivning_kroner: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, uafskrevet_beløb_ultimo_kroner: Heltal, årsopgørelse: Afskrivningslov11Årsopgørelse)
 
+| afskrivningslov11_aktiv_resultat(input: Afskrivningslov11Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov_benyttelse_gyldig(benyttelse: AfskrivningslovBenyttelse) -> benyttelse.samlet_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder >= 0 && benyttelse.erhvervsmæssig_benyttelse_enheder <= benyttelse.samlet_benyttelse_enheder
 | afskrivningslov_benyttelse_er_blandet(benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_benyttelse_gyldig(benyttelse) && benyttelse.erhvervsmæssig_benyttelse_enheder > 0 && benyttelse.erhvervsmæssig_benyttelse_enheder < benyttelse.samlet_benyttelse_enheder
 | afskrivningslov_benyttelse_erhvervsandel_basispoint(benyttelse: AfskrivningslovBenyttelse) -> 0
@@ -1669,8 +1678,8 @@ tilsvarende anvendelse.
 | afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> 0
 | exception al_positivt_gyldigt_forhold afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner: Heltal, tæller: Heltal, nævner: Heltal) -> (penge_positivt_beløb(beløb_kroner) * tæller + nævner / 2) / nævner under beløb_kroner > 0 && tæller > 0 && nævner > 0 && tæller <= nævner
 | afskrivningslov_beløb_efter_benyttelse_kroner(beløb_kroner: Heltal, benyttelse: AfskrivningslovBenyttelse) -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(beløb_kroner, benyttelse.erhvervsmæssig_benyttelse_enheder, benyttelse.samlet_benyttelse_enheder)
-| afskrivningslov11_aktiv_resultat_matcher_benyttelse(input: Afskrivningslov11Input) -> input.aktiv_resultat.erhvervsmæssig_anvendelsesandel_basispoint == afskrivningslov_benyttelse_erhvervsandel_basispoint(input.årets_benyttelse)
-| afskrivningslov11_omfattet(input: Afskrivningslov11Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov11_aktiv_resultat_matcher_benyttelse(input)
+| afskrivningslov11_aktiv_resultat_matcher_benyttelse(input: Afskrivningslov11Input) -> afskrivningslov11_aktiv_resultat(input).erhvervsmæssig_anvendelsesandel_basispoint == afskrivningslov_benyttelse_erhvervsandel_basispoint(input.årets_benyttelse)
+| afskrivningslov11_omfattet(input: Afskrivningslov11Input) -> afskrivningslov11_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov11_aktiv_resultat_matcher_benyttelse(input)
 | afskrivningslov11_højeste_sats_basispoint(kategori: Afskrivningslov11Afskrivningskategori, parametre: AfskrivningslovÅrsparametre) -> match kategori {
     | Al11Par5Stk1 -> parametre.højeste_ordinære_sats_basispoint
     | Al11Par5CStk1 -> parametre.par5c_stk1_højeste_sats_basispoint
@@ -1699,8 +1708,8 @@ tilsvarende anvendelse.
 )
 | afskrivningslov11_resultat(input: Afskrivningslov11Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov11Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
-    aktivart = input.aktiv_resultat.aktivart,
+    skatteyder = afskrivningslov11_aktiv_resultat(input).skatteyder,
+    aktivart = afskrivningslov11_aktiv_resultat(input).aktivart,
     afskrivningskategori = input.afskrivningskategori,
     blandet_benyttet = afskrivningslov11_omfattet(input),
     valg = input.valg,
@@ -1754,9 +1763,10 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
 
 --@begin:afskrivningsloven_par12--
 # Afskrivningslov12Benyttelsesgrundlag = Al12TidligereÅr(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) | Al12SammeIndkomstår(benyttelse: AfskrivningslovBenyttelse)
-# Afskrivningslov12Input(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, anskaffelsessum_kroner: Heltal, forbedringsudgifter_før_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, benyttelsesgrundlag: Afskrivningslov12Benyttelsesgrundlag)
+# Afskrivningslov12Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, anskaffelsessum_kroner: Heltal, forbedringsudgifter_før_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, benyttelsesgrundlag: Afskrivningslov12Benyttelsesgrundlag)
 # Afskrivningslov12Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, omfattet_af_par12: Boolsk, afskrivning_i_salgsåret_afskåret: Boolsk, beregnede_afskrivninger_før_salgsåret_kroner: Heltal, uafskrevet_beløb_primo_i_salgsåret_kroner: Heltal, forbedringsudgifter_i_salgsåret_kroner: Heltal, salgssum_kroner: Heltal, erhvervsmæssig_benyttelse_enheder: Heltal, samlet_benyttelse_enheder: Heltal, erhvervsmæssig_andel_basispoint: Heltal, fortjeneste_før_erhvervsandel_kroner: Heltal, tab_før_erhvervsandel_kroner: Heltal, skattepligtig_fortjeneste_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal)
 
+| afskrivningslov12_aktiv_resultat(input: Afskrivningslov12Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> match grundlag {
     | Al12TidligereÅr(årsopgørelser) -> length(årsopgørelser) > 0 && all(årsopgørelser, |årsopgørelse: Afskrivningslov11Årsopgørelse| afskrivningslov11_årsopgørelse_gyldig(årsopgørelse))
     | Al12SammeIndkomstår(benyttelse) -> afskrivningslov_benyttelse_er_blandet(benyttelse)
@@ -1775,7 +1785,7 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
 }
 | afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> 0
 | exception al12_gyldigt_benyttelsesgrundlag afskrivningslov12_erhvervsandel_basispoint(grundlag: Afskrivningslov12Benyttelsesgrundlag) -> afskrivningslov12_erhvervsmæssig_benyttelse_enheder(grundlag) * 10000 / afskrivningslov12_samlet_benyttelse_enheder(grundlag) under afskrivningslov12_benyttelsesgrundlag_gyldigt(grundlag)
-| afskrivningslov12_omfattet(input: Afskrivningslov12Input) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov12_benyttelsesgrundlag_gyldigt(input.benyttelsesgrundlag)
+| afskrivningslov12_omfattet(input: Afskrivningslov12Input) -> afskrivningslov12_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov12_benyttelsesgrundlag_gyldigt(input.benyttelsesgrundlag)
 | afskrivningslov12_uafskrevet_beløb_primo_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.anskaffelsessum_kroner) + penge_positivt_beløb(input.forbedringsudgifter_før_salgsåret_kroner) - afskrivningslov12_beregnede_afskrivninger_kroner(input.benyttelsesgrundlag))
 | afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_uafskrevet_beløb_primo_kroner(input) + penge_positivt_beløb(input.forbedringsudgifter_i_salgsåret_kroner)
 | afskrivningslov12_fortjeneste_før_andel_kroner(input: Afskrivningslov12Input) -> penge_positivt_beløb(penge_positivt_beløb(input.salgssum_kroner) - afskrivningslov12_skattemæssig_restværdi_i_salgsåret_kroner(input))
@@ -1787,8 +1797,8 @@ Hvis afhændelsen sker med tab, kan der trækkes en tilsvarende del af tabet fra
 | exception al12_tab_efter_erhvervsandel afskrivningslov12_fradragsberettiget_tab_kroner(input: Afskrivningslov12Input) -> afskrivningslov12_beløb_efter_erhvervsandel_kroner(input, afskrivningslov12_tab_før_andel_kroner(input)) under afskrivningslov12_omfattet(input)
 | afskrivningslov12_resultat(input: Afskrivningslov12Input) -> Afskrivningslov12Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
-    aktivart = input.aktiv_resultat.aktivart,
+    skatteyder = afskrivningslov12_aktiv_resultat(input).skatteyder,
+    aktivart = afskrivningslov12_aktiv_resultat(input).aktivart,
     omfattet_af_par12 = afskrivningslov12_omfattet(input),
     afskrivning_i_salgsåret_afskåret = afskrivningslov12_omfattet(input),
     beregnede_afskrivninger_før_salgsåret_kroner = afskrivningslov12_beregnede_afskrivninger_kroner(input.benyttelsesgrundlag),
@@ -1835,13 +1845,14 @@ den skattepligtige indkomst.
 --@begin:afskrivningsloven_par13--
 # Afskrivningslov13Behandling = Al13UdgårAfDriften | Al13RepareresOgFortsætter
 # Afskrivningslov13UdgangInput(par12_resultat: Afskrivningslov12Resultat)
-# Afskrivningslov13ReparationInput(indkomstår: Heltal, aktiv_resultat: AfskrivningslovPar1Par2Resultat, årets_benyttelse: AfskrivningslovBenyttelse, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov11Årsopgørelse))
+# Afskrivningslov13ReparationInput(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, årets_benyttelse: AfskrivningslovBenyttelse, reparationsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov11Årsopgørelse))
 # Afskrivningslov13Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: AfskrivningslovAktivart, behandling: Afskrivningslov13Behandling, omfattet_af_par13: Boolsk, afskrivning_i_skadeåret_afskåret: Boolsk, skattepligtig_fortjeneste_eller_forsikringsoverskud_kroner: Heltal, fradragsberettiget_tab_kroner: Heltal, fradragsberettiget_reparationsoverskud_kroner: Heltal, samlet_skattepligtigt_beløb_kroner: Heltal, samlet_fradrag_i_skattepligtig_indkomst_kroner: Heltal)
 
+| afskrivningslov13_reparation_aktiv_resultat(input: Afskrivningslov13ReparationInput) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
 | afskrivningslov13_tidligere_årsopgørelser_gyldige(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> all(årsopgørelser, |årsopgørelse: Afskrivningslov11Årsopgørelse| afskrivningslov11_årsopgørelse_gyldig(årsopgørelse))
 | afskrivningslov13_beregnede_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.beregnet_afskrivning_før_erhvervsandel_kroner)
 | afskrivningslov13_foretagne_afskrivninger_kroner(årsopgørelser: List(Afskrivningslov11Årsopgørelse)) -> foldl(årsopgørelser, 0, |sum, årsopgørelse| sum + årsopgørelse.fradraget_afskrivning_kroner)
-| afskrivningslov13_reparation_omfattet(input: Afskrivningslov13ReparationInput) -> input.aktiv_resultat.omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov13_tidligere_årsopgørelser_gyldige(input.tidligere_årsopgørelser)
+| afskrivningslov13_reparation_omfattet(input: Afskrivningslov13ReparationInput) -> afskrivningslov13_reparation_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov_benyttelse_er_blandet(input.årets_benyttelse) && afskrivningslov13_tidligere_årsopgørelser_gyldige(input.tidligere_årsopgørelser)
 | afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> 0
 | exception al13_reparationsudgift_over_erstatning afskrivningslov13_reparationsoverskud_fradrag_kroner(input: Afskrivningslov13ReparationInput) -> afskrivningslov_beløb_efter_benyttelse_kroner(penge_positivt_beløb(input.reparationsudgifter_kroner - input.forsikrings_eller_erstatningssum_kroner), input.årets_benyttelse) under afskrivningslov13_reparation_omfattet(input) && input.reparationsudgifter_kroner > input.forsikrings_eller_erstatningssum_kroner
 | afskrivningslov13_forsikringsoverskud_skattepligtigt_kroner(input: Afskrivningslov13ReparationInput) -> 0
@@ -1865,8 +1876,8 @@ den skattepligtige indkomst.
 )
 | afskrivningslov13_resultat_ved_reparation(input: Afskrivningslov13ReparationInput) -> Afskrivningslov13Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = input.aktiv_resultat.skatteyder,
-    aktivart = input.aktiv_resultat.aktivart,
+    skatteyder = afskrivningslov13_reparation_aktiv_resultat(input).skatteyder,
+    aktivart = afskrivningslov13_reparation_aktiv_resultat(input).aktivart,
     behandling = Al13RepareresOgFortsætter,
     omfattet_af_par13 = afskrivningslov13_reparation_omfattet(input),
     afskrivning_i_skadeåret_afskåret = Falskt,

@@ -117,11 +117,11 @@ fradrag.
     "afskrivningslov-5-2026",
     PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Driftsmiddel(kilde = PsPar3Nr10Al5(input = Afskrivningslov5Input(
         indkomstår = 2026,
-        aktiv_resultat = afskrivningslov_par1_par2_resultat(AfskrivningslovPar1Par2Input(
+        aktiv_input = AfskrivningslovPar1Par2Input(
             skatteyder = AlSelvstændigErhvervsdrivendePerson,
             aktivart = AlMaskine,
             erhvervsmæssig_anvendelsesandel_basispoint = 10000
-        )),
+        ),
         saldoordning = AlPar5AlmindeligSaldo,
         saldoværdi_primo_kroner = 100000,
         anskaffelsessummer_i_året_kroner = 0,
