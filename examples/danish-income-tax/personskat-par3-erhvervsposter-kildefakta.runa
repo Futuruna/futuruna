@@ -129,7 +129,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
 }
 
 | personskat_par3_nr10_driftsmiddelkilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Driftsmiddelkilde, indkomstår: Heltal) -> match kilde {
-    | PsPar3Nr10Al5(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al5(input) -> afskrivningslov5_indkomstår_matcher(input, indkomstår)
     | PsPar3Nr10Al5A(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al5B(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al5C(input) -> input.indkomstår == indkomstår

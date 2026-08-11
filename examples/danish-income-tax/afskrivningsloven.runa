@@ -661,44 +661,61 @@ tilladelsen.
 --@begin:afskrivningsloven_par5--
 # AfskrivningslovSaldoordning = AlPar5AlmindeligSaldo | AlPar5BSkibssaldo | AlPar5CInfrastruktursaldo | AlPar5DMidlertidig116Saldo | AlPar5EMidlertidig108Saldo
 # Afskrivningslov5Valg = Al5IngenAfskrivning | Al5OrdinærAfskrivning(sats_basispoint: Heltal) | Al5FuldRestsaldo
-# Afskrivningslov5Input(indkomstår: Heltal, aktiv_input: AfskrivningslovPar1Par2Input, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
+# Afskrivningslov5Aktivgrundlag = Al5Kapitel2Aktiv(input: AfskrivningslovPar1Par2Input) | Al5Par10DokEllerBedding(input: Afskrivningslov10Input)
+# Afskrivningslov5Input(indkomstår: Heltal, aktivgrundlag: Afskrivningslov5Aktivgrundlag, saldoordning: AfskrivningslovSaldoordning, saldoværdi_primo_kroner: Heltal, øvrige_anskaffelsessummer_i_året_kroner: Heltal, forbedringsudgifter_i_året_kroner: Heltal, salgssummer_i_året_kroner: Heltal, valg: Afskrivningslov5Valg)
 # Afskrivningslov5Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, saldoordning: AfskrivningslovSaldoordning, omfattet_af_par5: Boolsk, valg: Afskrivningslov5Valg, valg_gyldigt: Boolsk, saldoværdi_før_afskrivning_kroner: Heltal, afskrivningsberettiget_saldoværdi_kroner: Heltal, højeste_ordinære_afskrivning_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, saldoværdi_efter_afskrivning_kroner: Heltal)
 # Afskrivningslov5UdlejningsSkatteyderStatus = Al5SelskabPar1Stk1Nr1Nr2EllerNr4 | Al5AndenSkatteyder
 # Afskrivningslov5UdlejningsTilladelse = Al5IngenUdlejningstilladelse | Al5UdlejningstilladelseGældende | Al5UdlejningstilladelseBortfaldet
 # Afskrivningslov5UdlejningsaktivInput(skatteyder_status: Afskrivningslov5UdlejningsSkatteyderStatus, anskaffelsesår: Heltal, indkomstår: Heltal, anskaffelsessum_kroner: Heltal, erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen: Boolsk, tilladelse: Afskrivningslov5UdlejningsTilladelse, valgt_særskilt_afskrivning_basispoint: Heltal, solgt_i_indkomståret: Boolsk, salgssum_kroner: Heltal)
 # Afskrivningslov5UdlejningsaktivResultat(anskaffelsesår: Heltal, indkomstår: Heltal, omfattet_af_stk4: Boolsk, udskydelse_gælder: Boolsk, år_efter_anskaffelsen: Heltal, valgt_særskilt_afskrivning_basispoint: Heltal, valgt_særskilt_afskrivning_gyldig: Boolsk, andet_indkomstårs_afskrivning_kroner: Heltal, særskilt_afskrivning_i_indkomståret_kroner: Heltal, uafskrevet_anskaffelsessum_kroner: Heltal, beløb_til_afskrivningssaldo_kroner: Heltal, tidligt_salg_omfattet_af_stk5: Boolsk, fortjeneste_kroner: Heltal, tab_kroner: Heltal, saldoændring_ved_tidligt_salg_kroner: Heltal)
 
-| afskrivningslov5_aktiv_resultat(input: Afskrivningslov5Input) -> afskrivningslov_par1_par2_resultat(input.aktiv_input)
-| afskrivningslov5_omfattet(input: Afskrivningslov5Input) -> afskrivningslov5_aktiv_resultat(input).omfattet_af_kapitel2 && afskrivningslov5_aktiv_resultat(input).udelukkende_erhvervsmæssigt_benyttet && input.saldoordning == AlPar5AlmindeligSaldo
-| afskrivningslov5_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5Input) -> input.saldoværdi_primo_kroner + penge_positivt_beløb(input.anskaffelsessummer_i_året_kroner) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
+| afskrivningslov5_skatteyder(input: Afskrivningslov5Input) -> match input.aktivgrundlag {
+    | Al5Kapitel2Aktiv(aktiv_input) -> afskrivningslov_par1_par2_resultat(aktiv_input).skatteyder
+    | Al5Par10DokEllerBedding(par10_input) -> par10_input.skatteyder
+}
+| afskrivningslov5_aktivgrundlag_indkomstår_matcher(aktivgrundlag: Afskrivningslov5Aktivgrundlag, indkomstår: Heltal) -> match aktivgrundlag {
+    | Al5Kapitel2Aktiv(_) -> Sandt
+    | Al5Par10DokEllerBedding(par10_input) -> par10_input.indkomstår == indkomstår
+}
+| afskrivningslov5_indkomstår_matcher(input: Afskrivningslov5Input, indkomstår: Heltal) -> input.indkomstår == indkomstår && afskrivningslov5_aktivgrundlag_indkomstår_matcher(input.aktivgrundlag, indkomstår)
+| afskrivningslov5_aktiv_omfattet(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.aktivgrundlag {
+    | Al5Kapitel2Aktiv(aktiv_input) -> afskrivningslov_par1_par2_resultat(aktiv_input).omfattet_af_kapitel2 && afskrivningslov_par1_par2_resultat(aktiv_input).udelukkende_erhvervsmæssigt_benyttet
+    | Al5Par10DokEllerBedding(par10_input) -> afskrivningslov10_resultat(par10_input, parametre).valg_gyldigt
+}
+| afskrivningslov5_omfattet(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5_aktiv_omfattet(input, parametre) && input.saldoordning == AlPar5AlmindeligSaldo
+| afskrivningslov5_anskaffelsessummer_til_saldo_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.aktivgrundlag {
+    | Al5Kapitel2Aktiv(_) -> penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner)
+    | Al5Par10DokEllerBedding(par10_input) -> penge_positivt_beløb(input.øvrige_anskaffelsessummer_i_året_kroner) + afskrivningslov10_resultat(par10_input, parametre).anskaffelsessum_til_par5_saldo_kroner
+}
+| afskrivningslov5_saldoværdi_før_afskrivning_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> input.saldoværdi_primo_kroner + afskrivningslov5_anskaffelsessummer_til_saldo_kroner(input, parametre) + penge_positivt_beløb(input.forbedringsudgifter_i_året_kroner) - penge_positivt_beløb(input.salgssummer_i_året_kroner)
 | afskrivningslov5_valgt_ordinær_sats_basispoint(valg: Afskrivningslov5Valg) -> match valg {
     | Al5OrdinærAfskrivning(sats_basispoint) -> penge_positivt_beløb(sats_basispoint)
     | _ -> 0
 }
-| afskrivningslov5_årsparametre_matcher(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår
+| afskrivningslov5_årsparametre_matcher(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov5_indkomstår_matcher(input, parametre.indkomstår)
 | afskrivningslov5_valg_gyldigt(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> match input.valg {
-    | Al5IngenAfskrivning -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre)
-    | Al5OrdinærAfskrivning(sats_basispoint) -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= parametre.højeste_ordinære_sats_basispoint
-    | Al5FuldRestsaldo -> afskrivningslov5_omfattet(input) && afskrivningslov5_årsparametre_matcher(input, parametre) && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) > 0 && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) <= parametre.småsaldigrænse_kroner
+    | Al5IngenAfskrivning -> afskrivningslov5_omfattet(input, parametre) && afskrivningslov5_årsparametre_matcher(input, parametre)
+    | Al5OrdinærAfskrivning(sats_basispoint) -> afskrivningslov5_omfattet(input, parametre) && afskrivningslov5_årsparametre_matcher(input, parametre) && sats_basispoint >= 0 && sats_basispoint <= parametre.højeste_ordinære_sats_basispoint
+    | Al5FuldRestsaldo -> afskrivningslov5_omfattet(input, parametre) && afskrivningslov5_årsparametre_matcher(input, parametre) && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) > 0 && penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) <= parametre.småsaldigrænse_kroner
 }
 | afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> 0
 | exception al5_ordinær_saldoafskrivning afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_beløb_gange_basispoint_kroner(
-    penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)),
+    penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)),
     afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg)
 ) under afskrivningslov5_valg_gyldigt(input, parametre) && afskrivningslov5_valgt_ordinær_sats_basispoint(input.valg) > 0
-| exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
+| exception al5_fuld_småsaldofradrag afskrivningslov5_fradrag_kroner(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)) under afskrivningslov5_valg_gyldigt(input, parametre) && input.valg == Al5FuldRestsaldo
 | afskrivningslov5_resultat(input: Afskrivningslov5Input, parametre: AfskrivningslovÅrsparametre) -> Afskrivningslov5Resultat(
     indkomstår = input.indkomstår,
-    skatteyder = afskrivningslov5_aktiv_resultat(input).skatteyder,
+    skatteyder = afskrivningslov5_skatteyder(input),
     saldoordning = input.saldoordning,
-    omfattet_af_par5 = afskrivningslov5_omfattet(input),
+    omfattet_af_par5 = afskrivningslov5_omfattet(input, parametre),
     valg = input.valg,
     valg_gyldigt = afskrivningslov5_valg_gyldigt(input, parametre),
-    saldoværdi_før_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input),
-    afskrivningsberettiget_saldoværdi_kroner = penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)),
-    højeste_ordinære_afskrivning_kroner = penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input)), parametre.højeste_ordinære_sats_basispoint),
+    saldoværdi_før_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre),
+    afskrivningsberettiget_saldoværdi_kroner = penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)),
+    højeste_ordinære_afskrivning_kroner = penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre)), parametre.højeste_ordinære_sats_basispoint),
     fradrag_i_skattepligtig_indkomst_kroner = afskrivningslov5_fradrag_kroner(input, parametre),
-    saldoværdi_efter_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input) - afskrivningslov5_fradrag_kroner(input, parametre)
+    saldoværdi_efter_afskrivning_kroner = afskrivningslov5_saldoværdi_før_afskrivning_kroner(input, parametre) - afskrivningslov5_fradrag_kroner(input, parametre)
 )
 | afskrivningslov5_udlejningsaktiv_omfattet(input: Afskrivningslov5UdlejningsaktivInput) -> input.skatteyder_status == Al5SelskabPar1Stk1Nr1Nr2EllerNr4 && input.erhvervet_med_henblik_på_udlejning_eller_udlejet_ved_erhvervelsen
 | afskrivningslov5_udlejningstilladelse_gældende(input: Afskrivningslov5UdlejningsaktivInput) -> input.tilladelse == Al5UdlejningstilladelseGældende
@@ -1604,10 +1621,10 @@ også behandles efter de nævnte regler.
 
 --@begin:afskrivningsloven_par10--
 # Afskrivningslov10Aktivart = Al10DokAnlæg | Al10Beddingsanlæg | Al10TilhørendeBygning | Al10TilhørendeInstallation | Al10AndetTilhørendeAktiv | Al10AndetAktiv
-# Afskrivningslov10Input(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, beregnet_til_bygning_og_reparation_af_skibe: Boolsk, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, vælger_par5_til_par9: Boolsk, fortjeneste_mv_behandles_efter_par5_til_par9: Boolsk)
-# Afskrivningslov10Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, aktiv_omfattet: Boolsk, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, minimumsanskaffelsessum_kroner: Heltal, minimum_opfyldt: Boolsk, valg_gyldigt: Boolsk, anskaffelsessum_til_par5_saldo_kroner: Heltal)
+# Afskrivningslov10Input(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, beregnet_til_bygning_og_reparation_af_skibe: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, vælger_par5_til_par9: Boolsk, fortjeneste_mv_behandles_efter_par5_til_par9: Boolsk)
+# Afskrivningslov10Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktivart: Afskrivningslov10Aktivart, aktiv_omfattet: Boolsk, erhvervsmæssig_anvendelsesandel_basispoint: Heltal, udelukkende_erhvervsmæssigt_benyttet: Boolsk, samlet_anskaffelsessum_i_indkomståret_kroner: Heltal, minimumsanskaffelsessum_kroner: Heltal, minimum_opfyldt: Boolsk, valg_gyldigt: Boolsk, anskaffelsessum_til_par5_saldo_kroner: Heltal)
 
-| afskrivningslov10_aktiv_omfattet(input: Afskrivningslov10Input) -> input.beregnet_til_bygning_og_reparation_af_skibe && input.aktivart != Al10AndetAktiv
+| afskrivningslov10_aktiv_omfattet(input: Afskrivningslov10Input) -> input.beregnet_til_bygning_og_reparation_af_skibe && input.aktivart != Al10AndetAktiv && input.erhvervsmæssig_anvendelsesandel_basispoint == 10000
 | afskrivningslov10_minimum_opfyldt(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> input.indkomstår == parametre.indkomstår && penge_positivt_beløb(input.samlet_anskaffelsessum_i_indkomståret_kroner) >= parametre.dok_og_bedding_minimum_kroner
 | afskrivningslov10_valg_gyldigt(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> afskrivningslov10_aktiv_omfattet(input) && afskrivningslov10_minimum_opfyldt(input, parametre) && input.vælger_par5_til_par9 && input.fortjeneste_mv_behandles_efter_par5_til_par9
 | afskrivningslov10_til_par5_saldo_kroner(input: Afskrivningslov10Input, parametre: AfskrivningslovÅrsparametre) -> 0
@@ -1617,6 +1634,8 @@ også behandles efter de nævnte regler.
     skatteyder = input.skatteyder,
     aktivart = input.aktivart,
     aktiv_omfattet = afskrivningslov10_aktiv_omfattet(input),
+    erhvervsmæssig_anvendelsesandel_basispoint = input.erhvervsmæssig_anvendelsesandel_basispoint,
+    udelukkende_erhvervsmæssigt_benyttet = input.erhvervsmæssig_anvendelsesandel_basispoint == 10000,
     samlet_anskaffelsessum_i_indkomståret_kroner = penge_positivt_beløb(input.samlet_anskaffelsessum_i_indkomståret_kroner),
     minimumsanskaffelsessum_kroner = parametre.dok_og_bedding_minimum_kroner,
     minimum_opfyldt = afskrivningslov10_minimum_opfyldt(input, parametre),

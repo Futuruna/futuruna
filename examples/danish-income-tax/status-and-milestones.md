@@ -3,7 +3,8 @@
 Status: active implementation; source-backed calculation gaps remain
 Last updated: 2026-08-11
 TD epic: `td-56cf8d`
-Current implementation slice: `td-0f12d2` (Virksomhedsskattelovens § 22 a-loft afledes nu fra Personskats kanoniske virksomhedsresultat efter Kildeskattelovens § 25 A i stedet for et caller-opgjort nettobeløb. Den arbejdsbogsvendte kilde indeholder fortsat aktiver, varekreditorer, kapitalindkomst før § 22 a, periode og virksomhedsfordeling, men ikke den afledte personlige virksomhedsindkomst, VSO-status eller et redundant valgflag. Adapteren konstruerer et fuldt, revisionsbart `Virksomhedsskattelov22AKildeInput`; manglende afledt kontekst eller modstrid mellem ægtefællerelationen og § 22 a-grundlaget fejler lukket. Et fokuseret KSL § 25 A-scenarie fordeler 100.000 kr. til 60.000/40.000 kr. og genfinder præcis disse beløb i det delegerede VSL-input; uden kanonisk virksomhedsindkomst bliver loftgrundlaget nul. Det fokuserede scenarie, den eksisterende KSL § 25 A-suite og de dokumenterede 2023-, 2024- og 2025-årsopgørelsesscenarier består fortolket. Beregningsskemaet og Rust-backendkontrollen består; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
+Current implementation slice: `td-67f17f` (Afskrivningslovens § 10 er nu sammensat med den kanoniske § 5-saldo i stedet for at ende som et isoleret resultat uden skattevirkning. `Afskrivningslov5Aktivgrundlag` skelner typet mellem et ordinært kapitel 2-aktiv og et dok- eller beddingsanlæg efter § 10, så bygninger og installationer ikke skal fejlklassificeres som almindelige driftsmidler. Den officielle 2026-grænse på 965.800 kr., udelukkende erhvervsmæssig brug, valget af §§ 5-9, den bindende behandling af senere fortjeneste og sammenfaldende indkomstår afledes før anskaffelsessummen føres til samme saldo som virksomhedens driftsmidler og skibe. En saldo på 1.100.000 kr. giver 275.000 kr. i afskrivning, og en ren 965.800-kr.-anskaffelse giver 241.450 kr. gennem `beregn_personskat`; ugyldige betingelser giver nul, og et modstridende år afviser inputtet. Alle 56 fokuserede AL-scenarier og syv kanoniske scenarier består fortolket; de syv kanoniske scenarier består også kompileret. Den statiske graf indlæser 118 kilder og når nu 9.444 af 11.324 callable-familier; alle fem § 10-familier er nået. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
+Previous implementation slice: `td-0f12d2` (Virksomhedsskattelovens § 22 a-loft afledes nu fra Personskats kanoniske virksomhedsresultat efter Kildeskattelovens § 25 A i stedet for et caller-opgjort nettobeløb. Den arbejdsbogsvendte kilde indeholder fortsat aktiver, varekreditorer, kapitalindkomst før § 22 a, periode og virksomhedsfordeling, men ikke den afledte personlige virksomhedsindkomst, VSO-status eller et redundant valgflag. Adapteren konstruerer et fuldt, revisionsbart `Virksomhedsskattelov22AKildeInput`; manglende afledt kontekst eller modstrid mellem ægtefællerelationen og § 22 a-grundlaget fejler lukket. Et fokuseret KSL § 25 A-scenarie fordeler 100.000 kr. til 60.000/40.000 kr. og genfinder præcis disse beløb i det delegerede VSL-input; uden kanonisk virksomhedsindkomst bliver loftgrundlaget nul. Det fokuserede scenarie, den eksisterende KSL § 25 A-suite og de dokumenterede 2023-, 2024- og 2025-årsopgørelsesscenarier består fortolket. Beregningsskemaet og Rust-backendkontrollen består; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-ff038c` (Personskattelovens § 4, stk. 1, nr. 9-12 og 15-16 samt § 4, stk. 7-9 og § 4 a's henvisning til Ligningslovens § 7 N afledes nu fra typede kildefakta i den kanoniske `beregn_personskat`-graf. Nr. 9 og 11 genbruger virksomhedens rå indtægts- og udgiftsledger og opgør selv nettobeløbet gennem § 3, før ejerantal, væsentlig deltagelse, LL § 8 P og Skatterådets undtagelse klassificerer beløbet. Nr. 10, 12, 15 og 16 sammensætter de eksisterende LL §§ 14 A, 5 C og 12 B samt AL § 40 C-resultater uden caller-opgjorte slutbeløb. LL § 7 N deler årsloftet på 30.000 kr. deterministisk mellem arbejdsgiverindskud, fører overskud og udbetaling til kapitalindkomst, tab til aktieindkomst og tilbagekaldelse til personlig indkomst; kun den skattepligtige del af arbejdsgiverindskuddet når AM-grundlaget. Dublerede identifikationer, modstridende år og ugyldige delegerede resultater får den relevante årsgren til at fejle lukket. De kanoniske scenarier rammer 122.000 kr. i særlige kapitalposter og LL § 7 N-eksemplets 67.000 kr. i personlig indkomst, 10.000 kr. i AM-grundlag og 800 kr. i AM-bidrag. Danske, variantpræcise beregningsmetadata og officielle kilder følger begge personroller. Alle 31 berørte filer består en otte-worker frontend-gate, begge nye scenarier består fortolket, kontraktskemaet genereres, og den fulde kalkulator består Rust-backendkontrollen med 243.359 genererede linjer. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-671407` (Personskattelovens § 4, stk. 1, nr. 5 a, 5 b og 7 afledes nu fra typede kildefakta i den kanoniske `beregn_personskat`-graf. Nr. 5 a modtager den lovligt opgjorte signerede gevinst eller det fradragsberettigede tab samt Selskabsskattelovens § 1, stk. 1, nr. 6-klassifikation uden at opfinde en selvstændig avanceformel. Nr. 5 b afleder formidler- og aktivkredsen gennem den eksisterende ABL-kaskade; `AblUdenforDenneSlice` og `AblIkkeMedregnetISlice` bevares som sporbare mellemtilstande, men kan ikke afslutte en skattepligtig post tavst. Nr. 7 afleder provisionen gennem Ligningslovens § 8, stk. 3. Identifikationer og indkomstår valideres, og en ugyldig eller dubleret post får hele postlisten til at fejle lukket. Det kanoniske scenarie giver 32.000 kr. i nettokapitalindkomst og 7.000 kr. i personlig omklassifikation og dækker positive, negative, undtagne og ugyldige forløb. Beregningskontrakten udleder danske relation- og feltetiketter for både hovedperson og ægtefælle med typede officielle kilder. Anvendelsen afdækkede samtidig et checkerhul: ens feltbetegnelser på forskellige sumtypevarianter beholder nu variantens egen strukturelle felttype. Alle 172 bibliotekstests, Personskat-skemaet, fem parallelt kontrollerede berørte grafer og den fokuserede native gate består; de fem frontend-grafer tog cirka 21 sekunder i vægtid mod cirka 75 sekunders summeret filtid. Den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
 Previous implementation slice: `td-774d3b` (Personskattelovens § 3, stk. 2, nr. 4-5, 7 og 9-10 afledes nu fra typede erhvervskilder under den konkrete selvstændige virksomhed. Adapteren dækker alle 50 eksisterende nr. 10-resultatfamilier gennem 52 kildevarianter samt husdyrbesætning, varelager, konjunktur- og indkomstudligningshenlæggelser og LL § 8 O. Calleren leverer kildefakta og nødvendige flerperiodetilstande, ikke det endelige PSL-resultat. Kildeidentifikationer og indkomstår valideres og bevares ved KSL § 25 A- og dødsperiodefordeling. Et kanonisk scenarie fører seks repræsentative kilder gennem `beregn_personskat`: 500.000 kr. i omsætning og 20.000 kr. i skattepligtig nr. 10-indtægt reduceres med 82.000 kr. i fradrag til 438.000 kr. i personlig indkomst og AM-grundlag. Varelagerets aktuelle 0-procentsvirkning er eksplicit, og dublerede identifikationer eller modstridende indkomstår fejler lukket. AL § 24 bruger det afsluttede samordningsresultat med EBL § 10 frem for det interne kandidatresultat. Den native gate afdækkede samtidig et checkerhul, så konkrete typemodstrid mellem navngivne konstruktørfelter nu afvises før Rust-generering. Frontend, fokuserede fortolkerscenarier, native udførelse, metadataindekset og det fulde Personskat-skema består. Ti danske beregningsfelter udledes for både hovedperson og ægtefælle; den fulde 303-arks rundtur forbliver et publiceringscheckpoint.)
@@ -3624,8 +3625,8 @@ as a complete Personskatteloven calculator.
   plus its necessary dependencies. These are deliberately separate measures:
   represented legal structure is further ahead than exact amount-level support
   for every special taxpayer, transition, cross-year history and dependency.
-  The estimate is informed by the 107-file static closure, not obtained by
-  treating its 7.793/11.014 callable ratio as a completion percentage: many
+  The estimate is informed by the 118-file static closure, not obtained by
+  treating its 9.444/11.324 callable ratio as a completion percentage: many
   intentionally private helpers, historical variants, scenarios and audit
   entries should not be reachable from `beregn_personskat`.
 - Canonical § 3 coverage reaches all numbered branches in stk. 2. Nr. 1 uses
@@ -3633,6 +3634,9 @@ as a complete Personskatteloven calculator.
   delegated LL families; and nr. 3-11 consume typed dependency results. The
   nr. 10 adapter reaches all 50 result families through 52 source variants
   while preserving taxable additions and deductions as separate legal posts.
+  Afskrivningslovens § 10 is additionally reachable as a typed eligibility and
+  acquisition path inside the amount-producing § 5 result, so it does not
+  create a misleading standalone zero-amount post.
 - Canonical § 4 coverage reaches nr. 1, 2, 3, 3 a, 4, 5, 5 a, 5 b, 6, 7-17
   through direct or composed annual results. Nr. 9-12 and 15-16 now derive
   their amounts from typed business ledgers or delegated-law results. § 4 a's
@@ -4264,6 +4268,10 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Now
 
+- Afskrivningslovens § 10 føder nu den samme § 5-saldo som virksomhedens
+  ordinære driftsmidler og skibe. Den typede aktivgrundlagsvariant bevarer
+  § 10-kilden, årsgrænsen, erhvervsbrugen og det bindende valg gennem
+  `beregn_personskat`; alle fem § 10-regelfamilier er nået i den statiske graf.
 - Kapitalafkastordningens loft efter Virksomhedsskattelovens § 22 a, stk. 3-4,
   bruger nu den ordinære virksomhedsindkomst efter Kildeskattelovens § 25 A.
   Den kanoniske kilde bærer ikke længere caller-beregnede konklusioner om
@@ -5328,10 +5336,12 @@ Review candidates to revisit deliberately, not as broad churn:
 
 ## Next
 
-- Genberegn den kanoniske rækkevidde efter de afsluttede § 3- og § 4-slices,
-  og tag derefter den højeste resterende beløbsgren i Personskatteloven eller
+- Den opdaterede kanoniske rækkevidde indlæser 118 kilder og når 9.444 af
+  11.324 callable-familier. Rangér de resterende 1.880 kandidater efter reel
+  beløbsvirkning, og tag den højeste kildebelagte gren i Personskatteloven eller
   en nødvendig afhængighed. Bevar grænsen: kildefakta ind, afledte lovresultater
-  gennem `|`-regler og ingen caller-opgjorte juridiske slutbeløb.
+  gennem `|`-regler og ingen caller-opgjorte juridiske slutbeløb; den rå
+  reachability-ratio er ikke en færdiggørelsesprocent.
 - Udvid under `td-d4743d` den nu afledte § 33 A-afbrydelse til andre
   kildebelagte afbrydelsesårsager og senere genoptjening. Periodemodellen skal
   da kunne bære flere lempelses- og afvisningsperioder i samme ansættelsesforhold
