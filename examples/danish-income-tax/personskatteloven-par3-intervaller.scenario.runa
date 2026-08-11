@@ -5,17 +5,17 @@
 -- Scenarier for Afskrivningsloven § 19's vedvarende intervalhistorik.
 -- Lovtekst og kildeankre ligger i det importerede lovmodul.
 
-= al19_interval_bygning = afskrivningslov14_resultat(Afskrivningslov14Input(
+= al19_interval_bygning = Afskrivningslov14Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al14AndenErhvervsanvendelse,
     erhvervsmæssigt_benyttet = Sandt,
     postsortering_med_industrielt_præg = Falskt,
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
-))
+)
 
 | al19_interval_input(afskrivningsberettiget_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Input(
-    bygning_resultat = al19_interval_bygning,
+    bygning_input = al19_interval_bygning,
     samlet_anskaffelsessum_kroner = 1000000,
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter,

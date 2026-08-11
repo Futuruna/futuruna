@@ -140,16 +140,16 @@
     genopført_ejendom_identifikation = "skadelidt-ejendom"
 ))
 
-= ebl_par10_afskrivningsscenarie_bygning = afskrivningslov14_resultat(Afskrivningslov14Input(
+= ebl_par10_afskrivningsscenarie_bygning = Afskrivningslov14Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al14AndenErhvervsanvendelse,
     erhvervsmæssigt_benyttet = Sandt,
     postsortering_med_industrielt_præg = Falskt,
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
-))
+)
 = ebl_par10_afskrivningsscenarie_nedskrevet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
-    aktiv = AlK3Bygning(resultat = ebl_par10_afskrivningsscenarie_bygning),
+    aktiv = AlK3Bygning(input = ebl_par10_afskrivningsscenarie_bygning),
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,
         straksfradrag_som_ikke_medregnes_kroner = 0,

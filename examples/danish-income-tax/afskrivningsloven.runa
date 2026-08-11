@@ -2022,15 +2022,16 @@ i den bygning, hvori ejerlejligheden findes.
 --@begin:afskrivningsloven_par15--
 # Afskrivningslov15Anvendelse = Al15TjenerUdelukkendeBygning | Al15AndenUdelukkendeErhverv | Al15BlandetErhvervOgPrivat
 # Afskrivningslov15Behandling = Al15SomBygning | Al15SærskiltUdelukkendeErhverv | Al15SærskiltBlandet | Al15IkkeAfskrivningsberettiget
-# Afskrivningslov15Input(skatteyder: AfskrivningslovSkatteyder, anvendelse: Afskrivningslov15Anvendelse, bygning_resultat: Afskrivningslov14Resultat, har_kunnet_afskrives_efter_stk2_eller_stk3: Boolsk, flere_ved_samme_bygning_anskaffet_samme_indkomstår: Boolsk, benyttelse: AfskrivningslovBenyttelse, i_en_eller_tofamilieshus: Boolsk, ejer_af_ejerlejlighed_benyttet_til_beboelse: Boolsk)
+# Afskrivningslov15Input(skatteyder: AfskrivningslovSkatteyder, anvendelse: Afskrivningslov15Anvendelse, bygning_input: Afskrivningslov14Input, har_kunnet_afskrives_efter_stk2_eller_stk3: Boolsk, flere_ved_samme_bygning_anskaffet_samme_indkomstår: Boolsk, benyttelse: AfskrivningslovBenyttelse, i_en_eller_tofamilieshus: Boolsk, ejer_af_ejerlejlighed_benyttet_til_beboelse: Boolsk)
 # Afskrivningslov15Resultat(skatteyder: AfskrivningslovSkatteyder, anvendelse: Afskrivningslov15Anvendelse, behandling: Afskrivningslov15Behandling, benyttelse: AfskrivningslovBenyttelse, omfattet_af_stk1: Boolsk, omfattet_af_stk2: Boolsk, omfattet_af_stk3: Boolsk, kan_afskrives_under_et_efter_stk2: Boolsk, blandet_benyttet: Boolsk, udelukket_efter_stk4: Boolsk, omfattet_af_par15: Boolsk)
 
 # Afskrivningslov15Sag(input: Afskrivningslov15Input) {
+    | bygning_resultat() -> afskrivningslov14_resultat(input.bygning_input)
     | benyttelse_gyldig() -> afskrivningslov_benyttelse_gyldig(input.benyttelse)
     | udelukket_efter_stk4() -> input.i_en_eller_tofamilieshus || input.ejer_af_ejerlejlighed_benyttet_til_beboelse
     | udelukkende_erhvervsmæssigt_benyttet() -> benyttelse_gyldig() && input.benyttelse.erhvervsmæssig_benyttelse_enheder == input.benyttelse.samlet_benyttelse_enheder
     | blandet_benyttet() -> afskrivningslov_benyttelse_er_blandet(input.benyttelse)
-    | omfattet_af_stk1() -> input.anvendelse == Al15TjenerUdelukkendeBygning && input.bygning_resultat.omfattet_af_par14 && input.har_kunnet_afskrives_efter_stk2_eller_stk3 == Falskt && udelukket_efter_stk4() == Falskt
+    | omfattet_af_stk1() -> input.anvendelse == Al15TjenerUdelukkendeBygning && bygning_resultat().omfattet_af_par14 && input.har_kunnet_afskrives_efter_stk2_eller_stk3 == Falskt && udelukket_efter_stk4() == Falskt
     | omfattet_af_stk2() -> omfattet_af_stk1() == Falskt && udelukkende_erhvervsmæssigt_benyttet() && udelukket_efter_stk4() == Falskt
     | omfattet_af_stk3() -> omfattet_af_stk1() == Falskt && blandet_benyttet() && udelukket_efter_stk4() == Falskt
     | behandling() -> Al15IkkeAfskrivningsberettiget
@@ -2073,25 +2074,25 @@ og ombygningen eller forbedringen benyttes erhvervsmæssigt.
 ----
 
 --@begin:afskrivningsloven_par16--
-# AfskrivningslovKapitel3Aktiv = AlK3Bygning(resultat: Afskrivningslov14Resultat) | AlK3Installation(resultat: Afskrivningslov15Resultat)
+# AfskrivningslovKapitel3Aktiv = AlK3Bygning(input: Afskrivningslov14Input) | AlK3Installation(input: Afskrivningslov15Input)
 # Afskrivningslov16Hændelse = Al16Anskaffelse | Al16OmbygningEllerForbedring
 # Afskrivningslov16Input(aktiv: AfskrivningslovKapitel3Aktiv, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk)
 # Afskrivningslov16Resultat(aktiv: AfskrivningslovKapitel3Aktiv, skatteyder: AfskrivningslovSkatteyder, hændelse: Afskrivningslov16Hændelse, indkomstår: Heltal, aktiv_omfattet_af_kapitel3: Boolsk, erhvervet_eller_opført: Boolsk, udgift_afholdt: Boolsk, benyttes_erhvervsmæssigt: Boolsk, betingelser_opfyldt: Boolsk, afskrivningsberettiget_fra_indkomstår: Heltal)
 
 | afskrivningslov_kapitel3_aktiv_skatteyder(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Bygning(resultat) -> resultat.skatteyder
-    | AlK3Installation(resultat) -> resultat.skatteyder
+    | AlK3Bygning(input) -> input.skatteyder
+    | AlK3Installation(input) -> input.skatteyder
 }
 | afskrivningslov_kapitel3_aktiv_omfattet(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Bygning(resultat) -> resultat.omfattet_af_par14
-    | AlK3Installation(resultat) -> resultat.omfattet_af_par15
+    | AlK3Bygning(input) -> afskrivningslov14_resultat(input).omfattet_af_par14
+    | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_par15
 }
 | afskrivningslov_kapitel3_aktiv_er_blandet_installation(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Installation(resultat) -> resultat.omfattet_af_stk3
+    | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_stk3
     | _ -> Falskt
 }
 | afskrivningslov_kapitel3_aktiv_benyttelse(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Installation(resultat) -> resultat.benyttelse
+    | AlK3Installation(input) -> input.benyttelse
     | AlK3Bygning(_) -> AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 1, samlet_benyttelse_enheder = 1)
 }
 
@@ -2171,7 +2172,7 @@ først erhvervede ideelle andel for den først afståede.
 # Afskrivningslov17Valg = Al17IngenAfskrivning | Al17ValgtAfskrivning(beregnet_afskrivning_før_erhvervsandel_kroner: Heltal)
 # Afskrivningslov17AccessoriskHovedbygning = Al17IngenAccessoriskHovedbygning | Al17HovedbygningEfterStk2(anskaffelsesår: Heltal, antaget_levetid_år: Heltal) | Al17HovedbygningEfterStk3(anskaffelsesår: Heltal, antaget_levetid_år: Heltal)
 # Afskrivningslov17Årsopgørelse(indkomstår: Heltal, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradraget_afskrivning_kroner: Heltal)
-# Afskrivningslov17Input(indkomstår: Heltal, par16_resultat: Afskrivningslov16Resultat, par20_resultat: Afskrivningslov20Resultat, afskrivningsgrundlag_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov17Årsopgørelse), antaget_levetid_år: Heltal, accessorisk_hovedbygning: Afskrivningslov17AccessoriskHovedbygning, valg: Afskrivningslov17Valg)
+# Afskrivningslov17Input(indkomstår: Heltal, par16_input: Afskrivningslov16Input, par20_input: Afskrivningslov20Input, afskrivningsgrundlag_kroner: Heltal, tidligere_årsopgørelser: List(Afskrivningslov17Årsopgørelse), antaget_levetid_år: Heltal, accessorisk_hovedbygning: Afskrivningslov17AccessoriskHovedbygning, valg: Afskrivningslov17Valg)
 # Afskrivningslov17Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, anskaffelsesår: Heltal, afskrivningsgrundlag_kroner: Heltal, aktiv_omfattet: Boolsk, kan_afskrives_i_indkomståret: Boolsk, forhøjet_sats_gælder: Boolsk, højeste_sats_basispoint: Heltal, højeste_afskrivning_før_erhvervsandel_kroner: Heltal, valg: Afskrivningslov17Valg, valg_gyldigt: Boolsk, beregnet_afskrivning_før_erhvervsandel_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, samlede_beregnede_afskrivninger_kroner: Heltal, samlede_fradragne_afskrivninger_kroner: Heltal, resterende_afskrivningsgrundlag_kroner: Heltal, årsopgørelse: Afskrivningslov17Årsopgørelse)
 # Afskrivningslov17IdeelAndelResultat(ejer_andel_erhvervet_før_2023: Boolsk, ejer_andel_erhvervet_2023_eller_senere: Boolsk, afstår_ideel_andel: Boolsk, først_erhvervede_andel_anses_først_afstået: Boolsk)
 
@@ -2193,17 +2194,19 @@ først erhvervede ideelle andel for den først afståede.
     | Al17IngenAccessoriskHovedbygning -> 0
 }
 | afskrivningslov17_aktiv_er_accessorisk_bygning(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Bygning(resultat) -> resultat.afskrivningsberettiget_efter_stk3
+    | AlK3Bygning(input) -> afskrivningslov14_resultat(input).afskrivningsberettiget_efter_stk3
     | _ -> Falskt
 }
 
 # Afskrivningslov17Sag(input: Afskrivningslov17Input) {
+    | par16_resultat() -> afskrivningslov16_resultat(input.par16_input)
+    | par20_resultat() -> afskrivningslov20_resultat(input.par20_input)
     | afskrivningsgrundlag_kroner() -> penge_positivt_beløb(input.afskrivningsgrundlag_kroner)
-    | anskaffelsesår() -> input.par16_resultat.afskrivningsberettiget_fra_indkomstår
+    | anskaffelsesår() -> par16_resultat().afskrivningsberettiget_fra_indkomstår
     | erhvervet_før_2023() -> anskaffelsesår() > 0 && anskaffelsesår() < 2023
     | tidligere_historik_gyldig() -> all(input.tidligere_årsopgørelser, |årsopgørelse: Afskrivningslov17Årsopgørelse| afskrivningslov17_årsopgørelse_gyldig(årsopgørelse)) && afskrivningslov17_tidligere_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser) <= afskrivningsgrundlag_kroner()
     | egen_levetid_udløser_forhøjelse() -> hvis erhvervet_før_2023() { input.antaget_levetid_år > 0 && input.antaget_levetid_år <= 25 } ellers { input.antaget_levetid_år > 0 && input.antaget_levetid_år <= 33 }
-    | accessorisk_forhøjelse_gælder() -> afskrivningslov17_aktiv_er_accessorisk_bygning(input.par16_resultat.aktiv) && afskrivningslov17_accessorisk_hovedbygnings_levetid_år(input.accessorisk_hovedbygning) > 0 && input.accessorisk_hovedbygning != Al17IngenAccessoriskHovedbygning
+    | accessorisk_forhøjelse_gælder() -> afskrivningslov17_aktiv_er_accessorisk_bygning(par16_resultat().aktiv) && afskrivningslov17_accessorisk_hovedbygnings_levetid_år(input.accessorisk_hovedbygning) > 0 && input.accessorisk_hovedbygning != Al17IngenAccessoriskHovedbygning
     | forhøjet_sats_gælder() -> egen_levetid_udløser_forhøjelse() || accessorisk_forhøjelse_gælder()
     | forhøjelseslevetid_år() -> 0
     | exception al17_egen_levetid_forhøjer_sats forhøjelseslevetid_år() -> input.antaget_levetid_år under egen_levetid_udløser_forhøjelse()
@@ -2218,15 +2221,15 @@ først erhvervede ideelle andel for den først afståede.
     | exception al17_stk3_højeste_beløb højeste_før_historik_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningsgrundlag_kroner(), 300) + afskrivningsgrundlag_kroner() / forhøjelseslevetid_år() under forhøjet_sats_gælder() && gammel_stk3_forhøjelse_gælder()
     | resterende_før_året_kroner() -> penge_positivt_beløb(afskrivningsgrundlag_kroner() - afskrivningslov17_tidligere_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser))
     | højeste_afskrivning_kroner() -> penge_mindste_beløb(højeste_før_historik_kroner(), resterende_før_året_kroner())
-    | aktiv_omfattet() -> input.par16_resultat.betingelser_opfyldt && afskrivningsgrundlag_kroner() > 0 && tidligere_historik_gyldig()
-    | kan_afskrives_i_indkomståret() -> aktiv_omfattet() && input.indkomstår >= anskaffelsesår() && input.par20_resultat.indkomstår == input.indkomstår && input.par20_resultat.aktiv == input.par16_resultat.aktiv && input.par20_resultat.kan_afskrives_i_indkomståret
+    | aktiv_omfattet() -> par16_resultat().betingelser_opfyldt && afskrivningsgrundlag_kroner() > 0 && tidligere_historik_gyldig()
+    | kan_afskrives_i_indkomståret() -> aktiv_omfattet() && input.indkomstår >= anskaffelsesår() && par20_resultat().indkomstår == input.indkomstår && par20_resultat().aktiv == par16_resultat().aktiv && par20_resultat().kan_afskrives_i_indkomståret
     | valg_gyldigt() -> match input.valg {
         | Al17IngenAfskrivning -> kan_afskrives_i_indkomståret()
         | Al17ValgtAfskrivning(beløb_kroner) -> kan_afskrives_i_indkomståret() && beløb_kroner >= 0 && beløb_kroner <= højeste_afskrivning_kroner()
     }
     | beregnet_afskrivning_kroner() -> 0
     | exception al17_gyldigt_valgt_afskrivningsbeløb beregnet_afskrivning_kroner() -> afskrivningslov17_valgt_beregnet_afskrivning_kroner(input.valg) under valg_gyldigt()
-    | fradrag_kroner() -> hvis afskrivningslov_kapitel3_aktiv_er_blandet_installation(input.par16_resultat.aktiv) { afskrivningslov_beløb_efter_benyttelse_kroner(beregnet_afskrivning_kroner(), afskrivningslov_kapitel3_aktiv_benyttelse(input.par16_resultat.aktiv)) } ellers { beregnet_afskrivning_kroner() }
+    | fradrag_kroner() -> hvis afskrivningslov_kapitel3_aktiv_er_blandet_installation(par16_resultat().aktiv) { afskrivningslov_beløb_efter_benyttelse_kroner(beregnet_afskrivning_kroner(), afskrivningslov_kapitel3_aktiv_benyttelse(par16_resultat().aktiv)) } ellers { beregnet_afskrivning_kroner() }
     | samlede_beregnede_afskrivninger_kroner() -> afskrivningslov17_tidligere_beregnede_afskrivninger_kroner(input.tidligere_årsopgørelser) + beregnet_afskrivning_kroner()
     | samlede_fradragne_afskrivninger_kroner() -> afskrivningslov17_tidligere_fradragne_afskrivninger_kroner(input.tidligere_årsopgørelser) + fradrag_kroner()
     | årsopgørelse() -> Afskrivningslov17Årsopgørelse(
@@ -2236,8 +2239,8 @@ først erhvervede ideelle andel for den først afståede.
     )
     | resultat() -> Afskrivningslov17Resultat(
         indkomstår = input.indkomstår,
-        skatteyder = input.par16_resultat.skatteyder,
-        aktiv = input.par16_resultat.aktiv,
+        skatteyder = par16_resultat().skatteyder,
+        aktiv = par16_resultat().aktiv,
         anskaffelsesår = anskaffelsesår(),
         afskrivningsgrundlag_kroner = afskrivningsgrundlag_kroner(),
         aktiv_omfattet = aktiv_omfattet(),
@@ -2312,7 +2315,7 @@ stk. 2.
 --@begin:afskrivningsloven_par18--
 # Afskrivningslov18Fordeling = Al18Fuld | Al18BlandetInstallation(benyttelse: AfskrivningslovBenyttelse) | Al18DelvisBygningDirekte | Al18DelvisBygningFælles(afskrivningsberettiget_etageareal: Heltal, samlet_etageareal: Heltal) | Al18IkkeAfskrivningsberettigetDel
 # Afskrivningslov18Valg = Al18IntetStraksfradrag | Al18ValgtStraksfradrag(beløb_før_fordeling_kroner: Heltal)
-# Afskrivningslov18Input(indkomstår: Heltal, aktivets_par16_resultat: Afskrivningslov16Resultat, par20_resultat: Afskrivningslov20Resultat, afskrivningsgrundlag_forrige_indkomstår_kroner: Heltal, vedligeholdelsesudgifter_kroner: Heltal, ombygnings_og_forbedringsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgiften_er_tilbygning: Boolsk, tilbygning_er_naturlig_del: Boolsk, fordeling: Afskrivningslov18Fordeling, valg: Afskrivningslov18Valg)
+# Afskrivningslov18Input(indkomstår: Heltal, aktivets_par16_input: Afskrivningslov16Input, par20_input: Afskrivningslov20Input, afskrivningsgrundlag_forrige_indkomstår_kroner: Heltal, vedligeholdelsesudgifter_kroner: Heltal, ombygnings_og_forbedringsudgifter_kroner: Heltal, forsikrings_eller_erstatningssum_kroner: Heltal, udgiften_er_tilbygning: Boolsk, tilbygning_er_naturlig_del: Boolsk, fordeling: Afskrivningslov18Fordeling, valg: Afskrivningslov18Valg)
 # Afskrivningslov18Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, aktiv: AfskrivningslovKapitel3Aktiv, aktivets_anskaffelsesår: Heltal, fem_procent_grænse_kroner: Heltal, vedligeholdelse_forbruger_grænse_først_kroner: Heltal, forbedringsudgift_efter_forsikring_kroner: Heltal, kan_straksfradrage: Boolsk, højeste_straksfradrag_før_fordeling_kroner: Heltal, valg: Afskrivningslov18Valg, valg_gyldigt: Boolsk, straksfradrag_før_fordeling_kroner: Heltal, straksfradrag_i_skattepligtig_indkomst_kroner: Heltal, rest_til_særskilt_afskrivning_efter_par17_kroner: Heltal, straksfradrag_anses_ikke_som_afskrivning: Boolsk, straksfradrag_medregnes_ikke_til_anskaffelsessum_efter_par21: Boolsk)
 
 | afskrivningslov18_fordeling_gyldig(aktiv: AfskrivningslovKapitel3Aktiv, fordeling: Afskrivningslov18Fordeling) -> match fordeling {
@@ -2330,7 +2333,7 @@ stk. 2.
     | Al18IkkeAfskrivningsberettigetDel -> 0
 }
 | afskrivningslov18_aktiv_kan_straksfradrages(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Bygning(resultat) -> resultat.tilknyttet_art != Al14UdgravningVejGårdspladsParkeringHegnEllerLignende
+    | AlK3Bygning(input) -> input.tilknyttet_art != Al14UdgravningVejGårdspladsParkeringHegnEllerLignende
     | AlK3Installation(_) -> Sandt
 }
 | afskrivningslov18_valgt_straksfradrag_før_fordeling_kroner(valg: Afskrivningslov18Valg) -> match valg {
@@ -2339,13 +2342,15 @@ stk. 2.
 }
 
 # Afskrivningslov18Sag(input: Afskrivningslov18Input) {
-    | aktivets_anskaffelsesår() -> input.aktivets_par16_resultat.afskrivningsberettiget_fra_indkomstår
+    | aktivets_par16_resultat() -> afskrivningslov16_resultat(input.aktivets_par16_input)
+    | par20_resultat() -> afskrivningslov20_resultat(input.par20_input)
+    | aktivets_anskaffelsesår() -> aktivets_par16_resultat().afskrivningsberettiget_fra_indkomstår
     | fem_procent_grænse_kroner() -> penge_beløb_gange_basispoint_kroner(penge_positivt_beløb(input.afskrivningsgrundlag_forrige_indkomstår_kroner), 500)
     | vedligeholdelse_kroner() -> penge_positivt_beløb(input.vedligeholdelsesudgifter_kroner)
     | forbedringsudgift_efter_forsikring_kroner() -> penge_positivt_beløb(input.ombygnings_og_forbedringsudgifter_kroner - penge_positivt_beløb(input.forsikrings_eller_erstatningssum_kroner))
     | forbedringsudgift_omfattet() -> input.udgiften_er_tilbygning == Falskt || input.tilbygning_er_naturlig_del
     | resterende_fem_procent_grænse_kroner() -> penge_positivt_beløb(fem_procent_grænse_kroner() - vedligeholdelse_kroner())
-    | kan_straksfradrage() -> input.aktivets_par16_resultat.aktiv_omfattet_af_kapitel3 && afskrivningslov18_aktiv_kan_straksfradrages(input.aktivets_par16_resultat.aktiv) && input.indkomstår != aktivets_anskaffelsesår() && input.par20_resultat.indkomstår == input.indkomstår && input.par20_resultat.aktiv == input.aktivets_par16_resultat.aktiv && input.par20_resultat.kan_afskrives_i_indkomståret && afskrivningslov18_fordeling_gyldig(input.aktivets_par16_resultat.aktiv, input.fordeling) && forbedringsudgift_omfattet()
+    | kan_straksfradrage() -> aktivets_par16_resultat().aktiv_omfattet_af_kapitel3 && afskrivningslov18_aktiv_kan_straksfradrages(aktivets_par16_resultat().aktiv) && input.indkomstår != aktivets_anskaffelsesår() && par20_resultat().indkomstår == input.indkomstår && par20_resultat().aktiv == aktivets_par16_resultat().aktiv && par20_resultat().kan_afskrives_i_indkomståret && afskrivningslov18_fordeling_gyldig(aktivets_par16_resultat().aktiv, input.fordeling) && forbedringsudgift_omfattet()
     | højeste_straksfradrag_før_fordeling_kroner() -> 0
     | exception al18_fem_procent_efter_vedligeholdelse højeste_straksfradrag_før_fordeling_kroner() -> penge_mindste_beløb(forbedringsudgift_efter_forsikring_kroner(), resterende_fem_procent_grænse_kroner()) under kan_straksfradrage()
     | valg_gyldigt() -> match input.valg {
@@ -2356,15 +2361,15 @@ stk. 2.
     | exception al18_gyldigt_valgt_straksfradrag straksfradrag_før_fordeling_kroner() -> afskrivningslov18_valgt_straksfradrag_før_fordeling_kroner(input.valg) under valg_gyldigt()
     | straksfradrag_kroner() -> afskrivningslov18_beløb_efter_fordeling_kroner(straksfradrag_før_fordeling_kroner(), input.fordeling)
     | rest_før_fordeling_kroner() -> 0
-    | exception al18_omfattet_forbedringsrest rest_før_fordeling_kroner() -> penge_positivt_beløb(forbedringsudgift_efter_forsikring_kroner() - straksfradrag_før_fordeling_kroner()) under input.aktivets_par16_resultat.aktiv_omfattet_af_kapitel3 && forbedringsudgift_omfattet() && afskrivningslov18_fordeling_gyldig(input.aktivets_par16_resultat.aktiv, input.fordeling)
+    | exception al18_omfattet_forbedringsrest rest_før_fordeling_kroner() -> penge_positivt_beløb(forbedringsudgift_efter_forsikring_kroner() - straksfradrag_før_fordeling_kroner()) under aktivets_par16_resultat().aktiv_omfattet_af_kapitel3 && forbedringsudgift_omfattet() && afskrivningslov18_fordeling_gyldig(aktivets_par16_resultat().aktiv, input.fordeling)
     | rest_til_særskilt_afskrivning_kroner() -> match input.fordeling {
         | Al18BlandetInstallation(_) -> rest_før_fordeling_kroner()
         | _ -> afskrivningslov18_beløb_efter_fordeling_kroner(rest_før_fordeling_kroner(), input.fordeling)
     }
     | resultat() -> Afskrivningslov18Resultat(
         indkomstår = input.indkomstår,
-        skatteyder = input.aktivets_par16_resultat.skatteyder,
-        aktiv = input.aktivets_par16_resultat.aktiv,
+        skatteyder = aktivets_par16_resultat().skatteyder,
+        aktiv = aktivets_par16_resultat().aktiv,
         aktivets_anskaffelsesår = aktivets_anskaffelsesår(),
         fem_procent_grænse_kroner = fem_procent_grænse_kroner(),
         vedligeholdelse_forbruger_grænse_først_kroner = penge_mindste_beløb(vedligeholdelse_kroner(), fem_procent_grænse_kroner()),
@@ -2445,7 +2450,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 # Afskrivningslov19Interval(fra_kroner: Heltal, til_kroner: Heltal, afskrivningsberettiget_forrige_indkomstår: Boolsk, afskrivningsberettiget_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår: Heltal, anvendt_afskrivningsprocent_basispoint: Heltal, maksimalt_mulig_afskrivningsprocent_basispoint: Heltal)
 # Afskrivningslov19IntervalKontrol(næste_fra_kroner: Heltal, gyldig: Boolsk)
 # Afskrivningslov19Historik(skatteyder: AfskrivningslovSkatteyder, samlet_anskaffelsessum_kroner: Heltal, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, intervaller: List(Afskrivningslov19Interval), gyldig: Boolsk)
-# Afskrivningslov19Input(bygning_resultat: Afskrivningslov14Resultat, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
+# Afskrivningslov19Input(bygning_input: Afskrivningslov14Input, samlet_anskaffelsessum_kroner: Heltal, samlet_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, ejerbolig_anskaffelsessum_kroner: Heltal, ejerbolig_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval))
 # Afskrivningslov19Resultat(skatteyder: AfskrivningslovSkatteyder, omfattet_af_par19: Boolsk, afskrivning_tilladt_i_indkomståret: Boolsk, afskrivningsberettigede_indkomstår_for_bygningen: Heltal, etageareal_efter_ejerbolig_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, afskrivningsberettiget_etageareal_basispoint: Heltal, under_25_procent: Boolsk, mindst_300_kvadratmeter_opfyldt: Boolsk, anskaffelsessum_efter_ejerbolig_kroner: Heltal, aktuelt_afskrivningsberettiget_grundlag_kroner: Heltal, tidligere_afskrivningsberettiget_grundlag_kroner: Heltal, videreført_tidligere_grundlag_kroner: Heltal, forøgelse_som_særskilt_grundlag_kroner: Heltal, reduktion_fra_tidligere_grundlag_kroner: Heltal, ikkeafskrivningsberettiget_særskilt_grundlag_kroner: Heltal, intervaller_gyldige: Boolsk, intervaller: List(Afskrivningslov19Interval), samlede_foretagne_afskrivninger_kroner: Heltal, samlede_maksimalt_mulige_afskrivninger_kroner: Heltal)
 
 | afskrivningslov19_interval_beløb_kroner(interval: Afskrivningslov19Interval) -> penge_positivt_beløb(interval.til_kroner - interval.fra_kroner)
@@ -2490,6 +2495,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 )
 
 # Afskrivningslov19Sag(input: Afskrivningslov19Input) {
+    | bygning_resultat() -> afskrivningslov14_resultat(input.bygning_input)
     | samlet_etageareal_kvadratmeter() -> penge_positivt_beløb(input.samlet_etageareal_kvadratmeter)
     | ejerbolig_etageareal_kvadratmeter() -> penge_mindste_beløb(penge_positivt_beløb(input.ejerbolig_etageareal_kvadratmeter), samlet_etageareal_kvadratmeter())
     | etageareal_efter_ejerbolig_kvadratmeter() -> penge_positivt_beløb(samlet_etageareal_kvadratmeter() - ejerbolig_etageareal_kvadratmeter())
@@ -2501,7 +2507,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     | mindst_300_kvadratmeter_opfyldt() -> afskrivningsberettiget_etageareal_kvadratmeter() >= 300
     | arealkrav_opfyldt() -> under_25_procent() == Falskt || mindst_300_kvadratmeter_opfyldt()
     | anskaffelsessum_efter_ejerbolig_kroner() -> penge_positivt_beløb(penge_positivt_beløb(input.samlet_anskaffelsessum_kroner) - penge_positivt_beløb(input.ejerbolig_anskaffelsessum_kroner))
-    | afskrivning_tilladt_i_indkomståret() -> input.bygning_resultat.omfattet_af_par14 && etageareal_gyldigt() && afskrivningsberettiget_etageareal_kvadratmeter() > 0 && arealkrav_opfyldt()
+    | afskrivning_tilladt_i_indkomståret() -> bygning_resultat().omfattet_af_par14 && etageareal_gyldigt() && afskrivningsberettiget_etageareal_kvadratmeter() > 0 && arealkrav_opfyldt()
     | afskrivningsberettigede_indkomstår_for_bygningen() -> penge_positivt_beløb(input.tidligere_afskrivningsberettigede_indkomstår_for_bygningen) + hvis afskrivning_tilladt_i_indkomståret() { 1 } ellers { 0 }
     | omfattet_af_par19() -> afskrivning_tilladt_i_indkomståret() && afskrivningsberettiget_etageareal_kvadratmeter() < etageareal_efter_ejerbolig_kvadratmeter()
     | forholdsmæssigt_grundlag_kroner() -> afskrivningslov_beløb_gange_forhold_afrundet_kroner(anskaffelsessum_efter_ejerbolig_kroner(), afskrivningsberettiget_etageareal_kvadratmeter(), etageareal_efter_ejerbolig_kvadratmeter())
@@ -2516,7 +2522,7 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
     | reduktion_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_forrige_indkomstår && interval.afskrivningsberettiget_i_indkomståret == Falskt)
     | ikkeafskrivningsberettiget_grundlag_kroner() -> afskrivningslov19_intervalgrundlag_kroner(intervaller(), |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_i_indkomståret == Falskt)
     | resultat() -> Afskrivningslov19Resultat(
-        skatteyder = input.bygning_resultat.skatteyder,
+        skatteyder = bygning_resultat().skatteyder,
         omfattet_af_par19 = omfattet_af_par19(),
         afskrivning_tilladt_i_indkomståret = afskrivning_tilladt_i_indkomståret(),
         afskrivningsberettigede_indkomstår_for_bygningen = afskrivningsberettigede_indkomstår_for_bygningen(),
@@ -2568,11 +2574,11 @@ indkomstår, hvori sådan anvendelse ikke har fundet sted.
 
 | afskrivningslov20_aktiv_behandles_som_bygning(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
     | AlK3Bygning(_) -> Sandt
-    | AlK3Installation(resultat) -> resultat.omfattet_af_stk1
+    | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_stk1
     | _ -> Falskt
 }
 | afskrivningslov20_aktiv_er_installation_stk2_eller_stk3(aktiv: AfskrivningslovKapitel3Aktiv) -> match aktiv {
-    | AlK3Installation(resultat) -> resultat.omfattet_af_stk2 || resultat.omfattet_af_stk3
+    | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_stk2 || afskrivningslov15_resultat(input).omfattet_af_stk3
     | _ -> Falskt
 }
 | afskrivningslov20_begivenhed_matcher_aktiv(input: Afskrivningslov20Input) -> match input.begivenhed {
@@ -2706,15 +2712,15 @@ efter § 39, stk. 1 og 2, foretagne afskrivninger.
 | afskrivningslov21_grundlag_matcher_aktiv(aktiv: AfskrivningslovKapitel3Aktiv, grundlag: Afskrivningslov21Grundlag) -> match grundlag {
     | Al21OrdinærtGrundlag(_, _, _) -> match aktiv {
         | AlK3Bygning(_) -> Sandt
-        | AlK3Installation(resultat) -> resultat.omfattet_af_stk2
+        | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_stk2
         | _ -> Falskt
     }
     | Al21Par19Grundlag(bygningshistorik, _) -> match aktiv {
-        | AlK3Bygning(resultat) -> resultat.omfattet_af_par14 && bygningshistorik.gyldig && resultat.skatteyder == bygningshistorik.skatteyder
+        | AlK3Bygning(input) -> afskrivningslov14_resultat(input).omfattet_af_par14 && bygningshistorik.gyldig && input.skatteyder == bygningshistorik.skatteyder
         | _ -> Falskt
     }
     | Al21BlandetInstallation(_, _, _, _, _) -> match aktiv {
-        | AlK3Installation(resultat) -> resultat.omfattet_af_stk3
+        | AlK3Installation(input) -> afskrivningslov15_resultat(input).omfattet_af_stk3
         | _ -> Falskt
     }
 }

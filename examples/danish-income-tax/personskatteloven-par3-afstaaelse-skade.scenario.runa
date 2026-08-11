@@ -5,37 +5,37 @@
 -- Scenarier for Afskrivningsloven §§ 21-24.
 -- Lovtekst og typede kildeankre ligger i det importerede lovmodul.
 
-= al21_bygning_resultat = afskrivningslov14_resultat(Afskrivningslov14Input(
+= al21_bygning_input = Afskrivningslov14Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al14AndenErhvervsanvendelse,
     erhvervsmæssigt_benyttet = Sandt,
     postsortering_med_industrielt_præg = Falskt,
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
-))
+)
 
-= al21_ikkeafskrivningsberettiget_bygning = afskrivningslov14_resultat(Afskrivningslov14Input(
+= al21_ikkeafskrivningsberettiget_bygning_input = Afskrivningslov14Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al14Kontor,
     erhvervsmæssigt_benyttet = Sandt,
     postsortering_med_industrielt_præg = Falskt,
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
-))
+)
 
-= al21_blandet_installation_resultat = afskrivningslov15_resultat(Afskrivningslov15Input(
+= al21_blandet_installation_input = Afskrivningslov15Input(
     skatteyder = AlSelvstændigErhvervsdrivendePerson,
     anvendelse = Al15BlandetErhvervOgPrivat,
-    bygning_resultat = al21_ikkeafskrivningsberettiget_bygning,
+    bygning_input = al21_ikkeafskrivningsberettiget_bygning_input,
     har_kunnet_afskrives_efter_stk2_eller_stk3 = Falskt,
     flere_ved_samme_bygning_anskaffet_samme_indkomstår = Falskt,
     benyttelse = AfskrivningslovBenyttelse(erhvervsmæssig_benyttelse_enheder = 75, samlet_benyttelse_enheder = 100),
     i_en_eller_tofamilieshus = Falskt,
     ejer_af_ejerlejlighed_benyttet_til_beboelse = Falskt
-))
+)
 
-= al21_bygning = AlK3Bygning(resultat = al21_bygning_resultat)
-= al21_blandet_installation = AlK3Installation(resultat = al21_blandet_installation_resultat)
+= al21_bygning = AlK3Bygning(input = al21_bygning_input)
+= al21_blandet_installation = AlK3Installation(input = al21_blandet_installation_input)
 = al21_tom_par39 = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
 = al21_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(
     sælgerne_er_en_eller_flere_personer = Sandt,
