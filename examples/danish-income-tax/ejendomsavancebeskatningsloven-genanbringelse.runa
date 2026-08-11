@@ -560,7 +560,7 @@ afskrivningslovens § 24 samtidig anvendes.
         )
     }
     | EblPar10AfskrivningsberettigedeBygninger(par24_input, _) -> {
-        = par21_før = par24_input.par21_forsikringsresultat
+        = par21_før = afskrivningslov21_resultat(par24_input.par21_input)
         = kandidat = afskrivningslov24_kandidatresultat(par24_input)
         = ebl_resultat = ebl_par10_resultat(fakta)
         = samtidig_anvendelse = kandidat.betingelser_før_stk10_opfyldt && ebl_resultat.genanbringelsesresultat.betingelser_opfyldt

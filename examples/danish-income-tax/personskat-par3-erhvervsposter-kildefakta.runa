@@ -157,7 +157,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
     }
     | PsPar3Nr10Al24Fristsvigt(input) -> input.opgørelsesår == indkomstår
     | PsPar3Nr10Al25(input) -> input.indkomstår == indkomstår
-    | PsPar3Nr10Al26(input) -> input.par25_resultat.indkomstår == indkomstår
+    | PsPar3Nr10Al26(input) -> input.par25_input.indkomstår == indkomstår
     | PsPar3Nr10Al27(input) -> input.indkomstår == indkomstår
 }
 | personskat_par3_nr10_forskudsafskrivningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Forskudsafskrivningskilde, indkomstår: Heltal) -> match kilde {

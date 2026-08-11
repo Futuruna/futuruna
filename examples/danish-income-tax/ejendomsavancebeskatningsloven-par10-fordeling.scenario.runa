@@ -148,7 +148,7 @@
     tilknytning = Al14IkkeTilknyttet,
     tilknyttet_art = Al14BygningEllerLokale
 )
-= ebl_par10_afskrivningsscenarie_nedskrevet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= ebl_par10_afskrivningsscenarie_nedskrevet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = AlK3Bygning(input = ebl_par10_afskrivningsscenarie_bygning),
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,
@@ -162,24 +162,11 @@
         afholdte_ombygningsudgifter_kroner = 0,
         foretagne_afskrivninger_kroner = 0
     )
-))
-= ebl_par10_afskrivningsscenarie_par21 = afskrivningslov21_resultat(Afskrivningslov21Input(
+)
+= ebl_par10_afskrivningsscenarie_nedskrevet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(ebl_par10_afskrivningsscenarie_nedskrevet_værdi_input)
+| ebl_par10_afskrivningsscenarie_par21_input_med_salgssum(salgssum_kroner: Heltal) -> Afskrivningslov21Input(
     indkomstår = 2024,
-    nedskrevet_værdi_resultat = ebl_par10_afskrivningsscenarie_nedskrevet_værdi,
-    salg_gennemført = Sandt,
-    samlet_salgssum_kroner = 500000,
-    kontrol = Afskrivningslov21Kontrol(
-        sælgerne_er_en_eller_flere_personer = Sandt,
-        køber_er_selskab_mv = Falskt,
-        kapitalandel_basispoint = 0,
-        stemmerettigheder_basispoint = 0,
-        anden_bestemmende_indflydelse = Falskt
-    )
-))
-
-| ebl_par10_afskrivningsscenarie_par21_med_salgssum(salgssum_kroner: Heltal) -> afskrivningslov21_resultat(Afskrivningslov21Input(
-    indkomstår = 2024,
-    nedskrevet_værdi_resultat = ebl_par10_afskrivningsscenarie_nedskrevet_værdi,
+    nedskrevet_værdi_input = ebl_par10_afskrivningsscenarie_nedskrevet_værdi_input,
     salg_gennemført = Sandt,
     samlet_salgssum_kroner = salgssum_kroner,
     kontrol = Afskrivningslov21Kontrol(
@@ -189,9 +176,12 @@
         stemmerettigheder_basispoint = 0,
         anden_bestemmende_indflydelse = Falskt
     )
-))
+)
+= ebl_par10_afskrivningsscenarie_par21 = afskrivningslov21_resultat(ebl_par10_afskrivningsscenarie_par21_input_med_salgssum(500000))
+
+| ebl_par10_afskrivningsscenarie_par21_med_salgssum(salgssum_kroner: Heltal) -> afskrivningslov21_resultat(ebl_par10_afskrivningsscenarie_par21_input_med_salgssum(salgssum_kroner))
 | ebl_par10_afskrivningsscenarie_par24_input_med_forsikringssum(genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, skadeår: Heltal, forsikringssum_kroner: Heltal) -> Afskrivningslov24Input(
-    par21_forsikringsresultat = ebl_par10_afskrivningsscenarie_par21_med_salgssum(forsikringssum_kroner),
+    par21_input = ebl_par10_afskrivningsscenarie_par21_input_med_salgssum(forsikringssum_kroner),
     modtaget_erstatnings_eller_forsikringssum_kroner = forsikringssum_kroner,
     genopførelse_eller_ombygning_foretages = Sandt,
     genopførelsesudgifter_kroner = afskrivningslov24_genopførelsesudgifter_i_liste_kroner(genopførte_aktiver),

@@ -45,7 +45,7 @@
     anden_bestemmende_indflydelse = Falskt
 )
 
-= al21_officiel_bygningsværdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= al21_officiel_bygningsværdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = al21_bygning,
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 1500000,
@@ -53,18 +53,20 @@
         afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 600000, fratrukne_afskrivninger_kroner = 600000)]
     ),
     par39_historik = al21_tom_par39
-))
+)
+= al21_officiel_bygningsværdi = afskrivningslov21_nedskrevet_værdi_resultat(al21_officiel_bygningsværdi_input)
 
-| al21_salg(værdi: Afskrivningslov21NedskrevetVærdiResultat, salgssum_kroner: Heltal) -> afskrivningslov21_resultat(Afskrivningslov21Input(
+| al21_salgsinput(værdi_input: Afskrivningslov21NedskrevetVærdiInput, salgssum_kroner: Heltal) -> Afskrivningslov21Input(
     indkomstår = 2009,
-    nedskrevet_værdi_resultat = værdi,
+    nedskrevet_værdi_input = værdi_input,
     salg_gennemført = Sandt,
     samlet_salgssum_kroner = salgssum_kroner,
     kontrol = al21_uden_bestemmende_indflydelse
-))
+)
+| al21_salg(værdi_input: Afskrivningslov21NedskrevetVærdiInput, salgssum_kroner: Heltal) -> afskrivningslov21_resultat(al21_salgsinput(værdi_input, salgssum_kroner))
 
-= al21_officiel_bygningsfortjeneste = al21_salg(al21_officiel_bygningsværdi, 2000000)
-= al21_officielt_bygningstab = al21_salg(al21_officiel_bygningsværdi, 800000)
+= al21_officiel_bygningsfortjeneste = al21_salg(al21_officiel_bygningsværdi_input, 2000000)
+= al21_officielt_bygningstab = al21_salg(al21_officiel_bygningsværdi_input, 800000)
 
 = al21_officiel_par19_historik = afskrivningslov19_historik(
     AlSelvstændigErhvervsdrivendePerson,
@@ -77,14 +79,15 @@
     ]
 )
 
-= al21_officiel_par19_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= al21_officiel_par19_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = al21_bygning,
     grundlag = Al21Par19Grundlag(bygningshistorik = al21_officiel_par19_historik, forbedringsgrundlag = []),
     par39_historik = al21_tom_par39
-))
-= al21_officielt_par19_salg = al21_salg(al21_officiel_par19_værdi, 3000000)
+)
+= al21_officiel_par19_værdi = afskrivningslov21_nedskrevet_værdi_resultat(al21_officiel_par19_værdi_input)
+= al21_officielt_par19_salg = al21_salg(al21_officiel_par19_værdi_input, 3000000)
 
-= al21_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= al21_officiel_blandet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = al21_blandet_installation,
     grundlag = Al21BlandetInstallation(
         samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
@@ -94,11 +97,12 @@
         afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 24000, fratrukne_afskrivninger_kroner = 18000)]
     ),
     par39_historik = al21_tom_par39
-))
-= al21_officiel_blandet_salg_90000 = al21_salg(al21_officiel_blandet_værdi, 90000)
-= al21_officiel_blandet_salg_125000 = al21_salg(al21_officiel_blandet_værdi, 125000)
+)
+= al21_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(al21_officiel_blandet_værdi_input)
+= al21_officiel_blandet_salg_90000 = al21_salg(al21_officiel_blandet_værdi_input, 90000)
+= al21_officiel_blandet_salg_125000 = al21_salg(al21_officiel_blandet_værdi_input, 125000)
 
-= al22_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= al22_officiel_blandet_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = al21_blandet_installation,
     grundlag = Al21BlandetInstallation(
         samlede_anskaffelses_og_forbedringsudgifter_før_salgsåret_kroner = 100000,
@@ -108,10 +112,11 @@
         afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 20000, fratrukne_afskrivninger_kroner = 15000)]
     ),
     par39_historik = al21_tom_par39
-))
+)
+= al22_officiel_blandet_værdi = afskrivningslov21_nedskrevet_værdi_resultat(al22_officiel_blandet_værdi_input)
 = al22_officielt_installationsfradrag = afskrivningslov22_resultat(Afskrivningslov22Input(
     indkomstår = 2026,
-    nedskrevet_værdi_resultat = al22_officiel_blandet_værdi,
+    nedskrevet_værdi_input = al22_officiel_blandet_værdi_input,
     begivenhed = Al22InstallationEndeligtNedtaget,
     salgssum_for_bygning_installation_eller_materialer_kroner = 0,
     ejertid_før_nedrivning_år = 5,
@@ -119,7 +124,7 @@
     ejendommen_eller_den_relevante_del_solgt_i_indkomståret = Falskt
 ))
 
-= al23_officiel_værdi = afskrivningslov21_nedskrevet_værdi_resultat(Afskrivningslov21NedskrevetVærdiInput(
+= al23_officiel_værdi_input = Afskrivningslov21NedskrevetVærdiInput(
     aktiv = al21_bygning,
     grundlag = Al21OrdinærtGrundlag(
         samlede_anskaffelses_og_forbedringsudgifter_kroner = 600000,
@@ -127,20 +132,21 @@
         afskrivningsposter = [Afskrivningslov21Afskrivningspost(beregnede_afskrivninger_kroner = 150000, fratrukne_afskrivninger_kroner = 150000)]
     ),
     par39_historik = al21_tom_par39
-))
+)
+= al23_officiel_værdi = afskrivningslov21_nedskrevet_værdi_resultat(al23_officiel_værdi_input)
 = al23_officiel_skade = afskrivningslov23_resultat(Afskrivningslov23Input(
     indkomstår = 2026,
-    nedskrevet_værdi_resultat = al23_officiel_værdi,
+    nedskrevet_værdi_input = al23_officiel_værdi_input,
     skade_som_ikke_kan_udbedres_ved_normal_vedligeholdelse = Sandt,
     værdi_umiddelbart_før_skaden_kroner = 900000,
     værdi_efter_skaden_kroner = 675000,
     udgift_til_udbedring_kroner = 200000
 ))
 
-= al24_par21_forsikringsresultat = al21_salg(al23_officiel_værdi, 500000)
+= al24_par21_input = al21_salgsinput(al23_officiel_værdi_input, 500000)
 
 | al24_input(genopførelsesudgifter_kroner: Heltal, genopførte_aktiver: List(Afskrivningslov24GenopførtAktiv), placering: Afskrivningslov24Placering, genopførelse_foretages: Boolsk, genopførelsesår: Heltal, opgørelsesår: Heltal) -> Afskrivningslov24Input(
-    par21_forsikringsresultat = al24_par21_forsikringsresultat,
+    par21_input = al24_par21_input,
     modtaget_erstatnings_eller_forsikringssum_kroner = 500000,
     genopførelse_eller_ombygning_foretages = genopførelse_foretages,
     genopførelsesudgifter_kroner = genopførelsesudgifter_kroner,
@@ -189,7 +195,7 @@
 = al24_fristsvigt = afskrivningslov24_fristsvigtsresultat(al24_input(0, [], Al24SammeEjendom, Falskt, 0, 2010))
 = al24_året_efter_fristsvigt = afskrivningslov24_fristsvigtsresultat(al24_input(0, [], Al24SammeEjendom, Falskt, 0, 2011))
 = al24_negativ_forsikringssum = afskrivningslov24_fristsvigtsresultat(Afskrivningslov24Input(
-    par21_forsikringsresultat = al21_salg(al23_officiel_værdi, 0),
+    par21_input = al21_salgsinput(al23_officiel_værdi_input, 0),
     modtaget_erstatnings_eller_forsikringssum_kroner = -1,
     genopførelse_eller_ombygning_foretages = Sandt,
     genopførelsesudgifter_kroner = 500000,

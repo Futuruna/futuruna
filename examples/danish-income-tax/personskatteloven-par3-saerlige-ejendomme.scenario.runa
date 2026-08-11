@@ -67,13 +67,14 @@
     kontrol = kontrol
 )
 
-| al25_resultat_for(grundlag: Afskrivningslov25Grundlag, indkomstår: Heltal, tidligere_afskrivninger_kroner: Heltal, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov25Hændelse) -> afskrivningslov25_resultat(Afskrivningslov25Input(
+| al25_input_for(grundlag: Afskrivningslov25Grundlag, indkomstår: Heltal, tidligere_afskrivninger_kroner: Heltal, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov25Hændelse) -> Afskrivningslov25Input(
     indkomstår = indkomstår,
     grundlag = grundlag,
     tidligere_foretagne_afskrivninger_kroner = tidligere_afskrivninger_kroner,
     valgt_afskrivning_kroner = valgt_afskrivning_kroner,
     hændelse = hændelse
-))
+)
+| al25_resultat_for(grundlag: Afskrivningslov25Grundlag, indkomstår: Heltal, tidligere_afskrivninger_kroner: Heltal, valgt_afskrivning_kroner: Heltal, hændelse: Afskrivningslov25Hændelse) -> afskrivningslov25_resultat(al25_input_for(grundlag, indkomstår, tidligere_afskrivninger_kroner, valgt_afskrivning_kroner, hændelse))
 
 = al25_lejet_grund_40_år = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 0, 25000, Al25FortsatAnvendelse)
 = al25_før_2023 = al25_resultat_for(al25_lejet_grundlag(2022, al25_uden_afskæring, 100, Sandt), 2022, 0, 25000, Al25FortsatAnvendelse)
@@ -102,19 +103,23 @@
 )
 = al25_officielt_hjemfaldseksempel = al25_resultat_for(al25_officielt_hjemfaldsgrundlag, 1986, 0, 3269, Al25FortsatAnvendelse)
 
-= al25_ophørsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25LejemålOphørt)
-= al25_salgsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25AktivSolgt)
-= al25_nedrivningsresultat = al25_resultat_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25NedrivningSket)
-= al25_blandet_nedrivningsresultat = al25_resultat_for(
+= al25_ophørsinput = al25_input_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25LejemålOphørt)
+= al25_ophørsresultat = afskrivningslov25_resultat(al25_ophørsinput)
+= al25_salgsinput = al25_input_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25AktivSolgt)
+= al25_salgsresultat = afskrivningslov25_resultat(al25_salgsinput)
+= al25_nedrivningsinput = al25_input_for(al25_lejet_grundlag(2024, al25_uden_afskæring, 100, Sandt), 2026, 300000, 0, Al25NedrivningSket)
+= al25_nedrivningsresultat = afskrivningslov25_resultat(al25_nedrivningsinput)
+= al25_blandet_nedrivningsinput = al25_input_for(
     grundlag = al25_lejet_grundlag(anskaffelsesår = 2024, kontrol = al25_uden_afskæring, erhvervsenheder = 40, væsentlig_del = Sandt),
     indkomstår = 2026,
     tidligere_afskrivninger_kroner = 100000,
     valgt_afskrivning_kroner = 0,
     hændelse = Al25NedrivningSket
 )
+= al25_blandet_nedrivningsresultat = afskrivningslov25_resultat(al25_blandet_nedrivningsinput)
 
-| al26_resultat_for(par25_resultat: Afskrivningslov25Resultat, hændelse: Afskrivningslov25Hændelse, lejer_køber_grunden: Boolsk, salgssum_for_aktiv_kroner: Heltal, salgssum_for_materialer_kroner: Heltal, gennemsnitlig_andel_basispoint: Heltal) -> afskrivningslov26_resultat(Afskrivningslov26Input(
-    par25_resultat = par25_resultat,
+| al26_resultat_for(par25_input: Afskrivningslov25Input, hændelse: Afskrivningslov25Hændelse, lejer_køber_grunden: Boolsk, salgssum_for_aktiv_kroner: Heltal, salgssum_for_materialer_kroner: Heltal, gennemsnitlig_andel_basispoint: Heltal) -> afskrivningslov26_resultat(Afskrivningslov26Input(
+    par25_input = par25_input,
     hændelse = hændelse,
     lejer_køber_grunden = lejer_køber_grunden,
     salgssum_for_aktiv_kroner = salgssum_for_aktiv_kroner,
@@ -123,7 +128,7 @@
 ))
 
 = al26_lejemålsophør = al26_resultat_for(
-    par25_resultat = al25_ophørsresultat,
+    par25_input = al25_ophørsinput,
     hændelse = Al25LejemålOphørt,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 0,
@@ -131,7 +136,7 @@
     gennemsnitlig_andel_basispoint = 10000
 )
 = al26_lejemålsophør_fordi_lejer_køber = al26_resultat_for(
-    par25_resultat = al25_ophørsresultat,
+    par25_input = al25_ophørsinput,
     hændelse = Al25LejemålOphørt,
     lejer_køber_grunden = Sandt,
     salgssum_for_aktiv_kroner = 0,
@@ -139,7 +144,7 @@
     gennemsnitlig_andel_basispoint = 10000
 )
 = al26_salg_med_genvundne_afskrivninger = al26_resultat_for(
-    par25_resultat = al25_salgsresultat,
+    par25_input = al25_salgsinput,
     hændelse = Al25AktivSolgt,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 900000,
@@ -147,7 +152,7 @@
     gennemsnitlig_andel_basispoint = 10000
 )
 = al26_salg_med_ikke_fradragsberettiget_tab = al26_resultat_for(
-    par25_resultat = al25_salgsresultat,
+    par25_input = al25_salgsinput,
     hændelse = Al25AktivSolgt,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 600000,
@@ -155,7 +160,7 @@
     gennemsnitlig_andel_basispoint = 10000
 )
 = al26_nedrivning = al26_resultat_for(
-    par25_resultat = al25_nedrivningsresultat,
+    par25_input = al25_nedrivningsinput,
     hændelse = Al25NedrivningSket,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 0,
@@ -163,7 +168,7 @@
     gennemsnitlig_andel_basispoint = 10000
 )
 = al26_blandet_nedrivning = al26_resultat_for(
-    par25_resultat = al25_blandet_nedrivningsresultat,
+    par25_input = al25_blandet_nedrivningsinput,
     hændelse = Al25NedrivningSket,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 0,
@@ -171,7 +176,7 @@
     gennemsnitlig_andel_basispoint = 3000
 )
 = al26_forkert_hændelse_afvises = al26_resultat_for(
-    par25_resultat = al25_salgsresultat,
+    par25_input = al25_salgsinput,
     hændelse = Al25NedrivningSket,
     lejer_køber_grunden = Falskt,
     salgssum_for_aktiv_kroner = 0,
