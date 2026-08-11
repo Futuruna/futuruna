@@ -771,6 +771,103 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     udbytter = [],
     ligningslov7n_poster = []
 )))
+= personskat_calculate_par23_intet_stk7_valg = AktieavancePar23Stk7Valg(
+    selskabsidentifikation = "",
+    første_optagelsesdato = AktieavancePar23Dato(år = 0, måned = 0, dag = 0),
+    ejer_dage_før_første_optagelse = 0,
+    valgmåde = AblIntetPar23Stk7Valg
+)
+| personskat_calculate_par23_lageraktiv(identifikation: Tekst, indkomstår: Heltal, aktiv: AktieavancePar23Aktiv, markedsstatus: AktieavanceOrdinærMarkedsstatus, værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, obligationslager: Boolsk) -> PersonskatSærligtAktieaktivFakta(
+    identifikation = identifikation,
+    kilde = PersonskatLageropgjortAktieaktivEfterPar23(fakta = PersonskatPar23LagerÅrsfakta(
+        principfakta = PersonskatPar23Principfakta(
+            indkomstår = indkomstår,
+            opgørelsesdato = Dato(år = indkomstår, måned = 12, dag = 31),
+            aktiv = aktiv,
+            stk2_valg = AblIntetPar23Stk2Valg,
+            stk3_tilladelse = AblIngenPar23Stk3Tilladelse,
+            stk6_valg = AblIntetPar23Stk6Valg,
+            stk7_valg = personskat_calculate_par23_intet_stk7_valg,
+            obligationsgevinst_opgøres_efter_lagerprincippet = obligationslager,
+            indkomstår_forskelligt_fra_kalenderår = Falskt
+        ),
+        opgørelsesfakta = PersonskatPar23LagerOpgørelsesfakta(
+            værdi_primo_kroner = værdi_primo_kroner,
+            værdi_ultimo_kroner = værdi_ultimo_kroner,
+            anskaffelsessummer_i_perioden_kroner = 0,
+            afståelser_i_perioden = [],
+            oplysningsbetingelse_efter_par19d_opfyldt = Sandt
+        ),
+        par17_modprøve = AktieavancePar17Modprøve(
+            næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+            erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+        )
+    )),
+    markedsstatus = markedsstatus
+)
+| personskat_calculate_resultat_med_par23_lageraktiv(aktiv: PersonskatSærligtAktieaktivFakta) -> beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [aktiv],
+    udbytter = [],
+    ligningslov7n_poster = []
+)))
+= personskat_calculate_par23_19b_aktiv = AblInvesteringsselskabsaktiv(
+    klassifikationsinput = abl19b_klassifikationsresultat.input,
+    papirart = AblInvesteringsselskabsaktie,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    registreret_i_værdipapircentral = Falskt
+)
+= personskat_calculate_par23_19c_aktiv = AblInvesteringsselskabsaktiv(
+    klassifikationsinput = abl19c_klassifikationsresultat.input,
+    papirart = AblInvesteringsselskabsaktie,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    registreret_i_værdipapircentral = Falskt
+)
+= personskat_calculate_par23_19b_resultat = personskat_calculate_resultat_med_par23_lageraktiv(personskat_calculate_par23_lageraktiv(
+    identifikation = "abl23-19b-usolgt",
+    indkomstår = 2026,
+    aktiv = personskat_calculate_par23_19b_aktiv,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 120000,
+    obligationslager = Falskt
+))
+= personskat_calculate_par23_19c_resultat = personskat_calculate_resultat_med_par23_lageraktiv(personskat_calculate_par23_lageraktiv(
+    identifikation = "abl23-19c-usolgt",
+    indkomstår = 2026,
+    aktiv = personskat_calculate_par23_19c_aktiv,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 112000,
+    obligationslager = Falskt
+))
+= personskat_calculate_par23_forkert_år_resultat = personskat_calculate_resultat_med_par23_lageraktiv(personskat_calculate_par23_lageraktiv(
+    identifikation = "abl23-forkert-år",
+    indkomstår = 2025,
+    aktiv = personskat_calculate_par23_19b_aktiv,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 120000,
+    obligationslager = Falskt
+))
+= personskat_calculate_par23_realisationsaktiv_resultat = personskat_calculate_resultat_med_par23_lageraktiv(personskat_calculate_par23_lageraktiv(
+    identifikation = "abl23-realisationsaktiv",
+    indkomstår = 2026,
+    aktiv = AblAndenAktieEfterPar23,
+    markedsstatus = AblIkkeOptagetTilHandel,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 120000,
+    obligationslager = Falskt
+))
+= personskat_calculate_par23_22_resultat = personskat_calculate_resultat_med_par23_lageraktiv(personskat_calculate_par23_lageraktiv(
+    identifikation = "abl23-par22-kgl-rute",
+    indkomstår = 2026,
+    aktiv = AblMinimumsinstitutsbevis(klassifikationsinput = abl22_klassifikationsresultat.input),
+    markedsstatus = AblIkkeOptagetTilHandel,
+    værdi_primo_kroner = 100000,
+    værdi_ultimo_kroner = 120000,
+    obligationslager = Sandt
+))
 = personskat_calculate_ugyldig_22_input = AktieavancebeskatningslovInput(
     indkomstår = 2026,
     aktiv = AblMinimumsbevis22,
@@ -1740,6 +1837,21 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | Some(par17_resultat) -> par17_resultat.undtaget_efter_stk4 && par17_resultat.ville_være_omfattet_uden_investeringsstatus && par17_resultat.reglen_finder_anvendelse == Falskt
     | None -> Falskt
 }
+| personskat_calculate_par23_19b_usolgt_aktiv_lagerbeskattes: personskat_calculate_par23_19b_resultat -> personskat_calculate_par23_19b_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par23_19b_resultat.aktieavance.aktieindkomst_kroner == 20000 && personskat_calculate_par23_19b_resultat.aktieavance.kapitalindkomst_kroner == 0 && match head(personskat_calculate_par23_19b_resultat.aktieavance.særlige_resultater).par23_lagerårsresultat {
+    | Some(lagerårsresultat) -> lagerårsresultat.opgørelse_gyldig && lagerårsresultat.input.princip_resultat.grundlag == AblPar23Stk8TvungetLager && length(lagerårsresultat.input.afståelser_i_perioden) == 0 && lagerårsresultat.nettogevinst_kroner == 20000 && lagerårsresultat.aktieavancebeskatningslov_resultat.effektiv_aktiv == AblInvesteringsselskab19B
+    | None -> Falskt
+}
+| personskat_calculate_par23_19c_usolgt_aktiv_lagerbeskattes: personskat_calculate_par23_19c_resultat -> personskat_calculate_par23_19c_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par23_19c_resultat.aktieavance.kapitalindkomst_kroner == 12000 && personskat_calculate_par23_19c_resultat.aktieavance.aktieindkomst_kroner == 0 && match head(personskat_calculate_par23_19c_resultat.aktieavance.særlige_resultater).par23_lagerårsresultat {
+    | Some(lagerårsresultat) -> lagerårsresultat.opgørelse_gyldig && lagerårsresultat.input.princip_resultat.grundlag == AblPar23Stk8TvungetLager && length(lagerårsresultat.input.afståelser_i_perioden) == 0 && lagerårsresultat.nettogevinst_kroner == 12000 && lagerårsresultat.aktieavancebeskatningslov_resultat.effektiv_aktiv == AblInvesteringsselskab19C
+    | None -> Falskt
+}
+| personskat_calculate_par23_lagerspor_afvist(resultat: PersonskatBeregningResultat) -> resultat.aktieavance.alle_input_gyldige == Falskt && resultat.aktieavance.personlig_indkomst_kroner == 0 && resultat.aktieavance.kapitalindkomst_kroner == 0 && resultat.aktieavance.aktieindkomst_kroner == 0
+| personskat_calculate_par23_forkert_år_afvises: personskat_calculate_par23_forkert_år_resultat -> personskat_calculate_par23_lagerspor_afvist(personskat_calculate_par23_forkert_år_resultat)
+| personskat_calculate_par23_realisationsprincip_afvises_som_lager: personskat_calculate_par23_realisationsaktiv_resultat -> personskat_calculate_par23_lagerspor_afvist(personskat_calculate_par23_realisationsaktiv_resultat)
+| personskat_calculate_par23_22_bevares_på_kgl_ruten: personskat_calculate_par23_22_resultat -> personskat_calculate_par23_lagerspor_afvist(personskat_calculate_par23_22_resultat) && match head(personskat_calculate_par23_22_resultat.aktieavance.særlige_resultater).par23_lagerårsresultat {
+    | Some(lagerårsresultat) -> lagerårsresultat.opgørelse_gyldig && lagerårsresultat.aktieavancebeskatningslov_resultat.effektiv_aktiv == AblMinimumsbevis22
+    | None -> Falskt
+}
 | personskat_calculate_par17_stk1_afledes_til_personlig_indkomst: personskat_calculate_par17_stk1_resultat -> personskat_calculate_par17_stk1_resultat.aktieavance.alle_input_gyldige && personskat_calculate_par17_stk1_resultat.aktieavance.personlig_indkomst_kroner == 7000 && personskat_calculate_par17_stk1_resultat.skat.øvrig_personlig_indkomst_kroner == 7000 && personskat_calculate_par17_stk1_resultat.skat.arbejdsmarkedsbidrag_kroner == 48000 && head(personskat_calculate_par17_stk1_resultat.aktieavance.særlige_resultater).kgl_par32_kontraktrelation == KglPar32AktiekontraktEfterAbl17 && match head(personskat_calculate_par17_stk1_resultat.aktieavance.særlige_resultater).par17_resultat {
     | Some(par17_resultat) -> par17_resultat.omfattet_af_stk1 && par17_resultat.skattepligtig_gevinst_kroner == 7000 && match par17_resultat.par23_bro {
         | AblPar17Par23Bro(skattepligtsresultat, aktiv) -> skattepligtsresultat.omfattet_af_par7 && aktiv == AblPar17Næringsaktiv
@@ -1836,6 +1948,11 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_abl_par15_boligret_afledes
 ? personskat_calculate_19c_kapital_afledes
 ? personskat_calculate_19c_personlig_afledes_uden_am
+? personskat_calculate_par23_19b_usolgt_aktiv_lagerbeskattes
+? personskat_calculate_par23_19c_usolgt_aktiv_lagerbeskattes
+? personskat_calculate_par23_forkert_år_afvises
+? personskat_calculate_par23_realisationsprincip_afvises_som_lager
+? personskat_calculate_par23_22_bevares_på_kgl_ruten
 ? personskat_calculate_par17_stk1_afledes_til_personlig_indkomst
 ? personskat_calculate_par17_stk2_afskærer_koncerninternt_tab
 ? personskat_calculate_par17_stk3_minimumsbevis_afledes

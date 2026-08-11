@@ -202,6 +202,9 @@
 # PersonskatPar17Kildefakta(indkomstår: Heltal, skattepligtsgrundlag: AktieavancePar6Par7Skattepligtsgrundlag, næringsstatus: AktieavancePar17Næringsstatus, instrument: AktieavancePar17Instrument, erhvervelsesstatus: AktieavancePar17Erhvervelsesstatus, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal)
 # PersonskatPar17Modprøvekilde = UdenPar17Modprøvekilde | MedPar17Modprøvekilde(fakta: PersonskatPar17Kildefakta)
 # PersonskatØvrigtSærligtAktieaktivInput(indkomstår: Heltal, aktiv: AktieavancebeskatningslovAktiv, afståelsessum_kroner: Heltal, anskaffelsessum_kroner: Heltal, koncernintern_konvertibel_eller_tegningsret: Boolsk, andelsforening_stiftet_før_22_maj_1987: Boolsk, afståelse_sker_for_at_undgå_likvidationsbeskatning: Boolsk, investeringsklassifikation: AktieavanceInvesteringsklassifikation)
+# PersonskatPar23Principfakta(indkomstår: Heltal, opgørelsesdato: Dato, aktiv: AktieavancePar23Aktiv, stk2_valg: AktieavancePar23Stk2Valg, stk3_tilladelse: AktieavancePar23Stk3Tilladelse, stk6_valg: AktieavancePar23Stk6Valg, stk7_valg: AktieavancePar23Stk7Valg, obligationsgevinst_opgøres_efter_lagerprincippet: Boolsk, indkomstår_forskelligt_fra_kalenderår: Boolsk)
+# PersonskatPar23LagerOpgørelsesfakta(værdi_primo_kroner: Heltal, værdi_ultimo_kroner: Heltal, anskaffelsessummer_i_perioden_kroner: Heltal, afståelser_i_perioden: List(AktieavancePar23LagerAfståelse), oplysningsbetingelse_efter_par19d_opfyldt: Boolsk)
+# PersonskatPar23LagerÅrsfakta(principfakta: PersonskatPar23Principfakta, opgørelsesfakta: PersonskatPar23LagerOpgørelsesfakta, par17_modprøve: AktieavancePar17Modprøve)
 # PersonskatPar37Til40Kontekstgrundlag = AfledPar37Til40KontekstFraPersonskat | HistoriskPar37Til40Aktieindkomstkontekst(kontekst: AktieavancePar37Til40Aktieindkomstkontekst)
 # PersonskatPar37Til40Fraflytningsfakta(fraflytningsdato: Dato, fraflytningsår: Heltal, ophørsgrund: AktieavancePar38Ophørsgrund, tilknytning: AktieavancePar38Tilknytning, aktier: List(AktieavancePar37Til40AktiepostFakta), kontekstgrundlag: PersonskatPar37Til40Kontekstgrundlag, indberetning: AktieavancePar39Indberetning, bopæl: AktieavancePar39Bopæl, sikkerhed: AktieavancePar39Sikkerhed)
 # PersonskatPar37Til40Forløbsfakta(identifikation: Tekst, opgørelsesår: Heltal, fraflytning: PersonskatPar37Til40Fraflytningsfakta, hændelsesposter: List(AktieavancePar37Til40Hændelsespost), kildehistorik: AktieavancePar39AKildehistorik, tilflytning: AktieavancePar37Til40Tilflytning)
@@ -213,9 +216,9 @@
 # PersonskatPar37Til40Slutskatspost(nøgle: PersonskatPar37Til40Resultatnøgle, skattekontekst: AktieavancePar37Til40Skattekontekst)
 # PersonskatPar37Til40Skatteafledningstilstand(inkluderede_resultater: List(PersonskatPar37Til40Resultatnøgle), slutskatsposter: List(PersonskatPar37Til40Slutskatspost), seneste_skat_med_fraflytterindkomst_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatSlutskatParprojektion(hovedperson_kroner: Heltal, ægtefælle_kroner: Heltal, input_gyldigt: Boolsk)
-# PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput) | PersonskatFraflytteraktierEfterPar37Til40(fakta: PersonskatPar37Til40Forløbsfakta)
+# PersonskatSærligtAktieaktivKilde = PersonskatAktieaktivEfterPar17(fakta: PersonskatPar17Kildefakta) | PersonskatØvrigtAktieaktiv(input: PersonskatØvrigtSærligtAktieaktivInput, par17_modprøvekilde: PersonskatPar17Modprøvekilde) | PersonskatLageropgjortAktieaktivEfterPar23(fakta: PersonskatPar23LagerÅrsfakta) | PersonskatMedarbejderejeordningEfterPar35G(fakta: AktieavancePar35Forløbsinput) | PersonskatFraflytteraktierEfterPar37Til40(fakta: PersonskatPar37Til40Forløbsfakta)
 # PersonskatSærligtAktieaktivFakta(identifikation: Tekst, kilde: PersonskatSærligtAktieaktivKilde, markedsstatus: AktieavanceOrdinærMarkedsstatus)
-# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, kilderesultater: List(AktieavancebeskatningslovKilderesultat), resultater: List(AktieavancebeskatningslovResultat), par17_resultat: Option(AktieavancePar17Resultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
+# PersonskatSærligtAktieaktivResultat(fakta: PersonskatSærligtAktieaktivFakta, resultat: AktieavancebeskatningslovResultat, kilderesultater: List(AktieavancebeskatningslovKilderesultat), resultater: List(AktieavancebeskatningslovResultat), par17_resultat: Option(AktieavancePar17Resultat), par23_lagerårsresultat: Option(AktieavancePar23LagerÅrsresultat), par35_forløbsresultat: Option(AktieavancePar35Forløbsresultat), par37_til40_forløbsresultat: Option(AktieavancePar37Til40Forløbsresultat), kgl_par32_kontraktrelation: KursgevinstPar32Kontraktrelation, årets_forfaldne_overdragerskat_kroner: Heltal, årets_betalte_overdragerskat_kroner: Heltal, årets_saldobortfald_kroner: Heltal, årets_nye_henstand_med_fraflytterskat_kroner: Heltal, årets_forfaldne_fraflytterskat_kroner: Heltal, årets_betalte_fraflytterskat_kroner: Heltal, årets_fraflytterskat_saldobortfald_kroner: Heltal, input_gyldigt: Boolsk)
 # PersonskatPar37Til40AktueltResultat(nøgle: PersonskatPar37Til40Resultatnøgle, resultat: PersonskatSærligtAktieaktivResultat, nettogevinst_før_gulv_kroner: Heltal)
 # PersonskatSærligtAktieaktivAfledningstilstand(årskontekst: PersonskatPar37Til40Årskontekst, resultater: List(PersonskatSærligtAktieaktivResultat))
 # PersonskatAktieavanceInput(ordinært_aktieår: PersonskatOrdinærtAktieårInput, særlige_aktiver: List(PersonskatSærligtAktieaktivFakta), udbytter: List(PersonskatUdbytteFakta), ligningslov7n_poster: List(PersonskatLigningslov7NFakta))
@@ -7959,6 +7962,181 @@
     help = Some("Ved § 19 B skal meddelelse, aktivmasse og oplysninger dokumenteres, så Futuruna kan aflede den effektive status."),
     unit = None
 )
+= personskat_felt_par23_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::indkomstår),
+    label = "Indkomstår for lageropgørelsen",
+    question = Some("Hvilket indkomstår vedrører lageropgørelsen efter ABL § 23?"),
+    help = Some("Året skal være det samme som personskatteberegningens skatteår."),
+    unit = Some("år")
+)
+= personskat_felt_par23_opgørelsesdato_år = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::opgørelsesdato::år),
+    label = "Opgørelsesdatoens år",
+    question = Some("I hvilket år ligger opgørelsesdatoen?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par23_opgørelsesdato_måned = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::opgørelsesdato::måned),
+    label = "Opgørelsesdatoens måned",
+    question = Some("I hvilken måned ligger opgørelsesdatoen?"),
+    help = None,
+    unit = Some("måned")
+)
+= personskat_felt_par23_opgørelsesdato_dag = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::opgørelsesdato::dag),
+    label = "Opgørelsesdatoens dag",
+    question = Some("På hvilken dag ligger opgørelsesdatoen?"),
+    help = None,
+    unit = Some("dag")
+)
+= personskat_felt_par23_aktiv = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::aktiv::$variant),
+    label = "Aktivtype prøvet efter ABL § 23",
+    question = Some("Hvilken dokumenteret aktivtype skal prøves efter ABL § 23?"),
+    help = Some("Aktivtypen og dens klassifikationsfakta afgør, om lagerprincippet er valgt eller lovpligtigt."),
+    unit = None
+)
+= personskat_felt_par23_stk2_valg = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::stk2_valg::$variant),
+    label = "Valg af lagerprincip efter ABL § 23, stk. 2",
+    question = Some("Er lagerprincippet valgt én gang for alle næringsaktier efter ABL § 23, stk. 2?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_stk3_tilladelse = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::stk3_tilladelse::$variant),
+    label = "Tilladelse efter ABL § 23, stk. 3",
+    question = Some("Har Skatteforvaltningen tilladt en anden opgørelsesmåde efter ABL § 23, stk. 3?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_stk6_valg = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::stk6_valg::$variant),
+    label = "Realisationsvalg efter ABL § 23, stk. 6",
+    question = Some("Er realisationsprincippet valgt for alle relevante unoterede aktier efter ABL § 23, stk. 6?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_stk7_valg = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::stk7_valg::valgmåde::$variant),
+    label = "Syvårigt realisationsvalg efter ABL § 23, stk. 7",
+    question = Some("Er der foretaget et gyldigt syvårigt realisationsvalg efter ABL § 23, stk. 7?"),
+    help = Some("Selskabsidentifikation, første optagelsesdato og ejerperiode dokumenteres i samme valg."),
+    unit = None
+)
+= personskat_felt_par23_obligationslager = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::obligationsgevinst_opgøres_efter_lagerprincippet),
+    label = "Obligationsgevinst opgjort efter lagerprincippet",
+    question = Some("Opgøres gevinst og tab på de underliggende obligationer efter lagerprincippet?"),
+    help = Some("Feltet er relevant for obligationsbaserede minimumsbeskattede investeringsbeviser efter ABL § 23, stk. 4."),
+    unit = None
+)
+= personskat_felt_par23_forskudt_indkomstår = TypetBeregningsfelt(
+    path = refof(PersonskatPar23Principfakta::indkomstår_forskelligt_fra_kalenderår),
+    label = "Indkomståret afviger fra kalenderåret",
+    question = Some("Er personens indkomstår forskelligt fra kalenderåret?"),
+    help = Some("ABL § 23, stk. 8, kan kræve kalenderårsopgørelse for visse ikke-markedsregistrerede investeringsselskabsaktiver."),
+    unit = None
+)
+= personskat_felt_par23_værdi_primo = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerOpgørelsesfakta::værdi_primo_kroner),
+    label = "Skattemæssig værdi primo",
+    question = Some("Hvad var aktivets skattemæssige værdi ved periodens begyndelse?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par23_værdi_ultimo = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerOpgørelsesfakta::værdi_ultimo_kroner),
+    label = "Skattemæssig værdi ultimo",
+    question = Some("Hvad var aktivets skattemæssige værdi ved periodens udløb?"),
+    help = Some("For aktiver omfattet af ABL § 23, stk. 8, anvendes mindst tilbagekøbsværdien, når den overstiger markedskursen."),
+    unit = Some("kr.")
+)
+= personskat_felt_par23_anskaffelser = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerOpgørelsesfakta::anskaffelsessummer_i_perioden_kroner),
+    label = "Anskaffelsessummer i perioden",
+    question = Some("Hvor meget blev der samlet anskaffet aktiver for i opgørelsesperioden?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par23_afståelser = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerOpgørelsesfakta::afståelser_i_perioden),
+    label = "Afståelser i lagerperioden",
+    question = Some("Hvilke afståelser fandt sted i opgørelsesperioden?"),
+    help = Some("Registrer hver afståelse særskilt, så beløb omfattet af ligningslovens § 16 B kan holdes ude af lagerligningen."),
+    unit = None
+)
+= personskat_felt_par23_par19d_oplysning = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerOpgørelsesfakta::oplysningsbetingelse_efter_par19d_opfyldt),
+    label = "Oplysningsbetingelsen efter ABL § 19 D",
+    question = Some("Er oplysningsbetingelsen for tabsfradrag efter ABL § 19 D opfyldt?"),
+    help = Some("Et tab på aktiver efter ABL §§ 19 B-19 C kan blive afskåret, når oplysningsbetingelsen ikke er opfyldt."),
+    unit = None
+)
+= personskat_felt_par23_afståelse_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar23LagerAfståelse::afståelsesidentifikation),
+    label = "Lagerafståelsens identifikation",
+    question = Some("Hvilken stabil og entydig identifikation skal afståelsen have?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_afståelse_skattemæssig_værdi = TypetBeregningsfelt(
+    path = refof(AktieavancePar23LagerAfståelse::skattemæssig_værdi_før_afståelse_kroner),
+    label = "Skattemæssig værdi før afståelsen",
+    question = Some("Hvad var aktivets skattemæssige værdi umiddelbart før afståelsen?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par23_afståelse_sum = TypetBeregningsfelt(
+    path = refof(AktieavancePar23LagerAfståelse::afståelsessum_kroner),
+    label = "Afståelsessum i lagerperioden",
+    question = Some("Hvad var den dokumenterede afståelsessum?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par23_afståelse_ll16b = TypetBeregningsfelt(
+    path = refof(AktieavancePar23LagerAfståelse::omfattet_af_ll16b_stk1),
+    label = "Afståelsen er omfattet af ligningslovens § 16 B",
+    question = Some("Er afståelsessummen omfattet af ligningslovens § 16 B, stk. 1?"),
+    help = Some("En sådan afståelsessum indgår ikke i lageropgørelsens afståelsessummer."),
+    unit = None
+)
+= personskat_felt_par23_modprøve_næringsstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerÅrsfakta::par17_modprøve::næringsstatus),
+    label = "Næringsstatus ved § 17-modprøven",
+    question = Some("Udøver personen næring ved køb og salg af aktier?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_modprøve_erhvervelsesstatus = TypetBeregningsfelt(
+    path = refof(PersonskatPar23LagerÅrsfakta::par17_modprøve::erhvervelsesstatus),
+    label = "Erhvervelsesstatus ved § 17-modprøven",
+    question = Some("Blev aktivet erhvervet som led i personens næringsvej?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_investeringsselskab_papirart = TypetBeregningsfelt(
+    path = refof(AktieavancePar23Aktiv::AblInvesteringsselskabsaktiv::papirart),
+    label = "Papirart i investeringsselskabet",
+    question = Some("Er aktivet en aktie, et investeringsbevis eller et andet papir i investeringsselskabet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par23_investeringsselskab_markedsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar23Aktiv::AblInvesteringsselskabsaktiv::markedsstatus),
+    label = "Investeringsselskabsaktivets markedsstatus",
+    question = Some("Var aktivet optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?"),
+    help = Some("Statussen skal stemme med den ydre kildeposts markedsstatus."),
+    unit = None
+)
+= personskat_felt_par23_investeringsselskab_registreret = TypetBeregningsfelt(
+    path = refof(AktieavancePar23Aktiv::AblInvesteringsselskabsaktiv::registreret_i_værdipapircentral),
+    label = "Registreret i en værdipapircentral",
+    question = Some("Var aktivet registreret i en værdipapircentral?"),
+    help = Some("Registreringen indgår i vurderingen af, om § 23, stk. 8, kræver kalenderårsopgørelse."),
+    unit = None
+)
 = personskat_felt_ligningslov33_valg = TypetBeregningsfelt(
     path = refof(PersonskatLigningslov33PersonInput::$variant),
     label = "Nedslag for udenlandsk skat",
@@ -13600,6 +13778,31 @@
         Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_afståelsessum),
         Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_anskaffelsessum),
         Field(value = personskat_felt_øvrigt_særligt_aktieaktiv_investeringsklassifikation),
+        Field(value = personskat_felt_par23_indkomstår),
+        Field(value = personskat_felt_par23_opgørelsesdato_år),
+        Field(value = personskat_felt_par23_opgørelsesdato_måned),
+        Field(value = personskat_felt_par23_opgørelsesdato_dag),
+        Field(value = personskat_felt_par23_aktiv),
+        Field(value = personskat_felt_par23_stk2_valg),
+        Field(value = personskat_felt_par23_stk3_tilladelse),
+        Field(value = personskat_felt_par23_stk6_valg),
+        Field(value = personskat_felt_par23_stk7_valg),
+        Field(value = personskat_felt_par23_obligationslager),
+        Field(value = personskat_felt_par23_forskudt_indkomstår),
+        Field(value = personskat_felt_par23_værdi_primo),
+        Field(value = personskat_felt_par23_værdi_ultimo),
+        Field(value = personskat_felt_par23_anskaffelser),
+        Field(value = personskat_felt_par23_afståelser),
+        Field(value = personskat_felt_par23_par19d_oplysning),
+        Field(value = personskat_felt_par23_afståelse_identifikation),
+        Field(value = personskat_felt_par23_afståelse_skattemæssig_værdi),
+        Field(value = personskat_felt_par23_afståelse_sum),
+        Field(value = personskat_felt_par23_afståelse_ll16b),
+        Field(value = personskat_felt_par23_modprøve_næringsstatus),
+        Field(value = personskat_felt_par23_modprøve_erhvervelsesstatus),
+        Field(value = personskat_felt_par23_investeringsselskab_papirart),
+        Field(value = personskat_felt_par23_investeringsselskab_markedsstatus),
+        Field(value = personskat_felt_par23_investeringsselskab_registreret),
         Field(value = personskat_felt_abl_aktivklassifikation_indkomstår),
         Field(value = personskat_felt_abl_aktivklassifikation_aktiv),
         Field(value = personskat_felt_abl_aktivklassifikation_næringsstatus),
@@ -13632,6 +13835,7 @@
         Field(value = personskat_felt_par44_udbytte_identifikation),
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_til_par22),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_til_par26),
         Source(value = aktieavancebeskatningsloven_lbk1098_par17_klassifikation),
         Source(value = aktieavancebeskatningsloven_lbk1098_par44),
         Source(value = aktieavancebeskatningsloven_lov1755_par35g_til_par35k),
@@ -13644,6 +13848,7 @@
         PreparatoryWork(value = aktieavancebeskatningsloven_lsf71_par35g_til_par35k),
         DependencySource(value = aktieavancebeskatningsloven_lbk835_par4_stk2),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par44),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par23),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par37),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_personkreds),
         Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_par38_opgoerelse),
@@ -15429,9 +15634,73 @@
         kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, resultat, input_gyldigt)],
         resultater = [resultat],
         par17_resultat = par17_resultat,
+        par23_lagerårsresultat = None,
         par35_forløbsresultat = None,
         par37_til40_forløbsresultat = None,
         kgl_par32_kontraktrelation = personskat_par17_kgl_relation_fra_kilde(par17_kilde),
+        årets_forfaldne_overdragerskat_kroner = 0,
+        årets_betalte_overdragerskat_kroner = 0,
+        årets_saldobortfald_kroner = 0,
+        årets_nye_henstand_med_fraflytterskat_kroner = 0,
+        årets_forfaldne_fraflytterskat_kroner = 0,
+        årets_betalte_fraflytterskat_kroner = 0,
+        årets_fraflytterskat_saldobortfald_kroner = 0,
+        input_gyldigt = input_gyldigt
+    )
+}
+| personskat_par23_dato_fra_dato(dato: Dato) -> AktieavancePar23Dato(
+    år = dato.år,
+    måned = dato.måned,
+    dag = dato.dag
+)
+| personskat_par23_princip_input_fra_fakta(fakta: PersonskatPar23Principfakta) -> AktieavancePar23PrincipInput(
+    indkomstår = fakta.indkomstår,
+    opgørelsesdato = personskat_par23_dato_fra_dato(fakta.opgørelsesdato),
+    skattepligtsresultat = aktieavance_par6_par7_resultat(AblPar7PersonEfterKildeskatteloven),
+    aktiv = fakta.aktiv,
+    stk2_valg = fakta.stk2_valg,
+    stk3_tilladelse = fakta.stk3_tilladelse,
+    stk6_valg = fakta.stk6_valg,
+    stk7_valg = fakta.stk7_valg,
+    obligationsgevinst_opgøres_efter_lagerprincippet = fakta.obligationsgevinst_opgøres_efter_lagerprincippet,
+    indkomstår_forskelligt_fra_kalenderår = fakta.indkomstår_forskelligt_fra_kalenderår
+)
+| personskat_par23_lager_årsinput_fra_fakta(fakta: PersonskatPar23LagerÅrsfakta) -> AktieavancePar23LagerÅrsinput(
+    princip_resultat = aktieavance_par23_princip_resultat(personskat_par23_princip_input_fra_fakta(fakta.principfakta)),
+    værdi_primo_kroner = fakta.opgørelsesfakta.værdi_primo_kroner,
+    værdi_ultimo_kroner = fakta.opgørelsesfakta.værdi_ultimo_kroner,
+    anskaffelsessummer_i_perioden_kroner = fakta.opgørelsesfakta.anskaffelsessummer_i_perioden_kroner,
+    afståelser_i_perioden = fakta.opgørelsesfakta.afståelser_i_perioden,
+    par17_modprøve = fakta.par17_modprøve,
+    oplysningsbetingelse_efter_par19d_opfyldt = fakta.opgørelsesfakta.oplysningsbetingelse_efter_par19d_opfyldt
+)
+| personskat_par23_aktiv_markedsstatus_matcher_fakta(aktiv: AktieavancePar23Aktiv, markedsstatus: AktieavanceOrdinærMarkedsstatus) -> match aktiv {
+    | AblPar9Aktie(_, aktivets_markedsstatus) -> aktivets_markedsstatus == markedsstatus
+    | AblPar9Tegningsret(aktivets_markedsstatus) -> aktivets_markedsstatus == markedsstatus
+    | AblPar9KonvertibelObligation(aktivets_markedsstatus) -> aktivets_markedsstatus == markedsstatus
+    | AblPar9TegningsretTilKonvertibelObligation(aktivets_markedsstatus) -> aktivets_markedsstatus == markedsstatus
+    | AblPar19AInvesteringsselskabsaktiv(_, _, aktivets_markedsstatus, _) -> aktivets_markedsstatus == markedsstatus
+    | AblInvesteringsselskabsaktiv(_, _, aktivets_markedsstatus, _) -> aktivets_markedsstatus == markedsstatus
+    | _ -> Sandt
+}
+| personskat_par23_lager_kgl_par32_kontraktrelation(modprøve: AktieavancePar17Modprøve) -> aktieavance_par17_kgl_par32_kontraktrelation(AktieavancePar17Skatteyder(
+    skattepligtsresultat = aktieavance_par6_par7_resultat(AblPar7PersonEfterKildeskatteloven),
+    næringsstatus = modprøve.næringsstatus
+))
+| personskat_par23_lager_særligt_aktieaktiv_resultat(fakta: PersonskatSærligtAktieaktivFakta, lagerfakta: PersonskatPar23LagerÅrsfakta, skatteår: Heltal) -> {
+    = lagerårsresultat = aktieavance_par23_lager_årsresultat(personskat_par23_lager_årsinput_fra_fakta(lagerfakta))
+    = resultat = lagerårsresultat.aktieavancebeskatningslov_resultat
+    = input_gyldigt = lagerfakta.principfakta.indkomstår == skatteår && lagerårsresultat.opgørelse_gyldig && resultat.effektiv_aktiv != AblMinimumsbevis22 && resultat.personskattelov_kategori != AblIkkeMedregnetISlice && personskat_par23_aktiv_markedsstatus_matcher_fakta(lagerfakta.principfakta.aktiv, fakta.markedsstatus)
+    PersonskatSærligtAktieaktivResultat(
+        fakta = fakta,
+        resultat = resultat,
+        kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, resultat, input_gyldigt)],
+        resultater = [resultat],
+        par17_resultat = None,
+        par23_lagerårsresultat = Some(lagerårsresultat),
+        par35_forløbsresultat = None,
+        par37_til40_forløbsresultat = None,
+        kgl_par32_kontraktrelation = personskat_par23_lager_kgl_par32_kontraktrelation(lagerfakta.par17_modprøve),
         årets_forfaldne_overdragerskat_kroner = 0,
         årets_betalte_overdragerskat_kroner = 0,
         årets_saldobortfald_kroner = 0,
@@ -15486,6 +15755,7 @@
             kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, par17_resultat.aktieavancebeskatningslov_resultat, input_gyldigt)],
             resultater = [par17_resultat.aktieavancebeskatningslov_resultat],
             par17_resultat = Some(par17_resultat),
+            par23_lagerårsresultat = None,
             par35_forløbsresultat = None,
             par37_til40_forløbsresultat = None,
             kgl_par32_kontraktrelation = par17_resultat.kgl_par32_kontraktrelation,
@@ -15500,6 +15770,7 @@
         )
     }
     | PersonskatØvrigtAktieaktiv(input, par17_kilde) -> personskat_øvrigt_særligt_aktieaktiv_resultat(fakta, input, par17_kilde, skatteår)
+    | PersonskatLageropgjortAktieaktivEfterPar23(lagerfakta) -> personskat_par23_lager_særligt_aktieaktiv_resultat(fakta, lagerfakta, skatteår)
     | PersonskatMedarbejderejeordningEfterPar35G(par35_fakta) -> {
         = par35_resultat = aktieavance_par35_forløbsresultat(par35_fakta)
         = input_gyldigt = par35_fakta.opgørelsesår == skatteår && par35_resultat.input_gyldigt
@@ -15509,6 +15780,7 @@
             kilderesultater = [personskat_særligt_aktieaktiv_enkelt_kilderesultat(fakta, par35_resultat.aktieavancebeskatningslov_resultat, input_gyldigt)],
             resultater = [par35_resultat.aktieavancebeskatningslov_resultat],
             par17_resultat = None,
+            par23_lagerårsresultat = None,
             par35_forløbsresultat = Some(par35_resultat),
             par37_til40_forløbsresultat = None,
             kgl_par32_kontraktrelation = KglPar32AlmindeligKontrakt,
@@ -15532,6 +15804,7 @@
             kilderesultater = par37_til40_resultat.aktieavancebeskatningslov_kilderesultater,
             resultater = par37_til40_resultat.aktieavancebeskatningslov_resultater,
             par17_resultat = None,
+            par23_lagerårsresultat = None,
             par35_forløbsresultat = None,
             par37_til40_forløbsresultat = Some(par37_til40_resultat),
             kgl_par32_kontraktrelation = KglPar32AlmindeligKontrakt,
@@ -15562,7 +15835,14 @@
 | personskat_særligt_aktieaktiv_identifikation_unik(aktiver: List(PersonskatSærligtAktieaktivFakta), fakta: PersonskatSærligtAktieaktivFakta) -> fakta.identifikation != "" && length(filter(aktiver, |andet: PersonskatSærligtAktieaktivFakta| andet.identifikation == fakta.identifikation)) == 1
 | personskat_særligt_aktieaktiv_kilderesultater_matcher_resultater(resultat: PersonskatSærligtAktieaktivResultat) -> map(resultat.kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat) == resultat.resultater
 | personskat_særligt_aktieaktiv_kilderesultater_gyldige(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_særligt_aktieaktiv_kilderesultater_matcher_resultater(resultat) && all(resultat.kilderesultater, aktieavancebeskatningslov_kilderesultat_gyldigt)
-| personskat_særligt_aktieaktiv_resultat_gyldigt(aktiver: List(PersonskatSærligtAktieaktivFakta), resultat: PersonskatSærligtAktieaktivResultat) -> resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(aktiver, resultat.fakta) && personskat_særligt_aktieaktiv_kilderesultater_gyldige(resultat)
+| personskat_særligt_aktieaktiv_par23_lagerspor_gyldigt(resultat: PersonskatSærligtAktieaktivResultat) -> match resultat.fakta.kilde {
+    | PersonskatLageropgjortAktieaktivEfterPar23(_) -> match resultat.par23_lagerårsresultat {
+        | Some(lagerårsresultat) -> aktieavance_par23_lager_årsresultat_gyldigt(lagerårsresultat) && lagerårsresultat.aktieavancebeskatningslov_resultat == resultat.resultat
+        | None -> Falskt
+    }
+    | _ -> resultat.par23_lagerårsresultat == None
+}
+| personskat_særligt_aktieaktiv_resultat_gyldigt(aktiver: List(PersonskatSærligtAktieaktivFakta), resultat: PersonskatSærligtAktieaktivResultat) -> resultat.input_gyldigt && personskat_særligt_aktieaktiv_identifikation_unik(aktiver, resultat.fakta) && personskat_særligt_aktieaktiv_kilderesultater_gyldige(resultat) && personskat_særligt_aktieaktiv_par23_lagerspor_gyldigt(resultat)
 | personskat_særligt_aktieaktiv_er_par37_til40(fakta: PersonskatSærligtAktieaktivFakta) -> match fakta.kilde { | PersonskatFraflytteraktierEfterPar37Til40(_) -> Sandt | _ -> Falskt }
 | personskat_særligt_aktieaktiv_med_kilderesultater(resultat: PersonskatSærligtAktieaktivResultat, kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> PersonskatSærligtAktieaktivResultat(
     fakta = resultat.fakta,
@@ -15570,6 +15850,7 @@
     kilderesultater = kilderesultater,
     resultater = map(kilderesultater, |kilderesultat: AktieavancebeskatningslovKilderesultat| kilderesultat.resultat),
     par17_resultat = resultat.par17_resultat,
+    par23_lagerårsresultat = resultat.par23_lagerårsresultat,
     par35_forløbsresultat = resultat.par35_forløbsresultat,
     par37_til40_forløbsresultat = resultat.par37_til40_forløbsresultat,
     kgl_par32_kontraktrelation = resultat.kgl_par32_kontraktrelation,
@@ -18606,6 +18887,7 @@ fraflytningen."
                 kilderesultater = resultat.kilderesultater,
                 resultater = resultat.resultater,
                 par17_resultat = resultat.par17_resultat,
+                par23_lagerårsresultat = resultat.par23_lagerårsresultat,
                 par35_forløbsresultat = resultat.par35_forløbsresultat,
                 par37_til40_forløbsresultat = Some(nyt_forløb),
                 kgl_par32_kontraktrelation = resultat.kgl_par32_kontraktrelation,
