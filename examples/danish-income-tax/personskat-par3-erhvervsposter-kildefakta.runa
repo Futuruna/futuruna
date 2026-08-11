@@ -28,7 +28,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
 
 --@begin:personskat_par3_erhvervsposter_kildefakta--
 # PersonskatPar3Nr10Driftsmiddelkilde = PsPar3Nr10Al5(input: Afskrivningslov5Input) | PsPar3Nr10Al5A(input: Afskrivningslov5AInput) | PsPar3Nr10Al5B(input: Afskrivningslov5BInput) | PsPar3Nr10Al5C(input: Afskrivningslov5CInput) | PsPar3Nr10Al5D5E(input: AfskrivningslovForhøjetSaldoInput) | PsPar3Nr10Al6(input: Afskrivningslov6Input) | PsPar3Nr10Al6Salg(input: Afskrivningslov6SalgInput) | PsPar3Nr10Al7(input: Afskrivningslov7Input) | PsPar3Nr10Al8(input: Afskrivningslov8Input) | PsPar3Nr10Al9(input: Afskrivningslov9Input) | PsPar3Nr10Al9EfterfølgendeSalg(input: Afskrivningslov9EfterfølgendeSalgInput) | PsPar3Nr10Al11(input: Afskrivningslov11Input) | PsPar3Nr10Al12(input: Afskrivningslov12Input) | PsPar3Nr10Al13Udgang(input: Afskrivningslov13UdgangInput) | PsPar3Nr10Al13Reparation(input: Afskrivningslov13ReparationInput)
-# PersonskatPar3Nr10Bygningskilde = PsPar3Nr10Al17(input: Afskrivningslov17Input) | PsPar3Nr10Al18(input: Afskrivningslov18Input) | PsPar3Nr10Al21(input: Afskrivningslov21Input) | PsPar3Nr10Al22(input: Afskrivningslov22Input) | PsPar3Nr10Al23(input: Afskrivningslov23Input) | PsPar3Nr10Al24Samordning(fakta: EblPar10Fakta) | PsPar3Nr10Al24Fristsvigt(input: Afskrivningslov24Input) | PsPar3Nr10Al25(input: Afskrivningslov25Input) | PsPar3Nr10Al26(input: Afskrivningslov26Input) | PsPar3Nr10Al27(input: Afskrivningslov27Input)
+# PersonskatPar3Nr10Bygningskilde = PsPar3Nr10Al17(input: Afskrivningslov17Input) | PsPar3Nr10Al17Par19(input: Afskrivningslov17Par19Input) | PsPar3Nr10Al18(input: Afskrivningslov18Input) | PsPar3Nr10Al21(input: Afskrivningslov21Input) | PsPar3Nr10Al22(input: Afskrivningslov22Input) | PsPar3Nr10Al23(input: Afskrivningslov23Input) | PsPar3Nr10Al24Samordning(fakta: EblPar10Fakta) | PsPar3Nr10Al24Fristsvigt(input: Afskrivningslov24Input) | PsPar3Nr10Al25(input: Afskrivningslov25Input) | PsPar3Nr10Al26(input: Afskrivningslov26Input) | PsPar3Nr10Al27(input: Afskrivningslov27Input)
 # PersonskatPar3Nr10Forskudsafskrivningskilde = PsPar3Nr10Al32(input: Afskrivningslov32ÅrsInput) | PsPar3Nr10Al34(input: Afskrivningslov34Input)
 # PersonskatPar3Nr10Rettighedskilde = PsPar3Nr10Al38(input: Afskrivningslov38Input) | PsPar3Nr10Al39(input: Afskrivningslov39Input) | PsPar3Nr10Al40Skatteyder(input: Afskrivningslov40Input) | PsPar3Nr10Al40Modtager(input: Afskrivningslov40Input) | PsPar3Nr10Al40A(input: Afskrivningslov40AInput) | PsPar3Nr10Al40B(input: Afskrivningslov40BInput)
 # PersonskatPar3Nr10Al44BKildefakta(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, bygningsdel: Afskrivningslov44ABygningsdel, kunststatus: Afskrivningslov44AKunststatus, førstegangskøb_af_original_billedkunst: Boolsk, ophængt_eller_opstillet_i_erhvervsmæssigt_benyttet_bygning: Boolsk, skatteyder_nærtstående_til_kunstneren: Boolsk, kunstner_eller_nærtstående_har_bestemmende_indflydelse: Boolsk, kan_afskrives_efter_anden_bestemmelse: Boolsk, særskilt_saldoværdi_primo_kroner: Heltal, anskaffelsessummer_i_året_kroner: Heltal, hændelse: Afskrivningslov44BHændelse, valg: Afskrivningslov5Valg, negativ_saldo_medregnes_i_indkomståret: Boolsk)
@@ -57,6 +57,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
 }
 | personskat_par3_nr10_bygningskilde_grundlagsposter(kilde: PersonskatPar3Nr10Bygningskilde) -> match kilde {
     | PsPar3Nr10Al17(input) -> [Par3Nr10Al17(resultat = afskrivningslov17_resultat(input))]
+    | PsPar3Nr10Al17Par19(input) -> [Par3Nr10Al17Par19(resultat = afskrivningslov17_par19_resultat(input))]
     | PsPar3Nr10Al18(input) -> [Par3Nr10Al18(resultat = afskrivningslov18_resultat(input))]
     | PsPar3Nr10Al21(input) -> [Par3Nr10Al21(resultat = afskrivningslov21_resultat(input))]
     | PsPar3Nr10Al22(input) -> [Par3Nr10Al22(resultat = afskrivningslov22_resultat(input))]
@@ -147,6 +148,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
 }
 | personskat_par3_nr10_bygningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Bygningskilde, indkomstår: Heltal) -> match kilde {
     | PsPar3Nr10Al17(input) -> input.indkomstår == indkomstår
+    | PsPar3Nr10Al17Par19(input) -> afskrivningslov17_par19_indkomstår_matcher(input, indkomstår)
     | PsPar3Nr10Al18(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al21(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al22(input) -> input.indkomstår == indkomstår

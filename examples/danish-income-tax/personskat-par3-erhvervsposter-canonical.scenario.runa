@@ -152,6 +152,52 @@ fradrag.
         valg = Al5OrdinærAfskrivning(sats_basispoint = 2500)
     ))))
 )
+| psl3_erhvervspost_scenarie_al19_bygning() -> Afskrivningslov14Input(
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    anvendelse = Al14AndenErhvervsanvendelse,
+    erhvervsmæssigt_benyttet = Sandt,
+    postsortering_med_industrielt_præg = Falskt,
+    tilknytning = Al14IkkeTilknyttet,
+    tilknyttet_art = Al14BygningEllerLokale
+)
+| psl3_erhvervspost_scenarie_al19_historik(tidligere_år: Heltal) -> [
+    Afskrivningslov19Interval(fra_kroner = 0, til_kroner = 500000, afskrivningsberettiget_forrige_indkomstår = Sandt, afskrivningsberettiget_i_indkomståret = Sandt, afskrivningsberettigede_indkomstår = tidligere_år, anvendt_afskrivningsprocent_basispoint = tidligere_år * 300, maksimalt_mulig_afskrivningsprocent_basispoint = tidligere_år * 300),
+    Afskrivningslov19Interval(fra_kroner = 500000, til_kroner = 1000000, afskrivningsberettiget_forrige_indkomstår = Falskt, afskrivningsberettiget_i_indkomståret = Falskt, afskrivningsberettigede_indkomstår = 0, anvendt_afskrivningsprocent_basispoint = 0, maksimalt_mulig_afskrivningsprocent_basispoint = 0),
+]
+| psl3_erhvervspost_scenarie_al19_input(indkomstår: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, valg: List(Afskrivningslov17Par19Valg)) -> Afskrivningslov17Par19Input(
+    indkomstår = indkomstår,
+    par16_input = Afskrivningslov16Input(
+        aktiv = AlK3Bygning(input = psl3_erhvervspost_scenarie_al19_bygning()),
+        hændelse = Al16Anskaffelse,
+        indkomstår = 2023,
+        erhvervet_eller_opført = Sandt,
+        udgift_afholdt = Falskt,
+        benyttes_erhvervsmæssigt = Sandt
+    ),
+    par19_input = Afskrivningslov19Input(
+        bygning_input = psl3_erhvervspost_scenarie_al19_bygning(),
+        samlet_anskaffelsessum_kroner = 1000000,
+        samlet_etageareal_kvadratmeter = 1000,
+        afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter,
+        ejerbolig_anskaffelsessum_kroner = 0,
+        ejerbolig_etageareal_kvadratmeter = 0,
+        tidligere_afskrivningsberettigede_indkomstår_for_bygningen = indkomstår - 2023,
+        tidligere_intervaller = psl3_erhvervspost_scenarie_al19_historik(indkomstår - 2023)
+    ),
+    par20_input = Afskrivningslov20Input(
+        indkomstår = indkomstår,
+        aktiv = AlK3Bygning(input = psl3_erhvervspost_scenarie_al19_bygning()),
+        begivenhed = Al20FortsatErhvervsmæssigAnvendelse,
+        erhvervsmæssigt_anvendt_i_indkomståret = Sandt
+    ),
+    antaget_levetid_år = 0,
+    accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
+    valg = valg
+)
+| psl3_erhvervspost_scenarie_al19(indkomstår: Heltal, afskrivningsberettiget_etageareal_kvadratmeter: Heltal, valg: List(Afskrivningslov17Par19Valg)) -> psl3_erhvervspost_scenarie_fakta(
+    "afskrivningslov-17-19-2026",
+    PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Bygning(kilde = PsPar3Nr10Al17Par19(input = psl3_erhvervspost_scenarie_al19_input(indkomstår, afskrivningsberettiget_etageareal_kvadratmeter, valg))))
+)
 | psl3_erhvervspost_scenarie_al44c_fortjeneste() -> psl3_erhvervspost_scenarie_fakta(
     "afskrivningslov-44c-2026",
     PsPar3Nr10Afskrivning(kilde = PsPar3Nr10Særregel(kilde = PsPar3Nr10Al44C(input = Afskrivningslov44CInput(
@@ -261,6 +307,9 @@ fradrag.
 = psl3_erhvervspost_scenarie_al10_gyldig = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al10(2026, 965800)])
 = psl3_erhvervspost_scenarie_al10_under_grænsen = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al10(2026, 965799)])
 = psl3_erhvervspost_scenarie_al10_forkert_år = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al10(2025, 965800)])
+= psl3_erhvervspost_scenarie_al19_gyldig = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al19(2026, 500, [Al17Par19ValgtAfskrivningsprocent(fra_kroner = 0, til_kroner = 500000, sats_basispoint = 300)])])
+= psl3_erhvervspost_scenarie_al19_under_arealkrav = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al19(2026, 200, [])])
+= psl3_erhvervspost_scenarie_al19_forkert_år = psl3_erhvervspost_scenarie_beregning([psl3_erhvervspost_scenarie_al19(2025, 500, [Al17Par19ValgtAfskrivningsprocent(fra_kroner = 0, til_kroner = 500000, sats_basispoint = 300)])])
 = psl3_erhvervspost_scenarie_dobbelt_id = psl3_erhvervspost_scenarie_beregning([
     psl3_erhvervspost_scenarie_husdyr(),
     PersonskatPar3Erhvervspostfakta(
@@ -280,6 +329,8 @@ fradrag.
 | psl3_al5_afleder_lovens_25_procent_loft: psl3_erhvervspost_scenarie_al5_25_procent -> psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al5_25_procent) == 25000 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al5_26_procent) == 0
 | psl3_al10_afleder_anskaffelsen_til_par5_saldoen: psl3_erhvervspost_scenarie_al10_gyldig -> psl3_erhvervspost_scenarie_al10_gyldig.personlig_indkomst.alle_input_gyldige && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al10_gyldig) == 241450 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al10_under_grænsen) == 0
 | psl3_al10_modstridende_indkomstår_afvises: psl3_erhvervspost_scenarie_al10_forkert_år -> psl3_erhvervspost_scenarie_al10_forkert_år.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al10_forkert_år) == 0
+| psl3_al17_par19_afleder_blandet_bygningsafskrivning: psl3_erhvervspost_scenarie_al19_gyldig -> psl3_erhvervspost_scenarie_al19_gyldig.personlig_indkomst.alle_input_gyldige && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al19_gyldig) == 15000 && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al19_under_arealkrav) == 0
+| psl3_al17_par19_modstridende_indkomstår_afvises: psl3_erhvervspost_scenarie_al19_forkert_år -> psl3_erhvervspost_scenarie_al19_forkert_år.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_fradrag_kroner(psl3_erhvervspost_scenarie_al19_forkert_år) == 0
 | psl3_erhvervspost_forkert_indkomstår_afvises: psl3_erhvervspost_scenarie_forkert_år -> psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_forkert_år.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
 | psl3_erhvervspost_dobbelt_identifikation_afvises: psl3_erhvervspost_scenarie_dobbelt_id -> psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.alle_input_gyldige == Falskt && psl3_erhvervspost_scenarie_dobbelt_id.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
 
@@ -288,5 +339,7 @@ fradrag.
 ? psl3_al5_afleder_lovens_25_procent_loft
 ? psl3_al10_afleder_anskaffelsen_til_par5_saldoen
 ? psl3_al10_modstridende_indkomstår_afvises
+? psl3_al17_par19_afleder_blandet_bygningsafskrivning
+? psl3_al17_par19_modstridende_indkomstår_afvises
 ? psl3_erhvervspost_forkert_indkomstår_afvises
 ? psl3_erhvervspost_dobbelt_identifikation_afvises

@@ -2568,6 +2568,125 @@ anskaffes den 1. januar 2026 eller senere, jf. § 17, stk. 8, i lov nr. 562 af
 | afskrivningslov19_sag(input: Afskrivningslov19Input) -> Afskrivningslov19Sag(input)
 | afskrivningslov19_resultat(input: Afskrivningslov19Input) -> afskrivningslov19_sag(input).resultat()
 | afskrivningslov19_historik_fra_resultat(resultat: Afskrivningslov19Resultat) -> afskrivningslov19_historik(resultat.skatteyder, resultat.anskaffelsessum_efter_ejerbolig_kroner, resultat.afskrivningsberettigede_indkomstår_for_bygningen, resultat.intervaller)
+
+# Afskrivningslov17Par19Valg = Al17Par19IngenAfskrivning(fra_kroner: Heltal, til_kroner: Heltal) | Al17Par19ValgtAfskrivningsprocent(fra_kroner: Heltal, til_kroner: Heltal, sats_basispoint: Heltal)
+# Afskrivningslov17Par19Input(indkomstår: Heltal, par16_input: Afskrivningslov16Input, par19_input: Afskrivningslov19Input, par20_input: Afskrivningslov20Input, antaget_levetid_år: Heltal, accessorisk_hovedbygning: Afskrivningslov17AccessoriskHovedbygning, valg: List(Afskrivningslov17Par19Valg))
+# Afskrivningslov17Par19IntervalResultat(interval_før: Afskrivningslov19Interval, matchende_valg: List(Afskrivningslov17Par19Valg), aktivt_i_indkomståret: Boolsk, højeste_årlige_sats_basispoint: Heltal, resterende_satsrum_basispoint: Heltal, højeste_valgbare_sats_basispoint: Heltal, valgt_sats_basispoint: Heltal, valg_gyldigt: Boolsk, højeste_afskrivning_i_indkomståret_kroner: Heltal, afskrivning_i_indkomståret_kroner: Heltal, interval_efter: Afskrivningslov19Interval)
+# Afskrivningslov17Par19Resultat(indkomstår: Heltal, skatteyder: AfskrivningslovSkatteyder, par16_resultat: Afskrivningslov16Resultat, par19_resultat: Afskrivningslov19Resultat, par20_resultat: Afskrivningslov20Resultat, grundlag_gyldigt: Boolsk, kan_afskrives_i_indkomståret: Boolsk, højeste_sats_basispoint: Heltal, interval_resultater: List(Afskrivningslov17Par19IntervalResultat), valg_gyldige: Boolsk, input_gyldigt: Boolsk, højeste_afskrivning_i_indkomståret_kroner: Heltal, fradrag_i_skattepligtig_indkomst_kroner: Heltal, historik_ultimo: Afskrivningslov19Historik)
+
+| afskrivningslov17_par19_valg_fra_kroner(valg: Afskrivningslov17Par19Valg) -> match valg {
+    | Al17Par19IngenAfskrivning(fra_kroner, _) -> fra_kroner
+    | Al17Par19ValgtAfskrivningsprocent(fra_kroner, _, _) -> fra_kroner
+}
+| afskrivningslov17_par19_valg_til_kroner(valg: Afskrivningslov17Par19Valg) -> match valg {
+    | Al17Par19IngenAfskrivning(_, til_kroner) -> til_kroner
+    | Al17Par19ValgtAfskrivningsprocent(_, til_kroner, _) -> til_kroner
+}
+| afskrivningslov17_par19_valgt_sats_basispoint(valg: Afskrivningslov17Par19Valg) -> match valg {
+    | Al17Par19IngenAfskrivning(_, _) -> 0
+    | Al17Par19ValgtAfskrivningsprocent(_, _, sats_basispoint) -> sats_basispoint
+}
+| afskrivningslov17_par19_valg_matcher_interval(valg: Afskrivningslov17Par19Valg, interval: Afskrivningslov19Interval) -> afskrivningslov17_par19_valg_fra_kroner(valg) == interval.fra_kroner && afskrivningslov17_par19_valg_til_kroner(valg) == interval.til_kroner
+| afskrivningslov17_par19_matchende_valg(valg: List(Afskrivningslov17Par19Valg), interval: Afskrivningslov19Interval) -> filter(valg, |aktuelt_valg: Afskrivningslov17Par19Valg| afskrivningslov17_par19_valg_matcher_interval(aktuelt_valg, interval))
+| afskrivningslov17_par19_valg_har_entydigt_aktivt_interval(valg: Afskrivningslov17Par19Valg, intervaller: List(Afskrivningslov19Interval)) -> length(filter(intervaller, |interval: Afskrivningslov19Interval| interval.afskrivningsberettiget_i_indkomståret && afskrivningslov17_par19_valg_matcher_interval(valg, interval))) == 1
+
+# Afskrivningslov17Par19IntervalSag(interval: Afskrivningslov19Interval, højeste_årlige_sats_basispoint: Heltal, valg: List(Afskrivningslov17Par19Valg)) {
+    | matchende_valg() -> afskrivningslov17_par19_matchende_valg(valg, interval)
+    | valgt_sats_basispoint() -> hvis length(matchende_valg()) == 1 { afskrivningslov17_par19_valgt_sats_basispoint(head(matchende_valg())) } ellers { 0 }
+    | resterende_satsrum_basispoint() -> penge_positivt_beløb(10000 - interval.anvendt_afskrivningsprocent_basispoint)
+    | højeste_valgbare_sats_basispoint() -> hvis interval.afskrivningsberettiget_i_indkomståret { penge_mindste_beløb(højeste_årlige_sats_basispoint, resterende_satsrum_basispoint()) } ellers { 0 }
+    | valg_gyldigt() -> hvis interval.afskrivningsberettiget_i_indkomståret {
+        length(matchende_valg()) == 1 && valgt_sats_basispoint() >= 0 && valgt_sats_basispoint() <= højeste_valgbare_sats_basispoint() && match head(matchende_valg()) {
+            | Al17Par19IngenAfskrivning(_, _) -> valgt_sats_basispoint() == 0
+            | Al17Par19ValgtAfskrivningsprocent(_, _, sats_basispoint) -> sats_basispoint > 0
+        }
+    } ellers { length(matchende_valg()) == 0 }
+    | højeste_afskrivning_kroner() -> penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), højeste_valgbare_sats_basispoint())
+    | afskrivning_kroner() -> hvis valg_gyldigt() { penge_beløb_gange_basispoint_kroner(afskrivningslov19_interval_beløb_kroner(interval), valgt_sats_basispoint()) } ellers { 0 }
+    | interval_efter() -> Afskrivningslov19Interval(
+        fra_kroner = interval.fra_kroner,
+        til_kroner = interval.til_kroner,
+        afskrivningsberettiget_forrige_indkomstår = interval.afskrivningsberettiget_forrige_indkomstår,
+        afskrivningsberettiget_i_indkomståret = interval.afskrivningsberettiget_i_indkomståret,
+        afskrivningsberettigede_indkomstår = interval.afskrivningsberettigede_indkomstår,
+        anvendt_afskrivningsprocent_basispoint = interval.anvendt_afskrivningsprocent_basispoint + hvis valg_gyldigt() { valgt_sats_basispoint() } ellers { 0 },
+        maksimalt_mulig_afskrivningsprocent_basispoint = hvis interval.afskrivningsberettiget_i_indkomståret { penge_mindste_beløb(10000, interval.maksimalt_mulig_afskrivningsprocent_basispoint + højeste_årlige_sats_basispoint) } ellers { interval.maksimalt_mulig_afskrivningsprocent_basispoint }
+    )
+    | resultat() -> Afskrivningslov17Par19IntervalResultat(
+        interval_før = interval,
+        matchende_valg = matchende_valg(),
+        aktivt_i_indkomståret = interval.afskrivningsberettiget_i_indkomståret,
+        højeste_årlige_sats_basispoint = højeste_årlige_sats_basispoint,
+        resterende_satsrum_basispoint = resterende_satsrum_basispoint(),
+        højeste_valgbare_sats_basispoint = højeste_valgbare_sats_basispoint(),
+        valgt_sats_basispoint = valgt_sats_basispoint(),
+        valg_gyldigt = valg_gyldigt(),
+        højeste_afskrivning_i_indkomståret_kroner = højeste_afskrivning_kroner(),
+        afskrivning_i_indkomståret_kroner = afskrivning_kroner(),
+        interval_efter = interval_efter()
+    )
+}
+| afskrivningslov17_par19_interval_resultat(interval: Afskrivningslov19Interval, højeste_årlige_sats_basispoint: Heltal, valg: List(Afskrivningslov17Par19Valg)) -> Afskrivningslov17Par19IntervalSag(interval, højeste_årlige_sats_basispoint, valg).resultat()
+| afskrivningslov17_par19_interval_resultater(intervaller: List(Afskrivningslov19Interval), højeste_årlige_sats_basispoint: Heltal, valg: List(Afskrivningslov17Par19Valg)) -> map(intervaller, |interval: Afskrivningslov19Interval| afskrivningslov17_par19_interval_resultat(interval, højeste_årlige_sats_basispoint, valg))
+| afskrivningslov17_par19_interval_resultater_gyldige(resultater: List(Afskrivningslov17Par19IntervalResultat)) -> all(resultater, |resultat: Afskrivningslov17Par19IntervalResultat| resultat.valg_gyldigt)
+| afskrivningslov17_par19_højeste_afskrivning_kroner(resultater: List(Afskrivningslov17Par19IntervalResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: Afskrivningslov17Par19IntervalResultat| sum + resultat.højeste_afskrivning_i_indkomståret_kroner)
+| afskrivningslov17_par19_afskrivning_kroner(resultater: List(Afskrivningslov17Par19IntervalResultat)) -> foldl(resultater, 0, |sum: Heltal, resultat: Afskrivningslov17Par19IntervalResultat| sum + resultat.afskrivning_i_indkomståret_kroner)
+| afskrivningslov17_par19_opdaterede_intervaller(resultater: List(Afskrivningslov17Par19IntervalResultat)) -> map(resultater, |resultat: Afskrivningslov17Par19IntervalResultat| resultat.interval_efter)
+| afskrivningslov17_par19_satsinput(input: Afskrivningslov17Par19Input, afskrivningsgrundlag_kroner: Heltal) -> Afskrivningslov17Input(
+    indkomstår = input.indkomstår,
+    par16_input = input.par16_input,
+    par20_input = input.par20_input,
+    afskrivningsgrundlag_kroner = afskrivningsgrundlag_kroner,
+    tidligere_årsopgørelser = [],
+    antaget_levetid_år = input.antaget_levetid_år,
+    accessorisk_hovedbygning = input.accessorisk_hovedbygning,
+    valg = Al17IngenAfskrivning
+)
+| afskrivningslov17_par19_indkomstår_matcher(input: Afskrivningslov17Par19Input, indkomstår: Heltal) -> input.indkomstår == indkomstår && input.par20_input.indkomstår == indkomstår
+
+# Afskrivningslov17Par19Sag(input: Afskrivningslov17Par19Input) {
+    | bygning() -> AlK3Bygning(input = input.par19_input.bygning_input)
+    | par16_resultat() -> afskrivningslov16_resultat(input.par16_input)
+    | par19_resultat() -> afskrivningslov19_resultat(input.par19_input)
+    | par20_resultat() -> afskrivningslov20_resultat(input.par20_input)
+    | satsresultat() -> afskrivningslov17_resultat(afskrivningslov17_par19_satsinput(input, par19_resultat().aktuelt_afskrivningsberettiget_grundlag_kroner))
+    | grundlag_gyldigt() -> input.indkomstår > 0 && input.indkomstår == par20_resultat().indkomstår && par16_resultat().aktiv == bygning() && par20_resultat().aktiv == bygning() && par16_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().skatteyder == par19_resultat().skatteyder && par20_resultat().begivenhed_matcher_aktiv && par16_resultat().afskrivningsberettiget_fra_indkomstår > 0 && input.indkomstår >= par16_resultat().afskrivningsberettiget_fra_indkomstår && par19_resultat().omfattet_af_par19 && par19_resultat().intervaller_gyldige && satsresultat().aktiv_omfattet
+    | kan_afskrives_i_indkomståret() -> grundlag_gyldigt() && satsresultat().kan_afskrives_i_indkomståret
+    | beregningsintervaller() -> hvis kan_afskrives_i_indkomståret() { par19_resultat().intervaller } ellers { [] }
+    | interval_resultater() -> afskrivningslov17_par19_interval_resultater(beregningsintervaller(), satsresultat().højeste_sats_basispoint, input.valg)
+    | valg_har_entydige_intervaller() -> all(input.valg, |valg: Afskrivningslov17Par19Valg| afskrivningslov17_par19_valg_har_entydigt_aktivt_interval(valg, beregningsintervaller()))
+    | valg_gyldige() -> afskrivningslov17_par19_interval_resultater_gyldige(interval_resultater()) && valg_har_entydige_intervaller()
+    | input_gyldigt() -> grundlag_gyldigt() && valg_gyldige()
+    | opdaterede_intervaller() -> hvis input_gyldigt() && kan_afskrives_i_indkomståret() { afskrivningslov17_par19_opdaterede_intervaller(interval_resultater()) } ellers hvis input_gyldigt() { input.par19_input.tidligere_intervaller } ellers { [] }
+    | historikår_ultimo() -> hvis input_gyldigt() && kan_afskrives_i_indkomståret() { par19_resultat().afskrivningsberettigede_indkomstår_for_bygningen } ellers { penge_positivt_beløb(input.par19_input.tidligere_afskrivningsberettigede_indkomstår_for_bygningen) }
+    | historik_ultimo() -> Afskrivningslov19Historik(
+        skatteyder = par19_resultat().skatteyder,
+        samlet_anskaffelsessum_kroner = par19_resultat().anskaffelsessum_efter_ejerbolig_kroner,
+        afskrivningsberettigede_indkomstår_for_bygningen = historikår_ultimo(),
+        intervaller = opdaterede_intervaller(),
+        gyldig = input_gyldigt() && afskrivningslov19_intervaller_gyldige(opdaterede_intervaller(), par19_resultat().anskaffelsessum_efter_ejerbolig_kroner, historikår_ultimo())
+    )
+    | højeste_afskrivning_kroner() -> hvis input_gyldigt() { afskrivningslov17_par19_højeste_afskrivning_kroner(interval_resultater()) } ellers { 0 }
+    | fradrag_kroner() -> hvis input_gyldigt() { afskrivningslov17_par19_afskrivning_kroner(interval_resultater()) } ellers { 0 }
+    | resultat() -> Afskrivningslov17Par19Resultat(
+        indkomstår = input.indkomstår,
+        skatteyder = par19_resultat().skatteyder,
+        par16_resultat = par16_resultat(),
+        par19_resultat = par19_resultat(),
+        par20_resultat = par20_resultat(),
+        grundlag_gyldigt = grundlag_gyldigt(),
+        kan_afskrives_i_indkomståret = kan_afskrives_i_indkomståret(),
+        højeste_sats_basispoint = satsresultat().højeste_sats_basispoint,
+        interval_resultater = interval_resultater(),
+        valg_gyldige = valg_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        højeste_afskrivning_i_indkomståret_kroner = højeste_afskrivning_kroner(),
+        fradrag_i_skattepligtig_indkomst_kroner = fradrag_kroner(),
+        historik_ultimo = historik_ultimo()
+    )
+}
+| afskrivningslov17_par19_sag(input: Afskrivningslov17Par19Input) -> Afskrivningslov17Par19Sag(input)
+| afskrivningslov17_par19_resultat(input: Afskrivningslov17Par19Input) -> afskrivningslov17_par19_sag(input).resultat()
 --@end:afskrivningsloven_par19--
 
 = afskrivningsloven_par20_metadata = Metadata(
