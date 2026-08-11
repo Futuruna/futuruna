@@ -166,6 +166,12 @@ statsskatteloven for selvstændige erhvervsdrivende og
     | PsPar3Nr10Al26(input) -> input.par25_input.indkomstår == indkomstår
     | PsPar3Nr10Al27(input) -> input.indkomstår == indkomstår
 }
+| personskat_par3_nr10_bygningskilde_input_gyldigt(kilde: PersonskatPar3Nr10Bygningskilde) -> match kilde {
+    | PsPar3Nr10Al17(input) -> afskrivningslov17_afskrivningsgrundlag_gyldigt(input)
+    | PsPar3Nr10Al17Par19(input) -> afskrivningslov19_anskaffelsessum_gyldig(input.par19_input)
+    | PsPar3Nr10Al21(input) -> afskrivningslov21_salgssum_gyldig(input)
+    | _ -> Sandt
+}
 | personskat_par3_nr10_forskudsafskrivningskilde_indkomstår_matcher(kilde: PersonskatPar3Nr10Forskudsafskrivningskilde, indkomstår: Heltal) -> match kilde {
     | PsPar3Nr10Al32(input) -> input.indkomstår == indkomstår
     | PsPar3Nr10Al34(input) -> input.hændelsesår == indkomstår
@@ -225,6 +231,7 @@ statsskatteloven for selvstændige erhvervsdrivende og
 }
 | personskat_par3_nr10_afskrivningskilde_input_gyldigt(kilde: PersonskatPar3Nr10Afskrivningskilde) -> match kilde {
     | PsPar3Nr10Driftsmiddel(driftsmiddelkilde) -> personskat_par3_nr10_driftsmiddelkilde_input_gyldigt(driftsmiddelkilde)
+    | PsPar3Nr10Bygning(bygningskilde) -> personskat_par3_nr10_bygningskilde_input_gyldigt(bygningskilde)
     | _ -> Sandt
 }
 | personskat_par3_erhvervspostkilde_årsparametre_understøttet(kilde: PersonskatPar3Erhvervspostkilde) -> match kilde {

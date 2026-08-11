@@ -69,7 +69,7 @@
     par39_historik = Afskrivningslov21Par39Historik(afholdte_ombygningsudgifter_kroner = 0, foretagne_afskrivninger_kroner = 0)
 )
 = al62_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
-| al62_par21_input(salgssum_kroner: Heltal) -> Afskrivningslov21Input(indkomstår = 2026, nedskrevet_værdi_input = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum_kroner = salgssum_kroner, kontrol = al62_uden_bestemmende_indflydelse)
+| al62_par21_input(salgssum_kroner: Heltal) -> Afskrivningslov21Input(indkomstår = 2026, nedskrevet_værdi_input = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum = Al45OplystKontantværdi(beløb_kroner = salgssum_kroner), kontrol = al62_uden_bestemmende_indflydelse)
 | al62_miljøinput(salgssum_kroner: Heltal) -> Afskrivningslov62MiljøanlægSalgInput(straksafskrevet_efter_tidligere_par21a = Sandt, historisk_straksafskrevet_udgift_kroner = 30000, par21_input = al62_par21_input(salgssum_kroner))
 = al62_miljøanlæg_fortjeneste = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(110000))
 = al62_miljøanlæg_tab = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(20000))

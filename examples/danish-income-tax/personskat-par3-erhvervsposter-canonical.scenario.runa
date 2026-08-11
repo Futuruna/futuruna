@@ -241,10 +241,9 @@ fradrag.
     ),
     par19_input = Afskrivningslov19Input(
         bygning_input = psl3_erhvervspost_scenarie_al19_bygning(),
-        samlet_anskaffelsessum_kroner = 1000000,
+        anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
         samlet_etageareal_kvadratmeter = 1000,
         afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter,
-        ejerbolig_anskaffelsessum_kroner = 0,
         ejerbolig_etageareal_kvadratmeter = 0,
         tidligere_afskrivningsberettigede_indkomstår_for_bygningen = indkomstår - 2023,
         tidligere_intervaller = psl3_erhvervspost_scenarie_al19_historik(indkomstår - 2023)

@@ -16,10 +16,9 @@
 
 | al19_interval_input(afskrivningsberettiget_etageareal_kvadratmeter: Heltal, tidligere_afskrivningsberettigede_indkomstår_for_bygningen: Heltal, tidligere_intervaller: List(Afskrivningslov19Interval)) -> Afskrivningslov19Input(
     bygning_input = al19_interval_bygning,
-    samlet_anskaffelsessum_kroner = 1000000,
+    anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = afskrivningsberettiget_etageareal_kvadratmeter,
-    ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
     tidligere_afskrivningsberettigede_indkomstår_for_bygningen = tidligere_afskrivningsberettigede_indkomstår_for_bygningen,
     tidligere_intervaller = tidligere_intervaller
@@ -149,10 +148,9 @@
 = al17_par19_ejerbolig_udelukkes = afskrivningslov17_par19_resultat(al17_par19_input(
     Afskrivningslov19Input(
         bygning_input = al19_interval_bygning,
-        samlet_anskaffelsessum_kroner = 1000000,
+        anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 200000),
         samlet_etageareal_kvadratmeter = 1000,
         afskrivningsberettiget_etageareal_kvadratmeter = 400,
-        ejerbolig_anskaffelsessum_kroner = 200000,
         ejerbolig_etageareal_kvadratmeter = 200,
         tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 3,
         tidligere_intervaller = al17_par19_ejerbolig_historik

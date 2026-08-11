@@ -231,7 +231,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 0,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -242,7 +242,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2022_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 0,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -253,7 +253,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 16,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -264,7 +264,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 20,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -275,7 +275,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2022_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 16,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -286,7 +286,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2022_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 20,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -297,7 +297,7 @@
     indkomstår = 2026,
     par16_input = al16_blandet_installation_2023_input,
     par20_input = al20_blandet_installation_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 0,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -308,7 +308,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_hotel_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [
         Afskrivningslov17Årsopgørelse(indkomstår = 2025, beregnet_afskrivning_før_erhvervsandel_kroner = 99000, fradraget_afskrivning_kroner = 99000)
     ],
@@ -321,7 +321,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_hotel_solgt_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 0,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -332,7 +332,7 @@
     indkomstår = 2026,
     par16_input = al16_hotel_2023_input,
     par20_input = al20_blandet_installation_fortsat_2026_input,
-    afskrivningsgrundlag_kroner = 100000,
+    afskrivningsgrundlag = Al45OplystKontantværdi(beløb_kroner = 100000),
     tidligere_årsopgørelser = [],
     antaget_levetid_år = 0,
     accessorisk_hovedbygning = Al17IngenAccessoriskHovedbygning,
@@ -444,10 +444,9 @@
 
 = al19_under_25_og_under_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
     bygning_input = al14_hotel_input,
-    samlet_anskaffelsessum_kroner = 1000000,
+    anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = 200,
-    ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
     tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 0,
     tidligere_intervaller = []
@@ -455,10 +454,9 @@
 
 = al19_under_25_men_mindst_300 = afskrivningslov19_resultat(Afskrivningslov19Input(
     bygning_input = al14_hotel_input,
-    samlet_anskaffelsessum_kroner = 1000000,
+    anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1500,
     afskrivningsberettiget_etageareal_kvadratmeter = 300,
-    ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
     tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 10,
     tidligere_intervaller = [
@@ -469,10 +467,9 @@
 
 = al19_ejerbolig_udgår = afskrivningslov19_resultat(Afskrivningslov19Input(
     bygning_input = al14_hotel_input,
-    samlet_anskaffelsessum_kroner = 1000000,
+    anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 200000),
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
-    ejerbolig_anskaffelsessum_kroner = 200000,
     ejerbolig_etageareal_kvadratmeter = 200,
     tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 30,
     tidligere_intervaller = [
@@ -483,10 +480,9 @@
 
 = al19_stk2_udelukket_bygning_afskæres = afskrivningslov19_resultat(Afskrivningslov19Input(
     bygning_input = al14_kontor_input,
-    samlet_anskaffelsessum_kroner = 1000000,
+    anskaffelsessum = Al19OplystAnskaffelsessum(samlet_anskaffelsessum_kroner = 1000000, ejerbolig_anskaffelsessum_kroner = 0),
     samlet_etageareal_kvadratmeter = 1000,
     afskrivningsberettiget_etageareal_kvadratmeter = 400,
-    ejerbolig_anskaffelsessum_kroner = 0,
     ejerbolig_etageareal_kvadratmeter = 0,
     tidligere_afskrivningsberettigede_indkomstår_for_bygningen = 0,
     tidligere_intervaller = []

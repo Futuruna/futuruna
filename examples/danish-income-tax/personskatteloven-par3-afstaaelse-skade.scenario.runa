@@ -60,7 +60,7 @@
     indkomstår = 2009,
     nedskrevet_værdi_input = værdi_input,
     salg_gennemført = Sandt,
-    samlet_salgssum_kroner = salgssum_kroner,
+    samlet_salgssum = Al45OplystKontantværdi(beløb_kroner = salgssum_kroner),
     kontrol = al21_uden_bestemmende_indflydelse
 )
 | al21_salg(værdi_input: Afskrivningslov21NedskrevetVærdiInput, salgssum_kroner: Heltal) -> afskrivningslov21_resultat(al21_salgsinput(værdi_input, salgssum_kroner))

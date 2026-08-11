@@ -345,7 +345,7 @@
 )
 = al62_uden_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Falskt, kapitalandel_basispoint = 0, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
 = al62_med_bestemmende_indflydelse = Afskrivningslov21Kontrol(sælgerne_er_en_eller_flere_personer = Sandt, køber_er_selskab_mv = Sandt, kapitalandel_basispoint = 6000, stemmerettigheder_basispoint = 0, anden_bestemmende_indflydelse = Falskt)
-| al62_par21_input(indkomstår: Heltal, salgssum_kroner: Heltal, kontrol: Afskrivningslov21Kontrol) -> Afskrivningslov21Input(indkomstår = indkomstår, nedskrevet_værdi_input = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum_kroner = salgssum_kroner, kontrol = kontrol)
+| al62_par21_input(indkomstår: Heltal, salgssum_kroner: Heltal, kontrol: Afskrivningslov21Kontrol) -> Afskrivningslov21Input(indkomstår = indkomstår, nedskrevet_værdi_input = al62_miljøværdi_før_overgang, salg_gennemført = Sandt, samlet_salgssum = Al45OplystKontantværdi(beløb_kroner = salgssum_kroner), kontrol = kontrol)
 | al62_miljøinput(indkomstår: Heltal, salgssum_kroner: Heltal, kontrol: Afskrivningslov21Kontrol) -> Afskrivningslov62MiljøanlægSalgInput(straksafskrevet_efter_tidligere_par21a = Sandt, historisk_straksafskrevet_udgift_kroner = 30000, par21_input = al62_par21_input(indkomstår, salgssum_kroner, kontrol))
 = al62_miljøanlæg = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 110000, al62_uden_bestemmende_indflydelse))
 = al62_miljøanlæg_tab = afskrivningslov62_miljøanlæg_salg_resultat(al62_miljøinput(2026, 20000, al62_uden_bestemmende_indflydelse))
