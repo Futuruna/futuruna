@@ -254,6 +254,7 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 ))
 = abl_par44_statustabår = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
@@ -267,6 +268,7 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 ))
 = abl_par44_blandet_position = AktieavanceOrdinærPosition(
@@ -295,6 +297,7 @@ udbytteklassifikation. Scenariet er ikke lovtekst.
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 ))
 

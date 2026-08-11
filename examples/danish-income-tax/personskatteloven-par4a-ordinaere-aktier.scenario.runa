@@ -417,6 +417,7 @@
         anskaffelsesgrundlag = AblInvesteringsbevisDirekteAnskaffelsessum(kroner = 100000),
         oplysningsstatus = AblOplystRettidigt
     )],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 50000
 )
 = abl_ordinaer_par13a_gyldig_ægtefælle = AktieavanceOrdinærPersonÅrsinput(
@@ -424,6 +425,7 @@
     hændelsesforløb = [],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = abl_ordinaer_par13a_ugyldigt_personpar = aktieavance_ordinaer_person_årsparresultat(

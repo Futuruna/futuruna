@@ -371,13 +371,20 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 # AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag = AblInvesteringsbevisDirekteAnskaffelsessum(kroner: Heltal) | AblInvesteringsbevisAnskaffelsessumEfterPar27(forløb: AktieavancePar27Forløbsinput, afstået_kapitalmængde: AktieavanceOrdinærKapitalmængde)
 # AktieavancePar13AInvesteringsbevisInput(indkomstår: Heltal, art: AktieavancePar13AInvesteringsbevisArt, afståelsesdato: Dato, afståelsens_rækkefølge_på_dagen: Heltal, afståelsessum_kroner: Heltal, anskaffelsesgrundlag: AktieavancePar13AInvesteringsbevisAnskaffelsesgrundlag, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
 # AktieavancePar13AInvesteringsbevisResultat(input: AktieavancePar13AInvesteringsbevisInput, input_gyldigt: Boolsk, anskaffelsesgrundlag_gyldigt: Boolsk, par27_forløbsresultat: Option(AktieavancePar27Forløbsresultat), anskaffelsessum_henført_til_afståelse_kroner: Heltal, position_efter: Option(AktieavanceOrdinærPosition), bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, skattepost: AktieavanceSkattepost)
+# AktieavanceInvesteringsbevisBeholdningsgrundlag = AblInvesteringsbevisDirekteBeholdning(position: AktieavanceOrdinærPosition, anskaffelsesdato: Dato) | AblInvesteringsbevisBeholdningEfterPar27(forløb: AktieavancePar27Forløbsinput)
+# AktieavanceInvesteringsbevisAfståelse(identifikation: Tekst, dato: Dato, rækkefølge_på_dagen: Heltal, kapitalmængde: AktieavanceOrdinærKapitalmængde, afståelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
+# AktieavanceInvesteringsbevisBeholdningsforløbsinput(identifikation: Tekst, indkomstår: Heltal, grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag, afståelser: List(AktieavanceInvesteringsbevisAfståelse))
+# AktieavanceInvesteringsbevisAfståelsesresultat(afståelse: AktieavanceInvesteringsbevisAfståelse, hændelsesresultat: AktieavanceOrdinærHændelsesresultat)
+# AktieavanceInvesteringsbevisBeholdningsforløbsresultat(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput, par27_forløbsresultat: Option(AktieavancePar27Forløbsresultat), afståelsesresultater: List(AktieavanceInvesteringsbevisAfståelsesresultat), position_ultimo: AktieavanceOrdinærPosition, grundlag_gyldigt: Boolsk, alle_kildehændelser_før_afståelserne: Boolsk, alle_hændelser_gyldige: Boolsk, input_gyldigt: Boolsk)
+# AktieavancePar21InvesteringsbevisForløbsinput(klassifikation: AktieavancePar21Par22Input, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput)
+# AktieavancePar21InvesteringsbevisForløbsresultat(input: AktieavancePar21InvesteringsbevisForløbsinput, klassifikationsresultat: AktieavancePar21Par22Resultat, beholdningsresultat: AktieavanceInvesteringsbevisBeholdningsforløbsresultat, effektivt_aktiebaseret_efter_par21: Boolsk, skatteposter: List(AktieavanceSkattepost), input_gyldigt: Boolsk)
 # AktieavanceOrdinærPar13AModregningsgrundlag(udbytter_for_aktier_med_gevinst_efter_par12_kroner: Heltal, udbytter_og_nettogevinster_for_aktier_med_gevinst_efter_par19b_kroner: Heltal, udbytter_for_aktier_omfattet_af_par44_kroner: Heltal)
 # AktieavanceOrdinærÅrsinput(indkomstår: Heltal, skatteposter: List(AktieavanceSkattepost), fremført_tab_efter_par13a_kroner: Heltal, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag)
 # AktieavanceOrdinærÅrsresultat(input: AktieavanceOrdinærÅrsinput, indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, positivt_nettobeløb_efter_egen_modregning_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_modtaget_fra_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 # AktieavanceOrdinærÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærÅrsresultat, ægtefælle: AktieavanceOrdinærÅrsresultat)
 # AktieavanceOrdinærHændelsesforløbInput(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærKildehændelse))
-# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), rettighedsforløb: List(AktieavancePar25HændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), fremført_tab_efter_par13a_kroner: Heltal)
-# AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærÅrshændelsesforløbResultat), rettighedsforløbsresultater: List(AktieavancePar25HændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
+# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), rettighedsforløb: List(AktieavancePar25HændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), aktiebaserede_minimumsbevis_forløb: List(AktieavancePar21InvesteringsbevisForløbsinput), fremført_tab_efter_par13a_kroner: Heltal)
+# AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærÅrshændelsesforløbResultat), rettighedsforløbsresultater: List(AktieavancePar25HændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), aktiebaserede_minimumsbevis_forløbsresultater: List(AktieavancePar21InvesteringsbevisForløbsresultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
 # AktieavanceOrdinærPersonÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærPersonÅrsresultat, ægtefælle: AktieavanceOrdinærPersonÅrsresultat)
 
 | aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
@@ -889,6 +896,109 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 )
 | aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultater: List(AktieavanceOrdinærHændelsesresultat)) -> map(resultater, aktieavance_skattepost_fra_ordinaert_hændelsesresultat)
 
+| aktieavance_investeringsbevis_afståelse_til_kildehændelse(afståelse: AktieavanceInvesteringsbevisAfståelse) -> AktieavanceOrdinærKildehændelse(
+    identifikation = afståelse.identifikation,
+    dato = afståelse.dato,
+    rækkefølge_på_dagen = afståelse.rækkefølge_på_dagen,
+    hændelse = AblOrdinærAfståelse(
+        kapitalmængde = afståelse.kapitalmængde,
+        afståelsessum_kroner = afståelse.afståelsessum_kroner,
+        vilkår = AktieavanceOrdinærAfståelsesvilkår(
+            markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+            har_tidligere_været_optaget_til_handel = Falskt,
+            hovedaktionæraktier = Falskt,
+            afståede_aktiers_handelsværdi_kroner = 0,
+            beholdte_aktiers_handelsværdi_kroner = 0,
+            oplysningsstatus = afståelse.oplysningsstatus,
+            boligret = AblUdenBoligret
+        ),
+        par5a_kildefakta = AblOrdinærIngenPar5AFaktaPåkrævet
+    )
+)
+| aktieavance_investeringsbevis_kildehændelser(afståelser: List(AktieavanceInvesteringsbevisAfståelse)) -> map(afståelser, aktieavance_investeringsbevis_afståelse_til_kildehændelse)
+| aktieavance_investeringsbevis_par27_forløbsresultat(grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag) -> match grundlag {
+    | AblInvesteringsbevisDirekteBeholdning(_, _) -> None
+    | AblInvesteringsbevisBeholdningEfterPar27(forløb) -> Some(aktieavance_par27_forløbsresultat(forløb))
+}
+| aktieavance_investeringsbevis_position_primo(grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag) -> match grundlag {
+    | AblInvesteringsbevisDirekteBeholdning(position, _) -> position
+    | AblInvesteringsbevisBeholdningEfterPar27(forløb) -> aktieavance_par27_forløbsresultat(forløb).position_ultimo
+}
+| aktieavance_investeringsbevis_udstederidentifikation(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput) -> aktieavance_investeringsbevis_position_primo(input.grundlag).selskabsidentifikation
+| aktieavance_investeringsbevis_anskaffelsesdato(grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag) -> match grundlag {
+    | AblInvesteringsbevisDirekteBeholdning(_, anskaffelsesdato) -> anskaffelsesdato
+    | AblInvesteringsbevisBeholdningEfterPar27(forløb) -> forløb.andel_primo.anskaffelsestidspunkt
+}
+| aktieavance_investeringsbevis_kildetidspunkt_før_afståelse(dato: Dato, rækkefølge_på_dagen: Heltal, afståelse: AktieavanceInvesteringsbevisAfståelse) -> dato_før(dato, afståelse.dato) || dato == afståelse.dato && rækkefølge_på_dagen < afståelse.rækkefølge_på_dagen
+| aktieavance_investeringsbevis_anskaffelse_før_afståelserne(grundlag: AktieavanceInvesteringsbevisBeholdningsgrundlag, afståelser: List(AktieavanceInvesteringsbevisAfståelse)) -> all(afståelser, |afståelse: AktieavanceInvesteringsbevisAfståelse| dato_før(aktieavance_investeringsbevis_anskaffelsesdato(grundlag), afståelse.dato))
+| aktieavance_investeringsbevis_par27_hændelser_før_afståelserne(forløb: AktieavancePar27Forløbsinput, afståelser: List(AktieavanceInvesteringsbevisAfståelse)) -> all(forløb.hændelser, |kildehændelse: AktieavancePar27Kildehændelse| all(afståelser, |afståelse: AktieavanceInvesteringsbevisAfståelse| aktieavance_investeringsbevis_kildetidspunkt_før_afståelse(kildehændelse.dato, kildehændelse.rækkefølge_på_dagen, afståelse)))
+| aktieavance_investeringsbevis_alle_kildehændelser_før_afståelserne(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput) -> aktieavance_investeringsbevis_anskaffelse_før_afståelserne(input.grundlag, input.afståelser) && match input.grundlag {
+    | AblInvesteringsbevisDirekteBeholdning(_, _) -> Sandt
+    | AblInvesteringsbevisBeholdningEfterPar27(forløb) -> aktieavance_investeringsbevis_par27_hændelser_før_afståelserne(forløb, input.afståelser)
+}
+| aktieavance_investeringsbevis_grundlag_gyldigt(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput) -> dato_gyldig(aktieavance_investeringsbevis_anskaffelsesdato(input.grundlag)) && aktieavance_ordinaer_position_gyldig(aktieavance_investeringsbevis_position_primo(input.grundlag)) && aktieavance_investeringsbevis_alle_kildehændelser_før_afståelserne(input) && match input.grundlag {
+    | AblInvesteringsbevisDirekteBeholdning(_, _) -> Sandt
+    | AblInvesteringsbevisBeholdningEfterPar27(forløb) -> length(forløb.hændelser) > 0 && aktieavance_par27_forløbsresultat(forløb).input_gyldigt
+}
+| aktieavance_investeringsbevis_afståelsesresultater(afståelser: List(AktieavanceInvesteringsbevisAfståelse), hændelsesresultater: List(AktieavanceOrdinærHændelsesresultat)) -> hvis length(afståelser) == 0 || length(hændelsesresultater) == 0 { [] } ellers { concat([
+    AktieavanceInvesteringsbevisAfståelsesresultat(
+        afståelse = head(afståelser),
+        hændelsesresultat = head(hændelsesresultater)
+    )
+    ], aktieavance_investeringsbevis_afståelsesresultater(tail(afståelser), tail(hændelsesresultater))) }
+
+# AktieavanceInvesteringsbevisBeholdningsforløbSag(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput) {
+    | par27_forløbsresultat() -> aktieavance_investeringsbevis_par27_forløbsresultat(input.grundlag)
+    | hændelsesforløbsinput() -> AktieavanceOrdinærHændelsesforløbInput(
+        position_primo = aktieavance_investeringsbevis_position_primo(input.grundlag),
+        hændelser = aktieavance_investeringsbevis_kildehændelser(input.afståelser)
+    )
+    | hændelsesforløbsresultat() -> aktieavance_ordinaer_årshændelsesforløb(input.indkomstår, hændelsesforløbsinput())
+    | grundlag_gyldigt() -> aktieavance_investeringsbevis_grundlag_gyldigt(input)
+    | alle_kildehændelser_før_afståelserne() -> aktieavance_investeringsbevis_alle_kildehændelser_før_afståelserne(input)
+    | alle_hændelser_gyldige() -> hændelsesforløbsresultat().alle_hændelser_gyldige
+    | input_gyldigt() -> input.identifikation != "" && input.indkomstår > 0 && grundlag_gyldigt() && alle_hændelser_gyldige()
+    | resultat() -> AktieavanceInvesteringsbevisBeholdningsforløbsresultat(
+        input = input,
+        par27_forløbsresultat = par27_forløbsresultat(),
+        afståelsesresultater = aktieavance_investeringsbevis_afståelsesresultater(input.afståelser, hændelsesforløbsresultat().hændelsesresultater),
+        position_ultimo = hændelsesforløbsresultat().position_ultimo,
+        grundlag_gyldigt = grundlag_gyldigt(),
+        alle_kildehændelser_før_afståelserne = alle_kildehændelser_før_afståelserne(),
+        alle_hændelser_gyldige = alle_hændelser_gyldige(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| aktieavance_investeringsbevis_beholdningsforløbsresultat(input: AktieavanceInvesteringsbevisBeholdningsforløbsinput) -> AktieavanceInvesteringsbevisBeholdningsforløbSag(input).resultat()
+| aktieavance_investeringsbevis_rå_netto_kroner(resultat: AktieavanceInvesteringsbevisBeholdningsforløbsresultat) -> foldl(resultat.afståelsesresultater, 0, |sum: Heltal, afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat| sum + afståelsesresultat.hændelsesresultat.bruttogevinst_kroner - afståelsesresultat.hændelsesresultat.bruttotab_kroner)
+
+| aktieavance_par21_investeringsbevis_skattepost(resultat: AktieavanceInvesteringsbevisAfståelsesresultat) -> AktieavanceSkattepost(
+    art = AblSkattepostAktiebaseretMinimumsbevisEfterPar21,
+    markedsstatus = AblOptagetTilHandelPåReguleretMarked,
+    skattepligtig_gevinst_efter_par12_kroner = resultat.hændelsesresultat.skattepligtig_gevinst_efter_par12_kroner,
+    bruttotab_kroner = resultat.hændelsesresultat.bruttotab_kroner,
+    fradragsberettiget_tab_efter_par13_kroner = 0,
+    tab_til_modregning_efter_par13a_kroner = resultat.hændelsesresultat.tab_til_modregning_efter_par13a_kroner,
+    tab_afskåret_efter_par14_kroner = resultat.hændelsesresultat.tab_afskåret_efter_par14_kroner,
+    gevinst_i_modregningsgrundlag_efter_par13a_kroner = resultat.hændelsesresultat.skattepligtig_gevinst_efter_par12_kroner
+)
+# AktieavancePar21InvesteringsbevisForløbSag(input: AktieavancePar21InvesteringsbevisForløbsinput) {
+    | klassifikationsresultat() -> aktieavance_par21_par22_resultat(input.klassifikation)
+    | beholdningsresultat() -> aktieavance_investeringsbevis_beholdningsforløbsresultat(input.beholdning)
+    | effektivt_aktiebaseret_efter_par21() -> klassifikationsresultat().input_gyldigt && klassifikationsresultat().effektiv_status == AblAktiebaseretMinimumsinstitutEfterPar21
+    | input_gyldigt() -> input.klassifikation.indkomstår == input.beholdning.indkomstår && effektivt_aktiebaseret_efter_par21() && beholdningsresultat().input_gyldigt
+    | skatteposter() -> hvis input_gyldigt() { map(beholdningsresultat().afståelsesresultater, aktieavance_par21_investeringsbevis_skattepost) } ellers { [] }
+    | resultat() -> AktieavancePar21InvesteringsbevisForløbsresultat(
+        input = input,
+        klassifikationsresultat = klassifikationsresultat(),
+        beholdningsresultat = beholdningsresultat(),
+        effektivt_aktiebaseret_efter_par21 = effektivt_aktiebaseret_efter_par21(),
+        skatteposter = skatteposter(),
+        input_gyldigt = input_gyldigt()
+    )
+}
+| aktieavance_par21_investeringsbevis_forløbsresultat(input: AktieavancePar21InvesteringsbevisForløbsinput) -> AktieavancePar21InvesteringsbevisForløbSag(input).resultat()
+
 # AktieavanceOrdinærÅrssag(input: AktieavanceOrdinærÅrsinput, overført_tab_til_ægtefælle_kroner: Heltal, modtaget_tab_fra_ægtefælle_kroner: Heltal) {
     | skattepligtige_gevinster_efter_par12_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.skattepligtig_gevinst_efter_par12_kroner)
     | bruttotab_kroner() -> foldl(input.skatteposter, 0, |sum: Heltal, post: AktieavanceSkattepost| sum + post.bruttotab_kroner)
@@ -963,6 +1073,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     | hændelsesforløbsresultater() -> map(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| aktieavance_ordinaer_årshændelsesforløb(input.indkomstår, forløb))
     | rettighedsforløbsresultater() -> map(input.rettighedsforløb, |forløb: AktieavancePar25HændelsesforløbInput| aktieavance_par25_hændelsesforløb(forløb.position_primo, forløb.hændelser))
     | investeringsbevis_resultater() -> map(input.investeringsbeviser, aktieavance_par13a_investeringsbevis_resultat)
+    | aktiebaserede_minimumsbevis_forløbsresultater() -> map(input.aktiebaserede_minimumsbevis_forløb, aktieavance_par21_investeringsbevis_forløbsresultat)
     | hændelsesforløb_gyldige() -> all(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærÅrshændelsesforløbResultat| resultat.alle_hændelser_gyldige)
     | selskabsidentifikationer() -> map(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| forløb.position_primo.selskabsidentifikation)
     | selskabsidentifikationer_entydige() -> length(selskabsidentifikationer()) == length(distinct(selskabsidentifikationer()))
@@ -972,11 +1083,19 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     | rettighedsforløb_matcher_indkomstår() -> all(input.rettighedsforløb, |forløb: AktieavancePar25HændelsesforløbInput| aktieavance_par25_hændelsesforløb_matcher_indkomstår(forløb, input.indkomstår))
     | rettighedsforløb_entydige() -> aktieavance_par25_hændelsesforløb_identifikationer_entydige(input.rettighedsforløb)
     | investeringsbeviser_gyldige() -> all(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.input_gyldigt && resultat.input.indkomstår == input.indkomstår)
-    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && selskabsidentifikationer_entydige() && hændelsesidentifikationer_entydige() && rettighedsforløb_gyldige() && rettighedsforløb_matcher_indkomstår() && rettighedsforløb_entydige() && investeringsbeviser_gyldige()
+    | aktiebaserede_minimumsbevis_forløb_gyldige() -> all(aktiebaserede_minimumsbevis_forløbsresultater(), |resultat: AktieavancePar21InvesteringsbevisForløbsresultat| resultat.input_gyldigt && resultat.input.beholdning.indkomstår == input.indkomstår)
+    | aktiebaserede_minimumsbevis_forløbsidentifikationer() -> map(input.aktiebaserede_minimumsbevis_forløb, |forløb: AktieavancePar21InvesteringsbevisForløbsinput| forløb.beholdning.identifikation)
+    | aktiebaserede_minimumsbevis_forløbsidentifikationer_entydige() -> length(aktiebaserede_minimumsbevis_forløbsidentifikationer()) == length(distinct(aktiebaserede_minimumsbevis_forløbsidentifikationer()))
+    | aktiebaserede_minimumsbevis_udstederidentifikationer() -> map(input.aktiebaserede_minimumsbevis_forløb, |forløb: AktieavancePar21InvesteringsbevisForløbsinput| aktieavance_investeringsbevis_udstederidentifikation(forløb.beholdning))
+    | aktiebaserede_minimumsbevis_udstederidentifikationer_entydige() -> length(aktiebaserede_minimumsbevis_udstederidentifikationer()) == length(distinct(aktiebaserede_minimumsbevis_udstederidentifikationer()))
+    | aktiebaserede_minimumsbevis_afståelsesidentifikationer() -> flat_map(input.aktiebaserede_minimumsbevis_forløb, |forløb: AktieavancePar21InvesteringsbevisForløbsinput| map(forløb.beholdning.afståelser, |afståelse: AktieavanceInvesteringsbevisAfståelse| afståelse.identifikation))
+    | aktiebaserede_minimumsbevis_afståelsesidentifikationer_entydige() -> length(aktiebaserede_minimumsbevis_afståelsesidentifikationer()) == length(distinct(aktiebaserede_minimumsbevis_afståelsesidentifikationer()))
+    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && selskabsidentifikationer_entydige() && hændelsesidentifikationer_entydige() && rettighedsforløb_gyldige() && rettighedsforløb_matcher_indkomstår() && rettighedsforløb_entydige() && investeringsbeviser_gyldige() && aktiebaserede_minimumsbevis_forløb_gyldige() && aktiebaserede_minimumsbevis_forløbsidentifikationer_entydige() && aktiebaserede_minimumsbevis_udstederidentifikationer_entydige() && aktiebaserede_minimumsbevis_afståelsesidentifikationer_entydige()
     | hændelsesskatteposter() -> flat_map(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærÅrshændelsesforløbResultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultat.hændelsesresultater))
     | rettighedsskatteposter() -> flat_map(rettighedsforløbsresultater(), |resultat: AktieavancePar25HændelsesforløbResultat| aktieavance_skatteposter_fra_par25_hændelsesresultater(resultat.hændelsesresultater))
     | investeringsbevis_skatteposter() -> map(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.skattepost)
-    | skatteposter() -> hvis alle_input_gyldige() { concat(concat(hændelsesskatteposter(), rettighedsskatteposter()), investeringsbevis_skatteposter()) } ellers { [] }
+    | aktiebaserede_minimumsbevis_skatteposter() -> flat_map(aktiebaserede_minimumsbevis_forløbsresultater(), |resultat: AktieavancePar21InvesteringsbevisForløbsresultat| resultat.skatteposter)
+    | skatteposter() -> hvis alle_input_gyldige() { concat(concat(concat(hændelsesskatteposter(), rettighedsskatteposter()), investeringsbevis_skatteposter()), aktiebaserede_minimumsbevis_skatteposter()) } ellers { [] }
     | årsinput() -> AktieavanceOrdinærÅrsinput(
         indkomstår = input.indkomstår,
         skatteposter = skatteposter(),
@@ -988,6 +1107,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
         hændelsesforløbsresultater = hændelsesforløbsresultater(),
         rettighedsforløbsresultater = rettighedsforløbsresultater(),
         investeringsbevis_resultater = investeringsbevis_resultater(),
+        aktiebaserede_minimumsbevis_forløbsresultater = aktiebaserede_minimumsbevis_forløbsresultater(),
         alle_input_gyldige = alle_input_gyldige(),
         årsresultat = aktieavance_ordinaer_årsresultat(årsinput())
     )
@@ -1000,6 +1120,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     hændelsesforløbsresultater = personresultat.hændelsesforløbsresultater,
     rettighedsforløbsresultater = personresultat.rettighedsforløbsresultater,
     investeringsbevis_resultater = personresultat.investeringsbevis_resultater,
+    aktiebaserede_minimumsbevis_forløbsresultater = personresultat.aktiebaserede_minimumsbevis_forløbsresultater,
     alle_input_gyldige = personresultat.alle_input_gyldige,
     årsresultat = årsresultat
 )

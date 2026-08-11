@@ -625,6 +625,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_calculate_ordinær_aktie_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
@@ -673,6 +674,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_calculate_par5a_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
@@ -720,6 +722,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_calculate_boligret_resultat = beregn_personskat(personskat_calculate_input_med_aktieavance(PersonskatAktieavanceInput(
@@ -1242,6 +1245,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_calculate_stort_ordinært_tabsinput = PersonskatAktieavanceInput(
@@ -1389,6 +1393,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_calculate_stort_ordinært_tabsinput_2025 = PersonskatAktieavanceInput(
@@ -1479,6 +1484,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = personskat_calculate_par13a_tabsposition, hændelser = [AktieavanceOrdinærKildehændelse(identifikation = "par13a-tabsalg", dato = Dato(år = 2026, måned = 12, dag = 5), rækkefølge_på_dagen = 1, hændelse = personskat_calculate_par13a_tabsafståelse)])],
         rettighedsforløb = [],
         investeringsbeviser = [],
+        aktiebaserede_minimumsbevis_forløb = [],
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],

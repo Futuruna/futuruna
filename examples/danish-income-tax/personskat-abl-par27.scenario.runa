@@ -67,6 +67,7 @@ delafståelse gennem beregn_personskat. Scenariet er ikke lovtekst.
     hændelsesforløb = [],
     rettighedsforløb = [],
     investeringsbeviser = [personskat_par27_investeringsbevis],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_par27_lønmodtager = PersonskatLønmodtagerInput(

@@ -653,11 +653,12 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 --@begin:kursgevinstloven_årsnetto_abl22--
 # KglÅrsnettoFordringsforløb(identifikation: Tekst, kilde: KglÅrsnettoFordringskilde, fordringsgruppe: KglÅrsnettoFordringsgruppe, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
 # KglÅrsnettoAbl22Kilde(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve)
-# KglÅrsnettoAbl22Forløb(identifikation: Tekst, kilde: KglÅrsnettoAbl22Kilde, position_primo: KglÅrsnettoPositionPrimo, hændelser: List(KglÅrsnettoHændelse))
+# KglÅrsnettoAbl22Forløb(kilde: KglÅrsnettoAbl22Kilde, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput)
 # KursgevinstlovÅrsnettoInput(par25_valg: KglÅrsnettoPar25Årsvalg, fordringer: List(KglÅrsnettoFordringsforløb), valutainstrumenter: List(KglÅrsnettoValutaforløb), obligationsbaserede_minimumsbeviser: List(KglÅrsnettoAbl22Forløb))
 # KglÅrsnettoFordringsopgørelse(hændelsesresultat: KglÅrsnettoHændelsesresultat, kursgevinstlov_input: KursgevinstlovInput, kursgevinstlov_resultat: KursgevinstlovResultat)
 # KglÅrsnettoFordringsresultat(fakta: KglÅrsnettoFordringsforløb, forløb: KglÅrsnettoForløbsresultat, omfattet_af_par14_bagatelgrundlag: Boolsk, opgørelser: List(KglÅrsnettoFordringsopgørelse), input_gyldigt: Boolsk)
-# KglÅrsnettoAbl22Resultat(fakta: KglÅrsnettoAbl22Forløb, forløb: KglÅrsnettoForløbsresultat, klassifikationsresultat: AktieavancePar21Par22Resultat, effektivt_obligationsbaseret_efter_par22: Boolsk, omfattet_af_par22_bagatelgrundlag: Boolsk, aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk)
+# KglÅrsnettoAbl22Opgørelse(afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat, aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat)
+# KglÅrsnettoAbl22Resultat(fakta: KglÅrsnettoAbl22Forløb, beholdningsresultat: AktieavanceInvesteringsbevisBeholdningsforløbsresultat, klassifikationsresultat: AktieavancePar21Par22Resultat, effektivt_obligationsbaseret_efter_par22: Boolsk, omfattet_af_par22_bagatelgrundlag: Boolsk, opgørelser: List(KglÅrsnettoAbl22Opgørelse), samlet_aktieavancebeskatningslov_input: AktieavancebeskatningslovInput, samlet_aktieavancebeskatningslov_resultat: AktieavancebeskatningslovResultat, input_gyldigt: Boolsk)
 # KursgevinstlovÅrsnettoResultat(input: KursgevinstlovÅrsnettoInput, input_gyldigt: Boolsk, par25_valgresultat: KglÅrsnettoPar25Valgresultat, rå_netto_til_par14_og_abl22_kroner: Heltal, fordringsresultater: List(KglÅrsnettoFordringsresultat), valutainstrumentresultater: List(KglÅrsnettoValutaforløbsresultat), obligationsbevisresultater: List(KglÅrsnettoAbl22Resultat), kursgevinstlov_resultater: List(KursgevinstlovResultat), aktieavancebeskatningslov_resultater: List(AktieavancebeskatningslovResultat))
 
 | kgl_årsnetto_tomt_input() -> KursgevinstlovÅrsnettoInput(par25_valg = kgl_årsnetto_tomt_par25_årsvalg(), fordringer = [], valutainstrumenter = [], obligationsbaserede_minimumsbeviser = [])
@@ -714,48 +715,72 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
     hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse && resultat.omfattet_af_par14_bagatelgrundlag { resultat.forløb.rå_netto_kroner } ellers { 0 }
 }
 
-| kgl_årsnetto_abl22_forløbsresultat(fakta: KglÅrsnettoAbl22Forløb, indkomstår: Heltal) -> kgl_årsnetto_forløbsresultat(indkomstår, fakta.position_primo, fakta.hændelser, KglRealisationsprincip)
+| kgl_årsnetto_abl22_beholdningsresultat(fakta: KglÅrsnettoAbl22Forløb) -> aktieavance_investeringsbevis_beholdningsforløbsresultat(fakta.beholdning)
 | kgl_årsnetto_abl22_klassifikationsresultat(fakta: KglÅrsnettoAbl22Forløb) -> aktieavance_par21_par22_resultat(fakta.kilde.klassifikation)
 | kgl_årsnetto_abl22_effektivt_obligationsbaseret(fakta: KglÅrsnettoAbl22Forløb) -> kgl_årsnetto_abl22_klassifikationsresultat(fakta).input_gyldigt && kgl_årsnetto_abl22_klassifikationsresultat(fakta).effektiv_status == AblObligationsbaseretMinimumsinstitutEfterPar22
 | kgl_årsnetto_abl22_omfattet_af_bagatelgrundlag(fakta: KglÅrsnettoAbl22Forløb) -> kgl_årsnetto_abl22_effektivt_obligationsbaseret(fakta) && aktieavance_par17_modprøve_stk3_omfattet(fakta.kilde.par17_modprøve) == Falskt
-| kgl_årsnetto_abl22_input(fakta: KglÅrsnettoAbl22Forløb, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
-    = forløb = kgl_årsnetto_abl22_forløbsresultat(fakta, indkomstår)
-    AktieavancebeskatningslovInput(
-        indkomstår = indkomstår,
-        aktiv = AblMinimumsinstitutTilKlassifikation,
-        afståelsessum_kroner = forløb.opgørelsesslutværdi_kroner,
-        anskaffelsessum_kroner = forløb.opgørelsesgrundlag_kroner,
-        par17_modprøve = fakta.kilde.par17_modprøve,
-        koncernintern_konvertibel_eller_tegningsret = Falskt,
-        andelsforening_stiftet_før_22_maj_1987 = Falskt,
-        afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
-        investeringsklassifikation = AblPar21Par22Klassifikation(input = fakta.kilde.klassifikation),
-        årets_netto_med_kgl_par14_23_kroner = årets_samlede_netto_kroner
+| kgl_årsnetto_abl22_input(fakta: KglÅrsnettoAbl22Forløb, afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> AktieavancebeskatningslovInput(
+    indkomstår = indkomstår,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    afståelsessum_kroner = afståelsesresultat.afståelse.afståelsessum_kroner,
+    anskaffelsessum_kroner = afståelsesresultat.hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner,
+    par17_modprøve = fakta.kilde.par17_modprøve,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = fakta.kilde.klassifikation),
+    årets_netto_med_kgl_par14_23_kroner = årets_samlede_netto_kroner
+)
+| kgl_årsnetto_abl22_opgørelse(fakta: KglÅrsnettoAbl22Forløb, afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
+    = abl_input = kgl_årsnetto_abl22_input(fakta, afståelsesresultat, indkomstår, årets_samlede_netto_kroner)
+    KglÅrsnettoAbl22Opgørelse(
+        afståelsesresultat = afståelsesresultat,
+        aktieavancebeskatningslov_input = abl_input,
+        aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat(abl_input)
     )
 }
+| kgl_årsnetto_abl22_samlet_afståelsessum_kroner(beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsresultat) -> foldl(beholdning.afståelsesresultater, 0, |sum: Heltal, afståelse: AktieavanceInvesteringsbevisAfståelsesresultat| sum + afståelse.afståelse.afståelsessum_kroner)
+| kgl_årsnetto_abl22_samlet_anskaffelsessum_kroner(beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsresultat) -> foldl(beholdning.afståelsesresultater, 0, |sum: Heltal, afståelse: AktieavanceInvesteringsbevisAfståelsesresultat| sum + afståelse.hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner)
+| kgl_årsnetto_abl22_samlet_input(fakta: KglÅrsnettoAbl22Forløb, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsresultat, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> AktieavancebeskatningslovInput(
+    indkomstår = indkomstår,
+    aktiv = AblMinimumsinstitutTilKlassifikation,
+    afståelsessum_kroner = kgl_årsnetto_abl22_samlet_afståelsessum_kroner(beholdning),
+    anskaffelsessum_kroner = kgl_årsnetto_abl22_samlet_anskaffelsessum_kroner(beholdning),
+    par17_modprøve = fakta.kilde.par17_modprøve,
+    koncernintern_konvertibel_eller_tegningsret = Falskt,
+    andelsforening_stiftet_før_22_maj_1987 = Falskt,
+    afståelse_sker_for_at_undgå_likvidationsbeskatning = Falskt,
+    investeringsklassifikation = AblPar21Par22Klassifikation(input = fakta.kilde.klassifikation),
+    årets_netto_med_kgl_par14_23_kroner = årets_samlede_netto_kroner
+)
 | kgl_årsnetto_abl22_resultat(fakta: KglÅrsnettoAbl22Forløb, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) -> {
-    = forløb = kgl_årsnetto_abl22_forløbsresultat(fakta, indkomstår)
+    = beholdning = kgl_årsnetto_abl22_beholdningsresultat(fakta)
     = klassifikation = kgl_årsnetto_abl22_klassifikationsresultat(fakta)
-    = abl_input = kgl_årsnetto_abl22_input(fakta, indkomstår, årets_samlede_netto_kroner)
     = effektivt_obligationsbaseret = kgl_årsnetto_abl22_effektivt_obligationsbaseret(fakta)
+    = input_gyldigt = fakta.kilde.klassifikation.indkomstår == indkomstår && fakta.beholdning.indkomstår == indkomstår && klassifikation.input_gyldigt && effektivt_obligationsbaseret && beholdning.input_gyldigt
+    = samlet_abl_input = kgl_årsnetto_abl22_samlet_input(fakta, beholdning, indkomstår, årets_samlede_netto_kroner)
     KglÅrsnettoAbl22Resultat(
         fakta = fakta,
-        forløb = forløb,
+        beholdningsresultat = beholdning,
         klassifikationsresultat = klassifikation,
         effektivt_obligationsbaseret_efter_par22 = effektivt_obligationsbaseret,
         omfattet_af_par22_bagatelgrundlag = kgl_årsnetto_abl22_omfattet_af_bagatelgrundlag(fakta),
-        aktieavancebeskatningslov_input = abl_input,
-        aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat(abl_input),
-        input_gyldigt = fakta.identifikation != "" && fakta.kilde.klassifikation.indkomstår == indkomstår && klassifikation.input_gyldigt && effektivt_obligationsbaseret && forløb.input_gyldigt
+        opgørelser = hvis input_gyldigt { map(beholdning.afståelsesresultater, |afståelsesresultat: AktieavanceInvesteringsbevisAfståelsesresultat| kgl_årsnetto_abl22_opgørelse(fakta, afståelsesresultat, indkomstår, årets_samlede_netto_kroner)) } ellers { [] },
+        samlet_aktieavancebeskatningslov_input = samlet_abl_input,
+        samlet_aktieavancebeskatningslov_resultat = aktieavancebeskatningslov_resultat(samlet_abl_input),
+        input_gyldigt = input_gyldigt
     )
 }
 | kgl_årsnetto_abl22_rå_netto_kroner(fakta: KglÅrsnettoAbl22Forløb, indkomstår: Heltal) -> {
     = resultat = kgl_årsnetto_abl22_resultat(fakta, indkomstår, 0)
-    hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse && resultat.omfattet_af_par22_bagatelgrundlag { resultat.forløb.rå_netto_kroner } ellers { 0 }
+    hvis resultat.input_gyldigt && length(resultat.opgørelser) > 0 && resultat.omfattet_af_par22_bagatelgrundlag { aktieavance_investeringsbevis_rå_netto_kroner(resultat.beholdningsresultat) } ellers { 0 }
 }
 
-| kgl_årsnetto_identifikationer(input: KursgevinstlovÅrsnettoInput) -> concat(concat(map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| fakta.identifikation), map(input.valutainstrumenter, |fakta: KglÅrsnettoValutaforløb| fakta.identifikation)), map(input.obligationsbaserede_minimumsbeviser, |fakta: KglÅrsnettoAbl22Forløb| fakta.identifikation))
+| kgl_årsnetto_abl22_identifikationer(fakta: KglÅrsnettoAbl22Forløb) -> concat([fakta.beholdning.identifikation], map(fakta.beholdning.afståelser, |afståelse: AktieavanceInvesteringsbevisAfståelse| afståelse.identifikation))
+| kgl_årsnetto_identifikationer(input: KursgevinstlovÅrsnettoInput) -> concat(concat(map(input.fordringer, |fakta: KglÅrsnettoFordringsforløb| fakta.identifikation), map(input.valutainstrumenter, |fakta: KglÅrsnettoValutaforløb| fakta.identifikation)), flat_map(input.obligationsbaserede_minimumsbeviser, kgl_årsnetto_abl22_identifikationer))
 | kgl_årsnetto_identifikationer_unikke(input: KursgevinstlovÅrsnettoInput) -> all(kgl_årsnetto_identifikationer(input), |identifikation: Tekst| identifikation != "" && length(filter(kgl_årsnetto_identifikationer(input), |anden: Tekst| anden == identifikation)) == 1)
+| kgl_årsnetto_abl22_udstederidentifikationer(input: KursgevinstlovÅrsnettoInput) -> map(input.obligationsbaserede_minimumsbeviser, |fakta: KglÅrsnettoAbl22Forløb| aktieavance_investeringsbevis_udstederidentifikation(fakta.beholdning))
+| kgl_årsnetto_abl22_udstederidentifikationer_entydige(input: KursgevinstlovÅrsnettoInput) -> length(kgl_årsnetto_abl22_udstederidentifikationer(input)) == length(distinct(kgl_årsnetto_abl22_udstederidentifikationer(input)))
 | kgl_årsnetto_valutainstrument_rå_netto_kroner(fakta: KglÅrsnettoValutaforløb, valg: KglÅrsnettoPar25Årsvalg, indkomstår: Heltal) -> {
     = resultat = kgl_årsnetto_valutaforløbsresultat(fakta, valg, indkomstår, 0)
     hvis resultat.input_gyldigt { resultat.årets_rå_netto_kroner } ellers { 0 }
@@ -769,14 +794,14 @@ Stk. 6. I tilfælde, der er omfattet af stk. 1, finder reglerne i §§ 5 A, 12,
 | kgl_årsnetto_alle_abl22_resultater_gyldige(resultater: List(KglÅrsnettoAbl22Resultat)) -> all(resultater, |resultat: KglÅrsnettoAbl22Resultat| resultat.input_gyldigt)
 | kgl_årsnetto_kursgevinstlov_resultater(resultater: List(KglÅrsnettoFordringsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoFordringsresultat| hvis resultat.input_gyldigt { map(resultat.opgørelser, |opgørelse: KglÅrsnettoFordringsopgørelse| opgørelse.kursgevinstlov_resultat) } ellers { [] })
 | kgl_årsnetto_valuta_kursgevinstlov_resultater(resultater: List(KglÅrsnettoValutaforløbsresultat)) -> flat_map(resultater, |resultat: KglÅrsnettoValutaforløbsresultat| resultat.kursgevinstlov_resultater)
-| kgl_årsnetto_aktieavancebeskatningslov_resultater(resultater: List(KglÅrsnettoAbl22Resultat)) -> flat_map(resultater, |resultat: KglÅrsnettoAbl22Resultat| hvis resultat.input_gyldigt && resultat.forløb.har_opgørelse { [resultat.aktieavancebeskatningslov_resultat] } ellers { [] })
+| kgl_årsnetto_aktieavancebeskatningslov_resultater(resultater: List(KglÅrsnettoAbl22Resultat)) -> flat_map(resultater, |resultat: KglÅrsnettoAbl22Resultat| hvis resultat.input_gyldigt && length(resultat.opgørelser) > 0 { [resultat.samlet_aktieavancebeskatningslov_resultat] } ellers { [] })
 
 # KursgevinstlovÅrsnettoSag(input: KursgevinstlovÅrsnettoInput, indkomstår: Heltal, årets_samlede_netto_kroner: Heltal) {
     | par25_valgresultat() -> kgl_årsnetto_par25_valgresultat_for_årsinput(input, indkomstår)
     | fordringsresultater() -> kgl_årsnetto_fordringsresultater(input, indkomstår, årets_samlede_netto_kroner)
     | valutainstrumentresultater() -> kgl_årsnetto_valutainstrumentresultater(input, indkomstår, årets_samlede_netto_kroner)
     | obligationsbevisresultater() -> kgl_årsnetto_abl22_resultater(input, indkomstår, årets_samlede_netto_kroner)
-    | input_gyldigt() -> indkomstår > 0 && par25_valgresultat().input_gyldigt && kgl_årsnetto_identifikationer_unikke(input) && kgl_årsnetto_alle_fordringsresultater_gyldige(fordringsresultater()) && kgl_årsnetto_alle_valutainstrumentresultater_gyldige(valutainstrumentresultater()) && kgl_årsnetto_alle_abl22_resultater_gyldige(obligationsbevisresultater())
+    | input_gyldigt() -> indkomstår > 0 && par25_valgresultat().input_gyldigt && kgl_årsnetto_identifikationer_unikke(input) && kgl_årsnetto_abl22_udstederidentifikationer_entydige(input) && kgl_årsnetto_alle_fordringsresultater_gyldige(fordringsresultater()) && kgl_årsnetto_alle_valutainstrumentresultater_gyldige(valutainstrumentresultater()) && kgl_årsnetto_alle_abl22_resultater_gyldige(obligationsbevisresultater())
     | kursgevinstlov_resultater() -> hvis input_gyldigt() { concat(kgl_årsnetto_kursgevinstlov_resultater(fordringsresultater()), kgl_årsnetto_valuta_kursgevinstlov_resultater(valutainstrumentresultater())) } ellers { [] }
     | aktieavancebeskatningslov_resultater() -> hvis input_gyldigt() { kgl_årsnetto_aktieavancebeskatningslov_resultater(obligationsbevisresultater()) } ellers { [] }
     | resultat() -> KursgevinstlovÅrsnettoResultat(

@@ -18855,6 +18855,10 @@ impl<'a> LoweringCtx<'a> {
                             (FirTy::List(left), FirTy::List(right)) => {
                                 Some(FirTy::List(Box::new(FirTy::merge_information(left, right))))
                             }
+                            (FirTy::List(element), FirTy::Unknown | FirTy::Var(_))
+                            | (FirTy::Unknown | FirTy::Var(_), FirTy::List(element)) => {
+                                Some(FirTy::List(element.clone()))
+                            }
                             _ => None,
                         };
                         if let Some(ty) = list_ty {
@@ -55294,6 +55298,24 @@ routes <- "b"
 | prepend_entry(entries: List(Entry)) -> concat([Entry(value = 1)], entries)
 
 @ print(show(length(prepend_entry([Entry(value = 2)]))))
+"#,
+        );
+        assert_eq!(output, "2\n");
+    }
+
+    #[test]
+    fn compiled_recursive_list_rule_infers_concat_return_from_constructed_branch() {
+        let output = compile_and_run_test_program(
+            r#"
+# Entry(value: Int)
+
+| copy_entries(entries: List(Entry)) -> if length(entries) == 0 {
+    []
+} else {
+    concat([head(entries)], copy_entries(tail(entries)))
+}
+
+@ print(show(length(copy_entries([Entry(value = 1), Entry(value = 2)]))))
 "#,
         );
         assert_eq!(output, "2\n");

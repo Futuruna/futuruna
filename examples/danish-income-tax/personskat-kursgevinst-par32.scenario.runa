@@ -130,6 +130,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_par32_scenarie_aktiemodregning_resultat = beregn_personskat(personskat_par32_scenarie_input(
@@ -255,7 +256,6 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
     )
 )
 | personskat_par32_scenarie_abl22_forløb(identifikation: Tekst, indkomstår: Heltal, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoAbl22Forløb(
-    identifikation = identifikation,
     kilde = KglÅrsnettoAbl22Kilde(
         klassifikation = personskat_par32_scenarie_abl22_klassifikation(indkomstår),
         par17_modprøve = AktieavancePar17Modprøve(
@@ -263,11 +263,36 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
             erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
         )
     ),
-    position_primo = KglÅrsnettoIngenPositionPrimo,
-    hændelser = [
-        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = anskaffelsessum_kroner),
-        KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner)
-    ]
+    beholdning = AktieavanceInvesteringsbevisBeholdningsforløbsinput(
+        identifikation = identifikation,
+        indkomstår = indkomstår,
+        grundlag = AblInvesteringsbevisDirekteBeholdning(
+            position = AktieavanceOrdinærPosition(
+                selskabsidentifikation = identifikation,
+                kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+                anskaffelsessum_kroner = anskaffelsessum_kroner
+            ),
+            anskaffelsesdato = Dato(år = indkomstår - 1, måned = 1, dag = 1)
+        ),
+        afståelser = [
+            AktieavanceInvesteringsbevisAfståelse(
+                identifikation = "par32-abl22-afståelse-1",
+                dato = Dato(år = indkomstår, måned = 6, dag = 1),
+                rækkefølge_på_dagen = 1,
+                kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 4),
+                afståelsessum_kroner = afståelsessum_kroner * 4 / 10,
+                oplysningsstatus = AblOplystRettidigt
+            ),
+            AktieavanceInvesteringsbevisAfståelse(
+                identifikation = "par32-abl22-afståelse-2",
+                dato = Dato(år = indkomstår, måned = 6, dag = 1),
+                rækkefølge_på_dagen = 2,
+                kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 6),
+                afståelsessum_kroner = afståelsessum_kroner - afståelsessum_kroner * 4 / 10,
+                oplysningsstatus = AblOplystRettidigt
+            ),
+        ]
+    )
 )
 | personskat_par32_scenarie_årsnetto_med_abl22(forløb: KglÅrsnettoAbl22Forløb) -> KursgevinstlovÅrsnettoInput(
     par25_valg = kgl_årsnetto_tomt_par25_årsvalg(),
@@ -500,7 +525,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
         = historisk = head(historiske_årsresultater)
         = årsgrundlag = historisk.venstre_årsgrundlag
         = abl22 = head(årsgrundlag.kursgevinst_resultat.øvrige_instrumentresultat.obligationsbevisresultater)
-        input_gyldigt && historisk.input_gyldigt && årsgrundlag.input_gyldigt && årsgrundlag.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 2500 && abl22.effektivt_obligationsbaseret_efter_par22 && abl22.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 1500 && historisk.kursgevinst.venstre.tab_modregnet_i_egne_aktiegevinster_kroner == 1000 && historisk.kursgevinst.venstre.tab_fremført_til_følgende_indkomstår_kroner == 0 && aktuelt_årsresultat.kursgevinst.venstre.gyldigt_fremførte_aktiebaserede_tab_kroner == 0
+        input_gyldigt && historisk.input_gyldigt && årsgrundlag.input_gyldigt && årsgrundlag.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 2500 && abl22.effektivt_obligationsbaseret_efter_par22 && length(abl22.opgørelser) == 2 && abl22.samlet_aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 1500 && historisk.kursgevinst.venstre.tab_modregnet_i_egne_aktiegevinster_kroner == 1000 && historisk.kursgevinst.venstre.tab_fremført_til_følgende_indkomstår_kroner == 0 && aktuelt_årsresultat.kursgevinst.venstre.gyldigt_fremførte_aktiebaserede_tab_kroner == 0
     }
     | IntetPar32Kontraktforløb -> Falskt
 }
@@ -511,7 +536,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
         = historisk = head(historiske_årsresultater)
         = årsgrundlag = historisk.venstre_årsgrundlag
         = abl22 = head(årsgrundlag.kursgevinst_resultat.øvrige_instrumentresultat.obligationsbevisresultater)
-        input_gyldigt && historisk.input_gyldigt && årsgrundlag.input_gyldigt && årsgrundlag.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 1500 && abl22.effektivt_obligationsbaseret_efter_par22 && abl22.aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 0 && historisk.kursgevinst.venstre.tab_modregnet_i_egne_aktiegevinster_kroner == 0 && historisk.kursgevinst.venstre.aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner == 1000 && aktuelt_årsresultat.kursgevinst.venstre.gyldigt_fremførte_aktiebaserede_tab_kroner == 1000
+        input_gyldigt && historisk.input_gyldigt && årsgrundlag.input_gyldigt && årsgrundlag.kursgevinst_resultat.årets_samlede_netto_efter_par14_kroner == 1500 && abl22.effektivt_obligationsbaseret_efter_par22 && length(abl22.opgørelser) == 2 && abl22.samlet_aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 0 && historisk.kursgevinst.venstre.tab_modregnet_i_egne_aktiegevinster_kroner == 0 && historisk.kursgevinst.venstre.aktiebaserede_tab_fremført_til_følgende_indkomstår_kroner == 1000 && aktuelt_årsresultat.kursgevinst.venstre.gyldigt_fremførte_aktiebaserede_tab_kroner == 1000
     }
     | IntetPar32Kontraktforløb -> Falskt
 }

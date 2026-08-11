@@ -70,7 +70,6 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
 )
 
 | personskat_kgl_årsnetto_abl22_forløb(identifikation: Tekst, anskaffelsessum_kroner: Heltal, afståelsessum_kroner: Heltal) -> KglÅrsnettoAbl22Forløb(
-    identifikation = identifikation,
     kilde = KglÅrsnettoAbl22Kilde(
         klassifikation = abl22_klassifikationsresultat.input,
         par17_modprøve = AktieavancePar17Modprøve(
@@ -78,11 +77,26 @@ Futuruna afleder instrumentresultaterne og den fælles bagatelgrænse.
             erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
         )
     ),
-    position_primo = KglÅrsnettoIngenPositionPrimo,
-    hændelser = [
-        KglÅrsnettoAnskaffelse(anskaffelsessum_kroner = anskaffelsessum_kroner),
-        KglÅrsnettoAfståelse(afståelsessum_kroner = afståelsessum_kroner),
-    ]
+    beholdning = AktieavanceInvesteringsbevisBeholdningsforløbsinput(
+        identifikation = identifikation,
+        indkomstår = 2026,
+        grundlag = AblInvesteringsbevisDirekteBeholdning(
+            position = AktieavanceOrdinærPosition(
+                selskabsidentifikation = identifikation,
+                kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+                anskaffelsessum_kroner = anskaffelsessum_kroner
+            ),
+            anskaffelsesdato = Dato(år = 2025, måned = 1, dag = 1)
+        ),
+        afståelser = [AktieavanceInvesteringsbevisAfståelse(
+            identifikation = "abl22-blandet-afståelse",
+            dato = Dato(år = 2026, måned = 6, dag = 1),
+            rækkefølge_på_dagen = 1,
+            kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+            afståelsessum_kroner = afståelsessum_kroner,
+            oplysningsstatus = AblOplystRettidigt
+        )]
+    )
 )
 
 | personskat_kgl_årsnetto_gæld(identifikation: Tekst, værdi_ved_påtagelse_kroner: Heltal, værdi_ved_frigørelse_kroner: Heltal) -> KursgevinstlovGældFakta(

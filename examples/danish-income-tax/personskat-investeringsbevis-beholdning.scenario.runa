@@ -1,0 +1,213 @@
+@ sprog da
+
+@ importer ./metadata
+@ importer ./personskat.calculate
+
+= personskat_investeringsbevis_beholdning_metadata = Metadata(
+    attachments = (
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par27),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par22_årsnetto),
+        DependencySource(value = kursgevinstloven_lbk1176_årsnetto),
+    )
+)
+
+--@label:personskat_investeringsbevis_beholdning::meta:personskat_investeringsbevis_beholdning_metadata--
+----
+Scenarierne er ikke lovtekst. De kontrollerer den fælles, identificerede
+beholdning, som fører anskaffelsessummen efter ABL § 27 gennem gentagne
+delafståelser og videre til enten ABL § 21 eller ABL § 22.
+----
+
+--@begin:personskat_investeringsbevis_beholdning--
+= personskat_investeringsbevis_par27_andel = AktieavancePar27OprindeligAndel(
+    selskabsidentifikation = "DK-MIN-FÆLLES-1",
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+    anskaffelsestidspunkt = Dato(år = 2020, måned = 5, dag = 15),
+    anskaffelsessum = AblPar27KendtAnskaffelsessum(kroner = 10000)
+)
+= personskat_investeringsbevis_par27_hændelse = AktieavancePar27Hændelse(
+    investeringsinstitut_identifikation = "DK-MIN-FÆLLES-1",
+    minimumsindkomstens_kalenderår = 2025,
+    manglende_effektiv_udbetaling_kroner = 2000,
+    årlig_regnskabsgodkendelse = Dato(år = 2026, måned = 8, dag = 15),
+    institutsstatus = AblPar27UcitsMinimumsinstitut,
+    stk2_vilkår = AktieavancePar27Stk2Vilkår(
+        behandles_som_nyt_indskud_med_nominel_forøgelse = Falskt,
+        er_likvidationsudlodning_efter_ll16a_stk3_nr1 = Falskt
+    )
+)
+| personskat_investeringsbevis_par27_forløb(dato: Dato, rækkefølge_på_dagen: Heltal) -> AktieavancePar27Forløbsinput(
+    andel_primo = personskat_investeringsbevis_par27_andel,
+    hændelser = [AktieavancePar27Kildehændelse(
+        identifikation = "minimumsindkomst-2025-fælles",
+        dato = dato,
+        rækkefølge_på_dagen = rækkefølge_på_dagen,
+        hændelse = personskat_investeringsbevis_par27_hændelse
+    )]
+)
+| personskat_investeringsbevis_afståelse(identifikation: Tekst, måned: Heltal, dag: Heltal, antal: Heltal, afståelsessum_kroner: Heltal) -> AktieavanceInvesteringsbevisAfståelse(
+    identifikation = identifikation,
+    dato = Dato(år = 2026, måned = måned, dag = dag),
+    rækkefølge_på_dagen = 1,
+    kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = antal),
+    afståelsessum_kroner = afståelsessum_kroner,
+    oplysningsstatus = AblOplystRettidigt
+)
+| personskat_investeringsbevis_beholdning(identifikation: Tekst, forløb: AktieavancePar27Forløbsinput, afståelser: List(AktieavanceInvesteringsbevisAfståelse)) -> AktieavanceInvesteringsbevisBeholdningsforløbsinput(
+    identifikation = identifikation,
+    indkomstår = 2026,
+    grundlag = AblInvesteringsbevisBeholdningEfterPar27(forløb = forløb),
+    afståelser = afståelser
+)
+
+= personskat_investeringsbevis_første_afståelse = personskat_investeringsbevis_afståelse("fælles-afståelse-1", 7, 1, 4, 8000)
+= personskat_investeringsbevis_anden_afståelse = personskat_investeringsbevis_afståelse("fælles-afståelse-2", 8, 1, 3, 5000)
+= personskat_investeringsbevis_fælles_beholdning = personskat_investeringsbevis_beholdning(
+    "fælles-beholdning-1",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+    [personskat_investeringsbevis_første_afståelse, personskat_investeringsbevis_anden_afståelse]
+)
+= personskat_investeringsbevis_fælles_resultat = aktieavance_investeringsbevis_beholdningsforløbsresultat(personskat_investeringsbevis_fælles_beholdning)
+
+= personskat_investeringsbevis_par21_forløb = AktieavancePar21InvesteringsbevisForløbsinput(
+    klassifikation = abl21_klassifikationsresultat.input,
+    beholdning = personskat_investeringsbevis_fælles_beholdning
+)
+= personskat_investeringsbevis_par21_årsresultat = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    rettighedsforløb = [],
+    investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [personskat_investeringsbevis_par21_forløb],
+    fremført_tab_efter_par13a_kroner = 0
+))
+
+| personskat_investeringsbevis_par17_modprøve() -> AktieavancePar17Modprøve(
+    næringsstatus = AblPar17UdøverIkkeNæringVedKøbOgSalgAfAktier,
+    erhvervelsesstatus = AblPar17IkkeErhvervetSomLedINæringsvej
+)
+| personskat_investeringsbevis_abl22_forløb(klassifikation: AktieavancePar21Par22Input, beholdning: AktieavanceInvesteringsbevisBeholdningsforløbsinput) -> KglÅrsnettoAbl22Forløb(
+    kilde = KglÅrsnettoAbl22Kilde(
+        klassifikation = klassifikation,
+        par17_modprøve = personskat_investeringsbevis_par17_modprøve()
+    ),
+    beholdning = beholdning
+)
+| personskat_investeringsbevis_kgl_årsnetto(forløb: KglÅrsnettoAbl22Forløb) -> kursgevinstlov_årsnetto_resultat(KursgevinstlovÅrsnettoInput(
+    par25_valg = kgl_årsnetto_tomt_par25_årsvalg(),
+    fordringer = [],
+    valutainstrumenter = [],
+    obligationsbaserede_minimumsbeviser = [forløb]
+    ), 2026, 4600)
+= personskat_investeringsbevis_par22_årsresultat = personskat_investeringsbevis_kgl_årsnetto(personskat_investeringsbevis_abl22_forløb(
+    abl22_klassifikationsresultat.input,
+    personskat_investeringsbevis_fælles_beholdning
+))
+
+= personskat_investeringsbevis_dubleret_afståelse = aktieavance_investeringsbevis_beholdningsforløbsresultat(personskat_investeringsbevis_beholdning(
+    "dublet-beholdning",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+    [
+        personskat_investeringsbevis_første_afståelse,
+        personskat_investeringsbevis_afståelse("fælles-afståelse-1", 8, 1, 3, 5000),
+    ]
+))
+= personskat_investeringsbevis_overafståelse = aktieavance_investeringsbevis_beholdningsforløbsresultat(personskat_investeringsbevis_beholdning(
+    "overafståelse-beholdning",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+    [
+        personskat_investeringsbevis_første_afståelse,
+        personskat_investeringsbevis_afståelse("overafståelse-2", 8, 1, 7, 9000),
+    ]
+))
+= personskat_investeringsbevis_omvendt_kronologi = aktieavance_investeringsbevis_beholdningsforløbsresultat(personskat_investeringsbevis_beholdning(
+    "omvendt-kronologi-beholdning",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+    [personskat_investeringsbevis_anden_afståelse, personskat_investeringsbevis_første_afståelse]
+))
+= personskat_investeringsbevis_sen_par27_hændelse = aktieavance_investeringsbevis_beholdningsforløbsresultat(personskat_investeringsbevis_beholdning(
+    "sen-par27-beholdning",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 7, dag = 2), 1),
+    [personskat_investeringsbevis_første_afståelse]
+))
+= personskat_investeringsbevis_forkert_par21_klassifikation = aktieavance_par21_investeringsbevis_forløbsresultat(AktieavancePar21InvesteringsbevisForløbsinput(
+    klassifikation = abl22_klassifikationsresultat.input,
+    beholdning = personskat_investeringsbevis_fælles_beholdning
+))
+= personskat_investeringsbevis_forkert_par22_klassifikation = personskat_investeringsbevis_kgl_årsnetto(personskat_investeringsbevis_abl22_forløb(
+    abl21_klassifikationsresultat.input,
+    personskat_investeringsbevis_fælles_beholdning
+))
+= personskat_investeringsbevis_dubleret_beholdningsidentifikation = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    rettighedsforløb = [],
+    investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [
+        personskat_investeringsbevis_par21_forløb,
+        AktieavancePar21InvesteringsbevisForløbsinput(
+            klassifikation = abl21_klassifikationsresultat.input,
+            beholdning = personskat_investeringsbevis_beholdning(
+                "fælles-beholdning-1",
+                personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+                [personskat_investeringsbevis_afståelse("anden-beholdnings-afståelse", 9, 1, 1, 2000)]
+            )
+        ),
+    ],
+    fremført_tab_efter_par13a_kroner = 0
+))
+= personskat_investeringsbevis_anden_beholdning_samme_udsteder = personskat_investeringsbevis_beholdning(
+    "anden-beholdning-samme-udsteder",
+    personskat_investeringsbevis_par27_forløb(Dato(år = 2026, måned = 6, dag = 30), 1),
+    [personskat_investeringsbevis_afståelse("anden-beholdnings-afståelse", 9, 1, 1, 2000)]
+)
+= personskat_investeringsbevis_splittet_udsteder_par21 = aktieavance_ordinaer_person_årsresultat(AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    rettighedsforløb = [],
+    investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [
+        personskat_investeringsbevis_par21_forløb,
+        AktieavancePar21InvesteringsbevisForløbsinput(
+            klassifikation = abl21_klassifikationsresultat.input,
+            beholdning = personskat_investeringsbevis_anden_beholdning_samme_udsteder
+        ),
+    ],
+    fremført_tab_efter_par13a_kroner = 0
+))
+= personskat_investeringsbevis_splittet_udsteder_par22 = kursgevinstlov_årsnetto_resultat(KursgevinstlovÅrsnettoInput(
+    par25_valg = kgl_årsnetto_tomt_par25_årsvalg(),
+    fordringer = [],
+    valutainstrumenter = [],
+    obligationsbaserede_minimumsbeviser = [
+        personskat_investeringsbevis_abl22_forløb(abl22_klassifikationsresultat.input, personskat_investeringsbevis_fælles_beholdning),
+        personskat_investeringsbevis_abl22_forløb(abl22_klassifikationsresultat.input, personskat_investeringsbevis_anden_beholdning_samme_udsteder),
+    ]
+    ), 2026, 5400)
+
+| scenarie_investeringsbevis_fælles_beholdning_bevarer_basis: personskat_investeringsbevis_fælles_resultat -> personskat_investeringsbevis_fælles_resultat.input_gyldigt && length(personskat_investeringsbevis_fælles_resultat.afståelsesresultater) == 2 && personskat_investeringsbevis_fælles_resultat.afståelsesresultater[0].hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 4800 && personskat_investeringsbevis_fælles_resultat.afståelsesresultater[1].hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 3600 && aktieavance_ordinaer_position_antal_aktier(personskat_investeringsbevis_fælles_resultat.position_ultimo) == 3 && personskat_investeringsbevis_fælles_resultat.position_ultimo.anskaffelsessum_kroner == 3600 && aktieavance_investeringsbevis_rå_netto_kroner(personskat_investeringsbevis_fælles_resultat) == 4600
+| scenarie_investeringsbevis_par21_bruger_fælles_beholdning: personskat_investeringsbevis_par21_årsresultat -> personskat_investeringsbevis_par21_årsresultat.alle_input_gyldige && personskat_investeringsbevis_par21_årsresultat.aktiebaserede_minimumsbevis_forløbsresultater[0].effektivt_aktiebaseret_efter_par21 && length(personskat_investeringsbevis_par21_årsresultat.aktiebaserede_minimumsbevis_forløbsresultater[0].skatteposter) == 2 && personskat_investeringsbevis_par21_årsresultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 4600
+| scenarie_investeringsbevis_par22_bruger_fælles_beholdning: personskat_investeringsbevis_par22_årsresultat -> personskat_investeringsbevis_par22_årsresultat.input_gyldigt && length(personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser) == 2 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser[0].aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 3200 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser[1].aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 1400 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].samlet_aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 4600 && length(personskat_investeringsbevis_par22_årsresultat.aktieavancebeskatningslov_resultater) == 1 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].beholdningsresultat.position_ultimo.anskaffelsessum_kroner == 3600
+| scenarie_investeringsbevis_afviser_dubleret_afståelsesidentifikation: personskat_investeringsbevis_dubleret_afståelse -> personskat_investeringsbevis_dubleret_afståelse.alle_hændelser_gyldige == Falskt && personskat_investeringsbevis_dubleret_afståelse.input_gyldigt == Falskt
+| scenarie_investeringsbevis_afviser_overafståelse: personskat_investeringsbevis_overafståelse -> personskat_investeringsbevis_overafståelse.alle_hændelser_gyldige == Falskt && personskat_investeringsbevis_overafståelse.input_gyldigt == Falskt && personskat_investeringsbevis_overafståelse.position_ultimo.anskaffelsessum_kroner == 7200
+| scenarie_investeringsbevis_afviser_omvendt_kronologi: personskat_investeringsbevis_omvendt_kronologi -> personskat_investeringsbevis_omvendt_kronologi.alle_hændelser_gyldige == Falskt && personskat_investeringsbevis_omvendt_kronologi.input_gyldigt == Falskt
+| scenarie_investeringsbevis_afviser_sen_par27_hændelse: personskat_investeringsbevis_sen_par27_hændelse -> personskat_investeringsbevis_sen_par27_hændelse.grundlag_gyldigt == Falskt && personskat_investeringsbevis_sen_par27_hændelse.alle_kildehændelser_før_afståelserne == Falskt && personskat_investeringsbevis_sen_par27_hændelse.input_gyldigt == Falskt
+| scenarie_investeringsbevis_par21_afviser_par22_klassifikation: personskat_investeringsbevis_forkert_par21_klassifikation -> personskat_investeringsbevis_forkert_par21_klassifikation.effektivt_aktiebaseret_efter_par21 == Falskt && personskat_investeringsbevis_forkert_par21_klassifikation.input_gyldigt == Falskt
+| scenarie_investeringsbevis_par22_afviser_par21_klassifikation: personskat_investeringsbevis_forkert_par22_klassifikation -> personskat_investeringsbevis_forkert_par22_klassifikation.input_gyldigt == Falskt && length(personskat_investeringsbevis_forkert_par22_klassifikation.aktieavancebeskatningslov_resultater) == 0
+| scenarie_investeringsbevis_afviser_splittede_beholdninger: personskat_investeringsbevis_dubleret_beholdningsidentifikation -> personskat_investeringsbevis_dubleret_beholdningsidentifikation.alle_input_gyldige == Falskt && personskat_investeringsbevis_dubleret_beholdningsidentifikation.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0 && personskat_investeringsbevis_splittet_udsteder_par21.alle_input_gyldige == Falskt && personskat_investeringsbevis_splittet_udsteder_par21.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0 && personskat_investeringsbevis_splittet_udsteder_par22.input_gyldigt == Falskt && length(personskat_investeringsbevis_splittet_udsteder_par22.aktieavancebeskatningslov_resultater) == 0
+
+? scenarie_investeringsbevis_fælles_beholdning_bevarer_basis
+? scenarie_investeringsbevis_par21_bruger_fælles_beholdning
+? scenarie_investeringsbevis_par22_bruger_fælles_beholdning
+? scenarie_investeringsbevis_afviser_dubleret_afståelsesidentifikation
+? scenarie_investeringsbevis_afviser_overafståelse
+? scenarie_investeringsbevis_afviser_omvendt_kronologi
+? scenarie_investeringsbevis_afviser_sen_par27_hændelse
+? scenarie_investeringsbevis_par21_afviser_par22_klassifikation
+? scenarie_investeringsbevis_par22_afviser_par21_klassifikation
+? scenarie_investeringsbevis_afviser_splittede_beholdninger
+
+@ print("Investeringsbevisbeholdning: 10 kildebaserede scenarier kontrolleret")
+--@end:personskat_investeringsbevis_beholdning--

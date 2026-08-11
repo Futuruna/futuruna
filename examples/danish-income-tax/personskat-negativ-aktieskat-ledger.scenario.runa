@@ -114,6 +114,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
         )],
         rettighedsforløb = [],
         investeringsbeviser = [],
+        aktiebaserede_minimumsbevis_forløb = [],
         fremført_tab_efter_par13a_kroner = 0
     )),
     særlige_aktiver = [],

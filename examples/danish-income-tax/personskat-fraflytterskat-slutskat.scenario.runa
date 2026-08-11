@@ -289,6 +289,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = fraflytter_slutskat_ejendomsskat_gevinstkilde = fraflytter_slutskat_kilde("ejendomsskat-projektion", [

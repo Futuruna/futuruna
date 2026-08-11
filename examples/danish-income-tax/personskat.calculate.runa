@@ -6092,45 +6092,46 @@
     )
 )
 = personskat_felt_kgl_årsnetto_abl22_identifikation = Beregningsspørgsmål(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::identifikation),
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::identifikation),
     label = "Minimumsbevisets identifikation",
     question = "Hvilken stabil og entydig identifikation skal investeringsbeviset have?"
 )
 = personskat_felt_kgl_årsnetto_abl22_position_primo = Beregningsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::position_primo::$variant),
-    label = "Minimumsbevisets position ved årets begyndelse",
-    question = Some("Var investeringsbeviset nyt i året, eller videreføres det fra det foregående indkomstår?"),
-    help = Some("En videreført position bevarer anskaffelsessummen frem til afståelsen efter ABL § 22."),
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::grundlag::$variant),
+    label = "Minimumsbevisets anskaffelsesgrundlag",
+    question = Some("Er beholdningens anskaffelsessum dokumenteret direkte eller reguleret efter ABL § 27?"),
+    help = Some("Det samme kildegrundlag bærer den resterende anskaffelsessum gennem alle årets delafståelser."),
     unit = None
 )
 = personskat_felt_kgl_årsnetto_abl22_hændelser = Beregningsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::hændelser::$variant),
-    label = "Minimumsbevisets hændelse",
-    question = Some("Blev investeringsbeviset anskaffet eller afstået i indkomståret?"),
-    help = Some("Tilføj hændelserne i deres faktiske rækkefølge."),
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::afståelser),
+    label = "Minimumsbevisets afståelser",
+    question = Some("Hvilke hele eller delvise afståelser skete i indkomståret?"),
+    help = Some("Tilføj hver afståelse med stabil identifikation, dato, rækkefølge, mængde og afståelsessum."),
     unit = None
 )
 = personskat_felt_kgl_årsnetto_abl22_position_primo_værdi = Beregningsbeløbsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::position_primo::KglÅrsnettoVidereførtPositionPrimo::skattemæssig_værdi_kroner),
-    label = "Minimumsbevisets anskaffelsessum fra tidligere år",
-    question = "Hvilken skattemæssig anskaffelsessum videreføres fra det foregående indkomstår?",
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::grundlag::AblInvesteringsbevisDirekteBeholdning::position::anskaffelsessum_kroner),
+    label = "Minimumsbevisets dokumenterede anskaffelsessum",
+    question = "Hvilken samlet skattemæssig anskaffelsessum havde beholdningen før årets afståelser?",
     unit = "kr."
 )
-= personskat_felt_kgl_årsnetto_abl22_position_primo_princip = Beregningsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::position_primo::KglÅrsnettoVidereførtPositionPrimo::opgørelsesprincip),
-    label = "Opgørelsesprincip for minimumsbevisets åbningsværdi",
-    question = Some("Efter hvilket princip blev minimumsbevisets skattemæssige værdi opgjort i det foregående indkomstår?"),
-    help = Some("Et obligationsbaseret minimumsbevis efter ABL § 22 videreføres her med realisationsprincippet."),
-    unit = None
+= personskat_felt_kgl_årsnetto_abl22_anskaffelsesdato_år = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::grundlag::AblInvesteringsbevisDirekteBeholdning::anskaffelsesdato::år),
+    label = "Minimumsbevisets anskaffelsesår",
+    question = Some("I hvilket år blev den direkte dokumenterede beholdning anskaffet?"),
+    help = Some("Anskaffelsesdatoen skal ligge før alle afståelser i forløbet."),
+    unit = Some("år")
 )
-= personskat_felt_kgl_årsnetto_abl22_anskaffelsessum = Beregningsbeløbsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::hændelser::KglÅrsnettoAnskaffelse::anskaffelsessum_kroner),
-    label = "Minimumsbevisets anskaffelsessum",
-    question = "Hvad var investeringsbevisets dokumenterede anskaffelsessum?",
-    unit = "kr."
+= personskat_felt_kgl_årsnetto_abl22_afstået_antal = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::afståelser::kapitalmængde::AblAktiekapitalUdenPålydendeVærdi::antal_aktier),
+    label = "Antal afståede minimumsbeviser",
+    question = Some("Hvor mange minimumsbeviser omfattede afståelsen?"),
+    help = Some("Mængden forbruges fra den fælles beholdning, så samme anskaffelsessum ikke kan anvendes to gange."),
+    unit = Some("stk.")
 )
 = personskat_felt_kgl_årsnetto_abl22_afståelsessum = Beregningsbeløbsfelt(
-    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::hændelser::KglÅrsnettoAfståelse::afståelsessum_kroner),
+    path = pathof(PersonskatInput::kapitalindkomst::kursgevinst::MedKursgevinst::fakta::øvrige_instrumenter::obligationsbaserede_minimumsbeviser::beholdning::afståelser::afståelsessum_kroner),
     label = "Minimumsbevisets afståelsessum",
     question = "Hvad var investeringsbevisets dokumenterede afståelsessum?",
     unit = "kr."
@@ -6894,6 +6895,87 @@
     help = Some("Tilføj hvert investeringsbevis særskilt. Futuruna udleder gevinst, tab og oplysningsbetingelsen fra de konkrete kildefakta."),
     unit = None
 )
+= personskat_felt_ordinært_aktieår_minimumsbevis_forløb = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.aktiebaserede_minimumsbevis_forløb",
+    label = "Aktiebaserede minimumsbeviser efter ABL § 21",
+    question = Some("Har du en beholdning af aktiebaserede minimumsbeviser med en eller flere afståelser i indkomståret?"),
+    help = Some("Tilføj én identificeret beholdning pr. investeringsinstitut. Futuruna fører anskaffelsessummen og eventuelle § 27-tillæg gennem alle delafståelser."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_klassifikationsår = TypetBeregningsfelt(
+    path = refof(AktieavancePar21InvesteringsbevisForløbsinput::klassifikation::indkomstår),
+    label = "Minimumsinstituttets klassifikationsår",
+    question = Some("Hvilket indkomstår gælder minimumsinstituttets klassifikation for?"),
+    help = Some("Året skal svare til beholdningsforløbets og personskatteberegningens indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_minimumsbevis_klassifikationsoplysninger = TypetBeregningsfelt(
+    path = refof(AktieavancePar21InvesteringsbevisForløbsinput::klassifikation::oplysninger::$variant),
+    label = "Oplysninger om minimumsinstituttets aktivmasse",
+    question = Some("Hvilke oplysninger og frister er dokumenteret for minimumsinstituttets klassifikation?"),
+    help = Some("Futuruna bruger oplysningerne sammen med aktivmassen til at aflede status efter ABL § 21 eller § 22."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_beholdning_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsforløbsinput::identifikation),
+    label = "Minimumsbeholdningens identifikation",
+    question = Some("Hvilken stabil og entydig identifikation skal beholdningen have?"),
+    help = Some("Identifikationen forbinder åbningsgrundlaget, § 27-tillæggene og alle afståelser i samme beholdning."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_beholdning_indkomstår = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsforløbsinput::indkomstår),
+    label = "Minimumsbeholdningens indkomstår",
+    question = Some("For hvilket indkomstår opgøres beholdningens afståelser?"),
+    help = Some("Alle afståelser i forløbet skal ligge i dette år."),
+    unit = Some("år")
+)
+= personskat_felt_minimumsbevis_beholdning_grundlag = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsforløbsinput::grundlag::$variant),
+    label = "Minimumsbeholdningens anskaffelsesgrundlag",
+    question = Some("Er åbningsbeholdningen dokumenteret direkte eller afledt med tillæg efter ABL § 27?"),
+    help = Some("§ 27-grenen beregner den samlede anskaffelsessum før første afståelse."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_direkte_position_identifikation = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::position::selskabsidentifikation),
+    label = "Investeringsinstituttets identifikation",
+    question = Some("Hvilket investeringsinstitut udstedte minimumsbeviserne?"),
+    help = Some("Brug den stabile identifikation fra depot- eller indberetningsgrundlaget."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_direkte_position_antal = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::position::kapitalmængde::AblAktiekapitalUdenPålydendeVærdi::antal_aktier),
+    label = "Antal minimumsbeviser før afståelser",
+    question = Some("Hvor mange minimumsbeviser omfattede åbningsbeholdningen?"),
+    help = None,
+    unit = Some("stk.")
+)
+= personskat_felt_minimumsbevis_direkte_position_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::position::anskaffelsessum_kroner),
+    label = "Minimumsbeholdningens anskaffelsessum",
+    question = Some("Hvad var den samlede dokumenterede anskaffelsessum før årets afståelser?"),
+    help = Some("Beløbet fordeles efter ABL § 26 og reduceres kun én gang pr. afstået mængde."),
+    unit = Some("kr.")
+)
+= personskat_felt_minimumsbevis_direkte_anskaffelsesdato_år = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::anskaffelsesdato::år), label = "Minimumsbeholdningens anskaffelsesår", question = Some("I hvilket år blev beholdningen anskaffet?"), help = None, unit = Some("år"))
+= personskat_felt_minimumsbevis_direkte_anskaffelsesdato_måned = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::anskaffelsesdato::måned), label = "Minimumsbeholdningens anskaffelsesmåned", question = Some("I hvilken måned blev beholdningen anskaffet?"), help = None, unit = Some("måned"))
+= personskat_felt_minimumsbevis_direkte_anskaffelsesdato_dag = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisBeholdningsgrundlag::AblInvesteringsbevisDirekteBeholdning::anskaffelsesdato::dag), label = "Minimumsbeholdningens anskaffelsesdag", question = Some("På hvilken dag blev beholdningen anskaffet?"), help = None, unit = Some("dag"))
+= personskat_felt_minimumsbevis_afståelser = TypetBeregningsfelt(
+    path = refof(AktieavanceInvesteringsbevisBeholdningsforløbsinput::afståelser),
+    label = "Minimumsbeholdningens afståelser",
+    question = Some("Hvilke hele eller delvise afståelser skete i indkomståret?"),
+    help = Some("Angiv afståelserne i faktisk dato- og dagsrækkefølge."),
+    unit = None
+)
+= personskat_felt_minimumsbevis_afståelse_identifikation = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::identifikation), label = "Afståelsens identifikation", question = Some("Hvilken stabil og entydig identifikation har afståelsen?"), help = Some("Samme afståelse kan ikke forbruge anskaffelsessum to gange."), unit = None)
+= personskat_felt_minimumsbevis_afståelse_dato_år = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::dato::år), label = "Afståelsesår", question = Some("I hvilket år skete afståelsen?"), help = None, unit = Some("år"))
+= personskat_felt_minimumsbevis_afståelse_dato_måned = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::dato::måned), label = "Afståelsesmåned", question = Some("I hvilken måned skete afståelsen?"), help = None, unit = Some("måned"))
+= personskat_felt_minimumsbevis_afståelse_dato_dag = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::dato::dag), label = "Afståelsesdag", question = Some("På hvilken dag skete afståelsen?"), help = None, unit = Some("dag"))
+= personskat_felt_minimumsbevis_afståelse_rækkefølge = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::rækkefølge_på_dagen), label = "Afståelsens rækkefølge på dagen", question = Some("Hvilket løbenummer havde afståelsen blandt samme dags hændelser?"), help = Some("Rækkefølgen afgør, om et § 27-tillæg samme dag ligger før afståelsen."), unit = None)
+= personskat_felt_minimumsbevis_afståelse_antal = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::kapitalmængde::AblAktiekapitalUdenPålydendeVærdi::antal_aktier), label = "Antal afståede minimumsbeviser", question = Some("Hvor mange minimumsbeviser omfattede afståelsen?"), help = None, unit = Some("stk."))
+= personskat_felt_minimumsbevis_afståelse_sum = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::afståelsessum_kroner), label = "Afståelsessum for minimumsbeviserne", question = Some("Hvad var den samlede dokumenterede afståelsessum?"), help = None, unit = Some("kr."))
+= personskat_felt_minimumsbevis_afståelse_oplysningsstatus = TypetBeregningsfelt(path = refof(AktieavanceInvesteringsbevisAfståelse::oplysningsstatus), label = "Afståelsens oplysningsstatus", question = Some("Er oplysningsbetingelsen efter ABL § 14 opfyldt?"), help = Some("Oplysningsstatussen påvirker tabsbehandlingen efter § 13 A for et § 21-bevis."), unit = None)
 = personskat_felt_ordinært_aktieår_investeringsbevis_indkomstår = TypetBeregningsfelt(
     path = refof(AktieavancePar13AInvesteringsbevisInput::indkomstår),
     label = "Investeringsbevisets indkomstår",
@@ -12975,8 +13057,9 @@
         personskat_felt_kgl_årsnetto_hændelser,
         personskat_felt_kgl_årsnetto_mængdeafståelse_art,
         personskat_felt_kgl_årsnetto_abl22_position_primo,
-        personskat_felt_kgl_årsnetto_abl22_position_primo_princip,
+        personskat_felt_kgl_årsnetto_abl22_anskaffelsesdato_år,
         personskat_felt_kgl_årsnetto_abl22_hændelser,
+        personskat_felt_kgl_årsnetto_abl22_afstået_antal,
         personskat_felt_kgl_ægtefælles_skatteyder_identifikation,
         personskat_felt_kgl_gæld_frigørelsesart,
         personskat_felt_kgl_gæld_erhvervsforhold,
@@ -13067,7 +13150,6 @@
         personskat_felt_kgl_årsnetto_mængdeafståelse_sum,
         personskat_felt_kgl_årsnetto_mængdeultimoværdi,
         personskat_felt_kgl_årsnetto_abl22_position_primo_værdi,
-        personskat_felt_kgl_årsnetto_abl22_anskaffelsessum,
         personskat_felt_kgl_årsnetto_abl22_afståelsessum,
         personskat_felt_kgl_gæld_påtagelsesværdi,
         personskat_felt_kgl_gæld_frigørelsesværdi,
@@ -13141,6 +13223,27 @@
         Field(value = personskat_felt_ordinært_aktieår),
         Field(value = personskat_felt_ordinært_aktieår_fremført_tab),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbeviser),
+        Field(value = personskat_felt_ordinært_aktieår_minimumsbevis_forløb),
+        Field(value = personskat_felt_minimumsbevis_klassifikationsår),
+        Field(value = personskat_felt_minimumsbevis_klassifikationsoplysninger),
+        Field(value = personskat_felt_minimumsbevis_beholdning_identifikation),
+        Field(value = personskat_felt_minimumsbevis_beholdning_indkomstår),
+        Field(value = personskat_felt_minimumsbevis_beholdning_grundlag),
+        Field(value = personskat_felt_minimumsbevis_direkte_position_identifikation),
+        Field(value = personskat_felt_minimumsbevis_direkte_position_antal),
+        Field(value = personskat_felt_minimumsbevis_direkte_position_anskaffelsessum),
+        Field(value = personskat_felt_minimumsbevis_direkte_anskaffelsesdato_år),
+        Field(value = personskat_felt_minimumsbevis_direkte_anskaffelsesdato_måned),
+        Field(value = personskat_felt_minimumsbevis_direkte_anskaffelsesdato_dag),
+        Field(value = personskat_felt_minimumsbevis_afståelser),
+        Field(value = personskat_felt_minimumsbevis_afståelse_identifikation),
+        Field(value = personskat_felt_minimumsbevis_afståelse_dato_år),
+        Field(value = personskat_felt_minimumsbevis_afståelse_dato_måned),
+        Field(value = personskat_felt_minimumsbevis_afståelse_dato_dag),
+        Field(value = personskat_felt_minimumsbevis_afståelse_rækkefølge),
+        Field(value = personskat_felt_minimumsbevis_afståelse_antal),
+        Field(value = personskat_felt_minimumsbevis_afståelse_sum),
+        Field(value = personskat_felt_minimumsbevis_afståelse_oplysningsstatus),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_indkomstår),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_art),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_afståelsesdato_år),
@@ -13152,6 +13255,9 @@
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_direkte_anskaffelsessum),
         Field(value = personskat_felt_ordinært_aktieår_investeringsbevis_oplysning),
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par23_par24_par26),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par27),
+        DependencySource(value = aktieavancebeskatningsloven_lbk1098_par19b_til_par22),
     )
 )
 = personskat_metadata_par25_rettigheder = PersonskatMetadata(
@@ -15765,7 +15871,7 @@ fraflytningen."
     = forberedelse = personskat_aktieavance_forberedelse_fra_resultater(input, skatteår, særlige.resultater, basisforberedelse.udbytter)
     personskat_aktieavance_resultat_fra_forberedelse(forberedelse, ordinært_aktieår)
 }
-| personskat_tomt_ordinært_aktieårsinput(skatteår: Heltal) -> AktieavanceOrdinærPersonÅrsinput(indkomstår = skatteår, hændelsesforløb = [], rettighedsforløb = [], investeringsbeviser = [], fremført_tab_efter_par13a_kroner = 0)
+| personskat_tomt_ordinært_aktieårsinput(skatteår: Heltal) -> AktieavanceOrdinærPersonÅrsinput(indkomstår = skatteår, hændelsesforløb = [], rettighedsforløb = [], investeringsbeviser = [], aktiebaserede_minimumsbevis_forløb = [], fremført_tab_efter_par13a_kroner = 0)
 | personskat_ordinært_aktieår_parinput(input: PersonskatOrdinærtAktieårInput, skatteår: Heltal) -> match input { | UdenOrdinærtAktieår -> personskat_tomt_ordinært_aktieårsinput(skatteår) | MedOrdinærtAktieår(årsinput) -> årsinput }
 | personskat_ordinært_aktieår_resultat_fra_par(input: PersonskatOrdinærtAktieårInput, resultat: AktieavanceOrdinærPersonÅrsresultat) -> match input {
     | MedOrdinærtAktieår(_) -> BeregnetOrdinærtAktieår(resultat = resultat)
@@ -16025,12 +16131,12 @@ fraflytningen."
 | personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(kilderesultater: List(AktieavancebeskatningslovKilderesultat)) -> map(kilderesultater, personskat_kgl_par32_supplerende_aktieårsresultat)
 | personskat_kgl_par32_supplerende_aktieårsresultater(resultat: PersonskatSærligtAktieaktivResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(resultat.kilderesultater)
 | personskat_kgl_par32_årsnetto_abl22_kilderesultat(resultat: KglÅrsnettoAbl22Resultat) -> AktieavancebeskatningslovKilderesultat(
-    kildeidentifikation = resultat.fakta.identifikation,
-    resultat = resultat.aktieavancebeskatningslov_resultat,
+    kildeidentifikation = resultat.fakta.beholdning.identifikation,
+    resultat = resultat.samlet_aktieavancebeskatningslov_resultat,
     kildegrundlag = AblSærligtAktiekildegrundlag(markedsstatus = AblIkkeOptagetTilHandel),
-    input_gyldigt = resultat.input_gyldigt && resultat.forløb.har_opgørelse
+    input_gyldigt = resultat.input_gyldigt && length(resultat.opgørelser) > 0
 )
-| personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat: KursgevinstlovÅrsnettoResultat) -> map(filter(resultat.obligationsbevisresultater, |bevisresultat: KglÅrsnettoAbl22Resultat| bevisresultat.forløb.har_opgørelse), personskat_kgl_par32_årsnetto_abl22_kilderesultat)
+| personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat: KursgevinstlovÅrsnettoResultat) -> map(filter(resultat.obligationsbevisresultater, |bevisresultat: KglÅrsnettoAbl22Resultat| bevisresultat.input_gyldigt && length(bevisresultat.opgørelser) > 0), personskat_kgl_par32_årsnetto_abl22_kilderesultat)
 | personskat_kgl_par32_årsnetto_supplerende_aktieårsresultater(resultat: KursgevinstlovÅrsnettoResultat) -> personskat_kgl_par32_supplerende_aktieårsresultater_fra_kilderesultater(personskat_kgl_par32_årsnetto_abl22_kilderesultater(resultat))
 | personskat_kgl_par32_aktieårsgrundlag(resultat: PersonskatAktieavanceResultat, årsnetto: KursgevinstlovÅrsnettoResultat, indkomstår: Heltal) -> KursgevinstPar32Aktieårsgrundlag(
     par13a_årsresultat = personskat_kgl_par32_ordinært_aktieårsresultat(resultat, indkomstår),

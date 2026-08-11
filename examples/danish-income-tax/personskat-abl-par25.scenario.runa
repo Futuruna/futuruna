@@ -57,6 +57,7 @@ til den kanoniske beregn_personskat-grænse uden caller-opgjorte skattebeløb.
     hændelsesforløb = [],
     rettighedsforløb = rettighedsforløb,
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 | personskat_par25_aktieavance(rettighedsforløb: List(AktieavancePar25HændelsesforløbInput)) -> PersonskatAktieavanceInput(

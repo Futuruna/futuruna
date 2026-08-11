@@ -73,6 +73,7 @@ når den kanoniske personskatteberegning. Scenariet er ikke lovtekst.
     )],
     rettighedsforløb = [],
     investeringsbeviser = [],
+    aktiebaserede_minimumsbevis_forløb = [],
     fremført_tab_efter_par13a_kroner = 0
 )
 = personskat_par44_lønmodtager = PersonskatLønmodtagerInput(
