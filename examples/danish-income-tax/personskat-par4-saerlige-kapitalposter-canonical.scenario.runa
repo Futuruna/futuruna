@@ -128,6 +128,41 @@ skal derfor afvises samlet uden beløbspåvirkning.
     ))
 )
 | psl4_særlig_scenarie_nr16(identifikation: Tekst) -> psl4_særlig_scenarie_nr16_med_lot(identifikation, "betaling-2024")
+| psl4_særlig_scenarie_nr16_par40d_tilgang(tilflytningsår: Heltal, ikke_i_forvejen_omfattet: Boolsk) -> Afskrivningslov40DÅrstilgangsfakta(
+    identifikation = "nr16-par40d-tilgang",
+    lot_id = "nr16-par40d-betalingsrettighed",
+    rettighedsnøgle = "nr16-par40d-rettighed",
+    erhvervelsesrækkefølge = 1,
+    enheder = 10,
+    input = Afskrivningslov40DInput(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        kvoteart = Al40CBetalingsrettighed,
+        skattepligtsindtræden = Al40DKildeskattelovPar9,
+        tilflytningstidspunkt = AfskrivningslovDato(år = tilflytningsår, måned = 2, dag = 1),
+        ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet = ikke_i_forvejen_omfattet,
+        handelsværdi_på_tilflytningstidspunktet_kroner = 100000
+    )
+)
+| psl4_særlig_scenarie_nr16_par40d(identifikation: Tekst, tilflytningsår: Heltal, ikke_i_forvejen_omfattet: Boolsk) -> psl4_særlig_scenarie_fakta(
+    identifikation,
+    PsPar4Nr16Afskrivningslov40C(kildefakta = Afskrivningslov40CÅrskildefakta(
+        indkomstår = 2026,
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        primosaldo = Al40CFørsteSaldoår,
+        positioner_primo = [],
+        hændelser_i_året = [
+            Al40CÅrsTilgangEfterPar40D(fakta = psl4_særlig_scenarie_nr16_par40d_tilgang(tilflytningsår, ikke_i_forvejen_omfattet)),
+            Al40CÅrsafståelse(
+                identifikation = "nr16-par40d-salg",
+                lot_id = "nr16-par40d-betalingsrettighed",
+                hændelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 1),
+                afståede_enheder = 10,
+                afståelsessum_kroner = 130000,
+                mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+            )
+        ]
+    ))
+)
 | psl4_særlig_scenarie_poster() -> [
     psl4_særlig_scenarie_nr9("nr9-passiv", 100000, 20000, Falskt),
     psl4_særlig_scenarie_nr9("nr9-aktiv", 50000, 10000, Sandt),
@@ -216,6 +251,13 @@ skal derfor afvises samlet uden beløbspåvirkning.
     | PsPar4Nr16Lovresultat(nr16) -> nr16.afskrivningslov_årsresultat.input_gyldigt && nr16.afskrivningslov_årsresultat.afskrivningslov_input.begivenhed == Al40CÅrligSaldoopgørelse && nr16.afskrivningslov_årsresultat.bevægelser_i_året == [Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 25000)] && nr16.afskrivningslov_årsresultat.positioner_ultimo[0].lot.resterende_enheder == 5 && nr16.afskrivningslov_årsresultat.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 15000
     | _ -> Falskt
 }
+| psl4_særlig_scenarie_nr16_par40d_afledt(resultat: PersonskatPar4SærligKapitalpostresultat) -> match resultat.lovresultat {
+    | PsPar4Nr16Lovresultat(nr16) -> match nr16.afskrivningslov_årsresultat.hændelsesresultater[0].par40d_resultat {
+        | Some(par40d) -> nr16.afskrivningslov_årsresultat.input_gyldigt && par40d.omfattet_af_par40d && par40d.anskaffelsessum_til_par40c_saldo_kroner == 100000 && nr16.afskrivningslov_årsresultat.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 100000), Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 130000)] && nr16.afskrivningslov_årsresultat.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 30000 && nr16.par4_resultat.kapitalindkomst_kroner == 30000
+        | None -> Falskt
+    }
+    | _ -> Falskt
+}
 
 = psl4_særlig_scenarie_gyldigt = psl4_særlig_scenarie_beregning(psl4_særlig_scenarie_poster())
 = psl4_særlig_scenarie_ugyldig_virksomhed = psl4_særlig_scenarie_beregning([psl4_særlig_scenarie_nr9("ugyldig", -1, 0, Falskt)])
@@ -225,6 +267,12 @@ skal derfor afvises samlet uden beløbspåvirkning.
 ])
 = psl4_særlig_scenarie_ugyldig_nr16_lot = psl4_særlig_scenarie_beregning([
     psl4_særlig_scenarie_nr16_med_lot("nr16-ukendt-lot", "ukendt-lot")
+])
+= psl4_særlig_scenarie_nr16_par40d_resultat = psl4_særlig_scenarie_beregning([
+    psl4_særlig_scenarie_nr16_par40d("nr16-par40d", 2026, Sandt)
+])
+= psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig = psl4_særlig_scenarie_beregning([
+    psl4_særlig_scenarie_nr16_par40d("nr16-par40d-allerede-skattepligtig", 2026, Falskt)
 ])
 = psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4 = psl4_særlig_scenarie_beregning_med_personlig_virksomhed(
     [psl4_særlig_scenarie_nr9("samme-virksomhed", 100000, 20000, Falskt)],
@@ -238,6 +286,8 @@ skal derfor afvises samlet uden beløbspåvirkning.
 | psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket: psl4_særlig_scenarie_ugyldig_virksomhed -> psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_dubletter_fejler_lukket: psl4_særlig_scenarie_dobbelt_id -> psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_postidentifikationer_entydige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_ukendt_nr16_lot_fejler_lukket: psl4_særlig_scenarie_ugyldig_nr16_lot -> psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.særlige_kapitalpostresultater[0].input_gyldigt == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| psl4_særlig_scenarie_nr16_par40d_når_beregn_personskat: psl4_særlig_scenarie_nr16_par40d_resultat -> psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalposter_gyldige && psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 30000 && psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalpostresultater[0].kapitalpost.beløb_kroner == 30000 && psl4_særlig_scenarie_nr16_par40d_afledt(psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalpostresultater[0])
+| psl4_særlig_scenarie_nr16_par40d_forudgående_skattepligt_fejler_lukket: psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig -> psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.særlige_kapitalpostresultater[0].input_gyldigt == Falskt && psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4_fejler_lukket: psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4 -> psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 80000 && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.særlige_kapitalpostresultater[0].virksomhedsidentifikation_adskilt_fra_personlig_indkomst == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 
 ? psl4_særlig_scenarie_alle_grene_når_beregn_personskat
@@ -247,4 +297,6 @@ skal derfor afvises samlet uden beløbspåvirkning.
 ? psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket
 ? psl4_særlig_scenarie_dubletter_fejler_lukket
 ? psl4_særlig_scenarie_ukendt_nr16_lot_fejler_lukket
+? psl4_særlig_scenarie_nr16_par40d_når_beregn_personskat
+? psl4_særlig_scenarie_nr16_par40d_forudgående_skattepligt_fejler_lukket
 ? psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4_fejler_lukket

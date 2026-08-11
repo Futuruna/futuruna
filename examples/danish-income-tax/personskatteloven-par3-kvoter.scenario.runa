@@ -381,6 +381,52 @@
 = kvote_par40d_par4_kapitalindkomst = par4_stk1_nr16_resultat(Par4Stk1Nr16Input(
     afskrivningslov40c_resultat = kvote_par40d_par40c_salg
 ))
+| kvote_par40d_årstilgangsfakta(tilflytningsår: Heltal, ikke_i_forvejen_omfattet: Boolsk) -> Afskrivningslov40DÅrstilgangsfakta(
+    identifikation = "par40d-tilgang",
+    lot_id = "par40d-betalingsrettighed",
+    rettighedsnøgle = "betalingsrettighed-ved-tilflytning",
+    erhvervelsesrækkefølge = 1,
+    enheder = 10,
+    input = Afskrivningslov40DInput(
+        skatteyder = AlSelvstændigErhvervsdrivendePerson,
+        kvoteart = Al40CBetalingsrettighed,
+        skattepligtsindtræden = Al40DKildeskattelovPar9,
+        tilflytningstidspunkt = AfskrivningslovDato(år = tilflytningsår, måned = 2, dag = 1),
+        ikke_i_forvejen_omfattet_af_skattepligt_her_i_landet = ikke_i_forvejen_omfattet,
+        handelsværdi_på_tilflytningstidspunktet_kroner = 100000
+    )
+)
+| kvote_par40d_årsforløb(tilflytningsår: Heltal, ikke_i_forvejen_omfattet: Boolsk) -> afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = Al40CFørsteSaldoår,
+    positioner_primo = [],
+    hændelser_i_året = [
+        Al40CÅrsTilgangEfterPar40D(fakta = kvote_par40d_årstilgangsfakta(tilflytningsår, ikke_i_forvejen_omfattet)),
+        Al40CÅrsafståelse(
+            identifikation = "par40d-salg",
+            lot_id = "par40d-betalingsrettighed",
+            hændelsesdato = AfskrivningslovDato(år = 2026, måned = 6, dag = 1),
+            afståede_enheder = 10,
+            afståelsessum_kroner = 130000,
+            mælkekvote_ejendomsforløb = Al40CMælkEjendomsforløbIkkeRelevant
+        )
+    ]
+))
+
+= kvote_par40d_kildeårsforløb = kvote_par40d_årsforløb(2026, Sandt)
+= kvote_par40d_kildeårsforløb_forkert_år = kvote_par40d_årsforløb(2025, Sandt)
+= kvote_par40d_kildeårsforløb_allerede_skattepligtig = kvote_par40d_årsforløb(2026, Falskt)
+= kvote_par40d_kildeårsforløb_manuel_position = afskrivningslov40c_årsresultat(Afskrivningslov40CÅrskildefakta(
+    indkomstår = 2026,
+    skatteyder = AlSelvstændigErhvervsdrivendePerson,
+    primosaldo = Al40CFørsteSaldoår,
+    positioner_primo = [],
+    hændelser_i_året = [Al40CÅrsanskaffelse(
+        identifikation = "manuel-par40d-tilgang",
+        position = afskrivningslov40d_årstilgang_position(kvote_par40d_årstilgangsfakta(2026, Sandt))
+    )]
+))
 
 | scenarie_al40a_anvendelse_fradrages_forholdsmæssigt: kvote_engang_anvendt -> kvote_engang_anvendt.omfattet_af_par40a && kvote_engang_anvendt.anskaffelsessum_henført_til_hændelsen_kroner == 30000 && kvote_engang_anvendt.fradrag_for_anvendelse_i_produktionen_kroner == 30000 && kvote_engang_anvendt.resterende_enheder == 75 && kvote_engang_anvendt.resterende_anskaffelsessum_kroner == 90000
 | scenarie_al40a_salg_opgør_fortjeneste: kvote_engang_solgt -> kvote_engang_solgt.afståelsessum_kroner == 40000 && kvote_engang_solgt.anskaffelsessum_henført_til_hændelsen_kroner == 30000 && kvote_engang_solgt.skattepligtig_fortjeneste_kroner == 10000
@@ -409,6 +455,13 @@
 | scenarie_al40d_ingen_ny_bevægelse_deaktiverer_ikke_par40c_saldo: kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo -> kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo.omfattet_af_par40c && kvote_par40d_uden_ny_bevægelse_bevarer_par40c_saldo.negativ_saldo_indtægtsført_kroner == 30000
 | scenarie_al40d_overføres_kun_i_tilflytningsåret: kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo -> kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo.anskaffelsessummer_i_året_kroner == 0 && kvote_par40d_forkert_indkomstår_bevarer_par40c_saldo.positiv_saldo_uden_fradrag_kroner == 50000
 | scenarie_al40d_par40c_par4_kæde: kvote_par40d_par4_kapitalindkomst -> kvote_par40d_par40c_salg.anskaffelsessummer_i_året_kroner == 100000 && kvote_par40d_par40c_salg.afståelsessummer_i_året_kroner == 130000 && kvote_par40d_par40c_salg.negativ_saldo_indtægtsført_kroner == 30000 && kvote_par40d_par4_kapitalindkomst.kapitalindkomst_kroner == 30000
+| scenarie_al40d_kildefakta_fører_typed_gennem_årsforløbet: kvote_par40d_kildeårsforløb -> match kvote_par40d_kildeårsforløb.hændelsesresultater[0].par40d_resultat {
+    | Some(par40d) -> kvote_par40d_kildeårsforløb.input_gyldigt && par40d.omfattet_af_par40d && par40d.anskaffelsessum_til_par40c_saldo_kroner == 100000 && kvote_par40d_kildeårsforløb.bevægelser_i_året == [Al40CAnskaffelse(kvoteart = Al40CBetalingsrettighed, anskaffelsessum_kroner = 100000), Al40CAfståelse(kvoteart = Al40CBetalingsrettighed, afståelsessum_kroner = 130000)] && kvote_par40d_kildeårsforløb.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 30000
+    | None -> Falskt
+}
+| scenarie_al40d_kildefakta_skal_ligge_i_indkomståret: kvote_par40d_kildeårsforløb_forkert_år -> kvote_par40d_kildeårsforløb_forkert_år.input_gyldigt == Falskt && kvote_par40d_kildeårsforløb_forkert_år.bevægelser_i_året == [] && kvote_par40d_kildeårsforløb_forkert_år.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| scenarie_al40d_kildefakta_afviser_forudgående_dansk_skattepligt: kvote_par40d_kildeårsforløb_allerede_skattepligtig -> kvote_par40d_kildeårsforløb_allerede_skattepligtig.input_gyldigt == Falskt && kvote_par40d_kildeårsforløb_allerede_skattepligtig.hændelsesresultater[0].hændelse_gyldig == Falskt && kvote_par40d_kildeårsforløb_allerede_skattepligtig.afskrivningslov_resultat.netto_skattepligtigt_eller_fradragsberettiget_kroner == 0
+| scenarie_al40d_position_kan_ikke_omgå_kildehændelsen: kvote_par40d_kildeårsforløb_manuel_position -> kvote_par40d_kildeårsforløb_manuel_position.input_gyldigt == Falskt && kvote_par40d_kildeårsforløb_manuel_position.hændelsesresultater[0].lot_identitet_gyldig == Falskt && kvote_par40d_kildeårsforløb_manuel_position.bevægelser_i_året == []
 
 ? scenarie_al40a_anvendelse_fradrages_forholdsmæssigt
 ? scenarie_al40a_salg_opgør_fortjeneste
@@ -437,6 +490,10 @@
 ? scenarie_al40d_ingen_ny_bevægelse_deaktiverer_ikke_par40c_saldo
 ? scenarie_al40d_overføres_kun_i_tilflytningsåret
 ? scenarie_al40d_par40c_par4_kæde
+? scenarie_al40d_kildefakta_fører_typed_gennem_årsforløbet
+? scenarie_al40d_kildefakta_skal_ligge_i_indkomståret
+? scenarie_al40d_kildefakta_afviser_forudgående_dansk_skattepligt
+? scenarie_al40d_position_kan_ikke_omgå_kildehændelsen
 
 @ print("AL §40 A anvendelsesfradrag: " + vis(kvote_engang_anvendt.fradrag_for_anvendelse_i_produktionen_kroner))
 @ print("AL §40 B årlig afskrivning: " + vis(kvote_løbende_syvaars_afskrivning.årlig_afskrivning_kroner))
