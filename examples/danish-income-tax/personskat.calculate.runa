@@ -191,7 +191,10 @@
 # PersonskatKapitalomkostningInput(identifikation: Tekst, anvendelsesår: Heltal, anvendelse: Par4Stk2Omkostningsanvendelse, omkostningsart: Ligningslov17COmkostningsart, næringsstatus: Næringsstatus, beløb_kroner: Heltal)
 # PersonskatKapitalomkostningsresultat(input: PersonskatKapitalomkostningInput, identifikation_unik: Boolsk, input_gyldigt: Boolsk, par4_resultat: Par4Stk2Omkostningsresultat)
 # PersonskatKapitalindkomstInput(renter: PersonskatRenteInput, virksomhedskapital: PersonskatVirksomhedskapitalInput, pbl53a: PersonskatPbl53AInput, ejendomsdrift: PersonskatEjendomsdriftInput, ejendomsavance: PersonskatEjendomsavanceInput, kursgevinst: PersonskatKursgevinstInput, fremleje: PersonskatFremlejeInput, finansielle_poster: List(PersonskatPar4FinansielPostfakta), særlige_kapitalposter: List(PersonskatPar4SærligKapitalpostfakta), omkostninger: List(PersonskatKapitalomkostningInput))
-# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, virksomhedskapital_input_gyldigt: Boolsk, pbl53a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, finansielle_postidentifikationer_entydige: Boolsk, finansielle_poster_gyldige: Boolsk, særlige_postidentifikationer_entydige: Boolsk, særlige_kapitalposter_gyldige: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, virksomhedskapital_resultat: PersonskatVirksomhedskapitalResultat, pbl53a_resultat: PersonskatPbl53AResultat, ejendomsdrift_resultat: PersonskatEjendomsdriftResultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, finansielle_postresultater: List(PersonskatPar4FinansielPostresultat), særlige_kapitalpostresultater: List(PersonskatPar4SærligKapitalpostresultat), omkostningsresultater: List(PersonskatKapitalomkostningsresultat), kapitalindkomst_resultat: Par4KapitalindkomstResultat)
+# PersonskatInvesteringsbevisRutespor(beholdningsidentifikation: Tekst, udstederidentifikation: Tekst)
+# PersonskatInvesteringsbevisRutekonflikt(udstederidentifikation: Tekst, par21_beholdningsidentifikationer: List(Tekst), par22_beholdningsidentifikationer: List(Tekst))
+# PersonskatInvesteringsbevisRutekontrol(aktiebaserede_par21_spor: List(PersonskatInvesteringsbevisRutespor), obligationsbaserede_par22_spor: List(PersonskatInvesteringsbevisRutespor), konflikter: List(PersonskatInvesteringsbevisRutekonflikt), ruter_adskilte: Boolsk)
+# PersonskatKapitalindkomstResultat(input: PersonskatKapitalindkomstInput, investeringsbevis_rutekontrol: PersonskatInvesteringsbevisRutekontrol, rentegrundlag_gyldigt: Boolsk, ligningslov6_input_gyldigt: Boolsk, ligningslov6a_input_gyldigt: Boolsk, virksomhedskapital_input_gyldigt: Boolsk, pbl53a_input_gyldigt: Boolsk, ejendomsavance_input_gyldigt: Boolsk, kursgevinst_input_gyldigt: Boolsk, fremleje_input_gyldigt: Boolsk, finansielle_postidentifikationer_entydige: Boolsk, finansielle_poster_gyldige: Boolsk, særlige_postidentifikationer_entydige: Boolsk, særlige_kapitalposter_gyldige: Boolsk, omkostninger_gyldige: Boolsk, alle_input_gyldige: Boolsk, ligningslov6_resultat: Ligningslov6KurstabResultat, ligningslov6a_resultat: Ligningslov6AResultat, rente_resultat: Par4Stk1Nr1Resultat, virksomhedskapital_resultat: PersonskatVirksomhedskapitalResultat, pbl53a_resultat: PersonskatPbl53AResultat, ejendomsdrift_resultat: PersonskatEjendomsdriftResultat, ejendomsavance_resultat: PersonskatEjendomsavanceResultat, kursgevinst_resultat: PersonskatKursgevinstResultat, fremleje_resultat: PersonskatFremlejeResultat, finansielle_postresultater: List(PersonskatPar4FinansielPostresultat), særlige_kapitalpostresultater: List(PersonskatPar4SærligKapitalpostresultat), omkostningsresultater: List(PersonskatKapitalomkostningsresultat), kapitalindkomst_resultat: Par4KapitalindkomstResultat)
 # PersonskatOrdinærtAktieårInput = UdenOrdinærtAktieår | MedOrdinærtAktieår(input: AktieavanceOrdinærPersonÅrsinput)
 # PersonskatUdbytteAktiv = PersonskatAlmindeligAktie | PersonskatAndelsbevis(forrentning: AndelsforeningUdlodning) | PersonskatInvesteringsselskabsandel(klassifikation: AktieavancePar19BPar19CInput, par17_modprøve: AktieavancePar17Modprøve) | PersonskatMinimumsinstitutsbevis(klassifikation: AktieavancePar21Par22Input, par17_modprøve: AktieavancePar17Modprøve) | PersonskatMedarbejderejeandel
 # PersonskatUdbytteFakta(identifikation: Tekst, udlodder: Ligningslov16AOrdinærUdlodder, modtager: Ligningslov16AOrdinærModtager, aktiv: PersonskatUdbytteAktiv, beløb_kroner: Heltal, par13a_kildefakta: AktieavancePar13AUdbytteKildefakta)
@@ -16580,6 +16583,38 @@ fraflytningen."
     | _ -> []
 }
 
+| personskat_investeringsbevis_par21_rutespor(aktieavance: PersonskatAktieavanceResultat) -> match aktieavance.input.ordinært_aktieår {
+    | UdenOrdinærtAktieår -> []
+    | MedOrdinærtAktieår(årsinput) -> map(årsinput.aktiebaserede_minimumsbevis_forløb, |forløb: AktieavancePar21InvesteringsbevisForløbsinput| PersonskatInvesteringsbevisRutespor(
+        beholdningsidentifikation = forløb.beholdning.identifikation,
+        udstederidentifikation = aktieavance_investeringsbevis_udstederidentifikation(forløb.beholdning)
+    ))
+}
+| personskat_investeringsbevis_par22_rutespor(kursgevinst: PersonskatKursgevinstInput) -> match kursgevinst {
+    | UdenKursgevinst -> []
+    | MedKursgevinst(fakta) -> map(fakta.øvrige_instrumenter.obligationsbaserede_minimumsbeviser, |forløb: KglÅrsnettoAbl22Forløb| PersonskatInvesteringsbevisRutespor(
+        beholdningsidentifikation = forløb.beholdning.identifikation,
+        udstederidentifikation = aktieavance_investeringsbevis_udstederidentifikation(forløb.beholdning)
+    ))
+}
+| personskat_investeringsbevis_konfliktende_udstederidentifikationer(par21_spor: List(PersonskatInvesteringsbevisRutespor), par22_spor: List(PersonskatInvesteringsbevisRutespor)) -> filter(distinct(map(par21_spor, |spor: PersonskatInvesteringsbevisRutespor| spor.udstederidentifikation)), |udstederidentifikation: Tekst| any(par22_spor, |spor: PersonskatInvesteringsbevisRutespor| spor.udstederidentifikation == udstederidentifikation))
+| personskat_investeringsbevis_rutekonflikt(udstederidentifikation: Tekst, par21_spor: List(PersonskatInvesteringsbevisRutespor), par22_spor: List(PersonskatInvesteringsbevisRutespor)) -> PersonskatInvesteringsbevisRutekonflikt(
+    udstederidentifikation = udstederidentifikation,
+    par21_beholdningsidentifikationer = map(filter(par21_spor, |spor: PersonskatInvesteringsbevisRutespor| spor.udstederidentifikation == udstederidentifikation), |spor: PersonskatInvesteringsbevisRutespor| spor.beholdningsidentifikation),
+    par22_beholdningsidentifikationer = map(filter(par22_spor, |spor: PersonskatInvesteringsbevisRutespor| spor.udstederidentifikation == udstederidentifikation), |spor: PersonskatInvesteringsbevisRutespor| spor.beholdningsidentifikation)
+)
+| personskat_investeringsbevis_rutekontrol(aktieavance: PersonskatAktieavanceResultat, kursgevinst: PersonskatKursgevinstInput) -> {
+    = par21_spor = personskat_investeringsbevis_par21_rutespor(aktieavance)
+    = par22_spor = personskat_investeringsbevis_par22_rutespor(kursgevinst)
+    = konfliktende_udstederidentifikationer = personskat_investeringsbevis_konfliktende_udstederidentifikationer(par21_spor, par22_spor)
+    PersonskatInvesteringsbevisRutekontrol(
+        aktiebaserede_par21_spor = par21_spor,
+        obligationsbaserede_par22_spor = par22_spor,
+        konflikter = map(konfliktende_udstederidentifikationer, |udstederidentifikation: Tekst| personskat_investeringsbevis_rutekonflikt(udstederidentifikation, par21_spor, par22_spor)),
+        ruter_adskilte = length(konfliktende_udstederidentifikationer) == 0
+    )
+}
+
 # PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) {
     | reklassifikation() -> personskat_kapital_reklassifikation(input.renter.næringsstatus)
     | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
@@ -16592,7 +16627,8 @@ fraflytningen."
     | ejendomsavancegrundlag_resultat() -> personskat_ejendomsavance_resultat(input.ejendomsavance, skatteår)
     | ejendomsavance_input_gyldigt() -> personskat_ejendomsavance_input_gyldigt(ejendomsavancegrundlag_resultat())
     | kursgevinst_resultat() -> personskat_kursgevinst_resultat_med_par32(input.kursgevinst, skatteår, ejendomsavancegrundlag_resultat(), par32)
-    | kursgevinst_input_gyldigt() -> kursgevinst_resultat().input_gyldigt
+    | investeringsbevis_rutekontrol() -> personskat_investeringsbevis_rutekontrol(aktieavance, input.kursgevinst)
+    | kursgevinst_input_gyldigt() -> kursgevinst_resultat().input_gyldigt && investeringsbevis_rutekontrol().ruter_adskilte
     | ejendomsavance_resultat() -> personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag_resultat(), kursgevinst_resultat(), skatteår)
     | fremleje_resultat() -> personskat_fremleje_resultat(input.fremleje, skatteår)
     | fremleje_input_gyldigt() -> personskat_fremleje_input_gyldigt(fremleje_resultat())
@@ -16623,7 +16659,7 @@ fraflytningen."
     | ejendomsdrift_resultat() -> personskat_ejendomsdrift_resultat(input.ejendomsdrift, skatteår)
     | ejendomsdriftposter() -> personskat_ejendomsdrift_kapitalposter(ejendomsdrift_resultat())
     | ejendomsavanceposter() -> hvis ejendomsavance_input_gyldigt() && kursgevinst_input_gyldigt() { personskat_ejendomsavance_kapitalposter(ejendomsavance_resultat()) } ellers { [] }
-    | kursgevinstposter() -> kursgevinst_resultat().kapitalposter
+    | kursgevinstposter() -> hvis kursgevinst_input_gyldigt() { kursgevinst_resultat().kapitalposter } ellers { [] }
     | fremlejeposter() -> personskat_fremleje_kapitalposter(fremleje_resultat())
     | finansielle_poster() -> personskat_par4_finansielle_kapitalposter(finansielle_postresultater())
     | særlige_kapitalposter() -> personskat_par4_særlige_kapitalposter(særlige_kapitalpostresultater())
@@ -16642,7 +16678,8 @@ fraflytningen."
         = ejendomsavancegrundlag = personskat_ejendomsavance_resultat(input.ejendomsavance, skatteår)
         = ejendomsavance_er_gyldig = personskat_ejendomsavance_input_gyldigt(ejendomsavancegrundlag)
         = kursgevinst = personskat_kursgevinst_resultat_med_par32(input.kursgevinst, skatteår, ejendomsavancegrundlag, par32)
-        = kursgevinst_er_gyldig = kursgevinst.input_gyldigt
+        = investeringsbevis_rutekontrol_resultat = personskat_investeringsbevis_rutekontrol(aktieavance, input.kursgevinst)
+        = kursgevinst_er_gyldig = kursgevinst.input_gyldigt && investeringsbevis_rutekontrol_resultat.ruter_adskilte
         = fordelt_ejendomsavance = personskat_ejendomsavance_resultat_med_fortjenestefordeling(ejendomsavancegrundlag, kursgevinst, skatteår)
         = fremleje = personskat_fremleje_resultat(input.fremleje, skatteår)
         = fremleje_er_gyldig = personskat_fremleje_input_gyldigt(fremleje)
@@ -16671,16 +16708,18 @@ fraflytningen."
         = ejendomsdrift = personskat_ejendomsdrift_resultat(input.ejendomsdrift, skatteår)
         = ejendomsdriftposter_resultat = personskat_ejendomsdrift_kapitalposter(ejendomsdrift)
         = ejendomsavanceposter_resultat = hvis ejendomsavance_er_gyldig && kursgevinst_er_gyldig { personskat_ejendomsavance_kapitalposter(fordelt_ejendomsavance) } ellers { [] }
+        = kursgevinstposter_resultat = hvis kursgevinst_er_gyldig { kursgevinst.kapitalposter } ellers { [] }
         = fremlejeposter_resultat = personskat_fremleje_kapitalposter(fremleje)
         = finansielle_poster_resultat = personskat_par4_finansielle_kapitalposter(finansielle_postresultater_resultat)
         = særlige_kapitalposter_resultat = personskat_par4_særlige_kapitalposter(særlige_kapitalpostresultater_resultat)
         = kapitalomkostninger_resultat = personskat_kapitalomkostninger_til_par4(omkostningsresultater_resultat)
         = samlet_kapitalindkomst = par4_kapitalindkomst_resultat(Par4KapitalindkomstInput(
-            poster = concat(concat(concat(concat(concat(concat(concat(concat(concat(renteposter_resultat, virksomhedskapital.kapitalposter), pbl53a.kapitalposter), ejendomsdriftposter_resultat), ejendomsavanceposter_resultat), kursgevinst.kapitalposter), fremlejeposter_resultat), finansielle_poster_resultat), særlige_kapitalposter_resultat), aktieavance.kapitalposter),
+            poster = concat(concat(concat(concat(concat(concat(concat(concat(concat(renteposter_resultat, virksomhedskapital.kapitalposter), pbl53a.kapitalposter), ejendomsdriftposter_resultat), ejendomsavanceposter_resultat), kursgevinstposter_resultat), fremlejeposter_resultat), finansielle_poster_resultat), særlige_kapitalposter_resultat), aktieavance.kapitalposter),
             omkostninger = kapitalomkostninger_resultat
         ))
         PersonskatKapitalindkomstResultat(
             input = input,
+            investeringsbevis_rutekontrol = investeringsbevis_rutekontrol_resultat,
             rentegrundlag_gyldigt = rentegrundlag_er_gyldigt,
             ligningslov6_input_gyldigt = ligningslov6_er_gyldig,
             ligningslov6a_input_gyldigt = ligningslov6a_er_gyldig,

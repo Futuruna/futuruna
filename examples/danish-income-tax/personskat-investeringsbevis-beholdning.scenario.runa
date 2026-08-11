@@ -17,7 +17,9 @@
 ----
 Scenarierne er ikke lovtekst. De kontrollerer den fælles, identificerede
 beholdning, som fører anskaffelsessummen efter ABL § 27 gennem gentagne
-delafståelser og videre til enten ABL § 21 eller ABL § 22.
+delafståelser og videre til enten ABL § 21 eller ABL § 22. Den kanoniske
+Personskat-grænse kontrollerer desuden, at samme udsteder ikke bruges i begge
+ruter for samme person, uden at sammenblande to ægtefællers beholdninger.
 ----
 
 --@begin:personskat_investeringsbevis_beholdning--
@@ -187,6 +189,86 @@ delafståelser og videre til enten ABL § 21 eller ABL § 22.
     ]
     ), 2026, 5400)
 
+= personskat_investeringsbevis_personskat_aktieavance = personskat_aktieavance_resultat(PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = personskat_investeringsbevis_par21_årsresultat.input),
+    særlige_aktiver = [],
+    udbytter = [],
+    ligningslov7n_poster = []
+    ), 2026)
+| personskat_investeringsbevis_personskat_kursgevinst(skatteyder_identifikation: Tekst, forløb: KglÅrsnettoAbl22Forløb) -> MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+    skatteyder_identifikation = skatteyder_identifikation,
+    ægtefælles_skatteyder_identifikation = None,
+    sælgerpantebreve = [],
+    gældsposter = [],
+    øvrige_instrumenter = KursgevinstlovÅrsnettoInput(
+        par25_valg = kgl_årsnetto_tomt_par25_årsvalg(),
+        fordringer = [],
+        valutainstrumenter = [],
+        obligationsbaserede_minimumsbeviser = [forløb]
+    ),
+    par32_kontraktforløb = UdenPar32Kontraktforløb
+))
+| personskat_investeringsbevis_personskat_kapitalindkomst(kursgevinst: PersonskatKursgevinstInput) -> {
+    = tomt_input = personskat_ingen_kapitalindkomst()
+    PersonskatKapitalindkomstInput(
+        renter = tomt_input.renter,
+        virksomhedskapital = tomt_input.virksomhedskapital,
+        pbl53a = tomt_input.pbl53a,
+        ejendomsdrift = tomt_input.ejendomsdrift,
+        ejendomsavance = tomt_input.ejendomsavance,
+        kursgevinst = kursgevinst,
+        fremleje = tomt_input.fremleje,
+        finansielle_poster = [],
+        særlige_kapitalposter = [],
+        omkostninger = []
+    )
+}
+= personskat_investeringsbevis_rutekonflikt_kursgevinst = personskat_investeringsbevis_personskat_kursgevinst(
+    "rutekonflikt-person",
+    personskat_investeringsbevis_abl22_forløb(abl22_klassifikationsresultat.input, personskat_investeringsbevis_fælles_beholdning)
+)
+= personskat_investeringsbevis_rutekonflikt_resultat = personskat_kapitalindkomst_resultat(
+    personskat_investeringsbevis_personskat_kapitalindkomst(personskat_investeringsbevis_rutekonflikt_kursgevinst),
+    2026,
+    personskat_investeringsbevis_personskat_aktieavance
+)
+
+= personskat_investeringsbevis_anden_udsteder_beholdning = AktieavanceInvesteringsbevisBeholdningsforløbsinput(
+    identifikation = "anden-udsteder-beholdning",
+    indkomstår = 2026,
+    grundlag = AblInvesteringsbevisDirekteBeholdning(
+        position = AktieavanceOrdinærPosition(
+            selskabsidentifikation = "DK-MIN-ANDEN-2",
+            kapitalmængde = AblAktiekapitalUdenPålydendeVærdi(antal_aktier = 10),
+            anskaffelsessum_kroner = 10000
+        ),
+        anskaffelsesdato = Dato(år = 2020, måned = 5, dag = 15)
+    ),
+    afståelser = [personskat_investeringsbevis_afståelse("anden-udsteder-afståelse", 9, 1, 5, 9000)]
+)
+= personskat_investeringsbevis_adskilte_ruter_resultat = personskat_kapitalindkomst_resultat(
+    personskat_investeringsbevis_personskat_kapitalindkomst(personskat_investeringsbevis_personskat_kursgevinst(
+        "adskilte-ruter-person",
+        personskat_investeringsbevis_abl22_forløb(abl22_klassifikationsresultat.input, personskat_investeringsbevis_anden_udsteder_beholdning)
+    )),
+    2026,
+    personskat_investeringsbevis_personskat_aktieavance
+)
+
+= personskat_investeringsbevis_ægtefælle_med_par21 = personskat_kapitalindkomst_resultat(
+    personskat_ingen_kapitalindkomst(),
+    2026,
+    personskat_investeringsbevis_personskat_aktieavance
+)
+= personskat_investeringsbevis_ægtefælle_med_par22 = personskat_kapitalindkomst_resultat(
+    personskat_investeringsbevis_personskat_kapitalindkomst(personskat_investeringsbevis_personskat_kursgevinst(
+        "ægtefælle-med-par22",
+        personskat_investeringsbevis_abl22_forløb(abl22_klassifikationsresultat.input, personskat_investeringsbevis_fælles_beholdning)
+    )),
+    2026,
+    personskat_aktieavance_resultat(personskat_ingen_aktieavance(), 2026)
+)
+
 | scenarie_investeringsbevis_fælles_beholdning_bevarer_basis: personskat_investeringsbevis_fælles_resultat -> personskat_investeringsbevis_fælles_resultat.input_gyldigt && length(personskat_investeringsbevis_fælles_resultat.afståelsesresultater) == 2 && personskat_investeringsbevis_fælles_resultat.afståelsesresultater[0].hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 4800 && personskat_investeringsbevis_fælles_resultat.afståelsesresultater[1].hændelsesresultat.anskaffelsessum_henført_til_afståelse_kroner == 3600 && aktieavance_ordinaer_position_antal_aktier(personskat_investeringsbevis_fælles_resultat.position_ultimo) == 3 && personskat_investeringsbevis_fælles_resultat.position_ultimo.anskaffelsessum_kroner == 3600 && aktieavance_investeringsbevis_rå_netto_kroner(personskat_investeringsbevis_fælles_resultat) == 4600
 | scenarie_investeringsbevis_par21_bruger_fælles_beholdning: personskat_investeringsbevis_par21_årsresultat -> personskat_investeringsbevis_par21_årsresultat.alle_input_gyldige && personskat_investeringsbevis_par21_årsresultat.aktiebaserede_minimumsbevis_forløbsresultater[0].effektivt_aktiebaseret_efter_par21 && length(personskat_investeringsbevis_par21_årsresultat.aktiebaserede_minimumsbevis_forløbsresultater[0].skatteposter) == 2 && personskat_investeringsbevis_par21_årsresultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 4600
 | scenarie_investeringsbevis_par22_bruger_fælles_beholdning: personskat_investeringsbevis_par22_årsresultat -> personskat_investeringsbevis_par22_årsresultat.input_gyldigt && length(personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser) == 2 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser[0].aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 3200 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].opgørelser[1].aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 1400 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].samlet_aktieavancebeskatningslov_resultat.netto_efter_aktieavancebeskatningsloven_kroner == 4600 && length(personskat_investeringsbevis_par22_årsresultat.aktieavancebeskatningslov_resultater) == 1 && personskat_investeringsbevis_par22_årsresultat.obligationsbevisresultater[0].beholdningsresultat.position_ultimo.anskaffelsessum_kroner == 3600
@@ -197,6 +279,9 @@ delafståelser og videre til enten ABL § 21 eller ABL § 22.
 | scenarie_investeringsbevis_par21_afviser_par22_klassifikation: personskat_investeringsbevis_forkert_par21_klassifikation -> personskat_investeringsbevis_forkert_par21_klassifikation.effektivt_aktiebaseret_efter_par21 == Falskt && personskat_investeringsbevis_forkert_par21_klassifikation.input_gyldigt == Falskt
 | scenarie_investeringsbevis_par22_afviser_par21_klassifikation: personskat_investeringsbevis_forkert_par22_klassifikation -> personskat_investeringsbevis_forkert_par22_klassifikation.input_gyldigt == Falskt && length(personskat_investeringsbevis_forkert_par22_klassifikation.aktieavancebeskatningslov_resultater) == 0
 | scenarie_investeringsbevis_afviser_splittede_beholdninger: personskat_investeringsbevis_dubleret_beholdningsidentifikation -> personskat_investeringsbevis_dubleret_beholdningsidentifikation.alle_input_gyldige == Falskt && personskat_investeringsbevis_dubleret_beholdningsidentifikation.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0 && personskat_investeringsbevis_splittet_udsteder_par21.alle_input_gyldige == Falskt && personskat_investeringsbevis_splittet_udsteder_par21.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0 && personskat_investeringsbevis_splittet_udsteder_par22.input_gyldigt == Falskt && length(personskat_investeringsbevis_splittet_udsteder_par22.aktieavancebeskatningslov_resultater) == 0
+| scenarie_investeringsbevis_afviser_modstridende_par21_par22_ruter: personskat_investeringsbevis_rutekonflikt_resultat -> personskat_investeringsbevis_rutekonflikt_resultat.alle_input_gyldige == Falskt && personskat_investeringsbevis_rutekonflikt_resultat.kursgevinst_input_gyldigt == Falskt && personskat_investeringsbevis_rutekonflikt_resultat.investeringsbevis_rutekontrol.ruter_adskilte == Falskt && length(personskat_investeringsbevis_rutekonflikt_resultat.investeringsbevis_rutekontrol.konflikter) == 1 && personskat_investeringsbevis_rutekonflikt_resultat.investeringsbevis_rutekontrol.konflikter[0].udstederidentifikation == "DK-MIN-FÆLLES-1" && personskat_investeringsbevis_rutekonflikt_resultat.investeringsbevis_rutekontrol.konflikter[0].par21_beholdningsidentifikationer == ["fælles-beholdning-1"] && personskat_investeringsbevis_rutekonflikt_resultat.investeringsbevis_rutekontrol.konflikter[0].par22_beholdningsidentifikationer == ["fælles-beholdning-1"] && length(personskat_investeringsbevis_rutekonflikt_resultat.kursgevinst_resultat.kapitalposter) == 1 && personskat_investeringsbevis_rutekonflikt_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| scenarie_investeringsbevis_tillader_adskilte_udstedere: personskat_investeringsbevis_adskilte_ruter_resultat -> personskat_investeringsbevis_adskilte_ruter_resultat.alle_input_gyldige && personskat_investeringsbevis_adskilte_ruter_resultat.kursgevinst_input_gyldigt && personskat_investeringsbevis_adskilte_ruter_resultat.investeringsbevis_rutekontrol.ruter_adskilte && length(personskat_investeringsbevis_adskilte_ruter_resultat.investeringsbevis_rutekontrol.konflikter) == 0 && personskat_investeringsbevis_adskilte_ruter_resultat.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 4000
+| scenarie_investeringsbevis_holder_ægtefællers_ruter_adskilt: personskat_investeringsbevis_ægtefælle_med_par21 -> personskat_investeringsbevis_ægtefælle_med_par21.alle_input_gyldige && personskat_investeringsbevis_ægtefælle_med_par21.investeringsbevis_rutekontrol.ruter_adskilte && length(personskat_investeringsbevis_ægtefælle_med_par21.investeringsbevis_rutekontrol.aktiebaserede_par21_spor) == 1 && length(personskat_investeringsbevis_ægtefælle_med_par21.investeringsbevis_rutekontrol.obligationsbaserede_par22_spor) == 0 && personskat_investeringsbevis_ægtefælle_med_par22.alle_input_gyldige && personskat_investeringsbevis_ægtefælle_med_par22.investeringsbevis_rutekontrol.ruter_adskilte && length(personskat_investeringsbevis_ægtefælle_med_par22.investeringsbevis_rutekontrol.aktiebaserede_par21_spor) == 0 && length(personskat_investeringsbevis_ægtefælle_med_par22.investeringsbevis_rutekontrol.obligationsbaserede_par22_spor) == 1 && personskat_investeringsbevis_ægtefælle_med_par22.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 4600
 
 ? scenarie_investeringsbevis_fælles_beholdning_bevarer_basis
 ? scenarie_investeringsbevis_par21_bruger_fælles_beholdning
@@ -208,6 +293,9 @@ delafståelser og videre til enten ABL § 21 eller ABL § 22.
 ? scenarie_investeringsbevis_par21_afviser_par22_klassifikation
 ? scenarie_investeringsbevis_par22_afviser_par21_klassifikation
 ? scenarie_investeringsbevis_afviser_splittede_beholdninger
+? scenarie_investeringsbevis_afviser_modstridende_par21_par22_ruter
+? scenarie_investeringsbevis_tillader_adskilte_udstedere
+? scenarie_investeringsbevis_holder_ægtefællers_ruter_adskilt
 
-@ print("Investeringsbevisbeholdning: 10 kildebaserede scenarier kontrolleret")
+@ print("Investeringsbevisbeholdning: 13 kildebaserede scenarier kontrolleret")
 --@end:personskat_investeringsbevis_beholdning--
