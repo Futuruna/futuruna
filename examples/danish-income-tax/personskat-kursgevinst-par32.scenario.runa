@@ -128,6 +128,7 @@ færdige § 32-årsresultat føres videre til Personskatteloven.
         position_primo = personskat_par32_scenarie_aktieposition,
         hændelser = [personskat_par32_scenarie_aktiesalg]
     )],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )

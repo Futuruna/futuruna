@@ -6663,6 +6663,230 @@
     help = Some("Angiv kun den dokumenterede restsaldo fra det senest afsluttede indkomstår. Futuruna anvender årets egne udbytter og gevinster før en eventuel overførsel mellem ægtefæller."),
     unit = Some("kr.")
 )
+= personskat_felt_par25_rettighedsforløb = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.rettighedsforløb",
+    label = "Noterede aktieretter og tegningsretter",
+    question = Some("Har du haft tildeling, køb, salg eller bortfald af noterede aktieretter eller tegningsretter i indkomståret?"),
+    help = Some("Tilføj ét samlet forløb pr. selskab og rettighedsserie. Futuruna anvender FIFO, aktie for aktie-metoden og oplysningsbetingelsen efter ABL §§ 5, 13 A, 14 og 25."),
+    unit = None
+)
+= personskat_felt_par25_selskabsidentifikation = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Rettighed::underliggende_selskabsidentifikation),
+    label = "Selskabet bag rettigheden",
+    question = Some("Hvilken stabil identifikation har selskabet, hvis aktier rettigheden vedrører?"),
+    help = Some("Brug samme identifikation for alle partier og hændelser i rettighedsserien."),
+    unit = None
+)
+= personskat_felt_par25_rettighedsserie = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Rettighed::rettighedsserie),
+    label = "Rettighedsserie",
+    question = Some("Hvilken juridisk serie eller vilkårsidentifikation har aktie- eller tegningsretten?"),
+    help = Some("Rettigheder med samme vilkår skal bruge samme serie på tværs af depoter. Samme selskab og serie må kun forekomme i ét årsforløb, så FIFO-beholdningen ikke deles."),
+    unit = None
+)
+= personskat_felt_par25_rettighedsart = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Rettighed::art),
+    label = "Rettighedens art",
+    question = Some("Er der tale om en aktieret eller en tegningsret?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_lovregime = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Rettighed::lovregime),
+    label = "Rettighedens lovregime",
+    question = Some("Er rettigheden omfattet af aktieavancebeskatningsloven eller af medarbejderordningen i ligningslovens § 28?"),
+    help = Some("Tegningsretter efter ligningslovens § 28 behandles ikke i denne ABL § 25-gren."),
+    unit = None
+)
+= personskat_felt_par25_markedsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Rettighed::underliggende_aktiers_markedsstatus),
+    label = "De underliggende aktiers markedsstatus",
+    question = Some("Er de underliggende aktier optaget til handel på et reguleret marked eller en multilateral handelsfacilitet?"),
+    help = Some("Rettigheder til aktier på en multilateral handelsfacilitet omfattes af det aktuelle regime fra 2024."),
+    unit = None
+)
+= personskat_felt_par25_beskatningsprincip = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Position::beskatningsprincip),
+    label = "Beskatningsprincip for rettigheden",
+    question = Some("Opgøres gevinst og tab efter realisationsprincippet eller lagerprincippet?"),
+    help = Some("ABL § 25 finder ikke anvendelse, når gevinst og tab opgøres efter lagerprincippet."),
+    unit = None
+)
+= personskat_felt_par25_primopartier = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.rettighedsforløb.position_primo.partier",
+    label = "Rettighedspartier ved årets begyndelse",
+    question = Some("Hvilke uudnyttede partier af rettighedsserien fandtes ved indkomstårets begyndelse?"),
+    help = Some("Medtag kun partier erhvervet før indkomståret og anfør dem i FIFO-rækkefølge."),
+    unit = None
+)
+= personskat_felt_par25_parti_erhvervelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Parti::erhvervelsesår),
+    label = "Partiets erhvervelsesår",
+    question = Some("I hvilket tidligere indkomstår blev dette rettighedsparti erhvervet?"),
+    help = None,
+    unit = Some("år")
+)
+= personskat_felt_par25_parti_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Parti::erhvervelsesrækkefølge),
+    label = "Partiets erhvervelsesrækkefølge",
+    question = Some("Hvilket nummer i årets kronologiske erhvervelsesrækkefølge har partiet?"),
+    help = Some("Nummeret skal være positivt og entydigt inden for erhvervelsesåret."),
+    unit = None
+)
+= personskat_felt_par25_parti_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Parti::resterende_rettigheder),
+    label = "Resterende rettigheder i partiet",
+    question = Some("Hvor mange rettigheder var uudnyttede ved indkomstårets begyndelse?"),
+    help = None,
+    unit = Some("stk.")
+)
+= personskat_felt_par25_parti_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Parti::resterende_anskaffelsessum_kroner),
+    label = "Resterende anskaffelsessum for partiet",
+    question = Some("Hvor stor en dokumenteret anskaffelsessum var knyttet til de resterende rettigheder?"),
+    help = Some("Tildelte rettigheder i egenskab af aktionær har en anskaffelsessum på 0 kr. efter ABL § 25, stk. 2."),
+    unit = Some("kr.")
+)
+= personskat_felt_par25_parti_oplysningsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Parti::oplysningsstatus),
+    label = "Oplysningsstatus for partiet",
+    question = Some("Er oplysningsbetingelsen efter ABL § 14 opfyldt for rettighedspartiet?"),
+    help = Some("Status følger det konkrete FIFO-parti og afgør, om et tab kan modregnes."),
+    unit = None
+)
+= personskat_felt_par25_hændelser = Beregningsfelt(
+    path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.rettighedsforløb.hændelser",
+    label = "Årets hændelser for rettighedsserien",
+    question = Some("Hvilke tildelinger, køb, andre anskaffelser, afståelser eller bortfald skete i indkomståret?"),
+    help = Some("Tilføj hændelserne i kronologisk rækkefølge. Afståelse og bortfald henføres automatisk til de først erhvervede partier."),
+    unit = None
+)
+= personskat_felt_par25_hændelsesart = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::$variant),
+    label = "Rettighedshændelsens art",
+    question = Some("Er hændelsen en aktionærtildeling, et køb, en anden anskaffelse, en afståelse eller et bortfald?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_tildeling_erhvervelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25TildelingSomAktionær::erhvervelsesår),
+    label = "Tildelingens erhvervelsesår",
+    question = Some("I hvilket indkomstår blev rettighederne tildelt?"),
+    help = Some("Tildelingen skal tilhøre beregningens indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_par25_tildeling_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25TildelingSomAktionær::erhvervelsesrækkefølge),
+    label = "Tildelingens rækkefølge",
+    question = Some("Hvilket nummer i årets erhvervelsesrækkefølge har tildelingen?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_tildeling_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25TildelingSomAktionær::antal_rettigheder),
+    label = "Antal tildelte rettigheder",
+    question = Some("Hvor mange rettigheder blev tildelt i egenskab af aktionær?"),
+    help = Some("Anskaffelsessummen afledes til 0 kr."),
+    unit = Some("stk.")
+)
+= personskat_felt_par25_tildeling_oplysningsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25TildelingSomAktionær::oplysningsstatus),
+    label = "Oplysningsstatus for tildelingen",
+    question = Some("Hvordan er de tildelte rettigheder oplyst eller indberettet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_køb_erhvervelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Køb::erhvervelsesår),
+    label = "Købets erhvervelsesår",
+    question = Some("I hvilket indkomstår blev rettighederne købt?"),
+    help = Some("Købet skal tilhøre beregningens indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_par25_køb_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Køb::erhvervelsesrækkefølge),
+    label = "Købets rækkefølge",
+    question = Some("Hvilket nummer i årets erhvervelsesrækkefølge har købet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_køb_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Køb::antal_rettigheder),
+    label = "Antal købte rettigheder",
+    question = Some("Hvor mange rettigheder blev købt?"),
+    help = None,
+    unit = Some("stk.")
+)
+= personskat_felt_par25_købesum = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Køb::købesum_kroner),
+    label = "Købesum for rettighederne",
+    question = Some("Hvad var den samlede dokumenterede købesum?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par25_køb_oplysningsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Køb::oplysningsstatus),
+    label = "Oplysningsstatus for købet",
+    question = Some("Hvordan er de købte rettigheder oplyst eller indberettet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_anden_erhvervelsesår = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25AndenAnskaffelse::erhvervelsesår),
+    label = "Den anden anskaffelses erhvervelsesår",
+    question = Some("I hvilket indkomstår blev rettighederne anskaffet?"),
+    help = Some("Anskaffelsen skal tilhøre beregningens indkomstår."),
+    unit = Some("år")
+)
+= personskat_felt_par25_anden_rækkefølge = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25AndenAnskaffelse::erhvervelsesrækkefølge),
+    label = "Den anden anskaffelses rækkefølge",
+    question = Some("Hvilket nummer i årets erhvervelsesrækkefølge har anskaffelsen?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_anden_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25AndenAnskaffelse::antal_rettigheder),
+    label = "Antal rettigheder ved anden anskaffelse",
+    question = Some("Hvor mange rettigheder blev anskaffet?"),
+    help = None,
+    unit = Some("stk.")
+)
+= personskat_felt_par25_anden_anskaffelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25AndenAnskaffelse::anskaffelsessum_kroner),
+    label = "Anskaffelsessum ved anden anskaffelse",
+    question = Some("Hvad var den samlede dokumenterede anskaffelsessum?"),
+    help = None,
+    unit = Some("kr.")
+)
+= personskat_felt_par25_anden_oplysningsstatus = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25AndenAnskaffelse::oplysningsstatus),
+    label = "Oplysningsstatus for den anden anskaffelse",
+    question = Some("Hvordan er de anskaffede rettigheder oplyst eller indberettet?"),
+    help = None,
+    unit = None
+)
+= personskat_felt_par25_afståelse_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Afståelse::antal_rettigheder),
+    label = "Antal afståede rettigheder",
+    question = Some("Hvor mange rettigheder blev afstået?"),
+    help = None,
+    unit = Some("stk.")
+)
+= personskat_felt_par25_afståelsessum = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Afståelse::afståelsessum_kroner),
+    label = "Afståelsessum for rettighederne",
+    question = Some("Hvad var den samlede dokumenterede afståelsessum?"),
+    help = Some("Futuruna henfører summen forholdsmæssigt til de forbrugte FIFO-partier."),
+    unit = Some("kr.")
+)
+= personskat_felt_par25_bortfald_antal = TypetBeregningsfelt(
+    path = refof(AktieavancePar25Hændelse::AblPar25Bortfald::antal_rettigheder),
+    label = "Antal bortfaldne rettigheder",
+    question = Some("Hvor mange rettigheder bortfaldt uden afståelsessum?"),
+    help = Some("Bortfald behandles som afståelse med 0 kr. i afståelsessum efter ABL § 30."),
+    unit = Some("stk.")
+)
 = personskat_felt_ordinært_aktieår_investeringsbeviser = Beregningsfelt(
     path = "aktieavance.ordinært_aktieår.MedOrdinærtAktieår.input.investeringsbeviser",
     label = "Investeringsbeviser efter ABL § 13 A",
@@ -12694,6 +12918,45 @@
         Source(value = aktieavancebeskatningsloven_lbk1098_par12_til_par15),
     )
 )
+= personskat_metadata_par25_rettigheder = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_par25_rettighedsforløb),
+        Field(value = personskat_felt_par25_selskabsidentifikation),
+        Field(value = personskat_felt_par25_rettighedsserie),
+        Field(value = personskat_felt_par25_rettighedsart),
+        Field(value = personskat_felt_par25_lovregime),
+        Field(value = personskat_felt_par25_markedsstatus),
+        Field(value = personskat_felt_par25_beskatningsprincip),
+        Field(value = personskat_felt_par25_primopartier),
+        Field(value = personskat_felt_par25_parti_erhvervelsesår),
+        Field(value = personskat_felt_par25_parti_rækkefølge),
+        Field(value = personskat_felt_par25_parti_antal),
+        Field(value = personskat_felt_par25_parti_anskaffelsessum),
+        Field(value = personskat_felt_par25_parti_oplysningsstatus),
+        Field(value = personskat_felt_par25_hændelser),
+        Field(value = personskat_felt_par25_hændelsesart),
+        Field(value = personskat_felt_par25_tildeling_erhvervelsesår),
+        Field(value = personskat_felt_par25_tildeling_rækkefølge),
+        Field(value = personskat_felt_par25_tildeling_antal),
+        Field(value = personskat_felt_par25_tildeling_oplysningsstatus),
+        Field(value = personskat_felt_par25_køb_erhvervelsesår),
+        Field(value = personskat_felt_par25_køb_rækkefølge),
+        Field(value = personskat_felt_par25_køb_antal),
+        Field(value = personskat_felt_par25_købesum),
+        Field(value = personskat_felt_par25_køb_oplysningsstatus),
+        Field(value = personskat_felt_par25_anden_erhvervelsesår),
+        Field(value = personskat_felt_par25_anden_rækkefølge),
+        Field(value = personskat_felt_par25_anden_antal),
+        Field(value = personskat_felt_par25_anden_anskaffelsessum),
+        Field(value = personskat_felt_par25_anden_oplysningsstatus),
+        Field(value = personskat_felt_par25_afståelse_antal),
+        Field(value = personskat_felt_par25_afståelsessum),
+        Field(value = personskat_felt_par25_bortfald_antal),
+        Source(value = aktieavancebeskatningsloven_lbk1098_par1_stk4_par5_par24_par25_par26_par30),
+        AmendmentSource(value = aktieavancebeskatningsloven_lov1563_par8_stk6),
+        Guidance(value = aktieavancebeskatningsloven_juridisk_vejledning_opgørelsesmetoder),
+    )
+)
 = personskat_metadata_udbytter = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_udbytter),
@@ -13220,6 +13483,7 @@
     aktieavance = (
         personskat_metadata_udbytter,
         personskat_metadata_ordinært_aktieår,
+        personskat_metadata_par25_rettigheder,
         personskat_metadata_aktie_par13a_kildefakta,
         personskat_metadata_aktiebeholdninger,
         personskat_metadata_aktie_par5a,
@@ -15236,7 +15500,7 @@ fraflytningen."
     = forberedelse = personskat_aktieavance_forberedelse_fra_resultater(input, skatteår, særlige.resultater, basisforberedelse.udbytter)
     personskat_aktieavance_resultat_fra_forberedelse(forberedelse, ordinært_aktieår)
 }
-| personskat_tomt_ordinært_aktieårsinput(skatteår: Heltal) -> AktieavanceOrdinærPersonÅrsinput(indkomstår = skatteår, hændelsesforløb = [], investeringsbeviser = [], fremført_tab_efter_par13a_kroner = 0)
+| personskat_tomt_ordinært_aktieårsinput(skatteår: Heltal) -> AktieavanceOrdinærPersonÅrsinput(indkomstår = skatteår, hændelsesforløb = [], rettighedsforløb = [], investeringsbeviser = [], fremført_tab_efter_par13a_kroner = 0)
 | personskat_ordinært_aktieår_parinput(input: PersonskatOrdinærtAktieårInput, skatteår: Heltal) -> match input { | UdenOrdinærtAktieår -> personskat_tomt_ordinært_aktieårsinput(skatteår) | MedOrdinærtAktieår(årsinput) -> årsinput }
 | personskat_ordinært_aktieår_resultat_fra_par(input: PersonskatOrdinærtAktieårInput, resultat: AktieavanceOrdinærPersonÅrsresultat) -> match input {
     | MedOrdinærtAktieår(_) -> BeregnetOrdinærtAktieår(resultat = resultat)

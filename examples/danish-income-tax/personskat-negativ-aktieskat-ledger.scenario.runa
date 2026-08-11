@@ -112,6 +112,7 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
             position_primo = negativ_aktieskat_ledger_tabsposition,
             hændelser = [negativ_aktieskat_ledger_tabsafståelse]
         )],
+        rettighedsforløb = [],
         investeringsbeviser = [],
         fremført_tab_efter_par13a_kroner = 0
     )),

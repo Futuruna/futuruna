@@ -330,8 +330,8 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 # AktieavanceOrdinærÅrsresultat(input: AktieavanceOrdinærÅrsinput, indkomstår: Heltal, skattepligtige_gevinster_efter_par12_kroner: Heltal, gevinster_for_aktier_optaget_til_handel_efter_par12_kroner: Heltal, gevinster_på_reguleret_marked_efter_par12_kroner: Heltal, gevinster_på_multilateral_handelsfacilitet_efter_par12_kroner: Heltal, bruttotab_kroner: Heltal, direkte_fradrag_efter_par13_kroner: Heltal, årets_tab_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, årets_og_fremførte_tab_efter_par13a_kroner: Heltal, nettogevinster_på_markedsaktier_efter_årets_par13a_tab_kroner: Heltal, eget_modregningsgrundlag_efter_par13a_kroner: Heltal, tab_modregnet_i_egne_udbytter_og_gevinster_kroner: Heltal, positivt_nettobeløb_efter_egen_modregning_kroner: Heltal, tab_overført_til_ægtefælle_kroner: Heltal, tab_modtaget_fra_ægtefælle_kroner: Heltal, tab_fremført_til_følgende_indkomstår_kroner: Heltal, fradragsberettiget_tab_i_egen_aktieindkomst_kroner: Heltal, netto_aktieindkomst_fra_ordinære_aktier_kroner: Heltal, medregnes_i_skattepligtig_indkomst: Boolsk)
 # AktieavanceOrdinærÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærÅrsresultat, ægtefælle: AktieavanceOrdinærÅrsresultat)
 # AktieavanceOrdinærHændelsesforløbInput(position_primo: AktieavanceOrdinærPosition, hændelser: List(AktieavanceOrdinærHændelse))
-# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), fremført_tab_efter_par13a_kroner: Heltal)
-# AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærHændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
+# AktieavanceOrdinærPersonÅrsinput(indkomstår: Heltal, hændelsesforløb: List(AktieavanceOrdinærHændelsesforløbInput), rettighedsforløb: List(AktieavancePar25HændelsesforløbInput), investeringsbeviser: List(AktieavancePar13AInvesteringsbevisInput), fremført_tab_efter_par13a_kroner: Heltal)
+# AktieavanceOrdinærPersonÅrsresultat(input: AktieavanceOrdinærPersonÅrsinput, hændelsesforløbsresultater: List(AktieavanceOrdinærHændelsesforløbResultat), rettighedsforløbsresultater: List(AktieavancePar25HændelsesforløbResultat), investeringsbevis_resultater: List(AktieavancePar13AInvesteringsbevisResultat), alle_input_gyldige: Boolsk, årsresultat: AktieavanceOrdinærÅrsresultat)
 # AktieavanceOrdinærPersonÅrsparResultat(par_gyldigt: Boolsk, gift_og_samlevende_ved_årets_udgang: Boolsk, hovedperson: AktieavanceOrdinærPersonÅrsresultat, ægtefælle: AktieavanceOrdinærPersonÅrsresultat)
 
 | aktieavance_ordinaer_største_fælles_divisor(venstre: Heltal, højre: Heltal) -> hvis højre == 0 { venstre } ellers { aktieavance_ordinaer_største_fælles_divisor(højre, venstre % højre) }
@@ -750,14 +750,19 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 
 # AktieavanceOrdinærPersonÅrssag(input: AktieavanceOrdinærPersonÅrsinput, modregningsgrundlag: AktieavanceOrdinærPar13AModregningsgrundlag) {
     | hændelsesforløbsresultater() -> map(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| aktieavance_ordinaer_hændelsesforløb(forløb.position_primo, forløb.hændelser))
+    | rettighedsforløbsresultater() -> map(input.rettighedsforløb, |forløb: AktieavancePar25HændelsesforløbInput| aktieavance_par25_hændelsesforløb(forløb.position_primo, forløb.hændelser))
     | investeringsbevis_resultater() -> map(input.investeringsbeviser, aktieavance_par13a_investeringsbevis_resultat)
     | hændelsesforløb_gyldige() -> all(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| resultat.alle_hændelser_gyldige)
     | par44_statusændringer_matcher_indkomstår() -> all(input.hændelsesforløb, |forløb: AktieavanceOrdinærHændelsesforløbInput| all(forløb.hændelser, |hændelse: AktieavanceOrdinærHændelse| aktieavance_ordinaer_par44_statusændring_matcher_indkomstår(hændelse, input.indkomstår)))
+    | rettighedsforløb_gyldige() -> all(rettighedsforløbsresultater(), |resultat: AktieavancePar25HændelsesforløbResultat| resultat.alle_hændelser_gyldige)
+    | rettighedsforløb_matcher_indkomstår() -> all(input.rettighedsforløb, |forløb: AktieavancePar25HændelsesforløbInput| aktieavance_par25_hændelsesforløb_matcher_indkomstår(forløb, input.indkomstår))
+    | rettighedsforløb_entydige() -> aktieavance_par25_hændelsesforløb_identifikationer_entydige(input.rettighedsforløb)
     | investeringsbeviser_gyldige() -> all(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.input_gyldigt && resultat.input.indkomstår == input.indkomstår)
-    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && par44_statusændringer_matcher_indkomstår() && investeringsbeviser_gyldige()
+    | alle_input_gyldige() -> input.indkomstår > 0 && input.fremført_tab_efter_par13a_kroner >= 0 && hændelsesforløb_gyldige() && par44_statusændringer_matcher_indkomstår() && rettighedsforløb_gyldige() && rettighedsforløb_matcher_indkomstår() && rettighedsforløb_entydige() && investeringsbeviser_gyldige()
     | hændelsesskatteposter() -> flat_map(hændelsesforløbsresultater(), |resultat: AktieavanceOrdinærHændelsesforløbResultat| aktieavance_skatteposter_fra_ordinaere_hændelsesresultater(resultat.hændelsesresultater))
+    | rettighedsskatteposter() -> flat_map(rettighedsforløbsresultater(), |resultat: AktieavancePar25HændelsesforløbResultat| aktieavance_skatteposter_fra_par25_hændelsesresultater(resultat.hændelsesresultater))
     | investeringsbevis_skatteposter() -> map(investeringsbevis_resultater(), |resultat: AktieavancePar13AInvesteringsbevisResultat| resultat.skattepost)
-    | skatteposter() -> hvis alle_input_gyldige() { concat(hændelsesskatteposter(), investeringsbevis_skatteposter()) } ellers { [] }
+    | skatteposter() -> hvis alle_input_gyldige() { concat(concat(hændelsesskatteposter(), rettighedsskatteposter()), investeringsbevis_skatteposter()) } ellers { [] }
     | årsinput() -> AktieavanceOrdinærÅrsinput(
         indkomstår = input.indkomstår,
         skatteposter = skatteposter(),
@@ -767,6 +772,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
     | resultat() -> AktieavanceOrdinærPersonÅrsresultat(
         input = input,
         hændelsesforløbsresultater = hændelsesforløbsresultater(),
+        rettighedsforløbsresultater = rettighedsforløbsresultater(),
         investeringsbevis_resultater = investeringsbevis_resultater(),
         alle_input_gyldige = alle_input_gyldige(),
         årsresultat = aktieavance_ordinaer_årsresultat(årsinput())
@@ -778,6 +784,7 @@ skattesubjekt efter SEL § 1 og ABL-dækning for værdipapiret.
 | aktieavance_ordinaer_person_årsresultat_med_årsresultat(personresultat: AktieavanceOrdinærPersonÅrsresultat, årsresultat: AktieavanceOrdinærÅrsresultat) -> AktieavanceOrdinærPersonÅrsresultat(
     input = personresultat.input,
     hændelsesforløbsresultater = personresultat.hændelsesforløbsresultater,
+    rettighedsforløbsresultater = personresultat.rettighedsforløbsresultater,
     investeringsbevis_resultater = personresultat.investeringsbevis_resultater,
     alle_input_gyldige = personresultat.alle_input_gyldige,
     årsresultat = årsresultat
@@ -883,6 +890,7 @@ regler anvendelse.
 # AktieavancePar25Parti(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, resterende_rettigheder: Heltal, resterende_anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus)
 # AktieavancePar25Position(rettighed: AktieavancePar25Rettighed, beskatningsprincip: AktieavancePar25Beskatningsprincip, partier: List(AktieavancePar25Parti))
 # AktieavancePar25Hændelse = AblPar25TildelingSomAktionær(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Køb(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, købesum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25AndenAnskaffelse(erhvervelsesår: Heltal, erhvervelsesrækkefølge: Heltal, antal_rettigheder: Heltal, anskaffelsessum_kroner: Heltal, oplysningsstatus: AktieavanceOrdinærOplysningsstatus) | AblPar25Afståelse(antal_rettigheder: Heltal, afståelsessum_kroner: Heltal) | AblPar25Bortfald(antal_rettigheder: Heltal)
+# AktieavancePar25HændelsesforløbInput(position_primo: AktieavancePar25Position, hændelser: List(AktieavancePar25Hændelse))
 # AktieavancePar25FifoResultat(resterende_antal_at_henføre: Heltal, anskaffelsessum_henført_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, alle_forbrugte_partier_opfylder_par14: Boolsk, resterende_partier: List(AktieavancePar25Parti))
 # AktieavancePar25Hændelsesresultat(position_før: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse, position_gyldig: Boolsk, omfattet_af_par25_stk1: Boolsk, hændelse_gyldig: Boolsk, anskaffelsessum_henført_til_afståelse_kroner: Heltal, bruttogevinst_kroner: Heltal, bruttotab_kroner: Heltal, alle_forbrugte_partier_opfylder_oplysningsbetingelsen_efter_par14: Boolsk, skattepligtig_gevinst_efter_par12_kroner: Heltal, tab_til_modregning_efter_par13a_kroner: Heltal, tab_afskåret_efter_par14_kroner: Heltal, position_efter: AktieavancePar25Position)
 # AktieavancePar25Hændelsesforløbstilstand(position: AktieavancePar25Position, hændelsesresultater: List(AktieavancePar25Hændelsesresultat), alle_hændelser_gyldige: Boolsk)
@@ -908,6 +916,10 @@ regler anvendelse.
 | aktieavance_par25_oplysningsstatus(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25TildelingSomAktionær(_, _, _, status) -> status | AblPar25Køb(_, _, _, _, status) -> status | AblPar25AndenAnskaffelse(_, _, _, _, status) -> status | _ -> AblOplysningsbetingelseIkkeOpfyldt }
 | aktieavance_par25_afståelsessum_kroner(hændelse: AktieavancePar25Hændelse) -> match hændelse { | AblPar25Afståelse(_, afståelsessum_kroner) -> afståelsessum_kroner | _ -> 0 }
 | aktieavance_par25_anskaffelse_følger_seneste_parti(position: AktieavancePar25Position, hændelse: AktieavancePar25Hændelse) -> length(position.partier) == 0 || aktieavance_par25_erhvervelsesår(hændelse) > last(position.partier).erhvervelsesår || aktieavance_par25_erhvervelsesår(hændelse) == last(position.partier).erhvervelsesår && aktieavance_par25_erhvervelsesrækkefølge(hændelse) > last(position.partier).erhvervelsesrækkefølge
+| aktieavance_par25_hændelse_matcher_indkomstår(hændelse: AktieavancePar25Hændelse, indkomstår: Heltal) -> hvis aktieavance_par25_er_anskaffelse(hændelse) { aktieavance_par25_erhvervelsesår(hændelse) == indkomstår } ellers { Sandt }
+| aktieavance_par25_hændelsesforløb_matcher_indkomstår(forløb: AktieavancePar25HændelsesforløbInput, indkomstår: Heltal) -> all(forløb.position_primo.partier, |parti: AktieavancePar25Parti| parti.erhvervelsesår < indkomstår) && all(forløb.hændelser, |hændelse: AktieavancePar25Hændelse| aktieavance_par25_hændelse_matcher_indkomstår(hændelse, indkomstår))
+| aktieavance_par25_rettigheder_samme_identifikation(venstre: AktieavancePar25Rettighed, højre: AktieavancePar25Rettighed) -> venstre.underliggende_selskabsidentifikation == højre.underliggende_selskabsidentifikation && venstre.rettighedsserie == højre.rettighedsserie
+| aktieavance_par25_hændelsesforløb_identifikationer_entydige(forløb: List(AktieavancePar25HændelsesforløbInput)) -> all(forløb, |aktuelt: AktieavancePar25HændelsesforløbInput| length(filter(forløb, |andet: AktieavancePar25HændelsesforløbInput| aktieavance_par25_rettigheder_samme_identifikation(aktuelt.position_primo.rettighed, andet.position_primo.rettighed))) == 1)
 
 # AktieavancePar25FifoPartiSag(parti: AktieavancePar25Parti, senere_partier: List(AktieavancePar25Parti), antal_at_henføre: Heltal, afståelsessum_at_henføre_kroner: Heltal) {
     | antal_fra_partiet() -> penge_mindste_beløb(antal_at_henføre, parti.resterende_rettigheder)
@@ -957,7 +969,7 @@ regler anvendelse.
         afståelsessum_at_henføre_kroner = aktieavance_par25_afståelsessum_kroner(hændelse)
     )
     | anskaffelse_gyldig() -> aktieavance_par25_er_anskaffelse(hændelse) && antal_rettigheder() > 0 && aktieavance_par25_erhvervelsesår(hændelse) > 0 && aktieavance_par25_erhvervelsesrækkefølge(hændelse) > 0 && aktieavance_par25_anskaffelsessum_kroner(hændelse) >= 0 && aktieavance_par25_anskaffelse_følger_seneste_parti(position, hændelse) && aktieavance_par25_finder_anvendelse(position.rettighed, position.beskatningsprincip, aktieavance_par25_erhvervelsesår(hændelse))
-    | afståelse_gyldig() -> aktieavance_par25_er_afståelse(hændelse) && antal_rettigheder() > 0 && aktieavance_par25_afståelsessum_kroner(hændelse) >= 0 && fifo_resultat().resterende_antal_at_henføre == 0
+    | afståelse_gyldig() -> aktieavance_par25_er_afståelse(hændelse) && antal_rettigheder() > 0 && antal_rettigheder() <= aktieavance_par25_position_antal_rettigheder(position) && aktieavance_par25_afståelsessum_kroner(hændelse) >= 0 && fifo_resultat().resterende_antal_at_henføre == 0
     | hændelse_gyldig() -> position_gyldig() && omfattet_af_par25_stk1() && (anskaffelse_gyldig() || afståelse_gyldig())
     | anskaffelsessum_henført_til_afståelse_kroner() -> 0
     | exception abl_par25_aktie_for_aktie_anskaffelsessum anskaffelsessum_henført_til_afståelse_kroner() -> fifo_resultat().anskaffelsessum_henført_kroner under hændelse_gyldig() && aktieavance_par25_er_afståelse(hændelse)

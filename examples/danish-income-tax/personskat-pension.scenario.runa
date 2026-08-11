@@ -477,6 +477,7 @@
             hændelser = [personskat_par15a_aktieafståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )

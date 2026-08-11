@@ -113,6 +113,7 @@ fraflytterskat efter ABL §§ 37-40. Scenarierne er ikke lovtekst.
         position_primo = fraflytterskat_kontekst_negativ_position,
         hændelser = [fraflytterskat_kontekst_negativ_afståelse]
     )],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 ))

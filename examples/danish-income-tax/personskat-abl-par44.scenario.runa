@@ -68,6 +68,7 @@ når den kanoniske personskatteberegning. Scenariet er ikke lovtekst.
         position_primo = personskat_par44_position_primo,
         hændelser = [personskat_par44_statusændring, personskat_par44_afståelse]
     )],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )

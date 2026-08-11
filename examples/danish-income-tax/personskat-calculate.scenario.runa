@@ -623,6 +623,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             hændelser = [personskat_calculate_ordinær_afståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
@@ -670,6 +671,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             hændelser = [personskat_calculate_par5a_afståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
@@ -716,6 +718,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             hændelser = [personskat_calculate_boligret_afståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
@@ -1237,6 +1240,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             hændelser = [personskat_calculate_stort_ordinært_tab_afståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
@@ -1383,6 +1387,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             hændelser = [personskat_calculate_stort_ordinært_tab_afståelse]
         )
     ],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
@@ -1472,6 +1477,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ordinært_aktieår = MedOrdinærtAktieår(input = AktieavanceOrdinærPersonÅrsinput(
         indkomstår = 2026,
         hændelsesforløb = [AktieavanceOrdinærHændelsesforløbInput(position_primo = personskat_calculate_par13a_tabsposition, hændelser = [personskat_calculate_par13a_tabsafståelse])],
+        rettighedsforløb = [],
         investeringsbeviser = [],
         fremført_tab_efter_par13a_kroner = 0
     )),

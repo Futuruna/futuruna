@@ -287,6 +287,7 @@ Scenarier for den kanoniske slutskattedifference ved fraflytning efter ABL
         position_primo = fraflytter_slutskat_ejendomsskat_tabsposition,
         hændelser = [fraflytter_slutskat_ejendomsskat_tabsafståelse]
     )],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )

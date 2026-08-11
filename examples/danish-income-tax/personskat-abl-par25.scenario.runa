@@ -1,0 +1,168 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Fokuseret kompositionsscenarie for noterede aktieretter og tegningsretter efter
+Aktieavancebeskatningslovens § 25. Scenariet er ikke lovtekst. Det fastholder,
+at årets rettighedsforløb føres gennem den ordinære ABL-årsopgørelse og videre
+til den kanoniske beregn_personskat-grænse uden caller-opgjorte skattebeløb.
+----
+
+= personskat_par25_rettighed = AktieavancePar25Rettighed(
+    underliggende_selskabsidentifikation = "DK-PAR25",
+    rettighedsserie = "TEGNING-2026",
+    art = AblPar25Tegningsret,
+    lovregime = AblRettighedEfterAktieavancebeskatningsloven,
+    underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåReguleretMarked
+)
+= personskat_par25_position_primo = AktieavancePar25Position(
+    rettighed = personskat_par25_rettighed,
+    beskatningsprincip = AblPar25Realisationsprincip,
+    partier = [
+        AktieavancePar25Parti(
+            erhvervelsesår = 2025,
+            erhvervelsesrækkefølge = 1,
+            resterende_rettigheder = 10,
+            resterende_anskaffelsessum_kroner = 200,
+            oplysningsstatus = AblOplystRettidigt
+        )
+    ]
+)
+= personskat_par25_gyldigt_forløb = AktieavancePar25HændelsesforløbInput(
+    position_primo = personskat_par25_position_primo,
+    hændelser = [
+        AblPar25TildelingSomAktionær(
+            erhvervelsesår = 2026,
+            erhvervelsesrækkefølge = 1,
+            antal_rettigheder = 5,
+            oplysningsstatus = AblIndberettetAfAndenIndberetningspligtig
+        ),
+        AblPar25Køb(
+            erhvervelsesår = 2026,
+            erhvervelsesrækkefølge = 2,
+            antal_rettigheder = 5,
+            købesum_kroner = 200,
+            oplysningsstatus = AblOplystRettidigt
+        ),
+        AblPar25Afståelse(
+            antal_rettigheder = 12,
+            afståelsessum_kroner = 600
+        )
+    ]
+)
+
+| personskat_par25_ordinært_aktieår(rettighedsforløb: List(AktieavancePar25HændelsesforløbInput)) -> AktieavanceOrdinærPersonÅrsinput(
+    indkomstår = 2026,
+    hændelsesforløb = [],
+    rettighedsforløb = rettighedsforløb,
+    investeringsbeviser = [],
+    fremført_tab_efter_par13a_kroner = 0
+)
+| personskat_par25_aktieavance(rettighedsforløb: List(AktieavancePar25HændelsesforløbInput)) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = personskat_par25_ordinært_aktieår(rettighedsforløb)),
+    særlige_aktiver = [],
+    udbytter = [],
+    ligningslov7n_poster = []
+)
+| personskat_par25_input(rettighedsforløb: List(AktieavancePar25HændelsesforløbInput)) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 600000,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_par25_aktieavance(rettighedsforløb),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_par25_årsresultat = aktieavance_ordinaer_person_årsresultat(personskat_par25_ordinært_aktieår([personskat_par25_gyldigt_forløb]))
+= personskat_par25_resultat = beregn_personskat(personskat_par25_input([personskat_par25_gyldigt_forløb]))
+
+= personskat_par25_tabsforløb = AktieavancePar25HændelsesforløbInput(
+    position_primo = AktieavancePar25Position(
+        rettighed = AktieavancePar25Rettighed(
+            underliggende_selskabsidentifikation = "DK-PAR25-TAB",
+            rettighedsserie = "AKTIERET-2025",
+            art = AblPar25Aktieret,
+            lovregime = AblRettighedEfterAktieavancebeskatningsloven,
+            underliggende_aktiers_markedsstatus = AblOptagetTilHandelPåReguleretMarked
+        ),
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = [AktieavancePar25Parti(
+            erhvervelsesår = 2025,
+            erhvervelsesrækkefølge = 1,
+            resterende_rettigheder = 10,
+            resterende_anskaffelsessum_kroner = 1000,
+            oplysningsstatus = AblOplystRettidigt
+        )]
+    ),
+    hændelser = [AblPar25Bortfald(antal_rettigheder = 10)]
+)
+= personskat_par25_tabsårsresultat = aktieavance_ordinaer_person_årsresultat(personskat_par25_ordinært_aktieår([personskat_par25_tabsforløb]))
+
+= personskat_par25_forkert_erhvervelsesår = AktieavancePar25HændelsesforløbInput(
+    position_primo = AktieavancePar25Position(
+        rettighed = personskat_par25_rettighed,
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = []
+    ),
+    hændelser = [AblPar25Køb(
+        erhvervelsesår = 2025,
+        erhvervelsesrækkefølge = 1,
+        antal_rettigheder = 5,
+        købesum_kroner = 100,
+        oplysningsstatus = AblOplystRettidigt
+    )]
+)
+= personskat_par25_forkert_erhvervelsesår_resultat = aktieavance_ordinaer_person_årsresultat(personskat_par25_ordinært_aktieår([personskat_par25_forkert_erhvervelsesår]))
+
+= personskat_par25_aktuel_primo = AktieavancePar25HændelsesforløbInput(
+    position_primo = AktieavancePar25Position(
+        rettighed = personskat_par25_rettighed,
+        beskatningsprincip = AblPar25Realisationsprincip,
+        partier = [AktieavancePar25Parti(
+            erhvervelsesår = 2026,
+            erhvervelsesrækkefølge = 1,
+            resterende_rettigheder = 5,
+            resterende_anskaffelsessum_kroner = 100,
+            oplysningsstatus = AblOplystRettidigt
+        )]
+    ),
+    hændelser = []
+)
+= personskat_par25_aktuel_primo_resultat = aktieavance_ordinaer_person_årsresultat(personskat_par25_ordinært_aktieår([personskat_par25_aktuel_primo]))
+= personskat_par25_dublet_resultat = aktieavance_ordinaer_person_årsresultat(personskat_par25_ordinært_aktieår([personskat_par25_gyldigt_forløb, personskat_par25_gyldigt_forløb]))
+
+| personskat_par25_rettighedsspor_bevaret(resultat: PersonskatBeregningResultat) -> match resultat.aktieavance.ordinært_aktieår {
+    | BeregnetOrdinærtAktieår(årsresultat) -> length(årsresultat.rettighedsforløbsresultater) == 1 && length(head(årsresultat.rettighedsforløbsresultater).hændelsesresultater) == 3 && last(head(årsresultat.rettighedsforløbsresultater).hændelsesresultater).skattepligtig_gevinst_efter_par12_kroner == 400
+    | _ -> Falskt
+}
+
+| scenarie_par25_årsobjekt_afleder_fifo_gevinst: personskat_par25_årsresultat -> personskat_par25_årsresultat.alle_input_gyldige && personskat_par25_årsresultat.årsresultat.skattepligtige_gevinster_efter_par12_kroner == 400 && personskat_par25_årsresultat.årsresultat.eget_modregningsgrundlag_efter_par13a_kroner == 400 && personskat_par25_årsresultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 400
+| scenarie_par25_kanonisk_personskat_afledes: personskat_par25_resultat -> personskat_par25_resultat.aktieavance.alle_input_gyldige && personskat_par25_resultat.aktieavance.aktieindkomst_kroner == 400 && personskat_par25_resultat.endelig_aktieindkomstskat_kroner == 108 && personskat_par25_rettighedsspor_bevaret(personskat_par25_resultat)
+| scenarie_par25_bortfald_føres_til_tabsmodregning: personskat_par25_tabsårsresultat -> personskat_par25_tabsårsresultat.alle_input_gyldige && personskat_par25_tabsårsresultat.årsresultat.bruttotab_kroner == 1000 && personskat_par25_tabsårsresultat.årsresultat.årets_tab_efter_par13a_kroner == 1000 && personskat_par25_tabsårsresultat.årsresultat.tab_fremført_til_følgende_indkomstår_kroner == 1000 && personskat_par25_tabsårsresultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0
+| scenarie_par25_anskaffelse_skal_tilhøre_indkomståret: personskat_par25_forkert_erhvervelsesår_resultat -> personskat_par25_forkert_erhvervelsesår_resultat.alle_input_gyldige == Falskt && personskat_par25_forkert_erhvervelsesår_resultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0
+| scenarie_par25_primo_må_komme_fra_tidligere_år: personskat_par25_aktuel_primo_resultat -> personskat_par25_aktuel_primo_resultat.alle_input_gyldige == Falskt && personskat_par25_aktuel_primo_resultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0
+| scenarie_par25_samme_rettighedsserie_kan_ikke_splittes: personskat_par25_dublet_resultat -> personskat_par25_dublet_resultat.alle_input_gyldige == Falskt && personskat_par25_dublet_resultat.årsresultat.netto_aktieindkomst_fra_ordinære_aktier_kroner == 0
+
+? scenarie_par25_årsobjekt_afleder_fifo_gevinst
+? scenarie_par25_kanonisk_personskat_afledes
+? scenarie_par25_bortfald_føres_til_tabsmodregning
+? scenarie_par25_anskaffelse_skal_tilhøre_indkomståret
+? scenarie_par25_primo_må_komme_fra_tidligere_år
+? scenarie_par25_samme_rettighedsserie_kan_ikke_splittes

@@ -407,6 +407,7 @@
 = abl_ordinaer_par13a_ugyldig_hovedperson = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
     hændelsesforløb = [],
+    rettighedsforløb = [],
     investeringsbeviser = [AktieavancePar13AInvesteringsbevisInput(
         indkomstår = 2025,
         art = AblPar21AktiebaseretMinimumsbevis,
@@ -419,6 +420,7 @@
 = abl_ordinaer_par13a_gyldig_ægtefælle = AktieavanceOrdinærPersonÅrsinput(
     indkomstår = 2026,
     hændelsesforløb = [],
+    rettighedsforløb = [],
     investeringsbeviser = [],
     fremført_tab_efter_par13a_kroner = 0
 )
