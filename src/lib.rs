@@ -19143,6 +19143,10 @@ impl TypeChecker {
                 let base_type = self.infer_expr_type_name_with_locals(base, locals)?;
                 self.field_type_name(&base_type, field)
             }
+            ExprKind::Index(collection, _) => {
+                let collection_type = self.infer_expr_type_name_with_locals(collection, locals)?;
+                Self::applied_type_argument(&collection_type, "List", 0)
+            }
             ExprKind::If(_, then_expr, else_expr) => {
                 let then_ty = self.infer_expr_type_name_with_locals(then_expr, locals);
                 let else_ty = self.infer_expr_type_name_with_locals(else_expr, locals);
@@ -23739,6 +23743,47 @@ mod tests {
                 .message
                 .contains("type `Output` has no field `x`")),
             "missing fields on rule-returned scenario bindings should be rejected before codegen, got: {:?}",
+            diags
+        );
+    }
+
+    #[test]
+    fn typechecker_rejects_missing_field_after_imported_list_index() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "futuruna-typechecker-imported-index-field-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            "# ImportedLeaf(value: Int)\n# ImportedContainer(items: List(ImportedLeaf))\n",
+        )
+        .unwrap();
+
+        let source = r#"
+@ import ./dep
+= imported = ImportedContainer(items = [ImportedLeaf(value = 1)])
+| imported_index_must_use_declared_field: imported -> imported.items[0].missing == 1
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse should succeed");
+        let diags = TypeChecker::check_with_diagnostics(
+            &stmts,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert!(
+            diags.iter().any(|diag| diag
+                .message
+                .contains("type `ImportedLeaf` has no field `missing`")),
+            "missing fields after indexing imported record lists should be rejected before codegen, got: {:?}",
             diags
         );
     }
