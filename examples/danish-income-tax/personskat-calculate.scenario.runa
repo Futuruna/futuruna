@@ -1173,7 +1173,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             seniornedslag_kroner = 0,
             energiafgiftskompensation_kroner = 0,
             tilbagebetalt_par55_kroner = 0
-        )
+        ),
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat
     )
 )
 = personskat_calculate_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_med_årsopgørelse_input)
@@ -1191,7 +1192,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     ligningslov33 = input.ligningslov33,
     årsopgørelse = årsopgørelse
 )
-= personskat_calculate_eksakte_årsopgørelseskreditter = KildeskatPar60KreditterØre(
+| personskat_calculate_eksakte_årsopgørelseskreditter_med_al40c_raw(afskrivningslov_acontoskat_øre: Heltal) -> KildeskatPar60KreditterØre(
     a_skat_og_am_indeholdt_øre = 20500000,
     par68_indbetalt_øre = 0,
     b_skat_betalt_øre = 0,
@@ -1199,12 +1200,13 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     frivillig_indbetaling_par59_øre = 0,
     virksomhedsordning_beløb_øre = 0,
     personskattelov_par8a_stk5_beløb_øre = 0,
-    afskrivningslov_acontoskat_øre = 0,
+    afskrivningslov_acontoskat_øre = afskrivningslov_acontoskat_øre,
     am_lov_par6_beløb_øre = 0,
     seniornedslag_øre = 0,
     energiafgiftskompensation_øre = 0,
     tilbagebetalt_par55_øre = 0
 )
+= personskat_calculate_eksakte_årsopgørelseskreditter = personskat_calculate_eksakte_årsopgørelseskreditter_med_al40c_raw(0)
 = personskat_calculate_eksakt_afregningsfakta = UdenSlutopgørelsesafregning
 = personskat_calculate_ikke_publicerede_2026_afregningsfakta = AfregnOverskydendeSkat(fakta = KildeskatOverskydendeAfregningEksaktFakta(
     indkomstår = 2026,
@@ -1222,7 +1224,82 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
         overført_restskat_mv_øre = 0,
         øvrig_pensionsbeskatningsafgift_øre = 0,
         kreditter = personskat_calculate_eksakte_årsopgørelseskreditter,
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat,
         afregningsfakta = personskat_calculate_eksakt_afregningsfakta
+    )
+))
+| personskat_calculate_al40c_nyt_acontoskat(
+    indkomstår: Heltal,
+    ejendomstab_kroner: Heltal,
+    første_negative_saldo_kroner: Heltal,
+    anden_negative_saldo_kroner: Heltal,
+    overdragelse: Afskrivningslov40CAcontoskatOverdragelse,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk
+) -> NytAfskrivningslov40CAcontoskat(
+    ejendomstab = Afskrivningslov40CEjendomstabInput(
+        indkomstår = indkomstår,
+        ejendomskategori = AlLandbrugsejendom,
+        fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = ejendomstab_kroner,
+        negativ_saldo_historik = [
+            Afskrivningslov40CNegativSaldoIndtægtsføring(indkomstår = indkomstår - 2, indtægtsført_kroner = første_negative_saldo_kroner),
+            Afskrivningslov40CNegativSaldoIndtægtsføring(indkomstår = indkomstår - 1, indtægtsført_kroner = anden_negative_saldo_kroner)
+        ]
+    ),
+    overdragelse = overdragelse,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
+    ægtefælles_overført_restskat_mv_kroner = 0,
+    ægtefælles_pensionsbeskatningsafgift_kroner = 0
+)
+| personskat_calculate_al40c_årsopgørelse(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, rå_acontoskat_øre: Heltal) -> MedEksaktÅrsopgørelse(
+    overført_restskat_mv_øre = 0,
+    øvrig_pensionsbeskatningsafgift_øre = 0,
+    kreditter = personskat_calculate_eksakte_årsopgørelseskreditter_med_al40c_raw(rå_acontoskat_øre),
+    afskrivningslov40c_acontoskat = kilde,
+    afregningsfakta = UdenSlutopgørelsesafregning
+)
+= personskat_calculate_al40c_nyt_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input,
+    personskat_calculate_al40c_årsopgørelse(
+        personskat_calculate_al40c_nyt_acontoskat(2026, 500000, 300000, 250000, Al40CIngenSuccession, Falskt),
+        0
+    )
+))
+= personskat_calculate_al40c_forkert_år_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input,
+    personskat_calculate_al40c_årsopgørelse(
+        personskat_calculate_al40c_nyt_acontoskat(2025, 500000, 300000, 250000, Al40CIngenSuccession, Falskt),
+        0
+    )
+))
+= personskat_calculate_al40c_rå_kreditkonflikt_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input,
+    personskat_calculate_al40c_årsopgørelse(
+        personskat_calculate_al40c_nyt_acontoskat(2026, 500000, 300000, 250000, Al40CIngenSuccession, Falskt),
+        12345
+    )
+))
+= personskat_calculate_al40c_fremført_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input,
+    personskat_calculate_al40c_årsopgørelse(
+        FremførtAfskrivningslov40CAcontoskat(position = Afskrivningslov40CAcontoskatPosition(
+            oprindelsesår = 2025,
+            resterende_fremført_acontoskat_kroner = 20000
+        )),
+        0
+    )
+))
+= personskat_calculate_al40c_succession_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_udbytte_ægtefælle_input,
+    personskat_calculate_al40c_årsopgørelse(
+        personskat_calculate_al40c_nyt_acontoskat(2026, 2000000, 1000000, 1000000, Al40CSuccessionEfterKildeskattelov33C, Sandt),
+        0
+    )
+))
+= personskat_calculate_al40c_succession_uden_ægtefælle_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
+    personskat_calculate_input,
+    personskat_calculate_al40c_årsopgørelse(
+        personskat_calculate_al40c_nyt_acontoskat(2026, 2000000, 1000000, 1000000, Al40CSuccessionEfterKildeskattelov33C, Sandt),
+        0
     )
 ))
 = personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
@@ -1462,7 +1539,8 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
             seniornedslag_kroner = 0,
             energiafgiftskompensation_kroner = 0,
             tilbagebetalt_par55_kroner = 0
-        )
+        ),
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat
     )
 )
 = personskat_calculate_ejendomsskat_resultat = beregn_personskat(personskat_calculate_ejendomsskat_input)
@@ -1808,6 +1886,10 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | IngenÅrsopgørelse -> 0
     | BeregnetÅrsopgørelse(input, _, _) -> input.kreditter.personskattelov_par8a_stk5_beløb_øre
 }
+| personskat_calculate_årsopgørelse_al40c_kredit_øre(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> 0
+    | BeregnetÅrsopgørelse(input, _, _) -> input.kreditter.afskrivningslov_acontoskat_øre
+}
 | personskat_calculate_stort_eget_aktietab_modregnes_og_fremføres: personskat_calculate_stort_eget_aktietab_resultat -> personskat_calculate_stort_eget_aktietab_resultat.aktieavance.aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.input.egen_aktieindkomst_kroner == -1500000 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.eget_effektive_grundbeløb_kroner == 158800 && personskat_calculate_stort_eget_aktietab_resultat.aktieindkomst_parår.egen_skat_kroner == -606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.negativ_skat_kroner == 606180 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_egen_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.modregnet_i_ægtefælles_slutskat_kroner == 208726 && personskat_calculate_stort_eget_aktietab_resultat.negativ_aktieindkomstskat.egen.fremført_kroner == 188728 && personskat_calculate_stort_eget_aktietab_resultat.samlet_skat_efter_negativ_aktieindkomstskat_kroner == 0 && personskat_calculate_stort_eget_aktietab_resultat.slutskat_øre == 20872564 && personskat_calculate_stort_eget_aktietab_resultat.personskattelov_par8a_stk5_kredit_øre == 20872564 && personskat_calculate_stort_eget_aktietab_resultat.samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre == 0 && personskat_calculate_årsopgørelse_negativ_aktieskat_kredit_øre(personskat_calculate_stort_eget_aktietab_resultat) == 20872564
 | personskat_calculate_stort_ægtefælleaktietab_bevarer_kildesporet: personskat_calculate_stort_ægtefælleaktietab_resultat -> personskat_calculate_stort_ægtefælleaktietab_resultat.aktieindkomst_parår.input.ægtefælles_aktieindkomst_kroner == -1500000 && match personskat_calculate_stort_ægtefælleaktietab_resultat.ægtefælle {
     | IngenÆgtefælleberegning -> Falskt
@@ -1897,6 +1979,30 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, afregning) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_eksakt_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelsesresultat.modregnede_foreløbige_skatter_øre == 20935314 && årsopgørelsesresultat.overskydende_skat_øre == 62750 && årsopgørelsesresultat.art == OverskydendeSkat && afregning == IngenSlutopgørelsesafregning
 }
+| personskat_calculate_al40c_nyt_acontoskat_afledes: personskat_calculate_al40c_nyt_resultat -> personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && personskat_calculate_al40c_nyt_resultat.kildeskat_al40c_acontoskat_input_gyldigt && personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat_kredit_øre == 11000000 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_nyt_resultat) == 11000000 && match personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat.ejendomstab {
+    | None -> Falskt
+    | Some(ejendomstab) -> ejendomstab.input_gyldigt && ejendomstab.omfattet_af_stk8 && ejendomstab.modregnet_i_ejendomstab_kroner == 500000 && ejendomstab.anset_indbetalt_acontoskat_kroner == 110000
+} && match personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat.acontoskat {
+    | None -> Falskt
+    | Some(acontoskat) -> acontoskat.input_gyldigt && acontoskat.tilgængelig_acontoskat_kroner == 110000 && acontoskat.fradrag_i_egen_slutskat_kroner == 110000 && acontoskat.kontant_udbetaling_kroner == 0 && acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner == 110000
+} && match personskat_calculate_al40c_nyt_resultat.årsopgørelse {
+    | IngenÅrsopgørelse -> Falskt
+    | BeregnetÅrsopgørelse(_, årsopgørelsesresultat, _) -> årsopgørelsesresultat.overskydende_skat_øre == 11062750
+}
+| personskat_calculate_al40c_forkert_år_afvises: personskat_calculate_al40c_forkert_år_resultat -> personskat_calculate_al40c_forkert_år_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige == Falskt && personskat_calculate_al40c_forkert_år_resultat.afskrivningslov40c_acontoskat_kredit_øre == 0 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_forkert_år_resultat) == 0 && match personskat_calculate_al40c_forkert_år_resultat.afskrivningslov40c_acontoskat.acontoskat {
+    | None -> Falskt
+    | Some(acontoskat) -> acontoskat.grundlag_gyldigt == Falskt && acontoskat.input_gyldigt == Falskt
+}
+| personskat_calculate_al40c_rå_kreditkonflikt_afvises: personskat_calculate_al40c_rå_kreditkonflikt_resultat -> personskat_calculate_al40c_rå_kreditkonflikt_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && personskat_calculate_al40c_rå_kreditkonflikt_resultat.afskrivningslov40c_acontoskat.kredit_til_egen_kildeskat_slutopgørelse_øre == 11000000 && personskat_calculate_al40c_rå_kreditkonflikt_resultat.kildeskat_al40c_acontoskat_input_gyldigt == Falskt && personskat_calculate_al40c_rå_kreditkonflikt_resultat.afskrivningslov40c_acontoskat_kredit_øre == 0 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_rå_kreditkonflikt_resultat) == 0
+| personskat_calculate_al40c_fremført_acontoskat_afledes: personskat_calculate_al40c_fremført_resultat -> personskat_calculate_al40c_fremført_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && personskat_calculate_al40c_fremført_resultat.afskrivningslov40c_acontoskat_kredit_øre == 2000000 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_fremført_resultat) == 2000000 && match personskat_calculate_al40c_fremført_resultat.afskrivningslov40c_acontoskat.acontoskat {
+    | None -> Falskt
+    | Some(acontoskat) -> acontoskat.input_gyldigt && acontoskat.tilgængelig_acontoskat_kroner == 20000 && acontoskat.fradrag_i_egen_slutskat_kroner == 20000 && acontoskat.position_efter.resterende_fremført_acontoskat_kroner == 0
+}
+| personskat_calculate_al40c_succession_anvender_ægtefælles_kapacitet: personskat_calculate_al40c_succession_resultat -> personskat_calculate_al40c_succession_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && personskat_calculate_al40c_succession_resultat.kildeskat_al40c_acontoskat_input_gyldigt && match personskat_calculate_al40c_succession_resultat.afskrivningslov40c_acontoskat.acontoskat {
+    | None -> Falskt
+    | Some(acontoskat) -> acontoskat.input_gyldigt && acontoskat.succession_stk10 && acontoskat.tilgængelig_acontoskat_kroner == 440000 && acontoskat.fradrag_i_egen_slutskat_kroner > 0 && acontoskat.fradrag_i_ægtefælles_slutskat_kroner > 0 && acontoskat.kontant_udbetaling_kroner == 0 && acontoskat.fradrag_i_egen_slutskat_kroner + acontoskat.fradrag_i_ægtefælles_slutskat_kroner + acontoskat.fremført_til_følgende_indkomstår_kroner == 440000 && personskat_calculate_al40c_succession_resultat.afskrivningslov40c_acontoskat_kredit_øre == acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_succession_resultat) == acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100
+}
+| personskat_calculate_al40c_succession_uden_ægtefælle_afvises: personskat_calculate_al40c_succession_uden_ægtefælle_resultat -> personskat_calculate_al40c_succession_uden_ægtefælle_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige == Falskt && personskat_calculate_al40c_succession_uden_ægtefælle_resultat.afskrivningslov40c_acontoskat_kredit_øre == 0 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_succession_uden_ægtefælle_resultat) == 0
 | personskat_calculate_afregningsår_valideres: personskat_calculate_ikke_publicerede_2026_afregningsfakta -> personskat_afregningsfakta_matcher_indkomstår(personskat_calculate_ikke_publicerede_2026_afregningsfakta, 2026) && personskat_afregningsfakta_matcher_indkomstår(personskat_calculate_ikke_publicerede_2026_afregningsfakta, 2025) == Falskt
 | personskat_calculate_2026_afregningssats_forhaandsgættes_ikke: kildeskat_årsopgørelsessatser(2026) -> kildeskat_årsopgørelsessatser_dækket(2025) && kildeskat_årsopgørelsessatser(2025).restskat_procenttillæg_basispoint == 570 && kildeskat_årsopgørelsessatser_dækket(2026) == Falskt
 | personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse: personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat -> match personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.årsopgørelse {
@@ -1971,6 +2077,12 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ? personskat_calculate_årsopgørelse_valgfri
 ? personskat_calculate_årsopgørelse_beregnes
 ? personskat_calculate_eksakt_årsopgørelse_bevarer_ører
+? personskat_calculate_al40c_nyt_acontoskat_afledes
+? personskat_calculate_al40c_forkert_år_afvises
+? personskat_calculate_al40c_rå_kreditkonflikt_afvises
+? personskat_calculate_al40c_fremført_acontoskat_afledes
+? personskat_calculate_al40c_succession_anvender_ægtefælles_kapacitet
+? personskat_calculate_al40c_succession_uden_ægtefælle_afvises
 ? personskat_calculate_afregningsår_valideres
 ? personskat_calculate_2026_afregningssats_forhaandsgættes_ikke
 ? personskat_calculate_endelig_aktieskat_indgår_i_årsopgørelse

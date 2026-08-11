@@ -49,7 +49,8 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
 | negativ_aktieskat_ledger_årsopgørelse(angivet_par8a_beløb_kroner: Heltal) -> MedÅrsopgørelse(
     overført_restskat_mv_kroner = 0,
     øvrig_pensionsbeskatningsafgift_kroner = 0,
-    kreditter = negativ_aktieskat_ledger_kreditter(angivet_par8a_beløb_kroner)
+    kreditter = negativ_aktieskat_ledger_kreditter(angivet_par8a_beløb_kroner),
+    afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat
 )
 
 | negativ_aktieskat_ledger_input(

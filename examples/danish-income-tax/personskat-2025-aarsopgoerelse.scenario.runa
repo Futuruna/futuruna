@@ -642,6 +642,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
         overført_restskat_mv_øre = 0,
         øvrig_pensionsbeskatningsafgift_øre = 0,
         kreditter = årsopgørelse2025_par60_kreditter,
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat,
         afregningsfakta = AfregnOverskydendeSkat(fakta = årsopgørelse2025_afregningsfakta)
     )
 )

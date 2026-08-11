@@ -163,7 +163,9 @@
 # PersonskatFastsættelsesproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
 # PersonskatUnderskudsårsresultat(indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_underskud_primo_kroner: Heltal, årets_skattepligtige_indkomst_før_fremførsel_kroner: Heltal, fremført_underskud_anvendt_i_egen_indkomst_kroner: Heltal, årets_nye_underskud_kroner: Heltal, dækket_ved_egen_skattemodregning_kroner: Heltal, fradraget_i_ægtefælles_indkomst_kroner: Heltal, dækket_ved_ægtefælles_skattemodregning_kroner: Heltal, fremført_underskud_ultimo_kroner: Heltal)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatFastsættelsesproveniens)
-# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter) | MedEksaktÅrsopgørelse(overført_restskat_mv_øre: Heltal, øvrig_pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre, afregningsfakta: KildeskatSlutopgørelseAfregningsfakta)
+# PersonskatAfskrivningslov40CAcontoskatKilde = UdenAfskrivningslov40CAcontoskat | NytAfskrivningslov40CAcontoskat(ejendomstab: Afskrivningslov40CEjendomstabInput, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk, ægtefælles_overført_restskat_mv_kroner: Heltal, ægtefælles_pensionsbeskatningsafgift_kroner: Heltal) | FremførtAfskrivningslov40CAcontoskat(position: Afskrivningslov40CAcontoskatPosition)
+# PersonskatAfskrivningslov40CAcontoskatResultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, kildefakta_gyldige: Boolsk, ejendomstab: Option(Afskrivningslov40CEjendomstabResultat), acontoskat: Option(Afskrivningslov40CAcontoskatResultat), kredit_til_egen_kildeskat_slutopgørelse_øre: Heltal)
+# PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde) | MedEksaktÅrsopgørelse(overført_restskat_mv_øre: Heltal, øvrig_pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde, afregningsfakta: KildeskatSlutopgørelseAfregningsfakta)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
 # PersonskatRenteInput(renteindtægter_kroner: Heltal, renteudgifter_kroner: Heltal, næringsstatus: Næringsstatus, ligningslov6: PersonskatLigningslov6Input, ligningslov6a: PersonskatLigningslov6AInput)
@@ -259,7 +261,7 @@
 # PersonskatInput(lønmodtager: PersonskatLønmodtagerInput, kapitalindkomst: PersonskatKapitalindkomstInput, aktieavance: PersonskatAktieavanceInput, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragInput, cfc: PersonskatCfcInput, skatteforhold: PersonskatSkatteforholdInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, ejendomsskatter: EjendomsskattelovPersonÅrsfakta, negativ_aktieskat_fremførsel: PersonskatNegativAktieskatFremførselsparInput, ligningslov33: PersonskatLigningslov33ParInput, årsopgørelse: PersonskatÅrsopgørelseInput)
 # PersonskatÅrsopgørelseResultat = IngenÅrsopgørelse | BeregnetÅrsopgørelse(input: KildeskatSlutopgørelseEksaktInput, resultat: KildeskatSlutopgørelseEksaktResult, afregning: KildeskatSlutopgørelseAfregningsresultat)
 # PersonskatUnderskudsparårsresultat(hovedperson: PersonskatUnderskudsårsresultat, ægtefælle: Option(PersonskatUnderskudsårsresultat), alle_åbningsgrundlag_gyldige: Boolsk)
-# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, sømandsbeskatning_eksakt: Søbl5EksaktLempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, kildeskat25a: PersonskatKsl25AParResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, ligningslov33: PersonskatLigningslov33ParResultat, ligningslov33a: PersonskatLigningslov33AParResultat, hovedpersons_ligningslov33_og_33a_nedslag_øre: Heltal, ægtefælles_ligningslov33_og_33a_nedslag_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, eksakt_ordinær_skat_efter_dis_øre: Heltal, endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre: Heltal, slutskat_øre: Heltal, slutskat_kroner_kompatibilitetsprojektion: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, personskattelov_par8a_stk5_kredit_øre: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, arbejdsmarkedsbidragslov_par6_kredit_øre: Heltal, kildeskat_ambl_par6_kredit_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
+# PersonskatBeregningResultat(skat: LønmodtagerBreakdown, sømandsbeskatning: Søbl5Lempelsesresultat, sømandsbeskatning_eksakt: Søbl5EksaktLempelsesresultat, indgående_ægtefælle: LønmodtagerIndgåendeÆgtefælleResultat, ægtefælle: PersonskatÆgtefælleBeregningResultat, kildeskat25a: PersonskatKsl25AParResultat, underskudsår: PersonskatUnderskudsparårsresultat, aktieindkomst_parår: AktieindkomstParÅrsskatResultat, positiv_aktieindkomstskat: AktieindkomstSkatResultat, negativ_aktieindkomstskat: AktieindkomstNegativSkatParResultat, negativ_aktieskat_fremførselsår: PersonskatNegativAktieskatParÅrsresultat, endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_kroner: Heltal, samlet_skat_efter_negativ_aktieindkomstskat_kroner: Heltal, ejendomsskatter: EjendomsskattelovPersonÅrsresultat, ægtefælles_ejendomsskatter: PersonskatÆgtefælleEjendomsskatterResultat, samlet_skat_inkl_ejendomsskatter_kroner: Heltal, ligningslov33: PersonskatLigningslov33ParResultat, ligningslov33a: PersonskatLigningslov33AParResultat, hovedpersons_ligningslov33_og_33a_nedslag_øre: Heltal, ægtefælles_ligningslov33_og_33a_nedslag_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_kroner: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_kroner: Heltal, eksakt_ordinær_skat_efter_dis_øre: Heltal, endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_endelig_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_negativ_aktieindkomstskat_øre: Heltal, samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre: Heltal, slutskat_øre: Heltal, slutskat_kroner_kompatibilitetsprojektion: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_øre: Heltal, slutskat_inkl_endelig_arbejdsudlejebeskatning_kroner: Heltal, personskattelov_par8a_stk5_kredit_øre: Heltal, kildeskat_par8a_kredit_input_gyldigt: Boolsk, arbejdsmarkedsbidragslov_par6_kredit_øre: Heltal, kildeskat_ambl_par6_kredit_input_gyldigt: Boolsk, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatResultat, afskrivningslov40c_acontoskat_kredit_øre: Heltal, kildeskat_al40c_acontoskat_input_gyldigt: Boolsk, personlig_indkomst: PersonskatPersonligIndkomstResultat, selvstændig_arbejdsmarkedsbidrag: ArbejdsmarkedsbidragSelvstændigÅrsresultat, pension: PersonskatPensionsResultat, erhvervsbefordring: PersonskatErhvervsbefordringResultat, ligningsfradrag: PersonskatLigningsfradragResultat, kapitalindkomst: PersonskatKapitalindkomstResultat, aktieavance: PersonskatAktieavanceResultat, kursgevinst_par32: PersonskatKursgevinstPar32ParResultat, udenlandske_sociale_bidrag: PersonskatUdenlandskeSocialeBidragResultat, cfc: PersonskatCfcResultat, årsopgørelse: PersonskatÅrsopgørelseResultat)
 = personskat_felt_skatteår = Beregningsfelt(
     path = pathof(PersonskatInput::lønmodtager::skatteår),
     label = "Skatteår",
@@ -2535,6 +2537,97 @@
     help = Some("Vælg årsopgørelse for at beregne slutskat efter indeholdt skat og øvrige kreditter."),
     unit = None
 )
+= personskat_felt_årsopgørelse_al40c_kilde = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::$variant),
+    label = "Acontoskat efter afskrivningslovens § 40 C",
+    question = Some("Er der et nyt eller fremført acontoskattebeløb efter afskrivningslovens § 40 C?"),
+    help = Some("Vælg et nyt beløb fra årets landbrugs- eller skovejendomstab, et fremført beløb fra en tidligere beregning eller ingen § 40 C-acontoskat."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_ejendomstab_år = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CEjendomstabInput::indkomstår),
+    label = "Indkomstår for ejendomstabet",
+    question = Some("I hvilket indkomstår blev det fradragsberettigede ejendomstab realiseret?"),
+    help = Some("Året skal svare til Personskat-beregningens skatteår for et nyt § 40 C-acontoskattebeløb."),
+    unit = Some("år")
+)
+= personskat_felt_årsopgørelse_al40c_ejendomskategori = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CEjendomstabInput::ejendomskategori::$variant),
+    label = "Ejendomskategori ved § 40 C-tab",
+    question = Some("Hvilken vurderingskategori havde ejendommen ved afståelsen?"),
+    help = Some("Afskrivningslovens § 40 C, stk. 8, omfatter de lovbestemte landbrugs-, skov- og fra 2027 naturejendomskategorier."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_ejendomstab = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CEjendomstabInput::fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner),
+    label = "Fradragsberettiget ejendomstab",
+    question = Some("Hvor stort er det fradragsberettigede tab efter ejendomsavancebeskatningsloven?"),
+    help = Some("Futuruna modregner kun dokumenterede tidligere indtægtsførte negative § 40 C-saldi inden for tabet."),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_negativ_saldo_historik = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CEjendomstabInput::negativ_saldo_historik),
+    label = "Historik over negative § 40 C-saldi",
+    question = Some("Hvilke negative § 40 C-saldi er tidligere indtægtsført?"),
+    help = Some("Opret én række pr. indkomstår. Samme indkomstår må ikke forekomme flere gange."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_negativ_saldo_år = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CNegativSaldoIndtægtsføring::indkomstår),
+    label = "Indkomstår for negativ § 40 C-saldo",
+    question = Some("I hvilket indkomstår blev den negative saldo indtægtsført?"),
+    help = Some("Året må ikke ligge efter året for ejendomstabet."),
+    unit = Some("år")
+)
+= personskat_felt_årsopgørelse_al40c_negativ_saldo_beløb = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CNegativSaldoIndtægtsføring::indtægtsført_kroner),
+    label = "Indtægtsført negativ § 40 C-saldo",
+    question = Some("Hvor stort et positivt beløb blev indtægtsført fra den negative saldo?"),
+    help = Some("Angiv det dokumenterede beløb for det pågældende indkomstår."),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_overdragelse = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CAcontoskatOverdragelse::$variant),
+    label = "Succession ved ejendomsoverdragelsen",
+    question = Some("Blev ejendommen overdraget med succession efter KSL § 33 C eller dødsboskattelovens § 39?"),
+    help = Some("Succession ændrer et resterende acontoskattebeløb fra kontant udbetaling til ægtefællemodregning og fremførsel."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_samliv = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen),
+    label = "Gift og samlevende før succession",
+    question = Some("Var personen gift og samlevende med ægtefællen ved udgangen af året før overdragelsen?"),
+    help = Some("Oplysningen anvendes kun ved en successionsoverdragelse efter § 40 C, stk. 10."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_ægtefælles_restskat = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::ægtefælles_overført_restskat_mv_kroner),
+    label = "Ægtefællens overførte restskat mv.",
+    question = Some("Hvor meget overført restskat mv. skal indgå i ægtefællens § 40 C-fradragskapacitet?"),
+    help = Some("Angiv 0, når der ikke både er succession og relevant samliv."),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_ægtefælles_pensionsafgift = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::ægtefælles_pensionsbeskatningsafgift_kroner),
+    label = "Ægtefællens pensionsbeskatningsafgift",
+    question = Some("Hvor meget pensionsbeskatningsafgift skal indgå i ægtefællens § 40 C-fradragskapacitet?"),
+    help = Some("Angiv 0, når der ikke både er succession og relevant samliv."),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_fremført_oprindelsesår = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CAcontoskatPosition::oprindelsesår),
+    label = "Oprindelsesår for fremført § 40 C-acontoskat",
+    question = Some("Fra hvilket indkomstår stammer det fremførte acontoskattebeløb?"),
+    help = Some("Oprindelsesåret skal ligge før det aktuelle skatteår."),
+    unit = Some("år")
+)
+= personskat_felt_årsopgørelse_al40c_fremført_beløb = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CAcontoskatPosition::resterende_fremført_acontoskat_kroner),
+    label = "Resterende fremført § 40 C-acontoskat",
+    question = Some("Hvor stort et § 40 C-acontoskattebeløb resterer fra tidligere år?"),
+    help = Some("Beløbet skal komme fra den foregående års typed § 40 C-position eller en dokumenteret myndighedsopgørelse."),
+    unit = Some("kr.")
+)
 = personskat_felt_årsopgørelse_eksakt_overført_restskat = TypetBeregningsfelt(
     path = refof(PersonskatÅrsopgørelseInput::MedEksaktÅrsopgørelse::overført_restskat_mv_øre),
     label = "Overført restskat mv.",
@@ -2691,9 +2784,9 @@
 )
 = personskat_felt_årsopgørelse_eksakt_acontoskat = TypetBeregningsfelt(
     path = refof(KildeskatPar60KreditterØre::afskrivningslov_acontoskat_øre),
-    label = "Acontoskat efter afskrivningsloven",
-    question = Some("Hvor meget acontoskat efter afskrivningslovens § 40 C er indbetalt?"),
-    help = Some("Angiv det eksakte beløb i øre."),
+    label = "Afledt § 40 C-acontoskat",
+    question = Some("Er det rå kreditfelt for acontoskat efter afskrivningslovens § 40 C nul?"),
+    help = Some("Angiv 0. Futuruna afleder selv kreditten fra ejendomstabet eller den fremførte position og afviser en konkurrerende inputkonklusion."),
     unit = Some("øre")
 )
 = personskat_felt_årsopgørelse_eksakt_am_lov_par6 = TypetBeregningsfelt(
@@ -12437,6 +12530,19 @@
 = personskat_metadata_årsopgørelse = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_årsopgørelse),
+        Field(value = personskat_felt_årsopgørelse_al40c_kilde),
+        Field(value = personskat_felt_årsopgørelse_al40c_ejendomstab_år),
+        Field(value = personskat_felt_årsopgørelse_al40c_ejendomskategori),
+        Field(value = personskat_felt_årsopgørelse_al40c_ejendomstab),
+        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_historik),
+        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_år),
+        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_beløb),
+        Field(value = personskat_felt_årsopgørelse_al40c_overdragelse),
+        Field(value = personskat_felt_årsopgørelse_al40c_samliv),
+        Field(value = personskat_felt_årsopgørelse_al40c_ægtefælles_restskat),
+        Field(value = personskat_felt_årsopgørelse_al40c_ægtefælles_pensionsafgift),
+        Field(value = personskat_felt_årsopgørelse_al40c_fremført_oprindelsesår),
+        Field(value = personskat_felt_årsopgørelse_al40c_fremført_beløb),
         Field(value = personskat_felt_årsopgørelse_eksakt_overført_restskat),
         Field(value = personskat_felt_årsopgørelse_eksakt_pensionsafgift),
         Field(value = personskat_felt_årsopgørelse_afregningsart),
@@ -12465,6 +12571,7 @@
         Field(value = personskat_felt_årsopgørelse_eksakt_energiafgiftskompensation),
         Field(value = personskat_felt_årsopgørelse_eksakt_par55_tilbagebetalt),
         Source(value = kildeskatteloven_2024_460),
+        DependencySource(value = afskrivningsloven_lbk1222),
     )
 )
 = personskat_metadata_egne_ejendomssalg = PersonskatMetadata(
@@ -18067,17 +18174,89 @@ fraflytningen."
 }
 | personskat_parberegning_med_par32(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælle_aktieavance: PersonskatÆgtefælleAktieavanceResultat, ægtefælle_par32: PersonskatKursgevinstPar32PersonKontekst) -> personskat_parberegning_med_par32_og_ksl25a(hovedgrundlag, ægtefælle_input, ægtefælle_aktieavance, ægtefælle_par32, personskat_ksl25a_tom_parresultat())
 | personskat_parberegning(hovedgrundlag: PersonskatPersonGrundlagResultat, ægtefælle_input: PersonskatÆgtefælleInput, ægtefælle_aktieavance: PersonskatÆgtefælleAktieavanceResultat) -> personskat_parberegning_med_par32(hovedgrundlag, ægtefælle_input, ægtefælle_aktieavance, UdenPar32Årsresultat)
+| personskat_afskrivningslov40c_acontoskat_kilde(input: PersonskatÅrsopgørelseInput) -> match input {
+    | UdenÅrsopgørelse -> UdenAfskrivningslov40CAcontoskat
+    | MedÅrsopgørelse(_, _, _, kilde) -> kilde
+    | MedEksaktÅrsopgørelse(_, _, _, kilde, _) -> kilde
+}
+| personskat_årsopgørelse_slutskat_med_tillæg_før_al40c_øre(input: PersonskatÅrsopgørelseInput, slutskat_øre: Heltal, pension: PersonskatPensionsResultat) -> match input {
+    | UdenÅrsopgørelse -> 0
+    | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, _, _) -> slutskat_øre + (overført_restskat_mv_kroner + øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner) * 100
+    | MedEksaktÅrsopgørelse(overført_restskat_mv_øre, øvrig_pensionsbeskatningsafgift_øre, _, _, _) -> slutskat_øre + overført_restskat_mv_øre + øvrig_pensionsbeskatningsafgift_øre + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner * 100
+}
+| personskat_afskrivningslov40c_nye_supplerende_fakta_gyldige(overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk, ægtefælles_overført_restskat_mv_kroner: Heltal, ægtefælles_pensionsbeskatningsafgift_kroner: Heltal, har_ægtefælle: Boolsk) -> ægtefælles_overført_restskat_mv_kroner >= 0 && ægtefælles_pensionsbeskatningsafgift_kroner >= 0 && hvis gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen {
+    afskrivningslov40c_acontoskat_succession(overdragelse) && har_ægtefælle
+} ellers {
+    ægtefælles_overført_restskat_mv_kroner == 0 && ægtefælles_pensionsbeskatningsafgift_kroner == 0
+}
+| personskat_afskrivningslov40c_acontoskat_resultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, indkomstår: Heltal, egen_slutskat_med_tillæg_før_al40c_øre: Heltal, ægtefælles_slutskat_før_kreditter_øre: Heltal, har_ægtefælle: Boolsk) -> match kilde {
+    | UdenAfskrivningslov40CAcontoskat -> PersonskatAfskrivningslov40CAcontoskatResultat(
+        kilde = kilde,
+        kildefakta_gyldige = Sandt,
+        ejendomstab = None,
+        acontoskat = None,
+        kredit_til_egen_kildeskat_slutopgørelse_øre = 0
+    )
+    | NytAfskrivningslov40CAcontoskat(ejendomstab_input, overdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen, ægtefælles_overført_restskat_mv_kroner, ægtefælles_pensionsbeskatningsafgift_kroner) -> {
+        = ejendomstab = afskrivningslov40c_ejendomstab_resultat(ejendomstab_input)
+        = supplerende_fakta_gyldige = personskat_afskrivningslov40c_nye_supplerende_fakta_gyldige(
+            overdragelse,
+            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
+            ægtefælles_overført_restskat_mv_kroner,
+            ægtefælles_pensionsbeskatningsafgift_kroner,
+            har_ægtefælle
+        )
+        = acontoskat = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+            indkomstår = indkomstår,
+            grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = ejendomstab),
+            egen_slutskat_med_restskat_mv_før_al40c_kroner = egen_slutskat_med_tillæg_før_al40c_øre / 100,
+            overdragelse = overdragelse,
+            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
+            ægtefælles_slutskat_mv_kroner = ægtefælles_slutskat_før_kreditter_øre / 100 + ægtefælles_overført_restskat_mv_kroner + ægtefælles_pensionsbeskatningsafgift_kroner
+        ))
+        = kildefakta_gyldige = supplerende_fakta_gyldige && acontoskat.input_gyldigt
+        PersonskatAfskrivningslov40CAcontoskatResultat(
+            kilde = kilde,
+            kildefakta_gyldige = kildefakta_gyldige,
+            ejendomstab = Some(ejendomstab),
+            acontoskat = Some(acontoskat),
+            kredit_til_egen_kildeskat_slutopgørelse_øre = hvis kildefakta_gyldige { acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 } ellers { 0 }
+        )
+    }
+    | FremførtAfskrivningslov40CAcontoskat(position) -> {
+        = acontoskat = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+            indkomstår = indkomstår,
+            grundlag = Al40CFremførtAcontoskattebeløb(position = position),
+            egen_slutskat_med_restskat_mv_før_al40c_kroner = egen_slutskat_med_tillæg_før_al40c_øre / 100,
+            overdragelse = Al40CIngenSuccession,
+            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
+            ægtefælles_slutskat_mv_kroner = 0
+        ))
+        PersonskatAfskrivningslov40CAcontoskatResultat(
+            kilde = kilde,
+            kildefakta_gyldige = acontoskat.input_gyldigt,
+            ejendomstab = None,
+            acontoskat = Some(acontoskat),
+            kredit_til_egen_kildeskat_slutopgørelse_øre = hvis acontoskat.input_gyldigt { acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 } ellers { 0 }
+        )
+    }
+}
 | personskat_kildeskat_par8a_kredit_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
     | UdenÅrsopgørelse -> Sandt
-    | MedÅrsopgørelse(_, _, kreditter) -> kreditter.personskattelov_par8a_stk5_beløb_kroner == 0
-    | MedEksaktÅrsopgørelse(_, _, kreditter, _) -> kreditter.personskattelov_par8a_stk5_beløb_øre == 0
+    | MedÅrsopgørelse(_, _, kreditter, _) -> kreditter.personskattelov_par8a_stk5_beløb_kroner == 0
+    | MedEksaktÅrsopgørelse(_, _, kreditter, _, _) -> kreditter.personskattelov_par8a_stk5_beløb_øre == 0
 }
 | personskat_kildeskat_ambl_par6_kredit_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
     | UdenÅrsopgørelse -> Sandt
-    | MedÅrsopgørelse(_, _, kreditter) -> kreditter.am_lov_par6_beløb_kroner == 0
-    | MedEksaktÅrsopgørelse(_, _, kreditter, _) -> kreditter.am_lov_par6_beløb_øre == 0
+    | MedÅrsopgørelse(_, _, kreditter, _) -> kreditter.am_lov_par6_beløb_kroner == 0
+    | MedEksaktÅrsopgørelse(_, _, kreditter, _, _) -> kreditter.am_lov_par6_beløb_øre == 0
 }
-| personskat_kreditter_med_afledte_kreditter(kreditter: KildeskatPar60Kreditter, negativ_aktieindkomstskat_modregnet_kroner: Heltal, ambl_par6_kredit_kroner: Heltal) -> KildeskatPar60Kreditter(
+| personskat_kildeskat_al40c_acontoskat_input_gyldigt(input: PersonskatÅrsopgørelseInput) -> match input {
+    | UdenÅrsopgørelse -> Sandt
+    | MedÅrsopgørelse(_, _, kreditter, _) -> kreditter.afskrivningslov_acontoskat_kroner == 0
+    | MedEksaktÅrsopgørelse(_, _, kreditter, _, _) -> kreditter.afskrivningslov_acontoskat_øre == 0
+}
+| personskat_kreditter_med_afledte_kreditter(kreditter: KildeskatPar60Kreditter, negativ_aktieindkomstskat_modregnet_kroner: Heltal, ambl_par6_kredit_kroner: Heltal, al40c_acontoskat_kredit_kroner: Heltal) -> KildeskatPar60Kreditter(
     a_skat_og_am_indeholdt_kroner = kreditter.a_skat_og_am_indeholdt_kroner,
     par68_indbetalt_kroner = kreditter.par68_indbetalt_kroner,
     b_skat_betalt_kroner = kreditter.b_skat_betalt_kroner,
@@ -18085,13 +18264,13 @@ fraflytningen."
     frivillig_indbetaling_par59_kroner = kreditter.frivillig_indbetaling_par59_kroner,
     virksomhedsordning_beløb_kroner = kreditter.virksomhedsordning_beløb_kroner,
     personskattelov_par8a_stk5_beløb_kroner = negativ_aktieindkomstskat_modregnet_kroner,
-    afskrivningslov_acontoskat_kroner = kreditter.afskrivningslov_acontoskat_kroner,
+    afskrivningslov_acontoskat_kroner = al40c_acontoskat_kredit_kroner,
     am_lov_par6_beløb_kroner = ambl_par6_kredit_kroner,
     seniornedslag_kroner = kreditter.seniornedslag_kroner,
     energiafgiftskompensation_kroner = kreditter.energiafgiftskompensation_kroner,
     tilbagebetalt_par55_kroner = kreditter.tilbagebetalt_par55_kroner
 )
-| personskat_kreditter_øre_med_afledte_kreditter(kreditter: KildeskatPar60KreditterØre, negativ_aktieindkomstskat_modregnet_øre: Heltal, ambl_par6_kredit_øre: Heltal) -> KildeskatPar60KreditterØre(
+| personskat_kreditter_øre_med_afledte_kreditter(kreditter: KildeskatPar60KreditterØre, negativ_aktieindkomstskat_modregnet_øre: Heltal, ambl_par6_kredit_øre: Heltal, al40c_acontoskat_kredit_øre: Heltal) -> KildeskatPar60KreditterØre(
     a_skat_og_am_indeholdt_øre = kreditter.a_skat_og_am_indeholdt_øre,
     par68_indbetalt_øre = kreditter.par68_indbetalt_øre,
     b_skat_betalt_øre = kreditter.b_skat_betalt_øre,
@@ -18099,7 +18278,7 @@ fraflytningen."
     frivillig_indbetaling_par59_øre = kreditter.frivillig_indbetaling_par59_øre,
     virksomhedsordning_beløb_øre = kreditter.virksomhedsordning_beløb_øre,
     personskattelov_par8a_stk5_beløb_øre = negativ_aktieindkomstskat_modregnet_øre,
-    afskrivningslov_acontoskat_øre = kreditter.afskrivningslov_acontoskat_øre,
+    afskrivningslov_acontoskat_øre = al40c_acontoskat_kredit_øre,
     am_lov_par6_beløb_øre = ambl_par6_kredit_øre,
     seniornedslag_øre = kreditter.seniornedslag_øre,
     energiafgiftskompensation_øre = kreditter.energiafgiftskompensation_øre,
@@ -18110,14 +18289,14 @@ fraflytningen."
     | AfregnRestskat(restskat_fakta) -> restskat_fakta.indkomstår == indkomstår
     | AfregnOverskydendeSkat(overskydende_fakta) -> overskydende_fakta.indkomstår == indkomstår
 }
-| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, indkomstår: Heltal, slutskat_før_negativ_aktieindkomstskat_øre: Heltal, pension: PersonskatPensionsResultat, negativ_aktieindkomstskat_modregnet_øre: Heltal, ambl_par6_kredit_øre: Heltal) -> match input {
+| personskat_årsopgørelse(input: PersonskatÅrsopgørelseInput, indkomstår: Heltal, slutskat_før_negativ_aktieindkomstskat_øre: Heltal, pension: PersonskatPensionsResultat, negativ_aktieindkomstskat_modregnet_øre: Heltal, ambl_par6_kredit_øre: Heltal, al40c_acontoskat_kredit_øre: Heltal) -> match input {
     | UdenÅrsopgørelse -> IngenÅrsopgørelse
-    | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter) -> {
+    | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, kreditter, _) -> {
         = årsopgørelsesinput = KildeskatSlutopgørelseEksaktInput(
             slutskat_øre = slutskat_før_negativ_aktieindkomstskat_øre,
             overført_restskat_mv_øre = overført_restskat_mv_kroner * 100,
             pensionsbeskatningsafgift_øre = (øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner) * 100,
-            kreditter = personskat_kreditter_øre_med_afledte_kreditter(kildeskat_par60_kreditter_øre_fra_kroner(kreditter), negativ_aktieindkomstskat_modregnet_øre, ambl_par6_kredit_øre)
+            kreditter = personskat_kreditter_øre_med_afledte_kreditter(kildeskat_par60_kreditter_øre_fra_kroner(kreditter), negativ_aktieindkomstskat_modregnet_øre, ambl_par6_kredit_øre, al40c_acontoskat_kredit_øre)
         )
         = årsopgørelsesresultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelsesinput)
         BeregnetÅrsopgørelse(
@@ -18126,12 +18305,12 @@ fraflytningen."
             afregning = IngenSlutopgørelsesafregning
         )
     }
-    | MedEksaktÅrsopgørelse(overført_restskat_mv_øre, øvrig_pensionsbeskatningsafgift_øre, kreditter, afregningsfakta) -> {
+    | MedEksaktÅrsopgørelse(overført_restskat_mv_øre, øvrig_pensionsbeskatningsafgift_øre, kreditter, _, afregningsfakta) -> {
         = årsopgørelsesinput = KildeskatSlutopgørelseEksaktInput(
             slutskat_øre = slutskat_før_negativ_aktieindkomstskat_øre,
             overført_restskat_mv_øre = overført_restskat_mv_øre,
             pensionsbeskatningsafgift_øre = øvrig_pensionsbeskatningsafgift_øre + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner * 100,
-            kreditter = personskat_kreditter_øre_med_afledte_kreditter(kreditter, negativ_aktieindkomstskat_modregnet_øre, ambl_par6_kredit_øre)
+            kreditter = personskat_kreditter_øre_med_afledte_kreditter(kreditter, negativ_aktieindkomstskat_modregnet_øre, ambl_par6_kredit_øre, al40c_acontoskat_kredit_øre)
         )
         = årsopgørelsesresultat = kildeskat_slutopgørelse_eksakt_resultat(årsopgørelsesinput)
         = afregningsresultat = hvis personskat_afregningsfakta_matcher_indkomstår(afregningsfakta, indkomstår) {
@@ -18724,6 +18903,19 @@ fraflytningen."
     = samlet_skat_inkl_ejendomsskatter_efter_fremført_negativ_aktieindkomstskat_øre = tidligere_fremført_negativ_aktieindkomstskat_eksakt.egen_slutskat_efter_fremført_negativ_skat_kroner
     = slutskat_øre = samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_og_33a_øre
     = slutskat_inkl_endelig_arbejdsudlejebeskatning_øre = slutskat_øre + hovedgrundlag.personlig_indkomst.samlet_endelig_arbejdsudlejebeskatning_kroner * 100
+    = afskrivningslov40c_acontoskat = personskat_afskrivningslov40c_acontoskat_resultat(
+        personskat_afskrivningslov40c_acontoskat_kilde(input.årsopgørelse),
+        input.lønmodtager.skatteår,
+        personskat_årsopgørelse_slutskat_med_tillæg_før_al40c_øre(input.årsopgørelse, slutskat_øre, hovedgrundlag.pension),
+        personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_øre(parberegning, ægtefælles_ejendomsskatter, ægtefælles_ligningslov33_og_33a_nedslag_øre),
+        personskat_negativ_aktieskat_har_ægtefælle(parberegning)
+    )
+    = kildeskat_al40c_acontoskat_input_gyldigt = personskat_kildeskat_al40c_acontoskat_input_gyldigt(input.årsopgørelse)
+    = afskrivningslov40c_acontoskat_kredit_øre = hvis kildeskat_al40c_acontoskat_input_gyldigt {
+        afskrivningslov40c_acontoskat.kredit_til_egen_kildeskat_slutopgørelse_øre
+    } ellers {
+        0
+    }
     PersonskatBeregningResultat(
         skat = skat,
         sømandsbeskatning = sømandsbeskatning,
@@ -18766,6 +18958,9 @@ fraflytningen."
         kildeskat_par8a_kredit_input_gyldigt = personskat_kildeskat_par8a_kredit_input_gyldigt(input.årsopgørelse),
         arbejdsmarkedsbidragslov_par6_kredit_øre = hovedgrundlag.selvstændig_arbejdsmarkedsbidrag.kildeskat_par60_kredit_øre,
         kildeskat_ambl_par6_kredit_input_gyldigt = personskat_kildeskat_ambl_par6_kredit_input_gyldigt(input.årsopgørelse),
+        afskrivningslov40c_acontoskat = afskrivningslov40c_acontoskat,
+        afskrivningslov40c_acontoskat_kredit_øre = afskrivningslov40c_acontoskat_kredit_øre,
+        kildeskat_al40c_acontoskat_input_gyldigt = kildeskat_al40c_acontoskat_input_gyldigt,
         personlig_indkomst = hovedgrundlag.personlig_indkomst,
         selvstændig_arbejdsmarkedsbidrag = hovedgrundlag.selvstændig_arbejdsmarkedsbidrag,
         pension = hovedgrundlag.pension,
@@ -18782,7 +18977,8 @@ fraflytningen."
             slutskat_øre,
             hovedgrundlag.pension,
             samlet_negativ_aktieindkomstskat_modregnet_i_hovedpersons_slutskat_øre,
-            hovedgrundlag.selvstændig_arbejdsmarkedsbidrag.kildeskat_par60_kredit_øre
+            hovedgrundlag.selvstændig_arbejdsmarkedsbidrag.kildeskat_par60_kredit_øre,
+            afskrivningslov40c_acontoskat_kredit_øre
         )
     )
 }

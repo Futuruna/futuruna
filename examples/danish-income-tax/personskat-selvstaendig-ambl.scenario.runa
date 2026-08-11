@@ -213,6 +213,7 @@
         overført_restskat_mv_øre = 0,
         øvrig_pensionsbeskatningsafgift_øre = 0,
         kreditter = ambl_selvstændig_scenarie_kreditter(0),
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat,
         afregningsfakta = UdenSlutopgørelsesafregning
     )
 ))
@@ -223,6 +224,7 @@
         overført_restskat_mv_øre = 0,
         øvrig_pensionsbeskatningsafgift_øre = 0,
         kreditter = ambl_selvstændig_scenarie_kreditter(12345),
+        afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat,
         afregningsfakta = UdenSlutopgørelsesafregning
     )
 ))
