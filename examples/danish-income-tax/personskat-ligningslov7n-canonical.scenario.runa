@@ -79,3 +79,9 @@ lovbestemte indkomstkategori.
 | ll7n_scenarie_am_og_personlig_indkomst_rammes_en_gang: ll7n_scenarie_gyldigt -> ll7n_scenarie_gyldigt.skat.bruttoløn_kroner == 10000 && ll7n_scenarie_gyldigt.skat.arbejdsmarkedsbidrag_kroner == 800 && ll7n_scenarie_gyldigt.skat.øvrig_personlig_indkomst_kroner == 57000 && ll7n_scenarie_gyldigt.skat.personlig_indkomst_efter_am_kroner == 66200
 | ll7n_scenarie_modstridende_selskab_fejler_lukket: ll7n_scenarie_modstridende_selskab -> ll7n_scenarie_modstridende_selskab.aktieavance.alle_input_gyldige == Falskt && ll7n_scenarie_modstridende_selskab.aktieavance.ligningslov7n_resultat.alle_input_gyldige == Falskt && length(ll7n_scenarie_modstridende_selskab.aktieavance.kapitalposter) == 0 && length(ll7n_scenarie_modstridende_selskab.aktieavance.aktieposter) == 0 && ll7n_scenarie_modstridende_selskab.aktieavance.personlig_indkomst_kroner == 0
 | ll7n_scenarie_dubletter_fejler_lukket: ll7n_scenarie_dobbelt_id -> ll7n_scenarie_dobbelt_id.aktieavance.ligningslov7n_resultat.identifikationer_entydige == Falskt && ll7n_scenarie_dobbelt_id.aktieavance.alle_input_gyldige == Falskt && ll7n_scenarie_dobbelt_id.aktieavance.aktieindkomst_kroner == 0
+
+? ll7n_scenarie_personloft_afledes_paa_tvaers_af_selskaber
+? ll7n_scenarie_kategorier_naar_beregn_personskat
+? ll7n_scenarie_am_og_personlig_indkomst_rammes_en_gang
+? ll7n_scenarie_modstridende_selskab_fejler_lukket
+? ll7n_scenarie_dubletter_fejler_lukket

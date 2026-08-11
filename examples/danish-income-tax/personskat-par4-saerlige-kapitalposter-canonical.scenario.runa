@@ -130,12 +130,39 @@ skal derfor afvises samlet uden beløbspåvirkning.
         omkostninger = tom.omkostninger
     )
 }
-| psl4_særlig_scenarie_input(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> PersonskatInput(
+| psl4_særlig_scenarie_ordinær_virksomhed(identifikation: Tekst, indtægt_kroner: Heltal, udgift_kroner: Heltal) -> {
+    = virksomhed = psl4_særlig_scenarie_virksomhed(identifikation, indtægt_kroner, udgift_kroner)
+    PersonskatOrdinærVirksomhedFakta(
+        identifikation = identifikation,
+        indkomstår = 2026,
+        indtægter = virksomhed.indtægter,
+        udgifter = virksomhed.udgifter,
+        ligningslovsfradrag_efter_par3_stk2_nr2 = virksomhed.ligningslovsfradrag_efter_par3_stk2_nr2,
+        erhvervsposter_efter_par3_stk2_nr4_til_10 = virksomhed.erhvervsposter_efter_par3_stk2_nr4_til_10
+    )
+}
+| psl4_særlig_scenarie_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> {
+    = tom = personskat_ingen_personlig_indkomst()
+    PersonskatPersonligIndkomstInput(
+        etableringskonto = tom.etableringskonto,
+        ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+            arbejdsgiverydelser = tom.ordinære_forhold.arbejdsgiverydelser,
+            personlige_arbejdsvederlag = tom.ordinære_forhold.personlige_arbejdsvederlag,
+            virksomheder_uden_virksomhedsordning = virksomheder,
+            forenings_og_arbejdsløshedsydelser = tom.ordinære_forhold.forenings_og_arbejdsløshedsydelser
+        ),
+        arbejdsudleje = tom.arbejdsudleje,
+        underholdsbidrag = tom.underholdsbidrag,
+        børnebidragslov19_bidrag = tom.børnebidragslov19_bidrag,
+        sømandsbeskatning = tom.sømandsbeskatning
+    )
+}
+| psl4_særlig_scenarie_input_med_personlig_indkomst(poster: List(PersonskatPar4SærligKapitalpostfakta), personlig_indkomst: PersonskatPersonligIndkomstInput) -> PersonskatInput(
     lønmodtager = PersonskatLønmodtagerInput(
         skatteår = 2026,
         kommune = København,
         bruttoløn_kroner = 0,
-        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        personlig_indkomst = personlig_indkomst,
         erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
         ligningsfradrag = personskat_ingen_ligningsfradrag(),
         pension = personskat_ingen_pension(),
@@ -154,7 +181,9 @@ skal derfor afvises samlet uden beløbspåvirkning.
     ligningslov33 = personskat_uden_ligningslov33(),
     årsopgørelse = UdenÅrsopgørelse
 )
+| psl4_særlig_scenarie_input(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> psl4_særlig_scenarie_input_med_personlig_indkomst(poster, personskat_ingen_personlig_indkomst())
 | psl4_særlig_scenarie_beregning(poster: List(PersonskatPar4SærligKapitalpostfakta)) -> beregn_personskat(psl4_særlig_scenarie_input(poster))
+| psl4_særlig_scenarie_beregning_med_personlig_virksomhed(poster: List(PersonskatPar4SærligKapitalpostfakta), virksomhed: PersonskatOrdinærVirksomhedFakta) -> beregn_personskat(psl4_særlig_scenarie_input_med_personlig_indkomst(poster, psl4_særlig_scenarie_personlig_indkomst([virksomhed])))
 | psl4_særlig_scenarie_nr9_netto_afledt(resultat: PersonskatPar4SærligKapitalpostresultat) -> match resultat.lovresultat {
     | PsPar4Nr9Lovresultat(nr9) -> personskat_virksomhed_resultat_personlig_indkomst_kroner(nr9.virksomhedsresultat) == 80000 && nr9.par4_resultat.kapitalindkomst_kroner == 80000
     | _ -> Falskt
@@ -166,9 +195,21 @@ skal derfor afvises samlet uden beløbspåvirkning.
     psl4_særlig_scenarie_nr10("samme-id"),
     psl4_særlig_scenarie_nr16("samme-id")
 ])
+= psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4 = psl4_særlig_scenarie_beregning_med_personlig_virksomhed(
+    [psl4_særlig_scenarie_nr9("samme-virksomhed", 100000, 20000, Falskt)],
+    psl4_særlig_scenarie_ordinær_virksomhed("samme-virksomhed", 100000, 20000)
+)
 
 | psl4_særlig_scenarie_alle_grene_når_beregn_personskat: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_gyldigt.kapitalindkomst.alle_input_gyldige && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_postidentifikationer_entydige && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalposter_gyldige && length(psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater) == 8 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 122000
 | psl4_særlig_scenarie_nr9_beregnes_fra_regnskab: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_nr9_netto_afledt(psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[0])
 | psl4_særlig_scenarie_betingelser_og_undtagelser_anvendes: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[1].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[4].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[2].kapitalpost.beløb_kroner == -9000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[3].kapitalpost.beløb_kroner == 40000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[5].kapitalpost.beløb_kroner == -12000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[6].kapitalpost.beløb_kroner == 8000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[7].kapitalpost.beløb_kroner == 15000
 | psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket: psl4_særlig_scenarie_ugyldig_virksomhed -> psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_dubletter_fejler_lukket: psl4_særlig_scenarie_dobbelt_id -> psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_postidentifikationer_entydige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4_fejler_lukket: psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4 -> psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 80000 && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.særlige_kapitalpostresultater[0].virksomhedsidentifikation_adskilt_fra_personlig_indkomst == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+
+? psl4_særlig_scenarie_alle_grene_når_beregn_personskat
+? psl4_særlig_scenarie_nr9_beregnes_fra_regnskab
+? psl4_særlig_scenarie_betingelser_og_undtagelser_anvendes
+? psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket
+? psl4_særlig_scenarie_dubletter_fejler_lukket
+? psl4_særlig_scenarie_samme_virksomhed_i_par3_og_par4_fejler_lukket

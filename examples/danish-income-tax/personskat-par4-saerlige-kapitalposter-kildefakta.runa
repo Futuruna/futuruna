@@ -55,7 +55,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 # PersonskatPar4Nr15Kilderesultat(ligningslov_resultat: Ligningslov12BResultat, par4_input: Par4Stk1Nr15Input, par4_resultat: Par4Stk1Nr15Resultat)
 # PersonskatPar4Nr16Kilderesultat(afskrivningslov_resultat: Afskrivningslov40CResultat, par4_input: Par4Stk1Nr16Input, par4_resultat: Par4Stk1Nr16Resultat)
 # PersonskatPar4SærligKapitalpostLovresultat = PsPar4Nr9Lovresultat(resultat: PersonskatPar4Nr9Kilderesultat) | PsPar4Nr10Lovresultat(resultat: PersonskatPar4Nr10Kilderesultat) | PsPar4Nr11Lovresultat(resultat: PersonskatPar4Nr11Kilderesultat) | PsPar4Nr12Lovresultat(resultat: PersonskatPar4Nr12Kilderesultat) | PsPar4Nr15Lovresultat(resultat: PersonskatPar4Nr15Kilderesultat) | PsPar4Nr16Lovresultat(resultat: PersonskatPar4Nr16Kilderesultat)
-# PersonskatPar4SærligKapitalpostresultat(fakta: PersonskatPar4SærligKapitalpostfakta, identifikation_unik: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4SærligKapitalpostLovresultat, kapitalpost: Par4Kapitalpost)
+# PersonskatPar4SærligKapitalpostresultat(fakta: PersonskatPar4SærligKapitalpostfakta, identifikation_unik: Boolsk, virksomhedsidentifikation_adskilt_fra_personlig_indkomst: Boolsk, grundfakta_gyldige: Boolsk, input_gyldigt: Boolsk, lovresultat: PersonskatPar4SærligKapitalpostLovresultat, kapitalpost: Par4Kapitalpost)
 
 | personskat_par4_virksomhedsfakta(fakta: PersonskatPar4SærligKapitalpostfakta, kilde: PersonskatPar4Virksomhedsopgørelseskilde) -> PersonskatOrdinærVirksomhedFakta(
     identifikation = fakta.identifikation,
@@ -82,6 +82,16 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 }
 | personskat_par4_særlig_post_identifikation_unik(fakta: List(PersonskatPar4SærligKapitalpostfakta), post: PersonskatPar4SærligKapitalpostfakta) -> post.identifikation != "" && length(filter(fakta, |anden: PersonskatPar4SærligKapitalpostfakta| anden.identifikation == post.identifikation)) == 1
 | personskat_par4_særlige_postidentifikationer_entydige(fakta: List(PersonskatPar4SærligKapitalpostfakta)) -> length(distinct(map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation))) == length(fakta) && all(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation != "")
+| personskat_par4_særlig_post_er_virksomhed(fakta: PersonskatPar4SærligKapitalpostfakta) -> match fakta.kilde {
+    | PsPar4Nr9Virksomhed(_) -> Sandt
+    | PsPar4Nr11Udlejningsvirksomhed(_) -> Sandt
+    | _ -> Falskt
+}
+| personskat_par4_særlig_virksomhedsidentifikation_adskilt_fra_personlig_indkomst(fakta: PersonskatPar4SærligKapitalpostfakta, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> hvis personskat_par4_særlig_post_er_virksomhed(fakta) {
+    all(personlige_virksomheder, |virksomhed: PersonskatOrdinærVirksomhedFakta| virksomhed.identifikation != fakta.identifikation || virksomhed.indkomstår != fakta.indkomstår)
+} ellers {
+    Sandt
+}
 
 | personskat_par4_nr9_kilderesultat(fakta: PersonskatPar4SærligKapitalpostfakta, klassifikation: PersonskatPar4Nr9Virksomhedsklassifikation, skatteår: Heltal, identifikation_unik: Boolsk) -> {
     = virksomhedsresultat = personskat_virksomhed_resultat(personskat_par4_virksomhedsfakta(fakta, klassifikation.virksomhed), skatteår, identifikation_unik)
@@ -159,21 +169,25 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
     | PsPar4Nr15Lovresultat(nr15) -> par4_stk1_nr15_kapitalpost(nr15.par4_input)
     | PsPar4Nr16Lovresultat(nr16) -> par4_stk1_nr16_kapitalpost(nr16.par4_input)
 }
-| personskat_par4_særlig_post_resultat(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal) -> {
+| personskat_par4_særlig_post_resultat_med_personlige_virksomheder(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> {
     = identifikation_unik = personskat_par4_særlig_post_identifikation_unik(alle_fakta, fakta)
+    = virksomhedsidentifikation_adskilt_fra_personlig_indkomst = personskat_par4_særlig_virksomhedsidentifikation_adskilt_fra_personlig_indkomst(fakta, personlige_virksomheder)
     = grundfakta_gyldige = personskat_par4_særlig_kilde_grundfakta_gyldige(fakta, skatteår)
     = lovresultat = personskat_par4_særlig_post_lovresultat(fakta, skatteår, identifikation_unik)
-    = input_gyldigt = identifikation_unik && grundfakta_gyldige && personskat_par4_særlig_post_lovresultat_gyldigt(lovresultat)
+    = input_gyldigt = identifikation_unik && virksomhedsidentifikation_adskilt_fra_personlig_indkomst && grundfakta_gyldige && personskat_par4_særlig_post_lovresultat_gyldigt(lovresultat)
     PersonskatPar4SærligKapitalpostresultat(
         fakta = fakta,
         identifikation_unik = identifikation_unik,
+        virksomhedsidentifikation_adskilt_fra_personlig_indkomst = virksomhedsidentifikation_adskilt_fra_personlig_indkomst,
         grundfakta_gyldige = grundfakta_gyldige,
         input_gyldigt = input_gyldigt,
         lovresultat = lovresultat,
         kapitalpost = hvis input_gyldigt { personskat_par4_særlig_post_kapitalpost(lovresultat) } ellers { Par4Kapitalpost(art = PassivSelvstændigErhvervsvirksomhed, beløb_kroner = 0, personlig_reklassifikation = IngenPersonligReklassifikation, personlig_indkomst_tillæg_kroner = 0) }
     )
 }
-| personskat_par4_særlige_postresultater(fakta: List(PersonskatPar4SærligKapitalpostfakta), skatteår: Heltal) -> map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| personskat_par4_særlig_post_resultat(fakta, post, skatteår))
+| personskat_par4_særlig_post_resultat(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal) -> personskat_par4_særlig_post_resultat_med_personlige_virksomheder(alle_fakta, fakta, skatteår, [])
+| personskat_par4_særlige_postresultater_med_personlige_virksomheder(fakta: List(PersonskatPar4SærligKapitalpostfakta), skatteår: Heltal, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| personskat_par4_særlig_post_resultat_med_personlige_virksomheder(fakta, post, skatteår, personlige_virksomheder))
+| personskat_par4_særlige_postresultater(fakta: List(PersonskatPar4SærligKapitalpostfakta), skatteår: Heltal) -> personskat_par4_særlige_postresultater_med_personlige_virksomheder(fakta, skatteår, [])
 | personskat_par4_særlige_postresultater_gyldige(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> all(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.input_gyldigt)
 | personskat_par4_særlige_kapitalposter(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> hvis personskat_par4_særlige_postresultater_gyldige(resultater) { map(resultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.kapitalpost) } ellers { [] }
 --@end:personskat_par4_saerlige_kapitalposter_kildefakta--

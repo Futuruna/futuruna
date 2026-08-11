@@ -15945,7 +15945,7 @@ fraflytningen."
     | _ -> []
 }
 
-# PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) {
+# PersonskatKapitalindkomstSag(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) {
     | reklassifikation() -> personskat_kapital_reklassifikation(input.renter.næringsstatus)
     | rentegrundlag_gyldigt() -> input.renter.renteindtægter_kroner >= 0 && input.renter.renteudgifter_kroner >= 0
     | ligningslov6_input_gyldigt() -> personskat_ligningslov6_input_gyldigt(input.renter.ligningslov6, skatteår)
@@ -15964,7 +15964,7 @@ fraflytningen."
     | finansielle_postresultater() -> personskat_par4_finansielle_postresultater(input.finansielle_poster, skatteår)
     | finansielle_postidentifikationer_entydige() -> personskat_par4_finansielle_postidentifikationer_entydige(input.finansielle_poster)
     | finansielle_poster_gyldige() -> finansielle_postidentifikationer_entydige() && personskat_par4_finansielle_postresultater_gyldige(finansielle_postresultater())
-    | særlige_kapitalpostresultater() -> personskat_par4_særlige_postresultater(input.særlige_kapitalposter, skatteår)
+    | særlige_kapitalpostresultater() -> personskat_par4_særlige_postresultater_med_personlige_virksomheder(input.særlige_kapitalposter, skatteår, personlige_virksomheder)
     | særlige_postidentifikationer_entydige() -> personskat_par4_særlige_postidentifikationer_entydige(input.særlige_kapitalposter)
     | særlige_kapitalposter_gyldige() -> særlige_postidentifikationer_entydige() && personskat_par4_særlige_postresultater_gyldige(særlige_kapitalpostresultater())
     | omkostningsresultater() -> map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostningsresultat(input.omkostninger, omkostning, skatteår))
@@ -16014,7 +16014,7 @@ fraflytningen."
         = finansielle_postresultater_resultat = personskat_par4_finansielle_postresultater(input.finansielle_poster, skatteår)
         = finansielle_postidentifikationer_er_entydige = personskat_par4_finansielle_postidentifikationer_entydige(input.finansielle_poster)
         = finansielle_poster_er_gyldige = finansielle_postidentifikationer_er_entydige && personskat_par4_finansielle_postresultater_gyldige(finansielle_postresultater_resultat)
-        = særlige_kapitalpostresultater_resultat = personskat_par4_særlige_postresultater(input.særlige_kapitalposter, skatteår)
+        = særlige_kapitalpostresultater_resultat = personskat_par4_særlige_postresultater_med_personlige_virksomheder(input.særlige_kapitalposter, skatteår, personlige_virksomheder)
         = særlige_postidentifikationer_er_entydige = personskat_par4_særlige_postidentifikationer_entydige(input.særlige_kapitalposter)
         = særlige_kapitalposter_er_gyldige = særlige_postidentifikationer_er_entydige && personskat_par4_særlige_postresultater_gyldige(særlige_kapitalpostresultater_resultat)
         = omkostningsresultater_resultat = map(input.omkostninger, |omkostning: PersonskatKapitalomkostningInput| personskat_kapitalomkostningsresultat(input.omkostninger, omkostning, skatteår))
@@ -16077,7 +16077,8 @@ fraflytningen."
     }
 }
 
-| personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) -> PersonskatKapitalindkomstSag(input, skatteår, aktieavance, par32, kapitalafkastordningskontekst).resultat()
+| personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst_og_personlige_virksomheder(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatKapitalindkomstSag(input, skatteår, aktieavance, par32, kapitalafkastordningskontekst, personlige_virksomheder).resultat()
+| personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst, kapitalafkastordningskontekst: PersonskatKapitalafkastordningKontekst) -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst_og_personlige_virksomheder(input, skatteår, aktieavance, par32, kapitalafkastordningskontekst, [])
 | personskat_kapitalindkomst_resultat_med_par32(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat, par32: PersonskatKursgevinstPar32PersonKontekst) -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(input, skatteår, aktieavance, par32, UdenAfledtKapitalafkastordningskontekst)
 | personskat_kapitalindkomst_resultat(input: PersonskatKapitalindkomstInput, skatteår: Heltal, aktieavance: PersonskatAktieavanceResultat) -> personskat_kapitalindkomst_resultat_med_par32(input, skatteår, aktieavance, UdenPar32Årsresultat)
 | personskat_ingen_kapitalindkomst() -> PersonskatKapitalindkomstInput(
@@ -16779,7 +16780,14 @@ fraflytningen."
         skattepligtig = personskat_kapitalafkastordning_personkontekst(personlig_indkomst(), fakta().kapitalindkomst.virksomhedskapital),
         ægtefælle = ægtefælle_kapitalafkastordningskontekst
     )
-    | kapitalindkomst() -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst(fakta().kapitalindkomst, fakta().lønmodtager.skatteår, aktieavance_før_pensionsfradrag, par32, kapitalafkastordningskontekst())
+    | kapitalindkomst() -> personskat_kapitalindkomst_resultat_med_par32_og_kapitalafkastkontekst_og_personlige_virksomheder(
+        fakta().kapitalindkomst,
+        fakta().lønmodtager.skatteår,
+        aktieavance_før_pensionsfradrag,
+        par32,
+        kapitalafkastordningskontekst(),
+        fakta().lønmodtager.personlig_indkomst.ordinære_forhold.virksomheder_uden_virksomhedsordning
+    )
     | selvstændig_arbejdsmarkedsbidrag() -> personskat_selvstændig_arbejdsmarkedsbidrag_resultat(fakta().lønmodtager, personlig_indkomst(), kapitalindkomst())
     | erhvervsbefordring() -> personskat_erhvervsbefordring_resultat(fakta().lønmodtager.erhvervsbefordring, fakta().lønmodtager.skatteår)
     | foreløbigt_ligningsfradrag() -> personskat_ligningsfradrag_resultat(fakta().lønmodtager.ligningsfradrag, fakta().lønmodtager, erhvervsbefordring(), personlig_indkomst(), UdenLigningslov12Indkomstgrundlag)
