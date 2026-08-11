@@ -76,125 +76,117 @@
 )
 
 = personskat_par3_nr2_ll8b_felt_indkomstår = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::indkomstår),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::indkomstår),
     label = "§ 8 B - indkomstår",
     question = Some("Hvilket indkomstår skal forsknings- eller udviklingsudgiften vurderes i?"),
     help = None,
     unit = Some("år")
 )
 = personskat_par3_nr2_ll8b_felt_afholdelsesår = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::afholdelsesår),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::afholdelsesår),
     label = "§ 8 B - udgiftens afholdelsesår",
     question = Some("I hvilket år blev udgiften afholdt?"),
     help = None,
     unit = Some("år")
 )
 = personskat_par3_nr2_ll8b_felt_erhvervsstart = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::erhvervsstart::$variant),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::erhvervsstart::$variant),
     label = "§ 8 B - virksomhedens startstatus",
     question = Some("Er erhvervet påbegyndt, og kendes påbegyndelsesåret?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_erhvervsstartår = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::erhvervsstart::Ll8BKendtErhvervspåbegyndelsesår::år),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::erhvervsstart::Ll8BKendtErhvervspåbegyndelsesår::år),
     label = "§ 8 B - erhvervets påbegyndelsesår",
     question = Some("I hvilket år blev erhvervet påbegyndt?"),
     help = None,
     unit = Some("år")
 )
 = personskat_par3_nr2_ll8b_felt_udgiftsart = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::udgiftsart),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::udgiftsart),
     label = "§ 8 B - udgiftsart",
     question = Some("Hvilken type forsøgs-, forsknings- eller råstofudgift er afholdt?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_valg = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::valg),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::valg),
     label = "§ 8 B - fradragsvalg",
     question = Some("Er der valgt straksfradrag eller lineær afskrivning over fem år?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_beløb = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::afholdt_udgift_kroner),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::afholdt_udgift_kroner),
     label = "§ 8 B - afholdt udgift",
     question = Some("Hvor stor var den afholdte udgift?"),
     help = None,
     unit = Some("kr.")
 )
 = personskat_par3_nr2_ll8b_felt_tilknytning = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::tilknytning_til_skattepligtiges_erhverv),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::tilknytning_til_skattepligtiges_erhverv),
     label = "§ 8 B - tilknytning til erhvervet",
     question = Some("Har udgiften tilknytning til den skattepligtiges erhverv?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_igangværende = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::igangværende_virksomhed),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::igangværende_virksomhed),
     label = "§ 8 B - igangværende virksomhed",
     question = Some("Vedrører udgiften en igangværende virksomhed?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_selskab = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::aktie_eller_anpartsselskab),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::aktie_eller_anpartsselskab),
     label = "§ 8 B - aktie- eller anpartsselskab",
     question = Some("Afholdes udgiften af et aktie- eller anpartsselskab?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_tilladelse_før_start = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::told_skat_tillader_fradrag_før_erhvervsstart),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::told_skat_tillader_fradrag_før_erhvervsstart),
     label = "§ 8 B - tilladelse til fradrag før erhvervsstart",
     question = Some("Har Skatteforvaltningen tilladt fradrag før erhvervets påbegyndelse?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_overskud = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::selvstændigt_overskud_før_stk2_fradrag_kroner),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::selvstændigt_overskud_før_stk2_fradrag_kroner),
     label = "§ 8 B - selvstændigt overskud før stk. 2-fradrag",
     question = Some("Hvad er virksomhedens overskud før fradraget efter § 8 B, stk. 2?"),
     help = None,
     unit = Some("kr.")
 )
 = personskat_par3_nr2_ll8b_felt_renteudgifter = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::renteudgifter_og_valutakurstab_i_overskud_kroner),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::renteudgifter_og_valutakurstab_i_overskud_kroner),
     label = "§ 8 B - renter og valutakurstab i overskuddet",
     question = Some("Hvor store renteudgifter og valutakurstab indgår i overskuddet?"),
     help = None,
     unit = Some("kr.")
 )
 = personskat_par3_nr2_ll8b_felt_renteindtægter = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner),
     label = "§ 8 B - renter, udbytter og valutakursgevinster i overskuddet",
     question = Some("Hvor store rente- og udbytteindtægter samt valutakursgevinster indgår i overskuddet?"),
     help = None,
     unit = Some("kr.")
 )
 = personskat_par3_nr2_ll8b_felt_råstoftilladelse = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::told_skat_tillader_straksfradrag_for_stort_råstofbeløb),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::told_skat_tillader_straksfradrag_for_stort_råstofbeløb),
     label = "§ 8 B - tilladelse til stort råstofstraksfradrag",
     question = Some("Har Skatteforvaltningen tilladt straksfradrag for et råstofbeløb over lovens overskudsgrænse?"),
     help = None,
     unit = None
 )
 = personskat_par3_nr2_ll8b_felt_tidligere_koncernudgifter = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::tidligere_stk4_udgifter_under_koncernloft_kroner),
+    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::fakta::tidligere_stk4_udgifter_under_koncernloft_kroner),
     label = "§ 8 B - tidligere udgifter under koncernloftet",
     question = Some("Hvor store tidligere § 8 B, stk. 4-udgifter er allerede medregnet under koncernloftet?"),
     help = None,
     unit = Some("kr.")
 )
-= personskat_par3_nr2_ll8b_felt_reguleringstal = TypetBeregningsfelt(
-    path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8B::input::reguleringstal_tiendedele),
-    label = "§ 8 B - reguleringstal",
-    question = Some("Hvilket reguleringstal gælder for indkomståret?"),
-    help = Some("Angiv tallet i tiendedele, eksempelvis 117,6 som 1176."),
-    unit = Some("tiendedele")
-)
-
 = personskat_par3_nr2_ll8k_felt_indkomstår = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::virksomheder_uden_virksomhedsordning::ligningslovsfradrag_efter_par3_stk2_nr2::kilde::PsPar3Nr2Ll8K::input::indkomstår),
     label = "§ 8 K - indkomstår",
@@ -691,7 +683,6 @@
         personskat_par3_nr2_ll8b_felt_renteindtægter,
         personskat_par3_nr2_ll8b_felt_råstoftilladelse,
         personskat_par3_nr2_ll8b_felt_tidligere_koncernudgifter,
-        personskat_par3_nr2_ll8b_felt_reguleringstal,
         personskat_par3_nr2_ll8k_felt_indkomstår,
         personskat_par3_nr2_ll8k_felt_afholdelsesår,
         personskat_par3_nr2_ll8k_felt_plantningsart,

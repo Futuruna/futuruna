@@ -360,7 +360,8 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
 ----
 
 --@begin:personskat_par3_stk2_nr2_kildefakta--
-# PersonskatPar3Nr2Ligningslovskilde = PsPar3Nr2Ll8Stk1(input: Ligningslov8Stk1Input) | PsPar3Nr2Ll8B(input: Ligningslov8BInput) | PsPar3Nr2Ll8K(input: Ligningslov8KInput) | PsPar3Nr2Ll8L(input: Ligningslov8LInput) | PsPar3Nr2Ll8N(input: Ligningslov8NInput) | PsPar3Nr2Ll14Stk1(input: Ligningslov14Input) | PsPar3Nr2Ll14F(input: Ligningslov14FInput) | PsPar3Nr2Ll30A(input: Ligningslov30AInput)
+# PersonskatPar3Nr2Ll8BFakta(indkomstår: Heltal, afholdelsesår: Heltal, erhvervsstart: Ligningslov8BErhvervsstart, udgiftsart: Ligningslov8BUdgiftsart, valg: Ligningslov8BValg, afholdt_udgift_kroner: Heltal, tilknytning_til_skattepligtiges_erhverv: Boolsk, igangværende_virksomhed: Boolsk, aktie_eller_anpartsselskab: Boolsk, told_skat_tillader_fradrag_før_erhvervsstart: Boolsk, selvstændigt_overskud_før_stk2_fradrag_kroner: Heltal, renteudgifter_og_valutakurstab_i_overskud_kroner: Heltal, rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner: Heltal, told_skat_tillader_straksfradrag_for_stort_råstofbeløb: Boolsk, tidligere_stk4_udgifter_under_koncernloft_kroner: Heltal)
+# PersonskatPar3Nr2Ligningslovskilde = PsPar3Nr2Ll8Stk1(input: Ligningslov8Stk1Input) | PsPar3Nr2Ll8B(fakta: PersonskatPar3Nr2Ll8BFakta) | PsPar3Nr2Ll8K(input: Ligningslov8KInput) | PsPar3Nr2Ll8L(input: Ligningslov8LInput) | PsPar3Nr2Ll8N(input: Ligningslov8NInput) | PsPar3Nr2Ll14Stk1(input: Ligningslov14Input) | PsPar3Nr2Ll14F(input: Ligningslov14FInput) | PsPar3Nr2Ll30A(input: Ligningslov30AInput)
 # PersonskatPar3Nr2Ligningslovsfakta(identifikation: Tekst, kilde: PersonskatPar3Nr2Ligningslovskilde)
 # PersonskatPar3Nr2Ligningslovsresultat(fakta: PersonskatPar3Nr2Ligningslovsfakta, grundlag: Par3Stk2Nr2Grundlag, par3_post: Par3Stk2Nr2Post)
 
@@ -370,7 +371,7 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
 }
 | personskat_par3_nr2_ligningslovskilde_indkomstår(kilde: PersonskatPar3Nr2Ligningslovskilde) -> match kilde {
     | PsPar3Nr2Ll8Stk1(input) -> input.indkomstår
-    | PsPar3Nr2Ll8B(input) -> input.indkomstår
+    | PsPar3Nr2Ll8B(fakta) -> fakta.indkomstår
     | PsPar3Nr2Ll8K(input) -> input.indkomstår
     | PsPar3Nr2Ll8L(input) -> input.indkomstår
     | PsPar3Nr2Ll8N(input) -> input.indkomstår
@@ -380,7 +381,7 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
 }
 | personskat_par3_nr2_ligningslovskilde_grundfakta_gyldige(kilde: PersonskatPar3Nr2Ligningslovskilde, skatteår: Heltal) -> match kilde {
     | PsPar3Nr2Ll8Stk1(input) -> input.indkomstår == skatteår && input.afholdelsesår > 0 && input.afholdelsesår <= input.indkomstår && input.afholdt_udgift_kroner >= 0
-    | PsPar3Nr2Ll8B(input) -> input.indkomstår == skatteår && input.afholdelsesår > 0 && input.afholdelsesår <= input.indkomstår && personskat_par3_nr2_ll8b_erhvervsstart_gyldig(input.erhvervsstart) && input.afholdt_udgift_kroner >= 0 && input.renteudgifter_og_valutakurstab_i_overskud_kroner >= 0 && input.rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner >= 0 && input.tidligere_stk4_udgifter_under_koncernloft_kroner >= 0 && input.reguleringstal_tiendedele >= 0
+    | PsPar3Nr2Ll8B(fakta) -> fakta.indkomstår == skatteår && fakta.afholdelsesår > 0 && fakta.afholdelsesår <= fakta.indkomstår && personskat_par3_nr2_ll8b_erhvervsstart_gyldig(fakta.erhvervsstart) && fakta.afholdt_udgift_kroner >= 0 && fakta.renteudgifter_og_valutakurstab_i_overskud_kroner >= 0 && fakta.rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner >= 0 && fakta.tidligere_stk4_udgifter_under_koncernloft_kroner >= 0
     | PsPar3Nr2Ll8K(input) -> input.indkomstår == skatteår && input.afholdelsesår > 0 && input.afholdelsesår <= input.indkomstår && input.afholdt_udgift_kroner >= 0 && input.tidligere_fradraget_kroner >= 0 && input.årets_samlede_udgifter_pr_ejendom_kroner >= input.afholdt_udgift_kroner && input.valgt_fradrag_kroner >= 0 && input.energiafgrødeareal_kvadratmeter >= 0
     | PsPar3Nr2Ll8L(input) -> input.indkomstår == skatteår && input.indbetalingsår > 0 && input.indbetalingsår <= input.indkomstår && input.indbetalt_til_landsbyggefonden_kroner >= 0
     | PsPar3Nr2Ll8N(input) -> input.indkomstår == skatteår && input.udgift_kroner >= 0 && input.samlede_omfattede_udgifter_før_denne_kroner >= 0 && input.grundbeløbsandel_basispoint >= 0 && input.grundbeløbsandel_basispoint <= 10000
@@ -389,9 +390,27 @@ stk. 3-5, ved selvstændig erhvervsvirksomhed,
     | PsPar3Nr2Ll30A(input) -> input.indkomstår == skatteår && input.afholdelsesår > 0 && input.afholdelsesår <= input.indkomstår && input.afholdt_udgift_kroner >= 0 && input.præmieandel_for_medicin_ud_over_seks_måneder_kroner >= 0 && input.præmieandel_for_medicin_ud_over_seks_måneder_kroner <= input.afholdt_udgift_kroner
 }
 | personskat_par3_nr2_ligningslovsfakta_grundfakta_gyldige(fakta: PersonskatPar3Nr2Ligningslovsfakta, skatteår: Heltal) -> fakta.identifikation != "" && personskat_par3_nr2_ligningslovskilde_indkomstår(fakta.kilde) == skatteår && personskat_par3_nr2_ligningslovskilde_grundfakta_gyldige(fakta.kilde, skatteår)
+| personskat_par3_nr2_ll8b_input(fakta: PersonskatPar3Nr2Ll8BFakta) -> Ligningslov8BInput(
+    indkomstår = fakta.indkomstår,
+    afholdelsesår = fakta.afholdelsesår,
+    erhvervsstart = fakta.erhvervsstart,
+    udgiftsart = fakta.udgiftsart,
+    valg = fakta.valg,
+    afholdt_udgift_kroner = fakta.afholdt_udgift_kroner,
+    tilknytning_til_skattepligtiges_erhverv = fakta.tilknytning_til_skattepligtiges_erhverv,
+    igangværende_virksomhed = fakta.igangværende_virksomhed,
+    aktie_eller_anpartsselskab = fakta.aktie_eller_anpartsselskab,
+    told_skat_tillader_fradrag_før_erhvervsstart = fakta.told_skat_tillader_fradrag_før_erhvervsstart,
+    selvstændigt_overskud_før_stk2_fradrag_kroner = fakta.selvstændigt_overskud_før_stk2_fradrag_kroner,
+    renteudgifter_og_valutakurstab_i_overskud_kroner = fakta.renteudgifter_og_valutakurstab_i_overskud_kroner,
+    rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = fakta.rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner,
+    told_skat_tillader_straksfradrag_for_stort_råstofbeløb = fakta.told_skat_tillader_straksfradrag_for_stort_råstofbeløb,
+    tidligere_stk4_udgifter_under_koncernloft_kroner = fakta.tidligere_stk4_udgifter_under_koncernloft_kroner,
+    reguleringstal_tiendedele = par20_reguleringstal_tiendedele(fakta.indkomstår)
+)
 | personskat_par3_nr2_ligningslovsgrundlag(kilde: PersonskatPar3Nr2Ligningslovskilde) -> match kilde {
     | PsPar3Nr2Ll8Stk1(input) -> Par3Nr2Ll8Stk1(resultat = ligningslov8_stk1_resultat(input))
-    | PsPar3Nr2Ll8B(input) -> Par3Nr2Ll8B(resultat = ligningslov8b_resultat(input))
+    | PsPar3Nr2Ll8B(fakta) -> Par3Nr2Ll8B(resultat = ligningslov8b_resultat(personskat_par3_nr2_ll8b_input(fakta)))
     | PsPar3Nr2Ll8K(input) -> Par3Nr2Ll8K(resultat = ligningslov8k_resultat(input))
     | PsPar3Nr2Ll8L(input) -> Par3Nr2Ll8L(resultat = ligningslov8l_resultat(input))
     | PsPar3Nr2Ll8N(input) -> Par3Nr2Ll8N(resultat = ligningslov8n_resultat(input))

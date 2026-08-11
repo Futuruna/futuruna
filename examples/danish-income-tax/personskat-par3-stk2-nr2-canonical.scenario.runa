@@ -30,7 +30,7 @@ beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
 
 | psl3_nr2_scenarie_alle_familier() -> [
     psl3_nr2_scenarie_ll8("ll8-reklame", Falskt, 12000),
-    psl3_nr2_scenarie_fakta("ll8b-forskning", PsPar3Nr2Ll8B(input = Ligningslov8BInput(
+    psl3_nr2_scenarie_fakta("ll8b-forskning", PsPar3Nr2Ll8B(fakta = PersonskatPar3Nr2Ll8BFakta(
         indkomstår = 2026,
         afholdelsesår = 2026,
         erhvervsstart = Ll8BKendtErhvervspåbegyndelsesår(år = 2024),
@@ -45,8 +45,7 @@ beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
         renteudgifter_og_valutakurstab_i_overskud_kroner = 0,
         rente_udbytteindtægter_og_valutakursgevinster_i_overskud_kroner = 0,
         told_skat_tillader_straksfradrag_for_stort_råstofbeløb = Falskt,
-        tidligere_stk4_udgifter_under_koncernloft_kroner = 0,
-        reguleringstal_tiendedele = 1373
+        tidligere_stk4_udgifter_under_koncernloft_kroner = 0
     ))),
     psl3_nr2_scenarie_fakta("ll8k-fredskov", PsPar3Nr2Ll8K(input = Ligningslov8KInput(
         indkomstår = 2026,
@@ -197,6 +196,17 @@ beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
     | Some(beregning) -> map(beregning.par3_stk2_nr2_resultater, |kilde: PersonskatPar3Nr2Ligningslovsresultat| par3_stk2_nr2_hjemmel(kilde.grundlag))
     | None -> []
 }
+| psl3_nr2_scenarie_ll8b_loft_kroner(resultat: PersonskatBeregningResultat) -> match psl3_nr2_scenarie_virksomhedsberegning(resultat) {
+    | Some(beregning) -> foldl(
+        beregning.par3_stk2_nr2_resultater,
+        0,
+        |loft_kroner: Heltal, kilde: PersonskatPar3Nr2Ligningslovsresultat| match kilde.grundlag {
+            | Par3Nr2Ll8B(ll8b_resultat) -> ll8b_resultat.stk4_loft_kroner
+            | _ -> loft_kroner
+        }
+    )
+    | None -> 0
+}
 
 = psl3_nr2_scenarie_alle = psl3_nr2_scenarie_beregning(psl3_nr2_scenarie_alle_familier())
 = psl3_nr2_scenarie_lovligt_afskåret = psl3_nr2_scenarie_beregning([psl3_nr2_scenarie_ll8("ll8-foreningsindkomst", Sandt, 12000)])
@@ -207,12 +217,14 @@ beregn_personskat-kaskaden. Ugyldige kildefakta må ikke skabe et fradrag.
 ])
 
 | psl3_nr2_alle_otte_familier_når_personskat: psl3_nr2_scenarie_alle -> psl3_nr2_scenarie_alle.personlig_indkomst.alle_input_gyldige && psl3_nr2_scenarie_resultatantal(psl3_nr2_scenarie_alle) == 8 && psl3_nr2_scenarie_fradrag_kroner(psl3_nr2_scenarie_alle) == 282000 && psl3_nr2_scenarie_alle.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 718000 && psl3_nr2_scenarie_alle.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 718000 && psl3_nr2_scenarie_alle.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidrag_kroner == 57440
+| psl3_nr2_ll8b_reguleringstal_afledes_fra_indkomståret: psl3_nr2_scenarie_alle -> psl3_nr2_scenarie_ll8b_loft_kroner(psl3_nr2_scenarie_alle) == 1088800000
 | psl3_nr2_hjemler_bevares_i_sporbarheden: psl3_nr2_scenarie_alle -> contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8Stk1) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8B) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8K) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8L) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov8N) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov14Stk1) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov14F) && contains(psl3_nr2_scenarie_hjemler(psl3_nr2_scenarie_alle), Par3Nr2Ligningslov30A)
 | psl3_nr2_lovlig_udelukkelse_giver_nul: psl3_nr2_scenarie_lovligt_afskåret -> psl3_nr2_scenarie_lovligt_afskåret.personlig_indkomst.alle_input_gyldige && psl3_nr2_scenarie_fradrag_kroner(psl3_nr2_scenarie_lovligt_afskåret) == 0 && psl3_nr2_scenarie_lovligt_afskåret.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 1000000
 | psl3_nr2_negativt_kildebeløb_afvises: psl3_nr2_scenarie_negativt_beløb -> psl3_nr2_scenarie_negativt_beløb.personlig_indkomst.alle_input_gyldige == Falskt && psl3_nr2_scenarie_negativt_beløb.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0 && psl3_nr2_scenarie_negativt_beløb.selvstændig_arbejdsmarkedsbidrag.arbejdsmarkedsbidragsgrundlag_kroner == 0
 | psl3_nr2_dobbelt_kildeidentifikation_afvises: psl3_nr2_scenarie_dobbelt_id -> psl3_nr2_scenarie_dobbelt_id.personlig_indkomst.alle_input_gyldige == Falskt && psl3_nr2_scenarie_dobbelt_id.personlig_indkomst.ordinære_forhold.selvstændig_personlig_indkomst_før_fremførsel_kroner == 0
 
 ? psl3_nr2_alle_otte_familier_når_personskat
+? psl3_nr2_ll8b_reguleringstal_afledes_fra_indkomståret
 ? psl3_nr2_hjemler_bevares_i_sporbarheden
 ? psl3_nr2_lovlig_udelukkelse_giver_nul
 ? psl3_nr2_negativt_kildebeløb_afvises
