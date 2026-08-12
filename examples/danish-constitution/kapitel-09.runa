@@ -1,13 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel IX -- Forskellige bestemmelser
 
+--@label:grundlov_par86::meta:grundlov_kildemetadata--
 ----
 § 86. Valgretsalderen til de kommunale råd og menighedsrådene er den for valg
 til folketinget til enhver tid gældende. For Færøernes og Grønlands vedkommende
@@ -15,11 +12,15 @@ fastsættes valgretsalderen til de kommunale råd og menighedsrådene ved lov
 eller i henhold til lov.
 ----
 
+--@begin:grundlov_par86--
+
 | kommunal_valgretsalder_følger_folketingsvalg()
 | menighedsråd_valgretsalder_følger_folketingsvalg()
 | færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
 | grønland_kommunal_valgretsalder_fastsættes_ved_lov()
+--@end:grundlov_par86--
 
+--@label:grundlov_par87::meta:grundlov_kildemetadata--
 ----
 § 87. Islandske statsborgere, der i medfør af loven om ophævelse af
 dansk-islandsk forbundslov m.m. nyder lige ret med danske statsborgere,
@@ -27,5 +28,8 @@ bevarer de i grundloven hjemlede rettigheder, der er knyttede til dansk
 indfødsret.
 ----
 
+--@begin:grundlov_par87--
+
 | islandske_statsborgere_bevarer_grundlovsrettigheder()
 | islandske_rettigheder_knyttet_til_dansk_indfødsret()
+--@end:grundlov_par87--

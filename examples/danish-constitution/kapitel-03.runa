@@ -1,55 +1,52 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel III — Kongen og ministrene (§ 12–27)
 -- ═══════════════════════════════════════════════════════════════
 
--- Typer
-# Samtykke = Givet | IkkeGivet
-# Mistillid = Udtalt | IkkeUdtalt
-# Råd = StatsrådsRåd | MinisterrådsRåd
-# MilitærGrund = Forsvar | Anden
-# Tiltaler = Kongen | Folketinget
-# ForhandlingsForum = StatsrådsForum | MinisterrådsForum
-
 -- ─────────────────────────────────────────────────────────
 -- § 12. Kongens myndighed
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par12::meta:grundlov_kildemetadata--
 ----
 § 12. Kongen har med de i denne grundlov fastsatte indskrænkninger den
 højeste myndighed over alle rigets anliggender og udøver den gennem ministrene.
 ----
 
+--@begin:grundlov_par12--
+
 | kongen_har_højeste_myndighed()
 | myndighed_indskrænket_af_grundloven()
 | myndighed_udøves_gennem_ministrene()
+--@end:grundlov_par12--
 
 -- ─────────────────────────────────────────────────────────
 -- § 13. Ansvar
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par13::meta:grundlov_kildemetadata--
 ----
 § 13. Kongen er ansvarsfri; hans person er fredhellig. Ministrene er
 ansvarlige for regeringens førelse; deres ansvarlighed bestemmes nærmere
 ved lov.
 ----
 
+--@begin:grundlov_par13--
+
 | kongen_er_ansvarsfri()
 | kongen_er_fredhellig()
 | ministrene_er_ansvarlige()
 | ministeransvar_fastsættes_ved_lov()
+--@end:grundlov_par13--
 
 -- ─────────────────────────────────────────────────────────
 -- § 14. Udnævnelse og gyldighed
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par14::meta:grundlov_kildemetadata--
 ----
 § 14. Kongen udnævner og afskediger statsministeren og de øvrige ministre.
 Han bestemmer deres antal og forretningernes fordeling imellem dem.
@@ -59,58 +56,74 @@ flere ministres underskrift.
 Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
 ----
 
+--@begin:grundlov_par14--
+
 | kongen_udnævner_og_afskediger_ministre()
 | kongen_bestemmer_antal_og_fordeling()
 
 -- Gyldighed kræver begge underskrifter (kontrasignatur)
 | beslutning_gyldig_når_kongen_og_minister_underskriver()
 | underskrivende_minister_er_ansvarlig()
+--@end:grundlov_par14--
 
 -- ─────────────────────────────────────────────────────────
 -- § 15. Mistillid
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par15::meta:grundlov_kildemetadata--
 ----
 § 15. Stk. 1. Ingen minister kan forblive i sit embede, efter at
 folketinget har udtalt sin mistillid til ham.
+
+Stk. 2. Udtaler folketinget sin mistillid til statsministeren,
+skal denne begære ministeriets afsked, medmindre nyvalg udskrives.
+Et ministerium, som har fået et mistillidsvotum, eller som har begæret
+sin afsked, fungerer, indtil et nyt ministerium er udnævnt.
+Fungerende ministre kan i deres embede kun foretage sig, hvad der er
+fornødent til embedsforretningernes uforstyrrede førelse.
 ----
+
+--@begin:grundlov_par15--
+
+# Mistillid = Udtalt | IkkeUdtalt
 
 | minister_fjernes_ved_udtalt_mistillid()
 | minister_kan_forblive(m: Mistillid) -> m == IkkeUdtalt
 
-----
-§ 15. Stk. 2. Udtaler folketinget sin mistillid til statsministeren,
-skal denne begære ministeriets afsked, medmindre nyvalg udskrives.
-Et ministerium, som har fået et mistillidsvotum, eller som har begæret
-sin afsked, fungerer, indtil et nyt ministerium er udnævnt.
-----
-
 | mistillid_til_statsminister_kræver_afsked()
-| exception nyvalg mistillid_til_statsminister_kræver_afsked() -> false under nyvalg_udskrives()
-| nyvalg_udskrives() -> false
+| exception nyvalg mistillid_til_statsminister_kræver_afsked() -> Falskt under nyvalg_udskrives()
+| nyvalg_udskrives() -> Falskt
 
 | afskediget_ministerium_fungerer_til_nyt_udnævnt()
 | fungerende_ministre_kun_nødvendige_handlinger()
+--@end:grundlov_par15--
 
 -- ─────────────────────────────────────────────────────────
 -- § 16. Tiltale
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par16::meta:grundlov_kildemetadata--
 ----
 § 16. Ministrene kan af kongen eller folketinget tiltales for deres
 embedsførelse. Rigsretten påkender de mod ministrene for deres
 embedsførelse anlagte sager.
 ----
 
+--@begin:grundlov_par16--
+
+# Tiltaler = KongenSomTiltaler | FolketingetSomTiltaler
+
 | kongen_kan_tiltale_minister()
 | folketinget_kan_tiltale_minister()
 | kan_tiltale_minister(t: Tiltaler) -> Sandt
 | rigsretten_påkender_ministersager()
+--@end:grundlov_par16--
 
 -- ─────────────────────────────────────────────────────────
 -- § 17. Statsrådet
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par17::meta:grundlov_kildemetadata--
 ----
 § 17. Stk. 1. Ministrene i forening udgør statsrådet, hvori tronfølgeren,
 når han er myndig, tager sæde. Kongen fører forsædet undtagen i det i § 8
@@ -121,17 +134,21 @@ regeringen.
 Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 ----
 
+--@begin:grundlov_par17--
+
 | ministrene_udgør_statsrådet()
 | myndig_tronfølger_tager_sæde_i_statsrådet()
 | kongen_fører_forsædet_i_statsrådet()
 | statsrådet_fører_forsædet_i_par8_tilfælde()
 | statsrådet_kan_føre_regeringen_efter_par9_lov()
 | alle_love_forhandles_i_statsrådet()
+--@end:grundlov_par17--
 
 -- ─────────────────────────────────────────────────────────
 -- § 18. Ministerråd
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par18::meta:grundlov_kildemetadata--
 ----
 § 18. Er kongen forhindret i at holde statsråd, kan han lade sagen
 forhandle i et ministerråd. Dette består af samtlige ministre under
@@ -142,9 +159,13 @@ underskrevne protokol for kongen, der bestemmer, om han umiddelbart vil
 bifalde ministerrådets indstilling eller lade sig sagen foredrage i statsrådet.
 ----
 
+--@begin:grundlov_par18--
+
+# ForhandlingsForum = StatsrådsForum | MinisterrådsForum
+
 | forhandlingsforum() -> StatsrådsForum
 | forhandlingsforum() -> MinisterrådsForum under kongen_forhindret()
-| kongen_forhindret() -> false
+| kongen_forhindret() -> Falskt
 
 | ministerråd_under_statsministeren()
 | hver_minister_afgiver_votum_til_protokollen()
@@ -152,19 +173,36 @@ bifalde ministerrådets indstilling eller lade sig sagen foredrage i statsrådet
 | tilstedeværende_ministre_underskriver_protokollen()
 | statsministeren_forelægger_ministerrådsprotokol_for_kongen()
 | kongen_kan_bifalde_eller_overføre_til_statsrådet()
+--@end:grundlov_par18--
 
 -- ─────────────────────────────────────────────────────────
 -- § 19. Udenrigspolitik og militær
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par19::meta:grundlov_kildemetadata--
 ----
 § 19. Stk. 1. Kongen handler på rigets vegne i mellemfolkelige anliggender.
 Uden folketingets samtykke kan han dog ikke foretage nogen handling, der
-forøger eller indskrænker rigets område, eller indgå nogen forpligtelse af
+forøger eller indskrænker rigets område, eller indgå nogen forpligtelse,
 til hvis opfyldelse folketingets medvirken er nødvendig, eller som iøvrigt
 er af større betydning. Ejheller kan kongen uden folketingets samtykke opsige
 nogen mellemfolkelig overenskomst, som er indgået med folketingets samtykke.
+
+Stk. 2. Bortset fra forsvar mod væbnet angreb på riget eller danske
+styrker kan kongen ikke uden folketingets samtykke anvende militære magtmidler
+mod nogen fremmed stat. Foranstaltninger, som kongen måtte træffe i medfør af
+denne bestemmelse, skal straks forelægges folketinget. Er folketinget ikke
+samlet, skal det uopholdeligt sammenkaldes til møde.
+
+Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn,
+med hvilket regeringen rådfører sig forud for enhver beslutning af større
+udenrigspolitisk rækkevidde. Nærmere regler om det udenrigspolitiske nævn
+fastsættes ved lov.
 ----
+
+--@begin:grundlov_par19--
+
+# MilitærGrund = Forsvar | Anden
 
 | kongen_handler_mellemfolkeligt()
 
@@ -176,14 +214,6 @@ nogen mellemfolkelig overenskomst, som er indgået med folketingets samtykke.
 | opsigelse_af_samtykketraktat_kræver_folketingets_samtykke()
 | kræver_folketingets_samtykke(h: SamtykkeKrævende) -> Sandt
 
-----
-§ 19. Stk. 2. Bortset fra forsvar mod væbnet angreb på riget eller danske
-styrker kan kongen ikke uden folketingets samtykke anvende militære magtmidler
-mod nogen fremmed stat. Foranstaltninger, som kongen måtte træffe i medfør af
-denne bestemmelse, skal straks forelægges folketinget. Er folketinget ikke
-samlet, skal det uopholdeligt sammenkaldes til møde.
-----
-
 -- Forsvar er altid tilladt. Andet kræver samtykke.
 | militær_magt_tilladt(Forsvar)
 | forsvar_mod_angreb_på_riget_tilladt()
@@ -193,22 +223,17 @@ samlet, skal det uopholdeligt sammenkaldes til møde.
 | militær_handling_straks_forelægges_folketinget()
 | folketinget_sammenkaldes_hvis_ikke_samlet()
 
-----
-§ 19. Stk. 3. Folketinget vælger af sin midte et udenrigspolitisk nævn,
-med hvilket regeringen rådfører sig forud for enhver beslutning af større
-udenrigspolitisk rækkevidde. Nærmere regler om det udenrigspolitiske nævn
-fastsættes ved lov.
-----
-
 | folketinget_vælger_udenrigsnævn()
 | regeringen_rådfører_sig_med_udenrigsnævn_forud()
 | rådføring_gælder_større_udenrigspolitisk_rækkevidde()
 | udenrigsnævn_fastsættes_ved_lov()
+--@end:grundlov_par19--
 
 -- ─────────────────────────────────────────────────────────
 -- § 20. Suverænitetsafgivelse
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par20::meta:grundlov_kildemetadata--
 ----
 § 20. Stk. 1. Beføjelser, som efter denne grundlov tilkommer rigets
 myndigheder, kan ved lov i nærmere bestemt omfang overlades til mellemfolkelige
@@ -222,6 +247,8 @@ regeringen forslaget, forelægges det folketingsvælgerne til godkendelse eller
 forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
 ----
 
+--@begin:grundlov_par20--
+
 | beføjelser_kan_overlades_mellemfolkeligt()
 | suverænitetsoverladelse_sker_i_nærmere_bestemt_omfang()
 | mellemfolkelige_myndigheder_oprettet_ved_gensidig_overenskomst()
@@ -229,35 +256,45 @@ forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
 = suverænitetskrav_flertal = "5/6 af folketingets medlemmer"
 | suverænitetsforslag_kan_gå_til_folkeafstemning_ved_almindeligt_flertal()
 | alternativt_folkeafstemning_ved_simpelt_flertal()
+--@end:grundlov_par20--
 
 -- ─────────────────────────────────────────────────────────
 -- § 21–22. Lovgivning
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par21::meta:grundlov_kildemetadata--
 ----
 § 21. Kongen kan for folketinget lade fremsætte forslag til love og andre
 beslutninger.
 ----
 
+--@begin:grundlov_par21--
+
 | kongen_kan_fremsætte_lovforslag()
 | kongen_kan_fremsætte_beslutningsforslag()
+--@end:grundlov_par21--
 
+--@label:grundlov_par22::meta:grundlov_kildemetadata--
 ----
 § 22. Et af folketinget vedtaget lovforslag får lovskraft, når det
 senest 30 dage efter den endelige vedtagelse stadfæstes af kongen.
 Kongen befaler lovens kundgørelse og drager omsorg for dens fuldbyrdelse.
 ----
 
+--@begin:grundlov_par22--
+
 = stadfæstelsesfrist_dage = 30
 | lovforslag_kræver_stadfæstelse()
 | kongen_befaler_lovens_kundgørelse()
 | kongen_drager_omsorg_for_lovens_fuldbyrdelse()
 | kongen_kundgør_og_fuldbyrder()
+--@end:grundlov_par22--
 
 -- ─────────────────────────────────────────────────────────
 -- § 23. Foreløbige love
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par23::meta:grundlov_kildemetadata--
 ----
 § 23. I særdeles påtrængende tilfælde kan kongen, når folketinget
 ikke kan samles, udstede foreløbige love, der dog ikke må stride
@@ -265,29 +302,37 @@ mod grundloven og altid straks efter folketingets sammentræden skal
 forelægges dette til godkendelse eller forkastelse.
 ----
 
+--@begin:grundlov_par23--
+
 | foreløbige_love_når_folketinget_ikke_kan_samles()
 | foreløbige_love_må_ikke_stride_mod_grundloven()
 | foreløbige_love_forelægges_folketinget()
 | foreløbige_love_forelægges_til_godkendelse_eller_forkastelse()
+--@end:grundlov_par23--
 
 -- ─────────────────────────────────────────────────────────
 -- § 24. Benådning
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par24::meta:grundlov_kildemetadata--
 ----
 § 24. Kongen kan benåde og give amnesti. Ministrene kan han kun
 med folketingets samtykke benåde for de dem af rigsretten idømte straffe.
 ----
 
+--@begin:grundlov_par24--
+
 | kongen_kan_benåde()
 | kongen_kan_give_amnesti()
 | benådning_af_rigsretsdømt_minister_kræver_samtykke()
 | benåde_minister_fra_rigsret(s: Samtykke) -> s == Givet
+--@end:grundlov_par24--
 
 -- ─────────────────────────────────────────────────────────
 -- § 25–26. Bevillinger og møntret
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par25::meta:grundlov_kildemetadata--
 ----
 § 25. Kongen meddeler dels umiddelbart, dels gennem vedkommende
 regeringsmyndigheder sådanne bevillinger og undtagelser fra lovene, som enten
@@ -295,33 +340,35 @@ ifølge de før 5. juni 1849 gældende regler er i brug, eller hvortil hjemmel
 indeholdes i en siden den tid udgiven lov.
 ----
 
+--@begin:grundlov_par25--
+
 | kongen_kan_give_dispensationer()
 | dispensationer_kan_meddeles_gennem_regeringsmyndigheder()
 | dispensationer_kræver_gammel_praksis_eller_lovhjemmel()
+--@end:grundlov_par25--
 
+--@label:grundlov_par26::meta:grundlov_kildemetadata--
 ----
 § 26. Kongen har ret til at lade slå mønt i henhold til loven.
 ----
 
+--@begin:grundlov_par26--
+
 | kongen_har_møntret()
+--@end:grundlov_par26--
 
 -- ─────────────────────────────────────────────────────────
 -- § 27. Tjenestemænd
 -- ─────────────────────────────────────────────────────────
 
+--@label:grundlov_par27::meta:grundlov_kildemetadata--
 ----
 § 27. Stk. 1. Regler om ansættelse af tjenestemænd fastsættes ved lov.
 Ingen kan ansættes som tjenestemand uden at have indfødsret.
 Tjenestemænd, som udnævnes af kongen, afgiver en højtidelig forsikring
 om at ville holde grundloven.
-----
 
-| tjenestemandsansættelse_fastsættes_ved_lov()
-| tjenestemand_kræver_indfødsret()
-| kongens_tjenestemand_aflægger_grundlovs_ed()
-
-----
-§ 27. Stk. 2. Om afskedigelse, forflyttelse og pensionering af tjenestemænd
+Stk. 2. Om afskedigelse, forflyttelse og pensionering af tjenestemænd
 fastsættes regler ved lov, jfr. dog herved § 64.
 
 Stk. 3. Uden deres samtykke kan de af kongen udnævnte tjenestemænd kun
@@ -330,6 +377,13 @@ forbundne indtægter, og der gives dem valget mellem sådan forflyttelse og
 afsked med pension efter de almindelige regler.
 ----
 
+--@begin:grundlov_par27--
+
+| tjenestemandsansættelse_fastsættes_ved_lov()
+| tjenestemand_kræver_indfødsret()
+| kongens_tjenestemand_aflægger_grundlovs_ed()
+
 | tjenestemandsforhold_fastsættes_ved_lov()
 | forflyttelse_uden_samtykke_kun_uden_indkomsttab()
 | forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension()
+--@end:grundlov_par27--

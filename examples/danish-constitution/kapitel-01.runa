@@ -1,62 +1,66 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
+--@label:grundlov_indledning::meta:grundlov_kildemetadata--
 ----
-Danmarks Riges Grundlov (Grundloven)
-af 5. juni 1953
+Danmarks Riges Grundlov (Grundloven) (* 1)
 
 Vi Frederik den Niende, af Guds Nåde Konge til Danmark, de Venders og Goters,
-Hertug til Slesvig, Holsten, Stormarn, Ditmarsken, Lauenborg og Oldenborg,
-gør vitterligt: Rigsdagen har to gange vedtaget og folketingsvælgerne ved
-folkeafstemning den 28. maj 1953 godkendt, hvorefter Vi stadfæster
-DANMARKS RIGES GRUNDLOV
+Hertug til Slesvig, Holsten, Stormarn, Ditmarsken, Lauenborg og Oldenborg, Gør
+vitterligt: I overensstemmelse med bestemmelserne i § 94 i Danmarks Riges
+Grundlov af 5. juni 1915 med ændringer af 10. september 1920 har rigsdagen 2
+gange vedtaget, og folketingsvælgerne ved en den 28. maj 1953 afholdt
+folkeafstemning godkendt, hvorefter Vi nu ved Vort allerhøjeste samtykke
+stadfæster DANMARKS RIGES GRUNDLOV
 ----
+
+--@begin:grundlov_indledning--
+
+= grundlovsfolkeafstemningens_dato = Dato(år = 1953, måned = 5, dag = 28)
+| rigsdagen_vedtog_grundloven_to_gange()
+| folketingsvælgerne_godkendte_grundloven_ved_folkeafstemning()
+| kongen_stadfæstede_grundloven()
+--@end:grundlov_indledning--
 
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel I — Statsformen (§ 1–4)
 -- ═══════════════════════════════════════════════════════════════
 
--- Rigets dele (§ 1)
-# Rigsdel = Danmark | Færøerne | Grønland
-
--- Statsmagterne (§ 3)
-# Statsmagt = Lovgivende | Udøvende | Dømmende
-# Institution = Kongen | Folketinget | Domstolene
-
--- Køn for tronfølge (§ 2)
-# Køn = Mand | Kvinde
-
--- Trossamfund (§§ 4, 6, 67-70)
-# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
-
+--@label:grundlov_par1::meta:grundlov_kildemetadata--
 ----
 § 1. Denne grundlov gælder for alle dele af Danmarks Rige.
 ----
 
+--@begin:grundlov_par1--
+
 | grundloven_gælder_for_alle_dele_af_riget()
 | grundloven_gælder_for(del: Rigsdel) -> Sandt
+--@end:grundlov_par1--
 
+--@label:grundlov_par2::meta:grundlov_kildemetadata--
 ----
 § 2. Regeringsformen er indskrænket-monarkisk.
 Kongemagten nedarves til mænd og kvinder efter de i
 tronfølgeloven af 27. marts 1953 fastsatte regler.
 ----
 
+--@begin:grundlov_par2--
+
 | regeringsformen_er_indskrænket_monarkisk()
 | tronfølgeloven_regulerer_arvefølgen()
 | kongemagten_nedarves_til(køn: Køn) -> Sandt
-= tronfølgeloven_dato = "27. marts 1953"
+= tronfølgeloven_dato = Dato(år = 1953, måned = 3, dag = 27)
+--@end:grundlov_par2--
 
+--@label:grundlov_par3::meta:grundlov_kildemetadata--
 ----
 § 3. Den lovgivende magt er hos kongen og folketinget i forening.
 Den udøvende magt er hos kongen.
 Den dømmende magt er hos domstolene.
 ----
+
+--@begin:grundlov_par3--
 
 -- Hvem udøver hvilken magt
 | udøver(Kongen, Lovgivende)
@@ -67,11 +71,16 @@ Den dømmende magt er hos domstolene.
 -- "I forening" — lovgivning kræver begge
 | lovgivning_kræver(Kongen)
 | lovgivning_kræver(Folketinget)
+--@end:grundlov_par3--
 
+--@label:grundlov_par4::meta:grundlov_kildemetadata--
 ----
 § 4. Den evangelisk-lutherske kirke er den danske folkekirke
 og understøttes som sådan af staten.
 ----
 
+--@begin:grundlov_par4--
+
 | folkekirken_er(EvangeliskLuthersk)
 | staten_understøtter_folkekirken()
+--@end:grundlov_par4--

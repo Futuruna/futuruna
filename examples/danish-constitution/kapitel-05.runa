@@ -1,13 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel V -- Folketingets virksomhed
 
+--@label:grundlov_par35::meta:grundlov_kildemetadata--
 ----
 § 35. Stk. 1. Nyvalgt folketing træder sammen kl. 12 den tolvte søgnedag
 efter valgdagen, dersom kongen ikke har indkaldt det til møde forinden.
@@ -16,10 +13,14 @@ Stk. 2. Straks efter prøvelsen af mandaterne sættes folketinget ved valg af
 formand og næstformænd.
 ----
 
+--@begin:grundlov_par35--
+
 | nyvalgt_folketing_mødes_tolvte_søgnedag()
 | kongen_kan_indkalde_folketinget_tidligere()
 | folketinget_vælger_formand_og_næstformænd()
+--@end:grundlov_par35--
 
+--@label:grundlov_par36::meta:grundlov_kildemetadata--
 ----
 § 36. Stk. 1. Folketingsåret begynder den første tirsdag i oktober og varer
 til samme tirsdag det følgende år.
@@ -28,18 +29,26 @@ Stk. 2. På folketingsårets første dag kl. 12 sammentræder medlemmerne til
 møde, hvor folketinget sættes påny.
 ----
 
+--@begin:grundlov_par36--
+
 | folketingsåret_begynder_første_tirsdag_i_oktober()
 | folketingsåret_varer_til_samme_tirsdag_følgende_år()
 | folketinget_sættes_påny_ved_årets_start()
+--@end:grundlov_par36--
 
+--@label:grundlov_par37::meta:grundlov_kildemetadata--
 ----
 § 37. Folketinget træder sammen på det sted, hvor regeringen har sit sæde. I
 overordentlige tilfælde kan folketinget dog samles andetsteds i riget.
 ----
 
+--@begin:grundlov_par37--
+
 | folketinget_mødes_ved_regeringens_sæde()
 | folketinget_kan_mødes_andetsteds_i_overordentlige_tilfælde()
+--@end:grundlov_par37--
 
+--@label:grundlov_par38::meta:grundlov_kildemetadata--
 ----
 § 38. Stk. 1. På det første møde i folketingsåret afgiver statsministeren en
 redegørelse for rigets almindelige stilling og de af regeringen påtænkte
@@ -48,9 +57,13 @@ foranstaltninger.
 Stk. 2. På grundlag af redegørelsen finder en almindelig forhandling sted.
 ----
 
+--@begin:grundlov_par38--
+
 | statsministeren_afgiver_åbningsredegørelse()
 | almindelig_forhandling_efter_redegørelse()
+--@end:grundlov_par38--
 
+--@label:grundlov_par39::meta:grundlov_kildemetadata--
 ----
 § 39. Folketingets formand indkalder folketinget til møde med angivelse af
 dagsorden. Det påhviler formanden at indkalde til møde, når mindst to
@@ -58,12 +71,16 @@ femtedele af folketingets medlemmer eller statsministeren skriftligt
 fremsætter begæring herom med angivelse af dagsorden.
 ----
 
+--@begin:grundlov_par39--
+
 | formanden_indkalder_med_dagsorden()
 
 | statsministeren_kan_begære_indkaldelse()
 | to_femtedele_kan_begære_indkaldelse()
 | formanden_skal_indkalde(begærende: Heltal, medlemmer: Heltal, statsminister_begærer: Boolsk) -> statsminister_begærer || begærende * 5 >= medlemmer * 2
+--@end:grundlov_par39--
 
+--@label:grundlov_par40::meta:grundlov_kildemetadata--
 ----
 § 40. Ministrene har i embeds medfør adgang til folketinget og er berettigede
 til under forhandlingerne at forlange ordet, så ofte de vil, idet de iøvrigt
@@ -71,10 +88,14 @@ iagttager forretningsordenen. Stemmeret udøver de kun, når de tillige er
 medlemmer af folketinget.
 ----
 
+--@begin:grundlov_par40--
+
 | ministre_har_adgang_til_folketinget()
 | ministre_har_taleret_i_folketinget()
 | ministre_kun_stemmeret_som_medlemmer()
+--@end:grundlov_par40--
 
+--@label:grundlov_par41::meta:grundlov_kildemetadata--
 ----
 § 41. Stk. 1. Ethvert medlem af folketinget er berettiget til at fremsætte
 forslag til love og andre beslutninger.
@@ -94,6 +115,8 @@ ikrafttræden ikke kan udsættes af hensyn til lovens formål.
 Stk. 4. Ved nyvalg og ved folketingsårets udgang bortfalder alle forslag til
 love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 ----
+
+--@begin:grundlov_par41--
 
 -- Stk. 1
 | ethvert_medlem_kan_fremsætte_forslag_til_love_og_beslutninger()
@@ -120,7 +143,9 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 -- Stk. 4
 | uafsluttede_forslag_bortfalder_ved_nyvalg()
 | uafsluttede_forslag_bortfalder_ved_folketingsårets_udgang()
+--@end:grundlov_par41--
 
+--@label:grundlov_par42::meta:grundlov_kildemetadata--
 ----
 § 42. Stk. 1. Når et lovforslag er vedtaget af folketinget, kan en trediedel
 af folketingets medlemmer indenfor en frist af tre søgnedage fra forslagets
@@ -170,6 +195,8 @@ Stk. 8. Nærmere regler om folkeafstemning, herunder i hvilket omfang
 folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved lov.
 ----
 
+--@begin:grundlov_par42--
+
 -- Stk. 1: krav om folkeafstemning
 | en_tredjedel_kan_begære_folkeafstemning()
 | kan_begære_folkeafstemning(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
@@ -218,16 +245,22 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 
 -- Stk. 8
 | folkeafstemningsregler_fastsættes_ved_lov()
+--@end:grundlov_par42--
 
+--@label:grundlov_par43::meta:grundlov_kildemetadata--
 ----
 § 43. Ingen skat kan pålægges, forandres eller ophæves uden ved lov; ejheller
 kan noget mandskab udskrives eller noget statslån optages uden ifølge lov.
 ----
 
+--@begin:grundlov_par43--
+
 | ingen_skat_uden_lov()
 | ingen_udskrivning_af_mandskab_uden_lov()
 | intet_statslån_uden_lov()
+--@end:grundlov_par43--
 
+--@label:grundlov_par44::meta:grundlov_kildemetadata--
 ----
 § 44. Stk. 1. Ingen udlænding kan få indfødsret uden ved lov.
 
@@ -235,9 +268,13 @@ Stk. 2. Om udlændinges adgang til at blive ejere af fast ejendom fastsættes
 regler ved lov.
 ----
 
+--@begin:grundlov_par44--
+
 | indfødsret_kun_ved_lov()
 | udlændinges_ejendomsret_fastsættes_ved_lov()
+--@end:grundlov_par44--
 
+--@label:grundlov_par45::meta:grundlov_kildemetadata--
 ----
 § 45. Stk. 1. Forslag til finanslov for det kommende finansår skal fremsættes
 for folketinget senest fire måneder før finansårets begyndelse.
@@ -247,11 +284,15 @@ ventes tilendebragt inden finansårets begyndelse, skal forslag til en
 midlertidig bevillingslov fremsættes for folketinget.
 ----
 
+--@begin:grundlov_par45--
+
 = finanslov_frist_måneder = 4
 | midlertidig_bevillingslov_ved_forsinkelse()
+--@end:grundlov_par45--
 
+--@label:grundlov_par46::meta:grundlov_kildemetadata--
 ----
-§ 46. Stk. 1. Forinden finansloven eller en midlertidig bevillingslov er
+§ 46. Stk. 1.Forinden finansloven eller en midlertidig bevillingslov er
 vedtaget af folketinget, må skatterne ikke opkræves.
 
 Stk. 2. Ingen udgift må afholdes uden hjemmel i den af folketinget vedtagne
@@ -259,9 +300,13 @@ finanslov eller i en af folketinget vedtaget tillægsbevillingslov eller
 midlertidig bevillingslov.
 ----
 
+--@begin:grundlov_par46--
+
 | ingen_skatteopkrævning_før_finanslov()
 | ingen_udgift_uden_hjemmel_i_bevillingslov()
+--@end:grundlov_par46--
 
+--@label:grundlov_par47::meta:grundlov_kildemetadata--
 ----
 § 47. Stk. 1. Statsregnskabet skal fremlægges for folketinget senest seks
 måneder efter finansårets udløb.
@@ -276,20 +321,28 @@ Stk. 3. Statsregnskabet med revisorernes bemærkninger forelægges folketinget
 til beslutning.
 ----
 
+--@begin:grundlov_par47--
+
 = statsregnskab_frist_måneder = 6
 | folketinget_vælger_revisorer()
 | revisorer_gennemgår_statsregnskabet()
 | revisorer_kan_kræve_oplysninger()
 | revisorers_virksomhed_fastsættes_ved_lov()
 | statsregnskabet_forelægges_folketinget()
+--@end:grundlov_par47--
 
+--@label:grundlov_par48::meta:grundlov_kildemetadata--
 ----
 § 48. Folketinget fastsætter selv sin forretningsorden, der indeholder de
 nærmere bestemmelser vedrørende forretningsgang og ordens opretholdelse.
 ----
 
-| folketinget_fastsætter_forretningsorden()
+--@begin:grundlov_par48--
 
+| folketinget_fastsætter_forretningsorden()
+--@end:grundlov_par48--
+
+--@label:grundlov_par49::meta:grundlov_kildemetadata--
 ----
 § 49. Folketingets møder er offentlige. Formanden eller det i
 forretningsordenen bestemte antal medlemmer eller en minister kan dog forlange,
@@ -297,20 +350,28 @@ at alle uvedkommende fjernes, hvorpå det uden forhandling afgøres, om sagen
 skal forhandles i et offentligt eller lukket møde.
 ----
 
+--@begin:grundlov_par49--
+
 | folketingets_møder_er_offentlige()
 | formanden_kan_forlange_lukket_møde()
 | medlemmer_kan_forlange_lukket_møde()
 | ministre_kan_forlange_lukket_møde()
 | lukket_møde_afgøres_uden_forhandling()
+--@end:grundlov_par49--
 
+--@label:grundlov_par50::meta:grundlov_kildemetadata--
 ----
 § 50. Folketinget kan kun tage beslutning, når over halvdelen af medlemmerne
 er tilstede og deltager i afstemningen.
 ----
 
+--@begin:grundlov_par50--
+
 | beslutningsdygtighed_kræver_over_halvdelen()
 | folketinget_er_beslutningsdygtigt(tilstede: Heltal, medlemmer: Heltal) -> tilstede * 2 > medlemmer
+--@end:grundlov_par50--
 
+--@label:grundlov_par51::meta:grundlov_kildemetadata--
 ----
 § 51. Folketinget kan nedsætte kommissioner af sine medlemmer til at undersøge
 almenvigtige sager. Kommissionerne er berettigede til at fordre skriftlige
@@ -318,51 +379,75 @@ eller mundtlige oplysninger såvel af private borgere som af offentlige
 myndigheder.
 ----
 
+--@begin:grundlov_par51--
+
 | folketinget_kan_nedsætte_kommissioner()
 | kommissioner_kan_kræve_oplysninger_fra_borgere()
 | kommissioner_kan_kræve_oplysninger_fra_myndigheder()
+--@end:grundlov_par51--
 
+--@label:grundlov_par52::meta:grundlov_kildemetadata--
 ----
 § 52. Folketingets valg af medlemmer til kommissioner og hverv sker efter
 forholdstal.
 ----
 
-| valg_til_kommissioner_og_hverv_efter_forholdstal()
+--@begin:grundlov_par52--
 
+| valg_til_kommissioner_og_hverv_efter_forholdstal()
+--@end:grundlov_par52--
+
+--@label:grundlov_par53::meta:grundlov_kildemetadata--
 ----
 § 53. Ethvert medlem af folketinget kan med dettes samtykke bringe ethvert
 offentligt anliggende under forhandling og derom æske ministrenes forklaring.
 ----
 
+--@begin:grundlov_par53--
+
 | medlemmer_kan_med_folketingets_samtykke_rejse_anliggender()
 | medlemmer_kan_æske_ministrenes_forklaring()
+--@end:grundlov_par53--
 
+--@label:grundlov_par54::meta:grundlov_kildemetadata--
 ----
 § 54. Andragender kan kun overgives til folketinget ved et af dettes
 medlemmer.
 ----
 
-| andragender_kun_via_medlemmer()
+--@begin:grundlov_par54--
 
+| andragender_kun_via_medlemmer()
+--@end:grundlov_par54--
+
+--@label:grundlov_par55::meta:grundlov_kildemetadata--
 ----
 § 55. Ved lov bestemmes, at folketinget vælger en eller to personer, der ikke
 er medlemmer af folketinget, til at have indseende med statens civile og
 militære forvaltning.
 ----
 
+--@begin:grundlov_par55--
+
 | folketinget_vælger_tilsynspersoner_ved_lov()
 | tilsynspersoner_ikke_folketingsmedlemmer()
 | tilsyn_med_civil_forvaltning()
 | tilsyn_med_militær_forvaltning()
+--@end:grundlov_par55--
 
+--@label:grundlov_par56::meta:grundlov_kildemetadata--
 ----
 § 56. Folketingsmedlemmerne er ene bundet ved deres overbevisning og ikke ved
 nogen forskrift af deres vælgere.
 ----
 
+--@begin:grundlov_par56--
+
 | frit_mandat()
 | ikke_bundet_af_vælgernes_forskrift()
+--@end:grundlov_par56--
 
+--@label:grundlov_par57::meta:grundlov_kildemetadata--
 ----
 § 57. Intet medlem af folketinget kan uden dettes samtykke tiltales eller
 underkastes fængsling af nogen art, medmindre han er grebet på fersk gerning.
@@ -370,16 +455,23 @@ For sine ytringer i folketinget kan intet af dets medlemmer uden folketingets
 samtykke drages til ansvar udenfor samme.
 ----
 
+--@begin:grundlov_par57--
+
 | parlamentarisk_immunitet_mod_tiltale()
 | parlamentarisk_immunitet_mod_fængsling()
 | immunitet_kan_ophæves_med_folketingets_samtykke()
 | immunitet_undtaget_ved_fersk_gerning()
 | ytringsfrihed_i_folketinget()
 | ytringsfrihed_kan_ophæves_med_folketingets_samtykke()
+--@end:grundlov_par57--
 
+--@label:grundlov_par58::meta:grundlov_kildemetadata--
 ----
 § 58. Folketingets medlemmer oppebærer et vederlag, hvis størrelse fastsættes
 ved valgloven.
 ----
 
+--@begin:grundlov_par58--
+
 | vederlag_fastsættes_ved_valglov()
+--@end:grundlov_par58--

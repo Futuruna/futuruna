@@ -1,13 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel VIII -- Borgernes rettigheder
 
+--@label:grundlov_par71::meta:grundlov_kildemetadata--
 ----
 § 71. Stk. 1. Den personlige frihed er ukrænkelig. Ingen dansk borger kan på
 grund af sin politiske eller religiøse overbevisning eller sin afstamning
@@ -38,6 +35,8 @@ Stk. 7. Behandlingen af de i stk. 6 nævnte personer undergives et af
 folketinget valgt tilsyn, hvortil de pågældende skal have adgang til at rette
 henvendelse.
 ----
+
+--@begin:grundlov_par71--
 
 -- Stk. 1
 | personlig_frihed_er_ukrænkelig()
@@ -72,7 +71,9 @@ henvendelse.
 -- Stk. 7: folketingstilsyn med frihedsberøvede
 | folketinget_vælger_tilsyn_med_frihedsberøvede()
 | frihedsberøvede_har_adgang_til_henvendelse()
+--@end:grundlov_par71--
 
+--@label:grundlov_par72::meta:grundlov_kildemetadata--
 ----
 § 72. Boligen er ukrænkelig. Husundersøgelse, beslaglæggelse og undersøgelse
 af breve og andre papirer samt brud på post-, telegraf- og telefonhemmeligheden
@@ -80,13 +81,17 @@ må, hvor ingen lov hjemler en særegen undtagelse, alene ske efter en
 retskendelse.
 ----
 
+--@begin:grundlov_par72--
+
 | boligen_er_ukrænkelig()
 | husundersøgelse_kræver_retskendelse()
 | beslaglæggelse_kræver_retskendelse()
 | brevundersøgelse_kræver_retskendelse()
 | brud_på_kommunikationshemmelighed_kræver_retskendelse()
 | undtagelse_fra_retskendelse_kan_hjemles_ved_lov()
+--@end:grundlov_par72--
 
+--@label:grundlov_par73::meta:grundlov_kildemetadata--
 ----
 § 73. Stk. 1. Ejendomsretten er ukrænkelig. Ingen kan tilpligtes at afstå sin
 ejendom, uden hvor almenvellet kræver det. Det kan kun ske ifølge lov og mod
@@ -102,6 +107,8 @@ Stk. 3. Ethvert spørgsmål om ekspropriationsaktens lovlighed og erstatningens
 størrelse kan indbringes for domstolene. Prøvelsen af erstatningens størrelse
 kan ved lov henlægges til domstole oprettet i dette øjemed.
 ----
+
+--@begin:grundlov_par73--
 
 -- Stk. 1: ejendomsret
 | ejendomsretten_er_ukrænkelig()
@@ -121,16 +128,22 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
 | ekspropriationslovlighed_kan_prøves_ved_domstol()
 | erstatningsstørrelse_kan_prøves_ved_domstol()
 | erstatningsprøvelse_kan_henlægges_til_særlige_domstole()
+--@end:grundlov_par73--
 
+--@label:grundlov_par74::meta:grundlov_kildemetadata--
 ----
 § 74. Alle indskrænkninger i den fri og lige adgang til erhverv, som ikke er
 begrundede i det almene vel, skal hæves ved lov.
 ----
 
+--@begin:grundlov_par74--
+
 | erhvervsfrihed()
 | erhvervsindskrænkninger_kun_begrundet_i_almene_vel()
 | ubegrundede_erhvervsindskrænkninger_hæves_ved_lov()
+--@end:grundlov_par74--
 
+--@label:grundlov_par75::meta:grundlov_kildemetadata--
 ----
 § 75. Stk. 1. Til fremme af almenvellet bør det tilstræbes, at enhver
 arbejdsduelig borger har mulighed for arbejde på vilkår, der betrygger hans
@@ -141,6 +154,8 @@ påhviler nogen anden, er berettiget til hjælp af det offentlige, dog mod at
 underkaste sig de forpligtelser, som loven herom påbyder.
 ----
 
+--@begin:grundlov_par75--
+
 -- Stk. 1: ret til arbejde
 | almenvellet_fremmes_ved_arbejdsmulighed()
 | arbejdsduelige_borgere_bør_have_mulighed_for_arbejde()
@@ -149,7 +164,9 @@ underkaste sig de forpligtelser, som loven herom påbyder.
 -- Stk. 2: offentlig forsørgelse
 | ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
 | offentlig_hjælp_betinget_af_lovpåbudte_forpligtelser()
+--@end:grundlov_par75--
 
+--@label:grundlov_par76::meta:grundlov_kildemetadata--
 ----
 § 76. Alle børn i den undervisningspligtige alder har ret til fri undervisning i
 folkeskolen. Forældre eller værger, der selv sørger for, at børnene får en
@@ -157,16 +174,22 @@ undervisning, der kan stå mål med, hvad der almindeligvis kræves i folkeskole
 er ikke pligtige at lade børnene undervise i folkeskolen.
 ----
 
+--@begin:grundlov_par76--
+
 | børn_har_ret_til_fri_undervisning_i_folkeskolen()
 -- Forældre eller værger
 | forældre_kan_selv_sørge_for_undervisning()
 | hjemmeundervisning_skal_stå_mål_med_folkeskolen()
+--@end:grundlov_par76--
 
+--@label:grundlov_par77::meta:grundlov_kildemetadata--
 ----
 § 77. Enhver er berettiget til på tryk, i skrift og tale at offentliggøre sine
 tanker, dog under ansvar for domstolene. Censur og andre forebyggende
 forholdsregler kan ingensinde påny indføres.
 ----
+
+--@begin:grundlov_par77--
 
 | ytringsfrihed_på_tryk()
 | ytringsfrihed_i_skrift()
@@ -174,7 +197,9 @@ forholdsregler kan ingensinde påny indføres.
 | ytringsfrihed_under_ansvar_for_domstolene()
 | censur_kan_aldrig_indføres()
 | forebyggende_forholdsregler_mod_ytring_forbudt()
+--@end:grundlov_par77--
 
+--@label:grundlov_par78::meta:grundlov_kildemetadata--
 ----
 § 78. Stk. 1. Borgerne har ret til uden forudgående tilladelse at danne
 foreninger i ethvert lovligt øjemed.
@@ -193,6 +218,8 @@ kunne indbringes for rigets øverste domstol.
 Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 ----
 
+--@begin:grundlov_par78--
+
 -- Stk. 1
 | foreningsfrihed_uden_forudgående_tilladelse()
 | foreninger_kun_i_lovligt_øjemed()
@@ -209,7 +236,9 @@ Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 
 -- Stk. 5
 | opløsningens_retsvirkninger_fastsættes_ved_lov()
+--@end:grundlov_par78--
 
+--@label:grundlov_par79::meta:grundlov_kildemetadata--
 ----
 § 79. Borgerne har ret til uden forudgående tilladelse at samle sig ubevæbnede.
 Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
@@ -217,61 +246,87 @@ Offentlige forsamlinger har politiet ret til at overvære. Forsamlinger under
 fred.
 ----
 
+--@begin:grundlov_par79--
+
 | forsamlingsfrihed_uden_forudgående_tilladelse()
 | forsamlinger_skal_være_ubevæbnede()
 | politiet_må_overvære_offentlige_forsamlinger()
 | forsamlinger_under_åben_himmel_kan_forbydes_ved_fare()
+--@end:grundlov_par79--
 
+--@label:grundlov_par80::meta:grundlov_kildemetadata--
 ----
 § 80. Ved opløb må den væbnede magt, når den ikke angribes, kun skride ind,
 efter at mængden tre gange i kongens og lovens navn forgæves er opfordret til at
 skilles.
 ----
 
+--@begin:grundlov_par80--
+
 = opfordringer_før_magtanvendelse = 3
 
 | magtanvendelse_ved_opløb_kun_efter_opfordring()
 | opfordring_i_kongens_og_lovens_navn()
 | undtagelse_hvis_den_væbnede_magt_angribes()
+--@end:grundlov_par80--
 
+--@label:grundlov_par81::meta:grundlov_kildemetadata--
 ----
 § 81. Enhver våbenfør mand er forpligtet til med sin person at bidrage til
 fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
 ----
 
+--@begin:grundlov_par81--
+
 | værnepligt_for_våbenføre_mænd()
 | værnepligtens_omfang_fastsættes_ved_lov()
+--@end:grundlov_par81--
 
+--@label:grundlov_par82::meta:grundlov_kildemetadata--
 ----
 § 82. Kommunernes ret til under statens tilsyn selvstændigt at styre deres
 anliggender ordnes ved lov.
 ----
 
+--@begin:grundlov_par82--
+
 | kommunalt_selvstyre_under_statens_tilsyn()
 | kommunernes_styrelse_ordnes_ved_lov()
+--@end:grundlov_par82--
 
+--@label:grundlov_par83::meta:grundlov_kildemetadata--
 ----
 § 83. Enhver i lovgivningen til adel, titel og rang knyttet forret er afskaffet.
 ----
 
+--@begin:grundlov_par83--
+
 | adelsprivilegier_afskaffet()
 | titelprivilegier_afskaffet()
 | rangprivilegier_afskaffet()
+--@end:grundlov_par83--
 
+--@label:grundlov_par84::meta:grundlov_kildemetadata--
 ----
 § 84. Intet len, stamhus, fideikommisgods eller andet familiefideikommis kan for
 fremtiden oprettes.
 ----
 
+--@begin:grundlov_par84--
+
 | len_kan_ikke_oprettes()
 | stamhus_kan_ikke_oprettes()
 | fideikommisgods_kan_ikke_oprettes()
 | familiefideikommis_kan_ikke_oprettes()
+--@end:grundlov_par84--
 
+--@label:grundlov_par85::meta:grundlov_kildemetadata--
 ----
 § 85. For forsvarsmagten er de i §§ 71, 78 og 79 givne bestemmelser kun
 anvendelige med de indskrænkninger, der følger af de militære loves forskrifter.
 ----
+
+--@begin:grundlov_par85--
 
 -- §§ 71, 78, 79 — personlig frihed, foreningsfrihed, forsamlingsfrihed
 -- § 77 (ytringsfrihed) er IKKE nævnt — soldater beholder ytringsfriheden
@@ -279,3 +334,4 @@ anvendelige med de indskrænkninger, der følger af de militære loves forskrift
 | indskrænkning_af_foreningsfrihed_for_forsvarsmagten()
 | indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten()
 | indskrænkninger_kun_ifølge_militære_love()
+--@end:grundlov_par85--

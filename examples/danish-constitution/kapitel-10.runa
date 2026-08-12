@@ -1,13 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel X -- Grundlovsændringer
 
+--@label:grundlov_par88::meta:grundlov_kildemetadata--
 ----
 § 88. Vedtager folketinget et forslag til en ny grundlovsbestemmelse, og
 regeringen vil fremme sagen, udskrives nyvalg til folketinget. Vedtages
@@ -19,6 +16,8 @@ de i afstemningen deltagende og mindst 40 pct. af samtlige stemmeberettigede
 afgivet deres stemme for folketingets beslutning, og stadfæstes denne af
 kongen, er den grundlov.
 ----
+
+--@begin:grundlov_par88--
 
 = godkendelsestærskel_pct = 40
 = frist_folkeafstemning_måneder = 6
@@ -32,3 +31,4 @@ kongen, er den grundlov.
 -- Dobbelt godkendelseskrav: flertal af deltagende + 40% af stemmeberettigede
 | grundlovsændring_kræver_flertal_og_fyrre_pct()
 | grundlovsændring_godkendt(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> for_stemmer * 2 > deltagende && for_stemmer * 100 >= stemmeberettigede * 40
+--@end:grundlov_par88--

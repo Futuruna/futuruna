@@ -1,16 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel VI -- Domstolene
 
--- Samtykke: den grundlæggende juridiske mekanisme
-# Samtykke = Givet | IkkeGivet
-
+--@label:grundlov_par59::meta:grundlov_kildemetadata--
 ----
 § 59. Stk. 1. Rigsretten består af indtil 15 af de efter embedsalder ældste
 ordentlige medlemmer af rigets øverste domstol og et tilsvarende antal af
@@ -29,6 +23,8 @@ for hvilket de er valgt, udløber.
 
 Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 ----
+
+--@begin:grundlov_par59--
 
 -- Stk. 1: sammensætning
 = rigsret_max_dommermedlemmer = 15
@@ -55,7 +51,9 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 
 -- Stk. 4
 | rigsretten_fastsættes_ved_lov()
+--@end:grundlov_par59--
 
+--@label:grundlov_par60::meta:grundlov_kildemetadata--
 ----
 § 60. Stk. 1. Rigsretten påkender de af kongen eller folketinget mod ministrene
 anlagte sager.
@@ -64,6 +62,8 @@ Stk. 2. For rigsretten kan kongen med folketingets samtykke lade også andre
 tiltale for forbrydelser, som han finder særdeles farlige for staten.
 ----
 
+--@begin:grundlov_par60--
+
 -- Stk. 1 (uddyber par. 16 fra kapitel III)
 | rigsretten_påkender_ministersager_anlagt_af_kongen()
 | rigsretten_påkender_ministersager_anlagt_af_folketinget()
@@ -71,23 +71,33 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
 -- Stk. 2: samtykke-mønster
 | tiltale_af_andre_ved_rigsretten_kræver_samtykke()
 | tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> samtykke == Givet
+--@end:grundlov_par60--
 
+--@label:grundlov_par61::meta:grundlov_kildemetadata--
 ----
 § 61. Den dømmende magts udøvelse kan kun ordnes ved lov. Særdomstole med
 dømmende myndighed kan ikke nedsættes.
 ----
 
+--@begin:grundlov_par61--
+
 | dømmende_magt_ordnes_ved_lov()
 | særdomstole_forbudt()
+--@end:grundlov_par61--
 
+--@label:grundlov_par62::meta:grundlov_kildemetadata--
 ----
 § 62. Retsplejen skal stedse holdes adskilt fra forvaltningen. Regler herom
 fastsættes ved lov.
 ----
 
+--@begin:grundlov_par62--
+
 | retspleje_adskilt_fra_forvaltning()
 | adskillelse_fastsættes_ved_lov()
+--@end:grundlov_par62--
 
+--@label:grundlov_par63::meta:grundlov_kildemetadata--
 ----
 § 63. Stk. 1. Domstolene er berettigede til at påkende ethvert spørgsmål om
 øvrighedsmyndighedens grænser. Den, der vil rejse sådant spørgsmål, kan dog
@@ -100,6 +110,8 @@ kunne prøves ved rigets øverste domstol. De nærmere regler herom fastsættes
 ved lov.
 ----
 
+--@begin:grundlov_par63--
+
 -- Stk. 1: domstolsprøvelse af forvaltningen
 | domstolene_prøver_øvrighedens_grænser()
 | foreløbig_efterlevelse_påkrævet()
@@ -108,7 +120,9 @@ ved lov.
 | forvaltningsdomstole_kan_oprettes_ved_lov()
 | forvaltningsdomstoles_afgørelser_kan_prøves_ved_højesteret()
 | forvaltningsdomstole_fastsættes_ved_lov()
+--@end:grundlov_par63--
 
+--@label:grundlov_par64::meta:grundlov_kildemetadata--
 ----
 § 64. Dommerne har i deres kald alene at rette sig efter loven. De kan ikke
 afsættes uden ved dom, ejheller forflyttes mod deres ønske, uden for de
@@ -116,6 +130,8 @@ tilfælde, hvor en omordning af domstolene finder sted. Dog kan den dommer, der
 har fyldt sit 65. år, afskediges, men uden tab af indtægter indtil det
 tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 ----
+
+--@begin:grundlov_par64--
 
 = dommer_pensionsalder = 65
 
@@ -128,7 +144,9 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 | dommer_kan_afskediges_ved_alder(alder: Heltal) -> alder >= 65
 
 | afskedigelse_ved_alder_uden_tab_af_indtægter()
+--@end:grundlov_par64--
 
+--@label:grundlov_par65::meta:grundlov_kildemetadata--
 ----
 § 65. Stk. 1. I retsplejen gennemføres offentlighed og mundtlighed i videst
 muligt omfang.
@@ -138,6 +156,8 @@ hvilke sager og under hvilke former denne medvirken skal finde sted, herunder i
 hvilke sager nævninger skal medvirke.
 ----
 
+--@begin:grundlov_par65--
+
 -- Stk. 1: to retsplejeprincipper
 | retspleje_er_offentlig()
 | retspleje_er_mundtlig()
@@ -146,3 +166,4 @@ hvilke sager nævninger skal medvirke.
 | lægmænd_medvirker_i_strafferetspleje()
 | lægmandsmedvirken_fastsættes_ved_lov()
 | nævningesager_fastsættes_ved_lov()
+--@end:grundlov_par65--

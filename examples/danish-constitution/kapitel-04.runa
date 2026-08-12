@@ -1,22 +1,23 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel IV -- Folketinget
 
+--@label:grundlov_par28::meta:grundlov_kildemetadata--
 ----
 § 28. Folketinget udgør een forsamling bestående af højst 179 medlemmer, hvoraf
 2 medlemmer vælges på Færøerne og 2 i Grønland.
 ----
 
+--@begin:grundlov_par28--
+
 = folketingets_max_medlemmer = 179
 = færøske_mandater = 2
 = grønlandske_mandater = 2
+--@end:grundlov_par28--
 
+--@label:grundlov_par29::meta:grundlov_kildemetadata--
 ----
 § 29. Stk. 1. Valgret til folketinget har enhver, som har dansk indfødsret,
 fast bopæl i riget og har nået den i stk. 2 omhandlede valgretsalder,
@@ -32,6 +33,8 @@ valgretsalderen i overensstemmelse med § 42, stk. 5, har været undergivet en
 folkeafstemning, der ikke har medført bestemmelsens bortfald.
 ----
 
+--@begin:grundlov_par29--
+
 -- Stk. 1: fire kumulative krav, ét udelukkelsesgrundlag
 | valgret_kræver_indfødsret()
 | valgret_kræver_fast_bopæl()
@@ -45,7 +48,9 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 -- Stk. 2: valgretsalder kræver folkeafstemning at ændre
 | valgretsalder_fastsættes_ved_folkeafstemning()
 | ændring_af_valgretsalder_kræver_folkeafstemning()
+--@end:grundlov_par29--
 
+--@label:grundlov_par30::meta:grundlov_kildemetadata--
 ----
 § 30. Stk. 1. Valgbar til folketinget er enhver, som har valgret til dette,
 medmindre vedkommende er straffet for en handling, der i almindeligt omdømme
@@ -55,6 +60,8 @@ Stk. 2. Tjenestemænd, som vælges til medlemmer af folketinget, behøver ikke
 regeringens tilladelse til at modtage valget.
 ----
 
+--@begin:grundlov_par30--
+
 -- Stk. 1: valgbarhed kræver valgret + ingen uværdig straf
 | valgbarhed_kræver_valgret()
 | uværdig_straf_udelukker_valgbarhed()
@@ -62,7 +69,9 @@ regeringens tilladelse til at modtage valget.
 
 -- Stk. 2
 | tjenestemænd_behøver_ikke_tilladelse_til_valg()
+--@end:grundlov_par30--
 
+--@label:grundlov_par31::meta:grundlov_kildemetadata--
 ----
 § 31. Stk. 1. Folketingets medlemmer vælges ved almindelige, direkte og
 hemmelige valg.
@@ -83,6 +92,8 @@ Stk. 5. Særlige regler om Grønlands repræsentation i folketinget kan gives
 ved lov.
 ----
 
+--@begin:grundlov_par31--
+
 -- Stk. 1: tre valgprincipper
 | valg_er_almindelige()
 | valg_er_direkte()
@@ -102,7 +113,9 @@ ved lov.
 
 -- Stk. 5
 | grønlands_repræsentation_kan_fastsættes_ved_lov()
+--@end:grundlov_par31--
 
+--@label:grundlov_par32::meta:grundlov_kildemetadata--
 ----
 § 32. Stk. 1. Folketingets medlemmer vælges for fire år.
 
@@ -125,6 +138,8 @@ mandat.
 Stk. 7. Ethvert nyt medlem afgiver, når hans valg er godkendt, en højtidelig
 forsikring om at ville holde grundloven.
 ----
+
+--@begin:grundlov_par32--
 
 -- Stk. 1
 = valgperiode_år = 4
@@ -150,21 +165,30 @@ forsikring om at ville holde grundloven.
 
 -- Stk. 7: samme edssprog som par. 8 og par. 27
 | nyt_medlem_aflægger_grundlovs_ed()
+--@end:grundlov_par32--
 
+--@label:grundlov_par33::meta:grundlov_kildemetadata--
 ----
 § 33. Folketinget afgør selv gyldigheden af sine medlemmers valg samt
 spørgsmål om, hvorvidt et medlem har mistet sin valgbarhed.
 ----
 
+--@begin:grundlov_par33--
+
 | folketinget_afgør_valgs_gyldighed()
 | folketinget_afgør_tab_af_valgbarhed()
+--@end:grundlov_par33--
 
+--@label:grundlov_par34::meta:grundlov_kildemetadata--
 ----
 § 34. Folketinget er ukrænkeligt. Enhver, der antaster dets sikkerhed eller
 frihed, enhver, der udsteder eller adlyder nogen dertil sigtende befaling, gør
 sig skyldig i højforræderi.
 ----
 
+--@begin:grundlov_par34--
+
 | folketinget_er_ukrænkeligt()
 | angreb_på_folketingets_sikkerhed_er_højforræderi()
 | angreb_på_folketingets_frihed_er_højforræderi()
+--@end:grundlov_par34--

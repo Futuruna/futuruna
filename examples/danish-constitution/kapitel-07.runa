@@ -1,49 +1,65 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel VII -- Folkekirken og trossamfund
 
+--@label:grundlov_par66::meta:grundlov_kildemetadata--
 ----
 § 66. Folkekirkens forfatning ordnes ved lov.
 ----
 
-| folkekirkens_forfatning_ordnes_ved_lov()
+--@begin:grundlov_par66--
 
+| folkekirkens_forfatning_ordnes_ved_lov()
+--@end:grundlov_par66--
+
+--@label:grundlov_par67::meta:grundlov_kildemetadata--
 ----
 § 67. Borgerne har ret til at forene sig i samfund for at dyrke Gud på den
 måde, der stemmer med deres overbevisning, dog at intet læres eller foretages,
 som strider mod sædeligheden eller den offentlige orden.
 ----
 
+--@begin:grundlov_par67--
+
 | religionsfrihed()
 | religionssamfund_må_ikke_stride_mod_sædelighed()
 | religionssamfund_må_ikke_stride_mod_offentlig_orden()
+--@end:grundlov_par67--
 
+--@label:grundlov_par68::meta:grundlov_kildemetadata--
 ----
 § 68. Ingen er pligtig at yde personlige bidrag til nogen anden gudsdyrkelse
 end den, som er hans egen.
 ----
 
-| ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse()
+--@begin:grundlov_par68--
 
+| ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse()
+--@end:grundlov_par68--
+
+--@label:grundlov_par69::meta:grundlov_kildemetadata--
 ----
 § 69. De fra folkekirken afvigende trossamfunds forhold ordnes nærmere ved lov.
 ----
 
-| afvigende_trossamfund_ordnes_ved_lov()
+--@begin:grundlov_par69--
 
+| afvigende_trossamfund_ordnes_ved_lov()
+--@end:grundlov_par69--
+
+--@label:grundlov_par70::meta:grundlov_kildemetadata--
 ----
 § 70. Ingen kan på grund af sin trosbekendelse eller afstamning berøves adgang
 til den fulde nydelse af borgerlige og politiske rettigheder eller unddrage sig
 opfyldelsen af nogen almindelig borgerpligt.
 ----
 
+--@begin:grundlov_par70--
+
 | ingen_diskrimination_ved_trosbekendelse()
 | ingen_diskrimination_ved_afstamning()
 | borgerpligt_uanset_trosbekendelse()
 | borgerpligt_uanset_afstamning()
+--@end:grundlov_par70--

@@ -2643,7 +2643,9 @@ const DOC_WHY: &str = include_str!("../../docs/why.md");
 const DOC_PHILOSOPHY: &str = include_str!("../../docs/research.md");
 const DOC_OWNERSHIP: &str = include_str!("../../docs/research-ownership.md");
 
-// Danish Constitution .runa files (chapters 1-11 + audit)
+// Danish Constitution .runa files (shared protocol + chapters 1-11 + audit)
+const DK_COMMON: &str =
+    include_str!("../../examples/danish-constitution/grundlov-faelles.runa");
 const DK_KAP01: &str = include_str!("../../examples/danish-constitution/kapitel-01.runa");
 const DK_KAP02: &str = include_str!("../../examples/danish-constitution/kapitel-02.runa");
 const DK_KAP03: &str = include_str!("../../examples/danish-constitution/kapitel-03.runa");
@@ -3014,6 +3016,11 @@ fn constitution_file_section(title: &str, id: &str, src: &str) -> String {
 #[component]
 fn ResearchDanishConstitution() -> Element {
     let sections: Vec<(&str, &str, &str)> = vec![
+        (
+            "Fælles domæne og kildemetadata",
+            "faelles",
+            DK_COMMON,
+        ),
         ("Kapitel I — Statsformen (§§ 1-4)", "kap-1", DK_KAP01),
         ("Kapitel II — Kongen (§§ 5-11)", "kap-2", DK_KAP02),
         (
@@ -3059,18 +3066,18 @@ fn ResearchDanishConstitution() -> Element {
 
     rsx! {
         document::Title { "Danmarks Riges Grundlov — Futuruna Research" }
-        document::Meta { name: "description", content: "The complete Danish Constitution of 1953 encoded in Futuruna: original source text, 89 paragraphs, 11 chapters, and | rule formulations for legal structure." }
+        document::Meta { name: "description", content: "Danmarks Riges Grundlov af 1953 kodet i Futuruna: officiel kildetekst, 89 paragraffer, typede kildereferencer og | regler." }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Grundlov" }
-                a { class: "why-toc-link research-back", href: "/research", "← All Research" }
+                a { class: "why-toc-link research-back", href: "/research", "← Al research" }
                 for (id, label) in toc.iter() {
                     a { class: "why-toc-link", href: "#{id}", "{label}" }
                 }
             }
             article { class: "why-main const-article",
                 div { class: "const-intro",
-                    p { class: "lang-note", "This page is in Danish — the constitution is encoded in its original language." }
+                    p { class: "lang-note", "Siden er på dansk, fordi grundloven er kodet på sit originalsprog." }
                     h1 { "Danmarks Riges Grundlov" }
                     p {
                         "Den danske grundlov af 5. juni 1953, kodet i Futuruna. \
@@ -3083,6 +3090,16 @@ fn ResearchDanishConstitution() -> Element {
                         code { "exception" }
                         "."
                     }
+                    p {
+                        "Hver kildetekst har sit eget "
+                        code { "--@label:...::meta:...--" }
+                        "-anker til den typede kildeprotokol. Det tilhørende "
+                        code { "--@begin:...--" }
+                        "- og "
+                        code { "--@end:...--" }
+                        "-spænd indkapsler netop de typer og regler, der formaliserer teksten. "
+                        "Dermed kan auditværktøjer følge en regel tilbage til den officielle paragraf."
+                    }
                     p { class: "lang-note",
                         "Kilde: "
                         a { href: "https://www.retsinformation.dk/eli/lta/1953/169", "Retsinformation, LOV nr. 169 af 05/06/1953" }
@@ -3090,7 +3107,7 @@ fn ResearchDanishConstitution() -> Element {
                         a { href: "https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov", "Folketingets tekstvisning" }
                     }
                     p { class: "const-stats",
-                        "12 filer \u{00B7} 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} typede | lovregler \u{00B7} officiel kilde citeret"
+                        "13 filer \u{00B7} fælles kildeprotokol + 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} 91 typede kildespænd \u{00B7} typede | lovregler"
                     }
                     div { class: "const-analysis-strip",
                         a { href: "/research/danish-constitution-audit#indfoedsret-vaelgerkorps",

@@ -1,13 +1,10 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- Kapitel XI -- Ikrafttrædelsesbestemmelser
 
+--@label:grundlov_par89::meta:grundlov_kildemetadata--
 ----
 § 89. Denne grundlov træder i kraft straks. Dog vedbliver den i henhold til
 Danmarks Riges Grundlov af 5. juni 1915 med ændringer af 10. september 1920
@@ -17,26 +14,49 @@ forbliver de i Danmarks Riges Grundlov af 5. juni 1915 med ændringer af
 10. september 1920 for rigsdagen fastsatte bestemmelser i kraft.
 ----
 
--- Overgangsretten refererer til to tidligere grundlove
-# TidligereGrundlov(titel: Tekst, dato: Tekst)
+--@begin:grundlov_par89--
 
-= tidligere_grundlov = TidligereGrundlov("Danmarks Riges Grundlov", "5. juni 1915")
-= ændring_af_tidligere = TidligereGrundlov("Ændring af grundloven", "10. september 1920")
+-- Overgangsretten refererer til to tidligere grundlove
+# TidligereGrundlov(titel: Tekst, dato: Dato)
+
+= tidligere_grundlov = TidligereGrundlov(
+    titel = "Danmarks Riges Grundlov",
+    dato = Dato(år = 1915, måned = 6, dag = 5)
+)
+= ændring_af_tidligere = TidligereGrundlov(
+    titel = "Ændring af grundloven",
+    dato = Dato(år = 1920, måned = 9, dag = 10)
+)
 
 | grundloven_træder_i_kraft_straks()
 | eksisterende_rigsdag_vedbliver_til_nyvalg()
 | gamle_rigsdagsbestemmelser_i_kraft_til_nyvalg()
+--@end:grundlov_par89--
 
+--@label:grundlov_stadfaestelse::meta:grundlov_kildemetadata--
 ----
 Så er da nu gældende ret, alle til ubrødelig efterlevelse,
 
 DANMARKS RIGES GRUNDLOV
 
-Givet på Christiansborg slot, den 5. juni 1953.
+Givet på Christiansborg slot, den 5. juni 1953 .
 
 Under Vor Kongelige Hånd og Segl.
 
 Frederik R.
 
 (L.S.)
+
+Erik Eriksen.        Ole Bjørn Kraft.         Thorkil Kristensen.
+Harald Petersen.      Carl Hermansen              Jens Sønderup.
+Aksel Møller.     Flemming Hvidbjerg.           Poul Sørensen.
+Helga Pedersen.   Knud Ree.   Aage L. Rytter. Jørgen Jørgensen.
 ----
+
+--@begin:grundlov_stadfaestelse--
+
+= grundlovens_udstedelsesdato = Dato(år = 1953, måned = 6, dag = 5)
+| grundloven_er_gældende_ret()
+| grundloven_givet_på_christiansborg_slot()
+| grundloven_under_kongelig_hånd_og_segl()
+--@end:grundlov_stadfaestelse--

@@ -1,72 +1,58 @@
 @ sprog da
 
--- Kilde: Danmarks Riges Grundlov (Grundloven), LOV nr. 169 af 05/06/1953.
--- Officiel tekst: https://www.retsinformation.dk/eli/lta/1953/169
--- Parlamentarisk spejl:
--- https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov
--- Hver ---- blok er original lovtekst; Futuruna-reglerne nedenfor er oversættelsen.
+@ importer ./grundlov - faelles
 
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel II — Kongen (§ 5–11)
 -- ═══════════════════════════════════════════════════════════════
 
--- Typer fra Kapitel I (ville normalt importeres)
-# Rigsdel = Danmark | Færøerne | Grønland
-# Institution = Kongen | Folketinget | Domstolene
-# Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
-
--- Samtykke: den grundlæggende juridiske mekanisme
-# Samtykke = Givet | IkkeGivet
-
--- Hvem fører regeringen?
-# Regeringsfører = MonarkenSelv | Statsrådet | Regent
-
--- Hvor opbevares forsikringsakten?
-# Arkiv = FolketingetsArkiv | Rigsarkivet
-
--- Myndighedsalder
-# Myndighedsstatus = Myndig | Umyndig
-
+--@label:grundlov_par5::meta:grundlov_kildemetadata--
 ----
 § 5. Kongen kan ikke uden folketingets samtykke være regent i andre lande.
 ----
 
+--@begin:grundlov_par5--
+
 -- Samtykke er en binær mekanisme: givet → tilladt, ikke givet → forbudt
 | regent_i_udlandet_kræver_folketingets_samtykke()
 | regent_i_udlandet(s: Samtykke) -> s == Givet
+--@end:grundlov_par5--
 
+--@label:grundlov_par6::meta:grundlov_kildemetadata--
 ----
 § 6. Kongen skal høre til den evangelisk-lutherske kirke.
 ----
 
-| kongen_skal_tilhøre(EvangeliskLuthersk)
+--@begin:grundlov_par6--
 
+| kongen_skal_tilhøre(EvangeliskLuthersk)
+--@end:grundlov_par6--
+
+--@label:grundlov_par7::meta:grundlov_kildemetadata--
 ----
 § 7. Kongen er myndig, når han har fyldt sit 18. år.
 Det samme gælder tronfølgeren.
 ----
 
+--@begin:grundlov_par7--
+
+# MyndighedsSubjekt = KongenSomMyndighedssubjekt | TronfølgerenSomMyndighedssubjekt
+
 = myndighedsalder = 18
 
 -- Myndighedsreglen gælder for begge — § 7 siger eksplicit "det samme gælder tronfølgeren"
-# MyndighedsSubjekt = Kongen | Tronfølgeren
 | myndighedsregel_gælder_for_kongen()
 | myndighedsregel_gælder_for_tronfølgeren()
 | myndighedsregel_gælder_for(s: MyndighedsSubjekt) -> Sandt
+--@end:grundlov_par7--
 
+--@label:grundlov_par8::meta:grundlov_kildemetadata--
 ----
 § 8. Forinden kongen tiltræder regeringen, afgiver han skriftligt i statsrådet
 en højtidelig forsikring om ubrødeligt at ville holde grundloven.
 Af forsikringsakten udstedes tvende ligelydende originaler, af hvilke den ene
 overgives folketinget for at opbevares i sammes arkiv, den anden nedlægges
 i rigsarkivet.
-----
-
--- Forsikringsakten opbevares to steder
-| forsikringsakt_opbevares_i(FolketingetsArkiv)
-| forsikringsakt_opbevares_i(Rigsarkivet)
-
-----
 Kan kongen som følge af fraværelse eller af andre grunde ikke
 umiddelbart ved tronskiftet afgive denne forsikring, føres regeringen, indtil
 dette sker, af statsrådet, medmindre anderledes ved lov bestemmes.
@@ -74,9 +60,18 @@ Har kongen allerede som tronfølger afgivet denne forsikring, tiltræder han
 umiddelbart ved tronskiftet regeringen.
 ----
 
+--@begin:grundlov_par8--
+
+# Regeringsfører = MonarkenSelv | Statsrådet | Regent
+# Arkiv = FolketingetsArkiv | Rigsarkivet
+
+-- Forsikringsakten opbevares to steder
+| forsikringsakt_opbevares_i(FolketingetsArkiv)
+| forsikringsakt_opbevares_i(Rigsarkivet)
+
 -- Situationsbestemte fakta (sættes udefra ved tronskifte)
-| ikke_forsikret_og_fraværende() -> false
-| særlov_fastsat() -> false
+| ikke_forsikret_og_fraværende() -> Falskt
+| særlov_fastsat() -> Falskt
 
 -- Hvem fører regeringen ved tronskifte? (Catala-prioritet)
 | regering_ved_tronskifte() -> MonarkenSelv
@@ -85,11 +80,17 @@ umiddelbart ved tronskiftet regeringen.
 
 -- Hvis forsikring allerede afgivet som tronfølger: direkte tiltræden
 | direkte_tiltræden_ved_forudgående_forsikring()
+--@end:grundlov_par8--
 
+--@label:grundlov_par9::meta:grundlov_kildemetadata--
 ----
 § 9. Bestemmelser angående regeringens førelse i tilfælde af kongens
 umyndighed, sygdom eller fraværelse fastsættes ved lov.
+Er der ved tronledighed ingen tronfølger, vælger
+folketinget en konge og fastsætter den fremtidige arvefølge.
 ----
+
+--@begin:grundlov_par9--
 
 # Regentskabsgrund = Umyndighed | Sygdom | Fraværelse
 | regentskab_fastsættes_ved_lov_for_umyndighed()
@@ -97,34 +98,35 @@ umyndighed, sygdom eller fraværelse fastsættes ved lov.
 | regentskab_fastsættes_ved_lov_for_fraværelse()
 | regentskab_fastsættes_ved_lov(g: Regentskabsgrund) -> Sandt
 
-----
-Er der ved tronledighed ingen tronfølger, vælger
-folketinget en konge og fastsætter den fremtidige arvefølge.
-----
-
 | folketinget_vælger_konge_ved_tronledighed()
 | folketinget_fastsætter_arvefølge_ved_tronledighed()
+--@end:grundlov_par9--
 
+--@label:grundlov_par10::meta:grundlov_kildemetadata--
 ----
 § 10. Stk. 1. Statens ydelse til kongen bestemmes for hans regeringstid
 ved lov. Ved denne fastsættes tillige, hvilke slotte og andre statsejendele
 der skal overlades kongen til brug.
+
+Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 ----
+
+--@begin:grundlov_par10--
 
 | statsydelse_fastsættes_ved_lov()
 | slotte_fastsættes_ved_lov()
-
-----
-§ 10. Stk. 2. Statsydelsen kan ikke behæftes med gæld.
-----
-
 | statsydelse_gæld_forbudt()
+--@end:grundlov_par10--
 
+--@label:grundlov_par11::meta:grundlov_kildemetadata--
 ----
 § 11. For medlemmer af det kongelige hus kan der bestemmes årpenge ved lov.
 Årpengene kan ikke uden folketingets samtykke nydes uden for riget.
 ----
 
+--@begin:grundlov_par11--
+
 | årpenge_fastsættes_ved_lov()
 | årpenge_i_udlandet_kræver_folketingets_samtykke()
 | årpenge_i_udlandet(s: Samtykke) -> s == Givet
+--@end:grundlov_par11--
