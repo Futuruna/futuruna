@@ -17608,6 +17608,167 @@ impl ProgramSymbolKind {
     }
 }
 
+/// The declaration prepass recognizes only data used to describe generated
+/// types. It never invokes the runtime interpreter or arbitrary builtins.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum StaticTypeValue {
+    Blocked,
+    Str(String),
+    List(Vec<StaticTypeValue>),
+    Tuple(Vec<StaticTypeValue>),
+    Field(String, String),
+    TypeDef {
+        kind: String,
+        fields: Vec<(String, String)>,
+    },
+}
+
+/// Hard limits for the closed comptime evaluator. The fuel bound limits AST
+/// work while the other bounds cap values that one AST node can construct.
+#[derive(Debug)]
+struct StaticTypeBudget {
+    fuel: usize,
+    nodes: usize,
+    bytes: usize,
+    depth: usize,
+}
+
+impl StaticTypeBudget {
+    const MAX_FUEL: usize = 4_096;
+    const MAX_NODES: usize = 8_192;
+    const MAX_BYTES: usize = 1 << 20;
+    const MAX_DEPTH: usize = 64;
+    const MAX_ITEMS: usize = 2_048;
+    const MAX_STRING_BYTES: usize = 16_384;
+
+    fn new() -> Self {
+        Self {
+            fuel: Self::MAX_FUEL,
+            nodes: 0,
+            bytes: 0,
+            depth: 0,
+        }
+    }
+
+    fn enter(&mut self) -> Option<()> {
+        if self.fuel == 0 || self.depth >= Self::MAX_DEPTH {
+            return None;
+        }
+        self.fuel -= 1;
+        self.depth += 1;
+        self.charge(1, 0)
+    }
+
+    fn leave(&mut self) {
+        self.depth = self.depth.saturating_sub(1);
+    }
+
+    fn charge(&mut self, nodes: usize, bytes: usize) -> Option<()> {
+        self.nodes = self.nodes.checked_add(nodes)?;
+        self.bytes = self.bytes.checked_add(bytes)?;
+        (self.nodes <= Self::MAX_NODES && self.bytes <= Self::MAX_BYTES).then_some(())
+    }
+
+    fn charge_string(&mut self, value: &str) -> Option<()> {
+        (value.len() <= Self::MAX_STRING_BYTES).then_some(())?;
+        self.charge(1, value.len())
+    }
+
+    fn clone_value(&mut self, value: &StaticTypeValue) -> Option<StaticTypeValue> {
+        match value {
+            StaticTypeValue::Blocked => {
+                self.charge(1, 0)?;
+                Some(StaticTypeValue::Blocked)
+            }
+            StaticTypeValue::Str(value) => {
+                self.charge_string(value)?;
+                Some(StaticTypeValue::Str(value.clone()))
+            }
+            StaticTypeValue::List(values) => {
+                (values.len() <= Self::MAX_ITEMS).then_some(())?;
+                self.charge(1, 0)?;
+                values
+                    .iter()
+                    .map(|value| self.clone_value(value))
+                    .collect::<Option<Vec<_>>>()
+                    .map(StaticTypeValue::List)
+            }
+            StaticTypeValue::Tuple(values) => {
+                (values.len() <= Self::MAX_ITEMS).then_some(())?;
+                self.charge(1, 0)?;
+                values
+                    .iter()
+                    .map(|value| self.clone_value(value))
+                    .collect::<Option<Vec<_>>>()
+                    .map(StaticTypeValue::Tuple)
+            }
+            StaticTypeValue::Field(name, ty) => {
+                self.charge(1, 0)?;
+                self.charge_string(name)?;
+                self.charge_string(ty)?;
+                Some(StaticTypeValue::Field(name.clone(), ty.clone()))
+            }
+            StaticTypeValue::TypeDef { kind, fields } => {
+                (fields.len() <= Self::MAX_ITEMS).then_some(())?;
+                self.charge(1, 0)?;
+                self.charge_string(kind)?;
+                let fields = fields
+                    .iter()
+                    .map(|(name, ty)| {
+                        self.charge_string(name)?;
+                        self.charge_string(ty)?;
+                        Some((name.clone(), ty.clone()))
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                Some(StaticTypeValue::TypeDef {
+                    kind: kind.clone(),
+                    fields,
+                })
+            }
+        }
+    }
+
+    fn clone_env(
+        &mut self,
+        env: &BTreeMap<String, StaticTypeValue>,
+    ) -> Option<BTreeMap<String, StaticTypeValue>> {
+        (env.len() <= Self::MAX_ITEMS).then_some(())?;
+        self.charge(1, 0)?;
+        env.iter()
+            .map(|(name, value)| {
+                self.charge_string(name)?;
+                Some((name.clone(), self.clone_value(value)?))
+            })
+            .collect()
+    }
+
+    fn insert_value(
+        &mut self,
+        env: &mut BTreeMap<String, StaticTypeValue>,
+        name: String,
+        value: StaticTypeValue,
+    ) -> Option<()> {
+        (env.len() < Self::MAX_ITEMS || env.contains_key(&name)).then_some(())?;
+        self.charge_string(&name)?;
+        env.insert(name, value);
+        Some(())
+    }
+}
+
+#[derive(Debug, Default)]
+struct ConstructorPrepass {
+    /// Codegen keeps only the last top-level function or actor of each name.
+    functions: BTreeMap<String, (Vec<String>, Expr, bool)>,
+    all_statements: Vec<Stmt>,
+    main_statements: Vec<Stmt>,
+    actors: BTreeMap<String, Vec<(String, usize)>>,
+    explicit_types: BTreeSet<String>,
+    constructors: BTreeSet<String>,
+    rule_names: BTreeSet<String>,
+    actor_runtime_symbols: BTreeSet<String>,
+    duplicate_bindings: BTreeSet<String>,
+}
+
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
@@ -17624,6 +17785,16 @@ pub struct TypeChecker {
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
     constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
+    /// message name -> arity -> actor definitions that emit that bare variant.
+    actor_message_arities: BTreeMap<String, BTreeMap<usize, BTreeSet<String>>>,
+    /// Bare data constructors present in the backend's flattened root scope.
+    top_level_constructor_names: BTreeSet<String>,
+    /// Runtime names that coexist with bare actor-message variants in the
+    /// flattened root scope. Nested functions, actors, and trait methods are
+    /// intentionally excluded because codegen keeps them namespaced.
+    root_actor_runtime_symbols: BTreeSet<String>,
+    /// Lexically scoped actor identities inferred from `spawn(actor, state)`.
+    actor_handle_scopes: Vec<BTreeMap<String, Option<String>>>,
     /// constructor/variant name -> declaration-order named fields.
     pub constructor_fields: BTreeMap<String, Vec<String>>,
     /// type name -> variant names (for exhaustiveness checking)
@@ -17720,6 +17891,10 @@ impl TypeChecker {
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
+            actor_message_arities: BTreeMap::new(),
+            top_level_constructor_names: BTreeSet::new(),
+            root_actor_runtime_symbols: BTreeSet::new(),
+            actor_handle_scopes: vec![BTreeMap::new()],
             constructor_fields: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             builtins: BTreeMap::new(),
@@ -18046,17 +18221,22 @@ impl TypeChecker {
         self.scopes.push(BTreeSet::new());
         self.rule_scope_vars.push(BTreeMap::new());
         self.var_types.push(BTreeMap::new());
+        self.actor_handle_scopes.push(BTreeMap::new());
     }
 
     pub fn pop_scope(&mut self) {
         self.scopes.pop();
         self.rule_scope_vars.pop();
         self.var_types.pop();
+        self.actor_handle_scopes.pop();
     }
 
     pub fn define_var(&mut self, name: &str) {
         if let Some(scope) = self.scopes.last_mut() {
             scope.insert(name.to_string());
+        }
+        if let Some(scope) = self.actor_handle_scopes.last_mut() {
+            scope.insert(name.to_string(), None);
         }
     }
 
@@ -18351,6 +18531,768 @@ impl TypeChecker {
             self.constructor_fields
                 .insert(constructor.to_string(), signature.fields);
         }
+    }
+
+    fn static_binding_name(pattern: &Pat) -> Option<&str> {
+        match pattern {
+            Pat::Var(name) => Some(name),
+            Pat::Con(name, fields) if fields.is_empty() => Some(name),
+            _ => None,
+        }
+    }
+
+    fn resolve_prepass_import(path: &str, dir: &str) -> Option<(String, String)> {
+        let file_path = Self::resolve_tc_import(path, dir)?;
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|resolved| resolved.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.clone());
+        let imported_dir = std::path::Path::new(&file_path)
+            .parent()
+            .map(|parent| parent.to_string_lossy().to_string())
+            .unwrap_or_else(|| dir.to_string());
+        Some((canonical, imported_dir))
+    }
+
+    /// Build the same top-level declaration sequence that the Rust backend sees
+    /// for plain imports. This uses an independent seen set: declaration
+    /// collection's import cache must not make preprocessing order-dependent.
+    fn flatten_constructor_prepass(
+        &mut self,
+        statements: &[Stmt],
+        dir: &str,
+        imported_context: bool,
+        seen: &mut BTreeSet<String>,
+        flattened: &mut Vec<Stmt>,
+    ) {
+        for statement in statements {
+            if let Stmt::Import(path) = statement {
+                let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
+                else {
+                    continue;
+                };
+                if !seen.insert(canonical.clone()) {
+                    continue;
+                }
+                let source = match std::fs::read_to_string(&canonical) {
+                    Ok(source) => source,
+                    Err(_) => continue,
+                };
+                let imported = match parse_source_module_cached(Path::new(&canonical), &source) {
+                    Ok(imported) => imported,
+                    Err(_) => continue,
+                };
+                self.flatten_constructor_prepass(
+                    imported.statements(),
+                    &imported_dir,
+                    true,
+                    seen,
+                    flattened,
+                );
+                continue;
+            }
+
+            if imported_context && matches!(statement, Stmt::Annot(name, _) if name == "print") {
+                continue;
+            }
+
+            if !imported_context
+                || matches!(
+                    statement,
+                    Stmt::Defn(_)
+                        | Stmt::TypeDecl(_)
+                        | Stmt::Rule(_)
+                        | Stmt::Use(_)
+                        | Stmt::RustBlock(_)
+                        | Stmt::Annot(_, _)
+                        | Stmt::Bind(_, _, _)
+                        | Stmt::StreamBind(_, _)
+                        | Stmt::Invariant { .. }
+                )
+            {
+                // Modules, ReactiveScopes and expression Blocks stay opaque: no
+                // recursive walk occurs after this top-level push.
+                flattened.push(statement.clone());
+            }
+        }
+    }
+
+    fn build_constructor_prepass(&mut self, statements: &[Stmt]) -> ConstructorPrepass {
+        let mut flattened = Vec::new();
+        let mut seen = BTreeSet::new();
+        let root_dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
+        self.flatten_constructor_prepass(statements, &root_dir, false, &mut seen, &mut flattened);
+
+        // Mirror `scan_declarations`: ADTs, effects, and traits share a
+        // first-declaration-wins namespace, while top-level functions and
+        // actors share a later-declaration-wins namespace.
+        let mut seen_types = BTreeSet::new();
+        flattened.retain(|statement| match statement {
+            Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+            | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+            | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => seen_types.insert(name.clone()),
+            _ => true,
+        });
+        let mut last_definitions = BTreeMap::new();
+        for (index, statement) in flattened.iter().enumerate() {
+            if let Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) =
+                statement
+            {
+                last_definitions.insert(name.clone(), index);
+            }
+        }
+        let flattened = flattened
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, statement)| match &statement {
+                Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. })
+                    if last_definitions.get(name) != Some(&index) =>
+                {
+                    None
+                }
+                _ => Some(statement),
+            })
+            .collect::<Vec<_>>();
+
+        let mut prepass = ConstructorPrepass::default();
+        let mut binding_counts = BTreeMap::<String, usize>::new();
+        for statement in &flattened {
+            if let Stmt::Bind(Pat::Var(name), _, _) = statement {
+                *binding_counts.entry(name.clone()).or_default() += 1;
+            }
+        }
+        prepass.duplicate_bindings = binding_counts
+            .into_iter()
+            .filter_map(|(name, count)| (count > 1).then_some(name))
+            .collect();
+        for statement in flattened {
+            match &statement {
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    effects,
+                    body,
+                    ..
+                }) => {
+                    prepass.functions.insert(
+                        name.clone(),
+                        (
+                            params.iter().map(|param| param.name.clone()).collect(),
+                            body.clone(),
+                            effects.is_empty(),
+                        ),
+                    );
+                    prepass.actor_runtime_symbols.insert(name.clone());
+                }
+                Stmt::Defn(Defn::Actor { name, handlers, .. }) => {
+                    prepass.actors.insert(
+                        name.clone(),
+                        handlers
+                            .iter()
+                            .filter_map(|handler| match &handler.msg_pat {
+                                Pat::Con(message, fields) => Some((message.clone(), fields.len())),
+                                _ => None,
+                            })
+                            .collect(),
+                    );
+                    prepass.actor_runtime_symbols.insert(name.clone());
+                }
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    variants,
+                    methods,
+                    ..
+                }) => {
+                    prepass.explicit_types.insert(name.clone());
+                    prepass
+                        .constructors
+                        .extend(variants.iter().map(|variant| variant.name.clone()));
+                    // ADT method blocks are emitted as standalone root
+                    // functions, including methods whose parameter is named
+                    // `self`.
+                    for method in methods {
+                        if let Defn::Fn { name, .. } = method {
+                            prepass.actor_runtime_symbols.insert(name.clone());
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {
+                    prepass.explicit_types.insert(name.clone());
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    prepass.explicit_types.insert(name.clone());
+                    prepass.constructors.insert(name.clone());
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                    // Backend impl methods without a `self` parameter are
+                    // emitted as standalone functions. Receiver methods remain
+                    // inside the Rust impl and do not occupy the bare root
+                    // namespace.
+                    for method in methods {
+                        if let Defn::Fn { name, params, .. } = method {
+                            if params.iter().all(|param| param.name != "self") {
+                                prepass.actor_runtime_symbols.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+                Stmt::Rule(Rule::Default { head, .. })
+                | Stmt::Rule(Rule::Exception { head, .. })
+                | Stmt::Rule(Rule::Clause { head, .. }) => {
+                    if let Some(name) = rule_head_name(head) {
+                        prepass.rule_names.insert(name.to_string());
+                        prepass.actor_runtime_symbols.insert(name.to_string());
+                    }
+                }
+                Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+                    prepass.rule_names.insert(name.clone());
+                    prepass.actor_runtime_symbols.insert(name.clone());
+                }
+                Stmt::Bind(pattern, _, _) => {
+                    if let Some(name) = Self::static_binding_name(pattern) {
+                        prepass.actor_runtime_symbols.insert(name.to_string());
+                    }
+                }
+                Stmt::StreamBind(name, _) => {
+                    prepass.actor_runtime_symbols.insert(name.clone());
+                }
+                Stmt::RustBlock(code) => {
+                    for line in code.lines() {
+                        let trimmed = line.trim();
+                        let remainder = trimmed
+                            .strip_prefix("pub fn ")
+                            .or_else(|| trimmed.strip_prefix("fn "));
+                        if let Some(remainder) = remainder {
+                            if let Some(paren) = remainder.find('(') {
+                                let name = remainder[..paren].trim();
+                                if !name.is_empty() {
+                                    prepass.actor_runtime_symbols.insert(name.to_string());
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+            // `emit_program` scans comptime pairs over its `main_stmts`, after
+            // declarations and non-comptime annotations have been routed away.
+            // Preserve that exact filtering so a source-only annotation such as
+            // `@ export` cannot spuriously consume a pending `@ comptime`.
+            let retained_in_codegen_main = match &statement {
+                Stmt::Defn(_)
+                | Stmt::TypeDecl(_)
+                | Stmt::Use(_)
+                | Stmt::Import(_)
+                | Stmt::QualifiedImport(_, _)
+                | Stmt::HashImport(_, _)
+                | Stmt::Depend(_, _)
+                | Stmt::RustBlock(_) => false,
+                Stmt::Annot(name, _) => name == "comptime",
+                Stmt::Rule(Rule::ReactiveScope { .. }) => true,
+                Stmt::Rule(_) => false,
+                _ => true,
+            };
+            if retained_in_codegen_main {
+                prepass.main_statements.push(statement.clone());
+            }
+            prepass.all_statements.push(statement);
+        }
+        prepass
+    }
+
+    fn eval_static_type_expr(
+        expression: &Expr,
+        env: &BTreeMap<String, StaticTypeValue>,
+        functions: &BTreeMap<String, (Vec<String>, Expr, bool)>,
+        call_stack: &mut BTreeSet<String>,
+        budget: &mut StaticTypeBudget,
+    ) -> Option<StaticTypeValue> {
+        budget.enter()?;
+        let result = (|| match &expression.kind {
+            ExprKind::Var(name) => env.get(name).and_then(|value| budget.clone_value(value)),
+            ExprKind::Lit(Literal::Str(value)) => {
+                budget.charge_string(value)?;
+                Some(StaticTypeValue::Str(value.clone()))
+            }
+            ExprKind::List(items) => {
+                (items.len() <= StaticTypeBudget::MAX_ITEMS).then_some(())?;
+                let values = items
+                    .iter()
+                    .map(|item| {
+                        Self::eval_static_type_expr(item, env, functions, call_stack, budget)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                budget.charge(1, 0)?;
+                Some(StaticTypeValue::List(values))
+            }
+            ExprKind::Tuple(items) => {
+                (items.len() <= StaticTypeBudget::MAX_ITEMS).then_some(())?;
+                let values = items
+                    .iter()
+                    .map(|item| {
+                        Self::eval_static_type_expr(item, env, functions, call_stack, budget)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                budget.charge(1, 0)?;
+                Some(StaticTypeValue::Tuple(values))
+            }
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(function_name) = &function.kind else {
+                    return None;
+                };
+                let arguments = arguments
+                    .iter()
+                    .map(|argument| {
+                        Self::eval_static_type_expr(argument, env, functions, call_stack, budget)
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                if env.contains_key(function_name) {
+                    None
+                } else if let Some((parameters, body, effect_free)) = functions.get(function_name) {
+                    if !*effect_free
+                        || parameters.len() != arguments.len()
+                        || !call_stack.insert(function_name.clone())
+                    {
+                        None
+                    } else {
+                        let mut function_env = budget.clone_env(env)?;
+                        for (parameter, argument) in parameters.iter().zip(arguments) {
+                            budget.charge_string(parameter)?;
+                            budget.insert_value(&mut function_env, parameter.clone(), argument)?;
+                        }
+                        let value = Self::eval_static_type_expr(
+                            body,
+                            &function_env,
+                            functions,
+                            call_stack,
+                            budget,
+                        );
+                        call_stack.remove(function_name);
+                        value
+                    }
+                } else {
+                    match function_name.as_str() {
+                        "field" => match arguments.as_slice() {
+                            [StaticTypeValue::Str(name), StaticTypeValue::Str(ty)] => {
+                                budget.charge_string(name)?;
+                                budget.charge_string(ty)?;
+                                Some(StaticTypeValue::Field(name.clone(), ty.clone()))
+                            }
+                            _ => None,
+                        },
+                        "struct_type" => match arguments.as_slice() {
+                            [StaticTypeValue::List(items)]
+                                if items.len() <= StaticTypeBudget::MAX_ITEMS =>
+                            {
+                                let fields = items
+                                    .iter()
+                                    .map(|item| match item {
+                                        StaticTypeValue::Field(name, ty) => {
+                                            budget.charge_string(name)?;
+                                            budget.charge_string(ty)?;
+                                            Some((name.clone(), ty.clone()))
+                                        }
+                                        _ => None,
+                                    })
+                                    .collect::<Option<Vec<_>>>()?;
+                                budget.charge(1, 0)?;
+                                budget.charge_string("struct")?;
+                                Some(StaticTypeValue::TypeDef {
+                                    kind: "struct".to_string(),
+                                    fields,
+                                })
+                            }
+                            _ => None,
+                        },
+                        "enum_type" => match arguments.as_slice() {
+                            [StaticTypeValue::List(items)]
+                                if items.len() <= StaticTypeBudget::MAX_ITEMS =>
+                            {
+                                let fields = items
+                                .iter()
+                                .map(|item| match item {
+                                    StaticTypeValue::Str(name) => {
+                                        budget.charge_string(name)?;
+                                        Some((name.clone(), String::new()))
+                                    }
+                                    StaticTypeValue::Tuple(parts) => match parts.as_slice() {
+                                        [StaticTypeValue::Str(name), StaticTypeValue::List(fields)] => {
+                                            let fields = fields
+                                                .iter()
+                                                .map(|field| match field {
+                                                    StaticTypeValue::Field(field, ty) => {
+                                                        let encoded = format!("{}:{}", field, ty);
+                                                        budget.charge_string(&encoded)?;
+                                                        Some(encoded)
+                                                    }
+                                                    _ => None,
+                                                })
+                                                .collect::<Option<Vec<_>>>()?
+                                                .join(",");
+                                            budget.charge_string(name)?;
+                                            budget.charge_string(&fields)?;
+                                            Some((name.clone(), fields))
+                                        }
+                                        _ => None,
+                                    },
+                                    _ => None,
+                                })
+                                .collect::<Option<Vec<_>>>()?;
+                                budget.charge(1, 0)?;
+                                budget.charge_string("enum")?;
+                                Some(StaticTypeValue::TypeDef {
+                                    kind: "enum".to_string(),
+                                    fields,
+                                })
+                            }
+                            _ => None,
+                        },
+                        _ => None,
+                    }
+                }
+            }
+            ExprKind::Block(statements) => {
+                let mut block_env = budget.clone_env(env)?;
+                let mut value = None;
+                for statement in statements {
+                    match statement {
+                        Stmt::Bind(pattern, _, expression) => {
+                            let name = Self::static_binding_name(pattern)?;
+                            let binding = Self::eval_static_type_expr(
+                                expression, &block_env, functions, call_stack, budget,
+                            )?;
+                            budget.insert_value(&mut block_env, name.to_string(), binding)?;
+                            value = None;
+                        }
+                        Stmt::Expr(expression) => {
+                            value = Some(Self::eval_static_type_expr(
+                                expression, &block_env, functions, call_stack, budget,
+                            )?);
+                        }
+                        _ => return None,
+                    }
+                }
+                value
+            }
+            ExprKind::Lit(_)
+            | ExprKind::Lambda(_, _)
+            | ExprKind::BinOp(_, _, _)
+            | ExprKind::UnOp(_, _)
+            | ExprKind::If(_, _, _)
+            | ExprKind::Match(_, _)
+            | ExprKind::Field(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::Effect(_, _)
+            | ExprKind::Handle { .. }
+            | ExprKind::Try(_)
+            | ExprKind::Conjunction(_)
+            | ExprKind::Disjunction(_)
+            | ExprKind::Pipe(_, _)
+            | ExprKind::Unit => None,
+        })();
+        budget.leave();
+        result
+    }
+
+    fn install_constructor_prepass(&mut self, statements: &[Stmt]) {
+        let prepass = self.build_constructor_prepass(statements);
+        self.top_level_constructor_names = prepass.constructors.clone();
+        self.root_actor_runtime_symbols = prepass.actor_runtime_symbols.clone();
+
+        // Freeze actor identities only after later-win definition shadowing.
+        for (actor, messages) in &prepass.actors {
+            let mut seen_in_actor = BTreeSet::new();
+            for (message, arity) in messages {
+                if !seen_in_actor.insert(message.clone()) {
+                    self.error(format!(
+                        "actor `{}` declares message constructor `{}` more than once",
+                        actor, message
+                    ));
+                }
+                self.actor_message_arities
+                    .entry(message.clone())
+                    .or_default()
+                    .entry(*arity)
+                    .or_default()
+                    .insert(actor.clone());
+            }
+        }
+
+        // Phase A mirrors codegen's initial comptime environment: declarations
+        // are already registered, then every eligible binding is evaluated once
+        // in normalized flattened source order. Duplicate Pat::Var bindings are
+        // all skipped by codegen and therefore remain absent here as well.
+        let mut env = BTreeMap::new();
+        let mut budget = StaticTypeBudget::new();
+        let blocked_names = prepass
+            .actors
+            .keys()
+            .chain(prepass.constructors.iter())
+            .chain(prepass.rule_names.iter());
+        for name in blocked_names {
+            if budget
+                .insert_value(&mut env, name.clone(), StaticTypeValue::Blocked)
+                .is_none()
+            {
+                return;
+            }
+        }
+        let mut call_stack = BTreeSet::new();
+        for statement in &prepass.all_statements {
+            let Stmt::Bind(pattern, _, expression) = statement else {
+                continue;
+            };
+            let Some(name) = Self::static_binding_name(pattern).map(str::to_string) else {
+                continue;
+            };
+            if matches!(pattern, Pat::Var(_)) && prepass.duplicate_bindings.contains(&name) {
+                continue;
+            }
+            if let Some(value) = Self::eval_static_type_expr(
+                expression,
+                &env,
+                &prepass.functions,
+                &mut call_stack,
+                &mut budget,
+            ) {
+                if budget.insert_value(&mut env, name, value).is_none() {
+                    return;
+                }
+            }
+        }
+
+        // Phase B mirrors codegen's dependency-ordered `main_stmts` scan. A
+        // comptime target is re-evaluated against the completed seed environment,
+        // then bound sequentially so a later target can consume its result.
+        let main_refs = prepass.main_statements.iter().collect::<Vec<_>>();
+        let ordered_main = match analyze_top_level_binding_dependencies(&prepass.all_statements)
+            .order_statement_refs(&main_refs)
+        {
+            Ok(ordered) => ordered,
+            Err(cycle) => {
+                self.error(cycle.to_string());
+                return;
+            }
+        };
+        let mut pending_comptime = false;
+        let mut known_type_names = prepass.explicit_types;
+        for statement in ordered_main {
+            if let Stmt::Annot(name, arguments) = statement {
+                if name == "comptime" && arguments.is_empty() {
+                    pending_comptime = true;
+                } else {
+                    pending_comptime = false;
+                }
+                continue;
+            }
+            let is_target = pending_comptime;
+            pending_comptime = false;
+            let Stmt::Bind(pattern, _, expression) = statement else {
+                continue;
+            };
+            let Some(name) = Self::static_binding_name(pattern).map(str::to_string) else {
+                continue;
+            };
+            if !is_target {
+                continue;
+            }
+            let value = Self::eval_static_type_expr(
+                expression,
+                &env,
+                &prepass.functions,
+                &mut call_stack,
+                &mut budget,
+            );
+            if let Some(StaticTypeValue::TypeDef { kind, fields }) = &value {
+                let declaration = comptime_typedef_to_type_decl(&name, kind, fields);
+                let TypeDecl::ADT { variants, .. } = &declaration else {
+                    unreachable!("comptime TypeDef must lower to an ADT")
+                };
+                let generated_constructors = variants
+                    .iter()
+                    .map(|variant| variant.name.clone())
+                    .collect::<BTreeSet<_>>();
+                if known_type_names.contains(&name) {
+                    self.error(format!(
+                        "comptime type `{}` collides with an explicit or generated type",
+                        name
+                    ));
+                } else {
+                    known_type_names.insert(name.clone());
+                    self.top_level_constructor_names
+                        .extend(generated_constructors);
+                    self.collect_declarations(&[Stmt::TypeDecl(declaration)]);
+                }
+            }
+            if let Some(value) = value {
+                if budget.insert_value(&mut env, name, value).is_none() {
+                    return;
+                }
+            }
+        }
+    }
+
+    fn actor_message_actors(&self, message: &str) -> BTreeSet<String> {
+        self.actor_message_arities
+            .get(message)
+            .into_iter()
+            .flat_map(|arities| arities.values())
+            .flatten()
+            .cloned()
+            .collect()
+    }
+
+    fn actor_message_arity_label(&self, message: &str) -> Option<String> {
+        self.actor_message_arities.get(message).map(|arities| {
+            arities
+                .keys()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(" or ")
+        })
+    }
+
+    fn define_actor_handle(&mut self, name: &str, actor: Option<&str>) {
+        if let Some(scope) = self.actor_handle_scopes.last_mut() {
+            scope.insert(name.to_string(), actor.map(str::to_string));
+        }
+    }
+
+    fn actor_for_handle_expr(&self, expression: &Expr) -> Option<String> {
+        if let Some(actor) = Self::spawned_actor_name(expression) {
+            return Some(actor.to_string());
+        }
+        match &expression.kind {
+            ExprKind::Var(name) => self
+                .actor_handle_scopes
+                .iter()
+                .rev()
+                .find_map(|scope| scope.get(name))
+                .cloned()
+                .flatten(),
+            _ => None,
+        }
+    }
+
+    fn spawned_actor_name(expression: &Expr) -> Option<&str> {
+        let ExprKind::App(function, arguments) = &expression.kind else {
+            return None;
+        };
+        if arguments.len() != 2 {
+            return None;
+        }
+        let ExprKind::Var(function_name) = &function.kind else {
+            return None;
+        };
+        if function_name != "spawn" {
+            return None;
+        }
+        match &arguments[0].kind {
+            ExprKind::Var(actor) => Some(actor),
+            _ => None,
+        }
+    }
+
+    fn actor_message_parts(expression: &Expr) -> Option<(&str, &[Expr])> {
+        match &expression.kind {
+            ExprKind::Var(name) => Some((name, &[])),
+            ExprKind::App(function, arguments) => match &function.kind {
+                ExprKind::Var(name) => Some((name, arguments)),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
+    /// Check a syntactic actor message. Returns true only when this expression
+    /// was recognized as an actor constructor and therefore fully consumed.
+    fn check_actor_message(&mut self, target: Option<&Expr>, expression: &Expr) -> bool {
+        let Some((message, arguments)) = Self::actor_message_parts(expression) else {
+            return false;
+        };
+        let Some(arities) = self.actor_message_arities.get(message) else {
+            return false;
+        };
+        let lexical_collision = self
+            .scopes
+            .iter()
+            .skip(1)
+            .rev()
+            .any(|scope| scope.contains(message));
+        let runtime_collision =
+            self.root_actor_runtime_symbols.contains(message) || lexical_collision;
+        let data_constructor_collision = self.constructors.contains_key(message);
+        // Outside an explicit send/ask, ordinary values/functions retain normal
+        // expression precedence. At an actor-message site the backend emits the
+        // name bare, so a same-name runtime symbol is unsafe and rejected.
+        if target.is_none() && (runtime_collision || data_constructor_collision) {
+            return false;
+        }
+        let actors = self.actor_message_actors(message);
+        if runtime_collision {
+            self.error_at_expr(
+                expression,
+                format!(
+                    "actor message `{}` collides with an ordinary variable or function",
+                    message
+                ),
+            );
+        } else if actors.len() > 1 {
+            self.error_at_expr(
+                expression,
+                format!(
+                    "actor message `{}` is ambiguous; declared by actors {}",
+                    message,
+                    actors.into_iter().collect::<Vec<_>>().join(", ")
+                ),
+            );
+        } else if data_constructor_collision {
+            self.error_at_expr(
+                expression,
+                format!(
+                    "actor message `{}` collides with an ordinary data constructor",
+                    message
+                ),
+            );
+        } else if !arities.contains_key(&arguments.len()) {
+            let expected = self
+                .actor_message_arity_label(message)
+                .expect("known actor message has arity metadata");
+            self.error_at_expr(
+                expression,
+                format!(
+                    "actor message `{}` expects {} field{} but got {}",
+                    message,
+                    expected,
+                    if expected == "1" { "" } else { "s" },
+                    arguments.len()
+                ),
+            );
+        } else if has_named_args(arguments) {
+            self.error_at_expr(
+                expression,
+                format!(
+                    "actor message `{}` requires positional fields; named fields are not supported",
+                    message
+                ),
+            );
+        } else if let Some(target_actor) =
+            target.and_then(|target| self.actor_for_handle_expr(target))
+        {
+            if !actors.contains(&target_actor) {
+                self.error_at_expr(
+                    expression,
+                    format!(
+                        "actor `{}` has no message constructor `{}`",
+                        target_actor, message
+                    ),
+                );
+            }
+        }
+        for argument in arguments {
+            self.check_expr(argument, None);
+        }
+        true
     }
 
     fn constructor_signature_for_args(
@@ -20732,6 +21674,10 @@ impl TypeChecker {
                     self.obvious_expr_ty(expr);
                 }
                 self.define_pat_vars(pat);
+                if let Pat::Var(name) = pat {
+                    let actor = Self::spawned_actor_name(expr);
+                    self.define_actor_handle(name, actor);
+                }
                 if let (Pat::Var(name), Some(ty)) = (pat, ty.as_ref()) {
                     self.define_var_type(name, ty);
                 } else if let Pat::Var(name) = pat {
@@ -20779,7 +21725,9 @@ impl TypeChecker {
             }
             Stmt::Send(target, msg) => {
                 self.check_expr(target, None);
-                self.check_expr(msg, None);
+                if !self.check_actor_message(Some(target), msg) {
+                    self.check_expr(msg, None);
+                }
             }
             Stmt::StreamSub(expr, arms) => {
                 self.check_expr(expr, None);
@@ -20936,6 +21884,11 @@ impl TypeChecker {
     pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {
         match &expr.kind {
             ExprKind::Var(name) => {
+                if self.actor_message_arities.contains_key(name)
+                    && self.check_actor_message(None, expr)
+                {
+                    return;
+                }
                 let canonical = builtin_canonical(name);
                 if !self.var_defined(name)
                     && !self.functions.contains_key(name)
@@ -20967,6 +21920,27 @@ impl TypeChecker {
                 }
                 if matches!(&func.kind, ExprKind::Var(name) if name == REFOF_MARKER) {
                     self.check_refof_expr(expr, args);
+                    return;
+                }
+                if matches!(&func.kind, ExprKind::Var(name) if self.actor_message_arities.contains_key(name))
+                    && self.check_actor_message(None, expr)
+                {
+                    return;
+                }
+                if matches!(&func.kind, ExprKind::Var(name) if name == "ask") && args.len() == 2 {
+                    self.check_expr(&args[0], _in_fn);
+                    if !matches!(&args[0].kind, ExprKind::Var(_)) {
+                        self.error_at_expr(
+                            &args[0],
+                            "actor `ask` target must be a bound actor handle; direct expressions are not supported"
+                                .to_string(),
+                        );
+                        self.check_expr(&args[1], _in_fn);
+                        return;
+                    }
+                    if !self.check_actor_message(Some(&args[0]), &args[1]) {
+                        self.check_expr(&args[1], _in_fn);
+                    }
                     return;
                 }
                 if let ExprKind::Field(base, method) = &func.as_ref().kind {
@@ -21678,6 +22652,7 @@ impl TypeChecker {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
+        tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
         tc.infer_top_level_binding_types(stmts);
@@ -24752,6 +25727,373 @@ mod tests {
             diags.is_empty(),
             "comptime type builtins should type-check, got: {:?}",
             diags
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_restores_actor_and_comptime_contracts_safely() {
+        let source = r#"
+= variants = ["Ready", "Waiting"]
+
+> make_pair_type(left: String, right: String) -> TypeDef {
+    struct_type([field("first", left), field("second", right)])
+}
+
+@ comptime
+= Status = enum_type(variants)
+
+@ comptime
+= IntPair = make_pair_type("Int", "Int")
+
+> actor sink(count: Int) {
+    | Seen(label) -> count + 1
+    | Query(token) -> count
+}
+
+= handle = spawn(sink, 0)
+handle <- Seen("sent")
+= answer = ask(handle, Query("asked"))
+= status = Ready
+= pair = IntPair(1, 2)
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.is_empty(),
+            "safe constructor prepass contracts should type-check: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_does_not_execute_or_leak_nested_type_descriptions() {
+        let sentinel = std::env::temp_dir().join(format!(
+            "futuruna-constructor-prepass-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock after epoch")
+                .as_nanos()
+        ));
+        let source = format!(
+            r#"
+> unsafe_type() -> TypeDef {{
+    write_file("{}", "bad")
+    enum_type(["Injected"])
+}}
+
+> module Hidden {{
+    @ comptime
+    = Secret = enum_type(["SecretVariant"])
+}}
+
+@ comptime
+= Unsafe = unsafe_type()
+
+= first = Injected
+= second = SecretVariant
+"#,
+            sentinel.to_string_lossy()
+        );
+        let diagnostics = check_source_for_diagnostics(&source);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("undefined constructor `Injected`")),
+            "runtime calls must fail closed: {diagnostics:?}"
+        );
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("undefined constructor `SecretVariant`")),
+            "nested modules must not leak constructors: {diagnostics:?}"
+        );
+        assert!(
+            !sentinel.exists(),
+            "type checking must never run write_file"
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_respects_shadowing_and_direct_annotation_pairing() {
+        let source = r#"
+> enum_type(items: List(String)) -> TypeDef { struct_type([]) }
+
+@ comptime
+@ export
+= NotAType = struct_type([])
+
+@ comptime
+= Shadowed = enum_type(["ShouldNotExist"])
+
+= one = NotAType
+= two = ShouldNotExist
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("parse should succeed");
+        let mut checker = TypeChecker::new();
+        checker.install_constructor_prepass(&statements);
+        assert!(
+            checker.constructors.contains_key("NotAType"),
+            "annotations filtered from codegen main must not consume @comptime"
+        );
+        let diagnostics = TypeChecker::check_with_diagnostics(&statements, None, source);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("undefined constructor `ShouldNotExist`")),
+            "a user function must shadow the comptime magic builtin: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_skips_duplicate_top_level_seed_bindings() {
+        let source = r#"
+= fields = [field("first", "Int")]
+= fields = [field("second", "String")]
+@ comptime
+= DuplicateSeed = struct_type(fields)
+= value = DuplicateSeed(1)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("parse should succeed");
+        let mut checker = TypeChecker::new();
+        checker.install_constructor_prepass(&statements);
+        assert!(
+            !checker.constructors.contains_key("DuplicateSeed"),
+            "duplicate root bindings are absent from the backend comptime environment"
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_rechecks_targets_against_complete_seed_environment() {
+        let source = r#"
+@ comptime
+= ForwardConfig = struct_type(fields)
+= fields = [field("value", "Int")]
+= config = ForwardConfig(1)
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.is_empty(),
+            "codegen seeds all safe bindings before re-evaluating comptime targets: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn constructor_prepass_first_type_namespace_includes_effects_and_traits() {
+        let source = r#"
+# effect Occupied { > read() -> Int }
+# Occupied = LaterVariant
+@ comptime
+= Occupied = struct_type([])
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("parse should succeed");
+        let mut checker = TypeChecker::new();
+        checker.install_constructor_prepass(&statements);
+        assert!(
+            checker.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("comptime type `Occupied` collides with an explicit or generated type")),
+            "the first effect/trait declaration must occupy the shared type namespace"
+        );
+        assert!(
+            !checker.constructors.contains_key("LaterVariant"),
+            "a later same-name ADT is removed by backend first-type deduplication"
+        );
+    }
+
+    #[test]
+    fn module_symbols_do_not_pollute_root_actor_special_lowering_or_collisions() {
+        let wrong_target_source = r#"
+> module Hidden {
+    > spawn(actor: Int, state: Int) -> Int { actor + state }
+    > ask(actor: Int, message: Int) -> Int { actor + message }
+}
+> actor left(state: Int) { | LeftOnly -> state + 1 }
+> actor right(state: Int) { | RightOnly -> state - 1 }
+= handle = spawn(left, 0)
+handle <- RightOnly
+= answer = ask(handle, RightOnly)
+"#;
+        let wrong_target_diagnostics = check_source_for_diagnostics(wrong_target_source);
+        assert_eq!(
+            wrong_target_diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic
+                    .message
+                    .contains("actor `left` has no message constructor `RightOnly`"))
+                .count(),
+            2,
+            "bare spawn/ask lowering is unconditional and module-local names cannot disable it: {wrong_target_diagnostics:?}"
+        );
+
+        let non_collision_source = r#"
+> module Hidden {
+    > Seen(value: String) -> String { value }
+    > actor Seen(state: Int) { | Nested -> state + 1 }
+}
+# trait Observes { > Seen(value: String) -> String }
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+= handle = spawn(sink, 0)
+handle <- Seen("ok")
+"#;
+        let non_collision_diagnostics = check_source_for_diagnostics(non_collision_source);
+        assert!(
+            non_collision_diagnostics.is_empty(),
+            "nested functions/actors and trait methods stay namespaced away from root actor messages: {non_collision_diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn nested_data_constructor_still_collides_with_bare_actor_message() {
+        let source = r#"
+> module Hidden {
+    # HiddenData = Seen(String)
+}
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+= handle = spawn(sink, 0)
+handle <- Seen("ambiguous")
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary data constructor")),
+            "nested ADT variants enter the backend constructor registry and must collide: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn direct_spawn_targets_and_root_rust_functions_match_actor_backend_rules() {
+        let direct_target_source = r#"
+> actor left(state: Int) { | LeftOnly -> state + 1 }
+> actor right(state: Int) { | RightOnly -> state - 1 }
+spawn(left, 0) <- RightOnly
+= answer = ask(spawn(left, 0), LeftOnly)
+"#;
+        let direct_diagnostics = check_source_for_diagnostics(direct_target_source);
+        assert_eq!(
+            direct_diagnostics
+                .iter()
+                .filter(|diagnostic| diagnostic
+                    .message
+                    .contains("actor `left` has no message constructor `RightOnly`"))
+                .count(),
+            1,
+            "direct spawn send targets must carry actor identity: {direct_diagnostics:?}"
+        );
+        assert!(
+            direct_diagnostics.iter().any(|diagnostic| diagnostic.message.contains(
+                "actor `ask` target must be a bound actor handle; direct expressions are not supported"
+            )),
+            "direct-spawn ask is malformed in the backend and must fail closed: {direct_diagnostics:?}"
+        );
+
+        let rust_collision_source = r#"
+@ rust {
+    fn Seen(value: String) -> String { value }
+}
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+= handle = spawn(sink, 0)
+handle <- Seen("ambiguous")
+"#;
+        let rust_diagnostics = check_source_for_diagnostics(rust_collision_source);
+        assert!(
+            rust_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary variable or function")),
+            "root raw-Rust functions share the backend namespace with bare actor variants: {rust_diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn root_emitted_type_methods_collide_with_bare_actor_messages() {
+        let adt_method_source = r#"
+# Token = Ready {
+    > Seen(value: String) -> String { value }
+}
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+= handle = spawn(sink, 0)
+handle <- Seen("ambiguous")
+"#;
+        let adt_diagnostics = check_source_for_diagnostics(adt_method_source);
+        assert!(
+            adt_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary variable or function")),
+            "first-win ADT methods are standalone backend functions: {adt_diagnostics:?}"
+        );
+
+        let impl_method_source = r#"
+# trait Labels { > Seen(value: String) -> String }
+# impl Labels for String {
+    > Seen(value: String) -> String { value }
+}
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+= handle = spawn(sink, 0)
+handle <- Seen("ambiguous")
+"#;
+        let impl_diagnostics = check_source_for_diagnostics(impl_method_source);
+        assert!(
+            impl_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary variable or function")),
+            "receiverless impl methods are standalone backend functions: {impl_diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn lexical_actor_message_collisions_fail_closed_only_at_message_sites() {
+        let source = r#"
+> actor sink(state: Int) { | Seen(label) -> state + 1 }
+> forward(handle, Seen) {
+    = ordinary = Seen
+    handle <- Seen
+}
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary variable or function")),
+            "a lexical parameter cannot safely select a same-name bare actor variant: {diagnostics:?}"
+        );
+    }
+
+    #[test]
+    fn actor_message_use_rejects_bare_name_collisions_but_unused_duplicates_are_harmless() {
+        let collision_source = r#"
+# Data = Seen(String)
+> actor sink(count: Int) {
+    | Seen(label) -> count + 1
+}
+= handle = spawn(sink, 0)
+handle <- Seen("ambiguous")
+"#;
+        let collision_diagnostics = check_source_for_diagnostics(collision_source);
+        assert!(
+            collision_diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("actor message `Seen` collides with an ordinary data constructor")),
+            "send/ask must reject backend-bare constructor collisions: {collision_diagnostics:?}"
+        );
+
+        let unused_duplicate_source = r#"
+> actor left(state: Int) { | Reset -> 0 | Left -> state + 1 }
+> actor right(state: Int) { | Reset -> 0 | Right -> state - 1 }
+= handle = spawn(left, 0)
+handle <- Left
+"#;
+        let unused_diagnostics = check_source_for_diagnostics(unused_duplicate_source);
+        assert!(
+            unused_diagnostics.is_empty(),
+            "a shared actor message spelling is harmless until used: {unused_diagnostics:?}"
         );
     }
 

@@ -173,7 +173,7 @@ cat > src/import_smoke.runa <<'RUNA'
 
 = msg = Greeter.greeting("import")
 = probe = Greeter.probe()
-= ok = msg == "Hello, import!" && probe == "Hello, library!"
+| ok: msg -> msg == "Hello, import!" && probe == "Hello, library!"
 ? ok
 
 @ print(msg)

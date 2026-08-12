@@ -16295,8 +16295,9 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
                 .or_insert_with(|| serde_json::json!([]));
             if capital_income["kursgevinst"]["$variant"] == "MedKursgevinst" {
                 if let Some(prior_years) = capital_income["kursgevinst"]["fakta"]
-                    ["par32_kontraktforløb"]["tidligere_år"]
-                    .as_array_mut()
+                    ["par32_kontraktforløb"]
+                    .get_mut("tidligere_år")
+                    .and_then(Value::as_array_mut)
                 {
                     for prior_year in prior_years {
                         prior_year["aktieavance"]
@@ -18172,7 +18173,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
         ["kursgevinst_resultat"]["øvrige_instrumentresultat"]["obligationsbevisresultater"][0];
     assert_eq!(par32_historical_abl22["input_gyldigt"], true);
     assert_eq!(
-        par32_historical_abl22["aktieavancebeskatningslov_resultat"]
+        par32_historical_abl22["samlet_aktieavancebeskatningslov_resultat"]
             ["netto_efter_aktieavancebeskatningsloven_kroner"],
         1_500
     );

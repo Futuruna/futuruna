@@ -1,6 +1,6 @@
 -- codegen_integration_regression_test.runa
--- Reduced regressions from external integration corpora that used to
--- compile/type-check in-repo but fail in real codegen paths.
+-- Blocking code-generation regressions for reusable Futuruna behavior.
+-- These cases exercise source programs through generated Rust.
 
 # Tree(acted: Int, total_phi: Float, kids: Map(String, Tree))
 
@@ -44,10 +44,25 @@
 ? replace_ok
 
 = world = "the cat sat"
-= sliced = substring(world, 4, 5)
-| substring_length_ok: sliced -> sliced == "cat s"
+= sliced = substring(world, 4, 3)
+| substring_length_ok: sliced -> sliced == "cat"
 ? substring_length_ok
 
 = past_end = substring(world, 99, length(world) - 99)
 | substring_past_end_ok: past_end -> past_end == ""
 ? substring_past_end_ok
+
+# Choice = Pick(value: Int) | Empty
+
+> choice_value(choice: Choice) -> Int {
+    match choice {
+        | Pick(value: value) -> value
+        | Empty -> 0
+    }
+}
+
+> choose() -> Choice { Pick(7) }
+
+= chosen = choose()
+| named_constructor_codegen_ok: chosen -> choice_value(chosen) == 7
+? named_constructor_codegen_ok
