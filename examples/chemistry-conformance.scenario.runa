@@ -1,0 +1,41 @@
+@ import ./chemistry
+@ import ./conformance
+
+= chemistry_balancing_case = ConformanceCase(
+    id = "chemistry-water-equation",
+    title = "Balanced water equation preserves atom counts",
+    source_fact_bundle_reference = "chemistry.runa::hydrogen, oxygen, water",
+    privacy = PublicEvidence,
+    assumptions = [],
+    unknown_facts = [],
+    observed_outputs = [
+        ConformanceObservedOutput(
+            id = "reactant-atoms",
+            label = "Atoms on the reactant side",
+            unit = "atoms",
+            value = ConformanceInt(value = 6),
+            source_reference = "https://openstax.org/books/chemistry/pages/4-1-writing-and-balancing-chemical-equations"
+        ),
+        ConformanceObservedOutput(
+            id = "product-atoms",
+            label = "Atoms on the product side",
+            unit = "atoms",
+            value = ConformanceInt(value = 6),
+            source_reference = "https://openstax.org/books/chemistry/pages/4-1-writing-and-balancing-chemical-equations"
+        )
+    ]
+)
+
+= chemistry_balancing_evaluation = conformance_evaluate(
+    chemistry_balancing_case,
+    true,
+    true,
+    [
+        ConformanceCalculatedOutput(id = "reactant-atoms", unit = "atoms", value = ConformanceInt(value = combustion_in)),
+        ConformanceCalculatedOutput(id = "product-atoms", unit = "atoms", value = ConformanceInt(value = combustion_out))
+    ]
+)
+
+| chemistry_external_equation_matches_rule_corpus: chemistry_balancing_evaluation -> chemistry_balancing_evaluation.comparison_allowed && chemistry_balancing_evaluation.all_observed_match
+
+? chemistry_external_equation_matches_rule_corpus

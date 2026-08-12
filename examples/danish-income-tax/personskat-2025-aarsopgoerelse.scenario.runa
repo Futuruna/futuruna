@@ -6,6 +6,7 @@
 @ importer ./metadata
 @ importer ./ligningsloven - par33
 @ importer ./personskat.calculate
+@ importer ../conformance
 
 -- Anonymiseret realitetstest mod en privat årsopgørelse for indkomståret 2025.
 -- Personnummer, navn, adresser og ejendomsidentifikationer er bevidst udeladt.
@@ -656,6 +657,80 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
 
 = årsopgørelse2025_kanonisk_resultat = beregn_personskat(årsopgørelse2025_kanonisk_input)
 
+= årsopgørelse2025_konformitetsantagelser = [
+    ConformanceAssumption(
+        id = "repræsentativ-fødselsdato",
+        statement = "Den anonymiserede kilde fastslår alderskategorien, men ikke den eksakte fødselsdato; 1. januar 1990 anvendes som repræsentativ dato.",
+        rationale = "Den dokumenterede alderskategori og satsen for ekstra pensionsfradrag er de eneste fødselsdatoafhængige forhold i de sammenlignede output."
+    ),
+    ConformanceAssumption(
+        id = "ægtefællens-underliggende-renteudgift",
+        statement = "Ægtefællens underliggende kilde rekonstrueres som 39.617 kr. i renteudgift og ingen anden indkomst.",
+        rationale = "Årsopgørelsen viser den modtagne underskudsoverførsel, men ikke ægtefællens underliggende indkomstposter."
+    )
+]
+
+= årsopgørelse2025_konformitetsukendte = [
+    ConformanceUnknownFact(
+        id = "eksakt-fødselsdato",
+        statement = "Den private persons eksakte fødselsdato er udeladt ved anonymiseringen.",
+        treatment = ResolvedByAssumption(assumption_id = "repræsentativ-fødselsdato")
+    ),
+    ConformanceUnknownFact(
+        id = "ægtefællens-kildespecifikation",
+        statement = "Den private årsopgørelse indeholder ikke ægtefællens fulde indkomstspecifikation.",
+        treatment = ResolvedByAssumption(assumption_id = "ægtefællens-underliggende-renteudgift")
+    )
+]
+
+= årsopgørelse2025_konformitetssag = ConformanceCase(
+    id = "personskat-anonymiseret-årsopgørelse-2025",
+    title = "Anonymiseret privat årsopgørelse for 2025",
+    source_fact_bundle_reference = "personskat-2025-aarsopgoerelse.scenario.runa::årsopgørelse2025_kanonisk_input",
+    privacy = AnonymizedPrivateEvidence(raw_source_committed = Falskt),
+    assumptions = årsopgørelse2025_konformitetsantagelser,
+    unknown_facts = årsopgørelse2025_konformitetsukendte,
+    observed_outputs = [
+        ConformanceObservedOutput(id = "personlig-indkomst", label = "Personlig indkomst efter arbejdsmarkedsbidrag", unit = "kr.", value = ConformanceInt(value = 749936), source_reference = "Anonymiseret privat årsopgørelse 2025, indkomstopgørelse"),
+        ConformanceObservedOutput(id = "nettokapitalindkomst", label = "Nettokapitalindkomst", unit = "kr.", value = ConformanceInt(value = 0 - 36404), source_reference = "Anonymiseret privat årsopgørelse 2025, indkomstopgørelse"),
+        ConformanceObservedOutput(id = "aktieindkomst", label = "Aktieindkomst", unit = "kr.", value = ConformanceInt(value = 14967), source_reference = "Anonymiseret privat årsopgørelse 2025, indkomstopgørelse"),
+        ConformanceObservedOutput(id = "slutskat", label = "Beregnet slutskat", unit = "øre", value = ConformanceInt(value = 29059034), source_reference = "Anonymiseret privat årsopgørelse 2025, skatteberegning"),
+        ConformanceObservedOutput(id = "overskydende-skat", label = "Overskydende skat efter tidligere udbetaling", unit = "øre", value = ConformanceInt(value = 8280), source_reference = "Anonymiseret privat årsopgørelse 2025, slutopgørelse"),
+        ConformanceObservedOutput(id = "udbetaling", label = "Udbetaling i hele kroner", unit = "kr.", value = ConformanceInt(value = 82), source_reference = "Anonymiseret privat årsopgørelse 2025, slutopgørelse")
+    ]
+)
+
+| årsopgørelse2025_konformitet_overskydende_skat_øre(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | BeregnetÅrsopgørelse(_, slutopgørelse, _) -> slutopgørelse.overskydende_skat_øre
+    | _ -> 0
+}
+| årsopgørelse2025_konformitet_udbetaling_kroner(resultat: PersonskatBeregningResultat) -> match resultat.årsopgørelse {
+    | BeregnetÅrsopgørelse(_, _, afregning) -> match afregning {
+        | OverskydendeSkatAfregnet(afregningsresultat) -> afregningsresultat.udbetales_kroner
+        | _ -> 0
+    }
+    | _ -> 0
+}
+| årsopgørelse2025_konformitet_understøttet(resultat: PersonskatBeregningResultat) -> resultat.ejendomsskatter.regelgrundlag_understøttet && match resultat.årsopgørelse {
+    | BeregnetÅrsopgørelse(_, _, _) -> Sandt
+    | _ -> Falskt
+}
+| årsopgørelse2025_konformitet_input_gyldigt(resultat: PersonskatBeregningResultat) -> resultat.personlig_indkomst.alle_input_gyldige && resultat.kapitalindkomst.alle_input_gyldige && resultat.aktieavance.alle_input_gyldige && resultat.ejendomsskatter.alle_input_gyldige && resultat.ligningslov33.input_gyldigt
+| årsopgørelse2025_konformitet_beregnede_output(resultat: PersonskatBeregningResultat) -> [
+    ConformanceCalculatedOutput(id = "personlig-indkomst", unit = "kr.", value = ConformanceInt(value = resultat.skat.personlig_indkomst_efter_am_kroner)),
+    ConformanceCalculatedOutput(id = "nettokapitalindkomst", unit = "kr.", value = ConformanceInt(value = resultat.skat.nettokapitalindkomst_kroner)),
+    ConformanceCalculatedOutput(id = "aktieindkomst", unit = "kr.", value = ConformanceInt(value = resultat.aktieavance.aktieindkomst_kroner)),
+    ConformanceCalculatedOutput(id = "slutskat", unit = "øre", value = ConformanceInt(value = resultat.slutskat_øre)),
+    ConformanceCalculatedOutput(id = "overskydende-skat", unit = "øre", value = ConformanceInt(value = årsopgørelse2025_konformitet_overskydende_skat_øre(resultat))),
+    ConformanceCalculatedOutput(id = "udbetaling", unit = "kr.", value = ConformanceInt(value = årsopgørelse2025_konformitet_udbetaling_kroner(resultat)))
+]
+= årsopgørelse2025_konformitetsresultat = conformance_evaluate(
+    årsopgørelse2025_konformitetssag,
+    årsopgørelse2025_konformitet_understøttet(årsopgørelse2025_kanonisk_resultat),
+    årsopgørelse2025_konformitet_input_gyldigt(årsopgørelse2025_kanonisk_resultat),
+    årsopgørelse2025_konformitet_beregnede_output(årsopgørelse2025_kanonisk_resultat)
+)
+
 = årsopgørelse2025_lønmodtagerinput = LønmodtagerInput(
     skatteår = 2025,
     kommune = Frederiksberg,
@@ -862,6 +937,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
     }
     | _ -> Falskt
 }
+| årsopgørelse2025_ekstern_konformitet_er_typed_og_uafhængig: årsopgørelse2025_konformitetsresultat -> årsopgørelse2025_konformitetsresultat.case_valid && årsopgørelse2025_konformitetsresultat.calculation_supported && årsopgørelse2025_konformitetsresultat.source_input_valid && årsopgørelse2025_konformitetsresultat.comparison_allowed && årsopgørelse2025_konformitetsresultat.all_observed_match
 
 ? årsopgørelse2025_indkomstgrundlag_matcher
 ? årsopgørelse2025_fradrag_matcher
@@ -882,6 +958,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
 ? årsopgørelse2025_kanonisk_pensionsgrundlag_udledes_fra_indbetalinger
 ? årsopgørelse2025_kanonisk_slutskat_matcher_myndighedens_kontrolresultat
 ? årsopgørelse2025_kanonisk_årsopgørelse_bevarer_ører_og_afregning
+? årsopgørelse2025_ekstern_konformitet_er_typed_og_uafhængig
 
 @ print("2025 årsopgørelse: rapporteret beregnet skat i øre = " + vis(årsopgørelse2025_årsopgørelsens_beregnede_skat_øre))
 @ print("2025 årsopgørelse: Futuruna-lovberegnet skat i øre = " + vis(årsopgørelse2025_futuruna_lovberegnet_skat_øre()))

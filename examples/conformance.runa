@@ -1,0 +1,85 @@
+-- External conformance cases keep four concerns separate:
+-- source facts consumed by the rule corpus, declared assumptions, facts that
+-- remain unknown, and outputs observed in an independent external source.
+
+# ConformancePrivacy = PublicEvidence | AnonymizedPrivateEvidence(raw_source_committed: Bool)
+# ConformanceValue = ConformanceInt(value: Int) | ConformanceBool(value: Bool) | ConformanceText(value: String)
+# ConformanceAssumption(id: String, statement: String, rationale: String)
+# ConformanceUnknownTreatment = BlocksComparison(reason: String) | ResolvedByAssumption(assumption_id: String) | OutsideComparedOutputs(reason: String)
+# ConformanceUnknownFact(id: String, statement: String, treatment: ConformanceUnknownTreatment)
+# ConformanceObservedOutput(id: String, label: String, unit: String, value: ConformanceValue, source_reference: String)
+# ConformanceCalculatedOutput(id: String, unit: String, value: ConformanceValue)
+# ConformanceCase(id: String, title: String, source_fact_bundle_reference: String, privacy: ConformancePrivacy, assumptions: List(ConformanceAssumption), unknown_facts: List(ConformanceUnknownFact), observed_outputs: List(ConformanceObservedOutput))
+# ConformanceComparison(observed: ConformanceObservedOutput, calculated: Option(ConformanceCalculatedOutput), matches: Bool)
+# ConformanceEvaluation(case: ConformanceCase, calculation_supported: Bool, source_input_valid: Bool, case_valid: Bool, calculated_outputs_valid: Bool, comparison_allowed: Bool, comparisons: List(ConformanceComparison), all_observed_match: Bool)
+
+| conformance_non_empty(value: String) -> string_length(value) > 0
+
+| conformance_privacy_valid(privacy: ConformancePrivacy) -> match privacy {
+    | PublicEvidence -> true
+    | AnonymizedPrivateEvidence(raw_source_committed) -> raw_source_committed == false
+}
+
+| conformance_assumption_valid(assumption: ConformanceAssumption) -> conformance_non_empty(assumption.id) && conformance_non_empty(assumption.statement) && conformance_non_empty(assumption.rationale)
+| conformance_assumption_ids_unique(assumptions: List(ConformanceAssumption)) -> length(distinct(map(assumptions, |assumption: ConformanceAssumption| assumption.id))) == length(assumptions)
+| conformance_assumptions_valid(assumptions: List(ConformanceAssumption)) -> conformance_assumption_ids_unique(assumptions) && all(assumptions, conformance_assumption_valid)
+| conformance_assumption_exists(assumptions: List(ConformanceAssumption), assumption_id: String) -> length(filter(assumptions, |assumption: ConformanceAssumption| assumption.id == assumption_id)) == 1
+
+| conformance_unknown_treatment_valid(treatment: ConformanceUnknownTreatment, assumptions: List(ConformanceAssumption)) -> match treatment {
+    | BlocksComparison(reason) -> conformance_non_empty(reason)
+    | ResolvedByAssumption(assumption_id) -> conformance_assumption_exists(assumptions, assumption_id)
+    | OutsideComparedOutputs(reason) -> conformance_non_empty(reason)
+}
+| conformance_unknown_blocks_comparison(unknown: ConformanceUnknownFact) -> match unknown.treatment {
+    | BlocksComparison(_) -> true
+    | _ -> false
+}
+| conformance_unknown_fact_valid(unknown: ConformanceUnknownFact, assumptions: List(ConformanceAssumption)) -> conformance_non_empty(unknown.id) && conformance_non_empty(unknown.statement) && conformance_unknown_treatment_valid(unknown.treatment, assumptions)
+| conformance_unknown_ids_unique(unknowns: List(ConformanceUnknownFact)) -> length(distinct(map(unknowns, |unknown: ConformanceUnknownFact| unknown.id))) == length(unknowns)
+| conformance_unknowns_valid(unknowns: List(ConformanceUnknownFact), assumptions: List(ConformanceAssumption)) -> conformance_unknown_ids_unique(unknowns) && all(unknowns, |unknown: ConformanceUnknownFact| conformance_unknown_fact_valid(unknown, assumptions))
+| conformance_has_blocking_unknown(unknowns: List(ConformanceUnknownFact)) -> any(unknowns, conformance_unknown_blocks_comparison)
+
+| conformance_observed_output_valid(output: ConformanceObservedOutput) -> conformance_non_empty(output.id) && conformance_non_empty(output.label) && conformance_non_empty(output.unit) && conformance_non_empty(output.source_reference)
+| conformance_observed_output_ids_unique(outputs: List(ConformanceObservedOutput)) -> length(distinct(map(outputs, |output: ConformanceObservedOutput| output.id))) == length(outputs)
+| conformance_observed_outputs_valid(outputs: List(ConformanceObservedOutput)) -> length(outputs) > 0 && conformance_observed_output_ids_unique(outputs) && all(outputs, conformance_observed_output_valid)
+
+| conformance_calculated_output_valid(output: ConformanceCalculatedOutput) -> conformance_non_empty(output.id) && conformance_non_empty(output.unit)
+| conformance_calculated_output_ids_unique(outputs: List(ConformanceCalculatedOutput)) -> length(distinct(map(outputs, |output: ConformanceCalculatedOutput| output.id))) == length(outputs)
+| conformance_calculated_outputs_valid(outputs: List(ConformanceCalculatedOutput)) -> conformance_calculated_output_ids_unique(outputs) && all(outputs, conformance_calculated_output_valid)
+
+| conformance_value_equal(left: ConformanceValue, right: ConformanceValue) -> match left {
+    | ConformanceInt(left_value) -> match right { | ConformanceInt(right_value) -> left_value == right_value | _ -> false }
+    | ConformanceBool(left_value) -> match right { | ConformanceBool(right_value) -> left_value == right_value | _ -> false }
+    | ConformanceText(left_value) -> match right { | ConformanceText(right_value) -> left_value == right_value | _ -> false }
+}
+
+| conformance_case_valid(case: ConformanceCase) -> conformance_non_empty(case.id) && conformance_non_empty(case.title) && conformance_non_empty(case.source_fact_bundle_reference) && conformance_privacy_valid(case.privacy) && conformance_assumptions_valid(case.assumptions) && conformance_unknowns_valid(case.unknown_facts, case.assumptions) && conformance_observed_outputs_valid(case.observed_outputs)
+
+| conformance_comparison(observed: ConformanceObservedOutput, calculated_outputs: List(ConformanceCalculatedOutput), comparison_allowed: Bool) -> {
+    = matching_outputs = filter(calculated_outputs, |calculated: ConformanceCalculatedOutput| calculated.id == observed.id)
+    = calculated = if length(matching_outputs) == 1 { Some(head(matching_outputs)) } else { None }
+    = matches = comparison_allowed && match calculated {
+        | Some(output) -> output.unit == observed.unit && conformance_value_equal(output.value, observed.value)
+        | None -> false
+    }
+    ConformanceComparison(observed = observed, calculated = calculated, matches = matches)
+}
+
+| conformance_evaluate(case: ConformanceCase, calculation_supported: Bool, source_input_valid: Bool, calculated_outputs: List(ConformanceCalculatedOutput)) -> {
+    = case_valid = conformance_case_valid(case)
+    = calculated_outputs_valid = conformance_calculated_outputs_valid(calculated_outputs)
+    = expected_and_calculated_ids_match = length(case.observed_outputs) == length(calculated_outputs) && all(case.observed_outputs, |observed: ConformanceObservedOutput| length(filter(calculated_outputs, |calculated: ConformanceCalculatedOutput| calculated.id == observed.id)) == 1)
+    = comparison_allowed = case_valid && calculated_outputs_valid && expected_and_calculated_ids_match && calculation_supported && source_input_valid && conformance_has_blocking_unknown(case.unknown_facts) == false
+    = comparisons = map(case.observed_outputs, |observed: ConformanceObservedOutput| conformance_comparison(observed, calculated_outputs, comparison_allowed))
+    = all_observed_match = comparison_allowed && all(comparisons, |comparison: ConformanceComparison| comparison.matches)
+    ConformanceEvaluation(
+        case = case,
+        calculation_supported = calculation_supported,
+        source_input_valid = source_input_valid,
+        case_valid = case_valid,
+        calculated_outputs_valid = calculated_outputs_valid,
+        comparison_allowed = comparison_allowed,
+        comparisons = comparisons,
+        all_observed_match = all_observed_match
+    )
+}

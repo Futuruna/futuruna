@@ -1,0 +1,103 @@
+@ import ./conformance
+
+= conformance_assumption = ConformanceAssumption(
+    id = "representative-age",
+    statement = "The exact birth date is unavailable; the documented adult age band is used.",
+    rationale = "Only the age band affects the compared result."
+)
+
+= conformance_matching_case = ConformanceCase(
+    id = "generic-matching-case",
+    title = "Generic external result",
+    source_fact_bundle_reference = "conformance.scenario.runa::source_facts",
+    privacy = PublicEvidence,
+    assumptions = [conformance_assumption],
+    unknown_facts = [ConformanceUnknownFact(
+        id = "exact-birth-date",
+        statement = "The exact birth date is not present in the external result.",
+        treatment = ResolvedByAssumption(assumption_id = "representative-age")
+    )],
+    observed_outputs = [ConformanceObservedOutput(
+        id = "amount",
+        label = "Observed amount",
+        unit = "minor-units",
+        value = ConformanceInt(value = 4200),
+        source_reference = "Public fixture result"
+    )]
+)
+
+= conformance_matching_evaluation = conformance_evaluate(
+    conformance_matching_case,
+    true,
+    true,
+    [ConformanceCalculatedOutput(id = "amount", unit = "minor-units", value = ConformanceInt(value = 4200))]
+)
+
+= conformance_unsupported_evaluation = conformance_evaluate(
+    conformance_matching_case,
+    false,
+    true,
+    [ConformanceCalculatedOutput(id = "amount", unit = "minor-units", value = ConformanceInt(value = 4200))]
+)
+
+= conformance_invalid_source_evaluation = conformance_evaluate(
+    conformance_matching_case,
+    true,
+    false,
+    [ConformanceCalculatedOutput(id = "amount", unit = "minor-units", value = ConformanceInt(value = 4200))]
+)
+
+= conformance_blocked_case = ConformanceCase(
+    id = "generic-blocked-case",
+    title = "Unknown fact blocks comparison",
+    source_fact_bundle_reference = "conformance.scenario.runa::incomplete_source_facts",
+    privacy = PublicEvidence,
+    assumptions = [],
+    unknown_facts = [ConformanceUnknownFact(
+        id = "missing-rate",
+        statement = "The external source does not disclose the applied rate.",
+        treatment = BlocksComparison(reason = "The calculated amount depends on this rate.")
+    )],
+    observed_outputs = [ConformanceObservedOutput(
+        id = "amount",
+        label = "Observed amount",
+        unit = "minor-units",
+        value = ConformanceInt(value = 4200),
+        source_reference = "Public fixture result"
+    )]
+)
+
+= conformance_blocked_evaluation = conformance_evaluate(
+    conformance_blocked_case,
+    true,
+    true,
+    [ConformanceCalculatedOutput(id = "amount", unit = "minor-units", value = ConformanceInt(value = 4200))]
+)
+
+= conformance_private_raw_case = ConformanceCase(
+    id = "private-raw-source-case",
+    title = "Private source accidentally committed",
+    source_fact_bundle_reference = "excluded private source",
+    privacy = AnonymizedPrivateEvidence(raw_source_committed = true),
+    assumptions = [],
+    unknown_facts = [],
+    observed_outputs = [ConformanceObservedOutput(
+        id = "amount",
+        label = "Observed amount",
+        unit = "minor-units",
+        value = ConformanceInt(value = 4200),
+        source_reference = "Private source excluded from the repository"
+    )]
+)
+
+| conformance_matching_case_passes: conformance_matching_evaluation -> conformance_matching_evaluation.case_valid && conformance_matching_evaluation.comparison_allowed && conformance_matching_evaluation.all_observed_match
+| conformance_unsupported_result_cannot_compare: conformance_unsupported_evaluation -> conformance_unsupported_evaluation.comparison_allowed == false && conformance_unsupported_evaluation.all_observed_match == false
+| conformance_invalid_source_cannot_compare: conformance_invalid_source_evaluation -> conformance_invalid_source_evaluation.comparison_allowed == false && head(conformance_invalid_source_evaluation.comparisons).matches == false && conformance_invalid_source_evaluation.all_observed_match == false
+| conformance_blocking_unknown_cannot_compare: conformance_blocked_evaluation -> conformance_blocked_evaluation.case_valid && conformance_blocked_evaluation.comparison_allowed == false && conformance_blocked_evaluation.all_observed_match == false
+| conformance_private_raw_source_is_invalid: conformance_private_raw_case -> conformance_case_valid(conformance_private_raw_case) == false
+
+? conformance_matching_case_passes
+? conformance_unsupported_result_cannot_compare
+? conformance_invalid_source_cannot_compare
+? conformance_blocking_unknown_cannot_compare
+? conformance_private_raw_source_is_invalid
