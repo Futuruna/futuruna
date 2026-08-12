@@ -4576,6 +4576,48 @@
     help = Some("Vælg § 6 A, § 6 C eller § 10, så Futuruna kan udlede den aktive genanbragte fortjeneste."),
     unit = None
 )
+= personskat_felt_egen_par10_aktiv_anden_ejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::egne_afståelser::ejendomstype::EblAndenFastEjendom::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (anden ejendom)",
+    question = Some("Hvilken stabil identifikation har det afståede aktiv i genanbringelsen for den øvrige faste ejendom?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par10_aktiv_anden_ejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::ægtefælles_afståelser::ejendomstype::EblAndenFastEjendom::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (anden ejendom)",
+    question = Some("Hvilken stabil identifikation har din ægtefælles afståede aktiv i genanbringelsen for den øvrige faste ejendom?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
+= personskat_felt_egen_par10_aktiv_boligejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::egne_afståelser::ejendomstype::EblBoligejendom::fakta::genanbringelsesforhold::EblPar8GenanbringelseEfterStk5::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (boligejendom)",
+    question = Some("Hvilken stabil identifikation har det afståede aktiv i § 10-genanbringelsen for boligejendommen?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par10_aktiv_boligejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::ægtefælles_afståelser::ejendomstype::EblBoligejendom::fakta::genanbringelsesforhold::EblPar8GenanbringelseEfterStk5::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (boligejendom)",
+    question = Some("Hvilken stabil identifikation har din ægtefælles afståede aktiv i § 10-genanbringelsen for boligejendommen?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
+= personskat_felt_egen_par10_aktiv_blandet_ejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::egne_afståelser::ejendomstype::EblLandbrugSkovNaturEllerBlandetEjendom::fakta::genanbringelsesforhold::EblPar9GenanbringelseEfterStk4::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (landbrug/skov/blandet)",
+    question = Some("Hvilken stabil identifikation har det afståede aktiv i § 10-genanbringelsen for landbrugs-, skov-, natur- eller den blandede ejendom?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
+= personskat_felt_ægtefælles_par10_aktiv_blandet_ejendom = Beregningsfelt(
+    path = pathof(PersonskatInput::kapitalindkomst::ejendomsavance::MedEjendomsavance::fakta::ægtefælles_afståelser::ejendomstype::EblLandbrugSkovNaturEllerBlandetEjendom::fakta::genanbringelsesforhold::EblPar9GenanbringelseEfterStk4::genanbringelse::EblMedGenanbringelseEfterPar10::fakta::afskrivningsforhold::EblPar10AfskrivningsberettigedeBygninger::par24_input::par21_input::nedskrevet_værdi_input::aktiv_identifikation),
+    label = "Afstået aktiv i § 10-genanbringelse (landbrug/skov/blandet)",
+    question = Some("Hvilken stabil identifikation har din ægtefælles afståede aktiv i § 10-genanbringelsen for landbrugs-, skov-, natur- eller den blandede ejendom?"),
+    help = Some("Identifikationen skal svare til aktivets fordelingspost efter afskrivningslovens § 45."),
+    unit = None
+)
 = personskat_felt_egen_par9_boligandelsændringsår = Beregningsfelt(
     path = pathof(
         PersonskatInput::
@@ -13032,6 +13074,18 @@
         DependencySource(value = ebl_par8_par9_lbk132),
     )
 )
+= personskat_metadata_par10_aktividentifikationer = PersonskatMetadata(
+    attachments = (
+        Field(value = personskat_felt_egen_par10_aktiv_anden_ejendom),
+        Field(value = personskat_felt_ægtefælles_par10_aktiv_anden_ejendom),
+        Field(value = personskat_felt_egen_par10_aktiv_boligejendom),
+        Field(value = personskat_felt_ægtefælles_par10_aktiv_boligejendom),
+        Field(value = personskat_felt_egen_par10_aktiv_blandet_ejendom),
+        Field(value = personskat_felt_ægtefælles_par10_aktiv_blandet_ejendom),
+        Source(value = ebl_genanbringelse_lbk132),
+        DependencySource(value = afskrivningsloven_lbk1222),
+    )
+)
 = personskat_metadata_egen_par9_boligandelsændring = PersonskatMetadata(
     attachments = (
         Field(value = personskat_felt_egen_par9_boligandelsændringsår),
@@ -14187,6 +14241,7 @@
         personskat_metadata_egen_par8_anvendelsesændring,
         personskat_metadata_egen_par9_genanbringelsesforhold,
         personskat_metadata_egen_par9_genanbringelseshjemmel,
+        personskat_metadata_par10_aktividentifikationer,
         personskat_metadata_egen_par9_boligandelsændring,
         personskat_meta_egen_par11_ny_genanbringelse,
         personskat_meta_egen_par11_investeringsår,
