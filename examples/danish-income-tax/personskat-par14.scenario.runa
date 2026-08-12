@@ -8,30 +8,42 @@ De er ikke lovtekst. Hvert resultat begynder i beregn_personskat og anvender
 derefter de identificerede kilders valgte helårsbehandling.
 ----
 
-| personskat_par14_scenarie_personskat(skatteforhold: PersonskatSkatteforholdInput) -> PersonskatInput(
-    lønmodtager = PersonskatLønmodtagerInput(
-        skatteår = 2026,
-        kommune = København,
-        bruttoløn_kroner = 300000,
-        personlig_indkomst = personskat_ingen_personlig_indkomst(),
-        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
-        ligningsfradrag = personskat_ingen_ligningsfradrag(),
-        pension = personskat_ingen_pension(),
-        personfradrag_alder_status = Fyldt18EllerGift,
-        betaler_kirkeskat = Falskt
-    ),
+# PersonskatPar14ScenarieKonfiguration(bruttoløn_kroner: Heltal, skatteforhold: PersonskatSkatteforholdInput, aktieavance: PersonskatAktieavanceInput, cfc: PersonskatCfcInput, underskudsforhold: PersonskatUnderskudsforholdInput, ægtefælle: PersonskatÆgtefælleInput, årsopgørelse: PersonskatÅrsopgørelseInput)
+
+| personskat_par14_scenarie_lønmodtager(bruttoløn_kroner: Heltal) -> PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+| personskat_par14_scenarie_personskat_fra(konfiguration: PersonskatPar14ScenarieKonfiguration) -> PersonskatInput(
+    lønmodtager = personskat_par14_scenarie_lønmodtager(konfiguration.bruttoløn_kroner),
     kapitalindkomst = personskat_ingen_kapitalindkomst(),
-    aktieavance = personskat_ingen_aktieavance(),
+    aktieavance = konfiguration.aktieavance,
     udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
-    cfc = personskat_ingen_cfc(),
-    skatteforhold = skatteforhold,
-    underskudsforhold = StandardUnderskudsforhold,
-    ægtefælle = UdenÆgtefælle,
+    cfc = konfiguration.cfc,
+    skatteforhold = konfiguration.skatteforhold,
+    underskudsforhold = konfiguration.underskudsforhold,
+    ægtefælle = konfiguration.ægtefælle,
     ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
     negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
     ligningslov33 = personskat_uden_ligningslov33(),
-    årsopgørelse = UdenÅrsopgørelse
+    årsopgørelse = konfiguration.årsopgørelse
 )
+| personskat_par14_scenarie_personskat(skatteforhold: PersonskatSkatteforholdInput) -> personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = 300000,
+    skatteforhold = skatteforhold,
+    aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+))
 | personskat_par14_scenarie_kilde(faktisk_helårsbeløb_kroner: Option(Heltal)) -> PersonskatPar14Kilde(
     identifikation = "løn-fra-dansk-arbejdsgiver",
     beregningsfelt = Par14Bruttoløn,
@@ -45,7 +57,70 @@ derefter de identificerede kilders valgte helårsbehandling.
     skattepligtsperiode = periode,
     valg_afgivet_ved_oplysninger = valg,
     omvalg_dato = omvalg,
-    kilder = [personskat_par14_scenarie_kilde(faktisk_helårsbeløb_kroner)]
+    kilder = [personskat_par14_scenarie_kilde(faktisk_helårsbeløb_kroner)],
+    helårsgrundlag = AfledtFraIdentificeredeKilder
+)
+| personskat_par14_scenarie_personfakta(bruttoløn_kroner: Heltal) -> PersonskatPersonFakta(
+    lønmodtager = personskat_par14_scenarie_lønmodtager(bruttoløn_kroner),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
+| personskat_par14_scenarie_aktieinput(identifikation: Tekst, beløb_kroner: Heltal) -> PersonskatAktieavanceInput(
+    ordinært_aktieår = UdenOrdinærtAktieår,
+    særlige_aktiver = [],
+    udbytter = [PersonskatUdbytteFakta(
+        identifikation = identifikation,
+        udlodder = Ll16AAlmindeligtSelskab,
+        modtager = Ll16AAktuelAktionær,
+        aktiv = PersonskatAlmindeligAktie,
+        beløb_kroner = beløb_kroner,
+        par13a_kildefakta = AblPar13AUdbytteUdenForModregningsgrundlag
+    )],
+    ligningslov7n_poster = []
+)
+| personskat_par14_scenarie_cfc_fakta() -> PersonskatCfcEfterLigningslov16HFakta(
+    fuldt_skattepligtig_eller_dødsbo = Sandt,
+    udenlandsk_selskab = Sandt,
+    direkte_indirekte_ejerandel_basispoint = 6000,
+    stemmerettigheder_basispoint = 4000,
+    fælleskontrol_med_nærtstående_fond_eller_trust = Falskt,
+    aftale_om_skattesats_eller_beskatningsgrundlag = Falskt,
+    hjemstat_regler_indrettet_efter_kontrollerende_aktionær = Falskt,
+    udenlandsk_indkomstskat_kroner = 40000,
+    selskabets_cfc_indkomst_stk4_og_sel32_stk5_kroner = 200000,
+    selskabets_samlede_skattepligtige_indkomst_stk4_5_kroner = 300000,
+    aktier_ikke_investeringsselskab = Sandt,
+    eu_eøs_selskab = Falskt,
+    reel_etablering_og_økonomisk_virksomhed = Falskt,
+    dokumentation_kan_verificeres = Falskt,
+    medregnet_efter_selskabsskat31a_32_eller_fondsbeskatning12 = Falskt,
+    gennemsnitlig_ejerandel_basispoint = 6000,
+    kontrolperiode_basispoint = 10000,
+    fremført_underskud_danske_regler_kroner = 0
+)
+| personskat_par14_scenarie_årsopgørelse(a_skat_og_am_indeholdt_kroner: Heltal) -> MedÅrsopgørelse(
+    overført_restskat_mv_kroner = 0,
+    øvrig_pensionsbeskatningsafgift_kroner = 0,
+    kreditter = KildeskatPar60Kreditter(
+        a_skat_og_am_indeholdt_kroner = a_skat_og_am_indeholdt_kroner,
+        par68_indbetalt_kroner = 0,
+        b_skat_betalt_kroner = 0,
+        udbytteskat_modregningsberettiget_kroner = 0,
+        frivillig_indbetaling_par59_kroner = 0,
+        virksomhedsordning_beløb_kroner = 0,
+        personskattelov_par8a_stk5_beløb_kroner = 0,
+        afskrivningslov_acontoskat_kroner = 0,
+        am_lov_par6_beløb_kroner = 0,
+        seniornedslag_kroner = 0,
+        energiafgiftskompensation_kroner = 0,
+        tilbagebetalt_par55_kroner = 0
+    ),
+    afskrivningslov40c_acontoskat = UdenAfskrivningslov40CAcontoskat
 )
 | personskat_par14_scenarie_statslig_komponent(resultat: PersonskatPar14BeregningResultat, art: Par14Skattekomponentart) -> head(filter(resultat.statslige_skattekomponenter, |komponent: Par14SkattekomponentResultat| komponent.art == art))
 | personskat_par14_scenarie_kommunal_komponent(resultat: PersonskatPar14BeregningResultat, art: Par14Skattekomponentart) -> head(filter(resultat.kommunale_og_kirkelige_skattekomponenter, |komponent: Par14SkattekomponentResultat| komponent.art == art))
@@ -107,7 +182,8 @@ derefter de identificerede kilders valgte helårsbehandling.
         delårsbeløb_kroner = 299999,
         omregningsmetode = Par14ForholdsmæssigtLøbendeBeløb,
         faktisk_helårsbeløb_kroner = None
-    )]
+    )],
+    helårsgrundlag = AfledtFraIdentificeredeKilder
 ))
 = personskat_par14_historisk_stk3 = par14_valg_resultat(Par14ValgInput(
     skatteår = 2022,
@@ -121,8 +197,120 @@ derefter de identificerede kilders valgte helårsbehandling.
     valg_afgivet_ved_oplysninger = Falskt,
     omvalg_dato = None
 ))
+= personskat_par14_aktieinput = personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = 300000,
+    skatteforhold = StandardSkatteforhold,
+    aktieavance = personskat_par14_scenarie_aktieinput("delårsudbytte", 100000),
+    cfc = personskat_ingen_cfc(),
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+))
+= personskat_par14_aktieindkomst = beregn_personskat_delår(PersonskatPar14Input(
+    personskat = personskat_par14_aktieinput,
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    skattepligtsperiode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None,
+    kilder = [
+        personskat_par14_scenarie_kilde(None),
+        PersonskatPar14Kilde(
+            identifikation = "delårsudbytte",
+            beregningsfelt = Par14Aktieindkomst,
+            delårsbeløb_kroner = 100000,
+            omregningsmetode = Par14UændretEngangsbeløb,
+            faktisk_helårsbeløb_kroner = None
+        )
+    ],
+    helårsgrundlag = AfledtFraIdentificeredeKilder
+))
+= personskat_par14_cfcinput = personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = 300000,
+    skatteforhold = StandardSkatteforhold,
+    aktieavance = personskat_ingen_aktieavance(),
+    cfc = PersonskatCfcInput(poster = [PersonskatCfcEfterLigningslov16H(fakta = personskat_par14_scenarie_cfc_fakta())]),
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+))
+= personskat_par14_cfc = beregn_personskat_delår(PersonskatPar14Input(
+    personskat = personskat_par14_cfcinput,
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    skattepligtsperiode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None,
+    kilder = [
+        personskat_par14_scenarie_kilde(None),
+        PersonskatPar14Kilde(
+            identifikation = "cfc-indkomst-2026",
+            beregningsfelt = Par14CfcIndkomst,
+            delårsbeløb_kroner = 120000,
+            omregningsmetode = Par14DokumenteretRetvisendeHelårsbeløb(helårsbeløb_kroner = 120000),
+            faktisk_helårsbeløb_kroner = None
+        )
+    ],
+    helårsgrundlag = AfledtFraIdentificeredeKilder
+))
+= personskat_par14_eksternt_underskud = EksterntFastsatFremførtUnderskud(
+    fra_indkomstår = 2025,
+    underskud_kroner = 30000,
+    proveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference = "årsopgørelse-2025-par14")
+)
+= personskat_par14_ægtefælle = MedÆgtefælle(
+    fakta = personskat_par14_scenarie_personfakta(0),
+    samlevende_ved_indkomstårets_udløb = Sandt,
+    kildeskat25a_fordelinger = []
+)
+= personskat_par14_sammensat_delårsinput = personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = 300000,
+    skatteforhold = StandardSkatteforhold,
+    aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
+    underskudsforhold = personskat_par14_eksternt_underskud,
+    ægtefælle = personskat_par14_ægtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+))
+= personskat_par14_sammensat_helårsinput = personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = par14_helårsbeløb(300000, 184, 2026),
+    skatteforhold = StandardSkatteforhold,
+    aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
+    underskudsforhold = personskat_par14_eksternt_underskud,
+    ægtefælle = personskat_par14_ægtefælle,
+    årsopgørelse = UdenÅrsopgørelse
+))
+= personskat_par14_sammensat = beregn_personskat_delår(PersonskatPar14Input(
+    personskat = personskat_par14_sammensat_delårsinput,
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    skattepligtsperiode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None,
+    kilder = [personskat_par14_scenarie_kilde(None)],
+    helårsgrundlag = DokumenteretHelårsPersonskat(personskat = personskat_par14_sammensat_helårsinput)
+))
+= personskat_par14_årsopgørelsesinput = personskat_par14_scenarie_personskat_fra(PersonskatPar14ScenarieKonfiguration(
+    bruttoløn_kroner = 300000,
+    skatteforhold = StandardSkatteforhold,
+    aktieavance = personskat_ingen_aktieavance(),
+    cfc = personskat_ingen_cfc(),
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    årsopgørelse = personskat_par14_scenarie_årsopgørelse(100000)
+))
+= personskat_par14_årsopgørelse = beregn_personskat_delår(PersonskatPar14Input(
+    personskat = personskat_par14_årsopgørelsesinput,
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    skattepligtsperiode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None,
+    kilder = [personskat_par14_scenarie_kilde(None)],
+    helårsgrundlag = AfledtFraIdentificeredeKilder
+))
 = personskat_par14_stk1_bundskat = personskat_par14_scenarie_statslig_komponent(personskat_par14_stk1, Par14Bundskat)
 = personskat_par14_stk1_kommuneskat = personskat_par14_scenarie_kommunal_komponent(personskat_par14_stk1, Par14Kommuneskat)
+= personskat_par14_aktie_stk2 = personskat_par14_scenarie_statslig_komponent(personskat_par14_aktieindkomst, Par14Par8AStk2Skat)
+= personskat_par14_aktie_endelig = personskat_par14_scenarie_statslig_komponent(personskat_par14_aktieindkomst, Par14EndeligAktieindkomstskat)
+= personskat_par14_cfc_skat = personskat_par14_scenarie_statslig_komponent(personskat_par14_cfc, Par14CfcIndkomstskat)
 
 | personskat_par14_stk1_omregner_og_nedsætter: personskat_par14_stk1 -> personskat_par14_stk1.input_gyldigt && personskat_par14_stk1.helårsskattekomponenter_afstemt && personskat_par14_stk1.skattepligtsdage == 184 && personskat_par14_stk1.valg.helårsomregning_skal_ske && personskat_par14_stk1.helårsinput.bruttoløn_kroner == 595109 && personskat_par14_stk1.statslig_indkomstskat_efter_par14_øre > 0 && personskat_par14_stk1.slutskat_efter_par14_øre > 0
 | personskat_par14_stk1_nedsætter_hver_skat_efter_eget_indkomstgrundlag: personskat_par14_stk1_bundskat -> personskat_par14_stk1_bundskat.input_gyldigt && personskat_par14_stk1_kommuneskat.input_gyldigt && personskat_par14_stk1_bundskat.nedsættelsesfaktor_tæller_kroner == personskat_par14_personligt_grundlag_kroner(personskat_par14_stk1.delårsinput) && personskat_par14_stk1_bundskat.nedsættelsesfaktor_nævner_kroner == personskat_par14_personligt_grundlag_kroner(personskat_par14_stk1.helårsinput) && personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_tæller_kroner == personskat_par14_skattepligtigt_grundlag_kroner(personskat_par14_stk1.delårsinput) && personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_nævner_kroner == personskat_par14_skattepligtigt_grundlag_kroner(personskat_par14_stk1.helårsinput) && personskat_par14_stk1_bundskat.nedsættelsesfaktor_tæller_kroner * personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_nævner_kroner != personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_tæller_kroner * personskat_par14_stk1_bundskat.nedsættelsesfaktor_nævner_kroner
@@ -133,6 +321,16 @@ derefter de identificerede kilders valgte helårsbehandling.
 | personskat_par14_uafstemt_kilde_fejler_lukket: personskat_par14_uafstemt_kilde -> personskat_par14_uafstemt_kilde.kilder_afstemt_med_personskat == Falskt && personskat_par14_uafstemt_kilde.input_gyldigt == Falskt && personskat_par14_uafstemt_kilde.slutskat_efter_par14_øre == 0
 | personskat_par14_historisk_stk3_bruger_stk6: personskat_par14_historisk_stk3 -> personskat_par14_historisk_stk3.input_gyldigt && personskat_par14_historisk_stk3.valg_muligt == Falskt && personskat_par14_historisk_stk3.helårsomregning_skal_ske
 | personskat_par14_forældet_stk3_fejler_lukket_i_2026: personskat_par14_forældet_stk3_i_2026 -> personskat_par14_forældet_stk3_i_2026.input_gyldigt == Falskt
+| personskat_par14_aktieindkomst_bevares_som_engangsindtægt: personskat_par14_aktieindkomst -> personskat_par14_aktieindkomst.input_gyldigt && personskat_par14_aktieindkomst.helårsskattekomponenter_afstemt && personskat_par14_aktie_stk2.nedsættelsesfaktor_tæller_kroner == 100000 && personskat_par14_aktie_stk2.nedsættelsesfaktor_nævner_kroner == 100000 && personskat_par14_aktie_stk2.delårsskat_øre == personskat_par14_aktie_stk2.helårsskat_øre && personskat_par14_aktie_endelig.nedsættelsesfaktor_tæller_kroner == 100000 && personskat_par14_aktie_endelig.nedsættelsesfaktor_nævner_kroner == 100000 && personskat_par14_aktie_endelig.delårsskat_øre == personskat_par14_aktie_endelig.helårsskat_øre && personskat_par14_aktie_stk2.helårsskat_øre + personskat_par14_aktie_endelig.helårsskat_øre == personskat_par14_aktieindkomst.helårsberegning_eksakt.efter_par11.par8a_stk2_skat_øre + personskat_par14_aktieindkomst.delårsresultat.endelig_aktieindkomstskat_øre
+| personskat_par14_cfc_skat_følger_dokumenteret_helårsgrundlag: personskat_par14_cfc -> personskat_par14_cfc.input_gyldigt && personskat_par14_cfc.helårsskattekomponenter_afstemt && personskat_par14_cfc_skat.nedsættelsesfaktor_tæller_kroner == 120000 && personskat_par14_cfc_skat.nedsættelsesfaktor_nævner_kroner == 120000 && personskat_par14_cfc_skat.helårsskat_øre == 2640000 && personskat_par14_cfc_skat.delårsskat_øre == 2640000
+| personskat_par14_komplet_helårsgraf_bevarer_ægtefælle_og_underskud: personskat_par14_sammensat -> personskat_par14_sammensat.input_gyldigt && personskat_par14_sammensat.helårsgrundlag_gyldigt && personskat_par14_sammensat.kanonisk_beregning_understøttet && personskat_par14_sammensat.delårsresultat.underskudsår.hovedperson.fremført_underskud_anvendt_i_egen_indkomst_kroner == 30000 && personskat_par14_sammensat.delårsresultat.indgående_ægtefælle.personfradrag.overført_skatteværdi_kroner > 0 && personskat_par14_sammensat.helårsberegning.almindelig_skattepligtig_indkomst_kroner < personskat_par14_sammensat.helårsinput.bruttoløn_kroner
+| personskat_par14_årsopgørelse_bruger_delårsskatten: personskat_par14_årsopgørelse -> personskat_par14_årsopgørelse.input_gyldigt && match personskat_par14_årsopgørelse.årsopgørelse {
+    | IngenÅrsopgørelse -> Falskt
+    | BeregnetÅrsopgørelse(input, _, _) -> input.slutskat_øre == personskat_par14_årsopgørelse.slutskat_efter_par14_øre && match personskat_par14_årsopgørelse.delårsresultat.årsopgørelse {
+        | IngenÅrsopgørelse -> Falskt
+        | BeregnetÅrsopgørelse(delårsinput, _, _) -> delårsinput.slutskat_øre != input.slutskat_øre
+    }
+}
 
 ? personskat_par14_stk1_omregner_og_nedsætter
 ? personskat_par14_stk1_nedsætter_hver_skat_efter_eget_indkomstgrundlag
@@ -143,3 +341,7 @@ derefter de identificerede kilders valgte helårsbehandling.
 ? personskat_par14_uafstemt_kilde_fejler_lukket
 ? personskat_par14_historisk_stk3_bruger_stk6
 ? personskat_par14_forældet_stk3_fejler_lukket_i_2026
+? personskat_par14_aktieindkomst_bevares_som_engangsindtægt
+? personskat_par14_cfc_skat_følger_dokumenteret_helårsgrundlag
+? personskat_par14_komplet_helårsgraf_bevarer_ægtefælle_og_underskud
+? personskat_par14_årsopgørelse_bruger_delårsskatten

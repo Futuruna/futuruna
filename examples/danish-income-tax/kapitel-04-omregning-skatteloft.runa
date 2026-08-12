@@ -73,7 +73,7 @@ https://www.retsinformation.dk/eli/mt/1986/22
 # Par14Beløbspost(identifikation: Tekst, delårsbeløb_kroner: Heltal, metode: Par14Omregningsmetode)
 # Par14OmregningInput(skatteår: Heltal, delårs_skattepligtig_indkomst_kroner: Heltal, delårs_personlig_indkomst_kroner: Heltal, delårs_kapitalindkomst_kroner: Heltal, skattepligtsdage: Heltal, skattepligtige_indkomstposter: List(Par14Beløbspost), personlige_indkomstposter: List(Par14Beløbspost), kapitalindkomstposter: List(Par14Beløbspost))
 # Par14Helårsindkomst(skattepligtig_indkomst_kroner: Heltal, personlig_indkomst_kroner: Heltal, kapitalindkomst_kroner: Heltal)
-# Par14Skattekomponentart = Par14Bundskat | Par14Par7PersonligSkat | Par14Par7Kapitalskat | Par14Par7ASkat | Par14Par8Skat | Par14Par8CBegrænsetSkat | Par14Kommuneskat | Par14Kirkeskat | Par14PersonligtSkatteloftsnedslag | Par14PositivKapitalSkatteloftsnedslag
+# Par14Skattekomponentart = Par14Bundskat | Par14Par7PersonligSkat | Par14Par7Kapitalskat | Par14Par7ASkat | Par14Par8Skat | Par14Par8AStk2Skat | Par14CfcIndkomstskat | Par14Par8CBegrænsetSkat | Par14EndeligAktieindkomstskat | Par14Kommuneskat | Par14Kirkeskat | Par14PersonligtSkatteloftsnedslag | Par14PositivKapitalSkatteloftsnedslag
 # Par14SkattekomponentInput(art: Par14Skattekomponentart, helårsskat_øre: Heltal, delårsgrundlag_kroner: Heltal, helårsgrundlag_kroner: Heltal)
 # Par14SkattekomponentResultat(art: Par14Skattekomponentart, input_gyldigt: Boolsk, helårsskat_øre: Heltal, nedsættelsesfaktor_tæller_kroner: Heltal, nedsættelsesfaktor_nævner_kroner: Heltal, delårsskat_øre: Heltal)
 # Par14ValgInput(skatteår: Heltal, skattepligtsændring: Par14Skattepligtsændring, valg_afgivet_ved_oplysninger: Boolsk, omvalg_dato: Option(Dato))
