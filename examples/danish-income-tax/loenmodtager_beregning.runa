@@ -33,8 +33,8 @@ omfang som nævnt i ligningslovens § 8 M,
 # LønmodtagerLigningsfradrag(beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, øvrige_ligningsmæssige_fradrag_kroner: Heltal, samlede_ligningsmæssige_fradrag_kroner: Heltal)
 # LønmodtagerSkattekomponenter(bundskat_kroner: Heltal, mellemskat_kroner: Heltal, topskat_kroner: Heltal, toptopskat_kroner: Heltal, udligningsskat_kroner: Heltal, sundhedsbidrag_kroner: Heltal, aktieindkomstskat_kroner: Heltal, cfc_indkomstskat_kroner: Heltal, kommunal_lignende_statsskat_kroner: Heltal, kommuneskat_kroner: Heltal, kirkeskat_kroner: Heltal, statslig_indkomstskat_kroner: Heltal, kommunal_og_kirkelig_indkomstskat_kroner: Heltal, samlet_indkomstskat_kroner: Heltal, samlet_inkl_am_kroner: Heltal)
 # LønmodtagerPersonfradragResultat(personfradrag_kroner: Heltal, statslig_skatteværdi_kroner: Heltal, kommunal_skatteværdi_kroner: Heltal, kirkelig_skatteværdi_kroner: Heltal)
-# LønmodtagerPar13Forhold(egne_tidligere_underskud_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
-# LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, ægtefælle_egne_underskud_prioritet: Par13ÆgtefælleEgneUnderskudPrioritetResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, ægtefælle_skattemodregning: Par13ÆgtefælleSkatModregningResult, fremført_efter_ægtefælle_kroner: Heltal)
+# LønmodtagerPar13Forhold(egne_tidligere_underskud_kroner: Heltal, par13a_nedsættelsesbeløb_kroner: Heltal, ægtefælle_skattepligtig_indkomst_kroner: Heltal, ægtefælles_egne_tidligere_underskud_kroner: Heltal, ægtefælle_modregningsskatter: Par13ModregningsSkatter, gift_samlevende_ved_årets_udløb: Boolsk, ikke_rummet_i_tidligere_indkomst_eller_skat: Boolsk)
+# LønmodtagerPar13UnderskudResult(kræver_behandling: Boolsk, skattepligtigt_underskud_kroner: Heltal, skatteværdi_sats_basispoint: Heltal, skatteværdi_kroner: Heltal, modregning: Par13ModregningResult, statsskat_efter_par13_kroner: Heltal, ubenyttet_skatteværdi_kroner: Heltal, udnyttet_skatteværdi_kroner: Heltal, stk1_fremførsel: Par13Stk1FremførselResult, par13a_underskud_før_nedsættelse_kroner: Heltal, par13a_underskud_nedsat_kroner: Heltal, par13a_underskud_efter_nedsættelse_kroner: Heltal, par13a_nedsættelsesbeløb_efter_underskud_kroner: Heltal, ægtefælle_egne_underskud_prioritet: Par13ÆgtefælleEgneUnderskudPrioritetResult, ægtefælleoverførsel: Par13ÆgtefælleOverførselResult, ægtefælle_skattemodregning: Par13ÆgtefælleSkatModregningResult, fremført_efter_ægtefælle_kroner: Heltal)
 # LønmodtagerPar11NedslagResultat(nedslag: Par11NegativKapitalNedslagResultat, modregning: Par11NedslagModregningResultat)
 # LønmodtagerIndgåendeÆgtefælleoverførsler = UdenIndgåendeÆgtefælleoverførsler | MedIndgåendeÆgtefælleoverførsler(afsenders_par13_underskud: LønmodtagerPar13UnderskudResult, afsenders_statslige_personfradrag: Par9StatsskatPersonfradragResultat, afsenders_ikke_statslige_personfradrag: Par9IkkeStatPersonfradragResultat, afsenders_par11_nedslag: Par11NedslagModregningResultat, gift_samlevende_ved_årets_udløb: Boolsk)
 # LønmodtagerIndgåendeÆgtefælleResultat(par13_indkomstfradrag_kroner: Heltal, par13_skattemodregning_kroner: Heltal, personfradrag: Par10ÆgtefællePersonfradragResultat, par11_nedslag: Par11IndgåendeÆgtefælleNedslagResultat)
@@ -373,6 +373,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 | personfradrag_anvendt_i_slutskat_fixture(input: LønmodtagerInput) -> kræver_par13_underskud_fixture(input) == Falskt
 | lønmodtager_par13_standard_forhold() -> LønmodtagerPar13Forhold(
     egne_tidligere_underskud_kroner = 0,
+    par13a_nedsættelsesbeløb_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 0,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),
@@ -448,10 +449,14 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
         ikke_rummet_i_tidligere_indkomst_eller_skat = forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
     )
     | stk1_fremførsel() -> par13_stk1_fremførsel_resultat(stk1_fremførsel_input())
+    | par13a_underskud_før_nedsættelse_kroner() -> stk1_fremførsel().resterende_underskud_kroner
+    | par13a_underskud_nedsat_kroner() -> par13_mindste_beløb(par13a_underskud_før_nedsættelse_kroner(), par13_positivt_beløb(forhold.par13a_nedsættelsesbeløb_kroner))
+    | par13a_underskud_efter_nedsættelse_kroner() -> par13a_underskud_før_nedsættelse_kroner() - par13a_underskud_nedsat_kroner()
+    | par13a_nedsættelsesbeløb_efter_underskud_kroner() -> par13_positivt_beløb(forhold.par13a_nedsættelsesbeløb_kroner) - par13a_underskud_nedsat_kroner()
     | ægtefælle_skattepligtig_indkomst_til_overførsel_kroner() -> par13_positivt_beløb(forhold.ægtefælle_skattepligtig_indkomst_kroner)
     | ægtefælle_egne_underskud_prioritet_input() -> Par13ÆgtefælleEgneUnderskudPrioritetInput(
         ægtefælles_egne_tidligere_underskud_kroner = forhold.ægtefælles_egne_tidligere_underskud_kroner,
-        overført_underskud_fra_skattepligtig_kroner = stk1_fremførsel().resterende_underskud_kroner,
+        overført_underskud_fra_skattepligtig_kroner = par13a_underskud_efter_nedsættelse_kroner(),
         ægtefælle_skattepligtig_indkomst_kroner = ægtefælle_skattepligtig_indkomst_til_overførsel_kroner(),
         skatteværdi_sats_basispoint = skatteværdi_sats_basispoint(),
         ægtefælle_skatter = forhold.ægtefælle_modregningsskatter,
@@ -472,6 +477,10 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
         ubenyttet_skatteværdi_kroner = modregning().ubrugt_skatteværdi_kroner,
         udnyttet_skatteværdi_kroner = udnyttet_skatteværdi_kroner(),
         stk1_fremførsel = stk1_fremførsel(),
+        par13a_underskud_før_nedsættelse_kroner = par13a_underskud_før_nedsættelse_kroner(),
+        par13a_underskud_nedsat_kroner = par13a_underskud_nedsat_kroner(),
+        par13a_underskud_efter_nedsættelse_kroner = par13a_underskud_efter_nedsættelse_kroner(),
+        par13a_nedsættelsesbeløb_efter_underskud_kroner = par13a_nedsættelsesbeløb_efter_underskud_kroner(),
         ægtefælle_egne_underskud_prioritet = ægtefælle_egne_underskud_prioritet(),
         ægtefælleoverførsel = ægtefælleoverførsel(),
         ægtefælle_skattemodregning = ægtefælle_skattemodregning(),
@@ -828,10 +837,14 @@ nedsat med de overskydende procenter.
         ikke_rummet_i_tidligere_indkomst_eller_skat = par13_forhold.ikke_rummet_i_tidligere_indkomst_eller_skat
     )
     | par13_stk1_fremførsel() -> par13_stk1_fremførsel_resultat(par13_stk1_fremførsel_input())
+    | par13a_underskud_før_nedsættelse_kroner() -> par13_stk1_fremførsel().resterende_underskud_kroner
+    | par13a_underskud_nedsat_kroner() -> par13_mindste_beløb(par13a_underskud_før_nedsættelse_kroner(), par13_positivt_beløb(par13_forhold.par13a_nedsættelsesbeløb_kroner))
+    | par13a_underskud_efter_nedsættelse_kroner() -> par13a_underskud_før_nedsættelse_kroner() - par13a_underskud_nedsat_kroner()
+    | par13a_nedsættelsesbeløb_efter_underskud_kroner() -> par13_positivt_beløb(par13_forhold.par13a_nedsættelsesbeløb_kroner) - par13a_underskud_nedsat_kroner()
     | par13_ægtefælle_skattepligtig_indkomst_til_overførsel_kroner() -> par13_positivt_beløb(par13_forhold.ægtefælle_skattepligtig_indkomst_kroner)
     | par13_ægtefælle_egne_underskud_prioritet_input() -> Par13ÆgtefælleEgneUnderskudPrioritetInput(
         ægtefælles_egne_tidligere_underskud_kroner = par13_forhold.ægtefælles_egne_tidligere_underskud_kroner,
-        overført_underskud_fra_skattepligtig_kroner = par13_stk1_fremførsel().resterende_underskud_kroner,
+        overført_underskud_fra_skattepligtig_kroner = par13a_underskud_efter_nedsættelse_kroner(),
         ægtefælle_skattepligtig_indkomst_kroner = par13_ægtefælle_skattepligtig_indkomst_til_overførsel_kroner(),
         skatteværdi_sats_basispoint = par13_underskudssats_basispoint(),
         ægtefælle_skatter = par13_forhold.ægtefælle_modregningsskatter,
@@ -852,6 +865,10 @@ nedsat med de overskydende procenter.
         ubenyttet_skatteværdi_kroner = par13_modregning().ubrugt_skatteværdi_kroner,
         udnyttet_skatteværdi_kroner = par13_udnyttet_skatteværdi_beløb_kroner(),
         stk1_fremførsel = par13_stk1_fremførsel(),
+        par13a_underskud_før_nedsættelse_kroner = par13a_underskud_før_nedsættelse_kroner(),
+        par13a_underskud_nedsat_kroner = par13a_underskud_nedsat_kroner(),
+        par13a_underskud_efter_nedsættelse_kroner = par13a_underskud_efter_nedsættelse_kroner(),
+        par13a_nedsættelsesbeløb_efter_underskud_kroner = par13a_nedsættelsesbeløb_efter_underskud_kroner(),
         ægtefælle_egne_underskud_prioritet = par13_ægtefælle_egne_underskud_prioritet(),
         ægtefælleoverførsel = par13_ægtefælleoverførsel(),
         ægtefælle_skattemodregning = par13_ægtefælle_skattemodregning(),

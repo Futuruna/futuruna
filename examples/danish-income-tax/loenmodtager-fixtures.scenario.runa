@@ -695,6 +695,7 @@ jf. § 8, og«.
 = m4_par13_lønmodtager_underskud = beregn_lønmodtager(m4_par13_lønmodtager_underskud_input)
 = m4_par13_lønmodtager_ægtefælle_forhold = LønmodtagerPar13Forhold(
     egne_tidligere_underskud_kroner = 0,
+    par13a_nedsættelsesbeløb_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),

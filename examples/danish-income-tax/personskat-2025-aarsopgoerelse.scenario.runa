@@ -810,6 +810,7 @@ ordning kan erstatte typen uden at ændre dette års beløbsmæssige resultat.
 )
 | årsopgørelse2025_par13_forhold(ægtefælles_foreløbige_skat: LønmodtagerBeregning) -> LønmodtagerPar13Forhold(
     egne_tidligere_underskud_kroner = 0,
+    par13a_nedsættelsesbeløb_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = ægtefælles_foreløbige_skat.indkomstgrundlag.almindelig_skattepligtig_indkomst_kroner,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = årsopgørelse2025_par13_modregningsskatter(ægtefælles_foreløbige_skat),

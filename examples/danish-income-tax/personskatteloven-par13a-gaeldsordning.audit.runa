@@ -171,6 +171,20 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     ægtefælle_ikke_virksomhedsudgifter_kroner = 0
 ))
 
+= par13a_tabsrækkefølge_probe = par13a_nedsættelse_resultat(Par13aNedsættelseInput(
+    indkomstår = 2026,
+    status = Gældssanering,
+    gæld_nedsat_kroner = 55000,
+    frigørelsesindkomst_kroner = 0,
+    skyldner_underskud_kroner = 40000,
+    skyldner_fremførbare_tab = par13a_tabsposter,
+    skyldner_negativ_aktieskat_kroner = 0,
+    ægtefælle_samlevende_driver_virksomhed = Falskt,
+    ægtefælle_virksomhedsunderskud_før_stk3_kroner = 0,
+    ægtefælle_ikke_virksomhedsindtægter_kroner = 0,
+    ægtefælle_ikke_virksomhedsudgifter_kroner = 0
+))
+
 = par13a_ingen_ordning_probe = par13a_nedsættelse_resultat(Par13aNedsættelseInput(
     indkomstår = 2026,
     status = IngenPar13aAkkord,
@@ -188,6 +202,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 | par13a_afhængighedslove_leverer_fremførte_tab: par13a_tabsposter_2026 -> par13a_abl_tab_2024.tab_fremført_til_følgende_indkomstår_kroner == 10000 && par13a_kgl_tab_2025.tab_fremført_til_følgende_indkomstår_kroner == 10000 && par13a_ebl_tab_2026.tab_fremført_til_følgende_indkomstår_kroner == 10000
 | par13a_samler_kun_tab_fra_nuvaerende_og_tidligere_år: par13a_tabsposter_2026 -> par13a_tabsposter_2026.aktieavancetab_kroner == 10000 && par13a_tabsposter_2026.kursgevinsttab_kroner == 10000 && par13a_tabsposter_2026.ejendomsavancetab_kroner == 10000 && par13a_tabsposter_2026.fremførbare_tab_i_alt_kroner == 30000 && par13a_tabsposter_2026.afvist_fremtidigt_tab_kroner == 7000
 | par13a_nedsætter_i_lovbestemt_rækkefølge: par13a_tvangsakkord_probe -> par13a_tvangsakkord_probe.nedsættelsesbeløb_kroner == 100000 && par13a_tvangsakkord_probe.skyldner_underskud_nedsat_kroner == 40000 && par13a_tvangsakkord_probe.skyldner_fremførbare_tab_resultat.fremførbare_tab_i_alt_kroner == 30000 && par13a_tvangsakkord_probe.skyldner_fremførbare_tab_resultat.afvist_fremtidigt_tab_kroner == 7000 && par13a_tvangsakkord_probe.skyldner_tab_nedsat_kroner == 30000 && par13a_tvangsakkord_probe.skyldner_negativ_aktieskat_nedsat_kroner == 8000 && par13a_tvangsakkord_probe.nedsættelsesbeløb_efter_skyldner_kroner == 10000
+| par13a_tab_nedsættes_i_rækkefølgen_abl_kgl_ebl: par13a_tabsrækkefølge_probe -> par13a_tabsrækkefølge_probe.skyldner_aktieavancetab_nedsat_kroner == 10000 && par13a_tabsrækkefølge_probe.skyldner_aktieavancetab_efter_nedsættelse_kroner == 0 && par13a_tabsrækkefølge_probe.skyldner_kursgevinsttab_nedsat_kroner == 5000 && par13a_tabsrækkefølge_probe.skyldner_kursgevinsttab_efter_nedsættelse_kroner == 5000 && par13a_tabsrækkefølge_probe.skyldner_ejendomsavancetab_nedsat_kroner == 0 && par13a_tabsrækkefølge_probe.skyldner_ejendomsavancetab_efter_nedsættelse_kroner == 10000
 | par13a_stk2_stk3_nedsætter_ægtefælles_virksomhedsunderskud: par13a_tvangsakkord_probe -> par13a_tvangsakkord_probe.ægtefælle_ikke_virksomhedsnettoindtægt_kroner == 7000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_efter_stk3_kroner == 43000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_nedsat_kroner == 10000 && par13a_tvangsakkord_probe.ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner == 33000
 | par13a_frivillig_akkord_følger_samme_regler: par13a_frivillig_akkord_probe -> par13a_frivillig_akkord_probe.ordning_omfattet == Sandt && par13a_frivillig_akkord_probe.nedsættelsesbeløb_kroner == 38000 && par13a_frivillig_akkord_probe.skyldner_underskud_nedsat_kroner == 38000 && par13a_frivillig_akkord_probe.skyldner_underskud_efter_nedsættelse_kroner == 22000
 | par13a_uden_ordning_nedsætter_ikke: par13a_ingen_ordning_probe -> par13a_ingen_ordning_probe.ordning_omfattet == Falskt && par13a_ingen_ordning_probe.nedsættelsesbeløb_kroner == 0 && par13a_ingen_ordning_probe.skyldner_underskud_efter_nedsættelse_kroner == 50000 && par13a_ingen_ordning_probe.ægtefælle_virksomhedsunderskud_nedsat_kroner == 0
@@ -195,6 +210,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 ? par13a_afhængighedslove_leverer_fremførte_tab
 ? par13a_samler_kun_tab_fra_nuvaerende_og_tidligere_år
 ? par13a_nedsætter_i_lovbestemt_rækkefølge
+? par13a_tab_nedsættes_i_rækkefølgen_abl_kgl_ebl
 ? par13a_stk2_stk3_nedsætter_ægtefælles_virksomhedsunderskud
 ? par13a_frivillig_akkord_følger_samme_regler
 ? par13a_uden_ordning_nedsætter_ikke

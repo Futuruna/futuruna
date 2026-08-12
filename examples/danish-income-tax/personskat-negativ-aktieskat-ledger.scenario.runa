@@ -243,6 +243,8 @@ myndighedsproveniens og den afledte kredit efter kildeskattelovens § 60.
     fremført_negativ_skat_primo = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_primo,
     årets_negative_skat = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.årets_negative_skat,
     tidligere_fremført_negativ_skat_anvendelser = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.tidligere_fremført_negativ_skat_anvendelser,
+    fremført_negativ_skat_ultimo_før_par13a = negativ_aktieskat_ledger_2025.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo_før_par13a,
+    nedsat_efter_par13a_kroner = 0,
     fremført_negativ_skat_ultimo = []
 )
 

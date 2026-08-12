@@ -103,6 +103,7 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
         fremført_underskud_anvendt_i_egen_indkomst_kroner = 0,
         årets_nye_underskud_kroner = 0,
         dækket_ved_egen_skattemodregning_kroner = 0,
+        nedsat_efter_par13a_kroner = 0,
         fradraget_i_ægtefælles_indkomst_kroner = 0,
         dækket_ved_ægtefælles_skattemodregning_kroner = 0,
         fremført_underskud_ultimo_kroner = 0
@@ -169,6 +170,7 @@ dokumentproveniens. Spring i årsrækken, fremtidige år og ubalancerede
     fremført_underskud_anvendt_i_egen_indkomst_kroner = 0,
     årets_nye_underskud_kroner = 100000,
     dækket_ved_egen_skattemodregning_kroner = 0,
+    nedsat_efter_par13a_kroner = 0,
     fradraget_i_ægtefælles_indkomst_kroner = 0,
     dækket_ved_ægtefælles_skattemodregning_kroner = 0,
     fremført_underskud_ultimo_kroner = 90000

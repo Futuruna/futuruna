@@ -338,6 +338,7 @@ personfradrag. Personfradrag opgøres efter § 10 og skatteværdien heraf efter
 = m5_par13_lønmodtager_underskud_fixture = beregn_lønmodtager(m5_par13_lønmodtager_underskud_input)
 = m5_par13_lønmodtager_ægtefælle_fixture = beregn_lønmodtager_med_par13_forhold(m5_par13_lønmodtager_underskud_input, LønmodtagerPar13Forhold(
     egne_tidligere_underskud_kroner = 0,
+    par13a_nedsættelsesbeløb_kroner = 0,
     ægtefælle_skattepligtig_indkomst_kroner = 15000,
     ægtefælles_egne_tidligere_underskud_kroner = 0,
     ægtefælle_modregningsskatter = par13_tomme_modregningsskatter(),

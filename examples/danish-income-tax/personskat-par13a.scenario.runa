@@ -1,0 +1,195 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet er ikke lovtekst. Det fastholder den kanoniske rækkefølge i
+personskattelovens § 13 a fra gældsordningens kildefakta til de afsluttende
+fremførselssaldi.
+----
+
+| personskat_par13a_scenarie_gældsordning(gældsidentifikation: Tekst) -> KglFrivilligKreditorordning(fakta = KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = "personskat-par13a-samlet-ordning",
+    alle_usikrede_krav_oplyst = Sandt,
+    krav = [KursgevinstlovFrivilligKreditorkrav(
+        krav_identifikation = gældsidentifikation,
+        kreditor_identifikation = "personskat-par13a-kreditor",
+        samlet_krav_kroner = 100000,
+        værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+        deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = 20000)
+    )]
+))
+
+| personskat_par13a_scenarie_gæld_med_ordning(ordning: KursgevinstlovGældsordning) -> KursgevinstlovGældFakta(
+    identifikation = "personskat-par13a-gæld",
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = 100000,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = 20000,
+        fordringens_værdi_for_kreditor_kroner = 30000
+    ),
+    frigørelsesart = KglGældEftergivelse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = ordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+
+= personskat_par13a_scenarie_gæld = personskat_par13a_scenarie_gæld_med_ordning(personskat_par13a_scenarie_gældsordning("personskat-par13a-gæld"))
+
+= personskat_par13a_scenarie_ufuldstændig_gældsordning = KglFrivilligKreditorordning(fakta = KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = "personskat-par13a-ufuldstændig-ordning",
+    alle_usikrede_krav_oplyst = Falskt,
+    krav = [KursgevinstlovFrivilligKreditorkrav(
+        krav_identifikation = "personskat-par13a-gæld",
+        kreditor_identifikation = "personskat-par13a-kreditor",
+        samlet_krav_kroner = 100000,
+        værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+        deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = 20000)
+    )]
+))
+
+= personskat_par13a_scenarie_ufuldstændig_gæld = personskat_par13a_scenarie_gæld_med_ordning(personskat_par13a_scenarie_ufuldstændig_gældsordning)
+
+= personskat_par13a_scenarie_kontrakttab = KursgevinstPar32KildekontraktFakta(
+    identifikation = "personskat-par13a-kontrakttab",
+    rækkefølge_i_indkomståret = 1,
+    kontrakt = KursgevinstlovKontraktKildeFakta(
+        aftaleart = KglPar30IngenUndtagelsesaftale,
+        har_modgående_kontrakt_eller_forretning = Falskt,
+        værdi_primo_kroner = 0,
+        værdi_ultimo_kroner = 0,
+        anskaffelsessum_kroner = 20000,
+        afståelsesværdi_kroner = 10000,
+        anskaffet_i_indkomståret = Sandt,
+        realiseret_i_indkomståret = Sandt,
+        udøver_næring_ved_køb_og_salg_af_finansielle_kontrakter = Falskt
+    ),
+    relationsfakta = KglPar32KildeUdenSærligRelation,
+    underliggende = KglPar32KildeIkkeAktiebaseret
+)
+
+= personskat_par13a_scenarie_kontraktår = KursgevinstPar32PersonKildeårsfakta(
+    indkomstår = 2026,
+    kontrakter = [personskat_par13a_scenarie_kontrakttab],
+    valg = KursgevinstPar32Kildeårsvalg(
+        tabsprioritet = KglPar32AlmindeligeTabFørst,
+        fast_ejendomstabsprioritet = KglPar32SælgertabFørst,
+        aktiemodregningsvalg = KursgevinstPar32Aktiemodregningsvalg(
+            omfang = KglPar32IngenAktiemodregning,
+            beløb = KglPar32MaksimalAktiemodregning
+        ),
+        aktiemodregningsfordeling = KglPar32AfledEntydigFordeling
+    )
+)
+
+= personskat_par13a_scenarie_ejendomsavance = MedEjendomsavance(fakta = PersonskatEjendomsavanceÅrsfakta(
+    egne_afståelser = [],
+    egne_skadegenopførelser = [],
+    eget_fremført_tab = MedFremførtEjendomstab(fra_indkomstår = 2025, tab_kroner = 10000),
+    ægtefælles_afståelser = [],
+    ægtefælles_skadegenopførelser = [],
+    ægtefælles_fremførte_tab = UdenFremførtEjendomstab,
+    gift_samlevende_ved_indkomstårets_udgang = Falskt
+))
+
+| personskat_par13a_scenarie_kapitalindkomst_med_gæld(gældsposter: List(KursgevinstlovGældFakta)) -> PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 30000,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = personskat_par13a_scenarie_ejendomsavance,
+    kursgevinst = MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "personskat-par13a-skatteyder",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = gældsposter,
+        øvrige_instrumenter = kgl_årsnetto_tomt_input(),
+        par32_kontraktforløb = MedPar32Kontraktforløb(
+            tidligere_år = [],
+            aktuelt_år = personskat_par13a_scenarie_kontraktår
+        )
+    )),
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
+    særlige_kapitalposter = [],
+    omkostninger = []
+)
+
+= personskat_par13a_scenarie_kapitalindkomst = personskat_par13a_scenarie_kapitalindkomst_med_gæld([personskat_par13a_scenarie_gæld])
+
+= personskat_par13a_scenarie_aktieavance = PersonskatAktieavanceInput(
+    ordinært_aktieår = MedOrdinærtAktieår(input = AktieavanceOrdinærPersonÅrsinput(
+        indkomstår = 2026,
+        hændelsesforløb = [],
+        rettighedsforløb = [],
+        investeringsbeviser = [],
+        aktiebaserede_minimumsbevis_forløb = [],
+        fremført_tab_efter_par13a_kroner = 10000
+    )),
+    særlige_aktiver = [],
+    udbytter = [],
+    ligningslov7n_poster = []
+)
+
+| personskat_par13a_scenarie_input_med_kapitalindkomst(kapitalindkomst: PersonskatKapitalindkomstInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 0,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = kapitalindkomst,
+    aktieavance = personskat_par13a_scenarie_aktieavance,
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = PersonskatNegativAktieskatFremførselsparInput(
+        hovedperson = EksterntFastsatFremførtNegativAktieskat(
+            trancher = [PersonskatNegativAktieskatTranche(
+                ejer = HovedpersonensNegativAktieskat,
+                oprindelsesår = 2025,
+                resterende_negativ_skat_kroner = 4000
+            )],
+            proveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference = "par13a-scenarie-2025")
+        ),
+        ægtefælle = UdenFremførtNegativAktieskat
+    ),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+
+= personskat_par13a_scenarie_input = personskat_par13a_scenarie_input_med_kapitalindkomst(personskat_par13a_scenarie_kapitalindkomst)
+
+= personskat_par13a_scenarie_ufuldstændigt_input = personskat_par13a_scenarie_input_med_kapitalindkomst(personskat_par13a_scenarie_kapitalindkomst_med_gæld([personskat_par13a_scenarie_ufuldstændig_gæld]))
+
+= personskat_par13a_scenarie_resultat = beregn_personskat(personskat_par13a_scenarie_input)
+= personskat_par13a_scenarie_ufuldstændigt_resultat = beregn_personskat(personskat_par13a_scenarie_ufuldstændigt_input)
+
+| personskat_par13a_scenarie_afleder_gældskilden: personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson -> personskat_par13a_scenarie_resultat.personskattelov13a.alle_kildegrundlag_gyldige && length(personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.gældskilder) == 1 && head(personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.gældskilder).status == FrivilligAkkord && head(personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.gældskilder).nedsættelsesbeløb_kroner == 70000
+| personskat_par13a_scenarie_nedsætter_i_lovbestemt_rækkefølge: personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse -> personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.skyldner_underskud_nedsat_kroner == 20000 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.skyldner_aktieavancetab_nedsat_kroner == 10000 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.skyldner_kursgevinsttab_nedsat_kroner == 10000 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.skyldner_ejendomsavancetab_nedsat_kroner == 10000 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.skyldner_negativ_aktieskat_nedsat_kroner == 4000 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.nedsættelse.nedsættelsesbeløb_efter_skyldner_kroner == 10000
+| personskat_par13a_scenarie_fremfører_kun_nettosaldi: personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson -> personskat_par13a_scenarie_resultat.underskudsår.hovedperson.nedsat_efter_par13a_kroner == 20000 && personskat_par13a_scenarie_resultat.underskudsår.hovedperson.fremført_underskud_ultimo_kroner == 0 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.aktieavancetab_ultimo_kroner == 0 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.kursgevinsttab_ultimo_kroner == 0 && personskat_par13a_scenarie_resultat.personskattelov13a.hovedperson.ejendomsavancetab_ultimo_kroner == 0 && personskat_par13a_scenarie_resultat.negativ_aktieskat_fremførselsår.hovedperson.nedsat_efter_par13a_kroner == 4000 && length(personskat_par13a_scenarie_resultat.negativ_aktieskat_fremførselsår.hovedperson.fremført_negativ_skat_ultimo) == 0 && personskat_negativ_aktieskat_årsresultat_konsistent(personskat_par13a_scenarie_resultat.negativ_aktieskat_fremførselsår.hovedperson)
+| personskat_par13a_scenarie_afviser_ufuldstændig_ordning: personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson -> personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.alle_kildegrundlag_gyldige == Falskt && personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.kildegrundlag_gyldigt == Falskt && length(personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.gældskilder) == 1 && head(personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.gældskilder).status == FrivilligAkkord && head(personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.gældskilder).omfattet == Falskt && personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.nedsættelse.ordning_omfattet == Falskt && personskat_par13a_scenarie_ufuldstændigt_resultat.personskattelov13a.hovedperson.nedsættelse.nedsættelsesbeløb_kroner == 0
+
+? personskat_par13a_scenarie_afleder_gældskilden
+? personskat_par13a_scenarie_nedsætter_i_lovbestemt_rækkefølge
+? personskat_par13a_scenarie_fremfører_kun_nettosaldi
+? personskat_par13a_scenarie_afviser_ufuldstændig_ordning
+
+@ print("Personskattelovens § 13 a: 4 kanoniske scenarier")

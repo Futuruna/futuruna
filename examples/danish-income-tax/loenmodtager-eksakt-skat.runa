@@ -310,9 +310,11 @@ skatteberegningen.
     | egen_par13_dækket_underskud_kroner() -> 0
     | exception eksakt_par13_skatteværdi_omregnes_til_underskud egen_par13_dækket_underskud_kroner() -> penge_mindste_beløb(par13_skattepligtigt_underskud_kroner(), egen_par13_udnyttet_skatteværdi_øre() * 100 / par13_skatteværdi_sats_basispoint()) under par13_skatteværdi_sats_basispoint() > 0
     | par13_resterende_underskud_kroner() -> par13_skattepligtigt_underskud_kroner() - egen_par13_dækket_underskud_kroner()
+    | par13a_underskud_nedsat_kroner() -> penge_mindste_beløb(par13_resterende_underskud_kroner(), penge_positivt_beløb(par13_forhold.par13a_nedsættelsesbeløb_kroner))
+    | par13_resterende_underskud_efter_par13a_kroner() -> par13_resterende_underskud_kroner() - par13a_underskud_nedsat_kroner()
     | par13_indkomstfradrag_til_ægtefælle_kroner() -> 0
-    | exception eksakt_par13_underskud_overføres_til_ægtefælleindkomst par13_indkomstfradrag_til_ægtefælle_kroner() -> penge_mindste_beløb(par13_resterende_underskud_kroner(), penge_positivt_beløb(par13_forhold.ægtefælle_skattepligtig_indkomst_kroner)) under par13_forhold.gift_samlevende_ved_årets_udløb
-    | par13_underskud_til_ægtefælles_skat_kroner() -> par13_resterende_underskud_kroner() - par13_indkomstfradrag_til_ægtefælle_kroner()
+    | exception eksakt_par13_underskud_overføres_til_ægtefælleindkomst par13_indkomstfradrag_til_ægtefælle_kroner() -> penge_mindste_beløb(par13_resterende_underskud_efter_par13a_kroner(), penge_positivt_beløb(par13_forhold.ægtefælle_skattepligtig_indkomst_kroner)) under par13_forhold.gift_samlevende_ved_årets_udløb
+    | par13_underskud_til_ægtefælles_skat_kroner() -> par13_resterende_underskud_efter_par13a_kroner() - par13_indkomstfradrag_til_ægtefælle_kroner()
     | par13_skatteværdi_til_ægtefælle_øre() -> 0
     | exception eksakt_par13_rest_modregnes_i_ægtefælles_skat par13_skatteværdi_til_ægtefælle_øre() -> lønmodtager_eksakt_skat_øre(par13_underskud_til_ægtefælles_skat_kroner(), par13_skatteværdi_sats_basispoint()) under par13_forhold.gift_samlevende_ved_årets_udløb
     | udgående_overførsler() -> LønmodtagerEksakteUdgåendeOverførsler(

@@ -1367,6 +1367,12 @@ som nævnt i § 10, stk. 1.
     hentet_dato = "2026-07-18"
 )
 
+= personskatteloven_lsf195_par13a_tabsrækkefølge = PersonskattelovPar13aKildeInfo(
+    url = "https://www.retsinformation.dk/eli/ft/199612K00195",
+    identifier = "L 195 1996-97, bemærkningerne til personskattelovens § 13 a",
+    hentet_dato = "2026-08-11"
+)
+
 = personskatteloven_par13a_kgl_stk_henvisning_advarsel = PersonskattelovPar13aKildeAdvarsel(
     kode = "PSL-PAR13A-KGL-PAR32-STK",
     besked = "Personskattelovens § 13 a i LBK nr. 1284 af 14/06/2021 henviser til kursgevinstlovens § 32, stk. 3. I kursgevinstlovens LBK nr. 1176 af 19/09/2025 står den almindelige fremførselsregel i § 32, stk. 4, mens stk. 3 regulerer modregning i aktiegevinster. Reglerne bruger derfor den udtrykkelige fremførsel fra KursgevinstPar32PersonÅrsresultat."
@@ -1376,6 +1382,7 @@ som nævnt i § 10, stk. 1.
     attachments = (
         Source(value = personskatteloven_lbk1284_par13a),
         DependencySource(value = kursgevinstloven_lbk1176_par32),
+        PreparatorySource(value = personskatteloven_lsf195_par13a_tabsrækkefølge),
         Warning(value = personskatteloven_par13a_kgl_stk_henvisning_advarsel),
     )
 )
@@ -1430,7 +1437,7 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
 # Par13aFremførbareTabInput(indkomstår: Heltal, poster: List(Par13aFremførbartTab))
 # Par13aFremførbareTabResultat(indkomstår: Heltal, poster: List(Par13aFremførbartTab), aktieavancetab_kroner: Heltal, kursgevinsttab_kroner: Heltal, ejendomsavancetab_kroner: Heltal, fremførbare_tab_i_alt_kroner: Heltal, afvist_fremtidigt_tab_kroner: Heltal)
 # Par13aNedsættelseInput(indkomstår: Heltal, status: Par13aAkkordstatus, gæld_nedsat_kroner: Heltal, frigørelsesindkomst_kroner: Heltal, skyldner_underskud_kroner: Heltal, skyldner_fremførbare_tab: List(Par13aFremførbartTab), skyldner_negativ_aktieskat_kroner: Heltal, ægtefælle_samlevende_driver_virksomhed: Boolsk, ægtefælle_virksomhedsunderskud_før_stk3_kroner: Heltal, ægtefælle_ikke_virksomhedsindtægter_kroner: Heltal, ægtefælle_ikke_virksomhedsudgifter_kroner: Heltal)
-# Par13aNedsættelseResultat(indkomstår: Heltal, ordning_omfattet: Boolsk, nedsættelsesbeløb_kroner: Heltal, skyldner_underskud_nedsat_kroner: Heltal, skyldner_underskud_efter_nedsættelse_kroner: Heltal, skyldner_fremførbare_tab_resultat: Par13aFremførbareTabResultat, skyldner_tab_nedsat_kroner: Heltal, skyldner_tab_efter_nedsættelse_kroner: Heltal, skyldner_negativ_aktieskat_nedsat_kroner: Heltal, skyldner_negativ_aktieskat_efter_nedsættelse_kroner: Heltal, nedsættelsesbeløb_efter_skyldner_kroner: Heltal, ægtefælle_ikke_virksomhedsnettoindtægt_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_stk3_kroner: Heltal, ægtefælle_virksomhedsunderskud_nedsat_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner: Heltal)
+# Par13aNedsættelseResultat(indkomstår: Heltal, ordning_omfattet: Boolsk, nedsættelsesbeløb_kroner: Heltal, skyldner_underskud_nedsat_kroner: Heltal, skyldner_underskud_efter_nedsættelse_kroner: Heltal, skyldner_fremførbare_tab_resultat: Par13aFremførbareTabResultat, skyldner_aktieavancetab_nedsat_kroner: Heltal, skyldner_aktieavancetab_efter_nedsættelse_kroner: Heltal, skyldner_kursgevinsttab_nedsat_kroner: Heltal, skyldner_kursgevinsttab_efter_nedsættelse_kroner: Heltal, skyldner_ejendomsavancetab_nedsat_kroner: Heltal, skyldner_ejendomsavancetab_efter_nedsættelse_kroner: Heltal, skyldner_tab_nedsat_kroner: Heltal, skyldner_tab_efter_nedsættelse_kroner: Heltal, skyldner_negativ_aktieskat_nedsat_kroner: Heltal, skyldner_negativ_aktieskat_efter_nedsættelse_kroner: Heltal, nedsættelsesbeløb_efter_skyldner_kroner: Heltal, ægtefælle_ikke_virksomhedsnettoindtægt_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_stk3_kroner: Heltal, ægtefælle_virksomhedsunderskud_nedsat_kroner: Heltal, ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner: Heltal)
 
 | par13a_fremførbart_tab_indkomstår(post: Par13aFremførbartTab) -> match post {
     | Par13aAktieavanceTab(resultat) -> resultat.indkomstår
@@ -1490,8 +1497,13 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
     | skyldner_negativ_aktieskat_kroner() -> par13_positivt_beløb(input.skyldner_negativ_aktieskat_kroner)
     | skyldner_underskud_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_kroner(), skyldner_underskud_kroner())
     | nedsættelsesbeløb_efter_underskud_kroner() -> nedsættelsesbeløb_kroner() - skyldner_underskud_nedsat_kroner()
-    | skyldner_tab_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_underskud_kroner(), skyldner_tab_kroner())
-    | nedsættelsesbeløb_efter_tab_kroner() -> nedsættelsesbeløb_efter_underskud_kroner() - skyldner_tab_nedsat_kroner()
+    | skyldner_aktieavancetab_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_underskud_kroner(), skyldner_fremførbare_tab_resultat().aktieavancetab_kroner)
+    | nedsættelsesbeløb_efter_aktieavancetab_kroner() -> nedsættelsesbeløb_efter_underskud_kroner() - skyldner_aktieavancetab_nedsat_kroner()
+    | skyldner_kursgevinsttab_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_aktieavancetab_kroner(), skyldner_fremførbare_tab_resultat().kursgevinsttab_kroner)
+    | nedsættelsesbeløb_efter_kursgevinsttab_kroner() -> nedsættelsesbeløb_efter_aktieavancetab_kroner() - skyldner_kursgevinsttab_nedsat_kroner()
+    | skyldner_ejendomsavancetab_nedsat_kroner() -> par13_mindste_beløb(nedsættelsesbeløb_efter_kursgevinsttab_kroner(), skyldner_fremførbare_tab_resultat().ejendomsavancetab_kroner)
+    | skyldner_tab_nedsat_kroner() -> skyldner_aktieavancetab_nedsat_kroner() + skyldner_kursgevinsttab_nedsat_kroner() + skyldner_ejendomsavancetab_nedsat_kroner()
+    | nedsættelsesbeløb_efter_tab_kroner() -> nedsættelsesbeløb_efter_kursgevinsttab_kroner() - skyldner_ejendomsavancetab_nedsat_kroner()
     | skyldner_negativ_aktieskat_nedsat_kroner() -> par13_mindste_beløb(skyldner_negativ_aktieskat_kroner(), penge_beløb_gange_basispoint_kroner(nedsættelsesbeløb_efter_tab_kroner(), par13a_negativ_aktieskat_skatteværdi_basispoint()))
     | nedsættelsesbeløb_brugt_til_negativ_aktieskat_kroner() -> (skyldner_negativ_aktieskat_nedsat_kroner() * 10000 + par13a_negativ_aktieskat_skatteværdi_basispoint() - 1) / par13a_negativ_aktieskat_skatteværdi_basispoint()
     | nedsættelsesbeløb_efter_skyldner_kroner() -> nedsættelsesbeløb_efter_tab_kroner() - nedsættelsesbeløb_brugt_til_negativ_aktieskat_kroner()
@@ -1506,6 +1518,12 @@ nedsættelse af skyldnerens gæld (frivillig akkord).
         skyldner_underskud_nedsat_kroner = skyldner_underskud_nedsat_kroner(),
         skyldner_underskud_efter_nedsættelse_kroner = skyldner_underskud_kroner() - skyldner_underskud_nedsat_kroner(),
         skyldner_fremførbare_tab_resultat = skyldner_fremførbare_tab_resultat(),
+        skyldner_aktieavancetab_nedsat_kroner = skyldner_aktieavancetab_nedsat_kroner(),
+        skyldner_aktieavancetab_efter_nedsættelse_kroner = skyldner_fremførbare_tab_resultat().aktieavancetab_kroner - skyldner_aktieavancetab_nedsat_kroner(),
+        skyldner_kursgevinsttab_nedsat_kroner = skyldner_kursgevinsttab_nedsat_kroner(),
+        skyldner_kursgevinsttab_efter_nedsættelse_kroner = skyldner_fremførbare_tab_resultat().kursgevinsttab_kroner - skyldner_kursgevinsttab_nedsat_kroner(),
+        skyldner_ejendomsavancetab_nedsat_kroner = skyldner_ejendomsavancetab_nedsat_kroner(),
+        skyldner_ejendomsavancetab_efter_nedsættelse_kroner = skyldner_fremførbare_tab_resultat().ejendomsavancetab_kroner - skyldner_ejendomsavancetab_nedsat_kroner(),
         skyldner_tab_nedsat_kroner = skyldner_tab_nedsat_kroner(),
         skyldner_tab_efter_nedsættelse_kroner = skyldner_tab_kroner() - skyldner_tab_nedsat_kroner(),
         skyldner_negativ_aktieskat_nedsat_kroner = skyldner_negativ_aktieskat_nedsat_kroner(),

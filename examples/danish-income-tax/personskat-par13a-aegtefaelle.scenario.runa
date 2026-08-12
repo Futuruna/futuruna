@@ -1,0 +1,163 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Scenariet er ikke lovtekst. Det fastholder samspillet mellem
+personskattelovens § 13 a, stk. 2-3, og kildeskattelovens § 25 A, når
+skyldneren ejer virksomheden, mens den samlevende ægtefælle driver den.
+----
+
+| personskat_par13a_stk2_personlig_indkomst(virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonligIndkomstInput(
+    etableringskonto = UdenEtableringskontoindskud,
+    ordinære_forhold = PersonskatOrdinærPersonligIndkomstInput(
+        arbejdsgiverydelser = [],
+        personlige_arbejdsvederlag = [],
+        virksomheder_uden_virksomhedsordning = virksomheder,
+        forenings_og_arbejdsløshedsydelser = []
+    ),
+    arbejdsudleje = [],
+    underholdsbidrag = ligningslov10_11_tomt_årsinput(),
+    børnebidragslov19_bidrag = børnebidragslov19_tomt_årsinput(),
+    sømandsbeskatning = søbl5_til8_intet_årsinput()
+)
+
+| personskat_par13a_stk2_lønmodtager(bruttoløn_kroner: Heltal, virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatLønmodtagerInput(
+    skatteår = 2026,
+    kommune = København,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_par13a_stk2_personlig_indkomst(virksomheder),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = Fyldt18EllerGift,
+    betaler_kirkeskat = Falskt
+)
+
+| personskat_par13a_stk2_personfakta(bruttoløn_kroner: Heltal, virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> PersonskatPersonFakta(
+    lønmodtager = personskat_par13a_stk2_lønmodtager(bruttoløn_kroner, virksomheder),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta()
+)
+
+= personskat_par13a_stk2_virksomhedsudgift = PersonskatVirksomhedsudgiftFakta(
+    identifikation = "par13a-stk2-driftsudgift",
+    afgrænsning = SelvstændigErhvervsindkomstUdgift,
+    beløb_kroner = 70000
+)
+
+= personskat_par13a_stk2_virksomhed = PersonskatOrdinærVirksomhedFakta(
+    identifikation = "par13a-stk2-virksomhed",
+    indkomstår = 2026,
+    indtægter = [],
+    udgifter = [personskat_par13a_stk2_virksomhedsudgift],
+    ligningslovsfradrag_efter_par3_stk2_nr2 = [],
+    erhvervsposter_efter_par3_stk2_nr4_til_10 = []
+)
+
+= personskat_par13a_stk2_fordeling = PersonskatKsl25AVirksomhedsfordelingFakta(
+    virksomhedsidentifikation = "par13a-stk2-virksomhed",
+    virksomhedens_kildeplacering = Ksl25AKildeHosHovedperson,
+    virksomhedsdriver_før_samlivsophør = Some(Ksl25AÆgtefælle),
+    samlivsforløb = Ksl25AIntetSamlivsophør,
+    virksomhedspostperioder = [],
+    ordinær_ejer_efter_samlivsophør = None,
+    fordeling = Ksl25AStk1HosVirksomhedsdriver(
+        begge_ægtefæller_deltager_i_driften = Sandt,
+        virksomhedsdriveren_driver_i_overvejende_grad = Sandt
+    ),
+    lønudgiftsidentifikation = None
+)
+
+= personskat_par13a_stk2_gældsordning = KglFrivilligKreditorordning(fakta = KursgevinstlovFrivilligKreditorordningFakta(
+    ordningsidentifikation = "par13a-stk2-ordning",
+    alle_usikrede_krav_oplyst = Sandt,
+    krav = [KursgevinstlovFrivilligKreditorkrav(
+        krav_identifikation = "par13a-stk2-gæld",
+        kreditor_identifikation = "par13a-stk2-kreditor",
+        samlet_krav_kroner = 100000,
+        værdi_af_tilstrækkelig_sikkerhed_kroner = 0,
+        deltagelse = KglKreditorTiltrådtFrivilligOrdning(aftalt_restkrav_kroner = 0)
+    )]
+))
+
+= personskat_par13a_stk2_gæld = KursgevinstlovGældFakta(
+    identifikation = "par13a-stk2-gæld",
+    beløb = KursgevinstlovGældBeløb(
+        gældens_værdi_ved_påtagelse_kroner = 100000,
+        gældens_værdi_ved_frigørelse_eller_indfrielse_kroner = 0,
+        fordringens_værdi_for_kreditor_kroner = 0
+    ),
+    frigørelsesart = KglGældEftergivelse,
+    erhvervsforhold = KglGældUdenFinansieringsnæring,
+    valuta = KglGældFremmedValuta,
+    selskabsfakta = kgl_gæld_tom_par21_stk2_selskabsfakta(),
+    gældsordning = personskat_par13a_stk2_gældsordning,
+    vedrører_ikke_indbetalt_selskabskapital = Falskt,
+    par22_hændelse = KglIngenPar22Hændelse
+)
+
+= personskat_par13a_stk2_kapitalindkomst = PersonskatKapitalindkomstInput(
+    renter = PersonskatRenteInput(
+        renteindtægter_kroner = 0,
+        renteudgifter_kroner = 0,
+        næringsstatus = IkkeNæring,
+        ligningslov6 = UdenLigningslov6Kurstab,
+        ligningslov6a = UdenLigningslov6AFradrag
+    ),
+    virksomhedskapital = personskat_ingen_virksomhedskapital(),
+    pbl53a = personskat_ingen_pbl53a(),
+    ejendomsdrift = UdenEjendomsdriftEfterPar4Nr6,
+    ejendomsavance = UdenEjendomsavance,
+    kursgevinst = MedKursgevinst(fakta = PersonskatKursgevinstÅrsfakta(
+        skatteyder_identifikation = "par13a-stk2-skyldner",
+        ægtefælles_skatteyder_identifikation = None,
+        sælgerpantebreve = [],
+        gældsposter = [personskat_par13a_stk2_gæld],
+        øvrige_instrumenter = kgl_årsnetto_tomt_input(),
+        par32_kontraktforløb = UdenPar32Kontraktforløb
+    )),
+    fremleje = UdenFremlejeEfterLigningslov15Q,
+    finansielle_poster = [],
+    særlige_kapitalposter = [],
+    omkostninger = []
+)
+
+= personskat_par13a_stk2_input = PersonskatInput(
+    lønmodtager = personskat_par13a_stk2_lønmodtager(200000, [personskat_par13a_stk2_virksomhed]),
+    kapitalindkomst = personskat_par13a_stk2_kapitalindkomst,
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = MedÆgtefælle(
+        fakta = personskat_par13a_stk2_personfakta(0, []),
+        samlevende_ved_indkomstårets_udløb = Sandt,
+        kildeskat25a_fordelinger = [personskat_par13a_stk2_fordeling]
+    ),
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+= personskat_par13a_stk2_resultat = beregn_personskat(personskat_par13a_stk2_input)
+
+| personskat_par13a_stk2_kildeplacering_og_driver: personskat_par13a_stk2_resultat.kildeskat25a -> personskat_par13a_stk2_resultat.kildeskat25a.alle_input_gyldige && head(personskat_par13a_stk2_resultat.kildeskat25a.resultater).fakta.virksomhedens_kildeplacering == Ksl25AKildeHosHovedperson && head(personskat_par13a_stk2_resultat.kildeskat25a.resultater).fakta.virksomhedsdriver_før_samlivsophør == Some(Ksl25AÆgtefælle) && head(personskat_par13a_stk2_resultat.kildeskat25a.resultater).kildeskat_resultat.virksomhedsdriver.skattepligtig_indkomst_kroner == -70000
+| personskat_par13a_stk2_nedsætter_driverens_virksomhedsunderskud: personskat_par13a_stk2_resultat.personskattelov13a -> personskat_par13a_stk2_resultat.personskattelov13a.hovedperson.nedsættelse.nedsættelsesbeløb_kroner == 100000 && personskat_par13a_stk2_resultat.personskattelov13a.hovedperson.nedsættelse.nedsættelsesbeløb_efter_skyldner_kroner == 100000 && personskat_par13a_stk2_resultat.personskattelov13a.hovedperson.nedsættelse.ægtefælle_virksomhedsunderskud_efter_stk3_kroner == 70000 && personskat_par13a_stk2_resultat.personskattelov13a.hovedperson.nedsættelse.ægtefælle_virksomhedsunderskud_nedsat_kroner == 70000 && personskat_par13a_stk2_resultat.personskattelov13a.hovedperson.nedsættelse.ægtefælle_virksomhedsunderskud_efter_nedsættelse_kroner == 0 && personskat_par13a_stk2_resultat.personskattelov13a.ægtefælles_underskud_nedsat_efter_stk2_kroner == 70000 && personskat_par13a_stk2_resultat.personskattelov13a.stk2_nedsættelser_stabile
+| personskat_par13a_stk2_standser_underskud_før_overførsel: personskat_par13a_stk2_resultat.underskudsår.ægtefælle -> match personskat_par13a_stk2_resultat.underskudsår.ægtefælle {
+    | None -> Falskt
+    | Some(årsresultat) -> årsresultat.nedsat_efter_par13a_kroner == 70000 && årsresultat.fradraget_i_ægtefælles_indkomst_kroner == 0 && årsresultat.dækket_ved_ægtefælles_skattemodregning_kroner == 0 && årsresultat.fremført_underskud_ultimo_kroner == 0 && personskat_underskudsårsresultat_konsistent(årsresultat) && personskat_par13a_stk2_resultat.indgående_ægtefælle.par13_indkomstfradrag_kroner == 0
+}
+
+? personskat_par13a_stk2_kildeplacering_og_driver
+? personskat_par13a_stk2_nedsætter_driverens_virksomhedsunderskud
+? personskat_par13a_stk2_standser_underskud_før_overførsel
+
+@ print("Personskattelovens § 13 a, stk. 2-3: 3 kanoniske scenarier")
