@@ -37,12 +37,20 @@ Helårsomregnet skattepligtig indkomst: 345.160 kr.
 # Par14JuridiskVejledningEksempelResult(helårsomregnet_personlig_indkomst_kroner: Heltal, helårsomregnet_kapitalindkomst_kroner: Heltal, helårsomregnet_ligningsmæssige_fradrag_kroner: Heltal, helårsomregnet_skattepligtig_indkomst_kroner: Heltal)
 
 | par14_ekstern_beløb_gange_basispoint_afrundet_kroner(beløb_kroner: Heltal, sats_basispoint: Heltal) -> (beløb_kroner * sats_basispoint + 5000) / 10000 under beløb_kroner >= 0 && sats_basispoint >= 0
-| par14_jv_løbende_personlig_indkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.lønindkomst_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage)
-| par14_jv_engangsindkomst(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.engangsindkomst_kroner, Par14EngangsBeløb), input.skattepligtsdage)
+| par14_jv_løbende_personlig_indkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(
+    identifikation = "lønindkomst",
+    delårsbeløb_kroner = input.lønindkomst_delår_kroner,
+    metode = Par14ForholdsmæssigtLøbendeBeløb
+    ), input.skattepligtsdage, 2026)
+| par14_jv_engangsindkomst(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(
+    identifikation = "engangsindkomst",
+    delårsbeløb_kroner = input.engangsindkomst_kroner,
+    metode = Par14UændretEngangsbeløb
+    ), input.skattepligtsdage, 2026)
 | par14_jv_personlig_indkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_jv_løbende_personlig_indkomst_helår(input) + par14_jv_engangsindkomst(input)
-| par14_jv_kapitalindkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.renteindtægt_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) - par14_helårsbeløb_for_post(Par14Beløbspost(input.bankrenteudgift_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) - input.realkreditrente_i_perioden_kroner - input.realkreditrente_udenfor_perioden_kroner
+| par14_jv_kapitalindkomst_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost("renteindtægt", input.renteindtægt_delår_kroner, Par14ForholdsmæssigtLøbendeBeløb), input.skattepligtsdage, 2026) - par14_helårsbeløb_for_post(Par14Beløbspost("bankrenteudgift", input.bankrenteudgift_delår_kroner, Par14ForholdsmæssigtLøbendeBeløb), input.skattepligtsdage, 2026) - input.realkreditrente_i_perioden_kroner - input.realkreditrente_udenfor_perioden_kroner
 | par14_jv_beskæftigelsesfradrag_helår(input: Par14JuridiskVejledningEksempelInput) -> penge_mindste_beløb(input.beskæftigelsesfradrag_loft_kroner, par14_ekstern_beløb_gange_basispoint_afrundet_kroner(par14_jv_personlig_indkomst_helår(input), input.beskæftigelsesfradrag_basispoint))
-| par14_jv_ligningsmæssige_fradrag_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost(input.a_kasse_delår_kroner, Par14LøbendeBeløb), input.skattepligtsdage) + par14_jv_beskæftigelsesfradrag_helår(input)
+| par14_jv_ligningsmæssige_fradrag_helår(input: Par14JuridiskVejledningEksempelInput) -> par14_helårsbeløb_for_post(Par14Beløbspost("a-kasse", input.a_kasse_delår_kroner, Par14ForholdsmæssigtLøbendeBeløb), input.skattepligtsdage, 2026) + par14_jv_beskæftigelsesfradrag_helår(input)
 | par14_jv_resultat(input: Par14JuridiskVejledningEksempelInput) -> Par14JuridiskVejledningEksempelResult(
     helårsomregnet_personlig_indkomst_kroner = par14_jv_personlig_indkomst_helår(input),
     helårsomregnet_kapitalindkomst_kroner = par14_jv_kapitalindkomst_helår(input),

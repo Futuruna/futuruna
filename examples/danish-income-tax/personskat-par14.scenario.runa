@@ -1,0 +1,145 @@
+@ sprog da
+
+@ importer ./personskat - par14.calculate
+
+----
+Scenarierne afprøver den kanoniske delårsgrænse for personskattelovens § 14.
+De er ikke lovtekst. Hvert resultat begynder i beregn_personskat og anvender
+derefter de identificerede kilders valgte helårsbehandling.
+----
+
+| personskat_par14_scenarie_personskat(skatteforhold: PersonskatSkatteforholdInput) -> PersonskatInput(
+    lønmodtager = PersonskatLønmodtagerInput(
+        skatteår = 2026,
+        kommune = København,
+        bruttoløn_kroner = 300000,
+        personlig_indkomst = personskat_ingen_personlig_indkomst(),
+        erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+        ligningsfradrag = personskat_ingen_ligningsfradrag(),
+        pension = personskat_ingen_pension(),
+        personfradrag_alder_status = Fyldt18EllerGift,
+        betaler_kirkeskat = Falskt
+    ),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = skatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+| personskat_par14_scenarie_kilde(faktisk_helårsbeløb_kroner: Option(Heltal)) -> PersonskatPar14Kilde(
+    identifikation = "løn-fra-dansk-arbejdsgiver",
+    beregningsfelt = Par14Bruttoløn,
+    delårsbeløb_kroner = 300000,
+    omregningsmetode = Par14ForholdsmæssigtLøbendeBeløb,
+    faktisk_helårsbeløb_kroner = faktisk_helårsbeløb_kroner
+)
+| personskat_par14_scenarie_input(skatteforhold: PersonskatSkatteforholdInput, ændring: Par14Skattepligtsændring, periode: PersonskatPar14Skattepligtsperiode, valg: Boolsk, omvalg: Option(Dato), faktisk_helårsbeløb_kroner: Option(Heltal)) -> PersonskatPar14Input(
+    personskat = personskat_par14_scenarie_personskat(skatteforhold),
+    skattepligtsændring = ændring,
+    skattepligtsperiode = periode,
+    valg_afgivet_ved_oplysninger = valg,
+    omvalg_dato = omvalg,
+    kilder = [personskat_par14_scenarie_kilde(faktisk_helårsbeløb_kroner)]
+)
+| personskat_par14_scenarie_statslig_komponent(resultat: PersonskatPar14BeregningResultat, art: Par14Skattekomponentart) -> head(filter(resultat.statslige_skattekomponenter, |komponent: Par14SkattekomponentResultat| komponent.art == art))
+| personskat_par14_scenarie_kommunal_komponent(resultat: PersonskatPar14BeregningResultat, art: Par14Skattekomponentart) -> head(filter(resultat.kommunale_og_kirkelige_skattekomponenter, |komponent: Par14SkattekomponentResultat| komponent.art == art))
+
+= personskat_par14_stk1 = beregn_personskat_delår(personskat_par14_scenarie_input(
+    skatteforhold = StandardSkatteforhold,
+    ændring = FuldSkattepligtIndtræder,
+    periode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg = Falskt,
+    omvalg = None,
+    faktisk_helårsbeløb_kroner = None
+))
+= personskat_par14_stk2 = beregn_personskat_delår(personskat_par14_scenarie_input(
+    skatteforhold = StandardSkatteforhold,
+    ændring = FuldSkattepligtIndtræder,
+    periode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg = Sandt,
+    omvalg = None,
+    faktisk_helårsbeløb_kroner = Some(520000)
+))
+= personskat_par14_omvalg = beregn_personskat_delår(personskat_par14_scenarie_input(
+    skatteforhold = StandardSkatteforhold,
+    ændring = FuldSkattepligtIndtræder,
+    periode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg = Sandt,
+    omvalg = Some(Dato(år = 2028, måned = 6, dag = 30)),
+    faktisk_helårsbeløb_kroner = Some(520000)
+))
+= personskat_par14_stk3 = beregn_personskat_delår(personskat_par14_scenarie_input(
+    skatteforhold = SærligeSkatteforhold(forhold = PersonskatSupplerendeSkatteforhold(
+        par8c_status = Ksl2Nr1_2_4_5_7_9Til25EllerStk2,
+        personfradrag_skattepligt = KildeskattelovPar2DelårValgtRelevantIndtægt,
+        personfradrag_valg_dato_yyyymmdd = 20270101,
+        personfradrag_omvalg_dato_yyyymmdd = 0
+    )),
+    ændring = BegrænsetSkattepligtPar10Stk5Indtræder,
+    periode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg = Falskt,
+    omvalg = None,
+    faktisk_helårsbeløb_kroner = None
+))
+= personskat_par14_ugyldig_periode = beregn_personskat_delår(personskat_par14_scenarie_input(
+    skatteforhold = StandardSkatteforhold,
+    ændring = FuldSkattepligtIndtræder,
+    periode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 11, dag = 30)),
+    valg = Falskt,
+    omvalg = None,
+    faktisk_helårsbeløb_kroner = None
+))
+= personskat_par14_uafstemt_kilde = beregn_personskat_delår(PersonskatPar14Input(
+    personskat = personskat_par14_scenarie_personskat(StandardSkatteforhold),
+    skattepligtsændring = FuldSkattepligtIndtræder,
+    skattepligtsperiode = PersonskatPar14Skattepligtsperiode(fra_dato = Dato(år = 2026, måned = 7, dag = 1), til_dato = Dato(år = 2026, måned = 12, dag = 31)),
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None,
+    kilder = [PersonskatPar14Kilde(
+        identifikation = "forkert-lønbeløb",
+        beregningsfelt = Par14Bruttoløn,
+        delårsbeløb_kroner = 299999,
+        omregningsmetode = Par14ForholdsmæssigtLøbendeBeløb,
+        faktisk_helårsbeløb_kroner = None
+    )]
+))
+= personskat_par14_historisk_stk3 = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2022,
+    skattepligtsændring = BegrænsetSkattepligtPar10Stk6Indtræder,
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None
+))
+= personskat_par14_forældet_stk3_i_2026 = par14_valg_resultat(Par14ValgInput(
+    skatteår = 2026,
+    skattepligtsændring = BegrænsetSkattepligtPar10Stk6Indtræder,
+    valg_afgivet_ved_oplysninger = Falskt,
+    omvalg_dato = None
+))
+= personskat_par14_stk1_bundskat = personskat_par14_scenarie_statslig_komponent(personskat_par14_stk1, Par14Bundskat)
+= personskat_par14_stk1_kommuneskat = personskat_par14_scenarie_kommunal_komponent(personskat_par14_stk1, Par14Kommuneskat)
+
+| personskat_par14_stk1_omregner_og_nedsætter: personskat_par14_stk1 -> personskat_par14_stk1.input_gyldigt && personskat_par14_stk1.helårsskattekomponenter_afstemt && personskat_par14_stk1.skattepligtsdage == 184 && personskat_par14_stk1.valg.helårsomregning_skal_ske && personskat_par14_stk1.helårsinput.bruttoløn_kroner == 595109 && personskat_par14_stk1.statslig_indkomstskat_efter_par14_øre > 0 && personskat_par14_stk1.slutskat_efter_par14_øre > 0
+| personskat_par14_stk1_nedsætter_hver_skat_efter_eget_indkomstgrundlag: personskat_par14_stk1_bundskat -> personskat_par14_stk1_bundskat.input_gyldigt && personskat_par14_stk1_kommuneskat.input_gyldigt && personskat_par14_stk1_bundskat.nedsættelsesfaktor_tæller_kroner == personskat_par14_personligt_grundlag_kroner(personskat_par14_stk1.delårsinput) && personskat_par14_stk1_bundskat.nedsættelsesfaktor_nævner_kroner == personskat_par14_personligt_grundlag_kroner(personskat_par14_stk1.helårsinput) && personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_tæller_kroner == personskat_par14_skattepligtigt_grundlag_kroner(personskat_par14_stk1.delårsinput) && personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_nævner_kroner == personskat_par14_skattepligtigt_grundlag_kroner(personskat_par14_stk1.helårsinput) && personskat_par14_stk1_bundskat.nedsættelsesfaktor_tæller_kroner * personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_nævner_kroner != personskat_par14_stk1_kommuneskat.nedsættelsesfaktor_tæller_kroner * personskat_par14_stk1_bundskat.nedsættelsesfaktor_nævner_kroner
+| personskat_par14_stk2_anvender_faktisk_helår: personskat_par14_stk2 -> personskat_par14_stk2.input_gyldigt && personskat_par14_stk2.helårsskattekomponenter_afstemt && personskat_par14_stk2.valg.valg_gældende && personskat_par14_stk2.valg.helårsomregning_skal_ske == Falskt && personskat_par14_stk2.helårsinput.bruttoløn_kroner == 520000 && personskat_par14_stk2.statslig_indkomstskat_efter_par14_øre > 0
+| personskat_par14_rettidigt_omvalg_gendanner_stk1: personskat_par14_omvalg -> personskat_par14_omvalg.input_gyldigt && personskat_par14_omvalg.valg.omvalg_gennemført && personskat_par14_omvalg.valg.helårsomregning_skal_ske && personskat_par14_omvalg.helårsinput.bruttoløn_kroner == personskat_par14_stk1.helårsinput.bruttoløn_kroner && personskat_par14_omvalg.slutskat_efter_par14_øre == personskat_par14_stk1.slutskat_efter_par14_øre
+| personskat_par14_stk3_bruger_gældende_stk5: personskat_par14_stk3 -> personskat_par14_stk3.input_gyldigt && personskat_par14_stk3.valg.valg_muligt == Falskt && personskat_par14_stk3.valg.helårsomregning_skal_ske && personskat_par14_stk3.helårsinput.bruttoløn_kroner == 595109
+| personskat_par14_ugyldig_periode_fejler_lukket: personskat_par14_ugyldig_periode -> personskat_par14_ugyldig_periode.periode_gyldig == Falskt && personskat_par14_ugyldig_periode.input_gyldigt == Falskt && personskat_par14_ugyldig_periode.slutskat_efter_par14_øre == 0
+| personskat_par14_uafstemt_kilde_fejler_lukket: personskat_par14_uafstemt_kilde -> personskat_par14_uafstemt_kilde.kilder_afstemt_med_personskat == Falskt && personskat_par14_uafstemt_kilde.input_gyldigt == Falskt && personskat_par14_uafstemt_kilde.slutskat_efter_par14_øre == 0
+| personskat_par14_historisk_stk3_bruger_stk6: personskat_par14_historisk_stk3 -> personskat_par14_historisk_stk3.input_gyldigt && personskat_par14_historisk_stk3.valg_muligt == Falskt && personskat_par14_historisk_stk3.helårsomregning_skal_ske
+| personskat_par14_forældet_stk3_fejler_lukket_i_2026: personskat_par14_forældet_stk3_i_2026 -> personskat_par14_forældet_stk3_i_2026.input_gyldigt == Falskt
+
+? personskat_par14_stk1_omregner_og_nedsætter
+? personskat_par14_stk1_nedsætter_hver_skat_efter_eget_indkomstgrundlag
+? personskat_par14_stk2_anvender_faktisk_helår
+? personskat_par14_rettidigt_omvalg_gendanner_stk1
+? personskat_par14_stk3_bruger_gældende_stk5
+? personskat_par14_ugyldig_periode_fejler_lukket
+? personskat_par14_uafstemt_kilde_fejler_lukket
+? personskat_par14_historisk_stk3_bruger_stk6
+? personskat_par14_forældet_stk3_fejler_lukket_i_2026

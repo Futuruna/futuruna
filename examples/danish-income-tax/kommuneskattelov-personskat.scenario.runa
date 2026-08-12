@@ -8,10 +8,14 @@
 -- stk. 3's henvisning til de tilsvarende delårsregler for statsskatten.
 
 = kommunal_par5_delår_omregning = Par14OmregningInput(
+    skatteår = 2026,
     delårs_skattepligtig_indkomst_kroner = 180000,
     delårs_personlig_indkomst_kroner = 200000,
     delårs_kapitalindkomst_kroner = -20000,
-    skattepligtsdage = 180
+    skattepligtsdage = 180,
+    skattepligtige_indkomstposter = [Par14Beløbspost("skattepligtig-indkomst", 180000, Par14ForholdsmæssigtLøbendeBeløb)],
+    personlige_indkomstposter = [Par14Beløbspost("personlig-indkomst", 200000, Par14ForholdsmæssigtLøbendeBeløb)],
+    kapitalindkomstposter = [Par14Beløbspost("kapitalindkomst", -20000, Par14ForholdsmæssigtLøbendeBeløb)]
 )
 = kommunal_par5_delår_helårsindkomst_fixture = par14_helårsindkomst(kommunal_par5_delår_omregning)
 = kommunal_par5_delår_helårsskat_fixture = kommunal_indkomstskat_før_personfradrag_kroner(KommunalIndkomstskatInput(
@@ -25,10 +29,11 @@
         skatteår = 2026,
         skattepligtsændring = FuldSkattepligtIndtræder,
         valg_afgivet_ved_oplysninger = Falskt,
-        omvalg_dato_yyyymmdd = 0
+        omvalg_dato = None
     )),
     kommunal_helårsskat_kroner = kommunal_par5_delår_helårsskat_fixture,
-    kommunal_skat_som_helårsskattepligtig_kroner = 78000
+    kommunal_skat_som_helårsskattepligtig_kroner = 78000,
+    stk2_indkomstfordeling = Par14Stk2Indkomstfordeling(365000, 180000)
 ))
 = kommunal_par5_delår_stk2_valg_fixture = kommunal_par5_delår_resultat(KommunalPar5DelårInput(
     omfatter_kortere_periode_end_år = Sandt,
@@ -37,10 +42,11 @@
         skatteår = 2026,
         skattepligtsændring = FuldSkattepligtOphører,
         valg_afgivet_ved_oplysninger = Sandt,
-        omvalg_dato_yyyymmdd = 0
+        omvalg_dato = None
     )),
     kommunal_helårsskat_kroner = kommunal_par5_delår_helårsskat_fixture,
-    kommunal_skat_som_helårsskattepligtig_kroner = 78000
+    kommunal_skat_som_helårsskattepligtig_kroner = 78000,
+    stk2_indkomstfordeling = Par14Stk2Indkomstfordeling(365000, 180000)
 ))
 = kommunal_par5_helår_fixture = kommunal_par5_delår_resultat(KommunalPar5DelårInput(
     omfatter_kortere_periode_end_år = Falskt,
@@ -49,16 +55,17 @@
         skatteår = 2026,
         skattepligtsændring = IngenSkattepligtsændring,
         valg_afgivet_ved_oplysninger = Falskt,
-        omvalg_dato_yyyymmdd = 0
+        omvalg_dato = None
     )),
     kommunal_helårsskat_kroner = kommunal_par5_delår_helårsskat_fixture,
-    kommunal_skat_som_helårsskattepligtig_kroner = 78000
+    kommunal_skat_som_helårsskattepligtig_kroner = 78000,
+    stk2_indkomstfordeling = Par14Stk2Indkomstfordeling(365000, 180000)
 ))
 
-| kommunal_par5_delår_helårsindkomst_og_skat: kommunal_par5_delår_helårsomregnet_fixture -> kommunal_par5_delår_helårsindkomst_fixture.skattepligtig_indkomst_kroner == 365000 && kommunal_par5_delår_helårsskat_fixture == 85775 && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skatteberegning.stk1_eller_stk3_delårsskat_kroner == 42300
-| kommunal_par5_stk3_bruger_tilsvarende_statsregel: kommunal_par5_delår_helårsomregnet_fixture -> kommunal_par5_delår_helårsomregnet_fixture.omfatter_kortere_periode_end_år == Sandt && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skatteberegning.helårsomregning_skal_ske == Sandt && kommunal_par5_delår_helårsomregnet_fixture.kommunal_indkomstskat_efter_delår_kroner == 42300
-| kommunal_par5_stk3_respekterer_par14_stk2_valg: kommunal_par5_delår_stk2_valg_fixture -> kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skatteberegning.helårsomregning_skal_ske == Falskt && kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skatteberegning.stk2_skat_efter_periodenedsættelse_kroner == 38465 && kommunal_par5_delår_stk2_valg_fixture.kommunal_indkomstskat_efter_delår_kroner == 38465
-| kommunal_par5_helår_beholder_helårsskat: kommunal_par5_helår_fixture -> kommunal_par5_helår_fixture.omfatter_kortere_periode_end_år == Falskt && kommunal_par5_helår_fixture.kommunal_indkomstskat_efter_delår_kroner == 78000
+| kommunal_par5_delår_helårsindkomst_og_skat: kommunal_par5_delår_helårsomregnet_fixture -> kommunal_par5_delår_helårsindkomst_fixture.skattepligtig_indkomst_kroner == 365000 && kommunal_par5_delår_helårsskat_fixture == 85775 && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skattekomponent.helårsskat_øre == 8577500 && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skattekomponent.delårsskat_øre == 4230000
+| kommunal_par5_stk3_bruger_tilsvarende_statsregel: kommunal_par5_delår_helårsomregnet_fixture -> kommunal_par5_delår_helårsomregnet_fixture.input_gyldigt && kommunal_par5_delår_helårsomregnet_fixture.omfatter_kortere_periode_end_år == Sandt && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skattekomponent.art == Par14Kommuneskat && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skattekomponent.nedsættelsesfaktor_tæller_kroner == 180000 && kommunal_par5_delår_helårsomregnet_fixture.tilsvarende_par14_skattekomponent.nedsættelsesfaktor_nævner_kroner == 365000 && kommunal_par5_delår_helårsomregnet_fixture.kommunal_indkomstskat_efter_delår_kroner == 42300
+| kommunal_par5_stk3_respekterer_par14_stk2_valg: kommunal_par5_delår_stk2_valg_fixture -> kommunal_par5_delår_stk2_valg_fixture.input_gyldigt && kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skattekomponent.helårsskat_øre == 7800000 && kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skattekomponent.nedsættelsesfaktor_tæller_kroner == 180000 && kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skattekomponent.nedsættelsesfaktor_nævner_kroner == 365000 && kommunal_par5_delår_stk2_valg_fixture.tilsvarende_par14_skattekomponent.delårsskat_øre == 3846575 && kommunal_par5_delår_stk2_valg_fixture.kommunal_indkomstskat_efter_delår_kroner == 38465
+| kommunal_par5_helår_beholder_helårsskat: kommunal_par5_helår_fixture -> kommunal_par5_helår_fixture.input_gyldigt && kommunal_par5_helår_fixture.omfatter_kortere_periode_end_år == Falskt && kommunal_par5_helår_fixture.kommunal_indkomstskat_efter_delår_kroner == 78000
 
 ? kommunal_par5_delår_helårsindkomst_og_skat
 ? kommunal_par5_stk3_bruger_tilsvarende_statsregel

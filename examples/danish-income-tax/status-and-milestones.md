@@ -3,7 +3,8 @@
 Status: known amount-level corpus gaps implemented; publication conformance and corpus hygiene remain
 Last updated: 2026-08-11
 TD epic: `td-56cf8d`
-Current implementation slice: `td-8fdbfe` (Afskrivningslovens § 40 C-acontoskat er nu et typet årligt saldo- og kreditforløb i den kanoniske `beregn_personskat`-graf. Dokumenterede primopositioner holdes adskilt fra årets kilder, og fremført acontoskat anvendes før årets nye beløb i overensstemmelse med lovforarbejderne til L 28. Årets negative § 40 C-saldo afledes fra den kanoniske post `PsPar4Nr16Afskrivningslov40C`, mens det fradragsberettigede ejendomstab og dets kategori, dato og identitet slås op i den kanoniske ejendomsavanceopgørelse. Et primobeløb på 20.000 kr. og årets acontoskat på 110.000 kr., afledt af et ejendomstab på 500.000 kr. og dokumenterede negative saldi på 550.000 kr., giver derfor præcis 130.000 kr. i samlet § 60-kredit uden dobbelttælling; 50.000 kr. af årets saldo bevares som ubrugt. Årsforløbet bevarer hver saldo- og kredittranche og fordeler beløbet gennem egen slutskat, en gyldig successionsmodregning hos ægtefællen, kontant udbetaling og ultimo-fremførsel med en samlet bevarelsesidentitet. Forkerte år, dublerede eller ukendte ejendomsidentiteter, modstridende primo- og årskilder, rå caller-kredit og to særskilte nr. 16-kildeobjekter fejler lukket. Anvendelsen afdækkede samtidig et generelt checkerhul: feltprojektion efter indeksering i en liste over importerede records bevarede ikke elementtypen. `td-095d1b` retter inferensen og afviser nu ikke-eksisterende felter før Rust-generering; alle 173 bibliotekstests består. De fokuserede scenarier består fortolket og native, alle 182 scenariefiler består med seks workers på 1.192,2 sekunder, og frontend-, backend-, formaterings-, skema-, metadata- og rækkeviddegaterne består. Beregningsskemaet har 2.046 definitioner og 7.162 feltmetadata; alle 42 direkte § 40 C-årsstier har danske, typede etiketter. Metadataindekset har nul diagnosticeringer, 8.710 typede værdier og 1.278 tilknytninger. Den statiske graf indlæser 118 kilder og når 10.046 af 11.655 callable-familier; 101 af 103 `afskrivningslov40c_*`-familier nås fra `beregn_personskat`, mens de to resterende er bevidste hjælperflader. Den fulde 303-arks rundtur er fortsat et publiceringscheckpoint og blev ikke kørt for denne udviklingsslice.)
+Current implementation slice: `td-172450` (Personskattelovens § 14 er nu en kanonisk delårsberegning i `personskat-par14.calculate.runa`. `beregn_personskat_delår` tager den eksisterende `PersonskatInput` sammen med typet skattepligtsændring, ISO-datoer, stk. 2-valg og identificerede indkomstkilder. Hver kilde angiver sin juridiske helårsmetode: løbende beløb omregnes efter de faktiske dage i skatteåret, engangsbeløb bevares, og dokumenterede retvisende helårsbeløb kan anvendes. Hver stats-, kommune- og kirkeskat samt hvert skatteloftsnedslag nedsættes særskilt efter sit tilsvarende personlige, kapital- eller skattepligtige indkomstgrundlag, jf. cirkulære nr. 22 af 9. december 1986, afsnit J, nr. 90. Komponenternes helårsbeløb skal rekonstruere den eksakte kanoniske helårsskat, før resultatet kan være gyldigt. Stk. 2 bruger faktiske helårsbeløb og periodens tilsvarende andele; valg og omvalg valideres mod fristen den 30. juni i det andet kalenderår efter indkomståret. Den gældende stk. 3-gren bruger Kildeskattelovens § 10, stk. 5, mens den tidligere stk. 6-gren er dateret historisk efter LOV nr. 1564 af 12. december 2023. Arbejdsmarkedsbidraget forbliver periodens faktiske bidrag, og ejendomsskatter omregnes ikke. Ugyldige perioder, datoer, dubletter, uafstemte kilder, komponentafvigelser og endnu ikke sammensatte særregimer fejler lukket. Den forenklede aggregerede lønmodtagergren er fjernet, så der kun findes én autoritativ § 14-beregningsvej. Ni fokuserede scenarier består fortolket og via genereret native kode; kommunegrænsen, kompatibilitetsscenariet og bomb-auditten består fortolket, alle berørte filer består frontend-kontrollen, og calculate-skemaet regenereres med danske typede spørgsmål og kildetabeller. Den batchede suite på 185 scenariefiler bestod efter komponentrefaktoren på 1.216,9 sekunder; efter den afsluttende fjernelse af den gamle API blev kun de berørte fokustests gentaget. Den uændrede helårsregel `beregn_personskat` er fortsat byte-identisk.)
+Previous implementation slice: `td-8fdbfe` (Afskrivningslovens § 40 C-acontoskat er nu et typet årligt saldo- og kreditforløb i den kanoniske `beregn_personskat`-graf. Dokumenterede primopositioner holdes adskilt fra årets kilder, og fremført acontoskat anvendes før årets nye beløb i overensstemmelse med lovforarbejderne til L 28. Årets negative § 40 C-saldo afledes fra den kanoniske post `PsPar4Nr16Afskrivningslov40C`, mens det fradragsberettigede ejendomstab og dets kategori, dato og identitet slås op i den kanoniske ejendomsavanceopgørelse. Et primobeløb på 20.000 kr. og årets acontoskat på 110.000 kr., afledt af et ejendomstab på 500.000 kr. og dokumenterede negative saldi på 550.000 kr., giver derfor præcis 130.000 kr. i samlet § 60-kredit uden dobbelttælling; 50.000 kr. af årets saldo bevares som ubrugt. Årsforløbet bevarer hver saldo- og kredittranche og fordeler beløbet gennem egen slutskat, en gyldig successionsmodregning hos ægtefællen, kontant udbetaling og ultimo-fremførsel med en samlet bevarelsesidentitet. Forkerte år, dublerede eller ukendte ejendomsidentiteter, modstridende primo- og årskilder, rå caller-kredit og to særskilte nr. 16-kildeobjekter fejler lukket. Anvendelsen afdækkede samtidig et generelt checkerhul: feltprojektion efter indeksering i en liste over importerede records bevarede ikke elementtypen. `td-095d1b` retter inferensen og afviser nu ikke-eksisterende felter før Rust-generering; alle 173 bibliotekstests består. De fokuserede scenarier består fortolket og native, alle 182 scenariefiler består med seks workers på 1.192,2 sekunder, og frontend-, backend-, formaterings-, skema-, metadata- og rækkeviddegaterne består. Beregningsskemaet har 2.046 definitioner og 7.162 feltmetadata; alle 42 direkte § 40 C-årsstier har danske, typede etiketter. Metadataindekset har nul diagnosticeringer, 8.710 typede værdier og 1.278 tilknytninger. Den statiske graf indlæser 118 kilder og når 10.046 af 11.655 callable-familier; 101 af 103 `afskrivningslov40c_*`-familier nås fra `beregn_personskat`, mens de to resterende er bevidste hjælperflader. Den fulde 303-arks rundtur er fortsat et publiceringscheckpoint og blev ikke kørt for denne udviklingsslice.)
 Current publication-conformance slice: `td-950f0f` (Ekstern konformitet er nu en genbrugelig, typet regelmodel, der holder domænets kildefakta, erklærede antagelser, fortsat ukendte fakta, eksternt observerede output og beregnede output adskilt. Et beløb kan kun markeres som matchende, når sagen og outputidentiteterne er gyldige, beregningsstien er understøttet, kildeinputtet er gyldigt, enheden er identisk, og ingen ukendt oplysning blokerer sammenligningen. Den anonymiserede private 2025-årsopgørelse registrerer eksplicit den repræsentative fødselsdato og rekonstruktionen af ægtefællens underliggende renteudgift som antagelser, bevarer de tilsvarende ukendte fakta og sammenligner seks uafhængigt observerede resultater med den kanoniske Personskat-beregning: personlig indkomst, nettokapitalindkomst, aktieindkomst, slutskat, overskydende skat og udbetaling. Alle seks matcher; rå persondokumenter forbliver uden for repository. Samme model består på det ikke-juridiske kemieksempel mod en offentlig OpenStax-kilde, så der indføres hverken nyt sprogsyntax eller `.conformance.runa`-suffix. Generiske negative gates, den fokuserede 2025-invariant og kemisagen består fortolket; generiske og 2025-grafer består også via genereret Rust. Den eksisterende direkte JSON- og genererede XLSX-rundtur for 2025 giver identiske Personskat-resultater og består på 123,01 sekunder. Den fulde Personskat-scenariesuite blev ikke gentaget for denne dokumentations- og konformitetsgrænse.)
 Previous implementation slice: `td-95e218` (Afskrivningslovens § 40 C-acontoskat er nu en kildebaseret kredit i den kanoniske årsopgørelse. `beregn_personskat` modtager enten årets typede ejendomstab med historikken over tidligere indtægtsførte negative § 40 C-saldi eller en fremført acontoskatteposition og afleder selv ejendomstabsresultatet, acontoskatten, anvendelsen mod egen slutskat, en eventuel successionsanvendelse mod ægtefællens slutskat, kontant udbetaling og ultimo-fremførsel. Det rå § 60-kreditfelt skal være nul; en konkurrerende inputkonklusion, forkert indkomstår eller ugyldige successions- og ægtefællefakta fejler lukket, mens hele det typede kildespor bevares til revision. Et fradragsberettiget ejendomstab på 500.000 kr. mod 550.000 kr. i dokumenterede negative saldi giver 110.000 kr. i anset indbetalt acontoskat og præcis 11.000.000 øre i årsopgørelsen. En fremført position på 20.000 kr. lukkes under tilstrækkelig egen slutskat, og et successionsbeløb på 440.000 kr. bevarer summen gennem egen anvendelse, ægtefællemodregning og fremførsel. De seks nye kanoniske invarianter består fortolket, alle 181 scenariefiler består med seks workers på 152,5 sekunder, og frontend-, formaterings-, skema-, metadata- og rækkeviddegaterne består. Beregningsskemaet har 2.038 nåbare definitioner og 7.144 feltmetadata; alle 26 direkte § 40 C-acontoskattestier har danske, typede etiketter, og metadataindekset har nul diagnosticeringer. Den statiske graf indlæser 118 kilder og når 9.968 af 11.577 callable-familier, herunder de nye ejendomstabs- og acontoskattefamilier. Den fulde 303-arks rundtur er fortsat et publiceringscheckpoint og blev ikke kørt for denne udviklingsslice.)
 Previous implementation slice: `td-5f7031` (Afskrivningslovens § 40 D er nu en kildebaseret tilgang i den kanoniske § 40 C-årssaldo og dermed i `beregn_personskat`. En særskilt årshændelse modtager skatteyder, rettighedsart, hjemmel for skattepligtens indtræden, dato, forudgående dansk skattepligt, handelsværdi samt stabile hændelses-, aktiv- og rettighedsidentiteter. Reglerne afleder selv § 40 D-resultatet, anskaffelsesgrundlaget, § 40 C-positionen og saldohændelsen og bevarer det typede § 40 D-resultat i revisionssporet; den særlige basis kan ikke omgå kildehændelsen ved at blive konstrueret som en almindelig anskaffelse. En betalingsrettighed med handelsværdi 100.000 kr. ved indtræden af dansk skattepligt og afståelsessum 130.000 kr. senere samme år giver 30.000 kr. i kapitalindkomst gennem Personskattelovens § 4, stk. 1, nr. 16. Forkert indkomstår og en rettighed, der allerede var omfattet af dansk skattepligt, fejler lukket uden beløbspåvirkning. De seks nye fokuserede og kanoniske invarianter består fortolket, alle 181 scenariefiler består med seks workers på 153,3 sekunder, og frontend-, formaterings-, skema- og metadataindeksgaterne består. Beregningsskemaet har 2.030 nåbare definitioner og 7.118 feltmetadata; alle 26 direkte § 40 D-hændelsesstier for hovedperson og ægtefælle har danske, typede etiketter. Metadataindekset har nul diagnosticeringer. Den statiske graf indlæser 118 kilder og når 9.923 af 11.572 callable-familier, herunder alle nye § 40 D-årstilgangsfamilier. Den fulde 303-arks rundtur er fortsat et publiceringscheckpoint og blev ikke kørt for denne udviklingsslice.)
@@ -3635,8 +3636,8 @@ as a complete Personskatteloven calculator.
   still posture/category coverage rather than amount-level calculations, several
   dependent statutes are first-slice only, and special regimes or edge cases are
   represented by selected scenarios rather than comprehensive calculation paths.
-- Working estimate: about 97% complete as an executable research corpus, and
-  about 93% complete as a production-grade calculator for Personskatteloven
+- Working estimate: about 98% complete as an executable research corpus, and
+  about 94% complete as a production-grade calculator for Personskatteloven
   plus its necessary dependencies. These are deliberately separate measures:
   represented legal structure is further ahead than exact amount-level support
   for every special taxpayer, transition, cross-year history and dependency.
@@ -4226,14 +4227,18 @@ Current decision:
   income tax, total income tax, and the final total including AM contribution.
   This keeps Personskatteloven § 14's "helårsskat efter §§ 6-9" from
   accidentally consuming an AM-inclusive cash-flow total.
-- `LønmodtagerPar14Input` is the current right-sized § 14 boundary for ordinary
-  wage-earner partial-year cases. It carries tax-liability change status, the
-  delårs wage-earner input, and tax-liability days together, instead of passing
-  those scalars through every helper rule.
-- `Par14SkatteberegningResultat` is now the reusable statutory § 14 amount
-  boundary. It carries helårsindkomst, helårsskat efter §§ 6-9, the stk. 1/stk. 3
-  proportional delårsskat, the stk. 2 period-reduced tax, the governing election
-  posture, and the final `skat_efter_par14_kroner`.
+- `PersonskatPar14Input` is the right-sized § 14 boundary. It carries the
+  canonical `PersonskatInput`, typed tax-liability change and period, the stk. 2
+  election lifecycle, and identified source amounts with their whole-year
+  treatment. The former simplified `LønmodtagerPar14Input` path was retired
+  because an aggregate state-tax amount cannot preserve the statute's distinct
+  personal-, capital-, and taxable-income reduction bases.
+- `Par14SkattekomponentResultat` is the reusable statutory § 14 amount boundary.
+  Every state, municipal, church, and tax-ceiling component carries its own
+  whole-year tax, corresponding period and whole-year bases, validity, and
+  reduced tax in øre. The canonical result additionally proves that the
+  components reconstruct the exact whole-year state and municipal/church totals
+  before a partial-year answer can be valid.
 - `Par14Beløbspost` now captures whether a § 14 amount is recurring or one-off.
   This keeps the official annualisation example from forcing one-off income
   through the same annualisation path as wage, interest, or A-kasse amounts.
@@ -5997,21 +6002,32 @@ M7 - Personfradrag and deficit layer
 
 M8 - Omregning, skatteloft, and regulation
 
-- Status: first slice implemented.
+- Status: amount-level current-law slice implemented.
 - Output: `.runa` file for §§ 14-20 plus audit coverage for annualization,
   tax-ceiling relief, and statutory regulation rounding.
 - Done when: partial-year annualization, repeal markers, personal/capital
   tax-ceiling rates, calculated ceiling relief, and § 20 rounded regulated
   amounts are executable.
-- Current slice: § 14 converts partial-year income to whole-year equivalents
-  rounded to whole kroner and reduces whole-year tax proportionally. A first
-  ordinary wage-earner § 14 integration now annualizes a delårs wage-earner
-  input and uses the state income-tax component after §§ 6-9, rather than the
-  AM-inclusive total. The official guidance example now proves recurring-vs.
-  one-off amount handling, and § 14 stk. 2 now has an executable election result
-  for oplysningsskema election, timely reversal by 30 June in the second
-  calendar year after the income year, late reversal, and the § 10 stk. 6
-  limited-taxability path where the stk. 2 election is not available.
+- Current slice: § 14 is composed with the canonical `PersonskatInput` through
+  `beregn_personskat_delår`. Identified source rows choose recurring,
+  unchanged one-off, or documented representative whole-year treatment;
+  recurring amounts use the actual 365 or 366 days in the income year. Stk. 1
+  and stk. 3 reduce every tax component separately by its corresponding
+  personal-, capital-, or taxable-income ratio, as required by circular no. 22
+  of 9 December 1986, section J, point 90. AM contribution remains the actual
+  period contribution and property tax remains unchanged. Stk. 2 uses actual
+  whole-year amounts rather than a day ratio and applies the same componentwise
+  discipline, with typed election and timely re-election dates. The current limited-liability
+  route uses Kildeskattelovens § 10, stk. 5; the former stk. 6 route is retained
+  only for its historical effective period after LOV nr. 1564/2023. The public
+  calculate boundary reconciles every source amount to the canonical graph and
+  fails closed for invalid periods, dates, duplicates, unsupported special
+  regimes, a component-total mismatch, or any low-level/canonical mismatch.
+  Nine focused scenarios cover stk. 1, distinct per-tax factors, stk. 2,
+  re-election, current and historical stk. 3, an obsolete stk. 3 reference,
+  invalid dates, and source mismatch in both the interpreter and generated
+  native backend. The official guidance fixture also proves
+  recurring-versus-one-off treatment.
   §§ 15-18 are explicit repealed markers, § 19 computes
   personal and positive-capital tax ceiling excess and relief as typed
   `Par19SkatteloftNedslagResultat` objects, both personal and positive-capital

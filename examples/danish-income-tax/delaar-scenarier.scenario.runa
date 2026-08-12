@@ -1,63 +1,31 @@
 @ sprog da
 
-@ importer ./loenmodtager_beregning
-
--- Personskatteloven — executable partial-year wage-earner scenarios.
---
--- This file is deliberately a scenario fixture. Legal text remains in the law
--- modules and in the wage-earner § 14 integration block.
+@ importer ./personskat - par14.scenario
 
 ----
-Scenario 1
-Skatteår: 2026
-Kommune: København
-Skattepligtsændring: fuld skattepligt indtræder.
-Skattepligtsperiode: 180 dage.
-Delårsbruttoløn: 300.000 kr.
-Positiv nettokapitalindkomst: 0 kr.
-Øvrige ligningsmæssige fradrag ud over Ligningsloven §§ 9 J og 9 K: 0 kr.
-Kirkeskat: nej.
-
-Purpose: exercise Personskatteloven § 14 through the ordinary wage-earner model
-without using AM-bidrag as part of the §§ 6-9 helårsskat component.
+Dette kompatibilitetsscenarie genbruger den kanoniske § 14-beregning. Den
+tidligere forenklede lønmodtagergren samlede statsskatter med forskellige
+indkomstgrundlag før delårsnedsættelsen og er derfor udgået.
 ----
 
-= delaar1_input = LønmodtagerInput(
-    skatteår = 2026,
-    kommune = København,
-    bruttoløn_kroner = 300000,
-    øvrig_personlig_indkomst_kroner = 0,
-    nettokapitalindkomst_kroner = 0,
-    ligningsmæssige_fradrag_kroner = 0,
-    pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
-    personfradrag_alder_status = Fyldt18EllerGift,
-    betaler_kirkeskat = Falskt
-)
-= delaar1_par14_input = LønmodtagerPar14Input(
-    skattepligtsændring = FuldSkattepligtIndtræder,
-    delårs_input = delaar1_input,
-    skattepligtsdage = 180
-)
-= delaar1_par14 = beregn_lønmodtager_par14(delaar1_par14_input)
+= delaar1_par14 = personskat_par14_stk1
+= delaar1_par14_bundskat = personskat_par14_scenarie_statslig_komponent(delaar1_par14, Par14Bundskat)
+= delaar1_par14_kommuneskat = personskat_par14_scenarie_kommunal_komponent(delaar1_par14, Par14Kommuneskat)
 
-| delaar1_helårs_bruttoløn: delaar1_par14 -> delaar1_par14.helår.bruttoløn_kroner == 608333
-| delaar1_helårs_skattepligtig_indkomst: delaar1_par14 -> delaar1_par14.helårsindkomst.skattepligtig_indkomst_kroner == 476191
-| delaar1_helårsskat_par6_til_par9: delaar1_par14 -> delaar1_par14.helårsskat_efter_par6_til_par9_kroner == 60719
-| delaar1_delårsskat_par14: delaar1_par14 -> delaar1_par14.delårsskat_efter_par6_til_par9_kroner == 29943
-| delaar1_par14_bruger_statslig_indkomstskat: delaar1_par14 -> delaar1_par14.helårsskat_efter_par6_til_par9_kroner == delaar1_par14.helår.statslig_indkomstskat_efter_personfradrag_kroner && delaar1_par14.helårsskat_efter_par6_til_par9_kroner < delaar1_par14.helår.samlet_inkl_am_efter_personfradrag_kroner
-| delaar1_par14_bruger_lovens_skatteberegning: delaar1_par14 -> delaar1_par14.par14_skatteberegning.skat_efter_par14_kroner == delaar1_par14.delårsskat_efter_par6_til_par9_kroner && delaar1_par14.par14_skatteberegning.helårsomregning_skal_ske == Sandt
-| delaar1_delårs_am_udenfor_par14_helårsskat: delaar1_par14 -> delaar1_par14.delår.arbejdsmarkedsbidrag_kroner == 24000
+| delaar1_helårs_bruttoløn: delaar1_par14 -> delaar1_par14.input_gyldigt && delaar1_par14.skattepligtsdage == 184 && delaar1_par14.helårsinput.bruttoløn_kroner == 595109
+| delaar1_helårs_skattepligtig_indkomst: delaar1_par14 -> delaar1_par14.helårsberegning.almindelig_skattepligtig_indkomst_kroner > delaar1_par14.delårsresultat.skat.almindelig_skattepligtig_indkomst_kroner
+| delaar1_par14_bruger_komponentvis_skatteberegning: delaar1_par14_bundskat -> delaar1_par14.helårsskattekomponenter_afstemt && delaar1_par14_bundskat.input_gyldigt && delaar1_par14_kommuneskat.input_gyldigt && delaar1_par14_bundskat.nedsættelsesfaktor_tæller_kroner * delaar1_par14_kommuneskat.nedsættelsesfaktor_nævner_kroner != delaar1_par14_kommuneskat.nedsættelsesfaktor_tæller_kroner * delaar1_par14_bundskat.nedsættelsesfaktor_nævner_kroner
+| delaar1_par14_bruger_lovens_helårsomregning: delaar1_par14 -> delaar1_par14.valg.helårsomregning_skal_ske && delaar1_par14.statslig_indkomstskat_efter_par14_øre > 0 && delaar1_par14.kommunal_og_kirkelig_indkomstskat_efter_par14_øre > 0
+| delaar1_delårs_am_udenfor_par14_helårsskat: delaar1_par14 -> delaar1_par14.arbejdsmarkedsbidrag_for_delåret_øre == 2400000
 
 ? delaar1_helårs_bruttoløn
 ? delaar1_helårs_skattepligtig_indkomst
-? delaar1_helårsskat_par6_til_par9
-? delaar1_delårsskat_par14
-? delaar1_par14_bruger_statslig_indkomstskat
-? delaar1_par14_bruger_lovens_skatteberegning
+? delaar1_par14_bruger_komponentvis_skatteberegning
+? delaar1_par14_bruger_lovens_helårsomregning
 ? delaar1_delårs_am_udenfor_par14_helårsskat
 
-@ print("delår scenarie 1 helårs bruttoløn: " + vis(delaar1_par14.helår.bruttoløn_kroner))
-@ print("delår scenarie 1 helårs skattepligtig indkomst: " + vis(delaar1_par14.helårsindkomst.skattepligtig_indkomst_kroner))
-@ print("delår scenarie 1 helårsskat efter §§ 6-9: " + vis(delaar1_par14.helårsskat_efter_par6_til_par9_kroner))
-@ print("delår scenarie 1 nedsat delårsskat efter §§ 6-9: " + vis(delaar1_par14.delårsskat_efter_par6_til_par9_kroner))
-@ print("delår scenarie 1 delårs AM-bidrag: " + vis(delaar1_par14.delår.arbejdsmarkedsbidrag_kroner))
+@ print("delår scenarie 1 helårs bruttoløn: " + vis(delaar1_par14.helårsinput.bruttoløn_kroner))
+@ print("delår scenarie 1 helårs skattepligtig indkomst: " + vis(delaar1_par14.helårsberegning.almindelig_skattepligtig_indkomst_kroner))
+@ print("delår scenarie 1 statsskat efter § 14 i øre: " + vis(delaar1_par14.statslig_indkomstskat_efter_par14_øre))
+@ print("delår scenarie 1 kommune- og kirkeskat efter § 14 i øre: " + vis(delaar1_par14.kommunal_og_kirkelig_indkomstskat_efter_par14_øre))
+@ print("delår scenarie 1 delårs AM-bidrag i øre: " + vis(delaar1_par14.arbejdsmarkedsbidrag_for_delåret_øre))

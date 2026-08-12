@@ -256,21 +256,32 @@ indkomstskatten til staten.
 
 --@begin::kommuneskatteloven_par5_stk1_stk3--
 # KommunalIndkomstskatInput(skattepligtig_indkomst_kroner: Heltal, udskrivningsprocent_basispoint: Heltal)
-# KommunalPar5DelårInput(omfatter_kortere_periode_end_år: Boolsk, omregning: Par14OmregningInput, valg: Par14ValgResultat, kommunal_helårsskat_kroner: Heltal, kommunal_skat_som_helårsskattepligtig_kroner: Heltal)
-# KommunalPar5DelårResultat(omfatter_kortere_periode_end_år: Boolsk, tilsvarende_par14_skatteberegning: Par14SkatteberegningResultat, kommunal_indkomstskat_efter_delår_kroner: Heltal)
+# KommunalPar5DelårInput(omfatter_kortere_periode_end_år: Boolsk, omregning: Par14OmregningInput, valg: Par14ValgResultat, kommunal_helårsskat_kroner: Heltal, kommunal_skat_som_helårsskattepligtig_kroner: Heltal, stk2_indkomstfordeling: Par14Stk2Indkomstfordeling)
+# KommunalPar5DelårResultat(input_gyldigt: Boolsk, omfatter_kortere_periode_end_år: Boolsk, tilsvarende_par14_skattekomponent: Par14SkattekomponentResultat, kommunal_indkomstskat_efter_delår_kroner: Heltal)
 # KommunalPar5DelårSag(input: KommunalPar5DelårInput) {
-    | tilsvarende_par14_input() -> Par14SkatteberegningInput(
-        omregning = input.omregning,
-        valg = input.valg,
-        helårsskat_efter_par6_til_par9_kroner = input.kommunal_helårsskat_kroner,
-        samlet_indkomstskat_som_helårsskattepligtig_kroner = input.kommunal_skat_som_helårsskattepligtig_kroner
-    )
-    | tilsvarende_par14_skatteberegning() -> par14_skatteberegning_resultat(tilsvarende_par14_input())
-    | kommunal_indkomstskat_efter_delår_kroner() -> input.kommunal_skat_som_helårsskattepligtig_kroner
-    | exception kommunal_par5_stk3_kortere_periode kommunal_indkomstskat_efter_delår_kroner() -> tilsvarende_par14_skatteberegning().skat_efter_par14_kroner under input.omfatter_kortere_periode_end_år
+    | valgt_helårsskat_øre() -> input.kommunal_skat_som_helårsskattepligtig_kroner * 100
+    | exception kommunal_par5_stk1_stk3_helårsskat valgt_helårsskat_øre() -> input.kommunal_helårsskat_kroner * 100 under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
+    | valgt_delårsgrundlag_kroner() -> 1
+    | exception kommunal_par5_stk1_stk3_delårsgrundlag valgt_delårsgrundlag_kroner() -> input.omregning.delårs_skattepligtig_indkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
+    | exception kommunal_par5_stk2_delårsgrundlag valgt_delårsgrundlag_kroner() -> input.stk2_indkomstfordeling.indkomst_i_skattepligtsperioden_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske == Falskt
+    | valgt_helårsgrundlag_kroner() -> 1
+    | exception kommunal_par5_stk1_stk3_helårsgrundlag valgt_helårsgrundlag_kroner() -> par14_helårsindkomst(input.omregning).skattepligtig_indkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske
+    | exception kommunal_par5_stk2_helårsgrundlag valgt_helårsgrundlag_kroner() -> input.stk2_indkomstfordeling.faktisk_helårsindkomst_kroner under input.omfatter_kortere_periode_end_år && input.valg.input_gyldigt && input.valg.helårsomregning_skal_ske == Falskt
+    | tilsvarende_par14_skattekomponent() -> par14_skattekomponent_resultat(Par14SkattekomponentInput(
+        art = Par14Kommuneskat,
+        helårsskat_øre = valgt_helårsskat_øre(),
+        delårsgrundlag_kroner = valgt_delårsgrundlag_kroner(),
+        helårsgrundlag_kroner = valgt_helårsgrundlag_kroner()
+    ))
+    | input_gyldigt() -> input.kommunal_skat_som_helårsskattepligtig_kroner >= 0 under input.omfatter_kortere_periode_end_år == Falskt
+    | exception kommunal_par5_gyldigt_delår input_gyldigt() -> input.valg.input_gyldigt && par14_omregningsinput_gyldigt(input.omregning) && tilsvarende_par14_skattekomponent().input_gyldigt under input.omfatter_kortere_periode_end_år
+    | kommunal_indkomstskat_efter_delår_kroner() -> 0
+    | exception kommunal_par5_helår kommunal_indkomstskat_efter_delår_kroner() -> input.kommunal_skat_som_helårsskattepligtig_kroner under input_gyldigt() && input.omfatter_kortere_periode_end_år == Falskt
+    | exception kommunal_par5_stk3_kortere_periode kommunal_indkomstskat_efter_delår_kroner() -> tilsvarende_par14_skattekomponent().delårsskat_øre / 100 under input_gyldigt() && input.omfatter_kortere_periode_end_år
     | resultat() -> KommunalPar5DelårResultat(
+        input_gyldigt = input_gyldigt(),
         omfatter_kortere_periode_end_år = input.omfatter_kortere_periode_end_år,
-        tilsvarende_par14_skatteberegning = tilsvarende_par14_skatteberegning(),
+        tilsvarende_par14_skattekomponent = tilsvarende_par14_skattekomponent(),
         kommunal_indkomstskat_efter_delår_kroner = kommunal_indkomstskat_efter_delår_kroner()
     )
 }

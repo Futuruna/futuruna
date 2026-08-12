@@ -28,6 +28,7 @@
 @ importer ./loenmodtager_beregning
 @ importer ./loenmodtager - befordring.scenario
 @ importer ./delaar - scenarier.scenario
+@ importer ./personskat - par14.scenario
 @ importer ./omregning - skatteloft - ekstern.scenario
 @ importer ./husholdning - scenarier.scenario
 @ importer ./husholdning - benefit - cliffs.audit
@@ -1495,7 +1496,7 @@ virksomhedsunderskud.
 | m5_kirkeskat_lov_ikke_medlem_dækket: m5_kirkeskat_ikke_medlem_fixture -> m5_kirkeskat_ikke_medlem_fixture == 0
 | m5_kommuneskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kommuneskat_før_personfradrag_kroner == m5_kommuneskat_lønmodtager_fixture
 | m5_kirkeskat_matcher_lønmodtager_fixture: m5_personfradrag_fixture -> m5_personfradrag_fixture.kirkeskat_før_personfradrag_kroner == m5_kirkeskat_lønmodtager_fixture
-| m5_kommunal_par5_delår_dækket: m5_kommunal_par5_delår_fixture -> m5_kommunal_par5_delår_fixture.tilsvarende_par14_skatteberegning.helårsskat_efter_par6_til_par9_kroner == 85775 && m5_kommunal_par5_delår_fixture.tilsvarende_par14_skatteberegning.stk1_eller_stk3_delårsskat_kroner == 42300 && m5_kommunal_par5_delår_fixture.kommunal_indkomstskat_efter_delår_kroner == 42300 && m5_kommunal_par5_delår_stk2_fixture.kommunal_indkomstskat_efter_delår_kroner == 38465
+| m5_kommunal_par5_delår_dækket: m5_kommunal_par5_delår_fixture -> m5_kommunal_par5_delår_fixture.input_gyldigt && m5_kommunal_par5_delår_fixture.tilsvarende_par14_skattekomponent.helårsskat_øre == 8577500 && m5_kommunal_par5_delår_fixture.tilsvarende_par14_skattekomponent.delårsskat_øre == 4230000 && m5_kommunal_par5_delår_fixture.kommunal_indkomstskat_efter_delår_kroner == 42300 && m5_kommunal_par5_delår_stk2_fixture.tilsvarende_par14_skattekomponent.delårsskat_øre == 3846575 && m5_kommunal_par5_delår_stk2_fixture.kommunal_indkomstskat_efter_delår_kroner == 38465
 | m5_kommunal_skattekommune_bopæl_dækket: m5_kommunal_skattekommune_bopæl_fixture -> m5_kommunal_skattekommune_bopæl_fixture.skattekommune == København && m5_kommunal_skattekommune_bopæl_fixture.grundlag == SkattekommuneBopælFemteSeptember
 | m5_kommunal_skattekommune_institution_dækket: m5_kommunal_skattekommune_institution_fixture -> m5_kommunal_skattekommune_institution_fixture.skattekommune == Gentofte && m5_kommunal_skattekommune_institution_fixture.grundlag == SkattekommuneAndenBopælVedInstitutionMv
 | m5_kommunal_par3_fraflytningsandel_dækket: m5_kommunal_par3_april_fixture -> m5_kommunal_par3_april_fixture.periode.startkvartal == 3 && m5_kommunal_par3_april_fixture.tilflytningskommune_andel_kroner == 60000 && m5_kommunal_par3_første_kvartalsdag_fixture.periode.startkvartal == 2 && m5_kommunal_par3_første_kvartalsdag_fixture.tilflytningskommune_andel_kroner == 90000
@@ -1801,23 +1802,23 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 ----
 
 = m5_par14_fixture = par14_helårsindkomst(Par14OmregningInput(
+    skatteår = 2026,
     delårs_skattepligtig_indkomst_kroner = 180000,
     delårs_personlig_indkomst_kroner = 200000,
     delårs_kapitalindkomst_kroner = -20000,
-    skattepligtsdage = 180
+    skattepligtsdage = 180,
+    skattepligtige_indkomstposter = [Par14Beløbspost("skattepligtig-indkomst", 180000, Par14ForholdsmæssigtLøbendeBeløb)],
+    personlige_indkomstposter = [Par14Beløbspost("personlig-indkomst", 200000, Par14ForholdsmæssigtLøbendeBeløb)],
+    kapitalindkomstposter = [Par14Beløbspost("kapitalindkomst", -20000, Par14ForholdsmæssigtLøbendeBeløb)]
 ))
-= m5_par14_skattenedsættelse_fixture = par14_helårsskat_nedsat_for_delår(Par14SkattenedsættelseInput(
-    helårsskat_kroner = 100000,
-    delårsbeløb_kroner = 180000,
-    helårsbeløb_kroner = m5_par14_fixture.skattepligtig_indkomst_kroner
-))
+= m5_par14_skattekomponent_fixture = par14_skattekomponent_fixture
 = m5_par14_lønmodtager_fixture = delaar1_par14
 = m5_par14_stk2_valg_fixture = par14_stk2_valg_fixture
 = m5_par14_stk2_omvalg_rettidigt_fixture = par14_stk2_omvalg_rettidigt_fixture
 = m5_par14_stk2_omvalg_for_sent_fixture = par14_stk2_omvalg_for_sent_fixture
 = m5_par14_stk3_begrænset_ingen_valg_fixture = par14_stk3_begrænset_ingen_valg_fixture
-= m5_par14_stk1_skatteberegning_fixture = par14_stk1_skatteberegning_fixture
-= m5_par14_stk2_skatteberegning_fixture = par14_stk2_skatteberegning_fixture
+= m5_par14_stk1_beregning_fixture = personskat_par14_stk1
+= m5_par14_stk2_beregning_fixture = personskat_par14_stk2
 = m5_par19_skatteloft_input = Par19SkatteloftInput(
     skatteår = 2025,
     bundskat_basispoint = 1201,
@@ -1843,16 +1844,16 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 = m5_par20_personfradrag_2025_resultat = par20_personfradrag_2025_resultat
 
 | m5_par14_helårsomregning: m5_par14_fixture -> m5_par14_fixture.skattepligtig_indkomst_kroner == 365000 && m5_par14_fixture.personlig_indkomst_kroner == 405556
-| m5_par14_skattenedsættelse: m5_par14_skattenedsættelse_fixture -> m5_par14_skattenedsættelse_fixture == 49315
-| m5_par14_lønmodtager_helårsomregning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.helårsindkomst.skattepligtig_indkomst_kroner == 476191 && m5_par14_lønmodtager_fixture.helår.bruttoløn_kroner == 608333
-| m5_par14_lønmodtager_statslig_helårsskat: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.helårsskat_efter_par6_til_par9_kroner == m5_par14_lønmodtager_fixture.helår.statslig_indkomstskat_efter_personfradrag_kroner && m5_par14_lønmodtager_fixture.delårsskat_efter_par6_til_par9_kroner == 29943
-| m5_par14_lønmodtager_bruger_lovens_skatteberegning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.par14_skatteberegning.skat_efter_par14_kroner == m5_par14_lønmodtager_fixture.delårsskat_efter_par6_til_par9_kroner && m5_par14_lønmodtager_fixture.par14_skatteberegning.helårsomregning_skal_ske == Sandt
+| m5_par14_skattekomponent_nedsættelse: m5_par14_skattekomponent_fixture -> m5_par14_skattekomponent_fixture.input_gyldigt && m5_par14_skattekomponent_fixture.delårsskat_øre == 40000
+| m5_par14_lønmodtager_helårsomregning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.input_gyldigt && m5_par14_lønmodtager_fixture.helårsinput.bruttoløn_kroner == 595109 && m5_par14_lønmodtager_fixture.helårsberegning.almindelig_skattepligtig_indkomst_kroner > m5_par14_lønmodtager_fixture.delårsresultat.skat.almindelig_skattepligtig_indkomst_kroner
+| m5_par14_lønmodtager_statslig_helårsskat: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.helårsskattekomponenter_afstemt && m5_par14_lønmodtager_fixture.statslig_indkomstskat_efter_par14_øre > 0
+| m5_par14_lønmodtager_bruger_lovens_skatteberegning: m5_par14_lønmodtager_fixture -> m5_par14_lønmodtager_fixture.valg.helårsomregning_skal_ske && length(m5_par14_lønmodtager_fixture.statslige_skattekomponenter) == 6 && length(m5_par14_lønmodtager_fixture.kommunale_og_kirkelige_skattekomponenter) == 2
 | m5_par14_stk2_valg_afskærer_helårsomregning: m5_par14_stk2_valg_fixture -> m5_par14_stk2_valg_fixture.valg_gældende == Sandt && m5_par14_stk2_valg_fixture.helårsomregning_skal_ske == Falskt
-| m5_par14_stk2_omvalg_senest_30_juni_i_andet_år: m5_par14_stk2_omvalg_rettidigt_fixture -> m5_par14_stk2_omvalg_rettidigt_fixture.omvalgsfrist_yyyymmdd == 20280630 && m5_par14_stk2_omvalg_rettidigt_fixture.omvalg_gennemført == Sandt
+| m5_par14_stk2_omvalg_senest_30_juni_i_andet_år: m5_par14_stk2_omvalg_rettidigt_fixture -> m5_par14_stk2_omvalg_rettidigt_fixture.omvalgsfrist == Dato(år = 2028, måned = 6, dag = 30) && m5_par14_stk2_omvalg_rettidigt_fixture.omvalg_gennemført == Sandt
 | m5_par14_stk2_for_sent_omvalg_ændrer_ikke_valget: m5_par14_stk2_omvalg_for_sent_fixture -> m5_par14_stk2_omvalg_for_sent_fixture.omvalg_rettidigt == Falskt && m5_par14_stk2_omvalg_for_sent_fixture.helårsomregning_skal_ske == Falskt
 | m5_par14_stk3_begrænset_skattepligt_har_ikke_stk2_valg: m5_par14_stk3_begrænset_ingen_valg_fixture -> m5_par14_stk3_begrænset_ingen_valg_fixture.valg_muligt == Falskt && m5_par14_stk3_begrænset_ingen_valg_fixture.helårsomregning_skal_ske == Sandt
-| m5_par14_stk1_skatteberegning_vælger_helårsomregning: m5_par14_stk1_skatteberegning_fixture -> m5_par14_stk1_skatteberegning_fixture.helårsomregning_skal_ske == Sandt && m5_par14_stk1_skatteberegning_fixture.skat_efter_par14_kroner == 49315
-| m5_par14_stk2_skatteberegning_vælger_periodenedsættelse: m5_par14_stk2_skatteberegning_fixture -> m5_par14_stk2_skatteberegning_fixture.helårsomregning_skal_ske == Falskt && m5_par14_stk2_skatteberegning_fixture.skat_efter_par14_kroner == 44383
+| m5_par14_stk1_skatteberegning_vælger_helårsomregning: m5_par14_stk1_beregning_fixture -> m5_par14_stk1_beregning_fixture.input_gyldigt && m5_par14_stk1_beregning_fixture.valg.helårsomregning_skal_ske && m5_par14_stk1_beregning_fixture.helårsskattekomponenter_afstemt
+| m5_par14_stk2_skatteberegning_vælger_periodenedsættelse: m5_par14_stk2_beregning_fixture -> m5_par14_stk2_beregning_fixture.input_gyldigt && m5_par14_stk2_beregning_fixture.valg.helårsomregning_skal_ske == Falskt && m5_par14_stk2_beregning_fixture.helårsskattekomponenter_afstemt
 | m5_par19_skatteloftsnedslag: m5_par19_skatteloft_fixture -> m5_par19_skatteloft_fixture == 194
 | m5_par19_nedslag_i_kroner: m5_par19_nedslag_fixture -> m5_par19_nedslag_fixture == 1940
 | m5_par19_nedslag_resultat_samler_sats_og_beløb: m5_par19_nedslag_resultat_fixture -> m5_par19_nedslag_resultat_fixture.loft.kilde == PersonskattelovenLbk1284Af2021Par19Stk1 && m5_par19_nedslag_resultat_fixture.samlet_skatteprocent_basispoint == 5401 && m5_par19_nedslag_resultat_fixture.overskydende_basispoint == m5_par19_skatteloft_fixture && m5_par19_nedslag_resultat_fixture.progressiv_skat_efter_loft_basispoint == 1306 && m5_par19_nedslag_resultat_fixture.nedslag_kroner == m5_par19_nedslag_fixture
@@ -1873,7 +1874,7 @@ skatteloftsnedslag og regulering/afrunding af grundbeløb.
 | m5_audit_par20_kilde_signal: audit_signal(Par20ReguleringstalKildeDækket) -> audit_signal(Par20ReguleringstalKildeDækket) == Sandt
 
 ? m5_par14_helårsomregning
-? m5_par14_skattenedsættelse
+? m5_par14_skattekomponent_nedsættelse
 ? m5_par14_lønmodtager_helårsomregning
 ? m5_par14_lønmodtager_statslig_helårsskat
 ? m5_par14_lønmodtager_bruger_lovens_skatteberegning
