@@ -265,6 +265,10 @@ skal derfor afvises samlet uden beløbspåvirkning.
     psl4_særlig_scenarie_nr10("samme-id"),
     psl4_særlig_scenarie_nr16("samme-id")
 ])
+= psl4_særlig_scenarie_dobbelt_nr16 = psl4_særlig_scenarie_beregning([
+    psl4_særlig_scenarie_nr16("nr16-saldo-a"),
+    psl4_særlig_scenarie_nr16("nr16-saldo-b")
+])
 = psl4_særlig_scenarie_ugyldig_nr16_lot = psl4_særlig_scenarie_beregning([
     psl4_særlig_scenarie_nr16_med_lot("nr16-ukendt-lot", "ukendt-lot")
 ])
@@ -285,6 +289,7 @@ skal derfor afvises samlet uden beløbspåvirkning.
 | psl4_særlig_scenarie_betingelser_og_undtagelser_anvendes: psl4_særlig_scenarie_gyldigt -> psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[1].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[4].kapitalpost.beløb_kroner == 0 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[2].kapitalpost.beløb_kroner == -9000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[3].kapitalpost.beløb_kroner == 40000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[5].kapitalpost.beløb_kroner == -12000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[6].kapitalpost.beløb_kroner == 8000 && psl4_særlig_scenarie_gyldigt.kapitalindkomst.særlige_kapitalpostresultater[7].kapitalpost.beløb_kroner == 15000
 | psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket: psl4_særlig_scenarie_ugyldig_virksomhed -> psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_virksomhed.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_dubletter_fejler_lukket: psl4_særlig_scenarie_dobbelt_id -> psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_postidentifikationer_entydige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_dobbelt_id.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
+| psl4_særlig_scenarie_dobbelt_nr16_saldo_fejler_lukket: psl4_særlig_scenarie_dobbelt_nr16 -> psl4_særlig_scenarie_dobbelt_nr16.kapitalindkomst.særlige_postidentifikationer_entydige && psl4_særlig_scenarie_dobbelt_nr16.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_dobbelt_nr16.kapitalindkomst.alle_input_gyldige == Falskt && all(psl4_særlig_scenarie_dobbelt_nr16.kapitalindkomst.særlige_kapitalpostresultater, |resultat: PersonskatPar4SærligKapitalpostresultat| resultat.grundfakta_gyldige == Falskt && resultat.input_gyldigt == Falskt) && psl4_særlig_scenarie_dobbelt_nr16.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_ukendt_nr16_lot_fejler_lukket: psl4_særlig_scenarie_ugyldig_nr16_lot -> psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.særlige_kapitalpostresultater[0].input_gyldigt == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.alle_input_gyldige == Falskt && psl4_særlig_scenarie_ugyldig_nr16_lot.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
 | psl4_særlig_scenarie_nr16_par40d_når_beregn_personskat: psl4_særlig_scenarie_nr16_par40d_resultat -> psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalposter_gyldige && psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 30000 && psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalpostresultater[0].kapitalpost.beløb_kroner == 30000 && psl4_særlig_scenarie_nr16_par40d_afledt(psl4_særlig_scenarie_nr16_par40d_resultat.kapitalindkomst.særlige_kapitalpostresultater[0])
 | psl4_særlig_scenarie_nr16_par40d_forudgående_skattepligt_fejler_lukket: psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig -> psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.særlige_kapitalpostresultater[0].input_gyldigt == Falskt && psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.særlige_kapitalposter_gyldige == Falskt && psl4_særlig_scenarie_nr16_par40d_allerede_skattepligtig.kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner == 0
@@ -296,6 +301,7 @@ skal derfor afvises samlet uden beløbspåvirkning.
 ? psl4_særlig_scenarie_betingelser_og_undtagelser_anvendes
 ? psl4_særlig_scenarie_ugyldig_virksomhed_fejler_lukket
 ? psl4_særlig_scenarie_dubletter_fejler_lukket
+? psl4_særlig_scenarie_dobbelt_nr16_saldo_fejler_lukket
 ? psl4_særlig_scenarie_ukendt_nr16_lot_fejler_lukket
 ? psl4_særlig_scenarie_nr16_par40d_når_beregn_personskat
 ? psl4_særlig_scenarie_nr16_par40d_forudgående_skattepligt_fejler_lukket

@@ -163,8 +163,11 @@
 # PersonskatFastsættelsesproveniens = SkatteforvaltningensÅrsopgørelse(dokumentreference: Tekst) | SkatteforvaltningensAfgørelse(dokumentreference: Tekst) | AndenMyndighedsafgørelse(myndighed: Tekst, dokumentreference: Tekst)
 # PersonskatUnderskudsårsresultat(indkomstår: Heltal, åbningsgrundlag_gyldigt: Boolsk, fremført_underskud_primo_kroner: Heltal, årets_skattepligtige_indkomst_før_fremførsel_kroner: Heltal, fremført_underskud_anvendt_i_egen_indkomst_kroner: Heltal, årets_nye_underskud_kroner: Heltal, dækket_ved_egen_skattemodregning_kroner: Heltal, fradraget_i_ægtefælles_indkomst_kroner: Heltal, dækket_ved_ægtefælles_skattemodregning_kroner: Heltal, fremført_underskud_ultimo_kroner: Heltal)
 # PersonskatUnderskudsforholdInput = StandardUnderskudsforhold | FremførtUnderskudFraForrigePersonskatÅr(resultat: PersonskatUnderskudsårsresultat) | EksterntFastsatFremførtUnderskud(fra_indkomstår: Heltal, underskud_kroner: Heltal, proveniens: PersonskatFastsættelsesproveniens)
-# PersonskatAfskrivningslov40CAcontoskatKilde = UdenAfskrivningslov40CAcontoskat | NytAfskrivningslov40CAcontoskat(ejendomstab: Afskrivningslov40CEjendomstabInput, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk, ægtefælles_overført_restskat_mv_kroner: Heltal, ægtefælles_pensionsbeskatningsafgift_kroner: Heltal) | FremførtAfskrivningslov40CAcontoskat(position: Afskrivningslov40CAcontoskatPosition)
-# PersonskatAfskrivningslov40CAcontoskatResultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, kildefakta_gyldige: Boolsk, ejendomstab: Option(Afskrivningslov40CEjendomstabResultat), acontoskat: Option(Afskrivningslov40CAcontoskatResultat), kredit_til_egen_kildeskat_slutopgørelse_øre: Heltal)
+# PersonskatAfskrivningslov40CÅbningsgrundlag = IntetAfskrivningslov40CÅbningsgrundlag | EksterntFastsatAfskrivningslov40CÅbningsgrundlag(negative_saldopositioner_primo: List(Afskrivningslov40CNegativSaldoPosition), fremførte_acontoskattepositioner_primo: List(Afskrivningslov40CAcontoskatTranche), proveniens: PersonskatFastsættelsesproveniens)
+# PersonskatAfskrivningslov40CEjendomstabsfakta(ejendomsavance_identifikation: Tekst, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk)
+# PersonskatAfskrivningslov40CÅrsfakta(åbningsgrundlag: PersonskatAfskrivningslov40CÅbningsgrundlag, ejendomstab: List(PersonskatAfskrivningslov40CEjendomstabsfakta), ægtefælles_overført_restskat_mv_kroner: Heltal, ægtefælles_pensionsbeskatningsafgift_kroner: Heltal)
+# PersonskatAfskrivningslov40CAcontoskatKilde = UdenAfskrivningslov40CAcontoskat | MedAfskrivningslov40CAcontoskat(fakta: PersonskatAfskrivningslov40CÅrsfakta)
+# PersonskatAfskrivningslov40CAcontoskatResultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, kildefakta_gyldige: Boolsk, årsresultat: Option(Afskrivningslov40CAcontoskatÅrsresultat), kredit_til_egen_kildeskat_slutopgørelse_øre: Heltal)
 # PersonskatÅrsopgørelseInput = UdenÅrsopgørelse | MedÅrsopgørelse(overført_restskat_mv_kroner: Heltal, øvrig_pensionsbeskatningsafgift_kroner: Heltal, kreditter: KildeskatPar60Kreditter, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde) | MedEksaktÅrsopgørelse(overført_restskat_mv_øre: Heltal, øvrig_pensionsbeskatningsafgift_øre: Heltal, kreditter: KildeskatPar60KreditterØre, afskrivningslov40c_acontoskat: PersonskatAfskrivningslov40CAcontoskatKilde, afregningsfakta: KildeskatSlutopgørelseAfregningsfakta)
 # PersonskatLigningslov6Input = UdenLigningslov6Kurstab | MedLigningslov6Kurstab(input: Ligningslov6KurstabInput)
 # PersonskatLigningslov6AInput = UdenLigningslov6AFradrag | MedLigningslov6AFradrag(input: Ligningslov6AInput)
@@ -2540,79 +2543,107 @@
 = personskat_felt_årsopgørelse_al40c_kilde = TypetBeregningsfelt(
     path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::$variant),
     label = "Acontoskat efter afskrivningslovens § 40 C",
-    question = Some("Er der et nyt eller fremført acontoskattebeløb efter afskrivningslovens § 40 C?"),
-    help = Some("Vælg et nyt beløb fra årets landbrugs- eller skovejendomstab, et fremført beløb fra en tidligere beregning eller ingen § 40 C-acontoskat."),
+    question = Some("Skal årets eller fremført acontoskat efter afskrivningslovens § 40 C afregnes?"),
+    help = Some("Futuruna afleder årets beløb fra identificerede ejendomsafståelser og § 40 C-saldoen. Historiske åbningspositioner kræver myndighedsproveniens."),
     unit = None
 )
-= personskat_felt_årsopgørelse_al40c_ejendomstab_år = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CEjendomstabInput::indkomstår),
-    label = "Indkomstår for ejendomstabet",
-    question = Some("I hvilket indkomstår blev det fradragsberettigede ejendomstab realiseret?"),
-    help = Some("Året skal svare til Personskat-beregningens skatteår for et nyt § 40 C-acontoskattebeløb."),
-    unit = Some("år")
-)
-= personskat_felt_årsopgørelse_al40c_ejendomskategori = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CEjendomstabInput::ejendomskategori::$variant),
-    label = "Ejendomskategori ved § 40 C-tab",
-    question = Some("Hvilken vurderingskategori havde ejendommen ved afståelsen?"),
-    help = Some("Afskrivningslovens § 40 C, stk. 8, omfatter de lovbestemte landbrugs-, skov- og fra 2027 naturejendomskategorier."),
+= personskat_felt_årsopgørelse_al40c_åbningsgrundlag = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CÅbningsgrundlag::$variant),
+    label = "Historisk § 40 C-åbningsgrundlag",
+    question = Some("Findes der negative saldi eller acontoskattebeløb fra tidligere indkomstår?"),
+    help = Some("Vælg et eksternt fastsat åbningsgrundlag kun for positioner fra en årsopgørelse eller anden myndighedsafgørelse."),
     unit = None
 )
-= personskat_felt_årsopgørelse_al40c_ejendomstab = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CEjendomstabInput::fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner),
-    label = "Fradragsberettiget ejendomstab",
-    question = Some("Hvor stort er det fradragsberettigede tab efter ejendomsavancebeskatningsloven?"),
-    help = Some("Futuruna modregner kun dokumenterede tidligere indtægtsførte negative § 40 C-saldi inden for tabet."),
-    unit = Some("kr.")
+= personskat_felt_årsopgørelse_al40c_negative_saldopositioner = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CÅbningsgrundlag::EksterntFastsatAfskrivningslov40CÅbningsgrundlag::negative_saldopositioner_primo),
+    label = "Negative § 40 C-saldopositioner primo",
+    question = Some("Hvilke tidligere indtægtsførte negative saldi er endnu ikke fuldt modregnet i ejendomstab?"),
+    help = Some("Opret én identificeret række pr. indkomstår fra myndighedsgrundlaget."),
+    unit = None
 )
-= personskat_felt_årsopgørelse_al40c_negativ_saldo_historik = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CEjendomstabInput::negativ_saldo_historik),
-    label = "Historik over negative § 40 C-saldi",
-    question = Some("Hvilke negative § 40 C-saldi er tidligere indtægtsført?"),
-    help = Some("Opret én række pr. indkomstår. Samme indkomstår må ikke forekomme flere gange."),
+= personskat_felt_årsopgørelse_al40c_negativ_saldo_identifikation = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CNegativSaldoPosition::identifikation),
+    label = "Identifikation for negativ § 40 C-saldo",
+    question = Some("Hvilken stabil identifikation har saldopositionen?"),
+    help = Some("Identifikationen skal være entydig i åbningsgrundlaget."),
     unit = None
 )
 = personskat_felt_årsopgørelse_al40c_negativ_saldo_år = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CNegativSaldoIndtægtsføring::indkomstår),
+    path = refof(Afskrivningslov40CNegativSaldoPosition::indkomstår),
     label = "Indkomstår for negativ § 40 C-saldo",
     question = Some("I hvilket indkomstår blev den negative saldo indtægtsført?"),
-    help = Some("Året må ikke ligge efter året for ejendomstabet."),
+    help = Some("Året skal ligge før det aktuelle skatteår."),
     unit = Some("år")
 )
 = personskat_felt_årsopgørelse_al40c_negativ_saldo_beløb = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CNegativSaldoIndtægtsføring::indtægtsført_kroner),
-    label = "Indtægtsført negativ § 40 C-saldo",
-    question = Some("Hvor stort et positivt beløb blev indtægtsført fra den negative saldo?"),
-    help = Some("Angiv det dokumenterede beløb for det pågældende indkomstår."),
+    path = refof(Afskrivningslov40CNegativSaldoPosition::oprindeligt_indtægtsført_kroner),
+    label = "Oprindeligt indtægtsført negativ § 40 C-saldo",
+    question = Some("Hvor stort et positivt beløb blev oprindeligt indtægtsført fra den negative saldo?"),
+    help = Some("Beløbet skal fremgå af det dokumenterede myndighedsgrundlag."),
     unit = Some("kr.")
 )
+= personskat_felt_årsopgørelse_al40c_negativ_saldo_tidligere_modregnet = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CNegativSaldoPosition::tidligere_modregnet_i_ejendomstab_kroner),
+    label = "Tidligere modregnet i ejendomstab",
+    question = Some("Hvor meget af saldopositionen er allerede modregnet i tidligere ejendomstab?"),
+    help = Some("Futuruna anvender kun den resterende del og fører forbruget videre i årsresultatet."),
+    unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_ejendomstab = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CÅrsfakta::ejendomstab),
+    label = "Ejendomsafståelser med § 40 C-tab",
+    question = Some("Hvilke af årets allerede oplyste ejendomsafståelser skal prøves efter § 40 C, stk. 8?"),
+    help = Some("Opret en reference til ejendommens identifikation. Futuruna afleder afståelsesdato, kategori og fradragsberettiget tab fra EBL-beregningen."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_ejendomsidentifikation = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CEjendomstabsfakta::ejendomsavance_identifikation),
+    label = "Identifikation for ejendomsafståelsen",
+    question = Some("Hvilken ejendomsafståelse i EBL-grundlaget vedrører § 40 C-beregningen?"),
+    help = Some("Identifikationen skal forekomme præcis én gang blandt personens egne ejendomsafståelser i skatteåret."),
+    unit = None
+)
 = personskat_felt_årsopgørelse_al40c_overdragelse = TypetBeregningsfelt(
-    path = refof(Afskrivningslov40CAcontoskatOverdragelse::$variant),
+    path = refof(PersonskatAfskrivningslov40CEjendomstabsfakta::overdragelse::$variant),
     label = "Succession ved ejendomsoverdragelsen",
     question = Some("Blev ejendommen overdraget med succession efter KSL § 33 C eller dødsboskattelovens § 39?"),
     help = Some("Succession ændrer et resterende acontoskattebeløb fra kontant udbetaling til ægtefællemodregning og fremførsel."),
     unit = None
 )
 = personskat_felt_årsopgørelse_al40c_samliv = TypetBeregningsfelt(
-    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen),
+    path = refof(PersonskatAfskrivningslov40CEjendomstabsfakta::gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen),
     label = "Gift og samlevende før succession",
     question = Some("Var personen gift og samlevende med ægtefællen ved udgangen af året før overdragelsen?"),
     help = Some("Oplysningen anvendes kun ved en successionsoverdragelse efter § 40 C, stk. 10."),
     unit = None
 )
 = personskat_felt_årsopgørelse_al40c_ægtefælles_restskat = TypetBeregningsfelt(
-    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::ægtefælles_overført_restskat_mv_kroner),
+    path = refof(PersonskatAfskrivningslov40CÅrsfakta::ægtefælles_overført_restskat_mv_kroner),
     label = "Ægtefællens overførte restskat mv.",
     question = Some("Hvor meget overført restskat mv. skal indgå i ægtefællens § 40 C-fradragskapacitet?"),
     help = Some("Angiv 0, når der ikke både er succession og relevant samliv."),
     unit = Some("kr.")
 )
 = personskat_felt_årsopgørelse_al40c_ægtefælles_pensionsafgift = TypetBeregningsfelt(
-    path = refof(PersonskatAfskrivningslov40CAcontoskatKilde::NytAfskrivningslov40CAcontoskat::ægtefælles_pensionsbeskatningsafgift_kroner),
+    path = refof(PersonskatAfskrivningslov40CÅrsfakta::ægtefælles_pensionsbeskatningsafgift_kroner),
     label = "Ægtefællens pensionsbeskatningsafgift",
     question = Some("Hvor meget pensionsbeskatningsafgift skal indgå i ægtefællens § 40 C-fradragskapacitet?"),
     help = Some("Angiv 0, når der ikke både er succession og relevant samliv."),
     unit = Some("kr.")
+)
+= personskat_felt_årsopgørelse_al40c_fremførte_positioner = TypetBeregningsfelt(
+    path = refof(PersonskatAfskrivningslov40CÅbningsgrundlag::EksterntFastsatAfskrivningslov40CÅbningsgrundlag::fremførte_acontoskattepositioner_primo),
+    label = "Fremførte § 40 C-acontoskattepositioner primo",
+    question = Some("Hvilke acontoskattebeløb er fremført fra tidligere indkomstår?"),
+    help = Some("Opret én identificeret tranche pr. fremført position i myndighedsgrundlaget."),
+    unit = None
+)
+= personskat_felt_årsopgørelse_al40c_fremført_identifikation = TypetBeregningsfelt(
+    path = refof(Afskrivningslov40CAcontoskatTranche::identifikation),
+    label = "Identifikation for fremført § 40 C-acontoskat",
+    question = Some("Hvilken stabil identifikation har den fremførte tranche?"),
+    help = Some("Identifikationen skal være entydig og må ikke genbruges til et nyt ejendomstab i samme år."),
+    unit = None
 )
 = personskat_felt_årsopgørelse_al40c_fremført_oprindelsesår = TypetBeregningsfelt(
     path = refof(Afskrivningslov40CAcontoskatPosition::oprindelsesår),
@@ -12531,16 +12562,20 @@
     attachments = (
         Field(value = personskat_felt_årsopgørelse),
         Field(value = personskat_felt_årsopgørelse_al40c_kilde),
-        Field(value = personskat_felt_årsopgørelse_al40c_ejendomstab_år),
-        Field(value = personskat_felt_årsopgørelse_al40c_ejendomskategori),
-        Field(value = personskat_felt_årsopgørelse_al40c_ejendomstab),
-        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_historik),
+        Field(value = personskat_felt_årsopgørelse_al40c_åbningsgrundlag),
+        Field(value = personskat_felt_årsopgørelse_al40c_negative_saldopositioner),
+        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_identifikation),
         Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_år),
         Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_beløb),
+        Field(value = personskat_felt_årsopgørelse_al40c_negativ_saldo_tidligere_modregnet),
+        Field(value = personskat_felt_årsopgørelse_al40c_ejendomstab),
+        Field(value = personskat_felt_årsopgørelse_al40c_ejendomsidentifikation),
         Field(value = personskat_felt_årsopgørelse_al40c_overdragelse),
         Field(value = personskat_felt_årsopgørelse_al40c_samliv),
         Field(value = personskat_felt_årsopgørelse_al40c_ægtefælles_restskat),
         Field(value = personskat_felt_årsopgørelse_al40c_ægtefælles_pensionsafgift),
+        Field(value = personskat_felt_årsopgørelse_al40c_fremførte_positioner),
+        Field(value = personskat_felt_årsopgørelse_al40c_fremført_identifikation),
         Field(value = personskat_felt_årsopgørelse_al40c_fremført_oprindelsesår),
         Field(value = personskat_felt_årsopgørelse_al40c_fremført_beløb),
         Field(value = personskat_felt_årsopgørelse_eksakt_overført_restskat),
@@ -18184,60 +18219,111 @@ fraflytningen."
     | MedÅrsopgørelse(overført_restskat_mv_kroner, øvrig_pensionsbeskatningsafgift_kroner, _, _) -> slutskat_øre + (overført_restskat_mv_kroner + øvrig_pensionsbeskatningsafgift_kroner + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner) * 100
     | MedEksaktÅrsopgørelse(overført_restskat_mv_øre, øvrig_pensionsbeskatningsafgift_øre, _, _, _) -> slutskat_øre + overført_restskat_mv_øre + øvrig_pensionsbeskatningsafgift_øre + pension.udbetalingsresultat.samlet_pbl29_afgift_i_året_kroner * 100
 }
-| personskat_afskrivningslov40c_nye_supplerende_fakta_gyldige(overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk, ægtefælles_overført_restskat_mv_kroner: Heltal, ægtefælles_pensionsbeskatningsafgift_kroner: Heltal, har_ægtefælle: Boolsk) -> ægtefælles_overført_restskat_mv_kroner >= 0 && ægtefælles_pensionsbeskatningsafgift_kroner >= 0 && hvis gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen {
-    afskrivningslov40c_acontoskat_succession(overdragelse) && har_ægtefælle
-} ellers {
-    ægtefælles_overført_restskat_mv_kroner == 0 && ægtefælles_pensionsbeskatningsafgift_kroner == 0
+| personskat_afskrivningslov40c_negative_saldopositioner_primo(åbningsgrundlag: PersonskatAfskrivningslov40CÅbningsgrundlag) -> match åbningsgrundlag {
+    | IntetAfskrivningslov40CÅbningsgrundlag -> []
+    | EksterntFastsatAfskrivningslov40CÅbningsgrundlag(positioner, _, _) -> positioner
 }
-| personskat_afskrivningslov40c_acontoskat_resultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, indkomstår: Heltal, egen_slutskat_med_tillæg_før_al40c_øre: Heltal, ægtefælles_slutskat_før_kreditter_øre: Heltal, har_ægtefælle: Boolsk) -> match kilde {
+| personskat_afskrivningslov40c_fremførte_acontoskattepositioner_primo(åbningsgrundlag: PersonskatAfskrivningslov40CÅbningsgrundlag) -> match åbningsgrundlag {
+    | IntetAfskrivningslov40CÅbningsgrundlag -> []
+    | EksterntFastsatAfskrivningslov40CÅbningsgrundlag(_, positioner, _) -> positioner
+}
+| personskat_afskrivningslov40c_åbningsgrundlag_gyldigt(åbningsgrundlag: PersonskatAfskrivningslov40CÅbningsgrundlag, indkomstår: Heltal) -> match åbningsgrundlag {
+    | IntetAfskrivningslov40CÅbningsgrundlag -> Sandt
+    | EksterntFastsatAfskrivningslov40CÅbningsgrundlag(negative_saldopositioner, acontoskattepositioner, proveniens) -> personskat_fastsættelsesproveniens_gyldig(proveniens) && all(negative_saldopositioner, |position: Afskrivningslov40CNegativSaldoPosition| position.indkomstår < indkomstår) && afskrivningslov40c_negative_saldopositioner_gyldige(negative_saldopositioner, indkomstår) && afskrivningslov40c_acontoskat_trancher_gyldige(acontoskattepositioner, indkomstår)
+}
+| personskat_afskrivningslov40c_par4_nr16_post(resultat: PersonskatPar4SærligKapitalpostresultat) -> match resultat.lovresultat {
+    | PsPar4Nr16Lovresultat(_) -> Sandt
+    | _ -> Falskt
+}
+| personskat_afskrivningslov40c_par4_nr16_poster(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> filter(resultater, personskat_afskrivningslov40c_par4_nr16_post)
+| personskat_afskrivningslov40c_par4_nr16_poster_entydige(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> length(personskat_afskrivningslov40c_par4_nr16_poster(resultater)) <= 1
+| personskat_afskrivningslov40c_negativ_saldoposition_fra_par4_nr16(resultat: PersonskatPar4SærligKapitalpostresultat) -> match resultat.lovresultat {
+    | PsPar4Nr16Lovresultat(nr16) -> Afskrivningslov40CNegativSaldoPosition(
+        identifikation = resultat.fakta.identifikation,
+        indkomstår = nr16.afskrivningslov_årsresultat.afskrivningslov_resultat.indkomstår,
+        oprindeligt_indtægtsført_kroner = nr16.afskrivningslov_årsresultat.afskrivningslov_resultat.negativ_saldo_indtægtsført_kroner,
+        tidligere_modregnet_i_ejendomstab_kroner = 0
+    )
+    | _ -> Afskrivningslov40CNegativSaldoPosition(identifikation = "", indkomstår = 0, oprindeligt_indtægtsført_kroner = 0, tidligere_modregnet_i_ejendomstab_kroner = 0)
+}
+| personskat_afskrivningslov40c_par4_nr16_har_negativ_saldo(resultat: PersonskatPar4SærligKapitalpostresultat) -> resultat.input_gyldigt && match resultat.lovresultat {
+    | PsPar4Nr16Lovresultat(nr16) -> nr16.afskrivningslov_årsresultat.afskrivningslov_resultat.negativ_saldo_indtægtsført_kroner > 0
+    | _ -> Falskt
+}
+| personskat_afskrivningslov40c_aktuelle_negative_saldopositioner(resultater: List(PersonskatPar4SærligKapitalpostresultat)) -> map(filter(resultater, personskat_afskrivningslov40c_par4_nr16_har_negativ_saldo), personskat_afskrivningslov40c_negativ_saldoposition_fra_par4_nr16)
+| personskat_afskrivningslov40c_egne_ejendomsavancefakta(resultat: PersonskatEjendomsavanceResultat) -> match resultat {
+    | BeregnetEjendomsavance(fakta, _, _, _, _, _, _, _) -> fakta.egne_afståelser
+    | _ -> []
+}
+| personskat_afskrivningslov40c_ejendomskategori(ejendomstype: EjendomsavanceEjendomstype) -> match ejendomstype {
+    | EblLandbrugSkovNaturEllerBlandetEjendom(fakta) -> match fakta.kategori {
+        | EblPar9Landbrugsejendom -> AlLandbrugsejendom
+        | EblPar9Skovejendom -> AlSkovejendom
+        | EblPar9Naturejendom -> AlNaturejendom
+        | _ -> AlAndenEjendom
+    }
+    | _ -> AlAndenEjendom
+}
+| personskat_afskrivningslov40c_ejendomstabshændelse(fakta: PersonskatAfskrivningslov40CEjendomstabsfakta, ejendomsavance: PersonskatEjendomsavanceResultat) -> {
+    = matchende_fakta = filter(personskat_afskrivningslov40c_egne_ejendomsavancefakta(ejendomsavance), |ejendomsfakta: PersonskatEjendomsavanceFakta| ejendomsfakta.identifikation == fakta.ejendomsavance_identifikation)
+    hvis fakta.ejendomsavance_identifikation != "" && length(matchende_fakta) == 1 {
+        = ejendomsfakta = head(matchende_fakta)
+        = ejendomsavance_resultat = personskat_ejendomsavance_afståelsesresultat(ejendomsfakta)
+        = tabspost_resultat = ejendomsavance_par6_tabspost_resultat(EjendomsavancePar6Tabspost(resultat = ejendomsavance_resultat))
+        Afskrivningslov40CEjendomstabshændelse(
+            identifikation = fakta.ejendomsavance_identifikation,
+            afståelsesdato = AfskrivningslovDato(år = ejendomsfakta.afståelsesdato.år, måned = ejendomsfakta.afståelsesdato.måned, dag = ejendomsfakta.afståelsesdato.dag),
+            ejendomskategori = personskat_afskrivningslov40c_ejendomskategori(ejendomsfakta.ejendomstype),
+            fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = tabspost_resultat.fradragsberettiget_tab_kroner,
+            overdragelse = fakta.overdragelse,
+            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = fakta.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen
+        )
+    } ellers {
+        Afskrivningslov40CEjendomstabshændelse(
+            identifikation = fakta.ejendomsavance_identifikation,
+            afståelsesdato = AfskrivningslovDato(år = 0, måned = 0, dag = 0),
+            ejendomskategori = AlAndenEjendom,
+            fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = 0,
+            overdragelse = fakta.overdragelse,
+            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = fakta.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen
+        )
+    }
+}
+| personskat_afskrivningslov40c_ejendomstabshændelser(fakta: List(PersonskatAfskrivningslov40CEjendomstabsfakta), ejendomsavance: PersonskatEjendomsavanceResultat) -> map(fakta, |ejendomstab: PersonskatAfskrivningslov40CEjendomstabsfakta| personskat_afskrivningslov40c_ejendomstabshændelse(ejendomstab, ejendomsavance))
+| personskat_afskrivningslov40c_har_ægtefællemodregning(fakta: PersonskatAfskrivningslov40CÅrsfakta) -> any(fakta.ejendomstab, |ejendomstab: PersonskatAfskrivningslov40CEjendomstabsfakta| ejendomstab.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen)
+| personskat_afskrivningslov40c_supplerende_fakta_gyldige(fakta: PersonskatAfskrivningslov40CÅrsfakta, har_ægtefælle: Boolsk) -> fakta.ægtefælles_overført_restskat_mv_kroner >= 0 && fakta.ægtefælles_pensionsbeskatningsafgift_kroner >= 0 && hvis personskat_afskrivningslov40c_har_ægtefællemodregning(fakta) {
+    har_ægtefælle
+} ellers {
+    fakta.ægtefælles_overført_restskat_mv_kroner == 0 && fakta.ægtefælles_pensionsbeskatningsafgift_kroner == 0
+}
+| personskat_afskrivningslov40c_acontoskat_resultat(kilde: PersonskatAfskrivningslov40CAcontoskatKilde, indkomstår: Heltal, egen_slutskat_med_tillæg_før_al40c_øre: Heltal, ægtefælles_slutskat_før_kreditter_øre: Heltal, har_ægtefælle: Boolsk, kapitalindkomst: PersonskatKapitalindkomstResultat) -> match kilde {
     | UdenAfskrivningslov40CAcontoskat -> PersonskatAfskrivningslov40CAcontoskatResultat(
         kilde = kilde,
         kildefakta_gyldige = Sandt,
-        ejendomstab = None,
-        acontoskat = None,
+        årsresultat = None,
         kredit_til_egen_kildeskat_slutopgørelse_øre = 0
     )
-    | NytAfskrivningslov40CAcontoskat(ejendomstab_input, overdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen, ægtefælles_overført_restskat_mv_kroner, ægtefælles_pensionsbeskatningsafgift_kroner) -> {
-        = ejendomstab = afskrivningslov40c_ejendomstab_resultat(ejendomstab_input)
-        = supplerende_fakta_gyldige = personskat_afskrivningslov40c_nye_supplerende_fakta_gyldige(
-            overdragelse,
-            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
-            ægtefælles_overført_restskat_mv_kroner,
-            ægtefælles_pensionsbeskatningsafgift_kroner,
-            har_ægtefælle
-        )
-        = acontoskat = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+    | MedAfskrivningslov40CAcontoskat(fakta) -> {
+        = særlige_kapitalposter = kapitalindkomst.særlige_kapitalpostresultater
+        = aktuelle_negative_saldopositioner = personskat_afskrivningslov40c_aktuelle_negative_saldopositioner(særlige_kapitalposter)
+        = negative_saldopositioner_primo = concat(personskat_afskrivningslov40c_negative_saldopositioner_primo(fakta.åbningsgrundlag), aktuelle_negative_saldopositioner)
+        = fremførte_acontoskattepositioner_primo = personskat_afskrivningslov40c_fremførte_acontoskattepositioner_primo(fakta.åbningsgrundlag)
+        = ejendomstabshændelser = personskat_afskrivningslov40c_ejendomstabshændelser(fakta.ejendomstab, kapitalindkomst.ejendomsavance_resultat)
+        = årsresultat = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
             indkomstår = indkomstår,
-            grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = ejendomstab),
+            negative_saldopositioner_primo = negative_saldopositioner_primo,
+            fremførte_acontoskattepositioner_primo = fremførte_acontoskattepositioner_primo,
+            ejendomstabshændelser = ejendomstabshændelser,
             egen_slutskat_med_restskat_mv_før_al40c_kroner = egen_slutskat_med_tillæg_før_al40c_øre / 100,
-            overdragelse = overdragelse,
-            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
-            ægtefælles_slutskat_mv_kroner = ægtefælles_slutskat_før_kreditter_øre / 100 + ægtefælles_overført_restskat_mv_kroner + ægtefælles_pensionsbeskatningsafgift_kroner
+            har_ægtefælle = har_ægtefælle,
+            ægtefælles_slutskat_mv_kroner = ægtefælles_slutskat_før_kreditter_øre / 100 + fakta.ægtefælles_overført_restskat_mv_kroner + fakta.ægtefælles_pensionsbeskatningsafgift_kroner
         ))
-        = kildefakta_gyldige = supplerende_fakta_gyldige && acontoskat.input_gyldigt
+        = kildefakta_gyldige = personskat_afskrivningslov40c_åbningsgrundlag_gyldigt(fakta.åbningsgrundlag, indkomstår) && personskat_afskrivningslov40c_par4_nr16_poster_entydige(særlige_kapitalposter) && personskat_afskrivningslov40c_supplerende_fakta_gyldige(fakta, har_ægtefælle) && årsresultat.input_gyldigt
         PersonskatAfskrivningslov40CAcontoskatResultat(
             kilde = kilde,
             kildefakta_gyldige = kildefakta_gyldige,
-            ejendomstab = Some(ejendomstab),
-            acontoskat = Some(acontoskat),
-            kredit_til_egen_kildeskat_slutopgørelse_øre = hvis kildefakta_gyldige { acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 } ellers { 0 }
-        )
-    }
-    | FremførtAfskrivningslov40CAcontoskat(position) -> {
-        = acontoskat = afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
-            indkomstår = indkomstår,
-            grundlag = Al40CFremførtAcontoskattebeløb(position = position),
-            egen_slutskat_med_restskat_mv_før_al40c_kroner = egen_slutskat_med_tillæg_før_al40c_øre / 100,
-            overdragelse = Al40CIngenSuccession,
-            gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
-            ægtefælles_slutskat_mv_kroner = 0
-        ))
-        PersonskatAfskrivningslov40CAcontoskatResultat(
-            kilde = kilde,
-            kildefakta_gyldige = acontoskat.input_gyldigt,
-            ejendomstab = None,
-            acontoskat = Some(acontoskat),
-            kredit_til_egen_kildeskat_slutopgørelse_øre = hvis acontoskat.input_gyldigt { acontoskat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 } ellers { 0 }
+            årsresultat = Some(årsresultat),
+            kredit_til_egen_kildeskat_slutopgørelse_øre = hvis kildefakta_gyldige { årsresultat.kredit_til_egen_kildeskat_slutopgørelse_kroner * 100 } ellers { 0 }
         )
     }
 }
@@ -18908,7 +18994,8 @@ fraflytningen."
         input.lønmodtager.skatteår,
         personskat_årsopgørelse_slutskat_med_tillæg_før_al40c_øre(input.årsopgørelse, slutskat_øre, hovedgrundlag.pension),
         personskat_ægtefælles_slutskat_før_negativ_aktieindkomstskat_øre(parberegning, ægtefælles_ejendomsskatter, ægtefælles_ligningslov33_og_33a_nedslag_øre),
-        personskat_negativ_aktieskat_har_ægtefælle(parberegning)
+        personskat_negativ_aktieskat_har_ægtefælle(parberegning),
+        hovedgrundlag.kapitalindkomst
     )
     = kildeskat_al40c_acontoskat_input_gyldigt = personskat_kildeskat_al40c_acontoskat_input_gyldigt(input.årsopgørelse)
     = afskrivningslov40c_acontoskat_kredit_øre = hvis kildeskat_al40c_acontoskat_input_gyldigt {

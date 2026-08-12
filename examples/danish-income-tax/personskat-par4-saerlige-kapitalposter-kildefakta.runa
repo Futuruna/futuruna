@@ -82,6 +82,15 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 }
 | personskat_par4_særlig_post_identifikation_unik(fakta: List(PersonskatPar4SærligKapitalpostfakta), post: PersonskatPar4SærligKapitalpostfakta) -> post.identifikation != "" && length(filter(fakta, |anden: PersonskatPar4SærligKapitalpostfakta| anden.identifikation == post.identifikation)) == 1
 | personskat_par4_særlige_postidentifikationer_entydige(fakta: List(PersonskatPar4SærligKapitalpostfakta)) -> length(distinct(map(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation))) == length(fakta) && all(fakta, |post: PersonskatPar4SærligKapitalpostfakta| post.identifikation != "")
+| personskat_par4_særlig_post_er_afskrivningslov40c(fakta: PersonskatPar4SærligKapitalpostfakta) -> match fakta.kilde {
+    | PsPar4Nr16Afskrivningslov40C(_) -> Sandt
+    | _ -> Falskt
+}
+| personskat_par4_afskrivningslov40c_samlet_saldo_entydig(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta) -> hvis personskat_par4_særlig_post_er_afskrivningslov40c(fakta) {
+    length(filter(alle_fakta, personskat_par4_særlig_post_er_afskrivningslov40c)) == 1
+} ellers {
+    Sandt
+}
 | personskat_par4_særlig_post_er_virksomhed(fakta: PersonskatPar4SærligKapitalpostfakta) -> match fakta.kilde {
     | PsPar4Nr9Virksomhed(_) -> Sandt
     | PsPar4Nr11Udlejningsvirksomhed(_) -> Sandt
@@ -172,7 +181,7 @@ Stk. 9. Ejere af vedvarende energi-anlæg, der anvender reglerne i ligningsloven
 | personskat_par4_særlig_post_resultat_med_personlige_virksomheder(alle_fakta: List(PersonskatPar4SærligKapitalpostfakta), fakta: PersonskatPar4SærligKapitalpostfakta, skatteår: Heltal, personlige_virksomheder: List(PersonskatOrdinærVirksomhedFakta)) -> {
     = identifikation_unik = personskat_par4_særlig_post_identifikation_unik(alle_fakta, fakta)
     = virksomhedsidentifikation_adskilt_fra_personlig_indkomst = personskat_par4_særlig_virksomhedsidentifikation_adskilt_fra_personlig_indkomst(fakta, personlige_virksomheder)
-    = grundfakta_gyldige = personskat_par4_særlig_kilde_grundfakta_gyldige(fakta, skatteår)
+    = grundfakta_gyldige = personskat_par4_særlig_kilde_grundfakta_gyldige(fakta, skatteår) && personskat_par4_afskrivningslov40c_samlet_saldo_entydig(alle_fakta, fakta)
     = lovresultat = personskat_par4_særlig_post_lovresultat(fakta, skatteår, identifikation_unik)
     = input_gyldigt = identifikation_unik && virksomhedsidentifikation_adskilt_fra_personlig_indkomst && grundfakta_gyldige && personskat_par4_særlig_post_lovresultat_gyldigt(lovresultat)
     PersonskatPar4SærligKapitalpostresultat(

@@ -214,6 +214,12 @@
     hentet_dato = "2026-07-18"
 )
 
+= afskrivningsloven_par40c_l28_bemaerkninger = AfskrivningslovKildeInfo(
+    url = "https://www.folketingstidende.dk/samling/20041/lovforslag/L28/index.htm",
+    identifier = "L 28, 2004-05 (1. samling), bemærkningerne til afskrivningslovens § 40 C, stk. 8-10",
+    hentet_dato = "2026-08-11"
+)
+
 = afskrivningsloven_par40a_skm2022_474 = AfskrivningslovKildeInfo(
     url = "https://info.skat.dk/data.aspx?oid=2365032",
     identifier = "SKM2022.474.SR, CO2-kvoter, periodisering og afholdt anskaffelsesudgift",
@@ -5213,6 +5219,7 @@ omfattet af stk. 1-6.
     attachments = (
         Source(value = afskrivningsloven_lbk1222),
         Guidance(value = afskrivningsloven_kvoter_juridisk_vejledning),
+        PreparatorySource(value = afskrivningsloven_par40c_l28_bemaerkninger),
         Warning(value = afskrivningsloven_par40c_historisk_advarsel),
     )
 )
@@ -5771,6 +5778,216 @@ eller andele af kvoter for de først afståede.
 }
 | afskrivningslov40c_acontoskat_sag(input: Afskrivningslov40CAcontoskatInput) -> Afskrivningslov40CAcontoskatSag(input)
 | afskrivningslov40c_acontoskat_resultat(input: Afskrivningslov40CAcontoskatInput) -> afskrivningslov40c_acontoskat_sag(input).resultat()
+
+# Afskrivningslov40CNegativSaldoPosition(identifikation: Tekst, indkomstår: Heltal, oprindeligt_indtægtsført_kroner: Heltal, tidligere_modregnet_i_ejendomstab_kroner: Heltal)
+# Afskrivningslov40CAcontoskatTranche(identifikation: Tekst, position: Afskrivningslov40CAcontoskatPosition)
+# Afskrivningslov40CEjendomstabshændelse(identifikation: Tekst, afståelsesdato: AfskrivningslovDato, ejendomskategori: AfskrivningslovEjendomskategori, fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner: Heltal, overdragelse: Afskrivningslov40CAcontoskatOverdragelse, gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen: Boolsk)
+# Afskrivningslov40CNegativSaldoForbrugstilstand(resterende_modregningsmål_kroner: Heltal, positioner_efter: List(Afskrivningslov40CNegativSaldoPosition))
+# Afskrivningslov40CEjendomstabÅrstrinResultat(hændelse: Afskrivningslov40CEjendomstabshændelse, hændelse_gyldig: Boolsk, positioner_før: List(Afskrivningslov40CNegativSaldoPosition), ejendomstab_resultat: Afskrivningslov40CEjendomstabResultat, positioner_efter: List(Afskrivningslov40CNegativSaldoPosition))
+# Afskrivningslov40CEjendomstabsforløbstilstand(positioner: List(Afskrivningslov40CNegativSaldoPosition), resultater: List(Afskrivningslov40CEjendomstabÅrstrinResultat), alle_hændelser_gyldige: Boolsk)
+# Afskrivningslov40CAcontoskatÅrstrinResultat(identifikation: Tekst, resultat: Afskrivningslov40CAcontoskatResultat)
+# Afskrivningslov40CAcontoskatÅrstilstand(egen_slutskat_resterende_kroner: Heltal, ægtefælles_slutskat_resterende_kroner: Heltal, kredit_til_egen_kildeskat_slutopgørelse_kroner: Heltal, kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner: Heltal, kontant_udbetaling_kroner: Heltal, positioner_ultimo: List(Afskrivningslov40CAcontoskatTranche), trinresultater: List(Afskrivningslov40CAcontoskatÅrstrinResultat), alle_trin_gyldige: Boolsk)
+# Afskrivningslov40CAcontoskatÅrsinput(indkomstår: Heltal, negative_saldopositioner_primo: List(Afskrivningslov40CNegativSaldoPosition), fremførte_acontoskattepositioner_primo: List(Afskrivningslov40CAcontoskatTranche), ejendomstabshændelser: List(Afskrivningslov40CEjendomstabshændelse), egen_slutskat_med_restskat_mv_før_al40c_kroner: Heltal, har_ægtefælle: Boolsk, ægtefælles_slutskat_mv_kroner: Heltal)
+# Afskrivningslov40CAcontoskatÅrsresultat(input: Afskrivningslov40CAcontoskatÅrsinput, grundfakta_gyldige: Boolsk, ejendomstabshændelser_entydige: Boolsk, saldopositioner_gyldige: Boolsk, acontoskattepositioner_gyldige: Boolsk, input_gyldigt: Boolsk, ejendomstabsresultater: List(Afskrivningslov40CEjendomstabÅrstrinResultat), negative_saldopositioner_ultimo: List(Afskrivningslov40CNegativSaldoPosition), acontoskatteresultater: List(Afskrivningslov40CAcontoskatÅrstrinResultat), egen_slutskat_efter_kroner: Heltal, ægtefælles_slutskat_efter_kroner: Heltal, kredit_til_egen_kildeskat_slutopgørelse_kroner: Heltal, kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner: Heltal, kontant_udbetaling_kroner: Heltal, fremførte_acontoskattepositioner_ultimo: List(Afskrivningslov40CAcontoskatTranche), samlet_acontoskat_før_kroner: Heltal, samlet_acontoskat_anvendt_eller_fremført_kroner: Heltal, værdibevarelse_opfyldt: Boolsk)
+
+| afskrivningslov40c_negativ_saldoposition_rest_kroner(position: Afskrivningslov40CNegativSaldoPosition) -> penge_positivt_beløb(position.oprindeligt_indtægtsført_kroner - position.tidligere_modregnet_i_ejendomstab_kroner)
+| afskrivningslov40c_negativ_saldoposition_gyldig(position: Afskrivningslov40CNegativSaldoPosition, indkomstår: Heltal) -> position.identifikation != "" && position.indkomstår > 0 && position.indkomstår <= indkomstår && position.oprindeligt_indtægtsført_kroner >= 0 && position.tidligere_modregnet_i_ejendomstab_kroner >= 0 && position.tidligere_modregnet_i_ejendomstab_kroner <= position.oprindeligt_indtægtsført_kroner
+| afskrivningslov40c_negativ_saldoposition_sorteringsnøgle(position: Afskrivningslov40CNegativSaldoPosition) -> position.indkomstår
+| afskrivningslov40c_negative_saldopositioner_entydige(positioner: List(Afskrivningslov40CNegativSaldoPosition)) -> length(distinct(map(positioner, |position: Afskrivningslov40CNegativSaldoPosition| position.identifikation))) == length(positioner) && length(distinct(map(positioner, |position: Afskrivningslov40CNegativSaldoPosition| position.indkomstår))) == length(positioner)
+| afskrivningslov40c_negative_saldopositioner_gyldige(positioner: List(Afskrivningslov40CNegativSaldoPosition), indkomstår: Heltal) -> afskrivningslov40c_negative_saldopositioner_entydige(positioner) && all(positioner, |position: Afskrivningslov40CNegativSaldoPosition| afskrivningslov40c_negativ_saldoposition_gyldig(position, indkomstår))
+| afskrivningslov40c_negativ_saldoposition_til_historik(position: Afskrivningslov40CNegativSaldoPosition) -> Afskrivningslov40CNegativSaldoIndtægtsføring(indkomstår = position.indkomstår, indtægtsført_kroner = afskrivningslov40c_negativ_saldoposition_rest_kroner(position))
+| afskrivningslov40c_negative_saldopositioner_til_historik(positioner: List(Afskrivningslov40CNegativSaldoPosition)) -> map(sort_by(positioner, afskrivningslov40c_negativ_saldoposition_sorteringsnøgle), afskrivningslov40c_negativ_saldoposition_til_historik)
+
+# Afskrivningslov40CNegativSaldoForbrugstrinSag(tilstand: Afskrivningslov40CNegativSaldoForbrugstilstand, position: Afskrivningslov40CNegativSaldoPosition) {
+    | rest_før_kroner() -> afskrivningslov40c_negativ_saldoposition_rest_kroner(position)
+    | anvendt_kroner() -> penge_mindste_beløb(tilstand.resterende_modregningsmål_kroner, rest_før_kroner())
+    | position_efter() -> Afskrivningslov40CNegativSaldoPosition(
+        identifikation = position.identifikation,
+        indkomstår = position.indkomstår,
+        oprindeligt_indtægtsført_kroner = position.oprindeligt_indtægtsført_kroner,
+        tidligere_modregnet_i_ejendomstab_kroner = position.tidligere_modregnet_i_ejendomstab_kroner + anvendt_kroner()
+    )
+    | resultat() -> Afskrivningslov40CNegativSaldoForbrugstilstand(
+        resterende_modregningsmål_kroner = tilstand.resterende_modregningsmål_kroner - anvendt_kroner(),
+        positioner_efter = concat(tilstand.positioner_efter, [position_efter()])
+    )
+}
+| afskrivningslov40c_negativ_saldo_forbrugstrin(tilstand: Afskrivningslov40CNegativSaldoForbrugstilstand, position: Afskrivningslov40CNegativSaldoPosition) -> Afskrivningslov40CNegativSaldoForbrugstrinSag(tilstand, position).resultat()
+| afskrivningslov40c_negative_saldopositioner_efter_modregning(positioner: List(Afskrivningslov40CNegativSaldoPosition), modregnet_kroner: Heltal) -> foldl(
+    sort_by(positioner, afskrivningslov40c_negativ_saldoposition_sorteringsnøgle),
+    Afskrivningslov40CNegativSaldoForbrugstilstand(resterende_modregningsmål_kroner = penge_positivt_beløb(modregnet_kroner), positioner_efter = []),
+    afskrivningslov40c_negativ_saldo_forbrugstrin
+).positioner_efter
+
+| afskrivningslov40c_ejendomstabshændelse_sorteringsnøgle(hændelse: Afskrivningslov40CEjendomstabshændelse) -> afskrivningslov_dato_yyyymmdd(hændelse.afståelsesdato)
+| afskrivningslov40c_ejendomstabshændelse_grundfakta_gyldige(hændelse: Afskrivningslov40CEjendomstabshændelse, indkomstår: Heltal, har_ægtefælle: Boolsk) -> hændelse.identifikation != "" && afskrivningslov_dato_gyldig(hændelse.afståelsesdato) && hændelse.afståelsesdato.år == indkomstår && hændelse.fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner >= 0 && (hændelse.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen == Falskt || afskrivningslov40c_acontoskat_succession(hændelse.overdragelse) && har_ægtefælle)
+| afskrivningslov40c_ejendomstabshændelser_grundfakta_gyldige(hændelser: List(Afskrivningslov40CEjendomstabshændelse), indkomstår: Heltal, har_ægtefælle: Boolsk) -> all(hændelser, |hændelse: Afskrivningslov40CEjendomstabshændelse| afskrivningslov40c_ejendomstabshændelse_grundfakta_gyldige(hændelse, indkomstår, har_ægtefælle))
+| afskrivningslov40c_ejendomstabshændelser_entydige(hændelser: List(Afskrivningslov40CEjendomstabshændelse)) -> length(distinct(map(hændelser, |hændelse: Afskrivningslov40CEjendomstabshændelse| hændelse.identifikation))) == length(hændelser) && all(hændelser, |hændelse: Afskrivningslov40CEjendomstabshændelse| hændelse.identifikation != "")
+
+# Afskrivningslov40CEjendomstabÅrstrinSag(indkomstår: Heltal, har_ægtefælle: Boolsk, tilstand: Afskrivningslov40CEjendomstabsforløbstilstand, hændelse: Afskrivningslov40CEjendomstabshændelse) {
+    | ejendomstab_input() -> Afskrivningslov40CEjendomstabInput(
+        indkomstår = indkomstår,
+        ejendomskategori = hændelse.ejendomskategori,
+        fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = hændelse.fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner,
+        negativ_saldo_historik = afskrivningslov40c_negative_saldopositioner_til_historik(tilstand.positioner)
+    )
+    | ejendomstab_resultat() -> afskrivningslov40c_ejendomstab_resultat(ejendomstab_input())
+    | hændelse_gyldig() -> afskrivningslov40c_ejendomstabshændelse_grundfakta_gyldige(hændelse, indkomstår, har_ægtefælle) && ejendomstab_resultat().input_gyldigt && ejendomstab_resultat().omfattet_af_stk8
+    | positioner_efter() -> hvis hændelse_gyldig() { afskrivningslov40c_negative_saldopositioner_efter_modregning(tilstand.positioner, ejendomstab_resultat().modregnet_i_ejendomstab_kroner) } ellers { tilstand.positioner }
+    | trinresultat() -> Afskrivningslov40CEjendomstabÅrstrinResultat(
+        hændelse = hændelse,
+        hændelse_gyldig = hændelse_gyldig(),
+        positioner_før = tilstand.positioner,
+        ejendomstab_resultat = ejendomstab_resultat(),
+        positioner_efter = positioner_efter()
+    )
+    | resultat() -> Afskrivningslov40CEjendomstabsforløbstilstand(
+        positioner = positioner_efter(),
+        resultater = concat(tilstand.resultater, [trinresultat()]),
+        alle_hændelser_gyldige = tilstand.alle_hændelser_gyldige && hændelse_gyldig()
+    )
+}
+| afskrivningslov40c_ejendomstab_årsforløbstrin(indkomstår: Heltal, har_ægtefælle: Boolsk, tilstand: Afskrivningslov40CEjendomstabsforløbstilstand, hændelse: Afskrivningslov40CEjendomstabshændelse) -> Afskrivningslov40CEjendomstabÅrstrinSag(indkomstår, har_ægtefælle, tilstand, hændelse).resultat()
+| afskrivningslov40c_ejendomstab_årsforløb(input: Afskrivningslov40CAcontoskatÅrsinput) -> foldl(
+    sort_by(input.ejendomstabshændelser, afskrivningslov40c_ejendomstabshændelse_sorteringsnøgle),
+    Afskrivningslov40CEjendomstabsforløbstilstand(positioner = sort_by(input.negative_saldopositioner_primo, afskrivningslov40c_negativ_saldoposition_sorteringsnøgle), resultater = [], alle_hændelser_gyldige = Sandt),
+    |tilstand: Afskrivningslov40CEjendomstabsforløbstilstand, hændelse: Afskrivningslov40CEjendomstabshændelse| afskrivningslov40c_ejendomstab_årsforløbstrin(input.indkomstår, input.har_ægtefælle, tilstand, hændelse)
+)
+
+| afskrivningslov40c_acontoskat_tranche_sorteringsnøgle(tranche: Afskrivningslov40CAcontoskatTranche) -> tranche.position.oprindelsesår
+| afskrivningslov40c_acontoskat_tranche_gyldig(tranche: Afskrivningslov40CAcontoskatTranche, indkomstår: Heltal) -> tranche.identifikation != "" && afskrivningslov40c_acontoskat_grundlag_gyldigt(indkomstår, Al40CFremførtAcontoskattebeløb(position = tranche.position))
+| afskrivningslov40c_acontoskat_trancher_entydige(trancher: List(Afskrivningslov40CAcontoskatTranche)) -> length(distinct(map(trancher, |tranche: Afskrivningslov40CAcontoskatTranche| tranche.identifikation))) == length(trancher) && all(trancher, |tranche: Afskrivningslov40CAcontoskatTranche| tranche.identifikation != "")
+| afskrivningslov40c_acontoskat_trancher_gyldige(trancher: List(Afskrivningslov40CAcontoskatTranche), indkomstår: Heltal) -> afskrivningslov40c_acontoskat_trancher_entydige(trancher) && all(trancher, |tranche: Afskrivningslov40CAcontoskatTranche| afskrivningslov40c_acontoskat_tranche_gyldig(tranche, indkomstår))
+| afskrivningslov40c_acontoskat_tranche_beløb_kroner(tranche: Afskrivningslov40CAcontoskatTranche) -> penge_positivt_beløb(tranche.position.resterende_fremført_acontoskat_kroner)
+| afskrivningslov40c_acontoskat_trancher_beløb_kroner(trancher: List(Afskrivningslov40CAcontoskatTranche)) -> foldl(trancher, 0, |sum: Heltal, tranche: Afskrivningslov40CAcontoskatTranche| sum + afskrivningslov40c_acontoskat_tranche_beløb_kroner(tranche))
+
+# Afskrivningslov40CFremførtAcontoskatÅrstrinSag(indkomstår: Heltal, tilstand: Afskrivningslov40CAcontoskatÅrstilstand, tranche: Afskrivningslov40CAcontoskatTranche) {
+    | acontoskat_resultat() -> afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+        indkomstår = indkomstår,
+        grundlag = Al40CFremførtAcontoskattebeløb(position = tranche.position),
+        egen_slutskat_med_restskat_mv_før_al40c_kroner = tilstand.egen_slutskat_resterende_kroner,
+        overdragelse = Al40CIngenSuccession,
+        gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = Falskt,
+        ægtefælles_slutskat_mv_kroner = tilstand.ægtefælles_slutskat_resterende_kroner
+    ))
+    | positioner_ultimo() -> hvis acontoskat_resultat().position_efter.resterende_fremført_acontoskat_kroner > 0 { concat(tilstand.positioner_ultimo, [Afskrivningslov40CAcontoskatTranche(identifikation = tranche.identifikation, position = acontoskat_resultat().position_efter)]) } ellers { tilstand.positioner_ultimo }
+    | resultat() -> Afskrivningslov40CAcontoskatÅrstilstand(
+        egen_slutskat_resterende_kroner = acontoskat_resultat().egen_slutskat_efter_kroner,
+        ægtefælles_slutskat_resterende_kroner = tilstand.ægtefælles_slutskat_resterende_kroner,
+        kredit_til_egen_kildeskat_slutopgørelse_kroner = tilstand.kredit_til_egen_kildeskat_slutopgørelse_kroner + acontoskat_resultat().kredit_til_egen_kildeskat_slutopgørelse_kroner,
+        kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner = tilstand.kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner,
+        kontant_udbetaling_kroner = tilstand.kontant_udbetaling_kroner,
+        positioner_ultimo = positioner_ultimo(),
+        trinresultater = concat(tilstand.trinresultater, [Afskrivningslov40CAcontoskatÅrstrinResultat(identifikation = tranche.identifikation, resultat = acontoskat_resultat())]),
+        alle_trin_gyldige = tilstand.alle_trin_gyldige && acontoskat_resultat().input_gyldigt
+    )
+}
+| afskrivningslov40c_fremført_acontoskat_årsforløbstrin(indkomstår: Heltal, tilstand: Afskrivningslov40CAcontoskatÅrstilstand, tranche: Afskrivningslov40CAcontoskatTranche) -> Afskrivningslov40CFremførtAcontoskatÅrstrinSag(indkomstår, tilstand, tranche).resultat()
+
+# Afskrivningslov40CNytAcontoskatÅrstrinSag(indkomstår: Heltal, tilstand: Afskrivningslov40CAcontoskatÅrstilstand, trin: Afskrivningslov40CEjendomstabÅrstrinResultat) {
+    | acontoskat_resultat() -> afskrivningslov40c_acontoskat_resultat(Afskrivningslov40CAcontoskatInput(
+        indkomstår = indkomstår,
+        grundlag = Al40CNytAcontoskattebeløb(ejendomstab_resultat = trin.ejendomstab_resultat),
+        egen_slutskat_med_restskat_mv_før_al40c_kroner = tilstand.egen_slutskat_resterende_kroner,
+        overdragelse = trin.hændelse.overdragelse,
+        gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = trin.hændelse.gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen,
+        ægtefælles_slutskat_mv_kroner = tilstand.ægtefælles_slutskat_resterende_kroner
+    ))
+    | positioner_ultimo() -> hvis acontoskat_resultat().position_efter.resterende_fremført_acontoskat_kroner > 0 { concat(tilstand.positioner_ultimo, [Afskrivningslov40CAcontoskatTranche(identifikation = trin.hændelse.identifikation, position = acontoskat_resultat().position_efter)]) } ellers { tilstand.positioner_ultimo }
+    | resultat() -> Afskrivningslov40CAcontoskatÅrstilstand(
+        egen_slutskat_resterende_kroner = acontoskat_resultat().egen_slutskat_efter_kroner,
+        ægtefælles_slutskat_resterende_kroner = acontoskat_resultat().ægtefælles_slutskat_efter_kroner,
+        kredit_til_egen_kildeskat_slutopgørelse_kroner = tilstand.kredit_til_egen_kildeskat_slutopgørelse_kroner + acontoskat_resultat().kredit_til_egen_kildeskat_slutopgørelse_kroner,
+        kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner = tilstand.kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner + acontoskat_resultat().kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner,
+        kontant_udbetaling_kroner = tilstand.kontant_udbetaling_kroner + acontoskat_resultat().kontant_udbetaling_kroner,
+        positioner_ultimo = positioner_ultimo(),
+        trinresultater = concat(tilstand.trinresultater, [Afskrivningslov40CAcontoskatÅrstrinResultat(identifikation = trin.hændelse.identifikation, resultat = acontoskat_resultat())]),
+        alle_trin_gyldige = tilstand.alle_trin_gyldige && trin.hændelse_gyldig && acontoskat_resultat().input_gyldigt
+    )
+}
+| afskrivningslov40c_nyt_acontoskat_årsforløbstrin(indkomstår: Heltal, tilstand: Afskrivningslov40CAcontoskatÅrstilstand, trin: Afskrivningslov40CEjendomstabÅrstrinResultat) -> Afskrivningslov40CNytAcontoskatÅrstrinSag(indkomstår, tilstand, trin).resultat()
+
+# Afskrivningslov40CAcontoskatÅrsSag(input: Afskrivningslov40CAcontoskatÅrsinput) {
+    | ejendomstabshændelser_entydige() -> afskrivningslov40c_ejendomstabshændelser_entydige(input.ejendomstabshændelser)
+    | saldopositioner_gyldige() -> afskrivningslov40c_negative_saldopositioner_gyldige(input.negative_saldopositioner_primo, input.indkomstår)
+    | acontoskattepositioner_gyldige() -> afskrivningslov40c_acontoskat_trancher_gyldige(input.fremførte_acontoskattepositioner_primo, input.indkomstår)
+    | positioners_og_hændelsers_identifikationer_adskilte() -> length(distinct(concat(map(input.fremførte_acontoskattepositioner_primo, |tranche: Afskrivningslov40CAcontoskatTranche| tranche.identifikation), map(input.ejendomstabshændelser, |hændelse: Afskrivningslov40CEjendomstabshændelse| hændelse.identifikation)))) == length(input.fremførte_acontoskattepositioner_primo) + length(input.ejendomstabshændelser)
+    | grundfakta_gyldige() -> input.indkomstår > 0 && input.egen_slutskat_med_restskat_mv_før_al40c_kroner >= 0 && input.ægtefælles_slutskat_mv_kroner >= 0 && (input.har_ægtefælle || input.ægtefælles_slutskat_mv_kroner == 0) && ejendomstabshændelser_entydige() && afskrivningslov40c_ejendomstabshændelser_grundfakta_gyldige(input.ejendomstabshændelser, input.indkomstår, input.har_ægtefælle) && saldopositioner_gyldige() && acontoskattepositioner_gyldige() && positioners_og_hændelsers_identifikationer_adskilte()
+    | ejendomstabsforløb() -> hvis grundfakta_gyldige() {
+        afskrivningslov40c_ejendomstab_årsforløb(input)
+    } ellers {
+        Afskrivningslov40CEjendomstabsforløbstilstand(
+            positioner = input.negative_saldopositioner_primo,
+            resultater = [],
+            alle_hændelser_gyldige = Falskt
+        )
+    }
+    | begyndelsestilstand() -> Afskrivningslov40CAcontoskatÅrstilstand(
+        egen_slutskat_resterende_kroner = input.egen_slutskat_med_restskat_mv_før_al40c_kroner,
+        ægtefælles_slutskat_resterende_kroner = input.ægtefælles_slutskat_mv_kroner,
+        kredit_til_egen_kildeskat_slutopgørelse_kroner = 0,
+        kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner = 0,
+        kontant_udbetaling_kroner = 0,
+        positioner_ultimo = [],
+        trinresultater = [],
+        alle_trin_gyldige = Sandt
+    )
+    | ugyldig_tilstand() -> Afskrivningslov40CAcontoskatÅrstilstand(
+        egen_slutskat_resterende_kroner = input.egen_slutskat_med_restskat_mv_før_al40c_kroner,
+        ægtefælles_slutskat_resterende_kroner = input.ægtefælles_slutskat_mv_kroner,
+        kredit_til_egen_kildeskat_slutopgørelse_kroner = 0,
+        kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner = 0,
+        kontant_udbetaling_kroner = 0,
+        positioner_ultimo = input.fremførte_acontoskattepositioner_primo,
+        trinresultater = [],
+        alle_trin_gyldige = Falskt
+    )
+    | efter_fremførte_positioner() -> hvis grundfakta_gyldige() && ejendomstabsforløb().alle_hændelser_gyldige {
+        foldl(
+            sort_by(input.fremførte_acontoskattepositioner_primo, afskrivningslov40c_acontoskat_tranche_sorteringsnøgle),
+            begyndelsestilstand(),
+            |tilstand: Afskrivningslov40CAcontoskatÅrstilstand, tranche: Afskrivningslov40CAcontoskatTranche| afskrivningslov40c_fremført_acontoskat_årsforløbstrin(input.indkomstår, tilstand, tranche)
+        )
+    } ellers {
+        ugyldig_tilstand()
+    }
+    | sluttilstand() -> hvis efter_fremførte_positioner().alle_trin_gyldige {
+        foldl(
+            ejendomstabsforløb().resultater,
+            efter_fremførte_positioner(),
+            |tilstand: Afskrivningslov40CAcontoskatÅrstilstand, trin: Afskrivningslov40CEjendomstabÅrstrinResultat| afskrivningslov40c_nyt_acontoskat_årsforløbstrin(input.indkomstår, tilstand, trin)
+        )
+    } ellers {
+        efter_fremførte_positioner()
+    }
+    | input_gyldigt() -> grundfakta_gyldige() && ejendomstabsforløb().alle_hændelser_gyldige && sluttilstand().alle_trin_gyldige
+    | nye_acontoskattebeløb_kroner() -> foldl(ejendomstabsforløb().resultater, 0, |sum: Heltal, trin: Afskrivningslov40CEjendomstabÅrstrinResultat| sum + trin.ejendomstab_resultat.anset_indbetalt_acontoskat_kroner)
+    | samlet_acontoskat_før_kroner() -> afskrivningslov40c_acontoskat_trancher_beløb_kroner(input.fremførte_acontoskattepositioner_primo) + nye_acontoskattebeløb_kroner()
+    | fremført_ultimo_kroner() -> afskrivningslov40c_acontoskat_trancher_beløb_kroner(sluttilstand().positioner_ultimo)
+    | samlet_acontoskat_anvendt_eller_fremført_kroner() -> sluttilstand().kredit_til_egen_kildeskat_slutopgørelse_kroner + sluttilstand().kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner + fremført_ultimo_kroner()
+    | værdibevarelse_opfyldt() -> input_gyldigt() && samlet_acontoskat_anvendt_eller_fremført_kroner() == samlet_acontoskat_før_kroner()
+    | resultat() -> Afskrivningslov40CAcontoskatÅrsresultat(
+        input = input,
+        grundfakta_gyldige = grundfakta_gyldige(),
+        ejendomstabshændelser_entydige = ejendomstabshændelser_entydige(),
+        saldopositioner_gyldige = saldopositioner_gyldige(),
+        acontoskattepositioner_gyldige = acontoskattepositioner_gyldige(),
+        input_gyldigt = input_gyldigt(),
+        ejendomstabsresultater = ejendomstabsforløb().resultater,
+        negative_saldopositioner_ultimo = ejendomstabsforløb().positioner,
+        acontoskatteresultater = sluttilstand().trinresultater,
+        egen_slutskat_efter_kroner = sluttilstand().egen_slutskat_resterende_kroner,
+        ægtefælles_slutskat_efter_kroner = sluttilstand().ægtefælles_slutskat_resterende_kroner,
+        kredit_til_egen_kildeskat_slutopgørelse_kroner = hvis input_gyldigt() { sluttilstand().kredit_til_egen_kildeskat_slutopgørelse_kroner } ellers { 0 },
+        kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner = hvis input_gyldigt() { sluttilstand().kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner } ellers { 0 },
+        kontant_udbetaling_kroner = hvis input_gyldigt() { sluttilstand().kontant_udbetaling_kroner } ellers { 0 },
+        fremførte_acontoskattepositioner_ultimo = sluttilstand().positioner_ultimo,
+        samlet_acontoskat_før_kroner = samlet_acontoskat_før_kroner(),
+        samlet_acontoskat_anvendt_eller_fremført_kroner = samlet_acontoskat_anvendt_eller_fremført_kroner(),
+        værdibevarelse_opfyldt = værdibevarelse_opfyldt()
+    )
+}
+| afskrivningslov40c_acontoskat_årsresultat(input: Afskrivningslov40CAcontoskatÅrsinput) -> Afskrivningslov40CAcontoskatÅrsSag(input).resultat()
 --@end:afskrivningsloven_par40c--
 
 = afskrivningsloven_par40d_metadata = Metadata(

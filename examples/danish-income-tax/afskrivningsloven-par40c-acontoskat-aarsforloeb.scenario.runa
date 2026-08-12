@@ -1,0 +1,113 @@
+@ sprog da
+
+@ importer ./afskrivningsloven
+
+| al40c_acontoskat_saldoposition(identifikation: Tekst, indkomstår: Heltal, beløb_kroner: Heltal) -> Afskrivningslov40CNegativSaldoPosition(
+    identifikation = identifikation,
+    indkomstår = indkomstår,
+    oprindeligt_indtægtsført_kroner = beløb_kroner,
+    tidligere_modregnet_i_ejendomstab_kroner = 0
+)
+
+| al40c_acontoskat_fremført_tranche(identifikation: Tekst, oprindelsesår: Heltal, beløb_kroner: Heltal) -> Afskrivningslov40CAcontoskatTranche(
+    identifikation = identifikation,
+    position = Afskrivningslov40CAcontoskatPosition(
+        oprindelsesår = oprindelsesår,
+        resterende_fremført_acontoskat_kroner = beløb_kroner
+    )
+)
+
+| al40c_acontoskat_ejendomstab(
+    identifikation: Tekst,
+    måned: Heltal,
+    tab_kroner: Heltal,
+    overdragelse: Afskrivningslov40CAcontoskatOverdragelse,
+    gift_og_samlevende: Boolsk
+) -> Afskrivningslov40CEjendomstabshændelse(
+    identifikation = identifikation,
+    afståelsesdato = AfskrivningslovDato(år = 2026, måned = måned, dag = 1),
+    ejendomskategori = AlLandbrugsejendom,
+    fradragsberettiget_tab_efter_ejendomsavancebeskatningsloven_kroner = tab_kroner,
+    overdragelse = overdragelse,
+    gift_og_samlevende_ved_udgangen_af_året_før_overdragelsen = gift_og_samlevende
+)
+
+= al40c_acontoskat_fremført_og_nyt = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2026,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-2024", 2024, 200000)],
+    fremførte_acontoskattepositioner_primo = [al40c_acontoskat_fremført_tranche("aconto-2025", 2025, 30000)],
+    ejendomstabshændelser = [al40c_acontoskat_ejendomstab("ejendom-2026", 6, 200000, Al40CIngenSuccession, Falskt)],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 50000,
+    har_ægtefælle = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+= al40c_acontoskat_fremført_og_nyt_med_succession = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2026,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-2024-succession", 2024, 200000)],
+    fremførte_acontoskattepositioner_primo = [al40c_acontoskat_fremført_tranche("aconto-2025-succession", 2025, 30000)],
+    ejendomstabshændelser = [al40c_acontoskat_ejendomstab("ejendom-2026-succession", 6, 200000, Al40CSuccessionEfterKildeskattelov33C, Sandt)],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 40000,
+    har_ægtefælle = Sandt,
+    ægtefælles_slutskat_mv_kroner = 10000
+))
+
+= al40c_acontoskat_to_ejendomstab_deler_saldo = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2026,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-2023", 2023, 100000)],
+    fremførte_acontoskattepositioner_primo = [],
+    ejendomstabshændelser = [
+        al40c_acontoskat_ejendomstab("ejendom-sen", 9, 80000, Al40CIngenSuccession, Falskt),
+        al40c_acontoskat_ejendomstab("ejendom-tidlig", 5, 80000, Al40CIngenSuccession, Falskt)
+    ],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 100000,
+    har_ægtefælle = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+= al40c_acontoskat_dobbelt_ejendomsidentitet = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2026,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-dobbelt", 2024, 100000)],
+    fremførte_acontoskattepositioner_primo = [],
+    ejendomstabshændelser = [
+        al40c_acontoskat_ejendomstab("samme-ejendom", 5, 50000, Al40CIngenSuccession, Falskt),
+        al40c_acontoskat_ejendomstab("samme-ejendom", 6, 50000, Al40CIngenSuccession, Falskt)
+    ],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 100000,
+    har_ægtefælle = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+= al40c_acontoskat_forkert_ejendomsår = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2025,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-forkert-år", 2024, 100000)],
+    fremførte_acontoskattepositioner_primo = [],
+    ejendomstabshændelser = [al40c_acontoskat_ejendomstab("ejendom-forkert-år", 5, 100000, Al40CIngenSuccession, Falskt)],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 100000,
+    har_ægtefælle = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+= al40c_acontoskat_genbrugt_trancheidentitet = afskrivningslov40c_acontoskat_årsresultat(Afskrivningslov40CAcontoskatÅrsinput(
+    indkomstår = 2026,
+    negative_saldopositioner_primo = [al40c_acontoskat_saldoposition("saldo-identitet", 2024, 100000)],
+    fremførte_acontoskattepositioner_primo = [al40c_acontoskat_fremført_tranche("samme-tranche", 2025, 10000)],
+    ejendomstabshændelser = [al40c_acontoskat_ejendomstab("samme-tranche", 5, 100000, Al40CIngenSuccession, Falskt)],
+    egen_slutskat_med_restskat_mv_før_al40c_kroner = 100000,
+    har_ægtefælle = Falskt,
+    ægtefælles_slutskat_mv_kroner = 0
+))
+
+| al40c_acontoskat_fremført_anvendes_før_nyt_beløb: al40c_acontoskat_fremført_og_nyt -> al40c_acontoskat_fremført_og_nyt.input_gyldigt && al40c_acontoskat_fremført_og_nyt.værdibevarelse_opfyldt && al40c_acontoskat_fremført_og_nyt.samlet_acontoskat_før_kroner == 74000 && al40c_acontoskat_fremført_og_nyt.kredit_til_egen_kildeskat_slutopgørelse_kroner == 74000 && al40c_acontoskat_fremført_og_nyt.kontant_udbetaling_kroner == 24000 && al40c_acontoskat_fremført_og_nyt.egen_slutskat_efter_kroner == 0 && length(al40c_acontoskat_fremført_og_nyt.fremførte_acontoskattepositioner_ultimo) == 0 && head(al40c_acontoskat_fremført_og_nyt.acontoskatteresultater).resultat.fradrag_i_egen_slutskat_kroner == 30000 && al40c_acontoskat_fremført_og_nyt.acontoskatteresultater[1].resultat.fradrag_i_egen_slutskat_kroner == 20000
+| al40c_acontoskat_succession_bevarer_egen_ægtefælle_og_fremførsel: al40c_acontoskat_fremført_og_nyt_med_succession -> al40c_acontoskat_fremført_og_nyt_med_succession.input_gyldigt && al40c_acontoskat_fremført_og_nyt_med_succession.værdibevarelse_opfyldt && al40c_acontoskat_fremført_og_nyt_med_succession.kredit_til_egen_kildeskat_slutopgørelse_kroner == 40000 && al40c_acontoskat_fremført_og_nyt_med_succession.kredit_til_ægtefælles_kildeskat_slutopgørelse_kroner == 10000 && al40c_acontoskat_fremført_og_nyt_med_succession.kontant_udbetaling_kroner == 0 && afskrivningslov40c_acontoskat_trancher_beløb_kroner(al40c_acontoskat_fremført_og_nyt_med_succession.fremførte_acontoskattepositioner_ultimo) == 24000 && al40c_acontoskat_fremført_og_nyt_med_succession.samlet_acontoskat_anvendt_eller_fremført_kroner == 74000
+| al40c_acontoskat_to_tab_kan_ikke_genbruge_samme_saldo: al40c_acontoskat_to_ejendomstab_deler_saldo -> al40c_acontoskat_to_ejendomstab_deler_saldo.input_gyldigt && al40c_acontoskat_to_ejendomstab_deler_saldo.værdibevarelse_opfyldt && head(al40c_acontoskat_to_ejendomstab_deler_saldo.ejendomstabsresultater).hændelse.identifikation == "ejendom-tidlig" && head(al40c_acontoskat_to_ejendomstab_deler_saldo.ejendomstabsresultater).ejendomstab_resultat.modregnet_i_ejendomstab_kroner == 80000 && al40c_acontoskat_to_ejendomstab_deler_saldo.ejendomstabsresultater[1].ejendomstab_resultat.modregnet_i_ejendomstab_kroner == 20000 && al40c_acontoskat_to_ejendomstab_deler_saldo.kredit_til_egen_kildeskat_slutopgørelse_kroner == 22000 && head(al40c_acontoskat_to_ejendomstab_deler_saldo.negative_saldopositioner_ultimo).tidligere_modregnet_i_ejendomstab_kroner == 100000
+| al40c_acontoskat_dobbelt_ejendomsidentitet_fejler_lukket: al40c_acontoskat_dobbelt_ejendomsidentitet -> al40c_acontoskat_dobbelt_ejendomsidentitet.ejendomstabshændelser_entydige == Falskt && al40c_acontoskat_dobbelt_ejendomsidentitet.input_gyldigt == Falskt && al40c_acontoskat_dobbelt_ejendomsidentitet.kredit_til_egen_kildeskat_slutopgørelse_kroner == 0
+| al40c_acontoskat_forkert_ejendomsår_fejler_lukket: al40c_acontoskat_forkert_ejendomsår -> al40c_acontoskat_forkert_ejendomsår.input_gyldigt == Falskt && al40c_acontoskat_forkert_ejendomsår.kredit_til_egen_kildeskat_slutopgørelse_kroner == 0
+| al40c_acontoskat_genbrugt_trancheidentitet_fejler_lukket: al40c_acontoskat_genbrugt_trancheidentitet -> al40c_acontoskat_genbrugt_trancheidentitet.grundfakta_gyldige == Falskt && al40c_acontoskat_genbrugt_trancheidentitet.input_gyldigt == Falskt && al40c_acontoskat_genbrugt_trancheidentitet.kredit_til_egen_kildeskat_slutopgørelse_kroner == 0
+
+? al40c_acontoskat_fremført_anvendes_før_nyt_beløb
+? al40c_acontoskat_succession_bevarer_egen_ægtefælle_og_fremførsel
+? al40c_acontoskat_to_tab_kan_ikke_genbruge_samme_saldo
+? al40c_acontoskat_dobbelt_ejendomsidentitet_fejler_lukket
+? al40c_acontoskat_forkert_ejendomsår_fejler_lukket
+? al40c_acontoskat_genbrugt_trancheidentitet_fejler_lukket
