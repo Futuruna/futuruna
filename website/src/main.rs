@@ -3572,6 +3572,8 @@ fn Footer() -> Element {
                     a { href: "/docs", "Documentation" }
                     span { class: "footer-sep", "|" }
                     a { href: "/playground", "Playground" }
+                    span { class: "footer-sep", "|" }
+                    a { href: "mailto:research@futuruna.com", "research@futuruna.com" }
                 }
             }
         }
