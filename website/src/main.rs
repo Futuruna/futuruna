@@ -372,9 +372,7 @@ fn AiGuide() -> Element {
                         }
                     }
                     p {
-                        "The guide tells the AI how to inspect your environment, clone Futuruna, build and verify "
-                        code { "runa" }
-                        ", protect private data, and lead your first formal-rule project. Verification only prints the version and interprets one known example—no full test suite."
+                        "The guide tells the AI how to inspect your environment, integrate Futuruna and build and verify. Please read it yourself to understand it has no harm or fault. It will guide you to your first usage of Futuruna after installation."
                     }
                     a {
                         class: "ai-guide-link",
