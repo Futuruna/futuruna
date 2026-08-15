@@ -365,25 +365,57 @@
 | par59_valgperiode: rigsret_valgperiode_år -> rigsret_valgperiode_år == 6
 
 -- Par. 59: afbalancering — inhabilde dommere reducerer begge sider
-= par59_fuld = rigsret_afbalanceret(dommermedlemmer = 15, inhabilde = 0)
-= par59_3_inhabilde = rigsret_afbalanceret(dommermedlemmer = 15, inhabilde = 3)
-= par59_alle_inhabilde = rigsret_afbalanceret(dommermedlemmer = 15, inhabilde = 15)
-= par59_paritet = rigsret_medlemmer_fra_folketinget(15)
+= par59_grundsammensætning = Rigsretsgrundsammensætning(
+    dommermedlemmer_fra_rigets_øverste_domstol = 15,
+    folketingsvalgte_medlemmer = 15,
+    dommermedlemmer_udvalgt_efter_embedsalder = Sandt,
+    folketingsmedlemmer_valgt_efter_forholdstal = Sandt,
+    stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem = Sandt,
+    et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten = Falskt
+)
+= par59_fuld_sag = Rigsretssagssammensætning(
+    grundsammensætning = par59_grundsammensætning,
+    dommermedlemmer_som_ikke_kan_deltage = 0,
+    sidst_valgte_rigsretsmedlemmer_som_fratræder = 0
+)
+= par59_3_inhabilde_sag = Rigsretssagssammensætning(
+    grundsammensætning = par59_grundsammensætning,
+    dommermedlemmer_som_ikke_kan_deltage = 3,
+    sidst_valgte_rigsretsmedlemmer_som_fratræder = 3
+)
+= par59_fuld = par59_fuld_sag.deltagende_dommermedlemmer()
+= par59_3_inhabilde = par59_3_inhabilde_sag.deltagende_dommermedlemmer()
+= par59_paritet = par59_3_inhabilde_sag.er_afbalanceret_efter_par59_stk1()
 | par59_fuld_besætning: par59_fuld -> par59_fuld == 15
 | par59_reduceret: par59_3_inhabilde -> par59_3_inhabilde == 12
-| par59_ingen_dommere: par59_alle_inhabilde -> par59_alle_inhabilde == 0
-| par59_paritet_sikret: par59_paritet -> par59_paritet == rigsret_max_dommermedlemmer
+| par59_paritet_sikret: par59_paritet -> par59_paritet == Sandt
 
 -- Par. 60 stk. 2: samtykke-mønster
-= par60_tiltale_uden = tiltale_andre_ved_rigsretten(IkkeGivet)
-= par60_tiltale_med = tiltale_andre_ved_rigsretten(Givet)
+= par60_sag_mod_anden_uden_samtykke = Rigsretssag(
+    tiltaler = KongenSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    folketingets_samtykke = IkkeGivet
+)
+= par60_sag_mod_anden_med_samtykke = Rigsretssag(
+    tiltaler = KongenSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    folketingets_samtykke = Givet
+)
+= par60_tiltale_uden = par60_sag_mod_anden_uden_samtykke.kan_påkendes_efter_par60()
+= par60_tiltale_med = par60_sag_mod_anden_med_samtykke.kan_påkendes_efter_par60()
 | par60_tiltale_nej: par60_tiltale_uden -> par60_tiltale_uden == Falskt
 | par60_tiltale_ja: par60_tiltale_med -> par60_tiltale_med == Sandt
 
--- Par. 64: dommerpensionsalder
-| par64_pensionsalder: dommer_pensionsalder -> dommer_pensionsalder == 65
-= par64_64 = dommer_kan_afskediges_ved_alder(64)
-= par64_65 = dommer_kan_afskediges_ved_alder(65)
+-- Par. 64: dommerafskedigelsesalder
+| par64_afskedigelsesalder: dommer_afskedigelsesalder -> dommer_afskedigelsesalder == 65
+= par64_64 = dommerindgreb_opfylder_par64(Aldersafskedigelse(
+    alder = 64,
+    indtægter_bevaret_til_pligtig_afgangsalder = Sandt
+))
+= par64_65 = dommerindgreb_opfylder_par64(Aldersafskedigelse(
+    alder = 65,
+    indtægter_bevaret_til_pligtig_afgangsalder = Sandt
+))
 | par64_under_65_nej: par64_64 -> par64_64 == Falskt
 | par64_65_ja: par64_65 -> par64_65 == Sandt
 
@@ -392,8 +424,18 @@
 | par71_frist_kendelse: frist_kendelse_dage -> frist_kendelse_dage == 3
 
 -- Par. 73 stk. 2: 1/3 kan kræve ekspropriationsudsættelse (samme tærskel som par. 42)
-= par73_1f3 = kan_kræve_ekspropriationsudsættelse(begærende = 60, medlemmer = 179)
-= par73_under = kan_kræve_ekspropriationsudsættelse(begærende = 59, medlemmer = 179)
+= par73_1f3 = Ekspropriationsudsættelsesbegæring(
+    lovforslag_vedrører_ekspropriation_af_ejendom = Sandt,
+    lovforslag_endeligt_vedtaget = Sandt,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3
+).opfylder_par73_stk2()
+= par73_under = Ekspropriationsudsættelsesbegæring(
+    lovforslag_vedrører_ekspropriation_af_ejendom = Sandt,
+    lovforslag_endeligt_vedtaget = Sandt,
+    opbakning = Medlemsopbakning(antal = 59, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3
+).opfylder_par73_stk2()
 | par73_begæring_nok: par73_1f3 -> par73_1f3 == Sandt
 | par73_begæring_nej: par73_under -> par73_under == Falskt
 
@@ -492,7 +534,11 @@
 -- § 29 lader loven bestemme, hvornår understøttelse betragtet som fattighjælp
 -- medfører tab af valgret. Grundloven åbner dermed en lovgivningskanal, men
 -- fastslår ikke selv, at modtagelse af hjælp medfører tab af valgret.
-= par75_hjælp_ret = ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
+= par75_hjælp_ret = OffentligHjælpssag(
+    kan_selv_ernære_sig_eller_sine = Falskt,
+    forsørgelsen_påhviler_en_anden = Falskt,
+    underkaster_sig_lovpåbudte_forpligtelser = Sandt
+).har_ret_til_offentlig_hjælp_efter_par75_stk2()
 = par29_fattighjælp_valgretstab_lovkanal = omfang_af_tab_af_valgret_fastsættes_ved_lov(UnderstøttelseBetragtetSomFattighjælp)
 | par75_hjælp_er_ret: par75_hjælp_ret -> par75_hjælp_ret == Sandt
 | par29_fattighjælp_kan_koste_valgret: par29_fattighjælp_valgretstab_lovkanal -> par29_fattighjælp_valgretstab_lovkanal == Sandt
@@ -565,47 +611,75 @@
 | delegation_tab_af_valgret: omfang_af_tab_af_valgret_fastsættes_ved_lov(Straf) -> omfang_af_tab_af_valgret_fastsættes_ved_lov(Straf) && omfang_af_tab_af_valgret_fastsættes_ved_lov(UnderstøttelseBetragtetSomFattighjælp)
 | delegation_valgmåde: valgmåde_fastsættes_ved_valglov() -> valgmåde_fastsættes_ved_valglov()
 | delegation_rigsretten: rigsretten_fastsættes_ved_lov() -> rigsretten_fastsættes_ved_lov()
-| delegation_dømmende_magt: dømmende_magt_ordnes_ved_lov() -> dømmende_magt_ordnes_ved_lov()
-| delegation_adskillelse: adskillelse_fastsættes_ved_lov() -> adskillelse_fastsættes_ved_lov()
-| delegation_forvaltningsdomstole: forvaltningsdomstole_fastsættes_ved_lov() -> forvaltningsdomstole_fastsættes_ved_lov()
-| delegation_lægmandsmedvirken: lægmandsmedvirken_fastsættes_ved_lov() -> lægmandsmedvirken_fastsættes_ved_lov()
-| delegation_nævningesager: nævningesager_fastsættes_ved_lov() -> nævningesager_fastsættes_ved_lov()
+= audit_retsplejeordning = Retsplejeordning(
+    retsplejen_adskilt_fra_forvaltningen = Sandt,
+    regler_fastsat_ved_lov = Sandt
+)
+= audit_forvaltningsdomstolsordning = Forvaltningsdomstolsordning(
+    henlagt_ved_lov = Sandt,
+    afgørelser_kan_prøves_ved_rigets_øverste_domstol = Sandt,
+    nærmere_regler_fastsat_ved_lov = Sandt
+)
+= audit_strafferetsplejeordning = Strafferetsplejeordning(
+    lægmænd_medvirker = Sandt,
+    medvirkningens_sager_og_former_fastsat_ved_lov = Sandt,
+    nævningesager_fastsat_ved_lov = Sandt
+)
+| delegation_dømmende_magt: dømmende_magts_ordning_opfylder_par61(Sandt) -> dømmende_magts_ordning_opfylder_par61(Sandt)
+| delegation_adskillelse: audit_retsplejeordning.opfylder_par62() -> audit_retsplejeordning.opfylder_par62()
+| delegation_forvaltningsdomstole: audit_forvaltningsdomstolsordning.opfylder_par63_stk2() -> audit_forvaltningsdomstolsordning.opfylder_par63_stk2()
+| delegation_strafferetsplejens_lægmandsordning: audit_strafferetsplejeordning.opfylder_par65_stk2() -> audit_strafferetsplejeordning.opfylder_par65_stk2()
 | delegation_folkekirkens_forfatning: folkekirkens_forfatning_ordnes_ved_lov() -> folkekirkens_forfatning_ordnes_ved_lov()
 | delegation_afvigende_trossamfund: afvigende_trossamfund_ordnes_ved_lov() -> afvigende_trossamfund_ordnes_ved_lov()
 | delegation_frihedsberøvelse_prøvelse: prøvelse_af_frihedsberøvelse_fastsættes_ved_lov() -> prøvelse_af_frihedsberøvelse_fastsættes_ved_lov()
 
--- Tværgående: par. 3 vs par. 61-62 — domstolenes uafhængighed
--- § 3: dømmende magt hos domstolene. § 61: kun ordnes ved lov, ingen særdomstole.
--- § 62: retspleje adskilt fra forvaltning. § 64: dommere kun efter loven.
-| par3_par61_uafhængighed: dømmende_magt_ordnes_ved_lov() -> dømmende_magt_ordnes_ved_lov()
-| par3_par62_adskillelse: retspleje_adskilt_fra_forvaltning() -> retspleje_adskilt_fra_forvaltning()
+-- Tværgående: par. 3 og par. 61-64 — placering, ordning og dommerens normbinding
+= par3_dømmende_magt = statsmagtens_placering(Dømmende)
+| par3_par61_dømmende_magt_og_lovordning: par3_dømmende_magt -> par3_dømmende_magt == Magtplacering(magt = Dømmende, udøvelse = Hos(organ = Domstolene)) && dømmende_magts_ordning_opfylder_par61(Sandt)
+| par3_par62_adskillelse: audit_retsplejeordning.opfylder_par62() -> audit_retsplejeordning.opfylder_par62()
 | par3_par64_lovbundethed: dommere_retter_sig_alene_efter_loven() -> dommere_retter_sig_alene_efter_loven()
 
 -- Tværgående: par. 16 vs par. 60 — rigsretten gentager ministreansvaret
 -- § 16 (kap. III): rigsretten påkender ministersager.
 -- § 60 (kap. VI): rigsretten påkender sager anlagt af kongen eller folketinget.
-| par16_par60_kongen: rigsretten_påkender_ministersager_anlagt_af_kongen() -> rigsretten_påkender_ministersager_anlagt_af_kongen()
-| par16_par60_folketinget: rigsretten_påkender_ministersager_anlagt_af_folketinget() -> rigsretten_påkender_ministersager_anlagt_af_folketinget()
+= par60_ministersag_fra_kongen = Rigsretssag(tiltaler = KongenSomRigsretstiltaler, tiltalt = Minister, folketingets_samtykke = IkkeGivet).kan_påkendes_efter_par60()
+= par60_ministersag_fra_folketinget = Rigsretssag(tiltaler = FolketingetSomRigsretstiltaler, tiltalt = Minister, folketingets_samtykke = IkkeGivet).kan_påkendes_efter_par60()
+| par16_par60_kongen: par60_ministersag_fra_kongen -> par60_ministersag_fra_kongen
+| par16_par60_folketinget: par60_ministersag_fra_folketinget -> par60_ministersag_fra_folketinget
 
--- Tværgående: par. 27 stk. 3 vs par. 64 — forflyttelse-beskyttelse
--- § 27 stk. 3: tjenestemænd kan ikke forflyttes mod ønske uden indkomsttab-garanti.
--- § 64: dommere kan SLET IKKE forflyttes mod ønske (undtaget omordning).
--- Dommere har stærkere beskyttelse end øvrige tjenestemænd.
-| par64_stærkere_end_par27: dommere_kan_ikke_forflyttes_mod_ønske() -> dommere_kan_ikke_forflyttes_mod_ønske()
+-- Tværgående: par. 27 stk. 3 og par. 64 — forskellige forflyttelsesbetingelser
+= par27_forflyttelse_uden_indkomsttab_og_med_valg = forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(ForflyttelseUdenSamtykke(
+    indkomsttab = Falskt,
+    valg_mellem_forflyttelse_og_afsked_med_pension = Sandt
+))
+= par64_forflyttelse_uden_omordning = dommerindgreb_opfylder_par64(ForflyttelseModØnske(
+    omordning_af_domstolene_finder_sted = Falskt
+))
+| par27_par64_forskellige_forflyttelsesbetingelser: par27_forflyttelse_uden_indkomsttab_og_med_valg -> par27_forflyttelse_uden_indkomsttab_og_med_valg && par64_forflyttelse_uden_omordning == Falskt
 
--- Tværgående: par. 6 vs par. 70 — troskrav vs diskriminationsforbud
--- § 6: kongen SKAL høre til den evangelisk-lutherske kirke.
--- § 70: INGEN kan berøves rettigheder pga. trosbekendelse.
--- Kongerollen er en undtagelse fra det generelle diskriminationsforbud.
--- Grundloven forbyder selv det, den kræver af monarken.
-| par6_vs_par70_kongen_undtaget: ingen_diskrimination_ved_trosbekendelse() -> ingen_diskrimination_ved_trosbekendelse()
+-- Tværgående: par. 6 og par. 70 — troskrav og rettighedsberøvelse
+-- Kildemodellen viser begge ordlydsnære krav. Om kongestillingen er en
+-- borgerlig eller politisk rettighed efter § 70, afgøres ikke her.
+= par70_trosbaseret_borgerlig_rettighedsberøvelse = Par70Sag(
+    grund = Trosbekendelse,
+    virkning = BerøvelseAfRettighed(rettighed = BorgerligRettighed),
+    virkningen_sker_på_grund_af_grunden = Sandt
+).opfylder_par70()
+| par6_par70_ordlydsnære_resultater: par6_luthersk -> par6_luthersk && par6_katolsk == Falskt && par70_trosbaseret_borgerlig_rettighedsberøvelse == Falskt
 
--- Tværgående: par. 4 vs par. 67-68 — statskirke vs religionsfrihed
--- § 4: staten understøtter folkekirken. § 67: religionsfrihed.
--- § 68: ingen pligt til at bidrage til fremmed gudsdyrkelse.
--- Statens understøttelse sker via skatter — alle betaler, uanset tro.
-| par4_par67_statskirke_vs_frihed: religionsfrihed() -> religionsfrihed()
-| par4_par68_bidragsfrihed: ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse() -> ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse()
+-- Tværgående: par. 4 og par. 67-68 — understøttelse og individuel religionsudøvelse
+= par67_beskyttet_lære = Religionsudøvelse(
+    udtryk = Lære,
+    stemmer_med_overbevisningen = Sandt,
+    strider_mod_sædeligheden = Falskt,
+    strider_mod_den_offentlige_orden = Falskt
+).er_beskyttet_efter_par67()
+= par68_intet_pligtbidrag_til_anden_gudsdyrkelse = PersonligtBidragsforhold(
+    gudsdyrkelse = AndenGudsdyrkelse,
+    bidragspligt_pålagt = Falskt
+).opfylder_par68()
+| par4_par67_understøttelse_og_religionsudøvelse: staten_understøtter_folkekirken() -> staten_understøtter_folkekirken() && par67_beskyttet_lære
+| par4_par68_understøttelse_og_personligt_bidrag: staten_understøtter_folkekirken() -> staten_understøtter_folkekirken() && par68_intet_pligtbidrag_til_anden_gudsdyrkelse
 
 -- Tværgående: par. 42 stk. 1 og par. 73 stk. 2 deler 1/3-tærskel
 | tærskel_symmetri_42_73: par42_1f3 -> par42_1f3 == par73_1f3
@@ -619,24 +693,27 @@
 | ukrænkelighed_bolig: boligen_er_ukrænkelig() -> boligen_er_ukrænkelig()
 | ukrænkelighed_ejendom: ejendomsretten_er_ukrænkelig() -> ejendomsretten_er_ukrænkelig()
 
--- Tværgående: par. 61 vs par. 73 stk. 3 — særdomstole
--- § 61: særdomstole med dømmende myndighed kan IKKE nedsættes.
--- § 73 stk. 3: erstatningsprøvelse KAN henlægges til domstole oprettet i dette øjemed.
--- § 73 skaber en eksplicit undtagelse fra § 61's forbud mod særdomstole.
-| par61_vs_par73_særdomstol_undtagelse: erstatningsprøvelse_kan_henlægges_til_særlige_domstole() -> erstatningsprøvelse_kan_henlægges_til_særlige_domstole()
+-- Tværgående: par. 61 og par. 73 stk. 3 — to ordlydsnære domstolsregler
+-- Kildemodellen afgør ikke, om en domstol oprettet til erstatningsprøvelse
+-- skal klassificeres som en særdomstol efter § 61 eller som en undtagelse.
+= par61_særdomstol_kan_nedsættes = særdomstol_med_dømmende_myndighed_kan_nedsættes_efter_par61()
+= par73_særlig_erstatningsdomstol = Ekspropriationsprøvelse(
+    emne = ErstatningensStørrelse,
+    vej = SærligErstatningsdomstol(oprettet_ved_lov = Sandt)
+).opfylder_par73_stk3()
+| par61_par73_ordlydsnære_domstolsresultater: par61_særdomstol_kan_nedsættes -> par61_særdomstol_kan_nedsættes == Falskt && par73_særlig_erstatningsdomstol
 
 -- Tværgående: par. 43 vs par. 73 — beskatning vs ekspropriation
 -- § 43: skat kræver lov. § 73: ekspropriation kræver fuldstændig erstatning.
--- Grundloven definerer IKKE grænsen mellem beskatning og ekspropriation.
--- En skat på 100% er forfatningsmæssigt en "skat" (§ 43 — kræver blot lov),
--- men i praksis en total ekspropriation (§ 73 — kræver erstatning).
--- Ingen bestemmelse forbyder konfiskatorisk beskatning. Ingen støttelov
--- fastsætter en øvre grænse. § 43 og § 73 opererer i parallelle spor
--- uden berøringsflade.
+-- Kildemodellen rummer ikke en klassifikationsregel, som afgør, hvornår en
+-- økonomisk byrde hører under den ene eller den anden bestemmelse.
 | par43_skat_kræver_lov: ingen_skat_uden_lov() -> ingen_skat_uden_lov()
-| par73_ekspropriation_kræver_erstatning: ekspropriation_mod_fuldstændig_erstatning() -> ekspropriation_mod_fuldstændig_erstatning()
--- Begge holder — men en 100% skattesats opfylder § 43 og omgår § 73.
--- Grundloven er strukturelt tavs om denne grænse.
+= par73_ekspropriation_med_alle_betingelser = Ekspropriationssag(
+    almenvellet_kræver_afståelsen = Sandt,
+    afståelsen_sker_ifølge_lov = Sandt,
+    fuldstændig_erstatning_ydes = Sandt
+).opfylder_par73_stk1()
+| par73_ekspropriation_kræver_alle_betingelser: par73_ekspropriation_med_alle_betingelser -> par73_ekspropriation_med_alle_betingelser
 
 -- Par. 73 stk. 2: frist
 | par73_frist: ekspropriation_frist_søgnedage -> ekspropriation_frist_søgnedage == 3
@@ -646,95 +723,142 @@
 
 -- Delegationer (kap. VIII, §§ 75-85)
 | delegation_opløsningens_retsvirkninger: opløsningens_retsvirkninger_fastsættes_ved_lov() -> opløsningens_retsvirkninger_fastsættes_ved_lov()
-| delegation_værnepligt: værnepligtens_omfang_fastsættes_ved_lov() -> værnepligtens_omfang_fastsættes_ved_lov()
-| delegation_kommuner: kommunernes_styrelse_ordnes_ved_lov() -> kommunernes_styrelse_ordnes_ved_lov()
+= audit_værnepligt_med_lovgrundlag = Værnepligtssag(
+    våbenførhed = Våbenfør,
+    køn = Mand,
+    lovgrundlag = NærmereBestemmelserFastsatVedLov
+)
+= audit_kommunal_styrelsesordning = KommunalStyrelsesordning(
+    selvstændig_styring_af_egne_anliggender = Sandt,
+    under_statens_tilsyn = Sandt,
+    ordnet_ved_lov = Sandt
+)
+| delegation_værnepligt: audit_værnepligt_med_lovgrundlag.opfylder_par81() -> audit_værnepligt_med_lovgrundlag.opfylder_par81()
+| delegation_kommuner: audit_kommunal_styrelsesordning.opfylder_par82() -> audit_kommunal_styrelsesordning.opfylder_par82()
 
--- Tværgående: par. 85 — militære undtagelser og det § 77 IKKE nævner
--- § 85 indskrænker §§ 71, 78, 79 for forsvarsmagten.
--- MEN § 77 (ytringsfrihed) er IKKE nævnt — soldater beholder ytringsfriheden.
--- Ej heller § 72 (bolig) eller § 73 (ejendom).
--- Kun de "politiske" friheder indskrænkes: personlig frihed (disciplin),
--- foreningsfrihed (ingen militære fagforeninger), forsamlingsfrihed (ingen
--- militære protester). Ytringsfrihed, bolig og ejendomsret er intakte.
-| par85_undtager_par71: indskrænkning_af_personlig_frihed_for_forsvarsmagten() -> indskrænkning_af_personlig_frihed_for_forsvarsmagten()
-| par85_undtager_par78: indskrænkning_af_foreningsfrihed_for_forsvarsmagten() -> indskrænkning_af_foreningsfrihed_for_forsvarsmagten()
-| par85_undtager_par79: indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten() -> indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten()
--- § 77 bevaret for militæret — ytringsfrihed er en hårdere garanti
-| par85_par77_ytringsfrihed_bevaret: ytringsfrihed_i_tale() -> ytringsfrihed_i_tale()
+-- Tværgående: par. 85 — ordlydens udtrykkelige henvisninger
+-- § 85 henviser til §§ 71, 78 og 79, men ikke § 77. Fraværet af en henvisning
+-- afgør ikke i sig selv, hvilke andre retsgrundlag der kan begrænse en rettighed.
+= par85_indskrænkning_par71 = MilitærIndskrænkning(bestemmelse = PersonligFrihedPar71, følger_af_militære_loves_forskrifter = Sandt)
+= par85_indskrænkning_par77 = MilitærIndskrænkning(bestemmelse = YtringsfrihedPar77, følger_af_militære_loves_forskrifter = Sandt)
+= par85_indskrænkning_par78 = MilitærIndskrænkning(bestemmelse = ForeningsfrihedPar78, følger_af_militære_loves_forskrifter = Sandt)
+= par85_indskrænkning_par79 = MilitærIndskrænkning(bestemmelse = ForsamlingsfrihedPar79, følger_af_militære_loves_forskrifter = Sandt)
+| par85_henviser_par71: par85_indskrænkning_par71.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> par85_indskrænkning_par71.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+| par85_henviser_par78: par85_indskrænkning_par78.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> par85_indskrænkning_par78.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+| par85_henviser_par79: par85_indskrænkning_par79.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> par85_indskrænkning_par79.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+| par85_henviser_ikke_par77: par85_indskrænkning_par77.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> par85_indskrænkning_par77.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() == Falskt
 
--- Tværgående: par. 81 + par. 85 — pligt og undtagelse
--- § 81 pålægger pligt (værnepligt). § 85 ophæver rettigheder for dem der tjener.
--- Tilsammen: staten kan tvinge til tjeneste OG indskrænke tjenestgørendes friheder.
-| par81_par85_pligt: værnepligt_for_våbenføre_mænd() -> værnepligt_for_våbenføre_mænd()
-| par81_par85_indskrænkning: indskrænkninger_kun_ifølge_militære_love() -> indskrænkninger_kun_ifølge_militære_love()
+-- Tværgående: par. 81 og par. 85 — pligt og lovbundne indskrænkninger
+| par81_ordlydens_personkreds: audit_værnepligt_med_lovgrundlag.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() -> audit_værnepligt_med_lovgrundlag.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar()
+| par81_par85_lovgrundlag: audit_værnepligt_med_lovgrundlag.opfylder_par81() -> audit_værnepligt_med_lovgrundlag.opfylder_par81() && par85_indskrænkning_par71.opfylder_par85()
 
 -- Tværgående: par. 70 vs par. 71 stk. 1 — diskriminationsgrundlag
 -- § 70: trosbekendelse + afstamning (borgerlige/politiske rettigheder).
 -- § 71: politisk overbevisning + religiøs overbevisning + afstamning (frihedsberøvelse).
--- § 71 OPSPLITTER "trosbekendelse" i politisk og religiøs og TILFØJER
--- politisk overbevisning som nyt grundlag. Fordi frihedsberøvelse er
--- statens mest indgribende magt, er beskyttelsen mere granulær.
--- § 70 nævner IKKE politisk overbevisning — asymmetri.
-| par70_tro: ingen_diskrimination_ved_trosbekendelse() -> ingen_diskrimination_ved_trosbekendelse()
-| par70_afstamning: ingen_diskrimination_ved_afstamning() -> ingen_diskrimination_ved_afstamning()
-| par71_tilføjer_politisk: ingen_frihedsberøvelse_pga_politisk_overbevisning() -> ingen_frihedsberøvelse_pga_politisk_overbevisning()
+-- Auditresultatet er en forskel i de udtrykkeligt nævnte grunde og virkninger,
+-- ikke en rangordning af bestemmelsernes styrke.
+= par70_trosbaseret_politisk_rettighedsberøvelse = Par70Sag(
+    grund = Trosbekendelse,
+    virkning = BerøvelseAfRettighed(rettighed = PolitiskRettighed),
+    virkningen_sker_på_grund_af_grunden = Sandt
+).opfylder_par70()
+= par70_afstamningsbaseret_borgerlig_rettighedsberøvelse = Par70Sag(
+    grund = AfstamningSomLigebehandlingsgrund,
+    virkning = BerøvelseAfRettighed(rettighed = BorgerligRettighed),
+    virkningen_sker_på_grund_af_grunden = Sandt
+).opfylder_par70()
+= par71_politisk_frihedsberøvelse_af_dansk_borger = Frihedsberøvelsessag(
+    personkreds = DanskBorger,
+    grund = PolitiskOverbevisning,
+    har_lovhjemmel = Sandt
+).opfylder_par71_stk1_og_2()
+| par70_tro: par70_trosbaseret_politisk_rettighedsberøvelse -> par70_trosbaseret_politisk_rettighedsberøvelse == Falskt
+| par70_afstamning: par70_afstamningsbaseret_borgerlig_rettighedsberøvelse -> par70_afstamningsbaseret_borgerlig_rettighedsberøvelse == Falskt
+| par71_politisk_overbevisning: par71_politisk_frihedsberøvelse_af_dansk_borger -> par71_politisk_frihedsberøvelse_af_dansk_borger == Falskt
 
 -- Tværgående: par. 57 vs par. 77 — to slags ytringsfrihed
 -- § 57 (kap. V): parlamentarisk immunitet — intet medlem kan drages til
 -- ansvar for ytringer i folketinget, medmindre folketinget samtykker.
 -- § 77 (kap. VIII): generel ytringsfrihed — alle borgere, men under
 -- ansvar for domstolene.
--- § 57 er STÆRKERE inden for folketinget (ansvar kræver Folketingets samtykke).
--- § 77 er BREDERE (alle borgere, men med domstolsansvar).
--- En parlamentariker har stærkere beskyttelse INDEN FOR salen end udenfor.
+-- Bestemmelserne har forskellige personkredse og ansvarsmekanismer. En
+-- sammenligning af deres samlede styrke kræver en særskilt fortolkning.
 = par57_ansvar_uden_samtykke = ansvar_uden_for_folketinget_for_ytring_opfylder_par57(Ytringsansvarssag(
     folketingets_samtykke = IkkeGivet
 ))
+= par77_offentliggørelse_under_domstolsansvar = Ytringssag(form = Tale).offentliggørelse_er_under_ansvar_for_domstolene()
 | par57_par77_parlamentarisk: par57_ansvar_uden_samtykke -> par57_ansvar_uden_samtykke == Falskt
-| par57_par77_generel: ytringsfrihed_under_ansvar_for_domstolene() -> ytringsfrihed_under_ansvar_for_domstolene()
+| par57_par77_generel: par77_offentliggørelse_under_domstolsansvar -> par77_offentliggørelse_under_domstolsansvar
 
 -- Tværgående: par. 72 vs par. 71 — retskendelse vs lovhjemmel
--- § 71: frihedsberøvelse kræver lovhjemmel (enhver lov kan autorisere).
--- § 72: husundersøgelse kræver retskendelse (dommerordre per tilfælde).
--- § 72's beskyttelse er proceduelt stærkere: hvert enkelt indgreb kræver
--- en individuel dommerhandling, ikke blot en generel lovhjemmel.
--- Begge starter med "ukrænkelig" — men undtagelsesmekanismen er forskellig.
-| par71_lovhjemmel: frihedsberøvelse_kræver_lovhjemmel() -> frihedsberøvelse_kræver_lovhjemmel()
-| par72_retskendelse: husundersøgelse_kræver_retskendelse() -> husundersøgelse_kræver_retskendelse()
+-- Begge starter med "ukrænkelig", men bruger forskellige hovedregler og
+-- udtrykkelige undtagelser. Auditresultatet rangordner dem ikke.
+= par71_frihedsberøvelse_med_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = AndenPerson,
+    grund = AndenFrihedsberøvelsesgrund,
+    har_lovhjemmel = Sandt
+).opfylder_par71_stk1_og_2()
+= par72_husundersøgelse_med_retskendelse = Privatlivsindgrebssag(
+    indgreb = Husundersøgelse,
+    retskendelse_foreligger = Sandt,
+    særegen_undtagelse_hjemlet_ved_lov = Falskt
+).opfylder_par72()
+| par71_lovhjemmel: par71_frihedsberøvelse_med_lovhjemmel -> par71_frihedsberøvelse_med_lovhjemmel
+| par72_retskendelse: par72_husundersøgelse_med_retskendelse -> par72_husundersøgelse_med_retskendelse
 
--- Tværgående: par. 73 vs par. 74 vs par. 75 — aftagende beskyttelsesstyrke
--- § 73: ejendomsretten er UKRÆNKELIG (stærkeste garanti, ekspropriation
--- kun mod fuldstændig erstatning).
--- § 74: erhvervsfrihed — indskrænkninger kun begrundet i almene vel
--- (betinget garanti).
--- § 75: arbejdsmulighed BØR tilstræbes (aspirationel, "bør" ≠ "skal").
--- Tre lag af økonomiske rettigheder med faldende bindende kraft:
--- ejendom (ukrænkelig) > erhverv (betinget) > arbejde (aspirationel).
+-- Tværgående: par. 73-75 — forskellige modaliteter for økonomiske forhold
+-- Kildemodellen bevarer "ukrænkelig", "skal" og "bør" som forskellige
+-- regelstrukturer uden at udlede en samlet rangordning.
+= par74_ubegrundet_indskrænkning_hævet_ved_lov = Erhvervsindskrænkning(
+    begrundet_i_det_almene_vel = Falskt,
+    hævet_ved_lov = Sandt
+).opfylder_par74()
+= par75_tilstræbt_uden_opnået_resultat = Arbejdsmulighedsmålsætning(
+    tilstræbt_til_fremme_af_almenvellet = Sandt,
+    arbejdsduelig_borger_har_mulighed_for_arbejde = Falskt,
+    arbejdsvilkår_betrygger_tilværelsen = Falskt
+).tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1()
 | par73_ejendom_ukrænkelig: ejendomsretten_er_ukrænkelig() -> ejendomsretten_er_ukrænkelig()
-| par74_erhverv_betinget: erhvervsindskrænkninger_kun_begrundet_i_almene_vel() -> erhvervsindskrænkninger_kun_begrundet_i_almene_vel()
-| par75_arbejde_aspirationel: arbejdsduelige_borgere_bør_have_mulighed_for_arbejde() -> arbejdsduelige_borgere_bør_have_mulighed_for_arbejde()
+| par74_erhvervsindskrænkningens_modalitet: par74_ubegrundet_indskrænkning_hævet_ved_lov -> par74_ubegrundet_indskrænkning_hævet_ved_lov
+| par75_arbejdsmulighedens_modalitet: par75_tilstræbt_uden_opnået_resultat -> par75_tilstræbt_uden_opnået_resultat
 
 -- Tværgående: par. 78 + par. 79 — "uden forudgående tilladelse"
 -- Begge bruger den identiske formulering "uden forudgående tilladelse" —
--- bevidst parallelt sprog for foreningsfrihed og forsamlingsfrihed.
--- Men begrænsningerne er asymmetriske:
--- § 78: forening opløses KUN ved dom (stærk beskyttelse).
--- § 79: forsamling under åben himmel kan FORBYDES ved fare (svagere).
--- Foreninger er sværere at ramme end forsamlinger.
-| par78_par79_forening_uden_tilladelse: foreningsfrihed_uden_forudgående_tilladelse() -> foreningsfrihed_uden_forudgående_tilladelse()
-| par78_par79_forsamling_uden_tilladelse: forsamlingsfrihed_uden_forudgående_tilladelse() -> forsamlingsfrihed_uden_forudgående_tilladelse()
-| par78_kun_dom: voldsforeninger_opløses_ved_dom() -> voldsforeninger_opløses_ved_dom()
-| par79_politiforbud: forsamlinger_under_åben_himmel_kan_forbydes_ved_fare() -> forsamlinger_under_åben_himmel_kan_forbydes_ved_fare()
+-- parallelt sprog, mens indgrebsbetingelserne er forskellige.
+= par78_forening_uden_tilladelse = forening_kan_dannes_uden_forudgående_tilladelse(LovligtFormål)
+= par79_forsamling_uden_tilladelse = Forsamlingssag(
+    ubevæbnet = Sandt,
+    offentlig = Sandt,
+    under_åben_himmel = Falskt,
+    fare_for_den_offentlige_fred = Falskt
+).kan_samles_uden_forudgående_tilladelse()
+= par78_voldspåvirkning = forening_skal_opløses_ved_dom(VirkerVed(påvirkning = Vold))
+= par79_udendørs_fare = Forsamlingssag(
+    ubevæbnet = Sandt,
+    offentlig = Sandt,
+    under_åben_himmel = Sandt,
+    fare_for_den_offentlige_fred = Sandt
+).kan_forbydes_efter_par79()
+| par78_par79_forening_uden_tilladelse: par78_forening_uden_tilladelse -> par78_forening_uden_tilladelse
+| par78_par79_forsamling_uden_tilladelse: par79_forsamling_uden_tilladelse -> par79_forsamling_uden_tilladelse
+| par78_voldspåvirkning_opløses_ved_dom: par78_voldspåvirkning -> par78_voldspåvirkning
+| par79_udendørs_fare_kan_forbydes: par79_udendørs_fare -> par79_udendørs_fare
 
 -- Tværgående: par. 71 stk. 6 vs par. 63 — udlændinge-undtagelsen
 -- § 63 stk. 1: domstolene prøver øvrighedens grænser (generel domstolsprøvelse).
--- § 71 stk. 6: administrativ frihedsberøvelse SKAL prøves af domstol —
--- MEN undtager eksplicit udlændingelovgivningen.
--- § 63 har INGEN tilsvarende undtagelse.
--- Udlændingedetention har svagere domstolsbeskyttelse end anden
--- administrativ frihedsberøvelse — en bevidst undtagelse i grundloven.
-| par63_generel_prøvelse: domstolene_prøver_øvrighedens_grænser() -> domstolene_prøver_øvrighedens_grænser()
-| par71_udlændinge_undtaget: undtaget_udlændingelovgivning() -> undtaget_udlændingelovgivning()
+-- § 71 stk. 6 undtager udlændingelovgivningen fra netop sin særlige
+-- forelæggelsespligt. Kildemodellen udleder ikke deraf manglende prøvelse ad
+-- andre veje.
+= par63_øvrighedsgrænse_kan_prøves = Øvrighedsgrænsesag(øvrighedens_befaling_foreløbigt_efterkommet = Sandt).kan_påkendes_af_domstolene_efter_par63_stk1()
+= par71_udlændingelovgivning_uden_for_stk6 = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Sandt,
+    begærer = DenFrihedsberøvede,
+    prøvelsesvej = IngenPrøvelsesvej
+).person_er_omfattet_af_par71_stk6()
+| par63_generel_prøvelse: par63_øvrighedsgrænse_kan_prøves -> par63_øvrighedsgrænse_kan_prøves
+| par71_udlændingelovgivning_uden_for_stk6: par71_udlændingelovgivning_uden_for_stk6 -> par71_udlændingelovgivning_uden_for_stk6 == Falskt
 
 -- Tværgående: par. 71 stk. 7 vs par. 55 — to folketingstilsyn
 -- § 55: folketinget vælger tilsynspersoner for civil og militær forvaltning
@@ -743,7 +867,19 @@
 -- To parallelle tilsynsmandater, begge valgt af folketinget.
 -- § 55 er generelt (al forvaltning). § 71 stk. 7 er specifikt (detention).
 | par55_generelt_tilsyn: folketinget_vælger_tilsynspersoner_ved_lov() -> folketinget_vælger_tilsynspersoner_ved_lov()
-| par71_specifikt_tilsyn: folketinget_vælger_tilsyn_med_frihedsberøvede() -> folketinget_vælger_tilsyn_med_frihedsberøvede()
+= par71_tilsynsgrundlag = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Falskt,
+    begærer = DenFrihedsberøvede,
+    prøvelsesvej = AlmindeligeDomstole
+)
+= par71_specifikt_tilsynsforløb = TilsynsforløbPar71(
+    frihedsberøvelse = par71_tilsynsgrundlag,
+    folketinget_har_valgt_tilsyn = Sandt,
+    den_frihedsberøvede_har_adgang_til_henvendelse = Sandt
+).opfylder_par71_stk7()
+| par71_specifikt_tilsyn: par71_specifikt_tilsynsforløb -> par71_specifikt_tilsynsforløb
 
 -- Tværgående: par. 23 vs par. 77 — foreløbige love vs censurforbud
 -- § 23: kongen kan udstede foreløbige love, "der dog ikke må stride mod
@@ -751,7 +887,6 @@
 -- § 77: censur kan "ingensinde påny" indføres — absolut forbud.
 -- En foreløbig lov kan aldrig indføre censur, fordi § 23 eksplicit
 -- underkaster sig grundloven, og § 77 er grundlov.
--- "Ingensinde påny" er grundlovens stærkeste sproglige garanti.
 = par23_grundlovsstridig_sag = ForeløbigLovssag(
     særdeles_påtrængende = Sandt,
     folketinget_kan_samles = Falskt,
@@ -759,14 +894,14 @@
 )
 = par23_grundlovsstridig_resultat = foreløbig_lov_kan_udstedes(par23_grundlovsstridig_sag)
 | par23_grundlovsbundet: par23_grundlovsstridig_resultat -> par23_grundlovsstridig_resultat == Falskt
-| par77_absolut_censurforbud: censur_kan_aldrig_indføres() -> censur_kan_aldrig_indføres()
+| par77_censur_kan_ikke_indføres: forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(Censur) -> forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(Censur) == Falskt
 
 -- Tværgående: par. 83-84 — feudal afskaffelse (par)
 -- § 83 fjerner eksisterende privilegier (adel, titel, rang).
 -- § 84 forhindrer nye feudale strukturer (len, stamhus, fideikommis).
--- Tilsammen: fuldstændig afskaffelse — bagudrettet (§ 83) + fremadrettet (§ 84).
-| feudal_bagud: adelsprivilegier_afskaffet() -> adelsprivilegier_afskaffet()
-| feudal_fremad: len_kan_ikke_oprettes() -> len_kan_ikke_oprettes()
+-- Tilsammen har bestemmelserne en bagudrettet og en fremadrettet regel.
+| feudal_bagud: forret_knyttet_i_lovgivningen_er_afskaffet(Adel) -> forret_knyttet_i_lovgivningen_er_afskaffet(Adel)
+| feudal_fremad: familiefideikommis_kan_oprettes_for_fremtiden(Len) -> familiefideikommis_kan_oprettes_for_fremtiden(Len) == Falskt
 
 -- Tværgående: par. 8 + par. 27 stk. 1 + par. 32 stk. 7 — tre eder
 -- Tre grupper aflægger forsikring om at holde grundloven:
@@ -890,11 +1025,10 @@
 ? par59_valgperiode
 ? par59_fuld_besætning
 ? par59_reduceret
-? par59_ingen_dommere
 ? par59_paritet_sikret
 ? par60_tiltale_nej
 ? par60_tiltale_ja
-? par64_pensionsalder
+? par64_afskedigelsesalder
 ? par64_under_65_nej
 ? par64_65_ja
 ? samtykke_5_60
@@ -902,14 +1036,13 @@
 ? delegation_dømmende_magt
 ? delegation_adskillelse
 ? delegation_forvaltningsdomstole
-? delegation_lægmandsmedvirken
-? delegation_nævningesager
-? par3_par61_uafhængighed
+? delegation_strafferetsplejens_lægmandsordning
+? par3_par61_dømmende_magt_og_lovordning
 ? par3_par62_adskillelse
 ? par3_par64_lovbundethed
 ? par16_par60_kongen
 ? par16_par60_folketinget
-? par64_stærkere_end_par27
+? par27_par64_forskellige_forflyttelsesbetingelser
 ? par71_frist_fremstilling
 ? par71_frist_kendelse
 ? par73_begæring_nok
@@ -917,48 +1050,48 @@
 ? delegation_folkekirkens_forfatning
 ? delegation_afvigende_trossamfund
 ? delegation_frihedsberøvelse_prøvelse
-? par6_vs_par70_kongen_undtaget
-? par4_par67_statskirke_vs_frihed
-? par4_par68_bidragsfrihed
+? par6_par70_ordlydsnære_resultater
+? par4_par67_understøttelse_og_religionsudøvelse
+? par4_par68_understøttelse_og_personligt_bidrag
 ? tærskel_symmetri_42_73
 ? ukrænkelighed_folketinget
 ? ukrænkelighed_person
 ? ukrænkelighed_bolig
 ? ukrænkelighed_ejendom
-? par61_vs_par73_særdomstol_undtagelse
+? par61_par73_ordlydsnære_domstolsresultater
 ? par43_skat_kræver_lov
-? par73_ekspropriation_kræver_erstatning
+? par73_ekspropriation_kræver_alle_betingelser
 ? par73_frist
 ? par80_opfordringer
 ? delegation_opløsningens_retsvirkninger
 ? delegation_værnepligt
 ? delegation_kommuner
-? par85_undtager_par71
-? par85_undtager_par78
-? par85_undtager_par79
-? par85_par77_ytringsfrihed_bevaret
-? par81_par85_pligt
-? par81_par85_indskrænkning
+? par85_henviser_par71
+? par85_henviser_par78
+? par85_henviser_par79
+? par85_henviser_ikke_par77
+? par81_ordlydens_personkreds
+? par81_par85_lovgrundlag
 ? par70_tro
 ? par70_afstamning
-? par71_tilføjer_politisk
+? par71_politisk_overbevisning
 ? par57_par77_parlamentarisk
 ? par57_par77_generel
 ? par71_lovhjemmel
 ? par72_retskendelse
 ? par73_ejendom_ukrænkelig
-? par74_erhverv_betinget
-? par75_arbejde_aspirationel
+? par74_erhvervsindskrænkningens_modalitet
+? par75_arbejdsmulighedens_modalitet
 ? par78_par79_forening_uden_tilladelse
 ? par78_par79_forsamling_uden_tilladelse
-? par78_kun_dom
-? par79_politiforbud
+? par78_voldspåvirkning_opløses_ved_dom
+? par79_udendørs_fare_kan_forbydes
 ? par63_generel_prøvelse
-? par71_udlændinge_undtaget
+? par71_udlændingelovgivning_uden_for_stk6
 ? par55_generelt_tilsyn
 ? par71_specifikt_tilsyn
 ? par23_grundlovsbundet
-? par77_absolut_censurforbud
+? par77_censur_kan_ikke_indføres
 ? feudal_bagud
 ? feudal_fremad
 ? ed_tjenestemand_gentagelse

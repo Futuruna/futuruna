@@ -1,0 +1,128 @@
+@ sprog da
+
+@ importer ./kapitel - 06
+
+-- Scenarierne prøver §§ 59-65 ved sammensætning, kompetence og proceduregrænser.
+
+= gyldig_rigsretsgrund = Rigsretsgrundsammensætning(
+    dommermedlemmer_fra_rigets_øverste_domstol = 15,
+    folketingsvalgte_medlemmer = 15,
+    dommermedlemmer_udvalgt_efter_embedsalder = Sandt,
+    folketingsmedlemmer_valgt_efter_forholdstal = Sandt,
+    stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem = Sandt,
+    et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten = Falskt
+)
+= rigsretsgrund_over_maksimum = Rigsretsgrundsammensætning(
+    dommermedlemmer_fra_rigets_øverste_domstol = 16,
+    folketingsvalgte_medlemmer = 16,
+    dommermedlemmer_udvalgt_efter_embedsalder = Sandt,
+    folketingsmedlemmer_valgt_efter_forholdstal = Sandt,
+    stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem = Sandt,
+    et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten = Falskt
+)
+= rigsretsgrund_uden_lige_antal = Rigsretsgrundsammensætning(
+    dommermedlemmer_fra_rigets_øverste_domstol = 15,
+    folketingsvalgte_medlemmer = 14,
+    dommermedlemmer_udvalgt_efter_embedsalder = Sandt,
+    folketingsmedlemmer_valgt_efter_forholdstal = Sandt,
+    stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem = Sandt,
+    et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten = Falskt
+)
+= rigsretsgrund_med_folketingsmedlem = Rigsretsgrundsammensætning(
+    dommermedlemmer_fra_rigets_øverste_domstol = 15,
+    folketingsvalgte_medlemmer = 15,
+    dommermedlemmer_udvalgt_efter_embedsalder = Sandt,
+    folketingsmedlemmer_valgt_efter_forholdstal = Sandt,
+    stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem = Sandt,
+    et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten = Sandt
+)
+
+| par59_grundsammensætningens_betingelser: gyldig_rigsretsgrund.opfylder_par59_stk1() -> gyldig_rigsretsgrund.opfylder_par59_stk1() && rigsretsgrund_over_maksimum.opfylder_par59_stk1() == Falskt && rigsretsgrund_uden_lige_antal.opfylder_par59_stk1() == Falskt && rigsretsgrund_med_folketingsmedlem.opfylder_par59_stk1() == Falskt
+
+= afbalanceret_rigsretssag = Rigsretssagssammensætning(
+    grundsammensætning = gyldig_rigsretsgrund,
+    dommermedlemmer_som_ikke_kan_deltage = 2,
+    sidst_valgte_rigsretsmedlemmer_som_fratræder = 2
+)
+= ubalanceret_rigsretssag = Rigsretssagssammensætning(
+    grundsammensætning = gyldig_rigsretsgrund,
+    dommermedlemmer_som_ikke_kan_deltage = 2,
+    sidst_valgte_rigsretsmedlemmer_som_fratræder = 1
+)
+
+| par59_sagens_sammensætning_forbliver_afbalanceret: afbalanceret_rigsretssag.er_afbalanceret_efter_par59_stk1() -> afbalanceret_rigsretssag.er_afbalanceret_efter_par59_stk1() && afbalanceret_rigsretssag.deltagende_dommermedlemmer() == 13 && afbalanceret_rigsretssag.deltagende_folketingsvalgte_medlemmer() == 13 && ubalanceret_rigsretssag.er_afbalanceret_efter_par59_stk1() == Falskt
+
+= gyldigt_formandsvalg = Rigsretsformandsvalg(valgt_af_retten = Sandt, valgt_blandt_rettens_medlemmer = Sandt)
+= formand_ikke_valgt_af_retten = Rigsretsformandsvalg(valgt_af_retten = Falskt, valgt_blandt_rettens_medlemmer = Sandt)
+= formand_valgt_uden_for_retten = Rigsretsformandsvalg(valgt_af_retten = Sandt, valgt_blandt_rettens_medlemmer = Falskt)
+
+| par59_formanden_kræver_begge_valgforhold: formandsvalg_opfylder_par59_stk2(gyldigt_formandsvalg) -> formandsvalg_opfylder_par59_stk2(gyldigt_formandsvalg) && formandsvalg_opfylder_par59_stk2(formand_ikke_valgt_af_retten) == Falskt && formandsvalg_opfylder_par59_stk2(formand_valgt_uden_for_retten) == Falskt
+| par59_mandatet_fortsætter_for_den_rejste_sag: folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(Rigsretsmandat(sag_rejst = Sandt, valgperiode_udløbet = Sandt)) -> folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(Rigsretsmandat(sag_rejst = Sandt, valgperiode_udløbet = Sandt)) && folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(Rigsretsmandat(sag_rejst = Falskt, valgperiode_udløbet = Sandt)) == Falskt
+
+= ministersag_rejst_af_kongen = Rigsretssag(tiltaler = KongenSomRigsretstiltaler, tiltalt = Minister, folketingets_samtykke = IkkeGivet)
+= ministersag_rejst_af_folketinget = Rigsretssag(tiltaler = FolketingetSomRigsretstiltaler, tiltalt = Minister, folketingets_samtykke = IkkeGivet)
+= gyldig_sag_mod_anden_person = Rigsretssag(
+    tiltaler = KongenSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    folketingets_samtykke = Givet
+)
+= anden_person_tiltalt_af_folketinget = Rigsretssag(
+    tiltaler = FolketingetSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    folketingets_samtykke = Givet
+)
+= anden_person_uden_farlighedsvurdering = Rigsretssag(
+    tiltaler = KongenSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Falskt),
+    folketingets_samtykke = Givet
+)
+= anden_person_uden_samtykke = Rigsretssag(
+    tiltaler = KongenSomRigsretstiltaler,
+    tiltalt = AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten = Sandt),
+    folketingets_samtykke = IkkeGivet
+)
+
+| par60_ministre_kan_tiltales_af_begge: ministersag_rejst_af_kongen.kan_påkendes_efter_par60() -> ministersag_rejst_af_kongen.kan_påkendes_efter_par60() && ministersag_rejst_af_folketinget.kan_påkendes_efter_par60()
+| par60_andre_personer_kræver_alle_tre_forhold: gyldig_sag_mod_anden_person.kan_påkendes_efter_par60() -> gyldig_sag_mod_anden_person.kan_påkendes_efter_par60() && anden_person_tiltalt_af_folketinget.kan_påkendes_efter_par60() == Falskt && anden_person_uden_farlighedsvurdering.kan_påkendes_efter_par60() == Falskt && anden_person_uden_samtykke.kan_påkendes_efter_par60() == Falskt
+
+| par61_kræver_lov_og_forbyder_særdomstole: dømmende_magts_ordning_opfylder_par61(Sandt) -> dømmende_magts_ordning_opfylder_par61(Sandt) && dømmende_magts_ordning_opfylder_par61(Falskt) == Falskt && særdomstol_med_dømmende_myndighed_kan_nedsættes_efter_par61() == Falskt
+
+= gyldig_retsplejeordning = Retsplejeordning(retsplejen_adskilt_fra_forvaltningen = Sandt, regler_fastsat_ved_lov = Sandt)
+= sammenblandet_retsplejeordning = Retsplejeordning(retsplejen_adskilt_fra_forvaltningen = Falskt, regler_fastsat_ved_lov = Sandt)
+= retsplejeordning_uden_lov = Retsplejeordning(retsplejen_adskilt_fra_forvaltningen = Sandt, regler_fastsat_ved_lov = Falskt)
+| par62_kræver_adskillelse_og_lov: gyldig_retsplejeordning.opfylder_par62() -> gyldig_retsplejeordning.opfylder_par62() && sammenblandet_retsplejeordning.opfylder_par62() == Falskt && retsplejeordning_uden_lov.opfylder_par62() == Falskt
+
+= efterkommet_øvrighedssag = Øvrighedsgrænsesag(øvrighedens_befaling_foreløbigt_efterkommet = Sandt)
+= ikke_efterkommet_øvrighedssag = Øvrighedsgrænsesag(øvrighedens_befaling_foreløbigt_efterkommet = Falskt)
+| par63_domstolsadgang_uden_opsættende_virkning: efterkommet_øvrighedssag.kan_påkendes_af_domstolene_efter_par63_stk1() -> efterkommet_øvrighedssag.kan_påkendes_af_domstolene_efter_par63_stk1() && efterkommet_øvrighedssag.foreløbig_efterlevelse_opfylder_par63_stk1() && ikke_efterkommet_øvrighedssag.foreløbig_efterlevelse_opfylder_par63_stk1() == Falskt && efterkommet_øvrighedssag.har_opsættende_virkning_efter_par63_stk1() == Falskt
+
+= gyldig_forvaltningsdomstolsordning = Forvaltningsdomstolsordning(henlagt_ved_lov = Sandt, afgørelser_kan_prøves_ved_rigets_øverste_domstol = Sandt, nærmere_regler_fastsat_ved_lov = Sandt)
+= forvaltningsdomstol_uden_henlæggelseslov = Forvaltningsdomstolsordning(henlagt_ved_lov = Falskt, afgørelser_kan_prøves_ved_rigets_øverste_domstol = Sandt, nærmere_regler_fastsat_ved_lov = Sandt)
+= forvaltningsdomstol_uden_prøvelsesvej = Forvaltningsdomstolsordning(henlagt_ved_lov = Sandt, afgørelser_kan_prøves_ved_rigets_øverste_domstol = Falskt, nærmere_regler_fastsat_ved_lov = Sandt)
+= forvaltningsdomstol_uden_nærmere_lovregler = Forvaltningsdomstolsordning(henlagt_ved_lov = Sandt, afgørelser_kan_prøves_ved_rigets_øverste_domstol = Sandt, nærmere_regler_fastsat_ved_lov = Falskt)
+| par63_forvaltningsdomstole_kræver_alle_forhold: gyldig_forvaltningsdomstolsordning.opfylder_par63_stk2() -> gyldig_forvaltningsdomstolsordning.opfylder_par63_stk2() && forvaltningsdomstol_uden_henlæggelseslov.opfylder_par63_stk2() == Falskt && forvaltningsdomstol_uden_prøvelsesvej.opfylder_par63_stk2() == Falskt && forvaltningsdomstol_uden_nærmere_lovregler.opfylder_par63_stk2() == Falskt
+
+| par64_afskedigelse_kræver_dom: dommerindgreb_opfylder_par64(Afsættelse(ved_dom = Sandt)) -> dommerindgreb_opfylder_par64(Afsættelse(ved_dom = Sandt)) && dommerindgreb_opfylder_par64(Afsættelse(ved_dom = Falskt)) == Falskt
+| par64_forflyttelse_kræver_omordning: dommerindgreb_opfylder_par64(ForflyttelseModØnske(omordning_af_domstolene_finder_sted = Sandt)) -> dommerindgreb_opfylder_par64(ForflyttelseModØnske(omordning_af_domstolene_finder_sted = Sandt)) && dommerindgreb_opfylder_par64(ForflyttelseModØnske(omordning_af_domstolene_finder_sted = Falskt)) == Falskt
+| par64_aldersgrænsen_og_indtægterne: dommerindgreb_opfylder_par64(Aldersafskedigelse(alder = 65, indtægter_bevaret_til_pligtig_afgangsalder = Sandt)) -> dommerindgreb_opfylder_par64(Aldersafskedigelse(alder = 65, indtægter_bevaret_til_pligtig_afgangsalder = Sandt)) && dommerindgreb_opfylder_par64(Aldersafskedigelse(alder = 64, indtægter_bevaret_til_pligtig_afgangsalder = Sandt)) == Falskt && dommerindgreb_opfylder_par64(Aldersafskedigelse(alder = 65, indtægter_bevaret_til_pligtig_afgangsalder = Falskt)) == Falskt
+
+| par65_begge_retsplejeprincipper_i_videst_muligt_omfang: Retsplejeprincipforløb(princip = Offentlighed, gennemført_i_videst_muligt_omfang = Sandt).opfylder_par65_stk1() -> Retsplejeprincipforløb(princip = Offentlighed, gennemført_i_videst_muligt_omfang = Sandt).opfylder_par65_stk1() && Retsplejeprincipforløb(princip = Mundtlighed, gennemført_i_videst_muligt_omfang = Sandt).opfylder_par65_stk1() && Retsplejeprincipforløb(princip = Offentlighed, gennemført_i_videst_muligt_omfang = Falskt).opfylder_par65_stk1() == Falskt
+| par65_strafferetsplejen_kræver_lægmænd_og_lovregler: Strafferetsplejeordning(lægmænd_medvirker = Sandt, medvirkningens_sager_og_former_fastsat_ved_lov = Sandt, nævningesager_fastsat_ved_lov = Sandt).opfylder_par65_stk2() -> Strafferetsplejeordning(lægmænd_medvirker = Sandt, medvirkningens_sager_og_former_fastsat_ved_lov = Sandt, nævningesager_fastsat_ved_lov = Sandt).opfylder_par65_stk2() && Strafferetsplejeordning(lægmænd_medvirker = Falskt, medvirkningens_sager_og_former_fastsat_ved_lov = Sandt, nævningesager_fastsat_ved_lov = Sandt).opfylder_par65_stk2() == Falskt && Strafferetsplejeordning(lægmænd_medvirker = Sandt, medvirkningens_sager_og_former_fastsat_ved_lov = Falskt, nævningesager_fastsat_ved_lov = Sandt).opfylder_par65_stk2() == Falskt && Strafferetsplejeordning(lægmænd_medvirker = Sandt, medvirkningens_sager_og_former_fastsat_ved_lov = Sandt, nævningesager_fastsat_ved_lov = Falskt).opfylder_par65_stk2() == Falskt
+
+? par59_grundsammensætningens_betingelser
+? par59_sagens_sammensætning_forbliver_afbalanceret
+? par59_formanden_kræver_begge_valgforhold
+? par59_mandatet_fortsætter_for_den_rejste_sag
+? par60_ministre_kan_tiltales_af_begge
+? par60_andre_personer_kræver_alle_tre_forhold
+? par61_kræver_lov_og_forbyder_særdomstole
+? par62_kræver_adskillelse_og_lov
+? par63_domstolsadgang_uden_opsættende_virkning
+? par63_forvaltningsdomstole_kræver_alle_forhold
+? par64_afskedigelse_kræver_dom
+? par64_forflyttelse_kræver_omordning
+? par64_aldersgrænsen_og_indtægterne
+? par65_begge_retsplejeprincipper_i_videst_muligt_omfang
+? par65_strafferetsplejen_kræver_lægmænd_og_lovregler
+
+@ skriv("Scenarierne for rigsret og domstole holder.")

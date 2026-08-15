@@ -26,30 +26,26 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 
 --@begin:grundlov_par59--
 
--- Stk. 1: sammensætning
 = rigsret_max_dommermedlemmer = 15
 = rigsret_valgperiode_år = 6
 
-| rigsret_valgte_medlemmer_svarer_til_dommermedlemmer()
-| rigsret_medlemmer_fra_folketinget(dommermedlemmer: Heltal) -> dommermedlemmer
+# Rigsretsgrundsammensætning(dommermedlemmer_fra_rigets_øverste_domstol: Heltal, folketingsvalgte_medlemmer: Heltal, dommermedlemmer_udvalgt_efter_embedsalder: Boolsk, folketingsmedlemmer_valgt_efter_forholdstal: Boolsk, stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem: Boolsk, et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten: Boolsk) {
+    | antal_er_konsistente() -> dommermedlemmer_fra_rigets_øverste_domstol > 0 && dommermedlemmer_fra_rigets_øverste_domstol <= rigsret_max_dommermedlemmer && folketingsvalgte_medlemmer == dommermedlemmer_fra_rigets_øverste_domstol
+    | opfylder_par59_stk1() -> antal_er_konsistente() && dommermedlemmer_udvalgt_efter_embedsalder && folketingsmedlemmer_valgt_efter_forholdstal && stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem && et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten == Falskt
+}
 
-| rigsret_valgt_efter_forholdstal()
-| rigsret_stedfortrædere_for_valgte()
+# Rigsretssagssammensætning(grundsammensætning: Rigsretsgrundsammensætning, dommermedlemmer_som_ikke_kan_deltage: Heltal, sidst_valgte_rigsretsmedlemmer_som_fratræder: Heltal) {
+    | er_konsistent() -> grundsammensætning.opfylder_par59_stk1() && dommermedlemmer_som_ikke_kan_deltage >= 0 && dommermedlemmer_som_ikke_kan_deltage <= grundsammensætning.dommermedlemmer_fra_rigets_øverste_domstol && sidst_valgte_rigsretsmedlemmer_som_fratræder == dommermedlemmer_som_ikke_kan_deltage
+    | deltagende_dommermedlemmer() -> grundsammensætning.dommermedlemmer_fra_rigets_øverste_domstol - dommermedlemmer_som_ikke_kan_deltage
+    | deltagende_folketingsvalgte_medlemmer() -> grundsammensætning.folketingsvalgte_medlemmer - sidst_valgte_rigsretsmedlemmer_som_fratræder
+    | er_afbalanceret_efter_par59_stk1() -> er_konsistent() && deltagende_dommermedlemmer() == deltagende_folketingsvalgte_medlemmer()
+}
 
--- Uforenelighed: folketingsmedlem ≠ rigsretsmedlem
-| folketingsmedlem_uforenelig_med_rigsretsmedlem()
+# Rigsretsformandsvalg(valgt_af_retten: Boolsk, valgt_blandt_rettens_medlemmer: Boolsk)
+# Rigsretsmandat(sag_rejst: Boolsk, valgperiode_udløbet: Boolsk)
 
--- Afbalancering: ved dommerinhabilitet fratræder sidst valgte
-| rigsret_afbalanceres_ved_dommerinhabilitet()
-| rigsret_afbalanceret(dommermedlemmer: Heltal, inhabilde: Heltal) -> hvis inhabilde > dommermedlemmer { 0 } ellers { dommermedlemmer - inhabilde }
-
--- Stk. 2
-| rigsretten_vælger_egen_formand()
-
--- Stk. 3: mandatbevarelse under verserende sag
-| valgte_beholder_sæde_under_verserende_sag()
-
--- Stk. 4
+| formandsvalg_opfylder_par59_stk2(valg: Rigsretsformandsvalg) -> valg.valgt_af_retten && valg.valgt_blandt_rettens_medlemmer
+| folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(mandat: Rigsretsmandat) -> mandat.sag_rejst && mandat.valgperiode_udløbet
 | rigsretten_fastsættes_ved_lov()
 --@end:grundlov_par59--
 
@@ -64,13 +60,14 @@ tiltale for forbrydelser, som han finder særdeles farlige for staten.
 
 --@begin:grundlov_par60--
 
--- Stk. 1 (uddyber par. 16 fra kapitel III)
-| rigsretten_påkender_ministersager_anlagt_af_kongen()
-| rigsretten_påkender_ministersager_anlagt_af_folketinget()
-
--- Stk. 2: samtykke-mønster
-| tiltale_af_andre_ved_rigsretten_kræver_samtykke()
-| tiltale_andre_ved_rigsretten(samtykke: Samtykke) -> samtykke == Givet
+# Rigsretstiltaler = KongenSomRigsretstiltaler | FolketingetSomRigsretstiltaler
+# Rigsretstiltalt = Minister | AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten: Boolsk)
+# Rigsretssag(tiltaler: Rigsretstiltaler, tiltalt: Rigsretstiltalt, folketingets_samtykke: Samtykke) {
+    | kan_påkendes_efter_par60() -> match tiltalt {
+        | Minister -> Sandt
+        | AndenPerson(kongen_finder_forbrydelsen_særdeles_farlig_for_staten) -> tiltaler == KongenSomRigsretstiltaler && kongen_finder_forbrydelsen_særdeles_farlig_for_staten && folketingets_samtykke == Givet
+    }
+}
 --@end:grundlov_par60--
 
 --@label:grundlov_par61::meta:grundlov_kildemetadata--
@@ -81,8 +78,8 @@ dømmende myndighed kan ikke nedsættes.
 
 --@begin:grundlov_par61--
 
-| dømmende_magt_ordnes_ved_lov()
-| særdomstole_forbudt()
+| dømmende_magts_ordning_opfylder_par61(ordning_fastlagt_ved_lov: Boolsk) -> ordning_fastlagt_ved_lov
+| særdomstol_med_dømmende_myndighed_kan_nedsættes_efter_par61() -> Falskt
 --@end:grundlov_par61--
 
 --@label:grundlov_par62::meta:grundlov_kildemetadata--
@@ -93,8 +90,9 @@ fastsættes ved lov.
 
 --@begin:grundlov_par62--
 
-| retspleje_adskilt_fra_forvaltning()
-| adskillelse_fastsættes_ved_lov()
+# Retsplejeordning(retsplejen_adskilt_fra_forvaltningen: Boolsk, regler_fastsat_ved_lov: Boolsk) {
+    | opfylder_par62() -> retsplejen_adskilt_fra_forvaltningen && regler_fastsat_ved_lov
+}
 --@end:grundlov_par62--
 
 --@label:grundlov_par63::meta:grundlov_kildemetadata--
@@ -112,14 +110,15 @@ ved lov.
 
 --@begin:grundlov_par63--
 
--- Stk. 1: domstolsprøvelse af forvaltningen
-| domstolene_prøver_øvrighedens_grænser()
-| foreløbig_efterlevelse_påkrævet()
+# Øvrighedsgrænsesag(øvrighedens_befaling_foreløbigt_efterkommet: Boolsk) {
+    | kan_påkendes_af_domstolene_efter_par63_stk1() -> Sandt
+    | foreløbig_efterlevelse_opfylder_par63_stk1() -> øvrighedens_befaling_foreløbigt_efterkommet
+    | har_opsættende_virkning_efter_par63_stk1() -> Falskt
+}
 
--- Stk. 2: forvaltningsdomstole med ankeadgang
-| forvaltningsdomstole_kan_oprettes_ved_lov()
-| forvaltningsdomstoles_afgørelser_kan_prøves_ved_højesteret()
-| forvaltningsdomstole_fastsættes_ved_lov()
+# Forvaltningsdomstolsordning(henlagt_ved_lov: Boolsk, afgørelser_kan_prøves_ved_rigets_øverste_domstol: Boolsk, nærmere_regler_fastsat_ved_lov: Boolsk) {
+    | opfylder_par63_stk2() -> henlagt_ved_lov && afgørelser_kan_prøves_ved_rigets_øverste_domstol && nærmere_regler_fastsat_ved_lov
+}
 --@end:grundlov_par63--
 
 --@label:grundlov_par64::meta:grundlov_kildemetadata--
@@ -133,17 +132,16 @@ tidspunkt, til hvilket han skulle være afskediget på grund af alder.
 
 --@begin:grundlov_par64--
 
-= dommer_pensionsalder = 65
+# Dommerindgreb = Afsættelse(ved_dom: Boolsk) | ForflyttelseModØnske(omordning_af_domstolene_finder_sted: Boolsk) | Aldersafskedigelse(alder: Heltal, indtægter_bevaret_til_pligtig_afgangsalder: Boolsk)
+
+= dommer_afskedigelsesalder = 65
 
 | dommere_retter_sig_alene_efter_loven()
-| dommere_kan_ikke_afsættes_uden_dom()
-| dommere_kan_ikke_forflyttes_mod_ønske()
-| forflyttelse_undtaget_ved_omordning()
-
-| dommer_afskedigelse_ved_alder_fra_femogtres()
-| dommer_kan_afskediges_ved_alder(alder: Heltal) -> alder >= 65
-
-| afskedigelse_ved_alder_uden_tab_af_indtægter()
+| dommerindgreb_opfylder_par64(indgreb: Dommerindgreb) -> match indgreb {
+    | Afsættelse(ved_dom) -> ved_dom
+    | ForflyttelseModØnske(omordning_finder_sted) -> omordning_finder_sted
+    | Aldersafskedigelse(alder, indtægter_bevaret) -> alder >= dommer_afskedigelsesalder && indtægter_bevaret
+}
 --@end:grundlov_par64--
 
 --@label:grundlov_par65::meta:grundlov_kildemetadata--
@@ -158,12 +156,15 @@ hvilke sager nævninger skal medvirke.
 
 --@begin:grundlov_par65--
 
--- Stk. 1: to retsplejeprincipper
-| retspleje_er_offentlig()
-| retspleje_er_mundtlig()
+# Retsplejeprincip = Offentlighed | Mundtlighed
+# Retsplejeprincipforløb(princip: Retsplejeprincip, gennemført_i_videst_muligt_omfang: Boolsk) {
+    | opfylder_par65_stk1() -> gennemført_i_videst_muligt_omfang && match princip {
+        | Offentlighed -> Sandt
+        | Mundtlighed -> Sandt
+    }
+}
 
--- Stk. 2: lægmænd i straffesager
-| lægmænd_medvirker_i_strafferetspleje()
-| lægmandsmedvirken_fastsættes_ved_lov()
-| nævningesager_fastsættes_ved_lov()
+# Strafferetsplejeordning(lægmænd_medvirker: Boolsk, medvirkningens_sager_og_former_fastsat_ved_lov: Boolsk, nævningesager_fastsat_ved_lov: Boolsk) {
+    | opfylder_par65_stk2() -> lægmænd_medvirker && medvirkningens_sager_og_former_fastsat_ved_lov && nævningesager_fastsat_ved_lov
+}
 --@end:grundlov_par65--

@@ -1,0 +1,246 @@
+@ sprog da
+
+@ importer ./kapitel - 08
+
+-- Scenarierne prøver §§ 71-73 ved personkreds, frister, undtagelser og prøvelsesveje.
+
+= dansk_borger_politisk_med_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = DanskBorger,
+    grund = PolitiskOverbevisning,
+    har_lovhjemmel = Sandt
+)
+= anden_person_politisk_med_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = AndenPerson,
+    grund = PolitiskOverbevisning,
+    har_lovhjemmel = Sandt
+)
+= anden_person_politisk_uden_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = AndenPerson,
+    grund = PolitiskOverbevisning,
+    har_lovhjemmel = Falskt
+)
+= dansk_borger_anden_grund_med_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = DanskBorger,
+    grund = AndenFrihedsberøvelsesgrund,
+    har_lovhjemmel = Sandt
+)
+= dansk_borger_anden_grund_uden_lovhjemmel = Frihedsberøvelsessag(
+    personkreds = DanskBorger,
+    grund = AndenFrihedsberøvelsesgrund,
+    har_lovhjemmel = Falskt
+)
+
+| par71_stk1_forbyder_beskyttet_grund_for_dansk_borger: dansk_borger_politisk_med_lovhjemmel.opfylder_par71_stk1_og_2() -> dansk_borger_politisk_med_lovhjemmel.opfylder_par71_stk1_og_2() == Falskt
+| par71_stk2_kræver_lovhjemmel_for_den_øvrige_flade: anden_person_politisk_med_lovhjemmel.opfylder_par71_stk1_og_2() -> anden_person_politisk_med_lovhjemmel.opfylder_par71_stk1_og_2() && anden_person_politisk_uden_lovhjemmel.opfylder_par71_stk1_og_2() == Falskt && dansk_borger_anden_grund_med_lovhjemmel.opfylder_par71_stk1_og_2() && dansk_borger_anden_grund_uden_lovhjemmel.opfylder_par71_stk1_og_2() == Falskt
+| par71_stk1_har_tre_beskyttede_grunde: dansk_borger_politisk_med_lovhjemmel.grund_er_beskyttet_efter_stk1() -> dansk_borger_politisk_med_lovhjemmel.grund_er_beskyttet_efter_stk1() && Frihedsberøvelsessag(personkreds = DanskBorger, grund = ReligiøsOverbevisning, har_lovhjemmel = Sandt).grund_er_beskyttet_efter_stk1() && Frihedsberøvelsessag(personkreds = DanskBorger, grund = AfstamningSomFrihedsberøvelsesgrund, har_lovhjemmel = Sandt).grund_er_beskyttet_efter_stk1() && dansk_borger_anden_grund_med_lovhjemmel.grund_er_beskyttet_efter_stk1() == Falskt
+
+= straks_løsladt_efter_24_timer = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 24,
+    straks_løsladt = Sandt,
+    kendelse_afsagt_snarest_muligt = Falskt,
+    dage_til_kendelse = 0,
+    kendelse_begrundet = Falskt,
+    fængslingsspørgsmålet_afgjort = Falskt,
+    løsladelse_mod_sikkerhed_mulig = Falskt,
+    sikkerhedens_art_og_størrelse_bestemt = Falskt
+)
+= straks_løsladt_efter_25_timer = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 25,
+    straks_løsladt = Sandt,
+    kendelse_afsagt_snarest_muligt = Falskt,
+    dage_til_kendelse = 0,
+    kendelse_begrundet = Falskt,
+    fængslingsspørgsmålet_afgjort = Falskt,
+    løsladelse_mod_sikkerhed_mulig = Falskt,
+    sikkerhedens_art_og_størrelse_bestemt = Falskt
+)
+= gyldig_kendelse_på_tredjedagen = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 24,
+    straks_løsladt = Falskt,
+    kendelse_afsagt_snarest_muligt = Sandt,
+    dage_til_kendelse = 3,
+    kendelse_begrundet = Sandt,
+    fængslingsspørgsmålet_afgjort = Sandt,
+    løsladelse_mod_sikkerhed_mulig = Falskt,
+    sikkerhedens_art_og_størrelse_bestemt = Falskt
+)
+= kendelse_på_fjerdedagen = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 24,
+    straks_løsladt = Falskt,
+    kendelse_afsagt_snarest_muligt = Sandt,
+    dage_til_kendelse = 4,
+    kendelse_begrundet = Sandt,
+    fængslingsspørgsmålet_afgjort = Sandt,
+    løsladelse_mod_sikkerhed_mulig = Falskt,
+    sikkerhedens_art_og_størrelse_bestemt = Falskt
+)
+= sikkerhed_uden_bestemt_art_og_størrelse = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 24,
+    straks_løsladt = Falskt,
+    kendelse_afsagt_snarest_muligt = Sandt,
+    dage_til_kendelse = 3,
+    kendelse_begrundet = Sandt,
+    fængslingsspørgsmålet_afgjort = Sandt,
+    løsladelse_mod_sikkerhed_mulig = Sandt,
+    sikkerhedens_art_og_størrelse_bestemt = Falskt
+)
+= sikkerhed_med_bestemt_art_og_størrelse = Anholdelsesforløb(
+    timer_til_fremstilling_for_dommer = 24,
+    straks_løsladt = Falskt,
+    kendelse_afsagt_snarest_muligt = Sandt,
+    dage_til_kendelse = 3,
+    kendelse_begrundet = Sandt,
+    fængslingsspørgsmålet_afgjort = Sandt,
+    løsladelse_mod_sikkerhed_mulig = Sandt,
+    sikkerhedens_art_og_størrelse_bestemt = Sandt
+)
+
+| par71_stk3_har_inklusive_24_timers_grænse: straks_løsladt_efter_24_timer.opfylder_hovedreglen_i_par71_stk3() -> straks_løsladt_efter_24_timer.opfylder_hovedreglen_i_par71_stk3() && straks_løsladt_efter_25_timer.opfylder_hovedreglen_i_par71_stk3() == Falskt
+| par71_stk3_har_inklusive_tredagesgrænse: gyldig_kendelse_på_tredjedagen.opfylder_hovedreglen_i_par71_stk3() -> gyldig_kendelse_på_tredjedagen.opfylder_hovedreglen_i_par71_stk3() && kendelse_på_fjerdedagen.opfylder_hovedreglen_i_par71_stk3() == Falskt
+| par71_stk3_kræver_sikkerhedens_art_og_størrelse: sikkerhed_med_bestemt_art_og_størrelse.opfylder_hovedreglen_i_par71_stk3() -> sikkerhed_med_bestemt_art_og_størrelse.opfylder_hovedreglen_i_par71_stk3() && sikkerhed_uden_bestemt_art_og_størrelse.opfylder_hovedreglen_i_par71_stk3() == Falskt
+
+= grønlandsk_fravigelse = Fremstillingssag(
+    sted = Grønland,
+    forløb = straks_løsladt_efter_25_timer,
+    grønlandsk_fravigelse_hjemlet_ved_lov = Sandt,
+    stedlige_forhold_gør_fravigelse_påkrævet = Sandt
+)
+= grønlandsk_fravigelse_uden_lov = Fremstillingssag(
+    sted = Grønland,
+    forløb = straks_løsladt_efter_25_timer,
+    grønlandsk_fravigelse_hjemlet_ved_lov = Falskt,
+    stedlige_forhold_gør_fravigelse_påkrævet = Sandt
+)
+= grønlandsk_fravigelse_uden_stedligt_behov = Fremstillingssag(
+    sted = Grønland,
+    forløb = straks_løsladt_efter_25_timer,
+    grønlandsk_fravigelse_hjemlet_ved_lov = Sandt,
+    stedlige_forhold_gør_fravigelse_påkrævet = Falskt
+)
+= dansk_fravigelsesforsøg = Fremstillingssag(
+    sted = Danmark,
+    forløb = straks_løsladt_efter_25_timer,
+    grønlandsk_fravigelse_hjemlet_ved_lov = Sandt,
+    stedlige_forhold_gør_fravigelse_påkrævet = Sandt
+)
+
+| par71_stk3_grønlandsundtagelsen_kræver_sted_lov_og_behov: grønlandsk_fravigelse.opfylder_par71_stk3() -> grønlandsk_fravigelse.opfylder_par71_stk3() && grønlandsk_fravigelse_uden_lov.opfylder_par71_stk3() == Falskt && grønlandsk_fravigelse_uden_stedligt_behov.opfylder_par71_stk3() == Falskt && dansk_fravigelsesforsøg.opfylder_par71_stk3() == Falskt
+
+| par71_stk4_kræver_alle_tre_ankeforhold: kendelsesanke_opfylder_par71_stk4(Kendelsesanke(straks_indbragt = Sandt, særskilt_indbragt = Sandt, indbragt_for_højere_ret = Sandt)) -> kendelsesanke_opfylder_par71_stk4(Kendelsesanke(straks_indbragt = Sandt, særskilt_indbragt = Sandt, indbragt_for_højere_ret = Sandt)) && kendelsesanke_opfylder_par71_stk4(Kendelsesanke(straks_indbragt = Falskt, særskilt_indbragt = Sandt, indbragt_for_højere_ret = Sandt)) == Falskt && kendelsesanke_opfylder_par71_stk4(Kendelsesanke(straks_indbragt = Sandt, særskilt_indbragt = Falskt, indbragt_for_højere_ret = Sandt)) == Falskt && kendelsesanke_opfylder_par71_stk4(Kendelsesanke(straks_indbragt = Sandt, særskilt_indbragt = Sandt, indbragt_for_højere_ret = Falskt)) == Falskt
+| par71_stk5_forbyder_varetægt_ved_kun_bøde_eller_hæfte: varetægtsfængsling_opfylder_par71_stk5(KanMedføreAndenStraf) -> varetægtsfængsling_opfylder_par71_stk5(KanMedføreAndenStraf) && varetægtsfængsling_opfylder_par71_stk5(KunBødeEllerHæfte) == Falskt
+
+= administrativ_frihedsberøvelse_med_domstolsvej = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Falskt,
+    begærer = DenFrihedsberøvede,
+    prøvelsesvej = AlmindeligeDomstole
+)
+= administrativ_frihedsberøvelse_med_anden_dømmende_vej = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Falskt,
+    begærer = RepræsentantForDenFrihedsberøvede,
+    prøvelsesvej = AndenDømmendeMyndighed
+)
+= administrativ_frihedsberøvelse_uden_prøvelsesvej = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Falskt,
+    begærer = DenFrihedsberøvede,
+    prøvelsesvej = IngenPrøvelsesvej
+)
+= administrativ_frihedsberøvelse_uden_begæring = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Falskt,
+    begærer = IngenPrøvelsesbegærer,
+    prøvelsesvej = IngenPrøvelsesvej
+)
+= udlændingelovshjemlet_frihedsberøvelse = AdministrativFrihedsberøvelse(
+    hører_til_strafferetsplejen = Falskt,
+    beslutning = IkkeBesluttetAfDømmendeMyndighed,
+    har_hjemmel_i_udlændingelovgivningen = Sandt,
+    begærer = DenFrihedsberøvede,
+    prøvelsesvej = IngenPrøvelsesvej
+)
+
+| par71_stk6_afgrænser_sit_eget_prøvelsesområde: administrativ_frihedsberøvelse_med_domstolsvej.person_er_omfattet_af_par71_stk6() -> administrativ_frihedsberøvelse_med_domstolsvej.person_er_omfattet_af_par71_stk6() && udlændingelovshjemlet_frihedsberøvelse.person_er_omfattet_af_par71_stk6() == Falskt
+| par71_stk6_tillader_begge_prøvelsesveje: administrativ_frihedsberøvelse_med_domstolsvej.prøvelsesforløb_opfylder_par71_stk6() -> administrativ_frihedsberøvelse_med_domstolsvej.prøvelsesforløb_opfylder_par71_stk6() && administrativ_frihedsberøvelse_med_anden_dømmende_vej.prøvelsesforløb_opfylder_par71_stk6() && administrativ_frihedsberøvelse_uden_prøvelsesvej.prøvelsesforløb_opfylder_par71_stk6() == Falskt
+| par71_stk6_kræver_en_berettiget_begæring: administrativ_frihedsberøvelse_med_domstolsvej.prøvelsespligt_indtræder_efter_par71_stk6() -> administrativ_frihedsberøvelse_med_domstolsvej.prøvelsespligt_indtræder_efter_par71_stk6() && administrativ_frihedsberøvelse_uden_begæring.prøvelsespligt_indtræder_efter_par71_stk6() == Falskt
+
+= gyldigt_tilsynsforløb = TilsynsforløbPar71(
+    frihedsberøvelse = administrativ_frihedsberøvelse_med_domstolsvej,
+    folketinget_har_valgt_tilsyn = Sandt,
+    den_frihedsberøvede_har_adgang_til_henvendelse = Sandt
+)
+= tilsynsforløb_uden_valgt_tilsyn = TilsynsforløbPar71(
+    frihedsberøvelse = administrativ_frihedsberøvelse_med_domstolsvej,
+    folketinget_har_valgt_tilsyn = Falskt,
+    den_frihedsberøvede_har_adgang_til_henvendelse = Sandt
+)
+= tilsynsforløb_uden_henvendelsesadgang = TilsynsforløbPar71(
+    frihedsberøvelse = administrativ_frihedsberøvelse_med_domstolsvej,
+    folketinget_har_valgt_tilsyn = Sandt,
+    den_frihedsberøvede_har_adgang_til_henvendelse = Falskt
+)
+
+| par71_stk7_kræver_tilsyn_og_henvendelsesadgang: gyldigt_tilsynsforløb.opfylder_par71_stk7() -> gyldigt_tilsynsforløb.opfylder_par71_stk7() && tilsynsforløb_uden_valgt_tilsyn.opfylder_par71_stk7() == Falskt && tilsynsforløb_uden_henvendelsesadgang.opfylder_par71_stk7() == Falskt
+
+= husundersøgelse_med_kendelse = Privatlivsindgrebssag(indgreb = Husundersøgelse, retskendelse_foreligger = Sandt, særegen_undtagelse_hjemlet_ved_lov = Falskt)
+= beslaglæggelse_med_kendelse = Privatlivsindgrebssag(indgreb = Beslaglæggelse, retskendelse_foreligger = Sandt, særegen_undtagelse_hjemlet_ved_lov = Falskt)
+= brevundersøgelse_med_kendelse = Privatlivsindgrebssag(indgreb = UndersøgelseAfBreveOgAndrePapirer, retskendelse_foreligger = Sandt, særegen_undtagelse_hjemlet_ved_lov = Falskt)
+= kommunikationsbrud_med_kendelse = Privatlivsindgrebssag(indgreb = BrudPåPostTelegrafEllerTelefonhemmeligheden, retskendelse_foreligger = Sandt, særegen_undtagelse_hjemlet_ved_lov = Falskt)
+= husundersøgelse_uden_kendelse_eller_undtagelse = Privatlivsindgrebssag(indgreb = Husundersøgelse, retskendelse_foreligger = Falskt, særegen_undtagelse_hjemlet_ved_lov = Falskt)
+= husundersøgelse_med_lovundtagelse = Privatlivsindgrebssag(indgreb = Husundersøgelse, retskendelse_foreligger = Falskt, særegen_undtagelse_hjemlet_ved_lov = Sandt)
+
+| par72_omfatter_alle_fire_indgreb: husundersøgelse_med_kendelse.opfylder_par72() -> husundersøgelse_med_kendelse.opfylder_par72() && beslaglæggelse_med_kendelse.opfylder_par72() && brevundersøgelse_med_kendelse.opfylder_par72() && kommunikationsbrud_med_kendelse.opfylder_par72()
+| par72_lovundtagelsen_er_nåelig_og_særegen: husundersøgelse_med_lovundtagelse.opfylder_par72() -> husundersøgelse_med_lovundtagelse.opfylder_par72() && husundersøgelse_uden_kendelse_eller_undtagelse.opfylder_par72() == Falskt
+
+= gyldig_ekspropriationssag = Ekspropriationssag(almenvellet_kræver_afståelsen = Sandt, afståelsen_sker_ifølge_lov = Sandt, fuldstændig_erstatning_ydes = Sandt)
+= ekspropriation_uden_almenvel = Ekspropriationssag(almenvellet_kræver_afståelsen = Falskt, afståelsen_sker_ifølge_lov = Sandt, fuldstændig_erstatning_ydes = Sandt)
+= ekspropriation_uden_lov = Ekspropriationssag(almenvellet_kræver_afståelsen = Sandt, afståelsen_sker_ifølge_lov = Falskt, fuldstændig_erstatning_ydes = Sandt)
+= ekspropriation_uden_fuld_erstatning = Ekspropriationssag(almenvellet_kræver_afståelsen = Sandt, afståelsen_sker_ifølge_lov = Sandt, fuldstændig_erstatning_ydes = Falskt)
+
+| par73_stk1_kræver_alle_tre_forhold: gyldig_ekspropriationssag.opfylder_par73_stk1() -> gyldig_ekspropriationssag.opfylder_par73_stk1() && ekspropriation_uden_almenvel.opfylder_par73_stk1() == Falskt && ekspropriation_uden_lov.opfylder_par73_stk1() == Falskt && ekspropriation_uden_fuld_erstatning.opfylder_par73_stk1() == Falskt
+
+= ekspropriationsbegæring_59 = Ekspropriationsudsættelsesbegæring(lovforslag_vedrører_ekspropriation_af_ejendom = Sandt, lovforslag_endeligt_vedtaget = Sandt, opbakning = Medlemsopbakning(antal = 59, medlemmer_i_alt = 179), søgnedage_efter_endelig_vedtagelse = 3)
+= ekspropriationsbegæring_60 = Ekspropriationsudsættelsesbegæring(lovforslag_vedrører_ekspropriation_af_ejendom = Sandt, lovforslag_endeligt_vedtaget = Sandt, opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179), søgnedage_efter_endelig_vedtagelse = 3)
+= ekspropriationsbegæring_dag_2 = Ekspropriationsudsættelsesbegæring(lovforslag_vedrører_ekspropriation_af_ejendom = Sandt, lovforslag_endeligt_vedtaget = Sandt, opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179), søgnedage_efter_endelig_vedtagelse = 2)
+= ekspropriationsbegæring_dag_4 = Ekspropriationsudsættelsesbegæring(lovforslag_vedrører_ekspropriation_af_ejendom = Sandt, lovforslag_endeligt_vedtaget = Sandt, opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179), søgnedage_efter_endelig_vedtagelse = 4)
+
+| par73_stk2_en_tredjedel_af_179_kræver_60_medlemmer: ekspropriationsbegæring_60.opfylder_par73_stk2() -> ekspropriationsbegæring_60.opfylder_par73_stk2() && ekspropriationsbegæring_59.opfylder_par73_stk2() == Falskt
+| par73_stk2_har_inklusive_tre_søgnedage: ekspropriationsbegæring_dag_2.opfylder_par73_stk2() -> ekspropriationsbegæring_dag_2.opfylder_par73_stk2() && ekspropriationsbegæring_60.opfylder_par73_stk2() && ekspropriationsbegæring_dag_4.opfylder_par73_stk2() == Falskt
+
+= stadfæstelsesforløb_efter_nyvalg_og_genvedtagelse = Ekspropriationsstadfæstelsesforløb(begæring = ekspropriationsbegæring_60, nyvalg_til_folketinget_afholdt = Sandt, forslaget_genvedtaget_af_det_nye_folketing = Sandt)
+= stadfæstelsesforløb_uden_nyvalg = Ekspropriationsstadfæstelsesforløb(begæring = ekspropriationsbegæring_60, nyvalg_til_folketinget_afholdt = Falskt, forslaget_genvedtaget_af_det_nye_folketing = Sandt)
+= stadfæstelsesforløb_uden_genvedtagelse = Ekspropriationsstadfæstelsesforløb(begæring = ekspropriationsbegæring_60, nyvalg_til_folketinget_afholdt = Sandt, forslaget_genvedtaget_af_det_nye_folketing = Falskt)
+
+| par73_stk2_kræver_nyvalg_og_genvedtagelse_efter_begæring: stadfæstelsesforløb_efter_nyvalg_og_genvedtagelse.opfylder_par73_stk2() -> stadfæstelsesforløb_efter_nyvalg_og_genvedtagelse.opfylder_par73_stk2() && stadfæstelsesforløb_uden_nyvalg.opfylder_par73_stk2() == Falskt && stadfæstelsesforløb_uden_genvedtagelse.opfylder_par73_stk2() == Falskt
+
+| par73_stk3_lovlighed_prøves_ved_almindelige_domstole: Ekspropriationsprøvelse(emne = EkspropriationsaktensLovlighed, vej = AlmindeligeDomstoleSomPrøvelsesvej).opfylder_par73_stk3() -> Ekspropriationsprøvelse(emne = EkspropriationsaktensLovlighed, vej = AlmindeligeDomstoleSomPrøvelsesvej).opfylder_par73_stk3() && Ekspropriationsprøvelse(emne = EkspropriationsaktensLovlighed, vej = SærligErstatningsdomstol(oprettet_ved_lov = Sandt)).opfylder_par73_stk3() == Falskt
+| par73_stk3_erstatning_har_to_lovlige_prøvelsesveje: Ekspropriationsprøvelse(emne = ErstatningensStørrelse, vej = AlmindeligeDomstoleSomPrøvelsesvej).opfylder_par73_stk3() -> Ekspropriationsprøvelse(emne = ErstatningensStørrelse, vej = AlmindeligeDomstoleSomPrøvelsesvej).opfylder_par73_stk3() && Ekspropriationsprøvelse(emne = ErstatningensStørrelse, vej = SærligErstatningsdomstol(oprettet_ved_lov = Sandt)).opfylder_par73_stk3() && Ekspropriationsprøvelse(emne = ErstatningensStørrelse, vej = SærligErstatningsdomstol(oprettet_ved_lov = Falskt)).opfylder_par73_stk3() == Falskt
+
+? par71_stk1_forbyder_beskyttet_grund_for_dansk_borger
+? par71_stk2_kræver_lovhjemmel_for_den_øvrige_flade
+? par71_stk1_har_tre_beskyttede_grunde
+? par71_stk3_har_inklusive_24_timers_grænse
+? par71_stk3_har_inklusive_tredagesgrænse
+? par71_stk3_kræver_sikkerhedens_art_og_størrelse
+? par71_stk3_grønlandsundtagelsen_kræver_sted_lov_og_behov
+? par71_stk4_kræver_alle_tre_ankeforhold
+? par71_stk5_forbyder_varetægt_ved_kun_bøde_eller_hæfte
+? par71_stk6_afgrænser_sit_eget_prøvelsesområde
+? par71_stk6_tillader_begge_prøvelsesveje
+? par71_stk6_kræver_en_berettiget_begæring
+? par71_stk7_kræver_tilsyn_og_henvendelsesadgang
+? par72_omfatter_alle_fire_indgreb
+? par72_lovundtagelsen_er_nåelig_og_særegen
+? par73_stk1_kræver_alle_tre_forhold
+? par73_stk2_en_tredjedel_af_179_kræver_60_medlemmer
+? par73_stk2_har_inklusive_tre_søgnedage
+? par73_stk2_kræver_nyvalg_og_genvedtagelse_efter_begæring
+? par73_stk3_lovlighed_prøves_ved_almindelige_domstole
+? par73_stk3_erstatning_har_to_lovlige_prøvelsesveje
+
+@ skriv("Scenarierne for frihedsindgreb og ekspropriation holder.")

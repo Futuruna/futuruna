@@ -1,0 +1,118 @@
+@ sprog da
+
+@ importer ./kapitel - 08
+
+-- Scenarierne prøver §§ 74-85 ved modalitet, lukkede domæner og undtagelsesgrænser.
+
+= erhvervsindskrænkning_begrundet_i_almenvellet = Erhvervsindskrænkning(begrundet_i_det_almene_vel = Sandt, hævet_ved_lov = Falskt)
+= ubegrundet_erhvervsindskrænkning_hævet_ved_lov = Erhvervsindskrænkning(begrundet_i_det_almene_vel = Falskt, hævet_ved_lov = Sandt)
+= ubegrundet_erhvervsindskrænkning_ikke_hævet = Erhvervsindskrænkning(begrundet_i_det_almene_vel = Falskt, hævet_ved_lov = Falskt)
+
+| par74_skiller_begrundede_og_ubegrundede_indskrænkninger: erhvervsindskrænkning_begrundet_i_almenvellet.opfylder_par74() -> erhvervsindskrænkning_begrundet_i_almenvellet.opfylder_par74() && ubegrundet_erhvervsindskrænkning_hævet_ved_lov.opfylder_par74() && ubegrundet_erhvervsindskrænkning_ikke_hævet.opfylder_par74() == Falskt
+
+= tilstræbt_men_ikke_opnået_arbejdsmulighed = Arbejdsmulighedsmålsætning(
+    tilstræbt_til_fremme_af_almenvellet = Sandt,
+    arbejdsduelig_borger_har_mulighed_for_arbejde = Falskt,
+    arbejdsvilkår_betrygger_tilværelsen = Falskt
+)
+= opnået_men_ikke_tilstræbt_arbejdsmulighed = Arbejdsmulighedsmålsætning(
+    tilstræbt_til_fremme_af_almenvellet = Falskt,
+    arbejdsduelig_borger_har_mulighed_for_arbejde = Sandt,
+    arbejdsvilkår_betrygger_tilværelsen = Sandt
+)
+
+| par75_stk1_bevarer_forskellen_mellem_tilstræbelse_og_resultat: tilstræbt_men_ikke_opnået_arbejdsmulighed.tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1() -> tilstræbt_men_ikke_opnået_arbejdsmulighed.tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1() && tilstræbt_men_ikke_opnået_arbejdsmulighed.målsætningens_tilsigtede_tilstand_er_opnået() == Falskt && opnået_men_ikke_tilstræbt_arbejdsmulighed.tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1() == Falskt && opnået_men_ikke_tilstræbt_arbejdsmulighed.målsætningens_tilsigtede_tilstand_er_opnået()
+
+= gyldig_offentlig_hjælpssag = OffentligHjælpssag(kan_selv_ernære_sig_eller_sine = Falskt, forsørgelsen_påhviler_en_anden = Falskt, underkaster_sig_lovpåbudte_forpligtelser = Sandt)
+= person_kan_selv_ernære_sig = OffentligHjælpssag(kan_selv_ernære_sig_eller_sine = Sandt, forsørgelsen_påhviler_en_anden = Falskt, underkaster_sig_lovpåbudte_forpligtelser = Sandt)
+= forsørgelsen_påhviler_en_anden = OffentligHjælpssag(kan_selv_ernære_sig_eller_sine = Falskt, forsørgelsen_påhviler_en_anden = Sandt, underkaster_sig_lovpåbudte_forpligtelser = Sandt)
+= forpligtelser_ikke_accepteret = OffentligHjælpssag(kan_selv_ernære_sig_eller_sine = Falskt, forsørgelsen_påhviler_en_anden = Falskt, underkaster_sig_lovpåbudte_forpligtelser = Falskt)
+
+| par75_stk2_kræver_alle_tre_forhold: gyldig_offentlig_hjælpssag.har_ret_til_offentlig_hjælp_efter_par75_stk2() -> gyldig_offentlig_hjælpssag.har_ret_til_offentlig_hjælp_efter_par75_stk2() && person_kan_selv_ernære_sig.har_ret_til_offentlig_hjælp_efter_par75_stk2() == Falskt && forsørgelsen_påhviler_en_anden.har_ret_til_offentlig_hjælp_efter_par75_stk2() == Falskt && forpligtelser_ikke_accepteret.har_ret_til_offentlig_hjælp_efter_par75_stk2() == Falskt
+
+= barn_i_undervisningspligtig_alder = Undervisningssag(barn_i_undervisningspligtig_alder = Sandt, forældre_eller_værger_sørger_selv_for_undervisning = Falskt, undervisningen_står_mål_med_folkeskolen = Falskt)
+= barn_uden_for_undervisningspligtig_alder = Undervisningssag(barn_i_undervisningspligtig_alder = Falskt, forældre_eller_værger_sørger_selv_for_undervisning = Falskt, undervisningen_står_mål_med_folkeskolen = Falskt)
+= tilsvarende_hjemmeundervisning = Undervisningssag(barn_i_undervisningspligtig_alder = Sandt, forældre_eller_værger_sørger_selv_for_undervisning = Sandt, undervisningen_står_mål_med_folkeskolen = Sandt)
+= utilstrækkelig_hjemmeundervisning = Undervisningssag(barn_i_undervisningspligtig_alder = Sandt, forældre_eller_værger_sørger_selv_for_undervisning = Sandt, undervisningen_står_mål_med_folkeskolen = Falskt)
+
+| par76_retten_følger_den_undervisningspligtige_alder: barn_i_undervisningspligtig_alder.barn_har_ret_til_fri_undervisning_i_folkeskolen() -> barn_i_undervisningspligtig_alder.barn_har_ret_til_fri_undervisning_i_folkeskolen() && barn_uden_for_undervisningspligtig_alder.barn_har_ret_til_fri_undervisning_i_folkeskolen() == Falskt
+| par76_fritagelsen_kræver_tilsvarende_egen_undervisning: tilsvarende_hjemmeundervisning.fritaget_fra_pligt_til_undervisning_i_folkeskolen() -> tilsvarende_hjemmeundervisning.fritaget_fra_pligt_til_undervisning_i_folkeskolen() && utilstrækkelig_hjemmeundervisning.fritaget_fra_pligt_til_undervisning_i_folkeskolen() == Falskt && barn_i_undervisningspligtig_alder.fritaget_fra_pligt_til_undervisning_i_folkeskolen() == Falskt
+
+| par77_omfatter_tryk_skrift_og_tale: Ytringssag(form = Tryk).retten_til_at_offentliggøre_tanker_omfatter_formen() -> Ytringssag(form = Tryk).retten_til_at_offentliggøre_tanker_omfatter_formen() && Ytringssag(form = Skrift).retten_til_at_offentliggøre_tanker_omfatter_formen() && Ytringssag(form = Tale).retten_til_at_offentliggøre_tanker_omfatter_formen()
+| par77_forbyder_begge_forebyggende_forholdsregler: forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(Censur) -> forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(Censur) == Falskt && forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(AndenForebyggendeForholdsregel) == Falskt
+
+| par78_stk1_afgrænses_af_lovligt_formål: forening_kan_dannes_uden_forudgående_tilladelse(LovligtFormål) -> forening_kan_dannes_uden_forudgående_tilladelse(LovligtFormål) && forening_kan_dannes_uden_forudgående_tilladelse(UlovligtFormål) == Falskt
+| par78_stk2_omfatter_virke_og_målsøgning: forening_skal_opløses_ved_dom(VirkerVed(påvirkning = Vold)) -> forening_skal_opløses_ved_dom(VirkerVed(påvirkning = Vold)) && forening_skal_opløses_ved_dom(VirkerVed(påvirkning = AnstiftelseAfVold)) && forening_skal_opløses_ved_dom(VirkerVed(påvirkning = LignendeStrafbarPåvirkningAfAnderledesTænkende)) && forening_skal_opløses_ved_dom(SøgerAtNåSitMålVed(påvirkning = Vold)) && forening_skal_opløses_ved_dom(AndetForeningsvirke) == Falskt
+| par78_stk3_forbyder_regeringsopløsning_og_betinget_foreløbigt_forbud: foreningsindgreb_opfylder_par78_stk3(ForeløbigtForbud(sag_til_opløsning_straks_anlagt = Sandt)) -> foreningsindgreb_opfylder_par78_stk3(OpløsningVedRegeringsforanstaltning) == Falskt && foreningsindgreb_opfylder_par78_stk3(ForeløbigtForbud(sag_til_opløsning_straks_anlagt = Sandt)) && foreningsindgreb_opfylder_par78_stk3(ForeløbigtForbud(sag_til_opløsning_straks_anlagt = Falskt)) == Falskt
+| par78_stk4_udelukker_særlig_anketilladelse: politisk_forenings_opløsningssag_kan_indbringes_for_rigets_øverste_domstol(Falskt) -> politisk_forenings_opløsningssag_kan_indbringes_for_rigets_øverste_domstol(Falskt) && politisk_forenings_opløsningssag_kan_indbringes_for_rigets_øverste_domstol(Sandt) == Falskt
+
+= offentlig_udendørs_forsamling_med_fare = Forsamlingssag(ubevæbnet = Sandt, offentlig = Sandt, under_åben_himmel = Sandt, fare_for_den_offentlige_fred = Sandt)
+= bevæbnet_forsamling = Forsamlingssag(ubevæbnet = Falskt, offentlig = Sandt, under_åben_himmel = Sandt, fare_for_den_offentlige_fred = Sandt)
+= indendørs_forsamling_med_fare = Forsamlingssag(ubevæbnet = Sandt, offentlig = Sandt, under_åben_himmel = Falskt, fare_for_den_offentlige_fred = Sandt)
+= udendørs_forsamling_uden_fare = Forsamlingssag(ubevæbnet = Sandt, offentlig = Sandt, under_åben_himmel = Sandt, fare_for_den_offentlige_fred = Falskt)
+
+| par79_tilladelsesfriheden_kræver_ubevæbnet_forsamling: offentlig_udendørs_forsamling_med_fare.kan_samles_uden_forudgående_tilladelse() -> offentlig_udendørs_forsamling_med_fare.kan_samles_uden_forudgående_tilladelse() && bevæbnet_forsamling.kan_samles_uden_forudgående_tilladelse() == Falskt
+| par79_politiets_adgang_kræver_offentlig_forsamling: offentlig_udendørs_forsamling_med_fare.politiet_har_ret_til_at_overvære() -> offentlig_udendørs_forsamling_med_fare.politiet_har_ret_til_at_overvære() && Forsamlingssag(ubevæbnet = Sandt, offentlig = Falskt, under_åben_himmel = Sandt, fare_for_den_offentlige_fred = Sandt).politiet_har_ret_til_at_overvære() == Falskt
+| par79_forbud_kræver_både_åben_himmel_og_fare: offentlig_udendørs_forsamling_med_fare.kan_forbydes_efter_par79() -> offentlig_udendørs_forsamling_med_fare.kan_forbydes_efter_par79() && indendørs_forsamling_med_fare.kan_forbydes_efter_par79() == Falskt && udendørs_forsamling_uden_fare.kan_forbydes_efter_par79() == Falskt
+
+= opløb_efter_to_opfordringer = Opløbssituation(den_væbnede_magt_angribes = Falskt, forgæves_opfordringer_til_at_skilles = 2, opfordret_i_kongens_og_lovens_navn = Sandt)
+= opløb_efter_tre_opfordringer = Opløbssituation(den_væbnede_magt_angribes = Falskt, forgæves_opfordringer_til_at_skilles = 3, opfordret_i_kongens_og_lovens_navn = Sandt)
+= opløb_efter_fire_opfordringer = Opløbssituation(den_væbnede_magt_angribes = Falskt, forgæves_opfordringer_til_at_skilles = 4, opfordret_i_kongens_og_lovens_navn = Sandt)
+= opløb_uden_kongens_og_lovens_navn = Opløbssituation(den_væbnede_magt_angribes = Falskt, forgæves_opfordringer_til_at_skilles = 3, opfordret_i_kongens_og_lovens_navn = Falskt)
+= angreb_på_den_væbnede_magt = Opløbssituation(den_væbnede_magt_angribes = Sandt, forgæves_opfordringer_til_at_skilles = 0, opfordret_i_kongens_og_lovens_navn = Falskt)
+
+| par80_har_inklusive_tre_opfordringer: opløb_efter_tre_opfordringer.den_væbnede_magt_kan_skride_ind_efter_par80() -> opløb_efter_to_opfordringer.den_væbnede_magt_kan_skride_ind_efter_par80() == Falskt && opløb_efter_tre_opfordringer.den_væbnede_magt_kan_skride_ind_efter_par80() && opløb_efter_fire_opfordringer.den_væbnede_magt_kan_skride_ind_efter_par80() && opløb_uden_kongens_og_lovens_navn.den_væbnede_magt_kan_skride_ind_efter_par80() == Falskt
+| par80_angrebsundtagelsen_er_nåelig: angreb_på_den_væbnede_magt.den_væbnede_magt_kan_skride_ind_efter_par80() -> angreb_på_den_væbnede_magt.den_væbnede_magt_kan_skride_ind_efter_par80()
+
+= våbenfør_mand_med_lovgrundlag = Værnepligtssag(våbenførhed = Våbenfør, køn = Mand, lovgrundlag = NærmereBestemmelserFastsatVedLov)
+= våbenfør_mand_uden_lovgrundlag = Værnepligtssag(våbenførhed = Våbenfør, køn = Mand, lovgrundlag = NærmereBestemmelserIkkeFastsatVedLov)
+= ikke_våbenfør_mand = Værnepligtssag(våbenførhed = IkkeVåbenfør, køn = Mand, lovgrundlag = NærmereBestemmelserIkkeFastsatVedLov)
+= våbenfør_kvinde = Værnepligtssag(våbenførhed = Våbenfør, køn = Kvinde, lovgrundlag = NærmereBestemmelserIkkeFastsatVedLov)
+
+| par81_ordlydens_personkreds_er_våbenføre_mænd: våbenfør_mand_med_lovgrundlag.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() -> våbenfør_mand_med_lovgrundlag.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() && ikke_våbenfør_mand.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() == Falskt && våbenfør_kvinde.er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() == Falskt
+| par81_pligten_følger_lovens_nærmere_bestemmelser: våbenfør_mand_med_lovgrundlag.opfylder_par81() -> våbenfør_mand_med_lovgrundlag.opfylder_par81() && våbenfør_mand_uden_lovgrundlag.opfylder_par81() == Falskt && ikke_våbenfør_mand.opfylder_par81() && våbenfør_kvinde.opfylder_par81()
+
+= gyldig_kommunal_styrelsesordning = KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender = Sandt, under_statens_tilsyn = Sandt, ordnet_ved_lov = Sandt)
+= kommunal_ordning_uden_selvstændig_styring = KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender = Falskt, under_statens_tilsyn = Sandt, ordnet_ved_lov = Sandt)
+= kommunal_ordning_uden_statstilsyn = KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender = Sandt, under_statens_tilsyn = Falskt, ordnet_ved_lov = Sandt)
+= kommunal_ordning_uden_lov = KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender = Sandt, under_statens_tilsyn = Sandt, ordnet_ved_lov = Falskt)
+
+| par82_kræver_selvstyre_statstilsyn_og_lov: gyldig_kommunal_styrelsesordning.opfylder_par82() -> gyldig_kommunal_styrelsesordning.opfylder_par82() && kommunal_ordning_uden_selvstændig_styring.opfylder_par82() == Falskt && kommunal_ordning_uden_statstilsyn.opfylder_par82() == Falskt && kommunal_ordning_uden_lov.opfylder_par82() == Falskt
+
+| par83_afskaffer_alle_tre_forretsgrundlag: forret_knyttet_i_lovgivningen_er_afskaffet(Adel) -> forret_knyttet_i_lovgivningen_er_afskaffet(Adel) && forret_knyttet_i_lovgivningen_er_afskaffet(Titel) && forret_knyttet_i_lovgivningen_er_afskaffet(Rang)
+| par84_forbyder_alle_fire_familiefideikommisformer: familiefideikommis_kan_oprettes_for_fremtiden(Len) -> familiefideikommis_kan_oprettes_for_fremtiden(Len) == Falskt && familiefideikommis_kan_oprettes_for_fremtiden(Stamhus) == Falskt && familiefideikommis_kan_oprettes_for_fremtiden(Fideikommisgods) == Falskt && familiefideikommis_kan_oprettes_for_fremtiden(AndetFamiliefideikommis) == Falskt
+
+= militær_indskrænkning_par71_med_lov = MilitærIndskrænkning(bestemmelse = PersonligFrihedPar71, følger_af_militære_loves_forskrifter = Sandt)
+= militær_indskrænkning_par71_uden_lov = MilitærIndskrænkning(bestemmelse = PersonligFrihedPar71, følger_af_militære_loves_forskrifter = Falskt)
+= militær_indskrænkning_par77_med_lov = MilitærIndskrænkning(bestemmelse = YtringsfrihedPar77, følger_af_militære_loves_forskrifter = Sandt)
+= militær_indskrænkning_par78_med_lov = MilitærIndskrænkning(bestemmelse = ForeningsfrihedPar78, følger_af_militære_loves_forskrifter = Sandt)
+= militær_indskrænkning_par79_med_lov = MilitærIndskrænkning(bestemmelse = ForsamlingsfrihedPar79, følger_af_militære_loves_forskrifter = Sandt)
+
+| par85_henviser_udtømmende_til_par71_par78_og_par79: militær_indskrænkning_par71_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> militær_indskrænkning_par71_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par78_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par79_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par77_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() == Falskt
+| par85_kræver_forskrift_i_de_militære_love: militær_indskrænkning_par71_med_lov.opfylder_par85() -> militær_indskrænkning_par71_med_lov.opfylder_par85() && militær_indskrænkning_par78_med_lov.opfylder_par85() && militær_indskrænkning_par79_med_lov.opfylder_par85() && militær_indskrænkning_par71_uden_lov.opfylder_par85() == Falskt && militær_indskrænkning_par77_med_lov.opfylder_par85() == Falskt
+
+? par74_skiller_begrundede_og_ubegrundede_indskrænkninger
+? par75_stk1_bevarer_forskellen_mellem_tilstræbelse_og_resultat
+? par75_stk2_kræver_alle_tre_forhold
+? par76_retten_følger_den_undervisningspligtige_alder
+? par76_fritagelsen_kræver_tilsvarende_egen_undervisning
+? par77_omfatter_tryk_skrift_og_tale
+? par77_forbyder_begge_forebyggende_forholdsregler
+? par78_stk1_afgrænses_af_lovligt_formål
+? par78_stk2_omfatter_virke_og_målsøgning
+? par78_stk3_forbyder_regeringsopløsning_og_betinget_foreløbigt_forbud
+? par78_stk4_udelukker_særlig_anketilladelse
+? par79_tilladelsesfriheden_kræver_ubevæbnet_forsamling
+? par79_politiets_adgang_kræver_offentlig_forsamling
+? par79_forbud_kræver_både_åben_himmel_og_fare
+? par80_har_inklusive_tre_opfordringer
+? par80_angrebsundtagelsen_er_nåelig
+? par81_ordlydens_personkreds_er_våbenføre_mænd
+? par81_pligten_følger_lovens_nærmere_bestemmelser
+? par82_kræver_selvstyre_statstilsyn_og_lov
+? par83_afskaffer_alle_tre_forretsgrundlag
+? par84_forbyder_alle_fire_familiefideikommisformer
+? par85_henviser_udtømmende_til_par71_par78_og_par79
+? par85_kræver_forskrift_i_de_militære_love
+
+@ skriv("Scenarierne for borgerrettighederne i §§ 74-85 holder.")

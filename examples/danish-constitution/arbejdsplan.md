@@ -265,6 +265,18 @@ Navngivne konstruktørargumenter bruges ved alle ikke-trivielle domæneværdier.
 Store universelle typer undgås; typer placeres fælles, når de faktisk deles på
 tværs af kapitler, og ellers ved den bestemmelse, der ejer begrebet.
 
+Konstruktørnavne skal være entydige i det samlede korpus. Når samme ord indgår
+i to forskellige juridiske roller, indgår rollen i navnet, eksempelvis
+`AfstamningSomLigebehandlingsgrund` og
+`AfstamningSomFrihedsberøvelsesgrund`. En samlet audit må ikke afhænge af
+importorden for at afgøre, hvilken domæneværdi et navn betegner.
+
+Regler, der alene vurderer felterne i ét domæneobjekt, placeres som udgangspunkt
+i objektets regelscope og kaldes gennem objektet. Eksterne regler beholdes til
+relationer mellem selvstændige objekter eller til atomiske udsagn uden et
+naturligt ejerobjekt. Samme forhold må ikke både eksistere som intern og
+ekstern sandhedskilde.
+
 En god type er ikke nødvendigvis den type, der tillader færrest værdier. Den
 skal først og fremmest udtrykke domænets naturlige begreb og understøtte de
 spørgsmål, prøvningen skal stille. Ugyldige kombinationer kan udelukkes af
@@ -405,6 +417,9 @@ prøves for:
   den kanoniske regel?
 - **fortolkningsadskillelse:** kan to fortolkninger køres hver for sig uden
   skjult påvirkning fra hinanden?
+- **negativ afgrænsning:** viser en manglende henvisning kun, at bestemmelsen
+  ikke er nævnt, eller er der fejlagtigt udledt en positiv rettighed eller et
+  generelt forbud af tavsheden?
 
 Tautologier som `regel() -> regel()` dokumenterer kun, at et navn kan kaldes.
 De tæller ikke som prøvning af lovmodellens betydning.
@@ -511,11 +526,12 @@ de typer og metadata, som flere navngivne fortolkninger deler.
 
 ### Trin 4: Kapitel IX-XI og samlet konsistens
 
-- Gennemgå værnepligt, kommunalt selvstyre, historiske privilegier,
-  grundlovsændring og overgangsbestemmelser.
+- Gennemgå den kommunale valgretsalder, islandske statsborgeres
+  overgangsrettigheder, grundlovsændring, ikrafttræden og stadfæstelse i
+  §§ 86-89 og den afsluttende stadfæstelsestekst.
 - Kontroller krydshenvisninger, frister, tællinger, modalitet og
   delegationsregler på tværs af alle kapitler.
-- Klassificer hvert af de 49 kendte dækningshuller. Dæk kun huller med en
+- Klassificer hvert resterende topologisk dækningshul. Dæk kun huller med en
   meningsfuld egenskab; dokumenter resten som bevidste.
 
 ### Trin 5: Fortolknings- og prøvningslag
@@ -596,6 +612,12 @@ en fuld samlet kørsel efter hver lille rettelse:
 En fuld port må gerne afsløre en gruppe fejl, som derefter rettes samlet. Den
 bruges ikke som erstatning for de hurtige, målrettede kontroller under
 modelleringen.
+
+Frontendkontrol er den hurtige lokale port, men er ikke tilstrækkelig som
+milepælsport. Regelscope-metoder, importer og genereret kode skal også gennem
+Rust-backenden, fordi en frontend kan acceptere en metodeform, som backenden
+ikke kan generere. En sådan uoverensstemmelse registreres som compilerfejl;
+korpusset skjuler den ikke med kompatibilitetsaliaser.
 
 ## Kvalitetsporte
 

@@ -110,22 +110,56 @@ Gennemført den 16. august 2026.
   `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
   fejlmeddelelser.
 
+### Milepæl 3: Kapitel VI-VIII
+
+Gennemført den 16. august 2026.
+
+- §§ 59-65 modellerer Rigsrettens grund- og sagssammensætning, tiltaler og
+  tiltalte, domstolsordning, øvrighedsprøvelse, dommerindgreb og
+  retsplejeprincipper som navngivne sager og regelscopes.
+- §§ 67-70 skelner religionsudtryk, personlig bidragspligt,
+  ligebehandlingsgrund, rettighedstype og virkning. Afstamning har særskilte
+  konstruktørnavne i §§ 70 og 71, så samlet import ikke afhænger af importorden.
+- § 71 har særskilte modeller for frihedsberøvelsesgrund, anholdelsesforløb,
+  den grønlandske undtagelse, anke, varetægt, administrativ prøvelse og
+  Folketingets tilsyn. §§ 72-73 modellerer indgreb, kendelse, lovundtagelse,
+  ekspropriationsbetingelser, udsættelsesbegæring og prøvelsesvej.
+- §§ 74-85 bevarer forskellen mellem "skal" og "bør", samler forenings- og
+  forsamlingsindgreb i lukkede domæner og gør § 85's henvisning til §§ 71, 78
+  og 79 prøvbar uden at udlede, at andre rettigheder derfor er ubegrænsede.
+- Den tværgående audit påstår ikke længere uden fortolkningsgrundlag, at én
+  bestemmelse er "stærkere", at § 73 er en eksplicit undtagelse fra § 61,
+  eller at en skat på 100 procent nødvendigvis er grundlovsmæssig. Sådanne
+  forhold er nu tekstlige forskelle eller navngivne fortolkningsspørgsmål.
+- Fire nye scenariefiler har 64 meningsfulde invarianter. Alle 11
+  scenariefiler med i alt 163 invarianter består både fortolket og som
+  genereret Rust med fire parallelle workers.
+- Den samlede audit har 210 bestående invarianter og består både fortolket og
+  som genereret Rust.
+- Den aktuelle topologiprøvning viser 14 dækningshuller mod 24 efter milepæl
+  2. Faldet skyldes især kanoniske sagsmodeller og fjernede parallelle regler;
+  det er ikke i sig selv evidens for ti løste retlige spørgsmål.
+- De 91 kildetekstblokke har fortsat kontrolsummen
+  `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
+  fejlmeddelelser. Kilde- og metadataporten består 4 af 4 kontroller.
+- En frontend/backend-uoverensstemmelse for uløste recordmetoder blev isoleret
+  som compilerfejl `td-f82dfa`; kildemodellen bruger det idiomatiske interne
+  regelscope og ingen kompatibilitetsalias.
+
 ## Nu
 
 - Bevar den officielle ordlyd og kildekoblingen uændret.
-- Gennemgå kapitel VI-VIII som én model for Rigsretten, domstolene,
-  religionsforhold og grundrettigheder.
-- Modellér rettighed, indgreb, hjemmel, prøvelse og undtagelse som adskilte
-  begreber, hvor ordlyden kræver det.
-- Genbehandl de eksisterende tværgående påstande efter modellag og
-  udsagnsstatus; sammenligninger som "stærkere" må have et udtrykkeligt
-  kriterium og høre til prøvningslaget.
+- Gennemgå kapitel IX-XI: § 86 om kommunal valgret, §§ 87-88 om islandske
+  statsborgere og grundlovsændring samt § 89 og stadfæstelsen.
+- Kontroller de sidste krydshenvisninger, frister, tærskler, modaliteter og
+  delegationsregler mod de fælles domænetyper.
+- Bevar fortolkningsspørgsmål som spørgsmål, indtil de får navngivne modeller
+  og særskilte retskilder.
 
 ## Næste
 
-- Gennemgå kapitel IX-XI og alle tværgående henvisninger, frister og
-  delegationer.
-- Klassificer de 49 kendte dækningshuller som dækket eller bevidst udækket.
+- Klassificer de 14 kendte topologiske dækningshuller som dækket eller bevidst
+  udækket.
 - Adskil kildescenarier, fortolkningsscenarier og prøvninger i de planlagte
   `.scenario.runa`- og `.audit.runa`-filer.
 

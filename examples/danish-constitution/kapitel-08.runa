@@ -38,39 +38,68 @@ henvendelse.
 
 --@begin:grundlov_par71--
 
--- Stk. 1
+# PersonkredsPar71 = DanskBorger | AndenPerson
+# Frihedsberøvelsesgrund = PolitiskOverbevisning | ReligiøsOverbevisning | AfstamningSomFrihedsberøvelsesgrund | AndenFrihedsberøvelsesgrund
+# Frihedsberøvelsessag(personkreds: PersonkredsPar71, grund: Frihedsberøvelsesgrund, har_lovhjemmel: Boolsk) {
+    | grund_er_beskyttet_efter_stk1() -> match grund {
+        | PolitiskOverbevisning -> Sandt
+        | ReligiøsOverbevisning -> Sandt
+        | AfstamningSomFrihedsberøvelsesgrund -> Sandt
+        | AndenFrihedsberøvelsesgrund -> Falskt
+    }
+
+    | opfylder_par71_stk1_og_2() -> har_lovhjemmel
+    | exception dansk_borger_og_beskyttet_grund opfylder_par71_stk1_og_2() -> Falskt under personkreds == DanskBorger && grund_er_beskyttet_efter_stk1()
+}
+
 | personlig_frihed_er_ukrænkelig()
-| ingen_frihedsberøvelse_pga_politisk_overbevisning()
-| ingen_frihedsberøvelse_pga_religiøs_overbevisning()
-| ingen_frihedsberøvelse_pga_afstamning()
 
--- Stk. 2
-| frihedsberøvelse_kræver_lovhjemmel()
-
--- Stk. 3: tidsfrister ved anholdelse
 = frist_fremstilling_timer = 24
 = frist_kendelse_dage = 3
 
-| anholdte_stilles_for_dommer_inden_24_timer()
-| kendelse_snarest_muligt_senest_3_dage()
-| løsladelse_mod_sikkerhed_mulig()
-| grønland_kan_fravige_fremstillingsfrist_ved_lov()
+# Anholdelsesforløb(timer_til_fremstilling_for_dommer: Heltal, straks_løsladt: Boolsk, kendelse_afsagt_snarest_muligt: Boolsk, dage_til_kendelse: Heltal, kendelse_begrundet: Boolsk, fængslingsspørgsmålet_afgjort: Boolsk, løsladelse_mod_sikkerhed_mulig: Boolsk, sikkerhedens_art_og_størrelse_bestemt: Boolsk) {
+    | tidsangivelser_er_konsistente() -> timer_til_fremstilling_for_dommer >= 0 && dage_til_kendelse >= 0
+    | opfylder_hovedreglen_i_par71_stk3() -> tidsangivelser_er_konsistente() && timer_til_fremstilling_for_dommer <= frist_fremstilling_timer && hvis straks_løsladt {
+        Sandt
+    } ellers {
+        kendelse_afsagt_snarest_muligt && dage_til_kendelse <= frist_kendelse_dage && kendelse_begrundet && fængslingsspørgsmålet_afgjort && (løsladelse_mod_sikkerhed_mulig == Falskt || sikkerhedens_art_og_størrelse_bestemt)
+    }
+}
 
--- Stk. 4
-| kendelse_kan_indbringes_for_højere_ret()
+# Fremstillingssag(sted: Rigsdel, forløb: Anholdelsesforløb, grønlandsk_fravigelse_hjemlet_ved_lov: Boolsk, stedlige_forhold_gør_fravigelse_påkrævet: Boolsk) {
+    | opfylder_par71_stk3() -> forløb.opfylder_hovedreglen_i_par71_stk3()
+    | exception grønlandsk_lovfravigelse opfylder_par71_stk3() -> forløb.tidsangivelser_er_konsistente() under sted == Grønland && grønlandsk_fravigelse_hjemlet_ved_lov && stedlige_forhold_gør_fravigelse_påkrævet
+}
 
--- Stk. 5
-| ingen_varetægtsfængsel_for_bøde_eller_hæfte()
+# Kendelsesanke(straks_indbragt: Boolsk, særskilt_indbragt: Boolsk, indbragt_for_højere_ret: Boolsk)
+| kendelsesanke_opfylder_par71_stk4(anke: Kendelsesanke) -> anke.straks_indbragt && anke.særskilt_indbragt && anke.indbragt_for_højere_ret
 
--- Stk. 6
-| administrativ_frihedsberøvelse_prøves_ved_domstol()
-| undtaget_udlændingelovgivning()
-| prøvelse_på_begæring_af_berøvet_eller_repræsentant()
+# Forseelsesstraf = KunBødeEllerHæfte | KanMedføreAndenStraf
+| varetægtsfængsling_opfylder_par71_stk5(straf: Forseelsesstraf) -> straf != KunBødeEllerHæfte
+
+# Frihedsberøvelsesbeslutning = BesluttetAfDømmendeMyndighed | IkkeBesluttetAfDømmendeMyndighed
+# Prøvelsesbegærer = DenFrihedsberøvede | RepræsentantForDenFrihedsberøvede | IngenPrøvelsesbegærer
+# PrøvelsesvejPar71 = AlmindeligeDomstole | AndenDømmendeMyndighed | IngenPrøvelsesvej
+# AdministrativFrihedsberøvelse(hører_til_strafferetsplejen: Boolsk, beslutning: Frihedsberøvelsesbeslutning, har_hjemmel_i_udlændingelovgivningen: Boolsk, begærer: Prøvelsesbegærer, prøvelsesvej: PrøvelsesvejPar71) {
+    | person_er_omfattet_af_par71_stk6() -> hører_til_strafferetsplejen == Falskt && beslutning == IkkeBesluttetAfDømmendeMyndighed && har_hjemmel_i_udlændingelovgivningen == Falskt
+    | prøvelse_er_begæret_af_berettiget() -> begærer == DenFrihedsberøvede || begærer == RepræsentantForDenFrihedsberøvede
+    | prøvelsespligt_indtræder_efter_par71_stk6() -> person_er_omfattet_af_par71_stk6() && prøvelse_er_begæret_af_berettiget()
+    | prøvelsesforløb_opfylder_par71_stk6() -> hvis prøvelsespligt_indtræder_efter_par71_stk6() {
+        prøvelsesvej == AlmindeligeDomstole || prøvelsesvej == AndenDømmendeMyndighed
+    } ellers {
+        Sandt
+    }
+}
+
 | prøvelse_af_frihedsberøvelse_fastsættes_ved_lov()
 
--- Stk. 7: folketingstilsyn med frihedsberøvede
-| folketinget_vælger_tilsyn_med_frihedsberøvede()
-| frihedsberøvede_har_adgang_til_henvendelse()
+# TilsynsforløbPar71(frihedsberøvelse: AdministrativFrihedsberøvelse, folketinget_har_valgt_tilsyn: Boolsk, den_frihedsberøvede_har_adgang_til_henvendelse: Boolsk) {
+    | opfylder_par71_stk7() -> hvis frihedsberøvelse.person_er_omfattet_af_par71_stk6() {
+        folketinget_har_valgt_tilsyn && den_frihedsberøvede_har_adgang_til_henvendelse
+    } ellers {
+        Sandt
+    }
+}
 --@end:grundlov_par71--
 
 --@label:grundlov_par72::meta:grundlov_kildemetadata--
@@ -83,12 +112,20 @@ retskendelse.
 
 --@begin:grundlov_par72--
 
+# Privatlivsindgreb = Husundersøgelse | Beslaglæggelse | UndersøgelseAfBreveOgAndrePapirer | BrudPåPostTelegrafEllerTelefonhemmeligheden
+# Privatlivsindgrebssag(indgreb: Privatlivsindgreb, retskendelse_foreligger: Boolsk, særegen_undtagelse_hjemlet_ved_lov: Boolsk) {
+    | indgreb_er_omfattet() -> match indgreb {
+        | Husundersøgelse -> Sandt
+        | Beslaglæggelse -> Sandt
+        | UndersøgelseAfBreveOgAndrePapirer -> Sandt
+        | BrudPåPostTelegrafEllerTelefonhemmeligheden -> Sandt
+    }
+
+    | opfylder_par72() -> indgreb_er_omfattet() && retskendelse_foreligger
+    | exception særegen_lovundtagelse opfylder_par72() -> indgreb_er_omfattet() under særegen_undtagelse_hjemlet_ved_lov
+}
+
 | boligen_er_ukrænkelig()
-| husundersøgelse_kræver_retskendelse()
-| beslaglæggelse_kræver_retskendelse()
-| brevundersøgelse_kræver_retskendelse()
-| brud_på_kommunikationshemmelighed_kræver_retskendelse()
-| undtagelse_fra_retskendelse_kan_hjemles_ved_lov()
 --@end:grundlov_par72--
 
 --@label:grundlov_par73::meta:grundlov_kildemetadata--
@@ -110,24 +147,38 @@ kan ved lov henlægges til domstole oprettet i dette øjemed.
 
 --@begin:grundlov_par73--
 
--- Stk. 1: ejendomsret
+# Ekspropriationssag(almenvellet_kræver_afståelsen: Boolsk, afståelsen_sker_ifølge_lov: Boolsk, fuldstændig_erstatning_ydes: Boolsk) {
+    | opfylder_par73_stk1() -> almenvellet_kræver_afståelsen && afståelsen_sker_ifølge_lov && fuldstændig_erstatning_ydes
+}
+
 | ejendomsretten_er_ukrænkelig()
-| ekspropriation_kun_til_almenvellet()
-| ekspropriation_kun_ifølge_lov()
-| ekspropriation_mod_fuldstændig_erstatning()
 
--- Stk. 2: 1/3 kan kræve udsættelse til efter nyvalg
 = ekspropriation_frist_søgnedage = 3
+= ekspropriationsbegæringens_medlemstærskel = Brøk(tæller = 1, nævner = 3)
 
-| en_tredjedel_kan_kræve_ekspropriationsudsættelse()
-| kan_kræve_ekspropriationsudsættelse(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
+# Ekspropriationsudsættelsesbegæring(lovforslag_vedrører_ekspropriation_af_ejendom: Boolsk, lovforslag_endeligt_vedtaget: Boolsk, opbakning: Medlemsopbakning, søgnedage_efter_endelig_vedtagelse: Heltal) {
+    | opfylder_par73_stk2() -> lovforslag_vedrører_ekspropriation_af_ejendom && lovforslag_endeligt_vedtaget && medlemsopbakning_er_mindst(opbakning, ekspropriationsbegæringens_medlemstærskel) && søgnedage_efter_endelig_vedtagelse >= 0 && søgnedage_efter_endelig_vedtagelse <= ekspropriation_frist_søgnedage
+}
 
-| ekspropriationsudsættelse_kræver_nyvalg_og_genvedtagelse()
+# Ekspropriationsstadfæstelsesforløb(begæring: Ekspropriationsudsættelsesbegæring, nyvalg_til_folketinget_afholdt: Boolsk, forslaget_genvedtaget_af_det_nye_folketing: Boolsk) {
+    | opfylder_par73_stk2() -> hvis begæring.opfylder_par73_stk2() {
+        nyvalg_til_folketinget_afholdt && forslaget_genvedtaget_af_det_nye_folketing
+    } ellers {
+        Sandt
+    }
+}
 
--- Stk. 3: domstolsprøvelse
-| ekspropriationslovlighed_kan_prøves_ved_domstol()
-| erstatningsstørrelse_kan_prøves_ved_domstol()
-| erstatningsprøvelse_kan_henlægges_til_særlige_domstole()
+# Ekspropriationsprøvelsesemne = EkspropriationsaktensLovlighed | ErstatningensStørrelse
+# Ekspropriationsprøvelsesvej = AlmindeligeDomstoleSomPrøvelsesvej | SærligErstatningsdomstol(oprettet_ved_lov: Boolsk)
+# Ekspropriationsprøvelse(emne: Ekspropriationsprøvelsesemne, vej: Ekspropriationsprøvelsesvej) {
+    | opfylder_par73_stk3() -> match emne {
+        | EkspropriationsaktensLovlighed -> vej == AlmindeligeDomstoleSomPrøvelsesvej
+        | ErstatningensStørrelse -> match vej {
+            | AlmindeligeDomstoleSomPrøvelsesvej -> Sandt
+            | SærligErstatningsdomstol(oprettet_ved_lov) -> oprettet_ved_lov
+        }
+    }
+}
 --@end:grundlov_par73--
 
 --@label:grundlov_par74::meta:grundlov_kildemetadata--
@@ -138,9 +189,13 @@ begrundede i det almene vel, skal hæves ved lov.
 
 --@begin:grundlov_par74--
 
-| erhvervsfrihed()
-| erhvervsindskrænkninger_kun_begrundet_i_almene_vel()
-| ubegrundede_erhvervsindskrænkninger_hæves_ved_lov()
+# Erhvervsindskrænkning(begrundet_i_det_almene_vel: Boolsk, hævet_ved_lov: Boolsk) {
+    | opfylder_par74() -> hvis begrundet_i_det_almene_vel {
+        Sandt
+    } ellers {
+        hævet_ved_lov
+    }
+}
 --@end:grundlov_par74--
 
 --@label:grundlov_par75::meta:grundlov_kildemetadata--
@@ -156,14 +211,14 @@ underkaste sig de forpligtelser, som loven herom påbyder.
 
 --@begin:grundlov_par75--
 
--- Stk. 1: ret til arbejde
-| almenvellet_fremmes_ved_arbejdsmulighed()
-| arbejdsduelige_borgere_bør_have_mulighed_for_arbejde()
-| arbejdsvilkår_skal_betrygge_tilværelsen()
+# Arbejdsmulighedsmålsætning(tilstræbt_til_fremme_af_almenvellet: Boolsk, arbejdsduelig_borger_har_mulighed_for_arbejde: Boolsk, arbejdsvilkår_betrygger_tilværelsen: Boolsk) {
+    | tilstræbelsen_opfylder_ordlydens_modalitet_i_par75_stk1() -> tilstræbt_til_fremme_af_almenvellet
+    | målsætningens_tilsigtede_tilstand_er_opnået() -> arbejdsduelig_borger_har_mulighed_for_arbejde && arbejdsvilkår_betrygger_tilværelsen
+}
 
--- Stk. 2: offentlig forsørgelse
-| ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
-| offentlig_hjælp_betinget_af_lovpåbudte_forpligtelser()
+# OffentligHjælpssag(kan_selv_ernære_sig_eller_sine: Boolsk, forsørgelsen_påhviler_en_anden: Boolsk, underkaster_sig_lovpåbudte_forpligtelser: Boolsk) {
+    | har_ret_til_offentlig_hjælp_efter_par75_stk2() -> kan_selv_ernære_sig_eller_sine == Falskt && forsørgelsen_påhviler_en_anden == Falskt && underkaster_sig_lovpåbudte_forpligtelser
+}
 --@end:grundlov_par75--
 
 --@label:grundlov_par76::meta:grundlov_kildemetadata--
@@ -176,10 +231,10 @@ er ikke pligtige at lade børnene undervise i folkeskolen.
 
 --@begin:grundlov_par76--
 
-| børn_har_ret_til_fri_undervisning_i_folkeskolen()
--- Forældre eller værger
-| forældre_kan_selv_sørge_for_undervisning()
-| hjemmeundervisning_skal_stå_mål_med_folkeskolen()
+# Undervisningssag(barn_i_undervisningspligtig_alder: Boolsk, forældre_eller_værger_sørger_selv_for_undervisning: Boolsk, undervisningen_står_mål_med_folkeskolen: Boolsk) {
+    | barn_har_ret_til_fri_undervisning_i_folkeskolen() -> barn_i_undervisningspligtig_alder
+    | fritaget_fra_pligt_til_undervisning_i_folkeskolen() -> barn_i_undervisningspligtig_alder && forældre_eller_værger_sørger_selv_for_undervisning && undervisningen_står_mål_med_folkeskolen
+}
 --@end:grundlov_par76--
 
 --@label:grundlov_par77::meta:grundlov_kildemetadata--
@@ -191,12 +246,18 @@ forholdsregler kan ingensinde påny indføres.
 
 --@begin:grundlov_par77--
 
-| ytringsfrihed_på_tryk()
-| ytringsfrihed_i_skrift()
-| ytringsfrihed_i_tale()
-| ytringsfrihed_under_ansvar_for_domstolene()
-| censur_kan_aldrig_indføres()
-| forebyggende_forholdsregler_mod_ytring_forbudt()
+# Offentliggørelsesform = Tryk | Skrift | Tale
+# Ytringssag(form: Offentliggørelsesform) {
+    | retten_til_at_offentliggøre_tanker_omfatter_formen() -> match form {
+        | Tryk -> Sandt
+        | Skrift -> Sandt
+        | Tale -> Sandt
+    }
+    | offentliggørelse_er_under_ansvar_for_domstolene() -> Sandt
+}
+
+# ForebyggendeYtringsforholdsregel = Censur | AndenForebyggendeForholdsregel
+| forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(forholdsregel: ForebyggendeYtringsforholdsregel) -> Falskt
 --@end:grundlov_par77--
 
 --@label:grundlov_par78::meta:grundlov_kildemetadata--
@@ -220,21 +281,24 @@ Stk. 5. Opløsningens retsvirkninger fastsættes nærmere ved lov.
 
 --@begin:grundlov_par78--
 
--- Stk. 1
-| foreningsfrihed_uden_forudgående_tilladelse()
-| foreninger_kun_i_lovligt_øjemed()
+# Foreningsformål = LovligtFormål | UlovligtFormål
+| forening_kan_dannes_uden_forudgående_tilladelse(formål: Foreningsformål) -> formål == LovligtFormål
 
--- Stk. 2
-| voldsforeninger_opløses_ved_dom()
+# StrafbarForeningspåvirkning = Vold | AnstiftelseAfVold | LignendeStrafbarPåvirkningAfAnderledesTænkende
+# Foreningsvirke = VirkerVed(påvirkning: StrafbarForeningspåvirkning) | SøgerAtNåSitMålVed(påvirkning: StrafbarForeningspåvirkning) | AndetForeningsvirke
+| forening_skal_opløses_ved_dom(virke: Foreningsvirke) -> match virke {
+    | VirkerVed(_) -> Sandt
+    | SøgerAtNåSitMålVed(_) -> Sandt
+    | AndetForeningsvirke -> Falskt
+}
 
--- Stk. 3
-| ingen_foreningsopløsning_ved_regeringsforanstaltning()
-| foreløbigt_forbud_kræver_straks_anlæggelse_af_sag()
+# Foreningsindgreb = OpløsningVedRegeringsforanstaltning | ForeløbigtForbud(sag_til_opløsning_straks_anlagt: Boolsk)
+| foreningsindgreb_opfylder_par78_stk3(indgreb: Foreningsindgreb) -> match indgreb {
+    | OpløsningVedRegeringsforanstaltning -> Falskt
+    | ForeløbigtForbud(sag_straks_anlagt) -> sag_straks_anlagt
+}
 
--- Stk. 4
-| politiske_foreningers_opløsning_kan_indbringes_for_højesteret()
-
--- Stk. 5
+| politisk_forenings_opløsningssag_kan_indbringes_for_rigets_øverste_domstol(særlig_tilladelse_kræves: Boolsk) -> særlig_tilladelse_kræves == Falskt
 | opløsningens_retsvirkninger_fastsættes_ved_lov()
 --@end:grundlov_par78--
 
@@ -248,10 +312,11 @@ fred.
 
 --@begin:grundlov_par79--
 
-| forsamlingsfrihed_uden_forudgående_tilladelse()
-| forsamlinger_skal_være_ubevæbnede()
-| politiet_må_overvære_offentlige_forsamlinger()
-| forsamlinger_under_åben_himmel_kan_forbydes_ved_fare()
+# Forsamlingssag(ubevæbnet: Boolsk, offentlig: Boolsk, under_åben_himmel: Boolsk, fare_for_den_offentlige_fred: Boolsk) {
+    | kan_samles_uden_forudgående_tilladelse() -> ubevæbnet
+    | politiet_har_ret_til_at_overvære() -> offentlig
+    | kan_forbydes_efter_par79() -> under_åben_himmel && fare_for_den_offentlige_fred
+}
 --@end:grundlov_par79--
 
 --@label:grundlov_par80::meta:grundlov_kildemetadata--
@@ -265,9 +330,11 @@ skilles.
 
 = opfordringer_før_magtanvendelse = 3
 
-| magtanvendelse_ved_opløb_kun_efter_opfordring()
-| opfordring_i_kongens_og_lovens_navn()
-| undtagelse_hvis_den_væbnede_magt_angribes()
+# Opløbssituation(den_væbnede_magt_angribes: Boolsk, forgæves_opfordringer_til_at_skilles: Heltal, opfordret_i_kongens_og_lovens_navn: Boolsk) {
+    | opfordringsantal_er_konsistent() -> forgæves_opfordringer_til_at_skilles >= 0
+    | den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() && forgæves_opfordringer_til_at_skilles >= opfordringer_før_magtanvendelse && opfordret_i_kongens_og_lovens_navn
+    | exception angrebet den_væbnede_magt_kan_skride_ind_efter_par80() -> opfordringsantal_er_konsistent() under den_væbnede_magt_angribes
+}
 --@end:grundlov_par80--
 
 --@label:grundlov_par81::meta:grundlov_kildemetadata--
@@ -278,8 +345,16 @@ fædrelandets forsvar efter de nærmere bestemmelser, som loven foreskriver.
 
 --@begin:grundlov_par81--
 
-| værnepligt_for_våbenføre_mænd()
-| værnepligtens_omfang_fastsættes_ved_lov()
+# Våbenførhed = Våbenfør | IkkeVåbenfør
+# Værnepligtslovgrundlag = NærmereBestemmelserFastsatVedLov | NærmereBestemmelserIkkeFastsatVedLov
+# Værnepligtssag(våbenførhed: Våbenførhed, køn: Køn, lovgrundlag: Værnepligtslovgrundlag) {
+    | er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() -> våbenførhed == Våbenfør && køn == Mand
+    | opfylder_par81() -> hvis er_forpligtet_til_personligt_at_bidrage_til_fædrelandets_forsvar() {
+        lovgrundlag == NærmereBestemmelserFastsatVedLov
+    } ellers {
+        Sandt
+    }
+}
 --@end:grundlov_par81--
 
 --@label:grundlov_par82::meta:grundlov_kildemetadata--
@@ -290,8 +365,9 @@ anliggender ordnes ved lov.
 
 --@begin:grundlov_par82--
 
-| kommunalt_selvstyre_under_statens_tilsyn()
-| kommunernes_styrelse_ordnes_ved_lov()
+# KommunalStyrelsesordning(selvstændig_styring_af_egne_anliggender: Boolsk, under_statens_tilsyn: Boolsk, ordnet_ved_lov: Boolsk) {
+    | opfylder_par82() -> selvstændig_styring_af_egne_anliggender && under_statens_tilsyn && ordnet_ved_lov
+}
 --@end:grundlov_par82--
 
 --@label:grundlov_par83::meta:grundlov_kildemetadata--
@@ -301,9 +377,12 @@ anliggender ordnes ved lov.
 
 --@begin:grundlov_par83--
 
-| adelsprivilegier_afskaffet()
-| titelprivilegier_afskaffet()
-| rangprivilegier_afskaffet()
+# Forretsgrundlag = Adel | Titel | Rang
+| forret_knyttet_i_lovgivningen_er_afskaffet(grundlag: Forretsgrundlag) -> match grundlag {
+    | Adel -> Sandt
+    | Titel -> Sandt
+    | Rang -> Sandt
+}
 --@end:grundlov_par83--
 
 --@label:grundlov_par84::meta:grundlov_kildemetadata--
@@ -314,10 +393,8 @@ fremtiden oprettes.
 
 --@begin:grundlov_par84--
 
-| len_kan_ikke_oprettes()
-| stamhus_kan_ikke_oprettes()
-| fideikommisgods_kan_ikke_oprettes()
-| familiefideikommis_kan_ikke_oprettes()
+# Familiefideikommisform = Len | Stamhus | Fideikommisgods | AndetFamiliefideikommis
+| familiefideikommis_kan_oprettes_for_fremtiden(form: Familiefideikommisform) -> Falskt
 --@end:grundlov_par84--
 
 --@label:grundlov_par85::meta:grundlov_kildemetadata--
@@ -328,10 +405,15 @@ anvendelige med de indskrænkninger, der følger af de militære loves forskrift
 
 --@begin:grundlov_par85--
 
--- §§ 71, 78, 79 — personlig frihed, foreningsfrihed, forsamlingsfrihed
--- § 77 (ytringsfrihed) er IKKE nævnt — soldater beholder ytringsfriheden
-| indskrænkning_af_personlig_frihed_for_forsvarsmagten()
-| indskrænkning_af_foreningsfrihed_for_forsvarsmagten()
-| indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten()
-| indskrænkninger_kun_ifølge_militære_love()
+# Frihedsbestemmelse = PersonligFrihedPar71 | YtringsfrihedPar77 | ForeningsfrihedPar78 | ForsamlingsfrihedPar79
+# MilitærIndskrænkning(bestemmelse: Frihedsbestemmelse, følger_af_militære_loves_forskrifter: Boolsk) {
+    | bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> match bestemmelse {
+        | PersonligFrihedPar71 -> Sandt
+        | YtringsfrihedPar77 -> Falskt
+        | ForeningsfrihedPar78 -> Sandt
+        | ForsamlingsfrihedPar79 -> Sandt
+    }
+
+    | opfylder_par85() -> bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && følger_af_militære_loves_forskrifter
+}
 --@end:grundlov_par85--

@@ -23,9 +23,13 @@ som strider mod sædeligheden eller den offentlige orden.
 
 --@begin:grundlov_par67--
 
-| religionsfrihed()
-| religionssamfund_må_ikke_stride_mod_sædelighed()
-| religionssamfund_må_ikke_stride_mod_offentlig_orden()
+# Religionsudtryk = Lære | Foretagelse
+# Religionsudøvelse(udtryk: Religionsudtryk, stemmer_med_overbevisningen: Boolsk, strider_mod_sædeligheden: Boolsk, strider_mod_den_offentlige_orden: Boolsk) {
+    | er_beskyttet_efter_par67() -> stemmer_med_overbevisningen && strider_mod_sædeligheden == Falskt && strider_mod_den_offentlige_orden == Falskt && match udtryk {
+        | Lære -> Sandt
+        | Foretagelse -> Sandt
+    }
+}
 --@end:grundlov_par67--
 
 --@label:grundlov_par68::meta:grundlov_kildemetadata--
@@ -36,7 +40,13 @@ end den, som er hans egen.
 
 --@begin:grundlov_par68--
 
-| ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse()
+# Gudsdyrkelse = EgenGudsdyrkelse | AndenGudsdyrkelse
+# PersonligtBidragsforhold(gudsdyrkelse: Gudsdyrkelse, bidragspligt_pålagt: Boolsk) {
+    | opfylder_par68() -> match gudsdyrkelse {
+        | EgenGudsdyrkelse -> Sandt
+        | AndenGudsdyrkelse -> bidragspligt_pålagt == Falskt
+    }
+}
 --@end:grundlov_par68--
 
 --@label:grundlov_par69::meta:grundlov_kildemetadata--
@@ -58,8 +68,18 @@ opfyldelsen af nogen almindelig borgerpligt.
 
 --@begin:grundlov_par70--
 
-| ingen_diskrimination_ved_trosbekendelse()
-| ingen_diskrimination_ved_afstamning()
-| borgerpligt_uanset_trosbekendelse()
-| borgerpligt_uanset_afstamning()
+# Ligebehandlingsgrund = Trosbekendelse | AfstamningSomLigebehandlingsgrund
+# Rettighedstype = BorgerligRettighed | PolitiskRettighed
+# Par70Virkning = BerøvelseAfRettighed(rettighed: Rettighedstype) | UnddragelseFraAlmindeligBorgerpligt
+# Par70Sag(grund: Ligebehandlingsgrund, virkning: Par70Virkning, virkningen_sker_på_grund_af_grunden: Boolsk) {
+    | opfylder_par70() -> virkningen_sker_på_grund_af_grunden == Falskt && grund_er_omfattet() && virkning_er_omfattet()
+    | grund_er_omfattet() -> match grund {
+        | Trosbekendelse -> Sandt
+        | AfstamningSomLigebehandlingsgrund -> Sandt
+    }
+    | virkning_er_omfattet() -> match virkning {
+        | BerøvelseAfRettighed(_) -> Sandt
+        | UnddragelseFraAlmindeligBorgerpligt -> Sandt
+    }
+}
 --@end:grundlov_par70--
