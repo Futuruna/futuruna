@@ -4,106 +4,41 @@
   </a>
 </p>
 
-<h1 align="center">Futuruna — Law Programming</h1>
+<h1 align="center">Futuruna - Law Programming</h1>
 
 <p align="center">
-  A programming language for expressing, running, testing, and auditing law.
-</p>
-
-<p align="center">
-  <a href="Cargo.toml"><code>v0.1.0</code></a>
+  <a href="Cargo.toml">Version 0.1.0</a>
   ·
   <a href="LICENSE">MIT License</a>
 </p>
 
 ## Welcome to Futuruna
 
-Futuruna is a programming language designed to encode complex law while
-remaining strong in ordinary programming structures and algorithms.
+Futuruna is a programming language, able to encode complex law, but preserving strength in normal programming structures and algorithms.
 
-It combines different programming paradigms through partitioned syntax, using
-a front rune for each approach category. Futuruna is designed for humans and
-AI systems alike.
+It allows combining different paradigms through partitioned syntax, using front-runes for each approach-category. Designed for humans and AIs alike.
 
 ## AI Setup
 
-I recommend setting up and exploring Futuruna with an agentic development
-environment such as Codex, Claude Code, ChatGPT Work, or Claude Cowork, backed
-by a strong model—for example, ChatGPT Sol or later, Claude Fable or later, or
-Grok 4.7 or later.
-
-Give the agent this repository and ask it to build Futuruna, run the mint gate,
-and guide you through your first program.
+I recommend setting up Futuruna using Codex, Claude Code, ChatGPT Work, Claude Cowork and the strong models it provides (ChatGPT Sol or above, Claude Fable or above, Grok 4.7 or above)
 
 ## Skills, Integration and Examples
 
-AI-assisted use is a first-class design goal for Futuruna. The repository
-includes an [AI bootstrap script](website/public/ai-bootstrap.sh), and its
-typed calculation interface gives AI assistants and humans the same explicit
-contract.
+Futuruna comes with AI integration as a first-class integration.
 
-When you encode a law, contract, or compliance policy as typed rules, Futuruna
-can generate an Excel workbook (`.xlsx`) from the calculation model. The
-workbook carries the model's fields, labels, interview questions, help text,
-units, validation choices, and source links. An AI assistant can use those
-questions to interview you, help map your answers into the workbook, and
-submit the completed case to Futuruna. Futuruna remains the deterministic
-calculator: it validates the facts, runs the rules, and returns the result and
-rule trace.
+When you encode rules, you are able to generate an Excel sheet of the rule model for the law, contract or compliance you set out to formalize. The AI can then interview you back, helping you fill out this sheet, so that you can check how your own case stacks up.
 
-See [Typed Calculations](docs/reference/calculations.md) for the workbook,
-schema, and invocation workflow.
-
-### Danish Personal Income Tax
-
-The [Danish income-tax corpus](examples/danish-income-tax/) is an active
-research encoding of Denmark's personal-income-tax calculation. It combines
-Personskatteloven with the supporting laws and source material that its public
-[`beregn_personskat`](examples/danish-income-tax/personskat.calculate.runa)
-calculation depends on. You can use the generated Personskat workbook to audit
-how your own annual tax assessment stacks up against the encoded model.
-
-Three anonymized annual assessments for 2023, 2024, and 2025 have already been
-reproduced to the øre from typed source facts. Representative direct JSON and
-generated XLSX cases produced identical complete result trees. Read the
-[Personskat research overview](examples/danish-income-tax/website-overblik.md)
-for the method, evidence, and current scope.
-
-This is an active research project, so I am especially interested in feedback
-and results from independent audits. I believe Futuruna can help make law more
-transparent, just, and fair by encoding rules in an open, inspectable, and
-auditable form. Let us walk into that future together—and please be kind in
-your [issue reports](https://github.com/Futuruna/futuruna/issues). :)
-
-> [!IMPORTANT]
-> Futuruna is research software, not individual legal or tax advice, and not
-> every possible tax situation has been proven covered. Verify important
-> results against official sources and qualified professionals.
+Futuruna has encoded the entire Danish Income Tax Law, and you should be able to audit your own Annual Tax Report using Futuruna's code. This is an active research project, so I am very interested in feedback and results from such audits. I truly believe Futuruna can help make a more transparent, just and fair world, encoding the law in an unbiased and auditable fashion. Let us walk into that future, together (be kind in your issue reports) :)
 
 ## The Basics
 
-Futuruna defines seven statement categories:
+Futuruna can define types (#), functions (>), rules (|), streams (~), assignments (=), proofs (?), and effects (@).
 
-| Front rune | Category |
-| --- | --- |
-| `#` | Types |
-| `>` | Functions |
-| `\|` | Rules |
-| `~` | Streams |
-| `=` | Assignments |
-| `?` | Proofs |
-| `@` | Effects |
+Each front rune has their own rules for syntax, which might sound like it gets complicated, but as you will quickly experience, it creates non-competing syntax within each category space and actually lowers complexity of programs. More punch per character through high optionality for the authors yet less uncertainty for the readers.
 
-Each front rune has its own syntax rules. That may sound more complicated at
-first, but the separation creates non-competing syntax within each category
-space and lowers the complexity of programs in practice.
+## Why Futuruna - The Manifest
 
-The result is more expressive power per character: high optionality for
-authors, with less uncertainty for readers.
-
-## Why Futuruna — The Manifest
-
-[Read the full “Why Futuruna” article.](docs/why.md)
+([The Why Futuruna Article](docs/why.md))
 
 ## MIT License
 
