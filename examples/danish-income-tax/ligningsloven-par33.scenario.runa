@@ -2,38 +2,6 @@
 
 @ importer ./ligningsloven - par33
 
-= ll33_scenarie_årsopgørelse2025_input = Ligningslov33Årsinput(
-    dansk_bruttoindkomst_kroner = 14569,
-    ikke_henførbare_udgifter_kroner = 0,
-    eksportkreditrenteudgifter_omfattet_af_par33f_stk3_kroner = 0,
-    landelinjer = [
-        Ligningslov33LandelinjeFakta(
-            indkomstfakta = Ligningslov33Indkomstfakta(
-                område = Ll33FremmedStat("anonymiseret"),
-                udenlandsk_bruttoindkomst_kroner = 398,
-                direkte_henførbare_udgifter_kroner = 0
-            ),
-            skattebetaling = Ligningslov33Skattebetaling(
-                opkrævningsmåde = Ll33Indeholdelse,
-                betalt_udenlandsk_skat_øre = 600,
-                skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Privat årsopgørelse 2025, side 4: udenlandsk skat",
-                overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
-                    fradragsberettiget_udenlandsk_skat_øre = 600,
-                    dokumentreference = "Privat årsopgørelse 2025, side 4: specifikation af nedslag"
-                )
-            )
-        ),
-    ]
-)
-= ll33_scenarie_årsopgørelse2025 = ligningslov33_årsresultat(
-    ll33_scenarie_årsopgørelse2025_input,
-    Ligningslov33DanskSkattekreds(
-        samlet_beskattet_indkomst_kroner = 14967,
-        dansk_skat_før_nedslag_øre = 404109
-    )
-)
-
 = ll33_scenarie_proportionalt_loft = ligningslov33_årsresultat(
     Ligningslov33Årsinput(
         dansk_bruttoindkomst_kroner = 90000,
@@ -211,37 +179,6 @@
         overenskomstgrundlag = Ll33IngenDobbeltbeskatningsoverenskomst
     )],
     lønlempelsesstatus = lønlempelsesstatus
-)
-
-= ll33_person_scenarie_årsopgørelse2025 = ligningslov33_person_årsresultat(
-    Ligningslov33PersonÅrsinput(
-        indkomstår = 2025,
-        dansk_bruttoindkomst_kroner = 14569,
-        ikke_henførbare_udgifter = [],
-        kreditgrupper = [ll33_person_scenarie_kreditgruppe(
-            identifikation = "udenlandsk-udbytte",
-            landekode = "anonymiseret",
-            grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            indkomstposter = [ligningslov33_bruttoindkomstpost(
-                identifikation = "udenlandsk-udbytte-brutto",
-                beløb_kroner = 398,
-                indkomstkategorier = [Ll33Aktieindkomstkategori],
-                dokumentreference = "Udbyttebilag 2025"
-            )],
-            betalt_udenlandsk_skat_øre = 600,
-            lønlempelsesstatus = Ll33IngenLønindkomst
-        )],
-        par6_kreditter = [],
-        fragtskat_åbningssaldi = []
-    ),
-    Ligningslov33PersonDanskSkattekreds(
-        komponenter = [Ligningslov33DanskSkattekomponent(
-            art = Ll33PersonskattelovPar8A,
-            beregningsgrundlag = Ll33Aktieindkomst(samlet_indkomst_kroner = 14967),
-            dansk_skat_før_personfradrag_øre = 404109
-        )],
-        samlet_dansk_indkomstskat_tilgængelig_øre = 404109
-    )
 )
 
 = ll33_person_scenarie_løn = ligningslov33_person_årsresultat(
@@ -536,14 +473,12 @@
     []
 )
 
-| ll33_scenarie_årsopgørelse_forklarer_seks_kroner: ll33_scenarie_årsopgørelse2025 -> ll33_scenarie_årsopgørelse2025.input_gyldigt && head(ll33_scenarie_årsopgørelse2025.landelinjer).proportionalt_dansk_skatteloft_øre == 10746 && head(ll33_scenarie_årsopgørelse2025.landelinjer).udenlandsk_skat_efter_overenskomst_øre == 600 && ll33_scenarie_årsopgørelse2025.samlet_nedslag_øre == 600
 | ll33_scenarie_proportionalt_loft_begrænser: ll33_scenarie_proportionalt_loft -> ll33_scenarie_proportionalt_loft.input_gyldigt && head(ll33_scenarie_proportionalt_loft.landelinjer).proportionalt_dansk_skatteloft_øre == 270000 && ll33_scenarie_proportionalt_loft.samlet_nedslag_øre == 270000
 | ll33_scenarie_overenskomst_begrænser: ll33_scenarie_overenskomstloft -> ll33_scenarie_overenskomstloft.input_gyldigt && head(ll33_scenarie_overenskomstloft.landelinjer).proportionalt_dansk_skatteloft_øre == 2160000 && ll33_scenarie_overenskomstloft.samlet_nedslag_øre == 1500000
 | ll33_scenarie_par33f_fordeler_netto: ll33_scenarie_par33f -> ll33_scenarie_par33f.input_gyldigt && head(ll33_scenarie_par33f.par33f_landelinjer).fordelt_ikke_henførbar_udgift_kroner == 3200 && head(ll33_scenarie_par33f.par33f_landelinjer).nettoindkomst_efter_par33f_kroner == 35800
 | ll33_scenarie_dobbelt_område_afvises: ll33_scenarie_dobbelt_område -> ll33_scenarie_dobbelt_område.input_gyldigt == Falskt && ll33_scenarie_dobbelt_område.samlet_nedslag_øre == 0
 | ll33_scenarie_formueskat_afvises: ll33_scenarie_formueskat -> ll33_scenarie_formueskat.input_gyldigt == Falskt && ll33_scenarie_formueskat.samlet_nedslag_øre == 0
 | ll33_scenarie_udokumenteret_skat_afvises: ll33_scenarie_udokumenteret_indkomstskat -> ll33_scenarie_udokumenteret_indkomstskat.input_gyldigt == Falskt && ll33_scenarie_udokumenteret_indkomstskat.samlet_nedslag_øre == 0
-| ll33_person_scenarie_årsopgørelse_forklarer_seks_kroner: ll33_person_scenarie_årsopgørelse2025 -> ll33_person_scenarie_årsopgørelse2025.input_gyldigt && head(head(ll33_person_scenarie_årsopgørelse2025.kreditgrupper).komponenter).proportionalt_dansk_skatteloft_øre == 10746 && ll33_person_scenarie_årsopgørelse2025.samlet_nedslag_øre == 600
 | ll33_person_scenarie_løn_fordeles_pr_skattekomponent: ll33_person_scenarie_løn -> ll33_person_scenarie_løn.input_gyldigt && head(ll33_person_scenarie_løn.kreditgrupper).proportionalt_dansk_skatteloft_øre == 7678000 && ll33_person_scenarie_løn.samlet_nedslag_øre == 7678000
 | ll33_person_scenarie_aktiekomponent_uden_aktieindkomst_er_nul: ll33_person_scenarie_løn -> head(tail(tail(tail(tail(head(ll33_person_scenarie_løn.kreditgrupper).komponenter))))).proportionalt_dansk_skatteloft_øre == 0
 | ll33_person_scenarie_blandede_kategorier_afledes_fra_samme_kilder: ll33_person_scenarie_blandede_kategorier -> {
@@ -567,14 +502,12 @@
 | ll33_par6_scenarie_fast_driftssted_accepteres: ll33_par6_scenarie_fast_driftssted -> ll33_par6_scenarie_fast_driftssted.input_gyldigt && ll33_par6_scenarie_fast_driftssted.samlet_nedslag_øre == 2500000
 | ll33_par6_scenarie_fast_driftssted_kræver_dokumentation: ll33_par6_scenarie_udokumenteret_fast_driftssted -> ll33_par6_scenarie_udokumenteret_fast_driftssted.input_gyldigt == Falskt && ll33_par6_scenarie_udokumenteret_fast_driftssted.samlet_nedslag_øre == 0
 
-? ll33_scenarie_årsopgørelse_forklarer_seks_kroner
 ? ll33_scenarie_proportionalt_loft_begrænser
 ? ll33_scenarie_overenskomst_begrænser
 ? ll33_scenarie_par33f_fordeler_netto
 ? ll33_scenarie_dobbelt_område_afvises
 ? ll33_scenarie_formueskat_afvises
 ? ll33_scenarie_udokumenteret_skat_afvises
-? ll33_person_scenarie_årsopgørelse_forklarer_seks_kroner
 ? ll33_person_scenarie_løn_fordeles_pr_skattekomponent
 ? ll33_person_scenarie_aktiekomponent_uden_aktieindkomst_er_nul
 ? ll33_person_scenarie_blandede_kategorier_afledes_fra_samme_kilder

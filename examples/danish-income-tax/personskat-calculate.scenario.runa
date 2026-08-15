@@ -1196,7 +1196,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     a_skat_og_am_indeholdt_øre = 20500000,
     par68_indbetalt_øre = 0,
     b_skat_betalt_øre = 0,
-    udbytteskat_modregningsberettiget_øre = 435314,
+    udbytteskat_modregningsberettiget_øre = 400000,
     frivillig_indbetaling_par59_øre = 0,
     virksomhedsordning_beløb_øre = 0,
     personskattelov_par8a_stk5_beløb_øre = 0,
@@ -1461,32 +1461,32 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 = personskat_calculate_ligningslov33_aktieinput = PersonskatAktieavanceInput(
     ordinært_aktieår = UdenOrdinærtAktieår,
     særlige_aktiver = [],
-    udbytter = [personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)],
+    udbytter = [personskat_calculate_almindeligt_udbytte("syntetisk-udenlandsk-udbytte", 20000)],
     ligningslov7n_poster = []
 )
 = personskat_calculate_ligningslov33_input = PersonskatLigningslov33ParInput(
     hovedperson = MedLigningslov33(input = Ligningslov33PersonÅrsinput(
         indkomstår = 2026,
-        dansk_bruttoindkomst_kroner = 14569,
+        dansk_bruttoindkomst_kroner = 19000,
         ikke_henførbare_udgifter = [],
         kreditgrupper = [Ligningslov33PersonKreditgruppe(
-            identifikation = "anonymiseret-udenlandsk-udbytte",
+            identifikation = "syntetisk-udenlandsk-udbytte",
             grupperingsgrundlag = Ll33SamletIndkomstFraSkatteområdet,
-            område = Ll33FremmedStat("anonymiseret"),
+            område = Ll33FremmedStat("XY"),
             indkomstposter = [ligningslov33_bruttoindkomstpost(
-                identifikation = "anonymiseret-udenlandsk-udbytte-brutto",
-                beløb_kroner = 398,
+                identifikation = "syntetisk-udenlandsk-udbytte-brutto",
+                beløb_kroner = 1000,
                 indkomstkategorier = [Ll33Aktieindkomstkategori],
-                dokumentreference = "Anonymiseret årsopgørelsesscenarie"
+                dokumentreference = "Syntetisk udbyttebilag"
             )],
             skattebetalinger = [Ligningslov33Skattebetaling(
                 opkrævningsmåde = Ll33Indeholdelse,
-                betalt_udenlandsk_skat_øre = 600,
+                betalt_udenlandsk_skat_øre = 500,
                 skatteart = Ll33Indkomstskat,
-                betalingsdokumentreference = "Anonymiseret årsopgørelsesscenarie",
+                betalingsdokumentreference = "Syntetisk skattebilag",
                 overenskomstgrundlag = Ll33SkatteforvaltningenFastsatSkat(
-                    fradragsberettiget_udenlandsk_skat_øre = 600,
-                    dokumentreference = "Anonymiseret årsopgørelsesscenarie"
+                    fradragsberettiget_udenlandsk_skat_øre = 500,
+                    dokumentreference = "Syntetisk myndighedsafgørelse"
                 )
             )],
             lønlempelsesstatus = Ll33IngenLønindkomst
@@ -1521,7 +1521,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 ))
 = personskat_calculate_ligningslov33_neutralt_resultat = beregn_personskat(personskat_calculate_input_med_årsopgørelse(
     personskat_calculate_input_med_aktieavance(personskat_calculate_aktieinput_med_udbytter([
-        personskat_calculate_almindeligt_udbytte("udenlandsk-udbytte", 14967)
+        personskat_calculate_almindeligt_udbytte("syntetisk-udenlandsk-udbytte", 20000)
     ])),
     personskat_calculate_med_årsopgørelse_input.årsopgørelse
 ))
@@ -2124,7 +2124,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
 }
 | personskat_calculate_eksakt_årsopgørelse_bevarer_ører: personskat_calculate_eksakt_årsopgørelse_resultat -> match personskat_calculate_eksakt_årsopgørelse_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
-    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, afregning) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_eksakt_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 435314 && årsopgørelsesresultat.modregnede_foreløbige_skatter_øre == 20935314 && årsopgørelsesresultat.overskydende_skat_øre == 62750 && årsopgørelsesresultat.art == OverskydendeSkat && afregning == IngenSlutopgørelsesafregning
+    | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, afregning) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_eksakt_årsopgørelse_resultat.slutskat_øre && årsopgørelsesinput.kreditter.udbytteskat_modregningsberettiget_øre == 400000 && årsopgørelsesresultat.modregnede_foreløbige_skatter_øre == 20900000 && årsopgørelsesresultat.overskydende_skat_øre == 27436 && årsopgørelsesresultat.art == OverskydendeSkat && afregning == IngenSlutopgørelsesafregning
 }
 | personskat_calculate_al40c_nyt_acontoskat_afledes: personskat_calculate_al40c_nyt_resultat -> personskat_calculate_al40c_nyt_resultat.kapitalindkomst.alle_input_gyldige && personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige && personskat_calculate_al40c_nyt_resultat.kildeskat_al40c_acontoskat_input_gyldigt && personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat_kredit_øre == 13000000 && personskat_calculate_årsopgørelse_al40c_kredit_øre(personskat_calculate_al40c_nyt_resultat) == 13000000 && match personskat_calculate_al40c_nyt_resultat.afskrivningslov40c_acontoskat.årsresultat {
     | None -> Falskt
@@ -2152,7 +2152,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, årsopgørelsesresultat, _) -> årsopgørelsesinput.slutskat_øre == 21007564 && årsopgørelsesinput.slutskat_øre == personskat_calculate_ordinær_aktie_med_årsopgørelse_resultat.slutskat_øre && årsopgørelsesresultat.slutskat_med_tillæg_øre == 21157564
 }
-| personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat: personskat_calculate_ligningslov33_resultat -> personskat_calculate_ligningslov33_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ligningslov33_resultat.ligningslov33.input_gyldigt && personskat_calculate_ligningslov33_resultat.endelig_aktieindkomstskat_øre == 404109 && head(personskat_calculate_ligningslov33_resultat.ligningslov33.hovedperson.kreditgrupper).proportionalt_dansk_skatteloft_øre == 10746 && personskat_calculate_ligningslov33_resultat.ligningslov33.hovedpersons_nedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.ligningslov33.samlet_parnedslag_øre == 600 && personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_øre - personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == 600 && personskat_calculate_ligningslov33_neutralt_resultat.slutskat_øre - personskat_calculate_ligningslov33_resultat.slutskat_øre == 600 && match personskat_calculate_ligningslov33_resultat.årsopgørelse {
+| personskat_calculate_ligningslov33_nedslag_indgår_i_slutskat: personskat_calculate_ligningslov33_resultat -> personskat_calculate_ligningslov33_resultat.aktieavance.alle_input_gyldige && personskat_calculate_ligningslov33_resultat.ligningslov33.input_gyldigt && personskat_calculate_ligningslov33_resultat.endelig_aktieindkomstskat_øre == 540000 && head(personskat_calculate_ligningslov33_resultat.ligningslov33.hovedperson.kreditgrupper).proportionalt_dansk_skatteloft_øre == 27000 && personskat_calculate_ligningslov33_resultat.ligningslov33.hovedpersons_nedslag_øre == 500 && personskat_calculate_ligningslov33_resultat.ligningslov33.samlet_parnedslag_øre == 500 && personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_øre - personskat_calculate_ligningslov33_resultat.samlet_skat_inkl_ejendomsskatter_efter_ligningslov33_øre == 500 && personskat_calculate_ligningslov33_neutralt_resultat.slutskat_øre - personskat_calculate_ligningslov33_resultat.slutskat_øre == 500 && match personskat_calculate_ligningslov33_resultat.årsopgørelse {
     | IngenÅrsopgørelse -> Falskt
     | BeregnetÅrsopgørelse(årsopgørelsesinput, _, _) -> årsopgørelsesinput.slutskat_øre == personskat_calculate_ligningslov33_resultat.slutskat_øre
 }

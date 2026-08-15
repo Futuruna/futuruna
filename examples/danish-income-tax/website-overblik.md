@@ -70,28 +70,18 @@ transskriberer kildefakta; myndighedens beregnede resultat bruges kun som en
 uafhængig kontrol. Derefter kan den samme udfyldte sag køres igen, auditeres og
 forklares ud fra lovkoden.
 
-## Eksempel: tre virkelige årsopgørelser
+## Eksempel: offentlig beregning fra Skattestyrelsen
 
-Tre private årsopgørelser for 2023, 2024 og 2025 er anonymiseret og omsat til
-typede kildefakta. De private PDF-filer er ikke en del af repositoryet.
-Myndighedens slutskat er heller ikke ført ind som beregningsinput.
+Et kildebelagt scenarie bruger Skattestyrelsens offentlige 2026-beregner for en
+enlig lønmodtager i København med 600.000 kr. i årsløn og uden kirkeskat.
+Futuruna genberegner de offentliggjorte mellemresultater og rammer 48.000 kr. i
+arbejdsmarkedsbidrag, 552.000 kr. i personlig indkomst og 208.726 kr. i samlet
+skat inklusive arbejdsmarkedsbidrag efter afrunding.
 
-| Indkomstår | Myndighedens slutskat | Futurunas slutskat | Forskel |
-| --- | ---: | ---: | ---: |
-| 2023 | 306.059,58 kr. | 306.059,58 kr. | 0,00 kr. |
-| 2024 | 397.091,95 kr. | 397.091,95 kr. | 0,00 kr. |
-| 2025 | 290.590,34 kr. | 290.590,34 kr. | 0,00 kr. |
-
-For 2025 blev de kanoniske fakta desuden hydreret ind i den offentligt
-genererede XLSX-arbejdsbog og beregnet tilbage gennem `runa call`. Direkte
-typet JSON og den udfyldte arbejdsbog gav samme personlige indkomst,
-nettokapitalindkomst, aktieindkomst, slutskat og slutafregning. Futuruna
-beregnede 82,80 kr. i overskydende skat, hvor lovens helkronegrænse gav 82 kr.
-til udbetaling og bevarede 80 øre som ikke udbetalt afrunding.
-
-Tre afstemninger beviser ikke enhver mulig skattesag. De viser derimod, at
-arbejdsbogens faktiske brugerflow, den typede kontrakt og den eksekverbare
-lovgraf kan ramme uafhængige myndighedsresultater helt ned til øret.
+Det samme scenarie beregner skattekortet til 36 procent og et månedsfradrag på
+8.164 kr., svarende til den observerede offentlige beregning. Testen holder
+kildens input og output adskilt, så myndighedens resultat ikke kan blive brugt
+som genvej i selve lovberegningen.
 
 ## Audit: mere end 100 procent
 

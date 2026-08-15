@@ -44,19 +44,15 @@ an inferred value into a documented fact.
 
 ## Boundary evidence
 
-The anonymized 2025 Personskat case is the first production case:
+The public SKAT 2026 calculator comparison is the production boundary case:
 
-- `personskat-2025-aarsopgoerelse.scenario.runa` checks the interpreter-facing
-  invariant and keeps the private PDF outside the repository.
-- `runa check --backend` compiles the same typed case through generated Rust.
-- `tests/calculate_cli.rs` obtains canonical source facts, invokes Personskat
-  from JSON, hydrates the generated XLSX workbook with the same facts, invokes
-  it again, and requires identical JSON and XLSX results before checking the
-  externally observed amounts.
-
-The raw private document is not a fixture. Its anonymized source facts,
-assumptions, unknowns, and observed outputs are reviewable code; personal
-identifiers and the source PDF remain excluded.
+- `skatdk-2026-ekstern.scenario.runa` records a reproducible public input and
+  the calculator version, retrieval date, and observed outputs.
+- The scenario derives the tax and withholding card from Futuruna rules rather
+  than treating the observed result as calculation input.
+- Synthetic Personskat cases exercise JSON input, generated XLSX hydration,
+  workbook invocation, and complete result-tree equality without publishing
+  facts derived from a private taxpayer document.
 
 ## When syntax would be justified
 

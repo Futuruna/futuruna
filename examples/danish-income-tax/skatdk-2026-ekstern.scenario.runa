@@ -110,7 +110,7 @@ Forskudsskat til opkrævning som A-skat og B-skat mv.: 160.725,64 kr.
     nedrunding_til_ti_kroner = Sandt
 ))
 
-| skatdk_2026_københavn_600k_kildespor: skatdk_2026_københavn_600k_kilde -> skatdk_2026_københavn_600k_kilde.calculator_version == "26.2.2.3" && skatdk_2026_københavn_600k_kilde.hentet_dato == "2026-06-21"
+| skatdk_2026_københavn_600k_kildespor: skatdk_2026_københavn_600k_kilde -> skatdk_2026_københavn_600k_kilde.calculator_version == "26.2.2.3" && skatdk_2026_københavn_600k_kilde.hentet_dato == "2026-07-18"
 | skatdk_2026_københavn_600k_am: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.arbejdsmarkedsbidrag_kroner == 48000
 | skatdk_2026_københavn_600k_personlig: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.personlig_indkomst_efter_am_kroner == 552000
 | skatdk_2026_københavn_600k_fradrag: skatdk_2026_københavn_600k_futuruna -> skatdk_2026_københavn_600k_futuruna.beskæftigelsesfradrag_kroner == 63300 && skatdk_2026_københavn_600k_futuruna.jobfradrag_kroner == 3100 && skatdk_2026_københavn_600k_futuruna.almindelig_skattepligtig_indkomst_kroner == 485600
