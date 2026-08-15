@@ -133,7 +133,7 @@ Gennemført den 16. august 2026.
   forhold er nu tekstlige forskelle eller navngivne fortolkningsspørgsmål.
 - Fire nye scenariefiler har 64 meningsfulde invarianter. Alle 11
   scenariefiler med i alt 163 invarianter består både fortolket og som
-  genereret Rust med fire parallelle workers.
+  genereret Rust med fire samtidige processer.
 - Den samlede audit har 210 bestående invarianter og består både fortolket og
   som genereret Rust.
 - Den aktuelle topologiprøvning viser 14 dækningshuller mod 24 efter milepæl
@@ -146,26 +146,84 @@ Gennemført den 16. august 2026.
   som compilerfejl `td-f82dfa`; kildemodellen bruger det idiomatiske interne
   regelscope og ingen kompatibilitetsalias.
 
+### Milepæl 4: Kapitel IX-XI
+
+Gennemført den 16. august 2026.
+
+- § 86 er én typet hovedregel for kommunale råd og menighedsråd med en
+  navngiven undtagelse for Færøerne og Grønland. Modellen skelner mellem at
+  følge folketingsvalgretsalderen til enhver tid og at blive fastsat ved lov
+  eller i henhold til lov.
+- § 87 er ikke længere et ubetinget udsagn om alle islandske statsborgere.
+  `IslandskRettighedssag` kræver både lige ret efter den nævnte ophævelseslov,
+  grundlovshjemmel og tilknytning til dansk indfødsret.
+- § 88 er opdelt i `Grundlovsforslagsforløb`,
+  `Grundlovsafstemningsresultat`, `Grundlovsafstemning` og
+  `Grundlovsændringssag`. Reglerne skelner procedureudløseren fra det fuldførte
+  forløb, afviser inkonsistente stemmetal og bevarer den strenge
+  flertalsgrænse, den inklusive 40-procentgrænse, halvårsfristen, den direkte
+  afstemning og den kongelige stadfæstelse.
+- § 89 bruger to overgangsfaser. Den nye grundlov er i kraft i begge, mens den
+  hidtidige rigsdag og de tidligere rigsdagsbestemmelser kun består før
+  nyvalget efter kapitel IV. Grundloven af 1915 og ændringen af 1920 er samlet
+  i ét historisk forfatningsgrundlag.
+- Stadfæstelsesteksten har én typet akt med dato, sted, monark, kongelig hånd
+  og kongeligt segl i stedet for tre parallelle fakta.
+- En ny scenariefil har 12 meningsfulde invarianter. Alle 12 scenariefiler med
+  i alt 175 invarianter består både fortolket og som genereret Rust med fire
+  samtidige processer.
+- Den samlede audit har 191 bestående invarianter og består både fortolket og
+  som genereret Rust. Tværgående sammenligninger beskriver konkrete
+  procesforskelle uden at rangordne bestemmelser som stærkere eller svagere.
+- Topologiprøvningen viser 134 regler, 13 hulfamilier og ingen rapporterede
+  paradokser, spændinger eller asymmetrier. Faldet fra 14 skyldes især den
+  kanoniske stadfæstelsesakt, ikke et nyt retligt bevis.
+- De 91 kildetekstblokke har fortsat kontrolsummen
+  `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
+  fejlmeddelelser. Kilde- og metadataporten består 4 af 4 kontroller.
+
+#### Klassifikation af de 13 topologiske hulfamilier
+
+Topologirapporten grupperer nulargumentregler efter navne, ikke efter retligt
+emne. En hulfamilie er derfor et arbejdssignal og ikke i sig selv et udækket
+retligt spørgsmål.
+
+| Hulfamilie | Klassifikation | Beslutning |
+| --- | --- | --- |
+| `folketinget` | Navnebaseret samlegruppe af 12 forskellige kompetencer og organisationsudsagn. | Bevidst åben; gennemgås pr. kodespænd og lukkes ikke med én tautologi. |
+| `folketingsåret` | To faste kalenderudsagn uden variabelt sagsdomæne. | Bevidst udækket, indtil en konkret kalenderforespørgsel kræver en model. |
+| `kommissioner` | To beslægtede oplysningskompetencer. | Kandidat til en lukket adressattype i prøvningslaget. |
+| `kongen` | Navnebaseret samlegruppe af 13 forskellige roller og kompetencer. | Bevidst åben; fysisk monark, embede og statsorgan må ikke samles for at tilfredsstille topologien. |
+| `mandatfordeling` | Tre udtrykkelige hensyn i samme bestemmelse. | Kandidat til en lukket hensynstype og en dækningskontrol. |
+| `mellemfolkelige` | To egenskaber ved de myndigheder, § 20 omtaler. | Kandidat til ét domæneobjekt; ingen tautologisk kontrol tilføjes. |
+| `ministerråd` | To organisationskrav i § 18. | Kandidat til en `Ministerrådsordning` med intern regel. |
+| `ministre` | Adgangsret og taleret i Folketinget. | Kandidat til et lukket rettighedsdomæne. |
+| `regeringsmyndigheden` | To strukturelle udsagn om begrænsning og udøvelse. | Bevares foreløbig som tekstnære fakta; relationen genprøves tværgående. |
+| `revisorer` | To kompetencer ved statsregnskabet. | Kandidat til en lukket revisionskompetencetype. |
+| `statsministeren` | To pligter fra forskellige bestemmelser samlet alene af navnet. | Bevidst åben og behandles som to uafhængige kildespørgsmål. |
+| `tilsyn` | Civil og militær forvaltning som to udtrykkelige områder. | Kandidat til en lukket tilsynsområdetype. |
+| `valg` | Tre valgprincipper og ét særskilt forholdstalsvalg samlet af navnet. | Splittes efter retligt emne; de tre principper er kandidat til et lukket domæne. |
+
 ## Nu
 
 - Bevar den officielle ordlyd og kildekoblingen uændret.
-- Gennemgå kapitel IX-XI: § 86 om kommunal valgret, §§ 87-88 om islandske
-  statsborgere og grundlovsændring samt § 89 og stadfæstelsen.
-- Kontroller de sidste krydshenvisninger, frister, tærskler, modaliteter og
-  delegationsregler mod de fælles domænetyper.
-- Bevar fortolkningsspørgsmål som spørgsmål, indtil de får navngivne modeller
-  og særskilte retskilder.
+- Adskil lokale overensstemmelseskontroller, procedurekontroller,
+  rettighedskontroller og tværgående undersøgelser i målrettede auditfiler.
+- Flyt resterende scenarieværdier ud af den samlede audit, og erstat
+  tautologiske kontroller med egentlige egenskaber eller en dokumenteret
+  bevidst afgrænsning.
+- Bevar fortolkningsspørgsmål som spørgsmål, indtil de får navngivne modeller,
+  synlige forudsætninger og særskilte retskilder.
 
 ## Næste
 
-- Klassificer de 14 kendte topologiske dækningshuller som dækket eller bevidst
-  udækket.
-- Adskil kildescenarier, fortolkningsscenarier og prøvninger i de planlagte
-  `.scenario.runa`- og `.audit.runa`-filer.
+- Giv væsentlige fund typet metadata, udsagnsstatus, prøvningsomfang og
+  kontrollerede programhenvisninger.
+- Modellér konkurrerende fortolkninger side om side for de udvalgte åbne
+  spørgsmål uden skjult standardvalg.
 
 ## Senere
 
-- Giv væsentlige fund typet metadata og kontrollerede programhenvisninger.
 - Omskriv de danske grundlovssider, så ordlyd, model og fortolkning vises
   nøgternt og afledes fra det aktive korpus.
 - Kør den samlede juridiske, fortolkede, genererede og visuelle

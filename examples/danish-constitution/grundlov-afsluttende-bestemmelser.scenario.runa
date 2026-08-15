@@ -1,0 +1,235 @@
+@ sprog da
+
+@ importer ./kapitel - 09
+@ importer ./kapitel - 10
+@ importer ./kapitel - 11
+
+-- Scenarierne prøver §§ 86-89 og stadfæstelsen ved deres betingelser og grænser.
+
+= dansk_kommunal_valgretsalder = Rådsvalgretsalder(
+    rigsdel = Danmark,
+    råd = KommunaltRåd
+)
+= dansk_menighedsrådsvalgretsalder = Rådsvalgretsalder(
+    rigsdel = Danmark,
+    råd = Menighedsråd
+)
+= færøsk_kommunal_valgretsalder = Rådsvalgretsalder(
+    rigsdel = Færøerne,
+    råd = KommunaltRåd
+)
+= færøsk_menighedsrådsvalgretsalder = Rådsvalgretsalder(
+    rigsdel = Færøerne,
+    råd = Menighedsråd
+)
+= grønlandsk_kommunal_valgretsalder = Rådsvalgretsalder(
+    rigsdel = Grønland,
+    råd = KommunaltRåd
+)
+= grønlandsk_menighedsrådsvalgretsalder = Rådsvalgretsalder(
+    rigsdel = Grønland,
+    råd = Menighedsråd
+)
+
+= par86_dansk_kommunal = dansk_kommunal_valgretsalder.retsgrundlag_efter_par86()
+= par86_dansk_menighedsråd = dansk_menighedsrådsvalgretsalder.retsgrundlag_efter_par86()
+= par86_færøsk_kommunal = færøsk_kommunal_valgretsalder.retsgrundlag_efter_par86()
+= par86_færøsk_menighedsråd = færøsk_menighedsrådsvalgretsalder.retsgrundlag_efter_par86()
+= par86_grønlandsk_kommunal = grønlandsk_kommunal_valgretsalder.retsgrundlag_efter_par86()
+= par86_grønlandsk_menighedsråd = grønlandsk_menighedsrådsvalgretsalder.retsgrundlag_efter_par86()
+
+| par86_hovedreglen_omfatter_begge_rådstyper: par86_dansk_kommunal -> par86_dansk_kommunal == FølgerFolketingsvalgretsalderenTilEnhverTid && par86_dansk_menighedsråd == FølgerFolketingsvalgretsalderenTilEnhverTid
+| par86_rigsdelsundtagelsen_omfatter_begge_rådstyper: par86_færøsk_kommunal -> par86_færøsk_kommunal == FastsættesVedLovEllerIHEnholdTilLov && par86_færøsk_menighedsråd == FastsættesVedLovEllerIHEnholdTilLov && par86_grønlandsk_kommunal == FastsættesVedLovEllerIHEnholdTilLov && par86_grønlandsk_menighedsråd == FastsættesVedLovEllerIHEnholdTilLov
+
+= omfattet_islandsk_rettighedssag = IslandskRettighedssag(
+    nyder_lige_ret_efter_forbundslovens_ophævelseslov = Sandt,
+    rettigheden_er_hjemlet_i_grundloven = Sandt,
+    rettigheden_er_knyttet_til_dansk_indfødsret = Sandt
+)
+= islandsk_rettighedssag_uden_lige_ret = IslandskRettighedssag(
+    nyder_lige_ret_efter_forbundslovens_ophævelseslov = Falskt,
+    rettigheden_er_hjemlet_i_grundloven = Sandt,
+    rettigheden_er_knyttet_til_dansk_indfødsret = Sandt
+)
+= islandsk_rettighedssag_uden_grundlovshjemmel = IslandskRettighedssag(
+    nyder_lige_ret_efter_forbundslovens_ophævelseslov = Sandt,
+    rettigheden_er_hjemlet_i_grundloven = Falskt,
+    rettigheden_er_knyttet_til_dansk_indfødsret = Sandt
+)
+= islandsk_rettighedssag_uden_indfødsretsknytning = IslandskRettighedssag(
+    nyder_lige_ret_efter_forbundslovens_ophævelseslov = Sandt,
+    rettigheden_er_hjemlet_i_grundloven = Sandt,
+    rettigheden_er_knyttet_til_dansk_indfødsret = Falskt
+)
+
+= par87_omfattet = omfattet_islandsk_rettighedssag.bevarer_rettigheden_efter_par87()
+= par87_uden_lige_ret = islandsk_rettighedssag_uden_lige_ret.bevarer_rettigheden_efter_par87()
+= par87_uden_grundlovshjemmel = islandsk_rettighedssag_uden_grundlovshjemmel.bevarer_rettigheden_efter_par87()
+= par87_uden_indfødsretsknytning = islandsk_rettighedssag_uden_indfødsretsknytning.bevarer_rettigheden_efter_par87()
+
+| par87_alle_tre_betingelser_er_nødvendige: par87_omfattet -> par87_omfattet && par87_uden_lige_ret == Falskt && par87_uden_grundlovshjemmel == Falskt && par87_uden_indfødsretsknytning == Falskt
+
+= gyldigt_grundlovsforslagsforløb = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Sandt,
+    nyvalg_til_folketinget_udskrevet = Sandt,
+    det_følgende_folketing_har_vedtaget = Sandt,
+    skikkelse_ved_genvedtagelsen = UændretSkikkelse
+)
+= forslagsforløb_uden_regeringsfremme = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Falskt,
+    nyvalg_til_folketinget_udskrevet = Sandt,
+    det_følgende_folketing_har_vedtaget = Sandt,
+    skikkelse_ved_genvedtagelsen = UændretSkikkelse
+)
+= forslagsforløb_uden_nyvalg = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Sandt,
+    nyvalg_til_folketinget_udskrevet = Falskt,
+    det_følgende_folketing_har_vedtaget = Sandt,
+    skikkelse_ved_genvedtagelsen = UændretSkikkelse
+)
+= forslagsforløb_uden_genvedtagelse = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Sandt,
+    nyvalg_til_folketinget_udskrevet = Sandt,
+    det_følgende_folketing_har_vedtaget = Falskt,
+    skikkelse_ved_genvedtagelsen = UændretSkikkelse
+)
+= forslagsforløb_med_ændret_genvedtagelse = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Sandt,
+    nyvalg_til_folketinget_udskrevet = Sandt,
+    det_følgende_folketing_har_vedtaget = Sandt,
+    skikkelse_ved_genvedtagelsen = ÆndretSkikkelse
+)
+
+= par88_gyldigt_forslagsforløb = gyldigt_grundlovsforslagsforløb.opfylder_forslagsforløbet_i_par88()
+= par88_uden_regeringsfremme = forslagsforløb_uden_regeringsfremme.opfylder_forslagsforløbet_i_par88()
+= par88_uden_nyvalg = forslagsforløb_uden_nyvalg.opfylder_forslagsforløbet_i_par88()
+= par88_uden_genvedtagelse = forslagsforløb_uden_genvedtagelse.opfylder_forslagsforløbet_i_par88()
+= par88_med_ændret_genvedtagelse = forslagsforløb_med_ændret_genvedtagelse.opfylder_forslagsforløbet_i_par88()
+
+| par88_forslagsforløbet_kræver_alle_led: par88_gyldigt_forslagsforløb -> par88_gyldigt_forslagsforløb && par88_uden_regeringsfremme == Falskt && par88_uden_nyvalg == Falskt && par88_uden_genvedtagelse == Falskt && par88_med_ændret_genvedtagelse == Falskt
+
+= godkendt_ved_præcis_fyrre_pct = Grundlovsafstemningsresultat(
+    for_stemmer = 400,
+    deltagende = 700,
+    stemmeberettigede = 1000
+)
+= præcis_halvdelen_af_de_deltagende = Grundlovsafstemningsresultat(
+    for_stemmer = 400,
+    deltagende = 800,
+    stemmeberettigede = 1000
+)
+= flertal_men_under_fyrre_pct = Grundlovsafstemningsresultat(
+    for_stemmer = 399,
+    deltagende = 700,
+    stemmeberettigede = 1000
+)
+= inkonsistent_afstemningsresultat = Grundlovsafstemningsresultat(
+    for_stemmer = 701,
+    deltagende = 700,
+    stemmeberettigede = 1000
+)
+
+= par88_præcis_fyrre_pct = godkendt_ved_præcis_fyrre_pct.opfylder_godkendelseskravet_i_par88()
+= par88_præcis_halvdelen = præcis_halvdelen_af_de_deltagende.opfylder_godkendelseskravet_i_par88()
+= par88_under_fyrre_pct = flertal_men_under_fyrre_pct.opfylder_godkendelseskravet_i_par88()
+= par88_inkonsistent_resultat = inkonsistent_afstemningsresultat.opfylder_godkendelseskravet_i_par88()
+
+| par88_flertallet_er_strengt_og_fyrre_pct_er_inklusiv: par88_præcis_fyrre_pct -> par88_præcis_fyrre_pct && par88_præcis_halvdelen == Falskt && par88_under_fyrre_pct == Falskt
+| par88_inkonsistente_stemmetal_afvises: par88_inkonsistent_resultat -> par88_inkonsistent_resultat == Falskt
+
+= rettidig_direkte_grundlovsafstemning = Grundlovsafstemning(
+    forelæggelsestidspunkt = IndenEtHalvtÅrEfterEndeligVedtagelse,
+    forelagt_ved_direkte_afstemning = Sandt,
+    resultat = godkendt_ved_præcis_fyrre_pct
+)
+= for_sen_grundlovsafstemning = Grundlovsafstemning(
+    forelæggelsestidspunkt = EfterEtHalvtÅrEfterEndeligVedtagelse,
+    forelagt_ved_direkte_afstemning = Sandt,
+    resultat = godkendt_ved_præcis_fyrre_pct
+)
+= afstemning_før_endelig_vedtagelse = Grundlovsafstemning(
+    forelæggelsestidspunkt = FørEndeligVedtagelse,
+    forelagt_ved_direkte_afstemning = Sandt,
+    resultat = godkendt_ved_præcis_fyrre_pct
+)
+= ikke_direkte_grundlovsafstemning = Grundlovsafstemning(
+    forelæggelsestidspunkt = IndenEtHalvtÅrEfterEndeligVedtagelse,
+    forelagt_ved_direkte_afstemning = Falskt,
+    resultat = godkendt_ved_præcis_fyrre_pct
+)
+
+= par88_rettidig_direkte = rettidig_direkte_grundlovsafstemning.godkender_folketingets_beslutning_efter_par88()
+= par88_for_sen = for_sen_grundlovsafstemning.godkender_folketingets_beslutning_efter_par88()
+= par88_før_endelig_vedtagelse = afstemning_før_endelig_vedtagelse.godkender_folketingets_beslutning_efter_par88()
+= par88_ikke_direkte = ikke_direkte_grundlovsafstemning.godkender_folketingets_beslutning_efter_par88()
+
+| par88_forelæggelsen_kræver_rettidighed_og_direkte_afstemning: par88_rettidig_direkte -> par88_rettidig_direkte && par88_for_sen == Falskt && par88_før_endelig_vedtagelse == Falskt && par88_ikke_direkte == Falskt
+
+= gyldig_grundlovsændringssag = Grundlovsændringssag(
+    forslagsforløb = gyldigt_grundlovsforslagsforløb,
+    afstemning = rettidig_direkte_grundlovsafstemning,
+    stadfæstet_af_kongen = Sandt
+)
+= grundlovsændringssag_uden_stadfæstelse = Grundlovsændringssag(
+    forslagsforløb = gyldigt_grundlovsforslagsforløb,
+    afstemning = rettidig_direkte_grundlovsafstemning,
+    stadfæstet_af_kongen = Falskt
+)
+= grundlovsændringssag_uden_gyldigt_forslagsforløb = Grundlovsændringssag(
+    forslagsforløb = forslagsforløb_uden_nyvalg,
+    afstemning = rettidig_direkte_grundlovsafstemning,
+    stadfæstet_af_kongen = Sandt
+)
+
+= par88_bliver_grundlov = gyldig_grundlovsændringssag.bliver_grundlov_efter_par88()
+= par88_bliver_ikke_grundlov_uden_stadfæstelse = grundlovsændringssag_uden_stadfæstelse.bliver_grundlov_efter_par88()
+= par88_bliver_ikke_grundlov_uden_forslagsforløb = grundlovsændringssag_uden_gyldigt_forslagsforløb.bliver_grundlov_efter_par88()
+
+| par88_hele_regelkaskaden_kræves: par88_bliver_grundlov -> par88_bliver_grundlov && par88_bliver_ikke_grundlov_uden_stadfæstelse == Falskt && par88_bliver_ikke_grundlov_uden_forslagsforløb == Falskt
+
+= overgang_før_nyvalg = Grundlovsovergang(fase = FørNyvalgEfterKapitelIV)
+= overgang_efter_nyvalg = Grundlovsovergang(fase = EfterNyvalgEfterKapitelIV)
+
+= par89_grundloven_i_kraft_før_nyvalg = overgang_før_nyvalg.grundloven_er_i_kraft_efter_par89()
+= par89_grundloven_i_kraft_efter_nyvalg = overgang_efter_nyvalg.grundloven_er_i_kraft_efter_par89()
+= par89_rigsdagen_består_før_nyvalg = overgang_før_nyvalg.den_senest_valgte_rigsdag_består_efter_par89()
+= par89_rigsdagen_består_efter_nyvalg = overgang_efter_nyvalg.den_senest_valgte_rigsdag_består_efter_par89()
+= par89_tidligere_bestemmelser_før_nyvalg = overgang_før_nyvalg.de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89()
+= par89_tidligere_bestemmelser_efter_nyvalg = overgang_efter_nyvalg.de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89()
+
+| par89_den_nye_grundlov_er_i_kraft_i_begge_faser: par89_grundloven_i_kraft_før_nyvalg -> par89_grundloven_i_kraft_før_nyvalg && par89_grundloven_i_kraft_efter_nyvalg
+| par89_overgangsreglerne_ophører_ved_nyvalget: par89_rigsdagen_består_før_nyvalg -> par89_rigsdagen_består_før_nyvalg && par89_rigsdagen_består_efter_nyvalg == Falskt && par89_tidligere_bestemmelser_før_nyvalg && par89_tidligere_bestemmelser_efter_nyvalg == Falskt
+
+= stadfæstelse_med_forkert_dato = Grundlovsstadfæstelse(
+    dato = Dato(år = 1953, måned = 6, dag = 6),
+    sted = ChristiansborgSlot,
+    monark = FrederikDenNiende,
+    under_kongelig_hånd = Sandt,
+    under_kongeligt_segl = Sandt
+)
+
+= stadfæstelsesteksten_opfyldt = grundlovens_stadfæstelse.opfylder_stadfæstelsesteksten()
+= stadfæstelsesteksten_ikke_opfyldt_med_forkert_dato = stadfæstelse_med_forkert_dato.opfylder_stadfæstelsesteksten()
+
+| par89_forfatningsgrundlagets_datoer: overgangens_tidligere_forfatningsgrundlag -> overgangens_tidligere_forfatningsgrundlag.grundlovsdato == Dato(år = 1915, måned = 6, dag = 5) && overgangens_tidligere_forfatningsgrundlag.ændringsdato == Dato(år = 1920, måned = 9, dag = 10)
+| stadfæstelsestekstens_akt_er_entydig: stadfæstelsesteksten_opfyldt -> stadfæstelsesteksten_opfyldt && stadfæstelsesteksten_ikke_opfyldt_med_forkert_dato == Falskt && grundloven_er_gældende_ret()
+
+? par86_hovedreglen_omfatter_begge_rådstyper
+? par86_rigsdelsundtagelsen_omfatter_begge_rådstyper
+? par87_alle_tre_betingelser_er_nødvendige
+? par88_forslagsforløbet_kræver_alle_led
+? par88_flertallet_er_strengt_og_fyrre_pct_er_inklusiv
+? par88_inkonsistente_stemmetal_afvises
+? par88_forelæggelsen_kræver_rettidighed_og_direkte_afstemning
+? par88_hele_regelkaskaden_kræves
+? par89_den_nye_grundlov_er_i_kraft_i_begge_faser
+? par89_overgangsreglerne_ophører_ved_nyvalget
+? par89_forfatningsgrundlagets_datoer
+? stadfæstelsestekstens_akt_er_entydig
+
+@ skriv("Scenarierne for grundlovens afsluttende bestemmelser holder.")

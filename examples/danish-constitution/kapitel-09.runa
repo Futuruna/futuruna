@@ -14,10 +14,12 @@ eller i henhold til lov.
 
 --@begin:grundlov_par86--
 
-| kommunal_valgretsalder_følger_folketingsvalg()
-| menighedsråd_valgretsalder_følger_folketingsvalg()
-| færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
-| grønland_kommunal_valgretsalder_fastsættes_ved_lov()
+# Rådstype = KommunaltRåd | Menighedsråd
+# ValgretsalderensRetsgrundlag = FølgerFolketingsvalgretsalderenTilEnhverTid | FastsættesVedLovEllerIHEnholdTilLov
+# Rådsvalgretsalder(rigsdel: Rigsdel, råd: Rådstype) {
+    | retsgrundlag_efter_par86() -> FølgerFolketingsvalgretsalderenTilEnhverTid
+    | exception færøerne_og_grønland retsgrundlag_efter_par86() -> FastsættesVedLovEllerIHEnholdTilLov under rigsdel == Færøerne || rigsdel == Grønland
+}
 --@end:grundlov_par86--
 
 --@label:grundlov_par87::meta:grundlov_kildemetadata--
@@ -30,6 +32,7 @@ indfødsret.
 
 --@begin:grundlov_par87--
 
-| islandske_statsborgere_bevarer_grundlovsrettigheder()
-| islandske_rettigheder_knyttet_til_dansk_indfødsret()
+# IslandskRettighedssag(nyder_lige_ret_efter_forbundslovens_ophævelseslov: Boolsk, rettigheden_er_hjemlet_i_grundloven: Boolsk, rettigheden_er_knyttet_til_dansk_indfødsret: Boolsk) {
+    | bevarer_rettigheden_efter_par87() -> nyder_lige_ret_efter_forbundslovens_ophævelseslov && rettigheden_er_hjemlet_i_grundloven && rettigheden_er_knyttet_til_dansk_indfødsret
+}
 --@end:grundlov_par87--

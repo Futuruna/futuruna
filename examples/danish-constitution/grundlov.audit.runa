@@ -1097,80 +1097,63 @@
 ? ed_tjenestemand_gentagelse
 ? forsikring_folketingsmedlem_gentagelse
 
--- Par. 86: kommunal valgret følger folketingsvalgret
-| par86_kommunal_følger: kommunal_valgretsalder_følger_folketingsvalg() -> kommunal_valgretsalder_følger_folketingsvalg()
-| par86_menighedsråd_følger: menighedsråd_valgretsalder_følger_folketingsvalg() -> menighedsråd_valgretsalder_følger_folketingsvalg()
-
--- Delegationer (kap. IX)
-| delegation_færøerne_kommunal_valgret: færøerne_kommunal_valgretsalder_fastsættes_ved_lov() -> færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
-| delegation_grønland_kommunal_valgret: grønland_kommunal_valgretsalder_fastsættes_ved_lov() -> grønland_kommunal_valgretsalder_fastsættes_ved_lov()
-
--- Par. 87: islandske statsborgeres rettigheder
-| par87_islandske_rettigheder: islandske_statsborgere_bevarer_grundlovsrettigheder() -> islandske_statsborgere_bevarer_grundlovsrettigheder()
-
--- Par. 88: grundlovsændring — dobbelt godkendelseskrav
-= par88_godkendt = grundlovsændring_godkendt(
-    for_stemmer = 600000,
-    deltagende = 1000000,
-    stemmeberettigede = 1400000
+-- §§ 29 og 86: hovedreglen følger folketingsvalgretsalderen, mens
+-- Færøerne og Grønland har det udtrykkeligt delegerede retsgrundlag.
+= audit_dansk_kommunal_valgretsalder = Rådsvalgretsalder(
+    rigsdel = Danmark,
+    råd = KommunaltRåd
 )
-= par88_flertal_men_under_40pct = grundlovsændring_godkendt(
-    for_stemmer = 510000,
-    deltagende = 1000000,
-    stemmeberettigede = 1400000
+= audit_færøsk_kommunal_valgretsalder = Rådsvalgretsalder(
+    rigsdel = Færøerne,
+    råd = KommunaltRåd
 )
-= par88_minoritet = grundlovsændring_godkendt(
-    for_stemmer = 400000,
-    deltagende = 1000000,
-    stemmeberettigede = 1400000
+= audit_grønlandsk_menighedsrådsvalgretsalder = Rådsvalgretsalder(
+    rigsdel = Grønland,
+    råd = Menighedsråd
 )
-| par88_begge_krav_opfyldt: par88_godkendt -> par88_godkendt == Sandt
-| par88_mangler_40pct: par88_flertal_men_under_40pct -> par88_flertal_men_under_40pct == Falskt
-| par88_mangler_flertal: par88_minoritet -> par88_minoritet == Falskt
+= par86_dansk_retsgrundlag = audit_dansk_kommunal_valgretsalder.retsgrundlag_efter_par86()
+= par86_færøsk_retsgrundlag = audit_færøsk_kommunal_valgretsalder.retsgrundlag_efter_par86()
+= par86_grønlandsk_retsgrundlag = audit_grønlandsk_menighedsrådsvalgretsalder.retsgrundlag_efter_par86()
+= par29_valgretsalderændring_kan_stadfæstes = valgretsalderændring_kan_stadfæstes(Valgretsalderændring(
+    folketinget_har_vedtaget = Sandt,
+    folkeafstemning_afholdt = Sandt,
+    bestemmelsen_bortfaldet = Falskt
+))
+| par29_par86_retsgrundlagene_er_adskilt: par29_valgretsalderændring_kan_stadfæstes -> par29_valgretsalderændring_kan_stadfæstes && par86_dansk_retsgrundlag == FølgerFolketingsvalgretsalderenTilEnhverTid && par86_færøsk_retsgrundlag == FastsættesVedLovEllerIHEnholdTilLov && par86_grønlandsk_retsgrundlag == FastsættesVedLovEllerIHEnholdTilLov
 
--- Par. 88: tærskel
-| par88_tærskel: godkendelsestærskel_pct -> godkendelsestærskel_pct == 40
-| par88_frist: frist_folkeafstemning_måneder -> frist_folkeafstemning_måneder == 6
+-- §§ 42 og 88 bruger forskellige stemmeretninger og tærskler. Samme andel
+-- prøves her som henholdsvis modstemmer og forstemmer; auditten rangordner
+-- ikke procedurerne.
+= par42_resultat_med_femogtredive_pct = Folkeafstemningsresultat(
+    mod_stemmer = 350,
+    deltagende = 600,
+    stemmeberettigede = 1000
+)
+= par88_resultat_med_femogtredive_pct = Grundlovsafstemningsresultat(
+    for_stemmer = 350,
+    deltagende = 600,
+    stemmeberettigede = 1000
+)
+= par42_femogtredive_pct_forkaster_lovforslaget = lovforslag_forkastet_ved_folkeafstemning(par42_resultat_med_femogtredive_pct)
+= par88_femogtredive_pct_godkender_ikke_grundlovsændringen = par88_resultat_med_femogtredive_pct.opfylder_godkendelseskravet_i_par88()
+| par42_par88_tekstlige_tærskeludfald: par42_femogtredive_pct_forkaster_lovforslaget -> par42_femogtredive_pct_forkaster_lovforslaget && par88_femogtredive_pct_godkender_ikke_grundlovsændringen == Falskt && grundlovsafstemningens_tilslutningstærskel == Brøk(tæller = 2, nævner = 5)
 
--- Delegationer (kap. X)
-| delegation_afstemningsregler: afstemningsregler_fastsættes_ved_lov() -> afstemningsregler_fastsættes_ved_lov()
-
--- Tværgående: par. 88 vs par. 42 stk. 5 — to folkeafstemninger, forskellige tærskler
--- § 42 stk. 5: lovforslag forkastes ved flertal + 30% af stemmeberettigede.
--- § 88: grundlovsændring godkendes ved flertal + 40% af stemmeberettigede.
--- Grundlovsændring kræver MERE end lovforkastelse — 40% vs 30%.
--- Bevidst asymmetri: det er sværere at ændre grundloven end at forkaste en lov.
-| par42_par88_lov_tærskel: godkendelsestærskel_pct -> godkendelsestærskel_pct == 40
--- § 42 bruger 30%, § 88 bruger 40% — grundlovsændring er hårdere
-
--- Tværgående: par. 88 — firetrinstærskel for grundlovsændring
--- 1. Første folketing vedtager. 2. Nyvalg. 3. Nyt folketing genvedtager uændret.
--- 4. Folkeafstemning med flertal + 40%. 5. Kongelig stadfæstelse.
--- Grundloven er den hårdeste norm at ændre — sværere end enhver lov.
-| par88_krav_nyvalg: grundlovsændring_kræver_nyvalg() -> grundlovsændring_kræver_nyvalg()
-| par88_krav_genvedtagelse: grundlovsændring_kræver_uændret_genvedtagelse() -> grundlovsændring_kræver_uændret_genvedtagelse()
-| par88_krav_folkeafstemning: grundlovsændring_kræver_folkeafstemning() -> grundlovsændring_kræver_folkeafstemning()
-| par88_krav_stadfæstelse: grundlovsændring_kræver_kongelig_stadfæstelse() -> grundlovsændring_kræver_kongelig_stadfæstelse()
-
--- Par. 89: ikrafttrædelse
-| par89_straks: grundloven_træder_i_kraft_straks() -> grundloven_træder_i_kraft_straks()
-
--- Tværgående: par. 20 vs par. 88 — suverænitet kan flyttes uden grundlovsændringsformen
--- § 20 kan overlade grundlovsbeføjelser til mellemfolkelige myndigheder ved
--- 5/6-flertal, eller ved almindeligt flertal efterfulgt af folkeafstemning.
--- § 88 kræver derimod nyvalg, uændret genvedtagelse, folkeafstemning og
--- stadfæstelse. Tensionen er, at forfatningsvirkelighed kan ændres uden at
--- selve grundlovsteksten ændres.
-| par20_suverænitet_kan_overlades: beføjelser_kan_overlades_mellemfolkeligt() -> beføjelser_kan_overlades_mellemfolkeligt()
+-- §§ 20 og 88: sammenlign kun de udtrykkeligt modellerede procedureled.
 = par20_alternativ_sag = Suverænitetsforslag(
     fem_sjettedele_opnået = Falskt,
     almindeligt_flertal_opnået = Sandt,
     regeringen_opretholder_forslaget = Sandt
 )
 = par20_alternativ_procedure = suverænitetsforslagets_procedure(par20_alternativ_sag)
-| par20_alternativ_folkeafstemning: par20_alternativ_procedure -> par20_alternativ_procedure == ForelæggesFolketingsvælgerne
-| par20_tærskel: suverænitetskrav -> suverænitetskrav == Brøk(tæller = 5, nævner = 6)
-| par20_par88_nyvalg_asymmetri: grundlovsændring_kræver_nyvalg() -> grundlovsændring_kræver_nyvalg()
+= par88_forslagsforløb_uden_nyvalg = Grundlovsforslagsforløb(
+    første_folketing_har_vedtaget = Sandt,
+    regeringen_vil_fremme_sagen = Sandt,
+    nyvalg_til_folketinget_udskrevet = Falskt,
+    det_følgende_folketing_har_vedtaget = Sandt,
+    skikkelse_ved_genvedtagelsen = UændretSkikkelse
+)
+= par88_uden_nyvalg_opfylder_ikke_forslagsforløbet = par88_forslagsforløb_uden_nyvalg.opfylder_forslagsforløbet_i_par88()
+| par20_par88_udtrykkelige_procedureled: par20_alternativ_procedure -> par20_alternativ_procedure == ForelæggesFolketingsvælgerne && par88_uden_nyvalg_opfylder_ikke_forslagsforløbet == Falskt && suverænitetskrav == Brøk(tæller = 5, nævner = 6)
 
 -- Tværgående: par. 31 vs par. 56 — repræsentation af anskuelser, men frit mandat
 -- § 31 pålægger valgloven at sikre ligelig repræsentation af anskuelser.
@@ -1188,48 +1171,35 @@
 | par49_lukket_møde_kan_rejses: par49_formanden_kan_kræve_fjernelse -> par49_formanden_kan_kræve_fjernelse == Sandt
 | par49_lukning_afgøres_uden_forhandling: lukket_møde_afgøres_uden_forhandling() -> lukket_møde_afgøres_uden_forhandling()
 
--- Tværgående: par. 29 vs par. 86 — national valgretsalder og rigsdelsundtagelser
--- § 29 ændrer folketingsvalgretsalder via lov + folkeafstemning.
--- § 86 lader kommunal valgretsalder følge folketinget, men Færøerne og Grønland
--- kan fastsættes ved lov. Rigets dele får dermed en eksplicit lokal lovkanal.
-= par29_valgretsalderændring_kan_stadfæstes = valgretsalderændring_kan_stadfæstes(Valgretsalderændring(
-    folketinget_har_vedtaget = Sandt,
-    folkeafstemning_afholdt = Sandt,
-    bestemmelsen_bortfaldet = Falskt
+-- §§ 32 og 89: nyvalget er ophørshændelsen for både det bestående mandat og
+-- den særlige rigsdagsovergang. Den nye grundlov er allerede i kraft.
+= par32_mandat_før_nyvalg = eksisterende_mandat_består(Mandatforhold(
+    nyvalg_afholdt = Falskt,
+    valgbarhed_bevaret = Sandt
 ))
-| par29_valgretsalder_folkeafstemning: par29_valgretsalderændring_kan_stadfæstes -> par29_valgretsalderændring_kan_stadfæstes == Sandt
-| par86_kommunal_følger_folketinget: kommunal_valgretsalder_følger_folketingsvalg() -> kommunal_valgretsalder_følger_folketingsvalg()
-| par86_rigsdelsundtagelser: færøerne_kommunal_valgretsalder_fastsættes_ved_lov() -> færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
+= par89_overgang_før_nyvalg = Grundlovsovergang(fase = FørNyvalgEfterKapitelIV)
+= par89_overgang_efter_nyvalg = Grundlovsovergang(fase = EfterNyvalgEfterKapitelIV)
+= par89_rigsdagen_før_nyvalg = par89_overgang_før_nyvalg.den_senest_valgte_rigsdag_består_efter_par89()
+= par89_rigsdagen_efter_nyvalg = par89_overgang_efter_nyvalg.den_senest_valgte_rigsdag_består_efter_par89()
+= par89_tidligere_bestemmelser_før_nyvalg = par89_overgang_før_nyvalg.de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89()
+= par89_tidligere_bestemmelser_efter_nyvalg = par89_overgang_efter_nyvalg.de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89()
+= par89_ny_grundlov_i_kraft_før_nyvalg = par89_overgang_før_nyvalg.grundloven_er_i_kraft_efter_par89()
+| par32_par89_nyvalg_som_ophørshændelse: par32_mandat_før_nyvalg -> par32_mandat_før_nyvalg && par89_ny_grundlov_i_kraft_før_nyvalg && par89_rigsdagen_før_nyvalg && par89_rigsdagen_efter_nyvalg == Falskt && par89_tidligere_bestemmelser_før_nyvalg && par89_tidligere_bestemmelser_efter_nyvalg == Falskt
 
-? par86_kommunal_følger
-? par86_menighedsråd_følger
-? delegation_færøerne_kommunal_valgret
-? delegation_grønland_kommunal_valgret
-? par87_islandske_rettigheder
-? par88_begge_krav_opfyldt
-? par88_mangler_40pct
-? par88_mangler_flertal
-? par88_tærskel
-? par88_frist
-? delegation_afstemningsregler
-? par88_krav_nyvalg
-? par88_krav_genvedtagelse
-? par88_krav_folkeafstemning
-? par88_krav_stadfæstelse
-? par89_straks
-? par20_suverænitet_kan_overlades
-? par20_alternativ_folkeafstemning
-? par20_tærskel
-? par20_par88_nyvalg_asymmetri
+= grundlovens_stadfæstelsesakt_opfyldt = grundlovens_stadfæstelse.opfylder_stadfæstelsesteksten()
+| grundlovens_afsluttende_stadfæstelse: grundlovens_stadfæstelsesakt_opfyldt -> grundlovens_stadfæstelsesakt_opfyldt && grundloven_er_gældende_ret()
+
+? par29_par86_retsgrundlagene_er_adskilt
+? par42_par88_tekstlige_tærskeludfald
+? par20_par88_udtrykkelige_procedureled
 ? par31_repræsenterer_anskuelser
 ? par56_frit_mandat
 ? par56_ikke_bundet_af_vælgere
 ? par49_offentlighed_default
 ? par49_lukket_møde_kan_rejses
 ? par49_lukning_afgøres_uden_forhandling
-? par29_valgretsalder_folkeafstemning
-? par86_kommunal_følger_folketinget
-? par86_rigsdelsundtagelser
+? par32_par89_nyvalg_som_ophørshændelse
+? grundlovens_afsluttende_stadfæstelse
 
 ? all -> {
     @ skriv("Alle invarianter holder.")

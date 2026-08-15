@@ -91,15 +91,17 @@ If the text says "as heir", don't add "as king" because it seems logical. The mo
 # ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger | AfgivetSomKonge
 ```
 
-## Absence is a fact
+## Distinguish exclusion from silence
 
-When a rule applies to X but explicitly does NOT apply to Y, the non-application is worth stating. Silence in the source is information.
+When a source explicitly excludes Y from a rule that applies to X, the
+non-application is worth stating. Mere silence only proves that the source does
+not state the rule for Y; it does not by itself establish the opposite rule or
+a positive right.
 
 ```runa
--- § 7 says "det samme gælder tronfølgeren" — explicit extension
--- § 6 has no such extension — that absence is constitutional
+-- A source clause explicitly limits the requirement to the reigning king
 
-| troskrav_gælder_ikke_tronfølger()
+| troskrav_er_begrænset_til_kongen()
 ```
 
 ## `?` proves `|`. `runa audit` finds what you missed.

@@ -277,6 +277,27 @@ relationer mellem selvstændige objekter eller til atomiske udsagn uden et
 naturligt ejerobjekt. Samme forhold må ikke både eksistere som intern og
 ekstern sandhedskilde.
 
+En betingelse, der udløser en procedure, må ikke sammenblandes med et fuldført
+forløb eller dets endelige retsvirkning. Modellen navngiver derfor særskilt,
+hvornår et krav udløses, hvornår de efterfølgende procesled er opfyldt, og
+hvornår resultatet får den virkning, ordlyden foreskriver.
+
+Tærskelregler validerer først, at antal og delmængder er konsistente. Derefter
+bevares forskellen mellem strenge og inklusive grænser, eksempelvis mellem
+"et flertal" og "mindst 40 pct.". En bestået tærskel kan ikke reparere et
+umuligt stemmetal.
+
+Kalenderfrister må ikke omsættes til grove heltalsenheder, hvis det skaber
+falsk præcision ved grænsen. Indtil modellen har en defineret kalendersemantik,
+bruges en lukket, tekstnær tidsrelation som "inden et halvt år"; egentlige
+datoer bruges først til beregning, når sammenligningen selv er specificeret og
+prøvet.
+
+Overgangsbestemmelser modelleres som navngivne faser med en udtrykkelig
+ophørshændelse. Når ny og tidligere ret efter ordlyden gælder samtidigt i et
+afgrænset område, bevares denne samtidighed i modellen frem for at blive
+presset ned i ét samlet ikrafttrædelsesflag.
+
 En god type er ikke nødvendigvis den type, der tillader færrest værdier. Den
 skal først og fremmest udtrykke domænets naturlige begreb og understøtte de
 spørgsmål, prøvningen skal stille. Ugyldige kombinationer kan udelukkes af
@@ -638,8 +659,8 @@ Arbejdet er først færdigt, når følgende holder samtidigt:
   undtagelsesrækkevidde og relationel konsistens;
 - alle ikke-trivielle offentlige fund har modellag, udsagnsstatus,
   prøvningsomfang, programhenvisninger og nødvendige retskilder;
-- de 49 kendte dækningshuller er enten meningsfuldt dækket eller begrundet som
-  bevidste;
+- alle dækningshuller i den afsluttende topologirapport er enten meningsfuldt
+  dækket eller begrundet som bevidste;
 - det aktive korpus og de synlige grundlovssider indeholder ikke undgåeligt
   engelsk eller blandingssprog;
 - websidens fund og optællinger kan føres tilbage til den viste korpusversion

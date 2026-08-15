@@ -19,16 +19,28 @@ kongen, er den grundlov.
 
 --@begin:grundlov_par88--
 
-= godkendelsestærskel_pct = 40
-= frist_folkeafstemning_måneder = 6
+# ForslagsskikkelsePar88 = UændretSkikkelse | ÆndretSkikkelse
+# Grundlovsforslagsforløb(første_folketing_har_vedtaget: Boolsk, regeringen_vil_fremme_sagen: Boolsk, nyvalg_til_folketinget_udskrevet: Boolsk, det_følgende_folketing_har_vedtaget: Boolsk, skikkelse_ved_genvedtagelsen: ForslagsskikkelsePar88) {
+    | udløser_nyvalg_efter_par88() -> første_folketing_har_vedtaget && regeringen_vil_fremme_sagen
+    | opfylder_forslagsforløbet_i_par88() -> udløser_nyvalg_efter_par88() && nyvalg_til_folketinget_udskrevet && det_følgende_folketing_har_vedtaget && skikkelse_ved_genvedtagelsen == UændretSkikkelse
+}
 
-| grundlovsændring_kræver_nyvalg()
-| grundlovsændring_kræver_uændret_genvedtagelse()
-| grundlovsændring_kræver_folkeafstemning()
-| grundlovsændring_kræver_kongelig_stadfæstelse()
-| afstemningsregler_fastsættes_ved_lov()
+= grundlovsafstemningens_tilslutningstærskel = Brøk(tæller = 2, nævner = 5)
 
--- Dobbelt godkendelseskrav: flertal af deltagende + 40% af stemmeberettigede
-| grundlovsændring_kræver_flertal_og_fyrre_pct()
-| grundlovsændring_godkendt(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> for_stemmer * 2 > deltagende && for_stemmer * 100 >= stemmeberettigede * 40
+# Grundlovsafstemningsresultat(for_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) {
+    | stemmetal_er_konsistente() -> for_stemmer >= 0 && deltagende >= 0 && stemmeberettigede > 0 && for_stemmer <= deltagende && deltagende <= stemmeberettigede
+    | opfylder_godkendelseskravet_i_par88() -> stemmetal_er_konsistente() && for_stemmer * 2 > deltagende && for_stemmer * grundlovsafstemningens_tilslutningstærskel.nævner >= stemmeberettigede * grundlovsafstemningens_tilslutningstærskel.tæller
+}
+
+# ForelæggelsestidspunktPar88 = FørEndeligVedtagelse | IndenEtHalvtÅrEfterEndeligVedtagelse | EfterEtHalvtÅrEfterEndeligVedtagelse
+# Grundlovsafstemning(forelæggelsestidspunkt: ForelæggelsestidspunktPar88, forelagt_ved_direkte_afstemning: Boolsk, resultat: Grundlovsafstemningsresultat) {
+    | opfylder_forelæggelsen_i_par88() -> forelæggelsestidspunkt == IndenEtHalvtÅrEfterEndeligVedtagelse && forelagt_ved_direkte_afstemning
+    | godkender_folketingets_beslutning_efter_par88() -> opfylder_forelæggelsen_i_par88() && resultat.opfylder_godkendelseskravet_i_par88()
+}
+
+# Grundlovsændringssag(forslagsforløb: Grundlovsforslagsforløb, afstemning: Grundlovsafstemning, stadfæstet_af_kongen: Boolsk) {
+    | bliver_grundlov_efter_par88() -> forslagsforløb.opfylder_forslagsforløbet_i_par88() && afstemning.godkender_folketingets_beslutning_efter_par88() && stadfæstet_af_kongen
+}
+
+| grundlovsafstemningens_nærmere_regler_fastsættes_ved_lov()
 --@end:grundlov_par88--

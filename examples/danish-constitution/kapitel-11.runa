@@ -16,21 +16,19 @@ forbliver de i Danmarks Riges Grundlov af 5. juni 1915 med ændringer af
 
 --@begin:grundlov_par89--
 
--- Overgangsretten refererer til to tidligere grundlove
-# TidligereGrundlov(titel: Tekst, dato: Dato)
+# TidligereForfatningsgrundlag(titel: Tekst, grundlovsdato: Dato, ændringsdato: Dato)
+# Grundlovsovergangsfase = FørNyvalgEfterKapitelIV | EfterNyvalgEfterKapitelIV
+# Grundlovsovergang(fase: Grundlovsovergangsfase) {
+    | grundloven_er_i_kraft_efter_par89() -> Sandt
+    | den_senest_valgte_rigsdag_består_efter_par89() -> fase == FørNyvalgEfterKapitelIV
+    | de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89() -> fase == FørNyvalgEfterKapitelIV
+}
 
-= tidligere_grundlov = TidligereGrundlov(
+= overgangens_tidligere_forfatningsgrundlag = TidligereForfatningsgrundlag(
     titel = "Danmarks Riges Grundlov",
-    dato = Dato(år = 1915, måned = 6, dag = 5)
+    grundlovsdato = Dato(år = 1915, måned = 6, dag = 5),
+    ændringsdato = Dato(år = 1920, måned = 9, dag = 10)
 )
-= ændring_af_tidligere = TidligereGrundlov(
-    titel = "Ændring af grundloven",
-    dato = Dato(år = 1920, måned = 9, dag = 10)
-)
-
-| grundloven_træder_i_kraft_straks()
-| eksisterende_rigsdag_vedbliver_til_nyvalg()
-| gamle_rigsdagsbestemmelser_i_kraft_til_nyvalg()
 --@end:grundlov_par89--
 
 --@label:grundlov_stadfaestelse::meta:grundlov_kildemetadata--
@@ -55,8 +53,21 @@ Helga Pedersen.   Knud Ree.   Aage L. Rytter. Jørgen Jørgensen.
 
 --@begin:grundlov_stadfaestelse--
 
+# GrundlovensUdstedelsessted = ChristiansborgSlot
+# StadfæstendeMonark = FrederikDenNiende
+
 = grundlovens_udstedelsesdato = Dato(år = 1953, måned = 6, dag = 5)
+# Grundlovsstadfæstelse(dato: Dato, sted: GrundlovensUdstedelsessted, monark: StadfæstendeMonark, under_kongelig_hånd: Boolsk, under_kongeligt_segl: Boolsk) {
+    | opfylder_stadfæstelsesteksten() -> dato == grundlovens_udstedelsesdato && sted == ChristiansborgSlot && monark == FrederikDenNiende && under_kongelig_hånd && under_kongeligt_segl
+}
+
+= grundlovens_stadfæstelse = Grundlovsstadfæstelse(
+    dato = grundlovens_udstedelsesdato,
+    sted = ChristiansborgSlot,
+    monark = FrederikDenNiende,
+    under_kongelig_hånd = Sandt,
+    under_kongeligt_segl = Sandt
+)
+
 | grundloven_er_gældende_ret()
-| grundloven_givet_på_christiansborg_slot()
-| grundloven_under_kongelig_hånd_og_segl()
 --@end:grundlov_stadfaestelse--
