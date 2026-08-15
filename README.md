@@ -9,6 +9,8 @@
 <p align="center">
   <a href="Cargo.toml">Version 0.1.0</a>
   ·
+  <a href="https://futuruna.com">futuruna.com</a>
+  ·
   <a href="LICENSE">MIT License</a>
 </p>
 
