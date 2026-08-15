@@ -40,7 +40,7 @@ Each front rune has their own rules for syntax, which might sound like it gets c
 
 ## Why Futuruna - The Manifest
 
-([The Why Futuruna Article](docs/why.md))
+([The Why Futuruna Article](https://futuruna.com/why))
 
 ## MIT License
 

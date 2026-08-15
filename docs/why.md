@@ -60,11 +60,12 @@ spaces. This gives the author *more options* for writing a good program while
 giving the reader *less uncertainty* about what they are reading. This can be
 distilled into a fancy name: partitioned optionality, a solid tradeoff where
 putting one character in front makes it easier to mix programming domains in
-the same language. [The Philosophy of Futuruna](/research/philosophy) explores
-the argument in more depth.
+the same language. [The Philosophy of
+Futuruna](https://futuruna.com/research/philosophy) explores the argument in
+more depth.
 
 The seven runes and what they mean in Futuruna are explored in more depth
-[here](/docs). All I will say is that I also believe Futuruna would work
+[here](https://futuruna.com/docs). All I will say is that I also believe Futuruna would work
 exceptionally well with AI because of this front-rune system. One could
 speculate that it would orient the latent space and attention heads of LLMs
 more correctly toward the instruction ahead. Time will tell.
@@ -73,11 +74,11 @@ The last thing to say about Futuruna is that it is not made completely from
 scratch. It transpiles to [Rust](https://rust-lang.org/), an extremely fast and
 safe systems-level programming language. It removes several obstacles that
 normal Rust beginners struggle with ([ownership
-rules](/research/ownership)) without sacrificing safety, keeping Futuruna
-readable and compatible with a wide variety of libraries, and of course making
-Futuruna FAST.
+rules](https://futuruna.com/research/ownership)) without sacrificing safety,
+keeping Futuruna readable and compatible with a wide variety of libraries, and
+of course making Futuruna FAST.
 
 Okay, maybe I am a programming language nerd, or have somewhat become one. I
-invite you to [try out Futuruna](/playground): start encoding laws, contracts,
+invite you to [try out Futuruna](https://futuruna.com/playground): start encoding laws, contracts,
 and documents, and audit them. Or start making programs and rules in a cool and
 readable fashion. Let your imagination run wild and let Futuruna run with it.
