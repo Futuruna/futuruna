@@ -223,7 +223,7 @@ fn Nav() -> Element {
                 img { src: LOGO, alt: "Futuruna", width: "28", height: "28" }
             }
             a { class: active("/why"), href: "/why", "Why" }
-            a { class: "nav-link", href: "/#ai-guide", "AI Guide" }
+            a { class: "nav-link", href: "/#ai-guide", "AI Setup" }
             a { class: active("/research"), href: "/research", "Research" }
             a { class: active("/docs"), href: "/docs", "Docs" }
             a { class: active("/playground"), href: "/playground", "Playground" }
@@ -289,10 +289,7 @@ fn Discovery() -> Element {
         section { class: "discovery-section",
             div { class: "discovery-text",
                 p {
-                    "Futuruna brings "
-                    strong { "formal rules and ordinary programming" }
-                    " into one execution space. Model definitions, defaults, conditions, "
-                    "exceptions, calculations, and effects, then run and audit them together."
+                    "Futuruna allows you or an AI to encode the rule of law into a rule model, and mix it with ordinary programming. You can then interview, audit, automate or explore the law like never before."
                 }
                 a { class: "discovery-link", href: "/why", "Why Futuruna \u{2192}" }
             }
@@ -301,7 +298,7 @@ fn Discovery() -> Element {
 }
 
 // ============================================================================
-// AI Guide
+// AI Setup
 // ============================================================================
 
 #[component]
@@ -309,43 +306,103 @@ fn AiGuide() -> Element {
     rsx! {
         section { id: "ai-guide", class: "ai-guide-section",
             div { class: "ai-guide-shell",
-                p { class: "ai-guide-kicker", "AI Guide" }
+                p { class: "ai-guide-kicker", "AI Setup" }
                 h2 { class: "section-title", "How to get your AI working with Futuruna" }
                 p { class: "section-desc",
-                    "Ask your Claude Code, Codex, Claude Cowork, or AI system to:"
+                    "Futuruna comes with AI integration as a first-class integration. I recommend "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://claude.com/product/claude-code",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "Claude Code"
+                    }
+                    ", "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://claude.com/product/cowork",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "Claude Cowork"
+                    }
+                    ", "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://openai.com/codex/",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "Codex"
+                    }
+                    ", or "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://openai.com/chatgpt-work/",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "ChatGPT Work"
+                    }
+                    " for the AI setup."
                 }
-                ol { class: "ai-guide-steps",
-                    li { class: "ai-guide-step",
-                        span { class: "ai-guide-step-index", "1" }
-                        h3 { "Download and install Futuruna" }
-                        p {
-                            "Use the public bootstrap script to clone the project, build "
-                            code { "runa" }
-                            ", and run the weather demo smoke test."
-                        }
-                        code { class: "ai-guide-command",
-                            "curl -fsSL https://futuruna.com/ai-bootstrap.sh | bash"
-                        }
-                        a {
-                            class: "ai-guide-link",
-                            href: "https://futuruna.com/ai-bootstrap.sh",
-                            "https://futuruna.com/ai-bootstrap.sh"
+                div { class: "ai-guide-facts",
+                    div { class: "ai-guide-fact",
+                        span { class: "ai-guide-fact-label", "Setup waiting time" }
+                        strong { "5–10 minutes" }
+                        small { "Rust already installed" }
+                    }
+                    div { class: "ai-guide-fact",
+                        span { class: "ai-guide-fact-label", "Approval steps" }
+                        strong { "Up to 3" }
+                        small { "+1 if Rust is missing" }
+                    }
+                    div { class: "ai-guide-fact",
+                        span { class: "ai-guide-fact-label", "Space requirements" }
+                        strong { "About 300 MB" }
+                        small { "About 1.7 GB if Rust is also installed" }
+                    }
+                }
+                div { class: "ai-guide-handoff",
+                    div { class: "ai-guide-handoff-header",
+                        span { class: "ai-guide-handoff-label", "Tell your AI" }
+                        span { class: "ai-guide-handoff-status", "Agent-readable Markdown" }
+                    }
+                    div { class: "ai-guide-prompt",
+                        span { class: "ai-guide-prompt-rune", ">" }
+                        code {
+                            "Read https://futuruna.com/ai-setup.md and set up Futuruna for me."
                         }
                     }
-                    li { class: "ai-guide-step",
-                        span { class: "ai-guide-step-index", "2" }
-                        h3 { "Integrate the Futuruna skill" }
+                    p {
+                        "The guide tells the AI how to inspect your environment, clone Futuruna, build and verify "
+                        code { "runa" }
+                        ", protect private data, and lead your first formal-rule project. Verification only prints the version and interprets one known example—no full test suite."
+                    }
+                    a {
+                        class: "ai-guide-link",
+                        href: "https://futuruna.com/ai-setup.md",
+                        "Open ai-setup.md \u{2192}"
+                    }
+                }
+                p { class: "ai-guide-options-title", "Choose a first project" }
+                div { class: "ai-guide-options",
+                    article { class: "ai-guide-option",
+                        span { class: "ai-guide-option-label", "Denmark" }
+                        h3 { "Audit your Annual Tax Report (Årsopgørelse)" }
                         p {
-                            "Take the "
-                            code { "Using Futuruna" }
-                            " skill or instruction packet, add it to the AI's working context, and ask it to follow that workflow while translating."
+                            "If you are from Denmark, let the AI interview you into Futuruna's formal Personskat rule model, then compare the deterministic result with your own Annual Tax Report."
                         }
                     }
-                    li { class: "ai-guide-step",
-                        span { class: "ai-guide-step-index", "3" }
-                        h3 { "Translate and audit a real text" }
+                    article { class: "ai-guide-option",
+                        span { class: "ai-guide-option-label", "Contract" }
+                        h3 { "Encode a contract" }
                         p {
-                            "Start with a law, policy, or contract. Ask for a Futuruna translation and an audit pass that calls out paradoxes, tensions, loopholes, missing definitions, and enforcement gaps."
+                            "Formalize definitions, duties, exceptions, dates, and remedies, then complete a self-audit or exploration using the formal rule model available through Futuruna."
+                        }
+                    }
+                    article { class: "ai-guide-option",
+                        span { class: "ai-guide-option-label", "Law" }
+                        h3 { "Encode a law" }
+                        p {
+                            "Preserve the source, encode the rules and exceptions, and explore cases, gaps, tensions, loopholes, and missing definitions through an auditable formal model."
                         }
                     }
                 }
@@ -2644,8 +2701,7 @@ const DOC_PHILOSOPHY: &str = include_str!("../../docs/research.md");
 const DOC_OWNERSHIP: &str = include_str!("../../docs/research-ownership.md");
 
 // Danish Constitution .runa files (shared protocol + chapters 1-11 + audit)
-const DK_COMMON: &str =
-    include_str!("../../examples/danish-constitution/grundlov-faelles.runa");
+const DK_COMMON: &str = include_str!("../../examples/danish-constitution/grundlov-faelles.runa");
 const DK_KAP01: &str = include_str!("../../examples/danish-constitution/kapitel-01.runa");
 const DK_KAP02: &str = include_str!("../../examples/danish-constitution/kapitel-02.runa");
 const DK_KAP03: &str = include_str!("../../examples/danish-constitution/kapitel-03.runa");
@@ -3016,11 +3072,7 @@ fn constitution_file_section(title: &str, id: &str, src: &str) -> String {
 #[component]
 fn ResearchDanishConstitution() -> Element {
     let sections: Vec<(&str, &str, &str)> = vec![
-        (
-            "Fælles domæne og kildemetadata",
-            "faelles",
-            DK_COMMON,
-        ),
+        ("Fælles domæne og kildemetadata", "faelles", DK_COMMON),
         ("Kapitel I — Statsformen (§§ 1-4)", "kap-1", DK_KAP01),
         ("Kapitel II — Kongen (§§ 5-11)", "kap-2", DK_KAP02),
         (
