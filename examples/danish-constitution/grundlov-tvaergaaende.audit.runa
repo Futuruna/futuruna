@@ -1,0 +1,152 @@
+@ sprog da
+
+@ importer ./kapitel - 03
+@ importer ./kapitel - 04
+@ importer ./kapitel - 05
+@ importer ./kapitel - 06
+@ importer ./kapitel - 08
+@ importer ./kapitel - 09
+@ importer ./kapitel - 10
+@ importer ./kapitel - 11
+@ importer ./grundlov - proevning - faelles
+
+-- Den tværgående audit sammenholder kun relationer, som kapitlerne faktisk
+-- modellerer. Den indfører ingen skjult rangordning mellem bestemmelser.
+
+= tvaergaaende_folkeafstemninger_fund = GrundlovPrøvningsfund(
+    titel = "§§ 42 og 88: forskellige folkeafstemningsmekanismer",
+    modellag = Kildemodel,
+    udsagnsstatus = Modelresultat,
+    prøvningsomfang = Grænseanalyse,
+    programhenvisninger = [
+        refof(lovforslag_forkastet_ved_folkeafstemning),
+        refof(Grundlovsafstemningsresultat::opfylder_godkendelseskravet_i_par88)
+    ],
+    grundlag = Fortolkningsgrundlag(
+        kilder = [grundlov_retsinformation],
+        forudsætninger = []
+    ),
+    resultat = "Samme stemmetal kan forkaste et almindeligt lovforslag efter § 42 uden at godkende en grundlovsændring efter § 88.",
+    afgrænsning = "Resultatet viser forskellige tekstlige tærskler og stemmeretninger, ikke at den ene procedure er stærkere."
+)
+
+| tvaergaaende_par29_og_par86_bevarer_hvert_sit_retsgrundlag() -> {
+    = stadfæstelig_valgretsalderændring = Valgretsalderændring(
+        folketinget_har_vedtaget = Sandt,
+        folkeafstemning_afholdt = Sandt,
+        bestemmelsen_bortfaldet = Falskt
+    )
+    = dansk_kommunalvalg = Rådsvalgretsalder(rigsdel = Danmark, råd = KommunaltRåd)
+    = færøsk_kommunalvalg = Rådsvalgretsalder(rigsdel = Færøerne, råd = KommunaltRåd)
+    = grønlandsk_menighedsrådsvalg = Rådsvalgretsalder(rigsdel = Grønland, råd = Menighedsråd)
+    (
+        valgretsalderændring_kan_stadfæstes(stadfæstelig_valgretsalderændring)
+        && dansk_kommunalvalg.retsgrundlag_efter_par86() == FølgerFolketingsvalgretsalderenTilEnhverTid
+        && færøsk_kommunalvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+        && grønlandsk_menighedsrådsvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+    )
+}
+
+--@label:audit_tvaergaaende_folkeafstemninger::meta:tvaergaaende_folkeafstemninger_fund--
+--@begin:audit_tvaergaaende_folkeafstemninger--
+| tvaergaaende_par42_og_par88_har_forskellige_taerskeludfald() -> {
+    = almindelig_folkeafstemning = Folkeafstemningsresultat(
+        mod_stemmer = 35,
+        deltagende = 60,
+        stemmeberettigede = 100
+    )
+    = grundlovsafstemning = Grundlovsafstemningsresultat(
+        for_stemmer = 35,
+        deltagende = 60,
+        stemmeberettigede = 100
+    )
+    (
+        lovforslag_forkastet_ved_folkeafstemning(almindelig_folkeafstemning)
+        && grundlovsafstemning.opfylder_godkendelseskravet_i_par88() == Falskt
+        && grundlovsafstemningens_tilslutningstærskel == Brøk(tæller = 2, nævner = 5)
+    )
+}
+--@end:audit_tvaergaaende_folkeafstemninger--
+
+| tvaergaaende_par20_og_par88_adskiller_alternativ_og_fuld_procedure() -> {
+    = suverænitetsforslag_uden_fem_sjettedele = Suverænitetsforslag(
+        fem_sjettedele_opnået = Falskt,
+        almindeligt_flertal_opnået = Sandt,
+        regeringen_opretholder_forslaget = Sandt
+    )
+    = grundlovsforslag_uden_nyvalg = Grundlovsforslagsforløb(
+        første_folketing_har_vedtaget = Sandt,
+        regeringen_vil_fremme_sagen = Sandt,
+        nyvalg_til_folketinget_udskrevet = Falskt,
+        det_følgende_folketing_har_vedtaget = Sandt,
+        skikkelse_ved_genvedtagelsen = UændretSkikkelse
+    )
+    (
+        suverænitetsforslagets_procedure(suverænitetsforslag_uden_fem_sjettedele) == ForelæggesFolketingsvælgerne
+        && grundlovsforslag_uden_nyvalg.opfylder_forslagsforløbet_i_par88() == Falskt
+        && suverænitetskrav == Brøk(tæller = 5, nævner = 6)
+    )
+}
+
+| tvaergaaende_par32_og_par89_deler_nyvalg_som_ophoershaendelse() -> {
+    = mandat_før_nyvalg = Mandatforhold(
+        nyvalg_afholdt = Falskt,
+        valgbarhed_bevaret = Sandt
+    )
+    = mandat_efter_nyvalg = Mandatforhold(
+        nyvalg_afholdt = Sandt,
+        valgbarhed_bevaret = Sandt
+    )
+    = overgang_før_nyvalg = Grundlovsovergang(fase = FørNyvalgEfterKapitelIV)
+    = overgang_efter_nyvalg = Grundlovsovergang(fase = EfterNyvalgEfterKapitelIV)
+    (
+        eksisterende_mandat_består(mandat_før_nyvalg)
+        && eksisterende_mandat_består(mandat_efter_nyvalg) == Falskt
+        && overgang_før_nyvalg.grundloven_er_i_kraft_efter_par89()
+        && overgang_før_nyvalg.den_senest_valgte_rigsdag_består_efter_par89()
+        && overgang_efter_nyvalg.den_senest_valgte_rigsdag_består_efter_par89() == Falskt
+        && overgang_efter_nyvalg.de_tidligere_rigsdagsbestemmelser_er_i_kraft_efter_par89() == Falskt
+    )
+}
+
+| tvaergaaende_par57_og_par77_bevarer_forskellige_ansvarsmekanismer() -> {
+    = uden_samtykke = Ytringsansvarssag(folketingets_samtykke = IkkeGivet)
+    = med_samtykke = Ytringsansvarssag(folketingets_samtykke = Givet)
+    = talt_ytring = Ytringssag(form = Tale)
+    (
+        ansvar_uden_for_folketinget_for_ytring_opfylder_par57(uden_samtykke) == Falskt
+        && ansvar_uden_for_folketinget_for_ytring_opfylder_par57(med_samtykke)
+        && talt_ytring.offentliggørelse_er_under_ansvar_for_domstolene()
+    )
+}
+
+| tvaergaaende_par63_og_par71_bevarer_generel_og_saerlig_proevelse_adskilt() -> {
+    = øvrighedssag = Øvrighedsgrænsesag(
+        øvrighedens_befaling_foreløbigt_efterkommet = Sandt
+    )
+    = udlændingelovssag = AdministrativFrihedsberøvelse(
+        hører_til_strafferetsplejen = Falskt,
+        beslutning = IkkeBesluttetAfDømmendeMyndighed,
+        har_hjemmel_i_udlændingelovgivningen = Sandt,
+        begærer = DenFrihedsberøvede,
+        prøvelsesvej = AlmindeligeDomstole
+    )
+    (
+        øvrighedssag.kan_påkendes_af_domstolene_efter_par63_stk1()
+        && udlændingelovssag.prøvelsespligt_indtræder_efter_par71_stk6() == Falskt
+    )
+}
+
+| tvaergaaende_audit_består() -> (
+    tvaergaaende_par29_og_par86_bevarer_hvert_sit_retsgrundlag()
+    && tvaergaaende_par42_og_par88_har_forskellige_taerskeludfald()
+    && tvaergaaende_par20_og_par88_adskiller_alternativ_og_fuld_procedure()
+    && tvaergaaende_par32_og_par89_deler_nyvalg_som_ophoershaendelse()
+    && tvaergaaende_par57_og_par77_bevarer_forskellige_ansvarsmekanismer()
+    && tvaergaaende_par63_og_par71_bevarer_generel_og_saerlig_proevelse_adskilt()
+)
+
+= tvaergaaende_audit_resultat = tvaergaaende_audit_består()
+| tvaergaaende_audit_holder: tvaergaaende_audit_resultat -> tvaergaaende_audit_resultat == Sandt
+
+? tvaergaaende_audit_holder

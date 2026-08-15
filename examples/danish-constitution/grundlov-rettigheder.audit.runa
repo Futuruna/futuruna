@@ -1,0 +1,242 @@
+@ sprog da
+
+@ importer ./kapitel - 07
+@ importer ./kapitel - 08
+@ importer ./grundlov - proevning - faelles
+
+-- Rettighedsauditten prøver ordlydens personkredse, virkninger, indgreb og
+-- udtrykkelige henvisninger uden at udlede rettigheder af tavshed.
+
+= rettigheder_negativ_afgraensning_fund = GrundlovPrøvningsfund(
+    titel = "§ 85: udtrykkeligt nævnte frihedsbestemmelser",
+    modellag = Kildemodel,
+    udsagnsstatus = TekstnærKontrol,
+    prøvningsomfang = UdtømmendeLukketDomæne,
+    programhenvisninger = [
+        refof(MilitærIndskrænkning::bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85),
+        refof(MilitærIndskrænkning::opfylder_par85)
+    ],
+    grundlag = Fortolkningsgrundlag(
+        kilder = [grundlov_retsinformation],
+        forudsætninger = []
+    ),
+    resultat = "§ 85 nævner §§ 71, 78 og 79, mens § 77 ikke er en del af bestemmelsens henvisning.",
+    afgrænsning = "Den manglende henvisning til § 77 etablerer ikke i sig selv en positiv, ubegrænset militær ytringsret."
+)
+
+| rettigheder_par67_kraever_overbevisningssammenhaeng_og_begge_graenser() -> {
+    = beskyttet_lære = Religionsudøvelse(
+        udtryk = Lære,
+        stemmer_med_overbevisningen = Sandt,
+        strider_mod_sædeligheden = Falskt,
+        strider_mod_den_offentlige_orden = Falskt
+    )
+    = beskyttet_foretagelse = Religionsudøvelse(
+        udtryk = Foretagelse,
+        stemmer_med_overbevisningen = Sandt,
+        strider_mod_sædeligheden = Falskt,
+        strider_mod_den_offentlige_orden = Falskt
+    )
+    = uden_overbevisningssammenhæng = Religionsudøvelse(
+        udtryk = Lære,
+        stemmer_med_overbevisningen = Falskt,
+        strider_mod_sædeligheden = Falskt,
+        strider_mod_den_offentlige_orden = Falskt
+    )
+    = imod_sædeligheden = Religionsudøvelse(
+        udtryk = Lære,
+        stemmer_med_overbevisningen = Sandt,
+        strider_mod_sædeligheden = Sandt,
+        strider_mod_den_offentlige_orden = Falskt
+    )
+    = imod_den_offentlige_orden = Religionsudøvelse(
+        udtryk = Foretagelse,
+        stemmer_med_overbevisningen = Sandt,
+        strider_mod_sædeligheden = Falskt,
+        strider_mod_den_offentlige_orden = Sandt
+    )
+    (
+        beskyttet_lære.er_beskyttet_efter_par67()
+        && beskyttet_foretagelse.er_beskyttet_efter_par67()
+        && uden_overbevisningssammenhæng.er_beskyttet_efter_par67() == Falskt
+        && imod_sædeligheden.er_beskyttet_efter_par67() == Falskt
+        && imod_den_offentlige_orden.er_beskyttet_efter_par67() == Falskt
+    )
+}
+
+| rettigheder_par70_dækker_begge_grunde_og_begge_virkninger() -> {
+    = trosbetinget_borgerlig_rettighedsberøvelse = Par70Sag(
+        grund = Trosbekendelse,
+        virkning = BerøvelseAfRettighed(rettighed = BorgerligRettighed),
+        virkningen_sker_på_grund_af_grunden = Sandt
+    )
+    = afstamningsbetinget_politisk_rettighedsberøvelse = Par70Sag(
+        grund = AfstamningSomLigebehandlingsgrund,
+        virkning = BerøvelseAfRettighed(rettighed = PolitiskRettighed),
+        virkningen_sker_på_grund_af_grunden = Sandt
+    )
+    = trosbetinget_borgerpligtsunddragelse = Par70Sag(
+        grund = Trosbekendelse,
+        virkning = UnddragelseFraAlmindeligBorgerpligt,
+        virkningen_sker_på_grund_af_grunden = Sandt
+    )
+    = uafhængig_borgerpligtsunddragelse = Par70Sag(
+        grund = AfstamningSomLigebehandlingsgrund,
+        virkning = UnddragelseFraAlmindeligBorgerpligt,
+        virkningen_sker_på_grund_af_grunden = Falskt
+    )
+    (
+        trosbetinget_borgerlig_rettighedsberøvelse.opfylder_par70() == Falskt
+        && afstamningsbetinget_politisk_rettighedsberøvelse.opfylder_par70() == Falskt
+        && trosbetinget_borgerpligtsunddragelse.opfylder_par70() == Falskt
+        && uafhængig_borgerpligtsunddragelse.opfylder_par70()
+    )
+}
+
+| rettigheder_par71_adskiller_beskyttede_grunde_fra_lovhjemmel() -> {
+    = politisk_begrundet = Frihedsberøvelsessag(
+        personkreds = DanskBorger,
+        grund = PolitiskOverbevisning,
+        har_lovhjemmel = Sandt
+    )
+    = religiøst_begrundet = Frihedsberøvelsessag(
+        personkreds = DanskBorger,
+        grund = ReligiøsOverbevisning,
+        har_lovhjemmel = Sandt
+    )
+    = afstamningsbegrundet = Frihedsberøvelsessag(
+        personkreds = DanskBorger,
+        grund = AfstamningSomFrihedsberøvelsesgrund,
+        har_lovhjemmel = Sandt
+    )
+    = anden_grund_med_lovhjemmel = Frihedsberøvelsessag(
+        personkreds = DanskBorger,
+        grund = AndenFrihedsberøvelsesgrund,
+        har_lovhjemmel = Sandt
+    )
+    = anden_person_uden_lovhjemmel = Frihedsberøvelsessag(
+        personkreds = AndenPerson,
+        grund = AndenFrihedsberøvelsesgrund,
+        har_lovhjemmel = Falskt
+    )
+    (
+        politisk_begrundet.opfylder_par71_stk1_og_2() == Falskt
+        && religiøst_begrundet.opfylder_par71_stk1_og_2() == Falskt
+        && afstamningsbegrundet.opfylder_par71_stk1_og_2() == Falskt
+        && anden_grund_med_lovhjemmel.opfylder_par71_stk1_og_2()
+        && anden_person_uden_lovhjemmel.opfylder_par71_stk1_og_2() == Falskt
+    )
+}
+
+| rettigheder_par72_dækker_alle_fire_indgreb_med_samme_hovedregel() -> {
+    = husundersøgelse_med_retskendelse = Privatlivsindgrebssag(
+        indgreb = Husundersøgelse,
+        retskendelse_foreligger = Sandt,
+        særegen_undtagelse_hjemlet_ved_lov = Falskt
+    )
+    = beslaglæggelse_med_retskendelse = Privatlivsindgrebssag(
+        indgreb = Beslaglæggelse,
+        retskendelse_foreligger = Sandt,
+        særegen_undtagelse_hjemlet_ved_lov = Falskt
+    )
+    = papirundersøgelse_med_retskendelse = Privatlivsindgrebssag(
+        indgreb = UndersøgelseAfBreveOgAndrePapirer,
+        retskendelse_foreligger = Sandt,
+        særegen_undtagelse_hjemlet_ved_lov = Falskt
+    )
+    = kommunikationsbrud_med_retskendelse = Privatlivsindgrebssag(
+        indgreb = BrudPåPostTelegrafEllerTelefonhemmeligheden,
+        retskendelse_foreligger = Sandt,
+        særegen_undtagelse_hjemlet_ved_lov = Falskt
+    )
+    = husundersøgelse_uden_hjemmel = Privatlivsindgrebssag(
+        indgreb = Husundersøgelse,
+        retskendelse_foreligger = Falskt,
+        særegen_undtagelse_hjemlet_ved_lov = Falskt
+    )
+    = lovhjemlet_undtagelse = Privatlivsindgrebssag(
+        indgreb = Husundersøgelse,
+        retskendelse_foreligger = Falskt,
+        særegen_undtagelse_hjemlet_ved_lov = Sandt
+    )
+    (
+        husundersøgelse_med_retskendelse.opfylder_par72()
+        && beslaglæggelse_med_retskendelse.opfylder_par72()
+        && papirundersøgelse_med_retskendelse.opfylder_par72()
+        && kommunikationsbrud_med_retskendelse.opfylder_par72()
+        && husundersøgelse_uden_hjemmel.opfylder_par72() == Falskt
+        && lovhjemlet_undtagelse.opfylder_par72()
+    )
+}
+
+| rettigheder_par77_dækker_alle_former_og_begge_forholdsregler() -> {
+    = trykt_ytring = Ytringssag(form = Tryk)
+    = skriftlig_ytring = Ytringssag(form = Skrift)
+    = talt_ytring = Ytringssag(form = Tale)
+    (
+        trykt_ytring.retten_til_at_offentliggøre_tanker_omfatter_formen()
+        && skriftlig_ytring.retten_til_at_offentliggøre_tanker_omfatter_formen()
+        && talt_ytring.retten_til_at_offentliggøre_tanker_omfatter_formen()
+        && forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(Censur) == Falskt
+        && forebyggende_ytringsforholdsregel_kan_indføres_efter_par77(AndenForebyggendeForholdsregel) == Falskt
+    )
+}
+
+| rettigheder_par78_og_par79_bevarer_forskellige_indgrebsbetingelser() -> {
+    = offentlig_forsamling_med_fare = Forsamlingssag(
+        ubevæbnet = Sandt,
+        offentlig = Sandt,
+        under_åben_himmel = Sandt,
+        fare_for_den_offentlige_fred = Sandt
+    )
+    (
+        forening_kan_dannes_uden_forudgående_tilladelse(LovligtFormål)
+        && forening_kan_dannes_uden_forudgående_tilladelse(UlovligtFormål) == Falskt
+        && offentlig_forsamling_med_fare.kan_samles_uden_forudgående_tilladelse()
+        && offentlig_forsamling_med_fare.politiet_har_ret_til_at_overvære()
+        && offentlig_forsamling_med_fare.kan_forbydes_efter_par79()
+    )
+}
+
+--@label:audit_rettigheder_negativ_afgraensning::meta:rettigheder_negativ_afgraensning_fund--
+--@begin:audit_rettigheder_negativ_afgraensning--
+| rettigheder_par85_skiller_udtrykkelig_udeladelse_fra_positiv_ret() -> {
+    = personlig_frihed = MilitærIndskrænkning(
+        bestemmelse = PersonligFrihedPar71,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = foreningsfrihed = MilitærIndskrænkning(
+        bestemmelse = ForeningsfrihedPar78,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = forsamlingsfrihed = MilitærIndskrænkning(
+        bestemmelse = ForsamlingsfrihedPar79,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = ytringsfrihed = MilitærIndskrænkning(
+        bestemmelse = YtringsfrihedPar77,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    (
+        personlig_frihed.opfylder_par85()
+        && foreningsfrihed.opfylder_par85()
+        && forsamlingsfrihed.opfylder_par85()
+        && ytringsfrihed.opfylder_par85() == Falskt
+    )
+}
+--@end:audit_rettigheder_negativ_afgraensning--
+
+| rettigheder_audit_består() -> (
+    rettigheder_par67_kraever_overbevisningssammenhaeng_og_begge_graenser()
+    && rettigheder_par70_dækker_begge_grunde_og_begge_virkninger()
+    && rettigheder_par71_adskiller_beskyttede_grunde_fra_lovhjemmel()
+    && rettigheder_par72_dækker_alle_fire_indgreb_med_samme_hovedregel()
+    && rettigheder_par77_dækker_alle_former_og_begge_forholdsregler()
+    && rettigheder_par78_og_par79_bevarer_forskellige_indgrebsbetingelser()
+    && rettigheder_par85_skiller_udtrykkelig_udeladelse_fra_positiv_ret()
+)
+
+= rettigheder_audit_resultat = rettigheder_audit_består()
+| rettigheder_audit_holder: rettigheder_audit_resultat -> rettigheder_audit_resultat == Sandt
+
+? rettigheder_audit_holder

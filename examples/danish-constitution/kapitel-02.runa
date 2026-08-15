@@ -27,7 +27,7 @@
 
 | kongens_påkrævede_trossamfund() -> EvangeliskLuthersk
 | monark_opfylder_troskrav(monark: Monark) -> monark.trossamfund == kongens_påkrævede_trossamfund()
-| troskrav_gælder_ikke_tronfølger()
+| troskravet_er_formuleret_for_kongen()
 --@end:grundlov_par6--
 
 --@label:grundlov_par7::meta:grundlov_kildemetadata--

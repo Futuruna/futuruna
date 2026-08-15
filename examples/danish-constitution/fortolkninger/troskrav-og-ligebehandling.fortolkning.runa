@@ -1,0 +1,48 @@
+@ sprog da
+
+@ importer ../kapitel - 02
+@ importer ../kapitel - 07
+@ importer ./grundlov - fortolkning - faelles
+
+-- § 6 opstiller et troskrav til kongen. § 70 forbyder trosbaseret berøvelse
+-- af borgerlige og politiske rettigheder. Om adgang til kongeembedet er en
+-- politisk rettighed efter § 70, afgøres ikke af ordlyden alene.
+
+# Troskravsfortolkning = Par6SomSærregelForKongeembedet | Par70OmfatterAdgangTilKongeembedet
+# Troskravsudfald = OpfylderTroskravetIPar6 | AfvistEfterPar6SomSærregel | ÅbenNormkonfliktMellemPar6OgPar70
+
+| troskravsudfald(fortolkning: Troskravsfortolkning, kandidat: Monark) -> hvis monark_opfylder_troskrav(kandidat) {
+    OpfylderTroskravetIPar6
+} ellers {
+    match fortolkning {
+        | Par6SomSærregelForKongeembedet -> AfvistEfterPar6SomSærregel
+        | Par70OmfatterAdgangTilKongeembedet -> ÅbenNormkonfliktMellemPar6OgPar70
+    }
+}
+
+= troskrav_og_ligebehandling_fund = GrundlovPrøvningsfund(
+    titel = "§§ 6 og 70: troskrav og adgang til kongeembedet",
+    modellag = Fortolkningsmodel(navn = "To konkurrerende fortolkninger af §§ 6 og 70"),
+    udsagnsstatus = Fortolkningsspørgsmål,
+    prøvningsomfang = Scenariesamling,
+    programhenvisninger = [
+        refof(kongens_påkrævede_trossamfund),
+        refof(monark_opfylder_troskrav),
+        refof(Par70Sag::opfylder_par70),
+        refof(troskravsudfald)
+    ],
+    grundlag = Fortolkningsgrundlag(
+        kilder = [grundlov_retsinformation],
+        forudsætninger = [
+            "Særregelmodellen behandler § 6 som den særlige regel for kongeembedet.",
+            "Ligebehandlingsmodellen antager, at adgang til kongeembedet er en politisk rettighed efter § 70."
+        ]
+    ),
+    resultat = "En ikke-luthersk kandidat afvises i særregelmodellen, mens ligebehandlingsmodellen blotlægger en normkonflikt.",
+    afgrænsning = "Prøvningen afgør ikke, hvilken fortolkning der er gældende ret; der er ikke tilføjet supplerende retskilder."
+)
+
+--@label:fortolkning_troskrav_og_ligebehandling::meta:troskrav_og_ligebehandling_fund--
+--@begin:fortolkning_troskrav_og_ligebehandling--
+| troskravsfortolkningerne_er_eksplicit_adskilte() -> Par6SomSærregelForKongeembedet != Par70OmfatterAdgangTilKongeembedet
+--@end:fortolkning_troskrav_og_ligebehandling--

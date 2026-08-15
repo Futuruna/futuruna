@@ -1,0 +1,184 @@
+@ sprog da
+
+@ importer ./kapitel - 01
+@ importer ./kapitel - 02
+@ importer ./kapitel - 04
+@ importer ./kapitel - 08
+@ importer ./kapitel - 09
+@ importer ./kapitel - 11
+@ importer ./grundlov - proevning - faelles
+
+-- Bestemmelsesauditten prøver lukkede, ordlydsnære domæner. Konkrete
+-- livsforløb og hypotetiske personer hører til scenariefilerne.
+
+= bestemmelser_magtfordeling_fund = GrundlovPrøvningsfund(
+    titel = "§ 3: den kanoniske magtfordeling",
+    modellag = Kildemodel,
+    udsagnsstatus = TekstnærKontrol,
+    prøvningsomfang = UdtømmendeLukketDomæne,
+    programhenvisninger = [
+        refof(statsmagtens_placering),
+        refof(statsorgan_deltager_i),
+        refof(statsmagt_udøves_i_forening)
+    ],
+    grundlag = Fortolkningsgrundlag(
+        kilder = [grundlov_retsinformation],
+        forudsætninger = []
+    ),
+    resultat = "Alle tre værdier i Statsmagt har den tekstnære placering, og afledte deltageropslag er konsistente.",
+    afgrænsning = "Kontrollen beskriver Grundlovens ordlyd og ikke den nutidige praktiske magtudøvelse."
+)
+
+--@label:audit_bestemmelser_magtfordeling::meta:bestemmelser_magtfordeling_fund--
+--@begin:audit_bestemmelser_magtfordeling--
+| bestemmelser_magtfordelingen_er_udtømmende_og_konsistent() -> {
+    = lovgivende_placering = Magtplacering(
+        magt = Lovgivende,
+        udøvelse = IForening(
+            organ = KongenSomStatsorgan,
+            medorgan = Folketinget
+        )
+    )
+    = udøvende_placering = Magtplacering(
+        magt = Udøvende,
+        udøvelse = Hos(organ = KongenSomStatsorgan)
+    )
+    = dømmende_placering = Magtplacering(
+        magt = Dømmende,
+        udøvelse = Hos(organ = Domstolene)
+    )
+    (
+        statsmagtens_placering(Lovgivende) == lovgivende_placering
+        && statsmagtens_placering(Udøvende) == udøvende_placering
+        && statsmagtens_placering(Dømmende) == dømmende_placering
+        && statsorgan_deltager_i(KongenSomStatsorgan, Lovgivende)
+        && statsorgan_deltager_i(Folketinget, Lovgivende)
+        && statsorgan_deltager_i(Domstolene, Lovgivende) == Falskt
+        && statsmagt_udøves_i_forening(Lovgivende)
+        && statsmagt_udøves_i_forening(Udøvende) == Falskt
+        && statsmagt_udøves_i_forening(Dømmende) == Falskt
+    )
+}
+--@end:audit_bestemmelser_magtfordeling--
+
+| bestemmelser_par1_omfatter_hele_det_lukkede_rigsdomæne() -> grundloven_gælder_for(Danmark) && grundloven_gælder_for(Færøerne) && grundloven_gælder_for(Grønland)
+
+| bestemmelser_par6_bevarer_det_formulerede_troskrav() -> {
+    = monark_i_folkekirkens_trossamfund = Monark(
+        alder = 18,
+        trossamfund = EvangeliskLuthersk,
+        forsikring = IkkeAfgivet
+    )
+    = monark_i_andet_trossamfund = Monark(
+        alder = 18,
+        trossamfund = Andet(navn = "Andet trossamfund"),
+        forsikring = IkkeAfgivet
+    )
+    (
+        troskravet_er_formuleret_for_kongen()
+        && kongens_påkrævede_trossamfund() == EvangeliskLuthersk
+        && monark_opfylder_troskrav(monark_i_folkekirkens_trossamfund)
+        && monark_opfylder_troskrav(monark_i_andet_trossamfund) == Falskt
+    )
+}
+
+| bestemmelser_par7_har_samme_myndighedsgrænse_for_begge_subjekter() -> {
+    = mindreårig_monark = Monark(
+        alder = 17,
+        trossamfund = EvangeliskLuthersk,
+        forsikring = IkkeAfgivet
+    )
+    = myndig_monark = Monark(
+        alder = 18,
+        trossamfund = EvangeliskLuthersk,
+        forsikring = IkkeAfgivet
+    )
+    = mindreårig_tronfølger = Tronfølger(
+        alder = 17,
+        trossamfund = EvangeliskLuthersk,
+        forsikring = IkkeAfgivet
+    )
+    = myndig_tronfølger = Tronfølger(
+        alder = 18,
+        trossamfund = EvangeliskLuthersk,
+        forsikring = IkkeAfgivet
+    )
+    (
+        myndighedsregel_gælder_for(KongenSomMyndighedssubjekt)
+        && myndighedsregel_gælder_for(TronfølgerenSomMyndighedssubjekt)
+        && monark_er_myndig(mindreårig_monark) == Falskt
+        && monark_er_myndig(myndig_monark)
+        && tronfølger_er_myndig(mindreårig_tronfølger) == Falskt
+        && tronfølger_er_myndig(myndig_tronfølger)
+    )
+}
+
+| bestemmelser_par28_bevarer_mandattallene() -> folketingets_max_medlemmer == 179 && færøske_mandater == 2 && grønlandske_mandater == 2
+
+| bestemmelser_par85_henviser_udtømmende_til_tre_bestemmelser() -> {
+    = personlig_frihed = MilitærIndskrænkning(
+        bestemmelse = PersonligFrihedPar71,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = foreningsfrihed = MilitærIndskrænkning(
+        bestemmelse = ForeningsfrihedPar78,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = forsamlingsfrihed = MilitærIndskrænkning(
+        bestemmelse = ForsamlingsfrihedPar79,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    = ytringsfrihed = MilitærIndskrænkning(
+        bestemmelse = YtringsfrihedPar77,
+        følger_af_militære_loves_forskrifter = Sandt
+    )
+    (
+        personlig_frihed.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+        && foreningsfrihed.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+        && forsamlingsfrihed.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85()
+        && ytringsfrihed.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() == Falskt
+    )
+}
+
+| bestemmelser_par86_dækker_begge_rådstyper_og_alle_rigsdele() -> {
+    = dansk_kommunalvalg = Rådsvalgretsalder(rigsdel = Danmark, råd = KommunaltRåd)
+    = dansk_menighedsrådsvalg = Rådsvalgretsalder(rigsdel = Danmark, råd = Menighedsråd)
+    = færøsk_kommunalvalg = Rådsvalgretsalder(rigsdel = Færøerne, råd = KommunaltRåd)
+    = færøsk_menighedsrådsvalg = Rådsvalgretsalder(rigsdel = Færøerne, råd = Menighedsråd)
+    = grønlandsk_kommunalvalg = Rådsvalgretsalder(rigsdel = Grønland, råd = KommunaltRåd)
+    = grønlandsk_menighedsrådsvalg = Rådsvalgretsalder(rigsdel = Grønland, råd = Menighedsråd)
+    (
+        dansk_kommunalvalg.retsgrundlag_efter_par86() == FølgerFolketingsvalgretsalderenTilEnhverTid
+        && dansk_menighedsrådsvalg.retsgrundlag_efter_par86() == FølgerFolketingsvalgretsalderenTilEnhverTid
+        && færøsk_kommunalvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+        && færøsk_menighedsrådsvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+        && grønlandsk_kommunalvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+        && grønlandsk_menighedsrådsvalg.retsgrundlag_efter_par86() == FastsættesVedLovEllerIHEnholdTilLov
+    )
+}
+
+| bestemmelser_stadfæstelsesakten_er_kanonisk() -> {
+    = stadfæstelsesdato = Dato(år = 1953, måned = 6, dag = 5)
+    (
+        grundlovens_stadfæstelse.opfylder_stadfæstelsesteksten()
+        && grundlovens_stadfæstelse.dato == stadfæstelsesdato
+        && grundlovens_stadfæstelse.sted == ChristiansborgSlot
+        && grundlovens_stadfæstelse.monark == FrederikDenNiende
+    )
+}
+
+| bestemmelser_audit_består() -> (
+    bestemmelser_magtfordelingen_er_udtømmende_og_konsistent()
+    && bestemmelser_par1_omfatter_hele_det_lukkede_rigsdomæne()
+    && bestemmelser_par6_bevarer_det_formulerede_troskrav()
+    && bestemmelser_par7_har_samme_myndighedsgrænse_for_begge_subjekter()
+    && bestemmelser_par28_bevarer_mandattallene()
+    && bestemmelser_par85_henviser_udtømmende_til_tre_bestemmelser()
+    && bestemmelser_par86_dækker_begge_rådstyper_og_alle_rigsdele()
+    && bestemmelser_stadfæstelsesakten_er_kanonisk()
+)
+
+= bestemmelser_audit_resultat = bestemmelser_audit_består()
+| bestemmelser_audit_holder: bestemmelser_audit_resultat -> bestemmelser_audit_resultat == Sandt
+
+? bestemmelser_audit_holder

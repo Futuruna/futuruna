@@ -82,7 +82,7 @@ Ingen af kilderne leverer én universelt perfekt model. Den relevante standard
 er i stedet en model, der er kildefast, forklaringsstærk, falsificerbar, egnet
 til præcise forespørgsler og tilpasset netop grundlovens regelrum.
 
-## Aktuel diagnose
+## Udgangsdiagnose
 
 ### Domænemodellen
 
@@ -106,15 +106,16 @@ domæneobjekter alene for ensartethedens skyld.
 
 ### Prøvningslaget
 
-`grundlov.audit.runa` rummer både scenariedata, lokale
+Ved planens oprettelse rummede `grundlov.audit.runa` både scenariedata, lokale
 overensstemmelseskontroller, tværgående modelkontroller og juridisk farvede
-konklusioner. Ordene "bevis", "paradoks" og "revision" bruges flere steder
-mere vidtgående, end den udførte kontrol kan bære.
+konklusioner. Ordene "bevis", "paradoks" og "revision" blev flere steder brugt
+mere vidtgående, end den udførte kontrol kunne bære.
 
-Den kendte topologikontrol har desuden 49 endnu ikke klassificerede
-regelfamilier og en dækning på 27 procent af de booleske regler. Tallet er ikke
-et mål i sig selv. Hvert hul skal enten få en meningsfuld kontrol eller
-registreres som bevidst uden en kunstig tautologi.
+Udgangspunktets topologikontrol havde desuden 49 endnu ikke klassificerede
+regelfamilier og en dækning på 27 procent af de booleske regler. Tallet var ikke
+et mål i sig selv. Hvert hul skulle enten få en meningsfuld kontrol eller
+registreres som bevidst uden en kunstig tautologi. Den aktuelle klassifikation
+og dens ændringer føres i `status-og-milepaele.md`.
 
 ### Websiderne
 
@@ -126,6 +127,56 @@ en produktpræsentation mere end en nøgtern kilde- og kodeudgave.
 Det synlige ord "grundlovsrevision" er desuden upræcist her, fordi det normalt
 kan forstås som en ændring af grundloven. Den offentlige betegnelse skal være
 "prøvning af grundlovsmodellen" eller kort "grundlovsprøvning".
+
+## Læringer fra den første gennemførelse
+
+Den første samlede omlægning har gjort en række principper konkrete. De er
+bindende for det resterende arbejde og for senere udvidelser af korpusset:
+
+1. **Tavshed er ikke en undtagelse.** Når § 6 formulerer et troskrav for
+   kongen, kan kildemodellen fastholde denne adressat. Den kan ikke deraf
+   udlede, at kravet ikke gælder en tronfølger, eller at tronfølgeren har en
+   positiv ret. En sådan rækkevidde hører til en navngiven fortolkning.
+2. **Den kanoniske model skal bevare relationen, ikke blot svarene.** § 3
+   bliver stærkere af én typet relation mellem statsmagt, statsorgan og
+   udøvelsesform. En type, der kun opremser de tre kendte facitsvar, gør
+   ugyldige værdier sværere at skrive, men gør samtidig modellen dårligere til
+   at forklare og prøve selve magtfordelingen.
+3. **Fortolkninger må være eksekverbare uden at blive skjult gældende ret.**
+   Konkurrerende forståelser kan udtrykkes og bestå de samme scenarier, når
+   hvert scenarie vælger model udtrykkeligt. Beståede kontroller viser
+   sammenhæng i det erklærede modelrum; den juridiske vægt kommer fortsat fra
+   de angivne retskilder.
+4. **Prøvningens styrke følger dens kvantifikation.** Et scenarie dokumenterer
+   et konkret eksempel. En samling scenarier er ikke en udtømmende søgning, og
+   fravær af modeksempler må kun omtales som udtømmende, når domænet er lukket
+   og alle kombinationer faktisk er prøvet.
+5. **Kilde, fortolkning og prøvningsfund har forskellig metadata.** Et fund
+   skal henvise kontrolleret til de programregler, det faktisk bygger på, men
+   må ikke genbruge kildemetadata som erstatning for modellag,
+   udsagnsstatus, omfang og afgrænsning. Metadata gør begrundelseskæden
+   sporbar; den gør ikke udsagnet sandere.
+6. **En import er ikke i sig selv en samlet prøvning.** Scriptkontroller i en
+   importeret fil udføres ikke automatisk af rodfilen. Hver fokuseret audit
+   skal derfor eksportere et reelt boolsk resultat, som både bevises lokalt og
+   sammensættes og bevises i den samlede indgang.
+7. **Frontendkontrol er nødvendig, men ikke tilstrækkelig.** Arbejdet med
+   importerede invarianter viste, at en konstruktion kan passere frontend og
+   fejle i fortolkeren. Regelscopes, imports og samlet prøvning skal derfor
+   også køres fortolket og som genereret Rust. En compilerbegrænsning
+   registreres som sprogproblem og skjules ikke i lovmodellen. Formatterens
+   accept er heller ikke en syntakskontrol: formateret kode skal efterfølgende
+   kunne indlæses gennem sin faktiske importvej.
+8. **Topologidækning er et spor, ikke et kvalitetsmål.** Navnebaserede huller
+   kan samle retligt forskellige regler, og aggregatreglers afhængigheder kan
+   være usynlige for den eksperimentelle rapport. Hvert hul klassificeres
+   fagligt; ingen tautologi tilføjes for at forbedre en procent.
+
+Disse læringer ændrer også skriveformen i prøvningsfilerne. Lange egenskaber
+med flere domæneværdier eller mellemresultater skrives som blokregler med
+lokale, fagligt navngivne værdier. De konkrete scenariedata forbliver i
+`.scenario.runa`; lokale værdier i en audit må kun opstille det mindste vidne
+eller den afgrænsede konfiguration, som den pågældende egenskab kræver.
 
 ## Tre adskilte modellag
 
@@ -476,11 +527,12 @@ ikke længere ligger i én fil:
 ```text
 examples/danish-constitution/
   grundlov-faelles.runa
+  grundlov-proevning-faelles.runa
   kapitel-01.runa ... kapitel-11.runa
   fortolkninger/
     grundlov-fortolkning-faelles.runa
     *.fortolkning.runa
-  grundlov-proevningsscenarier.scenario.runa
+  grundlov-*.scenario.runa
   grundlov-bestemmelser.audit.runa
   grundlov-procedurer.audit.runa
   grundlov-rettigheder.audit.runa
@@ -493,9 +545,15 @@ examples/danish-constitution/
 prøvningsfiler og kører den samlede kontrol. Filendelserne følger Futurunas
 værktøjskonvention; filnavnenes faglige dele er danske.
 
+`grundlov-proevning-faelles.runa` ejer den generiske metadata for fund, som
+både audits og fortolkningsscenarier bruger. De konkrete fortolkningsfiler
+ligger fortsat under `fortolkninger/`, så prøvningsmetadata ikke gør
+fortolkningslaget til en afhængighed for kildemodellen.
+
 Fortolkningsfiler oprettes kun for faktiske fortolkningsspørgsmål. De må ikke
-blive en parallel kopi af de 11 kapitler. Den fælles fortolkningsfil ejer alene
-de typer og metadata, som flere navngivne fortolkninger deler.
+blive en parallel kopi af de 11 kapitler. Den fælles fortolkningsfil er en
+stabil importgrænse til den prøvningsmetadata, som de navngivne fortolkninger
+deler.
 
 ## Gennemførelsesforløb
 
@@ -639,6 +697,15 @@ milepælsport. Regelscope-metoder, importer og genereret kode skal også gennem
 Rust-backenden, fordi en frontend kan acceptere en metodeform, som backenden
 ikke kan generere. En sådan uoverensstemmelse registreres som compilerfejl;
 korpusset skjuler den ikke med kompatibilitetsaliaser.
+
+Scriptkontroller i importerede filer udføres ikke automatisk af den
+importerende fil. Hver fokuseret audit eksporterer derfor en almindelig,
+boolsk `*_audit_består()`-regel, beviser den lokalt og lader den samlede
+indgang bevise alle eksporterede resultater igen. En rodfil med imports og et
+vakuøst `? all` er ikke en samlet kontrol. Den eksperimentelle topologirapport
+følger heller ikke nødvendigvis afhængigheder gennem sådanne
+aggregatregler; dens huller klassificeres derfor efter de faktisk kaldte
+regler og ikke alene efter den rapporterede procent.
 
 ## Kvalitetsporte
 

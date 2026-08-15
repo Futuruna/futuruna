@@ -62,9 +62,6 @@ A model of a law, a spec, or a protocol should contain what the source *establis
 
 -- The model captures what § 6 establishes
 | kongens_trossamfund() -> EvangeliskLuthersk
-
--- What § 6 does NOT say is also worth modeling
-| troskrav_gælder_ikke_tronfølger()
 ```
 
 What the source delegates, you delegate. What the source is silent on, you are silent on.
@@ -98,11 +95,11 @@ non-application is worth stating. Mere silence only proves that the source does
 not state the rule for Y; it does not by itself establish the opposite rule or
 a positive right.
 
-```runa
--- A source clause explicitly limits the requirement to the reigning king
-
-| troskrav_er_begrænset_til_kongen()
-```
+Do not turn a clause that names the king into
+`troskrav_gælder_ikke_tronfølger()`. That would convert silence about the heir
+into an explicit exclusion. If a source really says that a requirement applies
+only to the reigning king, the narrower fact may be modeled because the
+exclusion then comes from the source itself.
 
 ## `?` proves `|`. `runa audit` finds what you missed.
 

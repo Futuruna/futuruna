@@ -1,0 +1,9 @@
+@ sprog da
+
+@ importer ./grundlov - faelles
+
+-- Denne type tilhører prøvningslaget. Den klassificerer et fund og dets
+-- evidens uden at ændre reglerne i kildemodellen.
+
+# GrundlovPrøvningsfund(titel: Tekst, modellag: Modellag, udsagnsstatus: Udsagnsstatus, prøvningsomfang: Prøvningsomfang, programhenvisninger: List(ProgramReference), grundlag: Fortolkningsgrundlag, resultat: Tekst, afgrænsning: Tekst)
+# impl Meta for GrundlovPrøvningsfund {}

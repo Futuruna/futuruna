@@ -1,0 +1,134 @@
+@ sprog da
+
+@ importer ./fortolkninger / troskrav - og - ligebehandling.fortolkning
+@ importer ./fortolkninger / skat - og - ekspropriation.fortolkning
+
+-- Hvert scenarie vælger sin fortolkning udtrykkeligt. Ingen model vinder på
+-- grund af importorden eller et skjult standardvalg.
+
+= luthersk_kandidat_til_kongeembedet = Monark(
+    alder = 30,
+    trossamfund = EvangeliskLuthersk,
+    forsikring = AfgivetSomTronfølger
+)
+= ikke_luthersk_kandidat_til_kongeembedet = Monark(
+    alder = 30,
+    trossamfund = Andet(navn = "Muslim"),
+    forsikring = AfgivetSomTronfølger
+)
+
+= luthersk_udfald_i_særregelmodellen = troskravsudfald(
+    fortolkning = Par6SomSærregelForKongeembedet,
+    kandidat = luthersk_kandidat_til_kongeembedet
+)
+= luthersk_udfald_i_ligebehandlingsmodellen = troskravsudfald(
+    fortolkning = Par70OmfatterAdgangTilKongeembedet,
+    kandidat = luthersk_kandidat_til_kongeembedet
+)
+= ikke_luthersk_udfald_i_særregelmodellen = troskravsudfald(
+    fortolkning = Par6SomSærregelForKongeembedet,
+    kandidat = ikke_luthersk_kandidat_til_kongeembedet
+)
+= ikke_luthersk_udfald_i_ligebehandlingsmodellen = troskravsudfald(
+    fortolkning = Par70OmfatterAdgangTilKongeembedet,
+    kandidat = ikke_luthersk_kandidat_til_kongeembedet
+)
+
+= trosbaseret_adgangsafslag_som_politisk_rettighed = Par70Sag(
+    grund = Trosbekendelse,
+    virkning = BerøvelseAfRettighed(rettighed = PolitiskRettighed),
+    virkningen_sker_på_grund_af_grunden = Sandt
+)
+
+= ikke_luthersk_kandidat_opfylder_troskravet = monark_opfylder_troskrav(ikke_luthersk_kandidat_til_kongeembedet)
+= trosbaseret_adgangsafslag_opfylder_par70 = trosbaseret_adgangsafslag_som_politisk_rettighed.opfylder_par70()
+
+| luthersk_kandidat_har_samme_udfald_i_begge_modeller: luthersk_udfald_i_særregelmodellen -> (
+    luthersk_udfald_i_særregelmodellen == OpfylderTroskravetIPar6
+    && luthersk_udfald_i_ligebehandlingsmodellen == OpfylderTroskravetIPar6
+)
+| ikke_luthersk_kandidat_synliggør_fortolkningsvalget: ikke_luthersk_udfald_i_særregelmodellen -> (
+    ikke_luthersk_udfald_i_særregelmodellen == AfvistEfterPar6SomSærregel
+    && ikke_luthersk_udfald_i_ligebehandlingsmodellen == ÅbenNormkonfliktMellemPar6OgPar70
+)
+| kildereglerne_giver_to_ordlydsnære_resultater: ikke_luthersk_kandidat_opfylder_troskravet -> (
+    ikke_luthersk_kandidat_opfylder_troskravet == Falskt
+    && trosbaseret_adgangsafslag_opfylder_par70 == Falskt
+)
+
+= byrde_med_begge_kendetegn = ØkonomiskByrde(
+    angivet_som_skat = Sandt,
+    kræver_afståelse_af_bestemt_ejendom = Sandt
+)
+= byrde_kun_angivet_som_skat = ØkonomiskByrde(
+    angivet_som_skat = Sandt,
+    kræver_afståelse_af_bestemt_ejendom = Falskt
+)
+= byrde_kun_med_afståelse = ØkonomiskByrde(
+    angivet_som_skat = Falskt,
+    kræver_afståelse_af_bestemt_ejendom = Sandt
+)
+= byrde_uden_kendetegn = ØkonomiskByrde(
+    angivet_som_skat = Falskt,
+    kræver_afståelse_af_bestemt_ejendom = Falskt
+)
+
+= byrde_med_begge_formelt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = FormelBetegnelseFørMaterielleKendetegn,
+    byrde = byrde_med_begge_kendetegn
+)
+= byrde_med_begge_materielt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = MaterielleKendetegnFørFormelBetegnelse,
+    byrde = byrde_med_begge_kendetegn
+)
+= byrde_kun_skat_formelt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = FormelBetegnelseFørMaterielleKendetegn,
+    byrde = byrde_kun_angivet_som_skat
+)
+= byrde_kun_skat_materielt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = MaterielleKendetegnFørFormelBetegnelse,
+    byrde = byrde_kun_angivet_som_skat
+)
+= byrde_kun_afståelse_formelt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = FormelBetegnelseFørMaterielleKendetegn,
+    byrde = byrde_kun_med_afståelse
+)
+= byrde_kun_afståelse_materielt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = MaterielleKendetegnFørFormelBetegnelse,
+    byrde = byrde_kun_med_afståelse
+)
+= byrde_uden_kendetegn_formelt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = FormelBetegnelseFørMaterielleKendetegn,
+    byrde = byrde_uden_kendetegn
+)
+= byrde_uden_kendetegn_materielt_udfald = klassificer_økonomisk_byrde(
+    fortolkning = MaterielleKendetegnFørFormelBetegnelse,
+    byrde = byrde_uden_kendetegn
+)
+
+| byrde_med_begge_kendetegn_synliggør_fortolkningsvalget: byrde_med_begge_formelt_udfald -> (
+    byrde_med_begge_formelt_udfald == SkatEfterArbejdshypotese
+    && byrde_med_begge_materielt_udfald == EkspropriationEfterArbejdshypotese
+)
+| entydige_skattekendetegn_giver_samme_udfald: byrde_kun_skat_formelt_udfald -> (
+    byrde_kun_skat_formelt_udfald == SkatEfterArbejdshypotese
+    && byrde_kun_skat_materielt_udfald == SkatEfterArbejdshypotese
+)
+| entydige_ekspropriationskendetegn_giver_samme_udfald: byrde_kun_afståelse_formelt_udfald -> (
+    byrde_kun_afståelse_formelt_udfald == EkspropriationEfterArbejdshypotese
+    && byrde_kun_afståelse_materielt_udfald == EkspropriationEfterArbejdshypotese
+)
+| fravær_af_kendetegn_forbliver_uafklaret: byrde_uden_kendetegn_formelt_udfald -> (
+    byrde_uden_kendetegn_formelt_udfald == UafklaretEfterArbejdshypotese
+    && byrde_uden_kendetegn_materielt_udfald == UafklaretEfterArbejdshypotese
+)
+
+? luthersk_kandidat_har_samme_udfald_i_begge_modeller
+? ikke_luthersk_kandidat_synliggør_fortolkningsvalget
+? kildereglerne_giver_to_ordlydsnære_resultater
+? byrde_med_begge_kendetegn_synliggør_fortolkningsvalget
+? entydige_skattekendetegn_giver_samme_udfald
+? entydige_ekspropriationskendetegn_giver_samme_udfald
+? fravær_af_kendetegn_forbliver_uafklaret
+
+@ skriv("De navngivne fortolkningsscenarier holder.")

@@ -182,7 +182,7 @@ Gennemført den 16. august 2026.
   `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
   fejlmeddelelser. Kilde- og metadataporten består 4 af 4 kontroller.
 
-#### Klassifikation af de 13 topologiske hulfamilier
+#### Klassifikation af de 23 topologiske hulfamilier
 
 Topologirapporten grupperer nulargumentregler efter navne, ikke efter retligt
 emne. En hulfamilie er derfor et arbejdssignal og ikke i sig selv et udækket
@@ -190,41 +190,85 @@ retligt spørgsmål.
 
 | Hulfamilie | Klassifikation | Beslutning |
 | --- | --- | --- |
-| `folketinget` | Navnebaseret samlegruppe af 12 forskellige kompetencer og organisationsudsagn. | Bevidst åben; gennemgås pr. kodespænd og lukkes ikke med én tautologi. |
+| `bestemmelser` | Otte meningsfulde auditegenskaber, der kaldes gennem `bestemmelser_audit_består`. Topologiprøvningen følger ikke aggregatets afhængigheder. | Teknisk rapporteringshul; alle otte egenskaber prøves af den lokale og den samlede audit i begge backends. |
+| `folketinget` | Navnebaseret samlegruppe af 14 forskellige kompetencer og organisationsudsagn. | Bevidst åben; gennemgås pr. kodespænd og lukkes ikke med én tautologi. |
 | `folketingsåret` | To faste kalenderudsagn uden variabelt sagsdomæne. | Bevidst udækket, indtil en konkret kalenderforespørgsel kræver en model. |
+| `grundloven` | To atomiske udsagn om geografisk rækkevidde og gældende ret. | Bevidst åben; deres indhold prøves gennem konkrete rigsdele og stadfæstelsesakten frem for ved gentagelse af fakta. |
+| `ingen` | Skattepålæg og udskrivning af mandskab er kun samlet af den fælles sætningsstart. | Bevidst åben; forskellige genstande samles ikke for at tilfredsstille navneheuristikken. |
 | `kommissioner` | To beslægtede oplysningskompetencer. | Kandidat til en lukket adressattype i prøvningslaget. |
-| `kongen` | Navnebaseret samlegruppe af 13 forskellige roller og kompetencer. | Bevidst åben; fysisk monark, embede og statsorgan må ikke samles for at tilfredsstille topologien. |
+| `kongen` | Navnebaseret samlegruppe af 16 forskellige roller og kompetencer. | Bevidst åben; fysisk monark, embede og statsorgan må ikke samles for at tilfredsstille topologien. |
 | `mandatfordeling` | Tre udtrykkelige hensyn i samme bestemmelse. | Kandidat til en lukket hensynstype og en dækningskontrol. |
 | `mellemfolkelige` | To egenskaber ved de myndigheder, § 20 omtaler. | Kandidat til ét domæneobjekt; ingen tautologisk kontrol tilføjes. |
 | `ministerråd` | To organisationskrav i § 18. | Kandidat til en `Ministerrådsordning` med intern regel. |
 | `ministre` | Adgangsret og taleret i Folketinget. | Kandidat til et lukket rettighedsdomæne. |
+| `ministrene` | Regeringsansvar og medlemskab af Statsrådet fra forskellige bestemmelser. | Bevidst åben; udsagnene er retligt forskellige trods samme grammatiske subjekt. |
+| `procedurer` | Seks grænse- og samtykkeegenskaber, der kaldes gennem `procedurer_audit_består`. | Teknisk rapporteringshul; alle seks egenskaber prøves lokalt og samlet i begge backends. |
 | `regeringsmyndigheden` | To strukturelle udsagn om begrænsning og udøvelse. | Bevares foreløbig som tekstnære fakta; relationen genprøves tværgående. |
+| `rettigheder` | Syv lukkede rettighedsegenskaber, der kaldes gennem `rettigheder_audit_består`. | Teknisk rapporteringshul; alle syv egenskaber prøves lokalt og samlet i begge backends. |
 | `revisorer` | To kompetencer ved statsregnskabet. | Kandidat til en lukket revisionskompetencetype. |
-| `statsministeren` | To pligter fra forskellige bestemmelser samlet alene af navnet. | Bevidst åben og behandles som to uafhængige kildespørgsmål. |
+| `rigsretten` | Kompetencen i ministersager og delegationen af den nærmere ordning. | Bevidst åben; kompetence og lovdelegation er ikke alternative værdier i samme domæne. |
+| `statsministeren` | Tre pligter fra forskellige bestemmelser samlet alene af navnet. | Bevidst åben og behandles som tre uafhængige kildespørgsmål. |
+| `statsydelse` | Lovfastsættelse og gældsforbud i § 10. | Kandidat til en samlet `Statsydelsesordning`, hvis en konkret forespørgsel kræver relationen. |
 | `tilsyn` | Civil og militær forvaltning som to udtrykkelige områder. | Kandidat til en lukket tilsynsområdetype. |
+| `tvaergaaende` | Seks tværgående egenskaber, der kaldes gennem `tvaergaaende_audit_består`. | Teknisk rapporteringshul; alle seks egenskaber prøves lokalt og samlet i begge backends. |
 | `valg` | Tre valgprincipper og ét særskilt forholdstalsvalg samlet af navnet. | Splittes efter retligt emne; de tre principper er kandidat til et lukket domæne. |
+| `årpenge` | Lovfastsættelse og samtykkekrav ved nydelse uden for riget i § 11. | Kandidat til en samlet `Årpengeordning`, hvis relationen senere skal forespørges samlet. |
+
+### Milepæl 5: Fortolknings- og prøvningslag
+
+Gennemført den 16. august 2026.
+
+- Den gamle samlede audit på over 1.200 linjer er erstattet af fire fokuserede
+  filer for bestemmelser, procedurer, rettigheder og tværgående relationer.
+  De indeholder tilsammen 27 meningsfulde egenskaber og eksporterer hvert sit
+  samlede auditresultat til den tynde `grundlov.audit.runa`.
+- Rodfilen beviser alle fire importerede resultater eksplicit. Arbejdet
+  afdækkede, at importerede scriptkontroller ikke udføres automatisk, og at en
+  importeret invariant kan passere frontendkontrol og derefter give et
+  fortolkerpanik. Compilerfejlen er registreret som `td-55d565`; korpusset
+  bruger den almindelige, eksporterbare regelgrænse.
+- `troskrav_gælder_ikke_tronfølger()` er fjernet fra § 6. Ordlydens tavshed om
+  tronfølgeren er ikke længere gjort til en positiv undtagelse; kildemodellen
+  siger alene, at kravet er formuleret for kongen.
+- To navngivne fortolkningsmodeller sammenligner henholdsvis §§ 6/70 og
+  §§ 43/73. Ingen model vælges skjult, og modellerne er udtrykkeligt markeret
+  som arbejdshypoteser uden supplerende retskilder.
+- En ny scenariefil har syv kontroller af eksplicitte fortolkningsvalg. Alle
+  13 scenariefiler med i alt 182 invarianter består både fortolket og som
+  genereret Rust med fire samtidige processer.
+- Alle fem auditindgange består både fortolket og som genereret Rust. Den
+  samlede indgang prøver de 27 underliggende egenskaber gennem fire
+  eksporterede aggregatregler.
+- Seks væsentlige fund har typet metadata med modellag, udsagnsstatus,
+  prøvningsomfang, afgrænsning og i alt 17 kontrollerede
+  `ProgramReference`-henvisninger. Metadataindekset har nu 97 ankre, 97
+  kodespænd og ingen fejlmeddelelser: 91 kildetekstblokke og seks
+  prøvningsfund.
+- Den officielle ordlyd har fortsat kontrolsummen
+  `0x5c1bbaf1142e3696`, og kilde- og metadataporten består 4 af 4 kontroller.
+- Topologiprøvningen viser 165 regler, 23 klassificerede hulfamilier og ingen
+  rapporterede paradokser, spændinger eller asymmetrier. Fire huller skyldes,
+  at den eksperimentelle analyse ikke følger auditaggregaternes afhængigheder;
+  seks andre blev synlige, da den gamle audits tautologiske fakta-gentagelser
+  blev fjernet.
 
 ## Nu
 
 - Bevar den officielle ordlyd og kildekoblingen uændret.
-- Adskil lokale overensstemmelseskontroller, procedurekontroller,
-  rettighedskontroller og tværgående undersøgelser i målrettede auditfiler.
-- Flyt resterende scenarieværdier ud af den samlede audit, og erstat
-  tautologiske kontroller med egentlige egenskaber eller en dokumenteret
-  bevidst afgrænsning.
-- Bevar fortolkningsspørgsmål som spørgsmål, indtil de får navngivne modeller,
-  synlige forudsætninger og særskilte retskilder.
+- Omskriv de danske grundlovssider, så ordlyd, kildemodel, navngivne
+  fortolkninger og afgrænset prøvning vises i den rækkefølge.
+- Fjern de forældede betegnelser, optællinger og bastante påstande fra den
+  offentlige fremstilling.
 
 ## Næste
 
-- Giv væsentlige fund typet metadata, udsagnsstatus, prøvningsomfang og
-  kontrollerede programhenvisninger.
-- Modellér konkurrerende fortolkninger side om side for de udvalgte åbne
-  spørgsmål uden skjult standardvalg.
+- Gennemfør den samlede juridiske og tekniske læsning af alle 91
+  tekst-og-kodepar.
+- Kør den endelige fortolker-, Rust-, metadata-, kilde-, web- og visuelle
+  udgivelsesport.
 
 ## Senere
 
-- Omskriv de danske grundlovssider, så ordlyd, model og fortolkning vises
-  nøgternt og afledes fra det aktive korpus.
-- Kør den samlede juridiske, fortolkede, genererede og visuelle
-  udgivelseskontrol.
+- Tilføj særskilte officielle forarbejder, domme eller statsretlige kilder,
+  hvis en arbejdshypotese senere skal løftes til en
+  `RetskildestøttetKonklusion`.

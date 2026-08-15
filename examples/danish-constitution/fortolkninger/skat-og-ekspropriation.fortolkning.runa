@@ -1,0 +1,55 @@
+@ sprog da
+
+@ importer ../kapitel - 05
+@ importer ../kapitel - 08
+@ importer ./grundlov - fortolkning - faelles
+
+-- §§ 43 og 73 opstiller forskellige retsfølger, men ordlyden leverer ikke en
+-- klassifikationsregel for en økonomisk byrde, der har kendetegn fra begge.
+
+# Byrdekvalifikationsfortolkning = FormelBetegnelseFørMaterielleKendetegn | MaterielleKendetegnFørFormelBetegnelse
+# ØkonomiskByrdeklassifikation = SkatEfterArbejdshypotese | EkspropriationEfterArbejdshypotese | UafklaretEfterArbejdshypotese
+# ØkonomiskByrde(angivet_som_skat: Boolsk, kræver_afståelse_af_bestemt_ejendom: Boolsk)
+
+| klassificer_økonomisk_byrde(fortolkning: Byrdekvalifikationsfortolkning, byrde: ØkonomiskByrde) -> match fortolkning {
+    | FormelBetegnelseFørMaterielleKendetegn -> hvis byrde.angivet_som_skat {
+        SkatEfterArbejdshypotese
+    } ellers hvis byrde.kræver_afståelse_af_bestemt_ejendom {
+        EkspropriationEfterArbejdshypotese
+    } ellers {
+        UafklaretEfterArbejdshypotese
+    }
+    | MaterielleKendetegnFørFormelBetegnelse -> hvis byrde.kræver_afståelse_af_bestemt_ejendom {
+        EkspropriationEfterArbejdshypotese
+    } ellers hvis byrde.angivet_som_skat {
+        SkatEfterArbejdshypotese
+    } ellers {
+        UafklaretEfterArbejdshypotese
+    }
+}
+
+= skat_og_ekspropriation_fund = GrundlovPrøvningsfund(
+    titel = "§§ 43 og 73: skat eller ekspropriation",
+    modellag = Fortolkningsmodel(navn = "To konkurrerende kvalifikationshypoteser for økonomiske byrder"),
+    udsagnsstatus = Fortolkningsspørgsmål,
+    prøvningsomfang = UdtømmendeLukketDomæne,
+    programhenvisninger = [
+        refof(ingen_skat_uden_lov),
+        refof(Ekspropriationssag::opfylder_par73_stk1),
+        refof(klassificer_økonomisk_byrde)
+    ],
+    grundlag = Fortolkningsgrundlag(
+        kilder = [grundlov_retsinformation],
+        forudsætninger = [
+            "Den formelle arbejdshypotese prioriterer lovgivningens betegnelse.",
+            "Den materielle arbejdshypotese prioriterer afståelse af bestemt ejendom."
+        ]
+    ),
+    resultat = "En byrde med begge kendetegn klassificeres forskelligt i de to arbejdshypoteser.",
+    afgrænsning = "Prøvningen opstiller ingen gældende grænse mellem skat og ekspropriation og afgør ikke virkningen af en bestemt skattesats."
+)
+
+--@label:fortolkning_skat_og_ekspropriation::meta:skat_og_ekspropriation_fund--
+--@begin:fortolkning_skat_og_ekspropriation--
+| byrdekvalifikationsfortolkningerne_er_eksplicit_adskilte() -> FormelBetegnelseFørMaterielleKendetegn != MaterielleKendetegnFørFormelBetegnelse
+--@end:fortolkning_skat_og_ekspropriation--
