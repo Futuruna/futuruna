@@ -14,7 +14,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 
 - **Setup waiting time:** Allow 5–10 minutes on a modern computer with Rust already installed.
 - **Approval steps:** Up to 3 with a tight AI policy: clone the source, download dependencies and build, then run the newly built compiler. Add one approval if Rust must be installed.
-- **Futuruna space requirements:** About 300 MB after a clean build, excluding Rust. If Rust is not installed, allow about 1.7 GB total.
+- **Futuruna space requirements:** Futuruna itself uses about 300 MB after a clean build. If the setup must also install Rust, allow about 1.7 GB in total.
 - **Verification:** Print the Futuruna version and interpret one known local example. This is a smoke check, not hash verification, a full test suite, or a project-wide audit.
 
 These estimates come from a cold setup dry run on an Apple A18 Pro with 8 GB memory and an empty Cargo cache: cloning took 6 seconds, the release build took 3 minutes 46 seconds, both smoke checks took less than 1 second, and the checkout, dependencies, and build output occupied about 289 MiB. Network speed, computer performance, operating system, and toolchain installation can change the result.

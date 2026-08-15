@@ -355,9 +355,9 @@ fn AiGuide() -> Element {
                         small { "+1 if Rust is missing" }
                     }
                     div { class: "ai-guide-fact",
-                        span { class: "ai-guide-fact-label", "Space requirements" }
+                        span { class: "ai-guide-fact-label", "Disk space" }
                         strong { "About 300 MB" }
-                        small { "About 1.7 GB if Rust is also installed" }
+                        small { "Futuruna itself; about 1.7 GB total if Rust must also be installed" }
                     }
                 }
                 div { class: "ai-guide-handoff",
