@@ -1,0 +1,191 @@
+@ sprog da
+
+@ importer ./kapitel - 03
+
+-- Scenarierne prøver §§ 19-23 ved deres betingelser og grænser.
+
+= ændrer_rigets_område = ÆndrerRigetsOmråde
+= lille_forpligtelse = IndgårForpligtelse(
+    folketingets_medvirken_nødvendig = Falskt,
+    større_betydning = Falskt
+)
+= forpligtelse_med_nødvendig_medvirken = IndgårForpligtelse(
+    folketingets_medvirken_nødvendig = Sandt,
+    større_betydning = Falskt
+)
+= større_forpligtelse = IndgårForpligtelse(
+    folketingets_medvirken_nødvendig = Falskt,
+    større_betydning = Sandt
+)
+= opsigelse_uden_tidligere_samtykke = OpsigerOverenskomst(
+    indgået_med_folketingets_samtykke = Falskt
+)
+= opsigelse_med_tidligere_samtykke = OpsigerOverenskomst(
+    indgået_med_folketingets_samtykke = Sandt
+)
+
+= par19_område_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(ændrer_rigets_område)
+= par19_lille_forpligtelse_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(lille_forpligtelse)
+= par19_medvirken_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(forpligtelse_med_nødvendig_medvirken)
+= par19_større_betydning_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(større_forpligtelse)
+= par19_opsigelse_uden_tidligere_samtykke_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(opsigelse_uden_tidligere_samtykke)
+= par19_opsigelse_med_tidligere_samtykke_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(opsigelse_med_tidligere_samtykke)
+= par19_anden_handling_kræver = mellemfolkelig_handling_kræver_folketingets_samtykke(AndenMellemfolkeligHandling)
+
+| par19_samtykkekravets_lukkede_flade: par19_område_kræver -> par19_område_kræver && par19_lille_forpligtelse_kræver == Falskt && par19_medvirken_kræver && par19_større_betydning_kræver && par19_opsigelse_uden_tidligere_samtykke_kræver == Falskt && par19_opsigelse_med_tidligere_samtykke_kræver && par19_anden_handling_kræver == Falskt
+
+= områdesag_uden_samtykke = MellemfolkeligSag(
+    handling = ændrer_rigets_område,
+    folketingets_samtykke = IkkeGivet
+)
+= områdesag_med_samtykke = MellemfolkeligSag(
+    handling = ændrer_rigets_område,
+    folketingets_samtykke = Givet
+)
+= lille_forpligtelsessag_uden_samtykke = MellemfolkeligSag(
+    handling = lille_forpligtelse,
+    folketingets_samtykke = IkkeGivet
+)
+= par19_områdesag_uden = mellemfolkelig_sag_opfylder_par19_stk1(områdesag_uden_samtykke)
+= par19_områdesag_med = mellemfolkelig_sag_opfylder_par19_stk1(områdesag_med_samtykke)
+= par19_lille_forpligtelsessag = mellemfolkelig_sag_opfylder_par19_stk1(lille_forpligtelsessag_uden_samtykke)
+
+| par19_påkrævet_samtykke_skal_være_givet: par19_områdesag_uden -> par19_områdesag_uden == Falskt && par19_områdesag_med
+| par19_intet_krav_efter_stk1_behøver_intet_samtykke: par19_lille_forpligtelsessag -> par19_lille_forpligtelsessag == Sandt
+
+= forsvar_af_riget_uden_samtykke = MilitærMagtanvendelse(
+    grund = ForsvarModVæbnetAngrebPåRiget,
+    folketingets_samtykke = IkkeGivet
+)
+= forsvar_af_styrker_uden_samtykke = MilitærMagtanvendelse(
+    grund = ForsvarModVæbnetAngrebPåDanskeStyrker,
+    folketingets_samtykke = IkkeGivet
+)
+= anden_magtanvendelse_uden_samtykke = MilitærMagtanvendelse(
+    grund = AndenMilitærgrund,
+    folketingets_samtykke = IkkeGivet
+)
+= anden_magtanvendelse_med_samtykke = MilitærMagtanvendelse(
+    grund = AndenMilitærgrund,
+    folketingets_samtykke = Givet
+)
+= par19_forsvar_riget = militær_magtanvendelse_opfylder_par19_stk2(forsvar_af_riget_uden_samtykke)
+= par19_forsvar_styrker = militær_magtanvendelse_opfylder_par19_stk2(forsvar_af_styrker_uden_samtykke)
+= par19_anden_uden = militær_magtanvendelse_opfylder_par19_stk2(anden_magtanvendelse_uden_samtykke)
+= par19_anden_med = militær_magtanvendelse_opfylder_par19_stk2(anden_magtanvendelse_med_samtykke)
+
+| par19_forsvarsundtagelserne_kræver_ikke_samtykke: par19_forsvar_riget -> par19_forsvar_riget && par19_forsvar_styrker
+| par19_anden_magtanvendelse_kræver_samtykke: par19_anden_uden -> par19_anden_uden == Falskt && par19_anden_med
+
+= par19_større_beslutning = regeringen_skal_rådføre_sig_med_udenrigsnævnet_forud(UdenrigspolitiskBeslutning(større_rækkevidde = Sandt))
+= par19_mindre_beslutning = regeringen_skal_rådføre_sig_med_udenrigsnævnet_forud(UdenrigspolitiskBeslutning(større_rækkevidde = Falskt))
+| par19_rådføring_afgrænses_af_større_rækkevidde: par19_større_beslutning -> par19_større_beslutning && par19_mindre_beslutning == Falskt
+
+= direkte_suverænitetsvedtagelse = Suverænitetsforslag(
+    fem_sjettedele_opnået = Sandt,
+    almindeligt_flertal_opnået = Sandt,
+    regeringen_opretholder_forslaget = Sandt
+)
+= suverænitetsforslag_til_folkeafstemning = Suverænitetsforslag(
+    fem_sjettedele_opnået = Falskt,
+    almindeligt_flertal_opnået = Sandt,
+    regeringen_opretholder_forslaget = Sandt
+)
+= suverænitetsforslag_uden_opretholdelse = Suverænitetsforslag(
+    fem_sjettedele_opnået = Falskt,
+    almindeligt_flertal_opnået = Sandt,
+    regeringen_opretholder_forslaget = Falskt
+)
+= suverænitetsforslag_uden_flertal = Suverænitetsforslag(
+    fem_sjettedele_opnået = Falskt,
+    almindeligt_flertal_opnået = Falskt,
+    regeringen_opretholder_forslaget = Sandt
+)
+= par20_direkte = suverænitetsforslagets_procedure(direkte_suverænitetsvedtagelse)
+= par20_folkeafstemning = suverænitetsforslagets_procedure(suverænitetsforslag_til_folkeafstemning)
+= par20_uden_opretholdelse = suverænitetsforslagets_procedure(suverænitetsforslag_uden_opretholdelse)
+= par20_uden_flertal = suverænitetsforslagets_procedure(suverænitetsforslag_uden_flertal)
+
+| par20_alle_proceduregrene: par20_direkte -> par20_direkte == VedtagetMedFemSjettedele && par20_folkeafstemning == ForelæggesFolketingsvælgerne && par20_uden_opretholdelse == IkkeVedtaget && par20_uden_flertal == IkkeVedtaget
+| par20_tærsklen_er_fem_sjettedele: suverænitetskrav -> suverænitetskrav == Brøk(tæller = 5, nævner = 6)
+
+= stadfæstet_dag_0 = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Sandt,
+    stadfæstet_af_kongen = Sandt,
+    dage_efter_endelig_vedtagelse = 0
+)
+= stadfæstet_dag_30 = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Sandt,
+    stadfæstet_af_kongen = Sandt,
+    dage_efter_endelig_vedtagelse = 30
+)
+= stadfæstet_dag_31 = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Sandt,
+    stadfæstet_af_kongen = Sandt,
+    dage_efter_endelig_vedtagelse = 31
+)
+= stadfæstet_dag_minus_1 = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Sandt,
+    stadfæstet_af_kongen = Sandt,
+    dage_efter_endelig_vedtagelse = -1
+)
+= ikke_stadfæstet = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Sandt,
+    stadfæstet_af_kongen = Falskt,
+    dage_efter_endelig_vedtagelse = 10
+)
+= ikke_vedtaget = Lovforslagsstadfæstelse(
+    folketinget_endeligt_vedtaget = Falskt,
+    stadfæstet_af_kongen = Sandt,
+    dage_efter_endelig_vedtagelse = 10
+)
+= par22_dag_0 = lovforslag_får_lovskraft(stadfæstet_dag_0)
+= par22_dag_30 = lovforslag_får_lovskraft(stadfæstet_dag_30)
+= par22_dag_31 = lovforslag_får_lovskraft(stadfæstet_dag_31)
+= par22_dag_minus_1 = lovforslag_får_lovskraft(stadfæstet_dag_minus_1)
+= par22_ikke_stadfæstet = lovforslag_får_lovskraft(ikke_stadfæstet)
+= par22_ikke_vedtaget = lovforslag_får_lovskraft(ikke_vedtaget)
+
+| par22_fristsgrænser: par22_dag_0 -> par22_dag_0 && par22_dag_30 && par22_dag_31 == Falskt && par22_dag_minus_1 == Falskt
+| par22_begge_handlinger_kræves: par22_ikke_stadfæstet -> par22_ikke_stadfæstet == Falskt && par22_ikke_vedtaget == Falskt
+
+= gyldig_foreløbig_lovssag = ForeløbigLovssag(
+    særdeles_påtrængende = Sandt,
+    folketinget_kan_samles = Falskt,
+    strider_mod_grundloven = Falskt
+)
+= ikke_påtrængende_lovssag = ForeløbigLovssag(
+    særdeles_påtrængende = Falskt,
+    folketinget_kan_samles = Falskt,
+    strider_mod_grundloven = Falskt
+)
+= folketinget_kan_samles_lovssag = ForeløbigLovssag(
+    særdeles_påtrængende = Sandt,
+    folketinget_kan_samles = Sandt,
+    strider_mod_grundloven = Falskt
+)
+= grundlovsstridig_lovssag = ForeløbigLovssag(
+    særdeles_påtrængende = Sandt,
+    folketinget_kan_samles = Falskt,
+    strider_mod_grundloven = Sandt
+)
+= par23_gyldig = foreløbig_lov_kan_udstedes(gyldig_foreløbig_lovssag)
+= par23_ikke_påtrængende = foreløbig_lov_kan_udstedes(ikke_påtrængende_lovssag)
+= par23_folketinget_kan_samles = foreløbig_lov_kan_udstedes(folketinget_kan_samles_lovssag)
+= par23_grundlovsstridig = foreløbig_lov_kan_udstedes(grundlovsstridig_lovssag)
+
+| par23_alle_tre_betingelser_kræves: par23_gyldig -> par23_gyldig && par23_ikke_påtrængende == Falskt && par23_folketinget_kan_samles == Falskt && par23_grundlovsstridig == Falskt
+
+? par19_samtykkekravets_lukkede_flade
+? par19_påkrævet_samtykke_skal_være_givet
+? par19_intet_krav_efter_stk1_behøver_intet_samtykke
+? par19_forsvarsundtagelserne_kræver_ikke_samtykke
+? par19_anden_magtanvendelse_kræver_samtykke
+? par19_rådføring_afgrænses_af_større_rækkevidde
+? par20_alle_proceduregrene
+? par20_tærsklen_er_fem_sjettedele
+? par22_fristsgrænser
+? par22_begge_handlinger_kræves
+? par23_alle_tre_betingelser_kræves
+
+@ skriv("Scenarierne for samtykke og proceduregrænser holder.")

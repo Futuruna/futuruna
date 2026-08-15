@@ -1,0 +1,133 @@
+@ sprog da
+
+@ importer ./kapitel - 02
+
+-- Scenarierne prøver §§ 5-11. De tilføjer ikke lovstof.
+
+= luthersk_monark = Monark(
+    alder = 50,
+    trossamfund = EvangeliskLuthersk,
+    forsikring = IkkeAfgivet
+)
+= andet_trossamfund_monark = Monark(
+    alder = 50,
+    trossamfund = Andet(navn = "Andet trossamfund"),
+    forsikring = IkkeAfgivet
+)
+= monark_17 = Monark(
+    alder = 17,
+    trossamfund = EvangeliskLuthersk,
+    forsikring = IkkeAfgivet
+)
+= monark_18 = Monark(
+    alder = 18,
+    trossamfund = EvangeliskLuthersk,
+    forsikring = IkkeAfgivet
+)
+= tronfølger_17 = Tronfølger(
+    alder = 17,
+    trossamfund = Andet(navn = "Andet trossamfund"),
+    forsikring = IkkeAfgivet
+)
+= tronfølger_18 = Tronfølger(
+    alder = 18,
+    trossamfund = Andet(navn = "Andet trossamfund"),
+    forsikring = AfgivetSomTronfølger
+)
+
+= par5_uden_samtykke = regent_i_udlandet(IkkeGivet)
+= par5_med_samtykke = regent_i_udlandet(Givet)
+= par6_luthersk = monark_opfylder_troskrav(luthersk_monark)
+= par6_andet_trossamfund = monark_opfylder_troskrav(andet_trossamfund_monark)
+= par7_monark_17 = monark_er_myndig(monark_17)
+= par7_monark_18 = monark_er_myndig(monark_18)
+= par7_tronfølger_17 = tronfølger_er_myndig(tronfølger_17)
+= par7_tronfølger_18 = tronfølger_er_myndig(tronfølger_18)
+
+| par5_kræver_samtykke: par5_uden_samtykke -> par5_uden_samtykke == Falskt
+| par5_tilladt_med_samtykke: par5_med_samtykke -> par5_med_samtykke == Sandt
+| par6_luthersk_opfylder_kravet: par6_luthersk -> par6_luthersk == Sandt
+| par6_andet_trossamfund_opfylder_ikke_kravet: par6_andet_trossamfund -> par6_andet_trossamfund == Falskt
+| par7_monark_umyndig_som_17_årig: par7_monark_17 -> par7_monark_17 == Falskt
+| par7_monark_myndig_som_18_årig: par7_monark_18 -> par7_monark_18 == Sandt
+| par7_tronfølger_umyndig_som_17_årig: par7_tronfølger_17 -> par7_tronfølger_17 == Falskt
+| par7_tronfølger_myndig_som_18_årig: par7_tronfølger_18 -> par7_tronfølger_18 == Sandt
+| par7_samme_myndighedsgrænse: par7_monark_18 -> par7_monark_18 == par7_tronfølger_18
+
+= monark_med_forudgående_forsikring = Monark(
+    alder = 18,
+    trossamfund = EvangeliskLuthersk,
+    forsikring = AfgivetSomTronfølger
+)
+= tronskifte_med_forudgående_forsikring = Tronskiftesituation(
+    monark = monark_med_forudgående_forsikring,
+    kan_afgive_forsikring_umiddelbart = Falskt,
+    anden_ordning_ved_lov = Sandt
+)
+= tronskifte_med_umiddelbar_forsikring = Tronskiftesituation(
+    monark = luthersk_monark,
+    kan_afgive_forsikring_umiddelbart = Sandt,
+    anden_ordning_ved_lov = Falskt
+)
+= tronskifte_uden_umiddelbar_forsikring = Tronskiftesituation(
+    monark = luthersk_monark,
+    kan_afgive_forsikring_umiddelbart = Falskt,
+    anden_ordning_ved_lov = Falskt
+)
+= tronskifte_med_lovbestemt_ordning = Tronskiftesituation(
+    monark = luthersk_monark,
+    kan_afgive_forsikring_umiddelbart = Falskt,
+    anden_ordning_ved_lov = Sandt
+)
+
+= par8_forudgående_forsikring = regering_ved_tronskifte(tronskifte_med_forudgående_forsikring)
+= par8_umiddelbar_forsikring = regering_ved_tronskifte(tronskifte_med_umiddelbar_forsikring)
+= par8_statsrådet = regering_ved_tronskifte(tronskifte_uden_umiddelbar_forsikring)
+= par8_lovbestemt_ordning = regering_ved_tronskifte(tronskifte_med_lovbestemt_ordning)
+= par8_direkte_tiltræden = direkte_tiltræden_ved_forudgående_forsikring(monark_med_forudgående_forsikring)
+
+| par8_forudgående_forsikring_giver_direkte_tiltræden: par8_forudgående_forsikring -> par8_forudgående_forsikring == MonarkenSelv
+| par8_umiddelbar_forsikring_giver_tiltræden: par8_umiddelbar_forsikring -> par8_umiddelbar_forsikring == MonarkenSelv
+| par8_statsrådet_fører_regeringen: par8_statsrådet -> par8_statsrådet == Statsrådet
+| par8_lovbestemt_ordning_undtager_statsrådet: par8_lovbestemt_ordning -> par8_lovbestemt_ordning == LovbestemtRegeringsfører
+| par8_lovundtagelsen_rammes_ikke_ved_forudgående_forsikring: par8_forudgående_forsikring -> par8_forudgående_forsikring != LovbestemtRegeringsfører
+| par8_forudgående_forsikring_er_registreret: par8_direkte_tiltræden -> par8_direkte_tiltræden == Sandt
+
+= par9_umyndighed = regentskab_fastsættes_ved_lov(Umyndighed)
+= par9_sygdom = regentskab_fastsættes_ved_lov(Sygdom)
+= par9_fraværelse = regentskab_fastsættes_ved_lov(Fraværelse)
+= par9_valg_uden_tronfølger = folketinget_vælger_konge_ved_tronledighed(UdenTronfølger)
+= par9_valg_med_tronfølger = folketinget_vælger_konge_ved_tronledighed(MedTronfølger)
+= par9_arvefølge_uden_tronfølger = folketinget_fastsætter_arvefølge_ved_tronledighed(UdenTronfølger)
+
+| par9_alle_regentskabsgrunde_delegeres: par9_umyndighed -> par9_umyndighed && par9_sygdom && par9_fraværelse
+| par9_folketinget_vælger_kun_uden_tronfølger: par9_valg_uden_tronfølger -> par9_valg_uden_tronfølger && par9_valg_med_tronfølger == Falskt
+| par9_folketinget_fastsætter_arvefølge_uden_tronfølger: par9_arvefølge_uden_tronfølger -> par9_arvefølge_uden_tronfølger == Sandt
+
+= par11_uden_samtykke = årpenge_i_udlandet(IkkeGivet)
+= par11_med_samtykke = årpenge_i_udlandet(Givet)
+| par11_kræver_samtykke: par11_uden_samtykke -> par11_uden_samtykke == Falskt
+| par11_tilladt_med_samtykke: par11_med_samtykke -> par11_med_samtykke == Sandt
+
+? par5_kræver_samtykke
+? par5_tilladt_med_samtykke
+? par6_luthersk_opfylder_kravet
+? par6_andet_trossamfund_opfylder_ikke_kravet
+? par7_monark_umyndig_som_17_årig
+? par7_monark_myndig_som_18_årig
+? par7_tronfølger_umyndig_som_17_årig
+? par7_tronfølger_myndig_som_18_årig
+? par7_samme_myndighedsgrænse
+? par8_forudgående_forsikring_giver_direkte_tiltræden
+? par8_umiddelbar_forsikring_giver_tiltræden
+? par8_statsrådet_fører_regeringen
+? par8_lovbestemt_ordning_undtager_statsrådet
+? par8_lovundtagelsen_rammes_ikke_ved_forudgående_forsikring
+? par8_forudgående_forsikring_er_registreret
+? par9_alle_regentskabsgrunde_delegeres
+? par9_folketinget_vælger_kun_uden_tronfølger
+? par9_folketinget_fastsætter_arvefølge_uden_tronfølger
+? par11_kræver_samtykke
+? par11_tilladt_med_samtykke
+
+@ skriv("Scenarierne for monarken og tronskiftet holder.")

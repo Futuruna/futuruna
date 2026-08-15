@@ -20,46 +20,27 @@
 
 -- Disse typer og regler er ikke ny lovtekst. De er auditens konkrete
 -- scenarier for at teste den formaliserede lovtekst ovenfor.
-# ForsikringsStatus = IkkeAfgivet | AfgivetSomTronfølger
-# Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: ForsikringsStatus)
-# Tronfølger(alder: Heltal, trossamfund: Trossamfund)
-# Beslutning(kongelig: Boolsk, minister_underskrift: Boolsk)
 # AfskærmetLovtype = Indfødsretslov | Ekspropriationslov | DirekteSkattelov | IndirekteSkattelov | Traktatgennemførelseslov
 # ForsørgelsesStatus = Selvforsørgende | Fattighjælp
 # PåtrængendeLovStadium = FørFolkeafstemning | EfterForkastelseKundgjort
 
-| opfylder_troskrav(monark: Monark) -> monark.trossamfund == EvangeliskLuthersk
+| ændre_rigets_område(samtykke: Samtykke) -> mellemfolkelig_sag_opfylder_par19_stk1(MellemfolkeligSag(
+    handling = ÆndrerRigetsOmråde,
+    folketingets_samtykke = samtykke
+))
 
-| er_myndig(monark: Monark) -> monark.alder >= myndighedsalder
+| indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> mellemfolkelig_sag_opfylder_par19_stk1(MellemfolkeligSag(
+    handling = IndgårForpligtelse(
+        folketingets_medvirken_nødvendig = Falskt,
+        større_betydning = Sandt
+    ),
+    folketingets_samtykke = samtykke
+))
 
-| tronfølger_er_myndig(arving: Tronfølger) -> arving.alder >= myndighedsalder
-
-| beslutning_gyldig(beslutning: Beslutning) -> beslutning.kongelig && beslutning.minister_underskrift
-
-| ministeriet_skal_afgå(nyvalg_udskrevet: Boolsk) -> hvis nyvalg_udskrevet { Falskt } ellers { Sandt }
-
-| tronfølger_i_statsrådet(arving: Tronfølger) -> tronfølger_er_myndig(arving)
-
-| militær_magtanvendelse(grund: MilitærGrund, samtykke: Samtykke) -> grund == Forsvar || samtykke == Givet
-
-| ændre_rigets_område(samtykke: Samtykke) -> samtykke == Givet
-
-| indgå_forpligtelse_af_betydning(samtykke: Samtykke) -> samtykke == Givet
-
-| opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> samtykke == Givet
-
-| hvem_regerer_ved_tronskifte(monark: Monark, til_stede: Boolsk, særlov_eksisterer: Boolsk) -> hvis særlov_eksisterer {
-    Regent
-} ellers {
-    hvis monark.forsikring == AfgivetSomTronfølger {
-        MonarkenSelv
-    } ellers {
-        hvis til_stede { MonarkenSelv } ellers { Statsrådet }
-    }
-}
-
-| troskrav_gælder_ikke_tronfølger()
-| ministrene_er_ansvarlige_for_regeringsførelse() -> ministrene_er_ansvarlige()
+| opsige_overenskomst_indgået_med_samtykke(samtykke: Samtykke) -> mellemfolkelig_sag_opfylder_par19_stk1(MellemfolkeligSag(
+    handling = OpsigerOverenskomst(indgået_med_folketingets_samtykke = Sandt),
+    folketingets_samtykke = samtykke
+))
 
 | folkeafstemning_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == DirekteSkattelov || lovtype == IndirekteSkattelov || lovtype == Traktatgennemførelseslov
 
@@ -102,8 +83,8 @@
     trossamfund = Andet(navn = "Katolsk"),
     forsikring = IkkeAfgivet
 )
-= par6_luthersk = opfylder_troskrav(luthersk)
-= par6_katolsk = opfylder_troskrav(katolsk)
+= par6_luthersk = monark_opfylder_troskrav(luthersk)
+= par6_katolsk = monark_opfylder_troskrav(katolsk)
 | par6_godkendt: par6_luthersk -> par6_luthersk == Sandt
 | par6_afvist: par6_katolsk -> par6_katolsk == Falskt
 
@@ -118,10 +99,10 @@
     trossamfund = EvangeliskLuthersk,
     forsikring = IkkeAfgivet
 )
-= tf_17 = Tronfølger(alder = 17, trossamfund = EvangeliskLuthersk)
-= tf_18 = Tronfølger(alder = 18, trossamfund = EvangeliskLuthersk)
-= par7_m17 = er_myndig(monark_17)
-= par7_m18 = er_myndig(monark_18)
+= tf_17 = Tronfølger(alder = 17, trossamfund = EvangeliskLuthersk, forsikring = IkkeAfgivet)
+= tf_18 = Tronfølger(alder = 18, trossamfund = EvangeliskLuthersk, forsikring = IkkeAfgivet)
+= par7_m17 = monark_er_myndig(monark_17)
+= par7_m18 = monark_er_myndig(monark_18)
 = par7_t17 = tronfølger_er_myndig(tf_17)
 = par7_t18 = tronfølger_er_myndig(tf_18)
 | par7_umyndig: par7_m17 -> par7_m17 == Falskt
@@ -137,14 +118,14 @@
 | par11_samtykke_ja: par11_med -> par11_med == Sandt
 
 -- Par. 14: gyldighed kræver begge underskrifter
-= begge_underskrifter = Beslutning(kongelig = Sandt, minister_underskrift = Sandt)
-= mangler_minister = Beslutning(kongelig = Sandt, minister_underskrift = Falskt)
-= mangler_konge = Beslutning(kongelig = Falskt, minister_underskrift = Sandt)
-= mangler_begge = Beslutning(kongelig = Falskt, minister_underskrift = Falskt)
-= par14_gyldig = beslutning_gyldig(begge_underskrifter)
-= par14_uden_minister = beslutning_gyldig(mangler_minister)
-= par14_uden_konge = beslutning_gyldig(mangler_konge)
-= par14_uden_begge = beslutning_gyldig(mangler_begge)
+= begge_underskrifter = KongeligBeslutning(område = Lovgivning, kongens_underskrift = Underskrevet, ministerunderskrifter = EnEllerFlereMinisterunderskrifter)
+= mangler_minister = KongeligBeslutning(område = Lovgivning, kongens_underskrift = Underskrevet, ministerunderskrifter = IngenMinisterunderskrift)
+= mangler_konge = KongeligBeslutning(område = Lovgivning, kongens_underskrift = IkkeUnderskrevet, ministerunderskrifter = EnEllerFlereMinisterunderskrifter)
+= mangler_begge = KongeligBeslutning(område = Lovgivning, kongens_underskrift = IkkeUnderskrevet, ministerunderskrifter = IngenMinisterunderskrift)
+= par14_gyldig = kongelig_beslutning_er_gyldig(begge_underskrifter)
+= par14_uden_minister = kongelig_beslutning_er_gyldig(mangler_minister)
+= par14_uden_konge = kongelig_beslutning_er_gyldig(mangler_konge)
+= par14_uden_begge = kongelig_beslutning_er_gyldig(mangler_begge)
 | par14_begge_kræves: par14_gyldig -> par14_gyldig == Sandt
 | par14_minister_påkrævet: par14_uden_minister -> par14_uden_minister == Falskt
 | par14_konge_påkrævet: par14_uden_konge -> par14_uden_konge == Falskt
@@ -157,22 +138,22 @@
 | par15_uden_mistillid_bliver: par15_ikke_udtalt -> par15_ikke_udtalt == Sandt
 
 -- Par. 15 stk. 2: ministeriet skal afgå medmindre nyvalg
-= par15_nyvalg = ministeriet_skal_afgå(Sandt)
-= par15_ingen_nyvalg = ministeriet_skal_afgå(Falskt)
+= par15_nyvalg = ministeriet_skal_begære_afsked(Sandt)
+= par15_ingen_nyvalg = ministeriet_skal_begære_afsked(Falskt)
 | par15_nyvalg_undtager: par15_nyvalg -> par15_nyvalg == Falskt
 | par15_uden_nyvalg_afgår: par15_ingen_nyvalg -> par15_ingen_nyvalg == Sandt
 
 -- Par. 17: tronfølger i statsrådet følger par. 7 myndighedsalder
-= par17_tf_17 = tronfølger_i_statsrådet(tf_17)
-= par17_tf_18 = tronfølger_i_statsrådet(tf_18)
+= par17_tf_17 = tronfølger_tager_sæde_i_statsrådet(tf_17)
+= par17_tf_18 = tronfølger_tager_sæde_i_statsrådet(tf_18)
 | par17_umyndig_tf_ej_i_statsråd: par17_tf_17 -> par17_tf_17 == Falskt
 | par17_myndig_tf_i_statsråd: par17_tf_18 -> par17_tf_18 == Sandt
 | par17_par7_symmetri: par17_tf_18 -> par17_tf_18 == par7_t18
 
 -- Par. 19 stk. 2: forsvar kræver ikke samtykke, andet gør
-= par19_forsvar = militær_magtanvendelse(grund = Forsvar, samtykke = IkkeGivet)
-= par19_anden_uden = militær_magtanvendelse(grund = Anden, samtykke = IkkeGivet)
-= par19_anden_med = militær_magtanvendelse(grund = Anden, samtykke = Givet)
+= par19_forsvar = militær_magtanvendelse_opfylder_par19_stk2(MilitærMagtanvendelse(grund = ForsvarModVæbnetAngrebPåRiget, folketingets_samtykke = IkkeGivet))
+= par19_anden_uden = militær_magtanvendelse_opfylder_par19_stk2(MilitærMagtanvendelse(grund = AndenMilitærgrund, folketingets_samtykke = IkkeGivet))
+= par19_anden_med = militær_magtanvendelse_opfylder_par19_stk2(MilitærMagtanvendelse(grund = AndenMilitærgrund, folketingets_samtykke = Givet))
 | par19_forsvar_altid: par19_forsvar -> par19_forsvar == Sandt
 | par19_anden_default_nej: par19_anden_uden -> par19_anden_uden == Falskt
 | par19_anden_samtykke_ja: par19_anden_med -> par19_anden_med == Sandt
@@ -192,8 +173,8 @@
 | par19_opsige_ja: par19_opsige_med -> par19_opsige_med == Sandt
 
 -- Par. 24: benådning af ministre
-= par24_uden = benåde_minister_fra_rigsret(IkkeGivet)
-= par24_med = benåde_minister_fra_rigsret(Givet)
+= par24_uden = benådning_af_rigsretsdømt_minister_opfylder_par24(IkkeGivet)
+= par24_med = benådning_af_rigsretsdømt_minister_opfylder_par24(Givet)
 | par24_benåde_nej: par24_uden -> par24_uden == Falskt
 | par24_benåde_ja: par24_med -> par24_med == Sandt
 
@@ -362,7 +343,7 @@
     trossamfund = Andet(navn = "Muslim"),
     forsikring = AfgivetSomTronfølger
 )
-= par2_vs_par6 = opfylder_troskrav(muslim_arving)
+= par2_vs_par6 = monark_opfylder_troskrav(muslim_arving)
 | arvefølge_troskrav_spænding: par2_vs_par6 -> par2_vs_par6 == Falskt
 
 -- Tværgående: par. 7 vs par. 8 — umyndig tronfølger med ed
@@ -375,12 +356,12 @@
     trossamfund = EvangeliskLuthersk,
     forsikring = AfgivetSomTronfølger
 )
-= par8_tiltræder = hvem_regerer_ved_tronskifte(
+= par8_tiltræder = regering_ved_tronskifte(Tronskiftesituation(
     monark = umyndig_med_ed,
-    til_stede = Sandt,
-    særlov_eksisterer = Falskt
-)
-= par7_umyndig_check = er_myndig(umyndig_med_ed)
+    kan_afgive_forsikring_umiddelbart = Sandt,
+    anden_ordning_ved_lov = Falskt
+))
+= par7_umyndig_check = monark_er_myndig(umyndig_med_ed)
 -- § 8 siger MonarkenSelv. § 7 siger umyndig. Hvem har ret?
 | par7_vs_par8_umyndig: par7_umyndig_check -> par7_umyndig_check == Falskt
 
@@ -403,8 +384,12 @@
 -- § 22: lovforslag får lovskraft ved stadfæstelse inden 30 dage.
 -- Grundloven siger IKKE hvad der sker, hvis kongen nægter.
 -- Kongens underskrift er NØDVENDIG (par. 14), men ingen tvangsmiddel.
-= kongen_nægter = Beslutning(kongelig = Falskt, minister_underskrift = Sandt)
-= par14_vs_par22 = beslutning_gyldig(kongen_nægter)
+= kongen_nægter = KongeligBeslutning(
+    område = Lovgivning,
+    kongens_underskrift = IkkeUnderskrevet,
+    ministerunderskrifter = EnEllerFlereMinisterunderskrifter
+)
+= par14_vs_par22 = kongelig_beslutning_er_gyldig(kongen_nægter)
 | kongen_kan_blokere_lovgivning: par14_vs_par22 -> par14_vs_par22 == Falskt
 
 -- Tværgående: par. 29 vs par. 27 — indfødsret som fælles krav
@@ -412,7 +397,9 @@
 -- § 29 stk. 1: valgret kræver indfødsret.
 -- § 44 stk. 1: indfødsret kun ved lov.
 -- Tab af indfødsret rammer BÅDE tjenestemandsstatus OG valgret.
-| indfødsret_krav_tjenestemand: tjenestemand_kræver_indfødsret() -> tjenestemand_kræver_indfødsret()
+= kandidat_uden_indfødsret = Tjenestemandskandidat(har_indfødsret = Falskt)
+= opfylder_ikke_tjenestemandskrav = tjenestemandskandidat_opfylder_indfødsretskravet(kandidat_uden_indfødsret)
+| indfødsret_krav_tjenestemand: opfylder_ikke_tjenestemandskrav -> opfylder_ikke_tjenestemandskrav == Falskt
 | indfødsret_krav_valgret: valgret_mangler_indfødsret -> valgret_mangler_indfødsret == Falskt
 
 -- Tværgående: par. 29, 41, 42 og 44 — vælgerkorps uden referendum
@@ -492,20 +479,14 @@
 
 -- Tværgående: par. 13 — kongen fri, ministrene ansvarlige
 | par13_kongen_fri: kongen_er_ansvarsfri() -> kongen_er_ansvarsfri()
-| par13_ministre_ansvarlige: ministrene_er_ansvarlige_for_regeringsførelse() -> ministrene_er_ansvarlige_for_regeringsførelse()
+| par13_ministre_ansvarlige: ministrene_er_ansvarlige_for_regeringens_førelse() -> ministrene_er_ansvarlige_for_regeringens_førelse()
 
 -- Kapitel III: restaurerede kildeklausuler fra §§ 17-23 og 27
-| par17_statsrådet_fører_forsæde_ved_par8: statsrådet_fører_forsædet_i_par8_tilfælde() -> statsrådet_fører_forsædet_i_par8_tilfælde()
-| par17_statsrådet_kan_føre_regeringen_ved_par9_lov: statsrådet_kan_føre_regeringen_efter_par9_lov() -> statsrådet_kan_føre_regeringen_efter_par9_lov()
 | par18_ministerråd_votum_til_protokol: hver_minister_afgiver_votum_til_protokollen() -> hver_minister_afgiver_votum_til_protokollen()
 | par18_ministerråd_protokol_forelægges: statsministeren_forelægger_ministerrådsprotokol_for_kongen() -> statsministeren_forelægger_ministerrådsprotokol_for_kongen()
-| par19_forsvar_danske_styrker: forsvar_mod_angreb_på_danske_styrker_tilladt() -> forsvar_mod_angreb_på_danske_styrker_tilladt()
-| par19_udenrigsnævn_forud: regeringen_rådfører_sig_med_udenrigsnævn_forud() -> regeringen_rådfører_sig_med_udenrigsnævn_forud()
-| par19_større_rækkevidde_rådføring: rådføring_gælder_større_udenrigspolitisk_rækkevidde() -> rådføring_gælder_større_udenrigspolitisk_rækkevidde()
 | par22_kundgørelse: kongen_befaler_lovens_kundgørelse() -> kongen_befaler_lovens_kundgørelse()
 | par22_fuldbyrdelse: kongen_drager_omsorg_for_lovens_fuldbyrdelse() -> kongen_drager_omsorg_for_lovens_fuldbyrdelse()
 | par23_forelæggelse_til_afgørelse: foreløbige_love_forelægges_til_godkendelse_eller_forkastelse() -> foreløbige_love_forelægges_til_godkendelse_eller_forkastelse()
-| par27_pensionsvalg: forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension() -> forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension()
 
 -- Tværgående: delegationer til lov
 | delegation_regentskab: regentskab_fastsættes_ved_lov(Umyndighed) -> regentskab_fastsættes_ved_lov(Umyndighed)
@@ -702,7 +683,13 @@
 -- En foreløbig lov kan aldrig indføre censur, fordi § 23 eksplicit
 -- underkaster sig grundloven, og § 77 er grundlov.
 -- "Ingensinde påny" er grundlovens stærkeste sproglige garanti.
-| par23_grundlovsbundet: foreløbige_love_må_ikke_stride_mod_grundloven() -> foreløbige_love_må_ikke_stride_mod_grundloven()
+= par23_grundlovsstridig_sag = ForeløbigLovssag(
+    særdeles_påtrængende = Sandt,
+    folketinget_kan_samles = Falskt,
+    strider_mod_grundloven = Sandt
+)
+= par23_grundlovsstridig_resultat = foreløbig_lov_kan_udstedes(par23_grundlovsstridig_sag)
+| par23_grundlovsbundet: par23_grundlovsstridig_resultat -> par23_grundlovsstridig_resultat == Falskt
 | par77_absolut_censurforbud: censur_kan_aldrig_indføres() -> censur_kan_aldrig_indføres()
 
 -- Tværgående: par. 83-84 — feudal afskaffelse (par)
@@ -783,17 +770,11 @@
 ? par6_ikke_tronfølger
 ? par13_kongen_fri
 ? par13_ministre_ansvarlige
-? par17_statsrådet_fører_forsæde_ved_par8
-? par17_statsrådet_kan_føre_regeringen_ved_par9_lov
 ? par18_ministerråd_votum_til_protokol
 ? par18_ministerråd_protokol_forelægges
-? par19_forsvar_danske_styrker
-? par19_udenrigsnævn_forud
-? par19_større_rækkevidde_rådføring
 ? par22_kundgørelse
 ? par22_fuldbyrdelse
 ? par23_forelæggelse_til_afgørelse
-? par27_pensionsvalg
 ? ed_symmetri_tjenestemand_folketingsmedlem
 ? delegation_regentskab
 ? delegation_statsydelse
@@ -980,8 +961,14 @@
 -- stadfæstelse. Tensionen er, at forfatningsvirkelighed kan ændres uden at
 -- selve grundlovsteksten ændres.
 | par20_suverænitet_kan_overlades: beføjelser_kan_overlades_mellemfolkeligt() -> beføjelser_kan_overlades_mellemfolkeligt()
-| par20_alternativ_folkeafstemning: alternativt_folkeafstemning_ved_simpelt_flertal() -> alternativt_folkeafstemning_ved_simpelt_flertal()
-| par20_tærskel: suverænitetskrav_flertal -> suverænitetskrav_flertal == "5/6 af folketingets medlemmer"
+= par20_alternativ_sag = Suverænitetsforslag(
+    fem_sjettedele_opnået = Falskt,
+    almindeligt_flertal_opnået = Sandt,
+    regeringen_opretholder_forslaget = Sandt
+)
+= par20_alternativ_procedure = suverænitetsforslagets_procedure(par20_alternativ_sag)
+| par20_alternativ_folkeafstemning: par20_alternativ_procedure -> par20_alternativ_procedure == ForelæggesFolketingsvælgerne
+| par20_tærskel: suverænitetskrav -> suverænitetskrav == Brøk(tæller = 5, nævner = 6)
 | par20_par88_nyvalg_asymmetri: grundlovsændring_kræver_nyvalg() -> grundlovsændring_kræver_nyvalg()
 
 -- Tværgående: par. 31 vs par. 56 — repræsentation af anskuelser, men frit mandat

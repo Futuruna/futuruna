@@ -1,0 +1,77 @@
+@ sprog da
+
+@ importer ./kapitel - 01
+
+-- Scenarierne prøver § 3's kanoniske relation. De tilføjer ikke lovstof.
+
+= lovgivende_placering = statsmagtens_placering(Lovgivende)
+= udøvende_placering = statsmagtens_placering(Udøvende)
+= dømmende_placering = statsmagtens_placering(Dømmende)
+
+| par3_lovgivende_placering: lovgivende_placering -> lovgivende_placering == Magtplacering(
+    magt = Lovgivende,
+    udøvelse = IForening(
+        organ = KongenSomStatsorgan,
+        medorgan = Folketinget
+    )
+)
+| par3_udøvende_placering: udøvende_placering -> udøvende_placering == Magtplacering(
+    magt = Udøvende,
+    udøvelse = Hos(organ = KongenSomStatsorgan)
+)
+| par3_dømmende_placering: dømmende_placering -> dømmende_placering == Magtplacering(
+    magt = Dømmende,
+    udøvelse = Hos(organ = Domstolene)
+)
+
+= lovgivende_er_i_forening = statsmagt_udøves_i_forening(Lovgivende)
+= udøvende_er_i_forening = statsmagt_udøves_i_forening(Udøvende)
+= dømmende_er_i_forening = statsmagt_udøves_i_forening(Dømmende)
+
+| par3_lovgivende_i_forening: lovgivende_er_i_forening -> lovgivende_er_i_forening == Sandt
+| par3_udøvende_ikke_i_forening: udøvende_er_i_forening -> udøvende_er_i_forening == Falskt
+| par3_dømmende_ikke_i_forening: dømmende_er_i_forening -> dømmende_er_i_forening == Falskt
+
+| par3_forenede_organer_er_forskellige: lovgivende_placering -> match lovgivende_placering.udøvelse {
+    | Hos(_) -> Falskt
+    | IForening(organ, medorgan) -> organ != medorgan
+}
+
+= kongen_lovgivende = statsorgan_deltager_i(KongenSomStatsorgan, Lovgivende)
+= folketinget_lovgivende = statsorgan_deltager_i(Folketinget, Lovgivende)
+= domstolene_lovgivende = statsorgan_deltager_i(Domstolene, Lovgivende)
+= kongen_udøvende = statsorgan_deltager_i(KongenSomStatsorgan, Udøvende)
+= folketinget_udøvende = statsorgan_deltager_i(Folketinget, Udøvende)
+= domstolene_udøvende = statsorgan_deltager_i(Domstolene, Udøvende)
+= kongen_dømmende = statsorgan_deltager_i(KongenSomStatsorgan, Dømmende)
+= folketinget_dømmende = statsorgan_deltager_i(Folketinget, Dømmende)
+= domstolene_dømmende = statsorgan_deltager_i(Domstolene, Dømmende)
+
+| par3_kongen_deltager_i_lovgivende: kongen_lovgivende -> kongen_lovgivende == Sandt
+| par3_folketinget_deltager_i_lovgivende: folketinget_lovgivende -> folketinget_lovgivende == Sandt
+| par3_domstolene_deltager_ikke_i_lovgivende: domstolene_lovgivende -> domstolene_lovgivende == Falskt
+| par3_kongen_deltager_i_udøvende: kongen_udøvende -> kongen_udøvende == Sandt
+| par3_folketinget_deltager_ikke_i_udøvende: folketinget_udøvende -> folketinget_udøvende == Falskt
+| par3_domstolene_deltager_ikke_i_udøvende: domstolene_udøvende -> domstolene_udøvende == Falskt
+| par3_kongen_deltager_ikke_i_dømmende: kongen_dømmende -> kongen_dømmende == Falskt
+| par3_folketinget_deltager_ikke_i_dømmende: folketinget_dømmende -> folketinget_dømmende == Falskt
+| par3_domstolene_deltager_i_dømmende: domstolene_dømmende -> domstolene_dømmende == Sandt
+
+? par3_lovgivende_placering
+? par3_udøvende_placering
+? par3_dømmende_placering
+? par3_lovgivende_i_forening
+? par3_udøvende_ikke_i_forening
+? par3_dømmende_ikke_i_forening
+? par3_forenede_organer_er_forskellige
+? par3_kongen_deltager_i_lovgivende
+? par3_folketinget_deltager_i_lovgivende
+? par3_domstolene_deltager_ikke_i_lovgivende
+? par3_kongen_deltager_i_udøvende
+? par3_folketinget_deltager_ikke_i_udøvende
+? par3_domstolene_deltager_ikke_i_udøvende
+? par3_kongen_deltager_ikke_i_dømmende
+? par3_folketinget_deltager_ikke_i_dømmende
+? par3_domstolene_deltager_i_dømmende
+
+@ skriv("§ 3's magtfordelingsscenarier holder.")

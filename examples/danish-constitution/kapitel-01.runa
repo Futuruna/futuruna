@@ -62,15 +62,33 @@ Den dømmende magt er hos domstolene.
 
 --@begin:grundlov_par3--
 
--- Hvem udøver hvilken magt
-| udøver(Kongen, Lovgivende)
-| udøver(Folketinget, Lovgivende)
-| udøver(Kongen, Udøvende)
-| udøver(Domstolene, Dømmende)
+| statsmagtens_placering(magt: Statsmagt) -> match magt {
+    | Lovgivende -> Magtplacering(
+        magt = Lovgivende,
+        udøvelse = IForening(
+            organ = KongenSomStatsorgan,
+            medorgan = Folketinget
+        )
+    )
+    | Udøvende -> Magtplacering(
+        magt = Udøvende,
+        udøvelse = Hos(organ = KongenSomStatsorgan)
+    )
+    | Dømmende -> Magtplacering(
+        magt = Dømmende,
+        udøvelse = Hos(organ = Domstolene)
+    )
+}
 
--- "I forening" — lovgivning kræver begge
-| lovgivning_kræver(Kongen)
-| lovgivning_kræver(Folketinget)
+| statsorgan_deltager_i(organ: Statsorgan, magt: Statsmagt) -> match statsmagtens_placering(magt).udøvelse {
+    | Hos(placeret_organ) -> organ == placeret_organ
+    | IForening(første_organ, andet_organ) -> organ == første_organ || organ == andet_organ
+}
+
+| statsmagt_udøves_i_forening(magt: Statsmagt) -> match statsmagtens_placering(magt).udøvelse {
+    | Hos(_) -> Falskt
+    | IForening(_, _) -> Sandt
+}
 --@end:grundlov_par3--
 
 --@label:grundlov_par4::meta:grundlov_kildemetadata--

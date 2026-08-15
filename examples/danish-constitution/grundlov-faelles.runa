@@ -3,14 +3,25 @@
 -- Fælles domæne og typet kildeprotokol for grundlovskorpuset.
 
 # Dato(år: Heltal, måned: Heltal, dag: Heltal)
+# Brøk(tæller: Heltal, nævner: Heltal)
 # Rigsdel = Danmark | Færøerne | Grønland
 # Statsmagt = Lovgivende | Udøvende | Dømmende
-# Institution = Kongen | Folketinget | Domstolene
+# Statsorgan = KongenSomStatsorgan | Folketinget | Domstolene
+# Udøvelsesform = Hos(organ: Statsorgan) | IForening(organ: Statsorgan, medorgan: Statsorgan)
+# Magtplacering(magt: Statsmagt, udøvelse: Udøvelsesform)
 # Køn = Mand | Kvinde
 # Trossamfund = EvangeliskLuthersk | Andet(navn: Tekst)
 # Samtykke = Givet | IkkeGivet
+# Forsikringsstatus = IkkeAfgivet | AfgivetSomTronfølger
+# Monark(alder: Heltal, trossamfund: Trossamfund, forsikring: Forsikringsstatus)
+# Tronfølger(alder: Heltal, trossamfund: Trossamfund, forsikring: Forsikringsstatus)
+
+# Modellag = Kildemodel | Fortolkningsmodel(navn: Tekst)
+# Udsagnsstatus = TekstnærKontrol | Modelresultat | Fortolkningsspørgsmål | RetskildestøttetKonklusion
+# Prøvningsomfang = EnkeltScenarie | Scenariesamling | Grænseanalyse | UdtømmendeLukketDomæne | AfgrænsetSøgning(beskrivelse: Tekst)
 
 # GrundlovKildeInfo(url: Tekst, identifier: Tekst, hentet_dato: Dato)
+# Fortolkningsgrundlag(kilder: List(GrundlovKildeInfo), forudsætninger: List(Tekst))
 # GrundlovMetaRolle(a) = Source(value: a) | SupportingSource(value: a)
 # GrundlovMetadata(a) = GrundlovMetadata(attachments: a)
 

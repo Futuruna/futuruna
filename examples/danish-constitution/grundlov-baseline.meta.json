@@ -1,0 +1,3108 @@
+{
+  "counts": {
+    "anchors": 91,
+    "attachments": 182,
+    "diagnostics": 0,
+    "files_returned": 11,
+    "files_scanned": 13,
+    "references": 91,
+    "spans": 91,
+    "typed_values": 637
+  },
+  "diagnostics": [],
+  "files": [
+    {
+      "file": "examples/danish-constitution/kapitel-01.runa",
+      "spans": [
+        {
+          "begin_marker_line": 18,
+          "code_end_line": 23,
+          "code_start_line": 19,
+          "end_marker_line": 24,
+          "label": "grundlov_indledning",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 20,
+              "name": "grundlovsfolkeafstemningens_dato"
+            },
+            {
+              "kind": "rule",
+              "line": 21,
+              "name": "rigsdagen_vedtog_grundloven_to_gange"
+            },
+            {
+              "kind": "rule",
+              "line": 22,
+              "name": "folketingsvælgerne_godkendte_grundloven_ved_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 23,
+              "name": "kongen_stadfæstede_grundloven"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 35,
+          "code_end_line": 38,
+          "code_start_line": 36,
+          "end_marker_line": 39,
+          "label": "grundlov_par1",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 37,
+              "name": "grundloven_gælder_for_alle_dele_af_riget"
+            },
+            {
+              "kind": "rule",
+              "line": 38,
+              "name": "grundloven_gælder_for"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 48,
+          "code_end_line": 53,
+          "code_start_line": 49,
+          "end_marker_line": 54,
+          "label": "grundlov_par2",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 50,
+              "name": "regeringsformen_er_indskrænket_monarkisk"
+            },
+            {
+              "kind": "rule",
+              "line": 51,
+              "name": "tronfølgeloven_regulerer_arvefølgen"
+            },
+            {
+              "kind": "rule",
+              "line": 52,
+              "name": "kongemagten_nedarves_til"
+            },
+            {
+              "kind": "binding",
+              "line": 53,
+              "name": "tronfølgeloven_dato"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 63,
+          "code_end_line": 73,
+          "code_start_line": 64,
+          "end_marker_line": 74,
+          "label": "grundlov_par3",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 66,
+              "name": "udøver"
+            },
+            {
+              "kind": "rule",
+              "line": 67,
+              "name": "udøver"
+            },
+            {
+              "kind": "rule",
+              "line": 68,
+              "name": "udøver"
+            },
+            {
+              "kind": "rule",
+              "line": 69,
+              "name": "udøver"
+            },
+            {
+              "kind": "rule",
+              "line": 72,
+              "name": "lovgivning_kræver"
+            },
+            {
+              "kind": "rule",
+              "line": 73,
+              "name": "lovgivning_kræver"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 82,
+          "code_end_line": 85,
+          "code_start_line": 83,
+          "end_marker_line": 86,
+          "label": "grundlov_par4",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 84,
+              "name": "folkekirken_er"
+            },
+            {
+              "kind": "rule",
+              "line": 85,
+              "name": "staten_understøtter_folkekirken"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-02.runa",
+      "spans": [
+        {
+          "begin_marker_line": 14,
+          "code_end_line": 18,
+          "code_start_line": 15,
+          "end_marker_line": 19,
+          "label": "grundlov_par5",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 17,
+              "name": "regent_i_udlandet_kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 18,
+              "name": "regent_i_udlandet"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 26,
+          "code_end_line": 28,
+          "code_start_line": 27,
+          "end_marker_line": 29,
+          "label": "grundlov_par6",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 28,
+              "name": "kongen_skal_tilhøre"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 37,
+          "code_end_line": 46,
+          "code_start_line": 38,
+          "end_marker_line": 47,
+          "label": "grundlov_par7",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 39,
+              "name": "MyndighedsSubjekt"
+            },
+            {
+              "kind": "binding",
+              "line": 41,
+              "name": "myndighedsalder"
+            },
+            {
+              "kind": "rule",
+              "line": 44,
+              "name": "myndighedsregel_gælder_for_kongen"
+            },
+            {
+              "kind": "rule",
+              "line": 45,
+              "name": "myndighedsregel_gælder_for_tronfølgeren"
+            },
+            {
+              "kind": "rule",
+              "line": 46,
+              "name": "myndighedsregel_gælder_for"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 63,
+          "code_end_line": 82,
+          "code_start_line": 64,
+          "end_marker_line": 83,
+          "label": "grundlov_par8",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 65,
+              "name": "Regeringsfører"
+            },
+            {
+              "kind": "type",
+              "line": 66,
+              "name": "Arkiv"
+            },
+            {
+              "kind": "rule",
+              "line": 69,
+              "name": "forsikringsakt_opbevares_i"
+            },
+            {
+              "kind": "rule",
+              "line": 70,
+              "name": "forsikringsakt_opbevares_i"
+            },
+            {
+              "kind": "rule",
+              "line": 73,
+              "name": "ikke_forsikret_og_fraværende"
+            },
+            {
+              "kind": "rule",
+              "line": 74,
+              "name": "særlov_fastsat"
+            },
+            {
+              "kind": "rule",
+              "line": 77,
+              "name": "regering_ved_tronskifte"
+            },
+            {
+              "kind": "rule",
+              "line": 78,
+              "name": "regering_ved_tronskifte"
+            },
+            {
+              "kind": "rule",
+              "line": 79,
+              "name": "regering_ved_tronskifte"
+            },
+            {
+              "kind": "rule",
+              "line": 82,
+              "name": "direkte_tiltræden_ved_forudgående_forsikring"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 93,
+          "code_end_line": 102,
+          "code_start_line": 94,
+          "end_marker_line": 103,
+          "label": "grundlov_par9",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 95,
+              "name": "Regentskabsgrund"
+            },
+            {
+              "kind": "rule",
+              "line": 96,
+              "name": "regentskab_fastsættes_ved_lov_for_umyndighed"
+            },
+            {
+              "kind": "rule",
+              "line": 97,
+              "name": "regentskab_fastsættes_ved_lov_for_sygdom"
+            },
+            {
+              "kind": "rule",
+              "line": 98,
+              "name": "regentskab_fastsættes_ved_lov_for_fraværelse"
+            },
+            {
+              "kind": "rule",
+              "line": 99,
+              "name": "regentskab_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 101,
+              "name": "folketinget_vælger_konge_ved_tronledighed"
+            },
+            {
+              "kind": "rule",
+              "line": 102,
+              "name": "folketinget_fastsætter_arvefølge_ved_tronledighed"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 114,
+          "code_end_line": 118,
+          "code_start_line": 115,
+          "end_marker_line": 119,
+          "label": "grundlov_par10",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 116,
+              "name": "statsydelse_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 117,
+              "name": "slotte_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 118,
+              "name": "statsydelse_gæld_forbudt"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 127,
+          "code_end_line": 131,
+          "code_start_line": 128,
+          "end_marker_line": 132,
+          "label": "grundlov_par11",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 129,
+              "name": "årpenge_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 130,
+              "name": "årpenge_i_udlandet_kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 131,
+              "name": "årpenge_i_udlandet"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-03.runa",
+      "spans": [
+        {
+          "begin_marker_line": 19,
+          "code_end_line": 23,
+          "code_start_line": 20,
+          "end_marker_line": 24,
+          "label": "grundlov_par12",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 21,
+              "name": "kongen_har_højeste_myndighed"
+            },
+            {
+              "kind": "rule",
+              "line": 22,
+              "name": "myndighed_indskrænket_af_grundloven"
+            },
+            {
+              "kind": "rule",
+              "line": 23,
+              "name": "myndighed_udøves_gennem_ministrene"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 37,
+          "code_end_line": 42,
+          "code_start_line": 38,
+          "end_marker_line": 43,
+          "label": "grundlov_par13",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 39,
+              "name": "kongen_er_ansvarsfri"
+            },
+            {
+              "kind": "rule",
+              "line": 40,
+              "name": "kongen_er_fredhellig"
+            },
+            {
+              "kind": "rule",
+              "line": 41,
+              "name": "ministrene_er_ansvarlige"
+            },
+            {
+              "kind": "rule",
+              "line": 42,
+              "name": "ministeransvar_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 59,
+          "code_end_line": 66,
+          "code_start_line": 60,
+          "end_marker_line": 67,
+          "label": "grundlov_par14",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 61,
+              "name": "kongen_udnævner_og_afskediger_ministre"
+            },
+            {
+              "kind": "rule",
+              "line": 62,
+              "name": "kongen_bestemmer_antal_og_fordeling"
+            },
+            {
+              "kind": "rule",
+              "line": 65,
+              "name": "beslutning_gyldig_når_kongen_og_minister_underskriver"
+            },
+            {
+              "kind": "rule",
+              "line": 66,
+              "name": "underskrivende_minister_er_ansvarlig"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 86,
+          "code_end_line": 98,
+          "code_start_line": 87,
+          "end_marker_line": 99,
+          "label": "grundlov_par15",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 88,
+              "name": "Mistillid"
+            },
+            {
+              "kind": "rule",
+              "line": 90,
+              "name": "minister_fjernes_ved_udtalt_mistillid"
+            },
+            {
+              "kind": "rule",
+              "line": 91,
+              "name": "minister_kan_forblive"
+            },
+            {
+              "kind": "rule",
+              "line": 93,
+              "name": "mistillid_til_statsminister_kræver_afsked"
+            },
+            {
+              "kind": "rule",
+              "line": 94,
+              "name": "mistillid_til_statsminister_kræver_afsked"
+            },
+            {
+              "kind": "rule",
+              "line": 95,
+              "name": "nyvalg_udskrives"
+            },
+            {
+              "kind": "rule",
+              "line": 97,
+              "name": "afskediget_ministerium_fungerer_til_nyt_udnævnt"
+            },
+            {
+              "kind": "rule",
+              "line": 98,
+              "name": "fungerende_ministre_kun_nødvendige_handlinger"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 112,
+          "code_end_line": 119,
+          "code_start_line": 113,
+          "end_marker_line": 120,
+          "label": "grundlov_par16",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 114,
+              "name": "Tiltaler"
+            },
+            {
+              "kind": "rule",
+              "line": 116,
+              "name": "kongen_kan_tiltale_minister"
+            },
+            {
+              "kind": "rule",
+              "line": 117,
+              "name": "folketinget_kan_tiltale_minister"
+            },
+            {
+              "kind": "rule",
+              "line": 118,
+              "name": "kan_tiltale_minister"
+            },
+            {
+              "kind": "rule",
+              "line": 119,
+              "name": "rigsretten_påkender_ministersager"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 137,
+          "code_end_line": 144,
+          "code_start_line": 138,
+          "end_marker_line": 145,
+          "label": "grundlov_par17",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 139,
+              "name": "ministrene_udgør_statsrådet"
+            },
+            {
+              "kind": "rule",
+              "line": 140,
+              "name": "myndig_tronfølger_tager_sæde_i_statsrådet"
+            },
+            {
+              "kind": "rule",
+              "line": 141,
+              "name": "kongen_fører_forsædet_i_statsrådet"
+            },
+            {
+              "kind": "rule",
+              "line": 142,
+              "name": "statsrådet_fører_forsædet_i_par8_tilfælde"
+            },
+            {
+              "kind": "rule",
+              "line": 143,
+              "name": "statsrådet_kan_føre_regeringen_efter_par9_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 144,
+              "name": "alle_love_forhandles_i_statsrådet"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 162,
+          "code_end_line": 175,
+          "code_start_line": 163,
+          "end_marker_line": 176,
+          "label": "grundlov_par18",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 164,
+              "name": "ForhandlingsForum"
+            },
+            {
+              "kind": "rule",
+              "line": 166,
+              "name": "forhandlingsforum"
+            },
+            {
+              "kind": "rule",
+              "line": 167,
+              "name": "forhandlingsforum"
+            },
+            {
+              "kind": "rule",
+              "line": 168,
+              "name": "kongen_forhindret"
+            },
+            {
+              "kind": "rule",
+              "line": 170,
+              "name": "ministerråd_under_statsministeren"
+            },
+            {
+              "kind": "rule",
+              "line": 171,
+              "name": "hver_minister_afgiver_votum_til_protokollen"
+            },
+            {
+              "kind": "rule",
+              "line": 172,
+              "name": "ministerråd_beslutter_ved_flertal"
+            },
+            {
+              "kind": "rule",
+              "line": 173,
+              "name": "tilstedeværende_ministre_underskriver_protokollen"
+            },
+            {
+              "kind": "rule",
+              "line": 174,
+              "name": "statsministeren_forelægger_ministerrådsprotokol_for_kongen"
+            },
+            {
+              "kind": "rule",
+              "line": 175,
+              "name": "kongen_kan_bifalde_eller_overføre_til_statsrådet"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 203,
+          "code_end_line": 229,
+          "code_start_line": 204,
+          "end_marker_line": 230,
+          "label": "grundlov_par19",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 205,
+              "name": "MilitærGrund"
+            },
+            {
+              "kind": "rule",
+              "line": 207,
+              "name": "kongen_handler_mellemfolkeligt"
+            },
+            {
+              "kind": "type",
+              "line": 210,
+              "name": "SamtykkeKrævende"
+            },
+            {
+              "kind": "rule",
+              "line": 211,
+              "name": "områdeændring_kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 212,
+              "name": "forpligtelse_med_folketingets_medvirken_kræver_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 213,
+              "name": "større_forpligtelse_kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 214,
+              "name": "opsigelse_af_samtykketraktat_kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 215,
+              "name": "kræver_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 218,
+              "name": "militær_magt_tilladt"
+            },
+            {
+              "kind": "rule",
+              "line": 219,
+              "name": "forsvar_mod_angreb_på_riget_tilladt"
+            },
+            {
+              "kind": "rule",
+              "line": 220,
+              "name": "forsvar_mod_angreb_på_danske_styrker_tilladt"
+            },
+            {
+              "kind": "rule",
+              "line": 221,
+              "name": "militær_magtanvendelse_kræver_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 223,
+              "name": "militær_handling_straks_forelægges_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 224,
+              "name": "folketinget_sammenkaldes_hvis_ikke_samlet"
+            },
+            {
+              "kind": "rule",
+              "line": 226,
+              "name": "folketinget_vælger_udenrigsnævn"
+            },
+            {
+              "kind": "rule",
+              "line": 227,
+              "name": "regeringen_rådfører_sig_med_udenrigsnævn_forud"
+            },
+            {
+              "kind": "rule",
+              "line": 228,
+              "name": "rådføring_gælder_større_udenrigspolitisk_rækkevidde"
+            },
+            {
+              "kind": "rule",
+              "line": 229,
+              "name": "udenrigsnævn_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 250,
+          "code_end_line": 258,
+          "code_start_line": 251,
+          "end_marker_line": 259,
+          "label": "grundlov_par20",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 252,
+              "name": "beføjelser_kan_overlades_mellemfolkeligt"
+            },
+            {
+              "kind": "rule",
+              "line": 253,
+              "name": "suverænitetsoverladelse_sker_i_nærmere_bestemt_omfang"
+            },
+            {
+              "kind": "rule",
+              "line": 254,
+              "name": "mellemfolkelige_myndigheder_oprettet_ved_gensidig_overenskomst"
+            },
+            {
+              "kind": "rule",
+              "line": 255,
+              "name": "mellemfolkelige_myndigheder_fremmer_retsorden_og_samarbejde"
+            },
+            {
+              "kind": "binding",
+              "line": 256,
+              "name": "suverænitetskrav_flertal"
+            },
+            {
+              "kind": "rule",
+              "line": 257,
+              "name": "suverænitetsforslag_kan_gå_til_folkeafstemning_ved_almindeligt_flertal"
+            },
+            {
+              "kind": "rule",
+              "line": 258,
+              "name": "alternativt_folkeafstemning_ved_simpelt_flertal"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 271,
+          "code_end_line": 274,
+          "code_start_line": 272,
+          "end_marker_line": 275,
+          "label": "grundlov_par21",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 273,
+              "name": "kongen_kan_fremsætte_lovforslag"
+            },
+            {
+              "kind": "rule",
+              "line": 274,
+              "name": "kongen_kan_fremsætte_beslutningsforslag"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 284,
+          "code_end_line": 290,
+          "code_start_line": 285,
+          "end_marker_line": 291,
+          "label": "grundlov_par22",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 286,
+              "name": "stadfæstelsesfrist_dage"
+            },
+            {
+              "kind": "rule",
+              "line": 287,
+              "name": "lovforslag_kræver_stadfæstelse"
+            },
+            {
+              "kind": "rule",
+              "line": 288,
+              "name": "kongen_befaler_lovens_kundgørelse"
+            },
+            {
+              "kind": "rule",
+              "line": 289,
+              "name": "kongen_drager_omsorg_for_lovens_fuldbyrdelse"
+            },
+            {
+              "kind": "rule",
+              "line": 290,
+              "name": "kongen_kundgør_og_fuldbyrder"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 305,
+          "code_end_line": 310,
+          "code_start_line": 306,
+          "end_marker_line": 311,
+          "label": "grundlov_par23",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 307,
+              "name": "foreløbige_love_når_folketinget_ikke_kan_samles"
+            },
+            {
+              "kind": "rule",
+              "line": 308,
+              "name": "foreløbige_love_må_ikke_stride_mod_grundloven"
+            },
+            {
+              "kind": "rule",
+              "line": 309,
+              "name": "foreløbige_love_forelægges_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 310,
+              "name": "foreløbige_love_forelægges_til_godkendelse_eller_forkastelse"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 323,
+          "code_end_line": 328,
+          "code_start_line": 324,
+          "end_marker_line": 329,
+          "label": "grundlov_par24",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 325,
+              "name": "kongen_kan_benåde"
+            },
+            {
+              "kind": "rule",
+              "line": 326,
+              "name": "kongen_kan_give_amnesti"
+            },
+            {
+              "kind": "rule",
+              "line": 327,
+              "name": "benådning_af_rigsretsdømt_minister_kræver_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 328,
+              "name": "benåde_minister_fra_rigsret"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 343,
+          "code_end_line": 347,
+          "code_start_line": 344,
+          "end_marker_line": 348,
+          "label": "grundlov_par25",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 345,
+              "name": "kongen_kan_give_dispensationer"
+            },
+            {
+              "kind": "rule",
+              "line": 346,
+              "name": "dispensationer_kan_meddeles_gennem_regeringsmyndigheder"
+            },
+            {
+              "kind": "rule",
+              "line": 347,
+              "name": "dispensationer_kræver_gammel_praksis_eller_lovhjemmel"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 355,
+          "code_end_line": 357,
+          "code_start_line": 356,
+          "end_marker_line": 358,
+          "label": "grundlov_par26",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 357,
+              "name": "kongen_har_møntret"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 380,
+          "code_end_line": 388,
+          "code_start_line": 381,
+          "end_marker_line": 389,
+          "label": "grundlov_par27",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 382,
+              "name": "tjenestemandsansættelse_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 383,
+              "name": "tjenestemand_kræver_indfødsret"
+            },
+            {
+              "kind": "rule",
+              "line": 384,
+              "name": "kongens_tjenestemand_aflægger_grundlovs_ed"
+            },
+            {
+              "kind": "rule",
+              "line": 386,
+              "name": "tjenestemandsforhold_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 387,
+              "name": "forflyttelse_uden_samtykke_kun_uden_indkomsttab"
+            },
+            {
+              "kind": "rule",
+              "line": 388,
+              "name": "forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-04.runa",
+      "spans": [
+        {
+          "begin_marker_line": 13,
+          "code_end_line": 17,
+          "code_start_line": 14,
+          "end_marker_line": 18,
+          "label": "grundlov_par28",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 15,
+              "name": "folketingets_max_medlemmer"
+            },
+            {
+              "kind": "binding",
+              "line": 16,
+              "name": "færøske_mandater"
+            },
+            {
+              "kind": "binding",
+              "line": 17,
+              "name": "grønlandske_mandater"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 36,
+          "code_end_line": 50,
+          "code_start_line": 37,
+          "end_marker_line": 51,
+          "label": "grundlov_par29",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 39,
+              "name": "valgret_kræver_indfødsret"
+            },
+            {
+              "kind": "rule",
+              "line": 40,
+              "name": "valgret_kræver_fast_bopæl"
+            },
+            {
+              "kind": "rule",
+              "line": 41,
+              "name": "valgret_kræver_valgretsalder"
+            },
+            {
+              "kind": "rule",
+              "line": 42,
+              "name": "umyndiggjorte_har_ikke_valgret"
+            },
+            {
+              "kind": "rule",
+              "line": 43,
+              "name": "har_valgret"
+            },
+            {
+              "kind": "rule",
+              "line": 45,
+              "name": "tab_af_valgret_ved_straf_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 46,
+              "name": "tab_af_valgret_ved_straf_og_fattighjælp_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 49,
+              "name": "valgretsalder_fastsættes_ved_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 50,
+              "name": "ændring_af_valgretsalder_kræver_folkeafstemning"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 63,
+          "code_end_line": 71,
+          "code_start_line": 64,
+          "end_marker_line": 72,
+          "label": "grundlov_par30",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 66,
+              "name": "valgbarhed_kræver_valgret"
+            },
+            {
+              "kind": "rule",
+              "line": 67,
+              "name": "uværdig_straf_udelukker_valgbarhed"
+            },
+            {
+              "kind": "rule",
+              "line": 68,
+              "name": "er_valgbar"
+            },
+            {
+              "kind": "rule",
+              "line": 71,
+              "name": "tjenestemænd_behøver_ikke_tilladelse_til_valg"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 95,
+          "code_end_line": 115,
+          "code_start_line": 96,
+          "end_marker_line": 116,
+          "label": "grundlov_par31",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 98,
+              "name": "valg_er_almindelige"
+            },
+            {
+              "kind": "rule",
+              "line": 99,
+              "name": "valg_er_direkte"
+            },
+            {
+              "kind": "rule",
+              "line": 100,
+              "name": "valg_er_hemmelige"
+            },
+            {
+              "kind": "rule",
+              "line": 103,
+              "name": "valgmåde_fastsættes_ved_valglov"
+            },
+            {
+              "kind": "rule",
+              "line": 104,
+              "name": "ligelig_repræsentation_af_anskuelser"
+            },
+            {
+              "kind": "rule",
+              "line": 107,
+              "name": "mandatfordeling_hensyn_til_indbyggertal"
+            },
+            {
+              "kind": "rule",
+              "line": 108,
+              "name": "mandatfordeling_hensyn_til_vælgertal"
+            },
+            {
+              "kind": "rule",
+              "line": 109,
+              "name": "mandatfordeling_hensyn_til_befolkningstæthed"
+            },
+            {
+              "kind": "rule",
+              "line": 112,
+              "name": "stedfortrædere_fastsættes_ved_valglov"
+            },
+            {
+              "kind": "rule",
+              "line": 115,
+              "name": "grønlands_repræsentation_kan_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 142,
+          "code_end_line": 167,
+          "code_start_line": 143,
+          "end_marker_line": 168,
+          "label": "grundlov_par32",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 145,
+              "name": "valgperiode_år"
+            },
+            {
+              "kind": "rule",
+              "line": 148,
+              "name": "kongen_kan_udskrive_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 149,
+              "name": "mandater_bortfalder_når_nyvalg_afholdt"
+            },
+            {
+              "kind": "rule",
+              "line": 151,
+              "name": "nyt_ministerium_skal_fremstilles_før_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 152,
+              "name": "kan_udskrive_valg_efter_nyt_ministerium"
+            },
+            {
+              "kind": "rule",
+              "line": 155,
+              "name": "statsministeren_skal_foranledige_nyvalg_inden_udløb"
+            },
+            {
+              "kind": "rule",
+              "line": 158,
+              "name": "mandater_bortfalder_aldrig_før_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 161,
+              "name": "færøske_grønlandske_mandater_kan_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 164,
+              "name": "tab_af_valgbarhed_medfører_mandatbortfald"
+            },
+            {
+              "kind": "rule",
+              "line": 167,
+              "name": "nyt_medlem_aflægger_grundlovs_ed"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 176,
+          "code_end_line": 179,
+          "code_start_line": 177,
+          "end_marker_line": 180,
+          "label": "grundlov_par33",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 178,
+              "name": "folketinget_afgør_valgs_gyldighed"
+            },
+            {
+              "kind": "rule",
+              "line": 179,
+              "name": "folketinget_afgør_tab_af_valgbarhed"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 189,
+          "code_end_line": 193,
+          "code_start_line": 190,
+          "end_marker_line": 194,
+          "label": "grundlov_par34",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 191,
+              "name": "folketinget_er_ukrænkeligt"
+            },
+            {
+              "kind": "rule",
+              "line": 192,
+              "name": "angreb_på_folketingets_sikkerhed_er_højforræderi"
+            },
+            {
+              "kind": "rule",
+              "line": 193,
+              "name": "angreb_på_folketingets_frihed_er_højforræderi"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-05.runa",
+      "spans": [
+        {
+          "begin_marker_line": 16,
+          "code_end_line": 20,
+          "code_start_line": 17,
+          "end_marker_line": 21,
+          "label": "grundlov_par35",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 18,
+              "name": "nyvalgt_folketing_mødes_tolvte_søgnedag"
+            },
+            {
+              "kind": "rule",
+              "line": 19,
+              "name": "kongen_kan_indkalde_folketinget_tidligere"
+            },
+            {
+              "kind": "rule",
+              "line": 20,
+              "name": "folketinget_vælger_formand_og_næstformænd"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 32,
+          "code_end_line": 36,
+          "code_start_line": 33,
+          "end_marker_line": 37,
+          "label": "grundlov_par36",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 34,
+              "name": "folketingsåret_begynder_første_tirsdag_i_oktober"
+            },
+            {
+              "kind": "rule",
+              "line": 35,
+              "name": "folketingsåret_varer_til_samme_tirsdag_følgende_år"
+            },
+            {
+              "kind": "rule",
+              "line": 36,
+              "name": "folketinget_sættes_påny_ved_årets_start"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 45,
+          "code_end_line": 48,
+          "code_start_line": 46,
+          "end_marker_line": 49,
+          "label": "grundlov_par37",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 47,
+              "name": "folketinget_mødes_ved_regeringens_sæde"
+            },
+            {
+              "kind": "rule",
+              "line": 48,
+              "name": "folketinget_kan_mødes_andetsteds_i_overordentlige_tilfælde"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 60,
+          "code_end_line": 63,
+          "code_start_line": 61,
+          "end_marker_line": 64,
+          "label": "grundlov_par38",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 62,
+              "name": "statsministeren_afgiver_åbningsredegørelse"
+            },
+            {
+              "kind": "rule",
+              "line": 63,
+              "name": "almindelig_forhandling_efter_redegørelse"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 74,
+          "code_end_line": 80,
+          "code_start_line": 75,
+          "end_marker_line": 81,
+          "label": "grundlov_par39",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 76,
+              "name": "formanden_indkalder_med_dagsorden"
+            },
+            {
+              "kind": "rule",
+              "line": 78,
+              "name": "statsministeren_kan_begære_indkaldelse"
+            },
+            {
+              "kind": "rule",
+              "line": 79,
+              "name": "to_femtedele_kan_begære_indkaldelse"
+            },
+            {
+              "kind": "rule",
+              "line": 80,
+              "name": "formanden_skal_indkalde"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 91,
+          "code_end_line": 95,
+          "code_start_line": 92,
+          "end_marker_line": 96,
+          "label": "grundlov_par40",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 93,
+              "name": "ministre_har_adgang_til_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 94,
+              "name": "ministre_har_taleret_i_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 95,
+              "name": "ministre_kun_stemmeret_som_medlemmer"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 119,
+          "code_end_line": 145,
+          "code_start_line": 120,
+          "end_marker_line": 146,
+          "label": "grundlov_par41",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 122,
+              "name": "ethvert_medlem_kan_fremsætte_forslag_til_love_og_beslutninger"
+            },
+            {
+              "kind": "binding",
+              "line": 125,
+              "name": "påkrævede_behandlinger"
+            },
+            {
+              "kind": "rule",
+              "line": 128,
+              "name": "to_femtedele_kan_begære_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 129,
+              "name": "kan_begære_udsættelse"
+            },
+            {
+              "kind": "binding",
+              "line": 131,
+              "name": "udsættelse_søgnedage"
+            },
+            {
+              "kind": "rule",
+              "line": 134,
+              "name": "finanslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 135,
+              "name": "tillægsbevillingslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 136,
+              "name": "midlertidige_bevillingslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 137,
+              "name": "statslånslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 138,
+              "name": "indfødsretslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 139,
+              "name": "ekspropriationslove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 140,
+              "name": "indirekte_skattelove_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 141,
+              "name": "påtrængende_love_undtaget_fra_udsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 144,
+              "name": "uafsluttede_forslag_bortfalder_ved_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 145,
+              "name": "uafsluttede_forslag_bortfalder_ved_folketingsårets_udgang"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 198,
+          "code_end_line": 247,
+          "code_start_line": 199,
+          "end_marker_line": 248,
+          "label": "grundlov_par42",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 201,
+              "name": "en_tredjedel_kan_begære_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 202,
+              "name": "kan_begære_folkeafstemning"
+            },
+            {
+              "kind": "binding",
+              "line": 204,
+              "name": "frist_begæring_søgnedage"
+            },
+            {
+              "kind": "rule",
+              "line": 207,
+              "name": "stadfæstelse_suspenderet_under_frist"
+            },
+            {
+              "kind": "binding",
+              "line": 210,
+              "name": "frist_tilbagetrækning_søgnedage"
+            },
+            {
+              "kind": "rule",
+              "line": 211,
+              "name": "folketinget_kan_trække_lovforslag_tilbage"
+            },
+            {
+              "kind": "binding",
+              "line": 214,
+              "name": "folkeafstemning_tidligst_søgnedage"
+            },
+            {
+              "kind": "binding",
+              "line": 215,
+              "name": "folkeafstemning_senest_søgnedage"
+            },
+            {
+              "kind": "rule",
+              "line": 218,
+              "name": "lovforslag_bortfalder_ved_flertal_mod_og_tredive_pct"
+            },
+            {
+              "kind": "rule",
+              "line": 219,
+              "name": "lovforslag_forkastet_ved_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 222,
+              "name": "finanslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 223,
+              "name": "tillægsbevillingslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 224,
+              "name": "midlertidige_bevillingslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 225,
+              "name": "statslånslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 226,
+              "name": "normeringslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 227,
+              "name": "lønnings_og_pensionslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 228,
+              "name": "indfødsretslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 229,
+              "name": "ekspropriationslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 230,
+              "name": "direkte_skattelove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 231,
+              "name": "indirekte_skattelove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 232,
+              "name": "traktatgennemførelseslove_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 233,
+              "name": "par8_love_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 234,
+              "name": "par9_love_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 235,
+              "name": "par10_love_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 236,
+              "name": "par11_love_undtaget_fra_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 237,
+              "name": "par19_beslutninger_undtaget_medmindre_særlov"
+            },
+            {
+              "kind": "rule",
+              "line": 238,
+              "name": "grundlovsændringer_følger_par88"
+            },
+            {
+              "kind": "rule",
+              "line": 241,
+              "name": "påtrængende_lovforslag_kan_stadfæstes_straks"
+            },
+            {
+              "kind": "rule",
+              "line": 242,
+              "name": "påtrængende_stadfæstelse_kræver_bestemmelse_i_forslaget"
+            },
+            {
+              "kind": "binding",
+              "line": 243,
+              "name": "frist_kundgørelse_dage"
+            },
+            {
+              "kind": "rule",
+              "line": 244,
+              "name": "forkastet_lov_bortfalder_fra_kundgørelsesdagen"
+            },
+            {
+              "kind": "rule",
+              "line": 247,
+              "name": "folkeafstemningsregler_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 256,
+          "code_end_line": 260,
+          "code_start_line": 257,
+          "end_marker_line": 261,
+          "label": "grundlov_par43",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 258,
+              "name": "ingen_skat_uden_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 259,
+              "name": "ingen_udskrivning_af_mandskab_uden_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 260,
+              "name": "intet_statslån_uden_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 271,
+          "code_end_line": 274,
+          "code_start_line": 272,
+          "end_marker_line": 275,
+          "label": "grundlov_par44",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 273,
+              "name": "indfødsret_kun_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 274,
+              "name": "udlændinges_ejendomsret_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 287,
+          "code_end_line": 290,
+          "code_start_line": 288,
+          "end_marker_line": 291,
+          "label": "grundlov_par45",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 289,
+              "name": "finanslov_frist_måneder"
+            },
+            {
+              "kind": "rule",
+              "line": 290,
+              "name": "midlertidig_bevillingslov_ved_forsinkelse"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 303,
+          "code_end_line": 306,
+          "code_start_line": 304,
+          "end_marker_line": 307,
+          "label": "grundlov_par46",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 305,
+              "name": "ingen_skatteopkrævning_før_finanslov"
+            },
+            {
+              "kind": "rule",
+              "line": 306,
+              "name": "ingen_udgift_uden_hjemmel_i_bevillingslov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 324,
+          "code_end_line": 331,
+          "code_start_line": 325,
+          "end_marker_line": 332,
+          "label": "grundlov_par47",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 326,
+              "name": "statsregnskab_frist_måneder"
+            },
+            {
+              "kind": "rule",
+              "line": 327,
+              "name": "folketinget_vælger_revisorer"
+            },
+            {
+              "kind": "rule",
+              "line": 328,
+              "name": "revisorer_gennemgår_statsregnskabet"
+            },
+            {
+              "kind": "rule",
+              "line": 329,
+              "name": "revisorer_kan_kræve_oplysninger"
+            },
+            {
+              "kind": "rule",
+              "line": 330,
+              "name": "revisorers_virksomhed_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 331,
+              "name": "statsregnskabet_forelægges_folketinget"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 340,
+          "code_end_line": 342,
+          "code_start_line": 341,
+          "end_marker_line": 343,
+          "label": "grundlov_par48",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 342,
+              "name": "folketinget_fastsætter_forretningsorden"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 353,
+          "code_end_line": 359,
+          "code_start_line": 354,
+          "end_marker_line": 360,
+          "label": "grundlov_par49",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 355,
+              "name": "folketingets_møder_er_offentlige"
+            },
+            {
+              "kind": "rule",
+              "line": 356,
+              "name": "formanden_kan_forlange_lukket_møde"
+            },
+            {
+              "kind": "rule",
+              "line": 357,
+              "name": "medlemmer_kan_forlange_lukket_møde"
+            },
+            {
+              "kind": "rule",
+              "line": 358,
+              "name": "ministre_kan_forlange_lukket_møde"
+            },
+            {
+              "kind": "rule",
+              "line": 359,
+              "name": "lukket_møde_afgøres_uden_forhandling"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 368,
+          "code_end_line": 371,
+          "code_start_line": 369,
+          "end_marker_line": 372,
+          "label": "grundlov_par50",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 370,
+              "name": "beslutningsdygtighed_kræver_over_halvdelen"
+            },
+            {
+              "kind": "rule",
+              "line": 371,
+              "name": "folketinget_er_beslutningsdygtigt"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 382,
+          "code_end_line": 386,
+          "code_start_line": 383,
+          "end_marker_line": 387,
+          "label": "grundlov_par51",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 384,
+              "name": "folketinget_kan_nedsætte_kommissioner"
+            },
+            {
+              "kind": "rule",
+              "line": 385,
+              "name": "kommissioner_kan_kræve_oplysninger_fra_borgere"
+            },
+            {
+              "kind": "rule",
+              "line": 386,
+              "name": "kommissioner_kan_kræve_oplysninger_fra_myndigheder"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 395,
+          "code_end_line": 397,
+          "code_start_line": 396,
+          "end_marker_line": 398,
+          "label": "grundlov_par52",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 397,
+              "name": "valg_til_kommissioner_og_hverv_efter_forholdstal"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 406,
+          "code_end_line": 409,
+          "code_start_line": 407,
+          "end_marker_line": 410,
+          "label": "grundlov_par53",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 408,
+              "name": "medlemmer_kan_med_folketingets_samtykke_rejse_anliggender"
+            },
+            {
+              "kind": "rule",
+              "line": 409,
+              "name": "medlemmer_kan_æske_ministrenes_forklaring"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 418,
+          "code_end_line": 420,
+          "code_start_line": 419,
+          "end_marker_line": 421,
+          "label": "grundlov_par54",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 420,
+              "name": "andragender_kun_via_medlemmer"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 430,
+          "code_end_line": 435,
+          "code_start_line": 431,
+          "end_marker_line": 436,
+          "label": "grundlov_par55",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 432,
+              "name": "folketinget_vælger_tilsynspersoner_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 433,
+              "name": "tilsynspersoner_ikke_folketingsmedlemmer"
+            },
+            {
+              "kind": "rule",
+              "line": 434,
+              "name": "tilsyn_med_civil_forvaltning"
+            },
+            {
+              "kind": "rule",
+              "line": 435,
+              "name": "tilsyn_med_militær_forvaltning"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 444,
+          "code_end_line": 447,
+          "code_start_line": 445,
+          "end_marker_line": 448,
+          "label": "grundlov_par56",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 446,
+              "name": "frit_mandat"
+            },
+            {
+              "kind": "rule",
+              "line": 447,
+              "name": "ikke_bundet_af_vælgernes_forskrift"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 458,
+          "code_end_line": 465,
+          "code_start_line": 459,
+          "end_marker_line": 466,
+          "label": "grundlov_par57",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 460,
+              "name": "parlamentarisk_immunitet_mod_tiltale"
+            },
+            {
+              "kind": "rule",
+              "line": 461,
+              "name": "parlamentarisk_immunitet_mod_fængsling"
+            },
+            {
+              "kind": "rule",
+              "line": 462,
+              "name": "immunitet_kan_ophæves_med_folketingets_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 463,
+              "name": "immunitet_undtaget_ved_fersk_gerning"
+            },
+            {
+              "kind": "rule",
+              "line": 464,
+              "name": "ytringsfrihed_i_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 465,
+              "name": "ytringsfrihed_kan_ophæves_med_folketingets_samtykke"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 474,
+          "code_end_line": 476,
+          "code_start_line": 475,
+          "end_marker_line": 477,
+          "label": "grundlov_par58",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 476,
+              "name": "vederlag_fastsættes_ved_valglov"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-06.runa",
+      "spans": [
+        {
+          "begin_marker_line": 27,
+          "code_end_line": 53,
+          "code_start_line": 28,
+          "end_marker_line": 54,
+          "label": "grundlov_par59",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 30,
+              "name": "rigsret_max_dommermedlemmer"
+            },
+            {
+              "kind": "binding",
+              "line": 31,
+              "name": "rigsret_valgperiode_år"
+            },
+            {
+              "kind": "rule",
+              "line": 33,
+              "name": "rigsret_valgte_medlemmer_svarer_til_dommermedlemmer"
+            },
+            {
+              "kind": "rule",
+              "line": 34,
+              "name": "rigsret_medlemmer_fra_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 36,
+              "name": "rigsret_valgt_efter_forholdstal"
+            },
+            {
+              "kind": "rule",
+              "line": 37,
+              "name": "rigsret_stedfortrædere_for_valgte"
+            },
+            {
+              "kind": "rule",
+              "line": 40,
+              "name": "folketingsmedlem_uforenelig_med_rigsretsmedlem"
+            },
+            {
+              "kind": "rule",
+              "line": 43,
+              "name": "rigsret_afbalanceres_ved_dommerinhabilitet"
+            },
+            {
+              "kind": "rule",
+              "line": 44,
+              "name": "rigsret_afbalanceret"
+            },
+            {
+              "kind": "rule",
+              "line": 47,
+              "name": "rigsretten_vælger_egen_formand"
+            },
+            {
+              "kind": "rule",
+              "line": 50,
+              "name": "valgte_beholder_sæde_under_verserende_sag"
+            },
+            {
+              "kind": "rule",
+              "line": 53,
+              "name": "rigsretten_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 65,
+          "code_end_line": 73,
+          "code_start_line": 66,
+          "end_marker_line": 74,
+          "label": "grundlov_par60",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 68,
+              "name": "rigsretten_påkender_ministersager_anlagt_af_kongen"
+            },
+            {
+              "kind": "rule",
+              "line": 69,
+              "name": "rigsretten_påkender_ministersager_anlagt_af_folketinget"
+            },
+            {
+              "kind": "rule",
+              "line": 72,
+              "name": "tiltale_af_andre_ved_rigsretten_kræver_samtykke"
+            },
+            {
+              "kind": "rule",
+              "line": 73,
+              "name": "tiltale_andre_ved_rigsretten"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 82,
+          "code_end_line": 85,
+          "code_start_line": 83,
+          "end_marker_line": 86,
+          "label": "grundlov_par61",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 84,
+              "name": "dømmende_magt_ordnes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 85,
+              "name": "særdomstole_forbudt"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 94,
+          "code_end_line": 97,
+          "code_start_line": 95,
+          "end_marker_line": 98,
+          "label": "grundlov_par62",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 96,
+              "name": "retspleje_adskilt_fra_forvaltning"
+            },
+            {
+              "kind": "rule",
+              "line": 97,
+              "name": "adskillelse_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 113,
+          "code_end_line": 122,
+          "code_start_line": 114,
+          "end_marker_line": 123,
+          "label": "grundlov_par63",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 116,
+              "name": "domstolene_prøver_øvrighedens_grænser"
+            },
+            {
+              "kind": "rule",
+              "line": 117,
+              "name": "foreløbig_efterlevelse_påkrævet"
+            },
+            {
+              "kind": "rule",
+              "line": 120,
+              "name": "forvaltningsdomstole_kan_oprettes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 121,
+              "name": "forvaltningsdomstoles_afgørelser_kan_prøves_ved_højesteret"
+            },
+            {
+              "kind": "rule",
+              "line": 122,
+              "name": "forvaltningsdomstole_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 134,
+          "code_end_line": 146,
+          "code_start_line": 135,
+          "end_marker_line": 147,
+          "label": "grundlov_par64",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 136,
+              "name": "dommer_pensionsalder"
+            },
+            {
+              "kind": "rule",
+              "line": 138,
+              "name": "dommere_retter_sig_alene_efter_loven"
+            },
+            {
+              "kind": "rule",
+              "line": 139,
+              "name": "dommere_kan_ikke_afsættes_uden_dom"
+            },
+            {
+              "kind": "rule",
+              "line": 140,
+              "name": "dommere_kan_ikke_forflyttes_mod_ønske"
+            },
+            {
+              "kind": "rule",
+              "line": 141,
+              "name": "forflyttelse_undtaget_ved_omordning"
+            },
+            {
+              "kind": "rule",
+              "line": 143,
+              "name": "dommer_afskedigelse_ved_alder_fra_femogtres"
+            },
+            {
+              "kind": "rule",
+              "line": 144,
+              "name": "dommer_kan_afskediges_ved_alder"
+            },
+            {
+              "kind": "rule",
+              "line": 146,
+              "name": "afskedigelse_ved_alder_uden_tab_af_indtægter"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 159,
+          "code_end_line": 168,
+          "code_start_line": 160,
+          "end_marker_line": 169,
+          "label": "grundlov_par65",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 162,
+              "name": "retspleje_er_offentlig"
+            },
+            {
+              "kind": "rule",
+              "line": 163,
+              "name": "retspleje_er_mundtlig"
+            },
+            {
+              "kind": "rule",
+              "line": 166,
+              "name": "lægmænd_medvirker_i_strafferetspleje"
+            },
+            {
+              "kind": "rule",
+              "line": 167,
+              "name": "lægmandsmedvirken_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 168,
+              "name": "nævningesager_fastsættes_ved_lov"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-07.runa",
+      "spans": [
+        {
+          "begin_marker_line": 12,
+          "code_end_line": 14,
+          "code_start_line": 13,
+          "end_marker_line": 15,
+          "label": "grundlov_par66",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 14,
+              "name": "folkekirkens_forfatning_ordnes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 24,
+          "code_end_line": 28,
+          "code_start_line": 25,
+          "end_marker_line": 29,
+          "label": "grundlov_par67",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 26,
+              "name": "religionsfrihed"
+            },
+            {
+              "kind": "rule",
+              "line": 27,
+              "name": "religionssamfund_må_ikke_stride_mod_sædelighed"
+            },
+            {
+              "kind": "rule",
+              "line": 28,
+              "name": "religionssamfund_må_ikke_stride_mod_offentlig_orden"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 37,
+          "code_end_line": 39,
+          "code_start_line": 38,
+          "end_marker_line": 40,
+          "label": "grundlov_par68",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 39,
+              "name": "ingen_pligt_til_bidrag_til_fremmed_gudsdyrkelse"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 47,
+          "code_end_line": 49,
+          "code_start_line": 48,
+          "end_marker_line": 50,
+          "label": "grundlov_par69",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 49,
+              "name": "afvigende_trossamfund_ordnes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 59,
+          "code_end_line": 64,
+          "code_start_line": 60,
+          "end_marker_line": 65,
+          "label": "grundlov_par70",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 61,
+              "name": "ingen_diskrimination_ved_trosbekendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 62,
+              "name": "ingen_diskrimination_ved_afstamning"
+            },
+            {
+              "kind": "rule",
+              "line": 63,
+              "name": "borgerpligt_uanset_trosbekendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 64,
+              "name": "borgerpligt_uanset_afstamning"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-08.runa",
+      "spans": [
+        {
+          "begin_marker_line": 39,
+          "code_end_line": 73,
+          "code_start_line": 40,
+          "end_marker_line": 74,
+          "label": "grundlov_par71",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 42,
+              "name": "personlig_frihed_er_ukrænkelig"
+            },
+            {
+              "kind": "rule",
+              "line": 43,
+              "name": "ingen_frihedsberøvelse_pga_politisk_overbevisning"
+            },
+            {
+              "kind": "rule",
+              "line": 44,
+              "name": "ingen_frihedsberøvelse_pga_religiøs_overbevisning"
+            },
+            {
+              "kind": "rule",
+              "line": 45,
+              "name": "ingen_frihedsberøvelse_pga_afstamning"
+            },
+            {
+              "kind": "rule",
+              "line": 48,
+              "name": "frihedsberøvelse_kræver_lovhjemmel"
+            },
+            {
+              "kind": "binding",
+              "line": 51,
+              "name": "frist_fremstilling_timer"
+            },
+            {
+              "kind": "binding",
+              "line": 52,
+              "name": "frist_kendelse_dage"
+            },
+            {
+              "kind": "rule",
+              "line": 54,
+              "name": "anholdte_stilles_for_dommer_inden_24_timer"
+            },
+            {
+              "kind": "rule",
+              "line": 55,
+              "name": "kendelse_snarest_muligt_senest_3_dage"
+            },
+            {
+              "kind": "rule",
+              "line": 56,
+              "name": "løsladelse_mod_sikkerhed_mulig"
+            },
+            {
+              "kind": "rule",
+              "line": 57,
+              "name": "grønland_kan_fravige_fremstillingsfrist_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 60,
+              "name": "kendelse_kan_indbringes_for_højere_ret"
+            },
+            {
+              "kind": "rule",
+              "line": 63,
+              "name": "ingen_varetægtsfængsel_for_bøde_eller_hæfte"
+            },
+            {
+              "kind": "rule",
+              "line": 66,
+              "name": "administrativ_frihedsberøvelse_prøves_ved_domstol"
+            },
+            {
+              "kind": "rule",
+              "line": 67,
+              "name": "undtaget_udlændingelovgivning"
+            },
+            {
+              "kind": "rule",
+              "line": 68,
+              "name": "prøvelse_på_begæring_af_berøvet_eller_repræsentant"
+            },
+            {
+              "kind": "rule",
+              "line": 69,
+              "name": "prøvelse_af_frihedsberøvelse_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 72,
+              "name": "folketinget_vælger_tilsyn_med_frihedsberøvede"
+            },
+            {
+              "kind": "rule",
+              "line": 73,
+              "name": "frihedsberøvede_har_adgang_til_henvendelse"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 84,
+          "code_end_line": 91,
+          "code_start_line": 85,
+          "end_marker_line": 92,
+          "label": "grundlov_par72",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 86,
+              "name": "boligen_er_ukrænkelig"
+            },
+            {
+              "kind": "rule",
+              "line": 87,
+              "name": "husundersøgelse_kræver_retskendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 88,
+              "name": "beslaglæggelse_kræver_retskendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 89,
+              "name": "brevundersøgelse_kræver_retskendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 90,
+              "name": "brud_på_kommunikationshemmelighed_kræver_retskendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 91,
+              "name": "undtagelse_fra_retskendelse_kan_hjemles_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 111,
+          "code_end_line": 130,
+          "code_start_line": 112,
+          "end_marker_line": 131,
+          "label": "grundlov_par73",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 114,
+              "name": "ejendomsretten_er_ukrænkelig"
+            },
+            {
+              "kind": "rule",
+              "line": 115,
+              "name": "ekspropriation_kun_til_almenvellet"
+            },
+            {
+              "kind": "rule",
+              "line": 116,
+              "name": "ekspropriation_kun_ifølge_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 117,
+              "name": "ekspropriation_mod_fuldstændig_erstatning"
+            },
+            {
+              "kind": "binding",
+              "line": 120,
+              "name": "ekspropriation_frist_søgnedage"
+            },
+            {
+              "kind": "rule",
+              "line": 122,
+              "name": "en_tredjedel_kan_kræve_ekspropriationsudsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 123,
+              "name": "kan_kræve_ekspropriationsudsættelse"
+            },
+            {
+              "kind": "rule",
+              "line": 125,
+              "name": "ekspropriationsudsættelse_kræver_nyvalg_og_genvedtagelse"
+            },
+            {
+              "kind": "rule",
+              "line": 128,
+              "name": "ekspropriationslovlighed_kan_prøves_ved_domstol"
+            },
+            {
+              "kind": "rule",
+              "line": 129,
+              "name": "erstatningsstørrelse_kan_prøves_ved_domstol"
+            },
+            {
+              "kind": "rule",
+              "line": 130,
+              "name": "erstatningsprøvelse_kan_henlægges_til_særlige_domstole"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 139,
+          "code_end_line": 143,
+          "code_start_line": 140,
+          "end_marker_line": 144,
+          "label": "grundlov_par74",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 141,
+              "name": "erhvervsfrihed"
+            },
+            {
+              "kind": "rule",
+              "line": 142,
+              "name": "erhvervsindskrænkninger_kun_begrundet_i_almene_vel"
+            },
+            {
+              "kind": "rule",
+              "line": 143,
+              "name": "ubegrundede_erhvervsindskrænkninger_hæves_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 157,
+          "code_end_line": 166,
+          "code_start_line": 158,
+          "end_marker_line": 167,
+          "label": "grundlov_par75",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 160,
+              "name": "almenvellet_fremmes_ved_arbejdsmulighed"
+            },
+            {
+              "kind": "rule",
+              "line": 161,
+              "name": "arbejdsduelige_borgere_bør_have_mulighed_for_arbejde"
+            },
+            {
+              "kind": "rule",
+              "line": 162,
+              "name": "arbejdsvilkår_skal_betrygge_tilværelsen"
+            },
+            {
+              "kind": "rule",
+              "line": 165,
+              "name": "ret_til_offentlig_hjælp_ved_manglende_forsørgelse"
+            },
+            {
+              "kind": "rule",
+              "line": 166,
+              "name": "offentlig_hjælp_betinget_af_lovpåbudte_forpligtelser"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 177,
+          "code_end_line": 182,
+          "code_start_line": 178,
+          "end_marker_line": 183,
+          "label": "grundlov_par76",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 179,
+              "name": "børn_har_ret_til_fri_undervisning_i_folkeskolen"
+            },
+            {
+              "kind": "rule",
+              "line": 181,
+              "name": "forældre_kan_selv_sørge_for_undervisning"
+            },
+            {
+              "kind": "rule",
+              "line": 182,
+              "name": "hjemmeundervisning_skal_stå_mål_med_folkeskolen"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 192,
+          "code_end_line": 199,
+          "code_start_line": 193,
+          "end_marker_line": 200,
+          "label": "grundlov_par77",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 194,
+              "name": "ytringsfrihed_på_tryk"
+            },
+            {
+              "kind": "rule",
+              "line": 195,
+              "name": "ytringsfrihed_i_skrift"
+            },
+            {
+              "kind": "rule",
+              "line": 196,
+              "name": "ytringsfrihed_i_tale"
+            },
+            {
+              "kind": "rule",
+              "line": 197,
+              "name": "ytringsfrihed_under_ansvar_for_domstolene"
+            },
+            {
+              "kind": "rule",
+              "line": 198,
+              "name": "censur_kan_aldrig_indføres"
+            },
+            {
+              "kind": "rule",
+              "line": 199,
+              "name": "forebyggende_forholdsregler_mod_ytring_forbudt"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 221,
+          "code_end_line": 238,
+          "code_start_line": 222,
+          "end_marker_line": 239,
+          "label": "grundlov_par78",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 224,
+              "name": "foreningsfrihed_uden_forudgående_tilladelse"
+            },
+            {
+              "kind": "rule",
+              "line": 225,
+              "name": "foreninger_kun_i_lovligt_øjemed"
+            },
+            {
+              "kind": "rule",
+              "line": 228,
+              "name": "voldsforeninger_opløses_ved_dom"
+            },
+            {
+              "kind": "rule",
+              "line": 231,
+              "name": "ingen_foreningsopløsning_ved_regeringsforanstaltning"
+            },
+            {
+              "kind": "rule",
+              "line": 232,
+              "name": "foreløbigt_forbud_kræver_straks_anlæggelse_af_sag"
+            },
+            {
+              "kind": "rule",
+              "line": 235,
+              "name": "politiske_foreningers_opløsning_kan_indbringes_for_højesteret"
+            },
+            {
+              "kind": "rule",
+              "line": 238,
+              "name": "opløsningens_retsvirkninger_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 249,
+          "code_end_line": 254,
+          "code_start_line": 250,
+          "end_marker_line": 255,
+          "label": "grundlov_par79",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 251,
+              "name": "forsamlingsfrihed_uden_forudgående_tilladelse"
+            },
+            {
+              "kind": "rule",
+              "line": 252,
+              "name": "forsamlinger_skal_være_ubevæbnede"
+            },
+            {
+              "kind": "rule",
+              "line": 253,
+              "name": "politiet_må_overvære_offentlige_forsamlinger"
+            },
+            {
+              "kind": "rule",
+              "line": 254,
+              "name": "forsamlinger_under_åben_himmel_kan_forbydes_ved_fare"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 264,
+          "code_end_line": 270,
+          "code_start_line": 265,
+          "end_marker_line": 271,
+          "label": "grundlov_par80",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 266,
+              "name": "opfordringer_før_magtanvendelse"
+            },
+            {
+              "kind": "rule",
+              "line": 268,
+              "name": "magtanvendelse_ved_opløb_kun_efter_opfordring"
+            },
+            {
+              "kind": "rule",
+              "line": 269,
+              "name": "opfordring_i_kongens_og_lovens_navn"
+            },
+            {
+              "kind": "rule",
+              "line": 270,
+              "name": "undtagelse_hvis_den_væbnede_magt_angribes"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 279,
+          "code_end_line": 282,
+          "code_start_line": 280,
+          "end_marker_line": 283,
+          "label": "grundlov_par81",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 281,
+              "name": "værnepligt_for_våbenføre_mænd"
+            },
+            {
+              "kind": "rule",
+              "line": 282,
+              "name": "værnepligtens_omfang_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 291,
+          "code_end_line": 294,
+          "code_start_line": 292,
+          "end_marker_line": 295,
+          "label": "grundlov_par82",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 293,
+              "name": "kommunalt_selvstyre_under_statens_tilsyn"
+            },
+            {
+              "kind": "rule",
+              "line": 294,
+              "name": "kommunernes_styrelse_ordnes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 302,
+          "code_end_line": 306,
+          "code_start_line": 303,
+          "end_marker_line": 307,
+          "label": "grundlov_par83",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 304,
+              "name": "adelsprivilegier_afskaffet"
+            },
+            {
+              "kind": "rule",
+              "line": 305,
+              "name": "titelprivilegier_afskaffet"
+            },
+            {
+              "kind": "rule",
+              "line": 306,
+              "name": "rangprivilegier_afskaffet"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 315,
+          "code_end_line": 320,
+          "code_start_line": 316,
+          "end_marker_line": 321,
+          "label": "grundlov_par84",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 317,
+              "name": "len_kan_ikke_oprettes"
+            },
+            {
+              "kind": "rule",
+              "line": 318,
+              "name": "stamhus_kan_ikke_oprettes"
+            },
+            {
+              "kind": "rule",
+              "line": 319,
+              "name": "fideikommisgods_kan_ikke_oprettes"
+            },
+            {
+              "kind": "rule",
+              "line": 320,
+              "name": "familiefideikommis_kan_ikke_oprettes"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 329,
+          "code_end_line": 336,
+          "code_start_line": 330,
+          "end_marker_line": 337,
+          "label": "grundlov_par85",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 333,
+              "name": "indskrænkning_af_personlig_frihed_for_forsvarsmagten"
+            },
+            {
+              "kind": "rule",
+              "line": 334,
+              "name": "indskrænkning_af_foreningsfrihed_for_forsvarsmagten"
+            },
+            {
+              "kind": "rule",
+              "line": 335,
+              "name": "indskrænkning_af_forsamlingsfrihed_for_forsvarsmagten"
+            },
+            {
+              "kind": "rule",
+              "line": 336,
+              "name": "indskrænkninger_kun_ifølge_militære_love"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-09.runa",
+      "spans": [
+        {
+          "begin_marker_line": 15,
+          "code_end_line": 20,
+          "code_start_line": 16,
+          "end_marker_line": 21,
+          "label": "grundlov_par86",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 17,
+              "name": "kommunal_valgretsalder_følger_folketingsvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 18,
+              "name": "menighedsråd_valgretsalder_følger_folketingsvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 19,
+              "name": "færøerne_kommunal_valgretsalder_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 20,
+              "name": "grønland_kommunal_valgretsalder_fastsættes_ved_lov"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 31,
+          "code_end_line": 34,
+          "code_start_line": 32,
+          "end_marker_line": 35,
+          "label": "grundlov_par87",
+          "symbols": [
+            {
+              "kind": "rule",
+              "line": 33,
+              "name": "islandske_statsborgere_bevarer_grundlovsrettigheder"
+            },
+            {
+              "kind": "rule",
+              "line": 34,
+              "name": "islandske_rettigheder_knyttet_til_dansk_indfødsret"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-10.runa",
+      "spans": [
+        {
+          "begin_marker_line": 20,
+          "code_end_line": 33,
+          "code_start_line": 21,
+          "end_marker_line": 34,
+          "label": "grundlov_par88",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 22,
+              "name": "godkendelsestærskel_pct"
+            },
+            {
+              "kind": "binding",
+              "line": 23,
+              "name": "frist_folkeafstemning_måneder"
+            },
+            {
+              "kind": "rule",
+              "line": 25,
+              "name": "grundlovsændring_kræver_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 26,
+              "name": "grundlovsændring_kræver_uændret_genvedtagelse"
+            },
+            {
+              "kind": "rule",
+              "line": 27,
+              "name": "grundlovsændring_kræver_folkeafstemning"
+            },
+            {
+              "kind": "rule",
+              "line": 28,
+              "name": "grundlovsændring_kræver_kongelig_stadfæstelse"
+            },
+            {
+              "kind": "rule",
+              "line": 29,
+              "name": "afstemningsregler_fastsættes_ved_lov"
+            },
+            {
+              "kind": "rule",
+              "line": 32,
+              "name": "grundlovsændring_kræver_flertal_og_fyrre_pct"
+            },
+            {
+              "kind": "rule",
+              "line": 33,
+              "name": "grundlovsændring_godkendt"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "file": "examples/danish-constitution/kapitel-11.runa",
+      "spans": [
+        {
+          "begin_marker_line": 17,
+          "code_end_line": 33,
+          "code_start_line": 18,
+          "end_marker_line": 34,
+          "label": "grundlov_par89",
+          "symbols": [
+            {
+              "kind": "type",
+              "line": 20,
+              "name": "TidligereGrundlov"
+            },
+            {
+              "kind": "binding",
+              "line": 22,
+              "name": "tidligere_grundlov"
+            },
+            {
+              "kind": "binding",
+              "line": 26,
+              "name": "ændring_af_tidligere"
+            },
+            {
+              "kind": "rule",
+              "line": 31,
+              "name": "grundloven_træder_i_kraft_straks"
+            },
+            {
+              "kind": "rule",
+              "line": 32,
+              "name": "eksisterende_rigsdag_vedbliver_til_nyvalg"
+            },
+            {
+              "kind": "rule",
+              "line": 33,
+              "name": "gamle_rigsdagsbestemmelser_i_kraft_til_nyvalg"
+            }
+          ]
+        },
+        {
+          "begin_marker_line": 56,
+          "code_end_line": 61,
+          "code_start_line": 57,
+          "end_marker_line": 62,
+          "label": "grundlov_stadfaestelse",
+          "symbols": [
+            {
+              "kind": "binding",
+              "line": 58,
+              "name": "grundlovens_udstedelsesdato"
+            },
+            {
+              "kind": "rule",
+              "line": 59,
+              "name": "grundloven_er_gældende_ret"
+            },
+            {
+              "kind": "rule",
+              "line": 60,
+              "name": "grundloven_givet_på_christiansborg_slot"
+            },
+            {
+              "kind": "rule",
+              "line": 61,
+              "name": "grundloven_under_kongelig_hånd_og_segl"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "registreret_dato": "2026-08-16",
+  "revision": "84041bd7",
+  "schema": "futuruna.grundlov.baseline.v1",
+  "source_fingerprint": "0x5c1bbaf1142e3696"
+}

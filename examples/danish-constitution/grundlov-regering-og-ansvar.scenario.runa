@@ -1,0 +1,141 @@
+@ sprog da
+
+@ importer ./kapitel - 03
+
+-- Scenarierne prøver §§ 12-18 og 24-27. De tilføjer ikke lovstof.
+
+= par12_statsorgan = øverste_regeringsmyndigheds_statsorgan()
+| par12_kongen_er_statsorganet: par12_statsorgan -> par12_statsorgan == KongenSomStatsorgan
+
+= lovgivningsbeslutning_med_ministerunderskrift = KongeligBeslutning(
+    område = Lovgivning,
+    kongens_underskrift = Underskrevet,
+    ministerunderskrifter = EnEllerFlereMinisterunderskrifter
+)
+= regeringsbeslutning_med_en_minister = KongeligBeslutning(
+    område = Regering,
+    kongens_underskrift = Underskrevet,
+    ministerunderskrifter = EnEllerFlereMinisterunderskrifter
+)
+= beslutning_uden_kongens_underskrift = KongeligBeslutning(
+    område = Lovgivning,
+    kongens_underskrift = IkkeUnderskrevet,
+    ministerunderskrifter = EnEllerFlereMinisterunderskrifter
+)
+= beslutning_uden_ministerunderskrift = KongeligBeslutning(
+    område = Regering,
+    kongens_underskrift = Underskrevet,
+    ministerunderskrifter = IngenMinisterunderskrift
+)
+
+= par14_lovgivningsbeslutning = kongelig_beslutning_er_gyldig(lovgivningsbeslutning_med_ministerunderskrift)
+= par14_regeringsbeslutning = kongelig_beslutning_er_gyldig(regeringsbeslutning_med_en_minister)
+= par14_uden_konge = kongelig_beslutning_er_gyldig(beslutning_uden_kongens_underskrift)
+= par14_uden_minister = kongelig_beslutning_er_gyldig(beslutning_uden_ministerunderskrift)
+= par14_ansvarlige_ministre = underskrivende_ministre_er_ansvarlige(lovgivningsbeslutning_med_ministerunderskrift)
+
+| par14_lovgivningsbeslutning_gyldig: par14_lovgivningsbeslutning -> par14_lovgivningsbeslutning == Sandt
+| par14_regeringsbeslutning_gyldig: par14_regeringsbeslutning -> par14_regeringsbeslutning == Sandt
+| par14_kongens_underskrift_kræves: par14_uden_konge -> par14_uden_konge == Falskt
+| par14_mindst_en_ministerunderskrift_kræves: par14_uden_minister -> par14_uden_minister == Falskt
+| par14_alle_underskrivende_ministre_er_ansvarlige: par14_ansvarlige_ministre -> par14_ansvarlige_ministre == Sandt
+
+= par15_minister_efter_mistillid = minister_kan_forblive(Udtalt)
+= par15_minister_uden_mistillid = minister_kan_forblive(IkkeUdtalt)
+= par15_afskedspligt_uden_nyvalg = ministeriet_skal_begære_afsked(Falskt)
+= par15_afskedspligt_med_nyvalg = ministeriet_skal_begære_afsked(Sandt)
+= par15_afskedsbegæring = statsministerens_reaktion_opfylder_par15(BegærerMinisterietsAfsked)
+= par15_nyvalg = statsministerens_reaktion_opfylder_par15(UdskriverNyvalg)
+= par15_ingen_reaktion = statsministerens_reaktion_opfylder_par15(FortsætterUdenNogenAfDelene)
+= par15_nødvendig_handling = fungerende_minister_må_foretage(NødvendigEmbedsforretning)
+= par15_anden_handling = fungerende_minister_må_foretage(AndenHandling)
+
+| par15_minister_kan_ikke_forblive_efter_mistillid: par15_minister_efter_mistillid -> par15_minister_efter_mistillid == Falskt
+| par15_minister_kan_forblive_uden_mistillid: par15_minister_uden_mistillid -> par15_minister_uden_mistillid == Sandt
+| par15_afsked_kræves_uden_nyvalg: par15_afskedspligt_uden_nyvalg -> par15_afskedspligt_uden_nyvalg == Sandt
+| par15_nyvalg_undtager_afskedsbegæring: par15_afskedspligt_med_nyvalg -> par15_afskedspligt_med_nyvalg == Falskt
+| par15_begge_udtrykkelige_reaktioner_opfylder_pligten: par15_afskedsbegæring -> par15_afskedsbegæring && par15_nyvalg
+| par15_fortsættelse_opfylder_ikke_pligten: par15_ingen_reaktion -> par15_ingen_reaktion == Falskt
+| par15_fungerende_minister_kun_nødvendig_handling: par15_nødvendig_handling -> par15_nødvendig_handling && par15_anden_handling == Falskt
+
+= tronfølger_til_statsråd_17 = Tronfølger(
+    alder = 17,
+    trossamfund = Andet(navn = "Andet trossamfund"),
+    forsikring = IkkeAfgivet
+)
+= tronfølger_til_statsråd_18 = Tronfølger(
+    alder = 18,
+    trossamfund = Andet(navn = "Andet trossamfund"),
+    forsikring = IkkeAfgivet
+)
+= par17_tronfølger_17 = tronfølger_tager_sæde_i_statsrådet(tronfølger_til_statsråd_17)
+= par17_tronfølger_18 = tronfølger_tager_sæde_i_statsrådet(tronfølger_til_statsråd_18)
+= par17_kongen_fører_forsædet = kongen_fører_forsædet_i_statsrådet(KongenFørerRegeringen)
+= par17_ikke_forsæde_efter_par8 = kongen_fører_forsædet_i_statsrådet(StatsrådetFørerRegeringenEfterPar8)
+= par17_ikke_forsæde_efter_par9 = kongen_fører_forsædet_i_statsrådet(StatsrådetFørerRegeringenEfterPar9Lov)
+
+| par17_kun_myndig_tronfølger_tager_sæde: par17_tronfølger_18 -> par17_tronfølger_18 && par17_tronfølger_17 == Falskt
+| par17_kongen_fører_kun_forsædet_når_han_fører_regeringen: par17_kongen_fører_forsædet -> par17_kongen_fører_forsædet && par17_ikke_forsæde_efter_par8 == Falskt && par17_ikke_forsæde_efter_par9 == Falskt
+
+= par18_almindeligt_forum = forhandlingsforum(KongenKanHoldeStatsråd)
+= par18_forum_ved_forhindring = forhandlingsforum(KongenErForhindret)
+| par18_statsråd_er_udgangspunktet: par18_almindeligt_forum -> par18_almindeligt_forum == StatsrådsForum
+| par18_ministerråd_ved_forhindring: par18_forum_ved_forhindring -> par18_forum_ved_forhindring == MinisterrådsForum
+
+= par24_uden_samtykke = benådning_af_rigsretsdømt_minister_opfylder_par24(IkkeGivet)
+= par24_med_samtykke = benådning_af_rigsretsdømt_minister_opfylder_par24(Givet)
+| par24_benådning_kræver_samtykke: par24_uden_samtykke -> par24_uden_samtykke == Falskt && par24_med_samtykke
+
+= par25_gammelt_grundlag = dispensation_har_grundlovsgrundlag(RegelIBrugFørFemteJuni1849)
+= par25_lovhjemmel = dispensation_har_grundlovsgrundlag(HjemmelISenereLov)
+= par25_intet_grundlag = dispensation_har_grundlovsgrundlag(IntetGrundlag)
+| par25_begge_udtrykkelige_grundlag_er_tilstrækkelige: par25_gammelt_grundlag -> par25_gammelt_grundlag && par25_lovhjemmel
+| par25_intet_grundlag_er_utilstrækkeligt: par25_intet_grundlag -> par25_intet_grundlag == Falskt
+
+= kandidat_med_indfødsret = Tjenestemandskandidat(har_indfødsret = Sandt)
+= kandidat_uden_indfødsret = Tjenestemandskandidat(har_indfødsret = Falskt)
+= par27_med_indfødsret = tjenestemandskandidat_opfylder_indfødsretskravet(kandidat_med_indfødsret)
+= par27_uden_indfødsret = tjenestemandskandidat_opfylder_indfødsretskravet(kandidat_uden_indfødsret)
+= forflyttelse_uden_tab_med_valg = ForflyttelseUdenSamtykke(
+    indkomsttab = Falskt,
+    valg_mellem_forflyttelse_og_afsked_med_pension = Sandt
+)
+= forflyttelse_med_tab_med_valg = ForflyttelseUdenSamtykke(
+    indkomsttab = Sandt,
+    valg_mellem_forflyttelse_og_afsked_med_pension = Sandt
+)
+= forflyttelse_uden_tab_uden_valg = ForflyttelseUdenSamtykke(
+    indkomsttab = Falskt,
+    valg_mellem_forflyttelse_og_afsked_med_pension = Falskt
+)
+= par27_gyldig_forflyttelse = forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse_uden_tab_med_valg)
+= par27_forflyttelse_med_tab = forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse_med_tab_med_valg)
+= par27_forflyttelse_uden_valg = forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse_uden_tab_uden_valg)
+
+| par27_indfødsret_kræves: par27_med_indfødsret -> par27_med_indfødsret && par27_uden_indfødsret == Falskt
+| par27_forflyttelse_kræver_begge_betingelser: par27_gyldig_forflyttelse -> par27_gyldig_forflyttelse && par27_forflyttelse_med_tab == Falskt && par27_forflyttelse_uden_valg == Falskt
+
+? par12_kongen_er_statsorganet
+? par14_lovgivningsbeslutning_gyldig
+? par14_regeringsbeslutning_gyldig
+? par14_kongens_underskrift_kræves
+? par14_mindst_en_ministerunderskrift_kræves
+? par14_alle_underskrivende_ministre_er_ansvarlige
+? par15_minister_kan_ikke_forblive_efter_mistillid
+? par15_minister_kan_forblive_uden_mistillid
+? par15_afsked_kræves_uden_nyvalg
+? par15_nyvalg_undtager_afskedsbegæring
+? par15_begge_udtrykkelige_reaktioner_opfylder_pligten
+? par15_fortsættelse_opfylder_ikke_pligten
+? par15_fungerende_minister_kun_nødvendig_handling
+? par17_kun_myndig_tronfølger_tager_sæde
+? par17_kongen_fører_kun_forsædet_når_han_fører_regeringen
+? par18_statsråd_er_udgangspunktet
+? par18_ministerråd_ved_forhindring
+? par24_benådning_kræver_samtykke
+? par25_begge_udtrykkelige_grundlag_er_tilstrækkelige
+? par25_intet_grundlag_er_utilstrækkeligt
+? par27_indfødsret_kræves
+? par27_forflyttelse_kræver_begge_betingelser
+
+@ skriv("Scenarierne for regering og ansvar holder.")

@@ -1,6 +1,7 @@
 @ sprog da
 
 @ importer ./grundlov - faelles
+@ importer ./kapitel - 02
 
 -- ═══════════════════════════════════════════════════════════════
 -- Kapitel III — Kongen og ministrene (§ 12–27)
@@ -18,9 +19,9 @@ højeste myndighed over alle rigets anliggender og udøver den gennem ministrene
 
 --@begin:grundlov_par12--
 
-| kongen_har_højeste_myndighed()
-| myndighed_indskrænket_af_grundloven()
-| myndighed_udøves_gennem_ministrene()
+| øverste_regeringsmyndigheds_statsorgan() -> KongenSomStatsorgan
+| regeringsmyndigheden_er_indskrænket_af_grundloven()
+| regeringsmyndigheden_udøves_gennem_ministrene()
 --@end:grundlov_par12--
 
 -- ─────────────────────────────────────────────────────────
@@ -37,8 +38,8 @@ ved lov.
 --@begin:grundlov_par13--
 
 | kongen_er_ansvarsfri()
-| kongen_er_fredhellig()
-| ministrene_er_ansvarlige()
+| monarkens_person_er_fredhellig()
+| ministrene_er_ansvarlige_for_regeringens_førelse()
 | ministeransvar_fastsættes_ved_lov()
 --@end:grundlov_par13--
 
@@ -58,12 +59,16 @@ Enhver minister, som har underskrevet, er ansvarlig for beslutningen.
 
 --@begin:grundlov_par14--
 
+# Beslutningsområde = Lovgivning | Regering
+# Underskriftsstatus = Underskrevet | IkkeUnderskrevet
+# Ministerunderskrifter = IngenMinisterunderskrift | EnEllerFlereMinisterunderskrifter
+# KongeligBeslutning(område: Beslutningsområde, kongens_underskrift: Underskriftsstatus, ministerunderskrifter: Ministerunderskrifter)
+
 | kongen_udnævner_og_afskediger_ministre()
 | kongen_bestemmer_antal_og_fordeling()
 
--- Gyldighed kræver begge underskrifter (kontrasignatur)
-| beslutning_gyldig_når_kongen_og_minister_underskriver()
-| underskrivende_minister_er_ansvarlig()
+| kongelig_beslutning_er_gyldig(beslutning: KongeligBeslutning) -> beslutning.kongens_underskrift == Underskrevet && beslutning.ministerunderskrifter == EnEllerFlereMinisterunderskrifter
+| underskrivende_ministre_er_ansvarlige(beslutning: KongeligBeslutning) -> beslutning.ministerunderskrifter == EnEllerFlereMinisterunderskrifter
 --@end:grundlov_par14--
 
 -- ─────────────────────────────────────────────────────────
@@ -86,16 +91,22 @@ fornødent til embedsforretningernes uforstyrrede førelse.
 --@begin:grundlov_par15--
 
 # Mistillid = Udtalt | IkkeUdtalt
+# ReaktionPåStatsministermistillid = BegærerMinisterietsAfsked | UdskriverNyvalg | FortsætterUdenNogenAfDelene
+# FungerendeMinisterhandling = NødvendigEmbedsforretning | AndenHandling
 
-| minister_fjernes_ved_udtalt_mistillid()
 | minister_kan_forblive(m: Mistillid) -> m == IkkeUdtalt
 
-| mistillid_til_statsminister_kræver_afsked()
-| exception nyvalg mistillid_til_statsminister_kræver_afsked() -> Falskt under nyvalg_udskrives()
-| nyvalg_udskrives() -> Falskt
+| ministeriet_skal_begære_afsked(nyvalg_udskrives: Boolsk) -> Sandt
+| exception nyvalg ministeriet_skal_begære_afsked(nyvalg_udskrives: Boolsk) -> Falskt under nyvalg_udskrives
+
+| statsministerens_reaktion_opfylder_par15(reaktion: ReaktionPåStatsministermistillid) -> match reaktion {
+    | BegærerMinisterietsAfsked -> Sandt
+    | UdskriverNyvalg -> Sandt
+    | FortsætterUdenNogenAfDelene -> Falskt
+}
 
 | afskediget_ministerium_fungerer_til_nyt_udnævnt()
-| fungerende_ministre_kun_nødvendige_handlinger()
+| fungerende_minister_må_foretage(handling: FungerendeMinisterhandling) -> handling == NødvendigEmbedsforretning
 --@end:grundlov_par15--
 
 -- ─────────────────────────────────────────────────────────
@@ -136,12 +147,13 @@ Stk. 2. I statsrådet forhandles alle love og vigtige regeringsforanstaltninger.
 
 --@begin:grundlov_par17--
 
+# Statsrådssituation = KongenFørerRegeringen | StatsrådetFørerRegeringenEfterPar8 | StatsrådetFørerRegeringenEfterPar9Lov
+
 | ministrene_udgør_statsrådet()
-| myndig_tronfølger_tager_sæde_i_statsrådet()
-| kongen_fører_forsædet_i_statsrådet()
-| statsrådet_fører_forsædet_i_par8_tilfælde()
-| statsrådet_kan_føre_regeringen_efter_par9_lov()
+| tronfølger_tager_sæde_i_statsrådet(tronfølger: Tronfølger) -> tronfølger_er_myndig(tronfølger)
+| kongen_fører_forsædet_i_statsrådet(situation: Statsrådssituation) -> situation == KongenFørerRegeringen
 | alle_love_forhandles_i_statsrådet()
+| vigtige_regeringsforanstaltninger_forhandles_i_statsrådet()
 --@end:grundlov_par17--
 
 -- ─────────────────────────────────────────────────────────
@@ -162,10 +174,10 @@ bifalde ministerrådets indstilling eller lade sig sagen foredrage i statsrådet
 --@begin:grundlov_par18--
 
 # ForhandlingsForum = StatsrådsForum | MinisterrådsForum
+# Statsrådsafholdelse = KongenKanHoldeStatsråd | KongenErForhindret
 
-| forhandlingsforum() -> StatsrådsForum
-| forhandlingsforum() -> MinisterrådsForum under kongen_forhindret()
-| kongen_forhindret() -> Falskt
+| forhandlingsforum(situation: Statsrådsafholdelse) -> StatsrådsForum
+| forhandlingsforum(situation: Statsrådsafholdelse) -> MinisterrådsForum under situation == KongenErForhindret
 
 | ministerråd_under_statsministeren()
 | hver_minister_afgiver_votum_til_protokollen()
@@ -202,30 +214,38 @@ fastsættes ved lov.
 
 --@begin:grundlov_par19--
 
-# MilitærGrund = Forsvar | Anden
+# MellemfolkeligHandling = ÆndrerRigetsOmråde | IndgårForpligtelse(folketingets_medvirken_nødvendig: Boolsk, større_betydning: Boolsk) | OpsigerOverenskomst(indgået_med_folketingets_samtykke: Boolsk) | AndenMellemfolkeligHandling
+# MellemfolkeligSag(handling: MellemfolkeligHandling, folketingets_samtykke: Samtykke)
+# Militærgrund = ForsvarModVæbnetAngrebPåRiget | ForsvarModVæbnetAngrebPåDanskeStyrker | AndenMilitærgrund
+# MilitærMagtanvendelse(grund: Militærgrund, folketingets_samtykke: Samtykke)
+# UdenrigspolitiskBeslutning(større_rækkevidde: Boolsk)
 
 | kongen_handler_mellemfolkeligt()
 
--- Tre handlinger der kræver samtykke
-# SamtykkeKrævende = ÆndreRigetsOmråde | IndgåForpligtelse | OpsigeTraktat
-| områdeændring_kræver_folketingets_samtykke()
-| forpligtelse_med_folketingets_medvirken_kræver_samtykke()
-| større_forpligtelse_kræver_folketingets_samtykke()
-| opsigelse_af_samtykketraktat_kræver_folketingets_samtykke()
-| kræver_folketingets_samtykke(h: SamtykkeKrævende) -> Sandt
+| mellemfolkelig_handling_kræver_folketingets_samtykke(handling: MellemfolkeligHandling) -> match handling {
+    | ÆndrerRigetsOmråde -> Sandt
+    | IndgårForpligtelse(medvirken_nødvendig, større_betydning) -> medvirken_nødvendig || større_betydning
+    | OpsigerOverenskomst(indgået_med_samtykke) -> indgået_med_samtykke
+    | AndenMellemfolkeligHandling -> Falskt
+}
 
--- Forsvar er altid tilladt. Andet kræver samtykke.
-| militær_magt_tilladt(Forsvar)
-| forsvar_mod_angreb_på_riget_tilladt()
-| forsvar_mod_angreb_på_danske_styrker_tilladt()
-| militær_magtanvendelse_kræver_samtykke(Anden)
+| mellemfolkelig_sag_opfylder_par19_stk1(sag: MellemfolkeligSag) -> hvis mellemfolkelig_handling_kræver_folketingets_samtykke(sag.handling) {
+    sag.folketingets_samtykke == Givet
+} ellers {
+    Sandt
+}
+
+| militær_magtanvendelse_opfylder_par19_stk2(sag: MilitærMagtanvendelse) -> match sag.grund {
+    | ForsvarModVæbnetAngrebPåRiget -> Sandt
+    | ForsvarModVæbnetAngrebPåDanskeStyrker -> Sandt
+    | AndenMilitærgrund -> sag.folketingets_samtykke == Givet
+}
 
 | militær_handling_straks_forelægges_folketinget()
 | folketinget_sammenkaldes_hvis_ikke_samlet()
 
 | folketinget_vælger_udenrigsnævn()
-| regeringen_rådfører_sig_med_udenrigsnævn_forud()
-| rådføring_gælder_større_udenrigspolitisk_rækkevidde()
+| regeringen_skal_rådføre_sig_med_udenrigsnævnet_forud(beslutning: UdenrigspolitiskBeslutning) -> beslutning.større_rækkevidde
 | udenrigsnævn_fastsættes_ved_lov()
 --@end:grundlov_par19--
 
@@ -249,13 +269,24 @@ forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
 
 --@begin:grundlov_par20--
 
+# Suverænitetsforslag(fem_sjettedele_opnået: Boolsk, almindeligt_flertal_opnået: Boolsk, regeringen_opretholder_forslaget: Boolsk)
+# Suverænitetsprocedure = VedtagetMedFemSjettedele | ForelæggesFolketingsvælgerne | IkkeVedtaget
+
 | beføjelser_kan_overlades_mellemfolkeligt()
 | suverænitetsoverladelse_sker_i_nærmere_bestemt_omfang()
 | mellemfolkelige_myndigheder_oprettet_ved_gensidig_overenskomst()
 | mellemfolkelige_myndigheder_fremmer_retsorden_og_samarbejde()
-= suverænitetskrav_flertal = "5/6 af folketingets medlemmer"
-| suverænitetsforslag_kan_gå_til_folkeafstemning_ved_almindeligt_flertal()
-| alternativt_folkeafstemning_ved_simpelt_flertal()
+= suverænitetskrav = Brøk(tæller = 5, nævner = 6)
+
+| suverænitetsforslagets_procedure(forslag: Suverænitetsforslag) -> hvis forslag.fem_sjettedele_opnået {
+    VedtagetMedFemSjettedele
+} ellers {
+    hvis forslag.almindeligt_flertal_opnået && forslag.regeringen_opretholder_forslaget {
+        ForelæggesFolketingsvælgerne
+    } ellers {
+        IkkeVedtaget
+    }
+}
 --@end:grundlov_par20--
 
 -- ─────────────────────────────────────────────────────────
@@ -283,11 +314,13 @@ Kongen befaler lovens kundgørelse og drager omsorg for dens fuldbyrdelse.
 
 --@begin:grundlov_par22--
 
+# Lovforslagsstadfæstelse(folketinget_endeligt_vedtaget: Boolsk, stadfæstet_af_kongen: Boolsk, dage_efter_endelig_vedtagelse: Heltal)
+
 = stadfæstelsesfrist_dage = 30
-| lovforslag_kræver_stadfæstelse()
+
+| lovforslag_får_lovskraft(stadfæstelse: Lovforslagsstadfæstelse) -> stadfæstelse.folketinget_endeligt_vedtaget && stadfæstelse.stadfæstet_af_kongen && stadfæstelse.dage_efter_endelig_vedtagelse >= 0 && stadfæstelse.dage_efter_endelig_vedtagelse <= stadfæstelsesfrist_dage
 | kongen_befaler_lovens_kundgørelse()
 | kongen_drager_omsorg_for_lovens_fuldbyrdelse()
-| kongen_kundgør_og_fuldbyrder()
 --@end:grundlov_par22--
 
 -- ─────────────────────────────────────────────────────────
@@ -304,9 +337,9 @@ forelægges dette til godkendelse eller forkastelse.
 
 --@begin:grundlov_par23--
 
-| foreløbige_love_når_folketinget_ikke_kan_samles()
-| foreløbige_love_må_ikke_stride_mod_grundloven()
-| foreløbige_love_forelægges_folketinget()
+# ForeløbigLovssag(særdeles_påtrængende: Boolsk, folketinget_kan_samles: Boolsk, strider_mod_grundloven: Boolsk)
+
+| foreløbig_lov_kan_udstedes(sag: ForeløbigLovssag) -> sag.særdeles_påtrængende && sag.folketinget_kan_samles == Falskt && sag.strider_mod_grundloven == Falskt
 | foreløbige_love_forelægges_til_godkendelse_eller_forkastelse()
 --@end:grundlov_par23--
 
@@ -325,7 +358,7 @@ med folketingets samtykke benåde for de dem af rigsretten idømte straffe.
 | kongen_kan_benåde()
 | kongen_kan_give_amnesti()
 | benådning_af_rigsretsdømt_minister_kræver_samtykke()
-| benåde_minister_fra_rigsret(s: Samtykke) -> s == Givet
+| benådning_af_rigsretsdømt_minister_opfylder_par24(samtykke: Samtykke) -> samtykke == Givet
 --@end:grundlov_par24--
 
 -- ─────────────────────────────────────────────────────────
@@ -342,9 +375,15 @@ indeholdes i en siden den tid udgiven lov.
 
 --@begin:grundlov_par25--
 
+# Dispensationsgrundlag = RegelIBrugFørFemteJuni1849 | HjemmelISenereLov | IntetGrundlag
+
 | kongen_kan_give_dispensationer()
 | dispensationer_kan_meddeles_gennem_regeringsmyndigheder()
-| dispensationer_kræver_gammel_praksis_eller_lovhjemmel()
+| dispensation_har_grundlovsgrundlag(grundlag: Dispensationsgrundlag) -> match grundlag {
+    | RegelIBrugFørFemteJuni1849 -> Sandt
+    | HjemmelISenereLov -> Sandt
+    | IntetGrundlag -> Falskt
+}
 --@end:grundlov_par25--
 
 --@label:grundlov_par26::meta:grundlov_kildemetadata--
@@ -379,11 +418,13 @@ afsked med pension efter de almindelige regler.
 
 --@begin:grundlov_par27--
 
+# Tjenestemandskandidat(har_indfødsret: Boolsk)
+# ForflyttelseUdenSamtykke(indkomsttab: Boolsk, valg_mellem_forflyttelse_og_afsked_med_pension: Boolsk)
+
 | tjenestemandsansættelse_fastsættes_ved_lov()
-| tjenestemand_kræver_indfødsret()
+| tjenestemandskandidat_opfylder_indfødsretskravet(kandidat: Tjenestemandskandidat) -> kandidat.har_indfødsret
 | kongens_tjenestemand_aflægger_grundlovs_ed()
 
 | tjenestemandsforhold_fastsættes_ved_lov()
-| forflyttelse_uden_samtykke_kun_uden_indkomsttab()
-| forflyttelse_uden_samtykke_kræver_valg_mellem_forflyttelse_og_pension()
+| forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse: ForflyttelseUdenSamtykke) -> forflyttelse.indkomsttab == Falskt && forflyttelse.valg_mellem_forflyttelse_og_afsked_med_pension
 --@end:grundlov_par27--
