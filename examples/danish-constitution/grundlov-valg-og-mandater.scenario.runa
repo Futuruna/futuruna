@@ -1,0 +1,152 @@
+@ sprog da
+
+@ importer ./kapitel - 04
+
+-- Scenarierne prøver §§ 28-34. De tilføjer ikke lovstof.
+
+| par28_sammensætning: folketingets_max_medlemmer -> folketingets_max_medlemmer == 179 && færøske_mandater == 2 && grønlandske_mandater == 2
+
+= fulde_valgretsforhold = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
+)
+= uden_indfødsret = Valgretsforhold(
+    har_dansk_indfødsret = Falskt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
+)
+= uden_fast_bopæl = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Falskt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
+)
+= under_valgretsalderen = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Falskt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
+)
+= umyndiggjort = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Sandt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
+)
+= valgret_tabt_efter_lov = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Sandt
+)
+
+= par29_fulde_forhold = opfylder_par29_stk1(fulde_valgretsforhold)
+= par29_uden_indfødsret = opfylder_par29_stk1(uden_indfødsret)
+= par29_uden_fast_bopæl = opfylder_par29_stk1(uden_fast_bopæl)
+= par29_under_alderen = opfylder_par29_stk1(under_valgretsalderen)
+= par29_umyndiggjort = opfylder_par29_stk1(umyndiggjort)
+= par29_tabt_efter_lov = opfylder_par29_stk1(valgret_tabt_efter_lov)
+
+| par29_alle_fem_betingelser: par29_fulde_forhold -> par29_fulde_forhold && par29_uden_indfødsret == Falskt && par29_uden_fast_bopæl == Falskt && par29_under_alderen == Falskt && par29_umyndiggjort == Falskt && par29_tabt_efter_lov == Falskt
+
+= par29_straf_delegeret_til_lov = omfang_af_tab_af_valgret_fastsættes_ved_lov(Straf)
+= par29_fattighjælp_delegeret_til_lov = omfang_af_tab_af_valgret_fastsættes_ved_lov(UnderstøttelseBetragtetSomFattighjælp)
+| par29_begge_valgretstabsgrunde_er_delegeret: par29_straf_delegeret_til_lov -> par29_straf_delegeret_til_lov && par29_fattighjælp_delegeret_til_lov
+
+= gyldig_valgretsalderændring = Valgretsalderændring(
+    folketinget_har_vedtaget = Sandt,
+    folkeafstemning_afholdt = Sandt,
+    bestemmelsen_bortfaldet = Falskt
+)
+= valgretsalderændring_uden_folketingsvedtagelse = Valgretsalderændring(
+    folketinget_har_vedtaget = Falskt,
+    folkeafstemning_afholdt = Sandt,
+    bestemmelsen_bortfaldet = Falskt
+)
+= valgretsalderændring_uden_folkeafstemning = Valgretsalderændring(
+    folketinget_har_vedtaget = Sandt,
+    folkeafstemning_afholdt = Falskt,
+    bestemmelsen_bortfaldet = Falskt
+)
+= forkastet_valgretsalderændring = Valgretsalderændring(
+    folketinget_har_vedtaget = Sandt,
+    folkeafstemning_afholdt = Sandt,
+    bestemmelsen_bortfaldet = Sandt
+)
+= par29_gyldig_ændring = valgretsalderændring_kan_stadfæstes(gyldig_valgretsalderændring)
+= par29_uden_folketingsvedtagelse = valgretsalderændring_kan_stadfæstes(valgretsalderændring_uden_folketingsvedtagelse)
+= par29_uden_folkeafstemning = valgretsalderændring_kan_stadfæstes(valgretsalderændring_uden_folkeafstemning)
+= par29_forkastet_ændring = valgretsalderændring_kan_stadfæstes(forkastet_valgretsalderændring)
+
+| par29_stadfæstelse_kræver_hele_forløbet: par29_gyldig_ændring -> par29_gyldig_ændring && par29_uden_folketingsvedtagelse == Falskt && par29_uden_folkeafstemning == Falskt && par29_forkastet_ændring == Falskt
+
+= valgbar_kandidat = Valgbarhedsforhold(
+    valgretsforhold = fulde_valgretsforhold,
+    straffet_for_uværdig_handling = Falskt
+)
+= kandidat_uden_valgret = Valgbarhedsforhold(
+    valgretsforhold = uden_indfødsret,
+    straffet_for_uværdig_handling = Falskt
+)
+= kandidat_med_uværdig_straf = Valgbarhedsforhold(
+    valgretsforhold = fulde_valgretsforhold,
+    straffet_for_uværdig_handling = Sandt
+)
+= par30_valgbar = opfylder_par30_stk1(valgbar_kandidat)
+= par30_uden_valgret = opfylder_par30_stk1(kandidat_uden_valgret)
+= par30_uværdig_straf = opfylder_par30_stk1(kandidat_med_uværdig_straf)
+
+| par30_valgret_og_ingen_uværdig_straf: par30_valgbar -> par30_valgbar && par30_uden_valgret == Falskt && par30_uværdig_straf == Falskt
+
+= almindelig_nyvalgssituation = Nyvalgssituation(
+    nyt_ministerium_udnævnt = Falskt,
+    statsministeren_har_fremstillet_sig = Falskt
+)
+= nyt_ministerium_før_fremstilling = Nyvalgssituation(
+    nyt_ministerium_udnævnt = Sandt,
+    statsministeren_har_fremstillet_sig = Falskt
+)
+= nyt_ministerium_efter_fremstilling = Nyvalgssituation(
+    nyt_ministerium_udnævnt = Sandt,
+    statsministeren_har_fremstillet_sig = Sandt
+)
+= par32_almindeligt_nyvalg = kongen_kan_udskrive_nyvalg(almindelig_nyvalgssituation)
+= par32_før_fremstilling = kongen_kan_udskrive_nyvalg(nyt_ministerium_før_fremstilling)
+= par32_efter_fremstilling = kongen_kan_udskrive_nyvalg(nyt_ministerium_efter_fremstilling)
+
+| par32_fremstillingsundtagelsen_er_afgrænset: par32_almindeligt_nyvalg -> par32_almindeligt_nyvalg && par32_før_fremstilling == Falskt && par32_efter_fremstilling
+
+= løbende_mandat = Mandatforhold(nyvalg_afholdt = Falskt, valgbarhed_bevaret = Sandt)
+= mandat_efter_nyvalg = Mandatforhold(nyvalg_afholdt = Sandt, valgbarhed_bevaret = Sandt)
+= mandat_uden_valgbarhed = Mandatforhold(nyvalg_afholdt = Falskt, valgbarhed_bevaret = Falskt)
+= par32_løbende_mandat = eksisterende_mandat_består(løbende_mandat)
+= par32_nyvalg_afslutter_mandat = eksisterende_mandat_består(mandat_efter_nyvalg)
+= par32_tabt_valgbarhed_afslutter_mandat = eksisterende_mandat_består(mandat_uden_valgbarhed)
+
+| par32_mandatets_to_ophørsgrunde: par32_løbende_mandat -> par32_løbende_mandat && par32_nyvalg_afslutter_mandat == Falskt && par32_tabt_valgbarhed_afslutter_mandat == Falskt
+
+= par34_sikkerhed = antastelse_af_folketinget_er_højforræderi(AntasterSikkerheden)
+= par34_frihed = antastelse_af_folketinget_er_højforræderi(AntasterFriheden)
+= par34_udsteder_befaling = antastelse_af_folketinget_er_højforræderi(UdstederBefalingOmAntastelse)
+= par34_adlyder_befaling = antastelse_af_folketinget_er_højforræderi(AdlyderBefalingOmAntastelse)
+| par34_alle_fire_handlinger_er_omfattet: par34_sikkerhed -> par34_sikkerhed && par34_frihed && par34_udsteder_befaling && par34_adlyder_befaling
+
+? par28_sammensætning
+? par29_alle_fem_betingelser
+? par29_begge_valgretstabsgrunde_er_delegeret
+? par29_stadfæstelse_kræver_hele_forløbet
+? par30_valgret_og_ingen_uværdig_straf
+? par32_fremstillingsundtagelsen_er_afgrænset
+? par32_mandatets_to_ophørsgrunde
+? par34_alle_fire_handlinger_er_omfattet
+
+@ skriv("Scenarierne for valg og mandater holder.")

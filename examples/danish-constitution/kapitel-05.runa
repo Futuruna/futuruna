@@ -73,11 +73,17 @@ fremsætter begæring herom med angivelse af dagsorden.
 
 --@begin:grundlov_par39--
 
+# Mødebegærer = StatsministerenSomMødebegærer | FolketingsmedlemmerSomMødebegærere(opbakning: Medlemsopbakning)
+# Mødebegæring(begærer: Mødebegærer, skriftlig: Boolsk, dagsorden_angivet: Boolsk)
+
 | formanden_indkalder_med_dagsorden()
 
-| statsministeren_kan_begære_indkaldelse()
-| to_femtedele_kan_begære_indkaldelse()
-| formanden_skal_indkalde(begærende: Heltal, medlemmer: Heltal, statsminister_begærer: Boolsk) -> statsminister_begærer || begærende * 5 >= medlemmer * 2
+= mødeindkaldelsens_medlemstærskel = Brøk(tæller = 2, nævner = 5)
+
+| formanden_skal_indkalde(begæring: Mødebegæring) -> begæring.skriftlig && begæring.dagsorden_angivet && match begæring.begærer {
+    | StatsministerenSomMødebegærer -> Sandt
+    | FolketingsmedlemmerSomMødebegærere(opbakning) -> medlemsopbakning_er_mindst(opbakning, mødeindkaldelsens_medlemstærskel)
+}
 --@end:grundlov_par39--
 
 --@label:grundlov_par40::meta:grundlov_kildemetadata--
@@ -92,7 +98,7 @@ medlemmer af folketinget.
 
 | ministre_har_adgang_til_folketinget()
 | ministre_har_taleret_i_folketinget()
-| ministre_kun_stemmeret_som_medlemmer()
+| minister_har_stemmeret_i_folketinget(er_folketingsmedlem: Boolsk) -> er_folketingsmedlem
 --@end:grundlov_par40--
 
 --@label:grundlov_par41::meta:grundlov_kildemetadata--
@@ -118,31 +124,37 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 
 --@begin:grundlov_par41--
 
--- Stk. 1
+# Lovforslagsområde = AlmindeligtLovforslag | Finanslovsforslag | Tillægsbevillingslovsforslag | MidlertidigtBevillingslovsforslag | Statslånslovsforslag | Normeringslovsforslag | LønningsOgPensionslovsforslag | Indfødsretslovsforslag | Ekspropriationslovsforslag | DirekteSkattelovsforslag | IndirekteSkattelovsforslag | Traktatgennemførelseslovsforslag | Paragraf8Lovsforslag | Paragraf9Lovsforslag | Paragraf10Lovsforslag | Paragraf11Lovsforslag | Paragraf19BeslutningILovsform(særlov_tillader_folkeafstemning: Boolsk) | Grundlovsændringsforslag
+# Lovforslag(område: Lovforslagsområde, påtrængende_efter_par41: Boolsk, ikrafttræden_kan_udsættes: Boolsk, særdeles_påtrængende_efter_par42: Boolsk, straksstadfæstelse_bestemt_i_forslaget: Boolsk)
+# Udsættelsesbegæring(forslag: Lovforslag, opbakning: Medlemsopbakning, skriftlig: Boolsk, underskrevet: Boolsk)
+# Forslagshændelse = Nyvalg | FolketingsåretsUdgang
+# ForslagsstatusVedOphørshændelse(endeligt_vedtaget: Boolsk, hændelse: Forslagshændelse)
+
 | ethvert_medlem_kan_fremsætte_forslag_til_love_og_beslutninger()
 
--- Stk. 2
 = påkrævede_behandlinger = 3
-
--- Stk. 3: udsættelse af tredje behandling
-| to_femtedele_kan_begære_udsættelse()
-| kan_begære_udsættelse(begærende: Heltal, medlemmer: Heltal) -> begærende * 5 >= medlemmer * 2
+| lovforslag_kan_endeligt_vedtages(antal_behandlinger: Heltal) -> antal_behandlinger >= påkrævede_behandlinger
 
 = udsættelse_søgnedage = 12
+= udsættelsens_medlemstærskel = Brøk(tæller = 2, nævner = 5)
 
--- Stk. 3: undtagelser fra udsættelse
-| finanslove_undtaget_fra_udsættelse()
-| tillægsbevillingslove_undtaget_fra_udsættelse()
-| midlertidige_bevillingslove_undtaget_fra_udsættelse()
-| statslånslove_undtaget_fra_udsættelse()
-| indfødsretslove_undtaget_fra_udsættelse()
-| ekspropriationslove_undtaget_fra_udsættelse()
-| indirekte_skattelove_undtaget_fra_udsættelse()
-| påtrængende_love_undtaget_fra_udsættelse()
+| lovforslag_er_undtaget_fra_udsættelse(forslag: Lovforslag) -> match forslag.område {
+    | Finanslovsforslag -> Sandt
+    | Tillægsbevillingslovsforslag -> Sandt
+    | MidlertidigtBevillingslovsforslag -> Sandt
+    | Statslånslovsforslag -> Sandt
+    | Indfødsretslovsforslag -> Sandt
+    | Ekspropriationslovsforslag -> Sandt
+    | IndirekteSkattelovsforslag -> Sandt
+    | _ -> forslag.påtrængende_efter_par41 && forslag.ikrafttræden_kan_udsættes == Falskt
+}
 
--- Stk. 4
-| uafsluttede_forslag_bortfalder_ved_nyvalg()
-| uafsluttede_forslag_bortfalder_ved_folketingsårets_udgang()
+| udsættelsesbegæring_opfylder_par41_stk3(begæring: Udsættelsesbegæring) -> begæring.skriftlig && begæring.underskrevet && medlemsopbakning_er_mindst(begæring.opbakning, udsættelsens_medlemstærskel) && lovforslag_er_undtaget_fra_udsættelse(begæring.forslag) == Falskt
+
+| forslag_bortfalder_efter_par41_stk4(status: ForslagsstatusVedOphørshændelse) -> status.endeligt_vedtaget == Falskt && match status.hændelse {
+    | Nyvalg -> Sandt
+    | FolketingsåretsUdgang -> Sandt
+}
 --@end:grundlov_par41--
 
 --@label:grundlov_par42::meta:grundlov_kildemetadata--
@@ -197,53 +209,65 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 
 --@begin:grundlov_par42--
 
--- Stk. 1: krav om folkeafstemning
-| en_tredjedel_kan_begære_folkeafstemning()
-| kan_begære_folkeafstemning(begærende: Heltal, medlemmer: Heltal) -> begærende * 3 >= medlemmer
+# Folkeafstemningsbegæring(forslag: Lovforslag, opbakning: Medlemsopbakning, søgnedage_efter_endelig_vedtagelse: Heltal, skriftlig: Boolsk, underskrevet: Boolsk)
+# Stadfæstelsessituation(forslag: Lovforslag, fristen_udløbet: Boolsk, folkeafstemning_begæret: Boolsk, folkeafstemning_afholdt: Boolsk)
+# Tilbagetrækningssituation(folkeafstemning_begæret: Boolsk, søgnedage_efter_endelig_vedtagelse: Heltal)
+# Folkeafstemningsresultat(mod_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal)
+# StraksstadfæstetLovstatus = FørFolkeafstemning | IkkeForkastetVedFolkeafstemning | ForkastetIkkeKundgjort | ForkastelseKundgjort
 
 = frist_begæring_søgnedage = 3
+= folkeafstemningsbegæringens_medlemstærskel = Brøk(tæller = 1, nævner = 3)
 
--- Stk. 2: kongen kan ikke stadfæste før fristen (undtagen stk. 7)
-| stadfæstelse_suspenderet_under_frist()
+| lovforslag_kan_undergives_folkeafstemning(forslag: Lovforslag) -> match forslag.område {
+    | Finanslovsforslag -> Falskt
+    | Tillægsbevillingslovsforslag -> Falskt
+    | MidlertidigtBevillingslovsforslag -> Falskt
+    | Statslånslovsforslag -> Falskt
+    | Normeringslovsforslag -> Falskt
+    | LønningsOgPensionslovsforslag -> Falskt
+    | Indfødsretslovsforslag -> Falskt
+    | Ekspropriationslovsforslag -> Falskt
+    | DirekteSkattelovsforslag -> Falskt
+    | IndirekteSkattelovsforslag -> Falskt
+    | Traktatgennemførelseslovsforslag -> Falskt
+    | Paragraf8Lovsforslag -> Falskt
+    | Paragraf9Lovsforslag -> Falskt
+    | Paragraf10Lovsforslag -> Falskt
+    | Paragraf11Lovsforslag -> Falskt
+    | Paragraf19BeslutningILovsform(særlov_tillader) -> særlov_tillader
+    | Grundlovsændringsforslag -> Falskt
+    | AlmindeligtLovforslag -> Sandt
+}
 
--- Stk. 3: folketinget kan trække forslaget tilbage
+| folkeafstemningsbegæring_opfylder_par42_stk1(begæring: Folkeafstemningsbegæring) -> lovforslag_kan_undergives_folkeafstemning(begæring.forslag) && medlemsopbakning_er_mindst(begæring.opbakning, folkeafstemningsbegæringens_medlemstærskel) && begæring.søgnedage_efter_endelig_vedtagelse >= 0 && begæring.søgnedage_efter_endelig_vedtagelse <= frist_begæring_søgnedage && begæring.skriftlig && begæring.underskrevet
+
+| lovforslag_kan_stadfæstes_straks_efter_par42_stk7(forslag: Lovforslag) -> lovforslag_kan_undergives_folkeafstemning(forslag) && forslag.særdeles_påtrængende_efter_par42 && forslag.straksstadfæstelse_bestemt_i_forslaget
+
+| stadfæstelse_opfylder_par42_stk2(situation: Stadfæstelsessituation) -> hvis lovforslag_kan_undergives_folkeafstemning(situation.forslag) == Falskt {
+    Sandt
+} ellers {
+    hvis lovforslag_kan_stadfæstes_straks_efter_par42_stk7(situation.forslag) {
+        Sandt
+    } ellers {
+        situation.fristen_udløbet && (situation.folkeafstemning_begæret == Falskt || situation.folkeafstemning_afholdt)
+    }
+}
+
 = frist_tilbagetrækning_søgnedage = 5
-| folketinget_kan_trække_lovforslag_tilbage()
+| folketinget_kan_lade_forslaget_bortfalde(situation: Tilbagetrækningssituation) -> situation.folkeafstemning_begæret && situation.søgnedage_efter_endelig_vedtagelse >= 0 && situation.søgnedage_efter_endelig_vedtagelse <= frist_tilbagetrækning_søgnedage
 
--- Stk. 4: tidsramme for folkeafstemning
 = folkeafstemning_tidligst_søgnedage = 12
 = folkeafstemning_senest_søgnedage = 18
+| folkeafstemningsdag_opfylder_par42_stk4(søgnedage_efter_bekendtgørelse: Heltal) -> søgnedage_efter_bekendtgørelse >= folkeafstemning_tidligst_søgnedage && søgnedage_efter_bekendtgørelse <= folkeafstemning_senest_søgnedage
 
--- Stk. 5: bortfaldskrav — dobbelt betingelse
-| lovforslag_bortfalder_ved_flertal_mod_og_tredive_pct()
-| lovforslag_forkastet_ved_folkeafstemning(mod_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal) -> mod_stemmer * 2 > deltagende && mod_stemmer * 100 >= stemmeberettigede * 30
+| folkeafstemningsresultat_er_konsistent(resultat: Folkeafstemningsresultat) -> resultat.mod_stemmer >= 0 && resultat.deltagende >= 0 && resultat.stemmeberettigede > 0 && resultat.mod_stemmer <= resultat.deltagende && resultat.deltagende <= resultat.stemmeberettigede
+| lovforslag_forkastet_ved_folkeafstemning(resultat: Folkeafstemningsresultat) -> folkeafstemningsresultat_er_konsistent(resultat) && resultat.mod_stemmer * 2 > resultat.deltagende && resultat.mod_stemmer * 100 >= resultat.stemmeberettigede * 30
 
--- Stk. 6: undtaget fra folkeafstemning
-| finanslove_undtaget_fra_folkeafstemning()
-| tillægsbevillingslove_undtaget_fra_folkeafstemning()
-| midlertidige_bevillingslove_undtaget_fra_folkeafstemning()
-| statslånslove_undtaget_fra_folkeafstemning()
-| normeringslove_undtaget_fra_folkeafstemning()
-| lønnings_og_pensionslove_undtaget_fra_folkeafstemning()
-| indfødsretslove_undtaget_fra_folkeafstemning()
-| ekspropriationslove_undtaget_fra_folkeafstemning()
-| direkte_skattelove_undtaget_fra_folkeafstemning()
-| indirekte_skattelove_undtaget_fra_folkeafstemning()
-| traktatgennemførelseslove_undtaget_fra_folkeafstemning()
-| par8_love_undtaget_fra_folkeafstemning()
-| par9_love_undtaget_fra_folkeafstemning()
-| par10_love_undtaget_fra_folkeafstemning()
-| par11_love_undtaget_fra_folkeafstemning()
-| par19_beslutninger_undtaget_medmindre_særlov()
 | grundlovsændringer_følger_par88()
 
--- Stk. 7: påtrængende stadfæstelse + mulig efterfølgende folkeafstemning
-| påtrængende_lovforslag_kan_stadfæstes_straks()
-| påtrængende_stadfæstelse_kræver_bestemmelse_i_forslaget()
 = frist_kundgørelse_dage = 14
-| forkastet_lov_bortfalder_fra_kundgørelsesdagen()
+| straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(status: StraksstadfæstetLovstatus) -> status != ForkastelseKundgjort
 
--- Stk. 8
 | folkeafstemningsregler_fastsættes_ved_lov()
 --@end:grundlov_par42--
 
@@ -286,8 +310,11 @@ midlertidig bevillingslov fremsættes for folketinget.
 
 --@begin:grundlov_par45--
 
+# Finanslovsforløb(måneder_før_finansårets_begyndelse: Heltal, behandling_forventes_afsluttet_før_finansårets_begyndelse: Boolsk)
+
 = finanslov_frist_måneder = 4
-| midlertidig_bevillingslov_ved_forsinkelse()
+| finanslovsforslag_er_fremsat_rettidigt(forløb: Finanslovsforløb) -> forløb.måneder_før_finansårets_begyndelse >= finanslov_frist_måneder
+| midlertidig_bevillingslov_skal_fremsættes(forløb: Finanslovsforløb) -> forløb.behandling_forventes_afsluttet_før_finansårets_begyndelse == Falskt
 --@end:grundlov_par45--
 
 --@label:grundlov_par46::meta:grundlov_kildemetadata--
@@ -302,8 +329,11 @@ midlertidig bevillingslov.
 
 --@begin:grundlov_par46--
 
-| ingen_skatteopkrævning_før_finanslov()
-| ingen_udgift_uden_hjemmel_i_bevillingslov()
+# VedtagetBevillingslov = FinanslovVedtaget | MidlertidigBevillingslovVedtaget | IngenBevillingslovVedtaget
+# Udgiftshjemmel = HjemmelIFinanslov | HjemmelITillægsbevillingslov | HjemmelIMidlertidigBevillingslov | IngenUdgiftshjemmel
+
+| skatter_må_opkræves_efter_par46_stk1(bevillingslov: VedtagetBevillingslov) -> bevillingslov != IngenBevillingslovVedtaget
+| statsudgift_må_afholdes_efter_par46_stk2(hjemmel: Udgiftshjemmel) -> hjemmel != IngenUdgiftshjemmel
 --@end:grundlov_par46--
 
 --@label:grundlov_par47::meta:grundlov_kildemetadata--
@@ -352,10 +382,14 @@ skal forhandles i et offentligt eller lukket møde.
 
 --@begin:grundlov_par49--
 
+# KravstillerTilLukketMøde = FormandenSomKravstiller | MedlemmerSomKravstillere(antal_efter_forretningsordenen_opfyldt: Boolsk) | MinisterSomKravstiller
+
 | folketingets_møder_er_offentlige()
-| formanden_kan_forlange_lukket_møde()
-| medlemmer_kan_forlange_lukket_møde()
-| ministre_kan_forlange_lukket_møde()
+| kan_forlange_uvedkommende_fjernet(kravstiller: KravstillerTilLukketMøde) -> match kravstiller {
+    | FormandenSomKravstiller -> Sandt
+    | MedlemmerSomKravstillere(antal_opfyldt) -> antal_opfyldt
+    | MinisterSomKravstiller -> Sandt
+}
 | lukket_møde_afgøres_uden_forhandling()
 --@end:grundlov_par49--
 
@@ -367,8 +401,10 @@ er tilstede og deltager i afstemningen.
 
 --@begin:grundlov_par50--
 
-| beslutningsdygtighed_kræver_over_halvdelen()
-| folketinget_er_beslutningsdygtigt(tilstede: Heltal, medlemmer: Heltal) -> tilstede * 2 > medlemmer
+# Afstemningsdeltagelse(tilstede_og_deltagende: Heltal, medlemmer_i_alt: Heltal)
+
+| afstemningsdeltagelse_er_konsistent(deltagelse: Afstemningsdeltagelse) -> deltagelse.tilstede_og_deltagende >= 0 && deltagelse.medlemmer_i_alt > 0 && deltagelse.tilstede_og_deltagende <= deltagelse.medlemmer_i_alt
+| folketinget_er_beslutningsdygtigt(deltagelse: Afstemningsdeltagelse) -> afstemningsdeltagelse_er_konsistent(deltagelse) && deltagelse.tilstede_og_deltagende * 2 > deltagelse.medlemmer_i_alt
 --@end:grundlov_par50--
 
 --@label:grundlov_par51::meta:grundlov_kildemetadata--
@@ -405,7 +441,7 @@ offentligt anliggende under forhandling og derom æske ministrenes forklaring.
 
 --@begin:grundlov_par53--
 
-| medlemmer_kan_med_folketingets_samtykke_rejse_anliggender()
+| medlem_kan_rejse_offentligt_anliggende(samtykke: Samtykke) -> samtykke == Givet
 | medlemmer_kan_æske_ministrenes_forklaring()
 --@end:grundlov_par53--
 
@@ -457,12 +493,12 @@ samtykke drages til ansvar udenfor samme.
 
 --@begin:grundlov_par57--
 
-| parlamentarisk_immunitet_mod_tiltale()
-| parlamentarisk_immunitet_mod_fængsling()
-| immunitet_kan_ophæves_med_folketingets_samtykke()
-| immunitet_undtaget_ved_fersk_gerning()
-| ytringsfrihed_i_folketinget()
-| ytringsfrihed_kan_ophæves_med_folketingets_samtykke()
+# IndgrebModFolketingsmedlem = TiltaleAfFolketingsmedlem | FængslingAfFolketingsmedlem
+# Immunitetssag(indgreb: IndgrebModFolketingsmedlem, folketingets_samtykke: Samtykke, grebet_på_fersk_gerning: Boolsk)
+# Ytringsansvarssag(folketingets_samtykke: Samtykke)
+
+| indgreb_mod_folketingsmedlem_opfylder_par57(sag: Immunitetssag) -> sag.folketingets_samtykke == Givet || sag.grebet_på_fersk_gerning
+| ansvar_uden_for_folketinget_for_ytring_opfylder_par57(sag: Ytringsansvarssag) -> sag.folketingets_samtykke == Givet
 --@end:grundlov_par57--
 
 --@label:grundlov_par58::meta:grundlov_kildemetadata--

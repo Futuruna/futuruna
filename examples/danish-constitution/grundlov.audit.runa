@@ -20,9 +20,16 @@
 
 -- Disse typer og regler er ikke ny lovtekst. De er auditens konkrete
 -- scenarier for at teste den formaliserede lovtekst ovenfor.
-# AfskærmetLovtype = Indfødsretslov | Ekspropriationslov | DirekteSkattelov | IndirekteSkattelov | Traktatgennemførelseslov
-# ForsørgelsesStatus = Selvforsørgende | Fattighjælp
-# PåtrængendeLovStadium = FørFolkeafstemning | EfterForkastelseKundgjort
+
+> audit_lovforslag(område: Lovforslagsområde) -> Lovforslag {
+    Lovforslag(
+        område = område,
+        påtrængende_efter_par41 = Falskt,
+        ikrafttræden_kan_udsættes = Sandt,
+        særdeles_påtrængende_efter_par42 = Falskt,
+        straksstadfæstelse_bestemt_i_forslaget = Falskt
+    )
+}
 
 | ændre_rigets_område(samtykke: Samtykke) -> mellemfolkelig_sag_opfylder_par19_stk1(MellemfolkeligSag(
     handling = ÆndrerRigetsOmråde,
@@ -42,17 +49,11 @@
     folketingets_samtykke = samtykke
 ))
 
-| folkeafstemning_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == DirekteSkattelov || lovtype == IndirekteSkattelov || lovtype == Traktatgennemførelseslov
+| folkeafstemning_afskåret(forslag: Lovforslag) -> lovforslag_kan_undergives_folkeafstemning(forslag) == Falskt
 
-| udsættelse_af_tredje_behandling_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == IndirekteSkattelov
+| udsættelse_af_tredje_behandling_afskåret(forslag: Lovforslag) -> lovforslag_er_undtaget_fra_udsættelse(forslag)
 
-| dobbelt_afskåret(lovtype: AfskærmetLovtype) -> folkeafstemning_afskåret(lovtype) && udsættelse_af_tredje_behandling_afskåret(lovtype)
-
-| hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Falskt
-| exception fattighjælp hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Sandt under status == Fattighjælp
-
-| påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> påtrængende_lovforslag_kan_stadfæstes_straks() under stadium == FørFolkeafstemning
-| exception forkastet påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> Falskt under stadium == EfterForkastelseKundgjort
+| dobbelt_afskåret(forslag: Lovforslag) -> folkeafstemning_afskåret(forslag) && udsættelse_af_tredje_behandling_afskåret(forslag)
 
 -- ============================================================================
 -- Invarianter
@@ -184,112 +185,178 @@
 | par28_grønland: grønlandske_mandater -> grønlandske_mandater == 2
 
 -- Par. 29: valgret kumulativt
-= valgret_alle_opfyldt = har_valgret(
-    indfødsret = Sandt,
-    fast_bopæl = Sandt,
-    valgretsalder_nået = Sandt,
-    umyndiggjort = Falskt
+= valgretsforhold_alle_opfyldt = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
 )
-= valgret_mangler_indfødsret = har_valgret(
-    indfødsret = Falskt,
-    fast_bopæl = Sandt,
-    valgretsalder_nået = Sandt,
-    umyndiggjort = Falskt
+= valgretsforhold_mangler_indfødsret = Valgretsforhold(
+    har_dansk_indfødsret = Falskt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
 )
-= valgret_mangler_bopæl = har_valgret(
-    indfødsret = Sandt,
-    fast_bopæl = Falskt,
-    valgretsalder_nået = Sandt,
-    umyndiggjort = Falskt
+= valgretsforhold_mangler_bopæl = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Falskt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
 )
-= valgret_mangler_alder = har_valgret(
-    indfødsret = Sandt,
-    fast_bopæl = Sandt,
-    valgretsalder_nået = Falskt,
-    umyndiggjort = Falskt
+= valgretsforhold_mangler_alder = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Falskt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
 )
-= valgret_umyndiggjort = har_valgret(
-    indfødsret = Sandt,
-    fast_bopæl = Sandt,
-    valgretsalder_nået = Sandt,
-    umyndiggjort = Sandt
+= valgretsforhold_umyndiggjort = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Sandt,
+    valgret_tabt_efter_lovbestemmelse = Falskt
 )
+= valgretsforhold_tab_efter_lov = Valgretsforhold(
+    har_dansk_indfødsret = Sandt,
+    har_fast_bopæl_i_riget = Sandt,
+    har_nået_valgretsalderen = Sandt,
+    er_umyndiggjort = Falskt,
+    valgret_tabt_efter_lovbestemmelse = Sandt
+)
+= valgret_alle_opfyldt = opfylder_par29_stk1(valgretsforhold_alle_opfyldt)
+= valgret_mangler_indfødsret = opfylder_par29_stk1(valgretsforhold_mangler_indfødsret)
+= valgret_mangler_bopæl = opfylder_par29_stk1(valgretsforhold_mangler_bopæl)
+= valgret_mangler_alder = opfylder_par29_stk1(valgretsforhold_mangler_alder)
+= valgret_umyndiggjort = opfylder_par29_stk1(valgretsforhold_umyndiggjort)
+= valgret_tabt_efter_lov = opfylder_par29_stk1(valgretsforhold_tab_efter_lov)
 | par29_alle_krav: valgret_alle_opfyldt -> valgret_alle_opfyldt == Sandt
 | par29_kræver_indfødsret: valgret_mangler_indfødsret -> valgret_mangler_indfødsret == Falskt
 | par29_kræver_bopæl: valgret_mangler_bopæl -> valgret_mangler_bopæl == Falskt
 | par29_kræver_alder: valgret_mangler_alder -> valgret_mangler_alder == Falskt
 | par29_umyndig_udelukker: valgret_umyndiggjort -> valgret_umyndiggjort == Falskt
+| par29_tab_efter_lov_udelukker: valgret_tabt_efter_lov -> valgret_tabt_efter_lov == Falskt
 
 -- Par. 30: valgbarhed kræver valgret + ingen uværdig straf
-= valgbar_ren = er_valgbar(valgret_opfyldt = Sandt, straffet_uværdig = Falskt)
-= valgbar_straffet = er_valgbar(valgret_opfyldt = Sandt, straffet_uværdig = Sandt)
-= valgbar_ingen_valgret = er_valgbar(valgret_opfyldt = Falskt, straffet_uværdig = Falskt)
+= valgbar_ren = opfylder_par30_stk1(Valgbarhedsforhold(
+    valgretsforhold = valgretsforhold_alle_opfyldt,
+    straffet_for_uværdig_handling = Falskt
+))
+= valgbar_straffet = opfylder_par30_stk1(Valgbarhedsforhold(
+    valgretsforhold = valgretsforhold_alle_opfyldt,
+    straffet_for_uværdig_handling = Sandt
+))
+= valgbar_ingen_valgret = opfylder_par30_stk1(Valgbarhedsforhold(
+    valgretsforhold = valgretsforhold_mangler_indfødsret,
+    straffet_for_uværdig_handling = Falskt
+))
 | par30_valgbar: valgbar_ren -> valgbar_ren == Sandt
 | par30_straf_udelukker: valgbar_straffet -> valgbar_straffet == Falskt
 | par30_kræver_valgret: valgbar_ingen_valgret -> valgbar_ingen_valgret == Falskt
 
 -- Par. 32: valgperiode og nyvalg efter nyt ministerium
 | par32_valgperiode: valgperiode_år -> valgperiode_år == 4
-= par32_fremstillet = kan_udskrive_valg_efter_nyt_ministerium(Sandt)
-= par32_ikke_fremstillet = kan_udskrive_valg_efter_nyt_ministerium(Falskt)
+= par32_fremstillet = kongen_kan_udskrive_nyvalg(Nyvalgssituation(
+    nyt_ministerium_udnævnt = Sandt,
+    statsministeren_har_fremstillet_sig = Sandt
+))
+= par32_ikke_fremstillet = kongen_kan_udskrive_nyvalg(Nyvalgssituation(
+    nyt_ministerium_udnævnt = Sandt,
+    statsministeren_har_fremstillet_sig = Falskt
+))
 | par32_fremstillet_ja: par32_fremstillet -> par32_fremstillet == Sandt
 | par32_ikke_fremstillet_nej: par32_ikke_fremstillet -> par32_ikke_fremstillet == Falskt
 
 -- Par. 39: formanden skal indkalde
-= par39_pm = formanden_skal_indkalde(
-    begærende = 0,
-    medlemmer = 179,
-    statsminister_begærer = Sandt
-)
-= par39_2f5 = formanden_skal_indkalde(
-    begærende = 72,
-    medlemmer = 179,
-    statsminister_begærer = Falskt
-)
-= par39_under = formanden_skal_indkalde(
-    begærende = 71,
-    medlemmer = 179,
-    statsminister_begærer = Falskt
-)
+= par39_pm = formanden_skal_indkalde(Mødebegæring(
+    begærer = StatsministerenSomMødebegærer,
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+))
+= par39_2f5 = formanden_skal_indkalde(Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+))
+= par39_under = formanden_skal_indkalde(Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 71, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+))
 | par39_statsminister_altid: par39_pm -> par39_pm == Sandt
 | par39_to_femtedele_nok: par39_2f5 -> par39_2f5 == Sandt
 | par39_under_to_femtedele_nej: par39_under -> par39_under == Falskt
 
 -- Par. 41 stk. 3: udsættelse kræver 2/5
-= par41_2f5 = kan_begære_udsættelse(begærende = 72, medlemmer = 179)
-= par41_under = kan_begære_udsættelse(begærende = 71, medlemmer = 179)
+= par41_2f5 = udsættelsesbegæring_opfylder_par41_stk3(Udsættelsesbegæring(
+    forslag = audit_lovforslag(AlmindeligtLovforslag),
+    opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+))
+= par41_under = udsættelsesbegæring_opfylder_par41_stk3(Udsættelsesbegæring(
+    forslag = audit_lovforslag(AlmindeligtLovforslag),
+    opbakning = Medlemsopbakning(antal = 71, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+))
 | par41_udsættelse_nok: par41_2f5 -> par41_2f5 == Sandt
 | par41_udsættelse_nej: par41_under -> par41_under == Falskt
 
 -- Par. 42 stk. 1: folkeafstemning kræver 1/3
-= par42_1f3 = kan_begære_folkeafstemning(begærende = 60, medlemmer = 179)
-= par42_under = kan_begære_folkeafstemning(begærende = 59, medlemmer = 179)
+= par42_1f3 = folkeafstemningsbegæring_opfylder_par42_stk1(Folkeafstemningsbegæring(
+    forslag = audit_lovforslag(AlmindeligtLovforslag),
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+))
+= par42_under = folkeafstemningsbegæring_opfylder_par42_stk1(Folkeafstemningsbegæring(
+    forslag = audit_lovforslag(AlmindeligtLovforslag),
+    opbakning = Medlemsopbakning(antal = 59, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+))
 | par42_begæring_nok: par42_1f3 -> par42_1f3 == Sandt
 | par42_begæring_nej: par42_under -> par42_under == Falskt
 
 -- Par. 42 stk. 5: dobbelt bortfaldskrav
-= par42_flertal_og_30pct = lovforslag_forkastet_ved_folkeafstemning(
+= par42_flertal_og_30pct = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(
     mod_stemmer = 600000,
     deltagende = 1000000,
     stemmeberettigede = 1800000
-)
-= par42_flertal_men_under_30pct = lovforslag_forkastet_ved_folkeafstemning(
+))
+= par42_flertal_men_under_30pct = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(
     mod_stemmer = 510000,
     deltagende = 1000000,
     stemmeberettigede = 1800000
-)
-= par42_minoritet = lovforslag_forkastet_ved_folkeafstemning(
+))
+= par42_minoritet = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(
     mod_stemmer = 400000,
     deltagende = 1000000,
     stemmeberettigede = 1800000
-)
+))
 | par42_begge_krav_opfyldt: par42_flertal_og_30pct -> par42_flertal_og_30pct == Sandt
 | par42_mangler_30pct: par42_flertal_men_under_30pct -> par42_flertal_men_under_30pct == Falskt
 | par42_mangler_flertal: par42_minoritet -> par42_minoritet == Falskt
 
 -- Par. 50: beslutningsdygtighed
-= par50_nok = folketinget_er_beslutningsdygtigt(tilstede = 90, medlemmer = 179)
-= par50_halvdelen = folketinget_er_beslutningsdygtigt(tilstede = 89, medlemmer = 179)
+= par50_nok = folketinget_er_beslutningsdygtigt(Afstemningsdeltagelse(
+    tilstede_og_deltagende = 90,
+    medlemmer_i_alt = 179
+))
+= par50_halvdelen = folketinget_er_beslutningsdygtigt(Afstemningsdeltagelse(
+    tilstede_og_deltagende = 89,
+    medlemmer_i_alt = 179
+))
 | par50_over_halvdelen: par50_nok -> par50_nok == Sandt
 | par50_ikke_nok: par50_halvdelen -> par50_halvdelen == Falskt
 
@@ -373,7 +440,10 @@
 -- folketinget udtrykker straks mistillid. PM kan hverken blive
 -- (§ 15) eller udskrive valg (§ 32 stk. 2).
 = dødvande_kan_forblive = minister_kan_forblive(Udtalt)
-= dødvande_kan_udskrive = kan_udskrive_valg_efter_nyt_ministerium(Falskt)
+= dødvande_kan_udskrive = kongen_kan_udskrive_nyvalg(Nyvalgssituation(
+    nyt_ministerium_udnævnt = Sandt,
+    statsministeren_har_fremstillet_sig = Falskt
+))
 -- Begge veje er blokeret: kan ikke forblive OG kan ikke udskrive valg
 | dødvande_forblive_blokeret: dødvande_kan_forblive -> dødvande_kan_forblive == Falskt
 | dødvande_valg_blokeret: dødvande_kan_udskrive -> dødvande_kan_udskrive == Falskt
@@ -408,10 +478,10 @@
 -- § 42 stk. 6: indfødsretslove kan ikke undergives folkeafstemning.
 -- Vælgerkorpsets medlemskreds kan derfor udvides ved almindelig lov uden
 -- den folkeafstemningslås, som gælder for valgretsalderen.
-= par29_44_indfødsret_uden_referendum = folkeafstemning_afskåret(Indfødsretslov)
-= par41_42_indfødsret_dobbelt = dobbelt_afskåret(Indfødsretslov)
-= par41_42_ekspropriation_dobbelt = dobbelt_afskåret(Ekspropriationslov)
-= par41_42_direkte_skat_kun_referendum = dobbelt_afskåret(DirekteSkattelov)
+= par29_44_indfødsret_uden_referendum = folkeafstemning_afskåret(audit_lovforslag(Indfødsretslovsforslag))
+= par41_42_indfødsret_dobbelt = dobbelt_afskåret(audit_lovforslag(Indfødsretslovsforslag))
+= par41_42_ekspropriation_dobbelt = dobbelt_afskåret(audit_lovforslag(Ekspropriationslovsforslag))
+= par41_42_direkte_skat_kun_referendum = dobbelt_afskåret(audit_lovforslag(DirekteSkattelovsforslag))
 | indfødsret_udvider_vælgerkorps_uden_referendum: par29_44_indfødsret_uden_referendum -> par29_44_indfødsret_uden_referendum == Sandt
 | indfødsret_dobbelt_afskåret: par41_42_indfødsret_dobbelt -> par41_42_indfødsret_dobbelt == Sandt
 | ekspropriation_dobbelt_afskåret: par41_42_ekspropriation_dobbelt -> par41_42_ekspropriation_dobbelt == Sandt
@@ -420,16 +490,12 @@
 -- Tværgående: par. 29 vs par. 75 — hjælp som ret, men med politisk risiko
 -- § 75 giver ret til offentlig hjælp ved manglende forsørgelse.
 -- § 29 lader loven bestemme, hvornår understøttelse betragtet som fattighjælp
--- medfører tab af valgret. Social beskyttelse og politisk deltagelse er derfor
--- ikke helt adskilte spor i grundlovsteksten.
-= par29_75_fattighjælp_risiko = hjælp_kan_have_valgretspris(Fattighjælp)
-= par29_75_selvforsørgende_ingen_risiko = hjælp_kan_have_valgretspris(Selvforsørgende)
+-- medfører tab af valgret. Grundloven åbner dermed en lovgivningskanal, men
+-- fastslår ikke selv, at modtagelse af hjælp medfører tab af valgret.
 = par75_hjælp_ret = ret_til_offentlig_hjælp_ved_manglende_forsørgelse()
-= par29_fattighjælp_valgretstab_lovkanal = tab_af_valgret_ved_straf_og_fattighjælp_fastsættes_ved_lov()
+= par29_fattighjælp_valgretstab_lovkanal = omfang_af_tab_af_valgret_fastsættes_ved_lov(UnderstøttelseBetragtetSomFattighjælp)
 | par75_hjælp_er_ret: par75_hjælp_ret -> par75_hjælp_ret == Sandt
 | par29_fattighjælp_kan_koste_valgret: par29_fattighjælp_valgretstab_lovkanal -> par29_fattighjælp_valgretstab_lovkanal == Sandt
-| fattighjælp_valgretsrisiko: par29_75_fattighjælp_risiko -> par29_75_fattighjælp_risiko == Sandt
-| selvforsørgende_uden_fattighjælpsrisiko: par29_75_selvforsørgende_ingen_risiko -> par29_75_selvforsørgende_ingen_risiko == Falskt
 
 -- Tværgående: par. 42 stk. 5 — lavt valgdeltagelse-paradoks
 -- Ved folkeafstemning: bortfald kræver flertal + 30% af stemmeberettigede.
@@ -440,16 +506,16 @@
 -- mod=20%, deltagende=20%, stemmeberettigede=100%.
 -- Flertal: 20% > 10% ✓. Men 20% < 30% ✗. IKKE bortfald!
 -- 100% modstand er ikke nok ved lav deltagelse.
-= par42_lav_deltagelse = lovforslag_forkastet_ved_folkeafstemning(
+= par42_lav_deltagelse = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(
     mod_stemmer = 200000,
     deltagende = 200000,
     stemmeberettigede = 1000000
-)
-= par42_grænse_deltagelse = lovforslag_forkastet_ved_folkeafstemning(
+))
+= par42_grænse_deltagelse = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(
     mod_stemmer = 300000,
     deltagende = 300000,
     stemmeberettigede = 1000000
-)
+))
 | par42_enstemmig_modstand_ikke_nok: par42_lav_deltagelse -> par42_lav_deltagelse == Falskt
 | par42_grænse_30pct_nok: par42_grænse_deltagelse -> par42_grænse_deltagelse == Sandt
 
@@ -458,13 +524,13 @@
 -- kræver folkeafstemning og loven forkastes, bortfalder den først fra
 -- kundgørelsesdagen. Referendumkontrollen kan altså være efterfølgende,
 -- ikke opsættende.
-= par42_påtrængende_før_afstemning = påtrængende_lov_virker(FørFolkeafstemning)
-= par42_påtrængende_efter_forkastelse = påtrængende_lov_virker(EfterForkastelseKundgjort)
+= par42_påtrængende_før_afstemning = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(FørFolkeafstemning)
+= par42_påtrængende_efter_forkastelse = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(ForkastelseKundgjort)
 | påtrængende_lov_midlertidigt_i_kraft: par42_påtrængende_før_afstemning -> par42_påtrængende_før_afstemning == Sandt
 | påtrængende_lov_bortfalder_efter_kundgørelse: par42_påtrængende_efter_forkastelse -> par42_påtrængende_efter_forkastelse == Falskt
 
--- Tværgående: par. 27 + 32 stk. 7 — edssprog-symmetri
-| ed_symmetri_tjenestemand_folketingsmedlem: nyt_medlem_aflægger_grundlovs_ed() -> nyt_medlem_aflægger_grundlovs_ed()
+-- Tværgående: par. 27 + 32 stk. 7 — samme højtidelige forsikring
+| forsikring_symmetri_tjenestemand_folketingsmedlem: nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven() -> nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven()
 
 -- Tværgående: samtykke-symmetri (alle 7 samtykke-funktioner)
 | samtykke_5_11: par5_uden -> par5_uden == par11_uden
@@ -496,7 +562,7 @@
 | delegation_udenrigsnævn: udenrigsnævn_fastsættes_ved_lov() -> udenrigsnævn_fastsættes_ved_lov()
 | delegation_tjenestemandsansættelse: tjenestemandsansættelse_fastsættes_ved_lov() -> tjenestemandsansættelse_fastsættes_ved_lov()
 | delegation_tjenestemandsafskedigelse: tjenestemandsforhold_fastsættes_ved_lov() -> tjenestemandsforhold_fastsættes_ved_lov()
-| delegation_tab_af_valgret: tab_af_valgret_ved_straf_fastsættes_ved_lov() -> tab_af_valgret_ved_straf_fastsættes_ved_lov()
+| delegation_tab_af_valgret: omfang_af_tab_af_valgret_fastsættes_ved_lov(Straf) -> omfang_af_tab_af_valgret_fastsættes_ved_lov(Straf) && omfang_af_tab_af_valgret_fastsættes_ved_lov(UnderstøttelseBetragtetSomFattighjælp)
 | delegation_valgmåde: valgmåde_fastsættes_ved_valglov() -> valgmåde_fastsættes_ved_valglov()
 | delegation_rigsretten: rigsretten_fastsættes_ved_lov() -> rigsretten_fastsættes_ved_lov()
 | delegation_dømmende_magt: dømmende_magt_ordnes_ved_lov() -> dømmende_magt_ordnes_ved_lov()
@@ -618,10 +684,13 @@
 -- ansvar for ytringer i folketinget, medmindre folketinget samtykker.
 -- § 77 (kap. VIII): generel ytringsfrihed — alle borgere, men under
 -- ansvar for domstolene.
--- § 57 er STÆRKERE inden for folketinget (intet ansvar overhovedet).
+-- § 57 er STÆRKERE inden for folketinget (ansvar kræver Folketingets samtykke).
 -- § 77 er BREDERE (alle borgere, men med domstolsansvar).
 -- En parlamentariker har stærkere beskyttelse INDEN FOR salen end udenfor.
-| par57_par77_parlamentarisk: ytringsfrihed_i_folketinget() -> ytringsfrihed_i_folketinget()
+= par57_ansvar_uden_samtykke = ansvar_uden_for_folketinget_for_ytring_opfylder_par57(Ytringsansvarssag(
+    folketingets_samtykke = IkkeGivet
+))
+| par57_par77_parlamentarisk: par57_ansvar_uden_samtykke -> par57_ansvar_uden_samtykke == Falskt
 | par57_par77_generel: ytringsfrihed_under_ansvar_for_domstolene() -> ytringsfrihed_under_ansvar_for_domstolene()
 
 -- Tværgående: par. 72 vs par. 71 — retskendelse vs lovhjemmel
@@ -706,7 +775,7 @@
 -- Alle tre: "forsikring om at holde grundloven."
 -- Kongen, embedsværket og den lovgivende magt er alle edsforpligtede.
 | ed_tjenestemand_gentagelse: kongens_tjenestemand_aflægger_grundlovs_ed() -> kongens_tjenestemand_aflægger_grundlovs_ed()
-| ed_folketingsmedlem_gentagelse: nyt_medlem_aflægger_grundlovs_ed() -> nyt_medlem_aflægger_grundlovs_ed()
+| forsikring_folketingsmedlem_gentagelse: nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven() -> nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven()
 
 -- ============================================================================
 -- Beviser
@@ -756,6 +825,7 @@
 ? par29_kræver_bopæl
 ? par29_kræver_alder
 ? par29_umyndig_udelukker
+? par29_tab_efter_lov_udelukker
 ? par30_valgbar
 ? par30_straf_udelukker
 ? par30_kræver_valgret
@@ -775,7 +845,7 @@
 ? par22_kundgørelse
 ? par22_fuldbyrdelse
 ? par23_forelæggelse_til_afgørelse
-? ed_symmetri_tjenestemand_folketingsmedlem
+? forsikring_symmetri_tjenestemand_folketingsmedlem
 ? delegation_regentskab
 ? delegation_statsydelse
 ? delegation_årpenge
@@ -812,8 +882,6 @@
 ? direkte_skat_ikke_dobbelt_afskåret
 ? par75_hjælp_er_ret
 ? par29_fattighjælp_kan_koste_valgret
-? fattighjælp_valgretsrisiko
-? selvforsørgende_uden_fattighjælpsrisiko
 ? par42_enstemmig_modstand_ikke_nok
 ? par42_grænse_30pct_nok
 ? påtrængende_lov_midlertidigt_i_kraft
@@ -894,7 +962,7 @@
 ? feudal_bagud
 ? feudal_fremad
 ? ed_tjenestemand_gentagelse
-? ed_folketingsmedlem_gentagelse
+? forsikring_folketingsmedlem_gentagelse
 
 -- Par. 86: kommunal valgret følger folketingsvalgret
 | par86_kommunal_følger: kommunal_valgretsalder_følger_folketingsvalg() -> kommunal_valgretsalder_følger_folketingsvalg()
@@ -983,14 +1051,20 @@
 -- Folketingets møder er offentlige som udgangspunkt, men formand, medlemmer
 -- eller ministre kan forlange dørene lukkede. Offentlighed er default, ikke absolut.
 | par49_offentlighed_default: folketingets_møder_er_offentlige() -> folketingets_møder_er_offentlige()
-| par49_lukket_møde_kan_rejses: formanden_kan_forlange_lukket_møde() -> formanden_kan_forlange_lukket_møde()
+= par49_formanden_kan_kræve_fjernelse = kan_forlange_uvedkommende_fjernet(FormandenSomKravstiller)
+| par49_lukket_møde_kan_rejses: par49_formanden_kan_kræve_fjernelse -> par49_formanden_kan_kræve_fjernelse == Sandt
 | par49_lukning_afgøres_uden_forhandling: lukket_møde_afgøres_uden_forhandling() -> lukket_møde_afgøres_uden_forhandling()
 
 -- Tværgående: par. 29 vs par. 86 — national valgretsalder og rigsdelsundtagelser
 -- § 29 ændrer folketingsvalgretsalder via lov + folkeafstemning.
 -- § 86 lader kommunal valgretsalder følge folketinget, men Færøerne og Grønland
 -- kan fastsættes ved lov. Rigets dele får dermed en eksplicit lokal lovkanal.
-| par29_valgretsalder_folkeafstemning: ændring_af_valgretsalder_kræver_folkeafstemning() -> ændring_af_valgretsalder_kræver_folkeafstemning()
+= par29_valgretsalderændring_kan_stadfæstes = valgretsalderændring_kan_stadfæstes(Valgretsalderændring(
+    folketinget_har_vedtaget = Sandt,
+    folkeafstemning_afholdt = Sandt,
+    bestemmelsen_bortfaldet = Falskt
+))
+| par29_valgretsalder_folkeafstemning: par29_valgretsalderændring_kan_stadfæstes -> par29_valgretsalderændring_kan_stadfæstes == Sandt
 | par86_kommunal_følger_folketinget: kommunal_valgretsalder_følger_folketingsvalg() -> kommunal_valgretsalder_følger_folketingsvalg()
 | par86_rigsdelsundtagelser: færøerne_kommunal_valgretsalder_fastsættes_ved_lov() -> færøerne_kommunal_valgretsalder_fastsættes_ved_lov()
 

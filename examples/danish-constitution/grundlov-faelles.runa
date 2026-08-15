@@ -4,6 +4,7 @@
 
 # Dato(år: Heltal, måned: Heltal, dag: Heltal)
 # Brøk(tæller: Heltal, nævner: Heltal)
+# Medlemsopbakning(antal: Heltal, medlemmer_i_alt: Heltal)
 # Rigsdel = Danmark | Færøerne | Grønland
 # Statsmagt = Lovgivende | Udøvende | Dømmende
 # Statsorgan = KongenSomStatsorgan | Folketinget | Domstolene
@@ -27,6 +28,10 @@
 
 # impl MetaRole for GrundlovMetaRolle {}
 # impl Meta for GrundlovMetadata {}
+
+| brøk_er_gyldig(andel: Brøk) -> andel.tæller >= 0 && andel.nævner > 0
+| medlemsopbakning_er_gyldig(opbakning: Medlemsopbakning) -> opbakning.antal >= 0 && opbakning.medlemmer_i_alt > 0 && opbakning.antal <= opbakning.medlemmer_i_alt
+| medlemsopbakning_er_mindst(opbakning: Medlemsopbakning, andel: Brøk) -> medlemsopbakning_er_gyldig(opbakning) && brøk_er_gyldig(andel) && opbakning.antal * andel.nævner >= opbakning.medlemmer_i_alt * andel.tæller
 
 = grundlov_retsinformation = GrundlovKildeInfo(
     url = "https://www.retsinformation.dk/eli/lta/1953/169",

@@ -35,19 +35,16 @@ folkeafstemning, der ikke har medført bestemmelsens bortfald.
 
 --@begin:grundlov_par29--
 
--- Stk. 1: fire kumulative krav, ét udelukkelsesgrundlag
-| valgret_kræver_indfødsret()
-| valgret_kræver_fast_bopæl()
-| valgret_kræver_valgretsalder()
-| umyndiggjorte_har_ikke_valgret()
-| har_valgret(indfødsret: Boolsk, fast_bopæl: Boolsk, valgretsalder_nået: Boolsk, umyndiggjort: Boolsk) -> hvis umyndiggjort { Falskt } ellers { indfødsret && fast_bopæl && valgretsalder_nået }
+# Valgretsforhold(har_dansk_indfødsret: Boolsk, har_fast_bopæl_i_riget: Boolsk, har_nået_valgretsalderen: Boolsk, er_umyndiggjort: Boolsk, valgret_tabt_efter_lovbestemmelse: Boolsk)
+# Valgretsalderændring(folketinget_har_vedtaget: Boolsk, folkeafstemning_afholdt: Boolsk, bestemmelsen_bortfaldet: Boolsk)
+# DelegeretValgretstabsgrund = Straf | UnderstøttelseBetragtetSomFattighjælp
 
-| tab_af_valgret_ved_straf_fastsættes_ved_lov()
-| tab_af_valgret_ved_straf_og_fattighjælp_fastsættes_ved_lov()
+| opfylder_par29_stk1(forhold: Valgretsforhold) -> forhold.har_dansk_indfødsret && forhold.har_fast_bopæl_i_riget && forhold.har_nået_valgretsalderen && forhold.er_umyndiggjort == Falskt && forhold.valgret_tabt_efter_lovbestemmelse == Falskt
 
--- Stk. 2: valgretsalder kræver folkeafstemning at ændre
+| omfang_af_tab_af_valgret_fastsættes_ved_lov(grund: DelegeretValgretstabsgrund) -> Sandt
+
 | valgretsalder_fastsættes_ved_folkeafstemning()
-| ændring_af_valgretsalder_kræver_folkeafstemning()
+| valgretsalderændring_kan_stadfæstes(ændring: Valgretsalderændring) -> ændring.folketinget_har_vedtaget && ændring.folkeafstemning_afholdt && ændring.bestemmelsen_bortfaldet == Falskt
 --@end:grundlov_par29--
 
 --@label:grundlov_par30::meta:grundlov_kildemetadata--
@@ -62,12 +59,10 @@ regeringens tilladelse til at modtage valget.
 
 --@begin:grundlov_par30--
 
--- Stk. 1: valgbarhed kræver valgret + ingen uværdig straf
-| valgbarhed_kræver_valgret()
-| uværdig_straf_udelukker_valgbarhed()
-| er_valgbar(valgret_opfyldt: Boolsk, straffet_uværdig: Boolsk) -> hvis straffet_uværdig { Falskt } ellers { valgret_opfyldt }
+# Valgbarhedsforhold(valgretsforhold: Valgretsforhold, straffet_for_uværdig_handling: Boolsk)
 
--- Stk. 2
+| opfylder_par30_stk1(forhold: Valgbarhedsforhold) -> opfylder_par29_stk1(forhold.valgretsforhold) && forhold.straffet_for_uværdig_handling == Falskt
+
 | tjenestemænd_behøver_ikke_tilladelse_til_valg()
 --@end:grundlov_par30--
 
@@ -141,30 +136,24 @@ forsikring om at ville holde grundloven.
 
 --@begin:grundlov_par32--
 
--- Stk. 1
+# Nyvalgssituation(nyt_ministerium_udnævnt: Boolsk, statsministeren_har_fremstillet_sig: Boolsk)
+# Mandatforhold(nyvalg_afholdt: Boolsk, valgbarhed_bevaret: Boolsk)
+
 = valgperiode_år = 4
 
--- Stk. 2
-| kongen_kan_udskrive_nyvalg()
-| mandater_bortfalder_når_nyvalg_afholdt()
+| kongen_kan_udskrive_nyvalg(situation: Nyvalgssituation) -> hvis situation.nyt_ministerium_udnævnt {
+    situation.statsministeren_har_fremstillet_sig
+} ellers {
+    Sandt
+}
 
-| nyt_ministerium_skal_fremstilles_før_nyvalg()
-| kan_udskrive_valg_efter_nyt_ministerium(statsminister_fremstillet: Boolsk) -> statsminister_fremstillet
-
--- Stk. 3
 | statsministeren_skal_foranledige_nyvalg_inden_udløb()
 
--- Stk. 4
-| mandater_bortfalder_aldrig_før_nyvalg()
+| eksisterende_mandat_består(forhold: Mandatforhold) -> forhold.nyvalg_afholdt == Falskt && forhold.valgbarhed_bevaret
 
--- Stk. 5
 | færøske_grønlandske_mandater_kan_fastsættes_ved_lov()
 
--- Stk. 6
-| tab_af_valgbarhed_medfører_mandatbortfald()
-
--- Stk. 7: samme edssprog som par. 8 og par. 27
-| nyt_medlem_aflægger_grundlovs_ed()
+| nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven()
 --@end:grundlov_par32--
 
 --@label:grundlov_par33::meta:grundlov_kildemetadata--
@@ -188,7 +177,8 @@ sig skyldig i højforræderi.
 
 --@begin:grundlov_par34--
 
+# AntastelseAfFolketinget = AntasterSikkerheden | AntasterFriheden | UdstederBefalingOmAntastelse | AdlyderBefalingOmAntastelse
+
 | folketinget_er_ukrænkeligt()
-| angreb_på_folketingets_sikkerhed_er_højforræderi()
-| angreb_på_folketingets_frihed_er_højforræderi()
+| antastelse_af_folketinget_er_højforræderi(handling: AntastelseAfFolketinget) -> Sandt
 --@end:grundlov_par34--

@@ -79,28 +79,58 @@ Gennemført den 16. august 2026.
   `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
   fejlmeddelelser.
 
+### Milepæl 2: Kapitel IV-V
+
+Gennemført den 16. august 2026.
+
+- § 29 samler de fem valgretsbetingelser i `Valgretsforhold` og skelner den
+  gældende valgretsstatus fra Grundlovens delegation af omfanget ved straf og
+  understøttelse, der betragtes som fattighjælp.
+- Valgbarhed, nyvalg og mandaters beståen afledes af navngivne forhold frem
+  for løse booleske hjælpefakta.
+- §§ 39-42 bruger fælles, valideret `Medlemsopbakning`, men bevarer særskilte
+  sagstyper for mødeindkaldelse, udsættelse og folkeafstemning.
+- Lovforslagsmodellen dækker alle udtrykkelige undtagelser i §§ 41-42,
+  formkravene til begæringer, behandlingskravet, fristerne, den særlige
+  § 19-undtagelse og strakslovens retsvirkning frem til kundgørelse.
+- §§ 45-46, 49-50, 53 og 57 har navngivne forløb eller sager for finanslov,
+  bevillingshjemmel, lukkekrav, beslutningsdygtighed, samtykke og immunitet.
+  § 49 kræver udtrykkeligt det antal medlemmer, som forretningsordenen
+  bestemmer, og § 57 lader kun fersk gerning undtage indgrebsimmuniteten, ikke
+  ytringsansvaret.
+- Tre nye scenariefiler har 30 meningsfulde invarianter. Sammen med milepæl 1
+  består alle syv scenariefiler med i alt 99 invarianter parallelt.
+- Den samlede audit har 212 bestående invarianter og består både fortolket og
+  som genereret Rust.
+- Den aktuelle topologiprøvning viser 24 dækningshuller mod 41 efter milepæl
+  1. Faldet skyldes især, at parallelle nulargumentregler er samlet i typede,
+  parametriske regler; det er ikke i sig selv evidens for 17 løste retlige
+  spørgsmål.
+- De 91 kildetekstblokke har fortsat kontrolsummen
+  `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
+  fejlmeddelelser.
+
 ## Nu
 
 - Bevar den officielle ordlyd og kildekoblingen uændret.
-- Gennemgå kapitel IV-V som én model for valg, Folketingets arbejde og
-  lovgivningsprocessen.
-- Gør tærskler, frister, forslag, begæringer og procedureudfald typede og
-  grænseprøvede uden at sammenblande deres retlige betydning.
-- Erstat parallelle hjælpefunktioner i den samlede audit med afledte opslag
-  fra de kanoniske kapitelregler.
+- Gennemgå kapitel VI-VIII som én model for Rigsretten, domstolene,
+  religionsforhold og grundrettigheder.
+- Modellér rettighed, indgreb, hjemmel, prøvelse og undtagelse som adskilte
+  begreber, hvor ordlyden kræver det.
+- Genbehandl de eksisterende tværgående påstande efter modellag og
+  udsagnsstatus; sammenligninger som "stærkere" må have et udtrykkeligt
+  kriterium og høre til prøvningslaget.
 
 ## Næste
 
-- Gennemgå kapitel VI-VIII som én model for domstole, trossamfund og
-  grundrettigheder.
 - Gennemgå kapitel IX-XI og alle tværgående henvisninger, frister og
   delegationer.
 - Klassificer de 49 kendte dækningshuller som dækket eller bevidst udækket.
+- Adskil kildescenarier, fortolkningsscenarier og prøvninger i de planlagte
+  `.scenario.runa`- og `.audit.runa`-filer.
 
 ## Senere
 
-- Adskil kildescenarier, fortolkningsscenarier og prøvninger i de planlagte
-  `.scenario.runa`- og `.audit.runa`-filer.
 - Giv væsentlige fund typet metadata og kontrollerede programhenvisninger.
 - Omskriv de danske grundlovssider, så ordlyd, model og fortolkning vises
   nøgternt og afledes fra det aktive korpus.

@@ -1,0 +1,302 @@
+@ sprog da
+
+@ importer ./kapitel - 05
+
+-- Scenarierne prøver §§ 39, 41 og 42. De tilføjer ikke lovstof.
+
+> standard_lovforslag(område: Lovforslagsområde) -> Lovforslag {
+    Lovforslag(
+        område = område,
+        påtrængende_efter_par41 = Falskt,
+        ikrafttræden_kan_udsættes = Sandt,
+        særdeles_påtrængende_efter_par42 = Falskt,
+        straksstadfæstelse_bestemt_i_forslaget = Falskt
+    )
+}
+
+= statsministerens_gyldige_mødebegæring = Mødebegæring(
+    begærer = StatsministerenSomMødebegærer,
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+)
+= statsministerens_mundtlige_mødebegæring = Mødebegæring(
+    begærer = StatsministerenSomMødebegærer,
+    skriftlig = Falskt,
+    dagsorden_angivet = Sandt
+)
+= medlemmers_gyldige_mødebegæring = Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+)
+= medlemmers_mødebegæring_over_tærsklen = Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 73, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+)
+= medlemmers_utilstrækkelige_mødebegæring = Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 71, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Sandt
+)
+= medlemmers_mødebegæring_uden_dagsorden = Mødebegæring(
+    begærer = FolketingsmedlemmerSomMødebegærere(
+        opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179)
+    ),
+    skriftlig = Sandt,
+    dagsorden_angivet = Falskt
+)
+
+= par39_statsminister_gyldig = formanden_skal_indkalde(statsministerens_gyldige_mødebegæring)
+= par39_statsminister_mundtlig = formanden_skal_indkalde(statsministerens_mundtlige_mødebegæring)
+= par39_medlemmer_72 = formanden_skal_indkalde(medlemmers_gyldige_mødebegæring)
+= par39_medlemmer_73 = formanden_skal_indkalde(medlemmers_mødebegæring_over_tærsklen)
+= par39_medlemmer_71 = formanden_skal_indkalde(medlemmers_utilstrækkelige_mødebegæring)
+= par39_uden_dagsorden = formanden_skal_indkalde(medlemmers_mødebegæring_uden_dagsorden)
+
+| par39_begæringsveje_og_formkrav: par39_statsminister_gyldig -> par39_statsminister_gyldig && par39_statsminister_mundtlig == Falskt && par39_medlemmer_71 == Falskt && par39_medlemmer_72 && par39_medlemmer_73 && par39_uden_dagsorden == Falskt
+
+= almindeligt_forslag = standard_lovforslag(AlmindeligtLovforslag)
+= finanslovsforslag = standard_lovforslag(Finanslovsforslag)
+= tillægsbevillingslovsforslag = standard_lovforslag(Tillægsbevillingslovsforslag)
+= midlertidigt_bevillingslovsforslag = standard_lovforslag(MidlertidigtBevillingslovsforslag)
+= statslånslovsforslag = standard_lovforslag(Statslånslovsforslag)
+= normeringslovsforslag = standard_lovforslag(Normeringslovsforslag)
+= lønnings_og_pensionslovsforslag = standard_lovforslag(LønningsOgPensionslovsforslag)
+= indfødsretslovsforslag = standard_lovforslag(Indfødsretslovsforslag)
+= ekspropriationslovsforslag = standard_lovforslag(Ekspropriationslovsforslag)
+= direkte_skattelovsforslag = standard_lovforslag(DirekteSkattelovsforslag)
+= indirekte_skattelovsforslag = standard_lovforslag(IndirekteSkattelovsforslag)
+= traktatgennemførelseslovsforslag = standard_lovforslag(Traktatgennemførelseslovsforslag)
+= paragraf8_lovsforslag = standard_lovforslag(Paragraf8Lovsforslag)
+= paragraf9_lovsforslag = standard_lovforslag(Paragraf9Lovsforslag)
+= paragraf10_lovsforslag = standard_lovforslag(Paragraf10Lovsforslag)
+= paragraf11_lovsforslag = standard_lovforslag(Paragraf11Lovsforslag)
+= paragraf19_uden_særlov = standard_lovforslag(Paragraf19BeslutningILovsform(særlov_tillader_folkeafstemning = Falskt))
+= paragraf19_med_særlov = standard_lovforslag(Paragraf19BeslutningILovsform(særlov_tillader_folkeafstemning = Sandt))
+= grundlovsændringsforslag = standard_lovforslag(Grundlovsændringsforslag)
+= påtrængende_forslag_uden_udsættelsesmulighed = Lovforslag(
+    område = AlmindeligtLovforslag,
+    påtrængende_efter_par41 = Sandt,
+    ikrafttræden_kan_udsættes = Falskt,
+    særdeles_påtrængende_efter_par42 = Falskt,
+    straksstadfæstelse_bestemt_i_forslaget = Falskt
+)
+
+= par41_to_behandlinger = lovforslag_kan_endeligt_vedtages(2)
+= par41_tre_behandlinger = lovforslag_kan_endeligt_vedtages(3)
+= par41_fire_behandlinger = lovforslag_kan_endeligt_vedtages(4)
+| par41_tre_behandlinger_kræves: par41_tre_behandlinger -> par41_to_behandlinger == Falskt && par41_tre_behandlinger && par41_fire_behandlinger
+
+= par41_finanslov_undtaget = lovforslag_er_undtaget_fra_udsættelse(finanslovsforslag)
+= par41_tillægsbevilling_undtaget = lovforslag_er_undtaget_fra_udsættelse(tillægsbevillingslovsforslag)
+= par41_midlertidig_bevilling_undtaget = lovforslag_er_undtaget_fra_udsættelse(midlertidigt_bevillingslovsforslag)
+= par41_statslån_undtaget = lovforslag_er_undtaget_fra_udsættelse(statslånslovsforslag)
+= par41_indfødsret_undtaget = lovforslag_er_undtaget_fra_udsættelse(indfødsretslovsforslag)
+= par41_ekspropriation_undtaget = lovforslag_er_undtaget_fra_udsættelse(ekspropriationslovsforslag)
+= par41_indirekte_skat_undtaget = lovforslag_er_undtaget_fra_udsættelse(indirekte_skattelovsforslag)
+= par41_direkte_skat_ikke_undtaget = lovforslag_er_undtaget_fra_udsættelse(direkte_skattelovsforslag)
+= par41_almindeligt_ikke_undtaget = lovforslag_er_undtaget_fra_udsættelse(almindeligt_forslag)
+= par41_påtrængende_undtaget = lovforslag_er_undtaget_fra_udsættelse(påtrængende_forslag_uden_udsættelsesmulighed)
+
+| par41_undtagelseslisten_er_udtømmende: par41_finanslov_undtaget -> par41_finanslov_undtaget && par41_tillægsbevilling_undtaget && par41_midlertidig_bevilling_undtaget && par41_statslån_undtaget && par41_indfødsret_undtaget && par41_ekspropriation_undtaget && par41_indirekte_skat_undtaget && par41_direkte_skat_ikke_undtaget == Falskt && par41_almindeligt_ikke_undtaget == Falskt && par41_påtrængende_undtaget
+
+= gyldig_udsættelsesbegæring = Udsættelsesbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= udsættelsesbegæring_71 = Udsættelsesbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 71, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= udsættelsesbegæring_73 = Udsættelsesbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 73, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= udsættelsesbegæring_uden_underskrift = Udsættelsesbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Falskt
+)
+= udsættelsesbegæring_om_finanslov = Udsættelsesbegæring(
+    forslag = finanslovsforslag,
+    opbakning = Medlemsopbakning(antal = 72, medlemmer_i_alt = 179),
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= par41_gyldig_begæring = udsættelsesbegæring_opfylder_par41_stk3(gyldig_udsættelsesbegæring)
+= par41_begæring_71 = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_71)
+= par41_begæring_73 = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_73)
+= par41_uden_underskrift = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_uden_underskrift)
+= par41_finanslovsbegæring = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_om_finanslov)
+| par41_tærskel_formkrav_og_undtagelse: par41_gyldig_begæring -> par41_begæring_71 == Falskt && par41_gyldig_begæring && par41_begæring_73 && par41_uden_underskrift == Falskt && par41_finanslovsbegæring == Falskt
+
+= par41_uafsluttet_ved_nyvalg = forslag_bortfalder_efter_par41_stk4(ForslagsstatusVedOphørshændelse(endeligt_vedtaget = Falskt, hændelse = Nyvalg))
+= par41_uafsluttet_ved_årets_udgang = forslag_bortfalder_efter_par41_stk4(ForslagsstatusVedOphørshændelse(endeligt_vedtaget = Falskt, hændelse = FolketingsåretsUdgang))
+= par41_afsluttet_ved_nyvalg = forslag_bortfalder_efter_par41_stk4(ForslagsstatusVedOphørshændelse(endeligt_vedtaget = Sandt, hændelse = Nyvalg))
+| par41_kun_uafsluttede_forslag_bortfalder: par41_uafsluttet_ved_nyvalg -> par41_uafsluttet_ved_nyvalg && par41_uafsluttet_ved_årets_udgang && par41_afsluttet_ved_nyvalg == Falskt
+
+= par42_almindeligt_kan = lovforslag_kan_undergives_folkeafstemning(almindeligt_forslag)
+= par42_finanslov_kan = lovforslag_kan_undergives_folkeafstemning(finanslovsforslag)
+= par42_tillægsbevilling_kan = lovforslag_kan_undergives_folkeafstemning(tillægsbevillingslovsforslag)
+= par42_midlertidig_bevilling_kan = lovforslag_kan_undergives_folkeafstemning(midlertidigt_bevillingslovsforslag)
+= par42_statslån_kan = lovforslag_kan_undergives_folkeafstemning(statslånslovsforslag)
+= par42_normering_kan = lovforslag_kan_undergives_folkeafstemning(normeringslovsforslag)
+= par42_løn_og_pension_kan = lovforslag_kan_undergives_folkeafstemning(lønnings_og_pensionslovsforslag)
+= par42_indfødsret_kan = lovforslag_kan_undergives_folkeafstemning(indfødsretslovsforslag)
+= par42_ekspropriation_kan = lovforslag_kan_undergives_folkeafstemning(ekspropriationslovsforslag)
+= par42_direkte_skat_kan = lovforslag_kan_undergives_folkeafstemning(direkte_skattelovsforslag)
+= par42_indirekte_skat_kan = lovforslag_kan_undergives_folkeafstemning(indirekte_skattelovsforslag)
+= par42_traktat_kan = lovforslag_kan_undergives_folkeafstemning(traktatgennemførelseslovsforslag)
+= par42_par8_kan = lovforslag_kan_undergives_folkeafstemning(paragraf8_lovsforslag)
+= par42_par9_kan = lovforslag_kan_undergives_folkeafstemning(paragraf9_lovsforslag)
+= par42_par10_kan = lovforslag_kan_undergives_folkeafstemning(paragraf10_lovsforslag)
+= par42_par11_kan = lovforslag_kan_undergives_folkeafstemning(paragraf11_lovsforslag)
+= par42_par19_uden_særlov_kan = lovforslag_kan_undergives_folkeafstemning(paragraf19_uden_særlov)
+= par42_par19_med_særlov_kan = lovforslag_kan_undergives_folkeafstemning(paragraf19_med_særlov)
+= par42_grundlovsændring_kan = lovforslag_kan_undergives_folkeafstemning(grundlovsændringsforslag)
+
+| par42_stk6_er_udtømmende: par42_almindeligt_kan -> par42_almindeligt_kan && par42_finanslov_kan == Falskt && par42_tillægsbevilling_kan == Falskt && par42_midlertidig_bevilling_kan == Falskt && par42_statslån_kan == Falskt && par42_normering_kan == Falskt && par42_løn_og_pension_kan == Falskt && par42_indfødsret_kan == Falskt && par42_ekspropriation_kan == Falskt && par42_direkte_skat_kan == Falskt && par42_indirekte_skat_kan == Falskt && par42_traktat_kan == Falskt && par42_par8_kan == Falskt && par42_par9_kan == Falskt && par42_par10_kan == Falskt && par42_par11_kan == Falskt && par42_par19_uden_særlov_kan == Falskt && par42_par19_med_særlov_kan && par42_grundlovsændring_kan == Falskt
+
+= gyldig_folkeafstemningsbegæring = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= folkeafstemningsbegæring_59 = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 59, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= folkeafstemningsbegæring_61 = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 61, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= folkeafstemningsbegæring_dag2 = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 2,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= folkeafstemningsbegæring_dag4 = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 4,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= folkeafstemningsbegæring_uden_underskrift = Folkeafstemningsbegæring(
+    forslag = almindeligt_forslag,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Falskt
+)
+= folkeafstemningsbegæring_om_finanslov = Folkeafstemningsbegæring(
+    forslag = finanslovsforslag,
+    opbakning = Medlemsopbakning(antal = 60, medlemmer_i_alt = 179),
+    søgnedage_efter_endelig_vedtagelse = 3,
+    skriftlig = Sandt,
+    underskrevet = Sandt
+)
+= par42_begæring_60 = folkeafstemningsbegæring_opfylder_par42_stk1(gyldig_folkeafstemningsbegæring)
+= par42_begæring_59 = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_59)
+= par42_begæring_61 = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_61)
+= par42_begæring_dag2 = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_dag2)
+= par42_begæring_dag4 = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_dag4)
+= par42_begæring_uden_underskrift = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_uden_underskrift)
+= par42_begæring_om_finanslov = folkeafstemningsbegæring_opfylder_par42_stk1(folkeafstemningsbegæring_om_finanslov)
+| par42_begæringens_tærskel_frist_form_og_emne: par42_begæring_60 -> par42_begæring_59 == Falskt && par42_begæring_60 && par42_begæring_61 && par42_begæring_dag2 && par42_begæring_dag4 == Falskt && par42_begæring_uden_underskrift == Falskt && par42_begæring_om_finanslov == Falskt
+
+= straksstadfæsteligt_forslag = Lovforslag(
+    område = AlmindeligtLovforslag,
+    påtrængende_efter_par41 = Falskt,
+    ikrafttræden_kan_udsættes = Sandt,
+    særdeles_påtrængende_efter_par42 = Sandt,
+    straksstadfæstelse_bestemt_i_forslaget = Sandt
+)
+= påtrængende_uden_straksbestemmelse = Lovforslag(
+    område = AlmindeligtLovforslag,
+    påtrængende_efter_par41 = Falskt,
+    ikrafttræden_kan_udsættes = Sandt,
+    særdeles_påtrængende_efter_par42 = Sandt,
+    straksstadfæstelse_bestemt_i_forslaget = Falskt
+)
+= par42_straks = lovforslag_kan_stadfæstes_straks_efter_par42_stk7(straksstadfæsteligt_forslag)
+= par42_uden_straksbestemmelse = lovforslag_kan_stadfæstes_straks_efter_par42_stk7(påtrængende_uden_straksbestemmelse)
+= par42_almindeligt_ikke_straks = lovforslag_kan_stadfæstes_straks_efter_par42_stk7(almindeligt_forslag)
+| par42_straksstadfæstelsens_betingelser: par42_straks -> par42_straks && par42_uden_straksbestemmelse == Falskt && par42_almindeligt_ikke_straks == Falskt
+
+= par42_før_frist = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = almindeligt_forslag, fristen_udløbet = Falskt, folkeafstemning_begæret = Falskt, folkeafstemning_afholdt = Falskt))
+= par42_efter_frist = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = almindeligt_forslag, fristen_udløbet = Sandt, folkeafstemning_begæret = Falskt, folkeafstemning_afholdt = Falskt))
+= par42_begæret_ikke_afholdt = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = almindeligt_forslag, fristen_udløbet = Sandt, folkeafstemning_begæret = Sandt, folkeafstemning_afholdt = Falskt))
+= par42_begæret_og_afholdt = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = almindeligt_forslag, fristen_udløbet = Sandt, folkeafstemning_begæret = Sandt, folkeafstemning_afholdt = Sandt))
+= par42_straks_undtagelse = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = straksstadfæsteligt_forslag, fristen_udløbet = Falskt, folkeafstemning_begæret = Falskt, folkeafstemning_afholdt = Falskt))
+= par42_finanslov_før_frist = stadfæstelse_opfylder_par42_stk2(Stadfæstelsessituation(forslag = finanslovsforslag, fristen_udløbet = Falskt, folkeafstemning_begæret = Falskt, folkeafstemning_afholdt = Falskt))
+| par42_stadfæstelsens_hovedregel_og_undtagelser: par42_efter_frist -> par42_før_frist == Falskt && par42_efter_frist && par42_begæret_ikke_afholdt == Falskt && par42_begæret_og_afholdt && par42_straks_undtagelse && par42_finanslov_før_frist
+
+= par42_tilbagetrækning_dag4 = folketinget_kan_lade_forslaget_bortfalde(Tilbagetrækningssituation(folkeafstemning_begæret = Sandt, søgnedage_efter_endelig_vedtagelse = 4))
+= par42_tilbagetrækning_dag5 = folketinget_kan_lade_forslaget_bortfalde(Tilbagetrækningssituation(folkeafstemning_begæret = Sandt, søgnedage_efter_endelig_vedtagelse = 5))
+= par42_tilbagetrækning_dag6 = folketinget_kan_lade_forslaget_bortfalde(Tilbagetrækningssituation(folkeafstemning_begæret = Sandt, søgnedage_efter_endelig_vedtagelse = 6))
+= par42_tilbagetrækning_uden_begæring = folketinget_kan_lade_forslaget_bortfalde(Tilbagetrækningssituation(folkeafstemning_begæret = Falskt, søgnedage_efter_endelig_vedtagelse = 3))
+| par42_tilbagetrækningsfristen: par42_tilbagetrækning_dag5 -> par42_tilbagetrækning_dag4 && par42_tilbagetrækning_dag5 && par42_tilbagetrækning_dag6 == Falskt && par42_tilbagetrækning_uden_begæring == Falskt
+
+= par42_afstemningsdag_11 = folkeafstemningsdag_opfylder_par42_stk4(11)
+= par42_afstemningsdag_12 = folkeafstemningsdag_opfylder_par42_stk4(12)
+= par42_afstemningsdag_13 = folkeafstemningsdag_opfylder_par42_stk4(13)
+= par42_afstemningsdag_17 = folkeafstemningsdag_opfylder_par42_stk4(17)
+= par42_afstemningsdag_18 = folkeafstemningsdag_opfylder_par42_stk4(18)
+= par42_afstemningsdag_19 = folkeafstemningsdag_opfylder_par42_stk4(19)
+| par42_afstemningsvinduet: par42_afstemningsdag_12 -> par42_afstemningsdag_11 == Falskt && par42_afstemningsdag_12 && par42_afstemningsdag_13 && par42_afstemningsdag_17 && par42_afstemningsdag_18 && par42_afstemningsdag_19 == Falskt
+
+= par42_over_30_pct = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 61, deltagende = 100, stemmeberettigede = 200))
+= par42_forkastet_ved_30_pct = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 60, deltagende = 100, stemmeberettigede = 200))
+= par42_under_30_pct = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 59, deltagende = 100, stemmeberettigede = 200))
+= par42_under_halvdelen = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 59, deltagende = 120, stemmeberettigede = 120))
+= par42_præcis_halvdelen = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 60, deltagende = 120, stemmeberettigede = 120))
+= par42_over_halvdelen = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 61, deltagende = 120, stemmeberettigede = 120))
+= par42_umulligt_resultat = lovforslag_forkastet_ved_folkeafstemning(Folkeafstemningsresultat(mod_stemmer = 101, deltagende = 100, stemmeberettigede = 200))
+| par42_forkastelse_kræver_flertal_30_pct_og_konsistens: par42_forkastet_ved_30_pct -> par42_under_30_pct == Falskt && par42_forkastet_ved_30_pct && par42_over_30_pct && par42_under_halvdelen == Falskt && par42_præcis_halvdelen == Falskt && par42_over_halvdelen && par42_umulligt_resultat == Falskt
+
+= par42_strakslov_før = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(FørFolkeafstemning)
+= par42_strakslov_ikke_forkastet = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(IkkeForkastetVedFolkeafstemning)
+= par42_strakslov_forkastet_ikke_kundgjort = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(ForkastetIkkeKundgjort)
+= par42_strakslov_forkastelse_kundgjort = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(ForkastelseKundgjort)
+| par42_strakslov_bortfalder_først_fra_kundgørelsesdagen: par42_strakslov_før -> par42_strakslov_før && par42_strakslov_ikke_forkastet && par42_strakslov_forkastet_ikke_kundgjort && par42_strakslov_forkastelse_kundgjort == Falskt
+
+? par39_begæringsveje_og_formkrav
+? par41_tre_behandlinger_kræves
+? par41_undtagelseslisten_er_udtømmende
+? par41_tærskel_formkrav_og_undtagelse
+? par41_kun_uafsluttede_forslag_bortfalder
+? par42_stk6_er_udtømmende
+? par42_begæringens_tærskel_frist_form_og_emne
+? par42_straksstadfæstelsens_betingelser
+? par42_stadfæstelsens_hovedregel_og_undtagelser
+? par42_tilbagetrækningsfristen
+? par42_afstemningsvinduet
+? par42_forkastelse_kræver_flertal_30_pct_og_konsistens
+? par42_strakslov_bortfalder_først_fra_kundgørelsesdagen
+
+@ skriv("Scenarierne for lovgivningsprocessen holder.")

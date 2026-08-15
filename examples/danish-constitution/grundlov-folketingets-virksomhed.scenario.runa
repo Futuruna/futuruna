@@ -1,0 +1,123 @@
+@ sprog da
+
+@ importer ./kapitel - 05
+
+-- Scenarierne prøver §§ 40, 45-46, 49-50, 53 og 57.
+
+= par40_minister_som_medlem = minister_har_stemmeret_i_folketinget(Sandt)
+= par40_minister_uden_mandat = minister_har_stemmeret_i_folketinget(Falskt)
+| par40_stemmeret_følger_medlemskab: par40_minister_som_medlem -> par40_minister_som_medlem && par40_minister_uden_mandat == Falskt
+
+= finanslov_fire_måneder_før = Finanslovsforløb(
+    måneder_før_finansårets_begyndelse = 4,
+    behandling_forventes_afsluttet_før_finansårets_begyndelse = Sandt
+)
+= finanslov_fem_måneder_før = Finanslovsforløb(
+    måneder_før_finansårets_begyndelse = 5,
+    behandling_forventes_afsluttet_før_finansårets_begyndelse = Sandt
+)
+= finanslov_tre_måneder_før = Finanslovsforløb(
+    måneder_før_finansårets_begyndelse = 3,
+    behandling_forventes_afsluttet_før_finansårets_begyndelse = Sandt
+)
+= finanslov_med_forventet_forsinkelse = Finanslovsforløb(
+    måneder_før_finansårets_begyndelse = 4,
+    behandling_forventes_afsluttet_før_finansårets_begyndelse = Falskt
+)
+= par45_fire_måneder = finanslovsforslag_er_fremsat_rettidigt(finanslov_fire_måneder_før)
+= par45_fem_måneder = finanslovsforslag_er_fremsat_rettidigt(finanslov_fem_måneder_før)
+= par45_tre_måneder = finanslovsforslag_er_fremsat_rettidigt(finanslov_tre_måneder_før)
+= par45_midlertidig_ved_forsinkelse = midlertidig_bevillingslov_skal_fremsættes(finanslov_med_forventet_forsinkelse)
+= par45_ingen_midlertidig_uden_forsinkelse = midlertidig_bevillingslov_skal_fremsættes(finanslov_fire_måneder_før)
+
+| par45_frist_og_reservevej: par45_fire_måneder -> par45_tre_måneder == Falskt && par45_fire_måneder && par45_fem_måneder && par45_midlertidig_ved_forsinkelse && par45_ingen_midlertidig_uden_forsinkelse == Falskt
+
+= par46_finanslov = skatter_må_opkræves_efter_par46_stk1(FinanslovVedtaget)
+= par46_midlertidig_bevillingslov = skatter_må_opkræves_efter_par46_stk1(MidlertidigBevillingslovVedtaget)
+= par46_ingen_bevillingslov = skatter_må_opkræves_efter_par46_stk1(IngenBevillingslovVedtaget)
+| par46_skatteopkrævning_kræver_vedtaget_bevillingslov: par46_finanslov -> par46_finanslov && par46_midlertidig_bevillingslov && par46_ingen_bevillingslov == Falskt
+
+= par46_finanslovshjemmel = statsudgift_må_afholdes_efter_par46_stk2(HjemmelIFinanslov)
+= par46_tillægsbevillingshjemmel = statsudgift_må_afholdes_efter_par46_stk2(HjemmelITillægsbevillingslov)
+= par46_midlertidig_hjemmel = statsudgift_må_afholdes_efter_par46_stk2(HjemmelIMidlertidigBevillingslov)
+= par46_ingen_hjemmel = statsudgift_må_afholdes_efter_par46_stk2(IngenUdgiftshjemmel)
+| par46_udgift_kræver_en_af_tre_hjemler: par46_finanslovshjemmel -> par46_finanslovshjemmel && par46_tillægsbevillingshjemmel && par46_midlertidig_hjemmel && par46_ingen_hjemmel == Falskt
+
+= par49_formanden = kan_forlange_uvedkommende_fjernet(FormandenSomKravstiller)
+= par49_medlemmer_med_tilstrækkeligt_antal = kan_forlange_uvedkommende_fjernet(MedlemmerSomKravstillere(antal_efter_forretningsordenen_opfyldt = Sandt))
+= par49_medlemmer_med_utilstrækkeligt_antal = kan_forlange_uvedkommende_fjernet(MedlemmerSomKravstillere(antal_efter_forretningsordenen_opfyldt = Falskt))
+= par49_minister = kan_forlange_uvedkommende_fjernet(MinisterSomKravstiller)
+| par49_alle_tre_kravstillere: par49_formanden -> par49_formanden && par49_medlemmer_med_tilstrækkeligt_antal && par49_medlemmer_med_utilstrækkeligt_antal == Falskt && par49_minister
+
+= deltagelse_90_af_179 = Afstemningsdeltagelse(
+    tilstede_og_deltagende = 90,
+    medlemmer_i_alt = 179
+)
+= deltagelse_91_af_179 = Afstemningsdeltagelse(
+    tilstede_og_deltagende = 91,
+    medlemmer_i_alt = 179
+)
+= deltagelse_89_af_179 = Afstemningsdeltagelse(
+    tilstede_og_deltagende = 89,
+    medlemmer_i_alt = 179
+)
+= umulig_deltagelse_180_af_179 = Afstemningsdeltagelse(
+    tilstede_og_deltagende = 180,
+    medlemmer_i_alt = 179
+)
+= deltagelse_uden_medlemmer = Afstemningsdeltagelse(
+    tilstede_og_deltagende = 0,
+    medlemmer_i_alt = 0
+)
+= par50_90 = folketinget_er_beslutningsdygtigt(deltagelse_90_af_179)
+= par50_91 = folketinget_er_beslutningsdygtigt(deltagelse_91_af_179)
+= par50_89 = folketinget_er_beslutningsdygtigt(deltagelse_89_af_179)
+= par50_umulig = folketinget_er_beslutningsdygtigt(umulig_deltagelse_180_af_179)
+= par50_ingen_medlemmer = folketinget_er_beslutningsdygtigt(deltagelse_uden_medlemmer)
+| par50_streng_flertalsgrænse_og_konsistens: par50_90 -> par50_89 == Falskt && par50_90 && par50_91 && par50_umulig == Falskt && par50_ingen_medlemmer == Falskt
+
+= par53_med_samtykke = medlem_kan_rejse_offentligt_anliggende(Givet)
+= par53_uden_samtykke = medlem_kan_rejse_offentligt_anliggende(IkkeGivet)
+| par53_folketingets_samtykke_kræves: par53_med_samtykke -> par53_med_samtykke && par53_uden_samtykke == Falskt
+
+= tiltale_uden_samtykke = Immunitetssag(
+    indgreb = TiltaleAfFolketingsmedlem,
+    folketingets_samtykke = IkkeGivet,
+    grebet_på_fersk_gerning = Falskt
+)
+= fængsling_uden_samtykke = Immunitetssag(
+    indgreb = FængslingAfFolketingsmedlem,
+    folketingets_samtykke = IkkeGivet,
+    grebet_på_fersk_gerning = Falskt
+)
+= tiltale_med_samtykke = Immunitetssag(
+    indgreb = TiltaleAfFolketingsmedlem,
+    folketingets_samtykke = Givet,
+    grebet_på_fersk_gerning = Falskt
+)
+= tiltale_ved_fersk_gerning = Immunitetssag(
+    indgreb = TiltaleAfFolketingsmedlem,
+    folketingets_samtykke = IkkeGivet,
+    grebet_på_fersk_gerning = Sandt
+)
+= par57_tiltale_uden = indgreb_mod_folketingsmedlem_opfylder_par57(tiltale_uden_samtykke)
+= par57_fængsling_uden = indgreb_mod_folketingsmedlem_opfylder_par57(fængsling_uden_samtykke)
+= par57_tiltale_med = indgreb_mod_folketingsmedlem_opfylder_par57(tiltale_med_samtykke)
+= par57_fersk_gerning = indgreb_mod_folketingsmedlem_opfylder_par57(tiltale_ved_fersk_gerning)
+| par57_indgreb_kræver_samtykke_eller_fersk_gerning: par57_tiltale_med -> par57_tiltale_uden == Falskt && par57_fængsling_uden == Falskt && par57_tiltale_med && par57_fersk_gerning
+
+= par57_ytring_uden_samtykke = ansvar_uden_for_folketinget_for_ytring_opfylder_par57(Ytringsansvarssag(folketingets_samtykke = IkkeGivet))
+= par57_ytring_med_samtykke = ansvar_uden_for_folketinget_for_ytring_opfylder_par57(Ytringsansvarssag(folketingets_samtykke = Givet))
+| par57_ytringsansvar_har_ingen_fersk_gerning_undtagelse: par57_ytring_med_samtykke -> par57_ytring_uden_samtykke == Falskt && par57_ytring_med_samtykke
+
+? par40_stemmeret_følger_medlemskab
+? par45_frist_og_reservevej
+? par46_skatteopkrævning_kræver_vedtaget_bevillingslov
+? par46_udgift_kræver_en_af_tre_hjemler
+? par49_alle_tre_kravstillere
+? par50_streng_flertalsgrænse_og_konsistens
+? par53_folketingets_samtykke_kræves
+? par57_indgreb_kræver_samtykke_eller_fersk_gerning
+? par57_ytringsansvar_har_ingen_fersk_gerning_undtagelse
+
+@ skriv("Scenarierne for Folketingets virksomhed holder.")
