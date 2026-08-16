@@ -1281,10 +1281,9 @@ section {
     background: rgba(224, 128, 80, 0.1);
 }
 
-.research-card-rune.rune-flag {
-    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
-    font-size: 1.8rem;
-    background: rgba(200, 16, 46, 0.08);
+.research-card-rune.rune-section {
+    color: var(--rune-hash);
+    background: rgba(224, 96, 112, 0.1);
 }
 
 .research-card-title {
@@ -1362,67 +1361,6 @@ section {
     padding: 0.05rem 0.28rem;
 }
 
-.const-analysis-strip,
-.const-audit-highlights {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-}
-
-.const-analysis-strip a,
-.const-audit-highlights a {
-    display: grid;
-    gap: 0.25rem;
-    min-height: 6rem;
-    padding: 0.9rem 1rem;
-    background: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text-primary);
-    text-decoration: none;
-    transition: border-color 0.15s, background 0.15s;
-}
-
-.const-analysis-strip a:hover,
-.const-audit-highlights a:hover {
-    border-color: var(--rune-pipe);
-    background: var(--bg-surface);
-}
-
-.const-analysis-kicker,
-.const-audit-highlights span {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: var(--rune-pipe);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-}
-
-.const-analysis-strip strong,
-.const-audit-highlights strong {
-    font-size: 0.9rem;
-    line-height: 1.35;
-}
-
-.const-analysis-strip small {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--text-dim);
-}
-
-.const-audit-highlights {
-    margin-top: 1rem;
-}
-
-.lang-note {
-    font-size: 0.82rem;
-    color: var(--text-dim);
-    font-style: italic;
-    margin-bottom: 1rem;
-}
-
 .const-section {
     margin-bottom: 3rem;
     scroll-margin-top: 5rem;
@@ -1449,6 +1387,283 @@ section {
 .const-code {
     font-size: 0.8rem !important;
     line-height: 1.65 !important;
+    border-radius: 6px !important;
+}
+
+.const-edition-intro {
+    scroll-margin-top: 5rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.const-edition-intro h1 {
+    max-width: 19ch;
+    margin-bottom: 0.8rem;
+    font-family: var(--font-mono);
+    font-size: 2.25rem;
+    line-height: 1.15;
+}
+
+.const-edition-intro > p:first-of-type {
+    max-width: 68ch;
+    color: var(--text-secondary);
+    font-size: 1.02rem;
+    line-height: 1.75;
+}
+
+.const-edition-intro h2 {
+    margin-top: 2rem;
+    font-size: 1.15rem;
+}
+
+.const-edition-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem 1.25rem;
+    margin: 1.25rem 0 1.75rem;
+    padding: 0.85rem 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+}
+
+.const-edition-links a {
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    font-weight: 600;
+    text-decoration-color: var(--rune-hash);
+    text-underline-offset: 0.25rem;
+}
+
+.const-edition-links a:last-child {
+    color: var(--rune-pipe);
+    text-decoration-color: currentColor;
+}
+
+.const-model-intro {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+    gap: 0.5rem 2rem;
+    scroll-margin-top: 5rem;
+    margin-bottom: 3.5rem;
+    padding-bottom: 2.25rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.const-model-intro h1 {
+    align-self: end;
+    max-width: 24ch;
+    font-family: var(--font-mono);
+    font-size: 2.05rem;
+    line-height: 1.2;
+}
+
+.const-section-mark {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: start;
+    color: var(--rune-hash);
+    font-family: var(--font-mono);
+    font-size: 4.5rem;
+    font-weight: 700;
+    line-height: 1;
+    text-align: right;
+}
+
+.const-model-lead {
+    grid-column: 1;
+    max-width: 66ch;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.75;
+}
+
+.const-layer-list {
+    grid-column: 1 / -1;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.const-layer-list > div {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.const-layer-list dt,
+.const-finding-facts dt,
+.const-finding h4 {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+}
+
+.const-layer-list dd {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.const-findings,
+.const-testing-code {
+    scroll-margin-top: 5rem;
+}
+
+.const-section-heading {
+    max-width: 68ch;
+    margin-bottom: 1.5rem;
+}
+
+.const-section-heading > span {
+    color: var(--rune-pipe);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.const-section-heading h2 {
+    margin: 0.25rem 0 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 1.35rem;
+}
+
+.const-section-heading p {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+}
+
+.const-finding {
+    scroll-margin-top: 5rem;
+    padding: 2rem 0 2.25rem;
+    border-top: 2px solid var(--rune-pipe);
+}
+
+.const-finding + .const-finding {
+    margin-top: 0.5rem;
+}
+
+.const-finding-interpretation {
+    border-top-color: var(--rune-question);
+}
+
+.const-finding-header {
+    margin-bottom: 1.15rem;
+}
+
+.const-finding-classification {
+    margin-bottom: 0.3rem;
+    color: var(--rune-pipe);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+}
+
+.const-finding-interpretation .const-finding-classification {
+    color: var(--rune-question);
+}
+
+.const-finding-header h3 {
+    max-width: 35ch;
+    font-size: 1.18rem;
+    line-height: 1.4;
+}
+
+.const-finding-facts {
+    margin-bottom: 1.2rem;
+    border-top: 1px solid var(--border);
+}
+
+.const-finding-facts > div,
+.const-finding-statement,
+.const-finding-assumptions,
+.const-finding-references {
+    display: grid;
+    grid-template-columns: 8.5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.const-finding-facts dd,
+.const-finding-statement p,
+.const-finding-assumptions ul {
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.const-finding-source {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+}
+
+.const-finding-source a {
+    color: var(--text-primary);
+}
+
+.const-finding-source small {
+    color: var(--text-dim);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+}
+
+.const-finding-limitation {
+    border-left: 2px solid var(--rune-eq);
+    padding-left: 0.75rem;
+}
+
+.const-finding-assumptions ul {
+    padding-left: 1.1rem;
+}
+
+.const-finding-assumptions li + li {
+    margin-top: 0.35rem;
+}
+
+.const-finding-references > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    min-width: 0;
+}
+
+.const-finding-references code,
+.const-finding-footer code {
+    overflow-wrap: anywhere;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+}
+
+.const-finding-references code {
+    padding: 0.18rem 0.4rem;
+    background: var(--bg-code);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.const-finding-footer {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-top: 0.9rem;
+}
+
+.const-finding-footer a {
+    color: var(--rune-pipe);
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-underline-offset: 0.2rem;
+}
+
+.const-testing-code {
+    margin-top: 4rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
 }
 
 /* ---- Personskatteloven research page ---- */
@@ -1902,6 +2117,15 @@ section {
         overflow-x: hidden;
     }
 
+    .footer {
+        padding-inline: 1rem;
+    }
+
+    .footer-links {
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+    }
+
     .top-nav {
         left: 0;
         right: 0;
@@ -2038,6 +2262,28 @@ section {
         overflow-wrap: anywhere;
     }
 
+    .why-toc.const-toc {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        padding-bottom: 0.75rem;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .const-toc .why-toc-title {
+        display: none;
+    }
+
+    .const-toc .why-toc-link,
+    .const-toc .research-back {
+        flex: 0 0 auto;
+        width: auto;
+        white-space: nowrap;
+        overflow-wrap: normal;
+    }
+
     .why-main,
     .docs-rendered {
         width: 100%;
@@ -2059,11 +2305,6 @@ section {
         overflow-x: auto;
     }
 
-    .const-analysis-strip,
-    .const-audit-highlights {
-        grid-template-columns: 1fr;
-    }
-
     .tax-status-grid,
     .tax-audit-highlights {
         grid-template-columns: 1fr;
@@ -2074,9 +2315,40 @@ section {
         gap: 0.35rem;
     }
 
-    .const-analysis-strip a,
-    .const-audit-highlights a {
-        min-height: auto;
+    .const-edition-intro h1 {
+        font-size: 1.75rem;
+    }
+
+    .const-edition-links {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .const-model-intro {
+        grid-template-columns: minmax(0, 1fr) 3rem;
+        gap: 0.5rem 1rem;
+    }
+
+    .const-model-intro h1 {
+        font-size: 1.65rem;
+    }
+
+    .const-section-mark {
+        font-size: 3rem;
+    }
+
+    .const-layer-list > div,
+    .const-finding-facts > div,
+    .const-finding-statement,
+    .const-finding-assumptions,
+    .const-finding-references {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.3rem;
+    }
+
+    .const-finding-footer {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .pg-page {

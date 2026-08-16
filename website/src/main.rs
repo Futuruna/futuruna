@@ -139,6 +139,52 @@ fn Shell() -> Element {
                     tip.classList.add('visible');
                 }});
             }})();
+
+            (function() {{
+                function scrollToHash(attempt) {{
+                    var hash = window.location.hash || window.__futurunaInitialHash;
+                    if (!hash) return;
+                    attempt = typeof attempt === 'number' ? attempt : 0;
+                    var id;
+                    try {{
+                        id = decodeURIComponent(hash.slice(1));
+                    }} catch (_) {{
+                        id = hash.slice(1);
+                    }}
+                    window.requestAnimationFrame(function() {{
+                        var target = document.getElementById(id);
+                        if (target) {{
+                            var initialNavigation = window.__futurunaInitialHash === hash;
+                            if (!window.location.hash && window.__futurunaInitialHash) {{
+                                window.history.replaceState(null, '', window.location.pathname + window.location.search + hash);
+                            }}
+                            window.__futurunaInitialHash = '';
+                            if (initialNavigation) {{
+                                [0, 100, 300, 700].forEach(function(delay) {{
+                                    window.setTimeout(function() {{
+                                        var currentTarget = document.getElementById(id);
+                                        if (currentTarget) currentTarget.scrollIntoView({{ block: 'start', behavior: 'instant' }});
+                                    }}, delay);
+                                }});
+                            }} else {{
+                                target.scrollIntoView({{ block: 'start' }});
+                            }}
+                        }} else if (attempt < 40) {{
+                            window.setTimeout(function() {{ scrollToHash(attempt + 1); }}, 25);
+                        }}
+                    }});
+                }}
+
+                if (!window.__futurunaHashScrollInstalled) {{
+                    window.__futurunaHashScrollInstalled = true;
+                    window.addEventListener('hashchange', function() {{ scrollToHash(0); }});
+                    document.addEventListener('click', function(event) {{
+                        var link = event.target.closest && event.target.closest("a[href^='#']");
+                        if (link) window.setTimeout(function() {{ scrollToHash(0); }}, 0);
+                    }});
+                }}
+                scrollToHash(0);
+            }})();
         "#,
             db_js = db_js
         );
@@ -2698,7 +2744,8 @@ const DOC_WHY: &str = include_str!("../../docs/why.md");
 const DOC_PHILOSOPHY: &str = include_str!("../../docs/research.md");
 const DOC_OWNERSHIP: &str = include_str!("../../docs/research-ownership.md");
 
-// Danish Constitution .runa files (shared protocol + chapters 1-11 + audit)
+// Danish Constitution source edition, interpretation models, and focused audits.
+const DK_WEBSITE_INTRO: &str = include_str!("../../examples/danish-constitution/webside.md");
 const DK_COMMON: &str = include_str!("../../examples/danish-constitution/grundlov-faelles.runa");
 const DK_KAP01: &str = include_str!("../../examples/danish-constitution/kapitel-01.runa");
 const DK_KAP02: &str = include_str!("../../examples/danish-constitution/kapitel-02.runa");
@@ -2711,7 +2758,49 @@ const DK_KAP08: &str = include_str!("../../examples/danish-constitution/kapitel-
 const DK_KAP09: &str = include_str!("../../examples/danish-constitution/kapitel-09.runa");
 const DK_KAP10: &str = include_str!("../../examples/danish-constitution/kapitel-10.runa");
 const DK_KAP11: &str = include_str!("../../examples/danish-constitution/kapitel-11.runa");
+const DK_INTERPRETATION_BASIS: &str = include_str!(
+    "../../examples/danish-constitution/fortolkninger/grundlov-fortolkning-faelles.runa"
+);
+const DK_INTERPRETATION_FAITH: &str = include_str!(
+    "../../examples/danish-constitution/fortolkninger/troskrav-og-ligebehandling.fortolkning.runa"
+);
+const DK_INTERPRETATION_TAX: &str = include_str!(
+    "../../examples/danish-constitution/fortolkninger/skat-og-ekspropriation.fortolkning.runa"
+);
+const DK_INTERPRETATION_SCENARIOS: &str =
+    include_str!("../../examples/danish-constitution/grundlov-fortolkninger.scenario.runa");
+const DK_AUDIT_PROVISIONS: &str =
+    include_str!("../../examples/danish-constitution/grundlov-bestemmelser.audit.runa");
+const DK_AUDIT_PROCEDURES: &str =
+    include_str!("../../examples/danish-constitution/grundlov-procedurer.audit.runa");
+const DK_AUDIT_RIGHTS: &str =
+    include_str!("../../examples/danish-constitution/grundlov-rettigheder.audit.runa");
+const DK_AUDIT_CROSS_CUTTING: &str =
+    include_str!("../../examples/danish-constitution/grundlov-tvaergaaende.audit.runa");
 const DK_AUDIT: &str = include_str!("../../examples/danish-constitution/grundlov.audit.runa");
+
+struct ConstitutionFindingSource {
+    identifier: &'static str,
+    url: &'static str,
+    fetched_date: &'static str,
+}
+
+struct ConstitutionFinding {
+    label: &'static str,
+    title: &'static str,
+    model_layer: &'static str,
+    statement_status: &'static str,
+    scope: &'static str,
+    program_references: &'static [&'static str],
+    sources: &'static [ConstitutionFindingSource],
+    assumptions: &'static [&'static str],
+    result: &'static str,
+    limitation: &'static str,
+    source_file: &'static str,
+    code_id: &'static str,
+}
+
+include!(concat!(env!("OUT_DIR"), "/danish_constitution_findings.rs"));
 
 // Danish personal income tax website overview
 const TAX_WEBSITE_OVERVIEW_MD: &str =
@@ -2900,25 +2989,24 @@ fn ResearchIndex() -> Element {
                 }
                 // Danish Constitution
                 a { class: "research-card", href: "/research/danish-constitution",
-                    div { class: "research-card-rune rune-flag", "\u{1F1E9}\u{1F1F0}" }
+                    div { class: "research-card-rune rune-section", "§" }
                     h2 { class: "research-card-title", "Danmarks Riges Grundlov" }
                     p { class: "research-card-desc",
-                        "Den komplette danske grundlov af 1953 kodet i Futuruna. \
-                         11 kapitler, 89 paragraffer: original lovtekst, typer, \
-                         typede | regler, betingelser og undtagelser."
+                        "En kildefast kodeudgave med den officielle ordlyd før den \
+                         tilhørende domæne- og regelmodel i Futuruna."
                     }
-                    span { class: "research-card-meta", "Forfatningsret \u{00B7} Dansk" }
+                    span { class: "research-card-meta", "Kildetekst og regelmodel \u{00B7} Dansk" }
                 }
                 // Danish Constitution Audit
                 a { class: "research-card", href: "/research/danish-constitution-audit",
                     div { class: "research-card-rune rune-question", "?" }
-                    h2 { class: "research-card-title", "Grundlovsrevision" }
+                    h2 { class: "research-card-title", "Prøvning af grundlovsmodellen" }
                     p { class: "research-card-desc",
-                        "Auditlaget for den danske grundlovsmodel: tærskelsymmetrier, \
-                         grundlovsparadokser, indfødsret/vælgerkorps, fattighjælp/valgret \
-                         og påtrængende love før vælgerkontrol."
+                        "Tekstnære kontroller, grænseanalyser og navngivne \
+                         fortolkningsspørgsmål med spor tilbage til de regler, \
+                         som hvert fund bygger på."
                     }
-                    span { class: "research-card-meta", "Formel verifikation \u{00B7} Dansk grundlov" }
+                    span { class: "research-card-meta", "Scenarier, prøvninger og fortolkninger \u{00B7} Dansk" }
                 }
                 a { class: "research-card", href: "/research/personskatteloven",
                     div { class: "research-card-rune rune-pipe", "|" }
@@ -3069,6 +3157,7 @@ fn constitution_file_section(title: &str, id: &str, src: &str) -> String {
 
 #[component]
 fn ResearchDanishConstitution() -> Element {
+    let intro_html = md_to_html_with_ids(DK_WEBSITE_INTRO);
     let sections: Vec<(&str, &str, &str)> = vec![
         ("Fælles domæne og kildemetadata", "faelles", DK_COMMON),
         ("Kapitel I — Statsformen (§§ 1-4)", "kap-1", DK_KAP01),
@@ -3104,10 +3193,13 @@ fn ResearchDanishConstitution() -> Element {
         ),
     ];
 
-    let toc: Vec<(String, String)> = sections
-        .iter()
-        .map(|(title, id, _)| (id.to_string(), title.to_string()))
-        .collect();
+    let mut toc = vec![("udgaven".to_string(), "Kildeudgaven".to_string())];
+    toc.extend(extract_h2_headings(DK_WEBSITE_INTRO));
+    toc.extend(
+        sections
+            .iter()
+            .map(|(title, id, _)| (id.to_string(), title.to_string())),
+    );
 
     let body_html: String = sections
         .iter()
@@ -3115,67 +3207,21 @@ fn ResearchDanishConstitution() -> Element {
         .collect();
 
     rsx! {
-        document::Title { "Danmarks Riges Grundlov — Futuruna Research" }
-        document::Meta { name: "description", content: "Danmarks Riges Grundlov af 1953 kodet i Futuruna: officiel kildetekst, 89 paragraffer, typede kildereferencer og | regler." }
+        document::Title { "Danmarks Riges Grundlov | Futuruna" }
+        document::Meta { name: "description", content: "En kildefast kodeudgave af Danmarks Riges Grundlov med officiel ordlyd, domænemodel og navngivne Futuruna-regler." }
         div { class: "why-page",
-            nav { class: "why-toc",
+            nav { class: "why-toc const-toc",
                 h3 { class: "why-toc-title", "Grundlov" }
-                a { class: "why-toc-link research-back", href: "/research", "← Al research" }
+                a { class: "why-toc-link research-back", href: "/research", "← Al forskning" }
                 for (id, label) in toc.iter() {
                     a { class: "why-toc-link", href: "#{id}", "{label}" }
                 }
             }
             article { class: "why-main const-article",
-                div { class: "const-intro",
-                    p { class: "lang-note", "Siden er på dansk, fordi grundloven er kodet på sit originalsprog." }
-                    h1 { "Danmarks Riges Grundlov" }
-                    p {
-                        "Den danske grundlov af 5. juni 1953, kodet i Futuruna. \
-                         89 paragraffer fordelt p\u{00E5} 11 kapitler, hvor den originale \
-                         lovtekst st\u{00E5}r i multiline source blocks og Futuruna-oversættelsen \
-                         f\u{00F8}lger direkte nedenunder som typer, konstanter og typede | regler. \
-                         Betingelser modelleres med "
-                        code { "under" }
-                        ", og undtagelser modelleres med "
-                        code { "exception" }
-                        "."
-                    }
-                    p {
-                        "Hver kildetekst har sit eget "
-                        code { "--@label:...::meta:...--" }
-                        "-anker til den typede kildeprotokol. Det tilhørende "
-                        code { "--@begin:...--" }
-                        "- og "
-                        code { "--@end:...--" }
-                        "-spænd indkapsler netop de typer og regler, der formaliserer teksten. "
-                        "Dermed kan auditværktøjer følge en regel tilbage til den officielle paragraf."
-                    }
-                    p { class: "lang-note",
-                        "Kilde: "
-                        a { href: "https://www.retsinformation.dk/eli/lta/1953/169", "Retsinformation, LOV nr. 169 af 05/06/1953" }
-                        " · "
-                        a { href: "https://www.ft.dk/da/dokumenter/bestil-publikationer/publikationer/grundloven/danmarks-riges-grundlov", "Folketingets tekstvisning" }
-                    }
-                    p { class: "const-stats",
-                        "13 filer \u{00B7} fælles kildeprotokol + 11 kapitler + revision \u{00B7} 89 paragraffer \u{00B7} 91 typede kildespænd \u{00B7} typede | lovregler"
-                    }
-                    div { class: "const-analysis-strip",
-                        a { href: "/research/danish-constitution-audit#indfoedsret-vaelgerkorps",
-                            span { class: "const-analysis-kicker", "Ny audit" }
-                            strong { "Indfødsret og vælgerkorps" }
-                            small { "§§ 29, 41, 42, 44" }
-                        }
-                        a { href: "/research/danish-constitution-audit#fattighjaelp-valgret",
-                            span { class: "const-analysis-kicker", "Ny audit" }
-                            strong { "Fattighjælp og valgret" }
-                            small { "§§ 29, 75" }
-                        }
-                        a { href: "/research/danish-constitution-audit#paatraengende-love",
-                            span { class: "const-analysis-kicker", "Ny audit" }
-                            strong { "Påtrængende love" }
-                            small { "§ 42 stk. 7" }
-                        }
-                    }
+                div {
+                    id: "udgaven",
+                    class: "const-edition-intro docs-rendered",
+                    dangerous_inner_html: intro_html
                 }
                 div { dangerous_inner_html: body_html }
             }
@@ -3187,210 +3233,181 @@ fn ResearchDanishConstitution() -> Element {
 // Research: Danish Constitution Audit — /research/danish-constitution-audit
 // ============================================================================
 
-const DK_AUDIT_ARTICLE: &str = r#"## Hvad er en grundlovsrevision?
-
-En grundlov er et system af regler, og som ethvert system kan den indeholde huller,
-spændinger og paradokser, der først bliver synlige når man formaliserer reglerne
-præcist nok til at teste dem.
-
-**Grundlovsrevisionen** tager enhver regel, tærskel, delegering og garanti
-i den danske grundlov og udtrykker dem først som kildefaste Futuruna-regler.
-Auditlaget kan derefter bevise, sammenligne og finde huller i regelstrukturen.
-Ikke ved juridisk argumentation, men ved eksekvering.
-
-Kildeteksten er Danmarks Riges Grundlov, LOV nr. 169 af 05/06/1953, med
-Retsinformation som officiel tekstgrundlag og Folketingets tekstvisning som
-parlamentarisk spejl. I kapitel-filerne står den originale lovtekst i
-`----` blokke; Futuruna-oversættelsen står direkte nedenunder.
-
-## Sådan virker det
-
-Hver paragraf i grundloven kodes med Futurunas syv runer:
-
-- **`#` (typer)** definerer de forfatningsmæssige aktører: `Monark`, `Tronfølger`,
-  `Rigsdel`, `Statsmagt`, `Samtykke`
-- **`|` (regler)** koder de juridiske udsagn: pligter, forbud, beføjelser,
-  delegationer og tærskler som `har_valgret()`, `personlig_frihed_er_ukrænkelig()`
-  og `grundlovsændring_godkendt()`
-- **`>` (funktioner)** reserveres til egentlig beregning uden selvstændig
-  retsnorm; lovformuleringen skal som udgangspunkt være `|`
-- **`=` (bindinger)** fastsætter forfatningskonstanter: `frist_fremstilling_timer = 24`,
-  `godkendelsestærskel_pct = 40`
-- **`?` (beviser)** verificerer at hver invariant holder
-
-## Hvad revisionen opdager
-
-### Tærskelsymmetrier
-Flere paragraffer deler de samme brøktærskler uden at krydsreferere hinanden:
-- §§ 39 og 41 bruger begge en **2/5-tærskel** (indkaldelse og udsættelse)
-- §§ 42 og 73 bruger begge en **1/3-tærskel** (folkeafstemning og ekspropriationsudsættelse)
-
-Revisionen beviser at disse er *strukturelt identiske*. Ikke tilfældigheder, men
-forfatningsdesign.
-
-### Grundlovsparadokser
-- **§ 15 vs § 32 stk. 2 — Dødvande**: En ny regering, der ikke har præsenteret
-  sig for Folketinget, kan hverken blive siddende (§ 15 forbyder det efter mistillidsvotum)
-  eller udskrive valg (§ 32 kræver præsentation først). Begge udgange er blokeret.
-- **§ 7 vs § 8 — Den umyndige monark med ed**: § 8 siger at en arving, der allerede
-  har aflagt eden, tiltræder straks ved tronfølge. § 7 siger monarken skal være 18.
-  Ingen alderstjek i § 8.
-- **§ 6 vs § 70 — Den muslimske konge**: § 6 *kræver* at monarken tilhører
-  den evangelisk-lutherske kirke. § 70 siger at *ingen* kan berøves rettigheder
-  på grund af trosbekendelse. Grundloven forbyder hvad den selv kræver.
-  Endnu vigtigere: § 6 gælder kongen, men *ikke* tronfølgeren. Troskravet
-  nævnes kun for den siddende monark. Hvad sker der når en muslimsk
-  tronfølger arver tronen via § 2? Grundloven er tavs. Revisionen tester dette
-  med en `muslim_arving` og viser at `opfylder_troskrav()` returnerer `Falskt`.
-  Ingen paragraf forhindrer arvefølgen.
-
-### Beskatning vs. ekspropriation: det usynlige hul
-§ 43 siger: ingen skat uden lov. § 73 siger: ejendomsretten er ukrænkelig,
-og ekspropriation kræver fuldstændig erstatning.
-
-Men grundloven definerer *ikke* grænsen mellem beskatning og ekspropriation.
-En skat på 100% er forfatningsmæssigt en "skat" under § 43, som blot kræver
-en lov. I praksis er det en total ekspropriation, som under § 73 ville
-kræve fuldstændig erstatning. Revisionen beviser at begge paragraffer holder
-isoleret (`par43_skat_kræver_lov` og `par73_ekspropriation_kræver_erstatning`
-består begge). Men en konfiskatorisk skattesats opfylder § 43 og omgår § 73.
-Ingen bestemmelse forbyder det. Ingen støttebestemmelse definerer hvornår
-beskatning bliver ekspropriation.
-
-<span id="indfoedsret-vaelgerkorps"></span>
-
-### Indfødsret og vælgerkorps uden referendum
-
-§ 44 siger at ingen udlænding kan få indfødsret uden ved lov. § 29 gør
-indfødsret til adgangsbillet til valgret. Samtidig er indfødsretslove afskåret
-fra folkeafstemning efter § 42 stk. 6, og de kan heller ikke bremses med
-12-dages udsættelsen i § 41 stk. 3.
-
-Revisionen koder dette som en særskilt lovtype:
-
-```runa
-# AfskærmetLovtype = Indfødsretslov | Ekspropriationslov | DirekteSkattelov | IndirekteSkattelov | Traktatgennemførelseslov
-
-| folkeafstemning_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == DirekteSkattelov || lovtype == IndirekteSkattelov || lovtype == Traktatgennemførelseslov
-| udsættelse_af_tredje_behandling_afskåret(lovtype: AfskærmetLovtype) -> lovtype == Indfødsretslov || lovtype == Ekspropriationslov || lovtype == IndirekteSkattelov
-| dobbelt_afskåret(lovtype: AfskærmetLovtype) -> folkeafstemning_afskåret(lovtype) && udsættelse_af_tredje_behandling_afskåret(lovtype)
-```
-
-Det interessante er ikke bare at indfødsret gives ved lov. Det er at
-vælgerkorpsets medlemskreds kan udvides via en lovtype, som grundloven selv
-afskærer fra de normale vælgerkontrolmekanismer. Valgretsalderen er låst af
-folkeafstemning; indfødsretsadgangen er ikke.
-
-<span id="fattighjaelp-valgret"></span>
-
-### Fattighjælp som valgretsrisiko
-
-§ 75 giver ret til offentlig hjælp ved manglende forsørgelse. § 29 lader
-derimod loven bestemme i hvilket omfang understøttelse, der betragtes som
-fattighjælp, medfører tab af valgret.
-
-Revisionen modellerer det som en betinget undtagelse:
-
-```runa
-# ForsørgelsesStatus = Selvforsørgende | Fattighjælp
-
-| hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Falskt
-| exception fattighjælp hjælp_kan_have_valgretspris(status: ForsørgelsesStatus) -> Sandt under status == Fattighjælp
-```
-
-Dermed bliver spændingen synlig: social beskyttelse og politisk deltagelse er
-ikke fuldt adskilte spor i teksten. Hjælp er en rettighed, men en bestemt
-historisk kategori af hjælp kan stadig være en lovkanal til tab af valgret.
-
-<span id="paatraengende-love"></span>
-
-### Påtrængende love før vælgerkontrol
-
-§ 42 stk. 7 siger at et særdeles påtrængende lovforslag kan stadfæstes straks,
-hvis forslaget selv bestemmer det. Hvis en tredjedel derefter kræver
-folkeafstemning og loven forkastes, bortfalder loven først fra
-kundgørelsesdagen.
-
-Revisionen koder tidsstillingen direkte:
-
-```runa
-# PåtrængendeLovStadium = FørFolkeafstemning | EfterForkastelseKundgjort
-
-| påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> påtrængende_lovforslag_kan_stadfæstes_straks() under stadium == FørFolkeafstemning
-| exception forkastet påtrængende_lov_virker(stadium: PåtrængendeLovStadium) -> Falskt under stadium == EfterForkastelseKundgjort
-```
-
-Vælgerkontrollen er derfor ikke nødvendigvis opsættende. I den påtrængende
-lovkanal kan loven virke først og bortfalde bagefter.
-
-### Delegeringssporing
-Revisionen identificerer ethvert punkt hvor grundloven delegerer til almindelig lovgivning
-(31 delegeringer på tværs af alle kapitler), og synliggør grænsen mellem
-forfatningsgaranti og lovgivningsmæssigt skøn.
-
-### De fire ukrænkeligheder
-Fire ting erklæres "ukrænkelige": Folketinget (§ 34),
-den personlige frihed (§ 71), boligen (§ 72) og ejendomsretten (§ 73). Hver har
-forskellige undtagelsesmekanismer. Revisionen kortlægger og sammenligner dem.
-
-## 100+ verificerede invarianter
-
-Enhver invariant i revisionsfilen er maskintjekket. Den afsluttende linje:
-
-```
-? all -> { @ skriv("Alle invarianter holder.") }
-```
-
-Den kører ethvert `?`-bevis. Hvis en invariant fejler, rapporterer programmet det.
-Alle består.
-"#;
-
 #[component]
 fn ResearchDanishConstitutionAudit() -> Element {
-    let article_html = md_to_html_with_ids(DK_AUDIT_ARTICLE);
-    let audit_highlighted = constitution_file_section(
-        "grundlov.audit.runa \u{2014} Formelle invarianter og krydskontrol",
-        "audit-code",
-        DK_AUDIT,
-    );
+    let code_sections = [
+        (
+            "Fælles grundlag for fortolkningsmodeller",
+            "fortolkning-faelles",
+            DK_INTERPRETATION_BASIS,
+        ),
+        (
+            "Fortolkning af troskrav og ligebehandling",
+            "fortolkning-troskrav",
+            DK_INTERPRETATION_FAITH,
+        ),
+        (
+            "Fortolkning af skat og ekspropriation",
+            "fortolkning-skat-ekspropriation",
+            DK_INTERPRETATION_TAX,
+        ),
+        (
+            "Scenarier med eksplicitte fortolkningsvalg",
+            "fortolkningsscenarier",
+            DK_INTERPRETATION_SCENARIOS,
+        ),
+        (
+            "Prøvning af bestemmelser",
+            "audit-bestemmelser",
+            DK_AUDIT_PROVISIONS,
+        ),
+        (
+            "Prøvning af procedurer",
+            "audit-procedurer",
+            DK_AUDIT_PROCEDURES,
+        ),
+        (
+            "Prøvning af rettigheder",
+            "audit-rettigheder",
+            DK_AUDIT_RIGHTS,
+        ),
+        (
+            "Tværgående prøvning",
+            "audit-tvaergaaende",
+            DK_AUDIT_CROSS_CUTTING,
+        ),
+        ("Samlet prøvningsindgang", "audit-samlet", DK_AUDIT),
+    ];
+    let code_html: String = code_sections
+        .iter()
+        .map(|(title, id, source)| constitution_file_section(title, id, source))
+        .collect();
 
     rsx! {
-        document::Title { "Grundlov Audit — Futuruna Research" }
-        document::Meta { name: "description", content: "Formal audit layer for the Danish Constitution model in Futuruna: threshold symmetries, constitutional tensions, delegation tracking, and cross-chapter checks." }
+        document::Title { "Prøvning af grundlovsmodellen | Futuruna" }
+        document::Meta { name: "description", content: "Tekstnære kontroller, grænseanalyser og navngivne fortolkningsspørgsmål for Futurunas model af Danmarks Riges Grundlov." }
         div { class: "why-page",
-            nav { class: "why-toc",
-                h3 { class: "why-toc-title", "Revision" }
+            nav { class: "why-toc const-toc",
+                h3 { class: "why-toc-title", "Grundlovsprøvning" }
                 a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
-                a { class: "why-toc-link", href: "#article", "Artikel" }
-                a { class: "why-toc-link", href: "#audit-code", "Kildekode" }
+                a { class: "why-toc-link", href: "#grundlag", "Om prøvningen" }
+                a { class: "why-toc-link", href: "#fund", "Fund" }
+                a { class: "why-toc-link", href: "#kildekode", "Kildekode" }
             }
-            article { class: "why-main const-article",
-                div { class: "const-intro",
-                    p { class: "lang-note", "This page is in Danish — the audit analyses the constitution in its original language." }
-                    h1 { "Grundlovsrevision" }
-                    p {
-                        "Auditlaget samler formelle invarianter p\u{00E5} tv\u{00E6}rs af alle 11 kapitler \
-                         i den danske grundlov: tærskelsymmetrier, grundlovsparadokser, \
-                         delegeringssporing, de fire ukrænkeligheder og nye krydsanalyser \
-                         af indfødsret, fattighjælp og påtrængende love."
+            article { class: "why-main const-article const-testing-page",
+                header { id: "grundlag", class: "const-model-intro",
+                    div { class: "const-section-mark", aria_hidden: "true", "§" }
+                    h1 { "Prøvning af grundlovsmodellen" }
+                    p { class: "const-model-lead",
+                        "Prøvningen holder ordlyd, kildemodel og fortolkning adskilt. \
+                         Et bestået scenarie viser, at den valgte model giver det angivne \
+                         resultat; det gør ikke fortolkningen til gældende ret."
                     }
-                    div { class: "const-audit-highlights",
-                        a { href: "#indfoedsret-vaelgerkorps",
-                            span { "|" }
-                            strong { "Indfødsret ændrer vælgerkorps uden referendum" }
+                    dl { class: "const-layer-list",
+                        div {
+                            dt { "Ordlyd" }
+                            dd { "Den officielle tekst, bevaret ordret ved hver bestemmelse." }
                         }
-                        a { href: "#fattighjaelp-valgret",
-                            span { "exception" }
-                            strong { "Fattighjælp kan blive valgretspris" }
+                        div {
+                            dt { "Kildemodel" }
+                            dd { "De relationer og retsvirkninger, som ordlyden udtrykkeligt bærer." }
                         }
-                        a { href: "#paatraengende-love",
-                            span { "under" }
-                            strong { "Påtrængende love virker før vælgerkontrol" }
+                        div {
+                            dt { "Fortolkning" }
+                            dd { "En navngiven forståelse med synlige forudsætninger og uden skjult standardvalg." }
+                        }
+                        div {
+                            dt { "Prøvning" }
+                            dd { "Scenarier og egenskaber med et erklæret omfang og en tydelig afgrænsning." }
                         }
                     }
                 }
-                div { id: "article", class: "docs-rendered", dangerous_inner_html: article_html }
-                div { dangerous_inner_html: audit_highlighted }
+
+                section { id: "fund", class: "const-findings",
+                    div { class: "const-section-heading",
+                        span { "Strukturerede metadata" }
+                        h2 { "Fund i den aktive model" }
+                        p {
+                            "Oplysningerne nedenfor er genereret fra de metadata, som er \
+                             knyttet direkte til prøvnings- og fortolkningskoden."
+                        }
+                    }
+                    for finding in DK_CONSTITUTION_FINDINGS.iter() {
+                        article {
+                            id: finding.label,
+                            class: if finding.statement_status == "Fortolkningsspørgsmål" {
+                                "const-finding const-finding-interpretation"
+                            } else {
+                                "const-finding"
+                            },
+                            header { class: "const-finding-header",
+                                p { class: "const-finding-classification",
+                                    "{finding.statement_status} · {finding.scope}"
+                                }
+                                h3 { "{finding.title}" }
+                            }
+                            dl { class: "const-finding-facts",
+                                div {
+                                    dt { "Modellag" }
+                                    dd { "{finding.model_layer}" }
+                                }
+                                div {
+                                    dt { "Kilde" }
+                                    dd {
+                                        for source in finding.sources.iter() {
+                                            span { class: "const-finding-source",
+                                                a { href: source.url, "{source.identifier}" }
+                                                small { "Hentet {source.fetched_date}" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            div { class: "const-finding-statement",
+                                h4 { "Resultat" }
+                                p { "{finding.result}" }
+                            }
+                            div { class: "const-finding-statement const-finding-limitation",
+                                h4 { "Afgrænsning" }
+                                p { "{finding.limitation}" }
+                            }
+                            if !finding.assumptions.is_empty() {
+                                div { class: "const-finding-assumptions",
+                                    h4 { "Forudsætninger" }
+                                    ul {
+                                        for assumption in finding.assumptions.iter() {
+                                            li { "{assumption}" }
+                                        }
+                                    }
+                                }
+                            }
+                            div { class: "const-finding-references",
+                                h4 { "Programhenvisninger" }
+                                div {
+                                    for reference in finding.program_references.iter() {
+                                        code { "{reference}" }
+                                    }
+                                }
+                            }
+                            footer { class: "const-finding-footer",
+                                code { "{finding.source_file}" }
+                                a { href: format!("#{}", finding.code_id), "Se det tilknyttede kodespor" }
+                            }
+                        }
+                    }
+                }
+
+                section { id: "kildekode", class: "const-testing-code",
+                    div { class: "const-section-heading",
+                        span { "Aktivt korpus" }
+                        h2 { "Fortolkninger, scenarier og prøvninger" }
+                        p {
+                            "Koden nedenfor er den samme kode, som metadatafundene \
+                             henviser til, og som den samlede prøvningsindgang kører."
+                        }
+                    }
+                    div { dangerous_inner_html: code_html }
+                }
             }
         }
     }

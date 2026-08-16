@@ -75,6 +75,7 @@
                 transition: opacity 0.4s ease, visibility 0.4s ease;
             }
             #splash.hide {
+                display: none;
                 opacity: 0;
                 visibility: hidden;
                 pointer-events: none;
@@ -255,6 +256,9 @@
         </script>
     </head>
     <body>
+        <script>
+            window.__futurunaInitialHash = window.location.hash;
+        </script>
         <div id="__dx-toast" class="dx-toast" aria-hidden="true">
             <div id="__dx-toast-inner" class="dx-toast-inner" style="right:-1000px;">
                 <div class="dx-toast-level-bar-container">
