@@ -109,7 +109,7 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 --@begin:grundlov_par10--
 
 | statsydelse_fastsættes_ved_lov()
-| slotte_fastsættes_ved_lov()
+| slotte_og_andre_statsejendele_til_kongens_brug_fastsættes_ved_lov()
 | statsydelse_gæld_forbudt()
 --@end:grundlov_par10--
 
@@ -121,7 +121,7 @@ Stk. 2. Statsydelsen kan ikke behæftes med gæld.
 
 --@begin:grundlov_par11--
 
-| årpenge_fastsættes_ved_lov()
+| årpenge_kan_bestemmes_ved_lov()
 | årpenge_i_udlandet_kræver_folketingets_samtykke()
 | årpenge_i_udlandet(s: Samtykke) -> s == Givet
 --@end:grundlov_par11--

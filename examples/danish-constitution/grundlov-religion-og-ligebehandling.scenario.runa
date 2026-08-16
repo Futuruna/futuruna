@@ -35,7 +35,7 @@
     strider_mod_den_offentlige_orden = Sandt
 )
 
-| par67_beskytter_begge_udtryksformer: beskyttet_lære.er_beskyttet_efter_par67() -> beskyttet_lære.er_beskyttet_efter_par67() && beskyttet_foretagelse.er_beskyttet_efter_par67()
+| par67_beskytter_foreningsretten_og_begge_udtryksformer: beskyttet_lære.er_beskyttet_efter_par67() -> borgerne_har_ret_til_at_forene_sig_i_samfund_for_at_dyrke_gud() && beskyttet_lære.er_beskyttet_efter_par67() && beskyttet_foretagelse.er_beskyttet_efter_par67()
 | par67_kræver_overbevisningssammenhæng_og_begge_grænser: lære_uden_overbevisningssammenhæng.er_beskyttet_efter_par67() -> lære_uden_overbevisningssammenhæng.er_beskyttet_efter_par67() == Falskt && lære_mod_sædeligheden.er_beskyttet_efter_par67() == Falskt && foretagelse_mod_den_offentlige_orden.er_beskyttet_efter_par67() == Falskt
 
 = bidrag_til_egen_gudsdyrkelse = PersonligtBidragsforhold(gudsdyrkelse = EgenGudsdyrkelse, bidragspligt_pålagt = Sandt)
@@ -73,7 +73,7 @@
 | par70_omfatter_begge_grunde_og_rettighedstyper: trosbaseret_berøvelse_af_borgerlig_ret.grund_er_omfattet() -> trosbaseret_berøvelse_af_borgerlig_ret.grund_er_omfattet() && afstamningsbaseret_berøvelse_af_politisk_ret.grund_er_omfattet() && trosbaseret_berøvelse_af_borgerlig_ret.virkning_er_omfattet() && afstamningsbaseret_berøvelse_af_politisk_ret.virkning_er_omfattet()
 | par70_forbyder_årsagsbestemt_rettighedsberøvelse_og_pligtunddragelse: ikke_årsagsbestemt_rettighedsvirkning.opfylder_par70() -> trosbaseret_berøvelse_af_borgerlig_ret.opfylder_par70() == Falskt && afstamningsbaseret_berøvelse_af_politisk_ret.opfylder_par70() == Falskt && trosbaseret_unddragelse_fra_borgerpligt.opfylder_par70() == Falskt && ikke_årsagsbestemt_rettighedsvirkning.opfylder_par70() && ikke_årsagsbestemt_borgerpligt.opfylder_par70()
 
-? par67_beskytter_begge_udtryksformer
+? par67_beskytter_foreningsretten_og_begge_udtryksformer
 ? par67_kræver_overbevisningssammenhæng_og_begge_grænser
 ? par68_afgrænser_bidrag_til_anden_gudsdyrkelse
 ? par70_omfatter_begge_grunde_og_rettighedstyper

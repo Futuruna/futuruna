@@ -2,11 +2,24 @@
 
 @ importer ./kapitel - 05
 
--- Scenarierne prøver §§ 40, 45-46, 49-50, 53 og 57.
+-- Scenarierne prøver §§ 35, 40, 43, 45-47, 49-51, 53, 55 og 57.
+
+= par35_uden_tidligere_indkaldelse = nyvalgt_folketings_sammentræden(NyvalgtFolketingsmøde(
+    kongen_har_indkaldt_forinden = Falskt
+))
+= par35_med_tidligere_indkaldelse = nyvalgt_folketings_sammentræden(NyvalgtFolketingsmøde(
+    kongen_har_indkaldt_forinden = Sandt
+))
+| par35_tidligere_indkaldelse_er_undtagelsen: par35_uden_tidligere_indkaldelse -> par35_uden_tidligere_indkaldelse == TolvteSøgnedagKlokkenTolv && par35_med_tidligere_indkaldelse == IndkaldtTidligereAfKongen
 
 = par40_minister_som_medlem = minister_har_stemmeret_i_folketinget(Sandt)
 = par40_minister_uden_mandat = minister_har_stemmeret_i_folketinget(Falskt)
 | par40_stemmeret_følger_medlemskab: par40_minister_som_medlem -> par40_minister_som_medlem && par40_minister_uden_mandat == Falskt
+
+= par43_skattepålæggelse_kræver_lov = skattehandling_kræver_lov(Pålæggelse)
+= par43_skatteforandring_kræver_lov = skattehandling_kræver_lov(Forandring)
+= par43_skatteophævelse_kræver_lov = skattehandling_kræver_lov(Ophævelse)
+| par43_alle_tre_skattehandlinger_kræver_lov: par43_skattepålæggelse_kræver_lov -> par43_skattepålæggelse_kræver_lov && par43_skatteforandring_kræver_lov && par43_skatteophævelse_kræver_lov
 
 = finanslov_fire_måneder_før = Finanslovsforløb(
     måneder_før_finansårets_begyndelse = 4,
@@ -43,6 +56,40 @@
 = par46_ingen_hjemmel = statsudgift_må_afholdes_efter_par46_stk2(IngenUdgiftshjemmel)
 | par46_udgift_kræver_en_af_tre_hjemler: par46_finanslovshjemmel -> par46_finanslovshjemmel && par46_tillægsbevillingshjemmel && par46_midlertidig_hjemmel && par46_ingen_hjemmel == Falskt
 
+= par47_fremlæggelse_måned_5 = statsregnskabet_fremlægges_rettidigt(5)
+= par47_fremlæggelse_måned_6 = statsregnskabet_fremlægges_rettidigt(6)
+= par47_fremlæggelse_måned_7 = statsregnskabet_fremlægges_rettidigt(7)
+= gyldig_statsregnskabsprøvelse = Statsregnskabsprøvelse(
+    samtlige_statsindtægter_er_opført = Sandt,
+    ingen_udgift_uden_hjemmel_i_bevillingslov = Sandt
+)
+= statsregnskabsprøvelse_med_manglende_indtægt = Statsregnskabsprøvelse(
+    samtlige_statsindtægter_er_opført = Falskt,
+    ingen_udgift_uden_hjemmel_i_bevillingslov = Sandt
+)
+= statsregnskabsprøvelse_med_uhjemlet_udgift = Statsregnskabsprøvelse(
+    samtlige_statsindtægter_er_opført = Sandt,
+    ingen_udgift_uden_hjemmel_i_bevillingslov = Falskt
+)
+= par47_gyldig_prøvelse = statsregnskabsprøvelse_opfylder_par47_stk2(gyldig_statsregnskabsprøvelse)
+= par47_manglende_indtægt = statsregnskabsprøvelse_opfylder_par47_stk2(statsregnskabsprøvelse_med_manglende_indtægt)
+= par47_uhjemlet_udgift = statsregnskabsprøvelse_opfylder_par47_stk2(statsregnskabsprøvelse_med_uhjemlet_udgift)
+= par47_fornøden_oplysning = revisorerne_kan_fordre_meddelt(FornødenOplysning)
+= par47_fornødent_aktstykke = revisorerne_kan_fordre_meddelt(FornødentAktstykke)
+= par47_gyldig_forelæggelse = statsregnskabsforelæggelse_opfylder_par47_stk3(Statsregnskabsforelæggelse(
+    med_revisorernes_bemærkninger = Sandt,
+    forelagt_folketinget_til_beslutning = Sandt
+))
+= par47_forelæggelse_uden_bemærkninger = statsregnskabsforelæggelse_opfylder_par47_stk3(Statsregnskabsforelæggelse(
+    med_revisorernes_bemærkninger = Falskt,
+    forelagt_folketinget_til_beslutning = Sandt
+))
+= par47_forelæggelse_uden_beslutning = statsregnskabsforelæggelse_opfylder_par47_stk3(Statsregnskabsforelæggelse(
+    med_revisorernes_bemærkninger = Sandt,
+    forelagt_folketinget_til_beslutning = Falskt
+))
+| par47_hele_regnskabsforløbet_er_bundet_til_ordlyden: par47_fremlæggelse_måned_6 -> par47_fremlæggelse_måned_5 && par47_fremlæggelse_måned_6 && par47_fremlæggelse_måned_7 == Falskt && par47_gyldig_prøvelse && par47_manglende_indtægt == Falskt && par47_uhjemlet_udgift == Falskt && par47_fornøden_oplysning && par47_fornødent_aktstykke && par47_gyldig_forelæggelse && par47_forelæggelse_uden_bemærkninger == Falskt && par47_forelæggelse_uden_beslutning == Falskt
+
 = par49_formanden = kan_forlange_uvedkommende_fjernet(FormandenSomKravstiller)
 = par49_medlemmer_med_tilstrækkeligt_antal = kan_forlange_uvedkommende_fjernet(MedlemmerSomKravstillere(antal_efter_forretningsordenen_opfyldt = Sandt))
 = par49_medlemmer_med_utilstrækkeligt_antal = kan_forlange_uvedkommende_fjernet(MedlemmerSomKravstillere(antal_efter_forretningsordenen_opfyldt = Falskt))
@@ -76,9 +123,70 @@
 = par50_ingen_medlemmer = folketinget_er_beslutningsdygtigt(deltagelse_uden_medlemmer)
 | par50_streng_flertalsgrænse_og_konsistens: par50_90 -> par50_89 == Falskt && par50_90 && par50_91 && par50_umulig == Falskt && par50_ingen_medlemmer == Falskt
 
-= par53_med_samtykke = medlem_kan_rejse_offentligt_anliggende(Givet)
-= par53_uden_samtykke = medlem_kan_rejse_offentligt_anliggende(IkkeGivet)
-| par53_folketingets_samtykke_kræves: par53_med_samtykke -> par53_med_samtykke && par53_uden_samtykke == Falskt
+= par51_almenvigtig_sag = folketinget_kan_nedsætte_kommission_af_sine_medlemmer(Kommissionssag(almenvigtig = Sandt))
+= par51_ikke_almenvigtig_sag = folketinget_kan_nedsætte_kommission_af_sine_medlemmer(Kommissionssag(almenvigtig = Falskt))
+= par51_skriftligt_fra_borger = kommission_kan_fordre_oplysning(Kommissionsoplysningskrav(form = SkriftligOplysning, kilde = PrivatBorger))
+= par51_mundtligt_fra_borger = kommission_kan_fordre_oplysning(Kommissionsoplysningskrav(form = MundtligOplysning, kilde = PrivatBorger))
+= par51_skriftligt_fra_myndighed = kommission_kan_fordre_oplysning(Kommissionsoplysningskrav(form = SkriftligOplysning, kilde = OffentligMyndighed))
+= par51_mundtligt_fra_myndighed = kommission_kan_fordre_oplysning(Kommissionsoplysningskrav(form = MundtligOplysning, kilde = OffentligMyndighed))
+| par51_kommissionens_emne_former_og_kilder: par51_almenvigtig_sag -> par51_almenvigtig_sag && par51_ikke_almenvigtig_sag == Falskt && par51_skriftligt_fra_borger && par51_mundtligt_fra_borger && par51_skriftligt_fra_myndighed && par51_mundtligt_fra_myndighed
+
+= par53_anliggende_med_samtykke = medlemsinitiativ_opfylder_par53(RejserOffentligtAnliggendeTilForhandling, Givet)
+= par53_anliggende_uden_samtykke = medlemsinitiativ_opfylder_par53(RejserOffentligtAnliggendeTilForhandling, IkkeGivet)
+= par53_forklaring_med_samtykke = medlemsinitiativ_opfylder_par53(ÆskerMinistrenesForklaringOmAnliggendet, Givet)
+= par53_forklaring_uden_samtykke = medlemsinitiativ_opfylder_par53(ÆskerMinistrenesForklaringOmAnliggendet, IkkeGivet)
+| par53_folketingets_samtykke_gælder_begge_led: par53_anliggende_med_samtykke -> par53_anliggende_med_samtykke && par53_anliggende_uden_samtykke == Falskt && par53_forklaring_med_samtykke && par53_forklaring_uden_samtykke == Falskt
+
+= gyldig_tilsynsordning_med_en_person = Tilsynsordning(
+    antal_tilsynspersoner = 1,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= gyldig_tilsynsordning_med_to_personer = Tilsynsordning(
+    antal_tilsynspersoner = 2,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= tilsynsordning_uden_personer = Tilsynsordning(
+    antal_tilsynspersoner = 0,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= tilsynsordning_med_tre_personer = Tilsynsordning(
+    antal_tilsynspersoner = 3,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= tilsynsordning_med_folketingsmedlem = Tilsynsordning(
+    antal_tilsynspersoner = 1,
+    ingen_er_folketingsmedlem = Falskt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= tilsynsordning_uden_civil_forvaltning = Tilsynsordning(
+    antal_tilsynspersoner = 1,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Falskt,
+    omfatter_statens_militære_forvaltning = Sandt
+)
+= tilsynsordning_uden_militær_forvaltning = Tilsynsordning(
+    antal_tilsynspersoner = 1,
+    ingen_er_folketingsmedlem = Sandt,
+    omfatter_statens_civile_forvaltning = Sandt,
+    omfatter_statens_militære_forvaltning = Falskt
+)
+= par55_en_person = tilsynsordning_opfylder_par55(gyldig_tilsynsordning_med_en_person)
+= par55_to_personer = tilsynsordning_opfylder_par55(gyldig_tilsynsordning_med_to_personer)
+= par55_ingen_personer = tilsynsordning_opfylder_par55(tilsynsordning_uden_personer)
+= par55_tre_personer = tilsynsordning_opfylder_par55(tilsynsordning_med_tre_personer)
+= par55_folketingsmedlem = tilsynsordning_opfylder_par55(tilsynsordning_med_folketingsmedlem)
+= par55_uden_civil_forvaltning = tilsynsordning_opfylder_par55(tilsynsordning_uden_civil_forvaltning)
+= par55_uden_militær_forvaltning = tilsynsordning_opfylder_par55(tilsynsordning_uden_militær_forvaltning)
+| par55_kræver_en_eller_to_udenfor_folketinget_med_begge_tilsynsområder: par55_en_person -> par55_en_person && par55_to_personer && par55_ingen_personer == Falskt && par55_tre_personer == Falskt && par55_folketingsmedlem == Falskt && par55_uden_civil_forvaltning == Falskt && par55_uden_militær_forvaltning == Falskt
 
 = tiltale_uden_samtykke = Immunitetssag(
     indgreb = TiltaleAfFolketingsmedlem,
@@ -110,13 +218,18 @@
 = par57_ytring_med_samtykke = ansvar_uden_for_folketinget_for_ytring_opfylder_par57(Ytringsansvarssag(folketingets_samtykke = Givet))
 | par57_ytringsansvar_har_ingen_fersk_gerning_undtagelse: par57_ytring_med_samtykke -> par57_ytring_uden_samtykke == Falskt && par57_ytring_med_samtykke
 
+? par35_tidligere_indkaldelse_er_undtagelsen
 ? par40_stemmeret_følger_medlemskab
+? par43_alle_tre_skattehandlinger_kræver_lov
 ? par45_frist_og_reservevej
 ? par46_skatteopkrævning_kræver_vedtaget_bevillingslov
 ? par46_udgift_kræver_en_af_tre_hjemler
+? par47_hele_regnskabsforløbet_er_bundet_til_ordlyden
 ? par49_alle_tre_kravstillere
 ? par50_streng_flertalsgrænse_og_konsistens
-? par53_folketingets_samtykke_kræves
+? par51_kommissionens_emne_former_og_kilder
+? par53_folketingets_samtykke_gælder_begge_led
+? par55_kræver_en_eller_to_udenfor_folketinget_med_begge_tilsynsområder
 ? par57_indgreb_kræver_samtykke_eller_fersk_gerning
 ? par57_ytringsansvar_har_ingen_fersk_gerning_undtagelse
 

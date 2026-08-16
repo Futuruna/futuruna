@@ -171,6 +171,15 @@ bindende for det resterende arbejde og for senere udvidelser af korpusset:
    kan samle retligt forskellige regler, og aggregatreglers afhængigheder kan
    være usynlige for den eksperimentelle rapport. Hvert hul klassificeres
    fagligt; ingen tautologi tilføjes for at forbedre en procent.
+9. **En regel kan være teknisk gyldig og juridisk ufuldstændig.** Den
+   afsluttende læsning af ordlyd og kode som 91 par viste, at kompilering ikke
+   opdager et tabt "kan", en manglende betingelse, en udeladt frist eller en
+   retsfølge, som aldrig forbindes med sin udløsende hændelse. Hver
+   bestemmelse skal derfor sammenholdes efter aktør, modalitet, handling,
+   genstand, betingelse, undtagelse, tidspunkt og virkning. En tal- eller
+   tidskonstant fra ordlyden er ikke implementeret, blot fordi den er
+   deklareret: Den skal indgå i den kanoniske regel og prøves ved relevante
+   grænser eller udtrykkeligt dokumenteres som ikke-beregnelig ordlyd.
 
 Disse læringer ændrer også skriveformen i prøvningsfilerne. Lange egenskaber
 med flere domæneværdier eller mellemresultater skrives som blokregler med
@@ -311,6 +320,10 @@ Hver bestemmelse gennemgås med følgende spørgsmål:
 11. Kan en ugyldig tilstand gøres urepræsenterbar med en type, en kanonisk
     konstruktionsregel eller en invariant?
 12. Er enhver bekvemmelighedsregel afledt og prøvet mod den kanoniske regel?
+13. Er alle ordlydens retligt betydende led bevaret: aktør, modalitet,
+    handling, genstand, betingelse, undtagelse, tidspunkt og virkning?
+14. Indgår alle kildeskabte frister, tal og tærskler i en regel, og er deres
+    nedre, præcise og øvre grænser prøvet, hvor en beregning er mulig?
 
 Navngivne konstruktørargumenter bruges ved alle ikke-trivielle domæneværdier.
 Store universelle typer undgås; typer placeres fælles, når de faktisk deles på
@@ -667,8 +680,14 @@ grundlovsmodellen":
 ### Trin 7: Samlet juridisk og teknisk gennemgang
 
 - Læs hver kildetekstblok og dens kodespænd som ét par.
+- Registrer for hvert par aktør, modalitet, handling, genstand, betingelse,
+  undtagelse, tidspunkt og virkning, og kontroller at hvert retligt betydende
+  led findes i den kanoniske regelmodel.
 - Gennemfør en særskilt gennemgang af navne, modalitet, betingelser,
   undtagelser og utilsigtede fortolkninger.
+- Find kildeskabte konstanter, som ingen regel bruger. Forbind dem med den
+  relevante kanoniske regel og en grænseprøve, eller begrund udtrykkeligt,
+  hvorfor ordlyden ikke kan omsættes til en beregning.
 - Kør alle tekniske porte på både fortolker og genereret Rust.
 - Gennemgå websiderne visuelt på smal og bred skærm.
 - Dokumenter kendte fortolkningsspørgsmål uden at fremstille dem som fejl i
@@ -714,6 +733,11 @@ Arbejdet er først færdigt, når følgende holder samtidigt:
 - alle 91 officielle kildetekstblokke har den godkendte kontrolsum, og enhver
   ændring siden udgangspunktet har fulgt kilderettelsesproceduren;
 - alle 91 labels er entydige og har præcis ét sammenhængende kodespænd;
+- hvert af de 91 tekst-kode-par er gennemgået for aktør, modalitet, handling,
+  genstand, betingelse, undtagelse, tidspunkt og virkning uden kendte,
+  retligt betydende tab;
+- alle kildeskabte frister, tal og tærskler indgår i deres kanoniske regler og
+  relevante grænseprøver eller er dokumenteret som ikke-beregnelig ordlyd;
 - metadataindekset kan føre hvert retligt symbol tilbage til bestemmelsen og
   dens kilder;
 - hver fortolkende regel ligger i en navngiven fortolkningsmodel med synligt

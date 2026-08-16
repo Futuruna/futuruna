@@ -34,7 +34,7 @@
     udsagnsstatus = Fortolkningsspørgsmål,
     prøvningsomfang = UdtømmendeLukketDomæne,
     programhenvisninger = [
-        refof(ingen_skat_uden_lov),
+        refof(skattehandling_kræver_lov),
         refof(Ekspropriationssag::opfylder_par73_stk1),
         refof(klassificer_økonomisk_byrde)
     ],

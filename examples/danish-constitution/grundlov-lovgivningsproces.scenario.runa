@@ -8,7 +8,7 @@
     Lovforslag(
         område = område,
         påtrængende_efter_par41 = Falskt,
-        ikrafttræden_kan_udsættes = Sandt,
+        ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål = Sandt,
         særdeles_påtrængende_efter_par42 = Falskt,
         straksstadfæstelse_bestemt_i_forslaget = Falskt
     )
@@ -84,7 +84,7 @@
 = påtrængende_forslag_uden_udsættelsesmulighed = Lovforslag(
     område = AlmindeligtLovforslag,
     påtrængende_efter_par41 = Sandt,
-    ikrafttræden_kan_udsættes = Falskt,
+    ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål = Falskt,
     særdeles_påtrængende_efter_par42 = Falskt,
     straksstadfæstelse_bestemt_i_forslaget = Falskt
 )
@@ -143,6 +143,20 @@
 = par41_uden_underskrift = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_uden_underskrift)
 = par41_finanslovsbegæring = udsættelsesbegæring_opfylder_par41_stk3(udsættelsesbegæring_om_finanslov)
 | par41_tærskel_formkrav_og_undtagelse: par41_gyldig_begæring -> par41_begæring_71 == Falskt && par41_gyldig_begæring && par41_begæring_73 && par41_uden_underskrift == Falskt && par41_finanslovsbegæring == Falskt
+
+= par41_tredje_behandling_dag_11 = tredje_behandling_opfylder_par41_stk3(Tredjebehandlingsforløb(
+    begæring = gyldig_udsættelsesbegæring,
+    søgnedage_efter_vedtagelsen_ved_anden_behandling = 11
+))
+= par41_tredje_behandling_dag_12 = tredje_behandling_opfylder_par41_stk3(Tredjebehandlingsforløb(
+    begæring = gyldig_udsættelsesbegæring,
+    søgnedage_efter_vedtagelsen_ved_anden_behandling = 12
+))
+= par41_ugyldig_begæring_udløser_ikke_frister = tredje_behandling_opfylder_par41_stk3(Tredjebehandlingsforløb(
+    begæring = udsættelsesbegæring_71,
+    søgnedage_efter_vedtagelsen_ved_anden_behandling = 0
+))
+| par41_gyldig_begæring_udløser_tolvsøgnedagesfristen: par41_tredje_behandling_dag_12 -> par41_tredje_behandling_dag_11 == Falskt && par41_tredje_behandling_dag_12 && par41_ugyldig_begæring_udløser_ikke_frister
 
 = par41_uafsluttet_ved_nyvalg = forslag_bortfalder_efter_par41_stk4(ForslagsstatusVedOphørshændelse(endeligt_vedtaget = Falskt, hændelse = Nyvalg))
 = par41_uafsluttet_ved_årets_udgang = forslag_bortfalder_efter_par41_stk4(ForslagsstatusVedOphørshændelse(endeligt_vedtaget = Falskt, hændelse = FolketingsåretsUdgang))
@@ -232,14 +246,14 @@
 = straksstadfæsteligt_forslag = Lovforslag(
     område = AlmindeligtLovforslag,
     påtrængende_efter_par41 = Falskt,
-    ikrafttræden_kan_udsættes = Sandt,
+    ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål = Sandt,
     særdeles_påtrængende_efter_par42 = Sandt,
     straksstadfæstelse_bestemt_i_forslaget = Sandt
 )
 = påtrængende_uden_straksbestemmelse = Lovforslag(
     område = AlmindeligtLovforslag,
     påtrængende_efter_par41 = Falskt,
-    ikrafttræden_kan_udsættes = Sandt,
+    ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål = Sandt,
     særdeles_påtrængende_efter_par42 = Sandt,
     straksstadfæstelse_bestemt_i_forslaget = Falskt
 )
@@ -285,10 +299,25 @@
 = par42_strakslov_forkastelse_kundgjort = straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(ForkastelseKundgjort)
 | par42_strakslov_bortfalder_først_fra_kundgørelsesdagen: par42_strakslov_før -> par42_strakslov_før && par42_strakslov_ikke_forkastet && par42_strakslov_forkastet_ikke_kundgjort && par42_strakslov_forkastelse_kundgjort == Falskt
 
+= par42_rettidig_kundgørelse_dag_14 = forkastelse_kundgøres_rettidigt_efter_par42_stk7(Forkastelseskundgørelse(
+    kundgjort_uden_unødigt_ophold = Sandt,
+    dage_efter_folkeafstemning = 14
+))
+= par42_for_sen_kundgørelse_dag_15 = forkastelse_kundgøres_rettidigt_efter_par42_stk7(Forkastelseskundgørelse(
+    kundgjort_uden_unødigt_ophold = Sandt,
+    dage_efter_folkeafstemning = 15
+))
+= par42_unødigt_ophold_inden_fristsudløb = forkastelse_kundgøres_rettidigt_efter_par42_stk7(Forkastelseskundgørelse(
+    kundgjort_uden_unødigt_ophold = Falskt,
+    dage_efter_folkeafstemning = 10
+))
+| par42_kundgørelsen_kræver_både_uopholdelighed_og_fjortendagesfrist: par42_rettidig_kundgørelse_dag_14 -> par42_rettidig_kundgørelse_dag_14 && par42_for_sen_kundgørelse_dag_15 == Falskt && par42_unødigt_ophold_inden_fristsudløb == Falskt
+
 ? par39_begæringsveje_og_formkrav
 ? par41_tre_behandlinger_kræves
 ? par41_undtagelseslisten_er_udtømmende
 ? par41_tærskel_formkrav_og_undtagelse
+? par41_gyldig_begæring_udløser_tolvsøgnedagesfristen
 ? par41_kun_uafsluttede_forslag_bortfalder
 ? par42_stk6_er_udtømmende
 ? par42_begæringens_tærskel_frist_form_og_emne
@@ -298,5 +327,6 @@
 ? par42_afstemningsvinduet
 ? par42_forkastelse_kræver_flertal_30_pct_og_konsistens
 ? par42_strakslov_bortfalder_først_fra_kundgørelsesdagen
+? par42_kundgørelsen_kræver_både_uopholdelighed_og_fjortendagesfrist
 
 @ skriv("Scenarierne for lovgivningsprocessen holder.")

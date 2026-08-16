@@ -4,7 +4,7 @@
 @ importer ./kapitel - 08
 @ importer ./grundlov - proevning - faelles
 
--- Rettighedsauditten prøver ordlydens personkredse, virkninger, indgreb og
+-- Rettighedsprøvningen prøver ordlydens personkredse, virkninger, indgreb og
 -- udtrykkelige henvisninger uden at udlede rettigheder af tavshed.
 
 = rettigheder_negativ_afgraensning_fund = GrundlovPrøvningsfund(
@@ -14,7 +14,7 @@
     prøvningsomfang = UdtømmendeLukketDomæne,
     programhenvisninger = [
         refof(MilitærIndskrænkning::bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85),
-        refof(MilitærIndskrænkning::opfylder_par85)
+        refof(MilitærIndskrænkning::indskrænkning_har_hjemmel_i_par85)
     ],
     grundlag = Fortolkningsgrundlag(
         kilder = [grundlov_retsinformation],
@@ -218,10 +218,10 @@
         følger_af_militære_loves_forskrifter = Sandt
     )
     (
-        personlig_frihed.opfylder_par85()
-        && foreningsfrihed.opfylder_par85()
-        && forsamlingsfrihed.opfylder_par85()
-        && ytringsfrihed.opfylder_par85() == Falskt
+        personlig_frihed.indskrænkning_har_hjemmel_i_par85()
+        && foreningsfrihed.indskrænkning_har_hjemmel_i_par85()
+        && forsamlingsfrihed.indskrænkning_har_hjemmel_i_par85()
+        && ytringsfrihed.indskrænkning_har_hjemmel_i_par85() == Falskt
     )
 }
 --@end:audit_rettigheder_negativ_afgraensning--

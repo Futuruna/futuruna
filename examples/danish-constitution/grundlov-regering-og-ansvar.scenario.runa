@@ -77,10 +77,22 @@
 | par17_kun_myndig_tronfølger_tager_sæde: par17_tronfølger_18 -> par17_tronfølger_18 && par17_tronfølger_17 == Falskt
 | par17_kongen_fører_kun_forsædet_når_han_fører_regeringen: par17_kongen_fører_forsædet -> par17_kongen_fører_forsædet && par17_ikke_forsæde_efter_par8 == Falskt && par17_ikke_forsæde_efter_par9 == Falskt
 
-= par18_almindeligt_forum = forhandlingsforum(KongenKanHoldeStatsråd)
-= par18_forum_ved_forhindring = forhandlingsforum(KongenErForhindret)
-| par18_statsråd_er_udgangspunktet: par18_almindeligt_forum -> par18_almindeligt_forum == StatsrådsForum
-| par18_ministerråd_ved_forhindring: par18_forum_ved_forhindring -> par18_forum_ved_forhindring == MinisterrådsForum
+= ministerråd_valgt_ved_forhindring = Ministerrådssag(
+    statsrådsafholdelse = KongenErForhindret,
+    kongen_vælger_ministerråd = Sandt
+)
+= ministerråd_ikke_valgt_ved_forhindring = Ministerrådssag(
+    statsrådsafholdelse = KongenErForhindret,
+    kongen_vælger_ministerråd = Falskt
+)
+= ministerråd_valgt_uden_forhindring = Ministerrådssag(
+    statsrådsafholdelse = KongenKanHoldeStatsråd,
+    kongen_vælger_ministerråd = Sandt
+)
+= par18_valgt_ved_forhindring = kongen_kan_lade_sag_forhandle_i_ministerråd(ministerråd_valgt_ved_forhindring)
+= par18_ikke_valgt_ved_forhindring = kongen_kan_lade_sag_forhandle_i_ministerråd(ministerråd_ikke_valgt_ved_forhindring)
+= par18_valgt_uden_forhindring = kongen_kan_lade_sag_forhandle_i_ministerråd(ministerråd_valgt_uden_forhindring)
+| par18_ministerråd_kræver_både_forhindring_og_kongens_valg: par18_valgt_ved_forhindring -> par18_valgt_ved_forhindring && par18_ikke_valgt_ved_forhindring == Falskt && par18_valgt_uden_forhindring == Falskt
 
 = par24_uden_samtykke = benådning_af_rigsretsdømt_minister_opfylder_par24(IkkeGivet)
 = par24_med_samtykke = benådning_af_rigsretsdømt_minister_opfylder_par24(Givet)
@@ -89,8 +101,17 @@
 = par25_gammelt_grundlag = dispensation_har_grundlovsgrundlag(RegelIBrugFørFemteJuni1849)
 = par25_lovhjemmel = dispensation_har_grundlovsgrundlag(HjemmelISenereLov)
 = par25_intet_grundlag = dispensation_har_grundlovsgrundlag(IntetGrundlag)
+= par25_umiddelbar_dispensation = dispensation_opfylder_par25(Dispensationssag(
+    vej = UmiddelbartAfKongen,
+    grundlag = RegelIBrugFørFemteJuni1849
+))
+= par25_dispensation_gennem_regeringsmyndighed = dispensation_opfylder_par25(Dispensationssag(
+    vej = GennemVedkommendeRegeringsmyndighed,
+    grundlag = HjemmelISenereLov
+))
 | par25_begge_udtrykkelige_grundlag_er_tilstrækkelige: par25_gammelt_grundlag -> par25_gammelt_grundlag && par25_lovhjemmel
 | par25_intet_grundlag_er_utilstrækkeligt: par25_intet_grundlag -> par25_intet_grundlag == Falskt
+| par25_begge_udtrykkelige_meddelingsveje_er_modelleret: par25_umiddelbar_dispensation -> par25_umiddelbar_dispensation && par25_dispensation_gennem_regeringsmyndighed
 
 = kandidat_med_indfødsret = Tjenestemandskandidat(har_indfødsret = Sandt)
 = kandidat_uden_indfødsret = Tjenestemandskandidat(har_indfødsret = Falskt)
@@ -113,6 +134,7 @@
 = par27_forflyttelse_uden_valg = forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse_uden_tab_uden_valg)
 
 | par27_indfødsret_kræves: par27_med_indfødsret -> par27_med_indfødsret && par27_uden_indfødsret == Falskt
+| par27_loven_regulerer_de_tre_nævnte_forhold: regler_om_tjenestemandsforhold_fastsættes_ved_lov(Afskedigelse) -> regler_om_tjenestemandsforhold_fastsættes_ved_lov(Afskedigelse) && regler_om_tjenestemandsforhold_fastsættes_ved_lov(Forflyttelse) && regler_om_tjenestemandsforhold_fastsættes_ved_lov(Pensionering)
 | par27_forflyttelse_kræver_begge_betingelser: par27_gyldig_forflyttelse -> par27_gyldig_forflyttelse && par27_forflyttelse_med_tab == Falskt && par27_forflyttelse_uden_valg == Falskt
 
 ? par12_kongen_er_statsorganet
@@ -130,12 +152,13 @@
 ? par15_fungerende_minister_kun_nødvendig_handling
 ? par17_kun_myndig_tronfølger_tager_sæde
 ? par17_kongen_fører_kun_forsædet_når_han_fører_regeringen
-? par18_statsråd_er_udgangspunktet
-? par18_ministerråd_ved_forhindring
+? par18_ministerråd_kræver_både_forhindring_og_kongens_valg
 ? par24_benådning_kræver_samtykke
 ? par25_begge_udtrykkelige_grundlag_er_tilstrækkelige
 ? par25_intet_grundlag_er_utilstrækkeligt
+? par25_begge_udtrykkelige_meddelingsveje_er_modelleret
 ? par27_indfødsret_kræves
+? par27_loven_regulerer_de_tre_nævnte_forhold
 ? par27_forflyttelse_kræver_begge_betingelser
 
 @ skriv("Scenarierne for regering og ansvar holder.")

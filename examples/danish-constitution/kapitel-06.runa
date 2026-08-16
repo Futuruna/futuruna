@@ -29,9 +29,9 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 = rigsret_max_dommermedlemmer = 15
 = rigsret_valgperiode_år = 6
 
-# Rigsretsgrundsammensætning(dommermedlemmer_fra_rigets_øverste_domstol: Heltal, folketingsvalgte_medlemmer: Heltal, dommermedlemmer_udvalgt_efter_embedsalder: Boolsk, folketingsmedlemmer_valgt_efter_forholdstal: Boolsk, stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem: Boolsk, et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten: Boolsk) {
+# Rigsretsgrundsammensætning(dommermedlemmer_fra_rigets_øverste_domstol: Heltal, folketingsvalgte_medlemmer: Heltal, dommermedlemmer_udvalgt_efter_embedsalder: Boolsk, folketingsmedlemmer_valgt_efter_forholdstal: Boolsk, folketingsvalgte_medlemmers_valgperiode_år: Heltal, stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem: Boolsk, et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten: Boolsk) {
     | antal_er_konsistente() -> dommermedlemmer_fra_rigets_øverste_domstol > 0 && dommermedlemmer_fra_rigets_øverste_domstol <= rigsret_max_dommermedlemmer && folketingsvalgte_medlemmer == dommermedlemmer_fra_rigets_øverste_domstol
-    | opfylder_par59_stk1() -> antal_er_konsistente() && dommermedlemmer_udvalgt_efter_embedsalder && folketingsmedlemmer_valgt_efter_forholdstal && stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem && et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten == Falskt
+    | opfylder_par59_stk1() -> antal_er_konsistente() && dommermedlemmer_udvalgt_efter_embedsalder && folketingsmedlemmer_valgt_efter_forholdstal && folketingsvalgte_medlemmers_valgperiode_år == rigsret_valgperiode_år && stedfortrædere_valgt_for_hvert_folketingsvalgt_medlem && et_folketingsmedlem_er_valgt_eller_virker_i_rigsretten == Falskt
 }
 
 # Rigsretssagssammensætning(grundsammensætning: Rigsretsgrundsammensætning, dommermedlemmer_som_ikke_kan_deltage: Heltal, sidst_valgte_rigsretsmedlemmer_som_fratræder: Heltal) {
@@ -46,7 +46,7 @@ Stk. 4. Nærmere regler om rigsretten fastsættes ved lov.
 
 | formandsvalg_opfylder_par59_stk2(valg: Rigsretsformandsvalg) -> valg.valgt_af_retten && valg.valgt_blandt_rettens_medlemmer
 | folketingsvalgt_medlem_beholder_sæde_efter_valgperiodens_udløb(mandat: Rigsretsmandat) -> mandat.sag_rejst && mandat.valgperiode_udløbet
-| rigsretten_fastsættes_ved_lov()
+| nærmere_regler_om_rigsretten_fastsættes_ved_lov()
 --@end:grundlov_par59--
 
 --@label:grundlov_par60::meta:grundlov_kildemetadata--

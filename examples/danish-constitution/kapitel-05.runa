@@ -15,9 +15,15 @@ formand og næstformænd.
 
 --@begin:grundlov_par35--
 
-| nyvalgt_folketing_mødes_tolvte_søgnedag()
-| kongen_kan_indkalde_folketinget_tidligere()
-| folketinget_vælger_formand_og_næstformænd()
+# NyvalgtFolketingsmøde(kongen_har_indkaldt_forinden: Boolsk)
+# NyvalgtFolketingsSammentræden = IndkaldtTidligereAfKongen | TolvteSøgnedagKlokkenTolv
+
+| nyvalgt_folketings_sammentræden(møde: NyvalgtFolketingsmøde) -> hvis møde.kongen_har_indkaldt_forinden {
+    IndkaldtTidligereAfKongen
+} ellers {
+    TolvteSøgnedagKlokkenTolv
+}
+| straks_efter_mandatprøvelsen_vælger_folketinget_formand_og_næstformænd()
 --@end:grundlov_par35--
 
 --@label:grundlov_par36::meta:grundlov_kildemetadata--
@@ -33,7 +39,7 @@ møde, hvor folketinget sættes påny.
 
 | folketingsåret_begynder_første_tirsdag_i_oktober()
 | folketingsåret_varer_til_samme_tirsdag_følgende_år()
-| folketinget_sættes_påny_ved_årets_start()
+| folketinget_sættes_påny_klokken_tolv_på_folketingsårets_første_dag()
 --@end:grundlov_par36--
 
 --@label:grundlov_par37::meta:grundlov_kildemetadata--
@@ -59,8 +65,8 @@ Stk. 2. På grundlag af redegørelsen finder en almindelig forhandling sted.
 
 --@begin:grundlov_par38--
 
-| statsministeren_afgiver_åbningsredegørelse()
-| almindelig_forhandling_efter_redegørelse()
+| på_folketingsårets_første_møde_afgiver_statsministeren_redegørelse_for_rigets_almindelige_stilling_og_regeringens_påtænkte_foranstaltninger()
+| på_grundlag_af_redegørelsen_finder_en_almindelig_forhandling_sted()
 --@end:grundlov_par38--
 
 --@label:grundlov_par39::meta:grundlov_kildemetadata--
@@ -96,8 +102,8 @@ medlemmer af folketinget.
 
 --@begin:grundlov_par40--
 
-| ministre_har_adgang_til_folketinget()
-| ministre_har_taleret_i_folketinget()
+| ministre_har_i_embeds_medfør_adgang_til_folketinget()
+| ministre_kan_under_forhandlingerne_forlange_ordet_så_ofte_de_vil_under_iagttagelse_af_forretningsordenen()
 | minister_har_stemmeret_i_folketinget(er_folketingsmedlem: Boolsk) -> er_folketingsmedlem
 --@end:grundlov_par40--
 
@@ -125,8 +131,9 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
 --@begin:grundlov_par41--
 
 # Lovforslagsområde = AlmindeligtLovforslag | Finanslovsforslag | Tillægsbevillingslovsforslag | MidlertidigtBevillingslovsforslag | Statslånslovsforslag | Normeringslovsforslag | LønningsOgPensionslovsforslag | Indfødsretslovsforslag | Ekspropriationslovsforslag | DirekteSkattelovsforslag | IndirekteSkattelovsforslag | Traktatgennemførelseslovsforslag | Paragraf8Lovsforslag | Paragraf9Lovsforslag | Paragraf10Lovsforslag | Paragraf11Lovsforslag | Paragraf19BeslutningILovsform(særlov_tillader_folkeafstemning: Boolsk) | Grundlovsændringsforslag
-# Lovforslag(område: Lovforslagsområde, påtrængende_efter_par41: Boolsk, ikrafttræden_kan_udsættes: Boolsk, særdeles_påtrængende_efter_par42: Boolsk, straksstadfæstelse_bestemt_i_forslaget: Boolsk)
+# Lovforslag(område: Lovforslagsområde, påtrængende_efter_par41: Boolsk, ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål: Boolsk, særdeles_påtrængende_efter_par42: Boolsk, straksstadfæstelse_bestemt_i_forslaget: Boolsk)
 # Udsættelsesbegæring(forslag: Lovforslag, opbakning: Medlemsopbakning, skriftlig: Boolsk, underskrevet: Boolsk)
+# Tredjebehandlingsforløb(begæring: Udsættelsesbegæring, søgnedage_efter_vedtagelsen_ved_anden_behandling: Heltal)
 # Forslagshændelse = Nyvalg | FolketingsåretsUdgang
 # ForslagsstatusVedOphørshændelse(endeligt_vedtaget: Boolsk, hændelse: Forslagshændelse)
 
@@ -146,10 +153,15 @@ love og andre beslutninger, der ikke forinden er endeligt vedtaget.
     | Indfødsretslovsforslag -> Sandt
     | Ekspropriationslovsforslag -> Sandt
     | IndirekteSkattelovsforslag -> Sandt
-    | _ -> forslag.påtrængende_efter_par41 && forslag.ikrafttræden_kan_udsættes == Falskt
+    | _ -> forslag.påtrængende_efter_par41 && forslag.ikrafttræden_kan_udsættes_af_hensyn_til_lovens_formål == Falskt
 }
 
 | udsættelsesbegæring_opfylder_par41_stk3(begæring: Udsættelsesbegæring) -> begæring.skriftlig && begæring.underskrevet && medlemsopbakning_er_mindst(begæring.opbakning, udsættelsens_medlemstærskel) && lovforslag_er_undtaget_fra_udsættelse(begæring.forslag) == Falskt
+| tredje_behandling_opfylder_par41_stk3(forløb: Tredjebehandlingsforløb) -> forløb.søgnedage_efter_vedtagelsen_ved_anden_behandling >= 0 && hvis udsættelsesbegæring_opfylder_par41_stk3(forløb.begæring) {
+    forløb.søgnedage_efter_vedtagelsen_ved_anden_behandling >= udsættelse_søgnedage
+} ellers {
+    Sandt
+}
 
 | forslag_bortfalder_efter_par41_stk4(status: ForslagsstatusVedOphørshændelse) -> status.endeligt_vedtaget == Falskt && match status.hændelse {
     | Nyvalg -> Sandt
@@ -214,6 +226,7 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 # Tilbagetrækningssituation(folkeafstemning_begæret: Boolsk, søgnedage_efter_endelig_vedtagelse: Heltal)
 # Folkeafstemningsresultat(mod_stemmer: Heltal, deltagende: Heltal, stemmeberettigede: Heltal)
 # StraksstadfæstetLovstatus = FørFolkeafstemning | IkkeForkastetVedFolkeafstemning | ForkastetIkkeKundgjort | ForkastelseKundgjort
+# Forkastelseskundgørelse(kundgjort_uden_unødigt_ophold: Boolsk, dage_efter_folkeafstemning: Heltal)
 
 = frist_begæring_søgnedage = 3
 = folkeafstemningsbegæringens_medlemstærskel = Brøk(tæller = 1, nævner = 3)
@@ -266,6 +279,7 @@ folkeafstemning skal finde sted på Færøerne og i Grønland, fastsættes ved l
 | grundlovsændringer_følger_par88()
 
 = frist_kundgørelse_dage = 14
+| forkastelse_kundgøres_rettidigt_efter_par42_stk7(kundgørelse: Forkastelseskundgørelse) -> kundgørelse.kundgjort_uden_unødigt_ophold && kundgørelse.dage_efter_folkeafstemning >= 0 && kundgørelse.dage_efter_folkeafstemning <= frist_kundgørelse_dage
 | straksstadfæstet_lov_har_lovskraft_efter_par42_stk7(status: StraksstadfæstetLovstatus) -> status != ForkastelseKundgjort
 
 | folkeafstemningsregler_fastsættes_ved_lov()
@@ -279,7 +293,9 @@ kan noget mandskab udskrives eller noget statslån optages uden ifølge lov.
 
 --@begin:grundlov_par43--
 
-| ingen_skat_uden_lov()
+# Skattehandling = Pålæggelse | Forandring | Ophævelse
+
+| skattehandling_kræver_lov(handling: Skattehandling) -> Sandt
 | ingen_udskrivning_af_mandskab_uden_lov()
 | intet_statslån_uden_lov()
 --@end:grundlov_par43--
@@ -295,7 +311,7 @@ regler ved lov.
 --@begin:grundlov_par44--
 
 | indfødsret_kun_ved_lov()
-| udlændinges_ejendomsret_fastsættes_ved_lov()
+| regler_om_udlændinges_adgang_til_at_blive_ejere_af_fast_ejendom_fastsættes_ved_lov()
 --@end:grundlov_par44--
 
 --@label:grundlov_par45::meta:grundlov_kildemetadata--
@@ -353,12 +369,18 @@ til beslutning.
 
 --@begin:grundlov_par47--
 
+# Statsregnskabsprøvelse(samtlige_statsindtægter_er_opført: Boolsk, ingen_udgift_uden_hjemmel_i_bevillingslov: Boolsk)
+# Revisoroplysningsart = FornødenOplysning | FornødentAktstykke
+# Statsregnskabsforelæggelse(med_revisorernes_bemærkninger: Boolsk, forelagt_folketinget_til_beslutning: Boolsk)
+
 = statsregnskab_frist_måneder = 6
-| folketinget_vælger_revisorer()
-| revisorer_gennemgår_statsregnskabet()
-| revisorer_kan_kræve_oplysninger()
-| revisorers_virksomhed_fastsættes_ved_lov()
-| statsregnskabet_forelægges_folketinget()
+| statsregnskabet_fremlægges_rettidigt(måneder_efter_finansårets_udløb: Heltal) -> måneder_efter_finansårets_udløb >= 0 && måneder_efter_finansårets_udløb <= statsregnskab_frist_måneder
+| folketinget_vælger_et_antal_revisorer()
+| revisorer_gennemgår_det_årlige_statsregnskab()
+| statsregnskabsprøvelse_opfylder_par47_stk2(prøvelse: Statsregnskabsprøvelse) -> prøvelse.samtlige_statsindtægter_er_opført && prøvelse.ingen_udgift_uden_hjemmel_i_bevillingslov
+| revisorerne_kan_fordre_meddelt(oplysningsart: Revisoroplysningsart) -> Sandt
+| nærmere_regler_om_revisorernes_antal_og_virksomhed_fastsættes_ved_lov()
+| statsregnskabsforelæggelse_opfylder_par47_stk3(forelæggelse: Statsregnskabsforelæggelse) -> forelæggelse.med_revisorernes_bemærkninger && forelæggelse.forelagt_folketinget_til_beslutning
 --@end:grundlov_par47--
 
 --@label:grundlov_par48::meta:grundlov_kildemetadata--
@@ -370,6 +392,7 @@ nærmere bestemmelser vedrørende forretningsgang og ordens opretholdelse.
 --@begin:grundlov_par48--
 
 | folketinget_fastsætter_forretningsorden()
+| forretningsordenen_indeholder_nærmere_bestemmelser_om_forretningsgang_og_ordens_opretholdelse()
 --@end:grundlov_par48--
 
 --@label:grundlov_par49::meta:grundlov_kildemetadata--
@@ -417,9 +440,13 @@ myndigheder.
 
 --@begin:grundlov_par51--
 
-| folketinget_kan_nedsætte_kommissioner()
-| kommissioner_kan_kræve_oplysninger_fra_borgere()
-| kommissioner_kan_kræve_oplysninger_fra_myndigheder()
+# Kommissionssag(almenvigtig: Boolsk)
+# Kommissionsoplysningsform = SkriftligOplysning | MundtligOplysning
+# Kommissionsoplysningskilde = PrivatBorger | OffentligMyndighed
+# Kommissionsoplysningskrav(form: Kommissionsoplysningsform, kilde: Kommissionsoplysningskilde)
+
+| folketinget_kan_nedsætte_kommission_af_sine_medlemmer(sag: Kommissionssag) -> sag.almenvigtig
+| kommission_kan_fordre_oplysning(krav: Kommissionsoplysningskrav) -> Sandt
 --@end:grundlov_par51--
 
 --@label:grundlov_par52::meta:grundlov_kildemetadata--
@@ -441,8 +468,9 @@ offentligt anliggende under forhandling og derom æske ministrenes forklaring.
 
 --@begin:grundlov_par53--
 
-| medlem_kan_rejse_offentligt_anliggende(samtykke: Samtykke) -> samtykke == Givet
-| medlemmer_kan_æske_ministrenes_forklaring()
+# Medlemsinitiativ = RejserOffentligtAnliggendeTilForhandling | ÆskerMinistrenesForklaringOmAnliggendet
+
+| medlemsinitiativ_opfylder_par53(initiativ: Medlemsinitiativ, folketingets_samtykke: Samtykke) -> folketingets_samtykke == Givet
 --@end:grundlov_par53--
 
 --@label:grundlov_par54::meta:grundlov_kildemetadata--
@@ -465,10 +493,9 @@ militære forvaltning.
 
 --@begin:grundlov_par55--
 
-| folketinget_vælger_tilsynspersoner_ved_lov()
-| tilsynspersoner_ikke_folketingsmedlemmer()
-| tilsyn_med_civil_forvaltning()
-| tilsyn_med_militær_forvaltning()
+# Tilsynsordning(antal_tilsynspersoner: Heltal, ingen_er_folketingsmedlem: Boolsk, omfatter_statens_civile_forvaltning: Boolsk, omfatter_statens_militære_forvaltning: Boolsk)
+
+| tilsynsordning_opfylder_par55(ordning: Tilsynsordning) -> ordning.antal_tilsynspersoner >= 1 && ordning.antal_tilsynspersoner <= 2 && ordning.ingen_er_folketingsmedlem && ordning.omfatter_statens_civile_forvaltning && ordning.omfatter_statens_militære_forvaltning
 --@end:grundlov_par55--
 
 --@label:grundlov_par56::meta:grundlov_kildemetadata--

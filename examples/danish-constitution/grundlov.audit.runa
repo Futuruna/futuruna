@@ -28,7 +28,7 @@
 ? samlet_grundlovsaudit_holder
 
 ? all -> {
-    @ skriv("Alle målrettede grundlovsaudits holder.")
+    @ skriv("Alle målrettede grundlovsprøvninger holder.")
 } else {
-    @ skriv("En eller flere målrettede grundlovsaudits fejlede.")
+    @ skriv("En eller flere målrettede grundlovsprøvninger fejlede.")
 }

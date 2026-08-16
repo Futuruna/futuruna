@@ -10,7 +10,7 @@
 @ importer ./kapitel - 11
 @ importer ./grundlov - proevning - faelles
 
--- Den tværgående audit sammenholder kun relationer, som kapitlerne faktisk
+-- Den tværgående prøvning sammenholder kun relationer, som kapitlerne faktisk
 -- modellerer. Den indfører ingen skjult rangordning mellem bestemmelser.
 
 = tvaergaaende_folkeafstemninger_fund = GrundlovPrøvningsfund(
@@ -70,7 +70,7 @@
 
 | tvaergaaende_par20_og_par88_adskiller_alternativ_og_fuld_procedure() -> {
     = suverænitetsforslag_uden_fem_sjettedele = Suverænitetsforslag(
-        fem_sjettedele_opnået = Falskt,
+        opbakning = Medlemsopbakning(antal = 149, medlemmer_i_alt = 179),
         almindeligt_flertal_opnået = Sandt,
         regeringen_opretholder_forslaget = Sandt
     )

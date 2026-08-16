@@ -40,7 +40,7 @@ ved lov.
 | kongen_er_ansvarsfri()
 | monarkens_person_er_fredhellig()
 | ministrene_er_ansvarlige_for_regeringens_førelse()
-| ministeransvar_fastsættes_ved_lov()
+| ministrenes_ansvarlighed_bestemmes_nærmere_ved_lov()
 --@end:grundlov_par13--
 
 -- ─────────────────────────────────────────────────────────
@@ -124,9 +124,7 @@ embedsførelse anlagte sager.
 
 # Tiltaler = KongenSomTiltaler | FolketingetSomTiltaler
 
-| kongen_kan_tiltale_minister()
-| folketinget_kan_tiltale_minister()
-| kan_tiltale_minister(t: Tiltaler) -> Sandt
+| kan_tiltale_ministre_for_deres_embedsførelse(t: Tiltaler) -> Sandt
 | rigsretten_påkender_ministersager()
 --@end:grundlov_par16--
 
@@ -173,13 +171,13 @@ bifalde ministerrådets indstilling eller lade sig sagen foredrage i statsrådet
 
 --@begin:grundlov_par18--
 
-# ForhandlingsForum = StatsrådsForum | MinisterrådsForum
 # Statsrådsafholdelse = KongenKanHoldeStatsråd | KongenErForhindret
+# Ministerrådssag(statsrådsafholdelse: Statsrådsafholdelse, kongen_vælger_ministerråd: Boolsk)
 
-| forhandlingsforum(situation: Statsrådsafholdelse) -> StatsrådsForum
-| forhandlingsforum(situation: Statsrådsafholdelse) -> MinisterrådsForum under situation == KongenErForhindret
+| kongen_kan_lade_sag_forhandle_i_ministerråd(sag: Ministerrådssag) -> sag.statsrådsafholdelse == KongenErForhindret && sag.kongen_vælger_ministerråd
 
-| ministerråd_under_statsministeren()
+| ministerrådet_består_af_samtlige_ministre()
+| statsministeren_fører_forsædet_i_ministerrådet()
 | hver_minister_afgiver_votum_til_protokollen()
 | ministerråd_beslutter_ved_flertal()
 | tilstedeværende_ministre_underskriver_protokollen()
@@ -229,13 +227,13 @@ fastsættes ved lov.
     | AndenMellemfolkeligHandling -> Falskt
 }
 
-| mellemfolkelig_sag_opfylder_par19_stk1(sag: MellemfolkeligSag) -> hvis mellemfolkelig_handling_kræver_folketingets_samtykke(sag.handling) {
+| mellemfolkelig_sag_opfylder_samtykkekravet_i_par19_stk1(sag: MellemfolkeligSag) -> hvis mellemfolkelig_handling_kræver_folketingets_samtykke(sag.handling) {
     sag.folketingets_samtykke == Givet
 } ellers {
     Sandt
 }
 
-| militær_magtanvendelse_opfylder_par19_stk2(sag: MilitærMagtanvendelse) -> match sag.grund {
+| militær_magtanvendelse_opfylder_samtykkekravet_i_par19_stk2(sag: MilitærMagtanvendelse) -> match sag.grund {
     | ForsvarModVæbnetAngrebPåRiget -> Sandt
     | ForsvarModVæbnetAngrebPåDanskeStyrker -> Sandt
     | AndenMilitærgrund -> sag.folketingets_samtykke == Givet
@@ -269,7 +267,7 @@ forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
 
 --@begin:grundlov_par20--
 
-# Suverænitetsforslag(fem_sjettedele_opnået: Boolsk, almindeligt_flertal_opnået: Boolsk, regeringen_opretholder_forslaget: Boolsk)
+# Suverænitetsforslag(opbakning: Medlemsopbakning, almindeligt_flertal_opnået: Boolsk, regeringen_opretholder_forslaget: Boolsk)
 # Suverænitetsprocedure = VedtagetMedFemSjettedele | ForelæggesFolketingsvælgerne | IkkeVedtaget
 
 | beføjelser_kan_overlades_mellemfolkeligt()
@@ -278,14 +276,18 @@ forkastelse efter de for folkeafstemninger i § 42 fastsatte regler.
 | mellemfolkelige_myndigheder_fremmer_retsorden_og_samarbejde()
 = suverænitetskrav = Brøk(tæller = 5, nævner = 6)
 
-| suverænitetsforslagets_procedure(forslag: Suverænitetsforslag) -> hvis forslag.fem_sjettedele_opnået {
-    VedtagetMedFemSjettedele
-} ellers {
-    hvis forslag.almindeligt_flertal_opnået && forslag.regeringen_opretholder_forslaget {
-        ForelæggesFolketingsvælgerne
+| suverænitetsforslagets_procedure(forslag: Suverænitetsforslag) -> hvis medlemsopbakning_er_gyldig(forslag.opbakning) {
+    hvis medlemsopbakning_er_mindst(forslag.opbakning, suverænitetskrav) {
+        VedtagetMedFemSjettedele
     } ellers {
-        IkkeVedtaget
+        hvis forslag.almindeligt_flertal_opnået && forslag.regeringen_opretholder_forslaget {
+            ForelæggesFolketingsvælgerne
+        } ellers {
+            IkkeVedtaget
+        }
     }
+} ellers {
+    IkkeVedtaget
 }
 --@end:grundlov_par20--
 
@@ -340,7 +342,7 @@ forelægges dette til godkendelse eller forkastelse.
 # ForeløbigLovssag(særdeles_påtrængende: Boolsk, folketinget_kan_samles: Boolsk, strider_mod_grundloven: Boolsk)
 
 | foreløbig_lov_kan_udstedes(sag: ForeløbigLovssag) -> sag.særdeles_påtrængende && sag.folketinget_kan_samles == Falskt && sag.strider_mod_grundloven == Falskt
-| foreløbige_love_forelægges_til_godkendelse_eller_forkastelse()
+| foreløbige_love_forelægges_straks_efter_folketingets_sammentræden_til_godkendelse_eller_forkastelse()
 --@end:grundlov_par23--
 
 -- ─────────────────────────────────────────────────────────
@@ -376,13 +378,17 @@ indeholdes i en siden den tid udgiven lov.
 --@begin:grundlov_par25--
 
 # Dispensationsgrundlag = RegelIBrugFørFemteJuni1849 | HjemmelISenereLov | IntetGrundlag
+# Dispensationsvej = UmiddelbartAfKongen | GennemVedkommendeRegeringsmyndighed
+# Dispensationssag(vej: Dispensationsvej, grundlag: Dispensationsgrundlag)
 
-| kongen_kan_give_dispensationer()
-| dispensationer_kan_meddeles_gennem_regeringsmyndigheder()
 | dispensation_har_grundlovsgrundlag(grundlag: Dispensationsgrundlag) -> match grundlag {
     | RegelIBrugFørFemteJuni1849 -> Sandt
     | HjemmelISenereLov -> Sandt
     | IntetGrundlag -> Falskt
+}
+| dispensation_opfylder_par25(sag: Dispensationssag) -> match sag.vej {
+    | UmiddelbartAfKongen -> dispensation_har_grundlovsgrundlag(sag.grundlag)
+    | GennemVedkommendeRegeringsmyndighed -> dispensation_har_grundlovsgrundlag(sag.grundlag)
 }
 --@end:grundlov_par25--
 
@@ -393,7 +399,7 @@ indeholdes i en siden den tid udgiven lov.
 
 --@begin:grundlov_par26--
 
-| kongen_har_møntret()
+| kongen_har_ret_til_at_lade_slå_mønt_i_henhold_til_loven()
 --@end:grundlov_par26--
 
 -- ─────────────────────────────────────────────────────────
@@ -419,12 +425,13 @@ afsked med pension efter de almindelige regler.
 --@begin:grundlov_par27--
 
 # Tjenestemandskandidat(har_indfødsret: Boolsk)
+# Tjenestemandsforholdstype = Afskedigelse | Forflyttelse | Pensionering
 # ForflyttelseUdenSamtykke(indkomsttab: Boolsk, valg_mellem_forflyttelse_og_afsked_med_pension: Boolsk)
 
 | tjenestemandsansættelse_fastsættes_ved_lov()
 | tjenestemandskandidat_opfylder_indfødsretskravet(kandidat: Tjenestemandskandidat) -> kandidat.har_indfødsret
 | kongens_tjenestemand_aflægger_grundlovs_ed()
 
-| tjenestemandsforhold_fastsættes_ved_lov()
+| regler_om_tjenestemandsforhold_fastsættes_ved_lov(forhold: Tjenestemandsforholdstype) -> Sandt
 | forflyttelse_af_kongeligt_udnævnt_tjenestemand_opfylder_par27(forflyttelse: ForflyttelseUdenSamtykke) -> forflyttelse.indkomsttab == Falskt && forflyttelse.valg_mellem_forflyttelse_og_afsked_med_pension
 --@end:grundlov_par27--

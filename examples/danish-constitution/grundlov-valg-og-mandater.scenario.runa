@@ -4,7 +4,7 @@
 
 -- Scenarierne prøver §§ 28-34. De tilføjer ikke lovstof.
 
-| par28_sammensætning: folketingets_max_medlemmer -> folketingets_max_medlemmer == 179 && færøske_mandater == 2 && grønlandske_mandater == 2
+| par28_sammensætning: folketingets_max_medlemmer -> folketinget_udgør_en_forsamling() && folketingets_max_medlemmer == 179 && færøske_mandater == 2 && grønlandske_mandater == 2
 
 = fulde_valgretsforhold = Valgretsforhold(
     har_dansk_indfødsret = Sandt,
@@ -124,6 +124,7 @@
 = par32_efter_fremstilling = kongen_kan_udskrive_nyvalg(nyt_ministerium_efter_fremstilling)
 
 | par32_fremstillingsundtagelsen_er_afgrænset: par32_almindeligt_nyvalg -> par32_almindeligt_nyvalg && par32_før_fremstilling == Falskt && par32_efter_fremstilling
+| par32_medlemmer_vælges_for_fire_år: folketingets_medlemmers_valgperiode_år() -> folketingets_medlemmers_valgperiode_år() == 4
 
 = løbende_mandat = Mandatforhold(nyvalg_afholdt = Falskt, valgbarhed_bevaret = Sandt)
 = mandat_efter_nyvalg = Mandatforhold(nyvalg_afholdt = Sandt, valgbarhed_bevaret = Sandt)
@@ -133,6 +134,10 @@
 = par32_tabt_valgbarhed_afslutter_mandat = eksisterende_mandat_består(mandat_uden_valgbarhed)
 
 | par32_mandatets_to_ophørsgrunde: par32_løbende_mandat -> par32_løbende_mandat && par32_nyvalg_afslutter_mandat == Falskt && par32_tabt_valgbarhed_afslutter_mandat == Falskt
+
+= par32_forsikring_efter_godkendt_valg = nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven(GodkendtValg)
+= par32_ingen_forsikring_før_godkendt_valg = nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven(IkkeGodkendtValg)
+| par32_forsikringen_forudsætter_godkendt_valg: par32_forsikring_efter_godkendt_valg -> par32_forsikring_efter_godkendt_valg && par32_ingen_forsikring_før_godkendt_valg == Falskt
 
 = par34_sikkerhed = antastelse_af_folketinget_er_højforræderi(AntasterSikkerheden)
 = par34_frihed = antastelse_af_folketinget_er_højforræderi(AntasterFriheden)
@@ -146,7 +151,9 @@
 ? par29_stadfæstelse_kræver_hele_forløbet
 ? par30_valgret_og_ingen_uværdig_straf
 ? par32_fremstillingsundtagelsen_er_afgrænset
+? par32_medlemmer_vælges_for_fire_år
 ? par32_mandatets_to_ophørsgrunde
+? par32_forsikringen_forudsætter_godkendt_valg
 ? par34_alle_fire_handlinger_er_omfattet
 
 @ skriv("Scenarierne for valg og mandater holder.")

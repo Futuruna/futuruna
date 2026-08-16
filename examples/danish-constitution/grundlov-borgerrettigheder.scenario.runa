@@ -89,7 +89,7 @@
 = militær_indskrænkning_par79_med_lov = MilitærIndskrænkning(bestemmelse = ForsamlingsfrihedPar79, følger_af_militære_loves_forskrifter = Sandt)
 
 | par85_henviser_udtømmende_til_par71_par78_og_par79: militær_indskrænkning_par71_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() -> militær_indskrænkning_par71_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par78_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par79_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && militær_indskrænkning_par77_med_lov.bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() == Falskt
-| par85_kræver_forskrift_i_de_militære_love: militær_indskrænkning_par71_med_lov.opfylder_par85() -> militær_indskrænkning_par71_med_lov.opfylder_par85() && militær_indskrænkning_par78_med_lov.opfylder_par85() && militær_indskrænkning_par79_med_lov.opfylder_par85() && militær_indskrænkning_par71_uden_lov.opfylder_par85() == Falskt && militær_indskrænkning_par77_med_lov.opfylder_par85() == Falskt
+| par85_kræver_forskrift_i_de_militære_love: militær_indskrænkning_par71_med_lov.indskrænkning_har_hjemmel_i_par85() -> militær_indskrænkning_par71_med_lov.indskrænkning_har_hjemmel_i_par85() && militær_indskrænkning_par78_med_lov.indskrænkning_har_hjemmel_i_par85() && militær_indskrænkning_par79_med_lov.indskrænkning_har_hjemmel_i_par85() && militær_indskrænkning_par71_uden_lov.indskrænkning_har_hjemmel_i_par85() == Falskt && militær_indskrænkning_par77_med_lov.indskrænkning_har_hjemmel_i_par85() == Falskt
 
 ? par74_skiller_begrundede_og_ubegrundede_indskrænkninger
 ? par75_stk1_bevarer_forskellen_mellem_tilstræbelse_og_resultat

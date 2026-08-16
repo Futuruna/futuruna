@@ -30,6 +30,7 @@ som strider mod sædeligheden eller den offentlige orden.
         | Foretagelse -> Sandt
     }
 }
+| borgerne_har_ret_til_at_forene_sig_i_samfund_for_at_dyrke_gud()
 --@end:grundlov_par67--
 
 --@label:grundlov_par68::meta:grundlov_kildemetadata--
@@ -56,7 +57,7 @@ end den, som er hans egen.
 
 --@begin:grundlov_par69--
 
-| afvigende_trossamfund_ordnes_ved_lov()
+| de_fra_folkekirken_afvigende_trossamfunds_forhold_ordnes_nærmere_ved_lov()
 --@end:grundlov_par69--
 
 --@label:grundlov_par70::meta:grundlov_kildemetadata--

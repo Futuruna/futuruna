@@ -414,6 +414,6 @@ anvendelige med de indskrænkninger, der følger af de militære loves forskrift
         | ForsamlingsfrihedPar79 -> Sandt
     }
 
-    | opfylder_par85() -> bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && følger_af_militære_loves_forskrifter
+    | indskrænkning_har_hjemmel_i_par85() -> bestemmelsen_er_omfattet_af_ordlydens_henvisning_i_par85() && følger_af_militære_loves_forskrifter
 }
 --@end:grundlov_par85--

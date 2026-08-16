@@ -2,7 +2,10 @@
 
 @ importer ./kapitel - 01
 
--- Scenarierne prøver § 3's kanoniske relation. De tilføjer ikke lovstof.
+-- Scenarierne prøver indledningens dato, § 2 og § 3's kanoniske relation.
+
+| indledningens_folkeafstemningsdato: dato_for_grundlovsfolkeafstemningen() -> dato_for_grundlovsfolkeafstemningen() == Dato(år = 1953, måned = 5, dag = 28) && folketingsvælgerne_godkendte_grundloven_ved_folkeafstemning(Dato(år = 1953, måned = 5, dag = 28))
+| par2_tronfølgelovens_dato: dato_for_tronfølgeloven() -> dato_for_tronfølgeloven() == Dato(år = 1953, måned = 3, dag = 27)
 
 = lovgivende_placering = statsmagtens_placering(Lovgivende)
 = udøvende_placering = statsmagtens_placering(Udøvende)
@@ -57,6 +60,8 @@
 | par3_folketinget_deltager_ikke_i_dømmende: folketinget_dømmende -> folketinget_dømmende == Falskt
 | par3_domstolene_deltager_i_dømmende: domstolene_dømmende -> domstolene_dømmende == Sandt
 
+? indledningens_folkeafstemningsdato
+? par2_tronfølgelovens_dato
 ? par3_lovgivende_placering
 ? par3_udøvende_placering
 ? par3_dømmende_placering

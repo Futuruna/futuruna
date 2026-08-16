@@ -15,6 +15,7 @@
 = folketingets_max_medlemmer = 179
 = færøske_mandater = 2
 = grønlandske_mandater = 2
+| folketinget_udgør_en_forsamling()
 --@end:grundlov_par28--
 
 --@label:grundlov_par29::meta:grundlov_kildemetadata--
@@ -63,7 +64,7 @@ regeringens tilladelse til at modtage valget.
 
 | opfylder_par30_stk1(forhold: Valgbarhedsforhold) -> opfylder_par29_stk1(forhold.valgretsforhold) && forhold.straffet_for_uværdig_handling == Falskt
 
-| tjenestemænd_behøver_ikke_tilladelse_til_valg()
+| valgte_tjenestemænd_behøver_ikke_regeringens_tilladelse_til_at_modtage_valget()
 --@end:grundlov_par30--
 
 --@label:grundlov_par31::meta:grundlov_kildemetadata--
@@ -95,8 +96,8 @@ ved lov.
 | valg_er_hemmelige()
 
 -- Stk. 2: valglov sikrer ligelig repræsentation
-| valgmåde_fastsættes_ved_valglov()
-| ligelig_repræsentation_af_anskuelser()
+| valgloven_fastsætter_valgmåden()
+| valgloven_sikrer_ligelig_repræsentation_af_vælgernes_forskellige_anskuelser()
 
 -- Stk. 3: tre hensyn ved mandatfordeling
 | mandatfordeling_hensyn_til_indbyggertal()
@@ -104,7 +105,9 @@ ved lov.
 | mandatfordeling_hensyn_til_befolkningstæthed()
 
 -- Stk. 4
-| stedfortrædere_fastsættes_ved_valglov()
+| valgloven_giver_nærmere_regler_om_valg_af_stedfortrædere()
+| valgloven_giver_nærmere_regler_om_stedfortræderes_indtræden_i_folketinget()
+| valgloven_giver_nærmere_regler_om_fremgangsmåden_ved_nødvendigt_omvalg()
 
 -- Stk. 5
 | grønlands_repræsentation_kan_fastsættes_ved_lov()
@@ -138,8 +141,10 @@ forsikring om at ville holde grundloven.
 
 # Nyvalgssituation(nyt_ministerium_udnævnt: Boolsk, statsministeren_har_fremstillet_sig: Boolsk)
 # Mandatforhold(nyvalg_afholdt: Boolsk, valgbarhed_bevaret: Boolsk)
+# Valgsgodkendelse = GodkendtValg | IkkeGodkendtValg
 
 = valgperiode_år = 4
+| folketingets_medlemmers_valgperiode_år() -> valgperiode_år
 
 | kongen_kan_udskrive_nyvalg(situation: Nyvalgssituation) -> hvis situation.nyt_ministerium_udnævnt {
     situation.statsministeren_har_fremstillet_sig
@@ -151,9 +156,9 @@ forsikring om at ville holde grundloven.
 
 | eksisterende_mandat_består(forhold: Mandatforhold) -> forhold.nyvalg_afholdt == Falskt && forhold.valgbarhed_bevaret
 
-| færøske_grønlandske_mandater_kan_fastsættes_ved_lov()
+| særlige_regler_om_færøske_og_grønlandske_mandaters_ikrafttræden_og_ophør_kan_gives_ved_lov()
 
-| nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven()
+| nyt_medlem_afgiver_højtidelig_forsikring_om_at_holde_grundloven(godkendelse: Valgsgodkendelse) -> godkendelse == GodkendtValg
 --@end:grundlov_par32--
 
 --@label:grundlov_par33::meta:grundlov_kildemetadata--

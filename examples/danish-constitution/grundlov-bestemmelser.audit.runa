@@ -8,7 +8,7 @@
 @ importer ./kapitel - 11
 @ importer ./grundlov - proevning - faelles
 
--- Bestemmelsesauditten prøver lukkede, ordlydsnære domæner. Konkrete
+-- Bestemmelsesprøvningen prøver lukkede, ordlydsnære domæner. Konkrete
 -- livsforløb og hypotetiske personer hører til scenariefilerne.
 
 = bestemmelser_magtfordeling_fund = GrundlovPrøvningsfund(

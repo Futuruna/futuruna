@@ -19,7 +19,8 @@ stadfæster DANMARKS RIGES GRUNDLOV
 
 = grundlovsfolkeafstemningens_dato = Dato(år = 1953, måned = 5, dag = 28)
 | rigsdagen_vedtog_grundloven_to_gange()
-| folketingsvælgerne_godkendte_grundloven_ved_folkeafstemning()
+| dato_for_grundlovsfolkeafstemningen() -> grundlovsfolkeafstemningens_dato
+| folketingsvælgerne_godkendte_grundloven_ved_folkeafstemning(dato: Dato) -> dato == grundlovsfolkeafstemningens_dato
 | kongen_stadfæstede_grundloven()
 --@end:grundlov_indledning--
 
@@ -51,6 +52,7 @@ tronfølgeloven af 27. marts 1953 fastsatte regler.
 | tronfølgeloven_regulerer_arvefølgen()
 | kongemagten_nedarves_til(køn: Køn) -> Sandt
 = tronfølgeloven_dato = Dato(år = 1953, måned = 3, dag = 27)
+| dato_for_tronfølgeloven() -> tronfølgeloven_dato
 --@end:grundlov_par2--
 
 --@label:grundlov_par3::meta:grundlov_kildemetadata--

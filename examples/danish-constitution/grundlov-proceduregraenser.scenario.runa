@@ -46,9 +46,9 @@
     handling = lille_forpligtelse,
     folketingets_samtykke = IkkeGivet
 )
-= par19_områdesag_uden = mellemfolkelig_sag_opfylder_par19_stk1(områdesag_uden_samtykke)
-= par19_områdesag_med = mellemfolkelig_sag_opfylder_par19_stk1(områdesag_med_samtykke)
-= par19_lille_forpligtelsessag = mellemfolkelig_sag_opfylder_par19_stk1(lille_forpligtelsessag_uden_samtykke)
+= par19_områdesag_uden = mellemfolkelig_sag_opfylder_samtykkekravet_i_par19_stk1(områdesag_uden_samtykke)
+= par19_områdesag_med = mellemfolkelig_sag_opfylder_samtykkekravet_i_par19_stk1(områdesag_med_samtykke)
+= par19_lille_forpligtelsessag = mellemfolkelig_sag_opfylder_samtykkekravet_i_par19_stk1(lille_forpligtelsessag_uden_samtykke)
 
 | par19_påkrævet_samtykke_skal_være_givet: par19_områdesag_uden -> par19_områdesag_uden == Falskt && par19_områdesag_med
 | par19_intet_krav_efter_stk1_behøver_intet_samtykke: par19_lille_forpligtelsessag -> par19_lille_forpligtelsessag == Sandt
@@ -69,10 +69,10 @@
     grund = AndenMilitærgrund,
     folketingets_samtykke = Givet
 )
-= par19_forsvar_riget = militær_magtanvendelse_opfylder_par19_stk2(forsvar_af_riget_uden_samtykke)
-= par19_forsvar_styrker = militær_magtanvendelse_opfylder_par19_stk2(forsvar_af_styrker_uden_samtykke)
-= par19_anden_uden = militær_magtanvendelse_opfylder_par19_stk2(anden_magtanvendelse_uden_samtykke)
-= par19_anden_med = militær_magtanvendelse_opfylder_par19_stk2(anden_magtanvendelse_med_samtykke)
+= par19_forsvar_riget = militær_magtanvendelse_opfylder_samtykkekravet_i_par19_stk2(forsvar_af_riget_uden_samtykke)
+= par19_forsvar_styrker = militær_magtanvendelse_opfylder_samtykkekravet_i_par19_stk2(forsvar_af_styrker_uden_samtykke)
+= par19_anden_uden = militær_magtanvendelse_opfylder_samtykkekravet_i_par19_stk2(anden_magtanvendelse_uden_samtykke)
+= par19_anden_med = militær_magtanvendelse_opfylder_samtykkekravet_i_par19_stk2(anden_magtanvendelse_med_samtykke)
 
 | par19_forsvarsundtagelserne_kræver_ikke_samtykke: par19_forsvar_riget -> par19_forsvar_riget && par19_forsvar_styrker
 | par19_anden_magtanvendelse_kræver_samtykke: par19_anden_uden -> par19_anden_uden == Falskt && par19_anden_med
@@ -82,31 +82,37 @@
 | par19_rådføring_afgrænses_af_større_rækkevidde: par19_større_beslutning -> par19_større_beslutning && par19_mindre_beslutning == Falskt
 
 = direkte_suverænitetsvedtagelse = Suverænitetsforslag(
-    fem_sjettedele_opnået = Sandt,
+    opbakning = Medlemsopbakning(antal = 150, medlemmer_i_alt = 179),
     almindeligt_flertal_opnået = Sandt,
     regeringen_opretholder_forslaget = Sandt
 )
 = suverænitetsforslag_til_folkeafstemning = Suverænitetsforslag(
-    fem_sjettedele_opnået = Falskt,
+    opbakning = Medlemsopbakning(antal = 149, medlemmer_i_alt = 179),
     almindeligt_flertal_opnået = Sandt,
     regeringen_opretholder_forslaget = Sandt
 )
 = suverænitetsforslag_uden_opretholdelse = Suverænitetsforslag(
-    fem_sjettedele_opnået = Falskt,
+    opbakning = Medlemsopbakning(antal = 149, medlemmer_i_alt = 179),
     almindeligt_flertal_opnået = Sandt,
     regeringen_opretholder_forslaget = Falskt
 )
 = suverænitetsforslag_uden_flertal = Suverænitetsforslag(
-    fem_sjettedele_opnået = Falskt,
+    opbakning = Medlemsopbakning(antal = 149, medlemmer_i_alt = 179),
     almindeligt_flertal_opnået = Falskt,
+    regeringen_opretholder_forslaget = Sandt
+)
+= suverænitetsforslag_med_umulig_opbakning = Suverænitetsforslag(
+    opbakning = Medlemsopbakning(antal = 180, medlemmer_i_alt = 179),
+    almindeligt_flertal_opnået = Sandt,
     regeringen_opretholder_forslaget = Sandt
 )
 = par20_direkte = suverænitetsforslagets_procedure(direkte_suverænitetsvedtagelse)
 = par20_folkeafstemning = suverænitetsforslagets_procedure(suverænitetsforslag_til_folkeafstemning)
 = par20_uden_opretholdelse = suverænitetsforslagets_procedure(suverænitetsforslag_uden_opretholdelse)
 = par20_uden_flertal = suverænitetsforslagets_procedure(suverænitetsforslag_uden_flertal)
+= par20_umulig_opbakning = suverænitetsforslagets_procedure(suverænitetsforslag_med_umulig_opbakning)
 
-| par20_alle_proceduregrene: par20_direkte -> par20_direkte == VedtagetMedFemSjettedele && par20_folkeafstemning == ForelæggesFolketingsvælgerne && par20_uden_opretholdelse == IkkeVedtaget && par20_uden_flertal == IkkeVedtaget
+| par20_alle_proceduregrene: par20_direkte -> par20_direkte == VedtagetMedFemSjettedele && par20_folkeafstemning == ForelæggesFolketingsvælgerne && par20_uden_opretholdelse == IkkeVedtaget && par20_uden_flertal == IkkeVedtaget && par20_umulig_opbakning == IkkeVedtaget
 | par20_tærsklen_er_fem_sjettedele: suverænitetskrav -> suverænitetskrav == Brøk(tæller = 5, nævner = 6)
 
 = stadfæstet_dag_0 = Lovforslagsstadfæstelse(

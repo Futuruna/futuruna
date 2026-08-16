@@ -182,7 +182,7 @@ Gennemført den 16. august 2026.
   `0x5c1bbaf1142e3696`; metadataindekset har 91 ankre, 91 kodespænd og ingen
   fejlmeddelelser. Kilde- og metadataporten består 4 af 4 kontroller.
 
-#### Klassifikation af de 23 topologiske hulfamilier
+#### Klassifikation af de aktuelle 20 topologiske hulfamilier
 
 Topologirapporten grupperer nulargumentregler efter navne, ikke efter retligt
 emne. En hulfamilie er derfor et arbejdssignal og ikke i sig selv et udækket
@@ -190,29 +190,26 @@ retligt spørgsmål.
 
 | Hulfamilie | Klassifikation | Beslutning |
 | --- | --- | --- |
-| `bestemmelser` | Otte meningsfulde auditegenskaber, der kaldes gennem `bestemmelser_audit_består`. Topologiprøvningen følger ikke aggregatets afhængigheder. | Teknisk rapporteringshul; alle otte egenskaber prøves af den lokale og den samlede audit i begge backends. |
-| `folketinget` | Navnebaseret samlegruppe af 14 forskellige kompetencer og organisationsudsagn. | Bevidst åben; gennemgås pr. kodespænd og lukkes ikke med én tautologi. |
+| `bestemmelser` | Otte meningsfulde prøvningsegenskaber, der kaldes gennem `bestemmelser_audit_består`. Topologiprøvningen følger ikke aggregatets afhængigheder. | Teknisk rapporteringshul; alle otte egenskaber prøves af den lokale og den samlede prøvning i begge backends. |
+| `folketinget` | Navnebaseret samlegruppe af 11 forskellige kompetencer og organisationsudsagn. | Bevidst åben; gennemgået pr. kodespænd og lukkes ikke med én tautologi. |
 | `folketingsåret` | To faste kalenderudsagn uden variabelt sagsdomæne. | Bevidst udækket, indtil en konkret kalenderforespørgsel kræver en model. |
 | `grundloven` | To atomiske udsagn om geografisk rækkevidde og gældende ret. | Bevidst åben; deres indhold prøves gennem konkrete rigsdele og stadfæstelsesakten frem for ved gentagelse af fakta. |
-| `ingen` | Skattepålæg og udskrivning af mandskab er kun samlet af den fælles sætningsstart. | Bevidst åben; forskellige genstande samles ikke for at tilfredsstille navneheuristikken. |
-| `kommissioner` | To beslægtede oplysningskompetencer. | Kandidat til en lukket adressattype i prøvningslaget. |
-| `kongen` | Navnebaseret samlegruppe af 16 forskellige roller og kompetencer. | Bevidst åben; fysisk monark, embede og statsorgan må ikke samles for at tilfredsstille topologien. |
-| `mandatfordeling` | Tre udtrykkelige hensyn i samme bestemmelse. | Kandidat til en lukket hensynstype og en dækningskontrol. |
-| `mellemfolkelige` | To egenskaber ved de myndigheder, § 20 omtaler. | Kandidat til ét domæneobjekt; ingen tautologisk kontrol tilføjes. |
-| `ministerråd` | To organisationskrav i § 18. | Kandidat til en `Ministerrådsordning` med intern regel. |
-| `ministre` | Adgangsret og taleret i Folketinget. | Kandidat til et lukket rettighedsdomæne. |
+| `kongen` | Navnebaseret samlegruppe af 13 forskellige roller og kompetencer. | Bevidst åben; fysisk monark, embede og statsorgan må ikke samles for at tilfredsstille topologien. |
+| `mandatfordeling` | Tre udtrykkelige hensyn i samme bestemmelse. | Tekstligt lukket mængde, hvis tre led allerede er bevaret og scenarieprøvet; ingen gentagelsesregel tilføjes. |
+| `mellemfolkelige` | To forskellige egenskaber ved de myndigheder, § 20 omtaler. | Bevidst atomiske tekstudsagn; de samles ikke uden en konkret fælles forespørgsel. |
+| `ministre` | Adgangsret og taleret i Folketinget efter § 40. | Tekstligt lukket par, som er bevaret i samme regelmodel og scenarieprøvet. |
 | `ministrene` | Regeringsansvar og medlemskab af Statsrådet fra forskellige bestemmelser. | Bevidst åben; udsagnene er retligt forskellige trods samme grammatiske subjekt. |
+| `nærmere` | To lovdelegationer om henholdsvis statsrevisorernes antal og Rigsretten. | Navneartefakt; bestemmelserne er retligt uafhængige. |
 | `procedurer` | Seks grænse- og samtykkeegenskaber, der kaldes gennem `procedurer_audit_består`. | Teknisk rapporteringshul; alle seks egenskaber prøves lokalt og samlet i begge backends. |
+| `på` | To § 38-udsagn, som kun deler et præpositionsled i regelnavnet. | Navneartefakt; ingen domænerelation kan udledes af ordformen. |
 | `regeringsmyndigheden` | To strukturelle udsagn om begrænsning og udøvelse. | Bevares foreløbig som tekstnære fakta; relationen genprøves tværgående. |
 | `rettigheder` | Syv lukkede rettighedsegenskaber, der kaldes gennem `rettigheder_audit_består`. | Teknisk rapporteringshul; alle syv egenskaber prøves lokalt og samlet i begge backends. |
-| `revisorer` | To kompetencer ved statsregnskabet. | Kandidat til en lukket revisionskompetencetype. |
-| `rigsretten` | Kompetencen i ministersager og delegationen af den nærmere ordning. | Bevidst åben; kompetence og lovdelegation er ikke alternative værdier i samme domæne. |
 | `statsministeren` | Tre pligter fra forskellige bestemmelser samlet alene af navnet. | Bevidst åben og behandles som tre uafhængige kildespørgsmål. |
-| `statsydelse` | Lovfastsættelse og gældsforbud i § 10. | Kandidat til en samlet `Statsydelsesordning`, hvis en konkret forespørgsel kræver relationen. |
-| `tilsyn` | Civil og militær forvaltning som to udtrykkelige områder. | Kandidat til en lukket tilsynsområdetype. |
+| `statsydelse` | Lovfastsættelse og gældsforbud i § 10. | To forskellige retsfølger i samme bestemmelse; bevares tekstnært uden kunstig fælles boolesk regel. |
 | `tvaergaaende` | Seks tværgående egenskaber, der kaldes gennem `tvaergaaende_audit_består`. | Teknisk rapporteringshul; alle seks egenskaber prøves lokalt og samlet i begge backends. |
-| `valg` | Tre valgprincipper og ét særskilt forholdstalsvalg samlet af navnet. | Splittes efter retligt emne; de tre principper er kandidat til et lukket domæne. |
-| `årpenge` | Lovfastsættelse og samtykkekrav ved nydelse uden for riget i § 11. | Kandidat til en samlet `Årpengeordning`, hvis relationen senere skal forespørges samlet. |
+| `valg` | Tre valgprincipper og ét særskilt forholdstalsvalg samlet af navnet. | De tre principper er dækket som lukket tekstmængde; forholdstalsvalget for Rigsretten er et andet retligt emne. |
+| `valgloven` | Fem udtrykkelige delegationer i § 31. | Tekstligt lukket mængde, som er bevaret i modellen og scenarieprøvet; ingen tautologisk samleregel tilføjes. |
+| `årpenge` | Lovfastsættelse og samtykkekrav ved nydelse uden for riget i § 11. | To forskellige retsfølger i samme bestemmelse; begge er bevaret uden at gøre det fakultative “kan” obligatorisk. |
 
 ### Milepæl 5: Fortolknings- og prøvningslag
 
@@ -252,20 +249,66 @@ Gennemført den 16. august 2026.
   seks andre blev synlige, da den gamle audits tautologiske fakta-gentagelser
   blev fjernet.
 
+### Milepæl 6: Nøgterne danske websider
+
+Gennemført den 16. august 2026.
+
+- Kildeudgaven viser først formål, officiel kilde og afgrænsning og derefter
+  det aktive Futuruna-korpus i 12 kodeafsnit: fælles domæne og kapitel I-XI.
+- Prøvningssiden adskiller ordlyd, kildemodel, fortolkning og prøvning, før den
+  viser fund. Den fremstiller ikke et bestået scenarie som gældende ret.
+- De seks offentlige fund genereres ved byggetid fra typede
+  `GrundlovPrøvningsfund`-værdier. Bygningen afvises, hvis et forventet fund,
+  dets kodespænd eller en `ProgramReference` ikke kan findes.
+- Begge sider henviser til Retsinformation og Folketingets tekstvisning og
+  bruger dansk synlig tekst uden den tidligere statistiklinje og de
+  forældede "Ny audit"-kort.
+- Webprojektets formatering, Rust-kontrol og Dioxus-webbygning består. Fire
+  Playwright-visninger på 1440 × 900 og 390 × 844 har korrekte overskrifter,
+  12 henholdsvis 9 kodeafsnit, seks fund på prøvningssiden, ingen døde interne
+  links, ingen konsolfejl og intet vandret overløb. Direkte og gentagne
+  ankerhenvisninger lander stabilt.
+
+### Milepæl 7: Samlet tekst-kode-læsning og udgivelsesport
+
+Gennemført den 16. august 2026.
+
+- Alle 91 ordlydsblokke er læst sammen med deres kodespænd efter aktør,
+  modalitet, handling, genstand, betingelse, undtagelse, tidspunkt og virkning.
+- Læsningen rettede blandt andet det fakultative "kan" i § 11,
+  Ministerrådsvalget i § 18, femsjettedelsgrundlaget i § 20, klokkeslættet i
+  §§ 35-36, frister og udløsere i §§ 41-42, statsregnskabsforløbet i § 47,
+  Rigsretsperioden i § 59 og den negative afgrænsning af § 85.
+- Fire deklarerede, men tidligere virkningsløse dato- eller periodeværdier er
+  forbundet med de kanoniske regler og prøvet. En samlet bindingssøgning finder
+  ingen værdier, som kun forekommer i deres egen deklaration.
+- Alle 34 Futuruna-filer består formattering, frontendkontrol og fuld
+  Rust-backendkontrol. Alle 31 testindgange består både fortolket og som
+  genereret Rust med fire samtidige processer.
+- Kilde- og metadataporten består 4 af 4 kontroller. Den officielle ordlyd har
+  fortsat kontrolsummen `0x5c1bbaf1142e3696`, og det historiske korpus er
+  uændret.
+- Metadataindekset scanner 34 filer uden fejlmeddelelser og indeholder 97
+  ankre, 97 henvisninger, 97 kodespænd, 182 vedhæftninger og 696 typede
+  værdier. De 97 yderste metadataobjekter er 91 `GrundlovMetadata`-værdier og
+  seks `GrundlovPrøvningsfund`-værdier.
+- Den eksperimentelle topologiprøvning viser 154 regler, 14 konsistente
+  familier, 20 fagligt klassificerede hulfamilier og ingen rapporterede
+  paradokser, spændinger eller asymmetrier. Resultatet er et søgesignal, ikke
+  et bevis for juridisk fuldstændighed.
+
 ## Nu
 
-- Bevar den officielle ordlyd og kildekoblingen uændret.
-- Omskriv de danske grundlovssider, så ordlyd, kildemodel, navngivne
-  fortolkninger og afgrænset prøvning vises i den rækkefølge.
-- Fjern de forældede betegnelser, optællinger og bastante påstande fra den
-  offentlige fremstilling.
+- Den gennemgåede revision er en udgivelseskandidat med grøn juridisk,
+  teknisk, metadata- og visuel port.
+- Bevar den officielle ordlyd, kildekoblingen og den tydelige adskillelse
+  mellem kildemodel, fortolkning og prøvning.
 
 ## Næste
 
-- Gennemfør den samlede juridiske og tekniske læsning af alle 91
-  tekst-og-kodepar.
-- Kør den endelige fortolker-, Rust-, metadata-, kilde-, web- og visuelle
-  udgivelsesport.
+- Indhent en uafhængig statsretlig fagfællelæsning af de 91 tekst-kode-par.
+- Registrer enhver efterfølgende ændring med bestemmelse, retskilde,
+  modelvirkning og en målrettet regressionstest.
 
 ## Senere
 

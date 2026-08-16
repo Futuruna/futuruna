@@ -8,7 +8,7 @@
 @ importer ./kapitel - 10
 @ importer ./grundlov - proevning - faelles
 
--- Procedureauditten prøver samtykke, konsistente tællinger, strenge og
+-- Procedureprøvningen prøver samtykke, konsistente tællinger, strenge og
 -- inklusive tærskler samt forskellen mellem udløser, forløb og retsvirkning.
 
 = procedurer_taerskler_fund = GrundlovPrøvningsfund(
