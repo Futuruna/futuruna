@@ -451,10 +451,10 @@ fn AiGuide() -> Element {
     rsx! {
         section { id: "ai-guide", class: "ai-guide-section",
             div { class: "ai-guide-shell",
-                p { class: "ai-guide-kicker", "AI Setup" }
-                h2 { class: "section-title", "How to get your AI working with Futuruna" }
+                p { class: "ai-guide-kicker", "AI setup" }
+                h2 { class: "section-title", "Install Futuruna with your AI" }
                 p { class: "section-desc",
-                    "Futuruna comes with AI integration as a first-class integration. I recommend "
+                    "Give the setup guide to "
                     a {
                         class: "ai-guide-product-link",
                         href: "https://claude.com/product/claude-code",
@@ -486,29 +486,29 @@ fn AiGuide() -> Element {
                         rel: "noopener noreferrer",
                         "ChatGPT Work"
                     }
-                    " for the AI setup."
+                    ". Your AI will install Futuruna and run the first example with you."
                 }
                 div { class: "ai-guide-facts",
                     div { class: "ai-guide-fact",
-                        span { class: "ai-guide-fact-label", "Setup waiting time" }
-                        strong { "5–10 minutes" }
-                        small { "Rust already installed" }
+                        span { class: "ai-guide-fact-label", "Your computer" }
+                        strong { "Mac, Linux or Windows" }
+                        small { "Your AI chooses the right installation" }
                     }
                     div { class: "ai-guide-fact",
-                        span { class: "ai-guide-fact-label", "Approval steps" }
-                        strong { "Up to 3" }
-                        small { "+1 if Rust is missing" }
+                        span { class: "ai-guide-fact-label", "Installation" }
+                        strong { "Your AI does the setup" }
+                        small { "You approve any software changes" }
                     }
                     div { class: "ai-guide-fact",
-                        span { class: "ai-guide-fact-label", "Disk space" }
-                        strong { "About 300 MB" }
-                        small { "Futuruna itself; about 1.7 GB total if Rust must also be installed" }
+                        span { class: "ai-guide-fact-label", "Before it finishes" }
+                        strong { "Your AI confirms it works" }
+                        small { "It runs Futuruna and a working example" }
                     }
                 }
                 div { class: "ai-guide-handoff",
                     div { class: "ai-guide-handoff-header",
                         span { class: "ai-guide-handoff-label", "Tell your AI" }
-                        span { class: "ai-guide-handoff-status", "Agent-readable Markdown" }
+                        span { class: "ai-guide-handoff-status", "Instructions for your AI" }
                     }
                     div { class: "ai-guide-prompt",
                         span { class: "ai-guide-prompt-rune", ">" }
@@ -517,12 +517,12 @@ fn AiGuide() -> Element {
                         }
                     }
                     p {
-                        "The guide tells the AI how to inspect your environment, integrate Futuruna and build and verify. Please read it yourself to understand it has no harm or fault. It will guide you to your first usage of Futuruna after installation."
+                        "The guide shows your AI how to install the right version for your computer, check the download, and run a working example. It should only say setup is complete after every check passes."
                     }
                     a {
                         class: "ai-guide-link",
                         href: "https://futuruna.com/ai-setup.md",
-                        "Open ai-setup.md \u{2192}"
+                        "Read the setup guide \u{2192}"
                     }
                 }
                 p { class: "ai-guide-options-title", "Choose a first project" }

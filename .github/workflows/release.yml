@@ -1,64 +1,317 @@
 name: Release
 
 on:
+  workflow_dispatch:
   push:
-    tags: ['v*']
+    tags:
+      - 'v*'
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@35d8a35b823d6c20db516f5c35eb0a9640942c17
+        with:
+          toolchain: 1.94.0
+
+      - name: Verify release version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "release tag must be a semantic version beginning with v" >&2
+            exit 1
+          fi
+          package_version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version')"
+          if [[ "$GITHUB_REF_NAME" != "v${package_version}" ]]; then
+            echo "tag $GITHUB_REF_NAME does not match Cargo.toml version ${package_version}" >&2
+            exit 1
+          fi
+
+      - name: Verify crates.io package
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo publish --locked --dry-run
+          crate="target/package/futuruna-$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version').crate"
+          size="$(stat --format='%s' "$crate")"
+          if (( size > 10000000 )); then
+            echo "crate is ${size} bytes; crates.io permits at most 10 MB" >&2
+            exit 1
+          fi
+          tar -tzf "$crate" > "$RUNNER_TEMP/futuruna-package-files.txt"
+          for excluded in examples research website wiki _attachments paper tests; do
+            if grep -q "/${excluded}/" "$RUNNER_TEMP/futuruna-package-files.txt"; then
+              echo "crate unexpectedly contains ${excluded}/" >&2
+              exit 1
+            fi
+          done
+
+      - name: Upload package candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: futuruna-crate
+          path: target/package/futuruna-*.crate
+          if-no-files-found: error
+          retention-days: 7
+
   build:
-    name: Build (${{ matrix.target }})
+    name: Build ${{ matrix.target }}
+    needs: preflight
     runs-on: ${{ matrix.os }}
+    environment: release
     strategy:
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-22.04
             artifact: runa-linux-x86_64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+            artifact: runa-linux-arm64
           - target: aarch64-apple-darwin
-            os: macos-latest
+            os: macos-15
             artifact: runa-macos-arm64
           - target: x86_64-apple-darwin
-            os: macos-latest
+            os: macos-15-intel
             artifact: runa-macos-x86_64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@35d8a35b823d6c20db516f5c35eb0a9640942c17
         with:
+          toolchain: 1.94.0
           targets: ${{ matrix.target }}
 
-      - name: Build release
-        run: cargo build --release --target ${{ matrix.target }}
+      - name: Build locked release binary
+        run: cargo build --locked --release --bin runa --target ${{ matrix.target }}
 
-      - name: Package binary
+      - name: Stage binary
+        shell: bash
         run: |
-          cp target/${{ matrix.target }}/release/runa ${{ matrix.artifact }}
-          chmod +x ${{ matrix.artifact }}
+          set -euo pipefail
+          cp -f "target/${{ matrix.target }}/release/runa" "${{ matrix.artifact }}"
+          chmod +x "${{ matrix.artifact }}"
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Verify native binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          binary="$GITHUB_WORKSPACE/${{ matrix.artifact }}"
+          "$binary" --version
+          "$binary" examples/weather_demo.runa
+          RUNA_BIN="$binary" ./scripts/first-run-canary.sh
+
+      - name: Sign and notarize macOS binary
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          set -euo pipefail
+          required=(
+            MACOS_CERTIFICATE_P12_BASE64
+            MACOS_CERTIFICATE_PASSWORD
+            APPLE_ID
+            APPLE_TEAM_ID
+            APPLE_APP_SPECIFIC_PASSWORD
+          )
+          for name in "${required[@]}"; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "required release secret ${name} is not configured" >&2
+              exit 1
+            fi
+          done
+
+          binary="$GITHUB_WORKSPACE/${{ matrix.artifact }}"
+          certificate="$RUNNER_TEMP/futuruna-release.p12"
+          keychain="$RUNNER_TEMP/futuruna-release.keychain-db"
+          keychain_password="$(openssl rand -hex 32)"
+          archive="$RUNNER_TEMP/${{ matrix.artifact }}.zip"
+          notary_result="$RUNNER_TEMP/notary-result.json"
+
+          cleanup() {
+            security delete-keychain "$keychain" >/dev/null 2>&1 || true
+            /bin/rm -f "$certificate" "$archive" "$notary_result"
+          }
+          trap cleanup EXIT
+
+          printf '%s' "$MACOS_CERTIFICATE_P12_BASE64" | /usr/bin/base64 -D > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -P "$MACOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+
+          identities="$(security find-identity -v -p codesigning "$keychain")"
+          identity="$(printf '%s\n' "$identities" | sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | tail -n 1)"
+          if [[ -z "$identity" ]]; then
+            echo "the imported certificate does not contain a Developer ID Application identity" >&2
+            exit 1
+          fi
+
+          codesign --force --options runtime --timestamp --keychain "$keychain" --sign "$identity" "$binary"
+          codesign --verify --strict --verbose=2 "$binary"
+
+          /usr/bin/ditto -c -k --keepParent "$binary" "$archive"
+          xcrun notarytool submit "$archive" \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --wait \
+            --output-format json > "$notary_result"
+          cat "$notary_result"
+          if [[ "$(jq -r '.status // empty' "$notary_result")" != "Accepted" ]]; then
+            echo "Apple did not accept the notarization submission" >&2
+            exit 1
+          fi
+
+          codesign --verify --strict --verbose=2 "$binary"
+          spctl --assess --type execute --verbose=2 "$binary"
+
+      - name: Verify signed macOS binary executes
+        if: runner.os == 'macOS'
+        shell: bash
+        run: "./${{ matrix.artifact }} --version"
+
+      - name: Upload binary
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-crate:
+    name: Publish crate
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-22.04
+    environment: release
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@35d8a35b823d6c20db516f5c35eb0a9640942c17
+        with:
+          toolchain: 1.94.0
+
+      - name: Check crates.io version
+        id: crate
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version')"
+          cargo package --locked --no-verify
+          package="target/package/futuruna-${version}.crate"
+          local_checksum="$(sha256sum "$package" | cut -d ' ' -f 1)"
+          response="$RUNNER_TEMP/crates-io-version.json"
+          status="$(curl --silent --show-error --output "$response" --write-out '%{http_code}' \
+            --user-agent 'futuruna-release-workflow (research@futuruna.com)' \
+            "https://crates.io/api/v1/crates/futuruna/${version}")"
+          case "$status" in
+            200)
+              remote_checksum="$(jq -r '.version.checksum // empty' "$response")"
+              if [[ -z "$remote_checksum" || "$remote_checksum" != "$local_checksum" ]]; then
+                echo "crates.io already has futuruna ${version} with a different package checksum" >&2
+                exit 1
+              fi
+              echo "published=true" >> "$GITHUB_OUTPUT"
+              ;;
+            404) echo "published=false" >> "$GITHUB_OUTPUT" ;;
+            *)
+              echo "crates.io returned HTTP ${status}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Publish to crates.io
+        if: steps.crate.outputs.published != 'true'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "required release secret CARGO_REGISTRY_TOKEN is not configured" >&2
+            exit 1
+          fi
+          cargo publish --locked
+          version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version')"
+          package="target/package/futuruna-${version}.crate"
+          local_checksum="$(sha256sum "$package" | cut -d ' ' -f 1)"
+          for attempt in {1..12}; do
+            remote_checksum="$(curl --fail --silent --show-error \
+              --user-agent 'futuruna-release-workflow (research@futuruna.com)' \
+              "https://crates.io/api/v1/crates/futuruna/${version}" \
+              | jq -r '.version.checksum // empty' || true)"
+            if [[ "$remote_checksum" == "$local_checksum" ]]; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "published crate checksum did not become visible on crates.io" >&2
+          exit 1
 
   release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
+    name: Create GitHub release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs:
+      - build
+      - publish-crate
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Download binaries
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          files: |
-            runa-linux-x86_64/runa-linux-x86_64
-            runa-macos-arm64/runa-macos-arm64
-            runa-macos-x86_64/runa-macos-x86_64
+          pattern: runa-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate and verify checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd release-assets
+          expected=(
+            runa-linux-x86_64
+            runa-linux-arm64
+            runa-macos-arm64
+            runa-macos-x86_64
+          )
+          for binary in "${expected[@]}"; do
+            test -f "$binary"
+          done
+          LC_ALL=C sha256sum "${expected[@]}" | sort -k2 > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: release-assets/*
+          fail_on_unmatched_files: true
           generate_release_notes: true

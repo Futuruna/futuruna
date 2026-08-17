@@ -1,8 +1,11 @@
 # Set Up Futuruna With Your AI
 
-Futuruna comes with AI integration as a first-class integration.
-
-I recommend using [Claude Code](https://claude.com/product/claude-code), [Claude Cowork](https://claude.com/product/cowork), [Codex](https://openai.com/codex/), or [ChatGPT Work](https://openai.com/chatgpt-work/) for the AI setup.
+This guide lets an AI coding assistant install Futuruna on your computer, check
+that it works, and help you begin a first project. Use
+[Claude Code](https://claude.com/product/claude-code),
+[Claude Cowork](https://claude.com/product/cowork),
+[Codex](https://openai.com/codex/), or
+[ChatGPT Work](https://openai.com/chatgpt-work/) to follow it.
 
 If you are a person, give your AI this instruction:
 
@@ -12,31 +15,45 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 
 ## Setup at a glance
 
-- **Setup waiting time:** Allow 5–10 minutes on a modern computer with Rust already installed.
-- **Approval steps:** Up to 3 with a tight AI policy: clone the source, download dependencies and build, then run the newly built compiler. Add one approval if Rust must be installed.
-- **Futuruna space requirements:** Futuruna itself uses about 300 MB after a clean build. If the setup must also install Rust, allow about 1.7 GB in total.
-- **Verification:** Print the Futuruna version and interpret one known local example. This is a smoke check, not hash verification, a full test suite, or a project-wide audit.
-
-These estimates come from a cold setup dry run on an Apple A18 Pro with 8 GB memory and an empty Cargo cache: cloning took 6 seconds, the release build took 3 minutes 46 seconds, both smoke checks took less than 1 second, and the checkout, dependencies, and build output occupied about 289 MiB. Network speed, computer performance, operating system, and toolchain installation can change the result.
+- **Installation:** Use the verified Futuruna download made for the user's computer when one is available. Otherwise, install it with Cargo or build it on that computer.
+- **Time:** A download normally takes 1–3 minutes. Building Futuruna normally takes 5–10 minutes when Rust and Cargo are already installed.
+- **Rust:** The downloaded program can check, format, run, and audit Futuruna code without installing Rust. Building Futuruna or using `runa build` still requires Rust.
+- **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Do not run the full project test suite merely to check an installation.
 
 ## Your task
 
-1. Get Futuruna from the canonical repository.
-2. Build the `runa` compiler.
-3. Verify that the compiler and a known example work.
-4. Ask the user which first project they want to explore.
-5. Help them complete that project without guessing facts or silently changing source material.
+1. Establish which operating system and processor will actually run `runa`.
+2. Get the Futuruna repository when the user wants the examples and legal models.
+3. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna there.
+4. Verify Futuruna on the user's computer.
+5. Ask the user which first project they want to explore.
+6. Help them complete that project without guessing facts or silently changing source material.
 
 ## Set up Futuruna
 
-### 1. Inspect the environment
+### 1. Check the user's computer
 
-- Ask where the user wants Futuruna installed. Do not overwrite an existing directory.
-- If a Futuruna checkout already exists, inspect its remote and working-tree status before changing it. Never discard local work.
-- Check for Git, Rust, and Cargo with `git --version`, `rustc --version`, and `cargo --version`.
-- If Rust is missing, explain that Futuruna requires the Rust toolchain and use the official instructions at https://rustup.rs. Ask before installing system software, using elevated privileges, or changing a shell profile.
+First establish which computer will run Futuruna. An AI sandbox, desktop bridge,
+remote container, and the user's computer may have different operating systems
+and processors. Never install a program built for the AI's computer and present
+it as an installation for the user's computer.
 
-### 2. Get the source
+Run these commands **on the user's computer** when possible:
+
+```
+uname -s
+uname -m
+```
+
+If you cannot execute commands on that computer, ask the user for its
+operating system and architecture. State clearly which steps you can perform
+remotely and which checks must still run on their computer.
+
+Ask where the user wants Futuruna installed. Do not overwrite an existing
+directory. If a Futuruna checkout already exists, inspect its remote and
+working-tree status before changing it. Never discard local work.
+
+### 2. Get the examples and legal models
 
 If Futuruna is not already present, clone it from the canonical repository:
 
@@ -52,24 +69,106 @@ git remote get-url origin
 git status --short --branch
 ```
 
-### 3. Build and verify the compiler
+The checkout supplies the examples, documentation, and legal models. Futuruna
+itself can come from a published download; cloning the repository does not mean
+you must compile it.
 
-From the Futuruna repository root, run:
+### 3. Install a verified download
+
+Choose the filename for the user's operating system and processor:
+
+| Computer | Download |
+| --- | --- |
+| Linux `x86_64` | `runa-linux-x86_64` |
+| Linux `aarch64` or `arm64` | `runa-linux-arm64` |
+| macOS `arm64` | `runa-macos-arm64` |
+| macOS `x86_64` | `runa-macos-x86_64` |
+
+From the repository root, replace `DOWNLOAD_NAME` below with that exact filename:
+
+```
+BINARY=DOWNLOAD_NAME
+RELEASE_BASE=https://github.com/Futuruna/futuruna/releases/latest/download
+mkdir -p target/release
+curl --fail --location --retry 3 --output "target/release/$BINARY" "$RELEASE_BASE/$BINARY"
+curl --fail --location --retry 3 --output target/release/SHA256SUMS "$RELEASE_BASE/SHA256SUMS"
+cd target/release
+if command -v sha256sum >/dev/null 2>&1; then
+    grep "  $BINARY$" SHA256SUMS | sha256sum --check -
+else
+    grep "  $BINARY$" SHA256SUMS | shasum -a 256 --check -
+fi
+chmod +x "$BINARY"
+mv -f "$BINARY" runa
+cd ../..
+```
+
+Stop if the download or checksum is unavailable, the checksum line is missing, or
+verification fails. Do not bypass macOS Gatekeeper. Futuruna's published macOS
+downloads must be Developer ID-signed and accepted by Apple's notarization service.
+
+If there is no download for the user's computer, use one of the installation
+methods below instead of trying to build from an unrelated AI sandbox.
+
+### 4. Install with Cargo
+
+When Cargo is already available and the user approves a user-level Cargo
+installation, crates.io provides a second source-backed channel:
+
+```
+cargo install futuruna --locked
+runa --version
+```
+
+This installs into Cargo's configured binary directory, normally
+`~/.cargo/bin`. Do not change `PATH` or shell profiles unless the user asks.
+
+### 5. Build from source
+
+Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
+missing, use the official instructions at https://rustup.rs and ask before
+installing software or changing a shell profile. Futuruna 0.1.0 supports Rust
+1.94 or newer for source and Cargo installation.
+
+Build on the same operating system and architecture where the resulting binary
+will run:
 
 ```
 cargo build --locked --release --bin runa
-./target/release/runa --version
-./target/release/runa examples/weather_demo.runa
 ```
 
-On Windows, use the corresponding `runa.exe` path. If a command fails, diagnose that failure before continuing. Do not claim the setup is complete until the version command and weather example both succeed. Do not run the full Futuruna test suite as part of this setup.
+Do not treat `rustup target add` or `-Z build-std` as a routine workaround from a
+restricted sandbox: they require additional Rust toolchain downloads and still
+need a suitable linker. Prefer the published download or build directly on the
+user's computer.
+
+On Windows, use the corresponding `runa.exe` path. Windows does not yet have a
+published download.
+
+### 6. Check the installation on the user's computer
+
+For a release or source build in the checkout, run:
+
+```
+RUNA_BIN=./target/release/runa
+"$RUNA_BIN" --version
+"$RUNA_BIN" examples/weather_demo.runa
+```
+
+For a Cargo installation, set `RUNA_BIN="$(command -v runa)"` instead. Keep the
+verified absolute path for the remaining commands. If a command fails, diagnose
+it before continuing. Do not claim setup is complete until both commands
+succeed **on the machine where Futuruna will be used**. Do not run the full
+Futuruna test suite as part of setup.
 
 When setup succeeds, tell the user:
 
 - where Futuruna was installed,
-- which version was built,
+- which computer and installation method were used,
+- which version was installed,
+- whether the download checksum was verified,
 - which verification commands passed, and
-- that the compiler is available at `target/release/runa` inside the checkout.
+- where the `runa` binary is located.
 
 Do not add the compiler to a global path or edit the user's environment unless they ask you to.
 
@@ -98,8 +197,8 @@ Start by reading:
 Then inspect the calculation contract and generate an Excel workbook. Replace `PRIVATE_WORK_DIR` with the private directory chosen by the user:
 
 ```
-./target/release/runa schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --output PRIVATE_WORK_DIR/personskat-schema.json
-./target/release/runa template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format xlsx --output PRIVATE_WORK_DIR/personskat-cases.xlsx
+"$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --output PRIVATE_WORK_DIR/personskat-schema.json
+"$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format xlsx --output PRIVATE_WORK_DIR/personskat-cases.xlsx
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
@@ -107,7 +206,7 @@ Use the field labels, questions, help, units, choices, and source traces in the 
 When the workbook is complete, run:
 
 ```
-./target/release/runa call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.xlsx --output PRIVATE_WORK_DIR/personskat-results.xlsx
+"$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.xlsx --output PRIVATE_WORK_DIR/personskat-results.xlsx
 ```
 
 Help the user compare the result with the Annual Tax Report, trace differences back to inputs and rules, and report uncertainties clearly. `schema`, `template`, and `call` are Preview features, and this tax model remains an active research project.

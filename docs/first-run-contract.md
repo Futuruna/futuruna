@@ -18,6 +18,10 @@ The blocking proof is:
 That script is part of `./scripts/mint.sh`, so the first-run contract is a core
 mint gate, not an optional smoke test.
 
+The release workflow runs the same script against each staged native binary by
+setting `RUNA_BIN`. This verifies the artifact that will be distributed rather
+than rebuilding and accidentally testing a different compiler.
+
 ## Stable Path
 
 For a freshly built `runa` binary, this flow must work without source edits:

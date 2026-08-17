@@ -24,9 +24,18 @@ It allows combining different paradigms through partitioned syntax, using front-
 
 I recommend setting up Futuruna using Codex, Claude Code, ChatGPT Work, Claude Cowork and the strong models it provides (ChatGPT Sol or above, Claude Fable or above, Grok 4.7 or above)
 
+Give the AI this instruction:
+
+> Read https://futuruna.com/ai-setup.md and set up Futuruna for me.
+
+The guide helps your AI install the right Futuruna version for your computer,
+check the download, and run a working example. If no ready-made download exists
+for your computer, the AI builds Futuruna there instead.
+
 ## Skills, Integration and Examples
 
-Futuruna comes with AI integration as a first-class integration.
+Futuruna is designed so people and AI assistants can work from the same formal
+rule model.
 
 When you encode rules, you are able to generate an Excel sheet of the rule model for the law, contract or compliance you set out to formalize. The AI can then interview you back, helping you fill out this sheet, so that you can check how your own case stacks up.
 

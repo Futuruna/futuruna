@@ -77,3 +77,9 @@ Never merge a semantic fix that relies only on a verbal explanation.
 
 Pure docs, comments, or clearly non-behavioral refactors do not need the full
 semantic ratchet. Keep the diff honest and run the smallest relevant checks.
+
+## Releases
+
+Public tags, crates.io publication, release binaries, checksums, and macOS
+signing follow the maintainer [release runbook](docs/releasing.md). Do not push a
+version tag as a substitute for completing its release preflight.

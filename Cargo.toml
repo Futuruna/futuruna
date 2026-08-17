@@ -2,6 +2,7 @@
 name = "futuruna"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.94"
 description = "A programming language where law encoding and ordinary programming work side by side through partitioned syntax"
 authors = ["Andreas Rudolph <research@futuruna.com>"]
 license = "MIT"
@@ -11,6 +12,18 @@ documentation = "https://futuruna.com/docs"
 readme = "README.md"
 keywords = ["programming-language", "computational-law", "rule-engine", "formal-rules", "legal-tech"]
 categories = ["compilers", "command-line-utilities", "science"]
+default-run = "runa"
+publish = ["crates-io"]
+include = [
+    "/src/**",
+    "/docs/feature-stages.json",
+    "/README.md",
+    "/LICENSE",
+]
+
+[features]
+default = []
+internal-tools = []
 
 [lib]
 name = "futuruna"
@@ -41,6 +54,9 @@ opt-level = 3
 [profile.test.package.sha2]
 opt-level = 3
 
+[profile.release]
+strip = "symbols"
+
 # Large Futuruna corpora spend far more time executing the compiler and
 # interpreter than rebuilding dependencies. Keep ordinary dev/test builds fast
 # to compile, while offering a persistent optimized binary for corpus work.
@@ -57,7 +73,9 @@ path = "src/bin/runa.rs"
 [[bin]]
 name = "runa-adversarial"
 path = "src/bin/runa_adversarial.rs"
+required-features = ["internal-tools"]
 
 [[bin]]
 name = "runa-adversarial2"
 path = "src/bin/runa_adversarial2.rs"
+required-features = ["internal-tools"]
