@@ -38,6 +38,27 @@ Futuruna can define types (#), functions (>), rules (|), streams (~), assignment
 
 Each front rune has their own rules for syntax, which might sound like it gets complicated, but as you will quickly experience, it creates non-competing syntax within each category space and actually lowers complexity of programs. More punch per character through high optionality for the authors yet less uncertainty for the readers.
 
+Here is a complete synthetic tax policy: income is taxed at 25%, except that a
+person with at least two children pays 20%.
+
+```runa
+# Child(age: Int)
+# Person(annual_income: Int, children: List(Child))
+
+| tax_due(person: Person) -> person.annual_income / 4
+| exception two_children tax_due(person: Person) -> person.annual_income / 5 under length(person.children) >= 2
+
+= parent = Person(
+    annual_income = 500000,
+    children = [Child(age = 5), Child(age = 8)]
+)
+
+@ print(show(tax_due(parent))) -- 100000
+```
+
+Work through the [guided tutorial](https://futuruna.com/docs/tutorial), or use
+the [full language documentation](https://futuruna.com/docs) as a reference.
+
 ## Why Futuruna - The Manifest
 
 ([The Why Futuruna Article](https://futuruna.com/why))

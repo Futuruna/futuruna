@@ -1,0 +1,36 @@
+-- library-hygiene: importable
+
+@ export
+# Child(age: Int)
+
+@ export
+# Person(annual_income: Int, children: List(Child))
+
+# SourceInfo(title: String, url: String)
+# TutorialRuleMetadata(source: SourceInfo, target: ProgramReference)
+# impl Meta for TutorialRuleMetadata {}
+
+= tutorial_policy_source = SourceInfo(
+    title = "Synthetic family tax policy",
+    url = "https://futuruna.com/docs/tutorial"
+)
+
+= family_tax_rule_metadata = TutorialRuleMetadata(
+    source = tutorial_policy_source,
+    target = refof(TaxCase::tax_due)
+)
+
+--@label:family_tax_rule::meta:family_tax_rule_metadata--
+----
+Synthetic tutorial policy: income is taxed at 25%, except that a person with
+at least two children pays 20%.
+----
+
+--@begin:family_tax_rule--
+@ export
+# TaxCase(person: Person) {
+    | rate_percent() -> 25
+    | exception two_children rate_percent() -> 20 under length(person.children) >= 2
+    | tax_due() -> person.annual_income * rate_percent() / 100
+}
+--@end:family_tax_rule--

@@ -24,6 +24,8 @@ enum Route {
         PlaygroundPage {},
         #[route("/docs")]
         DocsPage {},
+        #[route("/docs/tutorial")]
+        DocsTutorial {},
         #[route("/why")]
         WhyPage {},
         #[route("/research")]
@@ -2669,6 +2671,7 @@ const DOC_RUNES: &str = include_str!("../../docs/reference/runes.md");
 const DOC_STDLIB: &str = include_str!("../../docs/reference/stdlib.md");
 const DOC_STREAMS: &str = include_str!("../../docs/reference/streams.md");
 const DOC_RUST: &str = include_str!("../../docs/reference/rust-compatibility.md");
+const DOC_TUTORIAL: &str = include_str!("../../docs/tutorial/README.md");
 
 struct DocPage {
     label: &'static str,
@@ -2718,7 +2721,10 @@ fn DocsPage() -> Element {
         document::Title { "Documentation — Futuruna Programming Language" }
         document::Meta { name: "description", content: "Futuruna language reference: basics, runes, standard library, reactive streams, and Rust compatibility." }
         div { class: "docs-page",
-            div { class: "docs-sidebar",
+            nav { class: "docs-sidebar",
+                h3 { class: "docs-sidebar-title", "Learn" }
+                a { class: "docs-sidebar-link", href: "/docs/tutorial", "Tutorial" }
+                hr { class: "docs-sidebar-divider" }
                 h3 { class: "docs-sidebar-title", "Reference" }
                 span { class: "docs-version", "v0.1.0" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
@@ -2729,8 +2735,33 @@ fn DocsPage() -> Element {
                     }
                 }
             }
-            div { class: "docs-main",
+            main { class: "docs-main",
                 div { class: "docs-rendered", dangerous_inner_html: html_content }
+            }
+        }
+    }
+}
+
+#[component]
+fn DocsTutorial() -> Element {
+    let headings = extract_h2_headings(DOC_TUTORIAL);
+    let html_content = md_to_html_with_ids(DOC_TUTORIAL);
+
+    rsx! {
+        document::Title { "Tutorial — Futuruna Programming Language" }
+        document::Meta { name: "description", content: "Build, run, trace, prove, and audit a small rule-driven Futuruna tax program." }
+        document::Link { rel: "canonical", href: "https://futuruna.com/docs/tutorial" }
+        div { class: "docs-page",
+            nav { class: "docs-sidebar docs-tutorial-sidebar",
+                h3 { class: "docs-sidebar-title", "Tutorial" }
+                a { class: "docs-sidebar-link", href: "/docs", "Language reference" }
+                hr { class: "docs-sidebar-divider" }
+                for (slug, label) in headings.iter() {
+                    a { class: "docs-sidebar-link", href: "#{slug}", "{label}" }
+                }
+            }
+            main { class: "docs-main",
+                article { class: "docs-rendered", dangerous_inner_html: html_content }
             }
         }
     }

@@ -1023,7 +1023,7 @@ section {
     font-weight: 700;
     color: var(--text-dim);
     text-transform: uppercase;
-    letter-spacing: 0.1em;
+    letter-spacing: 0;
     margin-bottom: 0.25rem;
     padding-left: 0.75rem;
 }
@@ -1052,6 +1052,8 @@ section {
     cursor: pointer;
     transition: color 0.15s, background 0.15s;
     margin-bottom: 0.15rem;
+    box-sizing: border-box;
+    text-decoration: none;
 }
 
 .docs-sidebar-link:hover {
@@ -1063,6 +1065,12 @@ section {
     color: var(--accent-glow);
     background: var(--bg-surface);
     font-weight: 600;
+}
+
+.docs-sidebar-divider {
+    border: 0;
+    border-top: 1px solid var(--border);
+    margin: 1rem 0;
 }
 
 .docs-main {
@@ -2208,7 +2216,9 @@ section {
     }
 
     .docs-page {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
+        width: 100%;
+        max-width: 100%;
         padding-top: 4rem;
     }
 
@@ -2225,6 +2235,11 @@ section {
 
     .docs-sidebar-title {
         width: 100%;
+    }
+
+    .docs-sidebar-divider {
+        width: 100%;
+        margin: 0.5rem 0;
     }
 
     .docs-rendered pre {
@@ -2287,10 +2302,31 @@ section {
     }
 
     .why-main,
+    .docs-main,
     .docs-rendered {
         width: 100%;
         min-width: 0;
         max-width: 100%;
+    }
+
+    .docs-tutorial-sidebar {
+        flex-wrap: nowrap;
+        align-items: center;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: thin;
+    }
+
+    .docs-tutorial-sidebar .docs-sidebar-title,
+    .docs-tutorial-sidebar .docs-sidebar-divider {
+        display: none;
+    }
+
+    .docs-tutorial-sidebar .docs-sidebar-link {
+        flex: 0 0 auto;
+        width: auto;
+        margin-bottom: 0;
+        white-space: nowrap;
     }
 
     .docs-rendered h1,
@@ -2299,6 +2335,12 @@ section {
     .docs-rendered p,
     .docs-rendered li {
         overflow-wrap: break-word;
+    }
+
+    .docs-rendered p code,
+    .docs-rendered li code {
+        overflow-wrap: anywhere;
+        word-break: break-word;
     }
 
     .docs-rendered table {

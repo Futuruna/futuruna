@@ -1,0 +1,11 @@
+@ import ./tutorial_tax
+
+= parent = Person(
+    annual_income = 500000,
+    children = [Child(age = 5), Child(age = 8)]
+)
+
+= family_tax = TaxCase(person = parent)
+
+| exception family_policy reduced_rate_applies() -> family_tax.rate_percent() == 20 under length(parent.children) >= 2
+| exception audit_only_income_exclusion reduced_rate_applies() -> False under parent.annual_income >= 500000

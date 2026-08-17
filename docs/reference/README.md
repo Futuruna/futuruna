@@ -15,6 +15,10 @@ feature_stage_surfaces:
 
 Complete reference documentation for the Futuruna programming language.
 
+For a runnable introduction, start with the
+[guided tutorial](https://futuruna.com/docs/tutorial). The documents below are
+the reference to keep beside you while writing programs.
+
 ## Reading Order
 
 | Document | What it covers | Current stage |

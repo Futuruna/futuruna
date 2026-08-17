@@ -1,0 +1,14 @@
+@ import ./tutorial_tax
+
+= parent = Person(
+    annual_income = 500000,
+    children = [Child(age = 5), Child(age = 8)]
+)
+
+= family_tax = TaxCase(person = parent)
+= due = family_tax.tax_due()
+
+| two_child_tax_is_100000: due -> due == 100000
+
+? two_child_tax_is_100000(due)
+@ print(show(due))

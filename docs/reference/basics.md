@@ -8,6 +8,10 @@ feature_stage_surfaces:
 
 Core language syntax: literals, types, operators, control flow, and closures.
 
+New to the language? The [guided tutorial](https://futuruna.com/docs/tutorial)
+builds a small rule-driven program, runs a concrete scenario, attaches typed
+metadata, and audits an actual same-rule contradiction.
+
 ## Literals
 
 ### Numbers
