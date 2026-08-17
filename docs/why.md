@@ -58,7 +58,7 @@ actually a good idea. A front rune gives each kind of statement its own space,
 so its capabilities do not have to compete with those in the language's other
 spaces. This gives the author *more options* for writing a good program while
 giving the reader *less uncertainty* about what they are reading. This can be
-distilled into a fancy name: partitioned optionality, a solid tradeoff where
+distilled into a fancy name: partitioned syntax, a solid tradeoff where
 putting one character in front makes it easier to mix programming domains in
 the same language. [The Philosophy of
 Futuruna](https://futuruna.com/research/philosophy) explores the argument in

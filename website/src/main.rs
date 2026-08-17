@@ -3013,7 +3013,7 @@ fn ResearchIndex() -> Element {
                     div { class: "research-card-rune rune-hash", "#" }
                     h2 { class: "research-card-title", "Philosophy of Futuruna" }
                     p { class: "research-card-desc",
-                        "Partitioned optionality: how seven front runes create independent grammatical \
+                        "Partitioned syntax: how seven front runes create independent grammatical \
                          namespaces and support many paradigms without syntactic clutter."
                     }
                     span { class: "research-card-meta", "Language Design · Shannon Entropy" }
@@ -3097,8 +3097,8 @@ fn philosophy_article() -> Element {
     let html_content = md_to_html_with_ids(DOC_PHILOSOPHY);
 
     rsx! {
-        document::Title { "Philosophy of Futuruna — Partitioned Optionality" }
-        document::Meta { name: "description", content: "How Futuruna's front runes create partitioned optionality: independent grammatical namespaces, Shannon information, and high paradigm coverage without syntactic clutter." }
+        document::Title { "Philosophy of Futuruna — Partitioned Syntax" }
+        document::Meta { name: "description", content: "How Futuruna's front runes create partitioned syntax: independent grammatical namespaces, Shannon information, and high paradigm coverage without syntactic clutter." }
         document::Link { rel: "canonical", href: "https://futuruna.com/research/philosophy" }
         div { class: "why-page",
             nav { class: "why-toc",

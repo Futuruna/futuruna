@@ -5,7 +5,7 @@ express law and ordinary programs in the same execution space without becoming
 verbose, fragmented, or cluttered.
 
 The seven front runes are the mechanism. The idea behind them is
-**partitioned optionality**.
+**partitioned syntax**.
 
 A broad language needs many possible forms. But if every form competes inside
 one shared grammar, adding capabilities also adds keywords, contextual rules,
@@ -16,7 +16,7 @@ The result is a useful duality:
 
 > More choices for the author, less uncertainty for the reader.
 
-## Partitioned Optionality
+## Partitioned Syntax
 
 Consider a language with several semantic categories of statements: types,
 functions, rules, values, streams, effects, and verification demands.
@@ -212,7 +212,7 @@ the statement categories immediately and unambiguously distinguishable.
 
 ## The Coherence Constraint
 
-Partitioned optionality works only when each partition remains coherent.
+Partitioned syntax works only when each partition remains coherent.
 
 The `|` rune is deliberately broad. Rules, defaults, exceptions, match arms,
 handlers, and invariants are different constructs, but they all qualify a
@@ -269,7 +269,7 @@ types and values.
 
 ## Humans, Parsers, and AI
 
-Partitioned optionality gives three different consumers the same early signal.
+Partitioned syntax gives three different consumers the same early signal.
 
 **The parser** receives deterministic top-level dispatch after one symbol.
 
@@ -287,7 +287,7 @@ language-model advantage beyond that still requires evidence.
 
 ## What This Does Not Claim
 
-Partitioned optionality does not make Futuruna more Turing-complete than
+Partitioned syntax does not make Futuruna more Turing-complete than
 another general-purpose language. It does not prove that seven is the only
 correct number of categories. It does not guarantee that every rune is equally
 useful, or that every feature placed under a rune belongs there.
@@ -316,5 +316,5 @@ With `N` runes and `M` comfortable forms inside each namespace, the local
 grammar can represent up to `N × M` non-conflicting category/form pairs. In
 Shannon's terms, the rune carries up to `log2(N)` bits of category information.
 
-That is partitioned optionality: more choices for the author, less uncertainty
+That is partitioned syntax: more choices for the author, less uncertainty
 for everyone who reads what comes next.
