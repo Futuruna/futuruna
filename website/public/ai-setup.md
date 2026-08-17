@@ -124,9 +124,9 @@ runa --version
 ```
 
 This installs into Cargo's configured binary directory, normally
-`~/.cargo/bin`. Early releases may not yet be published there; if Cargo reports
-that the package is unavailable, continue with the source build below. Do not
-change `PATH` or shell profiles unless the user asks.
+`~/.cargo/bin`. If Cargo cannot reach crates.io or the installation fails,
+diagnose the error before continuing with the source build below. Do not change
+`PATH` or shell profiles unless the user asks.
 
 ### 5. Build from source
 
