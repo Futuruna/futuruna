@@ -434,7 +434,7 @@ fn Discovery() -> Element {
         section { class: "discovery-section",
             div { class: "discovery-text",
                 p {
-                    "Futuruna allows you or an AI to encode the rule of law into a rule model, and mix it with ordinary programming. You can then interview, audit, automate or explore the law like never before."
+                    "Futuruna allows you or an AI to encode the rule of law into a rule model, and mix it with ordinary programming. Explore, automate and audit the law like never before."
                 }
                 a { class: "discovery-link", href: "/why", "Why Futuruna \u{2192}" }
             }
