@@ -40,6 +40,7 @@ Contact: research@futuruna.com
 
 - [The Philosophy of Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/research.md): Read the deeper argument for partitioned syntax.
 - [Danish personal income tax](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/website-overblik.md): Explore the Danish Income Tax Law encoded in Futuruna and audit your own Annual Tax Report.
+- [Can earning one more krone leave you with less?](https://futuruna.com/research/income-cliffs): Follow an executable 2026 Danish tax exploration where one modeled commuter loses 69.47 DKK after earning one additional krone.
 - [Danish Constitution](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/webside.md): Explore the Danish Constitution encoded in Futuruna.
 - [Danish Constitution audit](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/grundlov.audit.runa): Read the executable audit of the encoded Danish Constitution.
 - [US Constitution foundation](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/us-constitution/constitution.runa): Read the shared vocabulary, dates, preamble, and first rules of the encoded Constitution.

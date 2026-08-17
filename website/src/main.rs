@@ -41,6 +41,8 @@ enum Route {
         ResearchDanishConstitutionAudit {},
         #[route("/research/personskatteloven")]
         ResearchPersonskatteloven {},
+        #[route("/research/income-cliffs")]
+        ResearchIncomeCliffs {},
         #[route("/research/us-constitution")]
         ResearchUSConstitution {},
         #[route("/research/ownership")]
@@ -58,6 +60,15 @@ fn App() -> Element {
 /// Shared shell: head elements, nav, outlet, footer.
 #[component]
 fn Shell() -> Element {
+    let route = use_route::<Route>();
+    let route_path = format!("{}", route);
+    let metadata_route_path = route_path.clone();
+
+    use_effect(use_reactive((&route_path,), move |_| {
+        let metadata_js = route_metadata_js(&metadata_route_path);
+        dioxus::document::eval(&metadata_js);
+    }));
+
     // Inject the doc tooltip system once on mount
     use_effect(move || {
         let db_js = doc_db_js();
@@ -2759,6 +2770,127 @@ fn serde_json_str(s: &str) -> String {
     out
 }
 
+/// Keep the client-rendered article metadata singular and remove it on navigation.
+///
+/// Dioxus document elements append to `<head>` and are not updated after their first
+/// render. The site also ships useful generic metadata in `index.html`. This route
+/// synchronizer reuses that base set for the income-cliff article instead of adding
+/// a conflicting second set.
+fn route_metadata_js(route_path: &str) -> String {
+    let is_income_cliffs = route_path == "/research/income-cliffs";
+    let title = serde_json_str(TAX_INCOME_CLIFFS_TITLE);
+    let description = serde_json_str(TAX_INCOME_CLIFFS_DESCRIPTION);
+    let json_ld = serde_json_str(TAX_INCOME_CLIFFS_JSON_LD);
+
+    format!(
+        r#"
+        (function() {{
+            var generation = (window.__futurunaRouteMetadataGeneration || 0) + 1;
+            window.__futurunaRouteMetadataGeneration = generation;
+            var isIncomeCliffs = {is_income_cliffs};
+            var title = {title};
+            var description = {description};
+            var jsonLd = {json_ld};
+            var marker = 'income-cliffs';
+
+            function setOne(key, selector, tagName, attributes) {{
+                var nodes = Array.from(document.head.querySelectorAll(selector));
+                var node = nodes.shift();
+                if (!node) {{
+                    node = document.createElement(tagName);
+                    document.head.appendChild(node);
+                }}
+                nodes.forEach(function(extra) {{ extra.remove(); }});
+                node.setAttribute('data-futuruna-base-meta', key);
+                Object.keys(attributes).forEach(function(name) {{
+                    node.setAttribute(name, attributes[name]);
+                }});
+                return node;
+            }}
+
+            function restoreOne(key, attributes) {{
+                var node = document.head.querySelector('[data-futuruna-base-meta="' + key + '"]');
+                if (!node) return;
+                Object.keys(attributes).forEach(function(name) {{
+                    node.setAttribute(name, attributes[name]);
+                }});
+                node.removeAttribute('data-futuruna-base-meta');
+            }}
+
+            function addRouteElement(tagName, attributes, text) {{
+                var node = document.createElement(tagName);
+                Object.keys(attributes).forEach(function(name) {{
+                    node.setAttribute(name, attributes[name]);
+                }});
+                node.setAttribute('data-futuruna-route-meta', marker);
+                if (text) node.textContent = text;
+                document.head.appendChild(node);
+                return node;
+            }}
+
+            function clearArticleOnlyMetadata() {{
+                document.head
+                    .querySelectorAll('[data-futuruna-route-meta="' + marker + '"]')
+                    .forEach(function(node) {{ node.remove(); }});
+            }}
+
+            function restoreSiteMetadata() {{
+                clearArticleOnlyMetadata();
+                restoreOne('description', {{
+                    name: 'description',
+                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
+                }});
+                restoreOne('og-type', {{ property: 'og:type', content: 'website' }});
+                restoreOne('og-title', {{ property: 'og:title', content: 'Futuruna - Law Programming' }});
+                restoreOne('og-description', {{
+                    property: 'og:description',
+                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
+                }});
+                restoreOne('og-site-name', {{ property: 'og:site_name', content: 'Futuruna' }});
+                restoreOne('twitter-card', {{ name: 'twitter:card', content: 'summary' }});
+                restoreOne('twitter-title', {{ name: 'twitter:title', content: 'Futuruna - Law Programming' }});
+                restoreOne('twitter-description', {{
+                    name: 'twitter:description',
+                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
+                }});
+            }}
+
+            function apply() {{
+                if (window.__futurunaRouteMetadataGeneration !== generation) return;
+                if (!isIncomeCliffs) {{
+                    restoreSiteMetadata();
+                    return;
+                }}
+
+                clearArticleOnlyMetadata();
+                setOne('description', 'meta[name="description"]', 'meta', {{ name: 'description', content: description }});
+                setOne('og-type', 'meta[property="og:type"]', 'meta', {{ property: 'og:type', content: 'article' }});
+                setOne('og-title', 'meta[property="og:title"]', 'meta', {{ property: 'og:title', content: title }});
+                setOne('og-description', 'meta[property="og:description"]', 'meta', {{ property: 'og:description', content: description }});
+                setOne('og-site-name', 'meta[property="og:site_name"]', 'meta', {{ property: 'og:site_name', content: 'Futuruna' }});
+                setOne('twitter-card', 'meta[name="twitter:card"]', 'meta', {{ name: 'twitter:card', content: 'summary' }});
+                setOne('twitter-title', 'meta[name="twitter:title"]', 'meta', {{ name: 'twitter:title', content: title }});
+                setOne('twitter-description', 'meta[name="twitter:description"]', 'meta', {{ name: 'twitter:description', content: description }});
+
+                document.head.querySelectorAll('link[rel="canonical"]').forEach(function(node) {{ node.remove(); }});
+                document.head.querySelectorAll('meta[property="og:url"]').forEach(function(node) {{ node.remove(); }});
+                document.head.querySelectorAll('meta[property^="article:"]').forEach(function(node) {{ node.remove(); }});
+                addRouteElement('link', {{ rel: 'canonical', href: 'https://futuruna.com/research/income-cliffs' }});
+                addRouteElement('meta', {{ property: 'og:url', content: 'https://futuruna.com/research/income-cliffs' }});
+                addRouteElement('meta', {{ property: 'article:published_time', content: '2026-08-18' }});
+                addRouteElement('meta', {{ property: 'article:modified_time', content: '2026-08-18' }});
+                addRouteElement('script', {{ type: 'application/ld+json' }}, jsonLd);
+            }}
+
+            apply();
+            window.setTimeout(apply, 0);
+            window.requestAnimationFrame(apply);
+        }})();
+        "#,
+        is_income_cliffs = if is_income_cliffs { "true" } else { "false" },
+    )
+}
+
 // ============================================================================
 // Docs page — /docs
 // ============================================================================
@@ -2933,6 +3065,45 @@ include!(concat!(env!("OUT_DIR"), "/danish_constitution_findings.rs"));
 // Danish personal income tax website overview
 const TAX_WEBSITE_OVERVIEW_MD: &str =
     include_str!("../../examples/danish-income-tax/website-overblik.md");
+const TAX_INCOME_CLIFFS_MD: &str =
+    include_str!("../../examples/danish-income-tax/personskat-income-cliffs.md");
+const TAX_INCOME_CLIFFS_TITLE: &str = "Can earning one more krone leave you with less? — Futuruna";
+const TAX_INCOME_CLIFFS_DESCRIPTION: &str = "A Futuruna exploration of a 2026 Danish commuting-deduction boundary where 1 DKK more income leaves one modeled profile 69.47 DKK worse off.";
+const TAX_INCOME_CLIFFS_JSON_LD: &str = r#"{
+  "@context": "https://schema.org",
+  "@type": "TechArticle",
+  "@id": "https://futuruna.com/research/income-cliffs#article",
+  "url": "https://futuruna.com/research/income-cliffs",
+  "headline": "Can earning one more krone leave you with less?",
+  "description": "A Futuruna exploration of a 2026 Danish commuting-deduction boundary where 1 DKK more income leaves one modeled profile 69.47 DKK worse off.",
+  "datePublished": "2026-08-18",
+  "dateModified": "2026-08-18",
+  "inLanguage": "en",
+  "isAccessibleForFree": true,
+  "author": {
+    "@type": "Person",
+    "name": "Andreas Rudolph",
+    "email": "research@futuruna.com"
+  },
+  "mainEntityOfPage": {
+    "@type": "WebPage",
+    "@id": "https://futuruna.com/research/income-cliffs"
+  },
+  "isPartOf": {
+    "@id": "https://futuruna.com/#website"
+  },
+  "about": [
+    { "@id": "https://futuruna.com/#language" },
+    { "@type": "Thing", "name": "Danish personal income tax" },
+    { "@type": "Thing", "name": "Commuting deduction" }
+  ],
+  "citation": [
+    "https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag",
+    "https://www.retsinformation.dk/eli/lta/2025/1500",
+    "https://www.retsinformation.dk/eli/lta/2026/616",
+    "https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-et-aegtepar-i-2020"
+  ]
+}"#;
 
 // US Constitution .runa files
 const US_CONSTITUTION: &str = include_str!("../../examples/us-constitution/constitution.runa");
@@ -3145,6 +3316,15 @@ fn ResearchIndex() -> Element {
                          og audits der kan finde hårde skatteforhold."
                     }
                     span { class: "research-card-meta", "Skatteret \u{00B7} Dansk \u{00B7} Projektstatus" }
+                }
+                a { class: "research-card", href: "/research/income-cliffs",
+                    div { class: "research-card-rune rune-question", "?" }
+                    h2 { class: "research-card-title", "Can earning one more krone leave you with less?" }
+                    p { class: "research-card-desc",
+                        "Follow 50 boundaries in a 2026 Danish tax model, and see why one extra \
+                         krone leaves one modeled commuter 69.47 DKK worse off."
+                    }
+                    span { class: "research-card-meta", "Danish Tax \u{00B7} Executable Exploration \u{00B7} English" }
                 }
                 // US Constitution
                 a { class: "research-card", href: "/research/us-constitution",
@@ -3573,6 +3753,39 @@ fn ResearchPersonskatteloven() -> Element {
             }
             article { class: "why-main const-article tax-article",
                 div { class: "docs-rendered", dangerous_inner_html: project_file_html }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Research: Income cliffs — /research/income-cliffs
+// ============================================================================
+
+#[component]
+fn ResearchIncomeCliffs() -> Element {
+    let headings = extract_h2_headings(TAX_INCOME_CLIFFS_MD);
+    let html_content = md_to_html_with_ids(TAX_INCOME_CLIFFS_MD);
+
+    rsx! {
+        document::Title { "{TAX_INCOME_CLIFFS_TITLE}" }
+        div { class: "why-page", lang: "en",
+            nav { class: "why-toc",
+                h3 { class: "why-toc-title", "Income cliffs" }
+                a { class: "why-toc-link research-back", href: "/research", "← All Research" }
+                for (slug, label) in headings.iter() {
+                    a { class: "why-toc-link", href: "#{slug}", "{label}" }
+                }
+                button {
+                    class: "btn btn-print",
+                    onclick: move |_| {
+                        dioxus::document::eval("window.print()");
+                    },
+                    "Print"
+                }
+            }
+            article { class: "why-main const-article tax-article",
+                div { class: "docs-rendered", dangerous_inner_html: html_content }
             }
         }
     }

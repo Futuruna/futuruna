@@ -14,10 +14,11 @@ personal tax in the current Futuruna model?
 
 Fixed profile:
 - Tax year 2026, municipality of Copenhagen.
+- Adult, aged 18 or older.
 - Single, no spouse, no church tax.
 - No capital income, share income, pension, property tax, foreign social
 contributions, carried tax positions, or special tax arrangements.
-- Ordinary commute of 60 km per workday for 203 workdays.
+- Ordinary commute of 60 km in total per workday for 203 workdays.
 
 Search space:
 For n in range(1, 51), compare gross income 341,499 + n * 1,000 DKK with
@@ -39,6 +40,11 @@ https://skm.dk/tal-og-metode/satser/regulering-af-beloebsgraenser/beloebsgraense
 
 Skat.dk, Kørselsfradrag (befordringsfradrag) 2026.
 https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag
+
+Skatteministeriet, skatteberegningseksempel for et ægtepar i 2020,
+Tabel 2, linje 43. Eksemplet opgør indkomst over aftrapningsgrænsen i hele
+antal 1.000 kr. og anvender 45 trin ved et overskud på 45.961 kr.
+https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-et-aegtepar-i-2020
 
 The imported Personskat model carries source metadata for the remaining
 components of the final-tax calculation.
@@ -138,7 +144,7 @@ components of the final-tax calculation.
 
 | personskat_indkomstklint_søger_50_grænser: personskat_indkomstklint_grænser -> length(personskat_indkomstklint_grænser) == 50
 | personskat_indkomstklint_alle_ligningsfradrag_input_gyldige: personskat_ligningsfradrag_gyldige_indkomstovergange -> length(personskat_ligningsfradrag_gyldige_indkomstovergange) == length(personskat_indkomstovergange)
-| personskat_indkomstklint_fundet: personskat_indkomstklint_antal -> personskat_indkomstklint_antal > 0
+| personskat_indkomstklint_alle_50_fundet: personskat_indkomstklint_antal -> personskat_indkomstklint_antal == 50
 | personskat_indkomstklint_342499_til_342500: personskat_indkomstklint_342499_til_342500_fund -> match personskat_indkomstklint_342499_til_342500_fund {
     | Some(overgang) -> overgang.indkomst_før_kroner == 342499 && overgang.indkomst_efter_kroner == 342500 && overgang.lavindkomsttillæg_før_kroner == 14826 && overgang.lavindkomsttillæg_efter_kroner == 14529 && overgang.slutskat_før_øre == 9996763 && overgang.slutskat_efter_øre == 10003810 && overgang.netto_før_øre == 24253137 && overgang.netto_efter_øre == 24246190 && overgang.nettotab_øre == 6947
     | None -> Falskt
@@ -150,7 +156,7 @@ components of the final-tax calculation.
 
 ? personskat_indkomstklint_søger_50_grænser
 ? personskat_indkomstklint_alle_ligningsfradrag_input_gyldige
-? personskat_indkomstklint_fundet
+? personskat_indkomstklint_alle_50_fundet
 ? personskat_indkomstklint_342499_til_342500
 ? personskat_værste_indkomstklint_er_maksimal
 
