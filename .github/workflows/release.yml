@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo publish --locked --dry-run
+          cargo package --locked
           crate="target/package/futuruna-$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version').crate"
           size="$(stat --format='%s' "$crate")"
           if (( size > 10000000 )); then
