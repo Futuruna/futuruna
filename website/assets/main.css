@@ -53,6 +53,11 @@ body {
     to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes mobile-nav-in {
+    from { opacity: 0; transform: translateY(-0.35rem) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .top-nav {
     position: fixed;
     top: 0;
@@ -62,6 +67,15 @@ body {
     gap: 0.25rem;
     padding: 1.25rem 2rem;
     animation: nav-fade-in 1.2s ease 0.3s both;
+}
+
+.nav-links {
+    display: contents;
+}
+
+.nav-menu-toggle,
+.nav-backdrop {
+    display: none;
 }
 
 .nav-logo {
@@ -99,6 +113,13 @@ body {
 
 .nav-link.active {
     color: var(--accent-glow);
+}
+
+.nav-logo:focus-visible,
+.nav-menu-toggle:focus-visible,
+.nav-link:focus-visible {
+    outline: 2px solid var(--accent-glow);
+    outline-offset: 3px;
 }
 
 /* ---- Hero ---- */
@@ -1856,7 +1877,7 @@ section {
 /* ---- Print styles ---- */
 
 @media print {
-    .top-nav, .footer, .why-toc, .btn-print {
+    .top-nav, .nav-backdrop, .footer, .why-toc, .btn-print {
         display: none !important;
     }
 
@@ -2455,12 +2476,118 @@ section {
     }
 }
 
-@media (max-width: 480px) {
-    .top-nav a[href="https://github.com/Futuruna/futuruna"] {
-        display: none;
+@media (max-width: 640px) {
+    .nav-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 90;
+        background: rgba(10, 10, 15, 0.58);
+        -webkit-backdrop-filter: blur(2px);
+        backdrop-filter: blur(2px);
     }
 
+    .top-nav {
+        align-items: center;
+        flex-wrap: nowrap;
+        gap: 0.25rem;
+        padding: 0.5rem 2rem 0.5rem 0.5rem;
+        pointer-events: none;
+    }
+
+    .nav-logo {
+        justify-content: center;
+        min-width: 44px;
+        min-height: 44px;
+        margin-right: 0;
+        pointer-events: auto;
+    }
+
+    .nav-menu-toggle {
+        display: inline-flex;
+        min-height: 44px;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.55rem 0.75rem;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--text-secondary);
+        background: rgba(18, 18, 26, 0.96);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        cursor: pointer;
+        pointer-events: auto;
+        touch-action: manipulation;
+    }
+
+    .nav-menu-toggle:hover,
+    .nav-menu-toggle[aria-expanded="true"] {
+        color: var(--text-primary);
+        background: var(--bg-surface);
+        border-color: var(--accent-dim);
+    }
+
+    .nav-menu-rune {
+        min-width: 1ch;
+        color: var(--rune-eq);
+        font-size: 1rem;
+        text-align: center;
+    }
+
+    .nav-links {
+        display: none;
+        position: absolute;
+        top: calc(100% - 0.25rem);
+        right: 2rem;
+        z-index: 2;
+        width: min(18rem, calc(100vw - 2.5rem));
+        max-height: calc(100dvh - 4.5rem);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.125rem;
+        padding: 0.5rem;
+        background: rgba(18, 18, 26, 0.98);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--rune-eq);
+        border-radius: var(--radius);
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.48);
+        pointer-events: auto;
+    }
+
+    .nav-links.is-open {
+        display: flex;
+        animation: mobile-nav-in 0.16s ease-out;
+    }
+
+    .nav-links .nav-link {
+        display: flex;
+        min-height: 44px;
+        width: 100%;
+        align-items: center;
+        padding: 0.65rem 0.8rem;
+        color: var(--text-secondary);
+        touch-action: manipulation;
+    }
+
+    .nav-links .nav-link.active {
+        color: var(--accent-glow);
+        background: rgba(124, 111, 240, 0.08);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .top-nav,
+    .nav-links.is-open {
+        animation: none;
+    }
+
+    .nav-logo,
+    .nav-menu-toggle,
     .nav-link {
-        padding-inline: 0.35rem;
+        transition: none;
     }
 }

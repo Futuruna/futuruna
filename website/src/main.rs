@@ -1,6 +1,7 @@
 use dioxus::prelude::*;
 use gloo_timers::future::TimeoutFuture;
 use pulldown_cmark::{html, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
+use std::rc::Rc;
 
 const CSS: Asset = asset!("../assets/main.css");
 const LOGO: Asset = asset!("../assets/logo.svg");
@@ -256,26 +257,122 @@ fn Home() -> Element {
 #[component]
 fn Nav() -> Element {
     let route = use_route::<Route>();
+    let route_path = format!("{}", route);
+    let mut menu_open = use_signal(|| false);
+    let mut menu_button = use_signal(|| None::<Rc<MountedData>>);
+
+    use_effect(use_reactive((&route_path,), move |_| {
+        menu_open.set(false);
+    }));
+
+    let is_active = |path: &str| -> bool {
+        route_path == path || (path != "/" && route_path.starts_with(path))
+    };
     let active = |path: &str| -> &str {
-        let r = format!("{}", route);
-        if r == path || (path != "/" && r.starts_with(path)) {
+        if is_active(path) {
             "nav-link active"
         } else {
             "nav-link"
         }
     };
+    let aria_current = |path: &str| -> &str {
+        if route_path == path {
+            "page"
+        } else {
+            "false"
+        }
+    };
+    let expanded = if menu_open() { "true" } else { "false" };
 
     rsx! {
-        nav { class: "top-nav",
-            a { class: "nav-logo", href: "/",
+        if menu_open() {
+            div {
+                class: "nav-backdrop",
+                aria_hidden: "true",
+                onclick: move |_| menu_open.set(false),
+            }
+        }
+        nav {
+            class: "top-nav",
+            aria_label: "Primary",
+            onkeydown: move |event| {
+                if menu_open() && event.key() == Key::Escape {
+                    event.prevent_default();
+                    menu_open.set(false);
+                    if let Some(button) = menu_button() {
+                        spawn(async move {
+                            let _ = button.set_focus(true).await;
+                        });
+                    }
+                }
+            },
+            a {
+                class: "nav-logo",
+                href: "/",
+                aria_label: "Futuruna home",
+                onclick: move |_| menu_open.set(false),
                 img { src: LOGO, alt: "Futuruna", width: "28", height: "28" }
             }
-            a { class: active("/why"), href: "/why", "Why" }
-            a { class: "nav-link", href: "/#ai-guide", "AI Setup" }
-            a { class: active("/research"), href: "/research", "Research" }
-            a { class: active("/docs"), href: "/docs", "Docs" }
-            a { class: active("/playground"), href: "/playground", "Playground" }
-            a { class: "nav-link", href: "https://github.com/Futuruna/futuruna", "GitHub" }
+            button {
+                id: "nav-menu-toggle",
+                class: "nav-menu-toggle",
+                r#type: "button",
+                aria_expanded: expanded,
+                aria_controls: "primary-navigation",
+                onmounted: move |event| menu_button.set(Some(event.data())),
+                onclick: move |_| {
+                    let next = !menu_open();
+                    menu_open.set(next);
+                },
+                span { class: "nav-menu-rune", aria_hidden: "true",
+                    if menu_open() { "×" } else { "=" }
+                }
+                span { "Menu" }
+            }
+            div {
+                id: "primary-navigation",
+                class: if menu_open() { "nav-links is-open" } else { "nav-links" },
+                a {
+                    class: active("/why"),
+                    href: "/why",
+                    aria_current: aria_current("/why"),
+                    onclick: move |_| menu_open.set(false),
+                    "Why"
+                }
+                a {
+                    class: "nav-link",
+                    href: "/#ai-guide",
+                    onclick: move |_| menu_open.set(false),
+                    "AI Setup"
+                }
+                a {
+                    class: active("/research"),
+                    href: "/research",
+                    aria_current: aria_current("/research"),
+                    onclick: move |_| menu_open.set(false),
+                    "Research"
+                }
+                a {
+                    class: active("/docs"),
+                    href: "/docs",
+                    aria_current: aria_current("/docs"),
+                    onclick: move |_| menu_open.set(false),
+                    "Docs"
+                }
+                a {
+                    class: active("/playground"),
+                    href: "/playground",
+                    aria_current: aria_current("/playground"),
+                    onclick: move |_| menu_open.set(false),
+                    "Playground"
+                }
+                a {
+                    class: "nav-link nav-github",
+                    href: "https://github.com/Futuruna/futuruna",
+                    onclick: move |_| menu_open.set(false),
+                    "GitHub"
+                }
+            }
         }
     }
 }
