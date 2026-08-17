@@ -2,7 +2,6 @@
 <html lang="en">
     <head>
         <title></title>
-        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta charset="UTF-8">
 
@@ -23,21 +22,62 @@
         <meta name="twitter:title" content="Futuruna - Law Programming">
         <meta name="twitter:description" content="Write laws, contracts, and policies you can run, test, and audit alongside ordinary programs.">
 
+        <link rel="describedby" href="https://futuruna.com/llms.txt">
+
         <!-- JSON-LD Structured Data -->
         <script type="application/ld+json">
         {
             "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "Futuruna",
-            "applicationCategory": "DeveloperApplication",
-            "operatingSystem": "Cross-platform",
-            "description": "A programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
-            "programmingLanguage": "Futuruna",
-            "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-            }
+            "@graph": [
+                {
+                    "@type": "WebSite",
+                    "@id": "https://futuruna.com/#website",
+                    "url": "https://futuruna.com/",
+                    "name": "Futuruna",
+                    "alternateName": "Futuruna - Law Programming",
+                    "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
+                    "inLanguage": ["en", "da"],
+                    "about": {
+                        "@id": "https://futuruna.com/#language"
+                    }
+                },
+                {
+                    "@type": "ComputerLanguage",
+                    "@id": "https://futuruna.com/#language",
+                    "name": "Futuruna",
+                    "url": "https://futuruna.com/",
+                    "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
+                    "mainEntityOfPage": {
+                        "@id": "https://futuruna.com/#website"
+                    },
+                    "sameAs": "https://github.com/Futuruna/futuruna"
+                },
+                {
+                    "@type": "SoftwareSourceCode",
+                    "@id": "https://futuruna.com/#source",
+                    "name": "Futuruna source code",
+                    "url": "https://github.com/Futuruna/futuruna",
+                    "description": "The compiler, runtime, language examples, and documentation for Futuruna.",
+                    "codeRepository": "https://github.com/Futuruna/futuruna",
+                    "programmingLanguage": [
+                        {
+                            "@id": "https://futuruna.com/#language"
+                        },
+                        "Rust"
+                    ],
+                    "runtimePlatform": "Rust toolchain",
+                    "version": "0.1.0",
+                    "license": "https://github.com/Futuruna/futuruna/blob/main/LICENSE",
+                    "isAccessibleForFree": true,
+                    "creator": {
+                        "@type": "Person",
+                        "name": "Andreas Rudolph"
+                    },
+                    "about": {
+                        "@id": "https://futuruna.com/#language"
+                    }
+                }
+            ]
         }
         </script>
 
