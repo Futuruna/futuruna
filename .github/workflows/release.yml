@@ -121,6 +121,7 @@ jobs:
           RUNA_BIN="$binary" ./scripts/first-run-canary.sh
 
       - name: Sign and notarize macOS binary
+        id: macos-signing
         if: runner.os == 'macOS'
         shell: bash
         env:
@@ -138,12 +139,28 @@ jobs:
             APPLE_TEAM_ID
             APPLE_APP_SPECIFIC_PASSWORD
           )
+          configured=0
           for name in "${required[@]}"; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "required release secret ${name} is not configured" >&2
-              exit 1
+            if [[ -n "${!name:-}" ]]; then
+              configured=$((configured + 1))
             fi
           done
+
+          if (( configured == 0 )); then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Apple credentials are not configured; publishing an unsigned macOS binary"
+            exit 0
+          fi
+
+          if (( configured != ${#required[@]} )); then
+            echo "Apple signing is partially configured; provide all five secrets or remove all five" >&2
+            for name in "${required[@]}"; do
+              if [[ -z "${!name:-}" ]]; then
+                echo "missing release secret: ${name}" >&2
+              fi
+            done
+            exit 1
+          fi
 
           binary="$GITHUB_WORKSPACE/${{ matrix.artifact }}"
           certificate="$RUNNER_TEMP/futuruna-release.p12"
@@ -190,11 +207,26 @@ jobs:
 
           codesign --verify --strict --verbose=2 "$binary"
           spctl --assess --type execute --verbose=2 "$binary"
+          echo "signed=true" >> "$GITHUB_OUTPUT"
 
-      - name: Verify signed macOS binary executes
+      - name: Verify staged macOS binary executes
         if: runner.os == 'macOS'
         shell: bash
         run: "./${{ matrix.artifact }} --version"
+
+      - name: Record macOS signing status
+        if: runner.os == 'macOS'
+        shell: bash
+        run: "printf '%s\\n' '${{ steps.macos-signing.outputs.signed }}' > '${{ matrix.artifact }}.signing-status'"
+
+      - name: Upload macOS signing status
+        if: runner.os == 'macOS'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: signing-${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.signing-status
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload binary
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -205,7 +237,7 @@ jobs:
           retention-days: 7
 
   publish-crate:
-    name: Publish crate
+    name: Publish crate when configured
     if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-22.04
@@ -255,8 +287,8 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
-            echo "required release secret CARGO_REGISTRY_TOKEN is not configured" >&2
-            exit 1
+            echo "::notice::CARGO_REGISTRY_TOKEN is not configured; skipping crates.io publication"
+            exit 0
           fi
           cargo publish --locked
           version="$(cargo metadata --locked --no-deps --format-version 1 | jq -r '.packages[0].version')"
@@ -292,6 +324,31 @@ jobs:
           path: release-assets
           merge-multiple: true
 
+      - name: Download macOS signing status
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: signing-runa-*
+          path: release-metadata
+          merge-multiple: true
+
+      - name: Determine macOS signing status
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          statuses=(
+            release-metadata/runa-macos-arm64.signing-status
+            release-metadata/runa-macos-x86_64.signing-status
+          )
+          macos_signed=true
+          for status in "${statuses[@]}"; do
+            test -f "$status"
+            if [[ "$(cat "$status")" != "true" ]]; then
+              macos_signed=false
+            fi
+          done
+          echo "macos_signed=${macos_signed}" >> "$GITHUB_OUTPUT"
+
       - name: Generate and verify checksums
         shell: bash
         run: |
@@ -309,9 +366,26 @@ jobs:
           LC_ALL=C sha256sum "${expected[@]}" | sort -k2 > SHA256SUMS
           sha256sum --check SHA256SUMS
 
-      - name: Create GitHub release
+      - name: Create signed GitHub release
+        if: steps.signing.outputs.macos_signed == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           files: release-assets/*
           fail_on_unmatched_files: true
           generate_release_notes: true
+          body: |
+            Prebuilt Futuruna binaries are available for Linux and macOS. Every download is covered by `SHA256SUMS`.
+
+            The macOS binaries are signed with Apple Developer ID and accepted by Apple's notarization service.
+
+      - name: Create unsigned GitHub release
+        if: steps.signing.outputs.macos_signed != 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          files: release-assets/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          body: |
+            Prebuilt Futuruna binaries are available for Linux and macOS. Every download is covered by `SHA256SUMS`.
+
+            The macOS binaries in this release are not yet signed or notarized by Apple. Gatekeeper may block them when macOS marks the download as quarantined. Do not disable Gatekeeper globally; build Futuruna locally if the download is blocked.

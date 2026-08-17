@@ -1,8 +1,10 @@
 # Releasing Futuruna
 
 This is the maintainer runbook for a public Futuruna release. A version is not
-released merely because `Cargo.toml` contains that version. The GitHub release,
-crates.io package, binary checksums, and signed macOS artifacts must all exist.
+released merely because `Cargo.toml` contains that version. At minimum, the
+GitHub release, four native binaries, and binary checksums must exist. crates.io
+publication and Apple notarization are independent distribution upgrades whose
+status must be reported honestly.
 
 ## Release Outputs
 
@@ -17,10 +19,12 @@ runners:
 | `x86_64-apple-darwin` | `runa-macos-x86_64` | `macos-15-intel` |
 
 Every build uses the declared minimum Rust version 1.94.0, `Cargo.lock`, release
-symbol stripping, the weather example, and the stable first-run canary. The
-macOS binaries are then signed with a Developer ID Application certificate and
-submitted to Apple's notary service. The release job publishes the four
-binaries and a generated `SHA256SUMS` file.
+symbol stripping, the weather example, and the stable first-run canary. When a
+complete Apple credential set is available, the macOS binaries are signed with
+a Developer ID Application certificate and submitted to Apple's notary service.
+Without those credentials, the workflow publishes them unsigned and says so in
+the release notes. The release job always publishes the four binaries and a
+generated `SHA256SUMS` file.
 
 The crates.io package is built from the explicit `Cargo.toml` `include` list. It
 contains the compiler sources, README, license, and compile-time feature-stage
@@ -28,9 +32,10 @@ metadata, rather than the website, wiki, research corpus, examples, or tests.
 Plain `cargo install futuruna --locked` installs only `runa`; developer
 adversarial binaries require the `internal-tools` feature.
 
-## Required Credentials
+## Optional Publishing Credentials
 
-Do not push a release tag until these GitHub Actions secrets exist:
+No external credential is required to build and publish the checksummed GitHub
+release binaries. The `release` environment may additionally contain:
 
 | Secret | Scope | Purpose |
 | --- | --- | --- |
@@ -41,8 +46,12 @@ Do not push a release tag until these GitHub Actions secrets exist:
 | `APPLE_APP_SPECIFIC_PASSWORD` | `release` environment | App-specific password used by `notarytool` |
 | `CARGO_REGISTRY_TOKEN` | `release` environment | crates.io token for the first publication |
 
-The workflow fails rather than publishing an unsigned macOS binary or silently
-skipping crates.io. Never print, commit, or put these values in workflow inputs.
+All five Apple values must be configured together. If none are present, the
+macOS binaries are published unsigned; if only some are present, the workflow
+fails rather than pretending signing is correctly configured. If
+`CARGO_REGISTRY_TOKEN` is absent, the GitHub release still succeeds and
+crates.io publication is skipped. Never print, commit, or put these values in
+workflow inputs.
 
 crates.io trusted publishing can replace the long-lived registry token after
 the first version exists. The first package publication still requires a token;
@@ -76,16 +85,17 @@ data.
 
 Run the `Release` workflow manually from the intended release commit before
 creating a tag. Manual dispatch performs package validation and all four native
-builds, including macOS signing and notarization, but does not publish to
-crates.io or create a GitHub release.
+builds. It signs and notarizes macOS binaries only when the full Apple credential
+set is available. It does not publish to crates.io or create a GitHub release.
 
 Review all four build logs. Download the workflow artifacts and verify that:
 
 - every binary reports the expected version;
 - the Linux binaries have the expected ELF architecture;
 - the macOS binaries have the expected Mach-O architecture;
-- `codesign --verify --strict` succeeds for both macOS binaries;
-- Apple's notarization result is `Accepted`.
+- each macOS signing-status artifact says either `true` or `false`;
+- when signing is enabled, `codesign --verify --strict` succeeds and Apple's
+  notarization result is `Accepted`.
 
 ## Create the Release
 
@@ -102,9 +112,10 @@ If signed tags are not configured, stop and configure them instead of silently
 substituting a lightweight tag. The workflow rejects a tag whose version does
 not exactly match `Cargo.toml`.
 
-The tag workflow publishes the crate only after all binary jobs pass, then
-creates the GitHub release. A rerun detects an already published crate version
-and does not attempt to overwrite it.
+The tag workflow creates the GitHub release after all binary jobs pass. It also
+publishes the crate when `CARGO_REGISTRY_TOKEN` is configured. Without that
+token, it records a notice and continues. A rerun detects an already published
+crate version and does not attempt to overwrite it.
 
 ## Post-Release Verification
 
@@ -113,10 +124,11 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
 1. Download the matching release asset and `SHA256SUMS`.
 2. Verify the checksum before renaming or executing the binary.
 3. Run `runa --version` and the weather example.
-4. On macOS, confirm Gatekeeper accepts the downloaded binary without an
-   `xattr` bypass.
-5. Run `cargo install futuruna --version 0.1.0 --locked` in an isolated Cargo
-   home and repeat the smoke checks.
+4. On macOS, compare the observed Gatekeeper behavior with the signing status
+   stated in the release notes. Never disable Gatekeeper globally.
+5. If the crate was published, run
+   `cargo install futuruna --version 0.1.0 --locked` in an isolated Cargo home
+   and repeat the smoke checks.
 6. Confirm `https://futuruna.com/ai-setup.md` completes successfully from a
    clean agent session.
 

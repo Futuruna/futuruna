@@ -103,9 +103,12 @@ mv -f "$BINARY" runa
 cd ../..
 ```
 
-Stop if the download or checksum is unavailable, the checksum line is missing, or
-verification fails. Do not bypass macOS Gatekeeper. Futuruna's published macOS
-downloads must be Developer ID-signed and accepted by Apple's notarization service.
+Stop if the download or checksum is unavailable, the checksum line is missing,
+or verification fails. The GitHub release page states whether its macOS binaries
+are Apple-notarized. If macOS blocks an unsigned download, do not remove its
+quarantine attribute or disable Gatekeeper automatically. Tell the user and use
+Cargo or a local source build instead unless the user explicitly decides
+otherwise.
 
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
@@ -113,7 +116,7 @@ methods below instead of trying to build from an unrelated AI sandbox.
 ### 4. Install with Cargo
 
 When Cargo is already available and the user approves a user-level Cargo
-installation, crates.io provides a second source-backed channel:
+installation, try the crates.io source distribution:
 
 ```
 cargo install futuruna --locked
@@ -121,7 +124,9 @@ runa --version
 ```
 
 This installs into Cargo's configured binary directory, normally
-`~/.cargo/bin`. Do not change `PATH` or shell profiles unless the user asks.
+`~/.cargo/bin`. Early releases may not yet be published there; if Cargo reports
+that the package is unavailable, continue with the source build below. Do not
+change `PATH` or shell profiles unless the user asks.
 
 ### 5. Build from source
 
@@ -167,6 +172,7 @@ When setup succeeds, tell the user:
 - which computer and installation method were used,
 - which version was installed,
 - whether the download checksum was verified,
+- whether the release stated that its macOS binary was notarized,
 - which verification commands passed, and
 - where the `runa` binary is located.
 
