@@ -1,0 +1,5 @@
+= has_two_children = True
+
+| reduced_rate_applies() -> False
+| exception family_grant reduced_rate_applies() -> True under has_two_children
+| exception statutory_exclusion reduced_rate_applies() -> False under has_two_children

@@ -9644,7 +9644,7 @@ fn audit_calculation_reachability_source(
     );
 }
 
-/// Audit: discover invariant gaps, rule asymmetries, and paradoxes automatically.
+/// Audit: discover invariant gaps, rule asymmetries, and contradictions automatically.
 ///
 /// Works from the **rule graph** — types, values, and resolution chains — not string
 /// heuristics. Rules returning the same ADT type are in the same semantic domain.
@@ -9843,11 +9843,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     #[derive(Debug)]
     enum FindingKind {
-        Paradox,    // Direct contradiction in rules
-        Tension,    // Same type domain, conflicting values, overlapping scope
-        Asymmetry,  // Same suffix across entities, different truth values
-        Gap,        // Uncovered rules, missing counterparts
-        Consistent, // Symmetric agreement
+        Contradiction, // Same rule and priority, simultaneously active with different values
+        Tension,       // Same type domain, conflicting values, overlapping scope
+        Asymmetry,     // Structurally typed domain has a minority outcome
+        Gap,           // Rules not referenced by any invariant
     }
 
     struct Finding {
@@ -9919,11 +9918,12 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                     findings.push(Finding {
                         kind: FindingKind::Asymmetry,
                         severity,
-                        title: format!("Type domain {}: {} is the exception", domain, variant),
+                        title: format!("Type domain {}: minority outcome {}", domain, variant),
                         rules_involved: rule_names.clone(),
                         explanation: format!(
                             "In the {} domain ({} rules), most rules resolve to other variants [{}], \
-                             but {} resolve to {}:\n{}",
+                             but {} resolve to {}:\n{}\n\
+                             This is a typed distributional outlier, not a contradiction.",
                             domain, rules.len(),
                             variant_summary.join(", "),
                             variant_rules.len(), variant,
@@ -9935,140 +9935,88 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     }
 
-    // ── 3b: BOOL DOMAIN — symmetric pairs (name-based, works well) ──
-    // Extract entity prefix from a rule name
-    let entity_prefixes = [
-        "congress",
-        "house",
-        "senate",
-        "president",
-        "vp",
-        "states",
-        "judiciary",
-        "federal",
-        "executive",
-        "legislative",
-        "judicial",
-        "supreme_court",
-        "treaty",
-        "amendment",
-        "impeach",
-    ];
-    let extract_prefix = |name: &str| -> Option<(String, String)> {
-        for prefix in &entity_prefixes {
-            if name.starts_with(prefix) {
-                let suffix = name
-                    .strip_prefix(prefix)
-                    .unwrap_or("")
-                    .trim_start_matches('_');
-                if !suffix.is_empty() {
-                    return Some((prefix.to_string(), suffix.to_string()));
-                }
-            }
-        }
-        if let Some(pos) = name.find('_') {
-            let (prefix, rest) = name.split_at(pos);
-            let suffix = rest.trim_start_matches('_');
-            if !suffix.is_empty() && prefix.len() >= 2 {
-                return Some((prefix.to_string(), suffix.to_string()));
-            }
-        }
-        None
-    };
-
-    let mut entity_groups: BTreeMap<String, Vec<&RuleResult>> = BTreeMap::new();
-    let mut suffix_groups: BTreeMap<String, Vec<(String, &RuleResult)>> = BTreeMap::new();
-    for r in &results {
-        if let Some((prefix, suffix)) = extract_prefix(&r.name) {
-            entity_groups.entry(prefix.clone()).or_default().push(r);
-            suffix_groups
-                .entry(suffix.clone())
-                .or_default()
-                .push((prefix, r));
-        }
-    }
-
-    for (suffix, group) in &suffix_groups {
-        if group.len() < 2 {
+    // ── 3b: SAME-TIER CONTRADICTIONS ──
+    // A contradiction requires one rule identity, one evaluation environment,
+    // and multiple simultaneously applicable branches at the same priority that
+    // produce different values. Names of separate rules never imply a relation.
+    for result in &results {
+        if result.param_count != 0 {
             continue;
         }
-        for i in 0..group.len() {
-            for j in (i + 1)..group.len() {
-                let (ref ent_a, rule_a) = group[i];
-                let (ref ent_b, rule_b) = group[j];
-                if !rule_a.is_bool || !rule_b.is_bool {
-                    continue;
-                }
-                if rule_a.is_true != rule_b.is_true {
-                    let severity = if suffix.contains("pardon")
-                        || suffix.contains("impeach")
-                        || suffix.contains("veto")
-                        || suffix.contains("war")
-                    {
-                        85
-                    } else {
-                        60
-                    };
-                    findings.push(Finding {
-                        kind: FindingKind::Asymmetry,
-                        severity,
-                        title: format!("{} vs {} on '{}'", ent_a, ent_b, suffix),
-                        rules_involved: vec![rule_a.name.clone(), rule_b.name.clone()],
-                        explanation: format!(
-                            "{}() = {} but {}() = {}.\n     {} has this while {} does not.",
-                            rule_a.name,
-                            rule_a.value_str,
-                            rule_b.name,
-                            rule_b.value_str,
-                            if rule_a.is_true { ent_a } else { ent_b },
-                            if rule_a.is_true { ent_b } else { ent_a }
-                        ),
-                    });
-                } else {
-                    findings.push(Finding {
-                        kind: FindingKind::Consistent,
-                        severity: 10,
-                        title: format!("{} and {} agree on '{}'", ent_a, ent_b, suffix),
-                        rules_involved: vec![rule_a.name.clone(), rule_b.name.clone()],
-                        explanation: format!(
-                            "{}() = {} and {}() = {}",
-                            rule_a.name, rule_a.value_str, rule_b.name, rule_b.value_str
-                        ),
-                    });
-                }
-            }
-        }
-    }
 
-    // ── 3c: PARADOX DETECTION — can/cannot contradictions ──
-    let mut bool_rules: BTreeMap<String, bool> = BTreeMap::new();
-    for r in &results {
-        if r.is_bool && r.param_count == 0 {
-            bool_rules.insert(r.name.clone(), r.is_true);
-        }
-    }
-    for (name, val) in &bool_rules {
-        if name.contains("_can_") {
-            let negated = name.replace("_can_", "_cannot_");
-            if let Some(neg_val) = bool_rules.get(&negated) {
-                if val == neg_val {
-                    findings.push(Finding {
-                        kind: FindingKind::Paradox,
-                        severity: 95,
-                        title: format!(
-                            "{} and {} both {}",
-                            name,
-                            negated,
-                            if *val { "True" } else { "False" }
-                        ),
-                        rules_involved: vec![name.clone(), negated.clone()],
-                        explanation: format!(
-                            "{}() = {} and {}() = {} -- a direct logical contradiction.",
-                            name, val, negated, neg_val
-                        ),
-                    });
-                }
+        let mut active_by_tier: BTreeMap<&'static str, Vec<(String, String)>> = BTreeMap::new();
+        for (index, (name, rule)) in rules_snapshot.iter().enumerate() {
+            if name != &result.name {
+                continue;
             }
+
+            let (tier, branch, value, condition) = match rule.as_ref() {
+                Rule::Exception {
+                    label,
+                    value,
+                    condition,
+                    ..
+                } => ("exception", label.clone(), value, condition.as_ref()),
+                Rule::Default {
+                    value,
+                    condition: Some(condition),
+                    ..
+                } => (
+                    "conditional default",
+                    format!("conditional default #{}", index + 1),
+                    value,
+                    Some(condition),
+                ),
+                Rule::Default {
+                    value,
+                    condition: None,
+                    ..
+                } => (
+                    "unconditional default",
+                    format!("unconditional default #{}", index + 1),
+                    value,
+                    None,
+                ),
+                Rule::Clause { .. } | Rule::ReactiveScope { .. } => continue,
+            };
+
+            let applies = condition
+                .map(|condition| matches!(interp.eval(condition, &env), Value::Bool(true)))
+                .unwrap_or(true);
+            if applies {
+                active_by_tier
+                    .entry(tier)
+                    .or_default()
+                    .push((branch, format!("{}", interp.eval(value, &env))));
+            }
+        }
+
+        for (tier, branches) in active_by_tier {
+            let distinct_values: BTreeSet<&str> =
+                branches.iter().map(|(_, value)| value.as_str()).collect();
+            if distinct_values.len() < 2 {
+                continue;
+            }
+
+            let branch_lines = branches
+                .iter()
+                .map(|(branch, value)| format!("       {} -> {}", branch, value))
+                .collect::<Vec<_>>()
+                .join("\n");
+            findings.push(Finding {
+                kind: FindingKind::Contradiction,
+                severity: 100,
+                title: format!(
+                    "Conflicting active {} branches for {}",
+                    tier, result.name
+                ),
+                rules_involved: vec![result.name.clone()],
+                explanation: format!(
+                    "Multiple {} branches are applicable to the same rule call and produce different values:\n{}\n\
+                     Source order resolves {}() to {}, but equal-priority branches assert incompatible outcomes.",
+                    tier, branch_lines, result.name, result.value_str
+                ),
+            });
         }
     }
 
@@ -10197,102 +10145,25 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             100
         };
 
-        // Group uncovered rules by entity for cleaner output
-        let mut uncovered_by_entity: BTreeMap<String, Vec<&RuleResult>> = BTreeMap::new();
-        for r in &uncovered {
-            let entity = extract_prefix(&r.name)
-                .map(|(p, _)| p)
-                .unwrap_or_else(|| "other".into());
-            uncovered_by_entity.entry(entity).or_default().push(r);
-        }
-
-        for (entity, rules) in &uncovered_by_entity {
-            if rules.len() < 2 {
-                continue;
-            } // single uncovered rules aren't interesting
-            let rule_list: Vec<String> = rules
-                .iter()
-                .map(|r| format!("{}() -> {}", r.name, r.value_str))
-                .collect();
-            findings.push(Finding {
-                kind: FindingKind::Gap,
-                severity: 45,
-                title: format!(
-                    "Uncovered: {} has {} untested rules ({}% global coverage)",
-                    entity,
-                    rules.len(),
-                    global_coverage_pct
-                ),
-                rules_involved: rules.iter().map(|r| r.name.clone()).collect(),
-                explanation: format!(
-                    "{} invariants exist but {} '{}' rules have no ? proof:\n{}",
-                    invariant_count,
-                    rules.len(),
-                    entity,
-                    rule_list
-                        .iter()
-                        .map(|s| format!("       | {}", s))
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                ),
-            });
-        }
-    }
-
-    // ── 3f: BOOL POWER/ENFORCEMENT — structural ──
-    // True `_can_` rules without any corresponding False restriction in same entity
-    for r in &results {
-        if !r.is_bool || !r.is_true || r.param_count > 0 {
-            continue;
-        }
-        if !r.name.contains("_can_") {
-            continue;
-        }
-
-        let r_prefix = extract_prefix(&r.name).map(|(p, _)| p);
-        // Does the same entity have ANY False rule with _can_?
-        let has_restriction = results.iter().any(|other| {
-            if other.name == r.name || !other.is_bool || other.is_true || other.param_count > 0 {
-                return false;
-            }
-            let o_prefix = extract_prefix(&other.name).map(|(p, _)| p);
-            r_prefix == o_prefix && other.name.contains("_can_")
+        let rule_list = uncovered
+            .iter()
+            .map(|rule| format!("       | {}() -> {}", rule.name, rule.value_str))
+            .collect::<Vec<_>>()
+            .join("\n");
+        findings.push(Finding {
+            kind: FindingKind::Gap,
+            severity: 45,
+            title: format!(
+                "{} zero-argument Bool rules are not covered ({}% coverage)",
+                uncovered.len(),
+                global_coverage_pct
+            ),
+            rules_involved: uncovered.iter().map(|rule| rule.name.clone()).collect(),
+            explanation: format!(
+                "{} invariants exist, but these rules are not referenced by any ? proof:\n{}",
+                invariant_count, rule_list
+            ),
         });
-
-        if !has_restriction {
-            // This entity has powers but no restrictions at all
-            let entity = r_prefix.clone().unwrap_or_default();
-            // Check how many True _can_ rules this entity has
-            let power_count = results
-                .iter()
-                .filter(|o| {
-                    o.is_bool
-                        && o.is_true
-                        && o.param_count == 0
-                        && o.name.contains("_can_")
-                        && extract_prefix(&o.name).map(|(p, _)| p) == r_prefix
-                })
-                .count();
-
-            if power_count >= 3 {
-                // Only report if entity has several unrestricted powers (pattern, not noise)
-                let severity = std::cmp::min(80, 50 + power_count as u8 * 4);
-                findings.push(Finding {
-                    kind: FindingKind::Gap,
-                    severity,
-                    title: format!("{}: {} powers granted, 0 restrictions", entity, power_count),
-                    rules_involved: vec![r.name.clone()],
-                    explanation: format!(
-                        "The {} entity has {} rules granting powers (can_X = True) but no \
-                         rules restricting powers (can_Y = False). Every grant without a \
-                         corresponding limit is a potential gap.",
-                        entity, power_count
-                    ),
-                });
-                // Only report once per entity — skip subsequent rules for same entity
-                continue;
-            }
-        }
     }
 
     // =========================================================================
@@ -10305,13 +10176,18 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     findings.retain(|f| {
         let mut key_parts = f.rules_involved.clone();
         key_parts.sort();
-        let key = format!("{:?}:{:?}", std::mem::discriminant(&f.kind), key_parts);
+        let key = format!(
+            "{:?}:{:?}:{}",
+            std::mem::discriminant(&f.kind),
+            key_parts,
+            f.title
+        );
         seen_pairs.insert(key)
     });
 
-    let paradox_count = findings
+    let contradiction_count = findings
         .iter()
-        .filter(|f| matches!(f.kind, FindingKind::Paradox))
+        .filter(|f| matches!(f.kind, FindingKind::Contradiction))
         .count();
     let asymmetry_count = findings
         .iter()
@@ -10325,11 +10201,6 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         .iter()
         .filter(|f| matches!(f.kind, FindingKind::Tension))
         .count();
-    let consistent_count = findings
-        .iter()
-        .filter(|f| matches!(f.kind, FindingKind::Consistent))
-        .count();
-
     // Type domain summary
     let adt_domains: Vec<(&String, &Vec<&RuleResult>)> = type_domains
         .iter()
@@ -10389,16 +10260,16 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         invariant_count, covered_bool_count, header_pct
     );
     println!(
-        "  Findings: {} paradox, {} tension, {} asymmetry, {} gap, {} consistent",
-        paradox_count, tension_count, asymmetry_count, gap_count, consistent_count
+        "  Findings: {} contradiction, {} tension, {} asymmetry, {} gap",
+        contradiction_count, tension_count, asymmetry_count, gap_count
     );
     println!();
 
     // Output
     let kind_order: Vec<(&str, fn(&FindingKind) -> bool, &str)> = vec![
         (
-            "PARADOXES",
-            (|k: &FindingKind| matches!(k, FindingKind::Paradox)) as fn(&FindingKind) -> bool,
+            "CONTRADICTIONS",
+            (|k: &FindingKind| matches!(k, FindingKind::Contradiction)) as fn(&FindingKind) -> bool,
             "\x1b[1;31m",
         ),
         (
@@ -10416,11 +10287,6 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             (|k: &FindingKind| matches!(k, FindingKind::Gap)) as fn(&FindingKind) -> bool,
             "\x1b[1;34m",
         ),
-        (
-            "CONSISTENT",
-            (|k: &FindingKind| matches!(k, FindingKind::Consistent)) as fn(&FindingKind) -> bool,
-            "\x1b[2m",
-        ),
     ];
 
     for (label, filter, color) in &kind_order {
@@ -10432,11 +10298,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         println!();
         for (i, f) in group.iter().enumerate() {
             let icon = match f.kind {
-                FindingKind::Paradox => "!!",
+                FindingKind::Contradiction => "!!",
                 FindingKind::Tension => "~!",
                 FindingKind::Asymmetry => "<>",
                 FindingKind::Gap => "??",
-                FindingKind::Consistent => "==",
             };
             println!("  {}{} [{}] {}\x1b[0m", color, icon, f.severity, f.title);
             for rule_name in &f.rules_involved {
@@ -10463,7 +10328,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         println!();
     }
 
-    let interesting = paradox_count + asymmetry_count + gap_count + tension_count;
+    let interesting = contradiction_count + asymmetry_count + gap_count + tension_count;
     if interesting > 0 {
         println!(
             "\x1b[1m{} findings\x1b[0m from {} rules across {} type domains.",
@@ -10475,7 +10340,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             "Analysis: type-graph (value domains + resolution chains), not string heuristics."
         );
     } else {
-        println!("No gaps or tensions discovered.");
+        println!("No structural findings discovered.");
     }
     println!();
 
@@ -10632,7 +10497,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                 }
             }
 
-            // Per-rule coverage gaps: which members are missing which facts?
+            // Per-rule coverage differences: which members have ground facts?
             let mut gaps: Vec<String> = Vec::new();
             for rule_name in &all_rule_names {
                 let has: Vec<&String> = variants
@@ -10652,7 +10517,8 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
                     })
                     .collect();
                 if !missing.is_empty() && !has.is_empty() {
-                    // Some have it, some don't — this is a genuine gap
+                    // Some have it and some do not. Report the structure without
+                    // assuming that every variant ought to have the same fact.
                     gaps.push(format!(
                         "    ⚠ {} — defined for [{}] but NOT for [{}]",
                         rule_name,
@@ -10670,7 +10536,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
             }
             if !gaps.is_empty() {
                 section.push(String::new());
-                section.push("  Coverage gaps:".to_string());
+                section.push("  Coverage differences (review, not contradictions):".to_string());
                 for g in &gaps {
                     section.push(g.clone());
                 }

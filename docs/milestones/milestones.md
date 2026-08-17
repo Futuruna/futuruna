@@ -835,18 +835,19 @@ any `?` proofs or `|` invariants. It reads the rule topology and reports what fa
 
 - [x] **Rule collection**: parses all files including imports, registers all `|` rules
 - [x] **Zero-arg evaluation**: evaluates all zero-arg Bool rules via the interpreter
-- [x] **Entity prefix detection**: groups rules by entity (congress, president, states, etc.)
-- [x] **Symmetric pair analysis**: finds same suffix across different entities, reports asymmetries
-- [x] **Power without enforcement**: detects `X_can_Y = True` with no corresponding check/restriction
-- [x] **Paradox detection**: finds `X_can_Y` / `X_cannot_Y` contradictions
-- [x] **Automatic tension discovery**: concept-overlap analysis with normative direction (grant vs. restrict vs. duty)
-- [x] **Unpaired entity rules**: detects rules for one entity with no counterpart for the natural pair
+- [x] **Semantic contradiction detection**: finds simultaneously active, conflicting branches of one rule at one priority tier
+- [x] **No name-implied semantics**: names such as `X_can_Y` and `X_cannot_Y` remain independent unless the program models a shared relation
+- [x] **Typed-domain analysis**: reports minority ADT outcomes as review signals, explicitly not as contradictions
+- [x] **Resolution tension discovery**: reports an applicable exception that changes a default outcome for the same rule
+- [x] **Structural proof coverage**: follows rule references from `?` invariants without grouping by English-looking name fragments
 - [x] **Severity ranking**: findings ranked 0-100, sorted most interesting first
-- [x] **Grouped output**: Paradoxes > Tensions > Asymmetries > Gaps > Consistent
+- [x] **Grouped output**: Contradictions > Tensions > Asymmetries > Gaps
 - [x] **Rule chain display**: each finding shows the involved rules and their evaluated values
 - [x] **Proof suppression**: `?` proofs in the source file are silenced during audit (clean output)
 
-**Result on US Constitution (215 rules):** 51 interesting findings — 2 tensions, 1 asymmetry, 48 gaps — all discovered automatically from rule names and truth values alone.
+The original name-pairing prototype was replaced by semantic and structural
+analysis after corpus use showed that spelling alone cannot establish a legal
+relationship.
 
 ---
 

@@ -1,0 +1,7 @@
+| family_can_receive_reduced_rate() -> True
+| family_cannot_receive_reduced_rate() -> True
+| family_can_claim_allowance() -> True
+| family_can_defer_payment() -> True
+
+| household_receives_credit() -> True
+| company_receives_credit() -> False

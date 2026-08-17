@@ -10,6 +10,12 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/audit/reachability.calculate.runa")
 }
 
+fn topology_fixture(name: &str) -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests/fixtures/audit")
+        .join(name)
+}
+
 fn run(args: &[&str]) -> Output {
     Command::new(runa())
         .args(args)
@@ -144,4 +150,41 @@ fn audit_without_entry_keeps_the_existing_topology_report() {
         String::from_utf8_lossy(&output.stderr)
     );
     assert!(String::from_utf8_lossy(&output.stdout).contains("automated gap discovery"));
+}
+
+#[test]
+fn topology_audit_does_not_infer_semantics_from_rule_names() {
+    let fixture = topology_fixture("topology_names_are_not_semantics.runa");
+    let output = run(&["audit", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Findings: 0 contradiction, 0 tension, 0 asymmetry, 0 gap"));
+    assert!(stdout.contains("No structural findings discovered."));
+    assert!(!stdout.contains("PARADOX"));
+}
+
+#[test]
+fn topology_audit_finds_conflicting_active_branches_of_one_rule() {
+    let fixture = topology_fixture("topology_semantic_contradiction.runa");
+    let output = run(&["audit", fixture.to_str().expect("fixture path")]);
+    assert!(
+        output.status.success(),
+        "stderr:\n{}\nstdout:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("Findings: 1 contradiction"));
+    assert!(stdout.contains("CONTRADICTIONS (1)"));
+    assert!(stdout.contains("Conflicting active exception branches for reduced_rate_applies"));
+    assert!(stdout.contains("family_grant -> true"));
+    assert!(stdout.contains("statutory_exclusion -> false"));
+    assert!(stdout.contains("same rule call"));
 }
