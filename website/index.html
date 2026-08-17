@@ -112,6 +112,7 @@
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                overflow: hidden;
                 transition: opacity 0.4s ease, visibility 0.4s ease;
             }
             #splash.hide {
@@ -150,6 +151,10 @@
                 z-index: 2147483647;
             }
 
+            .dx-toast[aria-hidden="true"] {
+                display: none;
+            }
+
             .dx-toast .dx-toast-inner {
                 /* transition: right 0.2s ease-out; */
                 position: fixed;
@@ -160,7 +165,7 @@
 
                 display: grid;
                 grid-template-columns: auto auto;
-                max-width: 400px;
+                max-width: min(400px, calc(100vw - 20px));
                 min-height: 56px;
                 border-radius: 5px;
             }
@@ -182,7 +187,9 @@
             }
 
             .dx-toast .dx-toast-content {
+                min-width: 0;
                 padding: 8px;
+                overflow-wrap: anywhere;
             }
 
             .dx-toast .dx-toast-header {

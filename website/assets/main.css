@@ -2113,8 +2113,10 @@ section {
 /* ---- Responsive ---- */
 
 @media (max-width: 768px) {
+    html,
     body {
         overflow-x: hidden;
+        overflow-x: clip;
     }
 
     .footer {
@@ -2129,10 +2131,10 @@ section {
     .top-nav {
         left: 0;
         right: 0;
-        justify-content: center;
+        justify-content: flex-end;
         flex-wrap: wrap;
         gap: 0.1rem;
-        padding: 0.75rem 0.5rem;
+        padding: 0.75rem 2rem 0.75rem 0.5rem;
     }
 
     .nav-logo {
