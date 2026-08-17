@@ -2,7 +2,15 @@
 name = "futuruna"
 version = "0.1.0"
 edition = "2021"
-description = "Futuruna — a three-dimensional programming language with seven runes"
+description = "A programming language where law encoding and ordinary programming work side by side through partitioned syntax"
+authors = ["Andreas Rudolph <research@futuruna.com>"]
+license = "MIT"
+repository = "https://github.com/Futuruna/futuruna"
+homepage = "https://futuruna.com"
+documentation = "https://futuruna.com/docs"
+readme = "README.md"
+keywords = ["programming-language", "computational-law", "rule-engine", "formal-rules", "legal-tech"]
+categories = ["compilers", "command-line-utilities", "science"]
 
 [lib]
 name = "futuruna"

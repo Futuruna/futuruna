@@ -1,39 +1,60 @@
 # Futuruna
 
-> Futuruna allows you or an AI to encode the rule of law into a rule model, and mix it with ordinary programming. You can then interview, audit, automate or explore the law like never before.
+> Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.
 
-Futuruna 0.1.0 is MIT licensed. Futuruna can define types (#), functions (>), rules (|), streams (~), assignments (=), proofs (?), and effects (@). The Feature Stages document records the current maturity of each language and tooling surface.
+A front rune gives each kind of statement its own space, so its capabilities do not have to compete with those in the language's other spaces. This gives the author more options for writing a good program while giving the reader less uncertainty about what they are reading.
+
+Futuruna is designed for humans and AIs alike. Start with the AI setup or the first tutorial. If you want to understand why Futuruna exists, read the manifest.
 
 Contact: research@futuruna.com
 
 ## Start Here
 
-- [AI setup](https://futuruna.com/ai-setup.md): Set up Futuruna with an AI coding agent and begin a first project.
-- [Documentation](https://futuruna.com/docs): Browse the Futuruna language reference.
-- [First tutorial](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/tutorial/01-hello.md): Build and run a first Futuruna program.
-- [Playground](https://futuruna.com/playground): Try Futuruna in the browser.
+- [AI setup](https://futuruna.com/ai-setup.md): Give this guide to your AI and let it set up Futuruna with you.
+- [Guided tutorial](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/tutorial/README.md): Build a small synthetic tax model, prove the result, and let Futuruna expose a real contradiction.
+- [Why Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/why.md): Read why law encoding and ordinary programming belong in the same language.
 
-## Language and Modeling
+## Learn Futuruna
 
-- [Reference index](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/README.md): Route to the maintained language documentation.
-- [Language basics](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/basics.md): Learn values, types, functions, rules, control flow, effects, and proofs.
-- [The seven runes](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/runes.md): Understand Futuruna's partitioned syntax.
-- [Modeling style](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/style.md): Write readable formal-rule and ordinary-programming models.
-- [Typed calculations](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/calculations.md): Build typed rule models, templates, calls, and workbooks.
-- [Feature Stages](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/feature-stages.md): Check the current maturity of language and tooling features.
+- [Reference index](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/README.md): Read the maintained reference when you need the exact language.
+- [Language basics](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/basics.md): Learn Futuruna's ordinary programming foundations.
+- [The seven runes](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/runes.md): See how front runes give each kind of statement its own space.
+- [Modeling style](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/style.md): Learn to keep source-backed rules, facts, assumptions, interpretations, and unknowns separate.
+- [Typed calculations](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/calculations.md): Turn a typed rule model into structured inputs, interview questions, workbooks, and deterministic results.
+
+## For AIs
+
+- [Futuruna skill](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/SKILL.md): Use the maintained workflow for learning, writing, checking, and explaining Futuruna.
+- [Learning path](https://raw.githubusercontent.com/Futuruna/futuruna/main/.agents/skills/futuruna/references/learning-path.md): Learn the seven front runes through one small working program at a time.
+
+## Working Examples
+
+- [Weather demo](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/weather_demo.runa): See all seven front runes working together in one small program.
+- [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
+- [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
+
+## Law, Rules, and Research
+
+- [The Philosophy of Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/research.md): Read the deeper argument for partitioned syntax.
+- [Danish personal income tax](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/website-overblik.md): Explore the Danish Income Tax Law encoded in Futuruna and audit your own Annual Tax Report.
+- [Danish Constitution](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/webside.md): Explore the Danish Constitution encoded in Futuruna.
+- [Danish Constitution audit](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/grundlov.audit.runa): Read the executable audit of the encoded Danish Constitution.
+- [US Constitution foundation](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/us-constitution/constitution.runa): Read the shared vocabulary, dates, preamble, and first rules of the encoded Constitution.
+- [US Constitution verification](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/us-constitution/verification.runa): See executable checks that draw the encoded articles together.
+- [Invisible Ownership](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/research-ownership.md): See how Futuruna infers Rust-level ownership without ownership annotations.
 
 ## Project
 
-- [Source repository](https://github.com/Futuruna/futuruna): Source code, examples, issues, and project history.
-- [Project overview](https://raw.githubusercontent.com/Futuruna/futuruna/main/README.md): Read the Futuruna overview, examples, and license.
-- [Contributing](https://raw.githubusercontent.com/Futuruna/futuruna/main/CONTRIBUTING.md): Develop and validate changes to Futuruna.
-- [MIT License](https://github.com/Futuruna/futuruna/blob/main/LICENSE): Terms for using, modifying, and distributing Futuruna.
+- [Source repository](https://github.com/Futuruna/futuruna): Explore the compiler, examples, and open issues.
+- [Project overview](https://raw.githubusercontent.com/Futuruna/futuruna/main/README.md): Read the introduction to Futuruna.
 
 ## Optional
 
-- [Why Futuruna](https://futuruna.com/why): Read the Futuruna manifest.
-- [Research](https://futuruna.com/research): Explore Futuruna research and working formal models.
-- [Danish Constitution](https://futuruna.com/research/danish-constitution): Explore a source-grounded constitutional model.
-- [Danish personal income tax](https://futuruna.com/research/personskatteloven): Explore the active Danish personal-income-tax research model.
-- [US Constitution](https://futuruna.com/research/us-constitution): Explore the United States Constitution encoded in Futuruna.
-- [Invisible Ownership](https://futuruna.com/research/ownership): Read about Futuruna's ownership inference research.
+- [Documentation website](https://futuruna.com/docs): Browse the Futuruna documentation on the website.
+- [Playground](https://futuruna.com/playground): Let Futuruna run in your browser.
+- [Research website](https://futuruna.com/research): Explore Futuruna's research pages.
+- [Feature stages](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/feature-stages.md): See what you can rely on today and what is still taking shape.
+- [Contributing](https://raw.githubusercontent.com/Futuruna/futuruna/main/CONTRIBUTING.md): Help change Futuruna without silently changing the language under its users' feet.
+- [Citation](https://raw.githubusercontent.com/Futuruna/futuruna/main/CITATION.cff): Cite Futuruna in software and research.
+- [CodeMeta](https://futuruna.com/codemeta.json): Read Futuruna's machine-readable software metadata.
+- [MIT License](https://github.com/Futuruna/futuruna/blob/main/LICENSE): Use, modify, and share Futuruna under the MIT License.

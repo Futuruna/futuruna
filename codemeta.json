@@ -1,0 +1,38 @@
+{
+  "@context": "https://w3id.org/codemeta/3.1",
+  "@type": "SoftwareSourceCode",
+  "@id": "https://github.com/Futuruna/futuruna",
+  "name": "Futuruna",
+  "description": "Futuruna works by allowing high expressional strength through a technique called \"partitioned syntax\", that allows both law encoding and normal programming paradigms to work side by side.",
+  "version": "0.1.0",
+  "url": "https://futuruna.com",
+  "codeRepository": "https://github.com/Futuruna/futuruna",
+  "issueTracker": "https://github.com/Futuruna/futuruna/issues",
+  "license": "https://spdx.org/licenses/MIT.html",
+  "readme": "https://github.com/Futuruna/futuruna/blob/main/README.md",
+  "softwareHelp": {
+    "@type": "CreativeWork",
+    "name": "Set Up Futuruna with AI",
+    "url": "https://futuruna.com/ai-setup.md"
+  },
+  "programmingLanguage": [
+    "Futuruna",
+    "Rust"
+  ],
+  "runtimePlatform": "Rust toolchain",
+  "keywords": [
+    "programming language",
+    "computational law",
+    "law as code",
+    "formal rules",
+    "rule-based programming",
+    "artificial intelligence"
+  ],
+  "isAccessibleForFree": true,
+  "author": {
+    "@type": "Person",
+    "givenName": "Andreas",
+    "familyName": "Rudolph",
+    "email": "research@futuruna.com"
+  }
+}
