@@ -10,11 +10,18 @@
   "issueTracker": "https://github.com/Futuruna/futuruna/issues",
   "license": "https://spdx.org/licenses/MIT.html",
   "readme": "https://github.com/Futuruna/futuruna/blob/main/README.md",
-  "softwareHelp": {
-    "@type": "CreativeWork",
-    "name": "Set Up Futuruna with AI",
-    "url": "https://futuruna.com/ai-setup.md"
-  },
+  "softwareHelp": [
+    {
+      "@type": "CreativeWork",
+      "name": "Set Up Futuruna with AI",
+      "url": "https://futuruna.com/ai-setup.md"
+    },
+    {
+      "@type": "LearningResource",
+      "name": "Guided Futuruna tutorial",
+      "url": "https://futuruna.com/docs/tutorial"
+    }
+  ],
   "programmingLanguage": [
     "Futuruna",
     "Rust"
