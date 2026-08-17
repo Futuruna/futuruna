@@ -217,6 +217,34 @@ When the workbook is complete, run:
 
 Help the user compare the result with the Annual Tax Report, trace differences back to inputs and rules, and report uncertainties clearly. `schema`, `template`, and `call` are Preview features, and this tax model remains an active research project.
 
+### Explore a rule model
+
+Once a law or contract is encoded, Futuruna can turn its rules inside out. Help
+the user ask for counterexamples, thresholds, income cliffs, minima, maxima, or
+the worst case inside a clearly stated finite search space.
+
+Build the exploration with Futuruna's existing language:
+
+1. State the question, fixed facts, varied facts, metric, and units.
+2. Build each finite domain with a list or end-exclusive `range`.
+3. Use `map` for one dimension or nested `flat_map` for combinations.
+4. Evaluate every scenario through the canonical encoded rules.
+5. Prove every generated scenario is valid, or report the excluded cases.
+6. Use `filter` to retain the scenarios that answer the question.
+7. Use `foldl` to select a minimum, maximum, or worst case, guarding the empty
+   case before using `head`.
+8. Name the expected property with `|` and check it with `?`.
+
+Report the searched domain, witness count, selected scenario, assumptions,
+sources, and exact units. Call the result exhaustive over the full declared
+domain only when every generated scenario is valid. Otherwise scope the result
+to the valid subset and report every exclusion.
+
+Start with the
+[law-exploration workbook](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md)
+and run its
+[income-cliff audit](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
+
 ### Encode a contract
 
 Ask the user for the contract, its jurisdiction, the question they want to answer, and whether they want a one-case self-audit or a broader exploration.
@@ -264,5 +292,6 @@ State the model's coverage and limitations. Futuruna can make the encoded reason
 - Website: https://futuruna.com
 - First-run contract: https://github.com/Futuruna/futuruna/blob/main/docs/first-run-contract.md
 - Calculation workbooks: https://github.com/Futuruna/futuruna/blob/main/docs/reference/calculations.md
+- Law-exploration workbook: https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/exploration-workbook.md
 - Language style: https://github.com/Futuruna/futuruna/blob/main/docs/reference/style.md
 - Feature stages: https://github.com/Futuruna/futuruna/blob/main/docs/feature-stages.md

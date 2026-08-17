@@ -1,6 +1,6 @@
 ---
 name: futuruna
-description: Set up, teach, author, explain, debug, test, and review Futuruna code and runa workflows. Use for Futuruna installation, .runa files, seven-rune syntax, law, contract, tax, or compliance models in Futuruna, typed @ calculate contracts and workbooks, runa from-rust, Rust interop, or Futuruna compiler semantics. Do not use for generic legal or tax advice, unrelated Rust, or unrelated spreadsheets.
+description: Set up, teach, author, explain, debug, test, analyze, and review Futuruna code and runa workflows. Use for Futuruna installation, .runa files, seven-rune syntax, law, contract, tax, or compliance models, finite rule-space searches for counterexamples, thresholds, income cliffs, minima, maxima, or worst cases, typed @ calculate contracts and workbooks, runa from-rust, Rust interop, or Futuruna compiler semantics. Do not use for generic legal or tax advice, unrelated Rust, or unrelated spreadsheets.
 ---
 
 # Futuruna
@@ -14,15 +14,16 @@ test counts.
 1. When inside the repository, read `../../../AGENTS.md` and inspect the current
    worktree before changing files.
 2. Classify the task: setup, learning, `.runa` authoring/debugging, formal-rule
-   modeling, typed calculations, Rust integration, or compiler contribution.
+   modeling, finite rule-space exploration, typed calculations, Rust
+   integration, or compiler contribution.
 3. When the user or model is new to Futuruna, read
    `references/learning-path.md` before the relevant tutorial or example.
 4. Read `../../../docs/feature-stages.md` before making maturity or compatibility
    claims. Treat Preview and Experimental boundaries honestly.
 5. Locate a usable `runa` binary only when execution is required. Do not build
    the compiler merely to answer a documentation question.
-6. Treat milestones, wiki pages, old commits, retained binaries, and generated
-   files as non-authoritative unless the task explicitly targets them.
+6. Resolve behavior from the current code, tests, contracts, and maintained
+   documentation on the checked-out branch.
 
 ## Route to the Canonical Material
 
@@ -32,6 +33,7 @@ test counts.
 | Learn or explain syntax | `../../../docs/reference/README.md`, then the relevant page in `../../../docs/reference/` or `../../../docs/tutorial/` |
 | Work with streams, actors, or effects | `../../../docs/reference/streams.md` |
 | Model law, contracts, or rule systems | `../../../docs/reference/style.md` |
+| Search a finite rule space | `references/learning-path.md`, then `../../../examples/danish-income-tax/exploration-workbook.md` and `../../../examples/danish-income-tax/personskat-income-cliffs.audit.runa` |
 | Build typed schemas, templates, calls, or workbooks | `../../../docs/reference/calculations.md` |
 | Integrate with Rust | `../../../docs/reference/rust-compatibility.md`, `../../../docs/library-hygiene.md` |
 | Translate Rust to Futuruna | `../../../docs/from-rust-contract.md` |
@@ -75,11 +77,12 @@ Typical focused checks, using a compiler built from the relevant checkout, are:
 ```bash
 ./target/release/runa fmt --check path/to/model.runa
 ./target/release/runa check path/to/model.runa
-./target/release/runa run path/to/model.runa
+./target/release/runa path/to/model.runa
 ```
 
-Use only the commands relevant to the task. Apply formatting with `runa fmt`
-when requested or when editing the source.
+Use `./target/release/runa run path/to/model.runa` when native Rust-codegen
+behavior is part of the task. Apply formatting with `runa fmt` when requested
+or when editing the source.
 
 ### Model law, contracts, tax, or compliance
 
@@ -98,6 +101,35 @@ For a typed calculation, let `runa schema`, `runa template`, and `runa call`
 define and validate the contract. These commands and typed calculation
 contracts are Preview. Use a spreadsheet-specific skill only when workbook
 inspection or editing is actually requested.
+
+### Explore a finite rule space
+
+Use ordinary Futuruna collections to turn a formal model into an explicit,
+auditable search:
+
+1. State the question, fixed facts, varied dimensions, result metric, and units.
+2. Build each finite domain with a list or end-exclusive `range`.
+3. Use `map` for one dimension and nested `flat_map` with a final `map` for a
+   Cartesian product.
+4. Evaluate every scenario through the canonical rule or calculation model,
+   keeping exact integer units such as øre when available.
+5. Retain model validity. Prove every generated case is valid, or report the
+   excluded cases and narrow the exhaustiveness claim.
+6. Use `filter` to retain counterexamples, boundary changes, cliffs, or other
+   witnesses.
+7. Use `foldl` to select a minimum, maximum, or worst case. Check that the
+   candidate list is nonempty before using `head`.
+8. Name the expected property with `|` and check it with `?`.
+9. Report the domain size, witness count, selected scenario, metric, sources,
+   and assumptions. When every generated case is valid, describe the result as
+   exhaustive over the declared finite domain and current encoded model;
+   otherwise scope it to the valid subset and report every exclusion.
+
+Keep private case inputs and outputs outside the repository. Preserve official
+source provenance and verify the encoded interpretation before presenting a
+finding as an authoritative legal conclusion. Read the finite-space section in
+`references/learning-path.md` for the reusable pattern, then adapt the income
+cliff workbook and executable audit for a full law-model example.
 
 ### Work with Rust or the compiler
 
@@ -128,6 +160,6 @@ limitations. Do not claim success from reasoning alone when a focused executable
 check is available.
 
 In user-facing output, lead with the result and teach only the concepts needed
-for the user's next step. Keep internal repository history, tool orchestration,
-and agent-policy reasoning out of the explanation unless they directly change
-what the user should do.
+for the user's next step. Keep tool orchestration, background context, and
+agent-policy reasoning out of the explanation unless they directly change what
+the user should do.

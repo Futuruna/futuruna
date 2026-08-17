@@ -3,7 +3,7 @@
 Futuruna is a programming language for ordinary programs and formal rule
 models. This file is the shared operating contract for agents working in this
 repository. Keep it short and stable: route to maintained sources instead of
-copying feature lists, test counts, milestones, or CLI help here.
+copying volatile details or CLI help here.
 
 ## Read the Current Sources
 
@@ -19,39 +19,25 @@ copying feature lists, test counts, milestones, or CLI help here.
   legal-modeling setup. `docs/first-run-contract.md` defines the stable new-user
   path.
 - Read `Cargo.toml`, `Cargo.lock`, and the current source and tests for
-  implementation truth. Do not infer the current architecture from an old
-  commit, milestone, binary, or generated artifact.
+  implementation truth.
 - For Futuruna setup, `.runa` authoring, rule modeling, calculations, Rust
   interop, or compiler semantics, use the repo skill at
   `.agents/skills/futuruna/SKILL.md` (`$futuruna` in Codex).
+- For counterexamples, thresholds, income cliffs, extrema, and other finite
+  rule-space analysis, start with
+  `examples/danish-income-tax/exploration-workbook.md` and its executable
+  `personskat-income-cliffs.audit.runa` companion. Futuruna expresses the
+  search with list literals/`range`, `map`/`flat_map`, `filter`, `foldl`, and a
+  named invariant checked with `?`.
 
 ## Authority and Artifact Boundaries
 
 Current code, tests, contracts, and maintained reference documentation on the
-checked-out branch outrank historical or derivative material.
+checked-out branch define product behavior.
 
-- `docs/milestones/`, historical design sketches, `wiki/`, `WIKI.md`, commit
-  messages, reflogs, and the `archive/semantic-lineage` tag are context, not a
-  present-tense specification.
-- `.raw/`, `research/`, `paper/`, and legacy examples may be primary evidence
-  for a task that explicitly targets them, but they do not override current
-  language contracts.
-- Root executables such as `parser`, `parser-audit`, `parser-e2e`, `test_build`,
-  `ownership_linked_list`, and `store_v3_dump` are retained artifacts, not
-  portable build products or current entry points.
-- Ignore local/generated state such as `target/`, `website/target/`,
-  `.runa-build/`, `deploy/`, `outputs/`, `.wrangler/`, runtime database files,
-  `.DS_Store`, and editor state unless the task explicitly targets it.
-- Do not ignore tracked contracts merely because they look generated.
-  `Cargo.lock`, `docs/feature-stages.json`, and reviewed expectation goldens are
-  authoritative tracked inputs.
-
-This repository has undergone deliberate history rewrites. Treat archival and
-local-only refs plus external recovery artifacts as read-only. Do not restore,
-delete, move, publish, expire, garbage-collect, or rewrite them without explicit
-task-specific authorization. Resolve current refs with Git; do not reuse copied
-object IDs or trust a stale `.git/info/refs`. Never publish
-`codex/semantic-interface-cache` unless the user explicitly names that ref.
+- Treat tracked contracts such as `Cargo.lock`, `docs/feature-stages.json`, and
+  reviewed expectation goldens as authoritative inputs.
+- Ignore local and generated state unless the task explicitly targets it.
 
 ## Start and Scope Work
 
@@ -81,17 +67,15 @@ Do not edit `.todos/` directly. Completed implementation goes through
 - Validate exact targets before file operations. Use non-interactive flags only
   after the target is known; never normalize recursive deletion as routine
   cleanup.
-- Do not use `git reset --hard`, `git clean`, stash manipulation, reflog expiry,
-  aggressive GC, ref deletion, or history rewriting unless explicitly required
-  by the task and independently checked.
+- Do not rewrite Git refs or history, or delete repository artifacts, unless the
+  task explicitly requires it and the exact target has been independently
+  checked.
 - Ask before installing software, changing global configuration, publishing,
   deploying, or mutating external services unless the user's request already
   grants that exact authority.
 - Never inspect, copy, upload, or commit ignored personal PDFs, tax records,
   generated workbooks, or case results unless the user explicitly places them
-  in scope. Keep private case work outside the checkout. Do not recover deleted
-  personal material from Git history or recovery stores unless an explicitly
-  authorized privacy or recovery task requires it.
+  in scope. Keep private case work outside the checkout.
 - Futuruna legal and tax models are research software, not individual advice.
   Preserve source text and provenance; distinguish facts, assumptions,
   interpretations, and unknowns; never invent personal or legal facts.
@@ -116,8 +100,8 @@ remaining uncertainty.
 ## Communicate for the User
 
 - Lead with the useful answer, artifact, or next action. Keep internal planning,
-  tool choreography, cleanup history, and repository archaeology out of
-  user-facing copy unless they materially affect the user's decision.
+  tool choreography, and background context out of user-facing copy unless they
+  materially affect the user's decision.
 - Explain Futuruna from the user's present goal. Prefer a small working example
   and a clear next step over an exhaustive feature tour.
 - Mention limitations when they affect correctness, safety, compatibility, or

@@ -5,9 +5,13 @@
 `AGENTS.md` is the authoritative shared agent policy for this repository.
 
 For Futuruna setup, `.runa` authoring, rule modeling, calculations, Rust
-interop, or compiler semantics, use `/futuruna`. The Claude project-skill entry
-delegates to the canonical repo skill in `.agents/skills/futuruna/`.
+interop, compiler semantics, or analysis across an explicit finite rule space,
+use `/futuruna`. For counterexamples, thresholds, income cliffs, minima,
+maxima, and worst cases, follow the exploration workflow and executable example
+routed by that skill.
 
-Do not treat Claude memory, old conversations, milestone documents, or Git
-history as current product truth. Verify claims against the maintained sources
-named in `AGENTS.md`. Claude-specific overrides: none.
+The Claude project-skill entry delegates to the canonical repo skill in
+`.agents/skills/futuruna/`.
+
+Verify product claims against the maintained sources named in `AGENTS.md`.
+Claude-specific overrides: none.

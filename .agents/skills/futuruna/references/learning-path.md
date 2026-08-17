@@ -11,6 +11,7 @@ Repository paths in this reference are relative to the repository root.
 - [Start With the Mental Model](#start-with-the-mental-model)
 - [Teach the Core Syntax in This Order](#teach-the-core-syntax-in-this-order)
 - [Reinforce the Main Idioms](#reinforce-the-main-idioms)
+- [Explore Finite Rule Spaces](#explore-finite-rule-spaces)
 - [Teach Through a Feedback Loop](#teach-through-a-feedback-loop)
 - [Confirm Practical Understanding](#confirm-practical-understanding)
 
@@ -102,6 +103,100 @@ is Experimental.
 
 Read `docs/reference/style.md` for the maintained idioms and
 `docs/reference/README.md` for the full reference map.
+
+## Explore Finite Rule Spaces
+
+Futuruna can search an explicit finite scenario space with its ordinary list
+operations. The core flow is:
+
+```text
+finite inputs -> map/flat_map -> model results -> filter -> foldl -> invariant -> ?
+```
+
+Start every exploration by naming:
+
+- the facts held fixed,
+- each input allowed to vary and its finite domain,
+- the exact outcome metric and unit,
+- the predicate that makes a scenario a witness, and
+- the ordering used to select a minimum, maximum, or worst case.
+
+Use a list for meaningful discrete alternatives and `range(start, end)` for an
+integer interval; the end is excluded. Use nested `flat_map` calls to enumerate
+multiple dimensions and a final `map` to construct or evaluate each scenario.
+When every generated scenario is supported and valid, evaluating all of them
+makes the result exhaustive over the declared finite domain.
+
+If the model can mark a scenario invalid or unsupported, keep that status in
+the result. Prove every generated scenario is valid, or report the exclusions
+and narrow the claim; never silently filter them away before saying a search
+was exhaustive.
+
+This complete synthetic example searches adjacent income steps for a cliff:
+
+```runa
+# IncomeStep(before_income: Int, after_income: Int, before_net: Int, after_net: Int)
+
+> net(income: Int) -> Int {
+    if income >= 105 { income - 10 } else { income }
+}
+
+> assess_step(before_income: Int) -> IncomeStep {
+    = after_income = before_income + 1
+    IncomeStep(
+        before_income = before_income,
+        after_income = after_income,
+        before_net = net(before_income),
+        after_net = net(after_income)
+    )
+}
+
+> loss(step: IncomeStep) -> Int {
+    step.before_net - step.after_net
+}
+
+= steps = map(range(100, 110), assess_step)
+= cliffs = filter(steps, |step| step.after_net < step.before_net)
+= worst_cliff = if length(cliffs) > 0 {
+    Some(foldl(tail(cliffs), head(cliffs), |worst, step| {
+            if loss(step) > loss(worst) { step } else { worst }
+        }))
+} else {
+    None
+}
+
+| searched_every_input: steps -> length(steps) == 10
+| income_cliff_found: cliffs -> length(cliffs) > 0
+
+? searched_every_input
+? income_cliff_found
+
+@ print("worst cliff: " + show(worst_cliff))
+```
+
+Apply the same structure to common questions:
+
+| Question | Search construction |
+|---|---|
+| Does a universal claim fail? | Filter for cases where the claim is false; each retained case is a counterexample. |
+| Where does behavior change? | Evaluate adjacent values or source-defined boundary candidates and filter for a changed classification or outcome. |
+| Can extra income reduce net resources? | Pair `before` with `after`, calculate both exactly, and retain cases where `net_after < net_before`. |
+| What is the minimum, maximum, or worst result? | Filter eligible cases, then use `foldl` with an explicit comparison metric. |
+| Which combination of facts causes the result? | Enumerate each dimension with nested `flat_map`, then preserve all varied facts in the result type. |
+
+For a universal claim, a zero-length counterexample list supports the claim over
+the searched domain. For an existence question, prove that the witness list is
+nonempty. Guard `head` with `length(list) > 0` before selecting an extremum.
+
+In law, tax, contract, and compliance work, retain the jurisdiction, effective
+date, official sources, fixed facts, assumptions, and units beside the search.
+Prefer exact model outputs such as øre over rounded display projections. Keep
+private case material outside the repository, and state findings as results of
+the current encoded model over the declared domain.
+
+Use `examples/danish-income-tax/exploration-workbook.md` for the full working
+method and `examples/danish-income-tax/personskat-income-cliffs.audit.runa` for
+an executable multi-step income-cliff search.
 
 ## Teach Through a Feedback Loop
 

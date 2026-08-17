@@ -1,4 +1,4 @@
 interface:
   display_name: "Futuruna"
-  short_description: "Learn, author, and validate Futuruna programs"
-  default_prompt: "Use $futuruna to complete this Futuruna task, validate the result proportionally, and state assumptions and feature-stage limits."
+  short_description: "Build, explore, and validate Futuruna programs"
+  default_prompt: "Use $futuruna to complete this Futuruna task and validate the result proportionally. For finite exploration, state the searched domain and assumptions."

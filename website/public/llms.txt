@@ -33,6 +33,8 @@ Contact: research@futuruna.com
 - [Weather demo](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/weather_demo.runa): See all seven front runes working together in one small program.
 - [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
 - [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
+- [Law-exploration workbook](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/exploration-workbook.md): Learn how to search a finite rule space, find counterexamples, and select the worst case with ordinary Futuruna.
+- [Executable income-cliff search](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): See the Danish personal-income-tax model search 50 encoded phase-out boundaries for places where one additional krone leaves less after tax.
 
 ## Law, Rules, and Research
 

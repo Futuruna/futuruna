@@ -33,6 +33,11 @@ the reference to keep beside you while writing programs.
 
 Start with **basics.md** for syntax fundamentals, then **runes.md** for the full language. Use **stdlib.md** as a lookup reference. Consult **streams.md** and **rust-compatibility.md** when working with reactive/stateful code, pure/core Rust codegen behavior, or Rust interop. Use **calculations.md** to expose a typed rule as a human- or machine-filled calculation.
 
+To search across an encoded rule model, work through
+[Exploring Law with Futuruna](../../examples/danish-income-tax/exploration-workbook.md).
+It shows how existing collection operations and proofs can find, filter, rank,
+and verify bounded legal-model scenarios.
+
 For the broader stage matrix across language/runtime and `runa` command
 surfaces, see [../feature-stages.md](../feature-stages.md). The machine-readable
 metadata lives in [../feature-stages.json](../feature-stages.json).
