@@ -12,12 +12,12 @@
   "readme": "https://github.com/Futuruna/futuruna/blob/main/README.md",
   "softwareHelp": [
     {
-      "@type": "CreativeWork",
+      "@type": "schema:CreativeWork",
       "name": "Set Up Futuruna with AI",
       "url": "https://futuruna.com/ai-setup.md"
     },
     {
-      "@type": "LearningResource",
+      "@type": "schema:LearningResource",
       "name": "Guided Futuruna tutorial",
       "url": "https://futuruna.com/docs/tutorial"
     }

@@ -11,7 +11,7 @@ Contact: research@futuruna.com
 ## Start Here
 
 - [AI setup](https://futuruna.com/ai-setup.md): Give this guide to your AI and let it set up Futuruna with you.
-- [Guided tutorial](https://futuruna.com/docs/tutorial): Build a small synthetic tax model, prove the result, and let Futuruna expose a real contradiction.
+- [Guided tutorial](https://futuruna.com/docs/tutorial): Build a small synthetic tax model, prove the result, and audit an actual same-rule contradiction.
 - [Guided tutorial source](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/tutorial/README.md): Read the same guide as source Markdown for agents and tools.
 - [Why Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/why.md): Read why law encoding and ordinary programming belong in the same language.
 
