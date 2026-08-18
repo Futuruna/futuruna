@@ -23,9 +23,9 @@
 }
 
 = plans = [
-compile_plan("billing", "euwest", ["dry-run", "db"]),
-compile_plan("edge", "useast", ["sync"]),
-compile_plan("auth", "eucentral", ["shadow", "tokens", "audit"])
+    compile_plan("billing", "euwest", ["dry-run", "db"]),
+    compile_plan("edge", "useast", ["sync"]),
+    compile_plan("auth", "eucentral", ["shadow", "tokens", "audit"])
 ]
 
 = labels = map(plans, decorate)

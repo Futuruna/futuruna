@@ -1,4 +1,4 @@
-@ import ./pathof-types
+@ import ./pathof - types
 
 # PathofResult(value: Int)
 # CalculationField(path: String, label: String)

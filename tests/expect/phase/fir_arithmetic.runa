@@ -2,4 +2,3 @@
 -- expect-status: pass
 -- expect-stdout: let total = (1i64 + 2i64);
 = total = 1 + 2
-

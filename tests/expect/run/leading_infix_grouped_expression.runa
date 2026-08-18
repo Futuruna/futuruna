@@ -8,8 +8,8 @@
 
 | adjusted_amount(input: Adjustment) -> keep(
     input.base
-        + input.addition
-        - input.deduction
+    + input.addition
+    - input.deduction
 )
 
 = result = adjusted_amount(Adjustment(
