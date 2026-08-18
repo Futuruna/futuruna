@@ -45,3 +45,23 @@ The production custom domain belongs to the Cloudflare Pages project
 `futuruna`. The deploy wrapper pins Wrangler 4.123.0 and verifies that a
 production commit matches the freshly fetched `origin/main`. Do not deploy this
 artifact to the older `futuruna-deploy` project.
+
+## Canonical host redirect
+
+The `futuruna-www-redirect` Worker owns the `www.futuruna.com` custom domain and
+permanently redirects every request to `https://futuruna.com`, preserving the
+path and query string. Cloudflare manages the custom domain's DNS record and TLS
+certificate. Do not also attach `www.futuruna.com` to the Pages project.
+
+Test and deploy the Worker from the repository root:
+
+```sh
+node --test website/cloudflare/www-redirect/worker.test.mjs
+npx --yes wrangler@4.123.0 deploy \
+  --config website/cloudflare/www-redirect/wrangler.jsonc
+```
+
+To roll back, remove the Worker's `www.futuruna.com` custom domain, delete the
+Worker, and confirm that `www` no longer resolves. Cloudflare can retain the
+automatically issued certificate after custom-domain removal; remove that
+certificate separately from SSL/TLS settings if it is no longer needed.

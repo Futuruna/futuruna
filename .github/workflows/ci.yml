@@ -85,6 +85,9 @@ jobs:
       - name: Check website formatting
         run: cargo fmt --manifest-path website/Cargo.toml --check
 
+      - name: Test canonical host redirect
+        run: node --test website/cloudflare/www-redirect/worker.test.mjs
+
       - name: Build and verify static website
         run: ./website/scripts/build-ssg.sh
 

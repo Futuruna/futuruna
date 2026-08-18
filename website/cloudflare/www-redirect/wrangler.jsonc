@@ -1,0 +1,12 @@
+{
+  "name": "futuruna-www-redirect",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-08-18",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "www.futuruna.com",
+      "custom_domain": true
+    }
+  ]
+}
