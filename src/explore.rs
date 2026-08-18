@@ -2781,6 +2781,236 @@ fn expression_query_dependencies(
     free
 }
 
+fn expression_bare_runtime_calls(expression: &Expr) -> Vec<(String, usize)> {
+    // A pipe adds its input as the first argument at runtime.  Remember the
+    // transform roots so their nested `App` node is not also recorded with the
+    // source-only arity.
+    let mut pipe_transform_roots = BTreeSet::new();
+    walk_ast_expr(expression, &mut |child| {
+        let AstChild::Expr(expression) = child else {
+            return;
+        };
+        if let ExprKind::Pipe(_, transform) = &expression.kind {
+            pipe_transform_roots.insert(transform.as_ref() as *const Expr as usize);
+        }
+    });
+
+    let mut calls = Vec::new();
+    walk_ast_expr(expression, &mut |child| {
+        let AstChild::Expr(expression) = child else {
+            return;
+        };
+        match &expression.kind {
+            ExprKind::App(function, arguments)
+                if !pipe_transform_roots.contains(&(expression as *const Expr as usize)) =>
+            {
+                if let ExprKind::Var(name) = &function.kind {
+                    calls.push((name.clone(), arguments.len()));
+                }
+            }
+            ExprKind::Pipe(_, transform) => match &transform.kind {
+                ExprKind::Var(name) => calls.push((name.clone(), 1)),
+                ExprKind::App(function, arguments) => {
+                    if let ExprKind::Var(name) = &function.kind {
+                        calls.push((name.clone(), arguments.len() + 1));
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    });
+    calls
+}
+
+fn explore_replay_callable_identity_issue(
+    name: &str,
+    arity: usize,
+    definitions: &GroundDefinitions,
+    visiting: &mut BTreeSet<(String, usize)>,
+    validated: &mut BTreeSet<(String, usize)>,
+) -> Option<String> {
+    let key = (name.to_string(), arity);
+    if validated.contains(&key) || !visiting.insert(key.clone()) {
+        return None;
+    }
+
+    let function_arities = definitions
+        .functions
+        .iter()
+        .filter(|((candidate, _), _)| candidate == name)
+        .flat_map(|((_, arity), declarations)| std::iter::repeat_n(*arity, declarations.len()))
+        .collect::<Vec<_>>();
+    let issue = if function_arities.len() > 1 {
+        let declared_arities = function_arities
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .map(|arity| arity.to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some(format!(
+            "exploration replay cannot resolve helper `{}({} argument{})` exactly: `{}` has declarations across arities ({}), but ordinary runtime functions resolve by bare name; give every reachable helper a unique name",
+            name,
+            arity,
+            if arity == 1 { "" } else { "s" },
+            name,
+            declared_arities
+        ))
+    } else if function_arities.len() == 1 {
+        let exact = definitions.functions.get(&key);
+        if exact.is_none_or(|declarations| declarations.len() != 1) {
+            Some(format!(
+                "exploration replay call `{}({} argument{})` resolves by signature to a different callable, but a different-arity ordinary function with the same runtime name shadows it",
+                name,
+                arity,
+                if arity == 1 { "" } else { "s" }
+            ))
+        } else if definitions.bindings.contains_key(name) {
+            Some(format!(
+                "exploration replay call `{}` is shadowed by a top-level binding; ordinary runtime functions resolve by bare name",
+                name
+            ))
+        } else if definitions
+            .rules
+            .keys()
+            .any(|(candidate, _)| candidate == name)
+        {
+            Some(format!(
+                "exploration replay call `{}` is ambiguous between a function and rule sharing one runtime name",
+                name
+            ))
+        } else if definitions
+            .constructors
+            .keys()
+            .any(|(candidate, _)| candidate == name)
+        {
+            Some(format!(
+                "exploration replay call `{}` is ambiguous between a function and constructor sharing one runtime name",
+                name
+            ))
+        } else if definitions
+            .unsupported_callables
+            .keys()
+            .any(|(candidate, _)| candidate == name)
+        {
+            Some(format!(
+                "exploration replay call `{}` collides with an unsupported callable sharing one runtime name",
+                name
+            ))
+        } else if definitions.unsupported_values.contains_key(name) {
+            Some(format!(
+                "exploration replay call `{}` is shadowed by a runtime value declaration",
+                name
+            ))
+        } else if ground_intrinsic_arity(name).is_some() {
+            Some(format!(
+                "exploration replay helper `{}` shadows a built-in intrinsic with the same runtime name",
+                name
+            ))
+        } else {
+            let definition = &exact.expect("one exact helper definition")[0];
+            expression_replay_callable_identity_issue(
+                &definition.body,
+                definitions,
+                visiting,
+                validated,
+            )
+        }
+    } else if let Some(rules) = definitions.rule_definitions.get(&key) {
+        rules.iter().find_map(|rule| {
+            ground_rule_expressions(rule)
+                .into_iter()
+                .find_map(|expression| {
+                    expression_replay_callable_identity_issue(
+                        expression,
+                        definitions,
+                        visiting,
+                        validated,
+                    )
+                })
+        })
+    } else {
+        None
+    };
+
+    visiting.remove(&key);
+    if issue.is_none() {
+        validated.insert(key);
+    }
+    issue
+}
+
+fn expression_replay_callable_identity_issue(
+    expression: &Expr,
+    definitions: &GroundDefinitions,
+    visiting: &mut BTreeSet<(String, usize)>,
+    validated: &mut BTreeSet<(String, usize)>,
+) -> Option<String> {
+    expression_bare_runtime_calls(expression)
+        .into_iter()
+        .find_map(|(name, arity)| {
+            explore_replay_callable_identity_issue(&name, arity, definitions, visiting, validated)
+        })
+}
+
+fn validate_query_replay_callable_identities(
+    query: &TypedExploreQuery,
+    definitions: &GroundDefinitions,
+) -> Vec<Diagnostic> {
+    let mut diagnostics = Vec::new();
+    let mut validated = BTreeSet::new();
+    if let Some(message) = explore_replay_callable_identity_issue(
+        &query.rule_name,
+        query.rule_arity,
+        definitions,
+        &mut BTreeSet::new(),
+        &mut validated,
+    ) {
+        diagnostics.push(Diagnostic::error_at(query.span, message));
+    }
+    let mut check_expression = |expression: &Expr| {
+        if let Some(message) = expression_replay_callable_identity_issue(
+            expression,
+            definitions,
+            &mut BTreeSet::new(),
+            &mut validated,
+        ) {
+            diagnostics.push(Diagnostic::error_at(expression.span, message));
+        }
+    };
+    for bound in &query.bounds {
+        match bound {
+            TypedExploreBound::Domain { domain, .. } => match domain {
+                TypedExploreDomain::FiniteExpr { expression, .. } => check_expression(expression),
+                TypedExploreDomain::Range {
+                    start,
+                    end_exclusive,
+                } => {
+                    check_expression(start);
+                    check_expression(end_exclusive);
+                }
+                TypedExploreDomain::Values { .. } => {}
+            },
+            TypedExploreBound::Value { value, .. } => check_expression(value),
+            TypedExploreBound::Where { predicate, .. } => check_expression(predicate),
+        }
+    }
+    if let Some(boundary) = &query.boundary {
+        check_expression(&boundary.step);
+    }
+    for field in query.output.key.iter().chain(&query.output.show) {
+        check_expression(&field.value);
+    }
+    match &query.output.representative {
+        ExploreRepresentative::First { .. } => {}
+        ExploreRepresentative::Maximize { objective, .. }
+        | ExploreRepresentative::Minimize { objective, .. } => check_expression(objective),
+    }
+    diagnostics
+}
+
 fn expression_dynamic_helper_dependencies(
     expression: &Expr,
     query_local_names: &BTreeSet<String>,
@@ -3055,6 +3285,10 @@ fn elaborate_query(
     catalog: &calculate::TypeCatalog,
     definitions: GroundDefinitions,
 ) -> Result<ExploreUniverseIr, Vec<Diagnostic>> {
+    let replay_diagnostics = validate_query_replay_callable_identities(query, &definitions);
+    if !replay_diagnostics.is_empty() {
+        return Err(replay_diagnostics);
+    }
     let mut evaluator = ExploreGroundEvaluator::new(catalog, definitions.clone());
     let mut runtime_evaluator = ExploreRuntimeGroundEvaluator::new(&definitions);
     let all_local_names = query
@@ -4218,6 +4452,90 @@ mod tests {
     }
 
     #[test]
+    fn dynamic_replay_requires_one_runtime_identity_per_reachable_helper() {
+        let ambiguous = r#"
+> helper(axis: Int) -> Int { axis + 1 }
+> helper() -> Int { 99 }
+| condition(axis: Int, derived: Int) -> derived > axis
+? explore overloaded_derived {
+    over condition(axis, derived)
+    find matches
+    bounds {
+        axis in [1, 2]
+        derived = helper(axis)
+    }
+    output { key [axis] show [derived] representative first }
+}
+"#;
+        let ambiguous_artifacts = artifacts(ambiguous);
+        assert!(ambiguous_artifacts.exploration_queries.is_empty());
+        assert!(ambiguous_artifacts.exploration_universes.is_empty());
+        assert!(
+            ambiguous_artifacts
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic
+                    .message
+                    .contains("`helper` has declarations across arities (0, 1), but ordinary runtime functions resolve by bare name")),
+            "{:?}",
+            ambiguous_artifacts.diagnostics
+        );
+
+        let unique = r#"
+> helper(axis: Int) -> Int { axis + 1 }
+| condition(axis: Int, derived: Int) -> derived > axis
+? explore unique_derived {
+    over condition(axis, derived)
+    find matches
+    bounds {
+        axis in [1, 2]
+        derived = helper(axis)
+    }
+    output { key [axis] show [derived] representative first }
+}
+"#;
+        let unique_artifacts = artifacts(unique);
+        assert!(
+            unique_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            unique_artifacts.diagnostics
+        );
+        assert!(matches!(
+            &unique_artifacts.exploration_universes[0].universe.facts[0].value,
+            ExploreFactValue::Derived { dependencies, .. }
+                if dependencies == &BTreeSet::from(["axis".to_string()])
+        ));
+    }
+
+    #[test]
+    fn replay_identity_gate_covers_where_without_a_derived_helper_call() {
+        let source = r#"
+> eligible(axis: Int) -> Bool { axis > 0 }
+> eligible() -> Bool { False }
+| condition(axis: Int) -> True
+? explore overloaded_where {
+    over condition(axis)
+    find matches
+    bounds {
+        axis in [1, 2]
+        where eligible(axis)
+    }
+    output { key [axis] representative first }
+}
+"#;
+        let artifacts = artifacts(source);
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.exploration_universes.is_empty());
+        assert!(
+            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("`eligible` has declarations across arities (0, 1), but ordinary runtime functions resolve by bare name")),
+            "{:?}",
+            artifacts.diagnostics
+        );
+    }
+
+    #[test]
     fn helper_captures_cannot_bypass_bound_source_order() {
         let fixtures = [
             r#"
@@ -4291,11 +4609,16 @@ mod tests {
         for source in fixtures {
             let artifacts = artifacts(source);
             assert!(artifacts.exploration_universes.is_empty());
+            let expected = if source.contains("future_overloaded_helper_where") {
+                "ordinary runtime functions resolve by bare name"
+            } else {
+                "not yet available: later"
+            };
             assert!(
                 artifacts
                     .diagnostics
                     .iter()
-                    .any(|diagnostic| diagnostic.message.contains("not yet available: later")),
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
                 "{:?}",
                 artifacts.diagnostics
             );
