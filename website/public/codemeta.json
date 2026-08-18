@@ -3,7 +3,7 @@
   "@type": "SoftwareSourceCode",
   "@id": "https://github.com/Futuruna/futuruna",
   "name": "Futuruna",
-  "description": "Futuruna works by allowing high expressional strength through a technique called \"partitioned syntax\", that allows both law encoding and normal programming paradigms to work side by side.",
+  "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
   "version": "0.1.0",
   "url": "https://futuruna.com",
   "codeRepository": "https://github.com/Futuruna/futuruna",

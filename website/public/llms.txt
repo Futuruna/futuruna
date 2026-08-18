@@ -1,6 +1,6 @@
 # Futuruna
 
-> Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.
+> Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.
 
 A front rune gives each kind of statement its own space, so its capabilities do not have to compete with those in the language's other spaces. This gives the author more options for writing a good program while giving the reader less uncertainty about what they are reading.
 
@@ -13,13 +13,16 @@ Contact: research@futuruna.com
 - [AI setup](https://futuruna.com/ai-setup.md): Give this guide to your AI and let it set up Futuruna with you.
 - [Guided tutorial](https://futuruna.com/docs/tutorial): Build a small synthetic tax model, prove the result, and audit an actual same-rule contradiction.
 - [Guided tutorial source](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/tutorial/README.md): Read the same guide as source Markdown for agents and tools.
-- [Why Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/why.md): Read why law encoding and ordinary programming belong in the same language.
+- [Why Futuruna](https://futuruna.com/why): Read why law encoding and ordinary programming belong in the same language.
 
 ## Learn Futuruna
 
-- [Reference index](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/README.md): Read the maintained reference when you need the exact language.
-- [Language basics](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/basics.md): Learn Futuruna's ordinary programming foundations.
-- [The seven runes](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/runes.md): See how front runes give each kind of statement its own space.
+- [Reference index](https://futuruna.com/docs): Read the maintained reference when you need the exact language.
+- [Language basics](https://futuruna.com/docs/basics): Learn Futuruna's ordinary programming foundations.
+- [The seven runes](https://futuruna.com/docs): See how front runes give each kind of statement its own space.
+- [Standard library](https://futuruna.com/docs/stdlib): Browse Futuruna's maintained standard-library reference.
+- [Reactive streams](https://futuruna.com/docs/streams): Learn the stream model, operators, subscriptions, and lifetimes.
+- [Rust compatibility](https://futuruna.com/docs/rust): Read the maintained Rust interoperability and code-generation contract.
 - [Modeling style](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/style.md): Learn to keep source-backed rules, facts, assumptions, interpretations, and unknowns separate.
 - [Typed calculations](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/reference/calculations.md): Turn a typed rule model into structured inputs, interview questions, workbooks, and deterministic results.
 
@@ -38,14 +41,14 @@ Contact: research@futuruna.com
 
 ## Law, Rules, and Research
 
-- [The Philosophy of Futuruna](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/research.md): Read the deeper argument for partitioned syntax.
-- [Danish personal income tax](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/website-overblik.md): Explore the Danish Income Tax Law encoded in Futuruna and audit your own Annual Tax Report.
+- [The Philosophy of Futuruna](https://futuruna.com/research/philosophy): Read the deeper argument for partitioned syntax.
+- [Danish personal income tax](https://futuruna.com/research/personskatteloven): Explore the Danish Income Tax Law encoded in Futuruna and audit your own Annual Tax Report.
 - [Can earning one more krone leave you with less?](https://futuruna.com/research/income-cliffs): Follow an executable 2026 Danish tax exploration where one modeled commuter loses 69.47 DKK after earning one additional krone.
-- [Danish Constitution](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/webside.md): Explore the Danish Constitution encoded in Futuruna.
+- [Danish Constitution](https://futuruna.com/research/danish-constitution): Explore the Danish Constitution encoded in Futuruna.
 - [Danish Constitution audit](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/grundlov.audit.runa): Read the executable audit of the encoded Danish Constitution.
-- [US Constitution foundation](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/us-constitution/constitution.runa): Read the shared vocabulary, dates, preamble, and first rules of the encoded Constitution.
+- [US Constitution](https://futuruna.com/research/us-constitution): Read the shared vocabulary, dates, articles, and verification results of the encoded Constitution.
 - [US Constitution verification](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/us-constitution/verification.runa): See executable checks that draw the encoded articles together.
-- [Invisible Ownership](https://raw.githubusercontent.com/Futuruna/futuruna/main/docs/research-ownership.md): See how Futuruna infers Rust-level ownership without ownership annotations.
+- [Invisible Ownership](https://futuruna.com/research/ownership): See how Futuruna infers Rust-level ownership without ownership annotations.
 
 ## Project
 

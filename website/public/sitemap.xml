@@ -10,6 +10,18 @@
     <loc>https://futuruna.com/docs</loc>
   </url>
   <url>
+    <loc>https://futuruna.com/docs/basics</loc>
+  </url>
+  <url>
+    <loc>https://futuruna.com/docs/stdlib</loc>
+  </url>
+  <url>
+    <loc>https://futuruna.com/docs/streams</loc>
+  </url>
+  <url>
+    <loc>https://futuruna.com/docs/rust</loc>
+  </url>
+  <url>
     <loc>https://futuruna.com/docs/tutorial</loc>
   </url>
   <url>

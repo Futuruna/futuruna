@@ -56,6 +56,46 @@ jobs:
           components: rustfmt
       - run: cargo fmt --check
 
+  website:
+    name: Website SSG
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust and WebAssembly target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+          targets: wasm32-unknown-unknown
+
+      - name: Cache website build tools
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            website/target/
+          key: ${{ runner.os }}-website-${{ hashFiles('Cargo.lock', 'website/Cargo.lock') }}
+
+      - name: Install Dioxus CLI
+        run: cargo install dioxus-cli --version 0.7.10 --locked
+
+      - name: Check website formatting
+        run: cargo fmt --manifest-path website/Cargo.toml --check
+
+      - name: Build and verify static website
+        run: ./website/scripts/build-ssg.sh
+
+      - name: Upload generated website
+        uses: actions/upload-artifact@v4
+        with:
+          name: futuruna-website
+          path: website/target/dx/futuruna-web/release/web/public
+          if-no-files-found: error
+          retention-days: 7
+
   compatibility-guide:
     name: Compatibility guide
     runs-on: ubuntu-latest

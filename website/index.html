@@ -6,20 +6,14 @@
         <meta charset="UTF-8">
 
         <!-- SEO -->
-        <meta name="description" content="Futuruna works by allowing high expressional strength through a technique called &quot;partitioned syntax&quot;, that allows both law encoding and normal programming paradigms to work side by side.">
         <meta name="author" content="Andreas Rudolph">
         <meta name="robots" content="index, follow">
 
         <!-- Open Graph -->
-        <meta property="og:type" content="website">
-        <meta property="og:title" content="Futuruna - Law Programming">
-        <meta property="og:description" content="Futuruna works by allowing high expressional strength through a technique called &quot;partitioned syntax&quot;, that allows both law encoding and normal programming paradigms to work side by side.">
         <meta property="og:site_name" content="Futuruna">
 
         <!-- Twitter Card -->
         <meta name="twitter:card" content="summary">
-        <meta name="twitter:title" content="Futuruna - Law Programming">
-        <meta name="twitter:description" content="Futuruna works by allowing high expressional strength through a technique called &quot;partitioned syntax&quot;, that allows both law encoding and normal programming paradigms to work side by side.">
 
         <link rel="describedby" type="text/plain" href="https://futuruna.com/llms.txt">
 
@@ -34,7 +28,7 @@
                     "url": "https://futuruna.com/",
                     "name": "Futuruna",
                     "alternateName": "Futuruna - Law Programming",
-                    "description": "Futuruna works by allowing high expressional strength through a technique called \"partitioned syntax\", that allows both law encoding and normal programming paradigms to work side by side.",
+                    "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
                     "inLanguage": ["en", "da"],
                     "about": {
                         "@id": "https://futuruna.com/#language"
@@ -48,7 +42,7 @@
                     "@id": "https://futuruna.com/#language",
                     "name": "Futuruna",
                     "url": "https://futuruna.com/",
-                    "description": "Futuruna works by allowing high expressional strength through a technique called \"partitioned syntax\", that allows both law encoding and normal programming paradigms to work side by side.",
+                    "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
                     "mainEntityOfPage": {
                         "@id": "https://futuruna.com/#website"
                     },
@@ -59,7 +53,7 @@
                     "@id": "https://futuruna.com/#source",
                     "name": "Futuruna source code",
                     "url": "https://github.com/Futuruna/futuruna",
-                    "description": "Futuruna works by allowing high expressional strength through a technique called \"partitioned syntax\", that allows both law encoding and normal programming paradigms to work side by side.",
+                    "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
                     "codeRepository": "https://github.com/Futuruna/futuruna",
                     "programmingLanguage": [
                         {
@@ -104,9 +98,9 @@
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <!-- Load fonts non-blocking (prevents FOUC from @import) -->
-        <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap">
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" media="print" onload="this.media='all'">
-        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap"></noscript>
+        <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;family=Inter:wght@300;400;600;700&amp;display=swap">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;family=Inter:wght@300;400;600;700&amp;display=swap" media="print" onload="this.media='all'">
+        <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&amp;family=Inter:wght@300;400;600;700&amp;display=swap"></noscript>
         <style>
             /* Critical CSS: dark background before WASM loads */
             html, body {
@@ -347,16 +341,26 @@
         <div id="splash"><span id="splash-runes"># > | = ~ @ ?</span></div>
         <div id="main"></div>
         <script>
-            // Dismiss splash once WASM populates #main
+            // Dismiss splash for pre-rendered HTML immediately, or after CSR mounts.
             (function() {
                 var main = document.getElementById('main');
                 var splash = document.getElementById('splash');
                 if (!main || !splash) return;
+
+                function dismissSplash() {
+                    splash.classList.add('hide');
+                    setTimeout(function() { splash.remove(); }, 500);
+                }
+
+                if (main.children.length > 0) {
+                    dismissSplash();
+                    return;
+                }
+
                 var obs = new MutationObserver(function() {
                     if (main.children.length > 0) {
                         obs.disconnect();
-                        splash.classList.add('hide');
-                        setTimeout(function() { splash.remove(); }, 500);
+                        dismissSplash();
                     }
                 });
                 obs.observe(main, { childList: true });

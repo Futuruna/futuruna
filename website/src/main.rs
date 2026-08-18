@@ -6,9 +6,27 @@ use std::rc::Rc;
 const CSS: Asset = asset!("../assets/main.css");
 const LOGO: Asset = asset!("../assets/logo.svg");
 const FAVICON: Asset = asset!("../assets/favicon.svg");
+const SOCIAL_IMAGE: Asset = asset!("../assets/logo-square.png");
+const SITE_ORIGIN: &str = "https://futuruna.com";
 
 fn main() {
-    dioxus::launch(App);
+    dioxus::LaunchBuilder::new()
+        .with_cfg(server_only! {
+            dioxus::server::ServeConfig::builder()
+                .incremental(
+                    dioxus::server::IncrementalRendererConfig::new()
+                        .static_dir(
+                            std::env::current_exe()
+                                .expect("the SSG server executable path must be available")
+                                .parent()
+                                .expect("the SSG server executable must have a parent directory")
+                                .join("public"),
+                        )
+                        .clear_cache(false),
+                )
+                .enable_out_of_order_streaming()
+        })
+        .launch(App);
 }
 
 // ============================================================================
@@ -25,6 +43,14 @@ enum Route {
         PlaygroundPage {},
         #[route("/docs")]
         DocsPage {},
+        #[route("/docs/basics")]
+        DocsBasics {},
+        #[route("/docs/stdlib")]
+        DocsStdlib {},
+        #[route("/docs/streams")]
+        DocsStreams {},
+        #[route("/docs/rust")]
+        DocsRust {},
         #[route("/docs/tutorial")]
         DocsTutorial {},
         #[route("/why")]
@@ -52,23 +78,61 @@ enum Route {
     NotFound { route: Vec<String> },
 }
 
+#[server(endpoint = "static_routes", output = server_fn::codec::Json)]
+async fn static_routes() -> Result<Vec<String>, ServerFnError> {
+    Ok(Route::static_routes()
+        .iter()
+        .map(ToString::to_string)
+        .filter(|route| route != "/research/optimization")
+        .collect())
+}
+
 #[component]
 fn App() -> Element {
     rsx! { Router::<Route> {} }
 }
 
+#[component]
+fn PageMeta(
+    title: &'static str,
+    description: &'static str,
+    path: &'static str,
+    og_type: &'static str,
+) -> Element {
+    let canonical = format!("{SITE_ORIGIN}{path}");
+    let social_image = format!("{SITE_ORIGIN}{SOCIAL_IMAGE}");
+
+    rsx! {
+        document::Title { "{title}" }
+        document::Meta { name: "description", content: description }
+        document::Link { rel: "canonical", href: canonical.clone() }
+        document::Meta { property: "og:type", content: og_type }
+        document::Meta { property: "og:title", content: title }
+        document::Meta { property: "og:description", content: description }
+        document::Meta { property: "og:url", content: canonical }
+        document::Meta { property: "og:image", content: social_image.clone() }
+        document::Meta { property: "og:image:width", content: "512" }
+        document::Meta { property: "og:image:height", content: "512" }
+        document::Meta { property: "og:image:alt", content: "Futuruna logo" }
+        document::Meta { name: "twitter:title", content: title }
+        document::Meta { name: "twitter:description", content: description }
+        document::Meta { name: "twitter:image", content: social_image }
+        document::Meta { name: "twitter:image:alt", content: "Futuruna logo" }
+    }
+}
+
+#[component]
+fn ArticleMeta(published: &'static str, modified: &'static str, json_ld: &'static str) -> Element {
+    rsx! {
+        document::Meta { property: "article:published_time", content: published }
+        document::Meta { property: "article:modified_time", content: modified }
+        document::Script { r#type: "application/ld+json", "{json_ld}" }
+    }
+}
+
 /// Shared shell: head elements, nav, outlet, footer.
 #[component]
 fn Shell() -> Element {
-    let route = use_route::<Route>();
-    let route_path = format!("{}", route);
-    let metadata_route_path = route_path.clone();
-
-    use_effect(use_reactive((&route_path,), move |_| {
-        let metadata_js = route_metadata_js(&metadata_route_path);
-        dioxus::document::eval(&metadata_js);
-    }));
-
     // Inject the doc tooltip system once on mount
     use_effect(move || {
         let db_js = doc_db_js();
@@ -208,10 +272,6 @@ fn Shell() -> Element {
     rsx! {
         document::Link { rel: "stylesheet", href: CSS }
         document::Link { rel: "icon", href: FAVICON }
-        document::Link {
-            rel: "stylesheet",
-            href: "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@300;400;600;700&display=swap"
-        }
         Nav {}
         Outlet::<Route> {}
         Footer {}
@@ -230,6 +290,7 @@ fn Shell() -> Element {
 fn NotFound(route: Vec<String>) -> Element {
     rsx! {
         document::Title { "Page Not Found — Futuruna" }
+        document::Meta { name: "robots", content: "noindex, nofollow" }
         section { class: "hero",
             div { class: "hero-inner",
                 h1 { class: "hero-title", "404" }
@@ -249,8 +310,12 @@ fn NotFound(route: Vec<String>) -> Element {
 #[component]
 fn Home() -> Element {
     rsx! {
-        document::Title { "Futuruna - Law Programming" }
-        document::Meta { name: "description", content: "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space." }
+        PageMeta {
+            title: "Futuruna - Law Programming",
+            description: "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
+            path: "/",
+            og_type: "website",
+        }
         Hero {}
         Discovery {}
         AiGuide {}
@@ -2681,9 +2746,14 @@ fn PlaygroundPage() -> Element {
     };
 
     rsx! {
-        document::Title { "Playground — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Try Futuruna in your browser — write code with the seven runes, run it instantly, and explore examples from weather demos to reactive streams." }
+        PageMeta {
+            title: "Playground — Futuruna Programming Language",
+            description: "Try Futuruna in your browser — write code with the seven runes, run it instantly, and explore examples from weather demos to reactive streams.",
+            path: "/playground",
+            og_type: "website",
+        }
         div { class: "pg-page",
+            h1 { class: "visually-hidden", "Futuruna Playground" }
             aside { class: "pg-sidebar",
                 div { class: "pg-get-started",
                     h3 { class: "pg-sidebar-title", "Playground" }
@@ -2770,127 +2840,6 @@ fn serde_json_str(s: &str) -> String {
     out
 }
 
-/// Keep the client-rendered article metadata singular and remove it on navigation.
-///
-/// Dioxus document elements append to `<head>` and are not updated after their first
-/// render. The site also ships useful generic metadata in `index.html`. This route
-/// synchronizer reuses that base set for the income-cliff article instead of adding
-/// a conflicting second set.
-fn route_metadata_js(route_path: &str) -> String {
-    let is_income_cliffs = route_path == "/research/income-cliffs";
-    let title = serde_json_str(TAX_INCOME_CLIFFS_TITLE);
-    let description = serde_json_str(TAX_INCOME_CLIFFS_DESCRIPTION);
-    let json_ld = serde_json_str(TAX_INCOME_CLIFFS_JSON_LD);
-
-    format!(
-        r#"
-        (function() {{
-            var generation = (window.__futurunaRouteMetadataGeneration || 0) + 1;
-            window.__futurunaRouteMetadataGeneration = generation;
-            var isIncomeCliffs = {is_income_cliffs};
-            var title = {title};
-            var description = {description};
-            var jsonLd = {json_ld};
-            var marker = 'income-cliffs';
-
-            function setOne(key, selector, tagName, attributes) {{
-                var nodes = Array.from(document.head.querySelectorAll(selector));
-                var node = nodes.shift();
-                if (!node) {{
-                    node = document.createElement(tagName);
-                    document.head.appendChild(node);
-                }}
-                nodes.forEach(function(extra) {{ extra.remove(); }});
-                node.setAttribute('data-futuruna-base-meta', key);
-                Object.keys(attributes).forEach(function(name) {{
-                    node.setAttribute(name, attributes[name]);
-                }});
-                return node;
-            }}
-
-            function restoreOne(key, attributes) {{
-                var node = document.head.querySelector('[data-futuruna-base-meta="' + key + '"]');
-                if (!node) return;
-                Object.keys(attributes).forEach(function(name) {{
-                    node.setAttribute(name, attributes[name]);
-                }});
-                node.removeAttribute('data-futuruna-base-meta');
-            }}
-
-            function addRouteElement(tagName, attributes, text) {{
-                var node = document.createElement(tagName);
-                Object.keys(attributes).forEach(function(name) {{
-                    node.setAttribute(name, attributes[name]);
-                }});
-                node.setAttribute('data-futuruna-route-meta', marker);
-                if (text) node.textContent = text;
-                document.head.appendChild(node);
-                return node;
-            }}
-
-            function clearArticleOnlyMetadata() {{
-                document.head
-                    .querySelectorAll('[data-futuruna-route-meta="' + marker + '"]')
-                    .forEach(function(node) {{ node.remove(); }});
-            }}
-
-            function restoreSiteMetadata() {{
-                clearArticleOnlyMetadata();
-                restoreOne('description', {{
-                    name: 'description',
-                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
-                }});
-                restoreOne('og-type', {{ property: 'og:type', content: 'website' }});
-                restoreOne('og-title', {{ property: 'og:title', content: 'Futuruna - Law Programming' }});
-                restoreOne('og-description', {{
-                    property: 'og:description',
-                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
-                }});
-                restoreOne('og-site-name', {{ property: 'og:site_name', content: 'Futuruna' }});
-                restoreOne('twitter-card', {{ name: 'twitter:card', content: 'summary' }});
-                restoreOne('twitter-title', {{ name: 'twitter:title', content: 'Futuruna - Law Programming' }});
-                restoreOne('twitter-description', {{
-                    name: 'twitter:description',
-                    content: 'Futuruna works by allowing high expressional strength through a technique called "partitioned syntax", that allows both law encoding and normal programming paradigms to work side by side.'
-                }});
-            }}
-
-            function apply() {{
-                if (window.__futurunaRouteMetadataGeneration !== generation) return;
-                if (!isIncomeCliffs) {{
-                    restoreSiteMetadata();
-                    return;
-                }}
-
-                clearArticleOnlyMetadata();
-                setOne('description', 'meta[name="description"]', 'meta', {{ name: 'description', content: description }});
-                setOne('og-type', 'meta[property="og:type"]', 'meta', {{ property: 'og:type', content: 'article' }});
-                setOne('og-title', 'meta[property="og:title"]', 'meta', {{ property: 'og:title', content: title }});
-                setOne('og-description', 'meta[property="og:description"]', 'meta', {{ property: 'og:description', content: description }});
-                setOne('og-site-name', 'meta[property="og:site_name"]', 'meta', {{ property: 'og:site_name', content: 'Futuruna' }});
-                setOne('twitter-card', 'meta[name="twitter:card"]', 'meta', {{ name: 'twitter:card', content: 'summary' }});
-                setOne('twitter-title', 'meta[name="twitter:title"]', 'meta', {{ name: 'twitter:title', content: title }});
-                setOne('twitter-description', 'meta[name="twitter:description"]', 'meta', {{ name: 'twitter:description', content: description }});
-
-                document.head.querySelectorAll('link[rel="canonical"]').forEach(function(node) {{ node.remove(); }});
-                document.head.querySelectorAll('meta[property="og:url"]').forEach(function(node) {{ node.remove(); }});
-                document.head.querySelectorAll('meta[property^="article:"]').forEach(function(node) {{ node.remove(); }});
-                addRouteElement('link', {{ rel: 'canonical', href: 'https://futuruna.com/research/income-cliffs' }});
-                addRouteElement('meta', {{ property: 'og:url', content: 'https://futuruna.com/research/income-cliffs' }});
-                addRouteElement('meta', {{ property: 'article:published_time', content: '2026-08-18' }});
-                addRouteElement('meta', {{ property: 'article:modified_time', content: '2026-08-18' }});
-                addRouteElement('script', {{ type: 'application/ld+json' }}, jsonLd);
-            }}
-
-            apply();
-            window.setTimeout(apply, 0);
-            window.requestAnimationFrame(apply);
-        }})();
-        "#,
-        is_income_cliffs = if is_income_cliffs { "true" } else { "false" },
-    )
-}
-
 // ============================================================================
 // Docs page — /docs
 // ============================================================================
@@ -2904,28 +2853,46 @@ const DOC_TUTORIAL: &str = include_str!("../../docs/tutorial/README.md");
 
 struct DocPage {
     label: &'static str,
+    path: &'static str,
+    title: &'static str,
+    description: &'static str,
     content: &'static str,
 }
 
 const DOC_PAGES: &[DocPage] = &[
     DocPage {
         label: "Runes",
+        path: "/docs",
+        title: "Seven Runes — Futuruna Language Reference",
+        description: "Reference for Futuruna's seven front runes: types, functions, rules, assignments, streams, effects, and proofs.",
         content: DOC_RUNES,
     },
     DocPage {
         label: "Basics",
+        path: "/docs/basics",
+        title: "Language Basics — Futuruna Documentation",
+        description: "Learn Futuruna's basic syntax, values, control flow, functions, types, rules, effects, and modules.",
         content: DOC_BASICS,
     },
     DocPage {
         label: "Stdlib",
+        path: "/docs/stdlib",
+        title: "Standard Library — Futuruna Documentation",
+        description: "Reference for Futuruna's standard library functions, collections, strings, numbers, options, results, and stream operators.",
         content: DOC_STDLIB,
     },
     DocPage {
         label: "Streams",
+        path: "/docs/streams",
+        title: "Reactive Streams — Futuruna Documentation",
+        description: "Reference for Futuruna reactive streams, subscriptions, operators, propagation, lifetimes, and effects.",
         content: DOC_STREAMS,
     },
     DocPage {
         label: "Rust",
+        path: "/docs/rust",
+        title: "Rust Compatibility — Futuruna Documentation",
+        description: "Understand Futuruna's Rust interoperability, generated artifacts, ownership behavior, and compatibility boundaries.",
         content: DOC_RUST,
     },
 ];
@@ -2941,14 +2908,64 @@ fn md_to_html(md: &str) -> String {
     html_out
 }
 
+fn docs_markdown_for_web(md: &str) -> String {
+    md.replace("(stdlib.md)", "(/docs/stdlib)")
+        .replace("(streams.md)", "(/docs/streams)")
+        .replace(
+            "(calculations.md)",
+            "(https://github.com/Futuruna/futuruna/blob/main/docs/reference/calculations.md)",
+        )
+        .replace(
+            "(../stream-lifetimes.md)",
+            "(https://github.com/Futuruna/futuruna/blob/main/docs/stream-lifetimes.md)",
+        )
+        .replace(
+            "(../artifact-codegen-contracts.md)",
+            "(https://github.com/Futuruna/futuruna/blob/main/docs/artifact-codegen-contracts.md)",
+        )
+        .replace(
+            "(../from-rust-contract.md)",
+            "(https://github.com/Futuruna/futuruna/blob/main/docs/from-rust-contract.md)",
+        )
+}
+
 #[component]
 fn DocsPage() -> Element {
-    let mut active_doc = use_signal(|| 0usize);
-    let html_content = md_to_html(DOC_PAGES[active_doc()].content);
+    docs_page(0)
+}
+
+#[component]
+fn DocsBasics() -> Element {
+    docs_page(1)
+}
+
+#[component]
+fn DocsStdlib() -> Element {
+    docs_page(2)
+}
+
+#[component]
+fn DocsStreams() -> Element {
+    docs_page(3)
+}
+
+#[component]
+fn DocsRust() -> Element {
+    docs_page(4)
+}
+
+fn docs_page(active_doc: usize) -> Element {
+    let page = &DOC_PAGES[active_doc];
+    let markdown = docs_markdown_for_web(page.content);
+    let html_content = md_to_html(&markdown);
 
     rsx! {
-        document::Title { "Documentation — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Futuruna language reference: basics, runes, standard library, reactive streams, and Rust compatibility." }
+        PageMeta {
+            title: page.title,
+            description: page.description,
+            path: page.path,
+            og_type: "website",
+        }
         div { class: "docs-page",
             nav { class: "docs-sidebar",
                 h3 { class: "docs-sidebar-title", "Learn" }
@@ -2957,9 +2974,10 @@ fn DocsPage() -> Element {
                 h3 { class: "docs-sidebar-title", "Reference" }
                 span { class: "docs-version", "v0.1.0" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
-                    button {
-                        class: if active_doc() == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },
-                        onclick: move |_| active_doc.set(i),
+                    a {
+                        class: if active_doc == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },
+                        href: page.path,
+                        aria_current: if active_doc == i { "page" } else { "false" },
                         "{page.label}"
                     }
                 }
@@ -2977,9 +2995,12 @@ fn DocsTutorial() -> Element {
     let html_content = md_to_html_with_ids(DOC_TUTORIAL);
 
     rsx! {
-        document::Title { "Tutorial — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Build, run, trace, prove, and audit a small rule-driven Futuruna tax program." }
-        document::Link { rel: "canonical", href: "https://futuruna.com/docs/tutorial" }
+        PageMeta {
+            title: "Tutorial — Futuruna Programming Language",
+            description: "Build, run, trace, prove, and audit a small rule-driven Futuruna tax program.",
+            path: "/docs/tutorial",
+            og_type: "website",
+        }
         div { class: "docs-page",
             nav { class: "docs-sidebar docs-tutorial-sidebar",
                 h3 { class: "docs-sidebar-title", "Tutorial" }
@@ -3236,8 +3257,12 @@ fn WhyPage() -> Element {
     let html_content = md_to_html_with_ids(DOC_WHY);
 
     rsx! {
-        document::Title { "Why Futuruna — A Programming Language for Law" }
-        document::Meta { name: "description", content: "Why Futuruna brings legal rules, defaults, exceptions, verification, and ordinary programming into one execution space." }
+        PageMeta {
+            title: "Why Futuruna — A Programming Language for Law",
+            description: "Why Futuruna brings legal rules, defaults, exceptions, verification, and ordinary programming into one execution space.",
+            path: "/why",
+            og_type: "website",
+        }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Contents" }
@@ -3266,8 +3291,12 @@ fn WhyPage() -> Element {
 #[component]
 fn ResearchIndex() -> Element {
     rsx! {
-        document::Title { "Research — Futuruna Programming Language" }
-        document::Meta { name: "description", content: "Futuruna research and working models: executable constitutions, Danish tax law, language design, audits, and Rust ownership inference." }
+        PageMeta {
+            title: "Research — Futuruna Programming Language",
+            description: "Futuruna research and working models: executable constitutions, Danish tax law, language design, audits, and Rust ownership inference.",
+            path: "/research",
+            og_type: "website",
+        }
         div { class: "research-hub",
             div { class: "research-header",
                 h1 { class: "research-title", "Research" }
@@ -3374,9 +3403,12 @@ fn philosophy_article() -> Element {
     let html_content = md_to_html_with_ids(DOC_PHILOSOPHY);
 
     rsx! {
-        document::Title { "Philosophy of Futuruna — Partitioned Syntax" }
-        document::Meta { name: "description", content: "How Futuruna's front runes create partitioned syntax: independent grammatical namespaces, Shannon information, and high paradigm coverage without syntactic clutter." }
-        document::Link { rel: "canonical", href: "https://futuruna.com/research/philosophy" }
+        PageMeta {
+            title: "Philosophy of Futuruna — Partitioned Syntax",
+            description: "How Futuruna's front runes create partitioned syntax: independent grammatical namespaces, Shannon information, and high paradigm coverage without syntactic clutter.",
+            path: "/research/philosophy",
+            og_type: "website",
+        }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Philosophy" }
@@ -3407,8 +3439,12 @@ fn ResearchOwnership() -> Element {
     let html_content = md_to_html_with_ids(DOC_OWNERSHIP);
 
     rsx! {
-        document::Title { "Invisible Ownership — Futuruna Research" }
-        document::Meta { name: "description", content: "How Futuruna infers Rust-level ownership without explicit annotations — escape analysis, borrow elimination, and the Kotlin-to-Rust philosophy." }
+        PageMeta {
+            title: "Invisible Ownership — Futuruna Research",
+            description: "How Futuruna infers Rust-level ownership without explicit annotations — escape analysis, borrow elimination, and the Kotlin-to-Rust philosophy.",
+            path: "/research/ownership",
+            og_type: "website",
+        }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Ownership" }
@@ -3515,9 +3551,13 @@ fn ResearchDanishConstitution() -> Element {
         .collect();
 
     rsx! {
-        document::Title { "Danmarks Riges Grundlov | Futuruna" }
-        document::Meta { name: "description", content: "En kildefast kodeudgave af Danmarks Riges Grundlov med officiel ordlyd, domænemodel og navngivne Futuruna-regler." }
-        div { class: "why-page",
+        PageMeta {
+            title: "Danmarks Riges Grundlov | Futuruna",
+            description: "En kildefast kodeudgave af Danmarks Riges Grundlov med officiel ordlyd, domænemodel og navngivne Futuruna-regler.",
+            path: "/research/danish-constitution",
+            og_type: "website",
+        }
+        div { class: "why-page", lang: "da",
             nav { class: "why-toc const-toc",
                 h3 { class: "why-toc-title", "Grundlov" }
                 a { class: "why-toc-link research-back", href: "/research", "← Al forskning" }
@@ -3592,9 +3632,13 @@ fn ResearchDanishConstitutionAudit() -> Element {
         .collect();
 
     rsx! {
-        document::Title { "Prøvning af grundlovsmodellen | Futuruna" }
-        document::Meta { name: "description", content: "Tekstnære kontroller, grænseanalyser og navngivne fortolkningsspørgsmål for Futurunas model af Danmarks Riges Grundlov." }
-        div { class: "why-page",
+        PageMeta {
+            title: "Prøvning af grundlovsmodellen | Futuruna",
+            description: "Tekstnære kontroller, grænseanalyser og navngivne fortolkningsspørgsmål for Futurunas model af Danmarks Riges Grundlov.",
+            path: "/research/danish-constitution-audit",
+            og_type: "website",
+        }
+        div { class: "why-page", lang: "da",
             nav { class: "why-toc const-toc",
                 h3 { class: "why-toc-title", "Grundlovsprøvning" }
                 a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
@@ -3731,12 +3775,13 @@ fn ResearchPersonskatteloven() -> Element {
     let project_file_html = md_to_html_with_ids(TAX_WEBSITE_OVERVIEW_MD);
 
     rsx! {
-        document::Title { "Personskatteloven - Futuruna-forskning" }
-        document::Meta {
-            name: "description",
-            content: "Dansk personskat modelleret i Futuruna: lovtekst, kildebårne regler, deterministisk beregning, arbejdsbøger og audit i samme sprog."
+        PageMeta {
+            title: "Personskatteloven - Futuruna-forskning",
+            description: "Dansk personskat modelleret i Futuruna: lovtekst, kildebårne regler, deterministisk beregning, arbejdsbøger og audit i samme sprog.",
+            path: "/research/personskatteloven",
+            og_type: "website",
         }
-        div { class: "why-page",
+        div { class: "why-page", lang: "da",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Personskat" }
                 a { class: "why-toc-link research-back", href: "/research", "\u{2190} Al forskning" }
@@ -3768,7 +3813,17 @@ fn ResearchIncomeCliffs() -> Element {
     let html_content = md_to_html_with_ids(TAX_INCOME_CLIFFS_MD);
 
     rsx! {
-        document::Title { "{TAX_INCOME_CLIFFS_TITLE}" }
+        PageMeta {
+            title: TAX_INCOME_CLIFFS_TITLE,
+            description: TAX_INCOME_CLIFFS_DESCRIPTION,
+            path: "/research/income-cliffs",
+            og_type: "article",
+        }
+        ArticleMeta {
+            published: "2026-08-18",
+            modified: "2026-08-18",
+            json_ld: TAX_INCOME_CLIFFS_JSON_LD,
+        }
         div { class: "why-page", lang: "en",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "Income cliffs" }
@@ -3880,8 +3935,12 @@ fn ResearchUSConstitution() -> Element {
         .collect();
 
     rsx! {
-        document::Title { "US Constitution in Futuruna — Research" }
-        document::Meta { name: "description", content: "The United States Constitution encoded in Futuruna: Articles I-VII, presidential succession, and cross-file verification proofs with computable invariants." }
+        PageMeta {
+            title: "US Constitution in Futuruna — Research",
+            description: "The United States Constitution encoded in Futuruna: Articles I-VII, presidential succession, and cross-file verification proofs with computable invariants.",
+            path: "/research/us-constitution",
+            og_type: "website",
+        }
         div { class: "why-page",
             nav { class: "why-toc",
                 h3 { class: "why-toc-title", "US Const." }
