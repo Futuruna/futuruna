@@ -59,18 +59,18 @@
 
 > owner_report(owner: String, open_counts: Map(String, Int), critical_counts: Map(String, Int)) -> String {
     json_object([
-    ["owner", json_quote(owner)],
-    ["open", show(map_get_or(open_counts, owner, 0))],
-    ["critical", show(map_get_or(critical_counts, owner, 0))]
+        ["owner", json_quote(owner)],
+        ["open", show(map_get_or(open_counts, owner, 0))],
+        ["critical", show(map_get_or(critical_counts, owner, 0))]
     ])
 }
 
 = raw_events = [
-"{\"id\":\"evt-1\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":false,\"tags\":[\"login\",\"latency\"]}",
-"{\"id\":\"evt-2\",\"service\":\"billing\",\"owner\":\"bob\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"queue\"]}",
-"{\"id\":\"evt-3\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"info\",\"open\":false,\"reopened\":false,\"tags\":[\"login\"]}",
-"{\"id\":\"evt-4\",\"service\":\"edge\",\"owner\":\"cora\",\"severity\":\"warning\",\"open\":true,\"reopened\":false,\"tags\":[\"cache\",\"latency\"]}",
-"{\"id\":\"evt-5\",\"service\":\"billing\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"fraud\"]}"
+    "{\"id\":\"evt-1\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":false,\"tags\":[\"login\",\"latency\"]}",
+    "{\"id\":\"evt-2\",\"service\":\"billing\",\"owner\":\"bob\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"queue\"]}",
+    "{\"id\":\"evt-3\",\"service\":\"auth\",\"owner\":\"alice\",\"severity\":\"info\",\"open\":false,\"reopened\":false,\"tags\":[\"login\"]}",
+    "{\"id\":\"evt-4\",\"service\":\"edge\",\"owner\":\"cora\",\"severity\":\"warning\",\"open\":true,\"reopened\":false,\"tags\":[\"cache\",\"latency\"]}",
+    "{\"id\":\"evt-5\",\"service\":\"billing\",\"owner\":\"alice\",\"severity\":\"critical\",\"open\":true,\"reopened\":true,\"tags\":[\"payments\",\"fraud\"]}"
 ]
 
 = events = map(raw_events, parse_event)
@@ -91,13 +91,13 @@
 = owner_reports = map(sorted_owners, |owner| owner_report(owner, owner_counts, owner_critical_counts))
 
 = report_json = json_object([
-["openCount", show(length(open_events))],
-["criticalCount", show(length(critical_events))],
-["reopenedCount", show(length(reopened_events))],
-["services", "[" + join(map(open_services, json_quote), ",") + "]"],
-["tags", "[" + join(map(open_tags, json_quote), ",") + "]"],
-["owners", "[" + join(owner_reports, ",") + "]"],
-["severity", severity_report]
+    ["openCount", show(length(open_events))],
+    ["criticalCount", show(length(critical_events))],
+    ["reopenedCount", show(length(reopened_events))],
+    ["services", "[" + join(map(open_services, json_quote), ",") + "]"],
+    ["tags", "[" + join(map(open_tags, json_quote), ",") + "]"],
+    ["owners", "[" + join(owner_reports, ",") + "]"],
+    ["severity", severity_report]
 ])
 
 = report = json_parse(report_json)
@@ -106,26 +106,26 @@
 = tag_items = map(json_array(json_get(report, "tags")), json_string)
 = owner_items = json_array(json_get(report, "owners"))
 
-= counts_ok = json_number(json_get(report, "openCount")) == 4.0 && json_number(json_get(report, "criticalCount")) == 3.0 && json_number(json_get(report, "reopenedCount")) == 2.0
+| counts_ok: report -> json_number(json_get(report, "openCount")) == 4.0 && json_number(json_get(report, "criticalCount")) == 3.0 && json_number(json_get(report, "reopenedCount")) == 2.0
 ? counts_ok
 
-= severity_ok = json_number(json_get(severity_json, "critical")) == 3.0 && json_number(json_get(severity_json, "warning")) == 1.0 && json_get(severity_json, "info") == "null"
+| severity_ok: severity_json -> json_number(json_get(severity_json, "critical")) == 3.0 && json_number(json_get(severity_json, "warning")) == 1.0 && json_get(severity_json, "info") == "null"
 ? severity_ok
 
-= services_ok = join(service_items, ",") == "auth,billing,edge"
+| services_ok: service_items -> join(service_items, ",") == "auth,billing,edge"
 ? services_ok
 
-= tags_ok = join(tag_items, ",") == "cache,fraud,latency,login,payments,queue"
+| tags_ok: tag_items -> join(tag_items, ",") == "cache,fraud,latency,login,payments,queue"
 ? tags_ok
 
 = alice = head(owner_items)
 = bob = head(tail(owner_items))
 = cora = head(tail(tail(owner_items)))
 
-= owners_ok = length(owner_items) == 3 && json_string(json_get(alice, "owner")) == "alice" && json_number(json_get(alice, "open")) == 2.0 && json_number(json_get(alice, "critical")) == 2.0 && json_string(json_get(bob, "owner")) == "bob" && json_number(json_get(bob, "open")) == 1.0 && json_number(json_get(bob, "critical")) == 1.0 && json_string(json_get(cora, "owner")) == "cora" && json_number(json_get(cora, "open")) == 1.0 && json_number(json_get(cora, "critical")) == 0.0
+| owners_ok: owner_items -> length(owner_items) == 3 && json_string(json_get(alice, "owner")) == "alice" && json_number(json_get(alice, "open")) == 2.0 && json_number(json_get(alice, "critical")) == 2.0 && json_string(json_get(bob, "owner")) == "bob" && json_number(json_get(bob, "open")) == 1.0 && json_number(json_get(bob, "critical")) == 1.0 && json_string(json_get(cora, "owner")) == "cora" && json_number(json_get(cora, "open")) == 1.0 && json_number(json_get(cora, "critical")) == 0.0
 ? owners_ok
 
-= report_roundtrip_ok = json_emit(report) == report_json
+| report_roundtrip_ok: report -> json_emit(report) == report_json
 ? report_roundtrip_ok
 
 @ print("canary json report pipeline passed")

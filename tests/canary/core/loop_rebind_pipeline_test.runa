@@ -22,19 +22,19 @@ for value in seq {
 = deltas = collect(from_list(seq) |> pairwise |> map(|p| snd(p) - fst(p)))
 = even_terms = filter(seq, |n| n % 2 == 0)
 
-= seq_ok = seq == [2, 5, 9, 14, 20]
+| seq_ok: seq -> seq == [2, 5, 9, 14, 20]
 ? seq_ok
 
-= weighted_ok = weighted == 195
+| weighted_ok: weighted -> weighted == 195
 ? weighted_ok
 
-= deltas_ok = deltas == [3, 4, 5, 6]
+| deltas_ok: deltas -> deltas == [3, 4, 5, 6]
 ? deltas_ok
 
-= even_terms_ok = even_terms == [2, 14, 20]
+| even_terms_ok: even_terms -> even_terms == [2, 14, 20]
 ? even_terms_ok
 
-= sum_ok = sum_list(seq) == 50
+| sum_ok: seq -> sum_list(seq) == 50
 ? sum_ok
 
 @ print("canary loop rebind pipeline passed")

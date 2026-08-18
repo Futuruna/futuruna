@@ -10,9 +10,9 @@
         empty
     } else {
         foldl(split(body, ";"), empty, |acc, entry| {
-            = parts = split(entry, "=")
-            map_insert(acc, head(parts), nth(parts, 1))
-        })
+                = parts = split(entry, "=")
+                map_insert(acc, head(parts), nth(parts, 1))
+            })
     }
 }
 
@@ -76,11 +76,11 @@
 }
 
 = requests = [
-Request("/intake", "POST", "service=auth;severity=sev1;attempt=1"),
-Request("/intake", "POST", "service=billing;severity=sev2;attempt=0"),
-Request("/status", "GET", "service=auth"),
-Request("/intake", "GET", "service=auth"),
-Request("/unknown", "DELETE", "service=edge"),
+    Request("/intake", "POST", "service=auth;severity=sev1;attempt=1"),
+    Request("/intake", "POST", "service=billing;severity=sev2;attempt=0"),
+    Request("/status", "GET", "service=auth"),
+    Request("/intake", "GET", "service=auth"),
+    Request("/unknown", "DELETE", "service=edge"),
 ]
 
 = responses = map(requests, handle)
@@ -91,16 +91,16 @@ Request("/unknown", "DELETE", "service=edge"),
 = content_types = foldl(responses, empty_counts, |acc, resp| bump(acc, content_type_key(resp)))
 = owner_labels = sort(filter(map(responses, contract_owner), |owner| owner != "none"))
 
-= summaries_ok = join(summaries, "|") == "POST /intake->202:application/vnd.futuruna.contract+json:ticket=auth-sev1;owner=pager;attempt=2|POST /intake->202:application/vnd.futuruna.contract+json:ticket=billing-sev2;owner=review;attempt=1|GET /status->200:text/plain:ok:auth|GET /intake->405:text/plain:method-not-allowed:GET|DELETE /unknown->404:text/plain:not-found:/unknown"
+| summaries_ok: summaries -> join(summaries, "|") == "POST /intake->202:application/vnd.futuruna.contract+json:ticket=auth-sev1;owner=pager;attempt=2|POST /intake->202:application/vnd.futuruna.contract+json:ticket=billing-sev2;owner=review;attempt=1|GET /status->200:text/plain:ok:auth|GET /intake->405:text/plain:method-not-allowed:GET|DELETE /unknown->404:text/plain:not-found:/unknown"
 ? summaries_ok
 
-= statuses_ok = counts_csv(status_counts) == "200:1,202:2,404:1,405:1"
+| statuses_ok: status_counts -> counts_csv(status_counts) == "200:1,202:2,404:1,405:1"
 ? statuses_ok
 
-= content_types_ok = counts_csv(content_types) == "application/vnd.futuruna.contract+json:2,text/plain:3"
+| content_types_ok: content_types -> counts_csv(content_types) == "application/vnd.futuruna.contract+json:2,text/plain:3"
 ? content_types_ok
 
-= owners_ok = join(owner_labels, ",") == "pager,review"
+| owners_ok: owner_labels -> join(owner_labels, ",") == "pager,review"
 ? owners_ok
 
 @ print("canary http handler contract passed")

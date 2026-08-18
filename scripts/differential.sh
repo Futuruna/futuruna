@@ -178,9 +178,9 @@ EOF
 }
 
 = jobs = [
-make_job("alpha", ${base_a}),
-make_job("beta", ${base_b}),
-make_job("gamma", ${base_c})
+    make_job("alpha", ${base_a}),
+    make_job("beta", ${base_b}),
+    make_job("gamma", ${base_c})
 ]
 
 = labels = map(jobs, label)

@@ -16534,9 +16534,6 @@ struct TypeRegistry {
     prolog_rule_groups: BTreeMap<String, Vec<Rule>>,
     /// Value-returning Prolog rule functions: fn_name -> return type (e.g., "String")
     prolog_value_fns: BTreeMap<String, String>,
-    /// Typed rule functions: fn_name -> type_name (for findall enumeration)
-    /// e.g., "is_pet" -> "Animal" for | is_pet(a: Animal) -> true
-    typed_rule_types: BTreeMap<String, String>,
     /// Simple literal = bindings at top level: name -> (rust_literal, rust_type)
     literal_bindings: BTreeMap<String, (String, String)>,
     /// M26: Types with `@ store` annotation
@@ -16616,7 +16613,6 @@ impl TypeRegistry {
             prolog_rule_fns: BTreeMap::new(),
             prolog_rule_groups: BTreeMap::new(),
             prolog_value_fns: BTreeMap::new(),
-            typed_rule_types: BTreeMap::new(),
             literal_bindings: BTreeMap::new(),
             stored_types: BTreeSet::new(),
             stored_type_key_field: BTreeMap::new(),
@@ -22642,7 +22638,7 @@ impl RustCodegen {
         import_path: &str,
         dir: &str,
         seen: &mut BTreeSet<String>,
-    ) -> (Vec<Stmt>, String) {
+    ) -> (Vec<Stmt>, String, Option<String>) {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
@@ -22653,14 +22649,14 @@ impl RustCodegen {
             let canon = std::fs::canonicalize(&file_path)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
-            if !seen.insert(canon) {
-                return (Vec::new(), dir.to_string());
+            if !seen.insert(canon.clone()) {
+                return (Vec::new(), dir.to_string(), Some(canon));
             }
             let resolved_dir = std::path::Path::new(&file_path)
                 .parent()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| dir.to_string());
-            return (Self::parse_tau_file(&file_path), resolved_dir);
+            return (Self::parse_tau_file(&file_path), resolved_dir, Some(canon));
         }
 
         if let Some(toml_path) = find_runa_toml(&dir) {
@@ -22685,7 +22681,7 @@ impl RustCodegen {
                     if name == dep_name {
                         let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
                             Some(p) => p,
-                            None => return (Vec::new(), dir.to_string()),
+                            None => return (Vec::new(), dir.to_string(), None),
                         };
                         let dep_file = format!("{}/{}.runa", abs_dep, module);
                         let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
@@ -22701,20 +22697,20 @@ impl RustCodegen {
                             );
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string());
+                            return (Vec::new(), dir.to_string(), None);
                         };
 
                         let canon = std::fs::canonicalize(&resolved)
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or(resolved.clone());
-                        if !seen.insert(canon) {
-                            return (Vec::new(), dir.to_string());
+                        if !seen.insert(canon.clone()) {
+                            return (Vec::new(), dir.to_string(), Some(canon));
                         }
                         let resolved_dir = std::path::Path::new(&resolved)
                             .parent()
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or_else(|| dir.to_string());
-                        return (Self::parse_tau_file(&resolved), resolved_dir);
+                        return (Self::parse_tau_file(&resolved), resolved_dir, Some(canon));
                     }
                 }
             }
@@ -22723,14 +22719,14 @@ impl RustCodegen {
         let canon = std::fs::canonicalize(&file_path)
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
-        if !seen.insert(canon) {
-            return (Vec::new(), dir.to_string());
+        if !seen.insert(canon.clone()) {
+            return (Vec::new(), dir.to_string(), Some(canon));
         }
         let resolved_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| dir.to_string());
-        (Self::parse_tau_file(&file_path), resolved_dir)
+        (Self::parse_tau_file(&file_path), resolved_dir, Some(canon))
     }
 
     /// Parse a .runa file without import-cycle tracking (for hash imports).
@@ -23300,8 +23296,14 @@ impl RustCodegen {
                     let Stmt::Import(path) = stmt else {
                         unreachable!("import classifier drifted for nested plain import")
                     };
-                    let (nested, nested_dir) =
+                    let (nested, nested_dir, canonical) =
                         self.resolve_import_from_dir_uncached(&path, import_dir, seen);
+                    if canonical
+                        .as_ref()
+                        .map_or(false, |path| self.imported.contains(path))
+                    {
+                        continue;
+                    }
                     self.expand_module_import_body(nested, &nested_dir, body, seen);
                 }
                 ImportedStmtExpansion::NestedQualifiedImport => {
@@ -23347,7 +23349,7 @@ impl RustCodegen {
         import_dir: &str,
         seen: &mut BTreeSet<String>,
     ) -> Stmt {
-        let (imported, resolved_dir) =
+        let (imported, resolved_dir, _) =
             self.resolve_import_from_dir_uncached(path, import_dir, seen);
         let mod_exported = self.collect_exported_names_from_stmts(&imported);
         for name in &mod_exported {
@@ -23374,12 +23376,20 @@ impl RustCodegen {
         self.types.root_exported_names.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
         let root_dir = self.source_dir.clone().unwrap_or_default();
+
+        // Root flat imports establish the parent module's canonical type identity.
+        // Resolve them before qualified modules so source order cannot cause a
+        // qualified module to emit a second Rust type for the same dependency.
+        for stmt in stmts {
+            if let Stmt::Import(path) = stmt {
+                let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
+                self.expand_plain_import_stmts(imported, &import_dir, &mut all_stmts);
+            }
+        }
+
         for stmt in stmts {
             match stmt {
-                Stmt::Import(path) => {
-                    let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
-                    self.expand_plain_import_stmts(imported, &import_dir, &mut all_stmts);
-                }
+                Stmt::Import(_) => {}
                 Stmt::Use(_) => all_stmts.push(stmt.clone()),
                 Stmt::QualifiedImport(mod_name, path) => {
                     all_stmts
@@ -26559,25 +26569,6 @@ impl RustCodegen {
                     rules.iter().map(|rule| (*rule).clone()).collect(),
                 );
                 let arity = Self::rule_arity(rules);
-                for r in rules.iter() {
-                    let head = match r {
-                        Rule::Clause { head, .. }
-                        | Rule::Default { head, .. }
-                        | Rule::Exception { head, .. } => head,
-                        Rule::ReactiveScope { .. } => continue,
-                    };
-                    if let ExprKind::App(_, args) = &head.kind {
-                        for arg in args {
-                            if let Some((_, type_name)) = Self::typed_rule_arg_parts(arg) {
-                                if let Ok(Ty::Name(type_name)) = parse_type_annotation(type_name) {
-                                    self.types
-                                        .typed_rule_types
-                                        .insert(fn_name.clone(), type_name);
-                                }
-                            }
-                        }
-                    }
-                }
                 if arity > 0 && Self::rules_have_prolog_features(rules) {
                     let mut param_types: Vec<String> = vec!["String".to_string(); arity];
                     // Infer from ground terms in fact heads
@@ -32873,6 +32864,40 @@ impl RustCodegen {
         None
     }
 
+    fn typed_rule_param_type(&self, fn_name: &str, position: usize) -> Option<String> {
+        self.types
+            .prolog_rule_groups
+            .get(fn_name)?
+            .iter()
+            .find_map(|rule| {
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => return None,
+                };
+                let ExprKind::App(_, params) = &head.kind else {
+                    return None;
+                };
+                let (_, type_name) = Self::typed_rule_arg_parts(params.get(position)?)?;
+                Some(type_name.to_string())
+            })
+    }
+
+    fn finite_nullary_variants(&self, type_name: &str) -> Option<Vec<String>> {
+        let (_, variants) = self.types.type_decls.get(type_name)?;
+        variants
+            .iter()
+            .map(|variant| {
+                self.types
+                    .variant_fields_by_parent
+                    .get(&(type_name.to_string(), variant.clone()))
+                    .filter(|fields| !fields.is_empty())
+                    .map_or_else(|| Some(variant.clone()), |_| None)
+            })
+            .collect()
+    }
+
     /// Emit findall(template_var, goal) as a Rust expression.
     /// findall(c, parent("bob", c)) → iterate PARENT_FACTS, collect matching values.
     fn emit_findall(&mut self, template: &Expr, goal: &Expr) -> String {
@@ -32935,39 +32960,37 @@ impl RustCodegen {
                     .unwrap_or_else(|| "i64".to_string());
                 let template_is_copy = Self::rust_rule_param_type_is_copy(&template_ty);
 
-                // Typed rules: enumerate type variants instead of fact table
-                if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
-                    let variant_names: Vec<&String> = self
-                        .types
-                        .variant_parent
-                        .iter()
-                        .filter(|(_, parent)| **parent == type_name)
-                        .map(|(name, _)| name)
-                        .collect();
-                    let items: Vec<String> = variant_names
-                        .iter()
-                        .map(|v| format!("{}::{}", type_name, v))
-                        .collect();
-                    return format!("vec![{}]", items.join(", "));
+                // A typed template parameter has a finite search space when its
+                // type is a nullary enum. Evaluate the actual rule for every
+                // candidate so conditions and exceptions remain observable.
+                if let Some(type_name) = self.typed_rule_param_type(&fn_name, t_pos) {
+                    if let Some(variant_names) = self.finite_nullary_variants(&type_name) {
+                        let items: Vec<String> = variant_names
+                            .iter()
+                            .map(|variant| format!("{}::{}", type_name, variant))
+                            .collect();
+                        let call_args: Vec<String> = goal_args
+                            .iter()
+                            .enumerate()
+                            .map(|(position, arg)| {
+                                if position == t_pos {
+                                    "(*__candidate).clone()".to_string()
+                                } else {
+                                    self.emit_expr(arg)
+                                }
+                            })
+                            .collect();
+                        return format!(
+                            "vec![{}].into_iter().filter(|__candidate| {}({})).collect::<Vec<_>>()",
+                            items.join(", "),
+                            sanitize_name(&fn_name),
+                            call_args.join(", ")
+                        );
+                    }
                 }
 
                 // For rules that have no fact table (only variable-head rules)
                 if !self.types.prolog_rule_fns.contains_key(&fn_name) {
-                    if let Some(type_name) = self.types.typed_rule_types.get(&fn_name).cloned() {
-                        // Typed rule: enumerate all variants of the type
-                        let variant_names: Vec<&String> = self
-                            .types
-                            .variant_parent
-                            .iter()
-                            .filter(|(_, parent)| **parent == type_name)
-                            .map(|(name, _)| name)
-                            .collect();
-                        let items: Vec<String> = variant_names
-                            .iter()
-                            .map(|v| format!("{}::{}", type_name, v))
-                            .collect();
-                        return format!("vec![{}]", items.join(", "));
-                    }
                     return "vec![]".to_string(); // can't iterate non-fact rules
                 }
 
@@ -53223,6 +53246,54 @@ readings <- "score"
 
         let _ = std::fs::remove_file(&dep_path);
         let _ = std::fs::remove_file(&main_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_flat_and_qualified_imports_share_nested_type_identity() {
+        let temp_name = format!(
+            "futuruna_shared_import_type_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).unwrap();
+
+        std::fs::write(
+            temp_dir.join("types.runa"),
+            "@ export\n# Item = Item(String)\n@ export\n> item_name(item: Item) -> String { match item { | Item(name) -> name } }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("shared.runa"),
+            "@ import ./types\n@ export\n> make_item(name: String) -> Item { Item(name) }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("policy.runa"),
+            "@ import ./types\n@ export\n> label(item: Item) -> String { \"policy:\" + item_name(item) }\n",
+        )
+        .unwrap();
+
+        let flat_first = temp_dir.join("flat_first.runa");
+        std::fs::write(
+            &flat_first,
+            "@ import ./shared\n@ import Policy from ./policy\n= item = make_item(\"one\")\n@ print(Policy.label(item))\n",
+        )
+        .unwrap();
+        assert_eq!(compile_and_run_test_file(&flat_first), "policy:one\n");
+
+        let qualified_first = temp_dir.join("qualified_first.runa");
+        std::fs::write(
+            &qualified_first,
+            "@ import Policy from ./policy\n@ import ./shared\n= item = make_item(\"two\")\n@ print(Policy.label(item))\n",
+        )
+        .unwrap();
+        assert_eq!(compile_and_run_test_file(&qualified_first), "policy:two\n");
+
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
 

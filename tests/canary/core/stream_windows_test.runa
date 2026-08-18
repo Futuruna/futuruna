@@ -13,22 +13,22 @@
 = swing_count = count(swings)
 = first_delta = first(deltas)
 
-= delta_list_ok = delta_list == [3, -1, 6, 3, -2]
+| delta_list_ok: delta_list -> delta_list == [3, -1, 6, 3, -2]
 ? delta_list_ok
 
-= anchored_list_ok = anchored_list == [0, 3, -1, 6, 3, -2]
+| anchored_list_ok: anchored_list -> anchored_list == [0, 3, -1, 6, 3, -2]
 ? anchored_list_ok
 
-= rolling_sums_ok = rolling_sums == [35, 43, 51, 58]
+| rolling_sums_ok: rolling_sums -> rolling_sums == [35, 43, 51, 58]
 ? rolling_sums_ok
 
-= delta_total_ok = delta_total == 9
+| delta_total_ok: delta_total -> delta_total == 9
 ? delta_total_ok
 
-= swing_count_ok = swing_count == 3
+| swing_count_ok: swing_count -> swing_count == 3
 ? swing_count_ok
 
-= first_delta_ok = first_delta == 3
+| first_delta_ok: first_delta -> first_delta == 3
 ? first_delta_ok
 
 @ print("canary stream windows passed")

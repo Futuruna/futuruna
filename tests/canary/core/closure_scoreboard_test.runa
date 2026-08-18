@@ -13,19 +13,19 @@
 = remainder_entries = filter(map_entries(scores), |p| snd(p) < promotion_cutoff)
 = top = head(ranking)
 
-= scores_ok = map_get_or(scores, "alfa", 0) == 11 && map_get_or(scores, "beta", 0) == 10 && map_get_or(scores, "gamma", 0) == 7
+| scores_ok: scores -> map_get_or(scores, "alfa", 0) == 11 && map_get_or(scores, "beta", 0) == 10 && map_get_or(scores, "gamma", 0) == 7
 ? scores_ok
 
-= ranking_ok = fst(top) == "alfa" && snd(top) == 11
+| ranking_ok: top -> fst(top) == "alfa" && snd(top) == 11
 ? ranking_ok
 
-= promoted_ok = promoted_names == ["alfa", "beta"]
+| promoted_ok: promoted_names -> promoted_names == ["alfa", "beta"]
 ? promoted_ok
 
-= split_ok = length(promoted_entries) == 2 && length(remainder_entries) == 1
+| split_ok: promoted_entries -> length(promoted_entries) == 2 && length(remainder_entries) == 1
 ? split_ok
 
-= order_ok = map(ranking, |p| fst(p)) == ["alfa", "beta", "gamma"]
+| order_ok: ranking -> map(ranking, |p| fst(p)) == ["alfa", "beta", "gamma"]
 ? order_ok
 
 @ print("canary closure scoreboard passed")

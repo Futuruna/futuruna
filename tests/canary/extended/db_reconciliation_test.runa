@@ -16,24 +16,24 @@
 
 > collect_qtys(counts: Map(String, Int), rows: List(List(String))) -> Map(String, Int) {
     foldl(rows, counts, |acc, row| {
-        = key = row_key(row)
-        map_insert(acc, key, map_get_or(acc, key, 0) + row_qty(row))
-    })
+            = key = row_key(row)
+            map_insert(acc, key, map_get_or(acc, key, 0) + row_qty(row))
+        })
 }
 
 > mismatch_labels(imported_rows: List(List(String)), expected_rows: List(List(String))) -> String {
     = empty_counts: Map(String, Int) = map_new()
     = imported_totals = collect_qtys(empty_counts, imported_rows)
     = labels = map(expected_rows, |row| {
-        = key = row_key(row)
-        = expected_qty = row_qty(row)
-        = imported_qty = map_get_or(imported_totals, key, 0)
-        if expected_qty == imported_qty {
-            ""
-        } else {
-            key + ":expected=" + show(expected_qty) + ":imported=" + show(imported_qty)
-        }
-    })
+            = key = row_key(row)
+            = expected_qty = row_qty(row)
+            = imported_qty = map_get_or(imported_totals, key, 0)
+            if expected_qty == imported_qty {
+                ""
+            } else {
+                key + ":expected=" + show(expected_qty) + ":imported=" + show(imported_qty)
+            }
+        })
     join(filter(labels, |label| label != ""), "|")
 }
 
@@ -60,39 +60,39 @@
 = imported_count_row = db_query_row(db, "SELECT COUNT(*) FROM imported_rows")
 = edge_expected_row = db_query_row(db, "SELECT qty FROM expected_orders WHERE order_id = 'ord-101' AND sku = 'sku-edge'")
 = matched_keys = sort(filter(map_keys(imported_totals), |key| {
-    = imported_qty = map_get_or(imported_totals, key, 0)
-    if key == "ord-100:sku-auth" {
-        imported_qty == 4
-    } else if key == "ord-100:sku-db" {
-        imported_qty == 3
-    } else if key == "ord-101:sku-edge" {
-        imported_qty == parse_int(head(edge_expected_row))
-    } else if key == "ord-102:sku-bill" {
-        imported_qty == 2
-    } else {
-        false
-    }
-}))
+        = imported_qty = map_get_or(imported_totals, key, 0)
+        if key == "ord-100:sku-auth" {
+            imported_qty == 4
+        } else if key == "ord-100:sku-db" {
+            imported_qty == 3
+        } else if key == "ord-101:sku-edge" {
+            imported_qty == parse_int(head(edge_expected_row))
+        } else if key == "ord-102:sku-bill" {
+            imported_qty == 2
+        } else {
+            false
+        }
+    }))
 
-= imported_rows_ok = join(map(imported_rows, |row| row_key(row) + ":" + show(row_qty(row))), ",") == "ord-100:sku-auth:4,ord-100:sku-db:2,ord-101:sku-edge:1,ord-101:sku-edge:4,ord-102:sku-bill:1"
+| imported_rows_ok: imported_rows -> join(map(imported_rows, |row| row_key(row) + ":" + show(row_qty(row))), ",") == "ord-100:sku-auth:4,ord-100:sku-db:2,ord-101:sku-edge:1,ord-101:sku-edge:4,ord-102:sku-bill:1"
 ? imported_rows_ok
 
-= expected_rows_ok = join(map(expected_rows, |row| row_key(row) + ":" + show(row_qty(row))), ",") == "ord-100:sku-auth:4,ord-100:sku-db:3,ord-101:sku-edge:5,ord-102:sku-bill:2"
+| expected_rows_ok: expected_rows -> join(map(expected_rows, |row| row_key(row) + ":" + show(row_qty(row))), ",") == "ord-100:sku-auth:4,ord-100:sku-db:3,ord-101:sku-edge:5,ord-102:sku-bill:2"
 ? expected_rows_ok
 
-= imported_count_ok = head(imported_count_row) == "5"
+| imported_count_ok: imported_count_row -> head(imported_count_row) == "5"
 ? imported_count_ok
 
-= edge_expected_ok = head(edge_expected_row) == "5"
+| edge_expected_ok: edge_expected_row -> head(edge_expected_row) == "5"
 ? edge_expected_ok
 
-= totals_ok = counts_csv(imported_totals) == "ord-100:sku-auth:4,ord-100:sku-db:2,ord-101:sku-edge:5,ord-102:sku-bill:1"
+| totals_ok: imported_totals -> counts_csv(imported_totals) == "ord-100:sku-auth:4,ord-100:sku-db:2,ord-101:sku-edge:5,ord-102:sku-bill:1"
 ? totals_ok
 
-= mismatches_ok = mismatch_labels(imported_rows, expected_rows) == "ord-100:sku-db:expected=3:imported=2|ord-102:sku-bill:expected=2:imported=1"
+| mismatches_ok: imported_rows -> mismatch_labels(imported_rows, expected_rows) == "ord-100:sku-db:expected=3:imported=2|ord-102:sku-bill:expected=2:imported=1"
 ? mismatches_ok
 
-= matched_keys_ok = join(matched_keys, ",") == "ord-100:sku-auth,ord-101:sku-edge"
+| matched_keys_ok: matched_keys -> join(matched_keys, ",") == "ord-100:sku-auth,ord-101:sku-edge"
 ? matched_keys_ok
 
 @ db_close(db)

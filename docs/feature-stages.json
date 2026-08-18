@@ -19,6 +19,7 @@
       "docs": [
         "docs/reference/basics.md",
         "docs/reference/runes.md",
+        "docs/tutorial/README.md",
         "docs/tutorial/01-hello.md",
         "docs/tutorial/02-types.md",
         "docs/tutorial/03-functions.md"
@@ -190,7 +191,8 @@
       "name": "Style, legal modeling, and audit workflow guidance",
       "stage": "preview",
       "docs": [
-        "docs/reference/style.md"
+        "docs/reference/style.md",
+        "docs/tutorial/README.md"
       ]
     },
     {
@@ -212,7 +214,8 @@
       "stage": "preview",
       "docs": [
         "docs/reference/style.md",
-        "docs/rfcs/typed-program-references.md"
+        "docs/rfcs/typed-program-references.md",
+        "docs/tutorial/README.md"
       ]
     },
     {
@@ -240,6 +243,7 @@
       ],
       "docs": [
         "docs/reference/style.md",
+        "docs/tutorial/README.md",
         "docs/tutorial/07-project.md"
       ]
     },
@@ -527,6 +531,16 @@
       "stage": "preview",
       "surfaces": [
         "style-and-modeling-guidance",
+        "source-meta-comment-tooling",
+        "typed-program-references",
+        "exploratory-audit-tooling"
+      ]
+    },
+    {
+      "path": "docs/tutorial/README.md",
+      "stage": "mixed",
+      "surfaces": [
+        "core-language-syntax",
         "source-meta-comment-tooling",
         "typed-program-references",
         "exploratory-audit-tooling"

@@ -33,8 +33,8 @@
 = high_risk = filter(blended, |score| score >= 40)
 = review_batches = chunked(high_risk, 2)
 = batch_labels = map(enumerate(review_batches), |entry| {
-    "slot-" + show(fst(entry) + 1) + ":" + join(map(snd(entry), |n| show(n)), "+")
-})
+        "slot-" + show(fst(entry) + 1) + ":" + join(map(snd(entry), |n| show(n)), "+")
+    })
 = escalation_score = foldl(high_risk, 0, |acc, score| acc + score)
 = audit_bonus = 12
 = raw_priority = escalation_score + audit_bonus

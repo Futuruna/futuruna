@@ -24,9 +24,9 @@
 }
 
 = plans = [
-("billing api", "euwest", ["dry-run", "db"]),
-("edge cache", "useast", ["sync"]),
-("auth worker", "eucentral", ["shadow", "audit", "tokens"])
+    ("billing api", "euwest", ["dry-run", "db"]),
+    ("edge cache", "useast", ["sync"]),
+    ("auth worker", "eucentral", ["shadow", "audit", "tokens"])
 ]
 
 = summaries = map(plans, summarize)
@@ -37,22 +37,22 @@
 = risk_counts = foldl(scores, empty_counts, |acc, score| bump(acc, risk_marker(score)))
 = checkpoints = sort(set_to_list(set_from_list(map(plans, |plan| checkpoint_suffix(snd(plan))))))
 
-= imported_probe_ok = imported_probe == "billing-api@eu:dry-run"
+| imported_probe_ok: imported_probe -> imported_probe == "billing-api@eu:dry-run"
 ? imported_probe_ok
 
-= threshold_ok = Catalog.review_threshold == 14
+| threshold_ok: Catalog.review_threshold -> Catalog.review_threshold == 14
 ? threshold_ok
 
-= summaries_ok = join(summaries, "|") == "eu:billing-api@eu:review:hot:gate-eu|gl:edge-cache@us:ship:warm:gate-gl|eu:auth-worker@eu:review:hot:gate-eu"
+| summaries_ok: summaries -> join(summaries, "|") == "eu:billing-api@eu:review:hot:gate-eu|gl:edge-cache@us:ship:warm:gate-gl|eu:auth-worker@eu:review:hot:gate-eu"
 ? summaries_ok
 
-= lanes_ok = counts_csv(lane_counts) == "review:2,ship:1"
+| lanes_ok: lane_counts -> counts_csv(lane_counts) == "review:2,ship:1"
 ? lanes_ok
 
-= risks_ok = counts_csv(risk_counts) == "hot:2,warm:1"
+| risks_ok: risk_counts -> counts_csv(risk_counts) == "hot:2,warm:1"
 ? risks_ok
 
-= checkpoints_ok = join(checkpoints, ",") == "gate-eu,gate-gl"
+| checkpoints_ok: checkpoints -> join(checkpoints, ",") == "gate-eu,gate-gl"
 ? checkpoints_ok
 
 @ print("canary import mesh passed")

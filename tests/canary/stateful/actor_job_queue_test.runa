@@ -57,38 +57,38 @@ queue <- Enqueue("score")
 queue <- Enqueue("notify")
 
 = first_pick = ask(queue, StartNext)
-= first_pick_ok = queue_snapshot(first_pick) == "pending=score>notify|active=ingest|done=-"
+| first_pick_ok: first_pick -> queue_snapshot(first_pick) == "pending=score>notify|active=ingest|done=-"
 ? first_pick_ok
 
 queue <- FinishActive
 = second_pick = ask(queue, StartNext)
-= second_pick_ok = queue_snapshot(second_pick) == "pending=notify|active=score|done=ingest"
+| second_pick_ok: second_pick -> queue_snapshot(second_pick) == "pending=notify|active=score|done=ingest"
 ? second_pick_ok
 
 = queued_mid = ask(queue, Enqueue("archive"))
-= queued_mid_ok = queue_snapshot(queued_mid) == "pending=notify>archive|active=score|done=ingest"
+| queued_mid_ok: queued_mid -> queue_snapshot(queued_mid) == "pending=notify>archive|active=score|done=ingest"
 ? queued_mid_ok
 
 queue <- FinishActive
 = third_pick = ask(queue, StartNext)
-= third_pick_ok = queue_snapshot(third_pick) == "pending=archive|active=notify|done=ingest>score"
+| third_pick_ok: third_pick -> queue_snapshot(third_pick) == "pending=archive|active=notify|done=ingest>score"
 ? third_pick_ok
 
 queue <- FinishActive
 = fourth_pick = ask(queue, StartNext)
-= fourth_pick_ok = queue_snapshot(fourth_pick) == "pending=-|active=archive|done=ingest>score>notify"
+| fourth_pick_ok: fourth_pick -> queue_snapshot(fourth_pick) == "pending=-|active=archive|done=ingest>score>notify"
 ? fourth_pick_ok
 
 queue <- FinishActive
 = drained = ask(queue, StartNext)
-= drained_ok = queue_snapshot(drained) == "pending=-|active=idle|done=ingest>score>notify>archive"
+| drained_ok: drained -> queue_snapshot(drained) == "pending=-|active=idle|done=ingest>score>notify>archive"
 ? drained_ok
 
-= unique_done_ok = set_len(set_from_list(drained.done)) == 4
+| unique_done_ok: drained.done -> set_len(set_from_list(drained.done)) == 4
 ? unique_done_ok
 
 = reset_state = ask(queue, Reset)
-= reset_ok = queue_snapshot(reset_state) == "pending=-|active=idle|done=-"
+| reset_ok: reset_state -> queue_snapshot(reset_state) == "pending=-|active=idle|done=-"
 ? reset_ok
 
 @ print("canary actor job queue passed")

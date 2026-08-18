@@ -54,22 +54,22 @@
 = report = top_level_report()
 = vip_score = lane_score(3)
 
-= stage_count_ok = stage_count == 4 && decision_cutoff == 32
+| stage_count_ok: stage_count -> stage_count == 4 && decision_cutoff == 32
 ? stage_count_ok
 
-= labels_ok = labels_csv == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9"
+| labels_ok: labels_csv -> labels_csv == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9"
 ? labels_ok
 
-= total_ok = total == 32
+| total_ok: total -> total == 32
 ? total_ok
 
-= decision_ok = decision == "expand"
+| decision_ok: decision -> decision == "expand"
 ? decision_ok
 
-= vip_ok = vip_score == 9
+| vip_ok: vip_score -> vip_score == 9
 ? vip_ok
 
-= report_ok = report == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9 => expand"
+| report_ok: report -> report == "plan-north:7|plan-east:8|plan-west:8|plan-vip:9 => expand"
 ? report_ok
 
 @ print("canary top level mesh passed")

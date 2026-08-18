@@ -20,10 +20,10 @@
     }
 } in review_batch("alpha", "beta")
 
-= results_ok = join(results, "|") == "ship:green|review:slow"
+| results_ok: results -> join(results, "|") == "ship:green|review:slow"
 ? results_ok
 
-= labels_ok = EffectPolicy.label_summary(results) == "ship,review"
+| labels_ok: results -> EffectPolicy.label_summary(results) == "ship,review"
 ? labels_ok
 
 @ print("downstream effect consumer passed")

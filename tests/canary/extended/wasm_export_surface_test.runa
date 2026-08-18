@@ -68,22 +68,22 @@
 
 = canary_scores = [13, 21, 34]
 
-= bucket_ok = wasm_bucket(12, 5) == 48 && wasm_bucket(0, 0) == 7
+| bucket_ok: wasm_bucket(12, 5) -> wasm_bucket(12, 5) == 48 && wasm_bucket(0, 0) == 7
 ? bucket_ok
 
-= ratio_ok = wasm_ratio(21.0, 3.0) == 7.0 && wasm_ratio(8.0, 0.0) == 0.0
+| ratio_ok: wasm_ratio(21.0, 3.0) -> wasm_ratio(21.0, 3.0) == 7.0 && wasm_ratio(8.0, 0.0) == 0.0
 ? ratio_ok
 
-= greeting_ok = wasm_greeting("  Ada  ", 35) == "Hello Ada:42"
+| greeting_ok: wasm_greeting("  Ada  ", 35) -> wasm_greeting("  Ada  ", 35) == "Hello Ada:42"
 ? greeting_ok
 
-= list_surface_ok = wasm_is_passing(canary_scores, 68) && !wasm_is_passing(canary_scores, 69) && show(wasm_shift_scores(canary_scores, 2)) == "[15, 23, 36]"
+| list_surface_ok: canary_scores -> wasm_is_passing(canary_scores, 68) && !wasm_is_passing(canary_scores, 69) && show(wasm_shift_scores(canary_scores, 2)) == "[15, 23, 36]"
 ? list_surface_ok
 
-= option_surface_ok = bucket_text(wasm_maybe_bucket(4)) == "19" && bucket_text(wasm_maybe_bucket(-1)) == "none"
+| option_surface_ok: wasm_maybe_bucket(4) -> bucket_text(wasm_maybe_bucket(4)) == "19" && bucket_text(wasm_maybe_bucket(-1)) == "none"
 ? option_surface_ok
 
-= zero_arg_ok = wasm_surface_version() == "futuruna-wasm-surface-v1"
+| zero_arg_ok: wasm_surface_version() -> wasm_surface_version() == "futuruna-wasm-surface-v1"
 ? zero_arg_ok
 
 @ print("canary wasm export surface passed")

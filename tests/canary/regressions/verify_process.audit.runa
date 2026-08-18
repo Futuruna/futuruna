@@ -8,9 +8,9 @@
 = stderr_status = if stderr_text == "" { "clean" } else { "warn" }
 = headline = substring("workspace-check", 0, 9)
 = detail_pairs = [
-headline + ":" + repo_flag,
-"status:" + show(exit_code),
-"stderr:" + stderr_status
+    headline + ":" + repo_flag,
+    "status:" + show(exit_code),
+    "stderr:" + stderr_status
 ]
 = detail_summary = join(detail_pairs, "|")
 

@@ -45,12 +45,12 @@
 = sku_qty = zip(["alfa", "beta", "gamma", "delta"], [5, 2, 7, 4])
 = routes = zip(["north", "south", "north", "east"], ["auto", "manual", "auto", "manual"])
 = shipments = map(zip(enumerate(sku_qty), routes), |mesh| {
-    = numbered = fst(mesh)
-    = route = snd(mesh)
-    = idx = fst(numbered)
-    = pair = snd(numbered)
-    Shipment(idx + 1, fst(pair), snd(pair), fst(route), snd(route))
-})
+        = numbered = fst(mesh)
+        = route = snd(mesh)
+        = idx = fst(numbered)
+        = pair = snd(numbered)
+        Shipment(idx + 1, fst(pair), snd(pair), fst(route), snd(route))
+    })
 
 = shipment_lines = map(shipments, shipment_line)
 = parts = partition(shipments, |shipment| shipment_qty(shipment) < 5 || shipment_lane(shipment) == "manual")
@@ -65,22 +65,22 @@
 = sorted_regions = sort(map_keys(region_totals))
 = region_summary = join(map(sorted_regions, |region| region + ":" + show(map_get_or(region_totals, region, 0))), ",")
 
-= ids_ok = map(shipments, shipment_id) == [1, 2, 3, 4]
+| ids_ok: shipments -> map(shipments, shipment_id) == [1, 2, 3, 4]
 ? ids_ok
 
-= mesh_ok = shipment_lines == ["1:alfa@north/auto=5", "2:beta@south/manual=2", "3:gamma@north/auto=7", "4:delta@east/manual=4"]
+| mesh_ok: shipment_lines -> shipment_lines == ["1:alfa@north/auto=5", "2:beta@south/manual=2", "3:gamma@north/auto=7", "4:delta@east/manual=4"]
 ? mesh_ok
 
-= review_ok = review_slots == ["review-1:2:beta@south", "review-2:4:delta@east"]
+| review_ok: review_slots -> review_slots == ["review-1:2:beta@south", "review-2:4:delta@east"]
 ? review_ok
 
-= cleared_ok = cleared_slots == ["clear-1:1:alfa@north", "clear-2:3:gamma@north"]
+| cleared_ok: cleared_slots -> cleared_slots == ["clear-1:1:alfa@north", "clear-2:3:gamma@north"]
 ? cleared_ok
 
-= review_actions_ok = join(review_actions, "|") == "review-1:2:beta@south:inspect|review-2:4:delta@east:hold"
+| review_actions_ok: review_actions -> join(review_actions, "|") == "review-1:2:beta@south:inspect|review-2:4:delta@east:hold"
 ? review_actions_ok
 
-= region_totals_ok = region_summary == "east:4,north:12,south:2"
+| region_totals_ok: region_summary -> region_summary == "east:4,north:12,south:2"
 ? region_totals_ok
 
 @ print("canary collection join mesh passed")

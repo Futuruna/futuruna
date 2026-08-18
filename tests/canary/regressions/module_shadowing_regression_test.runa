@@ -47,28 +47,28 @@
 = remote_report_value = remote_report()
 = local_shadow_value = local_shadow_report()
 
-= first_remote_ok = first_remote == "north:8"
+| first_remote_ok: first_remote -> first_remote == "global-north:9"
 ? first_remote_ok
 
-= remote_labels_ok = show(remote_labels) == "[global-north:9, global-west:6, global-vip:11]"
+| remote_labels_ok: remote_labels -> show(remote_labels) == "[global-north:9, global-west:6, global-vip:11]"
 ? remote_labels_ok
 
-= local_labels_ok = show(local_labels) == "[local-lane:11, local-lane:8, local-lane:13]"
+| local_labels_ok: local_labels -> show(local_labels) == "[local-lane:11, local-lane:8, local-lane:13]"
 ? local_labels_ok
 
-= threshold_ok = Remote.plan_threshold == 20
+| threshold_ok: Remote.plan_threshold -> Remote.plan_threshold == 20
 ? threshold_ok
 
-= combined_ok = combined == "global-north:9|global-west:6|global-vip:11 => 20"
+| combined_ok: combined -> combined == "global-north:9|global-west:6|global-vip:11 => 20"
 ? combined_ok
 
-= remote_report_ok = remote_report_value == combined
+| remote_report_ok: remote_report_value -> remote_report_value == combined
 ? remote_report_ok
 
-= local_shadow_ok = local_shadow_value == "shadow-20"
+| local_shadow_ok: local_shadow_value -> local_shadow_value == "shadow-20"
 ? local_shadow_ok
 
-= local_module_ok = Local.extra_boost == 5
+| local_module_ok: Local.extra_boost -> Local.extra_boost == 5
 ? local_module_ok
 
 @ print("canary module shadowing regression passed")

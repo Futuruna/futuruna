@@ -8,26 +8,26 @@ visit_channels <- "email"
 visit_pages <- "score"
 visit_channels <- "queue"
 
-= page_count_ok = visit_pages.count == 3
+| page_count_ok: visit_pages.count -> visit_pages.count == 3
 ? page_count_ok
 
-= channel_count_ok = visit_channels.count == 3
+| channel_count_ok: visit_channels.count -> visit_channels.count == 3
 ? channel_count_ok
 
-= latest_page_ok = latest_visit_page() == "score"
+| latest_page_ok: latest_visit_page() -> latest_visit_page() == "score"
 ? latest_page_ok
 
-= latest_channel_ok = latest_visit_channel() == "queue"
+| latest_channel_ok: latest_visit_channel() -> latest_visit_channel() == "queue"
 ? latest_channel_ok
 
 = snapshot = visit_snapshot()
-= snapshot_ok = snapshot == "pages=3|channels=3|latest_page=score|latest_channel=queue"
+| snapshot_ok: snapshot -> snapshot == "pages=3|channels=3|latest_page=score|latest_channel=queue"
 ? snapshot_ok
 
-= balanced_ok = StatePolicy.counts_balanced(snapshot)
+| balanced_ok: snapshot -> StatePolicy.counts_balanced(snapshot)
 ? balanced_ok
 
-= ready_ok = StatePolicy.latests_ready(snapshot)
+| ready_ok: snapshot -> StatePolicy.latests_ready(snapshot)
 ? ready_ok
 
 @ print("downstream stateful consumer passed")

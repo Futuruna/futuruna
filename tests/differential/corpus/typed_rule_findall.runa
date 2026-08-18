@@ -1,0 +1,17 @@
+-- Typed findall must enumerate the finite input domain and retain only
+-- candidates accepted by the rule in both execution backends.
+
+# Animal = Cat | Dog | Fish
+
+| is_pet(animal: Animal) -> match animal {
+    | Cat -> true
+    | Dog -> true
+    | Fish -> false
+}
+
+= pets = findall(animal, is_pet(animal))
+
+| pets_are_filtered: pets -> show(pets) == "[Cat, Dog]"
+? pets_are_filtered
+
+@ print(show(pets))

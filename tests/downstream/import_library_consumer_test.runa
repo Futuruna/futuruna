@@ -32,25 +32,25 @@
 = empty_counts: Map(String, Int) = map_new()
 = decision_counts = foldl(releases, empty_counts, |acc, release| bump(acc, count_key(release)))
 
-= cutoff_ok = Policy.review_cutoff == 4
+| cutoff_ok: Policy.review_cutoff -> Policy.review_cutoff == 4
 ? cutoff_ok
 
-= labels_ok = join(labels, "|") == "eu:billing api|gl:edge cache|eu:auth worker"
+| labels_ok: labels -> join(labels, "|") == "eu:billing api|gl:edge cache|eu:auth worker"
 ? labels_ok
 
-= summaries_ok = join(summaries, "|") == "billing api:euwest:3|edge cache:useast:1|auth worker:eucentral:2"
+| summaries_ok: summaries -> join(summaries, "|") == "billing api:euwest:3|edge cache:useast:1|auth worker:eucentral:2"
 ? summaries_ok
 
-= decisions_ok = counts_csv(decision_counts) == "review:2,ship:1"
+| decisions_ok: decision_counts -> counts_csv(decision_counts) == "review:2,ship:1"
 ? decisions_ok
 
-= review_ok = match release_stage(auth) {
+| review_ok: auth -> match release_stage(auth) {
     | Review -> true
     | _ -> false
 }
 ? review_ok
 
-= imported_probe_ok = library_probe == "billing api:euwest:1"
+| imported_probe_ok: library_probe -> library_probe == "billing api:euwest:1"
 ? imported_probe_ok
 
 @ print("downstream import consumer passed")

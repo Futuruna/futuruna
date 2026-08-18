@@ -73,11 +73,11 @@
 }
 
 = raw_signals = [
-"INC-100 sev1 auth alice@example.com timeout after 30s #pager #login",
-"INC-101 sev2 billing bob@example.com queue lag 15m #queue #payments",
-"INC-102 sev1 auth alice@example.com panic in worker after 45s #pager #login",
-"INC-103 sev3 edge cora@example.com cache warmup after 5m #cache",
-"INC-104 sev2 billing dana@example.com card retry storm after 20m #payments #retry"
+    "INC-100 sev1 auth alice@example.com timeout after 30s #pager #login",
+    "INC-101 sev2 billing bob@example.com queue lag 15m #queue #payments",
+    "INC-102 sev1 auth alice@example.com panic in worker after 45s #pager #login",
+    "INC-103 sev3 edge cora@example.com cache warmup after 5m #cache",
+    "INC-104 sev2 billing dana@example.com card retry storm after 20m #payments #retry"
 ]
 
 = sanitized = map(raw_signals, sanitize_signal)
@@ -91,25 +91,25 @@
 
 = unique_tags = sort(set_to_list(set_from_list(foldl(raw_signals, [], collect_tags))))
 
-= sanitized_ok = head(sanitized) == "INC-100 sev1 auth <email> timeout after <dur> #pager #login" && last(sanitized) == "INC-104 sev2 billing <email> card retry storm after <dur> #payments #retry"
+| sanitized_ok: sanitized -> head(sanitized) == "INC-100 sev1 auth <email> timeout after <dur> #pager #login" && last(sanitized) == "INC-104 sev2 billing <email> card retry storm after <dur> #payments #retry"
 ? sanitized_ok
 
-= severity_ok = counts_csv(severity_counts) == "sev1:2,sev2:2,sev3:1"
+| severity_ok: severity_counts -> counts_csv(severity_counts) == "sev1:2,sev2:2,sev3:1"
 ? severity_ok
 
-= owners_ok = counts_csv(owner_counts) == "alice:2,bob:1,cora:1,dana:1"
+| owners_ok: owner_counts -> counts_csv(owner_counts) == "alice:2,bob:1,cora:1,dana:1"
 ? owners_ok
 
-= routes_ok = counts_csv(route_counts) == "auth:page:2,billing:ops:2,edge:review:1"
+| routes_ok: route_counts -> counts_csv(route_counts) == "auth:page:2,billing:ops:2,edge:review:1"
 ? routes_ok
 
-= tags_ok = join(unique_tags, ",") == "cache,login,pager,payments,queue,retry"
+| tags_ok: unique_tags -> join(unique_tags, ",") == "cache,login,pager,payments,queue,retry"
 ? tags_ok
 
-= escalations_ok = join(escalated_ids, ",") == "INC-100,INC-102"
+| escalations_ok: escalated_ids -> join(escalated_ids, ",") == "INC-100,INC-102"
 ? escalations_ok
 
-= labels_ok = head(labels) == "INC-100:auth:page:alice:login,pager" && nth(labels, 3) == "INC-103:edge:review:cora:cache" && last(labels) == "INC-104:billing:ops:dana:payments,retry"
+| labels_ok: labels -> head(labels) == "INC-100:auth:page:alice:login,pager" && nth(labels, 3) == "INC-103:edge:review:cora:cache" && last(labels) == "INC-104:billing:ops:dana:payments,retry"
 ? labels_ok
 
 @ print("canary regex classifier passed")

@@ -10928,6 +10928,17 @@ impl Interpreter {
             .find(|signature| signature.arity() == 0)
     }
 
+    fn finite_nullary_variants(&self, type_name: &str) -> Option<Vec<String>> {
+        self.type_variants
+            .get(type_name)?
+            .iter()
+            .map(|variant| {
+                self.constructor_signature_for_args(variant, &[])
+                    .map(|_| variant.clone())
+            })
+            .collect()
+    }
+
     fn value_is_registered_constructor_binding(value: &Value, name: &str) -> bool {
         match value {
             Value::Constructor(constructor, _) | Value::NamedConstructor(constructor, _) => {
@@ -15098,6 +15109,7 @@ impl Interpreter {
                 let val = args.into_iter().next().unwrap_or(Value::Unit);
                 match val {
                     Value::Tuple(elems) => elems.into_iter().next().unwrap_or(Value::Unit),
+                    Value::Constructor(_, elems) => elems.first().cloned().unwrap_or(Value::Unit),
                     _ => Value::Unit,
                 }
             }
@@ -15106,6 +15118,7 @@ impl Interpreter {
                 let val = args.into_iter().next().unwrap_or(Value::Unit);
                 match val {
                     Value::Tuple(elems) => elems.into_iter().nth(1).unwrap_or(Value::Unit),
+                    Value::Constructor(_, elems) => elems.get(1).cloned().unwrap_or(Value::Unit),
                     _ => Value::Unit,
                 }
             }
@@ -15114,6 +15127,7 @@ impl Interpreter {
                 let val = args.into_iter().next().unwrap_or(Value::Unit);
                 match val {
                     Value::Tuple(elems) => elems.into_iter().nth(2).unwrap_or(Value::Unit),
+                    Value::Constructor(_, elems) => elems.get(2).cloned().unwrap_or(Value::Unit),
                     _ => Value::Unit,
                 }
             }
@@ -16337,6 +16351,22 @@ impl Interpreter {
         Some((&args[0], type_name.as_str()))
     }
 
+    fn typed_rule_param_type(rules: &[Rc<Rule>], position: usize) -> Option<String> {
+        rules.iter().find_map(|rule| {
+            let head = match rule.as_ref() {
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. } => head,
+                Rule::ReactiveScope { .. } => return None,
+            };
+            let ExprKind::App(_, params) = &head.kind else {
+                return None;
+            };
+            let (_, type_name) = Self::typed_rule_arg_parts(params.get(position)?)?;
+            Some(type_name.to_string())
+        })
+    }
+
     fn is_rule_variable_name(name: &str) -> bool {
         name != "_" && !name.chars().next().map_or(false, |c| c.is_uppercase())
     }
@@ -16950,6 +16980,40 @@ impl Interpreter {
         } // prevent infinite recursion
 
         let rules = self.rules_named(fn_name);
+
+        if let Some(template_pos) = template_pos {
+            if let Some(type_name) = Self::typed_rule_param_type(&rules, template_pos) {
+                let Some(variants) = self.finite_nullary_variants(&type_name) else {
+                    return;
+                };
+                for variant in variants {
+                    let mut call_args = Vec::with_capacity(bound_vals.len());
+                    let candidate = Value::Constructor(variant, vec![].into());
+                    let mut callable = true;
+                    for (position, bound) in bound_vals.iter().enumerate() {
+                        if position == template_pos {
+                            call_args.push(candidate.clone());
+                        } else if let Some(value) = bound {
+                            call_args.push(value.clone());
+                        } else {
+                            callable = false;
+                            break;
+                        }
+                    }
+                    if !callable {
+                        continue;
+                    }
+                    let rule_value = self.apply_rule_value(fn_name, call_args, env);
+                    if !matches!(rule_value, Value::Bool(false)) {
+                        let rendered = format!("{}", candidate);
+                        if !results.iter().any(|value| format!("{}", value) == rendered) {
+                            results.push(candidate);
+                        }
+                    }
+                }
+                return;
+            }
+        }
 
         for rule in &rules {
             match rule.as_ref() {
@@ -23674,6 +23738,70 @@ mod tests {
             env.get("same").map(ToString::to_string),
             Some("true".into())
         );
+    }
+
+    #[test]
+    fn interpreted_tuple_accessors_read_positional_constructor_fields() {
+        let source = r#"
+# Response = Response(Int, String, String)
+= response = Response(202, "text/plain", "ok")
+= status = fst(response)
+= content_type = snd(response)
+= body = trd(response)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse positional constructor accessor regression");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("status").map(ToString::to_string),
+            Some("202".into())
+        );
+        assert_eq!(
+            env.get("content_type").map(ToString::to_string),
+            Some("text/plain".into())
+        );
+        assert_eq!(env.get("body").map(ToString::to_string), Some("ok".into()));
+    }
+
+    #[test]
+    fn interpreted_findall_filters_finite_typed_rule_domains() {
+        let source = r#"
+# Animal = Cat | Dog | Fish
+| is_pet(animal: Animal) -> match animal {
+    | Cat -> true
+    | Dog -> true
+    | Fish -> false
+}
+= pets = findall(animal, is_pet(animal))
+@ print(show(pets))
+"#;
+
+        let output = eval_source_with_prelude(source, false).expect("evaluate typed findall");
+
+        assert_eq!(output.trim(), "[Cat, Dog]");
+    }
+
+    #[test]
+    fn interpreted_findall_rejects_typed_domains_with_payload_variants() {
+        let source = r#"
+# Animal = Cat | Tagged(String)
+| is_pet(animal: Animal) -> True
+= pets = findall(animal, is_pet(animal))
+@ print(show(pets))
+"#;
+
+        let output = eval_source_with_prelude(source, false)
+            .expect("evaluate non-finite typed findall domain");
+
+        assert_eq!(output.trim(), "[]");
     }
 
     #[test]

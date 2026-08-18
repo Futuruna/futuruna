@@ -13,13 +13,13 @@
 = edge_label = tag_label(edge)
 = stamp_text = stamp_describe(stamp)
 
-= billing_label_ok = billing_label == "billing"
+| billing_label_ok: billing_label -> billing_label == "billing"
 ? billing_label_ok
 
-= edge_label_ok = edge_label == "edge"
+| edge_label_ok: edge_label -> edge_label == "edge"
 ? edge_label_ok
 
-= stamp_text_ok = stamp_text == "stamp#7:ready"
+| stamp_text_ok: stamp_text -> stamp_text == "stamp#7:ready"
 ? stamp_text_ok
 
 @ print(billing_label + "|" + edge_label + "|" + stamp_text)

@@ -53,16 +53,16 @@
     = hot_summary = summarize_routes(hot_snapshot)
 }
 
-= routed_before_ok = collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
+| routed_before_ok: routed_log -> collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
 ? routed_before_ok
 
-= hot_before_ok = collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
+| hot_before_ok: hot_log -> collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
 ? hot_before_ok
 
-= scope_snapshots_ok = Monitor.routed_snapshot == collect(routed_log) && Monitor.hot_snapshot == ["hot:81", "hot:99"]
+| scope_snapshots_ok: Monitor.routed_snapshot -> Monitor.routed_snapshot == collect(routed_log) && Monitor.hot_snapshot == ["hot:81", "hot:99"]
 ? scope_snapshots_ok
 
-= summaries_ok = Monitor.routed_summary == "cold:42|warm:55|hot:81|warm:63|hot:99" && Monitor.hot_summary == "hot:81|hot:99"
+| summaries_ok: Monitor.routed_summary -> Monitor.routed_summary == "cold:42|warm:55|hot:81|warm:63|hot:99" && Monitor.hot_summary == "hot:81|hot:99"
 ? summaries_ok
 
 @ teardown("Monitor")
@@ -70,10 +70,10 @@
 readings <- 100
 readings <- 101
 
-= routed_after_ok = collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
+| routed_after_ok: routed_log -> collect(routed_log) == ["cold:42", "warm:55", "hot:81", "warm:63", "hot:99"]
 ? routed_after_ok
 
-= hot_after_ok = collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
+| hot_after_ok: hot_log -> collect(hot_log) == ["alert:hot:81", "alert:hot:99"]
 ? hot_after_ok
 
 # effect Audit {
@@ -112,22 +112,22 @@ readings <- 101
     }
 } in emit_audit(Monitor.routed_summary, Monitor.hot_summary, routed_log.latest)
 
-= audit_result_ok = audit_result == "audit-emitted"
+| audit_result_ok: audit_result -> audit_result == "audit-emitted"
 ? audit_result_ok
 
 = audit_state = ask(book, Snapshot)
 
-= audit_entries_ok = audit_state.entries == [
-"summary:cold:42|warm:55|hot:81|warm:63|hot:99",
-"hot:hot:81|hot:99",
-"latest:hot:99"
+| audit_entries_ok: audit_state.entries -> audit_state.entries == [
+    "summary:cold:42|warm:55|hot:81|warm:63|hot:99",
+    "hot:hot:81|hot:99",
+    "latest:hot:99"
 ]
 ? audit_entries_ok
 
-= audit_last_ok = audit_state.last == "latest:hot:99"
+| audit_last_ok: audit_state.last -> audit_state.last == "latest:hot:99"
 ? audit_last_ok
 
-= audit_hot_count_ok = audit_state.hot_notes == 3
+| audit_hot_count_ok: audit_state.hot_notes -> audit_state.hot_notes == 3
 ? audit_hot_count_ok
 
 @ print("canary stateful adversarial workflow passed")

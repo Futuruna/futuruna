@@ -33,25 +33,25 @@ readings <- 31
 = jump_list = collect(jumps)
 = unique_readings = set_from_list(reading_list)
 
-= reading_count_ok = readings.count == 6
+| reading_count_ok: readings.count -> readings.count == 6
 ? reading_count_ok
 
-= latest_reading_ok = readings.latest == 31
+| latest_reading_ok: readings.latest -> readings.latest == 31
 ? latest_reading_ok
 
-= window_sums_ok = window_sums == [70, 79, 92, 93]
+| window_sums_ok: window_sums -> window_sums == [70, 79, 92, 93]
 ? window_sums_ok
 
-= alerts_ok = alerts == ["30+27+35 => alert(92)", "27+35+31 => alert(93)"]
+| alerts_ok: alerts -> alerts == ["30+27+35 => alert(92)", "27+35+31 => alert(93)"]
 ? alerts_ok
 
-= jump_profile_ok = jump_list == [4, 8, -3, 8, -4]
+| jump_profile_ok: jump_list -> jump_list == [4, 8, -3, 8, -4]
 ? jump_profile_ok
 
-= above_threshold_ok = count_by(reading_list, |x| x >= 30) == 3
+| above_threshold_ok: reading_list -> count_by(reading_list, |x| x >= 30) == 3
 ? above_threshold_ok
 
-= unique_readings_ok = set_len(unique_readings) == 6 && set_contains(unique_readings, 35)
+| unique_readings_ok: unique_readings -> set_len(unique_readings) == 6 && set_contains(unique_readings, 35)
 ? unique_readings_ok
 
 @ print("canary subject window alerts passed")

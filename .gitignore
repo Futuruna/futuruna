@@ -2,6 +2,7 @@
 /target/
 website/target/
 .runa-build/
+.playwright-cli/
 
 # Deploy output
 /deploy/

@@ -121,15 +121,15 @@
     }
 } in run_retry_flow()
 
-= summary_ok = summary == "alpha=ok:alpha:ready|beta=ok:beta:ready|gamma=failed:denied|ok=2|failed=1"
+| summary_ok: summary -> summary == "alpha=ok:alpha:ready|beta=ok:beta:ready|gamma=failed:denied|ok=2|failed=1"
 ? summary_ok
 
 = final_state = ask(backend, Snapshot)
 
-= attempts_ok = attempt_summary(final_state) == "alpha=2|beta=3|gamma=3"
+| attempts_ok: final_state -> attempt_summary(final_state) == "alpha=2|beta=3|gamma=3"
 ? attempts_ok
 
-= log_ok = events_summary(final_state.events) == "start:alpha:2|fetch:alpha:1|retry:alpha:timeout:2|start:alpha:1|fetch:alpha:2|ok:alpha:alpha:ready|start:beta:2|fetch:beta:1|retry:beta:timeout:2|start:beta:1|fetch:beta:2|retry:beta:timeout:1|start:beta:0|fetch:beta:3|ok:beta:beta:ready|start:gamma:2|fetch:gamma:1|retry:gamma:denied:2|start:gamma:1|fetch:gamma:2|retry:gamma:denied:1|start:gamma:0|fetch:gamma:3|failed:gamma:denied"
+| log_ok: final_state.events -> events_summary(final_state.events) == "start:alpha:2|fetch:alpha:1|retry:alpha:timeout:2|start:alpha:1|fetch:alpha:2|ok:alpha:alpha:ready|start:beta:2|fetch:beta:1|retry:beta:timeout:2|start:beta:1|fetch:beta:2|retry:beta:timeout:1|start:beta:0|fetch:beta:3|ok:beta:beta:ready|start:gamma:2|fetch:gamma:1|retry:gamma:denied:2|start:gamma:1|fetch:gamma:2|retry:gamma:denied:1|start:gamma:0|fetch:gamma:3|failed:gamma:denied"
 ? log_ok
 
 @ print("canary effect retry flow passed")

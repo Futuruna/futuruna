@@ -40,19 +40,19 @@
 = tags = set_from_list(all_tags(warehouse))
 = names = sort(map_keys(stock))
 
-= total_ok = total_qty(warehouse) == 12
+| total_ok: warehouse -> total_qty(warehouse) == 12
 ? total_ok
 
-= stock_map_ok = map_len(stock) == 4 && map_get_or(stock, "cables", 0) == 2 && map_get_or(stock, "ink", 0) == 4
+| stock_map_ok: stock -> map_len(stock) == 4 && map_get_or(stock, "cables", 0) == 2 && map_get_or(stock, "ink", 0) == 4
 ? stock_map_ok
 
-= low_ok = low == ["cables", "labeler"]
+| low_ok: low -> low == ["cables", "labeler"]
 ? low_ok
 
-= tags_ok = set_len(tags) == 3 && set_contains(tags, "hardware") && not(set_contains(tags, "fragile"))
+| tags_ok: tags -> set_len(tags) == 3 && set_contains(tags, "hardware") && not(set_contains(tags, "fragile"))
 ? tags_ok
 
-= names_ok = names == ["cables", "ink", "labeler", "labels"]
+| names_ok: names -> names == ["cables", "ink", "labeler", "labels"]
 ? names_ok
 
 @ print("canary recursive inventory passed")
