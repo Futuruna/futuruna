@@ -1,0 +1,23 @@
+@ import ./rule_dispatch_middle
+
+| exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
+
+| ordered_band(amount: Int) -> 0
+| ordered_band(amount: Int) -> 70 under amount > 7
+| ordered_band(amount: Int) -> 80 under amount > 8
+
+| reverse_ordered_band(amount: Int) -> 0
+| reverse_ordered_band(amount: Int) -> 80 under amount > 8
+| reverse_ordered_band(amount: Int) -> 70 under amount > 7
+
+= imported_six = imported_band(amount = 6)
+= imported_eight = imported_band(amount = 8)
+= imported_nine = imported_band(amount = 9)
+= ordered_nine = ordered_band(amount = 9)
+= reverse_ordered_nine = reverse_ordered_band(amount = 9)
+
+@ print(show(imported_six))
+@ print(show(imported_eight))
+@ print(show(imported_nine))
+@ print(show(ordered_nine))
+@ print(show(reverse_ordered_nine))

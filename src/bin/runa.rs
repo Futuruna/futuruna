@@ -8837,6 +8837,1072 @@ fn smt_expr_kind_name(expr: &Expr) -> &'static str {
     }
 }
 
+fn smt_imported_library_statement(statement: &Stmt) -> bool {
+    matches!(
+        statement,
+        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_) | Stmt::Bind(..)
+    )
+}
+
+fn resolve_smt_plain_imports(
+    statements: &[Stmt],
+    source_dir: &str,
+    visited: &mut BTreeSet<String>,
+    output: &mut Vec<Stmt>,
+) -> Result<(), String> {
+    for statement in statements {
+        let Stmt::Import(import_path) = statement else {
+            continue;
+        };
+        let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+            .ok_or_else(|| {
+                format!(
+                    "cannot resolve imported module `{}` from `{}`",
+                    import_path, source_dir
+                )
+            })?;
+        let canonical = std::fs::canonicalize(&file_path)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.clone());
+        if !visited.insert(canonical) {
+            continue;
+        }
+        let module = parse_source_module_file_cached(Path::new(&file_path))
+            .map_err(|error| format!("cannot parse imported module `{}`: {}", file_path, error))?;
+        let imported_dir = Path::new(&file_path)
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."))
+            .to_string_lossy()
+            .to_string();
+        resolve_smt_plain_imports(module.statements(), &imported_dir, visited, output)?;
+        output.extend(
+            module
+                .statements()
+                .iter()
+                .filter(|statement| smt_imported_library_statement(statement))
+                .cloned(),
+        );
+    }
+    Ok(())
+}
+
+fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<Vec<Stmt>, String> {
+    let source_dir = Path::new(filename)
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."))
+        .to_string_lossy()
+        .to_string();
+    let mut output = Vec::new();
+    let mut visited = BTreeSet::new();
+    visited.insert(
+        std::fs::canonicalize(filename)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| filename.to_string()),
+    );
+    resolve_smt_plain_imports(statements, &source_dir, &mut visited, &mut output)?;
+    output.extend(
+        statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Import(_)))
+            .cloned(),
+    );
+    Ok(output)
+}
+
+#[derive(Debug, Clone)]
+struct SmtConstructorSignature {
+    parent: String,
+    fields: Vec<Field>,
+    positional: bool,
+}
+
+impl SmtConstructorSignature {
+    fn field_names(&self) -> Vec<String> {
+        self.fields.iter().map(|field| field.name.clone()).collect()
+    }
+
+    fn matches_arguments(&self, arguments: &[Expr]) -> bool {
+        if !has_named_args(arguments) {
+            return arguments.len() == self.fields.len();
+        }
+        !self.positional && reorder_named_args_by_names(&self.field_names(), arguments).is_some()
+    }
+
+    fn selector(&self, constructor: &str, index: usize) -> String {
+        if self.positional {
+            format!("{}_f{}", constructor, index)
+        } else {
+            self.fields[index].name.clone()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmtLoweringEnv {
+    substitutions: BTreeMap<String, Expr>,
+    types: BTreeMap<String, String>,
+    active_scope: Option<(String, Expr)>,
+    rule_calls_as_symbols: bool,
+}
+
+fn smt_rule_function_name(key: &RuleDispatchKey) -> String {
+    let identity = format!(
+        "{}\0{}\0{}",
+        key.scope.as_deref().unwrap_or("global"),
+        key.name,
+        key.arity
+    );
+    let mut encoded = String::from("runa_rule_");
+    for byte in identity.as_bytes() {
+        use std::fmt::Write;
+        let _ = write!(encoded, "{:02x}", byte);
+    }
+    encoded
+}
+
+struct SmtRuleLowerer<'program, 'registry> {
+    registry: &'registry RuleDispatchRegistry<'program>,
+    constructors: BTreeMap<String, Vec<SmtConstructorSignature>>,
+    fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
+    function_returns: BTreeMap<String, String>,
+    binding_types: BTreeMap<String, String>,
+}
+
+impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
+    fn new(statements: &[Stmt], registry: &'registry RuleDispatchRegistry<'program>) -> Self {
+        let mut constructors: BTreeMap<String, Vec<SmtConstructorSignature>> = BTreeMap::new();
+        let mut fields_by_type = BTreeMap::new();
+        let mut function_returns = BTreeMap::new();
+        let mut binding_types = BTreeMap::new();
+
+        for statement in statements {
+            match statement {
+                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                    let fields = fields_by_type
+                        .entry(name.clone())
+                        .or_insert_with(BTreeMap::new);
+                    for variant in variants {
+                        for field in &variant.fields {
+                            fields.insert(field.name.clone(), field.ty.to_string());
+                        }
+                        constructors.entry(variant.name.clone()).or_default().push(
+                            SmtConstructorSignature {
+                                parent: name.clone(),
+                                fields: variant.fields.clone(),
+                                positional: variant.positional,
+                            },
+                        );
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                    let scope_fields: Vec<Field> = params
+                        .iter()
+                        .map(|param| Field {
+                            name: param.name.clone(),
+                            ty: param.ty.clone().unwrap_or(Ty::Hole),
+                        })
+                        .collect();
+                    fields_by_type.insert(
+                        name.clone(),
+                        scope_fields
+                            .iter()
+                            .map(|field| (field.name.clone(), field.ty.to_string()))
+                            .collect(),
+                    );
+                    constructors.insert(
+                        name.clone(),
+                        vec![SmtConstructorSignature {
+                            parent: name.clone(),
+                            fields: scope_fields,
+                            positional: false,
+                        }],
+                    );
+                }
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    ret_ty: Some(return_type),
+                    ..
+                }) => {
+                    function_returns.insert(name.clone(), return_type.to_string());
+                }
+                Stmt::Bind(Pat::Var(name), Some(ty), _) => {
+                    binding_types.insert(name.clone(), ty.to_string());
+                }
+                _ => {}
+            }
+        }
+
+        let mut lowerer = Self {
+            registry,
+            constructors,
+            fields_by_type,
+            function_returns,
+            binding_types,
+        };
+        for _ in 0..statements.len().max(1) {
+            let mut changed = false;
+            for statement in statements {
+                let Stmt::Bind(Pat::Var(name), _, value) = statement else {
+                    continue;
+                };
+                if lowerer.binding_types.contains_key(name) {
+                    continue;
+                }
+                if let Some(ty) = lowerer.infer_expr_type(value, &SmtLoweringEnv::default()) {
+                    lowerer.binding_types.insert(name.clone(), ty);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        lowerer
+    }
+
+    fn generated_rule_functions(
+        &self,
+    ) -> (
+        Vec<(String, Vec<Param>, Option<Ty>, Expr)>,
+        BTreeMap<String, String>,
+    ) {
+        let mut functions = Vec::new();
+        let mut errors = BTreeMap::new();
+
+        for group in self.registry.groups.values() {
+            let function_name = smt_rule_function_name(&group.key);
+            let Some(return_type_name) = group.return_type.as_deref() else {
+                errors.insert(
+                    function_name,
+                    format!(
+                        "rule `{}` has no inferred return type for SMT",
+                        group.key.name
+                    ),
+                );
+                continue;
+            };
+            let return_type = match parse_type_annotation(return_type_name) {
+                Ok(return_type) => return_type,
+                Err(error) => {
+                    errors.insert(
+                        function_name,
+                        format!(
+                            "rule `{}` return type `{}` cannot be represented for SMT: {}",
+                            group.key.name, return_type_name, error
+                        ),
+                    );
+                    continue;
+                }
+            };
+
+            let mut params = Vec::new();
+            let receiver = group.key.scope.as_ref().map(|scope| {
+                let name = "__runa_rule_self".to_string();
+                params.push(Param {
+                    name: name.clone(),
+                    ty: Some(Ty::Name(scope.clone())),
+                    inout: false,
+                });
+                Expr::unspanned(ExprKind::Var(name))
+            });
+            let mut arguments = Vec::with_capacity(group.parameters.len());
+            let mut parameter_error = None;
+            for (index, parameter) in group.parameters.iter().enumerate() {
+                let Some(type_name) = parameter.ty.as_deref() else {
+                    parameter_error = Some(format!(
+                        "rule `{}` parameter {} has no inferred type for SMT",
+                        group.key.name,
+                        index + 1
+                    ));
+                    break;
+                };
+                let ty = match parse_type_annotation(type_name) {
+                    Ok(ty) => ty,
+                    Err(error) => {
+                        parameter_error = Some(format!(
+                            "rule `{}` parameter type `{}` cannot be represented for SMT: {}",
+                            group.key.name, type_name, error
+                        ));
+                        break;
+                    }
+                };
+                if matches!(ty, Ty::Arrow(_, _)) {
+                    parameter_error = Some(format!(
+                        "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
+                        group.key.name
+                    ));
+                    break;
+                }
+                let name = format!("__runa_rule_arg_{}", index);
+                params.push(Param {
+                    name: name.clone(),
+                    ty: Some(ty),
+                    inout: false,
+                });
+                arguments.push(Expr::unspanned(ExprKind::Var(name)));
+            }
+            if let Some(error) = parameter_error {
+                errors.insert(function_name, error);
+                continue;
+            }
+
+            match self.expand_rule_group(
+                group,
+                &arguments,
+                receiver,
+                &SmtLoweringEnv::default(),
+                &mut Vec::new(),
+            ) {
+                Ok(body) => functions.push((function_name, params, Some(return_type), body)),
+                Err(error) => {
+                    functions.push((
+                        function_name.clone(),
+                        params,
+                        Some(return_type),
+                        smt_bool(false),
+                    ));
+                    errors.insert(function_name, error);
+                }
+            }
+        }
+
+        (functions, errors)
+    }
+
+    fn constructor_signature(
+        &self,
+        constructor: &str,
+        arguments: &[Expr],
+    ) -> Option<&SmtConstructorSignature> {
+        self.constructors
+            .get(constructor)?
+            .iter()
+            .find(|signature| signature.matches_arguments(arguments))
+    }
+
+    fn unique_nullary_constructor_parent(&self, constructor: &str) -> Option<String> {
+        let signatures = self.constructors.get(constructor)?;
+        let parents: BTreeSet<String> = signatures
+            .iter()
+            .filter(|signature| signature.fields.is_empty())
+            .map(|signature| signature.parent.clone())
+            .collect();
+        (parents.len() == 1).then(|| parents.into_iter().next().unwrap())
+    }
+
+    fn infer_expr_type(&self, expression: &Expr, environment: &SmtLoweringEnv) -> Option<String> {
+        match &expression.kind {
+            ExprKind::Lit(Literal::Int(_)) => Some("Int".to_string()),
+            ExprKind::Lit(Literal::Float(_)) => Some("Float".to_string()),
+            ExprKind::Lit(Literal::Bool(_)) => Some("Bool".to_string()),
+            ExprKind::Lit(Literal::Str(_)) => Some("String".to_string()),
+            ExprKind::Lit(Literal::Char(_)) => Some("Char".to_string()),
+            ExprKind::Var(name) => environment
+                .types
+                .get(name)
+                .cloned()
+                .or_else(|| self.binding_types.get(name).cloned())
+                .or_else(|| self.unique_nullary_constructor_parent(name)),
+            ExprKind::App(function, arguments) => {
+                if let ExprKind::Var(name) = &function.kind {
+                    if name == NAMED_ARG_MARKER {
+                        return arguments
+                            .get(1)
+                            .and_then(|value| self.infer_expr_type(value, environment));
+                    }
+                    if let Some(signature) = self.constructor_signature(name, arguments) {
+                        return Some(signature.parent.clone());
+                    }
+                    if let Some((scope, _)) = &environment.active_scope {
+                        if let Some(group) = self.registry.get(Some(scope), name, arguments.len()) {
+                            if let Some(return_type) = &group.return_type {
+                                return Some(return_type.clone());
+                            }
+                        }
+                    }
+                    if let Some(group) = self.registry.get(None, name, arguments.len()) {
+                        if let Some(return_type) = &group.return_type {
+                            return Some(return_type.clone());
+                        }
+                    }
+                    return self.function_returns.get(name).cloned();
+                }
+                if let ExprKind::Field(receiver, member) = &function.kind {
+                    let receiver_type = self.infer_expr_type(receiver, environment)?;
+                    if let Some(group) =
+                        self.registry
+                            .get(Some(&receiver_type), member, arguments.len())
+                    {
+                        return group.return_type.clone();
+                    }
+                }
+                None
+            }
+            ExprKind::Field(receiver, field) => {
+                let receiver_type = self.infer_expr_type(receiver, environment)?;
+                self.fields_by_type
+                    .get(&receiver_type)
+                    .and_then(|fields| fields.get(field))
+                    .cloned()
+            }
+            ExprKind::BinOp(operator, left, _) => match operator.as_str() {
+                "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => Some("Bool".to_string()),
+                _ => self.infer_expr_type(left, environment),
+            },
+            ExprKind::UnOp(operator, inner) => {
+                if operator == "!" {
+                    Some("Bool".to_string())
+                } else {
+                    self.infer_expr_type(inner, environment)
+                }
+            }
+            ExprKind::If(_, then_expression, else_expression) => {
+                let then_type = self.infer_expr_type(then_expression, environment);
+                let else_type = self.infer_expr_type(else_expression, environment);
+                (then_type == else_type).then_some(then_type).flatten()
+            }
+            ExprKind::Match(_, arms) => {
+                let mut result = None;
+                for arm in arms {
+                    let arm_type = self.infer_expr_type(&arm.body, environment)?;
+                    if result.as_ref().is_some_and(|known| known != &arm_type) {
+                        return None;
+                    }
+                    result = Some(arm_type);
+                }
+                result
+            }
+            ExprKind::Block(statements) => {
+                statements.last().and_then(|statement| match statement {
+                    Stmt::Expr(expression) | Stmt::Bind(_, _, expression) => {
+                        self.infer_expr_type(expression, environment)
+                    }
+                    _ => None,
+                })
+            }
+            _ => None,
+        }
+    }
+
+    fn rule_arguments(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        arguments: &[Expr],
+    ) -> Result<Vec<Expr>, String> {
+        if !has_named_args(arguments) {
+            return Ok(arguments.to_vec());
+        }
+        let parameter_names = group
+            .parameters
+            .iter()
+            .map(|parameter| parameter.name.clone())
+            .collect::<Option<Vec<_>>>()
+            .ok_or_else(|| {
+                format!(
+                    "rule `{}` cannot accept named arguments because one or more head parameters are patterns",
+                    group.key.name
+                )
+            })?;
+        reorder_named_args_by_names(&parameter_names, arguments).ok_or_else(|| {
+            format!(
+                "named arguments for rule `{}` do not match its declaration parameters",
+                group.key.name
+            )
+        })
+    }
+
+    fn lower_rule_dispatch_call(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        arguments: Vec<Expr>,
+        receiver: Option<Expr>,
+        environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        if environment.rule_calls_as_symbols {
+            let mut call_arguments =
+                Vec::with_capacity(arguments.len() + usize::from(receiver.is_some()));
+            if let Some(receiver) = receiver {
+                call_arguments.push(receiver);
+            }
+            call_arguments.extend(arguments);
+            return Ok(Expr::unspanned(ExprKind::App(
+                Box::new(Expr::unspanned(ExprKind::Var(smt_rule_function_name(
+                    &group.key,
+                )))),
+                call_arguments,
+            )));
+        }
+        self.expand_rule_group(group, &arguments, receiver, environment, expansion_stack)
+    }
+
+    fn lower_expr(
+        &self,
+        expression: &Expr,
+        environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        let span = expression.span;
+        let kind = match &expression.kind {
+            ExprKind::Var(name) => {
+                if let Some(replacement) = environment.substitutions.get(name) {
+                    return Ok(replacement.clone());
+                }
+                if self.unique_nullary_constructor_parent(name).is_some() {
+                    return Ok(Expr::new(
+                        ExprKind::App(
+                            Box::new(Expr::new(ExprKind::Var(name.clone()), span)),
+                            Vec::new(),
+                        ),
+                        span,
+                    ));
+                }
+                ExprKind::Var(name.clone())
+            }
+            ExprKind::Lit(literal) => ExprKind::Lit(literal.clone()),
+            ExprKind::App(function, arguments) => {
+                if let ExprKind::Var(name) = &function.kind {
+                    if let Some((scope, receiver)) = &environment.active_scope {
+                        if let Some(group) = self.registry.get(Some(scope), name, arguments.len()) {
+                            let ordered = self.rule_arguments(group, arguments)?;
+                            let lowered_arguments = ordered
+                                .iter()
+                                .map(|argument| {
+                                    self.lower_expr(argument, environment, expansion_stack)
+                                })
+                                .collect::<Result<Vec<_>, _>>()?;
+                            return self.lower_rule_dispatch_call(
+                                group,
+                                lowered_arguments,
+                                Some(receiver.clone()),
+                                environment,
+                                expansion_stack,
+                            );
+                        }
+                    }
+                    if let Some(group) = self.registry.get(None, name, arguments.len()) {
+                        let ordered = self.rule_arguments(group, arguments)?;
+                        let lowered_arguments = ordered
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        return self.lower_rule_dispatch_call(
+                            group,
+                            lowered_arguments,
+                            None,
+                            environment,
+                            expansion_stack,
+                        );
+                    }
+                    if let Some(signature) = self.constructor_signature(name, arguments) {
+                        let ordered = if has_named_args(arguments) {
+                            reorder_named_args_by_names(&signature.field_names(), arguments)
+                                .ok_or_else(|| {
+                                    format!(
+                                        "named constructor arguments for `{}` do not match its fields",
+                                        name
+                                    )
+                                })?
+                        } else {
+                            arguments.clone()
+                        };
+                        let lowered_arguments = ordered
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        ExprKind::App(
+                            Box::new(Expr::new(ExprKind::Var(name.clone()), function.span)),
+                            lowered_arguments,
+                        )
+                    } else {
+                        ExprKind::App(
+                            Box::new(self.lower_expr(function, environment, expansion_stack)?),
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    self.lower_expr(argument, environment, expansion_stack)
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                    }
+                } else if let ExprKind::Field(receiver, member) = &function.kind {
+                    let receiver_type = self.infer_expr_type(receiver, environment);
+                    if let Some(group) = receiver_type.as_deref().and_then(|receiver_type| {
+                        self.registry
+                            .get(Some(receiver_type), member, arguments.len())
+                    }) {
+                        let ordered = self.rule_arguments(group, arguments)?;
+                        let lowered_receiver =
+                            self.lower_expr(receiver, environment, expansion_stack)?;
+                        let lowered_arguments = ordered
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        return self.lower_rule_dispatch_call(
+                            group,
+                            lowered_arguments,
+                            Some(lowered_receiver),
+                            environment,
+                            expansion_stack,
+                        );
+                    }
+                    ExprKind::App(
+                        Box::new(self.lower_expr(function, environment, expansion_stack)?),
+                        arguments
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                } else {
+                    ExprKind::App(
+                        Box::new(self.lower_expr(function, environment, expansion_stack)?),
+                        arguments
+                            .iter()
+                            .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                }
+            }
+            ExprKind::BinOp(operator, left, right) => ExprKind::BinOp(
+                operator.clone(),
+                Box::new(self.lower_expr(left, environment, expansion_stack)?),
+                Box::new(self.lower_expr(right, environment, expansion_stack)?),
+            ),
+            ExprKind::UnOp(operator, inner) => ExprKind::UnOp(
+                operator.clone(),
+                Box::new(self.lower_expr(inner, environment, expansion_stack)?),
+            ),
+            ExprKind::If(condition, then_expression, else_expression) => ExprKind::If(
+                Box::new(self.lower_expr(condition, environment, expansion_stack)?),
+                Box::new(self.lower_expr(then_expression, environment, expansion_stack)?),
+                Box::new(self.lower_expr(else_expression, environment, expansion_stack)?),
+            ),
+            ExprKind::Field(receiver, field) => ExprKind::Field(
+                Box::new(self.lower_expr(receiver, environment, expansion_stack)?),
+                field.clone(),
+            ),
+            ExprKind::Match(scrutinee, arms) => {
+                let lowered_scrutinee = self.lower_expr(scrutinee, environment, expansion_stack)?;
+                let lowered_arms = arms
+                    .iter()
+                    .map(|arm| {
+                        let mut arm_environment = environment.clone();
+                        let mut bound_names = BTreeSet::new();
+                        collect_smt_pattern_bindings(&arm.pat, &mut bound_names);
+                        for name in bound_names {
+                            arm_environment.substitutions.remove(&name);
+                        }
+                        Ok(MatchArm {
+                            pat: arm.pat.clone(),
+                            guard: arm
+                                .guard
+                                .as_ref()
+                                .map(|guard| {
+                                    self.lower_expr(guard, &arm_environment, expansion_stack)
+                                })
+                                .transpose()?,
+                            body: self.lower_expr(&arm.body, &arm_environment, expansion_stack)?,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                ExprKind::Match(Box::new(lowered_scrutinee), lowered_arms)
+            }
+            ExprKind::Block(statements) => {
+                let mut block_environment = environment.clone();
+                let mut lowered = Vec::with_capacity(statements.len());
+                for statement in statements {
+                    match statement {
+                        Stmt::Bind(pattern, ty, value) => {
+                            let lowered_value =
+                                self.lower_expr(value, &block_environment, expansion_stack)?;
+                            let mut names = BTreeSet::new();
+                            collect_smt_pattern_bindings(pattern, &mut names);
+                            let inferred = ty
+                                .as_ref()
+                                .map(ToString::to_string)
+                                .or_else(|| self.infer_expr_type(value, &block_environment));
+                            for name in names {
+                                block_environment.substitutions.remove(&name);
+                                if let Some(ty) = &inferred {
+                                    block_environment.types.insert(name, ty.clone());
+                                }
+                            }
+                            lowered.push(Stmt::Bind(pattern.clone(), ty.clone(), lowered_value));
+                        }
+                        Stmt::Expr(inner) => lowered.push(Stmt::Expr(self.lower_expr(
+                            inner,
+                            &block_environment,
+                            expansion_stack,
+                        )?)),
+                        other => lowered.push(other.clone()),
+                    }
+                }
+                ExprKind::Block(lowered)
+            }
+            ExprKind::Conjunction(goals) => {
+                return self.lower_logic_fold(goals, "&&", true, environment, expansion_stack)
+            }
+            ExprKind::Disjunction(goals) => {
+                return self.lower_logic_fold(goals, "||", false, environment, expansion_stack)
+            }
+            ExprKind::Lambda(params, body) => ExprKind::Lambda(
+                params.clone(),
+                Box::new(self.lower_expr(body, environment, expansion_stack)?),
+            ),
+            ExprKind::Index(collection, index) => ExprKind::Index(
+                Box::new(self.lower_expr(collection, environment, expansion_stack)?),
+                Box::new(self.lower_expr(index, environment, expansion_stack)?),
+            ),
+            ExprKind::List(items) => ExprKind::List(
+                items
+                    .iter()
+                    .map(|item| self.lower_expr(item, environment, expansion_stack))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ExprKind::Tuple(items) => ExprKind::Tuple(
+                items
+                    .iter()
+                    .map(|item| self.lower_expr(item, environment, expansion_stack))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ExprKind::Effect(name, arguments) => ExprKind::Effect(
+                name.clone(),
+                arguments
+                    .iter()
+                    .map(|argument| self.lower_expr(argument, environment, expansion_stack))
+                    .collect::<Result<Vec<_>, _>>()?,
+            ),
+            ExprKind::Handle {
+                effect,
+                handlers,
+                body,
+            } => ExprKind::Handle {
+                effect: effect.clone(),
+                handlers: handlers.clone(),
+                body: Box::new(self.lower_expr(body, environment, expansion_stack)?),
+            },
+            ExprKind::Try(inner) => ExprKind::Try(Box::new(self.lower_expr(
+                inner,
+                environment,
+                expansion_stack,
+            )?)),
+            ExprKind::Pipe(left, right) => ExprKind::Pipe(
+                Box::new(self.lower_expr(left, environment, expansion_stack)?),
+                Box::new(self.lower_expr(right, environment, expansion_stack)?),
+            ),
+            ExprKind::Unit => ExprKind::Unit,
+        };
+        Ok(Expr::new(kind, span))
+    }
+
+    fn lower_logic_fold(
+        &self,
+        goals: &[Expr],
+        operator: &str,
+        empty_value: bool,
+        environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        let mut lowered = goals
+            .iter()
+            .map(|goal| self.lower_expr(goal, environment, expansion_stack))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter();
+        let Some(first) = lowered.next() else {
+            return Ok(smt_bool(empty_value));
+        };
+        Ok(lowered.fold(first, |left, right| {
+            Expr::unspanned(ExprKind::BinOp(
+                operator.to_string(),
+                Box::new(left),
+                Box::new(right),
+            ))
+        }))
+    }
+
+    fn expand_rule_group(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        arguments: &[Expr],
+        receiver: Option<Expr>,
+        caller_environment: &SmtLoweringEnv,
+        expansion_stack: &mut Vec<RuleDispatchKey>,
+    ) -> Result<Expr, String> {
+        if expansion_stack.contains(&group.key) {
+            return Err(format!(
+                "recursive rule dispatch for `{}` is not yet translatable to SMT",
+                group.key.name
+            ));
+        }
+        expansion_stack.push(group.key.clone());
+
+        let result = (|| {
+            let mut candidates = Vec::new();
+            for candidate in group.plan.candidates() {
+                let rule = candidate.rule;
+                let Some(head) = rule.head() else {
+                    continue;
+                };
+                let head_arguments = match &head.kind {
+                    ExprKind::App(_, head_arguments) => head_arguments.as_slice(),
+                    ExprKind::Var(_) => &[],
+                    _ => {
+                        return Err(format!(
+                            "rule `{}` has a head shape that is not translatable to SMT",
+                            group.key.name
+                        ));
+                    }
+                };
+                if head_arguments.len() != arguments.len() {
+                    continue;
+                }
+
+                let mut environment = caller_environment.clone();
+                if let (Some(scope), Some(receiver)) = (&group.key.scope, receiver.as_ref()) {
+                    environment.active_scope = Some((scope.clone(), receiver.clone()));
+                    for capture in &group.captures {
+                        environment.substitutions.insert(
+                            capture.name.clone(),
+                            Expr::unspanned(ExprKind::Field(
+                                Box::new(receiver.clone()),
+                                capture.name.clone(),
+                            )),
+                        );
+                        if let Some(ty) = &capture.ty {
+                            environment
+                                .types
+                                .insert(capture.name.clone(), ty.to_string());
+                        }
+                    }
+                }
+
+                let mut applicability = smt_bool(true);
+                for (head_argument, actual_argument) in head_arguments.iter().zip(arguments.iter())
+                {
+                    let guard = self.match_rule_head_argument(
+                        head_argument,
+                        actual_argument,
+                        &mut environment,
+                    )?;
+                    applicability = smt_and(applicability, guard);
+                }
+
+                let return_is_bool = group.return_type.as_deref() == Some("Bool");
+                let (value, condition, clause) = match rule {
+                    Rule::Exception {
+                        value, condition, ..
+                    }
+                    | Rule::Default {
+                        value, condition, ..
+                    } => (Some(value), condition.as_ref(), false),
+                    Rule::Clause { body, .. } => (body.as_ref(), None, true),
+                    Rule::ReactiveScope { .. } => continue,
+                };
+                if let Some(condition) = condition {
+                    applicability = smt_and(
+                        applicability,
+                        self.lower_expr(condition, &environment, expansion_stack)?,
+                    );
+                }
+
+                let (selected_value, applicability) = if clause && return_is_bool {
+                    match value {
+                        Some(body) => (
+                            smt_bool(true),
+                            smt_and(
+                                applicability,
+                                self.lower_expr(body, &environment, expansion_stack)?,
+                            ),
+                        ),
+                        None => (smt_bool(true), applicability),
+                    }
+                } else {
+                    let selected = match value {
+                        Some(value) => self.lower_expr(value, &environment, expansion_stack)?,
+                        None => smt_bool(true),
+                    };
+                    (selected, applicability)
+                };
+                candidates.push((applicability, selected_value, candidate.source_order));
+            }
+
+            let mut fallback = if group.return_type.as_deref() == Some("Bool") {
+                Some(smt_bool(false))
+            } else {
+                None
+            };
+            for (applicability, selected_value, _) in candidates.into_iter().rev() {
+                fallback = Some(if smt_is_true(&applicability) {
+                    selected_value
+                } else if let Some(next) = fallback {
+                    Expr::unspanned(ExprKind::If(
+                        Box::new(applicability),
+                        Box::new(selected_value),
+                        Box::new(next),
+                    ))
+                } else {
+                    return Err(format!(
+                        "partial rule dispatch for `{}` has no unconditional value for SMT",
+                        group.key.name
+                    ));
+                });
+            }
+            fallback.ok_or_else(|| format!("rule `{}` has no dispatch candidates", group.key.name))
+        })();
+
+        expansion_stack.pop();
+        result
+    }
+
+    fn match_rule_head_argument(
+        &self,
+        pattern: &Expr,
+        actual: &Expr,
+        environment: &mut SmtLoweringEnv,
+    ) -> Result<Expr, String> {
+        if let Some((inner, type_name)) = typed_rule_head_argument(pattern) {
+            if let ExprKind::Var(name) = &inner.kind {
+                environment
+                    .types
+                    .insert(name.clone(), type_name.to_string());
+            }
+            return self.match_rule_head_argument(inner, actual, environment);
+        }
+
+        match &pattern.kind {
+            ExprKind::Var(name) if name == "_" => Ok(smt_bool(true)),
+            ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                environment
+                    .substitutions
+                    .insert(name.clone(), actual.clone());
+                Ok(smt_bool(true))
+            }
+            ExprKind::Var(name) => Ok(Expr::unspanned(ExprKind::BinOp(
+                "==".to_string(),
+                Box::new(actual.clone()),
+                Box::new(Expr::unspanned(ExprKind::Var(name.clone()))),
+            ))),
+            ExprKind::Lit(literal) => Ok(Expr::unspanned(ExprKind::BinOp(
+                "==".to_string(),
+                Box::new(actual.clone()),
+                Box::new(Expr::unspanned(ExprKind::Lit(literal.clone()))),
+            ))),
+            ExprKind::App(function, pattern_arguments) => {
+                let ExprKind::Var(constructor) = &function.kind else {
+                    return Err("computed rule-head patterns are not translatable to SMT".into());
+                };
+                let signature = self
+                    .constructor_signature(constructor, pattern_arguments)
+                    .ok_or_else(|| {
+                        format!(
+                            "constructor pattern `{}` is not available to SMT lowering",
+                            constructor
+                        )
+                    })?;
+                let ordered = if has_named_args(pattern_arguments) {
+                    reorder_named_args_by_names(&signature.field_names(), pattern_arguments)
+                        .ok_or_else(|| {
+                            format!(
+                                "named constructor pattern `{}` does not match its fields",
+                                constructor
+                            )
+                        })?
+                } else {
+                    pattern_arguments.clone()
+                };
+                let mut guard = smt_constructor_test(constructor, actual.clone());
+                for (index, child_pattern) in ordered.iter().enumerate() {
+                    let selected = Expr::unspanned(ExprKind::Field(
+                        Box::new(actual.clone()),
+                        signature.selector(constructor, index),
+                    ));
+                    guard = smt_and(
+                        guard,
+                        self.match_rule_head_argument(child_pattern, &selected, environment)?,
+                    );
+                }
+                Ok(guard)
+            }
+            ExprKind::Tuple(_) => {
+                Err("tuple patterns in rule heads are not yet translatable to SMT".into())
+            }
+            _ => Err("rule-head pattern is not translatable to SMT".into()),
+        }
+    }
+}
+
+fn collect_smt_pattern_bindings(pattern: &Pat, output: &mut BTreeSet<String>) {
+    match pattern {
+        Pat::Var(name) => {
+            output.insert(name.clone());
+        }
+        Pat::Con(_, patterns) => {
+            for pattern in patterns {
+                collect_smt_pattern_bindings(pattern, output);
+            }
+        }
+        Pat::NamedCon(_, fields) => {
+            for (_, pattern) in fields {
+                collect_smt_pattern_bindings(pattern, output);
+            }
+        }
+        Pat::As(pattern, name) => {
+            collect_smt_pattern_bindings(pattern, output);
+            output.insert(name.clone());
+        }
+        Pat::Wild | Pat::Lit(_) => {}
+    }
+}
+
+fn smt_bool(value: bool) -> Expr {
+    Expr::unspanned(ExprKind::Lit(Literal::Bool(value)))
+}
+
+fn smt_is_true(expression: &Expr) -> bool {
+    matches!(expression.kind, ExprKind::Lit(Literal::Bool(true)))
+}
+
+fn smt_is_false(expression: &Expr) -> bool {
+    matches!(expression.kind, ExprKind::Lit(Literal::Bool(false)))
+}
+
+fn smt_and(left: Expr, right: Expr) -> Expr {
+    if smt_is_false(&left) || smt_is_false(&right) {
+        return smt_bool(false);
+    }
+    if smt_is_true(&left) {
+        return right;
+    }
+    if smt_is_true(&right) {
+        return left;
+    }
+    Expr::unspanned(ExprKind::BinOp(
+        "&&".to_string(),
+        Box::new(left),
+        Box::new(right),
+    ))
+}
+
+fn smt_constructor_test(constructor: &str, value: Expr) -> Expr {
+    Expr::unspanned(ExprKind::Match(
+        Box::new(value),
+        vec![
+            MatchArm {
+                pat: Pat::Con(constructor.to_string(), Vec::new()),
+                guard: None,
+                body: smt_bool(true),
+            },
+            MatchArm {
+                pat: Pat::Wild,
+                guard: None,
+                body: smt_bool(false),
+            },
+        ],
+    ))
+}
+
 fn smt_pattern_support_reason(pat: &Pat) -> Option<String> {
     match pat {
         Pat::Wild | Pat::Var(_) => None,
@@ -9018,6 +10084,7 @@ fn collect_smt_called_functions(
     }
 }
 
+#[cfg(test)]
 fn ordered_smt_free_vars_for_invariant(
     pred_expr: &Expr,
     subject_expr: &Expr,
@@ -9025,9 +10092,28 @@ fn ordered_smt_free_vars_for_invariant(
     fn_names: &BTreeSet<String>,
     ctor_names: &BTreeSet<String>,
 ) -> Vec<String> {
+    ordered_smt_free_vars_with_extra(
+        pred_expr,
+        subject_expr,
+        bindings,
+        fn_names,
+        ctor_names,
+        &BTreeSet::new(),
+    )
+}
+
+fn ordered_smt_free_vars_with_extra(
+    pred_expr: &Expr,
+    subject_expr: &Expr,
+    bindings: &BTreeMap<String, Expr>,
+    fn_names: &BTreeSet<String>,
+    ctor_names: &BTreeSet<String>,
+    extra_free_vars: &BTreeSet<String>,
+) -> Vec<String> {
     let mut free_vars = BTreeSet::new();
     collect_free_vars(pred_expr, &mut free_vars);
     collect_free_vars(subject_expr, &mut free_vars);
+    free_vars.extend(extra_free_vars.iter().cloned());
 
     free_vars = free_vars.difference(fn_names).cloned().collect();
     free_vars = free_vars.difference(ctor_names).cloned().collect();
@@ -9097,6 +10183,29 @@ fn ordered_smt_free_vars_for_invariant(
     ordered
 }
 
+fn smt_function_free_vars(
+    used_functions: &BTreeSet<String>,
+    function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+    ctor_names: &BTreeSet<String>,
+) -> BTreeSet<String> {
+    let function_names: BTreeSet<String> = function_map.keys().cloned().collect();
+    let mut free_vars = BTreeSet::new();
+    for function in used_functions {
+        let Some((params, _, body)) = function_map.get(function) else {
+            continue;
+        };
+        let mut body_vars = BTreeSet::new();
+        collect_free_vars(body, &mut body_vars);
+        for param in params {
+            body_vars.remove(&param.name);
+        }
+        body_vars = body_vars.difference(&function_names).cloned().collect();
+        body_vars = body_vars.difference(ctor_names).cloned().collect();
+        free_vars.extend(body_vars);
+    }
+    free_vars
+}
+
 fn transitive_smt_function_deps(
     pred_expr: &Expr,
     subject_expr: &Expr,
@@ -9128,6 +10237,84 @@ fn transitive_smt_function_deps(
     }
 
     used
+}
+
+fn smt_function_lowering_error_for_invariant(
+    pred_expr: &Expr,
+    subject_expr: &Expr,
+    ordered_vars: &[String],
+    bindings: &BTreeMap<String, Expr>,
+    used_functions: &BTreeSet<String>,
+    function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+    function_errors: &BTreeMap<String, String>,
+) -> Option<String> {
+    let error_names: BTreeSet<String> = function_errors.keys().cloned().collect();
+    let mut called_errors = BTreeSet::new();
+    collect_smt_called_functions(pred_expr, &error_names, &mut called_errors);
+    collect_smt_called_functions(subject_expr, &error_names, &mut called_errors);
+    for var in ordered_vars {
+        if let Some(bound_expr) = bindings.get(var) {
+            collect_smt_called_functions(bound_expr, &error_names, &mut called_errors);
+        }
+    }
+    for function in used_functions {
+        if let Some((_, _, body)) = function_map.get(function) {
+            collect_smt_called_functions(body, &error_names, &mut called_errors);
+        }
+    }
+
+    let function = called_errors.iter().next()?;
+    let reason = function_errors.get(function)?;
+    if function.starts_with("runa_rule_") {
+        Some(reason.clone())
+    } else {
+        Some(format!("function `{}` {}", function, reason))
+    }
+}
+
+fn ordered_smt_functions(
+    used: &BTreeSet<String>,
+    function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+) -> Result<Vec<String>, String> {
+    fn visit(
+        name: &str,
+        used: &BTreeSet<String>,
+        function_map: &BTreeMap<String, (Vec<Param>, Option<Ty>, Expr)>,
+        states: &mut BTreeMap<String, u8>,
+        output: &mut Vec<String>,
+    ) -> Result<(), String> {
+        match states.get(name).copied() {
+            Some(2) => return Ok(()),
+            Some(1) => {
+                return Err(format!(
+                    "recursive SMT function dependency involving `{}`",
+                    name
+                ));
+            }
+            _ => {}
+        }
+        states.insert(name.to_string(), 1);
+        if let Some((_, _, body)) = function_map.get(name) {
+            let function_names: BTreeSet<String> = function_map.keys().cloned().collect();
+            let mut dependencies = BTreeSet::new();
+            collect_smt_called_functions(body, &function_names, &mut dependencies);
+            for dependency in dependencies {
+                if used.contains(&dependency) {
+                    visit(&dependency, used, function_map, states, output)?;
+                }
+            }
+        }
+        states.insert(name.to_string(), 2);
+        output.push(name.to_string());
+        Ok(())
+    }
+
+    let mut states = BTreeMap::new();
+    let mut output = Vec::new();
+    for name in used {
+        visit(name, used, function_map, &mut states, &mut output)?;
+    }
+    Ok(output)
 }
 
 fn smt_skip_reason_for_invariant(
@@ -9174,6 +10361,16 @@ fn smt_skip_reason_for_invariant(
 }
 
 /// Generate SMT-LIB2 from a Futuruna expression
+fn smt_value_symbol(name: &str) -> String {
+    let mut encoded = String::with_capacity(name.len() * 2 + 7);
+    encoded.push_str("runa_v_");
+    for byte in name.as_bytes() {
+        use std::fmt::Write;
+        let _ = write!(encoded, "{:02x}", byte);
+    }
+    encoded
+}
+
 fn expr_to_smt(expr: &Expr) -> String {
     match &expr.kind {
         ExprKind::Lit(Literal::Int(n)) => format!("{}", n),
@@ -9186,7 +10383,7 @@ fn expr_to_smt(expr: &Expr) -> String {
             }
         }
         ExprKind::Lit(Literal::Str(s)) => format!("\"{}\"", s),
-        ExprKind::Var(name) => name.clone(),
+        ExprKind::Var(name) => smt_value_symbol(name),
         ExprKind::BinOp(op, lhs, rhs) => {
             let l = expr_to_smt(lhs);
             let r = expr_to_smt(rhs);
@@ -9216,7 +10413,10 @@ fn expr_to_smt(expr: &Expr) -> String {
             }
         }
         ExprKind::App(func, args) => {
-            let fname = expr_to_smt(func);
+            let fname = match &func.kind {
+                ExprKind::Var(name) => name.clone(),
+                _ => expr_to_smt(func),
+            };
             let smt_args: Vec<String> = args.iter().map(|a| expr_to_smt(a)).collect();
             if smt_args.is_empty() {
                 fname
@@ -9254,7 +10454,7 @@ fn expr_to_smt(expr: &Expr) -> String {
                 for s in stmts {
                     match s {
                         Stmt::Bind(Pat::Var(name), _, e) => {
-                            local_lets.push((name.clone(), expr_to_smt(e)));
+                            local_lets.push((smt_value_symbol(name), expr_to_smt(e)));
                         }
                         Stmt::Expr(e) => {
                             last_expr = Some(expr_to_smt(e));
@@ -9266,11 +10466,12 @@ fn expr_to_smt(expr: &Expr) -> String {
                     if local_lets.is_empty() {
                         return body;
                     }
-                    let binds: Vec<String> = local_lets
-                        .iter()
-                        .map(|(n, v)| format!("({} {})", n, v))
-                        .collect();
-                    return format!("(let ({}) {})", binds.join(" "), body);
+                    return local_lets
+                        .into_iter()
+                        .rev()
+                        .fold(body, |body, (name, value)| {
+                            format!("(let (({} {})) {})", name, value, body)
+                        });
                 }
             }
             format!("; block expr (not yet translatable)")
@@ -9304,7 +10505,12 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
 
     match &arm.pat {
         Pat::Wild => guarded_body,
-        Pat::Var(name) => format!("(let (({} {})) {})", name, scrut, guarded_body),
+        Pat::Var(name) => format!(
+            "(let (({} {})) {})",
+            smt_value_symbol(name),
+            scrut,
+            guarded_body
+        ),
         Pat::Con(ctor, pats) if pats.is_empty() => {
             if idx + 1 < arms.len() {
                 let rest = smt_match_arms(scrut, arms, idx + 1);
@@ -9320,7 +10526,13 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
             let mut binds = Vec::new();
             for (i, p) in pats.iter().enumerate() {
                 if let Pat::Var(v) = p {
-                    binds.push(format!("({} ({}_f{} {}))", v, ctor, i, scrut));
+                    binds.push(format!(
+                        "({} ({}_f{} {}))",
+                        smt_value_symbol(v),
+                        ctor,
+                        i,
+                        scrut
+                    ));
                 }
             }
             let inner = if binds.is_empty() {
@@ -9344,7 +10556,7 @@ fn smt_match_arms(scrut: &str, arms: &[MatchArm], idx: usize) -> String {
             let mut binds = Vec::new();
             for (field, p) in named_pats {
                 if let Pat::Var(v) = p {
-                    binds.push(format!("({} ({} {}))", v, field, scrut));
+                    binds.push(format!("({} ({} {}))", smt_value_symbol(v), field, scrut));
                 }
             }
             let inner = if binds.is_empty() {
@@ -9464,6 +10676,16 @@ fn ty_to_smt_sort(ty: &Ty) -> String {
             other => other.to_string(), // ADT name
         },
         _ => "Int".into(),
+    }
+}
+
+fn smt_type_name_to_sort(type_name: &str) -> String {
+    match type_name {
+        "Int" => "Int".to_string(),
+        "Float" => "Real".to_string(),
+        "Bool" => "Bool".to_string(),
+        "String" => "String".to_string(),
+        other => other.to_string(),
     }
 }
 
@@ -11796,47 +13018,23 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     };
 
-    // Also resolve @ import directives for cross-file verification
-    let source_dir = std::path::Path::new(filename)
-        .parent()
-        .map(|p| p.to_string_lossy().to_string());
-    let mut all_stmts: Vec<Stmt> = Vec::new();
-    let mut imported: BTreeSet<String> = BTreeSet::new();
-    for stmt in &stmts {
-        if let Stmt::Import(path) = stmt {
-            if let Some(ref dir) = source_dir {
-                if let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir) {
-                    let canon = std::fs::canonicalize(&file_path)
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or(file_path.clone());
-                    if !imported.contains(&canon) {
-                        imported.insert(canon);
-                        if let Ok(src) = std::fs::read_to_string(&file_path) {
-                            let mut lx = Lexer::new(&src);
-                            let toks = lx.tokenize();
-                            let mut px = Parser::new(toks, &src);
-                            if let Ok(import_stmts) = px.parse_program() {
-                                // Only pull in types, functions, and bindings
-                                for s in import_stmts {
-                                    if matches!(
-                                        s,
-                                        Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Bind(..)
-                                    ) {
-                                        all_stmts.push(s);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+    // Imported declarations precede local declarations, matching interpreter
+    // and codegen registration. Rule groups intentionally compose across this
+    // graph, so a local exception can override an imported base clause.
+    let all_stmts = match resolve_smt_program(&stmts, filename) {
+        Ok(statements) => statements,
+        Err(error) => {
+            eprintln!("runa --verify: {}", error);
+            std::process::exit(1);
         }
-    }
-    // Append the main file's statements
-    all_stmts.extend(stmts.iter().cloned());
+    };
+    let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
+    let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
+    let rule_lowerer = SmtRuleLowerer::new(&all_stmts, &rule_registry);
 
     // Collect ADTs, invariants, bindings, and function definitions
     let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
+    let mut adt_indexes: BTreeMap<String, usize> = BTreeMap::new();
     let mut ctor_to_type: BTreeMap<String, String> = BTreeMap::new();
     let mut invariants: Vec<(String, Expr, Expr)> = Vec::new();
     let mut proof_blocks: BTreeMap<String, ProofBlock> = BTreeMap::new();
@@ -11847,10 +13045,34 @@ fn verify_with_z3(source: &str, filename: &str) {
     for stmt in &all_stmts {
         match stmt {
             Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
-                adts.push((name.clone(), variants.clone()));
+                if !adt_indexes.contains_key(name) {
+                    adt_indexes.insert(name.clone(), adts.len());
+                    adts.push((name.clone(), variants.clone()));
+                }
                 for v in variants {
                     ctor_to_type.insert(v.name.clone(), name.clone());
                 }
+            }
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                let variant = Variant {
+                    name: name.clone(),
+                    fields: params
+                        .iter()
+                        .map(|param| Field {
+                            name: param.name.clone(),
+                            ty: param.ty.clone().unwrap_or(Ty::Hole),
+                        })
+                        .collect(),
+                    positional: false,
+                    from_type: None,
+                };
+                if let Some(index) = adt_indexes.get(name).copied() {
+                    adts[index] = (name.clone(), vec![variant]);
+                } else {
+                    adt_indexes.insert(name.clone(), adts.len());
+                    adts.push((name.clone(), vec![variant]));
+                }
+                ctor_to_type.insert(name.clone(), name.clone());
             }
             Stmt::Invariant {
                 name,
@@ -11880,6 +13102,72 @@ fn verify_with_z3(source: &str, filename: &str) {
                 functions.push((name.clone(), params.clone(), ret_ty.clone(), body.clone()));
             }
             _ => {}
+        }
+    }
+
+    let (generated_rule_functions, generated_rule_function_errors) =
+        rule_lowerer.generated_rule_functions();
+    let generated_rule_function_names: BTreeSet<String> = generated_rule_functions
+        .iter()
+        .map(|(name, _, _, _)| name.clone())
+        .collect();
+    functions.extend(generated_rule_functions);
+
+    let mut binding_lowering_errors = BTreeMap::new();
+    let binding_environment = SmtLoweringEnv {
+        rule_calls_as_symbols: true,
+        ..SmtLoweringEnv::default()
+    };
+    for (name, expression) in &mut bindings {
+        match rule_lowerer.lower_expr(expression, &binding_environment, &mut Vec::new()) {
+            Ok(lowered) => *expression = lowered,
+            Err(error) => {
+                binding_lowering_errors.insert(name.clone(), error);
+            }
+        }
+    }
+
+    let mut function_lowering_errors = generated_rule_function_errors;
+    for (name, params, _, body) in &mut functions {
+        if generated_rule_function_names.contains(name) {
+            continue;
+        }
+        let mut environment = SmtLoweringEnv {
+            rule_calls_as_symbols: true,
+            ..SmtLoweringEnv::default()
+        };
+        for param in params {
+            if let Some(ty) = &param.ty {
+                environment.types.insert(param.name.clone(), ty.to_string());
+            }
+        }
+        match rule_lowerer.lower_expr(body, &environment, &mut Vec::new()) {
+            Ok(lowered) => *body = lowered,
+            Err(error) => {
+                function_lowering_errors.insert(name.clone(), error);
+            }
+        }
+    }
+
+    let mut invariant_lowering_errors = BTreeMap::new();
+    for (name, subject, predicate) in &mut invariants {
+        let environment = SmtLoweringEnv {
+            rule_calls_as_symbols: true,
+            ..SmtLoweringEnv::default()
+        };
+        let lowered_subject = rule_lowerer.lower_expr(subject, &environment, &mut Vec::new());
+        let lowered_predicate = rule_lowerer.lower_expr(predicate, &environment, &mut Vec::new());
+        match (lowered_subject, lowered_predicate) {
+            (Ok(lowered_subject), Ok(lowered_predicate)) => {
+                *subject = lowered_subject;
+                *predicate = lowered_predicate;
+            }
+            (Err(error), _) => {
+                invariant_lowering_errors.insert(name.clone(), format!("subject {}", error));
+            }
+            (_, Err(error)) => {
+                invariant_lowering_errors.insert(name.clone(), format!("predicate {}", error));
+            }
         }
     }
 
@@ -11916,6 +13204,12 @@ fn verify_with_z3(source: &str, filename: &str) {
     // For each invariant, generate SMT-LIB2 and run Z3
     for (inv_name, subject_expr, pred_expr) in &invariants {
         println!("--- | {} ---", inv_name);
+
+        if let Some(reason) = invariant_lowering_errors.get(inv_name) {
+            println!("  ? SMT fallback skipped: {}", reason);
+            println!();
+            continue;
+        }
 
         if let Some(proof_block) = proof_blocks.get(inv_name) {
             if let Some(err) = &computation_lemma_error {
@@ -11997,13 +13291,51 @@ fn verify_with_z3(source: &str, filename: &str) {
             smt.push('\n');
         }
 
-        let ordered_vars = ordered_smt_free_vars_for_invariant(
+        let mut function_free_vars = BTreeSet::new();
+        let (ordered_vars, used_functions) = loop {
+            let ordered_vars = ordered_smt_free_vars_with_extra(
+                pred_expr,
+                subject_expr,
+                &bindings,
+                &fn_names,
+                &ctor_names,
+                &function_free_vars,
+            );
+            let used_functions = transitive_smt_function_deps(
+                pred_expr,
+                subject_expr,
+                &ordered_vars,
+                &bindings,
+                &function_map,
+            );
+            let discovered = smt_function_free_vars(&used_functions, &function_map, &ctor_names);
+            if discovered.is_subset(&function_free_vars) {
+                break (ordered_vars, used_functions);
+            }
+            function_free_vars.extend(discovered);
+        };
+        if let Some((binding, reason)) = ordered_vars.iter().find_map(|name| {
+            binding_lowering_errors
+                .get(name)
+                .map(|reason| (name, reason))
+        }) {
+            println!("  ? SMT fallback skipped: binding `{}` {}", binding, reason);
+            println!();
+            continue;
+        }
+        if let Some(reason) = smt_function_lowering_error_for_invariant(
             pred_expr,
             subject_expr,
+            &ordered_vars,
             &bindings,
-            &fn_names,
-            &ctor_names,
-        );
+            &used_functions,
+            &function_map,
+            &function_lowering_errors,
+        ) {
+            println!("  ? SMT fallback skipped: {}", reason);
+            println!();
+            continue;
+        }
         if let Some(reason) = smt_skip_reason_for_invariant(
             pred_expr,
             subject_expr,
@@ -12016,56 +13348,72 @@ fn verify_with_z3(source: &str, filename: &str) {
             println!();
             continue;
         }
-        let used_functions = transitive_smt_function_deps(
-            pred_expr,
-            subject_expr,
-            &ordered_vars,
-            &bindings,
-            &function_map,
-        );
-
-        // Emit functions with type-aware param/return sorts
-        for (fname, params, ret_ty, body) in &functions {
-            if used_functions.contains(fname) {
-                let param_decls: Vec<String> = params
-                    .iter()
-                    .map(|p| {
-                        let sort = match &p.ty {
-                            Some(ty) => ty_to_smt_sort(ty),
-                            None => "Int".into(),
-                        };
-                        format!("({} {})", p.name, sort)
-                    })
-                    .collect();
-                let ret_sort = match ret_ty {
-                    Some(ty) => ty_to_smt_sort(ty),
-                    None => "Bool".into(), // default for predicates
-                };
-                let body_smt = expr_to_smt(body);
-                smt.push_str(&format!(
-                    "(define-fun {} ({}) {} {})\n",
-                    fname,
-                    param_decls.join(" "),
-                    ret_sort,
-                    body_smt
-                ));
+        let function_order = match ordered_smt_functions(&used_functions, &function_map) {
+            Ok(order) => order,
+            Err(reason) => {
+                println!("  ? SMT fallback skipped: {}", reason);
+                println!();
+                continue;
             }
-        }
+        };
 
-        // Emit constants in dependency order with ADT-aware sorts
+        // Declare values before functions. A generated rule may close over a
+        // top-level binding, while that binding's value may itself call a rule.
+        // Declarations followed by equality constraints represent both sides
+        // without relying on declaration order.
         for var in &ordered_vars {
-            if let Some(bound_expr) = bindings.get(var) {
-                // Use explicit type annotation if available, else infer
-                let sort = if let Some(Some(ty)) = binding_types.get(var) {
+            let sort = if let Some(bound_expr) = bindings.get(var) {
+                if let Some(Some(ty)) = binding_types.get(var) {
                     ty_to_smt_sort(ty)
+                } else if let Some(type_name) = rule_lowerer.binding_types.get(var) {
+                    smt_type_name_to_sort(type_name)
                 } else {
                     infer_smt_sort_adts(bound_expr, &ctor_to_type)
-                };
-                let val = expr_to_smt(bound_expr);
-                smt.push_str(&format!("(define-const {} {} {})\n", var, sort, val));
+                }
             } else {
-                // Free variable — declare with inferred sort
-                smt.push_str(&format!("(declare-const {} Int)\n", var));
+                "Int".to_string()
+            };
+            smt.push_str(&format!(
+                "(declare-const {} {})\n",
+                smt_value_symbol(var),
+                sort
+            ));
+        }
+
+        // Emit functions with type-aware param/return sorts
+        for fname in function_order {
+            let Some((params, ret_ty, body)) = function_map.get(&fname) else {
+                continue;
+            };
+            let param_decls: Vec<String> = params
+                .iter()
+                .map(|p| {
+                    let sort = match &p.ty {
+                        Some(ty) => ty_to_smt_sort(ty),
+                        None => "Int".into(),
+                    };
+                    format!("({} {})", smt_value_symbol(&p.name), sort)
+                })
+                .collect();
+            let ret_sort = match ret_ty {
+                Some(ty) => ty_to_smt_sort(ty),
+                None => "Bool".into(), // default for predicates
+            };
+            let body_smt = expr_to_smt(body);
+            smt.push_str(&format!(
+                "(define-fun {} ({}) {} {})\n",
+                fname,
+                param_decls.join(" "),
+                ret_sort,
+                body_smt
+            ));
+        }
+
+        // Constrain bound constants after every referenced function exists.
+        for var in &ordered_vars {
+            if let Some(bound_expr) = bindings.get(var) {
+                let val = expr_to_smt(bound_expr);
+                smt.push_str(&format!("(assert (= {} {}))\n", smt_value_symbol(var), val));
             }
         }
 
@@ -26560,7 +27908,7 @@ impl RustCodegen {
             }
         }
 
-        // Emit rules as Rust functions (Catala-style: exception > conditional default > unconditional default > clause)
+        // Emit rules with the canonical dispatch order shared with the interpreter.
         {
             // Pre-register Prolog-style rule functions so type propagation works across groups
             for (fn_name, rules) in &rule_groups {
@@ -29523,8 +30871,11 @@ impl RustCodegen {
                 ));
             }
 
+            let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+
             // Same-tier rules retain source order; the first applicable exception wins.
-            for rule in rules {
+            for candidate in &dispatch.exceptions {
+                let rule = candidate.rule;
                 if let Rule::Exception {
                     value, condition, ..
                 } = rule
@@ -29546,7 +30897,8 @@ impl RustCodegen {
                 }
             }
 
-            for rule in rules {
+            for candidate in &dispatch.conditional_defaults {
+                let rule = candidate.rule;
                 if let Rule::Default {
                     value,
                     condition: Some(cond),
@@ -29561,20 +30913,8 @@ impl RustCodegen {
                 }
             }
 
-            for rule in rules {
-                match rule {
-                    Rule::Default {
-                        value,
-                        condition: None,
-                        ..
-                    } => {
-                        out.push_str(&format!(
-                            "        return {};\n",
-                            cg.emit_rule_value_expr(value, ret_ty)
-                        ));
-                        out.push_str("    }\n\n");
-                        return out;
-                    }
+            for candidate in &dispatch.clauses {
+                match candidate.rule {
                     Rule::Clause {
                         body: Some(body), ..
                     } if ret_type == "bool" => {
@@ -29599,6 +30939,17 @@ impl RustCodegen {
                         return out;
                     }
                     _ => {}
+                }
+            }
+
+            for candidate in &dispatch.unconditional_defaults {
+                if let Rule::Default { value, .. } = candidate.rule {
+                    out.push_str(&format!(
+                        "        return {};\n",
+                        cg.emit_rule_value_expr(value, ret_ty)
+                    ));
+                    out.push_str("    }\n\n");
+                    return out;
                 }
             }
 
@@ -33471,9 +34822,12 @@ impl RustCodegen {
                 }
             }
 
+            let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+
             // Pass 1: exceptions (highest priority). Within the tier, the first
             // applicable rule in source order wins.
-            for rule in rules {
+            for candidate in &dispatch.exceptions {
+                let rule = candidate.rule;
                 if let Rule::Exception {
                     value, condition, ..
                 } = rule
@@ -33496,7 +34850,8 @@ impl RustCodegen {
             }
 
             // Pass 2: conditional defaults
-            for rule in rules {
+            for candidate in &dispatch.conditional_defaults {
+                let rule = candidate.rule;
                 if let Rule::Default {
                     value,
                     condition: Some(cond),
@@ -33511,21 +34866,9 @@ impl RustCodegen {
                 }
             }
 
-            // Pass 3: unconditional defaults and clauses with backtracking
-            for rule in rules {
-                match rule {
-                    Rule::Default {
-                        value,
-                        condition: None,
-                        ..
-                    } => {
-                        out.push_str(&format!(
-                            "    {}\n",
-                            cg.emit_rule_value_expr(value, &ret_fir_ty)
-                        ));
-                        out.push_str("}\n");
-                        return out;
-                    }
+            // Pass 3: clauses with backtracking
+            for candidate in &dispatch.clauses {
+                match candidate.rule {
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
@@ -33549,6 +34892,18 @@ impl RustCodegen {
                         return out;
                     }
                     _ => {}
+                }
+            }
+
+            // Pass 4: unconditional defaults
+            for candidate in &dispatch.unconditional_defaults {
+                if let Rule::Default { value, .. } = candidate.rule {
+                    out.push_str(&format!(
+                        "    {}\n",
+                        cg.emit_rule_value_expr(value, &ret_fir_ty)
+                    ));
+                    out.push_str("}\n");
+                    return out;
                 }
             }
 

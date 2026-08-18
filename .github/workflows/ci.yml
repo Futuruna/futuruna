@@ -34,6 +34,12 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install Z3 for solver verification
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y z3
+
       - name: Mint gate
         run: ./scripts/mint.sh
 

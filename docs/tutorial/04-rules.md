@@ -56,6 +56,30 @@ Three assurance levels from the same `?` line:
 - `runa build` — emits `debug_assert!()` in compiled binary
 - `runa verify` — translates to SMT-LIB2, proves with Z3
 
+The verifier understands pure, total, non-recursive rule cascades directly. A
+RuleScope does not need a duplicate helper function for Z3:
+
+```runa
+# TaxCase(income: Int) {
+    | rate_percent() -> 25
+    | rate_percent() -> 30 under income > 500000
+    | exception low_income rate_percent() -> 20 under income < 100000
+    | tax_due() -> income * rate_percent() / 100
+}
+
+= high_income_case = TaxCase(income = 600000)
+| high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
+```
+
+```bash
+runa verify tax.runa
+```
+
+The generated solver model preserves exception priority and first-applicable
+source order inside each priority tier. Recursive, partial non-Boolean,
+higher-order, or effectful rule groups are rejected from this Preview solver
+path with a diagnostic instead of being approximated.
+
 ## Next
 
 [5. Streams and Reactivity](05-streams.md)

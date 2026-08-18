@@ -4975,6 +4975,323 @@ pub enum Rule {
     },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum RuleDispatchTier {
+    Exception,
+    ConditionalDefault,
+    Clause,
+    UnconditionalDefault,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct RuleDispatchCandidate<'a> {
+    pub rule: &'a Rule,
+    pub source_order: usize,
+    pub source_span: Span,
+}
+
+#[derive(Debug, Default)]
+pub struct RuleDispatchPlan<'a> {
+    pub exceptions: Vec<RuleDispatchCandidate<'a>>,
+    pub conditional_defaults: Vec<RuleDispatchCandidate<'a>>,
+    pub clauses: Vec<RuleDispatchCandidate<'a>>,
+    pub unconditional_defaults: Vec<RuleDispatchCandidate<'a>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RuleDispatchKey {
+    pub scope: Option<String>,
+    pub name: String,
+    pub arity: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuleDispatchParameter {
+    pub name: Option<String>,
+    pub ty: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RuleDispatchTotality {
+    PredicateFallbackFalse,
+    IrrefutableCandidate,
+    Partial,
+}
+
+#[derive(Debug)]
+pub struct RuleDispatchGroup<'a> {
+    pub key: RuleDispatchKey,
+    pub captures: Vec<Param>,
+    pub parameters: Vec<RuleDispatchParameter>,
+    pub return_type: Option<String>,
+    pub totality: RuleDispatchTotality,
+    pub plan: RuleDispatchPlan<'a>,
+}
+
+#[derive(Debug, Default)]
+pub struct RuleDispatchRegistry<'a> {
+    pub groups: BTreeMap<RuleDispatchKey, RuleDispatchGroup<'a>>,
+}
+
+impl Rule {
+    pub fn head(&self) -> Option<&Expr> {
+        match self {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => Some(head),
+            Rule::ReactiveScope { .. } => None,
+        }
+    }
+
+    pub fn callable_name_arity(&self) -> Option<(String, usize)> {
+        rule_head_name_arity(self.head()?)
+    }
+
+    pub fn dispatch_tier(&self) -> Option<RuleDispatchTier> {
+        match self {
+            Rule::Exception { .. } => Some(RuleDispatchTier::Exception),
+            Rule::Default {
+                condition: Some(_), ..
+            } => Some(RuleDispatchTier::ConditionalDefault),
+            Rule::Clause { .. } => Some(RuleDispatchTier::Clause),
+            Rule::Default {
+                condition: None, ..
+            } => Some(RuleDispatchTier::UnconditionalDefault),
+            Rule::ReactiveScope { .. } => None,
+        }
+    }
+}
+
+impl<'a> RuleDispatchPlan<'a> {
+    pub fn from_rules(rules: impl IntoIterator<Item = &'a Rule>) -> Self {
+        let mut plan = Self::default();
+        for (source_order, rule) in rules.into_iter().enumerate() {
+            let candidate = RuleDispatchCandidate {
+                rule,
+                source_order,
+                source_span: rule
+                    .head()
+                    .map(|head| head.span)
+                    .unwrap_or_else(Span::dummy),
+            };
+            match rule.dispatch_tier() {
+                Some(RuleDispatchTier::Exception) => plan.exceptions.push(candidate),
+                Some(RuleDispatchTier::ConditionalDefault) => {
+                    plan.conditional_defaults.push(candidate)
+                }
+                Some(RuleDispatchTier::Clause) => plan.clauses.push(candidate),
+                Some(RuleDispatchTier::UnconditionalDefault) => {
+                    plan.unconditional_defaults.push(candidate)
+                }
+                None => {}
+            }
+        }
+        plan
+    }
+
+    pub fn candidates(&self) -> impl Iterator<Item = RuleDispatchCandidate<'a>> + '_ {
+        self.exceptions
+            .iter()
+            .chain(&self.conditional_defaults)
+            .chain(&self.clauses)
+            .chain(&self.unconditional_defaults)
+            .copied()
+    }
+}
+
+fn rule_head_name_arity(head: &Expr) -> Option<(String, usize)> {
+    match &head.kind {
+        ExprKind::App(function, arguments) => match &function.kind {
+            ExprKind::Var(name) => Some((name.clone(), arguments.len())),
+            _ => rule_head_name_arity(function).map(|(name, _)| (name, arguments.len())),
+        },
+        ExprKind::Var(name) => Some((name.clone(), 0)),
+        _ => None,
+    }
+}
+
+pub fn typed_rule_head_argument(argument: &Expr) -> Option<(&Expr, &str)> {
+    let ExprKind::App(function, arguments) = &argument.kind else {
+        return None;
+    };
+    if !matches!(&function.kind, ExprKind::Var(name) if name == "__typed") || arguments.len() != 2 {
+        return None;
+    }
+    let ExprKind::Var(type_name) = &arguments[1].kind else {
+        return None;
+    };
+    Some((&arguments[0], type_name))
+}
+
+fn rule_dispatch_parameter(argument: &Expr) -> RuleDispatchParameter {
+    let (argument, ty) = typed_rule_head_argument(argument)
+        .map(|(inner, ty)| (inner, Some(ty.to_string())))
+        .unwrap_or((argument, None));
+    let name = match &argument.kind {
+        ExprKind::Var(name)
+            if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+        {
+            Some(name.clone())
+        }
+        _ => None,
+    };
+    RuleDispatchParameter { name, ty }
+}
+
+fn rule_dispatch_parameters(rules: &[&Rule], arity: usize) -> Vec<RuleDispatchParameter> {
+    let mut parameters = vec![
+        RuleDispatchParameter {
+            name: None,
+            ty: None,
+        };
+        arity
+    ];
+    for rule in rules {
+        let Some(head) = rule.head() else {
+            continue;
+        };
+        let ExprKind::App(_, arguments) = &head.kind else {
+            continue;
+        };
+        for (index, argument) in arguments.iter().enumerate() {
+            let candidate = rule_dispatch_parameter(argument);
+            if parameters[index].name.is_none() {
+                parameters[index].name = candidate.name;
+            }
+            if parameters[index].ty.is_none() {
+                parameters[index].ty = candidate.ty;
+            }
+        }
+    }
+    parameters
+}
+
+fn rule_head_argument_is_irrefutable(argument: &Expr) -> bool {
+    let argument = typed_rule_head_argument(argument)
+        .map(|(inner, _)| inner)
+        .unwrap_or(argument);
+    matches!(&argument.kind, ExprKind::Var(name) if name == "_" || !name.chars().next().is_some_and(char::is_uppercase))
+}
+
+fn rule_head_is_irrefutable(rule: &Rule) -> bool {
+    let Some(head) = rule.head() else {
+        return false;
+    };
+    match &head.kind {
+        ExprKind::Var(_) => true,
+        ExprKind::App(_, arguments) => arguments.iter().all(rule_head_argument_is_irrefutable),
+        _ => false,
+    }
+}
+
+impl<'a> RuleDispatchRegistry<'a> {
+    pub fn from_statements(stmts: &'a [Stmt], artifacts: &TypeCheckArtifacts) -> Self {
+        #[derive(Default)]
+        struct PendingGroup<'a> {
+            captures: Vec<Param>,
+            rules: Vec<&'a Rule>,
+        }
+
+        let mut pending: BTreeMap<RuleDispatchKey, PendingGroup<'a>> = BTreeMap::new();
+        for statement in stmts {
+            match statement {
+                Stmt::Rule(rule) => {
+                    if let Some((name, arity)) = rule.callable_name_arity() {
+                        pending
+                            .entry(RuleDispatchKey {
+                                scope: None,
+                                name,
+                                arity,
+                            })
+                            .or_default()
+                            .rules
+                            .push(rule);
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    pending.retain(|key, _| key.scope.as_deref() != Some(name));
+                    for scoped_statement in body {
+                        let Stmt::Rule(rule) = scoped_statement else {
+                            continue;
+                        };
+                        let Some((member, arity)) = rule.callable_name_arity() else {
+                            continue;
+                        };
+                        let group = pending
+                            .entry(RuleDispatchKey {
+                                scope: Some(name.clone()),
+                                name: member,
+                                arity,
+                            })
+                            .or_default();
+                        group.captures = params.clone();
+                        group.rules.push(rule);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let groups = pending
+            .into_iter()
+            .map(|(key, pending)| {
+                let return_type = match key.scope.as_deref() {
+                    Some(scope) => artifacts
+                        .rule_scope_member_return_types
+                        .get(scope)
+                        .and_then(|members| members.get(&key.name))
+                        .cloned(),
+                    None => artifacts.rule_return_types.get(&key.name).cloned(),
+                };
+                let totality = if return_type.as_deref() == Some("Bool") {
+                    RuleDispatchTotality::PredicateFallbackFalse
+                } else if pending.rules.iter().any(|rule| {
+                    rule_head_is_irrefutable(rule)
+                        && match rule {
+                            Rule::Exception {
+                                condition: None, ..
+                            }
+                            | Rule::Default {
+                                condition: None, ..
+                            } => true,
+                            Rule::Clause { body, .. } => body.is_some(),
+                            _ => false,
+                        }
+                }) {
+                    RuleDispatchTotality::IrrefutableCandidate
+                } else {
+                    RuleDispatchTotality::Partial
+                };
+                let parameters = rule_dispatch_parameters(&pending.rules, key.arity);
+                let plan = RuleDispatchPlan::from_rules(pending.rules.iter().copied());
+                let group = RuleDispatchGroup {
+                    key: key.clone(),
+                    captures: pending.captures,
+                    parameters,
+                    return_type,
+                    totality,
+                    plan,
+                };
+                (key, group)
+            })
+            .collect();
+        Self { groups }
+    }
+
+    pub fn get(
+        &self,
+        scope: Option<&str>,
+        name: &str,
+        arity: usize,
+    ) -> Option<&RuleDispatchGroup<'a>> {
+        self.groups.get(&RuleDispatchKey {
+            scope: scope.map(str::to_string),
+            name: name.to_string(),
+            arity,
+        })
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 struct FreeSymbolUses {
     values: BTreeSet<String>,
@@ -16215,14 +16532,17 @@ impl Interpreter {
             }
         }
 
+        let dispatch = RuleDispatchPlan::from_rules(matching.iter().map(|rule| rule.as_ref()));
+
         // Check exceptions first — they override the default
-        for rule in &matching {
+        for candidate in &dispatch.exceptions {
+            let rule = candidate.rule;
             if let Rule::Exception {
                 head,
                 value,
                 condition,
                 ..
-            } = rule.as_ref()
+            } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     let cond_met = match condition {
@@ -16237,12 +16557,13 @@ impl Interpreter {
         }
 
         // Catala-style: conditional defaults first
-        for rule in &matching {
+        for candidate in &dispatch.conditional_defaults {
+            let rule = candidate.rule;
             if let Rule::Default {
                 head,
                 value,
                 condition: Some(cond),
-            } = rule.as_ref()
+            } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
@@ -16255,8 +16576,8 @@ impl Interpreter {
         // Clauses with backtracking (Prolog-style):
         // Try each clause; if the body evaluates to false, try the next one.
         let mut matched_false_clause = false;
-        for rule in &matching {
-            if let Rule::Clause { head, body } = rule.as_ref() {
+        for candidate in &dispatch.clauses {
+            if let Rule::Clause { head, body } = candidate.rule {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
@@ -16293,12 +16614,13 @@ impl Interpreter {
         }
 
         // Unconditional defaults (lowest priority)
-        for rule in &matching {
+        for candidate in &dispatch.unconditional_defaults {
+            let rule = candidate.rule;
             if let Rule::Default {
                 head,
                 value,
                 condition: None,
-            } = rule.as_ref()
+            } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     return Some(self.eval(value, &rule_env));
@@ -17898,6 +18220,8 @@ pub struct TypeChecker {
     rule_return_types: BTreeMap<String, String>,
     /// RuleScope name -> scoped member name -> inferred value return type name.
     rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
+    /// Active RuleScope while fixed-point return inference resolves bare sibling calls.
+    active_rule_scope_inference: Option<String>,
     /// Variable type names per lexical scope.
     var_types: Vec<BTreeMap<String, String>>,
     /// qualified import module name -> exported member names
@@ -17926,6 +18250,8 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    pub rule_return_types: BTreeMap<String, String>,
+    pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
 }
 
 impl TypeChecker {
@@ -17978,6 +18304,7 @@ impl TypeChecker {
             type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
             rule_scope_member_return_types: BTreeMap::new(),
+            active_rule_scope_inference: None,
             var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
             diagnostics: Vec::new(),
@@ -20124,11 +20451,24 @@ impl TypeChecker {
                             return Some(format!("Option({})", inner));
                         }
                     }
+                    if let Some(local_type) = locals.get(name) {
+                        if let Ok(Ty::Arrow(_, return_type)) = parse_type_annotation(local_type) {
+                            return Self::type_name_from_ty(&return_type);
+                        }
+                    }
                     if let Some(parent) = self.constructor_parent_for_args(name, args) {
                         return Some(parent);
                     }
                     if let Some((parent, _)) = self.constructors.get(name) {
                         return Some(parent.clone());
+                    }
+                    if let Some(return_type) = self
+                        .active_rule_scope_inference
+                        .as_ref()
+                        .and_then(|scope| self.rule_scope_member_return_types.get(scope))
+                        .and_then(|members| members.get(name))
+                    {
+                        return Some(return_type.clone());
                     }
                     if let Some(ret) = self.rule_return_types.get(name) {
                         return Some(ret.clone());
@@ -20148,6 +20488,21 @@ impl TypeChecker {
             ExprKind::Field(base, field) => {
                 let base_type = self.infer_expr_type_name_with_locals(base, locals)?;
                 self.field_type_name(&base_type, field)
+            }
+            ExprKind::BinOp(operator, left, right) => match operator.as_str() {
+                "<" | ">" | "<=" | ">=" | "==" | "!=" | "&&" | "||" => Some("Bool".to_string()),
+                _ => {
+                    let left_type = self.infer_expr_type_name_with_locals(left, locals)?;
+                    let right_type = self.infer_expr_type_name_with_locals(right, locals)?;
+                    Self::merge_inferred_type_names(&left_type, &right_type)
+                }
+            },
+            ExprKind::UnOp(operator, inner) => {
+                if operator == "!" {
+                    Some("Bool".to_string())
+                } else {
+                    self.infer_expr_type_name_with_locals(inner, locals)
+                }
             }
             ExprKind::Index(collection, _) => {
                 let collection_type = self.infer_expr_type_name_with_locals(collection, locals)?;
@@ -20179,17 +20534,31 @@ impl TypeChecker {
                 }
                 result_type
             }
-            ExprKind::Block(stmts) => stmts.last().and_then(|stmt| match stmt {
-                Stmt::Expr(expr) => self.infer_expr_type_name_with_locals(expr, locals),
-                Stmt::Bind(Pat::Var(name), Some(ty), _) => Self::type_name_from_ty(ty)
-                    .or_else(|| locals.get(name).cloned())
-                    .or_else(|| self.var_type_name(name).map(str::to_string)),
-                Stmt::Bind(Pat::Var(name), None, expr) => self
-                    .infer_expr_type_name_with_locals(expr, locals)
-                    .or_else(|| locals.get(name).cloned())
-                    .or_else(|| self.var_type_name(name).map(str::to_string)),
-                _ => None,
-            }),
+            ExprKind::Block(stmts) => {
+                let mut block_locals = locals.clone();
+                let mut result = None;
+                for stmt in stmts {
+                    match stmt {
+                        Stmt::Bind(Pat::Var(name), ty, expr) => {
+                            let inferred =
+                                ty.as_ref().and_then(Self::type_name_from_ty).or_else(|| {
+                                    self.infer_expr_type_name_with_locals(expr, &block_locals)
+                                });
+                            if let Some(inferred) = &inferred {
+                                block_locals.insert(name.clone(), inferred.clone());
+                            }
+                            result = inferred;
+                        }
+                        Stmt::Expr(expr) => {
+                            result = self.infer_expr_type_name_with_locals(expr, &block_locals);
+                        }
+                        _ => result = None,
+                    }
+                }
+                result
+            }
+            ExprKind::Conjunction(_) | ExprKind::Disjunction(_) => Some("Bool".to_string()),
+            ExprKind::Try(inner) => self.infer_expr_type_name_with_locals(inner, locals),
             _ => None,
         }
     }
@@ -20200,6 +20569,9 @@ impl TypeChecker {
         params: &[Param],
         body: &[Stmt],
     ) {
+        let previous_scope = self
+            .active_rule_scope_inference
+            .replace(scope_name.to_string());
         self.rule_scope_member_return_types
             .entry(scope_name.to_string())
             .or_default();
@@ -20291,6 +20663,7 @@ impl TypeChecker {
                 break;
             }
         }
+        self.active_rule_scope_inference = previous_scope;
     }
 
     fn infer_rule_return_types(&mut self, stmts: &[Stmt]) {
@@ -22742,6 +23115,8 @@ impl TypeChecker {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            rule_return_types: tc.rule_return_types,
+            rule_scope_member_return_types: tc.rule_scope_member_return_types,
         }
     }
 
@@ -23419,6 +23794,113 @@ mod tests {
             env.get("scoped_result").map(ToString::to_string),
             Some("2".to_string())
         );
+    }
+
+    #[test]
+    fn canonical_rule_dispatch_registry_is_scoped_typed_and_ordered() {
+        let source = r#"
+# Decision(base: Int) {
+    | result(value: Int) -> base
+    | result(value: Int) -> 7 under value > 7
+    | exception above_eight result(value: Int) -> 8 under value > 8
+}
+
+| allowed(value: Int) -> value > 0
+
+| doubled(value: Int) -> {
+    = shifted = value + 1
+    shifted * 2
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser
+            .parse_program()
+            .expect("parse dispatch registry fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+
+        let registry = RuleDispatchRegistry::from_statements(&statements, &artifacts);
+        let scoped = registry
+            .get(Some("Decision"), "result", 1)
+            .expect("scoped result group");
+        assert_eq!(scoped.key.scope.as_deref(), Some("Decision"));
+        assert_eq!(scoped.captures.len(), 1);
+        assert_eq!(scoped.captures[0].name, "base");
+        assert_eq!(
+            scoped.captures[0].ty.as_ref().map(ToString::to_string),
+            Some("Int".into())
+        );
+        assert_eq!(
+            scoped.parameters,
+            vec![RuleDispatchParameter {
+                name: Some("value".into()),
+                ty: Some("Int".into()),
+            }]
+        );
+        assert_eq!(scoped.return_type.as_deref(), Some("Int"));
+        assert_eq!(scoped.totality, RuleDispatchTotality::IrrefutableCandidate);
+        assert_eq!(scoped.plan.exceptions[0].source_order, 2);
+        assert_eq!(scoped.plan.conditional_defaults[0].source_order, 1);
+        assert_eq!(scoped.plan.clauses[0].source_order, 0);
+        assert!(!scoped.plan.exceptions[0].source_span.is_dummy());
+        assert!(!scoped.plan.conditional_defaults[0].source_span.is_dummy());
+        assert!(!scoped.plan.clauses[0].source_span.is_dummy());
+
+        let predicate = registry
+            .get(None, "allowed", 1)
+            .expect("global predicate group");
+        assert_eq!(predicate.return_type.as_deref(), Some("Bool"));
+        assert_eq!(
+            predicate.totality,
+            RuleDispatchTotality::PredicateFallbackFalse
+        );
+
+        let block_value = registry
+            .get(None, "doubled", 1)
+            .expect("block-valued global rule group");
+        assert_eq!(block_value.return_type.as_deref(), Some("Int"));
+    }
+
+    #[test]
+    fn rulescope_return_inference_reaches_sibling_rule_chains() {
+        let source = include_str!("../tests/rule_scope_test.runa");
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser.parse_program().expect("parse RuleScope fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let members = artifacts
+            .rule_scope_member_return_types
+            .get("TaxCase")
+            .expect("TaxCase return inference");
+
+        for member in [
+            "personal_allowance",
+            "taxable_income",
+            "municipal_tax",
+            "state_tax",
+            "tax_due",
+            "final_due",
+            "projected_tax",
+            "reported_income",
+            "summary",
+            "summary_copy",
+            "summary_total",
+            "summary_source_copy",
+            "filing_status",
+            "status_copy",
+        ] {
+            assert!(
+                members.contains_key(member),
+                "missing return type for {member}; inferred: {members:?}"
+            );
+        }
     }
 
     #[test]
