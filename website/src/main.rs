@@ -3168,15 +3168,15 @@ const TAX_WEBSITE_OVERVIEW_MD: &str =
     include_str!("../../examples/danish-income-tax/website-overblik.md");
 const TAX_INCOME_CLIFFS_MD: &str =
     include_str!("../../examples/danish-income-tax/personskat-income-cliffs.md");
-const TAX_INCOME_CLIFFS_TITLE: &str = "Can earning one more krone leave you with less? — Futuruna";
-const TAX_INCOME_CLIFFS_DESCRIPTION: &str = "A Futuruna exploration of a 2026 Danish commuting-deduction boundary where 1 DKK more income leaves one modeled profile 69.47 DKK worse off.";
+const TAX_INCOME_CLIFFS_TITLE: &str = "I mapped where one more krone leaves you poorer — Futuruna";
+const TAX_INCOME_CLIFFS_DESCRIPTION: &str = "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 municipal rows, finding modeled one-krone income cliffs from 69.23 to 170.02 DKK.";
 const TAX_INCOME_CLIFFS_JSON_LD: &str = r#"{
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "@id": "https://futuruna.com/research/income-cliffs#article",
   "url": "https://futuruna.com/research/income-cliffs",
-  "headline": "Can earning one more krone leave you with less?",
-  "description": "A Futuruna exploration of a 2026 Danish commuting-deduction boundary where 1 DKK more income leaves one modeled profile 69.47 DKK worse off.",
+  "headline": "I mapped where one more krone leaves you poorer",
+  "description": "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 municipal rows, finding modeled one-krone income cliffs from 69.23 to 170.02 DKK.",
   "datePublished": "2026-08-18",
   "dateModified": "2026-08-18",
   "inLanguage": "en",
@@ -3202,7 +3202,10 @@ const TAX_INCOME_CLIFFS_JSON_LD: &str = r#"{
     "https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag",
     "https://www.retsinformation.dk/eli/lta/2025/1500",
     "https://www.retsinformation.dk/eli/lta/2026/616",
-    "https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-et-aegtepar-i-2020"
+    "https://www.retsinformation.dk/eli/lta/2025/1333",
+    "https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-en-ugift-skatteyder-i-2023",
+    "https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter",
+    "https://skat.dk/borger/fradrag/koerselsfradrag/yderligere-information-om-koerselsfradrag"
   ]
 }"#;
 
@@ -3428,10 +3431,11 @@ fn ResearchIndex() -> Element {
                 }
                 a { class: "research-card", href: "/research/income-cliffs",
                     div { class: "research-card-rune rune-question", "?" }
-                    h2 { class: "research-card-title", "Can earning one more krone leave you with less?" }
+                    h2 { class: "research-card-title", "I mapped where one more krone leaves you poorer" }
                     p { class: "research-card-desc",
-                        "Follow 50 boundaries in a 2026 Danish tax model, and see why one extra \
-                         krone leaves one modeled commuter 69.47 DKK worse off."
+                        "Futuruna evaluates 490 adjacent income transitions across all 98 \
+                         municipalities and two full phase-out staircases, finding modeled \
+                         losses from 69.23 to 170.02 DKK."
                     }
                     span { class: "research-card-meta", "Danish Tax \u{00B7} Executable Exploration \u{00B7} English" }
                 }

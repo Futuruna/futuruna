@@ -26,7 +26,7 @@ pages=(
   "research/danish-constitution.html^https://futuruna.com/research/danish-constitution^Danmarks Riges Grundlov | Futuruna^<h1>Danmarks Riges Grundlov</h1>"
   "research/danish-constitution-audit.html^https://futuruna.com/research/danish-constitution-audit^Prøvning af grundlovsmodellen | Futuruna^<h1>Prøvning af grundlovsmodellen</h1>"
   "research/personskatteloven.html^https://futuruna.com/research/personskatteloven^Personskatteloven - Futuruna-forskning^<h1>Personskatteloven i Futuruna</h1>"
-  "research/income-cliffs.html^https://futuruna.com/research/income-cliffs^Can earning one more krone leave you with less? — Futuruna^<h1>Can earning one more krone leave you with less?</h1>"
+  "research/income-cliffs.html^https://futuruna.com/research/income-cliffs^I mapped where one more krone leaves you poorer — Futuruna^<h1>I mapped where one more krone leaves you poorer</h1>"
   "research/us-constitution.html^https://futuruna.com/research/us-constitution^US Constitution in Futuruna — Research^<h1>The United States Constitution</h1>"
   "research/ownership.html^https://futuruna.com/research/ownership^Invisible Ownership — Futuruna Research^<h1>Invisible Ownership</h1>"
 )
@@ -144,14 +144,24 @@ for page_path in sys.argv[2:]:
         raise SystemExit(f"{page_path} has no JSON-LD document")
     parsed = [json.loads(document) for document in documents]
     if page_path.endswith("research/income-cliffs.html"):
+        expected_headline = "I mapped where one more krone leaves you poorer"
+        expected_description = (
+            "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 "
+            "municipal rows, finding modeled one-krone income cliffs from 69.23 to "
+            "170.02 DKK."
+        )
         if not any(
             document.get("@type") == "TechArticle"
             and document.get("@id")
             == "https://futuruna.com/research/income-cliffs#article"
+            and document.get("headline") == expected_headline
+            and document.get("description") == expected_description
             for document in parsed
             if isinstance(document, dict)
         ):
-            raise SystemExit("income-cliffs article has no matching TechArticle JSON-LD")
+            raise SystemExit(
+                "income-cliffs article has no matching TechArticle JSON-LD metadata"
+            )
 PY
 
 grep -Fq 'id="nav-menu-toggle"' "$output_dir/index.html" || {
