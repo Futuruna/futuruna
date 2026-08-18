@@ -419,7 +419,7 @@ impl CalculationInputLayout {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum CatalogType {
     Adt {
         parameters: Vec<String>,
@@ -431,22 +431,71 @@ enum CatalogType {
     },
 }
 
-#[derive(Default)]
-struct TypeCatalog {
+const EXACT_TYPE_VARIANT_EXPANSION_LIMIT: usize = 1_000_000;
+const EXACT_TYPE_RESOLUTION_DEPTH_LIMIT: usize = 64;
+
+#[derive(Debug, Default)]
+pub(crate) struct TypeCatalog {
     types: BTreeMap<String, CatalogType>,
+    conditional_types: BTreeSet<String>,
+    duplicate_types: BTreeSet<String>,
+    type_origins: BTreeMap<String, String>,
+    type_order: BTreeMap<String, usize>,
+    next_type_order: usize,
+    exact_mode: bool,
 }
 
 impl TypeCatalog {
+    /// Collect the named types visible through this program's flat imports.
+    ///
+    /// Unlike the calculation contract collector's compatibility path, this
+    /// constructor fails closed when an import cannot be located, read, or
+    /// parsed. Consumers that use the catalog to claim a complete finite type
+    /// universe must not silently continue with a partial declaration graph.
+    pub(crate) fn collect_checked(
+        stmts: &[Stmt],
+        source_dir: Option<&str>,
+    ) -> Result<Self, Vec<String>> {
+        let mut catalog = Self::default();
+        catalog.exact_mode = true;
+        let mut imported = BTreeSet::new();
+        let mut diagnostics = Vec::new();
+        catalog.collect_inner(
+            stmts,
+            source_dir,
+            "<root>",
+            &mut imported,
+            &mut diagnostics,
+            true,
+        );
+        if diagnostics.is_empty() {
+            Ok(catalog)
+        } else {
+            Err(diagnostics)
+        }
+    }
+
     fn collect(&mut self, stmts: &[Stmt], source_dir: Option<&str>) {
         let mut imported = BTreeSet::new();
-        self.collect_inner(stmts, source_dir, &mut imported);
+        let mut ignored_diagnostics = Vec::new();
+        self.collect_inner(
+            stmts,
+            source_dir,
+            "<root>",
+            &mut imported,
+            &mut ignored_diagnostics,
+            false,
+        );
     }
 
     fn collect_inner(
         &mut self,
         stmts: &[Stmt],
         source_dir: Option<&str>,
+        origin: &str,
         imported: &mut BTreeSet<String>,
+        diagnostics: &mut Vec<String>,
+        checked: bool,
     ) {
         for stmt in stmts {
             match stmt {
@@ -457,6 +506,20 @@ impl TypeCatalog {
                     except_from,
                     ..
                 }) => {
+                    if checked && (is_builtin_runtime_type_name(name) || name == "Tuple") {
+                        diagnostics.push(format!(
+                            "declared type `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
+                            name
+                        ));
+                    }
+                    if checked && self.types.contains_key(name) {
+                        self.duplicate_types.insert(name.clone());
+                    }
+                    if !self.type_order.contains_key(name) {
+                        self.type_order.insert(name.clone(), self.next_type_order);
+                        self.type_origins.insert(name.clone(), origin.to_string());
+                        self.next_type_order += 1;
+                    }
                     self.types.insert(
                         name.clone(),
                         CatalogType::Adt {
@@ -467,6 +530,20 @@ impl TypeCatalog {
                     );
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                    if checked && (is_builtin_runtime_type_name(name) || name == "Tuple") {
+                        diagnostics.push(format!(
+                            "declared rule scope `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
+                            name
+                        ));
+                    }
+                    if checked && self.types.contains_key(name) {
+                        self.duplicate_types.insert(name.clone());
+                    }
+                    if !self.type_order.contains_key(name) {
+                        self.type_order.insert(name.clone(), self.next_type_order);
+                        self.type_origins.insert(name.clone(), origin.to_string());
+                        self.next_type_order += 1;
+                    }
                     self.types.insert(
                         name.clone(),
                         CatalogType::RuleScope {
@@ -474,49 +551,247 @@ impl TypeCatalog {
                         },
                     );
                 }
+                Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
+                    if checked {
+                        if is_builtin_runtime_type_name(name) || name == "Tuple" {
+                            diagnostics.push(format!(
+                                "conditional type evolution for `{}` changes a built-in primitive or structural type and cannot define an exact exploration universe",
+                                name
+                            ));
+                        }
+                        self.conditional_types.insert(name.clone());
+                    }
+                }
                 Stmt::Import(path) => {
                     let Some(dir) = source_dir else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve flat import `{}` without a source directory",
+                                path
+                            ));
+                        }
                         continue;
                     };
                     let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir)
                     else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve flat import `{}` from `{}`",
+                                path, dir
+                            ));
+                        }
                         continue;
                     };
                     let canonical = std::fs::canonicalize(&file_path)
                         .unwrap_or_else(|_| Path::new(&file_path).to_path_buf());
                     let canonical = canonical.to_string_lossy().to_string();
-                    if !imported.insert(canonical) {
+                    if !imported.insert(canonical.clone()) {
                         continue;
                     }
-                    let Ok(source) = std::fs::read_to_string(&file_path) else {
-                        continue;
+                    let source = match std::fs::read_to_string(&file_path) {
+                        Ok(source) => source,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot resolve flat import `{}`: {} ({})",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
                     };
                     let mut lexer = Lexer::new(&source);
                     let tokens = lexer.tokenize();
                     let mut parser = Parser::new(tokens, &source);
-                    let Ok(imported_stmts) = parser.parse_program() else {
-                        continue;
+                    let imported_stmts = match parser.parse_program() {
+                        Ok(imported_stmts) => imported_stmts,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot parse flat imported module `{}` at {}: {}",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
                     };
                     let nested_dir = Path::new(&file_path)
                         .parent()
                         .map(|parent| parent.to_string_lossy().to_string())
                         .unwrap_or_else(|| ".".to_string());
-                    self.collect_inner(&imported_stmts, Some(&nested_dir), imported);
+                    self.collect_inner(
+                        &imported_stmts,
+                        Some(&nested_dir),
+                        &canonical,
+                        imported,
+                        diagnostics,
+                        checked,
+                    );
+                }
+                Stmt::HashImport(hash, path) => {
+                    let Some(dir) = source_dir else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}` without a source directory",
+                                hash, path
+                            ));
+                        }
+                        continue;
+                    };
+                    let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir)
+                    else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}`",
+                                hash, path
+                            ));
+                        }
+                        continue;
+                    };
+                    let canonical = std::fs::canonicalize(&file_path)
+                        .unwrap_or_else(|_| Path::new(&file_path).to_path_buf())
+                        .to_string_lossy()
+                        .to_string();
+                    let import_key = format!("{}#{}", canonical, hash);
+                    if !imported.insert(import_key.clone()) {
+                        continue;
+                    }
+                    let module = match parse_source_module_file_cached(Path::new(&file_path)) {
+                        Ok(module) => module,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot parse hash imported module `{}` at {}: {}",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
+                    };
+                    let matched = module
+                        .statements()
+                        .iter()
+                        .filter(|statement| match statement {
+                            Stmt::Defn(definition) => content_hash_defn(definition) == *hash,
+                            Stmt::TypeDecl(declaration) => content_hash_type(declaration) == *hash,
+                            _ => false,
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if matched.len() != 1 {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}`: expected exactly one matching definition, found {}",
+                                hash,
+                                path,
+                                matched.len()
+                            ));
+                        }
+                        continue;
+                    }
+                    let nested_dir = Path::new(&file_path)
+                        .parent()
+                        .map(|parent| parent.to_string_lossy().to_string())
+                        .unwrap_or_else(|| ".".to_string());
+                    self.collect_inner(
+                        &matched,
+                        Some(&nested_dir),
+                        &import_key,
+                        imported,
+                        diagnostics,
+                        checked,
+                    );
                 }
                 _ => {}
             }
         }
     }
 
-    fn resolved_variants(&self, name: &str) -> Result<Vec<Variant>, String> {
-        self.resolved_variants_inner(name, &mut BTreeSet::new())
+    /// Resolve an ADT's variants in source expansion order.
+    pub(crate) fn resolved_variants(&self, name: &str) -> Result<Vec<Variant>, String> {
+        let mut budget = self
+            .exact_mode
+            .then_some(EXACT_TYPE_VARIANT_EXPANSION_LIMIT);
+        self.resolved_variants_inner(name, &mut BTreeSet::new(), &mut budget)
+    }
+
+    /// Return the declared generic parameters for an ADT.
+    ///
+    /// RuleScope inputs are value fields rather than type parameters, so a
+    /// RuleScope has an empty generic-parameter list.
+    pub(crate) fn type_parameters(&self, name: &str) -> Result<Vec<String>, String> {
+        if self.duplicate_types.contains(name) {
+            return Err(format!(
+                "type `{}` has multiple declarations and cannot define one exact universe",
+                name
+            ));
+        }
+        match self.types.get(name) {
+            Some(CatalogType::Adt { parameters, .. }) => Ok(parameters.clone()),
+            Some(CatalogType::RuleScope { .. }) => Ok(Vec::new()),
+            None => Err(format!("unknown type `{}`", name)),
+        }
+    }
+
+    pub(crate) fn is_rule_scope(&self, name: &str) -> bool {
+        matches!(self.types.get(name), Some(CatalogType::RuleScope { .. }))
+    }
+
+    pub(crate) fn contains_type(&self, name: &str) -> bool {
+        self.types.contains_key(name)
+    }
+
+    fn ensure_inclusion_source_visible(&self, owner: &str, source: &str) -> Result<(), String> {
+        if !self.exact_mode {
+            return Ok(());
+        }
+        if matches!(self.types.get(source), Some(CatalogType::RuleScope { .. })) {
+            return Err(format!(
+                "type `{}` includes open rule scope `{}`, which cannot define a finite value universe",
+                owner, source
+            ));
+        }
+        self.type_origins
+            .get(owner)
+            .ok_or_else(|| format!("unknown type `{}`", owner))?;
+        self.type_origins
+            .get(source)
+            .ok_or_else(|| format!("unknown included type `{}`", source))?;
+        let owner_order = self.type_order.get(owner).copied().unwrap_or(usize::MAX);
+        let source_order = self.type_order.get(source).copied().unwrap_or(usize::MAX);
+        if source_order >= owner_order {
+            return Err(format!(
+                "type `{}` includes `{}` outside its already initialized declaration prefix; exact finite universes require an earlier visible type declaration",
+                owner, source
+            ));
+        }
+        Ok(())
     }
 
     fn resolved_variants_inner(
         &self,
         name: &str,
         active: &mut BTreeSet<String>,
+        budget: &mut Option<usize>,
     ) -> Result<Vec<Variant>, String> {
+        if self.exact_mode && active.len() >= EXACT_TYPE_RESOLUTION_DEPTH_LIMIT {
+            return Err(format!(
+                "finite type `{}` exceeds the exact resolution depth limit {}",
+                name, EXACT_TYPE_RESOLUTION_DEPTH_LIMIT
+            ));
+        }
+        if self.duplicate_types.contains(name) {
+            return Err(format!(
+                "type `{}` has multiple declarations and cannot define one exact universe",
+                name
+            ));
+        }
+        if self.conditional_types.contains(name) {
+            return Err(format!(
+                "type `{}` has conditional variants and cannot define a complete static universe",
+                name
+            ));
+        }
         if !active.insert(name.to_string()) {
             return Err(format!("cyclic type inclusion involving `{}`", name));
         }
@@ -528,8 +803,10 @@ impl TypeCatalog {
             }) => {
                 let mut resolved = Vec::new();
                 if let Some((source, excluded)) = except_from {
-                    for variant in self.resolved_variants_inner(source, active)? {
+                    self.ensure_inclusion_source_visible(name, source)?;
+                    for variant in self.resolved_variants_inner(source, active, budget)? {
                         if !excluded.contains(&variant.name) {
+                            charge_exact_variant_expansion(budget, 1, name)?;
                             resolved.push(variant);
                         }
                     }
@@ -537,11 +814,16 @@ impl TypeCatalog {
                 for variant in variants {
                     match variant.from_type.as_deref() {
                         Some("__maybe_include") if self.types.contains_key(&variant.name) => {
-                            resolved.extend(self.resolved_variants_inner(&variant.name, active)?);
+                            self.ensure_inclusion_source_visible(name, &variant.name)?;
+                            let included =
+                                self.resolved_variants_inner(&variant.name, active, budget)?;
+                            charge_exact_variant_expansion(budget, included.len(), name)?;
+                            resolved.extend(included);
                         }
                         Some(source) if source != "__maybe_include" => {
+                            self.ensure_inclusion_source_visible(name, source)?;
                             let source_variant = self
-                                .resolved_variants_inner(source, active)?
+                                .resolved_variants_inner(source, active, budget)?
                                 .into_iter()
                                 .find(|candidate| candidate.name == variant.name)
                                 .ok_or_else(|| {
@@ -550,29 +832,300 @@ impl TypeCatalog {
                                         source, variant.name, name
                                     )
                                 })?;
+                            charge_exact_variant_expansion(budget, 1, name)?;
                             resolved.push(source_variant);
                         }
-                        _ => resolved.push(variant.clone()),
+                        _ => {
+                            charge_exact_variant_expansion(budget, 1, name)?;
+                            resolved.push(variant.clone());
+                        }
                     }
                 }
                 Ok(resolved)
             }
-            Some(CatalogType::RuleScope { parameters }) => Ok(vec![Variant {
-                name: name.to_string(),
-                fields: parameters
-                    .iter()
-                    .map(|parameter| Field {
-                        name: parameter.name.clone(),
-                        ty: parameter.ty.clone().unwrap_or(Ty::Hole),
-                    })
-                    .collect(),
-                positional: false,
-                from_type: None,
-            }]),
+            Some(CatalogType::RuleScope { parameters }) => {
+                charge_exact_variant_expansion(budget, 1, name)?;
+                Ok(vec![Variant {
+                    name: name.to_string(),
+                    fields: parameters
+                        .iter()
+                        .map(|parameter| Field {
+                            name: parameter.name.clone(),
+                            ty: parameter.ty.clone().unwrap_or(Ty::Hole),
+                        })
+                        .collect(),
+                    positional: false,
+                    from_type: None,
+                }])
+            }
             None => Err(format!("unknown type `{}`", name)),
         };
         active.remove(name);
         result
+    }
+}
+
+fn charge_exact_variant_expansion(
+    budget: &mut Option<usize>,
+    amount: usize,
+    owner: &str,
+) -> Result<(), String> {
+    let Some(remaining) = budget else {
+        return Ok(());
+    };
+    let Some(next) = remaining.checked_sub(amount) else {
+        return Err(format!(
+            "finite type `{}` exceeds the exact variant-expansion work limit {}",
+            owner, EXACT_TYPE_VARIANT_EXPANSION_LIMIT
+        ));
+    };
+    *remaining = next;
+    Ok(())
+}
+
+#[cfg(test)]
+mod type_catalog_tests {
+    use super::*;
+
+    fn parse(source: &str) -> Vec<Stmt> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        parser.parse_program().expect("parse type catalog fixture")
+    }
+
+    #[test]
+    fn checked_catalog_exposes_exact_type_shape_and_variant_order() {
+        let statements = parse(
+            r#"
+# Base = First | Second
+# Wrapped(a) = Empty | Present(value: a)
+# Combined = Base | Third
+# Evolving = Initial
+# Evolving WHEN True -> Later
+
+# Case(flag: Base) {
+    | current() -> flag
+}
+"#,
+        );
+
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect complete local catalog");
+        assert_eq!(catalog.type_parameters("Wrapped").unwrap(), vec!["a"]);
+        assert_eq!(
+            catalog.type_parameters("Case").unwrap(),
+            Vec::<String>::new()
+        );
+        assert!(catalog.is_rule_scope("Case"));
+        assert!(!catalog.is_rule_scope("Wrapped"));
+        assert_eq!(
+            catalog
+                .resolved_variants("Combined")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First", "Second", "Third"]
+        );
+        assert_eq!(
+            catalog.resolved_variants("Evolving").unwrap_err(),
+            "type `Evolving` has conditional variants and cannot define a complete static universe"
+        );
+        assert_eq!(
+            catalog.type_parameters("Missing").unwrap_err(),
+            "unknown type `Missing`"
+        );
+
+        let mut calculation_compatibility_catalog = TypeCatalog::default();
+        calculation_compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            calculation_compatibility_catalog
+                .resolved_variants("Evolving")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Initial"]
+        );
+    }
+
+    #[test]
+    fn exact_variant_resolution_rejects_forward_includes_and_except_sources() {
+        let statements = parse(
+            r#"
+# Combined = Base | Third
+# Base = First | Second
+# Trimmed = Later EXCEPT Skip
+# Later = Keep | Skip
+"#,
+        );
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect forward-reference catalog");
+        for name in ["Combined", "Trimmed"] {
+            let error = catalog
+                .resolved_variants(name)
+                .expect_err("forward type composition must fail closed");
+            assert!(
+                error.contains("outside its already initialized declaration prefix"),
+                "{error}"
+            );
+        }
+
+        let mut compatibility_catalog = TypeCatalog::default();
+        compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            compatibility_catalog
+                .resolved_variants("Combined")
+                .expect("legacy calculation catalog keeps completed-map resolution")
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First", "Second", "Third"]
+        );
+    }
+
+    #[test]
+    fn exact_variant_resolution_has_a_total_expansion_budget() {
+        let statements = parse(
+            r#"
+# T0 = A | B
+# T1Left = T0
+# T1Right = T0
+# T2 = T1Left | T1Right
+"#,
+        );
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect inclusion-diamond catalog");
+        let mut budget = Some(8);
+        let error = catalog
+            .resolved_variants_inner("T2", &mut BTreeSet::new(), &mut budget)
+            .expect_err("diamond expansion must exhaust the test budget");
+        assert!(error.contains("variant-expansion work limit"), "{error}");
+    }
+
+    #[test]
+    fn exact_variant_resolution_has_a_depth_limit() {
+        let mut source = "# T0 = Leaf\n".to_string();
+        for index in 1..=70 {
+            source.push_str(&format!("# T{} = T{}\n", index, index - 1));
+        }
+        let statements = parse(&source);
+        let catalog =
+            TypeCatalog::collect_checked(&statements, None).expect("collect deep inclusion chain");
+        let error = catalog
+            .resolved_variants("T70")
+            .expect_err("deep inclusion chains must fail before stack recursion");
+        assert!(error.contains("exact resolution depth limit"), "{error}");
+
+        let mut compatibility_catalog = TypeCatalog::default();
+        compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            compatibility_catalog
+                .resolved_variants("T70")
+                .expect("legacy calculation catalog keeps its prior deep-chain behavior")
+                .into_iter()
+                .map(|variant| variant.name)
+                .collect::<Vec<_>>(),
+            vec!["Leaf"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_collects_nested_flat_import_types() {
+        let statements = parse("@ import ./import_mesh_shared\n");
+        let source_dir = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/differential/corpus/imports"
+        );
+
+        let catalog = TypeCatalog::collect_checked(&statements, Some(source_dir))
+            .expect("collect nested flat imports");
+
+        assert_eq!(
+            catalog
+                .resolved_variants("Lane")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Draft", "Review", "Ship"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_composes_an_earlier_imported_type() {
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_exact_type_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).expect("create imported-type directory");
+        std::fs::write(directory.join("domain.runa"), "# Base = A | B\n")
+            .expect("write imported type");
+        let statements = parse("@ import ./domain\n# Combined = Base | C\n");
+        let catalog =
+            TypeCatalog::collect_checked(&statements, Some(directory.to_string_lossy().as_ref()))
+                .expect("collect imported-prefix composition");
+        std::fs::remove_dir_all(&directory).ok();
+        assert_eq!(
+            catalog
+                .resolved_variants("Combined")
+                .expect("resolve imported-prefix composition")
+                .into_iter()
+                .map(|variant| variant.name)
+                .collect::<Vec<_>>(),
+            vec!["A", "B", "C"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_reports_unavailable_and_malformed_flat_imports() {
+        let missing = parse("@ import ./type_catalog_fixture_that_does_not_exist\n");
+        let errors = match TypeCatalog::collect_checked(&missing, None) {
+            Err(errors) => errors,
+            Ok(_) => panic!("missing import must fail closed"),
+        };
+        assert_eq!(
+            errors,
+            vec!["cannot resolve flat import `./type_catalog_fixture_that_does_not_exist` without a source directory"]
+        );
+
+        let source_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/errors");
+        let malformed = parse("@ import ./multi_parse_error\n");
+        let errors = match TypeCatalog::collect_checked(&malformed, Some(source_dir)) {
+            Err(errors) => errors,
+            Ok(_) => panic!("malformed import must fail closed"),
+        };
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0].contains("cannot parse flat imported module `./multi_parse_error`"),
+            "unexpected diagnostic: {}",
+            errors[0]
+        );
+    }
+
+    #[test]
+    fn type_substitution_rewrites_nested_type_parameters() {
+        let ty = Ty::App(
+            Box::new(Ty::Name("Result".to_string())),
+            vec![
+                Ty::Optional(Box::new(Ty::Var("value".to_string()))),
+                Ty::Var("error".to_string()),
+            ],
+        );
+        let substitutions = BTreeMap::from([
+            ("value".to_string(), Ty::Name("Bool".to_string())),
+            ("error".to_string(), Ty::Name("UnitError".to_string())),
+        ]);
+
+        assert_eq!(
+            substitute_type(&ty, &substitutions).to_string(),
+            "Result(Bool?, UnitError)"
+        );
     }
 }
 
@@ -1041,6 +1594,10 @@ fn primitive_name(name: &str) -> Option<&'static str> {
     }
 }
 
+fn is_builtin_runtime_type_name(name: &str) -> bool {
+    primitive_name(name).is_some() || matches!(name, "Nat" | "Unit" | "Any" | "_")
+}
+
 fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationTypeRef, String> {
     match ty {
         Ty::Name(name) => {
@@ -1195,7 +1752,7 @@ fn validate_named_type(
         .collect();
     for variant in catalog.resolved_variants(name)? {
         for field in variant.fields {
-            let field_ty = substitute_ty(&field.ty, &substitutions);
+            let field_ty = substitute_type(&field.ty, &substitutions);
             validate_type_inner(&field_ty, catalog, active)?;
         }
     }
@@ -1213,27 +1770,27 @@ fn input_is_domain_object(ty: &Ty, catalog: &TypeCatalog) -> bool {
     }
 }
 
-fn substitute_ty(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
+pub(crate) fn substitute_type(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
     match ty {
         Ty::Var(name) => substitutions
             .get(name)
             .cloned()
             .unwrap_or_else(|| ty.clone()),
         Ty::App(base, arguments) => Ty::App(
-            Box::new(substitute_ty(base, substitutions)),
+            Box::new(substitute_type(base, substitutions)),
             arguments
                 .iter()
-                .map(|argument| substitute_ty(argument, substitutions))
+                .map(|argument| substitute_type(argument, substitutions))
                 .collect(),
         ),
         Ty::Arrow(input, output) => Ty::Arrow(
-            Box::new(substitute_ty(input, substitutions)),
-            Box::new(substitute_ty(output, substitutions)),
+            Box::new(substitute_type(input, substitutions)),
+            Box::new(substitute_type(output, substitutions)),
         ),
-        Ty::Ref(inner) => Ty::Ref(Box::new(substitute_ty(inner, substitutions))),
-        Ty::MutRef(inner) => Ty::MutRef(Box::new(substitute_ty(inner, substitutions))),
-        Ty::Shared(inner) => Ty::Shared(Box::new(substitute_ty(inner, substitutions))),
-        Ty::Optional(inner) => Ty::Optional(Box::new(substitute_ty(inner, substitutions))),
+        Ty::Ref(inner) => Ty::Ref(Box::new(substitute_type(inner, substitutions))),
+        Ty::MutRef(inner) => Ty::MutRef(Box::new(substitute_type(inner, substitutions))),
+        Ty::Shared(inner) => Ty::Shared(Box::new(substitute_type(inner, substitutions))),
+        Ty::Optional(inner) => Ty::Optional(Box::new(substitute_type(inner, substitutions))),
         _ => ty.clone(),
     }
 }
@@ -1283,7 +1840,7 @@ fn collect_named_reachable(
         for variant in variants {
             for field in variant.fields {
                 collect_reachable_type_names(
-                    &substitute_ty(&field.ty, &substitutions),
+                    &substitute_type(&field.ty, &substitutions),
                     catalog,
                     reachable,
                 );
