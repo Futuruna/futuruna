@@ -138,7 +138,7 @@ the expected result:
 
 | two_child_tax_is_100000: due -> due == 100000
 
-? two_child_tax_is_100000(due)
+? two_child_tax_is_100000
 @ print(show(due))
 ```
 

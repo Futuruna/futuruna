@@ -58,6 +58,67 @@ Interpolation desugars to `"Result: " + show(x + 5)`.
 ()                       -- unit value and unit type
 ```
 
+## Layout and Multiline Syntax
+
+A newline normally ends a statement. It is a continuation instead when the
+grammar makes continuation unambiguous:
+
+- inside parentheses `(...)` or brackets `[...]`;
+- after an incomplete token such as `=`, `->`, `,`, or an operator; or
+- before a continuation token such as `|>`, `.`, `under`, or `else`.
+
+This lets compact and multiline forms mean the same thing:
+
+```runa
+= compact = calculate(case, [1, 2, 3]) |> cap(100)
+
+= multiline =
+    calculate(
+        case,
+        [
+            1,
+            2,
+            3,
+        ],
+    )
+    |> cap(100)
+```
+
+Delimited sequences accept a trailing comma. This applies consistently to
+function and rule parameters, calls, constructors, type fields and arguments,
+patterns, lists, tuples, closures, proof arguments, effect handlers, and grouped
+`@ use` imports. The formatter keeps one item per line when a sequence is
+already multiline.
+
+Block braces `{...}` contain statements, so their newlines remain statement
+boundaries. Explicit list-shaped brace syntax, such as grouped `@ use {...}`
+imports, handles its own comma-separated items. Continue a block expression by
+leaving an incomplete token at the end of the line:
+
+```runa
+> total(base: Int, adjustment: Int) -> Int {
+    base +
+    adjustment
+}
+```
+
+For algebraic data types, put `|` after a variant when another variant follows.
+That makes the continuation explicit without confusing the next variant with a
+top-level rule:
+
+```runa
+# Shape =
+    Circle(radius: Float) |
+    Rectangle(
+        width: Float,
+        height: Float,
+    )
+```
+
+Do not rely on continuation inference for a line-leading `+`, `-`, or `||`.
+Put these operators at the end of the preceding line, or wrap the whole
+expression in parentheses, to make the intended continuation explicit.
+
 ## Types
 
 ### Primitives
