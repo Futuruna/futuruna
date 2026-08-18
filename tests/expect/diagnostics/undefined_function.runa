@@ -2,4 +2,3 @@
 -- expect-status: fail
 -- expect-stderr: undefined function `nonexistent`
 = x = nonexistent(42)
-

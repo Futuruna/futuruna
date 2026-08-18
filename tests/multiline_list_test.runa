@@ -4,27 +4,27 @@
 
 -- Basic multi-line
 = nums = [
-1,
-2,
-3,
-4,
-5
+    1,
+    2,
+    3,
+    4,
+    5
 ]
 @ print("nums: " + show(nums))
 
 -- Trailing comma
 = colors = [
-"red",
-"green",
-"blue",
+    "red",
+    "green",
+    "blue",
 ]
 @ print("colors: " + show(colors))
 
 -- Nested multi-line
 = grid = [
-[1, 2, 3],
-[4, 5, 6],
-[7, 8, 9],
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 9],
 ]
 @ print("grid: " + show(grid))
 
@@ -36,32 +36,32 @@
 # Point(x: Int, y: Int)
 
 = points = [
-Point(0, 0),
-Point(1, 1),
-Point(2, 4),
+    Point(0, 0),
+    Point(1, 1),
+    Point(2, 4),
 ]
 @ print("points: " + show(points))
 
 -- Multi-line with expressions
 = computed = [
-1 + 2,
-3 * 4,
-10 - 5,
+    1 + 2,
+    3 * 4,
+    10 - 5,
 ]
 @ print("computed: " + show(computed))
 
 -- Multi-line in function call argument
 = total = sum_list([
-100,
-200,
-300,
+    100,
+    200,
+    300,
 ])
 @ print("total: " + show(total))
 
 -- Mixed: some on same line, some on new lines
 = mixed = [1, 2,
-3, 4,
-5]
+    3, 4,
+    5]
 @ print("mixed: " + show(mixed))
 
 @ print("")

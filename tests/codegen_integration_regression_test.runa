@@ -22,9 +22,9 @@
 
 > drive(start: String, fr: List(String), pairs: List(String)) -> String {
     foldl(pairs, start, |s, p| {
-        = deep = "x:" + p
-        foldl(fr, s, |s2, fw| feed(s2, deep, fw))
-    })
+            = deep = "x:" + p
+            foldl(fr, s, |s2, fw| feed(s2, deep, fw))
+        })
 }
 
 = driven = drive("", ["a", "b"], ["1", "2"])

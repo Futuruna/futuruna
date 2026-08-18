@@ -93,9 +93,9 @@
     | say(msg) -> { @ print("  " + msg); resume(()) }
 } in {
     = result = transform("Futuruna", |name: String| {
-        say("Processing: " + name)
-        "Processed " + name
-    })
+            say("Processing: " + name)
+            "Processed " + name
+        })
     result
 }
 
@@ -115,9 +115,9 @@
     | log(level, msg) -> { @ print("  [" + level + "] " + msg); resume(()) }
 } in {
     twice(|| {
-        say("hello")
-        log("info", "greeted")
-    })
+            say("hello")
+            log("info", "greeted")
+        })
     "done"
 }
 
