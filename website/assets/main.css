@@ -494,11 +494,12 @@ section {
 }
 
 .ai-guide-prompt {
+    position: relative;
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) 2.25rem;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 0.75rem;
-    align-items: start;
-    padding: 1rem;
+    align-items: center;
+    padding: 1rem 4rem 1rem 1rem;
     background: var(--bg-code);
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -521,18 +522,20 @@ section {
 }
 
 .ai-guide-copy {
-    position: relative;
+    position: absolute;
+    top: 50%;
+    right: 1rem;
     display: inline-flex;
     width: 2.25rem;
     height: 2.25rem;
     align-items: center;
     justify-content: center;
-    align-self: start;
     color: var(--text-secondary);
     background: var(--bg-surface);
     border: 1px solid var(--border);
     border-radius: 6px;
     cursor: pointer;
+    transform: translateY(-50%);
     transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease;
 }
 
@@ -2421,6 +2424,15 @@ section {
         align-items: flex-start;
         flex-direction: column;
         gap: 0.25rem;
+    }
+
+    .ai-guide-prompt {
+        align-items: start;
+    }
+
+    .ai-guide-copy {
+        top: 0.625rem;
+        transform: none;
     }
 
     .research-hub {
