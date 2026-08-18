@@ -5209,6 +5209,7 @@ pub struct RuleDispatchGroup<'a> {
     pub captures: Vec<Param>,
     pub parameters: Vec<RuleDispatchParameter>,
     pub return_type: Option<String>,
+    pub return_type_issue: Option<String>,
     pub totality: RuleDispatchTotality,
     pub plan: RuleDispatchPlan<'a>,
 }
@@ -5420,14 +5421,8 @@ impl<'a> RuleDispatchRegistry<'a> {
         let groups = pending
             .into_iter()
             .map(|(key, pending)| {
-                let return_type = match key.scope.as_deref() {
-                    Some(scope) => artifacts
-                        .rule_scope_member_return_types
-                        .get(scope)
-                        .and_then(|members| members.get(&key.name))
-                        .cloned(),
-                    None => artifacts.rule_return_types.get(&key.name).cloned(),
-                };
+                let return_type = artifacts.rule_dispatch_return_types.get(&key).cloned();
+                let return_type_issue = artifacts.rule_dispatch_return_issues.get(&key).cloned();
                 let totality = if return_type.as_deref() == Some("Bool") {
                     RuleDispatchTotality::PredicateFallbackFalse
                 } else if pending.rules.iter().any(|rule| {
@@ -5454,6 +5449,7 @@ impl<'a> RuleDispatchRegistry<'a> {
                     captures: pending.captures,
                     parameters,
                     return_type,
+                    return_type_issue,
                     totality,
                     plan,
                 };
@@ -19230,6 +19226,12 @@ pub struct TypeChecker {
     type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Rule/function name -> inferred value return type name.
     rule_return_types: BTreeMap<String, String>,
+    /// Canonical rule result types resolved by exact scope, name, and arity.
+    rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
+    /// Exact rule identities whose result type is conflicting or unresolved.
+    rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Every canonical rule identity declared in the flattened program.
+    rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     /// Exploration rule result types resolved by exact name and arity.
     explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
     /// Explicit ordinary-function results used by exploration expressions.
@@ -19297,6 +19299,8 @@ pub struct TypeCheckArtifacts {
     pub compile_time_metadata_bindings: BTreeSet<String>,
     pub rule_return_types: BTreeMap<String, String>,
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
+    pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
+    pub rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
     pub exploration_queries: Vec<TypedExploreQuery>,
     /// Closed, exact universes.  Solver/executor code must consume this layer,
     /// never the typed source-domain syntax above.
@@ -19354,6 +19358,9 @@ impl TypeChecker {
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
+            rule_dispatch_return_types: BTreeMap::new(),
+            rule_dispatch_return_issues: BTreeMap::new(),
+            rule_dispatch_keys: BTreeSet::new(),
             explore_rule_return_types_by_arity: BTreeMap::new(),
             explore_function_return_types_by_arity: BTreeMap::new(),
             explore_function_definitions_by_arity: BTreeMap::new(),
@@ -21220,35 +21227,79 @@ impl TypeChecker {
         let mut locals = BTreeMap::new();
         if let ExprKind::App(_, args) = &head.kind {
             for arg in args {
-                Self::collect_typed_rule_head_locals(arg, &mut locals);
+                self.collect_rule_head_local_types(arg, None, &mut locals);
             }
         }
         locals
     }
 
-    fn collect_typed_rule_head_locals(arg: &Expr, locals: &mut BTreeMap<String, String>) {
+    fn collect_rule_head_local_types(
+        &self,
+        arg: &Expr,
+        expected_type: Option<&str>,
+        locals: &mut BTreeMap<String, String>,
+    ) {
         if let Some((inner, type_name)) = Self::typed_rule_arg_parts(arg) {
+            let type_name = Self::canonical_explore_type_name(type_name);
             if let ExprKind::Var(name) = &inner.kind {
-                locals.insert(name.clone(), Self::canonical_explore_type_name(type_name));
+                locals.insert(name.clone(), type_name.clone());
             }
-            Self::collect_typed_rule_head_locals(inner, locals);
+            self.collect_rule_head_local_types(inner, Some(&type_name), locals);
             return;
         }
 
         match &arg.kind {
             ExprKind::App(func, args) if matches!(&func.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) => {
                 if let Some(value) = args.get(1) {
-                    Self::collect_typed_rule_head_locals(value, locals);
+                    self.collect_rule_head_local_types(value, expected_type, locals);
                 }
             }
-            ExprKind::App(_, args) => {
-                for arg in args {
-                    Self::collect_typed_rule_head_locals(arg, locals);
+            ExprKind::App(func, args) => {
+                let signature = match &func.kind {
+                    ExprKind::Var(constructor) => match expected_type {
+                        Some(parent) => self
+                            .constructor_signature_for_parent(constructor, Some(parent))
+                            .filter(|signature| {
+                                signature.parent == parent && signature.matches_args(args)
+                            }),
+                        None => self.constructor_signature_for_args(constructor, args),
+                    },
+                    _ => None,
+                };
+                if let Some(signature) = signature {
+                    for (index, arg) in args.iter().enumerate() {
+                        let (value, field_index) = named_arg_parts(arg)
+                            .map(|(field, value)| {
+                                (
+                                    value,
+                                    signature
+                                        .fields
+                                        .iter()
+                                        .position(|candidate| candidate == field),
+                                )
+                            })
+                            .unwrap_or((arg, Some(index)));
+                        let field_type = field_index
+                            .and_then(|index| signature.field_types.get(index))
+                            .and_then(Option::as_deref);
+                        self.collect_rule_head_local_types(value, field_type, locals);
+                    }
+                } else {
+                    for arg in args {
+                        self.collect_rule_head_local_types(arg, None, locals);
+                    }
                 }
             }
             ExprKind::Tuple(items) => {
                 for item in items {
-                    Self::collect_typed_rule_head_locals(item, locals);
+                    self.collect_rule_head_local_types(item, None, locals);
+                }
+            }
+            ExprKind::Var(name)
+                if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+            {
+                if let Some(expected_type) = expected_type {
+                    locals.insert(name.clone(), expected_type.to_string());
                 }
             }
             _ => {}
@@ -21709,13 +21760,22 @@ impl TypeChecker {
                     if let Some((parent, _)) = self.constructors.get(name) {
                         return Some(parent.clone());
                     }
-                    if let Some(return_type) = self
-                        .active_rule_scope_inference
-                        .as_ref()
-                        .and_then(|scope| self.rule_scope_member_return_types.get(scope))
-                        .and_then(|members| members.get(name))
-                    {
-                        return Some(return_type.clone());
+                    if let Some(scope) = self.active_rule_scope_inference.as_ref() {
+                        let key = RuleDispatchKey {
+                            scope: Some(scope.clone()),
+                            name: name.clone(),
+                            arity: args.len(),
+                        };
+                        if self.rule_dispatch_keys.contains(&key) {
+                            return self.rule_dispatch_return_types.get(&key).cloned();
+                        }
+                        if let Some(return_type) = self
+                            .rule_scope_member_return_types
+                            .get(scope)
+                            .and_then(|members| members.get(name))
+                        {
+                            return Some(return_type.clone());
+                        }
                     }
                     if let Some(ret) = self
                         .explore_function_return_types_by_arity
@@ -21729,6 +21789,14 @@ impl TypeChecker {
                     {
                         return Some(ret.to_string());
                     }
+                    let dispatch_key = RuleDispatchKey {
+                        scope: None,
+                        name: name.clone(),
+                        arity: args.len(),
+                    };
+                    if self.rule_dispatch_keys.contains(&dispatch_key) {
+                        return self.rule_dispatch_return_types.get(&dispatch_key).cloned();
+                    }
                     if (self.inferring_exact_explore_rule_returns || self.checking_explore_query)
                         && self.rule_arities.contains(&(name.clone(), args.len()))
                     {
@@ -21741,6 +21809,14 @@ impl TypeChecker {
 
                 if let ExprKind::Field(base, member) = &func.as_ref().kind {
                     let base_type = self.infer_expr_type_name_with_locals(base, locals)?;
+                    let dispatch_key = RuleDispatchKey {
+                        scope: Some(base_type.clone()),
+                        name: member.clone(),
+                        arity: args.len(),
+                    };
+                    if self.rule_dispatch_keys.contains(&dispatch_key) {
+                        return self.rule_dispatch_return_types.get(&dispatch_key).cloned();
+                    }
                     if let Some(ret) = self.scoped_member_return_type(&base_type, member) {
                         return Some(ret);
                     }
@@ -21969,6 +22045,170 @@ impl TypeChecker {
                         changed = true;
                     }
                     break;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    fn infer_rule_dispatch_return_types(&mut self, stmts: &[Stmt]) {
+        type ReturnGroup<'a> = (BTreeMap<String, String>, Vec<&'a Rule>);
+
+        let mut groups: BTreeMap<RuleDispatchKey, ReturnGroup<'_>> = BTreeMap::new();
+        for stmt in stmts {
+            match stmt {
+                Stmt::Rule(rule) => {
+                    let Some((name, arity)) = Self::rule_name_arity(rule) else {
+                        continue;
+                    };
+                    groups
+                        .entry(RuleDispatchKey {
+                            scope: None,
+                            name,
+                            arity,
+                        })
+                        .or_default()
+                        .1
+                        .push(rule);
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    // A later declaration of the same RuleScope replaces its
+                    // scoped dispatch surface, matching RuleDispatchRegistry.
+                    groups.retain(|key, _| key.scope.as_deref() != Some(name));
+                    let captures = params
+                        .iter()
+                        .filter_map(|param| {
+                            param
+                                .ty
+                                .as_ref()
+                                .and_then(Self::type_name_from_ty)
+                                .map(|ty| (param.name.clone(), ty))
+                        })
+                        .collect::<BTreeMap<_, _>>();
+                    for scoped_stmt in body {
+                        let Stmt::Rule(rule) = scoped_stmt else {
+                            continue;
+                        };
+                        let Some((member, arity)) = Self::rule_name_arity(rule) else {
+                            continue;
+                        };
+                        let group = groups
+                            .entry(RuleDispatchKey {
+                                scope: Some(name.clone()),
+                                name: member,
+                                arity,
+                            })
+                            .or_default();
+                        group.0 = captures.clone();
+                        group.1.push(rule);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.rule_dispatch_return_types.clear();
+        self.rule_dispatch_return_issues.clear();
+        self.rule_dispatch_keys = groups.keys().cloned().collect();
+
+        let infer_group =
+            |checker: &TypeChecker, captures: &BTreeMap<String, String>, rules: &[&Rule]| {
+                rules
+                    .iter()
+                    .map(|rule| match rule {
+                        Rule::Clause { head, body } => match body {
+                            Some(body) => {
+                                let mut locals = captures.clone();
+                                locals.extend(checker.rule_head_local_types(head));
+                                checker.infer_expr_type_name_with_locals(body, &locals)
+                            }
+                            None => Some("Bool".to_string()),
+                        },
+                        Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
+                            let mut locals = captures.clone();
+                            locals.extend(checker.rule_head_local_types(head));
+                            checker.infer_expr_type_name_with_locals(value, &locals)
+                        }
+                        Rule::ReactiveScope { .. } => None,
+                    })
+                    .collect::<Vec<_>>()
+            };
+
+        // A known base candidate can seed recursive references. Every result is
+        // revalidated below after the fixed point, so a provisional type can
+        // never hide a later conflict or unresolved dependency.
+        for _ in 0..groups.len().saturating_add(1) {
+            let mut changed = false;
+            for (key, (captures, rules)) in &groups {
+                let inferred = infer_group(self, captures, rules);
+                let known = inferred.iter().flatten().collect::<Vec<_>>();
+                let Some(first) = known.first() else {
+                    continue;
+                };
+                if known.iter().any(|candidate| {
+                    Self::canonical_explore_type_name(candidate)
+                        != Self::canonical_explore_type_name(first)
+                }) {
+                    continue;
+                }
+                if self.rule_dispatch_return_types.get(key) != Some(*first) {
+                    self.rule_dispatch_return_types
+                        .insert(key.clone(), (*first).clone());
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+
+        // Remove conflicts and unresolved families, then repeat so their
+        // callers also fail closed instead of retaining a provisional sort.
+        loop {
+            let mut changed = false;
+            for (key, (captures, rules)) in &groups {
+                if self.rule_dispatch_return_issues.contains_key(key) {
+                    continue;
+                }
+                let inferred = infer_group(self, captures, rules);
+                let issue = if inferred.iter().any(Option::is_none) {
+                    Some(format!(
+                        "cannot infer every return clause of rule `{}` with arity {}",
+                        key.scope
+                            .as_ref()
+                            .map(|scope| format!("{}.{}", scope, key.name))
+                            .unwrap_or_else(|| key.name.clone()),
+                        key.arity
+                    ))
+                } else {
+                    let inferred = inferred.into_iter().flatten().collect::<Vec<_>>();
+                    inferred.first().and_then(|first| {
+                        inferred
+                            .iter()
+                            .find(|candidate| {
+                                Self::canonical_explore_type_name(candidate)
+                                    != Self::canonical_explore_type_name(first)
+                            })
+                            .map(|candidate| {
+                                format!(
+                                    "rule `{}` with arity {} has conflicting return types `{}` and `{}`",
+                                    key.scope
+                                        .as_ref()
+                                        .map(|scope| format!("{}.{}", scope, key.name))
+                                        .unwrap_or_else(|| key.name.clone()),
+                                    key.arity,
+                                    first,
+                                    candidate
+                                )
+                            })
+                    })
+                };
+                if let Some(issue) = issue {
+                    self.rule_dispatch_return_types.remove(key);
+                    self.rule_dispatch_return_issues.insert(key.clone(), issue);
+                    changed = true;
                 }
             }
             if !changed {
@@ -25751,6 +25991,7 @@ impl TypeChecker {
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
+        tc.infer_rule_dispatch_return_types(stmts);
         tc.establish_explore_function_return_types();
         tc.infer_explore_rule_return_types(stmts);
         tc.validate_explore_function_return_types();
@@ -25797,6 +26038,8 @@ impl TypeChecker {
             compile_time_metadata_bindings,
             rule_return_types: tc.rule_return_types,
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
+            rule_dispatch_return_types: tc.rule_dispatch_return_types,
+            rule_dispatch_return_issues: tc.rule_dispatch_return_issues,
             exploration_queries,
             exploration_universes,
         }
@@ -27382,6 +27625,62 @@ fn opaque(value: i64) -> i64 { value }
             .get(None, "doubled", 1)
             .expect("block-valued global rule group");
         assert_eq!(block_value.return_type.as_deref(), Some("Int"));
+    }
+
+    #[test]
+    fn canonical_rule_dispatch_return_types_are_exact_and_fail_closed() {
+        let source = r#"
+| overloaded() -> True
+| overloaded(value: Int) -> value + 1
+
+| conflicting(value: Int) -> value
+| conflicting(value: Int) -> True under value > 0
+
+| unresolved(value: Int) -> []
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let statements = parser
+            .parse_program()
+            .expect("parse exact dispatch return fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let registry = RuleDispatchRegistry::from_statements(&statements, &artifacts);
+
+        let boolean = registry
+            .get(None, "overloaded", 0)
+            .expect("zero-arity overload");
+        let integer = registry
+            .get(None, "overloaded", 1)
+            .expect("one-arity overload");
+        assert_eq!(boolean.return_type.as_deref(), Some("Bool"));
+        assert_eq!(integer.return_type.as_deref(), Some("Int"));
+
+        let conflicting = registry
+            .get(None, "conflicting", 1)
+            .expect("conflicting exact dispatch group");
+        assert_eq!(conflicting.return_type, None);
+        assert!(
+            conflicting
+                .return_type_issue
+                .as_deref()
+                .is_some_and(|issue| issue.contains("conflicting return types `Int` and `Bool`")),
+            "unexpected conflict issue: {:?}",
+            conflicting.return_type_issue
+        );
+
+        let unresolved = registry
+            .get(None, "unresolved", 1)
+            .expect("unresolved exact dispatch group");
+        assert_eq!(unresolved.return_type, None);
+        assert!(
+            unresolved
+                .return_type_issue
+                .as_deref()
+                .is_some_and(|issue| issue.contains("cannot infer every return clause")),
+            "unexpected unresolved issue: {:?}",
+            unresolved.return_type_issue
+        );
     }
 
     #[test]

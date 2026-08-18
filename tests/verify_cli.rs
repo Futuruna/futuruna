@@ -17,11 +17,12 @@ fn run_runa(arguments: &[&str]) -> std::process::Output {
 }
 
 #[test]
-fn imported_rule_dispatch_matches_interpreter_and_generated_rust() {
+fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
     let fixture = parity_fixture();
     let fixture = fixture.to_str().expect("UTF-8 fixture path");
     let interpreted = run_runa(&[fixture]);
     let compiled = run_runa(&["run", fixture]);
+    let verified = run_runa(&["verify", fixture]);
 
     for (mode, output) in [("interpreter", &interpreted), ("compiled", &compiled)] {
         assert!(
@@ -34,9 +35,41 @@ fn imported_rule_dispatch_matches_interpreter_and_generated_rust() {
 
     let interpreted_stdout = String::from_utf8_lossy(&interpreted.stdout);
     let compiled_stdout = String::from_utf8_lossy(&compiled.stdout);
-    let expected = "10\n70\n80\n70\n80";
+    let expected = "10\n70\n80\n0\n70\n80\n0\n70\n70\n99";
     assert_eq!(interpreted_stdout.trim(), expected);
     assert_eq!(compiled_stdout.trim(), expected);
+
+    assert!(
+        verified.status.success(),
+        "verify stdout:\n{}\nverify stderr:\n{}",
+        String::from_utf8_lossy(&verified.stdout),
+        String::from_utf8_lossy(&verified.stderr)
+    );
+    let verified_stdout = String::from_utf8_lossy(&verified.stdout);
+    if Command::new("z3").arg("--version").output().is_ok() {
+        for invariant in [
+            "parity_imported_default",
+            "parity_imported_guard",
+            "parity_imported_exception",
+            "parity_global_default",
+            "parity_global_source_order",
+            "parity_global_reversed_source_order",
+            "parity_scoped_default",
+            "parity_scoped_guard",
+            "parity_scoped_source_order",
+            "parity_scoped_exception",
+        ] {
+            assert!(
+                verified_stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
+                "missing finite-domain proof for {invariant}:\n{verified_stdout}"
+            );
+        }
+    } else {
+        assert!(
+            verified_stdout.contains("Z3 not found"),
+            "missing explicit solver availability diagnostic:\n{verified_stdout}"
+        );
+    }
 }
 
 #[test]
@@ -69,6 +102,8 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             "reversing_guards_changes_dispatch",
             "scoped_first_overlapping_guard_wins",
             "scoped_exception_precedes_conditions",
+            "boolean_overload_is_well_sorted",
+            "integer_overload_is_well_sorted",
             "imported_exception_is_symbolic",
             "first_guard_is_symbolic",
             "constructor_payload_head_is_lowered",
@@ -87,6 +122,10 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             "the intentionally false ordering claim should be refuted:\n{stdout}"
         );
         assert!(
+            stdout.contains("COUNTEREXAMPLE found for |scoped_intentional_wrong_order_claim|"),
+            "the directly scoped false ordering claim should be refuted:\n{stdout}"
+        );
+        assert!(
             stdout.contains(
                 "partial rule dispatch for `partial_value` has no unconditional value for SMT"
             ),
@@ -103,6 +142,18 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
                 "rule `projected` has a higher-order parameter that is not translatable to first-order SMT"
             ),
             "higher-order rule parameters must fail closed with a precise diagnostic:\n{stdout}"
+        );
+        assert!(
+            stdout.contains(
+                "rule `conflicting_result` with arity 1 has conflicting return types `Int` and `Bool`"
+            ),
+            "conflicting exact-arity returns must fail closed:\n{stdout}"
+        );
+        assert!(
+            stdout.contains(
+                "cannot infer every return clause of rule `unresolved_result` with arity 1"
+            ),
+            "unresolved exact-arity returns must fail closed:\n{stdout}"
         );
         assert!(
             stdout

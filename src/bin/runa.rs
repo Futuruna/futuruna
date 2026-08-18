@@ -9076,10 +9076,12 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             let Some(return_type_name) = group.return_type.as_deref() else {
                 errors.insert(
                     function_name,
-                    format!(
-                        "rule `{}` has no inferred return type for SMT",
-                        group.key.name
-                    ),
+                    group.return_type_issue.clone().unwrap_or_else(|| {
+                        format!(
+                            "rule `{}` has no inferred return type for SMT",
+                            group.key.name
+                        )
+                    }),
                 );
                 continue;
             };

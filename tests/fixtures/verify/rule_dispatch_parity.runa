@@ -10,14 +10,42 @@
 | reverse_ordered_band(amount: Int) -> 80 under amount > 8
 | reverse_ordered_band(amount: Int) -> 70 under amount > 7
 
+# OrderedCase(base: Int) {
+    | band(amount: Int) -> base
+    | band(amount: Int) -> 70 under amount > 7
+    | band(amount: Int) -> 80 under amount > 8
+    | exception special_base band(amount: Int) -> 99 under base == 99
+}
+
 = imported_six = imported_band(amount = 6)
 = imported_eight = imported_band(amount = 8)
 = imported_nine = imported_band(amount = 9)
+= ordered_six = ordered_band(amount = 6)
 = ordered_nine = ordered_band(amount = 9)
 = reverse_ordered_nine = reverse_ordered_band(amount = 9)
+= scoped_six = OrderedCase(base = 0).band(amount = 6)
+= scoped_eight = OrderedCase(base = 0).band(amount = 8)
+= scoped_nine = OrderedCase(base = 0).band(amount = 9)
+= scoped_exception = OrderedCase(base = 99).band(amount = 9)
+
+| parity_imported_default: imported_six -> imported_six == 10
+| parity_imported_guard: imported_eight -> imported_eight == 70
+| parity_imported_exception: imported_nine -> imported_nine == 80
+| parity_global_default: ordered_six -> ordered_six == 0
+| parity_global_source_order: ordered_nine -> ordered_nine == 70
+| parity_global_reversed_source_order: reverse_ordered_nine -> reverse_ordered_nine == 80
+| parity_scoped_default: scoped_six -> scoped_six == 0
+| parity_scoped_guard: scoped_eight -> scoped_eight == 70
+| parity_scoped_source_order: scoped_nine -> scoped_nine == 70
+| parity_scoped_exception: scoped_exception -> scoped_exception == 99
 
 @ print(show(imported_six))
 @ print(show(imported_eight))
 @ print(show(imported_nine))
+@ print(show(ordered_six))
 @ print(show(ordered_nine))
 @ print(show(reverse_ordered_nine))
+@ print(show(scoped_six))
+@ print(show(scoped_eight))
+@ print(show(scoped_nine))
+@ print(show(scoped_exception))
