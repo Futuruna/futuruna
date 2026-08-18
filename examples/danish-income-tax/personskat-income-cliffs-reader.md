@@ -1,103 +1,103 @@
-# Reader's Mind: Income Cliffs
+# Reader's Mind: Mapping Income Cliffs
 
-This document holds the reader's point of view for [Can earning one more
-krone leave you with less?](personskat-income-cliffs.md). It keeps the article
-useful to someone who knows only that Futuruna can express and run formal
-rules.
+This document holds the reader's point of view for [I mapped where one more
+krone leaves you poorer](personskat-income-cliffs.md). The article should work
+for someone who knows that Futuruna can express and run formal rules, but has
+never seen the Danish personal-tax model or a finite rule-space search.
 
 ## The reader
 
-The reader is curious about what executable law can reveal. They do not need
-to know Danish tax terminology, the structure of the Personskat model or the
-details of Futuruna's list functions. They care about three things from the
-start:
+The reader arrives with three questions:
 
-1. Is the result real, and what exactly does it claim?
-2. Why does one additional krone make this modeled person worse off?
-3. How did Futuruna find the case, and can I use the same method?
+1. Is the first Copenhagen result a curiosity, or does the effect repeat?
+2. What rule can make one additional krone leave someone worse off?
+3. How can an executable model turn a legal rule into a map of answers?
 
-The reader should finish with an exact answer to all three questions and a
-clear sense of where the result ends.
+The reader should leave with exact answers, a visible evidence boundary and a
+method they can reuse for another law, contract or compliance system.
 
 ## The reading journey
 
 | Section | The reader enters knowing | The reader asks or feels | Risk to guard against | What the section delivers | The reader leaves knowing |
 |---|---|---|---|---|---|
-| Opening | Futuruna can model rules | "Can the answer really be yes?" | Reading one local result as a claim about every taxpayer or every extra krone | The immediate answer, year, amount and meaning of an income cliff | The answer is yes for one stated boundary in the current 2026 model: 1 DKK more gross wage income produces 69.47 DKK less after-tax resources |
-| The result | There is one modeled income cliff | "Show me the numbers" | Confusing a 297 DKK reduction in a deduction with 297 DKK lost in cash | A four-row comparison, the metric and the arithmetic | The four amounts reconcile: gross income rises by 1 DKK, modeled final tax rises by 70.47 DKK and after-tax resources fall by 69.47 DKK |
-| The case | The arithmetic is clear | "Whose case is this?" | Applying the result to a different municipality, household, commute or tax profile | Every fixed personal and tax fact | Every fixed fact is visible, and only gross wage income changes |
-| What changed? | The profile and result are known | "Which rule creates the cliff?" | Treating an ordinary progressive bracket as a cliff, or treating the model output as an individual assessment | The rule, official sources, whole-step example and staircase explanation | The low-income addition to the commuting deduction falls in whole-thousand steps, and the official rule text and ministry example sit beside the explanation |
-| Turning the rules inside out | The legal mechanism is understood | "How did Futuruna discover it?" | Assuming a special solver or unexplained search language is required | A plain-language search pipeline and two small Futuruna excerpts | Ordinary Futuruna lists create candidates, the full tax calculation evaluates each pair, a filter keeps the cliffs, and `find` and `foldl` select useful results |
-| What the search establishes | The method is visible | "How complete is the answer?" | Mistaking a complete search of 50 declared boundaries for a complete search of Danish tax law | The exact domain, checked validity, result and limits | All 50 declared adjacent pairs were checked for one fixed profile; this is exhaustive inside that domain and no broader |
-| Run the exploration | The reader trusts the result and method | "Can I inspect or reproduce it?" | Looking only at prose when the executable calculation is available | Direct links, commands and a realistic runtime expectation | The audit, full model, workbook and two commands are directly available; the full run can take a few minutes |
-| What else can we ask? | One exploration is concrete | "What can I discover next?" | Searching broadly without defining facts, validity, metric or domain | Reusable questions and five facts to define before searching | The reader can formulate a disciplined next question about thresholds, extrema, counterexamples, contracts or combined rules |
+| Opening | Futuruna can calculate formal rules | "Is this one odd case or a pattern?" | Reading a bounded result as a claim about every taxpayer | The map, domain, calculation count and full result range | Futuruna found 490 cliffs among 490 declared transitions, with modeled losses from 69.23 to 170.02 DKK |
+| The answer in one table | The headline result is broad | "What exactly was searched?" | Adding overlapping layers and reporting 492 cases | The national cross-section, two staircases and overlap-aware total | The 392 first-step cases and 98 additional anchor steps form 490 distinct transitions and 980 full calculations |
+| The largest cliff | The pattern repeats | "Show me the strongest case" | Confusing a deduction reduction with an equal cash loss | A four-row witness, metric and arithmetic | One Læsø profile gains 1 DKK gross, pays 171.02 DKK more modeled tax and loses 170.02 DKK in modeled after-tax resources |
+| One mechanism, repeated | The arithmetic reconciles | "Why does this happen?" | Treating an ordinary progressive bracket as a cliff | The statute, whole-thousand application and two deduction branches | The low-income commuting addition falls at 50 whole-thousand boundaries; commute length changes the size of the step |
+| What changes across the country | The legal mechanism is known | "How much do local facts matter?" | Treating standardized profiles as real commuters or municipality as the only cause | Four matched national profile ranges and two full anchor ranges | Municipal and church rates, commute length and enhanced-rate eligibility move the modeled loss within the reported range |
+| Turning the law inside out | The reader knows what varied | "How did Futuruna find every witness?" | Suggesting a hidden solver or special search syntax | A finite data pipeline and two small Futuruna excerpts | Lists create cases, the full model evaluates both sides, a filter keeps cliffs, and folds select extrema and ties |
+| What the map establishes | The method is visible | "How complete is this?" | Calling the map exhaustive beyond its declared domain | Executable coverage, distinctness, validity, extrema and scope | Every declared transition is checked, while the national layer covers only the first boundary and the model excludes stated facts and systems |
+| Run the map | The reader understands and trusts the claim | "Can I inspect and reproduce it?" | Leaving evidence behind prose | Direct links, exact commands and measured runtime | The model, executable map and workbook are available; the measured interpreter run took 4 minutes 23 seconds |
+| The next questions | One exploration is concrete | "What else can executable law reveal?" | Ending with a recap instead of possibility | New directions and an invitation | The same method can search other thresholds, interactions, exceptions and counterexamples |
 
 ## Concepts introduced in order
 
-The article introduces only the ideas needed for the next question:
+- **Income cliff:** a local boundary where a small income increase removes
+  more modeled value than it adds.
+- **Modeled after-tax resources:** gross wage income minus modeled final
+  personal tax, calculated in øre for this exploration.
+- **Low-income commuting addition:** an addition to the ordinary commuting
+  deduction, not a cash payment of the same amount.
+- **Whole-thousand step:** a phase-out change triggered when another complete
+  1,000 DKK above the threshold is reached.
+- **Nationwide first-step cross-section:** the same income boundary evaluated
+  across 98 municipal rows, two church-tax statuses and two commute profiles.
+- **Anchor staircase:** one standardized profile followed through all 50
+  phase-out boundaries.
+- **Finite exploration:** declare cases, calculate each with the same rules,
+  keep those that answer the question and check the coverage.
 
-- **Income cliff:** a local boundary where a small income increase removes a
-  larger value.
-- **After-tax resources:** modeled gross wage income minus modeled final
-  personal tax, measured in øre for this exploration.
-- **Low-income addition:** an addition to the ordinary commuting deduction,
-  not cash paid directly to the taxpayer.
-- **Whole-thousand step:** the phase-out changes when a complete 1,000 DKK
-  step above the threshold is crossed.
-- **Finite exploration:** create a declared set of candidate facts, calculate
-  each case with the same rules, compare the outcomes and keep the cases that
-  answer the question.
-- **`Heltal`:** Futuruna's Danish name for an integer.
-
-Each term appears beside the place where the reader needs it. The article
-does not require a separate glossary before the result makes sense.
+Each term appears where the reader first needs it. The article does not ask
+the reader to learn the Personskat type graph before seeing the result.
 
 ## The evidence boundary
 
-The reader can distinguish four layers without being burdened by them:
+The reader can distinguish four layers:
 
-1. Official sources state the 2026 threshold, rates and phrase *for each
-   1,000 DKK*.
-2. The ministry's worked example applies the phase-out in complete
+1. Official sources state the 2026 thresholds, rates, municipal rows and
+   phase-out formula.
+2. An official worked calculation applies the formula in complete
    whole-thousand steps.
-3. Futuruna applies that method inside its current full personal-tax model for
-   the fixed profile.
-4. The executable exploration checks 50 declared boundary pairs and selects
-   the 342,499→342,500 DKK case, where the modeled loss is 69.47 DKK.
+3. Futuruna runs both sides of every declared transition through the current
+   full personal-tax model using fixed, visible assumptions.
+4. The executable map checks 490 distinct transitions, keeps all 490 cliffs
+   and proves the reported extrema inside that domain.
 
-This supports a precise public claim. It does not turn the article into an
-individual tax assessment, and it does not imply that every increase in
-income leaves a person worse off.
+The national cross-section is complete for the first boundary and the stated
+profile axes. Only the Copenhagen and Læsø anchors cover all 50 boundaries.
+The result is model evidence, not an official assessment or individual tax
+advice.
 
 ## What the reader can do afterward
 
 After reading, someone with Futuruna's smallest basics can:
 
-- explain the difference between an ordinary progressive bracket and a local
-  income cliff
-- reproduce the headline arithmetic from the result table
-- identify the fixed facts and the exact metric being compared
-- read the two small Futuruna excerpts without learning a new search syntax
-- inspect or run the executable audit
-- frame a new exploration by naming what varies, what stays fixed, what is
-  compared, which cases are valid and which finite domain is searched
+- explain why the effect is a discontinuity rather than an ordinary marginal
+  tax rate
+- reproduce the arithmetic for the 170.02 DKK witness
+- state the 490-transition domain without double-counting the anchor cases
+- distinguish official legal inputs from consequences calculated by Futuruna
+- read the list construction and cliff filter
+- inspect or run the executable map
+- frame a new exploration by naming fixed facts, varied facts, metric,
+  validity conditions and finite domain
 
 ## Final editorial test
 
-The article is ready for the reader when all of these answers are visible
-without outside context:
+The article is ready when these answers are visible without outside context:
 
 | Question | Answer present |
 |---|---|
-| What happened? | 1 DKK more gross wage income leaves the modeled profile 69.47 DKK worse off at one boundary |
-| To whom? | A fully stated 2026 Copenhagen commuter profile |
-| Why? | A whole-thousand phase-out step reduces the low-income commuting addition by 297 DKK; the full modeled calculation raises final tax by 70.47 DKK |
-| Is this generally true? | No; it is local, profile-specific and limited to the stated metric |
-| What comes from official sources? | The threshold, rates, amendment and whole-step application |
-| What comes from Futuruna? | The composed tax result and exhaustive comparison of the 50 declared pairs |
-| How was it found? | Existing list, calculation, filtering, selection and executable-check capabilities |
-| Can I verify it? | Yes; the model, audit, workbook and commands are linked |
-| What can I try next? | A clearly bounded search for thresholds, extrema, counterexamples or interactions |
+| Is the original case the only one? | No; all 490 declared transitions are cliffs |
+| Is it the largest? | No; the original Copenhagen track reaches 69.47 DKK, while the map reaches 170.02 DKK |
+| What creates the cliffs? | The whole-thousand phase-out of the low-income addition to the commuting deduction |
+| What was searched? | A 392-case national first-step cross-section plus 98 non-duplicating steps from two complete anchors |
+| What is the strongest witness? | A standardized Læsø/church-tax/130-km profile loses 170.02 DKK at 342,499→342,500 DKK |
+| What is exhaustive? | Every transition inside the declared 490-case map, with the stated commuting-input validity checks |
+| What comes from official sources? | Thresholds, rates, municipal data, eligibility and whole-step application |
+| What comes from Futuruna? | The composed personal-tax results, comparisons, counts and extrema |
+| How was it found? | Existing list, model-evaluation, filtering, folding and executable-check capabilities |
+| Can I verify it? | Yes; the model, executable map, workbook and commands are linked |
 
-The final reading experience should feel like a careful discovery: surprising
-at first, understandable by the middle and useful by the end.
+The final reading experience should feel surprising at first, inevitable once
+the mechanism is visible, and useful by the end.

@@ -1,56 +1,79 @@
-# Can earning one more krone leave you with less?
+# I mapped where one more krone leaves you poorer
 
-Yes—at one boundary in Futuruna's current 2026 Danish income-tax model. For
-the commuter described below, gross annual wage income rises by 1 DKK while
-after-tax resources fall by **69.47 DKK**.
+Can one extra krone leave you worse off in only one unusual tax profile, or
+does the same edge repeat across Denmark? I asked Futuruna to map it.
 
-This does not mean that earning more generally leaves people worse off. It is
-a local income cliff: a point where a small increase crosses a rule boundary
-and removes a larger value. The threshold and reduction rules come from
-official Danish sources; 69.47 DKK is the result produced by Futuruna's full
-modeled tax calculation for the stated facts.
+The search covered all 98 official 2026 municipal tax rows at the first
+phase-out boundary, with and without church tax, at two standardized commuting
+distances. It also followed two profiles through every step of the phase-out.
+In total, Futuruna compared **490 adjacent income transitions** through **980
+full personal-tax calculations**.
 
-## The result
+All **490 profile-boundary transitions were cliffs**. Inside this map, earning
+one additional krone reduced modeled after-tax resources by between
+**69.23 DKK and 170.02 DKK**.
+
+An income cliff is a local boundary where a small increase removes more value
+than it adds. It is not the ordinary marginal effect of a progressive tax
+rate. Here, it comes from the low-income addition to the commuting deduction
+falling in whole-thousand steps.
+
+## The answer in one table
+
+| Search layer | What varies | Adjacent transitions | Full tax calculations | Result |
+|---|---|---:|---:|---:|
+| Nationwide first step | 98 municipalities × church tax yes/no × 60/130 km total daily commute | 392 | 784 | 392 cliffs |
+| Additional staircase steps | Steps 2–50 for Copenhagen/no church/60 km and Læsø/church/130 km | 98 | 196 | 98 cliffs |
+| Complete map | The first anchor steps are already in the nationwide layer | **490** | **980** | **490 cliffs** |
+
+The nationwide layer answers how the first legal step changes across municipal
+rates, church tax and two commute profiles. The two staircases answer a
+different question: does the same mechanism repeat through all 50 steps?
+
+The two anchor profiles share their first transition with the nationwide
+layer, so the union contains 490 distinct cases rather than 492.
+
+The Copenhagen case that prompted the wider search was therefore neither
+unique nor the largest. Its 50-step track ranged from 69.23 to 69.47 DKK. The
+broader map found losses more than twice that size.
+
+## The largest cliff in the map
+
+The largest modeled loss was **170.02 DKK**. It occurred **41 times** inside
+the map. One such case was:
+
+- municipality: **Læsø**
+- church tax: **yes**
+- commute: **130 km in total per workday**, for 203 workdays
+- gross annual wage income: **342,499 → 342,500 DKK**
 
 | Measure | Before | After | Change |
 |---|---:|---:|---:|
 | Gross annual wage income | 342,499.00 DKK | 342,500.00 DKK | **+1.00 DKK** |
-| Low-income addition to commuting deduction | 14,826 DKK | 14,529 DKK | **-297 DKK** |
-| Modeled final tax | 99,967.63 DKK | 100,038.10 DKK | **+70.47 DKK** |
-| After-tax resources | 242,531.37 DKK | 242,461.90 DKK | **-69.47 DKK** |
+| Low-income addition to commuting deduction | 30,800 DKK | 30,184 DKK | **-616 DKK** |
+| Modeled final tax | 88,526.60 DKK | 88,697.62 DKK | **+171.02 DKK** |
+| Modeled after-tax resources | 253,972.40 DKK | 253,802.38 DKK | **-170.02 DKK** |
 
-Here, *after-tax resources* means modeled gross wage income minus modeled
-final personal tax. Both are calculated in øre. It does not include housing
-support, child benefits, consumption taxes, commuting costs or other household
-cash flows.
+Here, *modeled after-tax resources* means gross wage income minus modeled final
+personal tax, calculated in øre. It does not include the cost of commuting,
+housing support, child benefits, consumption taxes or other household cash
+flows.
 
 The arithmetic is simple once the full tax calculation has been made:
 
 ```text
-+1.00 DKK gross income - 70.47 DKK additional tax = -69.47 DKK
++1.00 DKK gross income - 171.02 DKK additional tax = -170.02 DKK
 ```
 
-The interesting question is why one additional krone can produce 70.47 DKK
-of additional tax.
+Losing a deduction is not the same as losing that amount in cash. The full
+personal-tax calculation determines what the smaller deduction is worth under
+the stated municipal and church-tax rates.
 
-## The case
+The commuting addition fell by the same 616 DKK at every Læsø step. Exact
+rounding inside the full calculation moved the after-tax loss between 170.00
+and 170.02 DKK; it did not turn those steps into different legal mechanisms.
 
-The calculation holds everything fixed except annual gross wage income:
-
-- tax year 2026
-- Copenhagen municipality
-- adult, aged 18 or older
-- single, without a spouse and without church tax
-- an ordinary commute of 60 kilometres in total per workday for 203 workdays
-- no capital or share income, pension, property tax, foreign social
-  contributions, tax amounts carried from earlier years or special tax
-  arrangements
-
-Futuruna calculates both incomes through `beregn_personskat`, the model's
-ordinary full personal-tax calculation. Only gross wage income changes; every
-other fact above stays fixed.
-
-## What changed?
+## One mechanism, repeated
 
 People with lower incomes can receive an addition to their ordinary commuting
 deduction under section 9 C of the Danish Tax Assessment Act
@@ -64,78 +87,123 @@ The [consolidated section 9 C, subsection
 percentage by 1.28 percentage points and its maximum by 2 percent for each
 1,000 DKK above the income threshold. [Law no. 616 of 30 June
 2026](https://www.retsinformation.dk/eli/lta/2026/616) raised the 2026
-commuting rates and doubled the maximum addition for the year.
+commuting rates and doubled the maximum addition for the year. The baseline
+2026 kilometre rates are set by [Executive Order no. 1333 of 20 November
+2025](https://www.retsinformation.dk/eli/lta/2025/1333), before the increases
+made by Law no. 616.
 
-The words *for each 1,000 DKK* matter. An official [Skatteministeriet 2020
+The words *for each 1,000 DKK* matter. An official [Skatteministeriet 2023
 worked
-example](https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-et-aegtepar-i-2020)
-applying the same phase-out formula calculates income above the threshold in
-whole numbers of 1,000 DKK. In that example, an excess of 45,961 DKK becomes
-45 steps, not 45.961 steps.
+calculation](https://skm.dk/tal-og-metode/satser/skatte-og-afgiftsberegning/skatteberegningseksempel-for-en-ugift-skatteyder-i-2023)
+labels the phase-out input as income above the threshold in whole numbers of
+1,000 DKK. Futuruna encodes the phrase in the same whole-step way.
 
-Futuruna encodes the phrase in the same whole-step way. The 69.47 DKK result
-depends on that reading: if the reduction were spread smoothly through each
-1,000-DKK interval, it would not produce the same one-krone step.
+That produces 50 boundaries:
 
-That creates a staircase:
+```text
+342,499 → 342,500 DKK
+343,499 → 343,500 DKK
+...
+391,499 → 391,500 DKK
+```
 
-- at 342,499 DKK, income is 999 DKK above the 2026 threshold, so no complete
-  1,000-DKK step has been crossed
-- at 342,500 DKK, income is 1,000 DKK above the threshold, so the first step
-  applies
-- for this commute, that step reduces the low-income addition by 297 DKK
-- a deduction is not cash: after the entire tax calculation is run again, the
-  extra 1 DKK of wage income and the 297 DKK smaller deduction together
-  increase modeled final tax by 70.47 DKK
+At each boundary, one complete 1,000-DKK step enters the phase-out. One krone
+of extra gross income is added, but part of an existing deduction disappears
+at once. For these fixed wage-only profiles, gross wage moves the phase-out
+income one-for-one; other kinds of income in the law remain fixed at zero.
 
-This is different from an ordinary progressive tax bracket. When a higher
-rate begins at a threshold, that rate normally applies only to the income
-above the threshold; the income already earned is not taxed again, so total
-after-tax income still rises. A cliff appears here because crossing the
-boundary removes part of an existing deduction in one step.
+The two commute profiles exercise different sides of the same rule:
 
-The low-income addition takes another step down at each following
-whole-thousand boundary. The result is local and repeated, not a claim that
-every higher income leaves this person worse off.
+- At 60 km per workday, the addition is controlled by a percentage of the
+  ordinary commuting deduction. Each step removes about 296–297 DKK for an
+  ordinary municipality and 328–329 DKK where the enhanced outer-municipality
+  rate applies.
+- At 130 km per workday, the addition has reached its maximum. Each step
+  removes exactly 616 DKK from that maximum.
 
-## Turning the rules inside out
+This is why the wider map matters. It is not finding 490 unrelated tricks. It
+is showing one legal mechanism under many standardized tax profiles, then
+following two of those profiles down the full staircase.
+
+## What changes across the country
+
+The first boundary produced these ranges across all 98 municipal tax rows:
+
+| Standardized profile | Cases | One smallest-loss witness | One largest-loss witness |
+|---|---:|---:|---:|
+| 60 km, no church tax | 98 | 69.47 DKK — Copenhagen | 86.26 DKK — Odsherred |
+| 60 km, church tax | 98 | 71.41 DKK — Rudersdal | 90.52 DKK — Læsø |
+| 130 km, no church tax | 98 | 144.08 DKK — Copenhagen | 162.01 DKK — Odsherred |
+| 130 km, church tax | 98 | 148.09 DKK — Rudersdal | 170.02 DKK — Læsø |
+
+The size changes because municipal rates, church tax, commute length and the
+enhanced outer-municipality commuting rate change the value of the deduction
+that disappears. The nationwide cross-section holds the income boundary fixed
+so these profiles can be compared on the same step. The rates come from
+[Skatteministeriet's official 2026 municipal-tax
+table](https://skm.dk/tal-og-metode/satser/oversigt-over-kommuneskatter).
+
+The two complete tracks show how the mechanism behaves over the whole
+phase-out:
+
+| Standardized anchor | Steps checked | Modeled loss range |
+|---|---:|---:|
+| Copenhagen, no church tax, 60 km | 50 | 69.23–69.47 DKK |
+| Læsø, church tax, 130 km | 50 | 170.00–170.02 DKK |
+
+These are held-constant model profiles, not claims about two real commuters.
+In particular, 130 km in Læsø is a standardized tax-jurisdiction stress case,
+not an assertion about a plausible road route on an island. Actual ferry,
+route and documented-expense facts can invoke other rules.
+
+## Turning the law inside out
 
 An ordinary tax calculation starts with one set of facts and asks for one
 result:
 
 ```text
-one person's facts -> Danish tax rules -> one tax result
+one person's facts → Danish tax rules → one tax result
 ```
 
-An exploration turns that relationship around. It creates many exact sets of
-facts, sends every one through the same rules, and keeps the results that
-answer a question:
+This exploration turns the relationship around:
 
 ```text
-candidate facts -> Danish tax rules -> compare results -> keep the cliffs
+source-defined boundaries
+× declared tax profiles
+→ calculate both sides with the full model
+→ keep net_after < net_before
+→ select the smallest, largest and tied witnesses
 ```
 
-Futuruna performs this search with ordinary lists and `range`, `map`, `filter`,
-`find` and `foldl`. Here, `=` names candidate values and results, `|` states a
-condition that must hold, and `?` asks Futuruna to check it.
-
-The 50 incomes immediately before the known phase-out steps are generated in
-one line:
+The nationwide profiles are ordinary Futuruna lists. This is the construction
+from the executable map:
 
 ```runa
-= personskat_indkomstklint_grænser =
-    map(range(1, 51), |n: Heltal| 341499 + n * 1000)
+= personskat_indkomstklint_kirkestatusser = [Falskt, Sandt]
+= personskat_indkomstklint_pendlerafstande = [60, 130]
+= personskat_indkomstklint_nationale_profiler = flat_map(
+    kommunale_parametre_2026,
+    |parametre: KommunaleParametre| {
+        flat_map(
+            personskat_indkomstklint_kirkestatusser,
+            |betaler_kirkeskat: Boolsk| {
+                map(
+                    personskat_indkomstklint_pendlerafstande,
+                    |daglige_befordringskilometer: Heltal|
+                        personskat_indkomstklint_profil(
+                            parametre,
+                            betaler_kirkeskat,
+                            daglige_befordringskilometer
+                        )
+                )
+            }
+        )
+    }
+)
 ```
 
-`Heltal` is Futuruna's Danish name for an integer. `range(1, 51)` contains the
-integers 1 through 50 because the final value is excluded.
-
-The list begins at 342,499 and ends at 391,499 DKK. Each income is paired with
-the following krone. The search therefore performs 100 full personal-tax
-calculations: one before and one after every boundary.
-
-After each pair has been calculated, the question itself becomes a small
-filter:
+Each profile is evaluated immediately before and after the boundary through
+the same full `beregn_personskat` function. The question itself is a filter:
 
 ```runa
 = personskat_indkomstklinter = filter(
@@ -145,37 +213,52 @@ filter:
 )
 ```
 
-The search then uses `find` to select the exact 342,499→342,500 case and
-`foldl` to select a case with the largest loss. Executable `?` checks confirm
-that all 50 pairs were covered, both cases in every pair passed the model's
-commuting-deduction input checks, the selected amounts match and no found loss
-is larger.
+This is closer to property-based testing than to an ordinary tax calculator:
+declare a finite domain, run the real composition, and retain every
+counterexample. Futuruna uses `foldl` and `filter` to select extrema and ties,
+while executable `?` statements check coverage, distinct keys and valid
+commuting inputs.
 
-## What the search establishes
+The computer, mercifully, has more patience for 980 tax calculations than I
+do.
 
-The executable search checks that:
+## What the map establishes
 
-- exactly 50 declared boundaries were searched
-- both sides of all 50 pairs passed the model's commuting-deduction input
-  checks
-- all 50 pairs are income cliffs in this fixed 2026 model
-- the 342,499→342,500 case has a 69.47 DKK loss, and no found case has a
-  larger loss
+The executable audit checks that:
 
-This is an exhaustive result for the 50 declared boundary pairs and the fixed
-facts above. It is not an exhaustive search of every Danish income, household
-or benefit rule. It is also not an individual tax assessment. A real case must
-use the person's actual facts and the current official calculation.
+- all 98 official 2026 municipal rows are present once and supported by the
+  model
+- the exact 25 municipalities named for the enhanced rate are derived from
+  the municipality field
+- all 490 transition keys are distinct
+- both sides of all 490 transitions pass the commuting-deduction input checks
+- **490 of 490** transitions are income cliffs
+- the reported minimum and maximum are true extrema inside the declared map
+- the maximum occurs in exactly **41** transitions
 
-Those limits matter. The statute says *for each 1,000 DKK*, the ministry's
-example applies that wording in whole steps, and Futuruna shows the
-consequence when that mechanism works alongside the rest of the modeled tax
-system.
+This is exhaustive for the declared map, not for every Danish taxpayer or
+every possible interaction in Danish law. The national layer covers the first
+phase-out boundary; only the two anchor profiles cover all 50 boundaries.
 
-## Run the exploration
+The map derives enhanced-rate eligibility from the [25 named
+municipalities](https://skat.dk/borger/fradrag/koerselsfradrag/yderligere-information-om-koerselsfradrag).
+The same rule separately names ten small-island residence variants. Those
+remain outside this map because a municipal tax row alone cannot tell us
+whether someone lives on a particular island.
 
-The complete source is the
-[executable income-cliff audit](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
+The fixed facts are tax year 2026; adult; single; no spouse; no capital or
+share income, pension, property tax, foreign social contributions, tax amounts
+carried from earlier years or special tax arrangements; and ordinary travel
+to an income-producing workplace. All facts remain fixed except the declared
+municipality, church-tax status, commute profile and adjacent wage amounts.
+
+Futuruna produces a result from its current encoded model. It does not replace
+an official assessment or individual legal and tax advice.
+
+## Run the map
+
+The complete source is the [executable income-cliff
+map](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa).
 It calls the full
 [`personskat.calculate.runa`](https://github.com/Futuruna/futuruna/blob/main/examples/danish-income-tax/personskat.calculate.runa)
 model. The [exploration
@@ -189,37 +272,26 @@ runa check --frontend examples/danish-income-tax/personskat-income-cliffs.audit.
 runa examples/danish-income-tax/personskat-income-cliffs.audit.runa
 ```
 
-The second command performs 100 full personal-tax calculations and can take a
-few minutes. Its output shows the checked conditions and the case with the
-largest loss.
+The complete map performs 980 full personal-tax calculations. On the measured
+development machine, the interpreter completed it in **4 minutes 23 seconds**;
+runtime will vary by machine and competing work.
 
-## What else can we ask?
+## The next questions
 
-Once a law is executable, we can ask more than *what happens in this one
-case?*
+This map looks at one known discontinuity in current-year personal tax. The
+same method can search for thresholds, exceptions and counterexamples across
+other encoded rules: combined tax and benefits, contract clauses, compliance
+requirements, or places where two individually reasonable rules interact in
+an unreasonable way.
 
-We can search for the least tax inside a clearly stated income range. We can
-ask whether any modeled case produces negative tax. We can find the first
-threshold where a deduction changes, the most expensive exception in a
-contract, or a counterexample to a rule we thought would always preserve a
-value. We can combine tax with housing support and other transfers—provided
-we define the household facts and the meaning of disposable resources before
-we search.
+The cliff itself is small enough to hide inside the calm words *for each 1,000
+DKK*. The unusual part is that we can ask the law for every witness in a
+declared domain, inspect each answer, and rerun the map when the law changes.
 
-A useful exploration begins with an exact question:
+One mechanism is enough to show the method. The rest of the rule system is
+waiting to be questioned.
 
-- What may vary?
-- What stays fixed?
-- What result are we comparing?
-- Which cases are valid?
-- What domain did we search completely?
-
-Law often uses calm words such as *gradually*. A formal rule model lets us ask:
-gradually, exactly how? The value lies in making the path from legal text to
-human consequence visible, executable and open to inspection.
-
-Careful legal exploration gives the law precise questions and preserves the
-reasons for every answer.
+I suspect the more interesting maps will appear where two rule systems meet.
 
 If you find a legal edge worth exploring, I would love to hear about it at
 [research@futuruna.com](mailto:research@futuruna.com).
