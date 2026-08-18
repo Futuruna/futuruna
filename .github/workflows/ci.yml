@@ -77,10 +77,13 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             website/target/
-          key: ${{ runner.os }}-website-${{ hashFiles('Cargo.lock', 'website/Cargo.lock') }}
+          key: ${{ runner.os }}-website-dx-0.7.10-${{ hashFiles('Cargo.lock', 'website/Cargo.lock') }}
 
       - name: Install Dioxus CLI
-        run: cargo install dioxus-cli --version 0.7.10 --locked
+        run: |
+          if ! dx --version 2>/dev/null | grep -Fq 'dioxus 0.7.10 '; then
+            cargo install dioxus-cli --version 0.7.10 --locked --force
+          fi
 
       - name: Check website formatting
         run: cargo fmt --manifest-path website/Cargo.toml --check
