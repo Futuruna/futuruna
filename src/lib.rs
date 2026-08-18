@@ -5479,6 +5479,7 @@ struct FreeSymbolUses {
     calls: BTreeSet<String>,
     member_calls: BTreeSet<(String, String)>,
     typed_member_calls: BTreeSet<(String, String)>,
+    runtime_calls: Vec<RuntimeCallUse>,
 }
 
 impl FreeSymbolUses {
@@ -5487,7 +5488,21 @@ impl FreeSymbolUses {
         self.calls.extend(other.calls);
         self.member_calls.extend(other.member_calls);
         self.typed_member_calls.extend(other.typed_member_calls);
+        self.runtime_calls.extend(other.runtime_calls);
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RuntimeCallUse {
+    pub(crate) name: String,
+    /// The arity written at the transform root of a pipe.  Ordinary calls do
+    /// not need a second identity because their source and runtime arities are
+    /// the same.
+    pub(crate) source_arity: Option<usize>,
+    pub(crate) effective_arity: usize,
+    pub(crate) through_pipe: bool,
+    pub(crate) lexically_bound: bool,
+    pub(crate) span: Span,
 }
 
 fn type_name(ty: &Ty) -> Option<&str> {
@@ -5846,6 +5861,14 @@ fn collect_true_free_symbol_uses(
                 return;
             }
             if let ExprKind::Var(fn_name) = &func.kind {
+                uses.runtime_calls.push(RuntimeCallUse {
+                    name: fn_name.clone(),
+                    source_arity: None,
+                    effective_arity: args.len(),
+                    through_pipe: false,
+                    lexically_bound: bound.contains(fn_name),
+                    span: expr.span,
+                });
                 if (fn_name == "findall" || fn_name == "search") && args.len() >= 2 {
                     let mut inner_bound = bound.clone();
                     let mut inner_typed_receivers = typed_receivers.clone();
@@ -5971,12 +5994,41 @@ fn collect_true_free_symbol_uses(
         }
         ExprKind::Pipe(input, transform) => {
             collect_true_free_symbol_uses(input, uses, bound, typed_receivers);
-            if let ExprKind::Var(name) = &transform.kind {
-                if !bound.contains(name) {
-                    uses.calls.insert(name.clone());
+            match &transform.kind {
+                ExprKind::Var(name) => {
+                    uses.runtime_calls.push(RuntimeCallUse {
+                        name: name.clone(),
+                        source_arity: None,
+                        effective_arity: 1,
+                        through_pipe: true,
+                        lexically_bound: bound.contains(name),
+                        span: transform.span,
+                    });
+                    if !bound.contains(name) {
+                        uses.calls.insert(name.clone());
+                    }
                 }
-            } else {
-                collect_true_free_symbol_uses(transform, uses, bound, typed_receivers);
+                ExprKind::App(function, arguments) => {
+                    if let ExprKind::Var(name) = &function.kind {
+                        uses.runtime_calls.push(RuntimeCallUse {
+                            name: name.clone(),
+                            source_arity: Some(arguments.len()),
+                            effective_arity: arguments.len() + 1,
+                            through_pipe: true,
+                            lexically_bound: bound.contains(name),
+                            span: transform.span,
+                        });
+                        if !bound.contains(name) {
+                            uses.calls.insert(name.clone());
+                        }
+                    } else {
+                        collect_true_free_symbol_uses(function, uses, bound, typed_receivers);
+                    }
+                    for argument in arguments {
+                        collect_true_free_symbol_uses(argument, uses, bound, typed_receivers);
+                    }
+                }
+                _ => collect_true_free_symbol_uses(transform, uses, bound, typed_receivers),
             }
         }
     }
@@ -6000,6 +6052,15 @@ pub fn collect_true_free_vars(expr: &Expr, free: &mut BTreeSet<String>, bound: &
     collect_true_free_symbol_uses(expr, &mut uses, bound, &BTreeMap::new());
     free.extend(uses.values);
     free.extend(uses.calls);
+}
+
+pub(crate) fn collect_scoped_runtime_calls(
+    expr: &Expr,
+    bound: &BTreeSet<String>,
+) -> Vec<RuntimeCallUse> {
+    let mut uses = FreeSymbolUses::default();
+    collect_true_free_symbol_uses(expr, &mut uses, bound, &BTreeMap::new());
+    uses.runtime_calls
 }
 
 pub fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
@@ -6484,6 +6545,7 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
             calls,
             member_calls,
             typed_member_calls,
+            runtime_calls: _,
         } = uses;
         let mut callable_stack = calls.into_iter().collect::<Vec<_>>();
         callable_stack.extend(member_calls.iter().filter_map(|(receiver, member)| {
@@ -8583,7 +8645,6 @@ impl Parser {
                 self.advance();
                 self.parse_definition()
             }
-
             TokenKind::Op if self.peek().text == ">" => {
                 self.advance();
                 self.parse_definition()
@@ -11089,6 +11150,10 @@ impl Parser {
                 self.advance();
                 self.parse_definition()
             }
+            TokenKind::Op if self.peek().text == ">" => {
+                self.advance();
+                self.parse_definition()
+            }
             TokenKind::Tilde => {
                 // ~[...] stream source literal: ~[1, 2, 3] → Stmt::Expr(from_list([1, 2, 3]))
                 {
@@ -11829,7 +11894,7 @@ pub struct Interpreter {
     /// Source-order indexes into `rules`, avoiding corpus-wide scans per call.
     rules_by_name: HashMap<String, Vec<usize>>,
     /// The result used when a known rule family has no applicable clause.
-    rule_miss_fallbacks: HashMap<String, RuleMissFallback>,
+    rule_miss_fallbacks: HashMap<String, HashMap<usize, RuleMissFallback>>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -12015,30 +12080,34 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
-        let fallback = match &rule {
-            Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
-            Rule::Clause {
-                body: Some(body_expr),
-                ..
-            } if matches!(
-                &body_expr.kind,
-                ExprKind::Lit(Literal::Str(_))
-                    | ExprKind::Lit(Literal::Int(_))
-                    | ExprKind::Lit(Literal::Float(_))
-            ) =>
-            {
-                RuleMissFallback::EmptyValue
-            }
-            _ => RuleMissFallback::PredicateFalse,
-        };
-        self.rule_miss_fallbacks
-            .entry(name.clone())
-            .and_modify(|existing| {
-                if fallback == RuleMissFallback::EmptyValue {
-                    *existing = fallback;
+        if let Some((_, arity)) = rule.callable_name_arity() {
+            let fallback = match &rule {
+                Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
+                Rule::Clause {
+                    body: Some(body_expr),
+                    ..
+                } if matches!(
+                    &body_expr.kind,
+                    ExprKind::Lit(Literal::Str(_))
+                        | ExprKind::Lit(Literal::Int(_))
+                        | ExprKind::Lit(Literal::Float(_))
+                ) =>
+                {
+                    RuleMissFallback::EmptyValue
                 }
-            })
-            .or_insert(fallback);
+                _ => RuleMissFallback::PredicateFalse,
+            };
+            self.rule_miss_fallbacks
+                .entry(name.clone())
+                .or_default()
+                .entry(arity)
+                .and_modify(|existing| {
+                    if fallback == RuleMissFallback::EmptyValue {
+                        *existing = fallback;
+                    }
+                })
+                .or_insert(fallback);
+        }
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
         self.rules_by_name.entry(name).or_default().push(index);
@@ -14318,7 +14387,11 @@ impl Interpreter {
                     }
                     // A known family with no applicable clause uses the fallback
                     // classified once at registration instead of rescanning every rule.
-                    if let Some(fallback) = self.rule_miss_fallbacks.get(fn_name) {
+                    if let Some(fallback) = self
+                        .rule_miss_fallbacks
+                        .get(fn_name)
+                        .and_then(|by_arity| by_arity.get(&args.len()))
+                    {
                         return match fallback {
                             RuleMissFallback::EmptyValue => Value::Str(String::new()),
                             RuleMissFallback::PredicateFalse => Value::Bool(false),
@@ -23967,7 +24040,11 @@ impl TypeChecker {
         }
     }
 
-    fn explore_expression_capabilities(&self, expr: &Expr) -> (bool, BTreeSet<(String, usize)>) {
+    fn explore_expression_capabilities(
+        &self,
+        expr: &Expr,
+        bound: &BTreeSet<String>,
+    ) -> (bool, BTreeSet<(String, usize)>) {
         let impure_names = meta_impure_runtime_names();
         let effect_operations = self
             .effect_ops
@@ -23981,17 +24058,21 @@ impl TypeChecker {
                 ExprKind::Effect(_, _) | ExprKind::Handle { .. } | ExprKind::Try(_) => {
                     supported = false;
                 }
-                ExprKind::App(function, arguments) => {
-                    if let ExprKind::Var(name) = &function.kind {
-                        let canonical = builtin_canonical(name);
-                        if impure_names.contains(name)
-                            || impure_names.contains(canonical)
-                            || effect_operations.contains(name)
-                        {
-                            supported = false;
-                        }
-                        calls.insert((name.clone(), arguments.len()));
-                    } else {
+                ExprKind::Pipe(_, transform)
+                    if !matches!(&transform.kind, ExprKind::Var(_))
+                        && !matches!(
+                            &transform.kind,
+                            ExprKind::App(function, _)
+                                if matches!(&function.kind, ExprKind::Var(_))
+                        ) =>
+                {
+                    // Replay identity is only exact for a statically named pipe
+                    // transform.  A computed callable can select a closure,
+                    // constructor, rule value, or builtin only at runtime.
+                    supported = false;
+                }
+                ExprKind::App(function, _) => {
+                    if !matches!(&function.kind, ExprKind::Var(_)) {
                         // Qualified and method calls need owner-aware callable identity.
                         // Treat them as unsupported until the canonical rule-slice pass
                         // can resolve the exact receiver and declaration.
@@ -24001,25 +24082,28 @@ impl TypeChecker {
                 _ => {}
             },
             AstChild::Stmt(statement) => {
-                if matches!(
-                    statement,
-                    Stmt::MonadicBind(..)
-                        | Stmt::StreamBind(..)
-                        | Stmt::For(..)
-                        | Stmt::While(..)
-                        | Stmt::Send(..)
-                        | Stmt::StreamSub(..)
-                        | Stmt::Prove { .. }
-                        | Stmt::Explore(_)
-                        | Stmt::Assert(..)
-                        | Stmt::Retract(..)
-                        | Stmt::Abort
-                ) || matches!(statement, Stmt::Annot(name, _) if builtin_canonical(name) == "print")
-                {
+                // Interpreter blocks hoist static declarations before any
+                // expression runs.  The replay catalog is query-wide rather
+                // than block-local, so only the two ordinary lexical forms
+                // have an exact identity and source-order model here.
+                if !matches!(statement, Stmt::Bind(..) | Stmt::Expr(_)) {
                     supported = false;
                 }
             }
         });
+        for call in collect_scoped_runtime_calls(expr, bound) {
+            if call.lexically_bound {
+                supported = false;
+            }
+            let canonical = builtin_canonical(&call.name);
+            if impure_names.contains(&call.name)
+                || impure_names.contains(canonical)
+                || effect_operations.contains(&call.name)
+            {
+                supported = false;
+            }
+            calls.insert((call.name, call.effective_arity));
+        }
         (supported, calls)
     }
 
@@ -24071,8 +24155,15 @@ impl TypeChecker {
             .cloned()
             .unwrap_or_default();
         let mut pure = true;
+        let bound = self
+            .function_params_by_arity
+            .get(key)
+            .into_iter()
+            .flatten()
+            .cloned()
+            .collect::<BTreeSet<_>>();
         for expression in expressions {
-            let (supported, calls) = self.explore_expression_capabilities(&expression);
+            let (supported, calls) = self.explore_expression_capabilities(&expression, &bound);
             if !supported {
                 pure = false;
                 break;
@@ -24105,8 +24196,8 @@ impl TypeChecker {
         self.explore_callable_is_pure_inner(key, &mut BTreeSet::new(), &mut BTreeMap::new())
     }
 
-    fn explore_expression_is_pure(&self, expr: &Expr) -> bool {
-        let (supported, calls) = self.explore_expression_capabilities(expr);
+    fn explore_expression_is_pure(&self, expr: &Expr, bound: &BTreeSet<String>) -> bool {
+        let (supported, calls) = self.explore_expression_capabilities(expr, bound);
         supported
             && calls.into_iter().all(|call| {
                 self.explore_call_has_supported_definition(&call)
@@ -24320,7 +24411,8 @@ impl TypeChecker {
                 return;
             }
         }
-        if !self.explore_expression_is_pure(expr) {
+        let bound = self.scopes.last().cloned().unwrap_or_default();
+        if !self.explore_expression_is_pure(expr, &bound) {
             self.error_at_expr(
                 expr,
                 "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
@@ -24388,7 +24480,15 @@ impl TypeChecker {
 
         let arity = query.over.inputs.len();
         let signature_key = (query.over.rule_name.clone(), arity);
-        if self
+        if matches!(query.over.rule_name.as_str(), "findall" | "search") && arity == 2 {
+            self.error_at_span(
+                query.over.span,
+                format!(
+                    "exploration target `{}` is a runtime special form at 2 arguments and cannot identify the same-named rule",
+                    query.over.rule_name
+                ),
+            );
+        } else if self
             .explore_non_rule_runtime_names
             .contains(&query.over.rule_name)
             || self.builtins.contains_key(&query.over.rule_name)
@@ -27440,11 +27540,17 @@ fn opaque(value: i64) -> i64 { value }
         interpreter.run_program(&stmts, &mut env);
 
         assert_eq!(
-            interpreter.rule_miss_fallbacks.get("known_predicate"),
+            interpreter
+                .rule_miss_fallbacks
+                .get("known_predicate")
+                .and_then(|by_arity| by_arity.get(&1)),
             Some(&RuleMissFallback::PredicateFalse)
         );
         assert_eq!(
-            interpreter.rule_miss_fallbacks.get("known_value"),
+            interpreter
+                .rule_miss_fallbacks
+                .get("known_value")
+                .and_then(|by_arity| by_arity.get(&1)),
             Some(&RuleMissFallback::EmptyValue)
         );
         assert_eq!(
@@ -27454,6 +27560,66 @@ fn opaque(value: i64) -> i64 { value }
         assert_eq!(
             env.get("value_miss").map(ToString::to_string),
             Some(String::new())
+        );
+    }
+
+    #[test]
+    fn interpreted_rule_miss_fallbacks_are_exact_by_arity() {
+        let source = r#"
+| mixed(1)
+| mixed(1, 1) -> 1
+| not(left: Bool, right: Bool) -> left && right
+
+= predicate_hit = mixed(1)
+= predicate_miss = mixed(0)
+= value_hit = mixed(1, 1)
+= value_miss = mixed(0, 0)
+= builtin_fallthrough = not(False)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse exact rule miss fixture");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            interpreter
+                .rule_miss_fallbacks
+                .get("mixed")
+                .and_then(|by_arity| by_arity.get(&1)),
+            Some(&RuleMissFallback::PredicateFalse)
+        );
+        assert_eq!(
+            interpreter
+                .rule_miss_fallbacks
+                .get("mixed")
+                .and_then(|by_arity| by_arity.get(&2)),
+            Some(&RuleMissFallback::EmptyValue)
+        );
+        assert_eq!(
+            env.get("predicate_hit").map(ToString::to_string),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            env.get("predicate_miss").map(ToString::to_string),
+            Some("false".to_string())
+        );
+        assert_eq!(
+            env.get("value_hit").map(ToString::to_string),
+            Some("1".to_string())
+        );
+        assert_eq!(
+            env.get("value_miss").map(ToString::to_string),
+            Some(String::new())
+        );
+        assert_eq!(
+            env.get("builtin_fallthrough").map(ToString::to_string),
+            Some("true".to_string())
         );
     }
 

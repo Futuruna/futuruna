@@ -2681,6 +2681,19 @@ fn ground_intrinsic_arity(name: &str) -> Option<usize> {
     }
 }
 
+fn replay_builtin_arity(name: &str) -> Option<usize> {
+    static BUILTIN_ARITIES: OnceLock<BTreeMap<String, usize>> = OnceLock::new();
+    let canonical = builtin_canonical(name);
+    BUILTIN_ARITIES
+        .get_or_init(|| TypeChecker::new().builtins)
+        .get(canonical)
+        .copied()
+        // `format_f` is an interpreter-only compatibility builtin.  Keep it
+        // out of the language-wide TypeChecker inventory, but include it when
+        // auditing the canonical interpreter's Pipe value lookup.
+        .or_else(|| (canonical == "format_f").then_some(2))
+}
+
 fn collect_ground_rule_pattern_names(expression: &Expr, names: &mut BTreeSet<String>) {
     if let ExprKind::App(function, arguments) = &expression.kind {
         if matches!(&function.kind, ExprKind::Var(name) if name == "__typed")
@@ -2781,46 +2794,177 @@ fn expression_query_dependencies(
     free
 }
 
-fn expression_bare_runtime_calls(expression: &Expr) -> Vec<(String, usize)> {
-    // A pipe adds its input as the first argument at runtime.  Remember the
-    // transform roots so their nested `App` node is not also recorded with the
-    // source-only arity.
-    let mut pipe_transform_roots = BTreeSet::new();
-    walk_ast_expr(expression, &mut |child| {
-        let AstChild::Expr(expression) = child else {
-            return;
-        };
-        if let ExprKind::Pipe(_, transform) = &expression.kind {
-            pipe_transform_roots.insert(transform.as_ref() as *const Expr as usize);
-        }
-    });
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReplayCallableKind {
+    Function,
+    Rule,
+    Constructor,
+    Intrinsic,
+}
 
-    let mut calls = Vec::new();
-    walk_ast_expr(expression, &mut |child| {
-        let AstChild::Expr(expression) = child else {
-            return;
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct ReplayCallableIdentity {
+    kind: ReplayCallableKind,
+    arity: usize,
+}
+
+fn exact_source_declaration_identity(
+    name: &str,
+    arity: usize,
+    definitions: &GroundDefinitions,
+) -> Option<ReplayCallableIdentity> {
+    let key = (name.to_string(), arity);
+    let function_count = definitions
+        .functions
+        .iter()
+        .filter(|((candidate, _), _)| candidate == name)
+        .map(|(_, declarations)| declarations.len())
+        .sum::<usize>();
+    if function_count == 1 && definitions.functions.contains_key(&key) {
+        return Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Function,
+            arity,
+        });
+    }
+    if definitions.rule_definitions.contains_key(&key) {
+        return Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Rule,
+            arity,
+        });
+    }
+    if definitions.constructors.contains_key(&key) {
+        return Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Constructor,
+            arity,
+        });
+    }
+    None
+}
+
+fn pipe_effective_callable_identity(
+    name: &str,
+    arity: usize,
+    definitions: &GroundDefinitions,
+) -> Result<Option<ReplayCallableIdentity>, String> {
+    let key = (name.to_string(), arity);
+    let function_count = definitions
+        .functions
+        .iter()
+        .filter(|((candidate, _), _)| candidate == name)
+        .map(|(_, declarations)| declarations.len())
+        .sum::<usize>();
+    if function_count == 1 {
+        return if definitions.functions.contains_key(&key) {
+            Ok(Some(ReplayCallableIdentity {
+                kind: ReplayCallableKind::Function,
+                arity,
+            }))
+        } else {
+            Ok(None)
         };
-        match &expression.kind {
-            ExprKind::App(function, arguments)
-                if !pipe_transform_roots.contains(&(expression as *const Expr as usize)) =>
-            {
-                if let ExprKind::Var(name) = &function.kind {
-                    calls.push((name.clone(), arguments.len()));
-                }
-            }
-            ExprKind::Pipe(_, transform) => match &transform.kind {
-                ExprKind::Var(name) => calls.push((name.clone(), 1)),
-                ExprKind::App(function, arguments) => {
-                    if let ExprKind::Var(name) = &function.kind {
-                        calls.push((name.clone(), arguments.len() + 1));
-                    }
-                }
-                _ => {}
-            },
-            _ => {}
+    }
+
+    let constructor_arities = definitions
+        .constructors
+        .iter()
+        .filter(|((candidate, _), _)| candidate == name)
+        .flat_map(|((_, declared_arity), declarations)| {
+            std::iter::repeat_n(*declared_arity, declarations.len())
+        })
+        .collect::<Vec<_>>();
+    if constructor_arities.len() > 1 {
+        return Err(format!(
+            "exploration replay pipe constructor `{}` has multiple runtime declarations and cannot identify one exact callable",
+            name
+        ));
+    }
+    if let Some(declared_arity) = constructor_arities.first().copied() {
+        if declared_arity != arity {
+            return Err(format!(
+                "exploration replay pipe constructor `{}` resolves its source form at {} argument{} but executes at {} argument{}",
+                name,
+                declared_arity,
+                if declared_arity == 1 { "" } else { "s" },
+                arity,
+                if arity == 1 { "" } else { "s" }
+            ));
         }
-    });
-    calls
+        return Ok(Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Constructor,
+            arity,
+        }));
+    }
+
+    if let Some(declared_arity) = replay_builtin_arity(name) {
+        if declared_arity != arity {
+            return Err(format!(
+                "exploration replay pipe built-in `{}` is declared for {} argument{} but receives {} argument{} at runtime",
+                name,
+                declared_arity,
+                if declared_arity == 1 { "" } else { "s" },
+                arity,
+                if arity == 1 { "" } else { "s" }
+            ));
+        }
+        return Ok(Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Intrinsic,
+            arity,
+        }));
+    }
+    if definitions.rule_definitions.contains_key(&key) {
+        return Ok(Some(ReplayCallableIdentity {
+            kind: ReplayCallableKind::Rule,
+            arity,
+        }));
+    }
+    Ok(None)
+}
+
+fn explore_replay_pipe_call_site_issue(
+    call: &RuntimeCallUse,
+    definitions: &GroundDefinitions,
+) -> Option<String> {
+    let effective =
+        match pipe_effective_callable_identity(&call.name, call.effective_arity, definitions) {
+            Ok(identity) => identity,
+            Err(issue) => return Some(issue),
+        };
+
+    if replay_builtin_arity(&call.name).is_some()
+        && definitions
+            .rule_definitions
+            .contains_key(&(call.name.clone(), call.effective_arity))
+    {
+        return Some(format!(
+            "exploration replay pipe call `{}` executes the built-in intrinsic instead of the exact rule with the same runtime name",
+            call.name
+        ));
+    }
+
+    let Some(source_arity) = call.source_arity else {
+        return None;
+    };
+    let Some(source) = exact_source_declaration_identity(&call.name, source_arity, definitions)
+    else {
+        return None;
+    };
+    if effective != Some(source) {
+        let subject = if source.kind == ReplayCallableKind::Constructor {
+            "pipe constructor"
+        } else {
+            "pipe call"
+        };
+        return Some(format!(
+            "exploration replay {} `{}` resolves its source form at {} argument{} but executes at {} argument{}",
+            subject,
+            call.name,
+            source_arity,
+            if source_arity == 1 { "" } else { "s" },
+            call.effective_arity,
+            if call.effective_arity == 1 { "" } else { "s" }
+        ));
+    }
+    None
 }
 
 fn explore_replay_callable_identity_issue(
@@ -2833,6 +2977,48 @@ fn explore_replay_callable_identity_issue(
     let key = (name.to_string(), arity);
     if validated.contains(&key) || !visiting.insert(key.clone()) {
         return None;
+    }
+
+    let exact_rule = definitions.rule_definitions.contains_key(&key);
+    let issue = if definitions.bindings.contains_key(name) {
+        Some(if exact_rule {
+            format!(
+                "exploration replay rule call `{}` is shadowed by a top-level binding",
+                name
+            )
+        } else {
+            format!(
+                "exploration replay call `{}` is shadowed by a top-level binding",
+                name
+            )
+        })
+    } else if definitions.unsupported_values.contains_key(name) {
+        Some(format!(
+            "exploration replay call `{}` is shadowed by a runtime value declaration",
+            name
+        ))
+    } else if definitions
+        .unsupported_callables
+        .keys()
+        .any(|(candidate, _)| candidate == name)
+    {
+        Some(if exact_rule {
+            format!(
+                "exploration replay rule call `{}` collides with an unsupported callable sharing one runtime name",
+                name
+            )
+        } else {
+            format!(
+                "exploration replay call `{}` collides with an unsupported callable sharing one runtime name",
+                name
+            )
+        })
+    } else {
+        None
+    };
+    if issue.is_some() {
+        visiting.remove(&key);
+        return issue;
     }
 
     let function_arities = definitions
@@ -2867,11 +3053,6 @@ fn explore_replay_callable_identity_issue(
                 arity,
                 if arity == 1 { "" } else { "s" }
             ))
-        } else if definitions.bindings.contains_key(name) {
-            Some(format!(
-                "exploration replay call `{}` is shadowed by a top-level binding; ordinary runtime functions resolve by bare name",
-                name
-            ))
         } else if definitions
             .rules
             .keys()
@@ -2890,47 +3071,65 @@ fn explore_replay_callable_identity_issue(
                 "exploration replay call `{}` is ambiguous between a function and constructor sharing one runtime name",
                 name
             ))
-        } else if definitions
-            .unsupported_callables
-            .keys()
-            .any(|(candidate, _)| candidate == name)
-        {
-            Some(format!(
-                "exploration replay call `{}` collides with an unsupported callable sharing one runtime name",
-                name
-            ))
-        } else if definitions.unsupported_values.contains_key(name) {
-            Some(format!(
-                "exploration replay call `{}` is shadowed by a runtime value declaration",
-                name
-            ))
-        } else if ground_intrinsic_arity(name).is_some() {
-            Some(format!(
-                "exploration replay helper `{}` shadows a built-in intrinsic with the same runtime name",
-                name
-            ))
         } else {
             let definition = &exact.expect("one exact helper definition")[0];
+            let bound = definition
+                .params
+                .iter()
+                .map(|param| param.name.clone())
+                .collect::<BTreeSet<_>>();
             expression_replay_callable_identity_issue(
                 &definition.body,
+                &bound,
                 definitions,
                 visiting,
                 validated,
             )
         }
     } else if let Some(rules) = definitions.rule_definitions.get(&key) {
-        rules.iter().find_map(|rule| {
-            ground_rule_expressions(rule)
-                .into_iter()
-                .find_map(|expression| {
-                    expression_replay_callable_identity_issue(
-                        expression,
-                        definitions,
-                        visiting,
-                        validated,
-                    )
-                })
-        })
+        if definitions.constructors.contains_key(&key) {
+            Some(format!(
+                "exploration replay constructor `{}({} argument{})` takes precedence over the rule with the same runtime signature",
+                name,
+                arity,
+                if arity == 1 { "" } else { "s" }
+            ))
+        } else {
+            rules.iter().find_map(|rule| {
+                let bound = ground_rule_bound_names(rule);
+                ground_rule_expressions(rule)
+                    .into_iter()
+                    .find_map(|expression| {
+                        expression_replay_callable_identity_issue(
+                            expression,
+                            &bound,
+                            definitions,
+                            visiting,
+                            validated,
+                        )
+                    })
+            })
+        }
+    } else if definitions
+        .constructors
+        .get(&key)
+        .is_some_and(|declarations| declarations.len() > 1)
+    {
+        Some(format!(
+            "exploration replay constructor `{}({} argument{})` has multiple visible runtime declarations",
+            name,
+            arity,
+            if arity == 1 { "" } else { "s" }
+        ))
+    } else if definitions.constructors.contains_key(&key)
+        && replay_builtin_arity(name) == Some(arity)
+    {
+        Some(format!(
+            "exploration replay constructor `{}({} argument{})` collides with a built-in intrinsic sharing one runtime name",
+            name,
+            arity,
+            if arity == 1 { "" } else { "s" }
+        ))
     } else {
         None
     };
@@ -2944,14 +3143,60 @@ fn explore_replay_callable_identity_issue(
 
 fn expression_replay_callable_identity_issue(
     expression: &Expr,
+    bound: &BTreeSet<String>,
     definitions: &GroundDefinitions,
     visiting: &mut BTreeSet<(String, usize)>,
     validated: &mut BTreeSet<(String, usize)>,
 ) -> Option<String> {
-    expression_bare_runtime_calls(expression)
+    collect_scoped_runtime_calls(expression, bound)
         .into_iter()
-        .find_map(|(name, arity)| {
-            explore_replay_callable_identity_issue(&name, arity, definitions, visiting, validated)
+        .find_map(|call| {
+            if call.lexically_bound {
+                return Some(format!(
+                    "exploration replay call `{}` resolves through a lexical value instead of one exact top-level callable",
+                    call.name
+                ));
+            }
+            if matches!(call.name.as_str(), "findall" | "search") {
+                return Some(format!(
+                    "exploration replay runtime special form `{}({} argument{})` is not an exact replay callable",
+                    call.name,
+                    call.effective_arity,
+                    if call.effective_arity == 1 { "" } else { "s" }
+                ));
+            }
+            if !call.through_pipe
+                && replay_builtin_arity(&call.name) == Some(call.effective_arity)
+                && !definitions
+                    .rule_definitions
+                    .contains_key(&(call.name.clone(), call.effective_arity))
+                && !definitions
+                    .constructors
+                    .contains_key(&(call.name.clone(), call.effective_arity))
+                && definitions
+                    .constructors
+                    .keys()
+                    .any(|(candidate, _)| candidate == &call.name)
+            {
+                return Some(format!(
+                    "exploration replay direct built-in call `{}({} argument{})` is shadowed at runtime by a different-arity constructor with the same name",
+                    call.name,
+                    call.effective_arity,
+                    if call.effective_arity == 1 { "" } else { "s" }
+                ));
+            }
+            if call.through_pipe {
+                if let Some(issue) = explore_replay_pipe_call_site_issue(&call, definitions) {
+                    return Some(issue);
+                }
+            }
+            explore_replay_callable_identity_issue(
+                &call.name,
+                call.effective_arity,
+                definitions,
+                visiting,
+                validated,
+            )
         })
 }
 
@@ -2961,7 +3206,15 @@ fn validate_query_replay_callable_identities(
 ) -> Vec<Diagnostic> {
     let mut diagnostics = Vec::new();
     let mut validated = BTreeSet::new();
-    if let Some(message) = explore_replay_callable_identity_issue(
+    if matches!(query.rule_name.as_str(), "findall" | "search") && query.rule_arity == 2 {
+        diagnostics.push(Diagnostic::error_at(
+            query.span,
+            format!(
+                "exploration replay runtime special form `{}(2 arguments)` takes precedence over the target rule",
+                query.rule_name
+            ),
+        ));
+    } else if let Some(message) = explore_replay_callable_identity_issue(
         &query.rule_name,
         query.rule_arity,
         definitions,
@@ -2970,9 +3223,22 @@ fn validate_query_replay_callable_identities(
     ) {
         diagnostics.push(Diagnostic::error_at(query.span, message));
     }
+    let query_bound = query
+        .inputs
+        .iter()
+        .map(|input| input.name.clone())
+        .chain(query.bounds.iter().filter_map(|bound| match bound {
+            TypedExploreBound::Domain { name, .. } | TypedExploreBound::Value { name, .. } => {
+                Some(name.clone())
+            }
+            TypedExploreBound::Where { .. } => None,
+        }))
+        .chain(query.output.show.iter().map(|field| field.name.clone()))
+        .collect::<BTreeSet<_>>();
     let mut check_expression = |expression: &Expr| {
         if let Some(message) = expression_replay_callable_identity_issue(
             expression,
+            &query_bound,
             definitions,
             &mut BTreeSet::new(),
             &mut validated,
@@ -4600,6 +4866,609 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_runtime_declarations_that_preempt_rules() {
+        let fixtures = [
+            (
+                r#"
+# Flag = On | Off | choose(value: Int)
+| choose(value: Int) -> On
+| condition(value: Int) -> choose(value) == On
+? explore rule_constructor_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "constructor `choose(1 argument)` takes precedence over the rule",
+            ),
+            (
+                r#"
+# Flag = On | Off
+= choose = |flag: Flag| flag == Off
+| choose(flag: Flag) -> flag == On
+| condition(flag: Flag) -> choose(flag)
+? explore rule_closure_binding_collision {
+    over condition(flag)
+    find matches
+    bounds { flag in values(Flag) }
+    output { key [flag] representative first }
+}
+"#,
+                "rule call `choose` is shadowed by a top-level binding",
+            ),
+            (
+                r#"
+# Flag = On | Off
+# trait Choice {
+    > choose(self) -> Bool
+}
+# impl Choice for Flag {
+    > choose(self) -> Bool { False }
+}
+| choose(flag: Flag) -> flag == On
+| condition(flag: Flag) -> choose(flag)
+? explore rule_impl_method_collision {
+    over condition(flag)
+    find matches
+    bounds { flag in values(Flag) }
+    output { key [flag] representative first }
+}
+"#,
+                "rule call `choose` collides with an unsupported callable",
+            ),
+        ];
+
+        for (source, expected) in fixtures {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn replay_identity_gate_allows_rule_clauses_and_arities_without_sibling_collisions() {
+        let source = r#"
+# Flag = On | Off
+| choose(flag: Flag) -> True under flag == On
+| choose(flag: Flag) -> False
+| choose() -> True
+| condition(flag: Flag) -> choose(flag)
+? explore unique_rule_family {
+    over condition(flag)
+    find matches
+    bounds { flag in values(Flag) }
+    output { key [flag] representative first }
+}
+"#;
+        let artifacts = artifacts(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.exploration_universes[0]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(2)
+        );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_special_dispatch_and_builtin_value_shadowing() {
+        let fixtures = [
+            (
+                r#"
+| findall(template: Int, goal: Int) -> [template]
+| condition(template: Int, goal: Int) -> length(findall(template, goal)) > 0
+? explore findall_rule_collision {
+    over condition(template, goal)
+    find matches
+    bounds { template in [1]; goal in [1] }
+    output { key [template, goal] representative first }
+}
+"#,
+                "runtime special form `findall(2 arguments)`",
+            ),
+            (
+                r#"
+| search(template: Int, goal: Int) -> Some(template)
+| condition(template: Int, goal: Int) -> search(template, goal) == Some(template)
+? explore search_rule_collision {
+    over condition(template, goal)
+    find matches
+    bounds { template in [1]; goal in [1] }
+    output { key [template, goal] representative first }
+}
+"#,
+                "runtime special form `search(2 arguments)`",
+            ),
+            (
+                r#"
+= abs: Int = 0
+| condition(value: Int) -> abs(value) == value
+? explore builtin_value_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "call `abs` is shadowed by a top-level binding",
+            ),
+            (
+                r#"
+# Weird = abs(left: Int, right: Int)
+| condition(value: Int) -> show(abs(value)) == show(value)
+? explore direct_builtin_constructor_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "direct built-in call `abs(1 argument)` is shadowed at runtime by a different-arity constructor",
+            ),
+            (
+                r#"
+| condition(template: Int, goal: Int) -> length(template |> findall(goal)) > 0
+? explore pipe_findall_special {
+    over condition(template, goal)
+    find matches
+    bounds { template in [1]; goal in [1] }
+    output { key [template, goal] representative first }
+}
+"#,
+                "runtime special form `findall(2 arguments)`",
+            ),
+            (
+                r#"
+| condition(template: Int, goal: Int) -> (template |> search(goal)) == Some(template)
+? explore pipe_search_special {
+    over condition(template, goal)
+    find matches
+    bounds { template in [1]; goal in [1] }
+    output { key [template, goal] representative first }
+}
+"#,
+                "runtime special form `search(2 arguments)`",
+            ),
+        ];
+
+        for (source, expected) in fixtures {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+        }
+
+        for special in ["findall", "search"] {
+            let source = format!(
+                r#"
+| {special}(template: Int, goal: Int) -> True
+? explore direct_special_target {{
+    over {special}(template, goal)
+    find matches
+    bounds {{ template in [1]; goal in [1] }}
+    output {{ key [template, goal] representative first }}
+}}
+"#
+            );
+            let artifacts = artifacts(&source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains("runtime special form")),
+                "missing direct special-form target diagnostic: {:?}",
+                artifacts.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn replay_identity_gate_allows_exact_arity_rule_fallbacks_and_builtin_fallthrough() {
+        let source = r#"
+| mixed(1)
+| mixed(1, 1) -> 1
+| mixed_condition(value: Int) -> mixed(value)
+
+| not(left: Bool, right: Bool) -> left && right
+| builtin_condition(value: Bool) -> not(value)
+
+? explore mixed_rule_arities {
+    over mixed_condition(value)
+    find matches
+    bounds { value in [0] }
+    output { key [value] representative first }
+}
+
+? explore direct_builtin_fallthrough {
+    over builtin_condition(value)
+    find matches
+    bounds { value in values(Bool) }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = artifacts(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 2);
+        assert_eq!(artifacts.exploration_universes.len(), 2);
+        assert_eq!(
+            artifacts.exploration_universes[0]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(1)
+        );
+        assert_eq!(
+            artifacts.exploration_universes[1]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(2)
+        );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_pipe_source_runtime_identity_drift() {
+        let fixtures = [
+            (
+                r#"
+| concat(items: List(Int)) -> items
+| condition(value: Int) -> length([value] |> concat([1])) > 0
+? explore pipe_rule_builtin_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "pipe call `concat` resolves its source form at 1 argument but executes at 2 arguments",
+            ),
+            (
+                r#"
+# Built = Build(value: Int)
+| condition(value: Int) -> (value |> Build(1)) == Build(value)
+? explore pipe_constructor_arity_drift {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "must resolve through pure exploration-supported operations",
+            ),
+            (
+                r#"
+| choose(value: Int) -> value > 0
+| choose(left: Int, right: Int) -> left < right
+| condition(value: Int) -> value |> choose(2)
+? explore pipe_rule_overload_drift {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "pipe call `choose` resolves its source form at 1 argument but executes at 2 arguments",
+            ),
+        ];
+
+        for (source, expected) in fixtures {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+        }
+
+        let unique_effective_rule = r#"
+| choose(left: Int, right: Int) -> left < right
+| condition(value: Int) -> value |> choose(2)
+? explore unique_pipe_rule {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let unique_artifacts = artifacts(unique_effective_rule);
+        assert!(
+            unique_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            unique_artifacts.diagnostics
+        );
+        assert_eq!(
+            unique_artifacts.exploration_universes[0]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(1)
+        );
+
+        let unique_function_over_builtin = r#"
+> abs(value: Int) -> Int { value + 1 }
+| condition(value: Int) -> (value |> abs) == value + 1
+? explore pipe_function_over_builtin {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let function_artifacts = artifacts(unique_function_over_builtin);
+        assert!(
+            function_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            function_artifacts.diagnostics
+        );
+        assert_eq!(
+            function_artifacts.exploration_universes[0]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(1)
+        );
+
+        let non_ground_builtin_collision = r#"
+| abs(value: Int) -> value > 0
+| condition(value: Int) -> (value |> abs) == value
+? explore pipe_rule_default_builtin_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let builtin_collision_artifacts = artifacts(non_ground_builtin_collision);
+        assert!(builtin_collision_artifacts.exploration_queries.is_empty());
+        assert!(builtin_collision_artifacts.exploration_universes.is_empty());
+        assert!(
+            builtin_collision_artifacts
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic
+                    .message
+                    .contains("executes the built-in intrinsic instead of the exact rule")),
+            "missing pipe rule/default-builtin collision: {:?}",
+            builtin_collision_artifacts.diagnostics
+        );
+
+        let builtin_arity_drift = r#"
+| abs(left: Int, right: Int) -> left > right
+| condition(value: Int) -> (value |> abs(1)) == True
+? explore pipe_builtin_arity_drift {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let builtin_drift_artifacts = artifacts(builtin_arity_drift);
+        assert!(builtin_drift_artifacts.exploration_queries.is_empty());
+        assert!(builtin_drift_artifacts.exploration_universes.is_empty());
+        assert!(
+            builtin_drift_artifacts
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains(
+                    "pipe built-in `abs` is declared for 1 argument but receives 2 arguments"
+                )),
+            "missing pipe builtin arity drift: {:?}",
+            builtin_drift_artifacts.diagnostics
+        );
+
+        let interpreter_builtin_collision = r#"
+| format_f(value: Int, decimals: Int) -> True
+| condition(value: Int) -> (value |> format_f(2)) == True
+? explore pipe_interpreter_builtin_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = artifacts(interpreter_builtin_collision);
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.exploration_universes.is_empty());
+        assert!(
+            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("executes the built-in intrinsic instead of the exact rule")),
+            "missing interpreter-only builtin collision: {:?}",
+            artifacts.diagnostics
+        );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_computed_pipe_transforms() {
+        let source = r#"
+| condition(value: Int) -> value |> (|item: Int| item > 0)
+? explore computed_pipe_transform {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = artifacts(source);
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.exploration_universes.is_empty());
+        assert!(
+            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("pure exploration-supported operations")),
+            "missing computed-pipe rejection: {:?}",
+            artifacts.diagnostics
+        );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_nested_static_declarations() {
+        let fixtures = [
+            r#"
+| condition(value: Int) -> {
+    > abs(item: Int) -> Int { item + 1 }
+    abs(value) == value + 1
+}
+? explore nested_function_shadow {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+            r#"
+| condition(value: Int) -> {
+    # Weird = abs(left: Int, right: Int)
+    show(abs(value)) == show(value)
+}
+? explore nested_constructor_shadow {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+        ];
+
+        for source in fixtures {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+                    .message
+                    .contains("must resolve through pure exploration-supported operations")),
+                "missing nested static-declaration rejection: {:?}",
+                artifacts.diagnostics
+            );
+        }
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_named_argument_pipe_transforms() {
+        let source = r#"
+> choose(left: Int, right: Int) -> Bool { left < right }
+| condition(value: Int) -> value |> choose(right = 2)
+? explore named_argument_pipe_transform {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = artifacts(source);
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.exploration_universes.is_empty());
+        assert!(
+            artifacts.diagnostics.iter().any(|diagnostic| {
+                diagnostic.message.contains("named argument")
+                    || diagnostic.message.contains(NAMED_ARG_MARKER)
+            }),
+            "missing named-argument pipe rejection: {:?}",
+            artifacts.diagnostics
+        );
+    }
+
+    #[test]
+    fn replay_identity_gate_rejects_calls_through_lexical_values() {
+        let fixtures = [
+            (
+                r#"
+> helper(value: Int) -> Int { value + 1 }
+> apply(helper: Int -> Int, value: Int) -> Int { helper(value) }
+| condition(value: Int) -> apply(|item: Int| item, value) == value
+? explore parameter_callable_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "call `helper` resolves through a lexical value",
+            ),
+            (
+                r#"
+> helper(value: Int) -> Int { value + 1 }
+| condition(value: Int) -> {
+    = helper = 0
+    helper(value) == value
+}
+? explore block_callable_collision {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#,
+                "call `helper` resolves through a lexical value",
+            ),
+            (
+                r#"
+> helper(value: Int) -> Bool { value > 0 }
+| condition(value: Int, helper: Int) -> True
+? explore query_callable_collision {
+    over condition(value, helper)
+    find matches
+    bounds {
+        value in [1]
+        helper = 0
+        where helper(value)
+    }
+    output { key [value] show [helper] representative first }
+}
+"#,
+                "call `helper` resolves through a lexical value",
+            ),
+        ];
+
+        for (source, expected) in fixtures {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_queries.is_empty());
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts.diagnostics.iter().any(|diagnostic| {
+                    diagnostic.message.contains(expected)
+                        || diagnostic
+                            .message
+                            .contains("must resolve through pure exploration-supported operations")
+                        || diagnostic
+                            .message
+                            .contains("exploration expressions must use only pure")
+                }),
+                "missing lexical-callee rejection for {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+        }
     }
 
     #[test]
