@@ -1,0 +1,3 @@
+@ import ./rule_dispatch_base
+
+| imported_band(amount: Int) -> 70 under amount > 7

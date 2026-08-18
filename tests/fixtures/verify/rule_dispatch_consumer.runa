@@ -1,0 +1,78 @@
+@ import ./rule_dispatch_middle
+
+| exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
+
+| ordered_band(amount: Int) -> 0
+| ordered_band(amount: Int) -> 70 under amount > 7
+| ordered_band(amount: Int) -> 80 under amount > 8
+
+| reverse_ordered_band(amount: Int) -> 0
+| reverse_ordered_band(amount: Int) -> 80 under amount > 8
+| reverse_ordered_band(amount: Int) -> 70 under amount > 7
+
+# OrderedCase(base: Int) {
+    | band(amount: Int) -> base
+    | band(amount: Int) -> 70 under amount > 7
+    | band(amount: Int) -> 80 under amount > 8
+    | exception special_base band(amount: Int) -> 99 under base == 99
+}
+
+# HigherOrderCase(value: Int) {
+    | projected(projector: Int -> Int) -> projector(value)
+}
+
+# Filing = Digital | Paper(Int)
+# FilingRecord(code: Int, active: Bool)
+
+| filing_value(Paper(code)) -> code
+| filing_value(filing: Filing) -> 1
+
+| filing_record_value(FilingRecord(code = code, active = True)) -> code
+| filing_record_value(record: FilingRecord) -> 0
+
+| literal_value(8) -> 80
+| literal_value(amount: Int) -> 0
+
+| block_value(amount: Int) -> {
+    = adjusted = amount + 1
+    = doubled = adjusted * 2
+    doubled
+}
+
+| partial_value(amount: Int) -> 1 under amount > 0
+
+| recursive_value(amount: Int) -> recursive_value(amount - 1) under amount > 0
+| recursive_value(amount: Int) -> 0
+
+= imported_six = imported_band(amount = 6)
+= imported_eight = imported_band(amount = 8)
+= imported_nine = imported_band(amount = 9)
+= ordered_nine = ordered_band(amount = 9)
+= reverse_ordered_nine = reverse_ordered_band(amount = 9)
+= scoped_nine = OrderedCase(base = 0).band(amount = 9)
+= scoped_exception = OrderedCase(base = 99).band(amount = 1)
+= paper_value = filing_value(Paper(42))
+= filing_record_active_value = filing_record_value(FilingRecord(code = 43, active = True))
+= filing_record_inactive_value = filing_record_value(FilingRecord(code = 44, active = False))
+= literal_eight = literal_value(8)
+= literal_nine = literal_value(9)
+= higher_order_projected = HigherOrderCase(value = 21).projected(|value: Int| value * 2)
+
+| imported_base_is_retained: imported_six -> imported_six == 10
+| imported_condition_is_retained: imported_eight -> imported_eight == 70
+| local_exception_extends_imported_chain: imported_nine -> imported_nine == 80
+| first_overlapping_guard_wins: ordered_nine -> ordered_nine == 70
+| reversing_guards_changes_dispatch: reverse_ordered_nine -> reverse_ordered_nine == 80
+| scoped_first_overlapping_guard_wins: scoped_nine -> scoped_nine == 70
+| scoped_exception_precedes_conditions: scoped_exception -> scoped_exception == 99
+| imported_exception_is_symbolic: imported_band(amount) -> if amount > 8 { imported_band(amount) == 80 } else { True }
+| first_guard_is_symbolic: ordered_band(amount) -> if amount > 8 { ordered_band(amount) == 70 } else { True }
+| constructor_payload_head_is_lowered: paper_value -> paper_value == 42
+| named_constructor_head_is_lowered: filing_record_active_value -> filing_record_active_value == 43 && filing_record_inactive_value == 0
+| literal_heads_are_lowered: literal_eight -> literal_eight == 80 && literal_nine == 0
+| constructor_payload_is_symbolic: filing_value(Paper(code)) -> filing_value(Paper(code)) == code
+| sequential_rule_block_is_symbolic: block_value(amount) -> block_value(amount) == (amount + 1) * 2
+| partial_dispatch_is_rejected: partial_value(amount) -> partial_value(amount) >= 0
+| recursive_dispatch_is_rejected: recursive_value(amount) -> recursive_value(amount) >= 0
+| higher_order_dispatch_is_rejected: higher_order_projected -> higher_order_projected == 42
+| intentional_wrong_order_claim: ordered_nine -> ordered_nine == 80

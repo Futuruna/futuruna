@@ -530,3 +530,32 @@ The same `?` line works at three levels of assurance:
 - **`runa run`** — evaluates the predicate with current values at runtime
 - **`runa build`** — emits `debug_assert!()` in the compiled binary
 - **`runa verify`** — translates to SMT-LIB2 and invokes Z3 to prove for all inputs
+
+### Verifying rule dispatch
+
+`runa verify` can translate pure, total, non-recursive `|` rule groups directly,
+including rules inside a product RuleScope. Conditions and exceptions use the
+same precedence as execution; there is no need to restate the rule cascade as a
+separate `>` function.
+
+```runa
+# TaxCase(income: Int) {
+    | rate_percent() -> 25
+    | rate_percent() -> 30 under income > 500000
+    | exception low_income rate_percent() -> 20 under income < 100000
+    | tax_due() -> income * rate_percent() / 100
+}
+
+= high_income_case = TaxCase(income = 600000)
+| high_income_tax: high_income_case.tax_due() -> high_income_case.tax_due() == 180000
+```
+
+Plain imports are resolved recursively for verification. An exception declared
+by an importing file therefore extends the imported rule group and keeps its
+normal exception priority. Within one priority tier, imported declarations
+come before declarations in the importing file and the first applicable rule
+wins, just as it does during execution.
+
+The solver path fails closed with a diagnostic for partial non-Boolean rules,
+recursive dispatch, higher-order parameters, effects, and other expressions
+outside its current first-order subset. `runa verify` remains a Preview surface.
