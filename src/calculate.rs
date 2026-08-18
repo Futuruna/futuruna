@@ -499,14 +499,19 @@ impl TypeCatalog {
     ) {
         for stmt in stmts {
             match stmt {
-                Stmt::TypeDecl(TypeDecl::ADT {
-                    name,
-                    params,
-                    variants,
-                    except_from,
-                    ..
-                }) => {
-                    if checked && (is_builtin_runtime_type_name(name) || name == "Tuple") {
+                Stmt::TypeDecl(
+                    declaration @ TypeDecl::ADT {
+                        name,
+                        params,
+                        variants,
+                        except_from,
+                        ..
+                    },
+                ) => {
+                    if checked
+                        && is_exact_runtime_type_name(name)
+                        && !is_canonical_exact_runtime_declaration(declaration)
+                    {
                         diagnostics.push(format!(
                             "declared type `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
                             name
@@ -530,7 +535,7 @@ impl TypeCatalog {
                     );
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
-                    if checked && (is_builtin_runtime_type_name(name) || name == "Tuple") {
+                    if checked && is_exact_runtime_type_name(name) {
                         diagnostics.push(format!(
                             "declared rule scope `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
                             name
@@ -553,7 +558,7 @@ impl TypeCatalog {
                 }
                 Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
                     if checked {
-                        if is_builtin_runtime_type_name(name) || name == "Tuple" {
+                        if is_exact_runtime_type_name(name) {
                             diagnostics.push(format!(
                                 "conditional type evolution for `{}` changes a built-in primitive or structural type and cannot define an exact exploration universe",
                                 name
@@ -1596,6 +1601,34 @@ fn primitive_name(name: &str) -> Option<&'static str> {
 
 fn is_builtin_runtime_type_name(name: &str) -> bool {
     primitive_name(name).is_some() || matches!(name, "Nat" | "Unit" | "Any" | "_")
+}
+
+fn is_exact_runtime_type_name(name: &str) -> bool {
+    is_builtin_runtime_type_name(name) || matches!(name, "Tuple" | "Option")
+}
+
+/// `Option` is source-shadowable, but the interpreter always seeds `Some` and
+/// `None` before loading declarations. Exact exploration can therefore trust
+/// only the canonical prelude declaration; a different user/imported shape
+/// would omit runtime inhabitants from `values(Option(T))`.
+fn is_canonical_exact_runtime_declaration(declaration: &TypeDecl) -> bool {
+    let TypeDecl::ADT {
+        name, except_from, ..
+    } = declaration
+    else {
+        return false;
+    };
+    if name != "Option" || except_from.is_some() {
+        return false;
+    }
+    let declaration_hash = content_hash_type(declaration);
+    parse_prelude().iter().any(|statement| {
+        matches!(
+            statement,
+            Stmt::TypeDecl(canonical @ TypeDecl::ADT { name, .. })
+                if name == "Option" && content_hash_type(canonical) == declaration_hash
+        )
+    })
 }
 
 fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationTypeRef, String> {

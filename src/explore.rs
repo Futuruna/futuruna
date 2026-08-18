@@ -4153,12 +4153,15 @@ mod tests {
     fn optional_sugar_and_option_domains_share_one_semantic_type() {
         let source = r#"
 # Status = Active | Inactive
-| condition(value: Status?) -> True
+| condition(explicit: Option(Status), optional: Status?) -> True
 ? explore optional_values {
-    over condition(value)
+    over condition(explicit, optional)
     find matches
-    bounds { value in values(Option(Status)) }
-    output { key [value] representative first }
+    bounds {
+        explicit in values(Option(Status))
+        optional in values(Option(Status))
+    }
+    output { key [explicit, optional] representative first }
 }
 "#;
         let artifacts = artifacts(source);
@@ -4167,8 +4170,72 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let domain = &artifacts.exploration_universes[0].universe.dimensions[0].domain;
-        assert_eq!(domain.cardinality(), ExploreCardinality::Exact(3));
+        for dimension in &artifacts.exploration_universes[0].universe.dimensions {
+            let ExploreExactDomain::FiniteType { plan, .. } = &dimension.domain else {
+                panic!("expected canonical Option finite-type plan")
+            };
+            assert_eq!(plan.cardinality(), ExploreCardinality::Exact(3));
+            let values = plan.enumerate(3).expect("enumerate canonical Option");
+            assert!(
+                matches!(&values[0], ExploreValue::Constructor { variant, fields, .. }
+                    if variant == "None" && fields.is_empty())
+            );
+            assert!(
+                matches!(&values[1], ExploreValue::Constructor { variant, fields, .. }
+                    if variant == "Some"
+                        && matches!(&fields[0].1, ExploreValue::Constructor { variant, .. }
+                            if variant == "Active"))
+            );
+            assert!(
+                matches!(&values[2], ExploreValue::Constructor { variant, fields, .. }
+                    if variant == "Some"
+                        && matches!(&fields[0].1, ExploreValue::Constructor { variant, .. }
+                            if variant == "Inactive"))
+            );
+        }
+    }
+
+    #[test]
+    fn values_rejects_a_user_option_that_disagrees_with_runtime_semantics() {
+        let explicit = r#"
+# Option(a) = Absent | Present(a)
+# Status = Active | Inactive
+| condition(value: Option(Status)) -> True
+? explore shadowed_option {
+    over condition(value)
+    find matches
+    bounds { value in values(Option(Status)) }
+    output { key [group = 1] show [value] representative first }
+}
+"#;
+        let optional_sugar = r#"
+# Option(a) = Absent | Present(a)
+# Status = Active | Inactive
+| condition(value: Status?) -> True
+? explore shadowed_option_sugar {
+    over condition(value)
+    find matches
+    bounds { value in values(Option(Status)) }
+    output { key [group = 1] show [value] representative first }
+}
+"#;
+
+        for source in [explicit, optional_sugar] {
+            let artifacts = artifacts(source);
+            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts.diagnostics.iter().any(|diagnostic| {
+                    diagnostic
+                        .message
+                        .contains("declared type `Option` shadows")
+                        && diagnostic
+                            .message
+                            .contains("cannot define an exact exploration universe")
+                }),
+                "{:?}",
+                artifacts.diagnostics
+            );
+        }
     }
 
     #[test]
