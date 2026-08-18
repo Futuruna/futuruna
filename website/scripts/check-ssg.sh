@@ -26,7 +26,7 @@ pages=(
   "research/danish-constitution.html^https://futuruna.com/research/danish-constitution^Danmarks Riges Grundlov | Futuruna^<h1>Danmarks Riges Grundlov</h1>"
   "research/danish-constitution-audit.html^https://futuruna.com/research/danish-constitution-audit^Prøvning af grundlovsmodellen | Futuruna^<h1>Prøvning af grundlovsmodellen</h1>"
   "research/personskatteloven.html^https://futuruna.com/research/personskatteloven^Personskatteloven - Futuruna-forskning^<h1>Personskatteloven i Futuruna</h1>"
-  "research/income-cliffs.html^https://futuruna.com/research/income-cliffs^I mapped where one more krone leaves you poorer — Futuruna^<h1>I mapped where one more krone leaves you poorer</h1>"
+  "research/income-cliffs.html^https://futuruna.com/research/income-cliffs^Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere — Futuruna^<h1>Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere</h1>"
   "research/us-constitution.html^https://futuruna.com/research/us-constitution^US Constitution in Futuruna — Research^<h1>The United States Constitution</h1>"
   "research/ownership.html^https://futuruna.com/research/ownership^Invisible Ownership — Futuruna Research^<h1>Invisible Ownership</h1>"
 )
@@ -110,6 +110,67 @@ for property in article:published_time article:modified_time; do
   }
 done
 
+test "$(count_pattern '<figure class="income-cliff-histogram"' "$income_cliffs_file")" -eq 1 || {
+  echo "income-cliffs article must contain exactly one histogram" >&2
+  exit 1
+}
+grep -Fq '<figure class="income-cliff-histogram" aria-labelledby="income-cliff-histogram-caption">' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is not linked to its caption" >&2
+  exit 1
+}
+grep -Fq '<svg viewBox="0 0 720 430" aria-hidden="true" focusable="false">' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing its accessible SVG contract" >&2
+  exit 1
+}
+grep -Fq 'Alle 490 sammenligninger gik baglæns.' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing its Danish caption" >&2
+  exit 1
+}
+for visible_count in \
+  '<text x="168" y="326">0</text>' \
+  '<text x="314" y="34">245</text>' \
+  '<text x="460" y="309">16</text>' \
+  '<text x="606" y="53">229</text>'; do
+  grep -Fq "$visible_count" "$income_cliffs_file" || {
+    echo "income-cliffs histogram is missing a visible checked count" >&2
+    exit 1
+  }
+done
+for visible_bar in \
+  '<rect x="112" y="340" width="112" height="0">' \
+  '<rect x="258" y="46" width="112" height="294">' \
+  '<rect x="404" y="321" width="112" height="19">' \
+  '<rect x="550" y="65" width="112" height="275">'; do
+  grep -Fq "$visible_bar" "$income_cliffs_file" || {
+    echo "income-cliffs histogram is missing a checked bar" >&2
+    exit 1
+  }
+done
+grep -Fq '>Tab efter skat ved 1 kr. ekstra i bruttoårsløn</text>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing its x-axis label" >&2
+  exit 1
+}
+grep -Fq '>Antal sammenligninger</text>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing its y-axis label" >&2
+  exit 1
+}
+grep -Fq '<tr><td>Under 50 kr.</td><td>0</td></tr>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing the under-50 bucket" >&2
+  exit 1
+}
+grep -Fq '<tr><td>50–99,99 kr.</td><td>245</td></tr>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing the 50–99.99 bucket" >&2
+  exit 1
+}
+grep -Fq '<tr><td>100–149,99 kr.</td><td>16</td></tr>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing the 100–149.99 bucket" >&2
+  exit 1
+}
+grep -Fq '<tr><td>150–199,99 kr.</td><td>229</td></tr>' "$income_cliffs_file" || {
+  echo "income-cliffs histogram is missing the 150–199.99 bucket" >&2
+  exit 1
+}
+
 for public_asset in robots.txt llms.txt ai-setup.md codemeta.json _headers; do
   test -s "$output_dir/$public_asset" || {
     echo "missing public discovery asset: $public_asset" >&2
@@ -144,11 +205,13 @@ for page_path in sys.argv[2:]:
         raise SystemExit(f"{page_path} has no JSON-LD document")
     parsed = [json.loads(document) for document in documents]
     if page_path.endswith("research/income-cliffs.html"):
-        expected_headline = "I mapped where one more krone leaves you poorer"
+        expected_headline = (
+            "Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere"
+        )
         expected_description = (
-            "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 "
-            "municipal rows, finding modeled one-krone income cliffs from 69.23 to "
-            "170.02 DKK."
+            "Et Futuruna-program undersøger 490 kombinationer af skatteprofil og "
+            "indkomsttrin. I alle 490 falder beløbet efter skat med 69,23–170,02 "
+            "kr., når årslønnen stiger med én krone."
         )
         if not any(
             document.get("@type") == "TechArticle"
@@ -156,6 +219,7 @@ for page_path in sys.argv[2:]:
             == "https://futuruna.com/research/income-cliffs#article"
             and document.get("headline") == expected_headline
             and document.get("description") == expected_description
+            and document.get("inLanguage") == "da"
             for document in parsed
             if isinstance(document, dict)
         ):

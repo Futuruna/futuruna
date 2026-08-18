@@ -37,13 +37,13 @@ Contact: research@futuruna.com
 - [Logic rules](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/cocktails.runa): See facts, rules, queries, and ordinary collection processing work side by side.
 - [Typed calculation](https://raw.githubusercontent.com/Futuruna/futuruna/main/tests/fixtures/calculation/tax.calculate.runa): See a small rule model become a typed, interview-ready calculation.
 - [Law-exploration workbook](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/exploration-workbook.md): Learn how to search a finite rule space, find counterexamples, and select the worst case with ordinary Futuruna.
-- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Inspect 490 adjacent 2026 tax transitions across all 98 municipal rows and two complete phase-out staircases, including checked coverage, extrema, ties, and exact witnesses.
+- [Executable income-cliff map](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-income-tax/personskat-income-cliffs.audit.runa): Inspect 490 adjacent 2026 tax transitions across all 98 municipal rows and two complete phase-out staircases, including checked coverage, a four-bucket histogram, loss ranges, ties, and concrete cases.
 
 ## Law, Rules, and Research
 
 - [The Philosophy of Futuruna](https://futuruna.com/research/philosophy): Read the deeper argument for partitioned syntax.
 - [Danish personal income tax](https://futuruna.com/research/personskatteloven): Explore the Danish Income Tax Law encoded in Futuruna and audit your own Annual Tax Report.
-- [I mapped where one more krone leaves you poorer](https://futuruna.com/research/income-cliffs): See Futuruna turn a commuting-deduction rule inside out, finding modeled one-krone income cliffs from 69.23 to 170.02 DKK inside a declared 490-transition map.
+- [Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere](https://futuruna.com/research/income-cliffs): Read the Danish article about a short Futuruna search in which all 490 tested profile-boundary combinations leave less after tax when annual income rises by one krone.
 - [Danish Constitution](https://futuruna.com/research/danish-constitution): Explore the Danish Constitution encoded in Futuruna.
 - [Danish Constitution audit](https://raw.githubusercontent.com/Futuruna/futuruna/main/examples/danish-constitution/grundlov.audit.runa): Read the executable audit of the encoded Danish Constitution.
 - [US Constitution](https://futuruna.com/research/us-constitution): Read the shared vocabulary, dates, articles, and verification results of the encoded Constitution.

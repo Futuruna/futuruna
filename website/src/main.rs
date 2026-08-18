@@ -3168,18 +3168,19 @@ const TAX_WEBSITE_OVERVIEW_MD: &str =
     include_str!("../../examples/danish-income-tax/website-overblik.md");
 const TAX_INCOME_CLIFFS_MD: &str =
     include_str!("../../examples/danish-income-tax/personskat-income-cliffs.md");
-const TAX_INCOME_CLIFFS_TITLE: &str = "I mapped where one more krone leaves you poorer — Futuruna";
-const TAX_INCOME_CLIFFS_DESCRIPTION: &str = "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 municipal rows, finding modeled one-krone income cliffs from 69.23 to 170.02 DKK.";
+const TAX_INCOME_CLIFFS_TITLE: &str =
+    "Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere — Futuruna";
+const TAX_INCOME_CLIFFS_DESCRIPTION: &str = "Et Futuruna-program undersøger 490 kombinationer af skatteprofil og indkomsttrin. I alle 490 falder beløbet efter skat med 69,23–170,02 kr., når årslønnen stiger med én krone.";
 const TAX_INCOME_CLIFFS_JSON_LD: &str = r#"{
   "@context": "https://schema.org",
   "@type": "TechArticle",
   "@id": "https://futuruna.com/research/income-cliffs#article",
   "url": "https://futuruna.com/research/income-cliffs",
-  "headline": "I mapped where one more krone leaves you poorer",
-  "description": "A Futuruna map of 490 adjacent 2026 Danish tax transitions across all 98 municipal rows, finding modeled one-krone income cliffs from 69.23 to 170.02 DKK.",
+  "headline": "Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere",
+  "description": "Et Futuruna-program undersøger 490 kombinationer af skatteprofil og indkomsttrin. I alle 490 falder beløbet efter skat med 69,23–170,02 kr., når årslønnen stiger med én krone.",
   "datePublished": "2026-08-18",
   "dateModified": "2026-08-18",
-  "inLanguage": "en",
+  "inLanguage": "da",
   "isAccessibleForFree": true,
   "author": {
     "@type": "Person",
@@ -3195,8 +3196,8 @@ const TAX_INCOME_CLIFFS_JSON_LD: &str = r#"{
   },
   "about": [
     { "@id": "https://futuruna.com/#language" },
-    { "@type": "Thing", "name": "Danish personal income tax" },
-    { "@type": "Thing", "name": "Commuting deduction" }
+    { "@type": "Thing", "name": "Dansk personskat" },
+    { "@type": "Thing", "name": "Befordringsfradrag" }
   ],
   "citation": [
     "https://skat.dk/borger/fradrag/koerselsfradrag/koerselsfradrag-befordringsfradrag",
@@ -3431,13 +3432,12 @@ fn ResearchIndex() -> Element {
                 }
                 a { class: "research-card", href: "/research/income-cliffs",
                     div { class: "research-card-rune rune-question", "?" }
-                    h2 { class: "research-card-title", "I mapped where one more krone leaves you poorer" }
+                    h2 { class: "research-card-title", "Jeg fandt 490 tilfælde, hvor én ekstra krone gjorde dig fattigere" }
                     p { class: "research-card-desc",
-                        "Futuruna evaluates 490 adjacent income transitions across all 98 \
-                         municipalities and two full phase-out staircases, finding modeled \
-                         losses from 69.23 to 170.02 DKK."
+                        "Et kort Futuruna-program stiller 490 spørgsmål til den samme \
+                         skattelov. Alle 490 gange gik beløbet efter skat ned."
                     }
-                    span { class: "research-card-meta", "Danish Tax \u{00B7} Executable Exploration \u{00B7} English" }
+                    span { class: "research-card-meta", "Dansk skat \u{00B7} Eksekverbar undersøgelse \u{00B7} Dansk" }
                 }
                 // US Constitution
                 a { class: "research-card", href: "/research/us-constitution",
@@ -3908,10 +3908,10 @@ fn ResearchIncomeCliffs() -> Element {
             modified: "2026-08-18",
             json_ld: TAX_INCOME_CLIFFS_JSON_LD,
         }
-        div { class: "why-page", lang: "en",
+        div { class: "why-page", lang: "da",
             nav { class: "why-toc",
-                h3 { class: "why-toc-title", "Income cliffs" }
-                a { class: "why-toc-link research-back", href: "/research", "← All Research" }
+                h3 { class: "why-toc-title", "Indkomstklinter" }
+                a { class: "why-toc-link research-back", href: "/research", "← Al forskning" }
                 for (slug, label) in headings.iter() {
                     a { class: "why-toc-link", href: "#{slug}", "{label}" }
                 }
@@ -3920,7 +3920,7 @@ fn ResearchIncomeCliffs() -> Element {
                     onclick: move |_| {
                         dioxus::document::eval("window.print()");
                     },
-                    "Print"
+                    "Udskriv"
                 }
             }
             article { class: "why-main const-article tax-article",

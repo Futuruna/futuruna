@@ -34,6 +34,8 @@ full calls to beregn_personskat.
 Verified map result:
 - All 490 transitions are modeled income cliffs.
 - The loss ranges from 6,923 to 17,002 øre.
+- The four 50-DKK histogram buckets contain 0, 245, 16, and 229
+transitions; every transition is counted once.
 - The minimum occurs 14 times; the maximum occurs 41 times.
 - At the first boundary, 60 km without church tax ranges from 6,947 to 8,626
 øre; 60 km with church tax ranges from 7,141 to 9,052 øre.
@@ -247,6 +249,10 @@ components of the final-tax calculation.
 
 = personskat_ligningsfradrag_gyldige_indkomstovergange = filter(personskat_indkomstovergange, |overgang: PersonskatIndkomstovergang| overgang.ligningsfradrag_input_gyldige)
 = personskat_indkomstklinter = filter(personskat_ligningsfradrag_gyldige_indkomstovergange, |overgang: PersonskatIndkomstovergang| overgang.netto_efter_øre < overgang.netto_før_øre)
+= personskat_indkomstklint_histogram_0_til_50_kroner = filter(personskat_indkomstklinter, |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 0 && overgang.nettotab_øre < 5000)
+= personskat_indkomstklint_histogram_50_til_100_kroner = filter(personskat_indkomstklinter, |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 5000 && overgang.nettotab_øre < 10000)
+= personskat_indkomstklint_histogram_100_til_150_kroner = filter(personskat_indkomstklinter, |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 10000 && overgang.nettotab_øre < 15000)
+= personskat_indkomstklint_histogram_150_til_200_kroner = filter(personskat_indkomstklinter, |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 15000 && overgang.nettotab_øre < 20000)
 = personskat_indkomstklint_nationale_fund = filter(personskat_indkomstklint_nationale_første_overgange, |overgang: PersonskatIndkomstovergang| overgang.netto_efter_øre < overgang.netto_før_øre)
 = personskat_indkomstklint_københavn_60_fund = filter(personskat_indkomstklint_københavn_60_spor, |overgang: PersonskatIndkomstovergang| overgang.netto_efter_øre < overgang.netto_før_øre)
 = personskat_indkomstklint_læsø_130_fund = filter(personskat_indkomstklint_læsø_130_spor, |overgang: PersonskatIndkomstovergang| overgang.netto_efter_øre < overgang.netto_før_øre)
@@ -291,6 +297,8 @@ components of the final-tax calculation.
 = personskat_indkomstklint_nøgler_unikke = length(distinct(personskat_indkomstklint_overgangsnøgler)) == length(personskat_indkomstklint_overgangsnøgler)
 = personskat_indkomstklint_alle_input_gyldige = length(personskat_ligningsfradrag_gyldige_indkomstovergange) == length(personskat_indkomstovergange)
 = personskat_indkomstklint_fundantal = length(personskat_indkomstklinter)
+= personskat_indkomstklint_histogramantal = length(personskat_indkomstklint_histogram_0_til_50_kroner) + length(personskat_indkomstklint_histogram_50_til_100_kroner) + length(personskat_indkomstklint_histogram_100_til_150_kroner) + length(personskat_indkomstklint_histogram_150_til_200_kroner)
+= personskat_indkomstklint_histogram_præcist = length(personskat_indkomstklint_histogram_0_til_50_kroner) == 0 && length(personskat_indkomstklint_histogram_50_til_100_kroner) == 245 && length(personskat_indkomstklint_histogram_100_til_150_kroner) == 16 && length(personskat_indkomstklint_histogram_150_til_200_kroner) == 229 && personskat_indkomstklint_histogramantal == 490
 = personskat_indkomstklint_delområder_fundantal = length(personskat_indkomstklint_nationale_fund) == 392 && length(personskat_indkomstklint_københavn_60_fund) == 50 && length(personskat_indkomstklint_læsø_130_fund) == 50
 = personskat_indkomstklint_nationale_afstandsantal = length(personskat_indkomstklint_nationale_60) == 196 && length(personskat_indkomstklint_nationale_130) == 196
 = personskat_indkomstklint_nationale_profilantal = length(personskat_indkomstklint_nationale_60_uden_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_60_med_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_130_uden_kirkeskat) == 98 && length(personskat_indkomstklint_nationale_130_med_kirkeskat) == 98
@@ -327,6 +335,8 @@ components of the final-tax calculation.
 | personskat_indkomstklint_kort_har_490_unikke_overgange: personskat_indkomstklint_kortantal -> personskat_indkomstklint_kortantal == 490 && personskat_indkomstklint_nøgler_unikke
 | personskat_indkomstklint_alle_ligningsfradrag_input_gyldige: personskat_indkomstklint_alle_input_gyldige -> personskat_indkomstklint_alle_input_gyldige
 | personskat_indkomstklint_alle_490_fundet: personskat_indkomstklint_fundantal -> personskat_indkomstklint_fundantal == 490
+| personskat_indkomstklint_histogram_dækker_alle_490: personskat_indkomstklint_histogramantal -> personskat_indkomstklint_histogramantal == 490
+| personskat_indkomstklint_histogram_har_præcise_antal: personskat_indkomstklint_histogram_præcist -> personskat_indkomstklint_histogram_præcist
 | personskat_indkomstklint_delområder_alle_fundet: personskat_indkomstklint_delområder_fundantal -> personskat_indkomstklint_delområder_fundantal
 | personskat_indkomstklint_spor_dækker_begge_beregningsgrene: personskat_indkomstklint_københavn_60_procentgren -> personskat_indkomstklint_københavn_60_procentgren && personskat_indkomstklint_læsø_130_maksimumsgren
 | personskat_indkomstklint_342499_til_342500: personskat_indkomstklint_342499_til_342500_præcis -> personskat_indkomstklint_342499_til_342500_præcis
@@ -348,6 +358,8 @@ components of the final-tax calculation.
 ? personskat_indkomstklint_kort_har_490_unikke_overgange
 ? personskat_indkomstklint_alle_ligningsfradrag_input_gyldige
 ? personskat_indkomstklint_alle_490_fundet
+? personskat_indkomstklint_histogram_dækker_alle_490
+? personskat_indkomstklint_histogram_har_præcise_antal
 ? personskat_indkomstklint_delområder_alle_fundet
 ? personskat_indkomstklint_spor_dækker_begge_beregningsgrene
 ? personskat_indkomstklint_342499_til_342500
@@ -365,6 +377,10 @@ components of the final-tax calculation.
 @ print("personskat indkomstklint fulde personskatteberegninger: " + vis(length(personskat_indkomstovergange) * 2))
 @ print("personskat indkomstklint ligningsfradrag-gyldige overgange: " + vis(length(personskat_ligningsfradrag_gyldige_indkomstovergange)))
 @ print("personskat indkomstklint fund: " + vis(length(personskat_indkomstklinter)))
+@ print("personskat indkomstklint histogram 0,00-49,99 kr.: " + vis(length(personskat_indkomstklint_histogram_0_til_50_kroner)))
+@ print("personskat indkomstklint histogram 50,00-99,99 kr.: " + vis(length(personskat_indkomstklint_histogram_50_til_100_kroner)))
+@ print("personskat indkomstklint histogram 100,00-149,99 kr.: " + vis(length(personskat_indkomstklint_histogram_100_til_150_kroner)))
+@ print("personskat indkomstklint histogram 150,00-199,99 kr.: " + vis(length(personskat_indkomstklint_histogram_150_til_200_kroner)))
 @ print("personskat indkomstklint national første-grænse fund: " + vis(length(personskat_indkomstklint_nationale_fund)))
 @ print("personskat indkomstklint København 60 km spor fund: " + vis(length(personskat_indkomstklint_københavn_60_fund)))
 @ print("personskat indkomstklint Læsø 130 km spor fund: " + vis(length(personskat_indkomstklint_læsø_130_fund)))

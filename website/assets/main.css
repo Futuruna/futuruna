@@ -1789,6 +1789,99 @@ section {
     max-width: 940px;
 }
 
+.income-cliff-histogram {
+    margin: 2rem 0 2.5rem;
+    padding: 1.25rem 1.25rem 0.9rem;
+    border: 1px solid rgba(224, 128, 80, 0.42);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    box-shadow: inset 0 3px 0 rgba(224, 128, 80, 0.68);
+}
+
+.income-cliff-histogram figcaption {
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.55;
+}
+
+.income-cliff-histogram figcaption strong {
+    display: block;
+    margin-bottom: 0.15rem;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.income-cliff-histogram svg {
+    display: block;
+    width: 100%;
+    max-width: 720px;
+    height: auto;
+    margin-inline: auto;
+    overflow: visible;
+}
+
+.income-cliff-histogram-grid line {
+    stroke: var(--border);
+    stroke-width: 1;
+}
+
+.income-cliff-histogram-grid line:first-child {
+    stroke: var(--text-dim);
+}
+
+.income-cliff-histogram-bars rect {
+    fill: var(--rune-question);
+    opacity: 0.9;
+    rx: 4px;
+}
+
+.income-cliff-histogram-ticks,
+.income-cliff-histogram-labels,
+.income-cliff-histogram-x-title,
+.income-cliff-histogram-y-title {
+    fill: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 16px;
+}
+
+.income-cliff-histogram-ticks {
+    text-anchor: end;
+}
+
+.income-cliff-histogram-labels,
+.income-cliff-histogram-x-title {
+    text-anchor: middle;
+}
+
+.income-cliff-histogram-labels {
+    font-size: 19px;
+}
+
+.income-cliff-histogram-y-title {
+    text-anchor: middle;
+}
+
+.income-cliff-histogram-values {
+    fill: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: 22px;
+    font-weight: 700;
+    text-anchor: middle;
+}
+
+@media (max-width: 560px) {
+    .income-cliff-histogram {
+        margin: 1.5rem 0 2rem;
+        padding: 1rem 0.6rem 0.6rem;
+    }
+
+    .income-cliff-histogram figcaption {
+        padding-inline: 0.35rem;
+        font-size: 0.82rem;
+    }
+}
+
 .tax-status-grid,
 .tax-source-grid {
     display: grid;
@@ -1998,6 +2091,24 @@ section {
     .docs-rendered a { color: #333; text-decoration: underline; }
     .docs-rendered tr:hover td { background: transparent; }
     .docs-rendered hr { border-color: #ccc; }
+
+    .income-cliff-histogram {
+        border-color: #bbb;
+        background: white;
+        box-shadow: inset 0 3px 0 #a34c20;
+        break-inside: avoid;
+    }
+
+    .income-cliff-histogram figcaption { color: #333; }
+    .income-cliff-histogram figcaption strong { color: #111; }
+    .income-cliff-histogram-grid line { stroke: #ddd; }
+    .income-cliff-histogram-grid line:first-child { stroke: #777; }
+    .income-cliff-histogram-bars rect { fill: #a34c20; }
+    .income-cliff-histogram-values { fill: #111; }
+    .income-cliff-histogram-ticks,
+    .income-cliff-histogram-labels,
+    .income-cliff-histogram-x-title,
+    .income-cliff-histogram-y-title { fill: #333; }
 }
 
 /* ---- Full-page Playground (/playground) ---- */
