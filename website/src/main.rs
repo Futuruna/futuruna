@@ -1,5 +1,6 @@
 use dioxus::prelude::*;
 use gloo_timers::future::TimeoutFuture;
+use lucide_dioxus::{Copy as CopyIcon, CopyCheck as CopyCheckIcon};
 use pulldown_cmark::{html, Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 use std::rc::Rc;
 
@@ -8,6 +9,7 @@ const LOGO: Asset = asset!("../assets/logo.svg");
 const FAVICON: Asset = asset!("../assets/favicon.svg");
 const SOCIAL_IMAGE: Asset = asset!("../assets/logo-square.png");
 const SITE_ORIGIN: &str = "https://futuruna.com";
+const AI_SETUP_PROMPT: &str = "Read https://futuruna.com/ai-setup.md and set up Futuruna for me.";
 
 fn main() {
     dioxus::LaunchBuilder::new()
@@ -522,8 +524,64 @@ fn Discovery() -> Element {
 // AI Setup
 // ============================================================================
 
+#[derive(Clone, Copy, PartialEq)]
+enum CopyStatus {
+    Idle,
+    Copied,
+    Failed,
+}
+
 #[component]
 fn AiGuide() -> Element {
+    let mut copy_status = use_signal(|| CopyStatus::Idle);
+    let status = copy_status();
+    let (copy_class, copy_label) = match status {
+        CopyStatus::Idle => ("ai-guide-copy", "Copy setup instruction"),
+        CopyStatus::Copied => ("ai-guide-copy is-copied", "Setup instruction copied"),
+        CopyStatus::Failed => ("ai-guide-copy is-failed", "Could not copy instruction"),
+    };
+
+    let copy_prompt = move |_| {
+        let script = format!(
+            r#"(async function() {{
+                const text = {};
+                try {{
+                    if (navigator.clipboard && window.isSecureContext) {{
+                        await navigator.clipboard.writeText(text);
+                    }} else {{
+                        const input = document.createElement('textarea');
+                        input.value = text;
+                        input.setAttribute('readonly', '');
+                        input.style.position = 'fixed';
+                        input.style.opacity = '0';
+                        document.body.appendChild(input);
+                        input.select();
+                        const copied = document.execCommand('copy');
+                        input.remove();
+                        if (!copied) throw new Error('copy command was rejected');
+                    }}
+                    dioxus.send(true);
+                }} catch (error) {{
+                    console.warn('Could not copy the Futuruna setup instruction:', error);
+                    dioxus.send(false);
+                }}
+            }})();"#,
+            serde_json_str(AI_SETUP_PROMPT)
+        );
+
+        spawn(async move {
+            let mut clipboard = dioxus::document::eval(&script);
+            let copied = clipboard.recv::<bool>().await.unwrap_or(false);
+            copy_status.set(if copied {
+                CopyStatus::Copied
+            } else {
+                CopyStatus::Failed
+            });
+            TimeoutFuture::new(if copied { 1600 } else { 2600 }).await;
+            copy_status.set(CopyStatus::Idle);
+        });
+    };
+
     rsx! {
         section { id: "ai-guide", class: "ai-guide-section",
             div { class: "ai-guide-shell",
@@ -589,7 +647,29 @@ fn AiGuide() -> Element {
                     div { class: "ai-guide-prompt",
                         span { class: "ai-guide-prompt-rune", ">" }
                         code {
-                            "Read https://futuruna.com/ai-setup.md and set up Futuruna for me."
+                            "{AI_SETUP_PROMPT}"
+                        }
+                        button {
+                            class: copy_class,
+                            r#type: "button",
+                            aria_label: copy_label,
+                            title: copy_label,
+                            "data-tooltip": copy_label,
+                            onclick: copy_prompt,
+                            span { aria_hidden: "true",
+                                if status == CopyStatus::Copied {
+                                    CopyCheckIcon { size: 18 }
+                                } else {
+                                    CopyIcon { size: 18 }
+                                }
+                            }
+                        }
+                        span { class: "visually-hidden", aria_live: "polite",
+                            if status == CopyStatus::Copied {
+                                "Setup instruction copied."
+                            } else if status == CopyStatus::Failed {
+                                "Could not copy the setup instruction."
+                            }
                         }
                     }
                     p {

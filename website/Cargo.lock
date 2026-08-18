@@ -1494,6 +1494,7 @@ dependencies = [
  "dioxus",
  "futuruna",
  "gloo-timers",
+ "lucide-dioxus",
  "pulldown-cmark",
 ]
 
@@ -2092,6 +2093,15 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
+
+[[package]]
+name = "lucide-dioxus"
+version = "3.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bee6d68a4a1ed18c64322b39dbd3ac3dbc050ee74365aa9ba5e03a029cd371a5"
+dependencies = [
+ "dioxus",
+]
 
 [[package]]
 name = "macro-string"

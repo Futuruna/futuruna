@@ -495,7 +495,7 @@ section {
 
 .ai-guide-prompt {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) 2.25rem;
     gap: 0.75rem;
     align-items: start;
     padding: 1rem;
@@ -518,6 +518,82 @@ section {
     font-size: 0.88rem;
     line-height: 1.65;
     overflow-wrap: anywhere;
+}
+
+.ai-guide-copy {
+    position: relative;
+    display: inline-flex;
+    width: 2.25rem;
+    height: 2.25rem;
+    align-items: center;
+    justify-content: center;
+    align-self: start;
+    color: var(--text-secondary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease;
+}
+
+.ai-guide-copy span,
+.ai-guide-copy svg {
+    display: block;
+    width: 1.125rem;
+    height: 1.125rem;
+}
+
+.ai-guide-copy:hover {
+    color: var(--text-primary);
+    background: rgba(80, 176, 96, 0.12);
+    border-color: var(--rune-gt);
+}
+
+.ai-guide-copy:focus-visible {
+    outline: 2px solid var(--rune-gt);
+    outline-offset: 3px;
+}
+
+.ai-guide-copy.is-copied {
+    color: var(--rune-gt);
+    background: rgba(80, 176, 96, 0.12);
+    border-color: var(--rune-gt);
+}
+
+.ai-guide-copy.is-failed {
+    color: var(--rune-hash);
+    border-color: var(--rune-hash);
+}
+
+.ai-guide-copy::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.5rem);
+    z-index: 2;
+    width: max-content;
+    max-width: 13rem;
+    padding: 0.35rem 0.55rem;
+    color: var(--text-primary);
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-align: left;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(0.25rem);
+    transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.ai-guide-copy:hover::after,
+.ai-guide-copy:focus-visible::after {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .ai-guide-handoff > p {

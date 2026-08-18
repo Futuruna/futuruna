@@ -7,6 +7,7 @@ edition = "2021"
 dioxus = { version = "=0.7.10", features = ["fullstack", "router"] }
 futuruna = { path = ".." }
 gloo-timers = { version = "0.3", features = ["futures"] }
+lucide-dioxus = { version = "=3.31.0", features = ["text"] }
 pulldown-cmark = "0.12"
 
 [features]
