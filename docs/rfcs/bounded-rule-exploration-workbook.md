@@ -15,10 +15,13 @@ do not supply a list of suspected thresholds.
 
 The normative contract lives in
 [Bounded Rule Exploration with `? explore`](bounded-rule-exploration.md). The
-compiler parses and type-checks these declarations today. The later sections
-describe search execution and reporting that are still being implemented.
+compiler parses and type-checks the five search clauses today. Search
+execution, reporting, typed output rows and result continuations are subsequent
+Experimental implementation slices described below. In particular,
+`output as` and `after` are specified here but are not accepted by the current
+compiler yet.
 
-## The five clauses
+## Five search clauses, plus an optional continuation
 
 | Clause | Meaning |
 |---|---|
@@ -27,6 +30,13 @@ describe search execution and reporting that are still being implemented.
 | `bounds` | Every value each relevant input may take |
 | `boundaries` | Which integer input is compared with its following value |
 | `output` | What counts as one finding and which case should be shown |
+| `after` | Optional code receiving the terminal typed report after search |
+
+`after` is not another search input. It cannot change the world or the answer.
+It runs only after enumeration, replay and sorting.
+
+The existing `output { ... }` form remains CLI-only. The specified
+`output as Row` form lets Futuruna code consume the result afterward.
 
 `find violations` looks for cases where the rule is false. `find matches` looks
 for cases where it is true. Bounds define the world. Boundaries define the
@@ -263,6 +273,90 @@ representative minimize final_tax_øre
 The choice is made separately within every key group. Equal objective values
 use canonical domain order so repeated runs produce the same result.
 
+### Use the result inside Futuruna
+
+The specified typed form starts with the exact row to receive:
+
+```runa
+# SupportCliffRow(
+    income_before: Int,
+    income_after: Int,
+    household: Household,
+    available_before: Int,
+    available_after: Int,
+    loss: Int
+)
+```
+
+Then change only the output header from the earlier query and append a
+continuation:
+
+```runa
+output as SupportCliffRow {
+    key [income_before = income]
+    show [
+        income_after = income + step,
+        household,
+        available_before = available_resources(household, income),
+        available_after = available_resources(household, income + step),
+        loss = loss_after_next_step(household, income, step)
+    ]
+    representative maximize loss
+}
+
+after report -> publish_support_report(report)
+```
+
+The row fields are exactly `key` followed by `show`. Futuruna rejects an extra,
+missing, reordered or differently typed field.
+
+A consumer must handle the status explicitly:
+
+```runa
+> publish_support_report(
+    report: ExplorationReport(SupportCliffRow)
+) -> () {
+    match report {
+        | ExplorationComplete(_, findings) -> {
+            @ print("Complete rows: " + show(findings))
+        }
+        | ExplorationPartial(_, confirmed, reason) -> {
+            @ print(
+                "Partial: " + show(length(confirmed)) +
+                " confirmed rows; " + reason
+            )
+        }
+        | ExplorationUnknown(_, confirmed, reason) -> {
+            @ print(
+                "Unknown: " + show(length(confirmed)) +
+                " confirmed rows; " + reason
+            )
+        }
+        | ExplorationUnsupported(_, diagnostic) -> {
+            @ print("Unsupported: " + diagnostic)
+        }
+        | ExplorationError(_, diagnostics) -> {
+            @ print("Exploration error: " + show(diagnostics))
+        }
+    }
+}
+```
+
+A histogram writer can replace the first `print` with an ordinary function
+receiving `findings`. Partial or unknown rows can still be visualized, but they
+must remain visibly labelled as incomplete.
+
+`report` is not a global variable. It exists only inside `after`, because the
+solver result exists only during the selected `runa explore` command. To keep
+the result after the process ends, use the CLI artifact or an explicit effect
+inside the continuation. Ordinary `run` and `build` never launch this work.
+
+The canonical report is finalized before `after` runs. Changing only the
+continuation leaves `query_hash` unchanged, although the full `program_hash`
+may change. A continuation failure leaves that report intact and becomes a
+separate nonzero command outcome. In JSON mode the canonical document keeps
+stdout to itself; continuation console output is isolated to stderr.
+
 ## 5. Read completion status before reading the count
 
 A count is meaningful only together with its status and key.
@@ -274,7 +368,25 @@ A count is meaningful only together with its status and key.
 | `PARTIAL` | Search stopped before closure; shown findings are confirmed, but more may remain |
 | `UNKNOWN` | The remaining symbolic question could not be decided |
 | `UNSUPPORTED` | Exact analysis was unavailable for a reachable construct |
-| `ERROR` | The query was invalid or solver and execution disagreed |
+| `ERROR` | Validation failed before a report, or solver and execution disagreed |
+
+The typed report preserves that distinction:
+
+| Status | Typed report payload |
+|---|---|
+| `COMPLETE` | `ExplorationComplete(..., findings)` |
+| `PARTIAL` | `ExplorationPartial(..., confirmed, reason)` |
+| `UNKNOWN` | `ExplorationUnknown(..., confirmed, reason)` |
+| `UNSUPPORTED` | `ExplorationUnsupported(..., diagnostic)` |
+| `ERROR` | `ExplorationError(..., diagnostics)` |
+
+Only the complete variant calls its rows `findings`. That type-level
+difference prevents a partial count from quietly becoming a final published
+count. Unsupported and error reports expose no row list.
+
+An invalid declaration fails before `report` exists and therefore never calls
+`after`. The typed `ExplorationError` variant is reserved for a terminal
+solving, decoding or replay error after the query has type-checked.
 
 A partial report says:
 
@@ -308,6 +420,11 @@ answer that does not replay identically is rejected as an implementation error.
 
 This is why `? explore` is more than shorter syntax for `range`, `map` and
 `filter`: it owns projection, closure and replay.
+
+If the query has `after`, Futuruna next constructs the appropriate
+`ExplorationReport(Row)` from the already replayed and sorted public rows and
+calls the continuation once. Nothing the continuation does can reopen or alter
+the solver question.
 
 ## 7. Apply the pattern to Danish personal income tax
 
@@ -408,6 +525,55 @@ The broad query is:
 }
 ```
 
+The query above remains CLI-only. The specified typed form can feed its
+replayed rows directly into a histogram pipeline by declaring the matching
+product:
+
+```runa
+# PersonskatIncomeCliffRow(
+    income_before_kroner: Heltal,
+    income_after_kroner: Heltal,
+    net_loss_øre: Heltal,
+    residence_profile: PersonskatResidenceProfile,
+    pays_church_tax: Boolsk,
+    daily_commute_km: Heltal
+)
+```
+
+Its output and continuation are:
+
+```runa
+output as PersonskatIncomeCliffRow {
+    key [income_before_kroner = gross_income_kroner]
+    show [
+        income_after_kroner = gross_income_kroner + step_kroner,
+        net_loss_øre = personskat_net_loss_øre(
+            residence_profile,
+            pays_church_tax,
+            daily_commute_km,
+            gross_income_kroner,
+            step_kroner
+        ),
+        residence_profile,
+        pays_church_tax,
+        daily_commute_km
+    ]
+    representative maximize net_loss_øre
+}
+
+after report -> write_personskat_income_histogram(report)
+```
+
+With the income-only key above, the histogram contains one row per distinct
+income boundary and plots that boundary's maximum modeled loss across the
+declared profiles. It is not the distribution of every profile-boundary
+observation. The function should publish this complete boundary distribution
+only from `ExplorationComplete`. It may show confirmed partial rows for
+diagnostics, but must label them as incomplete. A separate query whose key also
+contains the profile fields is required to histogram every profile-boundary
+observation. Leaving the original `output { ... }` unchanged keeps the query
+entirely CLI-driven.
+
 There is no list of known income steps in this query. The dated residence list
 defines the legal geography, church status covers every Boolean value, commute
 and income have explicit ranges, and every other fact is fixed by the
@@ -462,6 +628,8 @@ it cannot be inferred from the income-step count.
 - Parse, format and type-check the synthetic query.
 - Preserve every existing `?` proof form, including an invariant named
   `explore`.
+- Preserve existing CLI-only `output { ... }` while adding the optional
+  `output as Row` and `after report ->` forms.
 - Diagnose missing, duplicate and out-of-order clauses.
 
 ### Checkpoint 2: domains
@@ -502,7 +670,19 @@ it cannot be inferred from the income-step count.
 - Exclude timing, absolute paths, raw SMT models and hidden inputs from the
   canonical result.
 
-### Checkpoint 7: Personskat
+### Checkpoint 7: typed result continuation
+
+- Validate one declared concrete row product against key plus show.
+- Construct rows only after representative replay and canonical sorting.
+- Expose complete, partial, unknown, unsupported and error as distinct sum
+  variants.
+- Run only the selected root continuation, once, in a fresh environment.
+- Keep continuation code out of the query hash and solver IR.
+- Preserve the canonical artifact on continuation failure.
+- Keep JSON stdout isolated from continuation effects.
+- Prove that hidden assignments are unavailable to post-processing.
+
+### Checkpoint 8: Personskat
 
 - Lower a narrow fixed-profile Personskat query.
 - Rediscover the known § 9 C sequence without threshold candidates in source.
@@ -512,7 +692,7 @@ it cannot be inferred from the income-step count.
 - Group by earnings step, label representative rule provenance, and obtain
   profile-step observations through a separate projection.
 
-### Checkpoint 8: permanent confidence
+### Checkpoint 9: permanent confidence
 
 - Add parser, formatter, type, diagnostic, solver, projection and replay tests.
 - Add a small solver-backed exploration canary.
@@ -542,3 +722,10 @@ The useful public claim has four parts:
 
 That is enough for Futuruna to make an unusually strong statement without
 making a larger one than the evidence supports.
+
+An `after` continuation is an explicit publication sink, not additional
+evidence. It is not passed hidden profiles or assignments, but its ordinary
+program code may compute from the public rows and visible declarations. Such a
+computation is new logic, not recovered solver provenance, and it cannot turn a
+partial report into a complete one. Review its effects with the same care as
+any exporter, especially for private legal or tax data.

@@ -8,9 +8,10 @@ answer.
 
 The companion [implementation workbook](bounded-rule-exploration-workbook.md)
 teaches the contract through a small program and the Danish personal-income-tax
-model. The compiler now parses and type-checks the declaration. Search
-execution, concrete replay, reporting, and the dedicated CLI command remain the
-next implementation slices.
+model. The compiler now parses and type-checks the five search clauses. Search
+execution, concrete replay, reporting, the dedicated CLI command, typed output
+rows and result continuations remain later implementation slices. The latter
+two are specified below but are not implemented yet.
 
 ## Summary
 
@@ -52,6 +53,37 @@ The core form is:
 `over` defines the question. `bounds` defines the world. `boundaries` defines
 the movement being examined. `output.key` defines what one answer means.
 
+The existing `output { ... }` form remains a CLI-only projection. A query may
+instead name one declared output product and receive the terminal result in an
+analysis-only continuation:
+
+```runa
+? explore QUERY_NAME {
+    over BOOLEAN_RULE_CALL
+    find violations | matches
+
+    bounds {
+        BOUND_OR_CONSTRAINT...
+    }
+
+    boundaries on INTEGER_INPUT by POSITIVE_STEP
+
+    output as ROW_TYPE {
+        key [KEY_FIELD...]
+        show [SHOWN_FIELD...]
+        representative first | maximize EXPR | minimize EXPR
+    }
+
+    after REPORT_NAME -> CONTINUATION
+}
+```
+
+`output as ROW_TYPE` may be used without `after`. `after` requires a typed
+output row. The continuation receives one status-safe
+`ExplorationReport(ROW_TYPE)` after enumeration, replay and canonical sorting;
+it cannot affect the search. This typed form is specified Experimental syntax,
+not syntax accepted by the current compiler.
+
 ## Goals
 
 The feature MUST:
@@ -73,7 +105,9 @@ The first version does not:
 - infer a useful legal question from an entire corpus;
 - invent bounds for integers, strings, lists or personal facts;
 - treat every assignment as a distinct legal mechanism;
-- run effects, persistence, streams, actors, time or randomness in a query;
+- run effects, persistence, streams, actors, time or randomness while forming
+  or solving a query; an explicit downstream `after` continuation may use
+  ordinary effects;
 - approximate unsupported semantics and still call the result complete;
 - provide population prevalence from a model-space search;
 - claim that an encoded model is legally authoritative merely because its
@@ -100,6 +134,14 @@ The first version does not:
 **Representative**
 : The replayed assignment shown for one result key when several assignments
   share that key.
+
+**Output row**
+: One declared concrete product whose fields are exactly the output key fields
+  followed by the shown fields.
+
+**Analysis continuation**
+: The optional query-scoped expression receiving the terminal typed report
+  after search, replay and sorting have finished.
 
 **Complete**
 : Every result key in the declared universe has been returned and closure has
@@ -129,9 +171,10 @@ An anonymous query can run only when it is the sole exploration selected from
 the root file. A file containing multiple explorations MUST name all of them.
 Imported exploration declarations are not executed implicitly.
 
-The parser recognizes `explore`, `over`, `find`, `bounds`, `where`,
+The implemented parser recognizes `explore`, `over`, `find`, `bounds`, `where`,
 `boundaries`, `output`, `key`, `show` and `representative` contextually inside
-this form. They do not become global keywords.
+this form. The specified typed extension will additionally recognize `as` and
+`after` contextually. They do not become global keywords.
 
 Existing proof forms remain unchanged. In particular, bare:
 
@@ -144,16 +187,20 @@ continues to prove an invariant named `explore`. Only `? explore {` and
 
 ### Clause order
 
-The first version requires this order:
+The specified complete form requires this order:
 
 1. exactly one `over` clause;
 2. exactly one `find` clause;
 3. exactly one `bounds` block;
 4. zero or one `boundaries` clause;
-5. exactly one `output` block.
+5. exactly one `output` block, optionally naming a row type with `as`;
+6. zero or one `after` continuation.
 
 Clause order is fixed so diagnostics, formatting and source review remain
 predictable.
+
+`after` is legal only after `output as ROW_TYPE`. Existing `output { ... }`
+declarations remain valid and retain their CLI-only behavior.
 
 ## The Question Rule
 
@@ -410,6 +457,55 @@ output {
 The output block contains exactly one `key`, zero or one `show` list, and
 exactly one `representative` policy, in that order.
 
+The existing form:
+
+```runa
+output {
+    ...
+}
+```
+
+defines the CLI projection and creates no source-level value.
+
+The specified typed form names one visible declared product:
+
+```runa
+# SupportCliffRow(
+    income_before: Int,
+    income_after: Int,
+    household: Household,
+    available_before: Int,
+    available_after: Int,
+    loss: Int
+)
+
+output as SupportCliffRow {
+    key [income_before = income]
+    show [
+        income_after = income + step,
+        household,
+        available_before = available_resources(household, income),
+        available_after = available_resources(household, income + step),
+        loss = loss_after_next_step(household, income, step)
+    ]
+    representative maximize loss
+}
+```
+
+`SupportCliffRow` MUST resolve unambiguously to one declared, concrete,
+non-generic product. It cannot be a sum type, alias, collection or synthesized
+anonymous record.
+
+Its fields MUST exactly equal the concatenation of `key` and `show`, including
+field names, source order and inferred types. No additional fields, missing
+fields, reordering or implicit conversions are allowed. Names MUST be unique
+across the combined key and shown fields. The representative objective does
+not add a row field unless it is itself named in `key` or `show`.
+
+The compiler constructs a row only from a canonically replayed representative.
+Rows use the same canonical key ordering as the CLI and JSON result. Naming a
+row type does not change result identity or answer-set semantics.
+
 The key answers:
 
 > What counts as one distinct finding?
@@ -458,6 +554,19 @@ show [
 controls the human and structured result payload. Unrequested hidden solver
 variables are not dumped. `show` is therefore also a privacy boundary.
 
+A continuation receives only the declared row fields, the allowlisted report
+identity and the status-specific public stop reason or diagnostics as report
+data. Hidden assignments, raw SMT models, solver handles, absolute paths,
+timing data and replay-runtime state are not passed to it. Exposing another
+searched or replayed value through the report requires adding it deliberately
+to `key` or `show`. The continuation may independently compute from its public
+row and ordinary program declarations, but that is new program logic rather
+than access to the hidden solver assignment or its provenance.
+
+An `after` block is nevertheless an explicit data sink: its user-authored
+effects may print, persist or transmit the values it was given. The ordinary
+effect and privacy review therefore applies to the continuation.
+
 ### Representatives
 
 Every output block MUST state exactly once how a representative is selected,
@@ -481,6 +590,80 @@ are rejected.
 The report states that a representative is one case for the key. It MUST NOT
 imply that every hidden assignment has identical shown values.
 
+## First-class Result Continuation
+
+A typed output may bind its terminal report:
+
+```runa
+after report -> publish_support_report(report)
+```
+
+The binder is immutable and scoped only to the continuation expression. It is
+not a top-level binding left behind after the command. Query-local bounds,
+hidden assignments and replay interpreter state are not in scope.
+
+The continuation evaluates in a fresh ordinary environment containing the
+resolved program declarations and this one report binding. It does not inherit
+mutable state from solving or from any representative replay.
+
+The binder has type `ExplorationReport(Row)`. Its normative source-level shape
+is:
+
+```runa
+# ExplorationIdentity(
+    query: String,
+    query_hash: String,
+    program_hash: String
+)
+
+# ExplorationReport(row) =
+    ExplorationComplete(
+        identity: ExplorationIdentity,
+        findings: List(row)
+    )
+  | ExplorationPartial(
+        identity: ExplorationIdentity,
+        confirmed: List(row),
+        stop_reason: String
+    )
+  | ExplorationUnknown(
+        identity: ExplorationIdentity,
+        confirmed: List(row),
+        reason: String
+    )
+  | ExplorationUnsupported(
+        identity: ExplorationIdentity,
+        diagnostic: String
+    )
+  | ExplorationError(
+        identity: ExplorationIdentity,
+        diagnostics: List(String)
+    )
+```
+
+These are compiler-provided Experimental types; a model does not redeclare
+them. The prefixed constructors avoid collision with the stream event
+`Complete`.
+
+Only `ExplorationComplete` exposes a list named `findings`.
+`ExplorationPartial` and `ExplorationUnknown` expose only rows already replayed
+and confirmed, under the deliberately different name `confirmed`.
+`ExplorationUnsupported` and `ExplorationError` expose no row list and cannot
+be mistaken for a complete result.
+
+`ExplorationError` represents a terminal solving, decoding or replay error
+after a query has type-checked. Parse and type errors occur before a report
+exists and therefore cannot invoke `after`.
+
+The continuation MUST type-check to `()`. It may call ordinary functions and
+explicit effects. It runs exactly once for the selected query after the
+terminal report has been constructed. A source or type error prevents report
+construction and therefore prevents the continuation from running.
+
+Continuation analysis and execution are downstream of the search. The
+continuation cannot contribute dependencies, bounds, constraints, solver
+terms, output keys, representative objectives or replay behavior.
+
 ## Formal Semantics
 
 Let:
@@ -501,6 +684,17 @@ For every returned key `k`, a representative is selected from:
 ```text
 W(k) = { x | x in D, Q(x), and K(x) = k }
 ```
+
+When `output as Row` is present, let `T(x)` be the declared row constructor
+applied to the key fields followed by the shown fields of the selected replayed
+representative. The typed complete payload is the canonically sorted list:
+
+```text
+[T(x_k) | k in R]
+```
+
+The continuation observes this result; it cannot alter `D`, `Q`, `K`, `W` or
+`R`.
 
 A complete exploration guarantees:
 
@@ -533,6 +727,10 @@ An exact finite backend may implement the same answer-set semantics without
 SMT. Backend choice is not observable except through recorded completion
 method and performance.
 
+Only after enumeration has terminated, every exposed row has replayed, and the
+rows have been canonically sorted does Futuruna construct
+`ExplorationReport(Row)` and invoke the selected continuation.
+
 ## Completion Status
 
 The result uses one of five statuses:
@@ -543,7 +741,22 @@ The result uses one of five statuses:
 | `partial` | A limit or interruption stopped closure; any emitted findings are confirmed |
 | `unknown` | The solver could not decide the remaining query |
 | `unsupported` | Exact lowering and exhaustive fallback were unavailable |
-| `error` | The query was invalid or solving/replay disagreed with execution |
+| `error` | Validation failed before a report, or solving/replay disagreed with execution |
+
+The typed variants preserve the same distinction:
+
+| Status | Typed report payload |
+|---|---|
+| `complete` | `ExplorationComplete(..., findings)` |
+| `partial` | `ExplorationPartial(..., confirmed, stop_reason)` |
+| `unknown` | `ExplorationUnknown(..., confirmed, reason)` |
+| `unsupported` | `ExplorationUnsupported(..., diagnostic)` |
+| `error` | `ExplorationError(..., diagnostics)` |
+
+CLI `error` covers two phases. Parse, type and query-validation failures happen
+before a typed report exists, so they emit diagnostics but do not invoke
+`after`. `ExplorationError` represents only a terminal post-typecheck solving,
+decoding or replay error for which Futuruna can construct the typed report.
 
 `complete` requires all of:
 
@@ -599,6 +812,31 @@ runa explore model.runa --query income_cliffs --max-results 100
 - Invalid, unsupported, unknown and replay-error outcomes are distinguishable.
 
 Finding a violation is the command's purpose, not a process failure.
+
+The specified continuation is analysis-only:
+
+- `runa check` type-checks it and `runa fmt` formats it, but neither executes
+  it;
+- `runa run`, `build` and ordinary `verify` never execute it or launch its
+  exploration;
+- only the explicitly selected root query may execute its continuation;
+- imported and unselected query continuations never execute;
+- attempting to use the `after` binder outside its continuation is an
+  analysis-scope diagnostic.
+
+The canonical human or JSON report is finalized before the continuation runs.
+An `--output` artifact is written before post-processing. If the continuation
+fails, the command exits nonzero with a distinct continuation diagnostic, but
+the exploration status, hashes and already written canonical artifact remain
+unchanged.
+
+A continuation failure is not an `ExplorationError` variant: that report
+already existed before the continuation started. The failure is a separate
+command outcome layered on the preserved report.
+
+When JSON uses stdout, stdout is reserved for the single canonical JSON
+document. Console output from the continuation is isolated to stderr, so
+post-processing cannot corrupt the JSON transport.
 
 ## Structured Result Contract
 
@@ -683,6 +921,20 @@ order, using each type's canonical value order. Timing, raw SMT models,
 absolute paths and hidden inputs are excluded from canonical output. Unknown
 additive fields are ignored; an unknown major schema is rejected.
 
+`query_hash` covers the normalized question, polarity, bounds, boundary,
+projection, representative policy and the projected field names, order and
+types. It excludes the nominal row-type spelling, the `after` binder and the
+continuation body because none of them can change the answer set.
+
+`program_hash` remains the identity of the complete resolved program and may
+therefore change when a row declaration or continuation changes. The identity
+passed to the continuation is byte-for-byte the same identity emitted in the
+canonical report. A continuation cannot rewrite either hash.
+
+`output as Row` does not change the `futuruna.explore.v1` result shape; it adds
+a source-level type check over the existing key and shown payload. Legacy
+CLI-only queries therefore require no JSON migration.
+
 ## Human Result Contract
 
 Human output begins with the answer and its scope:
@@ -731,12 +983,20 @@ when the model exposes mechanism identity as a typed value and a separate query
 includes it in `output.key`; automatic provenance-derived mechanism projection
 is deferred.
 
+The first-class typed report does not promote representative traces or source
+attachments into the declared row. Canonical provenance remains in the human
+and JSON artifacts. A continuation that needs a mechanism as typed data must
+expose that mechanism deliberately through `key` or `show`; it cannot recover
+hidden mechanisms from the report identity.
+
 ## Compatibility and Feature Stage
 
-The syntax, CLI and JSON contract begin as **Experimental**. The existing
-solver-assisted `runa verify` surface is Preview, but exploration introduces a
-new language and operational contract that needs real corpus experience before
-promotion.
+The syntax, CLI and JSON contract begin as **Experimental**. `output as` and
+`after` belong to that same `solver-backed-exploration` surface and remain
+specified, not implemented. Existing `output { ... }` source remains valid and
+keeps its CLI-only meaning. The existing solver-assisted `runa verify` surface
+is Preview, but exploration introduces a new language and operational contract
+that needs real corpus experience before promotion.
 
 Implementation adds a separate `solver-backed-exploration` feature-stage
 surface. The RFC, feature-stage documents and CLI help identify the status.
@@ -744,26 +1004,35 @@ surface. The RFC, feature-stage documents and CLI help identify the status.
 The implementation uses a distinct exploration AST and typed query IR rather
 than overloading `Stmt::Prove`. Every canonical AST/FIR walker, formatter,
 typechecker, import-hygiene pass, semantic-interface classifier, LSP path and
-compiler-pass coverage matrix MUST classify the new node explicitly. The node
-has no ordinary runtime or native-codegen behavior.
+compiler-pass coverage matrix MUST classify the new node explicitly.
+
+The exploration node has no ordinary runtime or native-codegen behavior. Its
+optional continuation is type-checked as analysis-only code and is scheduled
+only by `runa explore` after a report exists.
 
 ## Implementation Slices
 
 1. Freeze grammar, answer-set semantics and diagnostic expectations.
-2. Add AST, parser, formatter, spans and traversal coverage.
-3. Add query-local scope, purity checks and typed domain elaboration.
-4. Add an Explore IR independent of Z3.
+2. Add AST, parser, formatter, spans and traversal coverage, including optional
+   `output as` and `after`.
+3. Add query-local scope, purity checks, typed domain elaboration, exact output
+   product validation and isolated continuation type-checking.
+4. Add an Explore IR independent of Z3; retain the continuation outside the
+   solver-semantic IR.
 5. Add exact finite semantic fixtures.
 6. Lower polarity, domains, constraints and canonical rule dispatch to SMT.
 7. Add output-key projection, blocking and final-`UNSAT` closure.
 8. Add deterministic representative selection and exact objectives.
-9. Add concrete replay and mismatch rejection.
+9. Add concrete replay, canonical row construction and mismatch rejection.
 10. Add `runa explore`, human output and `futuruna.explore.v1`.
-11. Add boundary-axis validation and safe structural acceleration.
-12. Extend exact lowering through the required Personskat rule slice.
-13. Run the Personskat query without manually supplied tax thresholds.
-14. Publish feature stages, reference, tutorial and agent guidance.
-15. Run focused proof tests, mint, the relevant canary and differential lanes.
+11. Construct the status-safe `ExplorationReport(Row)` and execute only the
+    selected continuation in a fresh environment, with hash isolation, JSON
+    channel isolation and artifact-preserving failure behavior.
+12. Add boundary-axis validation and safe structural acceleration.
+13. Extend exact lowering through the required Personskat rule slice.
+14. Run the Personskat query without manually supplied tax thresholds.
+15. Publish feature stages, reference, tutorial and agent guidance.
+16. Run focused proof tests, mint, the relevant canary and differential lanes.
 
 ## End-to-end Acceptance
 
@@ -794,3 +1063,20 @@ The broad declared-profile query:
 
 Changing an encoded threshold changes the discovered transitions in both
 queries without any edit to either exploration query.
+
+### Typed result continuation
+
+The same queries remain valid with their existing CLI-only `output` blocks.
+For the opt-in typed form:
+
+- the declared row product exactly matches key plus show;
+- a complete result exposes every replayed, sorted row as `findings`;
+- partial and unknown results expose only confirmed rows;
+- unsupported and error results expose no list that can masquerade as
+  complete;
+- only the selected root continuation runs, exactly once;
+- ordinary execution, imported queries and unselected queries run none;
+- changing only `after` leaves `query_hash` unchanged;
+- hidden assignments and raw solver state are unavailable to the continuation;
+- JSON stdout remains one valid document;
+- continuation failure leaves the canonical exploration artifact intact.
