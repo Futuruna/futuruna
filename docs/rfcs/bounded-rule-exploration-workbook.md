@@ -1,6 +1,6 @@
 # Turning Rules Inside Out with `? explore`
 
-Status: implementation workbook for the proposed Experimental feature
+Status: implementation workbook for the Experimental feature
 
 Futuruna normally answers:
 
@@ -15,8 +15,8 @@ do not supply a list of suspected thresholds.
 
 The normative contract lives in
 [Bounded Rule Exploration with `? explore`](bounded-rule-exploration.md). The
-syntax in this workbook is not available until the corresponding implementation
-slices land.
+compiler parses and type-checks these declarations today. The later sections
+describe search execution and reporting that are still being implemented.
 
 ## The five clauses
 

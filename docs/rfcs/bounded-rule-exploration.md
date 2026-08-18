@@ -1,6 +1,6 @@
 # Bounded Rule Exploration with `? explore`
 
-Status: proposed RFC; target stage: Experimental
+Status: accepted RFC; syntax and typed query analysis are Experimental
 
 This document specifies a first-class Futuruna analysis for asking a bounded
 question of an encoded rule model and receiving every meaningfully distinct
@@ -8,8 +8,9 @@ answer.
 
 The companion [implementation workbook](bounded-rule-exploration-workbook.md)
 teaches the contract through a small program and the Danish personal-income-tax
-model. The syntax in both documents is proposed behavior until the feature is
-implemented and promoted in `docs/feature-stages.md`.
+model. The compiler now parses and type-checks the declaration. Search
+execution, concrete replay, reporting, and the dedicated CLI command remain the
+next implementation slices.
 
 ## Summary
 

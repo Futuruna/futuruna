@@ -135,6 +135,16 @@
       ]
     },
     {
+      "id": "solver-backed-exploration",
+      "kind": "verification",
+      "name": "Bounded ? explore declarations and typed query analysis",
+      "stage": "experimental",
+      "docs": [
+        "docs/rfcs/bounded-rule-exploration.md",
+        "docs/rfcs/bounded-rule-exploration-workbook.md"
+      ]
+    },
+    {
       "id": "library-hygiene-tooling",
       "kind": "tooling",
       "name": "Import-hygiene tooling for authored libraries",

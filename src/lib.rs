@@ -968,6 +968,11 @@ impl Lexer {
                     tokens.push(Token::new(TokenKind::Comma, ",", line, col));
                     continue;
                 }
+                ';' => {
+                    self.advance();
+                    tokens.push(Token::new(TokenKind::Semi, ";", line, col));
+                    continue;
+                }
                 ':' => {
                     self.advance();
                     tokens.push(Token::new(TokenKind::Colon, ":", line, col));
@@ -4822,6 +4827,176 @@ pub struct ProofArm {
     pub term: proof_kernel::ProofTerm,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExplorePolarity {
+    Violations,
+    Matches,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreInput {
+    pub name: String,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreOver {
+    pub rule_name: String,
+    pub inputs: Vec<ExploreInput>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreBound {
+    Domain {
+        name: String,
+        domain: Expr,
+        span: Span,
+    },
+    Value {
+        name: String,
+        value: Expr,
+        span: Span,
+    },
+    Where {
+        predicate: Expr,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreBoundary {
+    pub axis: String,
+    pub step: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreOutputField {
+    pub name: String,
+    pub value: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreRepresentative {
+    First { span: Span },
+    Maximize { objective: Expr, span: Span },
+    Minimize { objective: Expr, span: Span },
+}
+
+impl ExploreRepresentative {
+    pub fn span(&self) -> Span {
+        match self {
+            ExploreRepresentative::First { span }
+            | ExploreRepresentative::Maximize { span, .. }
+            | ExploreRepresentative::Minimize { span, .. } => *span,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreOutput {
+    pub key: Vec<ExploreOutputField>,
+    pub show: Vec<ExploreOutputField>,
+    pub representative: ExploreRepresentative,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreQuery {
+    pub name: Option<String>,
+    pub over: ExploreOver,
+    pub polarity: ExplorePolarity,
+    pub bounds: Vec<ExploreBound>,
+    pub boundary: Option<ExploreBoundary>,
+    pub output: ExploreOutput,
+    pub span: Span,
+}
+
+/// Backend-neutral, type-checked exploration contract. Solver lowering consumes
+/// this IR rather than reinterpreting source syntax.
+#[derive(Debug, Clone)]
+pub struct TypedExploreQuery {
+    pub name: Option<String>,
+    pub rule_name: String,
+    pub rule_arity: usize,
+    pub polarity: ExplorePolarity,
+    pub inputs: Vec<TypedExploreInput>,
+    pub bounds: Vec<TypedExploreBound>,
+    pub boundary: Option<TypedExploreBoundary>,
+    pub output: TypedExploreOutput,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreInput {
+    pub name: String,
+    pub ty: Ty,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypedExploreBound {
+    Domain {
+        name: String,
+        value_ty: Ty,
+        domain: TypedExploreDomain,
+        span: Span,
+    },
+    Value {
+        name: String,
+        value_ty: Ty,
+        value: Expr,
+        span: Span,
+    },
+    Where {
+        predicate: Expr,
+        span: Span,
+    },
+}
+
+/// Type-checked domain syntax. This is deliberately not a finiteness proof:
+/// the domain elaboration pass must turn every case into a closed exact domain
+/// before any solver or exhaustive executor may consume the query.
+#[derive(Debug, Clone)]
+pub enum TypedExploreDomain {
+    /// A list/set-typed expression whose purity, groundness and exact members
+    /// are established by domain elaboration.
+    FiniteExpr { expression: Expr, element_ty: Ty },
+    /// Existing end-exclusive integer-range semantics, retained symbolically.
+    Range { start: Expr, end_exclusive: Expr },
+    /// A request for every inhabitant; domain elaboration must prove that the
+    /// type is finite and enumerate it exactly.
+    Values { ty: Ty },
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreBoundary {
+    pub axis: String,
+    pub axis_ty: Ty,
+    pub step: Expr,
+    pub step_ty: Ty,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreOutputField {
+    pub name: String,
+    pub value: Expr,
+    pub ty: Ty,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreOutput {
+    pub key: Vec<TypedExploreOutputField>,
+    pub show: Vec<TypedExploreOutputField>,
+    pub representative: ExploreRepresentative,
+    pub representative_ty: Option<Ty>,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Defn(Defn),
@@ -4857,6 +5032,8 @@ pub enum Stmt {
         pass_block: Option<Vec<Stmt>>,   // `-> { ... }` — custom pass handler
         else_block: Option<Vec<Stmt>>,   // `else { ... }` — custom fail handler (suppresses halt)
     },
+    /// ? explore [name] { ... } — bounded symbolic/finite rule exploration declaration.
+    Explore(ExploreQuery),
     /// assert TypeName(args...) — insert fact (persist/store/in-memory)
     Assert(String, Vec<Expr>),
     /// retract TypeName(args...) — remove fact (persist/store/in-memory)
@@ -5200,6 +5377,87 @@ fn collect_true_free_symbol_uses_stmt(
                         else_stmt,
                         &mut else_bound,
                         &mut else_typed_receivers,
+                    );
+                }
+            }
+        }
+        Stmt::Explore(query) => {
+            uses.calls.insert(query.over.rule_name.clone());
+            let mut query_bound = bound.clone();
+            let mut query_typed_receivers = typed_receivers.clone();
+            query_bound.extend(query.over.inputs.iter().map(|input| input.name.clone()));
+            query_bound.extend(query.bounds.iter().filter_map(|clause| match clause {
+                ExploreBound::Domain { name, .. } | ExploreBound::Value { name, .. } => {
+                    Some(name.clone())
+                }
+                ExploreBound::Where { .. } => None,
+            }));
+            query_bound.extend(query.output.show.iter().map(|field| field.name.clone()));
+            for clause in &query.bounds {
+                match clause {
+                    ExploreBound::Domain { name, domain, .. } => {
+                        collect_true_free_symbol_uses(
+                            domain,
+                            uses,
+                            &query_bound,
+                            &query_typed_receivers,
+                        );
+                        query_bound.insert(name.clone());
+                        query_typed_receivers.remove(name);
+                    }
+                    ExploreBound::Value { name, value, .. } => {
+                        collect_true_free_symbol_uses(
+                            value,
+                            uses,
+                            &query_bound,
+                            &query_typed_receivers,
+                        );
+                        query_bound.insert(name.clone());
+                        query_typed_receivers.remove(name);
+                    }
+                    ExploreBound::Where { predicate, .. } => collect_true_free_symbol_uses(
+                        predicate,
+                        uses,
+                        &query_bound,
+                        &query_typed_receivers,
+                    ),
+                }
+            }
+            if let Some(boundary) = &query.boundary {
+                collect_true_free_symbol_uses(
+                    &boundary.step,
+                    uses,
+                    &query_bound,
+                    &query_typed_receivers,
+                );
+            }
+            for field in &query.output.key {
+                collect_true_free_symbol_uses(
+                    &field.value,
+                    uses,
+                    &query_bound,
+                    &query_typed_receivers,
+                );
+            }
+            for field in &query.output.show {
+                collect_true_free_symbol_uses(
+                    &field.value,
+                    uses,
+                    &query_bound,
+                    &query_typed_receivers,
+                );
+                query_bound.insert(field.name.clone());
+                query_typed_receivers.remove(&field.name);
+            }
+            match &query.output.representative {
+                ExploreRepresentative::First { .. } => {}
+                ExploreRepresentative::Maximize { objective, .. }
+                | ExploreRepresentative::Minimize { objective, .. } => {
+                    collect_true_free_symbol_uses(
+                        objective,
+                        uses,
+                        &query_bound,
+                        &query_typed_receivers,
                     );
                 }
             }
@@ -6333,6 +6591,28 @@ where
                 }
             }
         }
+        Stmt::Explore(query) => {
+            for clause in &query.bounds {
+                match clause {
+                    ExploreBound::Domain { domain, .. } => visit(AstChild::Expr(domain)),
+                    ExploreBound::Value { value, .. } => visit(AstChild::Expr(value)),
+                    ExploreBound::Where { predicate, .. } => visit(AstChild::Expr(predicate)),
+                }
+            }
+            if let Some(boundary) = &query.boundary {
+                visit(AstChild::Expr(&boundary.step));
+            }
+            for field in query.output.key.iter().chain(query.output.show.iter()) {
+                visit(AstChild::Expr(&field.value));
+            }
+            match &query.output.representative {
+                ExploreRepresentative::First { .. } => {}
+                ExploreRepresentative::Maximize { objective, .. }
+                | ExploreRepresentative::Minimize { objective, .. } => {
+                    visit(AstChild::Expr(objective));
+                }
+            }
+        }
         Stmt::Expr(expr) => visit(AstChild::Expr(expr)),
         Stmt::Use(_)
         | Stmt::Import(_)
@@ -6589,6 +6869,92 @@ fn strip_spans_type_decl(td: &TypeDecl) -> TypeDecl {
     }
 }
 
+fn strip_spans_explore_output_field(field: &ExploreOutputField) -> ExploreOutputField {
+    ExploreOutputField {
+        name: field.name.clone(),
+        value: strip_spans_expr(&field.value),
+        span: Span::dummy(),
+    }
+}
+
+fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
+    ExploreQuery {
+        name: query.name.clone(),
+        over: ExploreOver {
+            rule_name: query.over.rule_name.clone(),
+            inputs: query
+                .over
+                .inputs
+                .iter()
+                .map(|input| ExploreInput {
+                    name: input.name.clone(),
+                    span: Span::dummy(),
+                })
+                .collect(),
+            span: Span::dummy(),
+        },
+        polarity: query.polarity,
+        bounds: query
+            .bounds
+            .iter()
+            .map(|clause| match clause {
+                ExploreBound::Domain { name, domain, .. } => ExploreBound::Domain {
+                    name: name.clone(),
+                    domain: strip_spans_expr(domain),
+                    span: Span::dummy(),
+                },
+                ExploreBound::Value { name, value, .. } => ExploreBound::Value {
+                    name: name.clone(),
+                    value: strip_spans_expr(value),
+                    span: Span::dummy(),
+                },
+                ExploreBound::Where { predicate, .. } => ExploreBound::Where {
+                    predicate: strip_spans_expr(predicate),
+                    span: Span::dummy(),
+                },
+            })
+            .collect(),
+        boundary: query.boundary.as_ref().map(|boundary| ExploreBoundary {
+            axis: boundary.axis.clone(),
+            step: strip_spans_expr(&boundary.step),
+            span: Span::dummy(),
+        }),
+        output: ExploreOutput {
+            key: query
+                .output
+                .key
+                .iter()
+                .map(strip_spans_explore_output_field)
+                .collect(),
+            show: query
+                .output
+                .show
+                .iter()
+                .map(strip_spans_explore_output_field)
+                .collect(),
+            representative: match &query.output.representative {
+                ExploreRepresentative::First { .. } => ExploreRepresentative::First {
+                    span: Span::dummy(),
+                },
+                ExploreRepresentative::Maximize { objective, .. } => {
+                    ExploreRepresentative::Maximize {
+                        objective: strip_spans_expr(objective),
+                        span: Span::dummy(),
+                    }
+                }
+                ExploreRepresentative::Minimize { objective, .. } => {
+                    ExploreRepresentative::Minimize {
+                        objective: strip_spans_expr(objective),
+                        span: Span::dummy(),
+                    }
+                }
+            },
+            span: Span::dummy(),
+        },
+        span: Span::dummy(),
+    }
+}
+
 fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
     match stmt {
         Stmt::Defn(defn) => Stmt::Defn(strip_spans_defn(defn)),
@@ -6648,6 +7014,7 @@ fn strip_spans_stmt(stmt: &Stmt) -> Stmt {
                 .as_ref()
                 .map(|stmts| stmts.iter().map(strip_spans_stmt).collect()),
         },
+        Stmt::Explore(query) => Stmt::Explore(strip_spans_explore_query(query)),
         Stmt::Assert(name, args) => {
             Stmt::Assert(name.clone(), args.iter().map(strip_spans_expr).collect())
         }
@@ -7351,6 +7718,405 @@ impl Parser {
         }
     }
 
+    fn token_is_identifier_like(token: &Token) -> bool {
+        matches!(
+            token.kind,
+            TokenKind::Ident | TokenKind::Type | TokenKind::Bool_ | TokenKind::KW
+        )
+    }
+
+    fn token_is_explore_binder(token: &Token) -> bool {
+        (token.kind == TokenKind::Ident
+            || (token.kind == TokenKind::KW && token.source_text != token.text))
+            && token.source_text != "_"
+            && token
+                .source_text
+                .chars()
+                .next()
+                .is_some_and(|ch| ch == '_' || ch.is_lowercase())
+    }
+
+    fn expect_explore_binder(&mut self, role: &str) -> Result<(String, Token), String> {
+        let token = self.peek().clone();
+        if !Self::token_is_explore_binder(&token) {
+            return Err(format!(
+                "{}:{}: exploration {} must be a lowercase identifier, found `{}`",
+                token.line, token.col, role, token.source_text
+            ));
+        }
+        self.advance();
+        Ok((token.text.clone(), token))
+    }
+
+    fn is_explore_query_start(&self) -> bool {
+        if !self.peek_word("explore") {
+            return false;
+        }
+        let Some(next) = self.tokens.get(self.pos + 1) else {
+            return false;
+        };
+        if next.kind == TokenKind::LBrace {
+            return true;
+        }
+        Self::token_is_identifier_like(next)
+            && !matches!(next.text.as_str(), "by" | "else")
+            && self
+                .tokens
+                .get(self.pos + 2)
+                .is_some_and(|token| token.kind == TokenKind::LBrace)
+    }
+
+    fn expect_explore_word(&mut self, word: &str) -> Result<Token, String> {
+        let token = self.peek().clone();
+        if self.peek_word(word) {
+            Ok(self.advance())
+        } else {
+            let found = if token.kind == TokenKind::RBrace {
+                "the end of the exploration block".to_string()
+            } else {
+                format!("`{}`", token.source_text)
+            };
+            Err(format!(
+                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `over`, `find`, `bounds`, optional `boundaries`, then `output`",
+                token.line, token.col, word, found
+            ))
+        }
+    }
+
+    fn expect_explore_output_word(&mut self, word: &str) -> Result<Token, String> {
+        let token = self.peek().clone();
+        if self.peek_word(word) {
+            Ok(self.advance())
+        } else {
+            let found = if token.kind == TokenKind::RBrace {
+                "the end of the output block".to_string()
+            } else {
+                format!("`{}`", token.source_text)
+            };
+            Err(format!(
+                "{}:{}: expected `{}` in exploration output, found {}; output clauses must appear as `key`, optional `show`, then `representative`",
+                token.line, token.col, word, found
+            ))
+        }
+    }
+
+    fn consume_explore_equals(&mut self) -> bool {
+        if self.peek_kind() == TokenKind::Eq
+            || (self.peek_kind() == TokenKind::Op && self.peek().text == "=")
+        {
+            self.advance();
+            true
+        } else {
+            false
+        }
+    }
+
+    fn finish_explore_bound_clause(&mut self) -> Result<(), String> {
+        if self.peek_kind() == TokenKind::RBrace {
+            return Ok(());
+        }
+        if self.peek_kind() != TokenKind::Semi {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration bound clauses must be separated by a newline or `;`, found `{}`",
+                token.line, token.col, token.source_text
+            ));
+        }
+        self.skip_semis();
+        Ok(())
+    }
+
+    fn parse_explore_over(&mut self) -> Result<ExploreOver, String> {
+        let start = self.expect_explore_word("over")?;
+        let rule_name = self.expect_ident()?;
+        self.expect(TokenKind::LParen)?;
+        self.skip_semis();
+        let mut inputs = Vec::new();
+        let mut names = BTreeSet::new();
+        while self.peek_kind() != TokenKind::RParen {
+            if !inputs.is_empty() {
+                self.expect(TokenKind::Comma)?;
+                self.skip_semis();
+            }
+            let token = self.peek().clone();
+            if !Self::token_is_identifier_like(&token) {
+                return Err(format!(
+                    "{}:{}: exploration `over` arguments must be distinct bare identifiers; put fixed or derived expressions in `bounds`",
+                    token.line, token.col
+                ));
+            }
+            let (name, _) = self.expect_explore_binder("input")?;
+            if !names.insert(name.clone()) {
+                return Err(format!(
+                    "{}:{}: duplicate exploration input `{}` in `over`; every rule parameter needs a distinct query-local name",
+                    token.line, token.col, name
+                ));
+            }
+            inputs.push(ExploreInput {
+                name,
+                span: self.token_span(&token),
+            });
+            self.skip_semis();
+        }
+        self.expect(TokenKind::RParen)?;
+        Ok(ExploreOver {
+            rule_name,
+            inputs,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn parse_explore_bounds(&mut self) -> Result<Vec<ExploreBound>, String> {
+        self.expect_explore_word("bounds")?;
+        self.expect(TokenKind::LBrace)?;
+        self.skip_semis();
+        let mut bounds = Vec::new();
+        let mut names = BTreeSet::new();
+        while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
+            let start = self.peek().clone();
+            if self.peek_word("where") {
+                self.advance();
+                let predicate = self.parse_expr()?;
+                bounds.push(ExploreBound::Where {
+                    predicate,
+                    span: self.span_since(&start),
+                });
+                self.finish_explore_bound_clause()?;
+                continue;
+            }
+
+            if !Self::token_is_identifier_like(&start) {
+                return Err(format!(
+                    "{}:{}: expected `name in domain`, `name = value`, or `where predicate` in exploration bounds",
+                    start.line, start.col
+                ));
+            }
+            let (name, _) = self.expect_explore_binder("bound name")?;
+            if !names.insert(name.clone()) {
+                return Err(format!(
+                    "{}:{}: duplicate exploration bound `{}`",
+                    start.line, start.col, name
+                ));
+            }
+            if self.peek_word("in") {
+                self.advance();
+                let domain = self.parse_expr()?;
+                bounds.push(ExploreBound::Domain {
+                    name,
+                    domain,
+                    span: self.span_since(&start),
+                });
+            } else if self.consume_explore_equals() {
+                let value = self.parse_expr()?;
+                bounds.push(ExploreBound::Value {
+                    name,
+                    value,
+                    span: self.span_since(&start),
+                });
+            } else {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: expected `in` or `=` after exploration bound `{}`",
+                    token.line, token.col, name
+                ));
+            }
+            self.finish_explore_bound_clause()?;
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(bounds)
+    }
+
+    fn parse_explore_boundary(&mut self) -> Result<ExploreBoundary, String> {
+        let start = self.expect_explore_word("boundaries")?;
+        self.expect_explore_word("on")?;
+        let (axis, _) = self.expect_explore_binder("boundary axis")?;
+        self.expect_explore_word("by")?;
+        let step = self.parse_expr()?;
+        Ok(ExploreBoundary {
+            axis,
+            step,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn parse_explore_output_fields(
+        &mut self,
+        clause: &str,
+    ) -> Result<Vec<ExploreOutputField>, String> {
+        self.expect_explore_output_word(clause)?;
+        self.expect(TokenKind::LBracket)?;
+        self.skip_semis();
+        let mut fields = Vec::new();
+        let mut names = BTreeSet::new();
+        while self.peek_kind() != TokenKind::RBracket && self.peek_kind() != TokenKind::Eof {
+            let token = self.peek().clone();
+            if !Self::token_is_identifier_like(&token) {
+                return Err(format!(
+                    "{}:{}: exploration `{}` fields must be identifiers or `name = expression`",
+                    token.line, token.col, clause
+                ));
+            }
+            let (name, _) = self.expect_explore_binder("output field")?;
+            let value = if self.consume_explore_equals() {
+                self.parse_expr()?
+            } else {
+                Expr::new(ExprKind::Var(name.clone()), self.token_span(&token))
+            };
+            if !names.insert(name.clone()) {
+                return Err(format!(
+                    "{}:{}: duplicate exploration `{}` field `{}`",
+                    token.line, token.col, clause, name
+                ));
+            }
+            fields.push(ExploreOutputField {
+                name,
+                value,
+                span: self.span_since(&token),
+            });
+            self.skip_semis();
+            if self.peek_kind() == TokenKind::Comma {
+                self.advance();
+                self.skip_semis();
+            } else if self.peek_kind() != TokenKind::RBracket {
+                let next = self.peek();
+                return Err(format!(
+                    "{}:{}: expected `,` or `]` after exploration `{}` field",
+                    next.line, next.col, clause
+                ));
+            }
+        }
+        self.expect(TokenKind::RBracket)?;
+        if clause == "key" && fields.is_empty() {
+            return Err("exploration `output.key` must contain at least one field".to_string());
+        }
+        Ok(fields)
+    }
+
+    fn parse_explore_output(&mut self) -> Result<ExploreOutput, String> {
+        let start = self.expect_explore_word("output")?;
+        self.expect(TokenKind::LBrace)?;
+        self.skip_semis();
+        let key = self.parse_explore_output_fields("key")?;
+        self.skip_semis();
+        let show = if self.peek_word("show") {
+            self.parse_explore_output_fields("show")?
+        } else {
+            Vec::new()
+        };
+        self.skip_semis();
+        let representative_start = self.expect_explore_output_word("representative")?;
+        let representative = if self.peek_word("first") {
+            self.advance();
+            ExploreRepresentative::First {
+                span: self.span_since(&representative_start),
+            }
+        } else if self.peek_word("maximize") {
+            self.advance();
+            let objective = self.parse_expr()?;
+            ExploreRepresentative::Maximize {
+                objective,
+                span: self.span_since(&representative_start),
+            }
+        } else if self.peek_word("minimize") {
+            self.advance();
+            let objective = self.parse_expr()?;
+            ExploreRepresentative::Minimize {
+                objective,
+                span: self.span_since(&representative_start),
+            }
+        } else {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: expected `first`, `maximize expression`, or `minimize expression` after `representative`",
+                token.line, token.col
+            ));
+        };
+        self.skip_semis();
+        if self.peek_kind() != TokenKind::RBrace {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: unexpected `{}` after exploration representative; `representative` must be the final output clause",
+                token.line, token.col, token.source_text
+            ));
+        }
+        self.expect(TokenKind::RBrace)?;
+
+        let mut output_names = BTreeSet::new();
+        for field in key.iter().chain(show.iter()) {
+            if !output_names.insert(field.name.clone()) {
+                return Err(format!(
+                    "exploration output field `{}` appears in both `key` and `show`",
+                    field.name
+                ));
+            }
+        }
+
+        Ok(ExploreOutput {
+            key,
+            show,
+            representative,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn parse_explore_query(&mut self, question_token: &Token) -> Result<Stmt, String> {
+        self.expect_explore_word("explore")?;
+        let name = if self.peek_kind() == TokenKind::LBrace {
+            None
+        } else {
+            Some(self.expect_explore_binder("query name")?.0)
+        };
+        self.expect(TokenKind::LBrace)?;
+        self.skip_semis();
+
+        let over = self.parse_explore_over()?;
+        self.skip_semis();
+        self.expect_explore_word("find")?;
+        let polarity = if self.peek_word("violations") {
+            self.advance();
+            ExplorePolarity::Violations
+        } else if self.peek_word("matches") {
+            self.advance();
+            ExplorePolarity::Matches
+        } else {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration `find` must be followed by `violations` or `matches`",
+                token.line, token.col
+            ));
+        };
+        self.skip_semis();
+        let bounds = self.parse_explore_bounds()?;
+        self.skip_semis();
+        let boundary = if self.peek_word("boundaries") {
+            let boundary = self.parse_explore_boundary()?;
+            self.skip_semis();
+            Some(boundary)
+        } else {
+            None
+        };
+        let output = self.parse_explore_output()?;
+        self.skip_semis();
+        if self.peek_kind() != TokenKind::RBrace {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: unexpected exploration clause `{}` after `output`",
+                token.line, token.col, token.source_text
+            ));
+        }
+        self.expect(TokenKind::RBrace)?;
+
+        Ok(Stmt::Explore(ExploreQuery {
+            name,
+            over,
+            polarity,
+            bounds,
+            boundary,
+            output,
+            span: self.span_since(question_token),
+        }))
+    }
+
     pub fn parse_statement(&mut self) -> Result<Stmt, String> {
         self.skip_semis();
 
@@ -7608,7 +8374,10 @@ impl Parser {
             //        ? name -> { pass } else { fail }
             //        ? name: val -> { pass } else { fail }
             TokenKind::Op if self.peek().text == "?" => {
-                self.advance(); // consume '?'
+                let question_token = self.advance(); // consume '?'
+                if self.is_explore_query_start() {
+                    return self.parse_explore_query(&question_token);
+                }
                 let name = self.expect_ident()?;
                 let proof_block = if self.peek_word("by") {
                     self.advance();
@@ -9723,7 +10492,7 @@ impl Parser {
             TokenKind::LBrace => self.parse_block_expr(),
             // List literal (supports multi-line)
             TokenKind::LBracket => {
-                let _bracket_tok = self.advance();
+                let bracket_tok = self.advance();
                 // Skip newlines after [
                 while self.peek_kind() == TokenKind::Semi {
                     self.advance();
@@ -9748,7 +10517,7 @@ impl Parser {
                     }
                 }
                 self.expect(TokenKind::RBracket)?;
-                Ok(ExprKind::List(elems).into())
+                Ok(self.spanned(ExprKind::List(elems), &bracket_tok))
             }
             // Lambda: |params| body   OR   | handle Effect { ... } in body
             // || as single Op token — empty lambda
@@ -12497,6 +13266,11 @@ impl Interpreter {
                             }
                         }
                     }
+                    last = Value::Unit;
+                }
+                // Exploration declarations are selected explicitly by `runa explore`.
+                // Ordinary execution registers no effects and produces no output.
+                Stmt::Explore(_) => {
                     last = Value::Unit;
                 }
                 Stmt::Depend(_, _) => {} // @ depend is transpile-time only
@@ -17843,6 +18617,10 @@ pub struct TypeChecker {
     pub function_params: BTreeMap<String, Vec<String>>,
     /// function/rule name and arity -> declaration-order parameter names.
     function_params_by_arity: BTreeMap<(String, usize), Vec<String>>,
+    /// rule name and arity -> declared parameter types, retaining unknowns.
+    rule_param_types_by_arity: BTreeMap<(String, usize), Vec<Option<Ty>>>,
+    /// Callables declared with the rule rune, distinct from ordinary functions.
+    rule_arities: BTreeSet<(String, usize)>,
     /// type name -> exists
     pub types: BTreeSet<String>,
     /// constructor/variant name -> (parent type, field count)
@@ -17896,6 +18674,29 @@ pub struct TypeChecker {
     type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Rule/function name -> inferred value return type name.
     rule_return_types: BTreeMap<String, String>,
+    /// Exploration rule result types resolved by exact name and arity.
+    explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
+    /// Explicit ordinary-function results used by exploration expressions.
+    explore_function_return_types_by_arity: BTreeMap<(String, usize), Ty>,
+    /// Explicit function bodies and signatures retained for return validation.
+    explore_function_definitions_by_arity:
+        BTreeMap<(String, usize), Vec<(Vec<Param>, Option<Ty>, Expr)>>,
+    /// Functions whose declared result cannot be trusted by exploration.
+    explore_function_return_issues: BTreeMap<(String, usize), String>,
+    /// Exact Explore return signatures that could not be resolved consistently.
+    explore_rule_return_issues: BTreeMap<(String, usize), String>,
+    /// Suppress the legacy name-only fallback while inferring exact rule overloads.
+    inferring_exact_explore_rule_returns: bool,
+    /// Require exact rule identities while checking an exploration query.
+    checking_explore_query: bool,
+    /// Bodies used to prove that an Explore question and its reachable helpers
+    /// are free of effects and unsupported propagation paths.
+    explore_callable_expressions_by_arity: BTreeMap<(String, usize), Vec<Expr>>,
+    /// Every rule clause in the flattened checked program, retained so exact
+    /// result inference cannot lose conflicts split across imports.
+    explore_rules_by_arity: BTreeMap<(String, usize), Vec<Rule>>,
+    /// Ordinary functions that declare an effect row.
+    explore_declared_effect_callables: BTreeSet<(String, usize)>,
     /// RuleScope name -> scoped member name -> inferred value return type name.
     rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     /// Variable type names per lexical scope.
@@ -17912,6 +18713,13 @@ pub struct TypeChecker {
     reference_symbols: BTreeMap<String, BTreeSet<ProgramSymbolKind>>,
     /// Invariant names addressable through the `? name` proof rune.
     invariant_names: BTreeSet<String>,
+    /// Exploration declarations that passed the backend-neutral query checks.
+    exploration_queries: Vec<TypedExploreQuery>,
+    /// Named queries and the single allowed anonymous root query.
+    exploration_names: BTreeSet<String>,
+    anonymous_exploration_count: usize,
+    /// Inline modules are qualified namespaces, not flat Explore declarations.
+    explore_inline_module_depth: usize,
     /// source file directory (for resolving @ import paths)
     pub source_dir: Option<String>,
     /// already-imported file paths (prevents cycles)
@@ -17926,6 +18734,7 @@ pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    pub exploration_queries: Vec<TypedExploreQuery>,
 }
 
 impl TypeChecker {
@@ -17952,6 +18761,8 @@ impl TypeChecker {
             function_arities: BTreeMap::new(),
             function_params: BTreeMap::new(),
             function_params_by_arity: BTreeMap::new(),
+            rule_param_types_by_arity: BTreeMap::new(),
+            rule_arities: BTreeSet::new(),
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
@@ -17977,6 +18788,16 @@ impl TypeChecker {
             type_field_types: BTreeMap::new(),
             type_field_tys: BTreeMap::new(),
             rule_return_types: BTreeMap::new(),
+            explore_rule_return_types_by_arity: BTreeMap::new(),
+            explore_function_return_types_by_arity: BTreeMap::new(),
+            explore_function_definitions_by_arity: BTreeMap::new(),
+            explore_function_return_issues: BTreeMap::new(),
+            explore_rule_return_issues: BTreeMap::new(),
+            inferring_exact_explore_rule_returns: false,
+            checking_explore_query: false,
+            explore_callable_expressions_by_arity: BTreeMap::new(),
+            explore_rules_by_arity: BTreeMap::new(),
+            explore_declared_effect_callables: BTreeSet::new(),
             rule_scope_member_return_types: BTreeMap::new(),
             var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
@@ -17985,6 +18806,10 @@ impl TypeChecker {
             user_functions: BTreeSet::new(),
             reference_symbols: BTreeMap::new(),
             invariant_names: BTreeSet::new(),
+            exploration_queries: Vec::new(),
+            exploration_names: BTreeSet::new(),
+            anonymous_exploration_count: 0,
+            explore_inline_module_depth: 0,
             source_dir: None,
             imported: BTreeSet::new(),
             source_text: String::new(),
@@ -18253,6 +19078,97 @@ impl TypeChecker {
         }
     }
 
+    fn record_explore_function_definition(
+        &mut self,
+        name: &str,
+        params: &[Param],
+        ret_ty: Option<&Ty>,
+        effects: &[String],
+        body: &Expr,
+    ) {
+        let key = (name.to_string(), params.len());
+        self.explore_function_definitions_by_arity
+            .entry(key.clone())
+            .or_default()
+            .push((params.to_vec(), ret_ty.cloned(), body.clone()));
+        self.explore_callable_expressions_by_arity
+            .entry(key.clone())
+            .or_default()
+            .push(body.clone());
+        if !effects.is_empty() {
+            self.explore_declared_effect_callables.insert(key);
+        }
+    }
+
+    fn record_explore_rule_body(&mut self, rule: &Rule) {
+        let Some(key) = Self::rule_name_arity(rule) else {
+            return;
+        };
+        self.explore_rules_by_arity
+            .entry(key.clone())
+            .or_default()
+            .push(rule.clone());
+        let expressions = self
+            .explore_callable_expressions_by_arity
+            .entry(key)
+            .or_default();
+        match rule {
+            Rule::Clause { body, .. } => expressions.extend(body.iter().cloned()),
+            Rule::Default {
+                value, condition, ..
+            }
+            | Rule::Exception {
+                value, condition, ..
+            } => {
+                expressions.push(value.clone());
+                expressions.extend(condition.iter().cloned());
+            }
+            Rule::ReactiveScope { .. } => {}
+        }
+    }
+
+    fn record_rule_signature(&mut self, name: &str, head: &Expr) {
+        let Some((_, arity)) = Self::rule_head_name_arity(head) else {
+            return;
+        };
+        self.rule_arities.insert((name.to_string(), arity));
+        let Some(incoming) = Self::rule_head_param_types(head) else {
+            return;
+        };
+        let conflicts = {
+            let stored = self
+                .rule_param_types_by_arity
+                .entry((name.to_string(), arity))
+                .or_insert_with(|| vec![None; arity]);
+            let mut conflicts = Vec::new();
+            for (index, (slot, candidate)) in stored.iter_mut().zip(incoming).enumerate() {
+                match (&*slot, candidate) {
+                    (None, candidate) => *slot = candidate,
+                    (Some(existing), Some(candidate))
+                        if existing.to_string() != candidate.to_string() =>
+                    {
+                        conflicts.push((index, existing.to_string(), candidate.to_string()));
+                    }
+                    _ => {}
+                }
+            }
+            conflicts
+        };
+        for (index, existing, candidate) in conflicts {
+            self.error_at_expr(
+                head,
+                format!(
+                    "rule `{}({} arguments)` declares conflicting types `{}` and `{}` for parameter {}",
+                    name,
+                    arity,
+                    existing,
+                    candidate,
+                    index + 1
+                ),
+            );
+        }
+    }
+
     fn function_has_arity(&self, name: &str, arity: usize) -> bool {
         self.function_arities
             .get(name)
@@ -18472,6 +19388,25 @@ impl TypeChecker {
     fn rule_head_param_names(head: &Expr) -> Option<Vec<String>> {
         match &head.kind {
             ExprKind::App(_, args) => args.iter().map(Self::rule_head_param_name).collect(),
+            ExprKind::Var(_) => Some(vec![]),
+            _ => None,
+        }
+    }
+
+    fn rule_head_param_types(head: &Expr) -> Option<Vec<Option<Ty>>> {
+        match &head.kind {
+            ExprKind::App(_, args) => Some(
+                args.iter()
+                    .map(|arg| {
+                        Self::typed_rule_arg_parts(arg).and_then(|(_, type_name)| {
+                            Some(
+                                parse_type_annotation(type_name)
+                                    .unwrap_or_else(|_| Ty::Name(type_name.to_string())),
+                            )
+                        })
+                    })
+                    .collect(),
+            ),
             ExprKind::Var(_) => Some(vec![]),
             _ => None,
         }
@@ -18733,9 +19668,9 @@ impl TypeChecker {
                 Stmt::Defn(Defn::Fn {
                     name,
                     params,
+                    ret_ty,
                     effects,
                     body,
-                    ..
                 }) => {
                     prepass.functions.insert(
                         name.clone(),
@@ -20124,11 +21059,31 @@ impl TypeChecker {
                             return Some(format!("Option({})", inner));
                         }
                     }
+                    if name == "range" && args.len() == 2 {
+                        return Some("List(Int)".to_string());
+                    }
                     if let Some(parent) = self.constructor_parent_for_args(name, args) {
                         return Some(parent);
                     }
                     if let Some((parent, _)) = self.constructors.get(name) {
                         return Some(parent.clone());
+                    }
+                    if let Some(ret) = self
+                        .explore_function_return_types_by_arity
+                        .get(&(name.clone(), args.len()))
+                    {
+                        return Some(ret.to_string());
+                    }
+                    if let Some(ret) = self
+                        .explore_rule_return_types_by_arity
+                        .get(&(name.clone(), args.len()))
+                    {
+                        return Some(ret.to_string());
+                    }
+                    if (self.inferring_exact_explore_rule_returns || self.checking_explore_query)
+                        && self.rule_arities.contains(&(name.clone(), args.len()))
+                    {
+                        return None;
                     }
                     if let Some(ret) = self.rule_return_types.get(name) {
                         return Some(ret.clone());
@@ -20190,6 +21145,30 @@ impl TypeChecker {
                     .or_else(|| self.var_type_name(name).map(str::to_string)),
                 _ => None,
             }),
+            ExprKind::BinOp(op, lhs, rhs) => {
+                if matches!(
+                    op.as_str(),
+                    "==" | "!=" | "<" | "<=" | ">" | ">=" | "&&" | "||"
+                ) {
+                    Some("Bool".to_string())
+                } else {
+                    let lhs = self.infer_expr_type_name_with_locals(lhs, locals)?;
+                    let rhs = self.infer_expr_type_name_with_locals(rhs, locals)?;
+                    Self::merge_inferred_type_names(&lhs, &rhs)
+                }
+            }
+            ExprKind::UnOp(op, inner) => {
+                if op == "!" {
+                    Some("Bool".to_string())
+                } else {
+                    self.infer_expr_type_name_with_locals(inner, locals)
+                }
+            }
+            ExprKind::Conjunction(_) | ExprKind::Disjunction(_) => Some("Bool".to_string()),
+            ExprKind::Try(inner) => self.infer_expr_type_name_with_locals(inner, locals),
+            ExprKind::Pipe(_, transform) => {
+                self.infer_expr_type_name_with_locals(transform, locals)
+            }
             _ => None,
         }
     }
@@ -20329,6 +21308,274 @@ impl TypeChecker {
                         changed = true;
                     }
                     break;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    fn establish_explore_function_return_types(&mut self) {
+        let definitions = self.explore_function_definitions_by_arity.clone();
+        self.explore_function_return_types_by_arity.clear();
+        self.explore_function_return_issues.clear();
+
+        // Establish the declared signature environment first so forward and
+        // mutually recursive helpers can be checked against explicit results.
+        for (key, entries) in &definitions {
+            let declarations = entries
+                .iter()
+                .map(|(_, ret_ty, _)| ret_ty.clone())
+                .collect::<Vec<_>>();
+            let issue = if declarations.iter().any(Option::is_none) {
+                Some(format!(
+                    "exploration helper `{}({} arguments)` needs an explicit result type",
+                    key.0, key.1
+                ))
+            } else {
+                let declarations = declarations.into_iter().flatten().collect::<Vec<_>>();
+                declarations.first().and_then(|first| {
+                    declarations
+                        .iter()
+                        .find(|candidate| candidate.to_string() != first.to_string())
+                        .map(|candidate| {
+                            format!(
+                                "exploration helper `{}({} arguments)` declares conflicting result types `{}` and `{}`",
+                                key.0, key.1, first, candidate
+                            )
+                        })
+                })
+            };
+            if let Some(issue) = issue {
+                self.explore_function_return_issues
+                    .insert(key.clone(), issue);
+            } else if let Some(ret_ty) = entries.first().and_then(|(_, ret_ty, _)| ret_ty.clone()) {
+                self.explore_function_return_types_by_arity
+                    .insert(key.clone(), ret_ty);
+            }
+        }
+    }
+
+    fn validate_explore_function_return_types(&mut self) {
+        let definitions = self.explore_function_definitions_by_arity.clone();
+        self.establish_explore_function_return_types();
+
+        // Validate each body against its declared result. This is independent
+        // of rustc so the backend-neutral exploration artifact is sound on its
+        // own.
+        for (key, entries) in &definitions {
+            if self.explore_function_return_issues.contains_key(key) {
+                continue;
+            }
+            let expected = self
+                .explore_function_return_types_by_arity
+                .get(key)
+                .cloned()
+                .expect("validated function signature");
+            let issue = entries.iter().find_map(|(params, _, body)| {
+                let mut locals = BTreeMap::new();
+                for param in params {
+                    let Some(ty) = param.ty.as_ref() else {
+                        return Some(format!(
+                            "exploration helper `{}({} arguments)` needs a type annotation on parameter `{}`",
+                            key.0, key.1, param.name
+                        ));
+                    };
+                    locals.insert(param.name.clone(), ty.to_string());
+                }
+                match self.infer_expr_type_name_with_locals(body, &locals) {
+                    Some(actual) if actual == expected.to_string() => None,
+                    Some(actual) => Some(format!(
+                        "exploration helper `{}({} arguments)` declares result `{}` but its body has type `{}`",
+                        key.0, key.1, expected, actual
+                    )),
+                    None => Some(format!(
+                        "cannot validate the body result of exploration helper `{}({} arguments)` against declared type `{}`",
+                        key.0, key.1, expected
+                    )),
+                }
+            });
+            if let Some(issue) = issue {
+                self.explore_function_return_types_by_arity.remove(key);
+                self.explore_function_return_issues
+                    .insert(key.clone(), issue);
+            }
+        }
+
+        // Propagate invalid exact helper results through wrapper functions.
+        loop {
+            let mut changed = false;
+            for (key, entries) in &definitions {
+                if self.explore_function_return_issues.contains_key(key) {
+                    continue;
+                }
+                let issue = entries.iter().find_map(|(params, _, body)| {
+                    let locals = params
+                        .iter()
+                        .filter_map(|param| {
+                            param
+                                .ty
+                                .as_ref()
+                                .map(|ty| (param.name.clone(), ty.to_string()))
+                        })
+                        .collect::<BTreeMap<_, _>>();
+                    self.explore_operator_issues_with_locals(body, &locals)
+                        .into_iter()
+                        .next()
+                });
+                if let Some(issue) = issue {
+                    self.explore_function_return_types_by_arity.remove(key);
+                    self.explore_function_return_issues
+                        .insert(key.clone(), issue);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+    }
+
+    fn infer_explore_rule_return_types(&mut self, _stmts: &[Stmt]) {
+        let groups = self.explore_rules_by_arity.clone();
+        self.explore_rule_return_types_by_arity.clear();
+        self.explore_rule_return_issues.clear();
+
+        self.inferring_exact_explore_rule_returns = true;
+        for _ in 0..groups.len().saturating_add(1) {
+            let mut changed = false;
+            for (key, rules) in &groups {
+                let inferred = rules
+                    .iter()
+                    .map(|rule| match rule {
+                        Rule::Clause { head, body } => match body {
+                            Some(body) => {
+                                let locals = self.rule_head_local_types(head);
+                                self.infer_expr_type_name_with_locals(body, &locals)
+                            }
+                            None => Some("Bool".to_string()),
+                        },
+                        Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
+                            let locals = self.rule_head_local_types(head);
+                            self.infer_expr_type_name_with_locals(value, &locals)
+                        }
+                        Rule::ReactiveScope { .. } => None,
+                    })
+                    .collect::<Vec<_>>();
+                if inferred.iter().any(Option::is_none) {
+                    continue;
+                }
+                let inferred = inferred.into_iter().flatten().collect::<Vec<_>>();
+                let Some(first) = inferred.first() else {
+                    continue;
+                };
+                if inferred.iter().any(|candidate| candidate != first) {
+                    continue;
+                }
+                let ty = parse_type_annotation(first).unwrap_or_else(|_| Ty::Name(first.clone()));
+                if self
+                    .explore_rule_return_types_by_arity
+                    .get(key)
+                    .is_none_or(|previous| previous.to_string() != ty.to_string())
+                {
+                    self.explore_rule_return_types_by_arity
+                        .insert(key.clone(), ty);
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        self.inferring_exact_explore_rule_returns = false;
+
+        // First record every rule family's intrinsic result conflict. Dependency
+        // diagnostics must not depend on lexical ordering between two families.
+        for ((name, arity), rules) in &groups {
+            let key = (name.clone(), *arity);
+            let inferred = rules
+                .iter()
+                .map(|rule| match rule {
+                    Rule::Clause { head, body } => match body {
+                        Some(body) => {
+                            let locals = self.rule_head_local_types(head);
+                            self.infer_expr_type_name_with_locals(body, &locals)
+                        }
+                        None => Some("Bool".to_string()),
+                    },
+                    Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
+                        let locals = self.rule_head_local_types(head);
+                        self.infer_expr_type_name_with_locals(value, &locals)
+                    }
+                    Rule::ReactiveScope { .. } => None,
+                })
+                .collect::<Vec<_>>();
+            let issue = if inferred.iter().any(Option::is_none) {
+                Some(format!(
+                    "cannot infer every result clause of exploration rule `{}({} arguments)`",
+                    name, arity
+                ))
+            } else {
+                let inferred = inferred.into_iter().flatten().collect::<Vec<_>>();
+                inferred.first().and_then(|first| {
+                    inferred
+                        .iter()
+                        .find(|candidate| *candidate != first)
+                        .map(|candidate| {
+                            format!(
+                                "exploration rule `{}({} arguments)` has conflicting result types `{}` and `{}`",
+                                name, arity, first, candidate
+                            )
+                        })
+                })
+            };
+            if let Some(issue) = issue {
+                self.explore_rule_return_types_by_arity.remove(&key);
+                self.explore_rule_return_issues.insert(key, issue);
+            }
+        }
+
+        // Then propagate exact-call and operator failures through the reachable
+        // rule graph to a fixed point. A wrapper is invalid when any helper it
+        // calls lacks one conflict-free exact result type.
+        loop {
+            let mut changed = false;
+            for (key, rules) in &groups {
+                if self.explore_rule_return_issues.contains_key(key) {
+                    continue;
+                }
+                let issue = rules.iter().find_map(|rule| {
+                    let (head, expressions) = match rule {
+                        Rule::Clause { head, body } => (head, body.iter().collect::<Vec<_>>()),
+                        Rule::Default {
+                            head,
+                            value,
+                            condition,
+                        }
+                        | Rule::Exception {
+                            head,
+                            value,
+                            condition,
+                            ..
+                        } => {
+                            let mut expressions = vec![value];
+                            expressions.extend(condition.iter());
+                            (head, expressions)
+                        }
+                        Rule::ReactiveScope { .. } => return None,
+                    };
+                    let locals = self.rule_head_local_types(head);
+                    expressions.into_iter().find_map(|expression| {
+                        self.explore_operator_issues_with_locals(expression, &locals)
+                            .into_iter()
+                            .next()
+                    })
+                });
+                if let Some(issue) = issue {
+                    self.explore_rule_return_types_by_arity.remove(key);
+                    self.explore_rule_return_issues.insert(key.clone(), issue);
+                    changed = true;
                 }
             }
             if !changed {
@@ -20673,6 +21920,16 @@ impl TypeChecker {
         self.diagnostics.push(diag);
     }
 
+    fn error_at_span(&mut self, span: Span, msg: impl Into<String>) {
+        let mut diagnostic = if span.is_dummy() {
+            Diagnostic::error(msg.into())
+        } else {
+            Diagnostic::error_at(span, msg.into())
+        };
+        diagnostic.context = self.error_context.clone();
+        self.diagnostics.push(diagnostic);
+    }
+
     pub fn error(&mut self, msg: String) {
         // Try to derive a span from backtick-quoted symbol name in the source
         let span = if !self.source_text.is_empty() {
@@ -20801,6 +22058,7 @@ impl TypeChecker {
                     | Stmt::StreamSub(_, _)
                     | Stmt::Invariant { .. }
                     | Stmt::Prove { .. }
+                    | Stmt::Explore(_)
                     | Stmt::Assert(_, _)
                     | Stmt::Retract(_, _)
                     | Stmt::Abort
@@ -20886,8 +22144,15 @@ impl TypeChecker {
         self.source_dir = Some(imported_dir);
         self.collect_declarations(import_stmts);
         self.infer_rule_return_types(import_stmts);
+        self.infer_explore_rule_return_types(import_stmts);
         self.infer_top_level_binding_types(import_stmts);
         self.source_dir = previous_dir;
+    }
+
+    fn collect_nested_declarations(&mut self, stmts: &[Stmt]) {
+        self.explore_inline_module_depth += 1;
+        self.collect_declarations(stmts);
+        self.explore_inline_module_depth -= 1;
     }
 
     /// Resolve an import path for the type checker (manifest-aware).
@@ -20957,7 +22222,13 @@ impl TypeChecker {
     pub fn collect_declarations(&mut self, stmts: &[Stmt]) {
         for stmt in stmts {
             match stmt {
-                Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    effects,
+                    body,
+                }) => {
                     let param_names = params
                         .iter()
                         .map(|param| param.name.clone())
@@ -20967,6 +22238,15 @@ impl TypeChecker {
                         .insert(name.clone(), param_names.clone());
                     self.record_function_signature(name, params.len(), Some(param_names));
                     self.user_functions.insert(name.clone());
+                    if self.explore_inline_module_depth == 0 {
+                        self.record_explore_function_definition(
+                            name,
+                            params,
+                            ret_ty.as_ref(),
+                            effects,
+                            body,
+                        );
+                    }
                     self.register_reference_symbol(name, ProgramSymbolKind::Function);
                     self.define_var(name);
                 }
@@ -20976,7 +22256,7 @@ impl TypeChecker {
                 }
                 Stmt::Defn(Defn::Module { name, body }) => {
                     self.define_var(name);
-                    self.collect_declarations(body);
+                    self.collect_nested_declarations(body);
                 }
                 Stmt::TypeDecl(TypeDecl::ADT {
                     name,
@@ -21072,7 +22352,14 @@ impl TypeChecker {
                         self.type_variants.insert(name.clone(), variant_names);
                     }
                     for defn in methods {
-                        if let Defn::Fn { name, params, .. } = defn {
+                        if let Defn::Fn {
+                            name,
+                            params,
+                            effects,
+                            body,
+                            ..
+                        } = defn
+                        {
                             let param_names = params
                                 .iter()
                                 .map(|param| param.name.clone())
@@ -21200,7 +22487,14 @@ impl TypeChecker {
                 }) => {
                     let mut method_names = Vec::new();
                     for defn in methods {
-                        if let Defn::Fn { name, params, .. } = defn {
+                        if let Defn::Fn {
+                            name,
+                            params,
+                            effects,
+                            body,
+                            ..
+                        } = defn
+                        {
                             let param_names = params
                                 .iter()
                                 .map(|param| param.name.clone())
@@ -21235,7 +22529,7 @@ impl TypeChecker {
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_reference_symbol(name, ProgramSymbolKind::Binding);
                     self.define_var(name);
-                    self.collect_declarations(body);
+                    self.collect_nested_declarations(body);
                 }
                 Stmt::Rule(Rule::Default { head, .. })
                 | Stmt::Rule(Rule::Exception { head, .. })
@@ -21253,6 +22547,9 @@ impl TypeChecker {
                                     .or_insert(param_names);
                             }
                             self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
+                            if self.explore_inline_module_depth == 0 {
+                                self.record_rule_signature(fname, head);
+                            }
                             self.define_var(fname);
                         }
                     } else if let ExprKind::Var(fname) = &head.kind {
@@ -21264,9 +22561,15 @@ impl TypeChecker {
                             .entry((fname.clone(), 0))
                             .or_insert(vec![]);
                         self.register_reference_symbol(fname, ProgramSymbolKind::Rule);
+                        if self.explore_inline_module_depth == 0 {
+                            self.record_rule_signature(fname, head);
+                        }
                         self.define_var(fname);
                     }
                     if let Stmt::Rule(rule) = stmt {
+                        if self.explore_inline_module_depth == 0 {
+                            self.record_explore_rule_body(rule);
+                        }
                         if let Some((rule_name, scope_name)) =
                             Self::rule_scope_return_candidate(rule)
                         {
@@ -21397,6 +22700,7 @@ impl TypeChecker {
                                             | Stmt::StreamSub(_, _)
                                             | Stmt::Invariant { .. }
                                             | Stmt::Prove { .. }
+                                            | Stmt::Explore(_)
                                             | Stmt::Assert(_, _)
                                             | Stmt::Retract(_, _)
                                             | Stmt::Abort
@@ -21431,6 +22735,7 @@ impl TypeChecker {
                 | Stmt::Send(_, _)
                 | Stmt::StreamSub(_, _)
                 | Stmt::Prove { .. }
+                | Stmt::Explore(_)
                 | Stmt::Assert(_, _)
                 | Stmt::Retract(_, _)
                 | Stmt::Abort
@@ -21441,17 +22746,43 @@ impl TypeChecker {
 
     /// Pass 2: check the program for errors
     pub fn check_program(&mut self, stmts: &[Stmt]) {
-        self.check_stmt_sequence(stmts);
+        let root_explorations = stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Explore(query) => Some(query),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        if root_explorations.len() > 1 {
+            for query in root_explorations
+                .iter()
+                .filter(|query| query.name.is_none())
+            {
+                self.error_at_span(
+                    query.span,
+                    "a file with multiple explorations must name every query",
+                );
+            }
+        }
+        self.check_stmt_sequence_with_exploration_selection(stmts, true);
         // Check trait impl completeness
         self.check_trait_impls();
     }
 
     fn check_stmt_sequence(&mut self, stmts: &[Stmt]) {
+        self.check_stmt_sequence_with_exploration_selection(stmts, false);
+    }
+
+    fn check_stmt_sequence_with_exploration_selection(
+        &mut self,
+        stmts: &[Stmt],
+        selectable_explorations: bool,
+    ) {
         let mut pending_comptime = false;
         for stmt in stmts {
             match stmt {
                 Stmt::Annot(name, _) if name == "comptime" => {
-                    self.check_stmt(stmt);
+                    self.check_stmt_with_exploration_selection(stmt, selectable_explorations);
                     pending_comptime = true;
                 }
                 Stmt::Expr(expr) if pending_comptime => {
@@ -21464,14 +22795,22 @@ impl TypeChecker {
                             continue;
                         }
                     }
-                    self.check_stmt(stmt);
+                    self.check_stmt_with_exploration_selection(stmt, selectable_explorations);
                     pending_comptime = false;
                 }
                 _ => {
-                    self.check_stmt(stmt);
+                    self.check_stmt_with_exploration_selection(stmt, selectable_explorations);
                     pending_comptime = false;
                 }
             }
+        }
+    }
+
+    fn check_stmt_with_exploration_selection(&mut self, stmt: &Stmt, selectable: bool) {
+        if let Stmt::Explore(query) = stmt {
+            self.check_explore_query(query, selectable);
+        } else {
+            self.check_stmt(stmt);
         }
     }
 
@@ -21622,6 +22961,952 @@ impl TypeChecker {
         }
     }
 
+    fn inferred_explore_ty(&self, expr: &Expr) -> Option<Ty> {
+        self.infer_expr_type_name(expr)
+            .map(|name| parse_type_annotation(&name).unwrap_or_else(|_| Ty::Name(name)))
+    }
+
+    fn explore_domain_item_ty(&self, expr: &Expr) -> Option<Ty> {
+        match &expr.kind {
+            ExprKind::List(items) if items.is_empty() => None,
+            ExprKind::App(function, arguments)
+                if matches!(&function.kind, ExprKind::Var(name) if name == "values")
+                    && arguments.len() == 1 =>
+            {
+                let ExprKind::Var(type_name) = &arguments[0].kind else {
+                    return None;
+                };
+                Some(
+                    parse_type_annotation(type_name)
+                        .unwrap_or_else(|_| Ty::Name(type_name.clone())),
+                )
+            }
+            _ => {
+                let collection = self.infer_expr_type_name(expr)?;
+                let item = Self::applied_type_argument(&collection, "List", 0)
+                    .or_else(|| Self::applied_type_argument(&collection, "Set", 0))?;
+                Some(parse_type_annotation(&item).unwrap_or_else(|_| Ty::Name(item)))
+            }
+        }
+    }
+
+    fn eval_explore_fixed_int(expr: &Expr, fixed: &BTreeMap<String, i64>) -> Option<i64> {
+        match &expr.kind {
+            ExprKind::Lit(Literal::Int(value)) => Some(*value),
+            ExprKind::Var(name) => fixed.get(name).copied(),
+            ExprKind::UnOp(operator, value) if operator == "-" => {
+                Self::eval_explore_fixed_int(value, fixed)?.checked_neg()
+            }
+            ExprKind::UnOp(operator, value) if operator == "+" => {
+                Self::eval_explore_fixed_int(value, fixed)
+            }
+            ExprKind::BinOp(operator, left, right) => {
+                let left = Self::eval_explore_fixed_int(left, fixed)?;
+                let right = Self::eval_explore_fixed_int(right, fixed)?;
+                match operator.as_str() {
+                    "+" => left.checked_add(right),
+                    "-" => left.checked_sub(right),
+                    "*" => left.checked_mul(right),
+                    "/" => left.checked_div(right),
+                    "%" => left.checked_rem(right),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn explore_expression_capabilities(&self, expr: &Expr) -> (bool, BTreeSet<(String, usize)>) {
+        let impure_names = meta_impure_runtime_names();
+        let effect_operations = self
+            .effect_ops
+            .values()
+            .flat_map(|operations| operations.keys().cloned())
+            .collect::<BTreeSet<_>>();
+        let mut supported = true;
+        let mut calls = BTreeSet::new();
+        walk_ast_expr(expr, &mut |child| match child {
+            AstChild::Expr(expr) => match &expr.kind {
+                ExprKind::Effect(_, _) | ExprKind::Handle { .. } | ExprKind::Try(_) => {
+                    supported = false;
+                }
+                ExprKind::App(function, arguments) => {
+                    if let ExprKind::Var(name) = &function.kind {
+                        let canonical = builtin_canonical(name);
+                        if impure_names.contains(name)
+                            || impure_names.contains(canonical)
+                            || effect_operations.contains(name)
+                        {
+                            supported = false;
+                        }
+                        calls.insert((name.clone(), arguments.len()));
+                    } else {
+                        // Qualified and method calls need owner-aware callable identity.
+                        // Treat them as unsupported until the canonical rule-slice pass
+                        // can resolve the exact receiver and declaration.
+                        supported = false;
+                    }
+                }
+                _ => {}
+            },
+            AstChild::Stmt(statement) => {
+                if matches!(
+                    statement,
+                    Stmt::MonadicBind(..)
+                        | Stmt::StreamBind(..)
+                        | Stmt::For(..)
+                        | Stmt::While(..)
+                        | Stmt::Send(..)
+                        | Stmt::StreamSub(..)
+                        | Stmt::Prove { .. }
+                        | Stmt::Explore(_)
+                        | Stmt::Assert(..)
+                        | Stmt::Retract(..)
+                        | Stmt::Abort
+                ) || matches!(statement, Stmt::Annot(name, _) if builtin_canonical(name) == "print")
+                {
+                    supported = false;
+                }
+            }
+        });
+        (supported, calls)
+    }
+
+    fn explore_call_has_supported_definition(&self, key: &(String, usize)) -> bool {
+        let (name, arity) = key;
+        if matches!(
+            name.as_str(),
+            "values" | NAMED_ARG_MARKER | PATHOF_MARKER | REFOF_MARKER
+        ) {
+            return true;
+        }
+        if self.explore_callable_expressions_by_arity.contains_key(key)
+            || self.explore_declared_effect_callables.contains(key)
+        {
+            return true;
+        }
+        let canonical = builtin_canonical(name);
+        if self
+            .builtins
+            .get(canonical)
+            .is_some_and(|expected| expected == arity)
+        {
+            return true;
+        }
+        self.constructors
+            .get(name)
+            .is_some_and(|(_, fields)| fields == arity)
+    }
+
+    fn explore_callable_is_pure_inner(
+        &self,
+        key: &(String, usize),
+        visiting: &mut BTreeSet<(String, usize)>,
+        memo: &mut BTreeMap<(String, usize), bool>,
+    ) -> bool {
+        if let Some(pure) = memo.get(key) {
+            return *pure;
+        }
+        if self.explore_declared_effect_callables.contains(key) {
+            memo.insert(key.clone(), false);
+            return false;
+        }
+        if !visiting.insert(key.clone()) {
+            return true;
+        }
+        let expressions = self
+            .explore_callable_expressions_by_arity
+            .get(key)
+            .cloned()
+            .unwrap_or_default();
+        let mut pure = true;
+        for expression in expressions {
+            let (supported, calls) = self.explore_expression_capabilities(&expression);
+            if !supported {
+                pure = false;
+                break;
+            }
+            for call in calls {
+                if !self.explore_call_has_supported_definition(&call) {
+                    pure = false;
+                    break;
+                }
+                if (self
+                    .explore_callable_expressions_by_arity
+                    .contains_key(&call)
+                    || self.explore_declared_effect_callables.contains(&call))
+                    && !self.explore_callable_is_pure_inner(&call, visiting, memo)
+                {
+                    pure = false;
+                    break;
+                }
+            }
+            if !pure {
+                break;
+            }
+        }
+        visiting.remove(key);
+        memo.insert(key.clone(), pure);
+        pure
+    }
+
+    fn explore_callable_is_pure(&self, key: &(String, usize)) -> bool {
+        self.explore_callable_is_pure_inner(key, &mut BTreeSet::new(), &mut BTreeMap::new())
+    }
+
+    fn explore_expression_is_pure(&self, expr: &Expr) -> bool {
+        let (supported, calls) = self.explore_expression_capabilities(expr);
+        supported
+            && calls.into_iter().all(|call| {
+                self.explore_call_has_supported_definition(&call)
+                    && (!self
+                        .explore_callable_expressions_by_arity
+                        .contains_key(&call)
+                        || self.explore_callable_is_pure(&call))
+            })
+    }
+
+    fn explore_exact_call_type_issue(&self, name: &str, arity: usize) -> Option<String> {
+        let key = (name.to_string(), arity);
+        if self.rule_arities.contains(&key) {
+            if let Some(issue) = self.explore_rule_return_issues.get(&key) {
+                return Some(issue.clone());
+            }
+            if !self.explore_rule_return_types_by_arity.contains_key(&key) {
+                return Some(format!(
+                    "cannot resolve the exact result type of exploration rule `{}({} arguments)`",
+                    name, arity
+                ));
+            }
+        } else if self
+            .explore_callable_expressions_by_arity
+            .contains_key(&key)
+        {
+            if let Some(issue) = self.explore_function_return_issues.get(&key) {
+                return Some(issue.clone());
+            }
+            if !self
+                .explore_function_return_types_by_arity
+                .contains_key(&key)
+            {
+                return Some(format!(
+                    "cannot resolve the exact result type of exploration helper `{}({} arguments)`",
+                    name, arity
+                ));
+            }
+        }
+        None
+    }
+
+    fn explore_operator_issues_with_locals(
+        &self,
+        expr: &Expr,
+        locals: &BTreeMap<String, String>,
+    ) -> Vec<String> {
+        let mut issues = Vec::new();
+        walk_ast_expr(expr, &mut |child| {
+            let AstChild::Expr(expression) = child else {
+                return;
+            };
+            let inferred = |operand: &Expr| self.infer_expr_type_name_with_locals(operand, locals);
+            match &expression.kind {
+                ExprKind::App(function, arguments) => {
+                    if let ExprKind::Var(name) = &function.kind {
+                        if let Some(issue) =
+                            self.explore_exact_call_type_issue(name, arguments.len())
+                        {
+                            issues.push(issue);
+                        }
+                    }
+                }
+                ExprKind::BinOp(operator, left, right) if operator == "&&" || operator == "||" => {
+                    for operand in [left.as_ref(), right.as_ref()] {
+                        if inferred(operand).as_deref().is_some_and(|ty| ty != "Bool") {
+                            issues.push(format!(
+                                "exploration logical operator `{}` requires `Bool` operands",
+                                operator
+                            ));
+                        }
+                    }
+                }
+                ExprKind::BinOp(operator, left, right)
+                    if matches!(operator.as_str(), "==" | "!=" | "<" | "<=" | ">" | ">=") =>
+                {
+                    if let (Some(left), Some(right)) = (inferred(left), inferred(right)) {
+                        if left != right {
+                            issues.push(format!(
+                                "exploration comparison `{}` requires compatible operands, but found `{}` and `{}`",
+                                operator, left, right
+                            ));
+                        }
+                    }
+                }
+                ExprKind::BinOp(operator, left, right)
+                    if matches!(operator.as_str(), "+" | "-" | "*" | "/" | "%") =>
+                {
+                    if let (Some(left), Some(right)) = (inferred(left), inferred(right)) {
+                        let valid = left == right
+                            && (left == "Int"
+                                || (left == "Float" && operator != "%")
+                                || (left == "String" && operator == "+"));
+                        if !valid {
+                            issues.push(format!(
+                                "exploration arithmetic operator `{}` cannot combine `{}` and `{}`",
+                                operator, left, right
+                            ));
+                        }
+                    }
+                }
+                ExprKind::UnOp(operator, operand) if operator == "!" => {
+                    if inferred(operand).as_deref().is_some_and(|ty| ty != "Bool") {
+                        issues.push(
+                            "exploration logical negation requires a `Bool` operand".to_string(),
+                        );
+                    }
+                }
+                ExprKind::UnOp(operator, operand) if operator == "+" || operator == "-" => {
+                    if inferred(operand)
+                        .as_deref()
+                        .is_some_and(|ty| ty != "Int" && ty != "Float")
+                    {
+                        issues.push(format!(
+                            "exploration unary operator `{}` requires an `Int` or `Float` operand",
+                            operator
+                        ));
+                    }
+                }
+                ExprKind::Conjunction(items) | ExprKind::Disjunction(items) => {
+                    if items
+                        .iter()
+                        .any(|item| inferred(item).as_deref().is_some_and(|ty| ty != "Bool"))
+                    {
+                        issues.push(
+                            "exploration logical goals must each have type `Bool`".to_string(),
+                        );
+                    }
+                }
+                _ => {}
+            }
+        });
+        issues.sort();
+        issues.dedup();
+        issues
+    }
+
+    fn explore_key_ty_supported(&self, ty: &Ty) -> bool {
+        self.explore_key_ty_supported_inner(ty, &mut BTreeSet::new())
+    }
+
+    fn explore_key_ty_supported_inner(&self, ty: &Ty, visiting: &mut BTreeSet<String>) -> bool {
+        match ty {
+            Ty::Name(name) => {
+                if matches!(
+                    name.as_str(),
+                    "Float" | "Stream" | "Subject" | "Db" | "TypeDef" | "ProgramReference"
+                ) || self.rule_scope_methods.contains_key(name)
+                    || self.rule_scope_value_methods.contains_key(name)
+                    || self.effect_ops.contains_key(name)
+                {
+                    return false;
+                }
+                if !visiting.insert(name.clone()) {
+                    return false;
+                }
+                let fields_supported = self.type_field_tys.get(name).is_none_or(|fields| {
+                    fields
+                        .values()
+                        .all(|field| self.explore_key_ty_supported_inner(field, visiting))
+                });
+                let variants_supported = self.type_variants.get(name).is_none_or(|variants| {
+                    variants.iter().all(|variant| {
+                        self.type_field_tys.get(variant).is_none_or(|fields| {
+                            fields
+                                .values()
+                                .all(|field| self.explore_key_ty_supported_inner(field, visiting))
+                        })
+                    })
+                });
+                visiting.remove(name);
+                fields_supported && variants_supported
+            }
+            Ty::App(constructor, arguments) => {
+                !matches!(
+                    type_name(constructor),
+                    Some("Stream" | "Subject" | "Db" | "Map" | "Set")
+                ) && self.explore_key_ty_supported_inner(constructor, visiting)
+                    && arguments
+                        .iter()
+                        .all(|argument| self.explore_key_ty_supported_inner(argument, visiting))
+            }
+            Ty::Optional(inner) => self.explore_key_ty_supported_inner(inner, visiting),
+            Ty::Unit => true,
+            Ty::Arrow(_, _)
+            | Ty::Ref(_)
+            | Ty::MutRef(_)
+            | Ty::Shared(_)
+            | Ty::Var(_)
+            | Ty::Hole => false,
+        }
+    }
+
+    fn check_explore_expression(&mut self, expr: &Expr) {
+        if !self.explore_expression_is_pure(expr) {
+            self.error_at_expr(
+                expr,
+                "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
+                    .to_string(),
+            );
+        }
+        for issue in self.explore_operator_issues_with_locals(expr, &BTreeMap::new()) {
+            self.error_at_expr(expr, issue);
+        }
+        if let ExprKind::App(function, arguments) = &expr.kind {
+            if matches!(&function.kind, ExprKind::Var(name) if name == "values") {
+                if arguments.len() != 1 {
+                    self.error_at_expr(
+                        expr,
+                        "exploration `values(Type)` expects exactly one declared type".to_string(),
+                    );
+                    return;
+                }
+                let ExprKind::Var(type_name) = &arguments[0].kind else {
+                    self.error_at_expr(
+                        &arguments[0],
+                        "exploration `values(Type)` requires a bare declared type name".to_string(),
+                    );
+                    return;
+                };
+                if !self.types.contains(type_name) {
+                    self.error_at_expr(
+                        &arguments[0],
+                        format!("exploration references unknown type `{}`", type_name),
+                    );
+                }
+                return;
+            }
+        }
+        self.check_expr(expr, None);
+    }
+
+    fn check_explore_available_references(
+        &mut self,
+        expr: &Expr,
+        reserved: &BTreeSet<String>,
+        available: &BTreeSet<String>,
+    ) {
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expr, &mut uses, &BTreeSet::new(), &BTreeMap::new());
+        let referenced = uses
+            .values
+            .into_iter()
+            .chain(uses.calls)
+            .collect::<BTreeSet<_>>();
+        for name in referenced {
+            if reserved.contains(&name) && !available.contains(&name) {
+                self.error_at_expr(
+                    expr,
+                    format!(
+                        "exploration name `{}` is referenced before its bound or shown value is available",
+                        name
+                    ),
+                );
+            }
+        }
+    }
+
+    fn check_explore_query(&mut self, query: &ExploreQuery, selectable: bool) {
+        let diagnostic_start = self.diagnostics.len();
+        self.checking_explore_query = true;
+        self.push_context(match &query.name {
+            Some(name) => format!("in exploration `{}`", name),
+            None => "in anonymous exploration".to_string(),
+        });
+
+        if selectable {
+            if let Some(name) = &query.name {
+                if !self.exploration_names.insert(name.clone()) {
+                    self.error_at_span(
+                        query.span,
+                        format!("duplicate exploration name `{}`", name),
+                    );
+                }
+            } else {
+                self.anonymous_exploration_count += 1;
+                if self.anonymous_exploration_count > 1 {
+                    self.error_at_span(
+                        query.span,
+                        "a root file may contain only one anonymous exploration; name each query when there is more than one",
+                    );
+                }
+            }
+        }
+
+        let arity = query.over.inputs.len();
+        let signature_key = (query.over.rule_name.clone(), arity);
+        if !self.rule_arities.contains(&signature_key) {
+            let kind = if self
+                .explore_function_definitions_by_arity
+                .contains_key(&signature_key)
+            {
+                "is an ordinary function, not a `|` rule"
+            } else {
+                "does not resolve to a rule with that arity"
+            };
+            self.error_at_span(
+                query.over.span,
+                format!(
+                    "exploration target `{}({} argument{})` {}",
+                    query.over.rule_name,
+                    arity,
+                    if arity == 1 { "" } else { "s" },
+                    kind
+                ),
+            );
+        }
+        if self.rule_arities.contains(&signature_key)
+            && !self.explore_callable_is_pure(&signature_key)
+        {
+            self.error_at_span(
+                query.over.span,
+                format!(
+                    "exploration target `{}({} argument{})` must resolve through pure exploration-supported operations",
+                    query.over.rule_name,
+                    arity,
+                    if arity == 1 { "" } else { "s" }
+                ),
+            );
+        }
+
+        let parameter_types = self
+            .rule_param_types_by_arity
+            .get(&signature_key)
+            .cloned()
+            .unwrap_or_else(|| vec![None; arity]);
+        let mut typed_inputs = Vec::with_capacity(arity);
+        let mut input_types = BTreeMap::new();
+        for (index, input) in query.over.inputs.iter().enumerate() {
+            let Some(ty) = parameter_types.get(index).cloned().flatten() else {
+                self.error_at_span(
+                    input.span,
+                    format!(
+                        "exploration input `{}` needs a type annotation on rule parameter {} of `{}`",
+                        input.name,
+                        index + 1,
+                        query.over.rule_name
+                    ),
+                );
+                continue;
+            };
+            input_types.insert(input.name.clone(), ty.clone());
+            typed_inputs.push(TypedExploreInput {
+                name: input.name.clone(),
+                ty,
+                span: input.span,
+            });
+        }
+
+        if let Some(issue) = self.explore_rule_return_issues.get(&signature_key).cloned() {
+            self.error_at_span(query.over.span, issue);
+        } else {
+            match self.explore_rule_return_types_by_arity.get(&signature_key) {
+                Some(return_type) if return_type.to_string() == "Bool" => {}
+                Some(return_type) => self.error_at_span(
+                    query.over.span,
+                    format!(
+                        "exploration target `{}` must be a Boolean rule, but it returns `{}`",
+                        query.over.rule_name, return_type
+                    ),
+                ),
+                None => self.error_at_span(
+                    query.over.span,
+                    format!(
+                        "cannot infer the result type of exploration rule `{}`; declare a pure Boolean rule",
+                        query.over.rule_name
+                    ),
+                ),
+            }
+        }
+
+        self.push_scope();
+        let mut typed_bounds = Vec::with_capacity(query.bounds.len());
+        let mut bound_inputs = BTreeSet::new();
+        let mut domain_inputs = BTreeSet::new();
+        let over_input_names = query
+            .over
+            .inputs
+            .iter()
+            .map(|input| input.name.as_str())
+            .collect::<BTreeSet<_>>();
+        let reserved_names = query
+            .over
+            .inputs
+            .iter()
+            .map(|input| input.name.clone())
+            .chain(query.bounds.iter().filter_map(|bound| match bound {
+                ExploreBound::Domain { name, .. } | ExploreBound::Value { name, .. } => {
+                    Some(name.clone())
+                }
+                ExploreBound::Where { .. } => None,
+            }))
+            .chain(query.output.show.iter().map(|field| field.name.clone()))
+            .collect::<BTreeSet<_>>();
+        for name in &reserved_names {
+            self.define_var(name);
+            self.define_var_type(name, &Ty::Hole);
+        }
+        let mut available_names = BTreeSet::new();
+        let mut fixed_ints = BTreeMap::new();
+        for clause in &query.bounds {
+            match clause {
+                ExploreBound::Domain { name, domain, span } => {
+                    self.check_explore_available_references(
+                        domain,
+                        &reserved_names,
+                        &available_names,
+                    );
+                    if !over_input_names.contains(name.as_str()) {
+                        self.error_at_span(
+                            *span,
+                            format!(
+                                "exploration domain `{}` is not an input of `{}`; use `{} = expression` for a derived value",
+                                name, query.over.rule_name, name
+                            ),
+                        );
+                        continue;
+                    }
+                    bound_inputs.insert(name.clone());
+                    let Some(expected) = input_types.get(name).cloned() else {
+                        continue;
+                    };
+                    self.check_explore_expression(domain);
+                    if let Some(actual) = self.explore_domain_item_ty(domain) {
+                        if actual.to_string() != expected.to_string() {
+                            self.error_at_expr(
+                                domain,
+                                format!(
+                                    "exploration domain `{}` contains `{}` values but the rule expects `{}`",
+                                    name, actual, expected
+                                ),
+                            );
+                        }
+                    } else if !matches!(&domain.kind, ExprKind::List(items) if items.is_empty()) {
+                        self.error_at_expr(
+                            domain,
+                            format!(
+                                "cannot determine the finite item type of exploration domain `{}`",
+                                name
+                            ),
+                        );
+                    }
+                    let typed_domain = match &domain.kind {
+                        ExprKind::App(function, arguments)
+                            if matches!(&function.kind, ExprKind::Var(name) if name == "range")
+                                && arguments.len() == 2 =>
+                        {
+                            for endpoint in arguments {
+                                if self
+                                    .inferred_explore_ty(endpoint)
+                                    .as_ref()
+                                    .map(ToString::to_string)
+                                    .as_deref()
+                                    != Some("Int")
+                                {
+                                    self.error_at_expr(
+                                        endpoint,
+                                        "exploration range endpoints must have type `Int`"
+                                            .to_string(),
+                                    );
+                                }
+                            }
+                            TypedExploreDomain::Range {
+                                start: arguments[0].clone(),
+                                end_exclusive: arguments[1].clone(),
+                            }
+                        }
+                        ExprKind::App(function, arguments)
+                            if matches!(&function.kind, ExprKind::Var(name) if name == "values")
+                                && arguments.len() == 1 =>
+                        {
+                            let ty = match &arguments[0].kind {
+                                ExprKind::Var(type_name) => parse_type_annotation(type_name)
+                                    .unwrap_or_else(|_| Ty::Name(type_name.clone())),
+                                _ => Ty::Hole,
+                            };
+                            TypedExploreDomain::Values { ty }
+                        }
+                        _ => TypedExploreDomain::FiniteExpr {
+                            expression: domain.clone(),
+                            element_ty: expected.clone(),
+                        },
+                    };
+                    self.define_var(name);
+                    self.define_var_type(name, &expected);
+                    available_names.insert(name.clone());
+                    domain_inputs.insert(name.clone());
+                    typed_bounds.push(TypedExploreBound::Domain {
+                        name: name.clone(),
+                        value_ty: expected,
+                        domain: typed_domain,
+                        span: *span,
+                    });
+                }
+                ExploreBound::Value { name, value, span } => {
+                    self.check_explore_available_references(
+                        value,
+                        &reserved_names,
+                        &available_names,
+                    );
+                    self.check_explore_expression(value);
+                    let inferred = self.inferred_explore_ty(value);
+                    let expected = input_types.get(name).cloned();
+                    if over_input_names.contains(name.as_str()) {
+                        bound_inputs.insert(name.clone());
+                    }
+                    let value_ty = match (expected, inferred) {
+                        (Some(expected), Some(actual)) => {
+                            if expected.to_string() != actual.to_string() {
+                                self.error_at_expr(
+                                    value,
+                                    format!(
+                                        "exploration value `{}` has type `{}` but the rule expects `{}`",
+                                        name, actual, expected
+                                    ),
+                                );
+                            }
+                            expected
+                        }
+                        (Some(expected), None) => {
+                            self.error_at_expr(
+                                value,
+                                format!("cannot infer the type of exploration value `{}`", name),
+                            );
+                            expected
+                        }
+                        (None, Some(actual)) => actual,
+                        (None, None) => {
+                            self.error_at_expr(
+                                value,
+                                format!(
+                                    "cannot infer the type of derived exploration value `{}`",
+                                    name
+                                ),
+                            );
+                            Ty::Hole
+                        }
+                    };
+                    self.define_var(name);
+                    self.define_var_type(name, &value_ty);
+                    available_names.insert(name.clone());
+                    if let Some(value) = Self::eval_explore_fixed_int(value, &fixed_ints) {
+                        fixed_ints.insert(name.clone(), value);
+                    }
+                    typed_bounds.push(TypedExploreBound::Value {
+                        name: name.clone(),
+                        value_ty,
+                        value: value.clone(),
+                        span: *span,
+                    });
+                }
+                ExploreBound::Where { predicate, span } => {
+                    self.check_explore_available_references(
+                        predicate,
+                        &reserved_names,
+                        &available_names,
+                    );
+                    self.check_explore_expression(predicate);
+                    let predicate_ty = self.inferred_explore_ty(predicate);
+                    if predicate_ty.as_ref().map(ToString::to_string).as_deref() != Some("Bool") {
+                        self.error_at_span(
+                            *span,
+                            "exploration `where` constraint must have type `Bool`",
+                        );
+                    }
+                    typed_bounds.push(TypedExploreBound::Where {
+                        predicate: predicate.clone(),
+                        span: *span,
+                    });
+                }
+            }
+        }
+
+        for input in &query.over.inputs {
+            if !bound_inputs.contains(&input.name) {
+                self.error_at_span(
+                    input.span,
+                    format!(
+                        "exploration input `{}` is unbound; add `{0} in finite_domain` or `{0} = fixed_value`",
+                        input.name
+                    ),
+                );
+            }
+        }
+
+        let typed_boundary = query.boundary.as_ref().map(|boundary| {
+            let axis_ty = input_types
+                .get(&boundary.axis)
+                .cloned()
+                .unwrap_or(Ty::Hole);
+            if !domain_inputs.contains(&boundary.axis) {
+                self.error_at_span(
+                    boundary.span,
+                    format!(
+                        "exploration boundary axis `{}` must be an input with a finite domain",
+                        boundary.axis
+                    ),
+                );
+            }
+            if axis_ty.to_string() != "Int" {
+                self.error_at_span(
+                    boundary.span,
+                    format!(
+                        "exploration boundary axis `{}` must have type `Int`",
+                        boundary.axis
+                    ),
+                );
+            }
+            self.check_explore_available_references(
+                &boundary.step,
+                &reserved_names,
+                &available_names,
+            );
+            self.check_explore_expression(&boundary.step);
+            let step_ty = self.inferred_explore_ty(&boundary.step).unwrap_or(Ty::Hole);
+            if step_ty.to_string() != "Int" {
+                self.error_at_expr(
+                    &boundary.step,
+                    "exploration boundary step must have type `Int`".to_string(),
+                );
+            } else {
+                match Self::eval_explore_fixed_int(&boundary.step, &fixed_ints) {
+                    Some(step) if step > 0 => {}
+                    Some(_) => self.error_at_expr(
+                        &boundary.step,
+                        "exploration boundary step must be a positive fixed integer".to_string(),
+                    ),
+                    None => self.error_at_expr(
+                        &boundary.step,
+                        "exploration boundary step must be ground and fixed; use an integer literal or an earlier fixed integer binding"
+                            .to_string(),
+                    ),
+                }
+            }
+            TypedExploreBoundary {
+                axis: boundary.axis.clone(),
+                axis_ty,
+                step: boundary.step.clone(),
+                step_ty,
+                span: boundary.span,
+            }
+        });
+
+        let mut typed_key = Vec::with_capacity(query.output.key.len());
+        let mut typed_show = Vec::with_capacity(query.output.show.len());
+        for field in &query.output.key {
+            self.check_explore_available_references(
+                &field.value,
+                &reserved_names,
+                &available_names,
+            );
+            self.check_explore_expression(&field.value);
+            let ty = self.inferred_explore_ty(&field.value).unwrap_or_else(|| {
+                self.error_at_expr(
+                    &field.value,
+                    format!(
+                        "cannot infer the type of exploration output `{}`",
+                        field.name
+                    ),
+                );
+                Ty::Hole
+            });
+            if !self.explore_key_ty_supported(&ty) {
+                self.error_at_expr(
+                    &field.value,
+                    format!(
+                        "exploration key `{}` has unsupported type `{}`; keys require canonical first-order equality and serialization",
+                        field.name, ty
+                    ),
+                );
+            }
+            typed_key.push(TypedExploreOutputField {
+                name: field.name.clone(),
+                value: field.value.clone(),
+                ty,
+                span: field.span,
+            });
+        }
+        for field in &query.output.show {
+            self.check_explore_available_references(
+                &field.value,
+                &reserved_names,
+                &available_names,
+            );
+            self.check_explore_expression(&field.value);
+            let ty = self.inferred_explore_ty(&field.value).unwrap_or_else(|| {
+                self.error_at_expr(
+                    &field.value,
+                    format!(
+                        "cannot infer the type of exploration output `{}`",
+                        field.name
+                    ),
+                );
+                Ty::Hole
+            });
+            typed_show.push(TypedExploreOutputField {
+                name: field.name.clone(),
+                value: field.value.clone(),
+                ty: ty.clone(),
+                span: field.span,
+            });
+            self.define_var(&field.name);
+            self.define_var_type(&field.name, &ty);
+            available_names.insert(field.name.clone());
+        }
+
+        let representative_ty = match &query.output.representative {
+            ExploreRepresentative::First { .. } => None,
+            ExploreRepresentative::Maximize { objective, .. }
+            | ExploreRepresentative::Minimize { objective, .. } => {
+                self.check_explore_available_references(
+                    objective,
+                    &reserved_names,
+                    &available_names,
+                );
+                self.check_explore_expression(objective);
+                let ty = self.inferred_explore_ty(objective).unwrap_or(Ty::Hole);
+                if ty.to_string() != "Int" {
+                    self.error_at_expr(
+                        objective,
+                        "exploration representative objective must have type `Int`".to_string(),
+                    );
+                }
+                Some(ty)
+            }
+        };
+        self.pop_scope();
+
+        if selectable && self.diagnostics.len() == diagnostic_start {
+            self.exploration_queries.push(TypedExploreQuery {
+                name: query.name.clone(),
+                rule_name: query.over.rule_name.clone(),
+                rule_arity: arity,
+                polarity: query.polarity,
+                inputs: typed_inputs,
+                bounds: typed_bounds,
+                boundary: typed_boundary,
+                output: TypedExploreOutput {
+                    key: typed_key,
+                    show: typed_show,
+                    representative: query.output.representative.clone(),
+                    representative_ty,
+                    span: query.output.span,
+                },
+                span: query.span,
+            });
+        }
+        self.checking_explore_query = false;
+        self.pop_context();
+    }
+
     pub fn check_stmt(&mut self, stmt: &Stmt) {
         match stmt {
             Stmt::Defn(Defn::Fn {
@@ -21661,7 +23946,7 @@ impl TypeChecker {
             Stmt::Defn(Defn::Module { name, body, .. }) => {
                 self.push_context(format!("in module `{}`", name));
                 self.push_scope();
-                self.collect_declarations(body);
+                self.collect_nested_declarations(body);
                 self.check_stmt_sequence(body);
                 self.pop_scope();
                 self.pop_context();
@@ -21807,7 +24092,7 @@ impl TypeChecker {
             }
             Stmt::Rule(Rule::ReactiveScope { body, .. }) => {
                 self.push_scope();
-                self.collect_declarations(body);
+                self.collect_nested_declarations(body);
                 self.check_stmt_sequence(body);
                 self.pop_scope();
             }
@@ -21921,6 +24206,7 @@ impl TypeChecker {
                 }
                 self.pop_scope();
             }
+            Stmt::Explore(query) => self.check_explore_query(query, false),
             Stmt::Assert(_, args) | Stmt::Retract(_, args) => {
                 for arg in args {
                     self.check_expr(arg, None);
@@ -22345,7 +24631,7 @@ impl TypeChecker {
             }
             ExprKind::Block(stmts) => {
                 self.push_scope();
-                self.collect_declarations(stmts);
+                self.collect_nested_declarations(stmts);
                 self.check_stmt_sequence(stmts);
                 self.pop_scope();
             }
@@ -22719,6 +25005,10 @@ impl TypeChecker {
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
+        tc.establish_explore_function_return_types();
+        tc.infer_explore_rule_return_types(stmts);
+        tc.validate_explore_function_return_types();
+        tc.infer_explore_rule_return_types(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
         let mut calculation_contracts = Vec::new();
@@ -22738,10 +25028,16 @@ impl TypeChecker {
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
+        let exploration_queries = if tc.diagnostics.is_empty() {
+            tc.exploration_queries
+        } else {
+            Vec::new()
+        };
         TypeCheckArtifacts {
             diagnostics: tc.diagnostics,
             calculation_contracts,
             compile_time_metadata_bindings,
+            exploration_queries,
         }
     }
 
@@ -22858,6 +25154,833 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn parse_test_program(source: &str) -> Result<Vec<Stmt>, String> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        Parser::new(tokens, source).parse_program()
+    }
+
+    fn explore_artifacts_for_source(source: &str) -> TypeCheckArtifacts {
+        let statements = parse_test_program(source).expect("parse exploration fixture");
+        TypeChecker::check_with_artifacts(&statements, None, source)
+    }
+
+    #[test]
+    fn explore_parser_builds_contextual_query_with_spans() {
+        let source = r#"
+? explore income_cliffs {
+    over one_more_never_hurts(profile, income, step)
+    find violations
+    bounds {
+        profile in [1, 2]
+        income in range(0, 10)
+        step = 1
+        where income >= 0
+    }
+    boundaries on income by step
+    output {
+        key [income_before = income]
+        show [income_after = income + step, profile]
+        representative maximize income_after
+    }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse exploration");
+        let Stmt::Explore(query) = &statements[0] else {
+            panic!("expected exploration, got {:?}", statements[0]);
+        };
+        assert_eq!(query.name.as_deref(), Some("income_cliffs"));
+        assert_eq!(query.over.rule_name, "one_more_never_hurts");
+        assert_eq!(
+            query
+                .over
+                .inputs
+                .iter()
+                .map(|input| input.name.as_str())
+                .collect::<Vec<_>>(),
+            ["profile", "income", "step"]
+        );
+        assert_eq!(query.polarity, ExplorePolarity::Violations);
+        assert_eq!(query.bounds.len(), 4);
+        assert_eq!(
+            query.boundary.as_ref().map(|item| item.axis.as_str()),
+            Some("income")
+        );
+        assert_eq!(query.output.key.len(), 1);
+        assert_eq!(query.output.show.len(), 2);
+        assert!(matches!(
+            query.output.representative,
+            ExploreRepresentative::Maximize { .. }
+        ));
+        assert!(!query.span.is_dummy());
+        assert!(!query.over.span.is_dummy());
+        assert!(query.over.inputs.iter().all(|input| !input.span.is_dummy()));
+        assert!(query.bounds.iter().all(|bound| match bound {
+            ExploreBound::Domain { domain, span, .. } => {
+                !span.is_dummy() && !domain.span.is_dummy()
+            }
+            ExploreBound::Value { value, span, .. } => !span.is_dummy() && !value.span.is_dummy(),
+            ExploreBound::Where {
+                predicate, span, ..
+            } => !span.is_dummy() && !predicate.span.is_dummy(),
+        }));
+        let boundary = query.boundary.as_ref().expect("boundary");
+        assert!(!boundary.span.is_dummy());
+        assert!(!boundary.step.span.is_dummy());
+        assert!(!query.output.span.is_dummy());
+        assert!(query
+            .output
+            .key
+            .iter()
+            .chain(query.output.show.iter())
+            .all(|field| !field.span.is_dummy() && !field.value.span.is_dummy()));
+        let ExploreRepresentative::Maximize { objective, span } = &query.output.representative
+        else {
+            unreachable!()
+        };
+        assert!(!span.is_dummy());
+        assert!(!objective.span.is_dummy());
+    }
+
+    #[test]
+    fn explore_parser_preserves_existing_proof_forms() {
+        for source in [
+            "? explore\n",
+            "? explore: result\n",
+            "? explore -> { = x = 1 }\n",
+            "? explore else { = x = 1 }\n",
+            "? explore by { | x -> refl }\n",
+        ] {
+            let statements = parse_test_program(source).expect(source);
+            assert!(
+                matches!(statements.first(), Some(Stmt::Prove { name, .. }) if name == "explore"),
+                "proof form changed category: {source:?} => {:?}",
+                statements.first()
+            );
+        }
+
+        let words = "explore over find bounds boundaries output key show representative";
+        let mut lexer = Lexer::new(words);
+        let tokens = lexer.tokenize();
+        let identifiers = tokens
+            .iter()
+            .filter(|token| token.kind != TokenKind::Eof)
+            .map(|token| (token.source_text.as_str(), token.kind))
+            .collect::<Vec<_>>();
+        assert!(
+            identifiers
+                .iter()
+                .all(|(_, kind)| *kind == TokenKind::Ident),
+            "exploration clause words must remain contextual identifiers: {identifiers:?}"
+        );
+    }
+
+    #[test]
+    fn explore_parser_accepts_anonymous_query_and_rejects_structural_errors() {
+        let anonymous = r#"
+? explore {
+    over condition(x)
+    find matches
+    bounds { x in [1] }
+    output { key [x] representative first }
+}
+"#;
+        let statements = parse_test_program(anonymous).expect("parse anonymous exploration");
+        assert!(matches!(statements.first(), Some(Stmt::Explore(query)) if query.name.is_none()));
+
+        for (source, expected) in [
+            (
+                "? explore bad { over p(x, x) find matches bounds { x in [1] } output { key [x] representative first } }",
+                "duplicate exploration input `x`",
+            ),
+            (
+                "? explore bad { over p(x, y) find matches bounds { x in [1] y = 1 } output { key [x] representative first } }",
+                "must be separated by a newline or `;`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1]\nx = 1 } output { key [x] representative first } }",
+                "duplicate exploration bound `x`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [] representative first } }",
+                "at least one field",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] show [x] representative first } }",
+                "output field `x` appears in both `key` and `show`",
+            ),
+        ] {
+            let error = parse_test_program(source).expect_err(source);
+            assert!(
+                error.contains(expected),
+                "missing {expected:?} in {error:?} for {source:?}"
+            );
+        }
+
+        for source in [
+            "? explore lines { over p(x, y) find matches bounds { x in [1]\ny = 1 } output { key [x] representative first } }",
+            "? explore semis { over p(x, y) find matches bounds { x in [1]; y = 1 } output { key [x] representative first } }",
+        ] {
+            parse_test_program(source).expect(source);
+        }
+    }
+
+    #[test]
+    fn explore_canonical_ast_walker_reaches_every_query_expression() {
+        let source = r#"
+? explore traversal {
+    over condition(axis)
+    find matches
+    bounds {
+        axis in explore_domain_marker
+        derived = explore_value_marker
+        where explore_where_marker
+    }
+    boundaries on axis by explore_step_marker
+    output {
+        key [key_value = explore_key_marker]
+        show [shown_value = explore_show_marker]
+        representative minimize explore_representative_marker
+    }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse walker exploration");
+        let mut visited = BTreeSet::new();
+        walk_ast_stmt(&statements[0], &mut |child| {
+            if let AstChild::Expr(Expr {
+                kind: ExprKind::Var(name),
+                ..
+            }) = child
+            {
+                visited.insert(name.clone());
+            }
+        });
+        for marker in [
+            "explore_domain_marker",
+            "explore_value_marker",
+            "explore_where_marker",
+            "explore_step_marker",
+            "explore_key_marker",
+            "explore_show_marker",
+            "explore_representative_marker",
+        ] {
+            assert!(
+                visited.contains(marker),
+                "walker missed {marker}: {visited:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn explore_parser_reports_clause_order_and_duplicate_clauses() {
+        let cases = [
+            (
+                "? explore bad { find matches over p(x) bounds { x in [1] } output { key [x] representative first } }",
+                "expected `over` in exploration, found `find`",
+            ),
+            (
+                "? explore bad { over p(x) over p(x) find matches bounds { x in [1] } output { key [x] representative first } }",
+                "expected `find` in exploration, found `over`",
+            ),
+            (
+                "? explore bad { over p(x) bounds { x in [1] } find matches output { key [x] representative first } }",
+                "expected `find` in exploration, found `bounds`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } boundaries on x by 1 boundaries on x by 1 output { key [x] representative first } }",
+                "expected `output` in exploration, found `boundaries`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { show [x] key [x] representative first } }",
+                "expected `key` in exploration output, found `show`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] key [x] representative first } }",
+                "expected `representative` in exploration output, found `key`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] show [shown = x] show [again = x] representative first } }",
+                "expected `representative` in exploration output, found `show`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] representative first representative first } }",
+                "unexpected `representative` after exploration representative",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] representative first } output { key [x] representative first } }",
+                "unexpected exploration clause `output` after `output`",
+            ),
+        ];
+
+        for (source, expected) in cases {
+            let error = parse_test_program(source).expect_err(source);
+            assert!(
+                error.contains(expected),
+                "missing {expected:?} in {error:?} for {source:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn explore_typechecker_builds_exact_typed_query_ir() {
+        let source = r#"
+# Profile = Worker | Student
+
+> next_income(income: Int, step: Int) -> Int { income + step }
+| one_more_never_hurts(profile: Profile, income: Int, step: Int) -> next_income(income, step) >= income
+
+? explore income_cliffs {
+    over one_more_never_hurts(profile, income, step)
+    find violations
+    bounds {
+        profile in values(Profile)
+        income in range(0, 10)
+        step = 1
+        where income >= 0
+    }
+    boundaries on income by step
+    output {
+        key [income_before = income]
+        show [income_after = next_income(income, step)]
+        representative maximize income_after
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 1);
+        let query = &artifacts.exploration_queries[0];
+        assert_eq!(query.name.as_deref(), Some("income_cliffs"));
+        assert_eq!(query.rule_name, "one_more_never_hurts");
+        assert_eq!(query.rule_arity, 3);
+        assert_eq!(query.polarity, ExplorePolarity::Violations);
+        assert_eq!(
+            query
+                .inputs
+                .iter()
+                .map(|input| (input.name.as_str(), input.ty.to_string()))
+                .collect::<Vec<_>>(),
+            [
+                ("profile", "Profile".to_string()),
+                ("income", "Int".to_string()),
+                ("step", "Int".to_string()),
+            ]
+        );
+        assert!(matches!(
+            &query.bounds[0],
+            TypedExploreBound::Domain {
+                domain: TypedExploreDomain::Values { ty }, ..
+            } if ty.to_string() == "Profile"
+        ));
+        assert!(matches!(
+            &query.bounds[1],
+            TypedExploreBound::Domain {
+                domain: TypedExploreDomain::Range { .. },
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[2],
+            TypedExploreBound::Value { value_ty, .. } if value_ty.to_string() == "Int"
+        ));
+        assert_eq!(
+            query.boundary.as_ref().map(|boundary| (
+                boundary.axis.as_str(),
+                boundary.axis_ty.to_string(),
+                boundary.step_ty.to_string(),
+            )),
+            Some(("income", "Int".to_string(), "Int".to_string()))
+        );
+        assert_eq!(query.output.key[0].ty.to_string(), "Int");
+        assert_eq!(query.output.show[0].ty.to_string(), "Int");
+        assert_eq!(
+            query
+                .output
+                .representative_ty
+                .as_ref()
+                .map(ToString::to_string),
+            Some("Int".to_string())
+        );
+    }
+
+    #[test]
+    fn explore_typechecker_accepts_workbook_helper_functions() {
+        let source = r#"
+# Household = Single | Couple
+
+> support(household: Household, income: Int) -> Int {
+    if income < 100000 {
+        match household {
+            | Single -> 10000
+            | Couple -> 15000
+        }
+    } else {
+        0
+    }
+}
+> available_resources(household: Household, income: Int) -> Int {
+    income + support(household, income)
+}
+> loss_after_next_step(household: Household, income: Int, step: Int) -> Int {
+    available_resources(household, income) - available_resources(household, income + step)
+}
+| next_step_never_hurts(household: Household, income: Int, step: Int) -> available_resources(household, income + step) >= available_resources(household, income)
+
+? explore support_cliffs {
+    over next_step_never_hurts(household, income, step)
+    find violations
+    bounds {
+        household in values(Household)
+        income in range(90000, 110000)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income_before = income]
+        show [
+            income_after = income + step,
+            household,
+            available_before = available_resources(household, income),
+            available_after = available_resources(household, income + step),
+            loss = loss_after_next_step(household, income, step)
+        ]
+        representative maximize loss
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = artifacts
+            .exploration_queries
+            .first()
+            .expect("typed workbook exploration");
+        assert_eq!(query.output.show.len(), 5);
+        assert_eq!(query.output.show[2].ty.to_string(), "Int");
+        assert_eq!(query.output.show[3].ty.to_string(), "Int");
+        assert_eq!(query.output.show[4].ty.to_string(), "Int");
+        assert_eq!(
+            query
+                .output
+                .representative_ty
+                .as_ref()
+                .map(ToString::to_string),
+            Some("Int".to_string())
+        );
+    }
+
+    #[test]
+    fn explore_typechecker_resolves_mixed_function_rule_dependencies() {
+        let source = r#"
+| positive(value: Int) -> value > 0
+> helper(value: Int) -> Bool { positive(value) }
+| condition(value: Int) -> helper(value)
+
+? explore mixed_dependencies {
+    over condition(value)
+    find matches
+    bounds { value in range(0, 3) }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 1);
+        assert_eq!(
+            artifacts.exploration_queries[0].name.as_deref(),
+            Some("mixed_dependencies")
+        );
+    }
+
+    #[test]
+    fn explore_typechecker_resolves_rule_returns_by_exact_arity_to_fixed_point() {
+        let source = r#"
+| a_wrapper(value: Int) -> z_condition(value)
+| z_condition(value: Int) -> value > 0
+| z_condition(left: Int, right: Int) -> left + right
+
+? explore exact_overload {
+    over a_wrapper(value)
+    find matches
+    bounds { value in range(0, 3) }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 1);
+        assert_eq!(artifacts.exploration_queries[0].rule_arity, 1);
+    }
+
+    #[test]
+    fn explore_typechecker_aggregates_exact_rule_results_across_flat_imports() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "futuruna_explore_import_conflict_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).expect("create exploration import directory");
+        std::fs::write(
+            temp_dir.join("dependency.runa"),
+            "| condition(value: Int) -> value\n",
+        )
+        .expect("write exploration dependency");
+        let source = r#"
+@ import ./dependency
+| condition(value: Int) -> value > 0
+? explore conflict { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#;
+        let statements = parse_test_program(source).expect("parse imported exploration");
+        let artifacts = TypeChecker::check_with_artifacts(
+            &statements,
+            Some(temp_dir.to_string_lossy().to_string()),
+            source,
+        );
+        std::fs::remove_dir_all(&temp_dir).ok();
+
+        assert!(
+            artifacts
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("conflicting result types")),
+            "missing cross-file result conflict: {:?}",
+            artifacts.diagnostics
+        );
+        assert!(artifacts.exploration_queries.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_fails_closed_for_conflicts_and_invalid_boolean_rules() {
+        let cases = [
+            (
+                r#"
+| condition(value: Int) -> value > 0
+| condition(value: String) -> value == "yes"
+? explore conflict { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "conflicting types",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+| condition(value: Int) -> value
+? explore conflict { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "conflicting result types",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value && 1
+? explore malformed { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "requires `Bool` operands",
+            ),
+            (
+                r#"
+> effectful(value: Int) -> Bool with IO { value > 0 }
+| condition(value: Int) -> effectful(value)
+? explore impure { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "pure exploration-supported operations",
+            ),
+            (
+                r#"
+@ rust {
+fn opaque(value: i64) -> i64 { value }
+}
+| condition(value: Int) -> opaque(value) > 0
+? explore opaque_rust { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "pure exploration-supported operations",
+            ),
+            (
+                r#"
+| helper(value: Int) -> value
+| helper(value: Int) -> value > 0
+| condition(value: Int) -> helper(value) > 0
+? explore conflicting_dependency { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "conflicting result types",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+| helper(value: Int) -> value
+| helper(value: Int) -> value > 0
+? explore conflicting_output { over condition(value) find matches bounds { value in [1] } output { key [value] show [bad = helper(value) > 0] representative first } }
+"#,
+                "conflicting result types",
+            ),
+            (
+                r#"
+> helper(value: Int) -> Int { value > 0 }
+| condition(value: Int) -> helper(value) > 0
+? explore mismatched_helper { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#,
+                "declares result `Int` but its body has type `Bool`",
+            ),
+        ];
+        for (source, expected) in cases {
+            let artifacts = explore_artifacts_for_source(source);
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+            assert!(
+                artifacts.exploration_queries.is_empty(),
+                "invalid program leaked typed exploration artifacts"
+            );
+        }
+    }
+
+    #[test]
+    fn explore_typechecker_enforces_local_order_boundary_steps_and_key_types() {
+        let cases = [
+            (
+                r#"
+= step = 7
+| condition(step: Int) -> step > 0
+? explore self_capture { over condition(step) find matches bounds { step = step } output { key [step] representative first } }
+"#,
+                "referenced before its bound",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore forward_show { over condition(value) find matches bounds { value in [1] } output { key [value] show [first = second + 1, second = value] representative first } }
+"#,
+                "referenced before its bound or shown value",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore zero_step { over condition(value) find matches bounds { value in range(0, 2) } boundaries on value by 0 output { key [value] representative first } }
+"#,
+                "positive fixed integer",
+            ),
+            (
+                r#"
+| condition(value: Int, step: Int) -> value + step > value
+? explore moving_step {
+    over condition(value, step)
+    find matches
+    bounds {
+        value in range(0, 2)
+        step in [1]
+    }
+    boundaries on value by step
+    output { key [value] representative first }
+}
+"#,
+                "ground and fixed",
+            ),
+            (
+                r#"
+# BadKey(stream: Stream(Int))
+| condition(key: BadKey) -> True
+? explore bad_key { over condition(key) find matches bounds { key in [] } output { key [key] representative first } }
+"#,
+                "unsupported type `BadKey`",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore bad_where { over condition(value) find matches bounds { value in [1]; where value && 1 } output { key [value] representative first } }
+"#,
+                "requires `Bool` operands",
+            ),
+        ];
+        for (source, expected) in cases {
+            let artifacts = explore_artifacts_for_source(source);
+            assert!(
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
+                artifacts.diagnostics
+            );
+            assert!(artifacts.exploration_queries.is_empty());
+        }
+    }
+
+    #[test]
+    fn explore_typechecker_exports_only_valid_root_queries() {
+        let source = r#"
+| condition(value: Int) -> value > 0
+
+> module Hidden {
+    ? explore nested {
+        over condition(value)
+        find matches
+        bounds { value in [1] }
+        output { key [value] representative first }
+    }
+}
+
+? explore root {
+    over condition(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 1);
+        assert_eq!(
+            artifacts.exploration_queries[0].name.as_deref(),
+            Some("root")
+        );
+
+        let invalid = r#"
+| condition(value: Int) -> value > 0
+? explore { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+? explore named { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#;
+        let artifacts = explore_artifacts_for_source(invalid);
+        assert!(artifacts
+            .diagnostics
+            .iter()
+            .any(|diagnostic| diagnostic.message.contains("must name every query")));
+        assert!(artifacts.exploration_queries.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_respects_inline_module_scope() {
+        let private_only = r#"
+> module Hidden {
+    | condition(value: Int) -> value > 0
+}
+? explore leak { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#;
+        let artifacts = explore_artifacts_for_source(private_only);
+        assert!(artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("does not resolve to a rule with that arity")));
+        assert!(artifacts.exploration_queries.is_empty());
+
+        let root_and_private = r#"
+> module Hidden {
+    | condition(value: Int) -> value
+}
+| condition(value: Int) -> value > 0
+? explore root { over condition(value) find matches bounds { value in [1] } output { key [value] representative first } }
+"#;
+        let artifacts = explore_artifacts_for_source(root_and_private);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "private module rule polluted root resolution: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_queries.len(), 1);
+        assert_eq!(
+            artifacts.exploration_queries[0].name.as_deref(),
+            Some("root")
+        );
+    }
+
+    #[test]
+    fn explore_free_symbols_follow_query_local_scope_and_show_order() {
+        let source = r#"
+? explore slicing {
+    over condition(profile, income, step)
+    find violations
+    bounds {
+        profile in profiles
+        income in range(0, upper_income)
+        step = default_step
+        case = build_case(profile)
+        where valid(case)
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [loss = compute_loss(case, income), after = loss + step]
+        representative maximize after
+    }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse free-symbol exploration");
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses_stmt(
+            &statements[0],
+            &mut uses,
+            &BTreeSet::new(),
+            &BTreeMap::new(),
+        );
+        for local in ["profile", "income", "step", "case", "loss", "after"] {
+            assert!(
+                !uses.values.contains(local),
+                "local leaked as free: {local}"
+            );
+        }
+        for external in ["profiles", "upper_income", "default_step"] {
+            assert!(
+                uses.values.contains(external),
+                "missing free value: {external}"
+            );
+        }
+        for call in ["condition", "range", "build_case", "valid", "compute_loss"] {
+            assert!(uses.calls.contains(call), "missing free call: {call}");
+        }
+    }
+
+    #[test]
+    fn explore_interpreter_treats_queries_as_declarations() {
+        let source = r#"
+= before = 1
+? explore dormant {
+    over condition(value)
+    find matches
+    bounds { value in range(1 / 0, 2) }
+    output { key [value] representative first }
+}
+= after = 2
+"#;
+        let statements = parse_test_program(source).expect("parse dormant exploration");
+        let mut interpreter = Interpreter::new();
+        let mut environment = interpreter.default_env();
+        let result = interpreter.run_program(&statements, &mut environment);
+        assert!(matches!(result, Value::Int(2)));
+        assert_eq!(
+            environment.get("before").map(ToString::to_string),
+            Some("1".into())
+        );
+        assert_eq!(
+            environment.get("after").map(ToString::to_string),
+            Some("2".into())
+        );
+        assert!(environment.get("dormant").is_none());
+        assert!(interpreter.output.is_empty());
+    }
 
     #[test]
     fn parsed_source_module_cache_reuses_exact_content_and_invalidates_rewrites() {
@@ -25094,6 +28217,7 @@ mod tests {
             Stmt::StreamSub(_, _) => "StreamSub",
             Stmt::Invariant { .. } => "Invariant",
             Stmt::Prove { .. } => "Prove",
+            Stmt::Explore(_) => "Explore",
             Stmt::Assert(_, _) => "Assert",
             Stmt::Retract(_, _) => "Retract",
             Stmt::Abort => "Abort",
@@ -25136,6 +28260,7 @@ mod tests {
             | Stmt::StreamSub(_, _)
             | Stmt::Invariant { .. }
             | Stmt::Prove { .. }
+            | Stmt::Explore(_)
             | Stmt::Assert(_, _)
             | Stmt::Retract(_, _)
             | Stmt::Expr(_) => TypecheckerPassCoverage::VisitsExpressions,
@@ -25467,6 +28592,56 @@ mod tests {
                 diagnostic_markers: vec!["missing_prove_pass", "missing_prove_else"],
             },
             TypecheckerPassCoverageCase {
+                label: "Explore",
+                stmt: Stmt::Explore(ExploreQuery {
+                    name: Some("coverage_query".to_string()),
+                    over: ExploreOver {
+                        rule_name: "coverage_rule".to_string(),
+                        inputs: vec![],
+                        span: Span::dummy(),
+                    },
+                    polarity: ExplorePolarity::Matches,
+                    bounds: vec![
+                        ExploreBound::Value {
+                            name: "derived".to_string(),
+                            value: typechecker_missing_expr("missing_explore_value"),
+                            span: Span::dummy(),
+                        },
+                        ExploreBound::Where {
+                            predicate: typechecker_missing_expr("missing_explore_where"),
+                            span: Span::dummy(),
+                        },
+                    ],
+                    boundary: None,
+                    output: ExploreOutput {
+                        key: vec![ExploreOutputField {
+                            name: "key".to_string(),
+                            value: typechecker_missing_expr("missing_explore_key"),
+                            span: Span::dummy(),
+                        }],
+                        show: vec![ExploreOutputField {
+                            name: "shown".to_string(),
+                            value: typechecker_missing_expr("missing_explore_show"),
+                            span: Span::dummy(),
+                        }],
+                        representative: ExploreRepresentative::Maximize {
+                            objective: typechecker_missing_expr("missing_explore_representative"),
+                            span: Span::dummy(),
+                        },
+                        span: Span::dummy(),
+                    },
+                    span: Span::dummy(),
+                }),
+                coverage: visits,
+                diagnostic_markers: vec![
+                    "missing_explore_value",
+                    "missing_explore_where",
+                    "missing_explore_key",
+                    "missing_explore_show",
+                    "missing_explore_representative",
+                ],
+            },
+            TypecheckerPassCoverageCase {
                 label: "Assert",
                 stmt: Stmt::Assert(
                     "Fact".to_string(),
@@ -25522,6 +28697,7 @@ mod tests {
             "StreamSub",
             "Invariant",
             "Prove",
+            "Explore",
             "Assert",
             "Retract",
             "Abort",

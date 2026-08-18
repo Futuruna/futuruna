@@ -830,6 +830,7 @@ fn collect_statement_interfaces(
             | Stmt::Send(_, _)
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
+            | Stmt::Explore(_)
             | Stmt::Assert(_, _)
             | Stmt::Retract(_, _)
             | Stmt::Abort

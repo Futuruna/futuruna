@@ -13762,7 +13762,8 @@ fn collect_library_scope_issues(
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::Annot(_, _) => {}
+            | Stmt::Annot(_, _)
+            | Stmt::Explore(_) => {}
         }
     }
 }
@@ -13924,6 +13925,7 @@ fn stmt_is_impure_in_expr(
         Stmt::Defn(_)
         | Stmt::TypeDecl(_)
         | Stmt::Rule(_)
+        | Stmt::Explore(_)
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
@@ -17626,6 +17628,9 @@ enum FirStmt {
         pass_block: Option<Vec<FirStmt>>,
         else_block: Option<Vec<FirStmt>>,
     },
+    /// Analysis-only declaration. Solver lowering consumes typed exploration
+    /// artifacts; ordinary FIR/Rust execution emits no runtime statement.
+    Explore,
     Assert(String, Vec<FirExpr>),
     Retract(String, Vec<FirExpr>),
     Abort,
@@ -17831,6 +17836,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
+        | FirStmt::Explore
         | FirStmt::Abort => {}
     }
 }
@@ -17981,6 +17987,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
+        | FirStmt::Explore
         | FirStmt::Abort => {}
     }
 }
@@ -19467,6 +19474,7 @@ impl<'a> LoweringCtx<'a> {
                     .as_ref()
                     .map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
             },
+            Stmt::Explore(_) => FirStmt::Explore,
             Stmt::Assert(name, args) => FirStmt::Assert(
                 name.clone(),
                 args.iter().map(|a| self.lower_expr(a)).collect(),
@@ -19687,6 +19695,7 @@ fn emit_fir_stmt(stmt: &FirStmt, types: &TypeRegistry) -> String {
                 body_strs.join(" ")
             )
         }
+        FirStmt::Explore => "/* exploration declaration */".to_string(),
         _ => "/* unhandled FIR stmt */".to_string(),
     }
 }
@@ -19825,6 +19834,9 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     walk_ast_stmt(stmt, &mut |child| {
         if let AstChild::Expr(expr) = child {
             if let ExprKind::Var(name) = &expr.kind {
@@ -19930,6 +19942,9 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     if let Stmt::Bind(_, _, expr) = stmt {
         // Binding a variable to another variable is a consuming use (move).
         if let ExprKind::Var(name) = &expr.kind {
@@ -20355,6 +20370,9 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
     self_param_names: &[&str],
     ignore_self_passthrough: bool,
 ) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     if let Stmt::Bind(_, _, expr) = stmt {
         if let ExprKind::Var(name) = &expr.kind {
             *counts.entry(name.clone()).or_insert(0) += 1;
@@ -21288,7 +21306,8 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
         | Stmt::StreamBind(_, _)
         | Stmt::StreamSub(_, _)
         | Stmt::Invariant { .. }
-        | Stmt::Prove { .. } => false,
+        | Stmt::Prove { .. }
+        | Stmt::Explore(_) => false,
     }
 }
 
@@ -21426,6 +21445,7 @@ fn stmt_contains_persisted_mutation(stmt: &Stmt, persisted_types: &BTreeSet<Stri
         | Stmt::RustBlock(_)
         | Stmt::Annot(_, _)
         | Stmt::Rule(_)
+        | Stmt::Explore(_)
         | Stmt::Abort => false,
     }
 }
@@ -23199,6 +23219,7 @@ impl RustCodegen {
                     | Stmt::StreamSub(_, _)
                     | Stmt::Invariant { .. }
                     | Stmt::Prove { .. }
+                    | Stmt::Explore(_)
                     | Stmt::Assert(_, _)
                     | Stmt::Retract(_, _)
                     | Stmt::Abort
@@ -23232,6 +23253,7 @@ impl RustCodegen {
             | Stmt::Send(_, _)
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
+            | Stmt::Explore(_)
             | Stmt::Assert(_, _)
             | Stmt::Retract(_, _)
             | Stmt::Abort
@@ -23416,6 +23438,7 @@ impl RustCodegen {
                 | Stmt::StreamSub(_, _)
                 | Stmt::Invariant { .. }
                 | Stmt::Prove { .. }
+                | Stmt::Explore(_)
                 | Stmt::Assert(_, _)
                 | Stmt::Retract(_, _)
                 | Stmt::Abort
@@ -23546,6 +23569,7 @@ impl RustCodegen {
                         | Stmt::StreamSub(_, _)
                         | Stmt::Invariant { .. }
                         | Stmt::Prove { .. }
+                        | Stmt::Explore(_)
                         | Stmt::Assert(_, _)
                         | Stmt::Retract(_, _)
                         | Stmt::Abort
@@ -25427,6 +25451,7 @@ impl RustCodegen {
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                | Stmt::Explore(_)
                 | Stmt::Abort => {}
             }
         }
@@ -25865,6 +25890,7 @@ impl RustCodegen {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
             | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+            | Stmt::Explore(_)
             | Stmt::Abort => {}
         }
     }
@@ -35949,6 +35975,7 @@ impl RustCodegen {
                 // For now, emit a comment. Transactional abort (break 'scope) comes in M26e.
                 format!("{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n", self.ind(), self.ind())
             }
+            Stmt::Explore(_) => format!("{}// exploration declaration\n", self.ind()),
         }
     }
 
@@ -42495,6 +42522,7 @@ impl RustCodegen {
                 | Stmt::QualifiedImport(_, _)
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
+                | Stmt::Explore(_)
                 | Stmt::Abort
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
@@ -43591,6 +43619,22 @@ mod tests {
         assert_eq!(formatted, expected);
         assert_eq!(format_runa_source(expected), expected);
         assert!(formatted.lines().all(|line| line.trim_end() == line));
+    }
+
+    #[test]
+    fn formatter_formats_bounded_exploration_idempotently() {
+        let source = "? explore income_cliffs {\nover condition(value)\nfind violations\nbounds {\nvalue in [1,2]\nwhere value>0\n}\nboundaries on value by 1\noutput {\nkey [value]\nshow [after=value+1]\nrepresentative minimize after\n}\n}\n";
+        let expected = "? explore income_cliffs {\n    over condition(value)\n    find violations\n    bounds {\n        value in [1,2]\n        where value > 0\n    }\n    boundaries on value by 1\n    output {\n        key [value]\n        show [after=value + 1]\n        representative minimize after\n    }\n}\n";
+
+        let formatted = format_runa_source(source);
+        assert_eq!(formatted, expected);
+        assert_eq!(format_runa_source(&formatted), expected);
+
+        let mut lexer = Lexer::new(&formatted);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &formatted);
+        let statements = parser.parse_program().expect("parse formatted exploration");
+        assert!(matches!(statements.first(), Some(Stmt::Explore(_))));
     }
 
     #[test]
@@ -44695,8 +44739,22 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         assert!(surfaces.contains("core-language-syntax"));
         assert!(surfaces.contains("first-run-project-initialization"));
         assert!(surfaces.contains("solver-assisted-verification"));
+        assert!(surfaces.contains("solver-backed-exploration"));
+
+        let exploration = metadata["surfaces"]
+            .as_array()
+            .expect("surfaces array")
+            .iter()
+            .find(|surface| surface["id"] == "solver-backed-exploration")
+            .expect("solver-backed exploration surface");
+        assert_eq!(exploration["kind"], "verification");
+        assert_eq!(exploration["stage"], "experimental");
 
         let commands = metadata["commands"].as_array().expect("commands array");
+        assert!(
+            !commands.iter().any(|command| command["name"] == "explore"),
+            "the dedicated explore command must not be advertised before it exists"
+        );
         assert!(commands.iter().any(|command| {
             command["name"] == "feature-stages" && command["stage"] == "stable"
         }));
@@ -46172,6 +46230,57 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         Stmt::Expr(coverage_expr(name))
     }
 
+    fn coverage_explore_stmt() -> Stmt {
+        Stmt::Explore(ExploreQuery {
+            name: Some("coverage_query".to_string()),
+            over: ExploreOver {
+                rule_name: "coverage_rule".to_string(),
+                inputs: vec![],
+                span: Span::dummy(),
+            },
+            polarity: ExplorePolarity::Matches,
+            bounds: vec![
+                ExploreBound::Domain {
+                    name: "axis".to_string(),
+                    domain: coverage_expr("explore_domain"),
+                    span: Span::dummy(),
+                },
+                ExploreBound::Value {
+                    name: "derived".to_string(),
+                    value: coverage_expr("explore_value"),
+                    span: Span::dummy(),
+                },
+                ExploreBound::Where {
+                    predicate: coverage_expr("explore_where"),
+                    span: Span::dummy(),
+                },
+            ],
+            boundary: Some(ExploreBoundary {
+                axis: "axis".to_string(),
+                step: coverage_expr("explore_step"),
+                span: Span::dummy(),
+            }),
+            output: ExploreOutput {
+                key: vec![ExploreOutputField {
+                    name: "key".to_string(),
+                    value: coverage_expr("explore_key"),
+                    span: Span::dummy(),
+                }],
+                show: vec![ExploreOutputField {
+                    name: "shown".to_string(),
+                    value: coverage_expr("explore_show"),
+                    span: Span::dummy(),
+                }],
+                representative: ExploreRepresentative::Maximize {
+                    objective: coverage_expr("explore_representative"),
+                    span: Span::dummy(),
+                },
+                span: Span::dummy(),
+            },
+            span: Span::dummy(),
+        })
+    }
+
     fn stmt_variant_label(stmt: &Stmt) -> &'static str {
         match stmt {
             Stmt::Defn(_) => "Defn",
@@ -46193,6 +46302,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             Stmt::StreamSub(_, _) => "StreamSub",
             Stmt::Invariant { .. } => "Invariant",
             Stmt::Prove { .. } => "Prove",
+            Stmt::Explore(_) => "Explore",
             Stmt::Assert(_, _) => "Assert",
             Stmt::Retract(_, _) => "Retract",
             Stmt::Abort => "Abort",
@@ -46505,6 +46615,12 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: ignored,
             },
             AstPassCoverageCase {
+                label: "Explore",
+                stmt: coverage_explore_stmt(),
+                ownership_markers: vec![],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
                 label: "Assert",
                 stmt: Stmt::Assert("Fact".to_string(), vec![coverage_expr("assert_arg")]),
                 ownership_markers: vec!["assert_arg"],
@@ -46551,6 +46667,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             FirStmt::StreamSub(_, _) => "StreamSub",
             FirStmt::Invariant { .. } => "Invariant",
             FirStmt::Prove { .. } => "Prove",
+            FirStmt::Explore => "Explore",
             FirStmt::Assert(_, _) => "Assert",
             FirStmt::Retract(_, _) => "Retract",
             FirStmt::Abort => "Abort",
@@ -46738,6 +46855,11 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 coverage: visits,
             },
             FirPassCoverageCase {
+                label: "FirStmt::Explore",
+                stmt: FirStmt::Explore,
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
                 label: "FirStmt::Assert",
                 stmt: FirStmt::Assert("Fact".to_string(), vec![fir_invalid_expr("assert_arg")]),
                 coverage: visits,
@@ -46873,6 +46995,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "StreamSub",
             "Invariant",
             "Prove",
+            "Explore",
             "Assert",
             "Retract",
             "Abort",
@@ -46950,6 +47073,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "StreamSub",
             "Invariant",
             "Prove",
+            "Explore",
             "Assert",
             "Retract",
             "Abort",
@@ -47821,6 +47945,11 @@ match stmt {
                 import_expr_snapshot(subject)
             )),
             Stmt::Prove { name, .. } => out.push_str(&format!("{}prove {}\n", pad, name)),
+            Stmt::Explore(query) => out.push_str(&format!(
+                "{}explore {}\n",
+                pad,
+                query.name.as_deref().unwrap_or("anonymous")
+            )),
             Stmt::Assert(name, args) => {
                 out.push_str(&format!("{}assert {} /{}\n", pad, name, args.len()))
             }
@@ -48439,6 +48568,7 @@ module Local
                 )]),
                 else_block: None,
             },
+            coverage_explore_stmt(),
             Stmt::Assert("Fact".to_string(), vec![expr()]),
             Stmt::Retract("Fact".to_string(), vec![expr()]),
             Stmt::Abort,
@@ -55433,6 +55563,7 @@ routes <- "b"
                 .flatten()
                 .chain(else_block.iter().flatten())
                 .any(|stmt| stmt_references_var(stmt, name)),
+            Stmt::Explore(_) => false,
             Stmt::Defn(Defn::Fn { params, body, .. }) => {
                 !params.iter().any(|param| param.name == name) && expr_references_var(body, name)
             }
