@@ -2529,9 +2529,12 @@ impl MetaGroundEvaluator {
                 impure_names.extend(ops.iter().map(|(name, _, _)| name.clone()));
             }
         }
-
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
+        interpreter.install_rule_dispatch_metadata_for_program(
+            &self.source_stmts,
+            self.source_dir.clone(),
+        );
         let mut env = interpreter.default_env();
         interpreter.register_static_declarations(&declarations, &mut env);
 
@@ -3917,6 +3920,32 @@ Raw additions
         assert!(warning[0].definition_line.is_some());
         assert_eq!(index.anchors_for_label("geometry").len(), 1);
         assert_eq!(index.spans_for_reference(warning[0]).len(), 1);
+    }
+
+    #[test]
+    fn meta_ground_evaluation_uses_canonical_boolean_rule_misses() {
+        let source = r#"
+# BoolMeta(conditional: Bool, exception_only: Bool)
+# impl Meta for BoolMeta {}
+
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+= boolean_meta = BoolMeta(
+    conditional = conditional(0),
+    exception_only = exception_only(0)
+)
+
+--@label:boolean-misses::meta:boolean_meta--
+"#;
+
+        let index = scan_meta_comments(source);
+
+        assert!(index.diagnostics.is_empty(), "{:?}", index.diagnostics);
+        assert_eq!(
+            index.anchors[0].references[0].static_value.as_deref(),
+            Some("BoolMeta(conditional = False, exception_only = False)")
+        );
     }
 
     #[test]
@@ -6311,7 +6340,14 @@ fn collect_rule_head_typed_receivers(
                 if let (ExprKind::Var(name), ExprKind::Var(receiver_type)) =
                     (&inner.kind, &type_expression.kind)
                 {
-                    typed_receivers.insert(name.clone(), receiver_type.clone());
+                    if name != "_"
+                        && !name
+                            .chars()
+                            .next()
+                            .is_some_and(|character| character.is_uppercase())
+                    {
+                        typed_receivers.insert(name.clone(), receiver_type.clone());
+                    }
                 }
                 collect_rule_head_typed_receivers(inner, typed_receivers);
             }
@@ -6333,6 +6369,43 @@ fn rule_head_typed_receivers(head: &Expr) -> BTreeMap<String, String> {
         }
     }
     typed_receivers
+}
+
+fn collect_rule_head_binding_counts(expression: &Expr, counts: &mut BTreeMap<String, usize>) {
+    match &expression.kind {
+        ExprKind::App(function, args) if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") => {
+            if let Some(inner) = args.first() {
+                collect_rule_head_binding_counts(inner, counts);
+            }
+        }
+        ExprKind::Var(name)
+            if name != "_"
+                && !name
+                    .chars()
+                    .next()
+                    .is_some_and(|character| character.is_uppercase()) =>
+        {
+            *counts.entry(name.clone()).or_default() += 1;
+        }
+        ExprKind::App(_, args) | ExprKind::Tuple(args) => {
+            for argument in args {
+                collect_rule_head_binding_counts(argument, counts);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rule_head_boolean_miss_safe_locals(head: &Expr) -> BTreeMap<String, String> {
+    let mut locals = rule_head_typed_receivers(head);
+    let mut counts = BTreeMap::new();
+    if let ExprKind::App(_, arguments) = &head.kind {
+        for argument in arguments {
+            collect_rule_head_binding_counts(argument, &mut counts);
+        }
+    }
+    locals.retain(|name, _| counts.get(name) == Some(&1));
+    locals
 }
 
 pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBindingDependencyPlan {
@@ -11893,8 +11966,19 @@ pub struct Interpreter {
     rules: Vec<(String, Rc<Rule>)>,
     /// Source-order indexes into `rules`, avoiding corpus-wide scans per call.
     rules_by_name: HashMap<String, Vec<usize>>,
-    /// The result used when a known rule family has no applicable clause.
+    /// Legacy result used when exact checked return metadata is unavailable or
+    /// the rule is not Boolean. Kept exact by arity for compatibility.
     rule_miss_fallbacks: HashMap<String, HashMap<usize, RuleMissFallback>>,
+    /// Exact global rule families registered in this interpreter.
+    rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
+    /// Canonical exact result types supplied by the checked declaration graph.
+    rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
+    /// Exact identities whose result type was conflicting or unresolved.
+    rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Exact Boolean rule families whose runtime miss can safely use the
+    /// canonical `False` identity. Static return sorts alone are not enough:
+    /// rule bodies currently evaluate in their caller's environment.
+    rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -11960,6 +12044,10 @@ impl Interpreter {
             rules: Vec::new(),
             rules_by_name: HashMap::new(),
             rule_miss_fallbacks: HashMap::new(),
+            rule_dispatch_keys: BTreeSet::new(),
+            rule_dispatch_return_types: BTreeMap::new(),
+            rule_dispatch_return_issues: BTreeMap::new(),
+            rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
             constructors: {
                 let mut c = BTreeMap::new();
                 c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
@@ -12079,6 +12167,60 @@ impl Interpreter {
         evaluation.map_err(|_| "ground expression panicked during evaluation".to_string())
     }
 
+    pub fn install_rule_dispatch_metadata(&mut self, artifacts: &TypeCheckArtifacts) {
+        self.install_rule_dispatch_return_metadata(
+            &artifacts.rule_dispatch_return_types,
+            &artifacts.rule_dispatch_return_issues,
+            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+        );
+    }
+
+    /// Install only the exact rule-dispatch metadata needed by execution.
+    /// Hosts that already completed their own checked-program gate can use
+    /// this without repeating Explore or calculation artifact elaboration.
+    #[doc(hidden)]
+    pub fn install_rule_dispatch_metadata_for_program(
+        &mut self,
+        statements: &[Stmt],
+        source_dir: Option<String>,
+    ) {
+        let (return_types, return_issues, boolean_miss_safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(statements, source_dir);
+        self.install_rule_dispatch_return_metadata(
+            &return_types,
+            &return_issues,
+            &boolean_miss_safe_keys,
+        );
+    }
+
+    /// Replace metadata from one complete checked declaration graph. This is
+    /// replacement, rather than accumulation, so incremental hosts such as the
+    /// REPL cannot retain a stale conflict after refreshing the full graph.
+    pub(crate) fn install_rule_dispatch_return_metadata(
+        &mut self,
+        return_types: &BTreeMap<RuleDispatchKey, String>,
+        return_issues: &BTreeMap<RuleDispatchKey, String>,
+        boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
+    ) {
+        self.rule_dispatch_return_types = return_types.clone();
+        self.rule_dispatch_return_issues = return_issues.clone();
+        self.rule_dispatch_boolean_miss_safe_keys = boolean_miss_safe_keys.clone();
+    }
+
+    fn boolean_rule_miss_value(&self, key: &RuleDispatchKey) -> Option<Value> {
+        if self.rule_dispatch_boolean_miss_safe_keys.contains(key)
+            && !self.rule_dispatch_return_issues.contains_key(key)
+            && self
+                .rule_dispatch_return_types
+                .get(key)
+                .is_some_and(|return_type| return_type == "Bool")
+        {
+            Some(Value::Bool(false))
+        } else {
+            None
+        }
+    }
+
     pub fn register_rule(&mut self, name: String, rule: Rule) {
         if let Some((_, arity)) = rule.callable_name_arity() {
             let fallback = match &rule {
@@ -12107,6 +12249,11 @@ impl Interpreter {
                     }
                 })
                 .or_insert(fallback);
+            self.rule_dispatch_keys.insert(RuleDispatchKey {
+                scope: None,
+                name: name.clone(),
+                arity,
+            });
         }
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
@@ -14385,17 +14532,29 @@ impl Interpreter {
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
                         return result;
                     }
-                    // A known family with no applicable clause uses the fallback
-                    // classified once at registration instead of rescanning every rule.
-                    if let Some(fallback) = self
-                        .rule_miss_fallbacks
-                        .get(fn_name)
-                        .and_then(|by_arity| by_arity.get(&args.len()))
-                    {
-                        return match fallback {
-                            RuleMissFallback::EmptyValue => Value::Str(String::new()),
-                            RuleMissFallback::PredicateFalse => Value::Bool(false),
-                        };
+                    // A known exact global family preserves the legacy empty
+                    // value for non-Boolean partial rules. Canonically typed,
+                    // context-closed Boolean families instead have the same
+                    // False miss as generated Rust and SMT.
+                    let dispatch_key = RuleDispatchKey {
+                        scope: None,
+                        name: fn_name.clone(),
+                        arity: args.len(),
+                    };
+                    if self.rule_dispatch_keys.contains(&dispatch_key) {
+                        if let Some(value) = self.boolean_rule_miss_value(&dispatch_key) {
+                            return value;
+                        }
+                        if let Some(fallback) = self
+                            .rule_miss_fallbacks
+                            .get(fn_name)
+                            .and_then(|by_arity| by_arity.get(&args.len()))
+                        {
+                            return match fallback {
+                                RuleMissFallback::EmptyValue => Value::Str(String::new()),
+                                RuleMissFallback::PredicateFalse => Value::Bool(false),
+                            };
+                        }
                     }
                 }
                 let f = self.eval(func, env);
@@ -17377,9 +17536,18 @@ impl Interpreter {
             })
             .collect();
 
-        self.try_active_rule_scope_call(name, &arg_exprs, &arg_env)
-            .or_else(|| self.try_rule_call(name, &arg_exprs, &arg_env))
-            .unwrap_or(Value::Bool(false))
+        if let Some(value) = self.try_active_rule_scope_call(name, &arg_exprs, &arg_env) {
+            return value;
+        }
+        if let Some(value) = self.try_rule_call(name, &arg_exprs, &arg_env) {
+            return value;
+        }
+        self.boolean_rule_miss_value(&RuleDispatchKey {
+            scope: None,
+            name: name.to_string(),
+            arity: arg_exprs.len(),
+        })
+        .unwrap_or(Value::Bool(false))
     }
 
     fn expr_name_static(expr: &Expr) -> String {
@@ -17421,11 +17589,16 @@ impl Interpreter {
             bindings: bindings.clone(),
             memoized_zero_arg_rules: HashMap::new(),
         });
-        let result = self
-            .try_rule_call_from_rules(method, args, &scoped_env, matching)
-            .unwrap_or(Value::Bool(false));
+        let result = self.try_rule_call_from_rules(method, args, &scoped_env, matching);
         self.active_rule_scopes.pop();
-        result
+        result.unwrap_or_else(|| {
+            self.boolean_rule_miss_value(&RuleDispatchKey {
+                scope: Some(scope_name.to_string()),
+                name: method.to_string(),
+                arity: args.len(),
+            })
+            .unwrap_or(Value::Bool(false))
+        })
     }
 
     fn try_active_rule_scope_call(
@@ -17462,7 +17635,14 @@ impl Interpreter {
         );
         let result = self
             .try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
-            .unwrap_or(Value::Bool(false));
+            .unwrap_or_else(|| {
+                self.boolean_rule_miss_value(&RuleDispatchKey {
+                    scope: Some(frame.name.clone()),
+                    name: fn_name.to_string(),
+                    arity: args.len(),
+                })
+                .unwrap_or(Value::Bool(false))
+            });
         if args.is_empty() {
             if let Some(active) = self.active_rule_scopes.last_mut() {
                 active
@@ -19303,8 +19483,17 @@ pub struct TypeChecker {
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     /// Exact rule identities whose result type is conflicting or unresolved.
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Exact Bool families proven context-closed for the runtime miss override.
+    rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
     /// Every canonical rule identity declared in the flattened program.
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
+    /// Qualified imports, inline modules, and reactive scopes share interpreter
+    /// rule registries today. Until those runtimes are namespaced, exact flat
+    /// runtime-miss safety must be disabled wholesale.
+    rule_dispatch_has_opaque_runtime_graph: bool,
+    /// Runtime-visible declaration graph after recursively flattening plain
+    /// imports. Qualified and hash import contents deliberately remain opaque.
+    plain_import_rule_dispatch_statements: Vec<Stmt>,
     /// Exploration rule result types resolved by exact name and arity.
     explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
     /// Explicit ordinary-function results used by exploration expressions.
@@ -19374,6 +19563,7 @@ pub struct TypeCheckArtifacts {
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     pub rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    pub rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
     pub exploration_queries: Vec<TypedExploreQuery>,
     /// Closed, exact universes.  Solver/executor code must consume this layer,
     /// never the typed source-domain syntax above.
@@ -19433,7 +19623,10 @@ impl TypeChecker {
             rule_return_types: BTreeMap::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
+            rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
             rule_dispatch_keys: BTreeSet::new(),
+            rule_dispatch_has_opaque_runtime_graph: false,
+            plain_import_rule_dispatch_statements: Vec::new(),
             explore_rule_return_types_by_arity: BTreeMap::new(),
             explore_function_return_types_by_arity: BTreeMap::new(),
             explore_function_definitions_by_arity: BTreeMap::new(),
@@ -20711,6 +20904,7 @@ impl TypeChecker {
 
     fn install_constructor_prepass(&mut self, statements: &[Stmt]) {
         let prepass = self.build_constructor_prepass(statements);
+        self.plain_import_rule_dispatch_statements = prepass.all_statements.clone();
         self.top_level_constructor_names = prepass.constructors.clone();
         self.root_actor_runtime_symbols = prepass.actor_runtime_symbols.clone();
 
@@ -22126,11 +22320,199 @@ impl TypeChecker {
         }
     }
 
+    fn boolean_miss_safe_primitive(type_name: &str) -> Option<String> {
+        let canonical = Self::canonical_explore_type_name(type_name);
+        matches!(
+            canonical.as_str(),
+            "Bool" | "Int" | "Float" | "String" | "Char" | "()"
+        )
+        .then_some(canonical)
+    }
+
+    /// Infer only expression shapes whose runtime result cannot be changed by
+    /// Futuruna's current caller-environment lookup. This is intentionally much
+    /// narrower than the static return-sort inference used by Explore and SMT.
+    fn boolean_miss_safe_expr_type(
+        &self,
+        expression: &Expr,
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        safe_keys: &BTreeSet<RuleDispatchKey>,
+    ) -> Option<String> {
+        match &expression.kind {
+            ExprKind::Lit(literal) => {
+                Self::boolean_miss_safe_primitive(Self::obvious_literal_ty(literal))
+            }
+            ExprKind::Unit => Some("()".to_string()),
+            ExprKind::Var(name) => locals
+                .get(name)
+                .and_then(|type_name| Self::boolean_miss_safe_primitive(type_name)),
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(name) = &function.kind else {
+                    return None;
+                };
+                let scope = active_scope?;
+                if name == NAMED_ARG_MARKER
+                    || name == PATHOF_MARKER
+                    || name == REFOF_MARKER
+                    || (matches!(name.as_str(), "findall" | "search") && arguments.len() == 2)
+                    || self
+                        .effect_ops
+                        .values()
+                        .any(|operations| operations.contains_key(name))
+                {
+                    return None;
+                }
+                let key = RuleDispatchKey {
+                    scope: Some(scope.to_string()),
+                    name: name.clone(),
+                    arity: arguments.len(),
+                };
+                if !safe_keys.contains(&key) {
+                    return None;
+                }
+                for argument in arguments {
+                    self.boolean_miss_safe_expr_type(argument, locals, active_scope, safe_keys)?;
+                }
+                Some("Bool".to_string())
+            }
+            ExprKind::BinOp(operator, left, right) => {
+                let left_type =
+                    self.boolean_miss_safe_expr_type(left, locals, active_scope, safe_keys)?;
+                let right_type =
+                    self.boolean_miss_safe_expr_type(right, locals, active_scope, safe_keys)?;
+                let left_type = Self::canonical_explore_type_name(&left_type);
+                let right_type = Self::canonical_explore_type_name(&right_type);
+                let left_numeric = matches!(left_type.as_str(), "Int" | "Float");
+                let right_numeric = matches!(right_type.as_str(), "Int" | "Float");
+                match operator.as_str() {
+                    "&&" | "||" if left_type == "Bool" && right_type == "Bool" => {
+                        Some("Bool".to_string())
+                    }
+                    "<" | ">" | "<=" | ">=" if left_numeric && right_numeric => {
+                        Some("Bool".to_string())
+                    }
+                    "==" if left_type == right_type
+                        && matches!(left_type.as_str(), "Bool" | "Int" | "Float" | "String") =>
+                    {
+                        Some("Bool".to_string())
+                    }
+                    "!=" => Some("Bool".to_string()),
+                    "+" if left_type == "String" || right_type == "String" => {
+                        Some("String".to_string())
+                    }
+                    "+" | "-" | "*" | "/" if left_numeric && right_numeric => {
+                        if left_type == "Float" || right_type == "Float" {
+                            Some("Float".to_string())
+                        } else {
+                            Some("Int".to_string())
+                        }
+                    }
+                    "%" if left_type == "Int" && right_type == "Int" => Some("Int".to_string()),
+                    _ => None,
+                }
+            }
+            ExprKind::UnOp(operator, inner) => {
+                let inner_type =
+                    self.boolean_miss_safe_expr_type(inner, locals, active_scope, safe_keys)?;
+                let canonical = Self::canonical_explore_type_name(&inner_type);
+                match operator.as_str() {
+                    "!" if canonical == "Bool" => Some("Bool".to_string()),
+                    "-" if matches!(canonical.as_str(), "Int" | "Float") => Some(canonical),
+                    _ => None,
+                }
+            }
+            ExprKind::If(condition, then_expression, else_expression) => {
+                let condition_type =
+                    self.boolean_miss_safe_expr_type(condition, locals, active_scope, safe_keys)?;
+                if Self::canonical_explore_type_name(&condition_type) != "Bool" {
+                    return None;
+                }
+                let then_type = self.boolean_miss_safe_expr_type(
+                    then_expression,
+                    locals,
+                    active_scope,
+                    safe_keys,
+                )?;
+                let else_type = self.boolean_miss_safe_expr_type(
+                    else_expression,
+                    locals,
+                    active_scope,
+                    safe_keys,
+                )?;
+                (Self::canonical_explore_type_name(&then_type)
+                    == Self::canonical_explore_type_name(&else_type))
+                .then_some(then_type)
+            }
+            ExprKind::Block(statements) => {
+                let mut block_locals = locals.clone();
+                let mut result = None;
+                for statement in statements {
+                    match statement {
+                        Stmt::Bind(Pat::Var(name), annotation, value) => {
+                            let actual = self.boolean_miss_safe_expr_type(
+                                value,
+                                &block_locals,
+                                active_scope,
+                                safe_keys,
+                            )?;
+                            if let Some(annotation) = annotation {
+                                if matches!(annotation, Ty::Hole)
+                                    || Self::canonical_explore_ty_name(annotation)
+                                        != Self::canonical_explore_type_name(&actual)
+                                {
+                                    return None;
+                                }
+                            }
+                            block_locals.insert(name.clone(), actual.clone());
+                            result = Some(actual);
+                        }
+                        Stmt::Expr(value) => {
+                            result = Some(self.boolean_miss_safe_expr_type(
+                                value,
+                                &block_locals,
+                                active_scope,
+                                safe_keys,
+                            )?);
+                        }
+                        _ => return None,
+                    }
+                }
+                result
+            }
+            ExprKind::Conjunction(items) | ExprKind::Disjunction(items) => {
+                for item in items {
+                    let item_type =
+                        self.boolean_miss_safe_expr_type(item, locals, active_scope, safe_keys)?;
+                    if Self::canonical_explore_type_name(&item_type) != "Bool" {
+                        return None;
+                    }
+                }
+                Some("Bool".to_string())
+            }
+            ExprKind::List(_)
+            | ExprKind::Tuple(_)
+            | ExprKind::Lambda(_, _)
+            | ExprKind::Match(_, _)
+            | ExprKind::Field(_, _)
+            | ExprKind::Index(_, _)
+            | ExprKind::Effect(_, _)
+            | ExprKind::Handle { .. }
+            | ExprKind::Try(_)
+            | ExprKind::Pipe(_, _) => None,
+        }
+    }
+
     fn infer_rule_dispatch_return_types(&mut self, stmts: &[Stmt]) {
         type ReturnGroup<'a> = (BTreeMap<String, String>, Vec<&'a Rule>);
 
+        let dispatch_statements = if self.plain_import_rule_dispatch_statements.is_empty() {
+            stmts.to_vec()
+        } else {
+            self.plain_import_rule_dispatch_statements.clone()
+        };
         let mut groups: BTreeMap<RuleDispatchKey, ReturnGroup<'_>> = BTreeMap::new();
-        for stmt in stmts {
+        for stmt in &dispatch_statements {
             match stmt {
                 Stmt::Rule(rule) => {
                     let Some((name, arity)) = Self::rule_name_arity(rule) else {
@@ -22184,6 +22566,7 @@ impl TypeChecker {
 
         self.rule_dispatch_return_types.clear();
         self.rule_dispatch_return_issues.clear();
+        self.rule_dispatch_boolean_miss_safe_keys.clear();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
 
         let infer_group =
@@ -22286,6 +22669,91 @@ impl TypeChecker {
             }
             if !changed {
                 break;
+            }
+        }
+        // Static return sorts are useful to Explore/SMT even when runtime
+        // lookup is context-dependent. The Interpreter's Bool miss override
+        // receives a strictly narrower proof: every possible hit expression
+        // must be closed over runtime-checked primitive head values. A scoped
+        // direct sibling is admitted only after that exact sibling has already
+        // been proven safe, producing a monotone fixed point.
+        if !self.rule_dispatch_has_opaque_runtime_graph {
+            loop {
+                let mut newly_safe = Vec::new();
+                for (key, (_, rules)) in &groups {
+                    if self.rule_dispatch_boolean_miss_safe_keys.contains(key)
+                        || self.rule_dispatch_return_issues.contains_key(key)
+                        || self
+                            .rule_dispatch_return_types
+                            .get(key)
+                            .is_none_or(|return_type| {
+                                Self::canonical_explore_type_name(return_type) != "Bool"
+                            })
+                    {
+                        continue;
+                    }
+                    let safe = rules.iter().all(|rule| match rule {
+                        Rule::Clause {
+                            head,
+                            body: Some(body),
+                        } => {
+                            let locals = rule_head_boolean_miss_safe_locals(head);
+                            self.boolean_miss_safe_expr_type(
+                                body,
+                                &locals,
+                                key.scope.as_deref(),
+                                &self.rule_dispatch_boolean_miss_safe_keys,
+                            )
+                            .is_some_and(|return_type| {
+                                Self::canonical_explore_type_name(&return_type) == "Bool"
+                            })
+                        }
+                        Rule::Default {
+                            head,
+                            value,
+                            condition,
+                        }
+                        | Rule::Exception {
+                            head,
+                            value,
+                            condition,
+                            ..
+                        } => {
+                            let locals = rule_head_boolean_miss_safe_locals(head);
+                            let value_is_bool = self
+                                .boolean_miss_safe_expr_type(
+                                    value,
+                                    &locals,
+                                    key.scope.as_deref(),
+                                    &self.rule_dispatch_boolean_miss_safe_keys,
+                                )
+                                .is_some_and(|return_type| {
+                                    Self::canonical_explore_type_name(&return_type) == "Bool"
+                                });
+                            let condition_is_bool = condition.as_ref().is_none_or(|condition| {
+                                self.boolean_miss_safe_expr_type(
+                                    condition,
+                                    &locals,
+                                    key.scope.as_deref(),
+                                    &self.rule_dispatch_boolean_miss_safe_keys,
+                                )
+                                .is_some_and(|condition_type| {
+                                    Self::canonical_explore_type_name(&condition_type) == "Bool"
+                                })
+                            });
+                            value_is_bool && condition_is_bool
+                        }
+                        Rule::Clause { body: None, .. } => true,
+                        Rule::ReactiveScope { .. } => false,
+                    });
+                    if safe {
+                        newly_safe.push(key.clone());
+                    }
+                }
+                if newly_safe.is_empty() {
+                    break;
+                }
+                self.rule_dispatch_boolean_miss_safe_keys.extend(newly_safe);
             }
         }
     }
@@ -22579,6 +23047,10 @@ impl TypeChecker {
                 }
             }
         }
+    }
+
+    fn infer_canonical_rule_dispatch_metadata(&mut self, stmts: &[Stmt]) {
+        self.infer_rule_dispatch_return_types(stmts);
     }
 
     fn rule_scope_return_candidate(rule: &Rule) -> Option<(String, String)> {
@@ -23138,6 +23610,150 @@ impl TypeChecker {
         self.explore_inline_module_depth -= 1;
     }
 
+    fn rule_dispatch_prelude_declaration_identity(
+        statement: &Stmt,
+    ) -> Option<(String, String, String)> {
+        match statement {
+            Stmt::Defn(definition) => Some((
+                "definition".to_string(),
+                defn_name(definition).to_string(),
+                content_hash_defn(definition),
+            )),
+            Stmt::TypeDecl(declaration) => Some((
+                "type".to_string(),
+                type_decl_name(declaration).to_string(),
+                content_hash_type(declaration),
+            )),
+            _ => None,
+        }
+    }
+
+    fn leading_rule_dispatch_prelude_indices(statements: &[Stmt]) -> BTreeSet<usize> {
+        let prelude = parse_prelude()
+            .iter()
+            .filter_map(Self::rule_dispatch_prelude_declaration_identity)
+            .collect::<Vec<_>>();
+        let mut cursor = 0;
+        let mut indices = BTreeSet::new();
+        for (index, statement) in statements.iter().enumerate() {
+            let Some(identity) = Self::rule_dispatch_prelude_declaration_identity(statement) else {
+                break;
+            };
+            let Some(relative) = prelude[cursor..]
+                .iter()
+                .position(|candidate| candidate == &identity)
+            else {
+                break;
+            };
+            cursor += relative + 1;
+            indices.insert(index);
+        }
+        indices
+    }
+
+    fn nested_rule_dispatch_ast_mutates_shared_registry(child: AstChild<'_>) -> bool {
+        match child {
+            AstChild::Stmt(statement)
+                if matches!(
+                    statement,
+                    Stmt::Defn(_)
+                        | Stmt::TypeDecl(_)
+                        | Stmt::Rule(_)
+                        | Stmt::Import(_)
+                        | Stmt::QualifiedImport(_, _)
+                        | Stmt::HashImport(_, _)
+                ) =>
+            {
+                true
+            }
+            AstChild::Stmt(statement) => {
+                let mut opaque = false;
+                visit_ast_stmt_children(statement, &mut |child| {
+                    opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                });
+                opaque
+            }
+            AstChild::Expr(expression) => {
+                let mut opaque = false;
+                visit_ast_expr_children(expression, &mut |child| {
+                    opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                });
+                opaque
+            }
+        }
+    }
+
+    fn top_level_rule_dispatch_stmt_mutates_shared_registry(statement: &Stmt) -> bool {
+        match statement {
+            Stmt::Defn(Defn::Module { .. })
+            | Stmt::TypeDecl(TypeDecl::WhenType { .. })
+            | Stmt::Rule(Rule::ReactiveScope { .. })
+            | Stmt::QualifiedImport(_, _) => true,
+            Stmt::TypeDecl(TypeDecl::RuleScope { body, .. }) => {
+                body.iter().any(|member| match member {
+                    Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                        let mut opaque = false;
+                        visit_ast_rule_children(rule, &mut |child| {
+                            opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                        });
+                        opaque
+                    }
+                    Stmt::Defn(definition) if !matches!(definition, Defn::Module { .. }) => {
+                        let mut opaque = false;
+                        visit_ast_defn_children(definition, &mut |child| {
+                            opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                        });
+                        opaque
+                    }
+                    Stmt::Defn(_)
+                    | Stmt::TypeDecl(_)
+                    | Stmt::Rule(_)
+                    | Stmt::Import(_)
+                    | Stmt::QualifiedImport(_, _)
+                    | Stmt::HashImport(_, _) => true,
+                    other => {
+                        let mut opaque = false;
+                        visit_ast_stmt_children(other, &mut |child| {
+                            opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                        });
+                        opaque
+                    }
+                })
+            }
+            other => {
+                let mut opaque = false;
+                visit_ast_stmt_children(other, &mut |child| {
+                    opaque |= Self::nested_rule_dispatch_ast_mutates_shared_registry(child);
+                });
+                opaque
+            }
+        }
+    }
+    fn rule_dispatch_program_has_opaque_runtime_graph(statements: &[Stmt]) -> bool {
+        let injected_prelude = Self::leading_rule_dispatch_prelude_indices(statements);
+        let mut program_started = false;
+        for (index, statement) in statements.iter().enumerate() {
+            if injected_prelude.contains(&index) {
+                continue;
+            }
+            match statement {
+                Stmt::HashImport(_, _) => return true,
+                Stmt::Import(_) => {
+                    if program_started {
+                        return true;
+                    }
+                }
+                Stmt::QualifiedImport(_, _) => return true,
+                Stmt::Annot(_, _) | Stmt::Use(_) | Stmt::Depend(_, _) | Stmt::RustBlock(_) => {}
+                _ => program_started = true,
+            }
+            if Self::top_level_rule_dispatch_stmt_mutates_shared_registry(statement) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Resolve an import path for the type checker (manifest-aware).
     fn resolve_tc_import(import_path: &str, dir: &str) -> Option<String> {
         let rel = import_path.trim_start_matches("./");
@@ -23203,6 +23819,8 @@ impl TypeChecker {
 
     /// Pass 1: collect all declarations from the program
     pub fn collect_declarations(&mut self, stmts: &[Stmt]) {
+        self.rule_dispatch_has_opaque_runtime_graph |=
+            Self::rule_dispatch_program_has_opaque_runtime_graph(stmts);
         for stmt in stmts {
             match stmt {
                 Stmt::Defn(Defn::Fn {
@@ -26039,6 +26657,27 @@ impl TypeChecker {
         !self.user_functions.contains(name)
     }
 
+    fn rule_dispatch_metadata_for_runtime(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+    ) -> (
+        BTreeMap<RuleDispatchKey, String>,
+        BTreeMap<RuleDispatchKey, String>,
+        BTreeSet<RuleDispatchKey>,
+    ) {
+        let mut checker = TypeChecker::new();
+        checker.source_dir = source_dir;
+        checker.install_constructor_prepass(stmts);
+        checker.collect_declarations(stmts);
+        checker.infer_rule_return_types(stmts);
+        checker.infer_canonical_rule_dispatch_metadata(stmts);
+        (
+            checker.rule_dispatch_return_types,
+            checker.rule_dispatch_return_issues,
+            checker.rule_dispatch_boolean_miss_safe_keys,
+        )
+    }
+
     /// Run the type checker on a program. Returns errors.
     pub fn check(stmts: &[Stmt]) -> Vec<String> {
         Self::check_with_dir(stmts, None)
@@ -26091,7 +26730,7 @@ impl TypeChecker {
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
-        tc.infer_rule_dispatch_return_types(stmts);
+        tc.infer_canonical_rule_dispatch_metadata(stmts);
         tc.establish_explore_function_return_types();
         tc.infer_explore_rule_return_types(stmts);
         tc.validate_explore_function_return_types();
@@ -26106,6 +26745,11 @@ impl TypeChecker {
                 stmts,
                 tc.source_dir.as_deref(),
                 &tc.exploration_queries,
+                &tc.rule_dispatch_return_types,
+                &tc.rule_dispatch_return_issues,
+                &tc.rule_dispatch_boolean_miss_safe_keys,
+                &tc.explore_rule_return_types_by_arity,
+                &tc.explore_rule_return_issues,
             ) {
                 Ok(universes) => exploration_universes = universes,
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
@@ -26140,6 +26784,7 @@ impl TypeChecker {
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,
             rule_dispatch_return_issues: tc.rule_dispatch_return_issues,
+            rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
             exploration_queries,
             exploration_universes,
         }
@@ -26217,14 +26862,28 @@ fn eval_source_inner(source: &str, use_prelude: bool) -> Result<String, String> 
                 user_stmts
             };
 
-            // Type check
-            let tc_errors = TypeChecker::check(&stmts);
-            if !tc_errors.is_empty() {
-                return Err(tc_errors.join("\n"));
+            // Type check and retain the exact rule return metadata needed by
+            // the interpreter's typed Boolean miss semantics.
+            let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+            if !artifacts.diagnostics.is_empty() {
+                let errors = artifacts
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostic| {
+                        if let Some(span) = diagnostic.span {
+                            let (line, column) = span.start_line_col(source);
+                            format!("{}:{}: {}", line, column, diagnostic.message)
+                        } else {
+                            diagnostic.message.clone()
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                return Err(errors.join("\n"));
             }
 
             // Interpret
             let mut interp = Interpreter::new();
+            interp.install_rule_dispatch_metadata(&artifacts);
             let mut env = interp.default_env();
             let result = interp.run_program(&stmts, &mut env);
 
@@ -26268,6 +26927,52 @@ mod tests {
     fn explore_artifacts_for_source(source: &str) -> TypeCheckArtifacts {
         let statements = parse_test_program(source).expect("parse exploration fixture");
         TypeChecker::check_with_artifacts(&statements, None, source)
+    }
+
+    fn checked_and_lightweight_rule_dispatch_metadata(
+        source: &str,
+    ) -> (Vec<Stmt>, TypeCheckArtifacts) {
+        let statements = parse_test_program(source).expect("parse rule-dispatch fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let (return_types, return_issues, boolean_miss_safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&statements, None);
+        assert_eq!(
+            return_types, artifacts.rule_dispatch_return_types,
+            "full and lightweight exact return metadata diverged"
+        );
+        assert_eq!(
+            return_issues, artifacts.rule_dispatch_return_issues,
+            "full and lightweight exact return issues diverged"
+        );
+        assert_eq!(
+            boolean_miss_safe_keys, artifacts.rule_dispatch_boolean_miss_safe_keys,
+            "full and lightweight Bool-miss safety metadata diverged"
+        );
+        (statements, artifacts)
+    }
+
+    #[test]
+    fn rule_dispatch_full_and_lightweight_preserve_function_call_boundary() {
+        let source = r#"
+> helper(value: Int) -> Bool { value > 0 }
+| condition(value: Int) -> helper(value)
+"#;
+        let (_, artifacts) = checked_and_lightweight_rule_dispatch_metadata(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "condition".to_string(),
+            arity: 1,
+        };
+        assert!(!artifacts.rule_dispatch_return_types.contains_key(&key));
+        assert!(artifacts.rule_dispatch_return_issues.contains_key(&key));
+        assert!(!artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&key));
     }
 
     #[test]
@@ -27624,6 +28329,501 @@ fn opaque(value: i64) -> i64 { value }
     }
 
     #[test]
+    fn interpreted_typed_boolean_rule_misses_use_exact_return_metadata() {
+        let source = r#"
+| condition(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+| mixed(value: Int) -> True under value > 0
+| mixed(left: Int, right: Int) -> left + right under left > 0
+
+| pipe_target(value: Int) -> value + 1
+| pipe_target(value: Int, limit: Int) -> True under value > limit
+| simple_pipe_wrapper(value: Int) -> value |> condition under value > 0
+| applied_pipe_wrapper(value: Int) -> value |> pipe_target(0) under value > 0
+
+= condition_hit = condition(1)
+= condition_miss = condition(0)
+= exception_hit = exception_only(1)
+= exception_miss = exception_only(0)
+= mixed_boolean_hit = mixed(1)
+= mixed_boolean_miss = mixed(0)
+= mixed_integer_hit = mixed(1, 2)
+= mixed_integer_miss = mixed(0, 2)
+
+= condition_value = condition
+= value_miss = condition_value(0)
+= pipe_miss = 0 |> condition
+= mixed_integer_pipe_miss = 0 |> mixed(2)
+= simple_pipe_wrapper_hit = simple_pipe_wrapper(1)
+= simple_pipe_wrapper_miss = simple_pipe_wrapper(0)
+= applied_pipe_wrapper_hit = applied_pipe_wrapper(1)
+= applied_pipe_wrapper_miss = applied_pipe_wrapper(0)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse typed Boolean rule miss fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+                scope: None,
+                name: "condition".to_string(),
+                arity: 1,
+            }),
+            Some(&"Bool".to_string())
+        );
+        for name in ["condition", "exception_only", "mixed"] {
+            assert!(artifacts
+                .rule_dispatch_boolean_miss_safe_keys
+                .contains(&RuleDispatchKey {
+                    scope: None,
+                    name: name.to_string(),
+                    arity: 1,
+                }));
+        }
+        for name in ["simple_pipe_wrapper", "applied_pipe_wrapper"] {
+            assert!(
+                !artifacts
+                    .rule_dispatch_boolean_miss_safe_keys
+                    .contains(&RuleDispatchKey {
+                        scope: None,
+                        name: name.to_string(),
+                        arity: 1,
+                    }),
+                "caller-environment Pipe lookup is not runtime-miss safe for {name}"
+            );
+        }
+
+        let mut interpreter = Interpreter::new();
+        interpreter.install_rule_dispatch_metadata(&artifacts);
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&stmts, &mut env);
+
+        for binding in [
+            "condition_hit",
+            "exception_hit",
+            "mixed_boolean_hit",
+            "mixed_integer_hit",
+            "simple_pipe_wrapper_hit",
+            "applied_pipe_wrapper_hit",
+        ] {
+            assert_ne!(
+                env.get(binding).map(ToString::to_string),
+                Some(String::new()),
+                "{binding} must resolve a matching candidate"
+            );
+        }
+        for binding in [
+            "condition_miss",
+            "exception_miss",
+            "mixed_boolean_miss",
+            "value_miss",
+            "pipe_miss",
+            "mixed_integer_pipe_miss",
+        ] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string),
+                Some("false".to_string()),
+                "{binding} must preserve the Boolean false miss"
+            );
+        }
+        for binding in ["simple_pipe_wrapper_miss", "applied_pipe_wrapper_miss"] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string),
+                Some(String::new()),
+                "{binding} must retain the legacy miss without a context-closed safety proof"
+            );
+        }
+        assert_eq!(
+            env.get("mixed_integer_hit").map(ToString::to_string),
+            Some("3".to_string())
+        );
+        assert_eq!(
+            env.get("mixed_integer_miss").map(ToString::to_string),
+            Some(String::new()),
+            "the non-Boolean overload must retain its legacy direct-call miss"
+        );
+
+        let condition_key = RuleDispatchKey {
+            scope: None,
+            name: "condition".to_string(),
+            arity: 1,
+        };
+        let mut synthetic_issues = BTreeMap::new();
+        synthetic_issues.insert(condition_key.clone(), "synthetic conflict".to_string());
+        interpreter.install_rule_dispatch_return_metadata(
+            &artifacts.rule_dispatch_return_types,
+            &synthetic_issues,
+            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+        );
+        assert!(interpreter
+            .boolean_rule_miss_value(&condition_key)
+            .is_none());
+        interpreter.install_rule_dispatch_metadata(&artifacts);
+        assert!(
+            matches!(
+                interpreter.boolean_rule_miss_value(&condition_key),
+                Some(Value::Bool(false))
+            ),
+            "installing a complete graph must replace a stale issue"
+        );
+    }
+
+    #[test]
+    fn interpreted_rulescope_boolean_miss_uses_scoped_exact_identity() {
+        let source = r#"
+# Case(limit: Int) {
+    | allowed(value: Int) -> True under value > 0
+    | exception above_limit exception_allowed(value: Int) -> True under value > 0
+    | wrapper(value: Int) -> allowed(value)
+    | memo_allowed() -> True under False
+    | zero_wrapper() -> memo_allowed()
+    | shared(value: Int) -> True under value > 0
+    | amount(value: Int) -> value + 1 under value > limit
+}
+
+# OtherCase(limit: Int) {
+    | shared(value: Int) -> value + 1 under value > limit
+}
+
+| shared(value: Int) -> value + 10 under value > 0
+
+= case = Case(limit = 5)
+= allowed_hit = case.allowed(6)
+= allowed_miss = case.allowed(0)
+= exception_hit = case.exception_allowed(6)
+= exception_miss = case.exception_allowed(0)
+= sibling_hit = case.wrapper(6)
+= sibling_miss = case.wrapper(0)
+= zero_arg_memoized_miss = Case(limit = 0).zero_wrapper()
+= scoped_shared_miss = case.shared(0)
+= amount_hit = case.amount(6)
+= amount_miss = case.amount(5)
+= other_shared_hit = OtherCase(limit = 5).shared(6)
+= other_shared_miss = OtherCase(limit = 5).shared(5)
+= global_shared_hit = shared(1)
+= global_shared_miss = shared(0)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse scoped Boolean miss fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+                scope: Some("Case".to_string()),
+                name: "allowed".to_string(),
+                arity: 1,
+            }),
+            Some(&"Bool".to_string())
+        );
+        for (name, arity) in [
+            ("allowed", 1),
+            ("exception_allowed", 1),
+            ("memo_allowed", 0),
+            ("shared", 1),
+        ] {
+            assert!(
+                artifacts
+                    .rule_dispatch_boolean_miss_safe_keys
+                    .contains(&RuleDispatchKey {
+                        scope: Some("Case".to_string()),
+                        name: name.to_string(),
+                        arity,
+                    }),
+                "missing context-closed safety proof for Case.{name}/{arity}"
+            );
+        }
+        for (scope, name, arity, expected) in [
+            ("Case", "memo_allowed", 0, "Bool"),
+            ("Case", "shared", 1, "Bool"),
+            ("Case", "amount", 1, "Int"),
+            ("OtherCase", "shared", 1, "Int"),
+        ] {
+            assert_eq!(
+                artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+                    scope: Some(scope.to_string()),
+                    name: name.to_string(),
+                    arity,
+                }),
+                Some(&expected.to_string()),
+                "missing exact return metadata for {scope}.{name}/{arity}"
+            );
+        }
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+                scope: None,
+                name: "shared".to_string(),
+                arity: 1,
+            }),
+            Some(&"Int".to_string())
+        );
+
+        let mut interpreter = Interpreter::new();
+        interpreter.install_rule_dispatch_metadata(&artifacts);
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&stmts, &mut env);
+
+        for binding in ["allowed_hit", "exception_hit", "sibling_hit"] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string),
+                Some("true".to_string())
+            );
+        }
+        for binding in [
+            "allowed_miss",
+            "exception_miss",
+            "sibling_miss",
+            "zero_arg_memoized_miss",
+            "scoped_shared_miss",
+            "amount_miss",
+            "other_shared_miss",
+        ] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string),
+                Some("false".to_string()),
+                "{binding} must retain the RuleScope miss contract"
+            );
+        }
+        assert_eq!(
+            env.get("amount_hit").map(ToString::to_string),
+            Some("7".to_string())
+        );
+        assert_eq!(
+            env.get("other_shared_hit").map(ToString::to_string),
+            Some("7".to_string())
+        );
+        assert_eq!(
+            env.get("global_shared_hit").map(ToString::to_string),
+            Some("11".to_string())
+        );
+        assert_eq!(
+            env.get("global_shared_miss").map(ToString::to_string),
+            Some(String::new()),
+            "the global non-Boolean family must retain its legacy direct miss"
+        );
+    }
+
+    #[test]
+    fn boolean_rule_miss_safety_rejects_context_dependent_values_and_guards() {
+        let source = r#"
+= flag = False
+
+| closed(value: Int) -> value > 0 under value != 0
+| wrapper(value: Int) -> closed(value) under value != 0
+| free_guard(value: Int) -> True under flag
+| non_boolean_guard(value: Int) -> True under 7
+| wildcard(_: Bool) -> _ under True
+| duplicate(value: Bool, value) -> value under True
+
+# Case(flag: Bool) {
+    | captured(gate: Int) -> flag under gate > 0
+}
+
+= closed_miss = closed(0)
+= wrapper_miss = wrapper(0)
+= free_guard_miss = free_guard(0)
+= non_boolean_guard_miss = non_boolean_guard(0)
+= wildcard_hit = wildcard(True)
+= wildcard_miss = wildcard(0)
+= duplicate_hit = duplicate(True, 7)
+= duplicate_miss = duplicate(0, 0)
+= malformed_case = Case(7)
+= captured_hit = malformed_case.captured(1)
+"#;
+        let statements = parse_test_program(source).expect("parse Bool-miss safety fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+
+        let global = |name: &str| RuleDispatchKey {
+            scope: None,
+            name: name.to_string(),
+            arity: 1,
+        };
+        assert!(artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&global("closed")));
+        for key in [
+            global("wrapper"),
+            global("free_guard"),
+            global("non_boolean_guard"),
+            global("wildcard"),
+            RuleDispatchKey {
+                scope: None,
+                name: "duplicate".to_string(),
+                arity: 2,
+            },
+            RuleDispatchKey {
+                scope: Some("Case".to_string()),
+                name: "captured".to_string(),
+                arity: 1,
+            },
+        ] {
+            assert_eq!(
+                artifacts.rule_dispatch_return_types.get(&key),
+                Some(&"Bool".to_string()),
+                "static Bool sort must remain available for {key:?}"
+            );
+            assert!(
+                !artifacts
+                    .rule_dispatch_boolean_miss_safe_keys
+                    .contains(&key),
+                "context-dependent family must not authorize a runtime miss override: {key:?}"
+            );
+        }
+
+        let mut interpreter = Interpreter::new();
+        interpreter.install_rule_dispatch_metadata(&artifacts);
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&statements, &mut env);
+        assert_eq!(
+            env.get("closed_miss").map(ToString::to_string),
+            Some("false".to_string())
+        );
+        for binding in [
+            "wrapper_miss",
+            "free_guard_miss",
+            "non_boolean_guard_miss",
+            "wildcard_miss",
+            "duplicate_miss",
+        ] {
+            assert_eq!(
+                env.get(binding).map(ToString::to_string),
+                Some(String::new()),
+                "{binding} must retain the legacy direct-rule miss"
+            );
+        }
+        assert_eq!(
+            env.get("wildcard_hit").map(ToString::to_string),
+            Some("_".to_string()),
+            "a typed wildcard is not a runtime binding"
+        );
+        assert_eq!(
+            env.get("duplicate_hit").map(ToString::to_string),
+            Some("7".to_string()),
+            "a later duplicate head binding overwrites the typed occurrence"
+        );
+        assert_eq!(
+            env.get("captured_hit").map(ToString::to_string),
+            Some("7".to_string()),
+            "a malformed positional RuleScope capture demonstrates why capture reads are unsafe"
+        );
+    }
+
+    #[test]
+    fn boolean_rule_miss_safety_rejects_opaque_registry_graphs_and_late_imports() {
+        let opaque_sources = [
+            r#"
+> module Hidden { | collision(value: Int) -> value + 1 under value > 0 }
+| condition(value: Int) -> True under value > 0
+"#,
+            r#"
+| scope Hidden { | collision(value: Int) -> value + 1 under value > 0 }
+| condition(value: Int) -> True under value > 0
+"#,
+            r#"
+= seed = { | collision(value: Int) -> value + 1 under value > 0; 0 }
+| condition(value: Int) -> True under value > 0
+"#,
+            r#"
+= seed = 0
+@ import ./missing
+| condition(value: Int) -> True under value > 0
+"#,
+        ];
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "condition".to_string(),
+            arity: 1,
+        };
+        for source in opaque_sources {
+            let statements = parse_test_program(source).expect("parse opaque registry fixture");
+            let (return_types, _, safe_keys) =
+                TypeChecker::rule_dispatch_metadata_for_runtime(&statements, None);
+            assert_eq!(return_types.get(&key), Some(&"Bool".to_string()));
+            assert!(
+                safe_keys.is_empty(),
+                "opaque graph retained safety: {source}"
+            );
+        }
+
+        let prefix_import = parse_test_program(
+            "@ import ./missing\n| condition(value: Int) -> True under value > 0\n",
+        )
+        .expect("parse prefix import fixture");
+        let effective_program = prepend_prelude(parse_prelude(), &prefix_import);
+        let (_, _, safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&effective_program, None);
+        assert!(
+            safe_keys.contains(&key),
+            "the injected prelude must not make a user prefix import look late"
+        );
+
+        let mut prelude_shaped_user_declaration = parse_prelude()
+            .into_iter()
+            .find(|statement| matches!(statement, Stmt::Defn(_)))
+            .expect("prelude definition");
+        let Stmt::Defn(definition) = &mut prelude_shaped_user_declaration else {
+            unreachable!("selected a definition")
+        };
+        match definition {
+            Defn::Fn { name, .. } | Defn::Actor { name, .. } | Defn::Module { name, .. } => {
+                name.push_str("_user_copy")
+            }
+        }
+        let mut near_shape_program = vec![prelude_shaped_user_declaration];
+        near_shape_program.extend(
+            parse_test_program(
+                "@ import ./missing\n| condition(value: Int) -> True under value > 0\n",
+            )
+            .expect("parse prelude-shaped late-import fixture"),
+        );
+        let (_, _, safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&near_shape_program, None);
+        assert!(
+            safe_keys.is_empty(),
+            "a differently named declaration with a prelude-shaped body must make the import late"
+        );
+    }
+
+    #[test]
+    fn eval_source_installs_boolean_rule_miss_metadata() {
+        let source = r#"
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+@ print(show(conditional(0)))
+@ print(show(exception_only(0)))
+@ print(show(conditional(1)))
+@ print(show(exception_only(1)))
+"#;
+
+        assert_eq!(
+            eval_source_with_prelude(source, false).expect("evaluate checked Boolean rules"),
+            "false\nfalse\ntrue\ntrue"
+        );
+    }
+
+    #[test]
     fn interpreted_rulescope_boolean_false_remains_a_value() {
         let source = r#"
 # Decision(blocked: Bool, allowed: Bool)
@@ -27850,6 +29050,226 @@ fn opaque(value: i64) -> i64 { value }
     }
 
     #[test]
+    fn rule_dispatch_return_metadata_flattens_transitive_plain_imports() {
+        let temp_name = format!(
+            "futuruna_rule_dispatch_plain_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create dispatch import directory");
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "| imported_condition(value: Int) -> True under value > 10\n",
+        )
+        .expect("write leaf rule module");
+        std::fs::write(
+            temp_dir.join("middle.runa"),
+            "@ import ./leaf\n| exception positive imported_condition(value: Int) -> True under value > 0\n",
+        )
+        .expect("write middle rule module");
+        let source = r#"
+@ import ./middle
+
+= imported_hit = imported_condition(5)
+= imported_miss = imported_condition(0)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse plain import fixture");
+        let source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let (return_types, return_issues, safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
+        assert_eq!(return_types, artifacts.rule_dispatch_return_types);
+        assert_eq!(return_issues, artifacts.rule_dispatch_return_issues);
+        assert_eq!(safe_keys, artifacts.rule_dispatch_boolean_miss_safe_keys);
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "imported_condition".to_string(),
+            arity: 1,
+        };
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&key),
+            Some(&"Bool".to_string())
+        );
+        assert!(artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&key));
+
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = source_dir;
+        interpreter.install_rule_dispatch_metadata(&artifacts);
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&stmts, &mut env);
+        assert_eq!(
+            env.get("imported_hit").map(ToString::to_string),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            env.get("imported_miss").map(ToString::to_string),
+            Some("false".to_string())
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn rule_dispatch_return_metadata_excludes_qualified_and_hash_import_rules() {
+        let temp_name = format!(
+            "futuruna_rule_dispatch_opaque_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create opaque import directory");
+        let dependency_source = "# ImportedToken(value: Int)\n| qualified_only(value: Int) -> True under value > 0\n| collision(value: Int) -> value + 1 under value > 0\n";
+        std::fs::write(temp_dir.join("dependency.runa"), dependency_source)
+            .expect("write opaque dependency");
+        std::fs::write(
+            temp_dir.join("middle.runa"),
+            "@ import Qualified from ./dependency\n",
+        )
+        .expect("write transitive qualified import");
+        let mut dependency_lexer = Lexer::new(dependency_source);
+        let dependency_tokens = dependency_lexer.tokenize();
+        let mut dependency_parser = Parser::new(dependency_tokens, dependency_source);
+        let dependency_statements = dependency_parser
+            .parse_program()
+            .expect("parse opaque dependency");
+        let type_hash = dependency_statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(declaration) => Some(content_hash_type(declaration)),
+                _ => None,
+            })
+            .expect("dependency type hash");
+
+        let hash_only_source = format!(
+            "@ import #{} from ./dependency\n\n| hash_condition(value: Int) -> True under value > 0\n",
+            type_hash
+        );
+        let hash_only_stmts =
+            parse_test_program(&hash_only_source).expect("parse hash-only import fixture");
+        let source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let hash_only_artifacts = TypeChecker::check_with_artifacts(
+            &hash_only_stmts,
+            source_dir.clone(),
+            &hash_only_source,
+        );
+        let (hash_only_types, hash_only_issues, hash_only_safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&hash_only_stmts, source_dir.clone());
+        assert!(
+            hash_only_artifacts.diagnostics.is_empty(),
+            "unexpected hash-only diagnostics: {:?}",
+            hash_only_artifacts.diagnostics
+        );
+        assert_eq!(
+            hash_only_types,
+            hash_only_artifacts.rule_dispatch_return_types
+        );
+        assert_eq!(
+            hash_only_issues,
+            hash_only_artifacts.rule_dispatch_return_issues
+        );
+        assert_eq!(
+            hash_only_safe_keys,
+            hash_only_artifacts.rule_dispatch_boolean_miss_safe_keys
+        );
+        assert_eq!(
+            hash_only_types.get(&RuleDispatchKey {
+                scope: None,
+                name: "hash_condition".to_string(),
+                arity: 1,
+            }),
+            Some(&"Bool".to_string())
+        );
+        assert!(
+            hash_only_safe_keys.is_empty(),
+            "a hash-selected type remains opaque to the runtime miss-safety proof"
+        );
+
+        let source = format!(
+            "@ import ./middle\n@ import #{} from ./dependency\n\n| collision(value: Int) -> True under value > 10\n| local_condition(value: Int) -> True under value > 0\n\n= collision_hit = collision(1)\n= collision_miss = collision(0)\n",
+            type_hash
+        );
+        let mut lexer = Lexer::new(&source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &source);
+        let stmts = parser.parse_program().expect("parse opaque imports");
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), &source);
+        let (return_types, return_issues, boolean_miss_safe_keys) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(&stmts, source_dir.clone());
+        assert_eq!(return_types, artifacts.rule_dispatch_return_types);
+        assert_eq!(return_issues, artifacts.rule_dispatch_return_issues);
+        assert_eq!(
+            boolean_miss_safe_keys,
+            artifacts.rule_dispatch_boolean_miss_safe_keys
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert!(
+            !artifacts
+                .rule_dispatch_return_types
+                .keys()
+                .any(|key| key.name == "qualified_only"),
+            "qualified/hash imports must not flatten rules into global dispatch metadata"
+        );
+        for name in ["collision", "local_condition"] {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: name.to_string(),
+                arity: 1,
+            };
+            assert_eq!(
+                artifacts.rule_dispatch_return_types.get(&key),
+                Some(&"Bool".to_string()),
+                "static Explore/SMT return sorts stay available for {name}"
+            );
+            assert!(
+                !artifacts
+                    .rule_dispatch_boolean_miss_safe_keys
+                    .contains(&key),
+                "qualified registry leakage must disable runtime miss safety for {name}"
+            );
+        }
+
+        let mut baseline = Interpreter::new();
+        baseline.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let mut baseline_env = baseline.default_env();
+        baseline.run_program(&stmts, &mut baseline_env);
+        let mut canonical = Interpreter::new();
+        canonical.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        canonical.install_rule_dispatch_metadata(&artifacts);
+        let mut canonical_env = canonical.default_env();
+        canonical.run_program(&stmts, &mut canonical_env);
+        for binding in ["collision_hit", "collision_miss"] {
+            assert_eq!(
+                canonical_env.get(binding).map(ToString::to_string),
+                baseline_env.get(binding).map(ToString::to_string),
+                "qualified collision must retain legacy runtime behavior"
+            );
+        }
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
     fn rulescope_return_inference_reaches_sibling_rule_chains() {
         let source = include_str!("../tests/rule_scope_test.runa");
         let mut lexer = Lexer::new(source);
@@ -27979,11 +29399,11 @@ fn opaque(value: i64) -> i64 { value }
     #[test]
     fn interpreted_rulescope_falls_back_to_global_rule_when_scoped_arity_differs() {
         let source = r#"
-| amount(value: Int) -> value + 1
+| available(value: Int) -> True under value > 0
 
 # Case(input: Int) {
-    | amount() -> amount(input)
-    | result() -> amount()
+    | available(left: Int, right: Int) -> left + right
+    | result() -> available(input)
 }
 
 = result = Case(4).result()
@@ -27994,14 +29414,30 @@ fn opaque(value: i64) -> i64 { value }
         let stmts = parser
             .parse_program()
             .expect("parse RuleScope arity regression");
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+                scope: Some("Case".to_string()),
+                name: "result".to_string(),
+                arity: 0,
+            }),
+            Some(&"Bool".to_string()),
+            "the scoped wrapper must infer through the exact global arity"
+        );
         let mut interpreter = Interpreter::new();
+        interpreter.install_rule_dispatch_metadata(&artifacts);
         let mut env = interpreter.default_env();
 
         interpreter.run_program(&stmts, &mut env);
 
         assert_eq!(
             env.get("result").map(ToString::to_string),
-            Some("5".to_string())
+            Some("true".to_string())
         );
     }
 

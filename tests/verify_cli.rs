@@ -35,7 +35,7 @@ fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
 
     let interpreted_stdout = String::from_utf8_lossy(&interpreted.stdout);
     let compiled_stdout = String::from_utf8_lossy(&compiled.stdout);
-    let expected = "10\n70\n80\n0\n70\n80\n0\n70\n70\n99";
+    let expected = "10\n70\n80\n0\n70\n80\n0\n70\n70\n99\ntrue\nfalse\ntrue\nfalse";
     assert_eq!(interpreted_stdout.trim(), expected);
     assert_eq!(compiled_stdout.trim(), expected);
 
@@ -58,6 +58,10 @@ fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
             "parity_scoped_guard",
             "parity_scoped_source_order",
             "parity_scoped_exception",
+            "parity_conditional_boolean_hit",
+            "parity_conditional_boolean_miss",
+            "parity_exception_boolean_hit",
+            "parity_exception_boolean_miss",
         ] {
             assert!(
                 verified_stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),

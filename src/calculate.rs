@@ -4095,10 +4095,22 @@ struct CalculationWorker {
 }
 
 impl CalculationWorker {
-    fn new(entry: &str, stmts: &[Stmt], source_dir: Option<String>) -> Self {
+    fn new(
+        entry: &str,
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        rule_dispatch_return_types: &BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_return_issues: &BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
+    ) -> Self {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.source_dir = source_dir;
+        interpreter.install_rule_dispatch_return_metadata(
+            rule_dispatch_return_types,
+            rule_dispatch_return_issues,
+            rule_dispatch_boolean_miss_safe_keys,
+        );
         let mut base_env = interpreter.default_env();
         interpreter.initialize_calculation_program(entry, stmts, &mut base_env);
         let base_actor_instances = interpreter.actor_instances.clone();
@@ -4265,9 +4277,24 @@ fn invoke_calculation_cases_with_jobs(
         return output;
     }
 
+    // Contract extraction already validated the program. Recompute only the
+    // exact import-aware rule classification needed by runtime dispatch.
+    let (
+        rule_dispatch_return_types,
+        rule_dispatch_return_issues,
+        rule_dispatch_boolean_miss_safe_keys,
+    ) = TypeChecker::rule_dispatch_metadata_for_runtime(stmts, source_dir.clone());
+
     // Prime the shared parsed-module cache before peers initialize their own
     // isolated interpreters. The primary worker also serves the serial path.
-    let mut primary = CalculationWorker::new(&contract.entry, stmts, source_dir.clone());
+    let mut primary = CalculationWorker::new(
+        &contract.entry,
+        stmts,
+        source_dir.clone(),
+        &rule_dispatch_return_types,
+        &rule_dispatch_return_issues,
+        &rule_dispatch_boolean_miss_safe_keys,
+    );
     let initialized_after = started.elapsed();
     let mut outcomes = if worker_count == 1 {
         invoke_calculation_case_stride(&mut primary, contract, &envelope.cases, 0, 1)
@@ -4275,6 +4302,9 @@ fn invoke_calculation_cases_with_jobs(
         #[cfg(not(target_arch = "wasm32"))]
         {
             let next_case = AtomicUsize::new(0);
+            let rule_dispatch_return_types = &rule_dispatch_return_types;
+            let rule_dispatch_return_issues = &rule_dispatch_return_issues;
+            let rule_dispatch_boolean_miss_safe_keys = &rule_dispatch_boolean_miss_safe_keys;
             std::thread::scope(|scope| {
                 let mut handles = Vec::with_capacity(worker_count - 1);
                 for worker_index in 1..worker_count {
@@ -4289,6 +4319,9 @@ fn invoke_calculation_cases_with_jobs(
                                     &contract.entry,
                                     stmts,
                                     worker_source_dir,
+                                    rule_dispatch_return_types,
+                                    rule_dispatch_return_issues,
+                                    rule_dispatch_boolean_miss_safe_keys,
                                 );
                                 invoke_calculation_case_queue(
                                     &mut worker,
@@ -4445,8 +4478,65 @@ mod calculation_execution_tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse scenario calculation");
 
-        let worker = CalculationWorker::new("calculate_scenario", &stmts, None);
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+        let worker = CalculationWorker::new(
+            "calculate_scenario",
+            &stmts,
+            None,
+            &artifacts.rule_dispatch_return_types,
+            &artifacts.rule_dispatch_return_issues,
+            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+        );
 
         assert!(worker.interpreter.output.is_empty());
+    }
+
+    #[test]
+    fn calculation_runtime_uses_canonical_boolean_rule_misses() {
+        let source = r#"
+# BoolInput(value: Int)
+# BoolResult(conditional: Bool, exception_only: Bool)
+
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+@ calculate("Boolean miss calculation")
+| calculate_boolean_misses(input: BoolInput) -> BoolResult(
+    conditional = conditional(input.value),
+    exception_only = exception_only(input.value)
+)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse Boolean calculation");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("extract Boolean calculation")
+            .pop()
+            .expect("Boolean calculation contract");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "miss".to_string(),
+                input: serde_json::json!({"value": 0}),
+            }],
+        };
+
+        let output =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
+
+        assert!(
+            output.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            output.diagnostics
+        );
+        assert_eq!(
+            output.results[0].result,
+            serde_json::json!({"conditional": false, "exception_only": false})
+        );
     }
 }

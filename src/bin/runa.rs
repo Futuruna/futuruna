@@ -5942,13 +5942,17 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
                 filename, stmt_count, fn_count, type_count, rule_count
             );
 
-            // Pre-codegen type checking (M16)
-            if run_type_check(&stmts, source, filename) {
+            // Pre-codegen type checking (M16). Retain exact rule return
+            // metadata so interpreted Boolean misses match generated/SMT
+            // dispatch.
+            let artifacts = type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
                 std::process::exit(1);
             }
 
             // Evaluate
             let mut interp = Interpreter::new();
+            interp.install_rule_dispatch_metadata(&artifacts);
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 interp.source_dir = Some(parent.to_string_lossy().to_string());
@@ -6890,10 +6894,12 @@ fn run_test_paths_serial(
                             } else {
                                 user_stmts
                             };
+                            let source_dir = file_path
+                                .parent()
+                                .map(|parent| parent.to_string_lossy().to_string());
                             let mut interp = Interpreter::new();
-                            if let Some(parent) = file_path.parent() {
-                                interp.source_dir = Some(parent.to_string_lossy().to_string());
-                            }
+                            interp.source_dir = source_dir.clone();
+                            interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
                             let mut env = interp.default_env();
                             interp.run_program(&stmts, &mut env);
                             Ok(())
@@ -8713,7 +8719,9 @@ fn run_repl() {
     let mut env = interp.default_env();
     // Load standard prelude into REPL environment
     let prelude = parse_prelude();
+    let mut repl_statements = prelude.clone();
     if !prelude.is_empty() {
+        interp.install_rule_dispatch_metadata_for_program(&prelude, None);
         interp.run_program(&prelude, &mut env);
     }
     let stdin = io::stdin();
@@ -8775,7 +8783,11 @@ fn run_repl() {
                 let mut parser = Parser::new(tokens, &full_input);
                 match parser.parse_program() {
                     Ok(stmts) => {
+                        let mut complete_graph = repl_statements.clone();
+                        complete_graph.extend(stmts.iter().cloned());
+                        interp.install_rule_dispatch_metadata_for_program(&complete_graph, None);
                         let result = interp.run_program(&stmts, &mut env);
+                        repl_statements.extend(stmts);
                         match result {
                             Value::Unit => {}
                             _ => println!("=> {}", result),
@@ -10762,10 +10774,12 @@ fn audit_calculation_reachability_source(
     } else {
         user_stmts
     };
-    let contracts = run_calculation_type_check(&stmts, source, filename)
-        .unwrap_or_else(|| std::process::exit(1));
-    let contract =
-        select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {
+    let artifacts = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        std::process::exit(1);
+    }
+    let contract = select_calculation_contract(&artifacts.calculation_contracts, requested_entry)
+        .unwrap_or_else(|error| {
             eprintln!("error: {}", error);
             std::process::exit(1);
         });
@@ -10777,6 +10791,7 @@ fn audit_calculation_reachability_source(
         .collect::<Vec<_>>();
     let mut interpreter = Interpreter::new();
     interpreter.source_dir = source_dir_for(filename);
+    interpreter.install_rule_dispatch_metadata(&artifacts);
     let mut env = interpreter.default_env();
     interpreter.initialize_calculation_program(&contract.entry, &runtime_stmts, &mut env);
 
@@ -10893,10 +10908,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     };
 
+    let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
-    if let Some(parent) = std::path::Path::new(filename).parent() {
-        interp.source_dir = Some(parent.to_string_lossy().to_string());
-    }
+    interp.source_dir = source_dir.clone();
+    interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
     let mut env = interp.default_env();
 
     // Filter out Prove statements — we don't want verification output during audit
@@ -28102,7 +28117,12 @@ impl RustCodegen {
         // Comptime pass: evaluate @ comptime bindings using the interpreter
         {
             let mut comptime_interp = Interpreter::new();
-            comptime_interp.suppress_output = true; // Don't print during codegen
+            comptime_interp.suppress_output = true;
+            // Use the authored import graph rather than the already-expanded
+            // emission list. The outer compiler gate already validated it;
+            // comptime only needs exact runtime dispatch classification.
+            comptime_interp
+                .install_rule_dispatch_metadata_for_program(input_stmts, self.source_dir.clone());
             let mut comptime_env = comptime_interp.default_env();
             let pure_fns =
                 Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
@@ -51324,8 +51344,13 @@ for x in [1, 2] {
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
         let source_dir = filename.and_then(source_dir_for);
-        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
+        let mut diags = artifacts.diagnostics.clone();
+        diags.extend(compiler_validation_diagnostics(
+            &stmts,
+            source_dir.clone(),
+            None,
+        ));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled regression: {:?}",
@@ -51613,8 +51638,13 @@ for x in [1, 2] {
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
         let source_dir = filename.and_then(source_dir_for);
-        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
+        let mut diags = artifacts.diagnostics.clone();
+        diags.extend(compiler_validation_diagnostics(
+            &stmts,
+            source_dir.clone(),
+            None,
+        ));
         assert!(
             diags.is_empty(),
             "typecheck failed for interpreter regression: {:?}",
@@ -51623,7 +51653,8 @@ for x in [1, 2] {
 
         let mut interp = Interpreter::new();
         interp.suppress_output = true;
-        interp.source_dir = filename.and_then(source_dir_for);
+        interp.source_dir = source_dir;
+        interp.install_rule_dispatch_metadata(&artifacts);
         let mut env = interp.default_env();
         interp.run_program(&stmts, &mut env);
         interp.output.join("\n")
@@ -51653,6 +51684,54 @@ for x in [1, 2] {
         let interpreted = interpret_test_source(source, None);
         assert_eq!(compiled.trim(), "42000");
         assert_eq!(interpreted.trim(), compiled.trim());
+    }
+
+    #[test]
+    fn interpreted_and_generated_boolean_rule_misses_match() {
+        let source = r#"
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+@ print(show(conditional(1)))
+@ print(show(conditional(0)))
+@ print(show(exception_only(1)))
+@ print(show(exception_only(0)))
+"#;
+        let expected = "true\nfalse\ntrue\nfalse";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
+    }
+
+    #[test]
+    fn generated_imported_comptime_boolean_miss_uses_checked_dispatch_metadata() {
+        let temp_name = format!(
+            "futuruna_imported_comptime_boolean_miss_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create imported comptime directory");
+        let dependency = temp_dir.join("dependency.runa");
+        let main = temp_dir.join("main.runa");
+        std::fs::write(
+            &dependency,
+            "| imported_condition(value: Int) -> True under value > 0\n",
+        )
+        .expect("write imported Boolean rule");
+        std::fs::write(
+            &main,
+            "@ import ./dependency\n@ comptime\n= imported_miss = imported_condition(0)\n@ print(show(imported_miss))\n",
+        )
+        .expect("write imported comptime fixture");
+
+        assert_eq!(compile_and_run_test_file(&main).trim(), "false");
+
+        let _ = std::fs::remove_file(&dependency);
+        let _ = std::fs::remove_file(&main);
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     fn assert_typed_rule_heads_output(output: &str, lane: &str) {

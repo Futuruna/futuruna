@@ -2,6 +2,9 @@
 
 | exception local_above_eight imported_band(amount: Int) -> 80 under amount > 8
 
+| conditional_boolean(value: Int) -> True under value > 0
+| exception positive exception_boolean(value: Int) -> True under value > 0
+
 | ordered_band(amount: Int) -> 0
 | ordered_band(amount: Int) -> 70 under amount > 7
 | ordered_band(amount: Int) -> 80 under amount > 8
@@ -27,6 +30,10 @@
 = scoped_eight = OrderedCase(base = 0).band(amount = 8)
 = scoped_nine = OrderedCase(base = 0).band(amount = 9)
 = scoped_exception = OrderedCase(base = 99).band(amount = 9)
+= conditional_boolean_hit = conditional_boolean(value = 1)
+= conditional_boolean_miss = conditional_boolean(value = 0)
+= exception_boolean_hit = exception_boolean(value = 1)
+= exception_boolean_miss = exception_boolean(value = 0)
 
 | parity_imported_default: imported_six -> imported_six == 10
 | parity_imported_guard: imported_eight -> imported_eight == 70
@@ -38,6 +45,10 @@
 | parity_scoped_guard: scoped_eight -> scoped_eight == 70
 | parity_scoped_source_order: scoped_nine -> scoped_nine == 70
 | parity_scoped_exception: scoped_exception -> scoped_exception == 99
+| parity_conditional_boolean_hit: conditional_boolean_hit -> conditional_boolean_hit == True
+| parity_conditional_boolean_miss: conditional_boolean_miss -> conditional_boolean_miss == False
+| parity_exception_boolean_hit: exception_boolean_hit -> exception_boolean_hit == True
+| parity_exception_boolean_miss: exception_boolean_miss -> exception_boolean_miss == False
 
 @ print(show(imported_six))
 @ print(show(imported_eight))
@@ -49,3 +60,7 @@
 @ print(show(scoped_eight))
 @ print(show(scoped_nine))
 @ print(show(scoped_exception))
+@ print(show(conditional_boolean_hit))
+@ print(show(conditional_boolean_miss))
+@ print(show(exception_boolean_hit))
+@ print(show(exception_boolean_miss))

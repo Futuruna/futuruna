@@ -461,6 +461,11 @@ struct GroundDefinitions {
     unsupported_values: BTreeMap<String, Vec<String>>,
     origin_order: BTreeMap<String, usize>,
     runtime_declarations: Vec<Stmt>,
+    rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
+    explore_rule_return_issues: BTreeMap<(String, usize), String>,
 }
 
 #[derive(Debug)]
@@ -1272,6 +1277,11 @@ impl ExploreRuntimeGroundEvaluator {
         let declarations = prepend_prelude(parse_prelude(), &definitions.runtime_declarations);
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
+        interpreter.install_rule_dispatch_return_metadata(
+            &definitions.rule_dispatch_return_types,
+            &definitions.rule_dispatch_return_issues,
+            &definitions.rule_dispatch_boolean_miss_safe_keys,
+        );
         let mut base_env = interpreter.default_env();
         interpreter.register_static_declarations(&declarations, &mut base_env);
         Self {
@@ -2980,6 +2990,30 @@ fn explore_replay_callable_identity_issue(
     }
 
     let exact_rule = definitions.rule_definitions.contains_key(&key);
+    if exact_rule {
+        if let Some(issue) = definitions.explore_rule_return_issues.get(&key) {
+            visiting.remove(&key);
+            return Some(format!(
+                "exploration replay cannot classify reachable rule `{}({} argument{})`: {}",
+                name,
+                arity,
+                if arity == 1 { "" } else { "s" },
+                issue
+            ));
+        }
+        if !definitions
+            .explore_rule_return_types_by_arity
+            .contains_key(&key)
+        {
+            visiting.remove(&key);
+            return Some(format!(
+                "exploration replay cannot classify the exact return type of reachable rule `{}({} argument{})`",
+                name,
+                arity,
+                if arity == 1 { "" } else { "s" }
+            ));
+        }
+    }
     let issue = if definitions.bindings.contains_key(name) {
         Some(if exact_rule {
             format!(
@@ -3509,6 +3543,11 @@ pub(crate) fn elaborate_queries(
     statements: &[Stmt],
     source_dir: Option<&str>,
     queries: &[TypedExploreQuery],
+    rule_dispatch_return_types: &BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_return_issues: &BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
+    explore_rule_return_types_by_arity: &BTreeMap<(String, usize), Ty>,
+    explore_rule_return_issues: &BTreeMap<(String, usize), String>,
 ) -> Result<Vec<ExploreQueryIr>, Vec<Diagnostic>> {
     if queries.is_empty() {
         return Ok(Vec::new());
@@ -3521,12 +3560,17 @@ pub(crate) fn elaborate_queries(
                 .map(Diagnostic::error)
                 .collect::<Vec<_>>()
         })?;
-    let definitions = collect_ground_bindings(statements, source_dir).map_err(|errors| {
+    let mut definitions = collect_ground_bindings(statements, source_dir).map_err(|errors| {
         errors
             .into_iter()
             .map(Diagnostic::error)
             .collect::<Vec<_>>()
     })?;
+    definitions.rule_dispatch_return_types = rule_dispatch_return_types.clone();
+    definitions.rule_dispatch_return_issues = rule_dispatch_return_issues.clone();
+    definitions.rule_dispatch_boolean_miss_safe_keys = rule_dispatch_boolean_miss_safe_keys.clone();
+    definitions.explore_rule_return_types_by_arity = explore_rule_return_types_by_arity.clone();
+    definitions.explore_rule_return_issues = explore_rule_return_issues.clone();
     let mut universes = Vec::with_capacity(queries.len());
     let mut diagnostics = Vec::new();
 
@@ -5130,6 +5174,129 @@ mod tests {
                 .universe
                 .cartesian_count_before_constraints,
             ExploreCardinality::Exact(2)
+        );
+    }
+
+    #[test]
+    fn explore_replay_runtime_uses_canonical_boolean_rule_misses() {
+        let source = r#"
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+| combined(value: Int) -> conditional(value) || exception_only(value)
+
+? explore boolean_misses {
+    over combined(value)
+    find matches
+    bounds { value in [0, 1] }
+    output { key [value] representative first }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let statements = Parser::new(tokens, source)
+            .parse_program()
+            .expect("parse Boolean replay fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.exploration_universes[0]
+                .universe
+                .cartesian_count_before_constraints,
+            ExploreCardinality::Exact(2)
+        );
+
+        let mut definitions =
+            collect_ground_bindings(&statements, None).expect("ground declarations");
+        definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
+        definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+        definitions.rule_dispatch_boolean_miss_safe_keys =
+            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+        let mut runtime = ExploreRuntimeGroundEvaluator::new(&definitions);
+        for name in ["conditional_miss", "exception_miss"] {
+            let rule = if name == "conditional_miss" {
+                "conditional"
+            } else {
+                "exception_only"
+            };
+            let expression: Expr = ExprKind::App(
+                Box::new(ExprKind::Var(rule.to_string()).into()),
+                vec![ExprKind::Lit(Literal::Int(0)).into()],
+            )
+            .into();
+            match runtime.eval(&expression, &[]) {
+                Ok(Value::Bool(false)) => {}
+                other => panic!("{name} must be the canonical replay false value: {other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn explore_replay_fails_closed_for_missing_or_conflicting_rule_classification() {
+        let source = r#"
+| conditional(value: Int) -> True under value > 0
+| condition(value: Int) -> conditional(value)
+
+? explore classification_gate {
+    over condition(value)
+    find matches
+    bounds { value in [0, 1] }
+    output { key [value] representative first }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let statements = Parser::new(tokens, source)
+            .parse_program()
+            .expect("parse replay classification fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_queries[0];
+        let target_key = ("condition".to_string(), 1);
+        let helper_key = ("conditional".to_string(), 1);
+
+        let mut missing = collect_ground_bindings(&statements, None).expect("ground declarations");
+        missing
+            .explore_rule_return_types_by_arity
+            .insert(target_key.clone(), Ty::Name("Bool".to_string()));
+        missing
+            .explore_rule_return_types_by_arity
+            .insert(helper_key.clone(), Ty::Name("Bool".to_string()));
+        missing
+            .explore_rule_return_types_by_arity
+            .remove(&helper_key);
+        let diagnostics = validate_query_replay_callable_identities(query, &missing);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("cannot classify the exact return type of reachable rule `conditional(1 argument)`")),
+            "missing classification must fail closed: {diagnostics:?}"
+        );
+
+        let mut conflicting =
+            collect_ground_bindings(&statements, None).expect("ground declarations");
+        conflicting
+            .explore_rule_return_types_by_arity
+            .insert(target_key, Ty::Name("Bool".to_string()));
+        conflicting
+            .explore_rule_return_types_by_arity
+            .insert(helper_key.clone(), Ty::Name("Bool".to_string()));
+        conflicting
+            .explore_rule_return_issues
+            .insert(helper_key, "synthetic conflicting return types".to_string());
+        let diagnostics = validate_query_replay_callable_identities(query, &conflicting);
+        assert!(
+            diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("synthetic conflicting return types")),
+            "conflicting classification must fail closed: {diagnostics:?}"
         );
     }
 
