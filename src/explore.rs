@@ -360,6 +360,31 @@ impl ExploreExactDomain {
             Self::FiniteType { plan, .. } => plan.cardinality(),
         }
     }
+
+    /// Materialize a deliberately small exact domain for the exhaustive
+    /// developer preview. Solver-backed exploration keeps ranges and finite
+    /// plans lazy; this path refuses to cross its explicit case cap.
+    pub fn enumerate_preview(&self, limit: usize) -> Result<Vec<ExploreValue>, String> {
+        let count = self
+            .cardinality()
+            .exact()
+            .ok_or_else(|| "exploration domain has more than u128::MAX values".to_string())?;
+        if count > limit as u128 {
+            return Err(format!(
+                "exploration domain has {} values, exceeding preview limit {}",
+                count, limit
+            ));
+        }
+        match self {
+            Self::Enumerated { values, .. } => Ok(values.clone()),
+            Self::IntRange {
+                start, cardinality, ..
+            } => Ok((0..*cardinality)
+                .map(|offset| ExploreValue::Int((*start as i128 + offset as i128) as i64))
+                .collect()),
+            Self::FiniteType { plan, .. } => plan.enumerate(limit),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -432,6 +457,35 @@ pub struct ExploreUniverseIr {
 pub struct ExploreQueryIr {
     pub query: TypedExploreQuery,
     pub universe: ExploreUniverseIr,
+}
+
+/// One named, canonical value in the exhaustive developer-preview ledger.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ExplorePreviewField {
+    pub name: String,
+    pub value: ExploreValue,
+}
+
+/// One matching complete assignment evaluated by the ordinary interpreter.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExplorePreviewRow {
+    pub inputs: Vec<ExplorePreviewField>,
+    pub key: Vec<ExplorePreviewField>,
+    pub shown: Vec<ExplorePreviewField>,
+}
+
+/// Exact-finite result used only by the hidden `__explore-preview` command.
+/// It is intentionally smaller than the accepted public Explore report RFC.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExplorePreviewReport {
+    pub query_name: String,
+    pub polarity: ExplorePolarity,
+    pub declared_assignments: u64,
+    pub eligible_configurations: u64,
+    pub evaluated_configurations: u64,
+    pub matching_configurations: u64,
+    pub distinct_keys: u64,
+    pub rows: Vec<ExplorePreviewRow>,
 }
 
 #[derive(Debug, Clone)]
@@ -3548,6 +3602,7 @@ pub(crate) fn elaborate_queries(
     rule_dispatch_boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
     explore_rule_return_types_by_arity: &BTreeMap<(String, usize), Ty>,
     explore_rule_return_issues: &BTreeMap<(String, usize), String>,
+    validate_replay_callables: bool,
 ) -> Result<Vec<ExploreQueryIr>, Vec<Diagnostic>> {
     if queries.is_empty() {
         return Ok(Vec::new());
@@ -3575,7 +3630,12 @@ pub(crate) fn elaborate_queries(
     let mut diagnostics = Vec::new();
 
     for query in queries {
-        match elaborate_query(query, &catalog, definitions.clone()) {
+        match elaborate_query(
+            query,
+            &catalog,
+            definitions.clone(),
+            validate_replay_callables,
+        ) {
             Ok(universe) => universes.push(ExploreQueryIr {
                 query: query.clone(),
                 universe,
@@ -3594,10 +3654,13 @@ fn elaborate_query(
     query: &TypedExploreQuery,
     catalog: &calculate::TypeCatalog,
     definitions: GroundDefinitions,
+    validate_replay_callables: bool,
 ) -> Result<ExploreUniverseIr, Vec<Diagnostic>> {
-    let replay_diagnostics = validate_query_replay_callable_identities(query, &definitions);
-    if !replay_diagnostics.is_empty() {
-        return Err(replay_diagnostics);
+    if validate_replay_callables {
+        let replay_diagnostics = validate_query_replay_callable_identities(query, &definitions);
+        if !replay_diagnostics.is_empty() {
+            return Err(replay_diagnostics);
+        }
     }
     let mut evaluator = ExploreGroundEvaluator::new(catalog, definitions.clone());
     let mut runtime_evaluator = ExploreRuntimeGroundEvaluator::new(&definitions);
@@ -4122,6 +4185,339 @@ fn elaborate_query(
         sliced_inputs: query.sliced_inputs.clone(),
         cartesian_count_before_constraints,
         boundary,
+    })
+}
+
+fn preview_runtime_value(value: &ExploreValue) -> Value {
+    match value {
+        ExploreValue::Int(value) => Value::Int(*value),
+        ExploreValue::FloatBits(bits) => Value::Float(f64::from_bits(*bits)),
+        ExploreValue::String(value) => Value::Str(value.clone()),
+        ExploreValue::Character(value) => Value::Char(*value),
+        ExploreValue::Boolean(value) => Value::Bool(*value),
+        ExploreValue::Unit => Value::Unit,
+        ExploreValue::List(values) => {
+            Value::List(values.iter().map(preview_runtime_value).collect())
+        }
+        ExploreValue::Set(values) => Value::Set(
+            values
+                .iter()
+                .map(|value| (value.runtime_display_key(), preview_runtime_value(value)))
+                .collect(),
+        ),
+        ExploreValue::Tuple(values) => {
+            Value::Tuple(values.iter().map(preview_runtime_value).collect())
+        }
+        ExploreValue::Constructor {
+            variant,
+            positional: true,
+            fields,
+            ..
+        } => Value::Constructor(
+            variant.clone(),
+            fields
+                .iter()
+                .map(|(_, value)| preview_runtime_value(value))
+                .collect::<Vec<_>>()
+                .into(),
+        ),
+        ExploreValue::Constructor {
+            variant,
+            positional: false,
+            fields,
+            ..
+        } => Value::NamedConstructor(
+            variant.clone(),
+            fields
+                .iter()
+                .map(|(name, value)| (name.clone(), preview_runtime_value(value)))
+                .collect::<Vec<_>>()
+                .into(),
+        ),
+    }
+}
+
+fn preview_scalar(value: &ExploreValue) -> bool {
+    matches!(
+        value,
+        ExploreValue::Int(_)
+            | ExploreValue::FloatBits(_)
+            | ExploreValue::String(_)
+            | ExploreValue::Character(_)
+            | ExploreValue::Boolean(_)
+            | ExploreValue::Unit
+    )
+}
+
+fn preview_materialize_assignments(
+    domains: &[Vec<ExploreValue>],
+    limit: usize,
+) -> Result<Vec<Vec<ExploreValue>>, String> {
+    let mut assignments = vec![Vec::new()];
+    for domain in domains {
+        let next_len = assignments
+            .len()
+            .checked_mul(domain.len())
+            .ok_or_else(|| "exploration preview assignment count overflow".to_string())?;
+        if next_len > limit {
+            return Err(format!(
+                "exploration has at least {} assignments, exceeding preview limit {}",
+                next_len, limit
+            ));
+        }
+        let mut next = Vec::with_capacity(next_len);
+        for prefix in assignments {
+            for value in domain {
+                let mut assignment = prefix.clone();
+                assignment.push(value.clone());
+                next.push(assignment);
+            }
+        }
+        assignments = next;
+    }
+    Ok(assignments)
+}
+
+fn preview_eval_field(
+    interpreter: &mut Interpreter,
+    env: &Env,
+    field: &TypedExploreOutputField,
+    catalog: &calculate::TypeCatalog,
+) -> Result<ExplorePreviewField, String> {
+    let runtime_value = interpreter.eval(&field.value, env);
+    if let Some(message) = interpreter.take_exhaustive_preview_error() {
+        return Err(message);
+    }
+    let value =
+        runtime_value_to_explore_value(&runtime_value, &field.ty, catalog).map_err(|message| {
+            format!(
+                "cannot replay exploration output `{}` as `{}`: {}",
+                field.name, field.ty, message
+            )
+        })?;
+    if !preview_scalar(&value) {
+        return Err(format!(
+            "exploration preview output `{}` has non-scalar type `{}`; the preview currently supports only scalar key/show fields",
+            field.name, field.ty
+        ));
+    }
+    Ok(ExplorePreviewField {
+        name: field.name.clone(),
+        value,
+    })
+}
+
+/// Exhaust a small exact universe through normal interpreter semantics.
+///
+/// This deliberately narrow developer preview is not the public solver-backed
+/// report contract. It accepts only fixed facts, no `where` clauses, and
+/// `representative first`, and refuses any universe larger than `case_limit`.
+pub fn execute_exhaustive_preview(
+    statements: &[Stmt],
+    source_dir: Option<&str>,
+    artifacts: &TypeCheckArtifacts,
+    query: &ExploreQueryIr,
+    case_limit: usize,
+) -> Result<ExplorePreviewReport, String> {
+    if case_limit == 0 {
+        return Err("exploration preview limit must be positive".to_string());
+    }
+    if !matches!(
+        &query.query.output.representative,
+        ExploreRepresentative::First { .. }
+    ) {
+        return Err(
+            "exploration preview currently supports only `representative first`".to_string(),
+        );
+    }
+    if !query.universe.constraints.is_empty() {
+        return Err(
+            "exploration preview does not yet execute `where` constraints; use a Boolean question rule for the first experiment"
+                .to_string(),
+        );
+    }
+    if query
+        .universe
+        .facts
+        .iter()
+        .any(|fact| matches!(&fact.value, ExploreFactValue::Derived { .. }))
+    {
+        return Err(
+            "exploration preview supports fixed facts only; move derived values into the question/output helper"
+                .to_string(),
+        );
+    }
+
+    let declared_assignments = query
+        .universe
+        .cartesian_count_before_constraints
+        .exact()
+        .ok_or_else(|| "exploration assignment count exceeds u128::MAX".to_string())?;
+    if declared_assignments > case_limit as u128 {
+        return Err(format!(
+            "exploration declares {} assignments, exceeding preview limit {}",
+            declared_assignments, case_limit
+        ));
+    }
+    let declared_assignments = u64::try_from(declared_assignments)
+        .map_err(|_| "exploration assignment count exceeds u64::MAX".to_string())?;
+
+    let domains = query
+        .universe
+        .dimensions
+        .iter()
+        .map(|dimension| dimension.domain.enumerate_preview(case_limit))
+        .collect::<Result<Vec<_>, _>>()?;
+    let assignments = preview_materialize_assignments(&domains, case_limit)?;
+    let catalog = calculate::TypeCatalog::collect_checked(statements, source_dir)
+        .map_err(|diagnostics| diagnostics.join("; "))?;
+
+    let mut interpreter = Interpreter::new();
+    interpreter.suppress_output = true;
+    interpreter.enable_exhaustive_preview_effect_guard();
+    interpreter.install_rule_dispatch_metadata(artifacts);
+    interpreter.source_dir = source_dir.map(str::to_string);
+    let mut base_env = interpreter.default_env();
+    interpreter.initialize_calculation_program(&query.query.rule_name, statements, &mut base_env);
+    if let Some(message) = interpreter.take_exhaustive_preview_error() {
+        return Err(message);
+    }
+
+    let boundary_axis_values = query.universe.boundary.as_ref().map(|boundary| {
+        domains[boundary.axis_dimension_index]
+            .iter()
+            .filter_map(ExploreValue::int)
+            .collect::<BTreeSet<_>>()
+    });
+    let question = ExprKind::App(
+        Box::new(ExprKind::Var(query.query.rule_name.clone()).into()),
+        query
+            .query
+            .inputs
+            .iter()
+            .map(|input| ExprKind::Var(input.name.clone()).into())
+            .collect(),
+    )
+    .into();
+
+    let mut eligible_configurations = 0_u64;
+    let mut evaluated_configurations = 0_u64;
+    let mut matching_configurations = 0_u64;
+    let mut distinct_keys = BTreeSet::<Vec<ExploreValue>>::new();
+    let mut rows = Vec::new();
+
+    for assignment in assignments {
+        if let Some(boundary) = &query.universe.boundary {
+            let lower = assignment[boundary.axis_dimension_index]
+                .int()
+                .ok_or_else(|| "exploration boundary assignment is not an Int".to_string())?;
+            let upper = lower
+                .checked_add(boundary.step)
+                .ok_or_else(|| "exploration boundary endpoint overflow".to_string())?;
+            if !boundary_axis_values
+                .as_ref()
+                .is_some_and(|values| values.contains(&upper))
+            {
+                continue;
+            }
+        }
+        eligible_configurations = eligible_configurations.saturating_add(1);
+
+        let mut env = base_env.child();
+        for (dimension, value) in query.universe.dimensions.iter().zip(&assignment) {
+            env.set(dimension.name.clone(), preview_runtime_value(value));
+        }
+        for fact in &query.universe.facts {
+            let ExploreFactValue::Fixed(value) = &fact.value else {
+                unreachable!("derived facts were rejected above")
+            };
+            env.set(fact.name.clone(), preview_runtime_value(value));
+        }
+
+        evaluated_configurations = evaluated_configurations.saturating_add(1);
+        let question_value = interpreter.eval(&question, &env);
+        if let Some(message) = interpreter.take_exhaustive_preview_error() {
+            return Err(message);
+        }
+        let matched = match question_value {
+            Value::Bool(value) => match query.query.polarity {
+                ExplorePolarity::Matches => value,
+                ExplorePolarity::Violations => !value,
+            },
+            other => {
+                return Err(format!(
+                    "exploration question `{}` replayed to non-Bool value `{}`",
+                    query.query.rule_name, other
+                ))
+            }
+        };
+        if !matched {
+            continue;
+        }
+        matching_configurations = matching_configurations.saturating_add(1);
+
+        let mut inputs = Vec::with_capacity(query.query.inputs.len());
+        for input in &query.query.inputs {
+            let runtime_value = env.get(&input.name).ok_or_else(|| {
+                format!("exploration input `{}` is absent during replay", input.name)
+            })?;
+            let value = runtime_value_to_explore_value(runtime_value, &input.ty, &catalog)
+                .map_err(|message| {
+                    format!(
+                        "cannot serialize exploration input `{}` as `{}`: {}",
+                        input.name, input.ty, message
+                    )
+                })?;
+            inputs.push(ExplorePreviewField {
+                name: input.name.clone(),
+                value,
+            });
+        }
+
+        let mut key = Vec::with_capacity(query.query.output.key.len());
+        for field in &query.query.output.key {
+            key.push(preview_eval_field(&mut interpreter, &env, field, &catalog)?);
+        }
+        distinct_keys.insert(key.iter().map(|field| field.value.clone()).collect());
+
+        let mut shown = Vec::with_capacity(query.query.output.show.len());
+        let mut output_env = env.child();
+        for field in &query.query.output.show {
+            let replayed = preview_eval_field(&mut interpreter, &output_env, field, &catalog)?;
+            output_env.set(
+                replayed.name.clone(),
+                preview_runtime_value(&replayed.value),
+            );
+            shown.push(replayed);
+        }
+        rows.push(ExplorePreviewRow { inputs, key, shown });
+    }
+
+    if evaluated_configurations == 0 {
+        return Err(
+            "exploration preview has no eligible configurations, so it cannot validate the Boolean question result"
+                .to_string(),
+        );
+    }
+
+    rows.sort_by(|left, right| {
+        left.key
+            .cmp(&right.key)
+            .then_with(|| left.inputs.cmp(&right.inputs))
+    });
+    Ok(ExplorePreviewReport {
+        query_name: query
+            .query
+            .name
+            .clone()
+            .unwrap_or_else(|| "<anonymous>".to_string()),
+        polarity: query.query.polarity,
+        declared_assignments,
+        eligible_configurations,
+        evaluated_configurations,
+        matching_configurations,
+        distinct_keys: distinct_keys.len() as u64,
+        rows,
     })
 }
 

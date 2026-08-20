@@ -12023,6 +12023,10 @@ pub struct Interpreter {
     pub(crate) rng_state: u64,
     /// Suppress stdout output (for comptime evaluation during codegen)
     pub suppress_output: bool,
+    /// Exact developer previews execute ordinary interpreter semantics but
+    /// must never perform observable effects while exhausting assignments.
+    exhaustive_preview_forbid_effects: bool,
+    exhaustive_preview_error: RefCell<Option<String>>,
     /// Resource/error guard used only by compile-time exploration-domain
     /// evaluation. Ordinary program execution leaves this disabled.
     ground_collection_limit: Option<usize>,
@@ -12094,6 +12098,8 @@ impl Interpreter {
             budget_exceeded: false,
             rng_state: 0x12345678_9abcdef0,
             suppress_output: false,
+            exhaustive_preview_forbid_effects: false,
+            exhaustive_preview_error: RefCell::new(None),
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
             calculation_runtime_symbols: BTreeSet::new(),
@@ -12105,6 +12111,23 @@ impl Interpreter {
 
     fn ground_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.ground_error.borrow_mut();
+        if error.is_none() {
+            *error = Some(message.into());
+        }
+        Value::Unit
+    }
+
+    pub fn enable_exhaustive_preview_effect_guard(&mut self) {
+        self.exhaustive_preview_forbid_effects = true;
+        self.exhaustive_preview_error.borrow_mut().take();
+    }
+
+    pub fn take_exhaustive_preview_error(&self) -> Option<String> {
+        self.exhaustive_preview_error.borrow_mut().take()
+    }
+
+    fn exhaustive_preview_fail(&self, message: impl Into<String>) -> Value {
+        let mut error = self.exhaustive_preview_error.borrow_mut();
         if error.is_none() {
             *error = Some(message.into());
         }
@@ -14768,6 +14791,12 @@ impl Interpreter {
                 Value::Tuple(vals)
             }
             ExprKind::Effect(name, args) => {
+                if self.exhaustive_preview_forbid_effects {
+                    return self.exhaustive_preview_fail(format!(
+                        "exploration preview refuses effect operation `{}`",
+                        name
+                    ));
+                }
                 let arg_vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
                 self.eval_effect(name, arg_vals)
             }
@@ -14776,6 +14805,12 @@ impl Interpreter {
                 handlers,
                 body,
             } => {
+                if self.exhaustive_preview_forbid_effects {
+                    return self.exhaustive_preview_fail(format!(
+                        "exploration preview refuses effect handler `{}`",
+                        effect
+                    ));
+                }
                 // Push handlers onto the stack
                 self.handler_stack.push((effect.clone(), handlers.clone()));
                 // Evaluate the body with handlers active
@@ -14785,6 +14820,10 @@ impl Interpreter {
                 result
             }
             ExprKind::Try(inner) => {
+                if self.exhaustive_preview_forbid_effects {
+                    return self
+                        .exhaustive_preview_fail("exploration preview refuses `?` propagation");
+                }
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
                 match &val {
@@ -14930,6 +14969,17 @@ impl Interpreter {
             let parts: Vec<&str> = name[5..].split('/').collect();
             let ctor_name = parts[0];
             return Value::Constructor(ctor_name.to_string(), args.into());
+        }
+
+        if self.exhaustive_preview_forbid_effects {
+            let canonical = builtin_canonical(name);
+            let impure = meta_impure_runtime_names();
+            if impure.contains(name) || impure.contains(canonical) {
+                return self.exhaustive_preview_fail(format!(
+                    "exploration preview refuses impure runtime operation `{}`",
+                    name
+                ));
+            }
         }
 
         match name {
@@ -19509,6 +19559,9 @@ pub struct TypeChecker {
     inferring_exact_explore_rule_returns: bool,
     /// Require exact rule identities while checking an exploration query.
     checking_explore_query: bool,
+    /// Hidden exact-exhaustion preview: retain ordinary type checking while
+    /// bypassing solver-only purity and static replay-classification gates.
+    checking_exhaustive_explore_preview: bool,
     /// Bodies used to prove that an Explore question and its reachable helpers
     /// are free of effects and unsupported propagation paths.
     explore_callable_expressions_by_arity: BTreeMap<(String, usize), Vec<Expr>>,
@@ -19634,6 +19687,7 @@ impl TypeChecker {
             explore_rule_return_issues: BTreeMap::new(),
             inferring_exact_explore_rule_returns: false,
             checking_explore_query: false,
+            checking_exhaustive_explore_preview: false,
             explore_callable_expressions_by_arity: BTreeMap::new(),
             explore_rules_by_arity: BTreeMap::new(),
             explore_declared_effect_callables: BTreeSet::new(),
@@ -25029,16 +25083,18 @@ impl TypeChecker {
                 return;
             }
         }
-        let bound = self.scopes.last().cloned().unwrap_or_default();
-        if !self.explore_expression_is_pure(expr, &bound) {
-            self.error_at_expr(
-                expr,
-                "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
-                    .to_string(),
-            );
-        }
-        for issue in self.explore_operator_issues_with_locals(expr, &BTreeMap::new()) {
-            self.error_at_expr(expr, issue);
+        if !self.checking_exhaustive_explore_preview {
+            let bound = self.scopes.last().cloned().unwrap_or_default();
+            if !self.explore_expression_is_pure(expr, &bound) {
+                self.error_at_expr(
+                    expr,
+                    "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
+                        .to_string(),
+                );
+            }
+            for issue in self.explore_operator_issues_with_locals(expr, &BTreeMap::new()) {
+                self.error_at_expr(expr, issue);
+            }
         }
         self.check_expr(expr, None);
     }
@@ -25139,7 +25195,8 @@ impl TypeChecker {
                 ),
             );
         }
-        if self.rule_arities.contains(&signature_key)
+        if !self.checking_exhaustive_explore_preview
+            && self.rule_arities.contains(&signature_key)
             && !self.explore_callable_is_pure(&signature_key)
         {
             self.error_at_span(
@@ -25181,25 +25238,27 @@ impl TypeChecker {
             });
         }
 
-        if let Some(issue) = self.explore_rule_return_issues.get(&signature_key).cloned() {
-            self.error_at_span(query.over.span, issue);
-        } else {
-            match self.explore_rule_return_types_by_arity.get(&signature_key) {
-                Some(return_type) if return_type.to_string() == "Bool" => {}
-                Some(return_type) => self.error_at_span(
-                    query.over.span,
-                    format!(
-                        "exploration target `{}` must be a Boolean rule, but it returns `{}`",
-                        query.over.rule_name, return_type
+        if !self.checking_exhaustive_explore_preview {
+            if let Some(issue) = self.explore_rule_return_issues.get(&signature_key).cloned() {
+                self.error_at_span(query.over.span, issue);
+            } else {
+                match self.explore_rule_return_types_by_arity.get(&signature_key) {
+                    Some(return_type) if return_type.to_string() == "Bool" => {}
+                    Some(return_type) => self.error_at_span(
+                        query.over.span,
+                        format!(
+                            "exploration target `{}` must be a Boolean rule, but it returns `{}`",
+                            query.over.rule_name, return_type
+                        ),
                     ),
-                ),
-                None => self.error_at_span(
-                    query.over.span,
-                    format!(
-                        "cannot infer the result type of exploration rule `{}`; declare a pure Boolean rule",
-                        query.over.rule_name
+                    None => self.error_at_span(
+                        query.over.span,
+                        format!(
+                            "cannot infer the result type of exploration rule `{}`; declare a pure Boolean rule",
+                            query.over.rule_name
+                        ),
                     ),
-                ),
+                }
             }
         }
 
@@ -26705,7 +26764,18 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> TypeCheckArtifacts {
-        Self::check_with_artifact_options(stmts, source_dir, source, false)
+        Self::check_with_artifact_options(stmts, source_dir, source, false, false)
+    }
+
+    /// Check the hidden exact-finite preview without imposing requirements
+    /// that exist solely for solver lowering. Runtime types are still checked,
+    /// and every assignment is later executed by the ordinary interpreter.
+    pub fn check_with_exhaustive_preview_artifacts(
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        source: &str,
+    ) -> TypeCheckArtifacts {
+        Self::check_with_artifact_options(stmts, source_dir, source, false, true)
     }
 
     /// Run type checking and additionally collect compile-time metadata from
@@ -26715,7 +26785,7 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> TypeCheckArtifacts {
-        Self::check_with_artifact_options(stmts, source_dir, source, true)
+        Self::check_with_artifact_options(stmts, source_dir, source, true, false)
     }
 
     fn check_with_artifact_options(
@@ -26723,10 +26793,12 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
         collect_all_imported_metadata_bindings: bool,
+        exhaustive_explore_preview: bool,
     ) -> TypeCheckArtifacts {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
+        tc.checking_exhaustive_explore_preview = exhaustive_explore_preview;
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
@@ -26750,6 +26822,7 @@ impl TypeChecker {
                 &tc.rule_dispatch_boolean_miss_safe_keys,
                 &tc.explore_rule_return_types_by_arity,
                 &tc.explore_rule_return_issues,
+                !exhaustive_explore_preview,
             ) {
                 Ok(universes) => exploration_universes = universes,
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),

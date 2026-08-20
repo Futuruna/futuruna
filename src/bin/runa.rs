@@ -89,6 +89,9 @@ fn main_inner() {
     let mut meta_role_filter = None;
     let mut meta_json = false;
     let mut audit_json = false;
+    let mut explore_preview_json = false;
+    let mut explore_preview_query = None;
+    let mut explore_preview_limit = 10_000usize;
     let mut calculation_entry = None;
     let mut calculation_format = None;
     let mut calculation_input = None;
@@ -196,6 +199,48 @@ fn main_inner() {
             }
             "--json" if mode == "audit" => {
                 audit_json = true;
+                i += 1;
+            }
+            "--json" if mode == "__explore-preview" => {
+                explore_preview_json = true;
+                i += 1;
+            }
+            "--query" if mode == "__explore-preview" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_preview_query = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "__explore-preview" && arg.starts_with("--query=") => {
+                let value = &arg["--query=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_preview_query = Some(value.to_string());
+                i += 1;
+            }
+            "--limit" if mode == "__explore-preview" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --limit requires a positive integer");
+                    std::process::exit(1);
+                }
+                explore_preview_limit = args[i + 1].parse::<usize>().unwrap_or_else(|_| {
+                    eprintln!("error: --limit requires a positive integer");
+                    std::process::exit(1);
+                });
+                i += 2;
+            }
+            arg if mode == "__explore-preview" && arg.starts_with("--limit=") => {
+                explore_preview_limit =
+                    arg["--limit=".len()..]
+                        .parse::<usize>()
+                        .unwrap_or_else(|_| {
+                            eprintln!("error: --limit requires a positive integer");
+                            std::process::exit(1);
+                        });
                 i += 1;
             }
             "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
@@ -582,6 +627,10 @@ fn main_inner() {
                 mode = "audit";
                 i += 1;
             }
+            "__explore-preview" => {
+                mode = "__explore-preview";
+                i += 1;
+            }
             "from-rust" => {
                 mode = "from-rust";
                 i += 1;
@@ -833,6 +882,14 @@ fn main_inner() {
                 }
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
+                "__explore-preview" => run_explore_preview(
+                    &source,
+                    path,
+                    use_prelude,
+                    explore_preview_query.as_deref(),
+                    explore_preview_json,
+                    explore_preview_limit,
+                ),
                 _ => run_source(&source, path, use_prelude),
             },
             Err(e) => {
@@ -5969,6 +6026,215 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             display_error_in(source, &e, filename);
             std::process::exit(1);
         }
+    }
+}
+
+fn explore_preview_value_json(value: &explore::ExploreValue) -> serde_json::Value {
+    match value {
+        explore::ExploreValue::Int(value) => serde_json::json!(value),
+        explore::ExploreValue::FloatBits(bits) => {
+            serde_json::json!({ "$float_bits": bits.to_string() })
+        }
+        explore::ExploreValue::String(value) => serde_json::json!(value),
+        explore::ExploreValue::Character(value) => serde_json::json!(value.to_string()),
+        explore::ExploreValue::Boolean(value) => serde_json::json!(value),
+        explore::ExploreValue::Unit => serde_json::Value::Null,
+        explore::ExploreValue::List(values) => {
+            serde_json::Value::Array(values.iter().map(explore_preview_value_json).collect())
+        }
+        explore::ExploreValue::Set(values) => serde_json::json!({
+            "$set": values
+                .iter()
+                .map(explore_preview_value_json)
+                .collect::<Vec<_>>()
+        }),
+        explore::ExploreValue::Tuple(values) => serde_json::json!({
+            "$tuple": values
+                .iter()
+                .map(explore_preview_value_json)
+                .collect::<Vec<_>>()
+        }),
+        explore::ExploreValue::Constructor {
+            type_name,
+            variant,
+            positional,
+            fields,
+        } => {
+            let mut object = serde_json::Map::new();
+            object.insert("$type".to_string(), serde_json::json!(type_name));
+            object.insert("$variant".to_string(), serde_json::json!(variant));
+            if *positional {
+                object.insert(
+                    "$values".to_string(),
+                    serde_json::Value::Array(
+                        fields
+                            .iter()
+                            .map(|(_, value)| explore_preview_value_json(value))
+                            .collect(),
+                    ),
+                );
+            } else {
+                let mut named = serde_json::Map::new();
+                for (name, value) in fields {
+                    named.insert(name.clone(), explore_preview_value_json(value));
+                }
+                object.insert("$fields".to_string(), serde_json::Value::Object(named));
+            }
+            serde_json::Value::Object(object)
+        }
+    }
+}
+
+fn explore_preview_fields_json(fields: &[explore::ExplorePreviewField]) -> serde_json::Value {
+    let mut object = serde_json::Map::new();
+    for field in fields {
+        object.insert(field.name.clone(), explore_preview_value_json(&field.value));
+    }
+    serde_json::Value::Object(object)
+}
+
+fn run_explore_preview(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    case_limit: usize,
+) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let source_dir = source_dir_for(filename);
+    let artifacts = TypeChecker::check_with_exhaustive_preview_artifacts(
+        &statements,
+        source_dir.clone(),
+        source,
+    );
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        std::process::exit(1);
+    }
+
+    let selected = if let Some(query_name) = query_name {
+        artifacts
+            .exploration_universes
+            .iter()
+            .find(|candidate| candidate.query.name.as_deref() == Some(query_name))
+            .unwrap_or_else(|| {
+                eprintln!(
+                    "error: exploration `{}` was not found in {}",
+                    query_name, filename
+                );
+                std::process::exit(1);
+            })
+    } else if artifacts.exploration_universes.len() == 1 {
+        &artifacts.exploration_universes[0]
+    } else if artifacts.exploration_universes.is_empty() {
+        eprintln!("error: {} contains no selectable exploration", filename);
+        std::process::exit(1);
+    } else {
+        let names = artifacts
+            .exploration_universes
+            .iter()
+            .filter_map(|candidate| candidate.query.name.as_deref())
+            .collect::<Vec<_>>()
+            .join(", ");
+        eprintln!(
+            "error: {} contains multiple explorations; select one with --query ({})",
+            filename, names
+        );
+        std::process::exit(1);
+    };
+
+    let report = explore::execute_exhaustive_preview(
+        &statements,
+        source_dir.as_deref(),
+        &artifacts,
+        selected,
+        case_limit,
+    )
+    .unwrap_or_else(|message| {
+        eprintln!("error: exploration preview failed: {}", message);
+        std::process::exit(1);
+    });
+    let coverage = if report.matching_configurations == 0 {
+        "none"
+    } else if report.matching_configurations == report.evaluated_configurations {
+        "all"
+    } else {
+        "some"
+    };
+    let polarity = match report.polarity {
+        ExplorePolarity::Matches => "matches",
+        ExplorePolarity::Violations => "violations",
+    };
+    let rows = report
+        .rows
+        .iter()
+        .map(|row| {
+            serde_json::json!({
+                "inputs": explore_preview_fields_json(&row.inputs),
+                "key": explore_preview_fields_json(&row.key),
+                "shown": explore_preview_fields_json(&row.shown),
+                "evaluation": "interpreter"
+            })
+        })
+        .collect::<Vec<_>>();
+    let payload = serde_json::json!({
+        "schema": "futuruna.explore.preview.v0",
+        "status": "complete",
+        "completion_method": "exact_finite_exhaustion",
+        "query": report.query_name,
+        "polarity": polarity,
+        "coverage": coverage,
+        "counts": {
+            "declared_assignments": report.declared_assignments,
+            "eligible_configurations": report.eligible_configurations,
+            "evaluated_configurations": report.evaluated_configurations,
+            "matching_configurations": report.matching_configurations,
+            "distinct_keys": report.distinct_keys
+        },
+        "configurations": rows
+    });
+
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload).expect("serialize exploration preview")
+        );
+        return;
+    }
+
+    println!("Explore preview `{}`: COMPLETE", report.query_name);
+    println!("  method: exact finite exhaustion through the interpreter");
+    println!("  declared assignments: {}", report.declared_assignments);
+    println!(
+        "  eligible configurations: {}",
+        report.eligible_configurations
+    );
+    println!(
+        "  matching configurations: {} ({})",
+        report.matching_configurations, coverage
+    );
+    println!("  distinct keys: {}", report.distinct_keys);
+    for row in payload["configurations"]
+        .as_array()
+        .expect("preview rows are an array")
+    {
+        println!(
+            "  {}",
+            serde_json::to_string(row).expect("serialize exploration preview row")
+        );
     }
 }
 
