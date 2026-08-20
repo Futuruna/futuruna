@@ -1,7 +1,16 @@
-//! Futuruna core library — lexer, parser, interpreter, type checker
+//! # Futuruna
 //!
-//! This module contains the core language implementation that can be used
-//! as a library, including for the WASM playground.
+//! Futuruna is a programming language for law.
+//!
+//! Write laws, contracts, and policies you can run, test, and audit. Futuruna
+//! keeps formal rules, defaults, exceptions, calculations, and ordinary
+//! programming in one execution space.
+//!
+//! This crate contains the Futuruna lexer, parser, interpreter, type checker,
+//! compiler, proof kernel, and typed calculation support. The `runa` binary is
+//! the main command-line interface. Start with the
+//! [guided tutorial](https://futuruna.com/docs/tutorial) or the
+//! [language documentation](https://futuruna.com/docs).
 
 #![allow(
     dead_code,
@@ -10,18 +19,8 @@
     unused_mut,
     unused_assignments
 )]
-
-//! runa — The Futuruna Compiler / Interpreter
-//!
-//! A Rust-hosted bootstrap compiler for the Futuruna programming language.
-//! Reads .runa files, tokenizes, parses, evaluates, or transpiles to Rust.
-//!
-//! Usage:
-//!   cargo run --release --bin runa -- <file.runa>
-//!   cargo run --release --bin runa              # REPL mode
-//!
-//! This is the first real implementation of Futuruna — the programming language
-//! designed by measuring syntactic consciousness.
+#![doc(html_logo_url = "https://futuruna.com/apple-touch-icon.png")]
+#![doc(html_favicon_url = "https://futuruna.com/favicon.png")]
 
 use serde_json;
 use sha2::{Digest as ShaDigest, Sha256};

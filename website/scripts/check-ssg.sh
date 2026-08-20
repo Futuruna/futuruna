@@ -34,6 +34,7 @@ pages=(
 test -s "$output_dir/sitemap.xml" || { echo "missing sitemap.xml" >&2; exit 1; }
 
 generated_pages=()
+expected_social_image_url=""
 for entry in "${pages[@]}"; do
   IFS='^' read -r relative_file canonical title content_marker <<< "$entry"
   file="$output_dir/$relative_file"
@@ -78,13 +79,13 @@ for entry in "${pages[@]}"; do
     exit 1
   fi
 
-  for property in og:type og:title og:description og:url og:image og:image:width og:image:height og:image:alt; do
+  for property in og:type og:title og:description og:url og:image og:image:secure_url og:image:type og:image:width og:image:height og:image:alt; do
     test "$(count_pattern "<meta[^>]+property=\"$property\"" "$file")" -eq 1 || {
       echo "$relative_file must contain exactly one $property meta tag" >&2
       exit 1
     }
   done
-  for name in twitter:title twitter:description twitter:image twitter:image:alt; do
+  for name in twitter:card twitter:title twitter:description twitter:image twitter:image:alt; do
     test "$(count_pattern "<meta[^>]+name=\"$name\"" "$file")" -eq 1 || {
       echo "$relative_file must contain exactly one $name meta tag" >&2
       exit 1
@@ -95,6 +96,39 @@ for entry in "${pages[@]}"; do
     echo "$relative_file og:url does not point to $canonical" >&2
     exit 1
   }
+
+  og_image_tag="$({ grep -Eo '<meta[^>]+property="og:image"[^>]*>' "$file" || true; })"
+  og_secure_image_tag="$({ grep -Eo '<meta[^>]+property="og:image:secure_url"[^>]*>' "$file" || true; })"
+  og_image_type_tag="$({ grep -Eo '<meta[^>]+property="og:image:type"[^>]*>' "$file" || true; })"
+  twitter_image_tag="$({ grep -Eo '<meta[^>]+name="twitter:image"[^>]*>' "$file" || true; })"
+  twitter_card_tag="$({ grep -Eo '<meta[^>]+name="twitter:card"[^>]*>' "$file" || true; })"
+  social_image_url="$(sed -n 's/.*content="\([^"]*\)".*/\1/p' <<< "$og_image_tag")"
+  [[ "$social_image_url" == https://futuruna.com/*.png ]] || {
+    echo "$relative_file og:image must be an absolute Futuruna PNG URL" >&2
+    exit 1
+  }
+  [[ "$og_secure_image_tag" == *"content=\"$social_image_url\""* ]] || {
+    echo "$relative_file og:image:secure_url must match og:image" >&2
+    exit 1
+  }
+  [[ "$og_image_type_tag" == *'content="image/png"'* ]] || {
+    echo "$relative_file og:image:type must be image/png" >&2
+    exit 1
+  }
+  [[ "$twitter_image_tag" == *"content=\"$social_image_url\""* ]] || {
+    echo "$relative_file twitter:image must match og:image" >&2
+    exit 1
+  }
+  [[ "$twitter_card_tag" == *'content="summary"'* ]] || {
+    echo "$relative_file twitter:card must request the square summary card" >&2
+    exit 1
+  }
+  if [[ -z "$expected_social_image_url" ]]; then
+    expected_social_image_url="$social_image_url"
+  elif [[ "$social_image_url" != "$expected_social_image_url" ]]; then
+    echo "$relative_file does not use the shared Futuruna social image" >&2
+    exit 1
+  fi
 done
 
 income_cliffs_file="$output_dir/research/income-cliffs.html"
@@ -171,7 +205,7 @@ grep -Fq '<tr><td>150–199,99 kr.</td><td>229</td></tr>' "$income_cliffs_file" 
   exit 1
 }
 
-for public_asset in robots.txt llms.txt ai-setup.md codemeta.json _headers; do
+for public_asset in robots.txt llms.txt ai-setup.md codemeta.json _headers favicon.ico favicon.png apple-touch-icon.png; do
   test -s "$output_dir/$public_asset" || {
     echo "missing public discovery asset: $public_asset" >&2
     exit 1
@@ -185,6 +219,57 @@ social_image_path="${social_image_url#https://futuruna.com}"
   echo "generated Open Graph image does not resolve inside the static artifact" >&2
   exit 1
 }
+
+for icon_spec in \
+  'rel="icon"^href="/favicon.png"' \
+  'rel="shortcut icon"^href="/favicon.ico"' \
+  'rel="apple-touch-icon"^href="/apple-touch-icon.png"'; do
+  IFS='^' read -r rel_marker href_marker <<< "$icon_spec"
+  icon_tag="$({ grep -Eo "<link[^>]+${rel_marker}[^>]*>" "$output_dir/index.html" || true; })"
+  [[ "$icon_tag" == *"$href_marker"* ]] || {
+    echo "generated homepage is missing $rel_marker $href_marker" >&2
+    exit 1
+  }
+done
+
+python3 - "$output_dir" "$social_image_path" <<'PY'
+import os
+import struct
+import sys
+
+output_dir, social_image_path = sys.argv[1:]
+
+def png_info(relative_path):
+    path = os.path.join(output_dir, relative_path.lstrip("/"))
+    with open(path, "rb") as image:
+        header = image.read(26)
+    if header[:8] != b"\x89PNG\r\n\x1a\n" or header[12:16] != b"IHDR":
+        raise SystemExit(f"{relative_path} is not a PNG")
+    return struct.unpack(">II", header[16:24]), header[25]
+
+expected_sizes = {
+    "/favicon.png": (64, 64),
+    "/apple-touch-icon.png": (180, 180),
+    social_image_path: (512, 512),
+}
+for relative_path, expected in expected_sizes.items():
+    actual, _ = png_info(relative_path)
+    if actual != expected:
+        raise SystemExit(f"{relative_path} is {actual}, expected {expected}")
+
+for relative_path in ("/apple-touch-icon.png", social_image_path):
+    _, color_type = png_info(relative_path)
+    if color_type != 2:
+        raise SystemExit(f"{relative_path} must be an opaque RGB PNG")
+
+with open(os.path.join(output_dir, "favicon.ico"), "rb") as icon:
+    if icon.read(4) != b"\x00\x00\x01\x00":
+        raise SystemExit("favicon.ico does not have a valid ICO header")
+
+social_image_file = os.path.join(output_dir, social_image_path.lstrip("/"))
+if os.path.getsize(social_image_file) > 1_000_000:
+    raise SystemExit("social image exceeds the 1 MB sharing budget")
+PY
 
 python3 - "$output_dir/codemeta.json" "${generated_pages[@]}" <<'PY'
 import json

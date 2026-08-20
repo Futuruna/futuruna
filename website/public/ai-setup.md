@@ -131,7 +131,7 @@ diagnose the error before continuing with the source build below. Do not change
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.1.0 supports Rust
+installing software or changing a shell profile. Futuruna 0.1.1 supports Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary
