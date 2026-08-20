@@ -1,11 +1,11 @@
 # Set Up Futuruna With Your AI
 
 This guide lets an AI coding assistant install Futuruna on your computer, check
-that it works, and help you begin a first project. Use
-[Claude](https://claude.com/download/) or
-[ChatGPT](https://chatgpt.com/download/) on desktop. ChatGPT includes Codex; if
-you work from a terminal, [Claude Code](https://code.claude.com/docs/en/overview)
-can follow the same guide.
+that it works, and help you begin a first project. Use the
+[Claude app](https://claude.com/download/) or
+[ChatGPT app](https://chatgpt.com/download/), or work from a terminal with
+[Claude Code](https://code.claude.com/docs/en/quickstart) or the
+[Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
 
 If you are a person, give your AI this instruction:
 
@@ -192,11 +192,6 @@ Before handling tax information:
 - Do not guess missing facts and do not use the official calculated result as an input.
 - Futuruna does not import the Annual Tax Report PDF automatically. A person or AI must read it and transcribe the source facts.
 
-Agree on the audit scope before asking for details:
-
-- For an independent recomputation, collect the source facts required by every active rule branch. If an official line depends on facts absent from the PDF, ask only for the relevant supporting source or report that component as not independently verified.
-- For a document comparison, use official calculated lines as comparison targets, never as hidden inputs. Report which components Futuruna recomputed and which remain outside the available source facts.
-
 Start by reading:
 
 - `examples/danish-income-tax/website-overblik.md`
@@ -210,13 +205,9 @@ Then inspect the calculation contract and generate an Excel workbook. Replace `P
 "$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format xlsx --output PRIVATE_WORK_DIR/personskat-cases.xlsx
 ```
 
-Resolve the workbook's variant choices before interviewing for their payloads.
-Only fields belonging to the selected alternatives are active; a visible column
-does not by itself make that field required. Leave inactive alternatives empty.
-Then use the field labels, questions, help, units, choices, and source traces in
-the generated contract to ask only for active facts the user can support. Keep
-a list of unknown, ambiguous, and unsupported fields instead of filling them
-speculatively.
+Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
+
+If the calculation uses Futuruna's spouse branch, the relevant spouse details are required for an accurate result. For additional clarity, ask whether the user can also provide the spouse's Annual Tax Report (Årsopgørelse).
 
 When the workbook is complete, run:
 

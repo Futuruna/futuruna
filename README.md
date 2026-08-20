@@ -22,9 +22,10 @@ It allows combining different paradigms through partitioned syntax, using front-
 
 ## AI Setup
 
-Set up Futuruna with [Claude](https://claude.com/download/) or
-[ChatGPT](https://chatgpt.com/download/), which includes Codex. For a terminal
-workflow, use [Claude Code](https://code.claude.com/docs/en/overview).
+Set up Futuruna with the [Claude app](https://claude.com/download/) or
+[ChatGPT app](https://chatgpt.com/download/). For a terminal workflow, use
+[Claude Code](https://code.claude.com/docs/en/quickstart) or the
+[Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
 
 Give the AI this instruction:
 
