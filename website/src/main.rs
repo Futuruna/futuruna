@@ -604,15 +604,7 @@ fn AiGuide() -> Element {
                         rel: "noopener noreferrer",
                         "ChatGPT"
                     }
-                    ". ChatGPT includes Codex. If you work from a terminal, use "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://code.claude.com/docs/en/overview",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "Claude Code"
-                    }
-                    ". Your AI will install Futuruna locally and run the first example with you."
+                    ". Your AI will install Futuruna and run the first example with you."
                 }
                 div { class: "ai-guide-facts",
                     div { class: "ai-guide-fact",
