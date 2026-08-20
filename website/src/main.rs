@@ -591,36 +591,28 @@ fn AiGuide() -> Element {
                     "Give the setup guide to "
                     a {
                         class: "ai-guide-product-link",
-                        href: "https://claude.com/product/claude-code",
+                        href: "https://claude.com/download/",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "Claude"
+                    }
+                    " or "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://chatgpt.com/download/",
+                        target: "_blank",
+                        rel: "noopener noreferrer",
+                        "ChatGPT"
+                    }
+                    ". ChatGPT includes Codex. If you work from a terminal, use "
+                    a {
+                        class: "ai-guide-product-link",
+                        href: "https://code.claude.com/docs/en/overview",
                         target: "_blank",
                         rel: "noopener noreferrer",
                         "Claude Code"
                     }
-                    ", "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://claude.com/product/cowork",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "Claude Cowork"
-                    }
-                    ", "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://openai.com/codex/",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "Codex"
-                    }
-                    ", or "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://openai.com/chatgpt-work/",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "ChatGPT Work"
-                    }
-                    ". Your AI will install Futuruna and run the first example with you."
+                    ". Your AI will install Futuruna locally and run the first example with you."
                 }
                 div { class: "ai-guide-facts",
                     div { class: "ai-guide-fact",
@@ -630,8 +622,8 @@ fn AiGuide() -> Element {
                     }
                     div { class: "ai-guide-fact",
                         span { class: "ai-guide-fact-label", "Installation" }
-                        strong { "Your AI does the setup" }
-                        small { "You approve any software changes" }
+                        strong { "Futuruna runs locally" }
+                        small { "Your AI installs it with your approval" }
                     }
                     div { class: "ai-guide-fact",
                         span { class: "ai-guide-fact-label", "Before it finishes" }
@@ -687,7 +679,15 @@ fn AiGuide() -> Element {
                         span { class: "ai-guide-option-label", "Denmark" }
                         h3 { "Audit your Annual Tax Report (Årsopgørelse)" }
                         p {
-                            "If you are from Denmark, let the AI interview you into Futuruna's formal Personskat rule model, then compare the deterministic result with your own Annual Tax Report."
+                            "Download your Årsopgørelse as a PDF from "
+                            a {
+                                class: "ai-guide-product-link",
+                                href: "https://skat.dk/borger/aarsopgoerelse/aarsopgoerelsen",
+                                target: "_blank",
+                                rel: "noopener noreferrer",
+                                "SKAT"
+                            }
+                            ", keep it private, and let your AI help enter the relevant facts into Futuruna's formal Personskat model. Futuruna can then recompute the supported tax rules and compare the result with the report."
                         }
                     }
                     article { class: "ai-guide-option",

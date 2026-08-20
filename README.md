@@ -22,15 +22,17 @@ It allows combining different paradigms through partitioned syntax, using front-
 
 ## AI Setup
 
-I recommend setting up Futuruna using Codex, Claude Code, ChatGPT Work, Claude Cowork and the strong models it provides (ChatGPT Sol or above, Claude Fable or above, Grok 4.7 or above)
+Set up Futuruna with [Claude](https://claude.com/download/) or
+[ChatGPT](https://chatgpt.com/download/), which includes Codex. For a terminal
+workflow, use [Claude Code](https://code.claude.com/docs/en/overview).
 
 Give the AI this instruction:
 
 > Read https://futuruna.com/ai-setup.md and set up Futuruna for me.
 
-The guide helps your AI install the right Futuruna version for your computer,
-check the download, and run a working example. If no ready-made download exists
-for your computer, the AI builds Futuruna there instead.
+The guide helps your AI install Futuruna locally, verify the download, and run a
+working example. If no ready-made download exists for your computer, the AI
+installs it with Cargo or builds Futuruna there instead.
 
 ## Skills, Integration and Examples
 

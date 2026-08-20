@@ -2,10 +2,10 @@
 
 This guide lets an AI coding assistant install Futuruna on your computer, check
 that it works, and help you begin a first project. Use
-[Claude Code](https://claude.com/product/claude-code),
-[Claude Cowork](https://claude.com/product/cowork),
-[Codex](https://openai.com/codex/), or
-[ChatGPT Work](https://openai.com/chatgpt-work/) to follow it.
+[Claude](https://claude.com/download/) or
+[ChatGPT](https://chatgpt.com/download/) on desktop. ChatGPT includes Codex; if
+you work from a terminal, [Claude Code](https://code.claude.com/docs/en/overview)
+can follow the same guide.
 
 If you are a person, give your AI this instruction:
 
@@ -16,6 +16,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 ## Setup at a glance
 
 - **Installation:** Use the verified Futuruna download made for the user's computer when one is available. Otherwise, install it with Cargo or build it on that computer.
+- **Local result:** Leave the user with a working local `runa` executable and, when they want the examples or legal models, a local Futuruna checkout they can use after this AI session ends.
 - **Time:** A download normally takes 1–3 minutes. Building Futuruna normally takes 5–10 minutes when Rust and Cargo are already installed.
 - **Rust:** The downloaded program can check, format, run, and audit Futuruna code without installing Rust. Building Futuruna or using `runa build` still requires Rust.
 - **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Do not run the full project test suite merely to check an installation.
@@ -23,8 +24,8 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 ## Your task
 
 1. Establish which operating system and processor will actually run `runa`.
-2. Get the Futuruna repository when the user wants the examples and legal models.
-3. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna there.
+2. Fetch the Futuruna repository onto that computer when the user wants the examples and legal models.
+3. Install a local Futuruna executable there. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna locally.
 4. Verify Futuruna on the user's computer.
 5. Ask the user which first project they want to explore.
 6. Help them complete that project without guessing facts or silently changing source material.
@@ -104,11 +105,9 @@ cd ../..
 ```
 
 Stop if the download or checksum is unavailable, the checksum line is missing,
-or verification fails. The GitHub release page states whether its macOS binaries
-are Apple-notarized. If macOS blocks an unsigned download, do not remove its
-quarantine attribute or disable Gatekeeper automatically. Tell the user and use
-Cargo or a local source build instead unless the user explicitly decides
-otherwise.
+or verification fails. If the operating system blocks the downloaded program,
+show the user the exact message and ask before changing any security setting.
+Use Cargo or a local source build when that is the safer available route.
 
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
@@ -172,7 +171,6 @@ When setup succeeds, tell the user:
 - which computer and installation method were used,
 - which version was installed,
 - whether the download checksum was verified,
-- whether the release stated that its macOS binary was notarized,
 - which verification commands passed, and
 - where the `runa` binary is located.
 
@@ -184,7 +182,7 @@ Ask the user which of these they want to do first.
 
 ### Audit your Annual Tax Report (Årsopgørelse)
 
-Suggest this if the user is from Denmark. Futuruna contains an active research implementation of the Danish personal income-tax model. The intended workflow is that you interview the user, help transcribe source facts into a generated workbook, and let Futuruna validate and calculate the result deterministically.
+Suggest this if the user is from Denmark. Futuruna contains an active research implementation of the Danish personal income-tax model. Ask the user to download their Annual Tax Report as a PDF from [SKAT](https://skat.dk/borger/aarsopgoerelse/aarsopgoerelsen), keep it private, and choose a private working directory. The intended workflow is that you read the PDF with the user, transcribe supported source facts into a generated workbook, and let Futuruna validate and calculate the result deterministically.
 
 Before handling tax information:
 
@@ -193,6 +191,11 @@ Before handling tax information:
 - Never commit or upload tax documents, generated workbooks, or personal results.
 - Do not guess missing facts and do not use the official calculated result as an input.
 - Futuruna does not import the Annual Tax Report PDF automatically. A person or AI must read it and transcribe the source facts.
+
+Agree on the audit scope before asking for details:
+
+- For an independent recomputation, collect the source facts required by every active rule branch. If an official line depends on facts absent from the PDF, ask only for the relevant supporting source or report that component as not independently verified.
+- For a document comparison, use official calculated lines as comparison targets, never as hidden inputs. Report which components Futuruna recomputed and which remain outside the available source facts.
 
 Start by reading:
 
@@ -207,7 +210,13 @@ Then inspect the calculation contract and generate an Excel workbook. Replace `P
 "$RUNA_BIN" template examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --format xlsx --output PRIVATE_WORK_DIR/personskat-cases.xlsx
 ```
 
-Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
+Resolve the workbook's variant choices before interviewing for their payloads.
+Only fields belonging to the selected alternatives are active; a visible column
+does not by itself make that field required. Leave inactive alternatives empty.
+Then use the field labels, questions, help, units, choices, and source traces in
+the generated contract to ask only for active facts the user can support. Keep
+a list of unknown, ambiguous, and unsupported fields instead of filling them
+speculatively.
 
 When the workbook is complete, run:
 
