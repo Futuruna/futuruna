@@ -1,0 +1,154 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs.audit
+
+----
+Declared broad Personskat income-cliff search spaces.
+
+These queries exist first as inputs to `runa explore --plan`.  They declare the
+question we ultimately mean to close: every adjacent one-kroner income step
+through 3,000,000 DKK.  The 50 known section 9 C events are deliberately not
+used as bounds.  A candidate-first or symbolic backend may prioritize those
+events, but every other eligible point remains an explicit open frontier until
+it is certified or evaluated.
+
+The first two queries isolate one profile so the boundary algorithm can be
+made sound before composition: 0..1,500,000 DKK is the first closure milestone,
+then the same plan extends through 3,000,000 DKK. The final query composes the
+full income axis with all communes, both church-tax choices and the natural
+0..<32 km distance ramp. None should be naively exhausted before a cost plan
+and region-certificate pass have been inspected.
+----
+
+| personskat_bredt_søgerum_er_indkomstklint(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    indkomst_før_kroner: Heltal,
+    trin: Heltal
+) -> {
+    = overgang = personskat_indkomstklint_overgang(
+        personskat_indkomstklint_profil(
+            kommunale_parametre_for(2026, kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer
+        ),
+        indkomst_før_kroner
+    )
+    trin == 1 && overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre
+}
+
+| personskat_bredt_søgerum_nettotab_øre(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    indkomst_før_kroner: Heltal
+) -> personskat_indkomstklint_overgang(
+    personskat_indkomstklint_profil(
+        kommunale_parametre_for(2026, kommune),
+        betaler_kirkeskat,
+        daglige_befordringskilometer
+    ),
+    indkomst_før_kroner
+).nettotab_øre
+
+? explore personskat_indkomstklint_en_profil_til_1_5_million {
+    over personskat_bredt_søgerum_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        indkomst_før_kroner,
+        trin
+    )
+    find matches
+    bounds {
+        kommune = København
+        betaler_kirkeskat = Falskt
+        daglige_befordringskilometer = 60
+        indkomst_før_kroner in range(0, 1500001)
+        trin = 1
+    }
+    boundaries on indkomst_før_kroner by trin
+    output {
+        key [indkomst_før_kroner]
+        show [
+            indkomst_efter_kroner = indkomst_før_kroner + trin,
+            nettotab_øre = personskat_bredt_søgerum_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                indkomst_før_kroner
+            )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_fuld_indkomst_en_profil {
+    over personskat_bredt_søgerum_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        indkomst_før_kroner,
+        trin
+    )
+    find matches
+    bounds {
+        kommune = København
+        betaler_kirkeskat = Falskt
+        daglige_befordringskilometer = 60
+        indkomst_før_kroner in range(0, 3000001)
+        trin = 1
+    }
+    boundaries on indkomst_før_kroner by trin
+    output {
+        key [indkomst_før_kroner]
+        show [
+            indkomst_efter_kroner = indkomst_før_kroner + trin,
+            nettotab_øre = personskat_bredt_søgerum_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                indkomst_før_kroner
+            )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_fuld_indkomst_national_afstand_32 {
+    over personskat_bredt_søgerum_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        indkomst_før_kroner,
+        trin
+    )
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 32)
+        indkomst_før_kroner in range(0, 3000001)
+        trin = 1
+    }
+    boundaries on indkomst_før_kroner by trin
+    output {
+        key [
+            kommune,
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner
+        ]
+        show [
+            indkomst_efter_kroner = indkomst_før_kroner + trin,
+            nettotab_øre = personskat_bredt_søgerum_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                indkomst_før_kroner
+            )
+        ]
+        representative first
+    }
+}

@@ -5,6 +5,39 @@
 //! deterministic, and exact before a solver or exhaustive executor may see it.
 
 use super::*;
+use std::num::{NonZeroU128, NonZeroU16, NonZeroU64};
+use std::path::PathBuf;
+use std::time::{Duration, Instant};
+
+mod boundary_plan;
+mod boundary_search;
+mod case_graph;
+mod certified_region;
+mod classification_regions;
+mod exact;
+mod exact_stream;
+mod mechanism;
+mod probe;
+mod probe_codec;
+mod probe_io;
+mod probe_runner;
+mod report;
+mod resource_governor;
+mod resource_sampler;
+mod run_state;
+mod run_store;
+mod run_stream;
+mod run_stream_codec;
+mod run_stream_store;
+mod source_events;
+mod source_proof_plan;
+mod stream_coordinator;
+mod stream_identity;
+mod stream_probe;
+mod stream_proof;
+mod stream_replay;
+mod stream_resource;
+mod stream_snapshot;
 
 const EXPLORE_GROUND_COLLECTION_LIMIT: u64 = 1_000_000;
 const EXPLORE_GROUND_WORK_LIMIT: u64 = 4_000_000;
@@ -457,6 +490,1939 @@ pub struct ExploreUniverseIr {
 pub struct ExploreQueryIr {
     pub query: TypedExploreQuery,
     pub universe: ExploreUniverseIr,
+}
+
+/// Default answer-search cap for the public exact-finite executor.
+///
+/// The internal reference engine can be driven without a case cap, but a
+/// first-class API must never make a huge finite Cartesian product
+/// operationally unbounded by default. Hitting this limit produces an honest
+/// `Partial` report with a canonical open suffix.
+pub const DEFAULT_EXPLORE_EXACT_CASE_LIMIT: u128 = 100_000;
+
+/// Operational controls for the public exact-finite Explore backend.
+///
+/// These values are run metadata rather than query identity. Raising a limit
+/// may only refine open evidence; it cannot change a previously closed case.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreExactOptions {
+    pub case_limit: NonZeroU128,
+}
+
+impl Default for ExploreExactOptions {
+    fn default() -> Self {
+        Self {
+            case_limit: NonZeroU128::new(DEFAULT_EXPLORE_EXACT_CASE_LIMIT)
+                .expect("the default Explore case limit is positive"),
+        }
+    }
+}
+
+/// Optional milestone at which one durable Explore invocation should publish
+/// a paused snapshot instead of beginning singleton case work.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStreamPauseAfter {
+    Probes,
+}
+
+/// Operational controls for one resumable Explore invocation.
+///
+/// These values never enter semantic run identity. Reopening the same
+/// `run_state` path with another time slice continues the same checked answer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreStreamSliceOptions {
+    pub run_state: PathBuf,
+    pub max_runtime: Option<Duration>,
+    pub pause_after: Option<ExploreStreamPauseAfter>,
+    /// Opt in to the bounded atomic-v1 terminal replay/publication phase once
+    /// case classification is closed. This does not replace the required
+    /// invocation time/milestone control.
+    pub finalize: bool,
+}
+
+/// Honest nonterminal outcome of one bounded invocation. Case classification
+/// closure is reported separately because final representative/extrema replay
+/// is its own required frontier obligation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreStreamSliceStop {
+    ProbeMilestone,
+    TimeLimit,
+    ResourcePressure {
+        detail: String,
+    },
+    /// One CaseId remains open because the immutable evaluator contract hit a
+    /// deterministic per-case limit. Reopening unchanged will retry that same
+    /// rank; it is not an ordinary productive pause.
+    EvaluationLimit {
+        blocked_rank: u128,
+        reason: ExploreExecutionStopReason,
+    },
+    /// Classification is closed, but the current atomic finalizer cannot fit
+    /// this answer inside its versioned witness/snapshot/publication envelope.
+    /// The evidence remains valid and resumable for a future chunked finalizer.
+    FinalizationLimit {
+        phase: String,
+        detail: String,
+    },
+    ClassificationClosedFinalizationPending,
+    /// This invocation closed the required frontier, published the immutable
+    /// terminal answer and committed its terminal seal.
+    TerminalSealed(ExploreStreamTerminalStatus),
+    AlreadySealed(ExploreStreamTerminalStatus),
+}
+
+/// Terminal kind recovered from an already sealed durable run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStreamTerminalStatus {
+    Completed,
+    Partial,
+    Unknown,
+    Unsupported,
+    Error,
+    Cancelled,
+}
+
+/// Public cursor for one observable point in the append-only Explore stream.
+///
+/// Hashes use canonical lowercase SHA-256 spelling. The checkpoint cursor and
+/// final invocation cursor deliberately differ: snapshot publication and the
+/// following pause are themselves durable journal records.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStreamLifecycle {
+    Running,
+    Paused,
+    Sealed,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreStreamCursor {
+    pub run_id: String,
+    pub sequence: u64,
+    pub journal_head: String,
+    pub evidence_root: String,
+    pub lifecycle: ExploreStreamLifecycle,
+    pub last_coverage_epoch: Option<u64>,
+}
+
+/// Canonical artifact returned by one durable invocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreStreamArtifact {
+    /// Cursor-bearing, bounded observable checkpoint followed by one LF. The
+    /// bytes are installed content-addressably and named by a subsequent
+    /// `SnapshotPublished` journal record before the invocation pauses.
+    CheckpointSnapshotJsonLine {
+        canonical_json_line: Vec<u8>,
+        blob_digest: String,
+        checkpoint_cursor: ExploreStreamCursor,
+        publication_cursor: ExploreStreamCursor,
+    },
+    /// History-independent immutable terminal answer bytes and their raw blob
+    /// address. The final cursor commits the separate semantic payload hash.
+    TerminalResultJson {
+        canonical_json: Vec<u8>,
+        blob_digest: String,
+    },
+}
+
+/// One canonical observable or terminal point in the durable stream.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreStreamSliceReport {
+    pub stop: ExploreStreamSliceStop,
+    /// Cursor after the publication/pause or terminal-seal records committed by
+    /// this invocation.
+    pub final_cursor: ExploreStreamCursor,
+    pub probe_milestone_complete: bool,
+    /// Whole singleton cases evaluated and committed by this invocation.
+    pub singleton_cases_evaluated_this_slice: u128,
+    /// Total newly closed support, including weighted proof/structural regions.
+    pub closed_cases_this_slice: u128,
+    pub artifact: ExploreStreamArtifact,
+}
+
+/// One declared search axis in source order, before constraints or question
+/// evaluation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreCostPlanAxis {
+    pub name: String,
+    pub cardinality: ExploreCardinality,
+}
+
+/// Static boundary-search shape derived by the ordinary Explore elaborator.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreCostPlanBoundary {
+    pub axis: String,
+    pub step: i64,
+    /// Product of the boundary-eligible axis pairs and every other declared
+    /// axis, before `where` constraints or question evaluation.
+    pub eligible_unconstrained_pairs: ExploreCardinality,
+}
+
+/// A no-execution cost/search plan for one checked Explore query.
+///
+/// This is planning metadata, not result evidence: it evaluates no cases,
+/// establishes no closure, and contains no mechanism or symbolic candidates.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreCostPlan {
+    pub query_name: String,
+    pub axes: Vec<ExploreCostPlanAxis>,
+    /// `U`: the declared Cartesian product before constraints and before the
+    /// queried rule.
+    pub declared_cartesian_count: ExploreCardinality,
+    pub boundary: Option<ExploreCostPlanBoundary>,
+    pub requested_case_limit: u128,
+    /// Number of singleton assignments a naive exact exhaustion would plan to
+    /// classify under the requested cap.
+    pub naive_singleton_classifications: u128,
+    /// Assignments necessarily left open by that cap. Available only when `U`
+    /// fits in `u128`; this is still a cost estimate, not observed closure.
+    pub naive_remaining_open_lower_bound: Option<u128>,
+}
+
+/// Certainty attached to one nonnegative Explore population count.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreCountEvidence {
+    Exact(u128),
+    LowerBound(u128),
+    Unknown,
+}
+
+/// Exact populations remain distinct: declared assignments (`U`), admissible
+/// cases (`D`), matching cases (`M`) and emitted result identities (`R`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreExecutionCounts {
+    pub declared_assignments: ExploreCountEvidence,
+    pub admissible_configurations: ExploreCountEvidence,
+    pub matching_configurations: ExploreCountEvidence,
+    pub distinct_result_keys: ExploreCountEvidence,
+}
+
+/// Group populations surrounding the post-aggregation `having` view.
+/// Suppressed cases remain part of D/M and of any requested case evidence.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreExecutionGroupCounts {
+    pub raw_groups: ExploreCountEvidence,
+    pub emitted_groups: ExploreCountEvidence,
+    pub suppressed_groups: ExploreCountEvidence,
+    pub qualifying_configurations: ExploreCountEvidence,
+    pub suppressed_configurations: ExploreCountEvidence,
+}
+
+/// Public, name-stable description of the post-aggregation result view.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreExecutionGroupFilter {
+    All,
+    Varies { extrema_name: String },
+}
+
+/// Matching coverage over the admissible population. This is independent of
+/// whether execution itself completed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreExecutionCoverage {
+    Empty,
+    None,
+    Some,
+    All,
+    Undetermined,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreExecutionClosure {
+    Open,
+    Closed,
+}
+
+/// Closure of answer/case/value layers. Mechanism evidence is deliberately
+/// reported separately and never downgrades a closed answer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreExecutionClosures {
+    /// Key discovery plus any requested extrema aggregation and `having`
+    /// classification.
+    pub projection: ExploreExecutionClosure,
+    pub admissibility: ExploreExecutionClosure,
+    pub polarity: ExploreExecutionClosure,
+    pub representatives: ExploreExecutionClosure,
+    pub rows: ExploreExecutionClosure,
+    pub views: ExploreExecutionClosure,
+}
+
+/// One name/value pair authorized by the query's `key` or `show` projection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionField {
+    pub name: String,
+    pub value: ExploreValue,
+}
+
+/// Exact closed extrema of one integer measure within a projected key group.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionExtrema {
+    pub name: String,
+    pub minimum: i64,
+    pub maximum: i64,
+    pub spread: u128,
+    pub minimum_tie_support: u128,
+    pub maximum_tie_support: u128,
+    /// Canonical domain ordinals of a freshly replayed minimum witness.
+    pub minimum_witness_case_id: Vec<u128>,
+    /// Canonical domain ordinals of a freshly replayed maximum witness.
+    pub maximum_witness_case_id: Vec<u128>,
+}
+
+/// One canonical projected result with a replay-confirmed representative.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionRow {
+    pub key: Vec<ExploreExecutionField>,
+    pub extrema: Vec<ExploreExecutionExtrema>,
+    pub shown: Vec<ExploreExecutionField>,
+    /// Exact when the projected key class is closed; otherwise a confirmed
+    /// lower bound over the evaluated closed cases.
+    pub support: ExploreCountEvidence,
+    /// Domain ordinals in bound source order, not raw hidden input values.
+    pub representative_case_id: Vec<u128>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreExecutionLimitResource {
+    Steps,
+    CollectionMembers { operation: String },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreExecutionPhase {
+    Initialization,
+    DerivedFact { name: String },
+    BoundaryEndpoint,
+    Constraint { index: usize },
+    Question,
+    Key { name: String },
+    Extrema { name: String },
+    Show { name: String },
+    Objective,
+    Replay,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreExecutionStopReason {
+    CaseLimit {
+        limit: u128,
+    },
+    RuntimeLimit {
+        resource: ExploreExecutionLimitResource,
+        limit: u128,
+        observed: u128,
+        phase: ExploreExecutionPhase,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreExecutionMethod {
+    ExactFiniteExhaustion,
+    ExactFiniteCertifiedClosure,
+}
+
+/// Terminal answer status. `Partial` contains only evidence already closed or
+/// replay-confirmed; `Unsupported` is never presented as a proof of absence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreExecutionOutcome {
+    Complete {
+        method: ExploreExecutionMethod,
+        evidence: ExploreExecutionEvidence,
+    },
+    Partial {
+        stop: ExploreExecutionStopReason,
+        evidence: ExploreExecutionEvidence,
+    },
+    Unknown {
+        reason: String,
+        evidence: ExploreExecutionEvidence,
+    },
+    Unsupported {
+        diagnostic: String,
+    },
+    Error {
+        diagnostics: Vec<String>,
+    },
+}
+
+impl ExploreExecutionOutcome {
+    pub fn evidence(&self) -> Option<&ExploreExecutionEvidence> {
+        match self {
+            Self::Complete { evidence, .. }
+            | Self::Partial { evidence, .. }
+            | Self::Unknown { evidence, .. } => Some(evidence),
+            Self::Unsupported { .. } | Self::Error { .. } => None,
+        }
+    }
+}
+
+/// Mechanism tracing is orthogonal to exact case closure. The first public
+/// exact backend exposes the absence of mechanism evidence explicitly rather
+/// than claiming that zero mechanisms exist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreExecutionMechanismEvidence {
+    UnavailableDeferred,
+}
+
+/// Work accounting for the exact search order. Source-event identities stay
+/// private scheduling metadata; this evidence reports only auditable counts.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreExecutionSearchEvidence {
+    Canonical {
+        classified_cases: u128,
+        remaining_open_cases: u128,
+        exhausted: bool,
+    },
+    SourceCandidateFirst {
+        distinct_source_candidates: u128,
+        scheduled_source_candidates: u128,
+        evaluated_source_candidates: u128,
+        scheduled_fallback_cases: u128,
+        evaluated_fallback_cases: u128,
+        singleton_closed_cases: u128,
+        certified_region_closed_cases: u128,
+        pending_evaluations: u128,
+        remaining_open_cases: u128,
+        exhausted: bool,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionEvidence {
+    pub dimension_names: Vec<String>,
+    pub axis_cardinalities: Vec<u128>,
+    pub key_names: Vec<String>,
+    pub extrema_names: Vec<String>,
+    pub shown_names: Vec<String>,
+    pub search: ExploreExecutionSearchEvidence,
+    pub counts: ExploreExecutionCounts,
+    pub group_counts: ExploreExecutionGroupCounts,
+    pub group_filter: ExploreExecutionGroupFilter,
+    pub coverage: ExploreExecutionCoverage,
+    pub closures: ExploreExecutionClosures,
+    pub results: Vec<ExploreExecutionRow>,
+}
+
+/// Backend-neutral public view of one exact-finite Explore run.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionReport {
+    pub query_name: String,
+    pub polarity: ExplorePolarity,
+    pub outcome: ExploreExecutionOutcome,
+    pub mechanism: ExploreExecutionMechanismEvidence,
+    pub limits: ExploreExecutionLimits,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreExecutionPreparationError {
+    Diagnostics(Vec<Diagnostic>),
+    Selection(String),
+    Execution(String),
+}
+
+impl std::fmt::Display for ExploreExecutionPreparationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Diagnostics(diagnostics) => write!(
+                formatter,
+                "exploration has {} type-check diagnostic{}",
+                diagnostics.len(),
+                if diagnostics.len() == 1 { "" } else { "s" }
+            ),
+            Self::Selection(message) | Self::Execution(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for ExploreExecutionPreparationError {}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreExecutionLimits {
+    pub case_limit: u128,
+    pub step_limit: usize,
+    pub collection_limit: usize,
+}
+
+fn public_count(count: report::ExploreCount) -> ExploreCountEvidence {
+    match count {
+        report::ExploreCount::Exact(value) => ExploreCountEvidence::Exact(value),
+        report::ExploreCount::LowerBound(value) => ExploreCountEvidence::LowerBound(value),
+        report::ExploreCount::Unknown => ExploreCountEvidence::Unknown,
+    }
+}
+
+fn public_closure(closure: report::ExploreClosure) -> ExploreExecutionClosure {
+    match closure {
+        report::ExploreClosure::Open => ExploreExecutionClosure::Open,
+        report::ExploreClosure::Closed => ExploreExecutionClosure::Closed,
+    }
+}
+
+fn public_phase(phase: report::ExploreEvaluationPhase) -> ExploreExecutionPhase {
+    match phase {
+        report::ExploreEvaluationPhase::Initialization => ExploreExecutionPhase::Initialization,
+        report::ExploreEvaluationPhase::DerivedFact { name } => {
+            ExploreExecutionPhase::DerivedFact { name }
+        }
+        report::ExploreEvaluationPhase::BoundaryEndpoint => ExploreExecutionPhase::BoundaryEndpoint,
+        report::ExploreEvaluationPhase::Constraint { index } => {
+            ExploreExecutionPhase::Constraint { index }
+        }
+        report::ExploreEvaluationPhase::Question => ExploreExecutionPhase::Question,
+        report::ExploreEvaluationPhase::Key { name } => ExploreExecutionPhase::Key { name },
+        report::ExploreEvaluationPhase::Extrema { name } => ExploreExecutionPhase::Extrema { name },
+        report::ExploreEvaluationPhase::Show { name } => ExploreExecutionPhase::Show { name },
+        report::ExploreEvaluationPhase::Objective => ExploreExecutionPhase::Objective,
+        report::ExploreEvaluationPhase::Replay => ExploreExecutionPhase::Replay,
+    }
+}
+
+fn public_stop(stop: report::ExploreStopReason) -> ExploreExecutionStopReason {
+    match stop {
+        report::ExploreStopReason::CaseLimit { limit } => {
+            ExploreExecutionStopReason::CaseLimit { limit }
+        }
+        report::ExploreStopReason::RuntimeLimit {
+            resource,
+            limit,
+            observed,
+            phase,
+        } => ExploreExecutionStopReason::RuntimeLimit {
+            resource: match resource {
+                report::ExploreLimitResource::Steps => ExploreExecutionLimitResource::Steps,
+                report::ExploreLimitResource::CollectionMembers { operation } => {
+                    ExploreExecutionLimitResource::CollectionMembers { operation }
+                }
+            },
+            limit,
+            observed,
+            phase: public_phase(phase),
+        },
+    }
+}
+
+fn public_evidence(evidence: report::ExploreExactEvidence) -> ExploreExecutionEvidence {
+    let schema = evidence.schema;
+    let counts = evidence.counts;
+    let group_counts = evidence.group_counts;
+    let closures = evidence.closures;
+    let search = match evidence.search {
+        report::ExploreSearchEvidence::Canonical {
+            classified_cases,
+            remaining_open_cases,
+            exhausted,
+        } => ExploreExecutionSearchEvidence::Canonical {
+            classified_cases,
+            remaining_open_cases,
+            exhausted,
+        },
+        report::ExploreSearchEvidence::SourceCandidateFirst {
+            distinct_source_candidates,
+            scheduled_source_candidates,
+            evaluated_source_candidates,
+            scheduled_fallback_cases,
+            evaluated_fallback_cases,
+            singleton_closed_cases,
+            certified_region_closed_cases,
+            pending_evaluations,
+            remaining_open_cases,
+            exhausted,
+        } => ExploreExecutionSearchEvidence::SourceCandidateFirst {
+            distinct_source_candidates,
+            scheduled_source_candidates,
+            evaluated_source_candidates,
+            scheduled_fallback_cases,
+            evaluated_fallback_cases,
+            singleton_closed_cases,
+            certified_region_closed_cases,
+            pending_evaluations,
+            remaining_open_cases,
+            exhausted,
+        },
+    };
+    let group_filter = match schema.group_filter {
+        report::ExploreGroupFilter::All => ExploreExecutionGroupFilter::All,
+        report::ExploreGroupFilter::Varies { extrema_index } => {
+            ExploreExecutionGroupFilter::Varies {
+                extrema_name: schema
+                    .extrema_names
+                    .get(extrema_index)
+                    .cloned()
+                    .expect("validated Explore varies index names an extrema field"),
+            }
+        }
+    };
+    ExploreExecutionEvidence {
+        dimension_names: schema.dimension_names.into_vec(),
+        axis_cardinalities: schema.axis_cardinalities.into_vec(),
+        key_names: schema.key_names.clone().into_vec(),
+        extrema_names: schema.extrema_names.clone().into_vec(),
+        shown_names: schema.shown_names.clone().into_vec(),
+        search,
+        counts: ExploreExecutionCounts {
+            declared_assignments: public_count(counts.declared_assignments),
+            admissible_configurations: public_count(counts.admissible_configurations),
+            matching_configurations: public_count(counts.matching_configurations),
+            distinct_result_keys: public_count(counts.distinct_result_keys),
+        },
+        group_counts: ExploreExecutionGroupCounts {
+            raw_groups: public_count(group_counts.raw_groups),
+            emitted_groups: public_count(group_counts.emitted_groups),
+            suppressed_groups: public_count(group_counts.suppressed_groups),
+            qualifying_configurations: public_count(group_counts.qualifying_configurations),
+            suppressed_configurations: public_count(group_counts.suppressed_configurations),
+        },
+        group_filter,
+        coverage: match evidence.coverage {
+            report::ExploreCoverage::Empty => ExploreExecutionCoverage::Empty,
+            report::ExploreCoverage::None => ExploreExecutionCoverage::None,
+            report::ExploreCoverage::Some => ExploreExecutionCoverage::Some,
+            report::ExploreCoverage::All => ExploreExecutionCoverage::All,
+            report::ExploreCoverage::Undetermined => ExploreExecutionCoverage::Undetermined,
+        },
+        closures: ExploreExecutionClosures {
+            projection: public_closure(closures.projection),
+            admissibility: public_closure(closures.admissibility),
+            polarity: public_closure(closures.polarity),
+            representatives: public_closure(closures.representatives),
+            rows: public_closure(closures.rows),
+            views: public_closure(closures.views),
+        },
+        results: evidence
+            .results
+            .into_vec()
+            .into_iter()
+            .map(|row| ExploreExecutionRow {
+                key: schema
+                    .key_names
+                    .iter()
+                    .cloned()
+                    .zip(row.key.values().iter().cloned())
+                    .map(|(name, value)| ExploreExecutionField { name, value })
+                    .collect(),
+                extrema: schema
+                    .extrema_names
+                    .iter()
+                    .cloned()
+                    .zip(row.extrema.into_vec())
+                    .map(|(name, summary)| ExploreExecutionExtrema {
+                        name,
+                        minimum: summary.minimum,
+                        maximum: summary.maximum,
+                        spread: summary.spread,
+                        minimum_tie_support: summary.minimum_tie_support,
+                        maximum_tie_support: summary.maximum_tie_support,
+                        minimum_witness_case_id: summary.minimum_witness.ordinals().to_vec(),
+                        maximum_witness_case_id: summary.maximum_witness.ordinals().to_vec(),
+                    })
+                    .collect(),
+                shown: schema
+                    .shown_names
+                    .iter()
+                    .cloned()
+                    .zip(row.shown.into_vec())
+                    .map(|(name, value)| ExploreExecutionField { name, value })
+                    .collect(),
+                support: public_count(row.support),
+                representative_case_id: row.representative.ordinals().to_vec(),
+            })
+            .collect(),
+    }
+}
+
+fn public_exact_report(
+    report: report::ExploreExactReport,
+    options: ExploreExactOptions,
+) -> ExploreExecutionReport {
+    let report::ExploreExactReport {
+        query_name,
+        polarity,
+        mechanism,
+        outcome,
+    } = report;
+    let outcome = match outcome {
+        report::ExploreExactOutcome::Complete { method, evidence } => {
+            ExploreExecutionOutcome::Complete {
+                method: match method {
+                    report::ExploreCompletionMethod::ExactFiniteExhaustion => {
+                        ExploreExecutionMethod::ExactFiniteExhaustion
+                    }
+                    report::ExploreCompletionMethod::ExactFiniteCertifiedClosure => {
+                        ExploreExecutionMethod::ExactFiniteCertifiedClosure
+                    }
+                },
+                evidence: public_evidence(evidence),
+            }
+        }
+        report::ExploreExactOutcome::Partial { stop, evidence } => {
+            ExploreExecutionOutcome::Partial {
+                stop: public_stop(stop),
+                evidence: public_evidence(evidence),
+            }
+        }
+        report::ExploreExactOutcome::Unknown { reason, evidence } => {
+            ExploreExecutionOutcome::Unknown {
+                reason,
+                evidence: public_evidence(evidence),
+            }
+        }
+        report::ExploreExactOutcome::Unsupported { diagnostic } => {
+            ExploreExecutionOutcome::Unsupported { diagnostic }
+        }
+        report::ExploreExactOutcome::Error { diagnostics } => ExploreExecutionOutcome::Error {
+            diagnostics: diagnostics.into_vec(),
+        },
+    };
+    let mechanism = match mechanism {
+        report::ExploreMechanismEvidence::Unavailable {
+            reason: report::ExploreMechanismUnavailableReason::Deferred,
+        } => ExploreExecutionMechanismEvidence::UnavailableDeferred,
+    };
+    ExploreExecutionReport {
+        query_name,
+        polarity,
+        outcome,
+        mechanism,
+        limits: ExploreExecutionLimits {
+            case_limit: options.case_limit.get(),
+            step_limit: report::DEFAULT_EXPLORE_STEP_LIMIT,
+            collection_limit: report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
+        },
+    }
+}
+
+/// Execute one already checked and elaborated finite Explore query.
+///
+/// This is the durable exact backend used by the public command. It consumes
+/// ordinary `check_with_artifacts` evidence rather than the hidden preview's
+/// relaxed checker, requires a caller-supplied finite case cap, and publishes
+/// only replay-confirmed projected values. Its report request is deliberately
+/// the privacy-safe baseline: projected rows only, with no case ledger or case
+/// graph disclosure.
+fn execute_exact(
+    statements: &[Stmt],
+    source_dir: Option<&str>,
+    artifacts: &TypeCheckArtifacts,
+    accepted_query_index: usize,
+    query: &ExploreQueryIr,
+    options: ExploreExactOptions,
+) -> Result<ExploreExecutionReport, String> {
+    let budget = report::ExploreExecutionBudget::new(
+        Some(options.case_limit.get()),
+        report::DEFAULT_EXPLORE_STEP_LIMIT,
+        report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
+    )?;
+    let report = match source_proof_plan::prepare_source_proof_plan(
+        artifacts,
+        accepted_query_index,
+        source_proof_plan::DEFAULT_SOURCE_PROOF_PROFILE_LIMIT,
+    ) {
+        Ok(plan) => exact::execute_exact_finite_candidate_first(
+            statements,
+            source_dir,
+            artifacts,
+            query,
+            report::ExploreReportRequest::baseline(),
+            budget,
+            &plan,
+        ),
+        // Source proof is an optimization. Unsupported or bounded-out
+        // analysis cannot shrink U and therefore falls back to canonical
+        // exact evaluation under the same caller case limit.
+        Err(error) if error.permits_canonical_fallback() => exact::execute_exact_finite(
+            statements,
+            source_dir,
+            artifacts,
+            query,
+            report::ExploreReportRequest::baseline(),
+            budget,
+        ),
+        // A proof artifact that was produced but fails extraction,
+        // certification, or accounting is an integrity failure. It must not
+        // be hidden by silently retrying the same query canonically.
+        Err(error) => return Err(error.to_string()),
+    }?;
+    Ok(public_exact_report(report, options))
+}
+
+fn select_checked_exact_query_index(
+    artifacts: &TypeCheckArtifacts,
+    query_name: Option<&str>,
+) -> Result<usize, ExploreExecutionPreparationError> {
+    if let Some(query_name) = query_name {
+        return artifacts
+            .exploration_universes
+            .iter()
+            .position(|candidate| candidate.query.name.as_deref() == Some(query_name))
+            .ok_or_else(|| {
+                ExploreExecutionPreparationError::Selection(format!(
+                    "exploration `{query_name}` was not found"
+                ))
+            });
+    }
+    if artifacts.exploration_universes.len() == 1 {
+        return Ok(0);
+    }
+    if artifacts.exploration_universes.is_empty() {
+        return Err(ExploreExecutionPreparationError::Selection(
+            "the program contains no selectable exploration".to_string(),
+        ));
+    }
+    let names = artifacts
+        .exploration_universes
+        .iter()
+        .filter_map(|candidate| candidate.query.name.as_deref())
+        .collect::<Vec<_>>()
+        .join(", ");
+    Err(ExploreExecutionPreparationError::Selection(format!(
+        "the program contains multiple explorations; select one with --query ({names})"
+    )))
+}
+
+fn cost_plan(query: &ExploreQueryIr, options: ExploreExactOptions) -> ExploreCostPlan {
+    let declared_cartesian_count = query.universe.cartesian_count_before_constraints.clone();
+    let exact_declared = declared_cartesian_count.exact();
+    let requested_case_limit = options.case_limit.get();
+    let naive_singleton_classifications = exact_declared
+        .map(|declared| declared.min(requested_case_limit))
+        .unwrap_or(requested_case_limit);
+    ExploreCostPlan {
+        query_name: query
+            .query
+            .name
+            .clone()
+            .unwrap_or_else(|| "<anonymous>".to_string()),
+        axes: query
+            .universe
+            .dimensions
+            .iter()
+            .map(|dimension| ExploreCostPlanAxis {
+                name: dimension.name.clone(),
+                cardinality: dimension.domain.cardinality(),
+            })
+            .collect(),
+        declared_cartesian_count,
+        boundary: query
+            .universe
+            .boundary
+            .as_ref()
+            .map(|boundary| ExploreCostPlanBoundary {
+                axis: boundary.axis.clone(),
+                step: boundary.step,
+                eligible_unconstrained_pairs: boundary.eligible_unconstrained_pairs.clone(),
+            }),
+        requested_case_limit,
+        naive_singleton_classifications,
+        naive_remaining_open_lower_bound: exact_declared
+            .map(|declared| declared.saturating_sub(naive_singleton_classifications)),
+    }
+}
+
+/// Check, elaborate, and select one exact-finite exploration without
+/// initializing an interpreter or evaluating any case.
+///
+/// Query selection is shared with [`execute_checked_exact`]. The returned
+/// metadata describes the declared search shape and a naive cap-limited cost;
+/// it is not result evidence and does not establish closure.
+pub fn plan_checked_exact(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    options: ExploreExactOptions,
+) -> Result<ExploreCostPlan, ExploreExecutionPreparationError> {
+    let artifacts = TypeChecker::check_with_artifacts(statements, source_dir, source);
+    if !artifacts.diagnostics.is_empty() {
+        return Err(ExploreExecutionPreparationError::Diagnostics(
+            artifacts.diagnostics,
+        ));
+    }
+    let selected = select_checked_exact_query_index(&artifacts, query_name)?;
+    Ok(cost_plan(
+        &artifacts.exploration_universes[selected],
+        options,
+    ))
+}
+
+/// Check, elaborate, select and execute one exact-finite exploration as one
+/// inseparable operation. This prevents callers from combining statements,
+/// artifacts and a query IR produced by different checks or by the hidden
+/// relaxed preview checker.
+pub fn execute_checked_exact(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    options: ExploreExactOptions,
+) -> Result<ExploreExecutionReport, ExploreExecutionPreparationError> {
+    let artifacts = TypeChecker::check_with_artifacts(statements, source_dir.clone(), source);
+    if !artifacts.diagnostics.is_empty() {
+        return Err(ExploreExecutionPreparationError::Diagnostics(
+            artifacts.diagnostics,
+        ));
+    }
+
+    let selected = select_checked_exact_query_index(&artifacts, query_name)?;
+
+    execute_exact(
+        statements,
+        source_dir.as_deref(),
+        &artifacts,
+        selected,
+        &artifacts.exploration_universes[selected],
+        options,
+    )
+    .map_err(ExploreExecutionPreparationError::Execution)
+}
+
+enum ExactStreamWorkAdmission {
+    Granted(stream_resource::ExactStreamWorkInFlight),
+    TimeLimit,
+    ResourcePause(stream_resource::ExactStreamResourcePauseReason),
+}
+
+fn admit_exact_stream_work(
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    subject: stream_resource::ExactStreamWorkSubject,
+    deadline: Option<Instant>,
+) -> Result<ExactStreamWorkAdmission, ExploreExecutionPreparationError> {
+    loop {
+        let now = Instant::now();
+        if deadline.is_some_and(|deadline| now >= deadline) {
+            let _ = resources.stop_at_work_boundary();
+            return Ok(ExactStreamWorkAdmission::TimeLimit);
+        }
+
+        let owned = resources.conservative_in_process_owned_snapshot();
+        let poll = resources.poll(owned, None, Some(subject));
+        match poll.action {
+            stream_resource::ExactStreamResourceAction::Dispatch(permit) => {
+                if permit.subject() != subject {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource governor dispatched authority for another Explore work subject"
+                            .to_string(),
+                    ));
+                }
+                let in_flight = resources.begin_work(permit).map_err(|error| {
+                    ExploreExecutionPreparationError::Execution(format!(
+                        "cannot consume exact-stream resource permit: {error:?}"
+                    ))
+                })?;
+                return Ok(ExactStreamWorkAdmission::Granted(in_flight));
+            }
+            stream_resource::ExactStreamResourceAction::Pause(reason) => {
+                return Ok(ExactStreamWorkAdmission::ResourcePause(reason));
+            }
+            stream_resource::ExactStreamResourceAction::Wait(_) => {
+                let now = Instant::now();
+                let mut wake = poll
+                    .next_host_sample_due
+                    .unwrap_or_else(|| now.checked_add(Duration::from_millis(10)).unwrap_or(now));
+                if let Some(deadline) = deadline {
+                    wake = wake.min(deadline);
+                }
+                if wake > now {
+                    std::thread::sleep(wake.saturating_duration_since(now));
+                } else {
+                    std::thread::yield_now();
+                }
+            }
+        }
+    }
+}
+
+fn finish_exact_stream_work(
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    in_flight: stream_resource::ExactStreamWorkInFlight,
+) -> Result<(), ExploreExecutionPreparationError> {
+    resources
+        .finish_or_abandon_work(in_flight)
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot close exact-stream resource work unit: {error:?}"
+            ))
+        })
+}
+
+fn public_exact_stream_cursor(cursor: run_stream::ExploreRunCursor) -> ExploreStreamCursor {
+    ExploreStreamCursor {
+        run_id: cursor.run_id().to_lowercase_hex(),
+        sequence: cursor.sequence(),
+        journal_head: cursor.journal_head().to_lowercase_hex(),
+        evidence_root: cursor.evidence_root().to_lowercase_hex(),
+        lifecycle: match cursor.lifecycle() {
+            run_stream::RunLifecycle::Running => ExploreStreamLifecycle::Running,
+            run_stream::RunLifecycle::Paused => ExploreStreamLifecycle::Paused,
+            run_stream::RunLifecycle::Sealed => ExploreStreamLifecycle::Sealed,
+        },
+        last_coverage_epoch: cursor.last_coverage_epoch().map(|epoch| epoch.get()),
+    }
+}
+
+/// Publish a replay-verifiable checkpoint for the current running cursor, then
+/// append the invocation's pause record. Keeping those as two ordered records
+/// avoids the circularity of making a snapshot hash name the event that names
+/// that same hash. The returned report carries both cursors and the typed stop.
+fn publish_and_pause_exact_stream_slice(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    query: &ExploreQueryIr,
+    pause_reason: run_stream::PauseReason,
+    stop: ExploreStreamSliceStop,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    let probe_progress = coordinator.probe_progress().map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot derive durable source-probe progress: {error}"
+        ))
+    })?;
+    let probe_milestone_complete = probe_progress.complete();
+    let checkpoint_cursor = coordinator.stream().cursor();
+    checkpoint_cursor.sequence().checked_add(2).ok_or_else(|| {
+        ExploreExecutionPreparationError::Execution(
+            "exact-stream journal sequence cannot fit checkpoint publication and pause".to_string(),
+        )
+    })?;
+    let metadata = stream_snapshot::ExactObservableSnapshotMetadataV1::from_checked_stream(
+        coordinator.stream(),
+        query,
+        probe_progress,
+    )
+    .map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot derive exact-stream snapshot metadata: {error}"
+        ))
+    })?;
+    let snapshot = coordinator.exact_snapshot();
+    let closed_cases_this_slice = snapshot
+        .closed_case_count
+        .checked_sub(closed_cases_at_slice_start)
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "exact-stream closed support regressed during one invocation".to_string(),
+            )
+        })?;
+    let snapshot_json_line =
+        stream_snapshot::render_exact_observable_snapshot_json_line_v1(&metadata, &snapshot)
+            .map_err(|error| {
+                ExploreExecutionPreparationError::Execution(format!(
+                    "cannot render exact-stream snapshot: {error}"
+                ))
+            })?;
+    let blob_digest = coordinator
+        .publish_snapshot_bytes(checkpoint_cursor, &snapshot_json_line)
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot publish exact-stream checkpoint: {error}"
+            ))
+        })?;
+    let publication_cursor = coordinator.stream().cursor();
+    let final_cursor = coordinator.pause(pause_reason).map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "checkpoint {} was published at sequence {}, but the exact stream could not append its pause record: {error}",
+            blob_digest.to_lowercase_hex(),
+            publication_cursor.sequence(),
+        ))
+    })?;
+    Ok(ExploreStreamSliceReport {
+        stop,
+        final_cursor: public_exact_stream_cursor(final_cursor),
+        probe_milestone_complete,
+        singleton_cases_evaluated_this_slice,
+        closed_cases_this_slice,
+        artifact: ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            canonical_json_line: snapshot_json_line,
+            blob_digest: blob_digest.to_lowercase_hex(),
+            checkpoint_cursor: public_exact_stream_cursor(checkpoint_cursor),
+            publication_cursor: public_exact_stream_cursor(publication_cursor),
+        },
+    })
+}
+
+fn render_exact_stream_terminal(
+    coordinator: &stream_coordinator::ExactStreamCoordinator<'_>,
+    stop: ExploreStreamSliceStop,
+    terminal_result_json: Vec<u8>,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    let probe_milestone_complete = coordinator
+        .probe_progress()
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot derive terminal source-probe progress: {error}"
+            ))
+        })?
+        .complete();
+    let closed_cases_this_slice = coordinator
+        .closed_case_count()
+        .checked_sub(closed_cases_at_slice_start)
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "exact-stream closed support regressed during one terminal invocation".to_string(),
+            )
+        })?;
+    let terminal_blob_digest = coordinator
+        .published_terminal_result()
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "terminal artifact has no durable publication receipt".to_string(),
+            )
+        })?
+        .blob_digest()
+        .to_lowercase_hex();
+    Ok(ExploreStreamSliceReport {
+        stop,
+        final_cursor: public_exact_stream_cursor(coordinator.stream().cursor()),
+        probe_milestone_complete,
+        singleton_cases_evaluated_this_slice,
+        closed_cases_this_slice,
+        artifact: ExploreStreamArtifact::TerminalResultJson {
+            canonical_json: terminal_result_json,
+            blob_digest: terminal_blob_digest,
+        },
+    })
+}
+
+fn render_already_sealed_exact_stream(
+    coordinator: &stream_coordinator::ExactStreamCoordinator<'_>,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    let status = match coordinator
+        .stream()
+        .terminal_seal()
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "sealed exact stream is missing its terminal commitment".to_string(),
+            )
+        })?
+        .kind()
+    {
+        run_stream::TerminalSealKind::Completed => ExploreStreamTerminalStatus::Completed,
+        run_stream::TerminalSealKind::Partial => ExploreStreamTerminalStatus::Partial,
+        run_stream::TerminalSealKind::Unknown => ExploreStreamTerminalStatus::Unknown,
+        run_stream::TerminalSealKind::Unsupported => ExploreStreamTerminalStatus::Unsupported,
+        run_stream::TerminalSealKind::Error => ExploreStreamTerminalStatus::Error,
+        run_stream::TerminalSealKind::Cancelled => ExploreStreamTerminalStatus::Cancelled,
+    };
+    let terminal_result_json =
+        coordinator
+            .read_verified_terminal_result_bytes()
+            .map_err(|error| {
+                ExploreExecutionPreparationError::Execution(format!(
+                    "cannot read verified terminal artifact from sealed exact Explore run: {error}"
+                ))
+            })?;
+    render_exact_stream_terminal(
+        coordinator,
+        ExploreStreamSliceStop::AlreadySealed(status),
+        terminal_result_json,
+        0,
+        closed_cases_at_slice_start,
+    )
+}
+
+enum ExactStreamFinalizationAttempt {
+    Sealed(Vec<u8>),
+    WitnessOpen {
+        rank: u128,
+        reason: report::ExploreStopReason,
+    },
+    LimitReached {
+        phase: &'static str,
+        detail: String,
+    },
+}
+
+/// Run the semantic portion of the atomic-v1 finalizer. Production callers
+/// must hold the admitted `FinalizationPhase` work unit around this call; the
+/// cardinality-one lifecycle test invokes it directly to avoid live telemetry.
+fn attempt_atomic_exact_stream_finalization(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+) -> Result<ExactStreamFinalizationAttempt, ExploreExecutionPreparationError> {
+    match coordinator.close_replay_obligation().map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot close exact terminal replay obligation: {error}"
+        ))
+    })? {
+        stream_coordinator::ExactReplayClosureAdvance::AlreadyClosed
+        | stream_coordinator::ExactReplayClosureAdvance::Closed { .. } => {}
+        stream_coordinator::ExactReplayClosureAdvance::WitnessOpen { rank, reason } => {
+            return Ok(ExactStreamFinalizationAttempt::WitnessOpen { rank, reason });
+        }
+        stream_coordinator::ExactReplayClosureAdvance::LimitReached { detail } => {
+            return Ok(ExactStreamFinalizationAttempt::LimitReached {
+                phase: "witness_replay",
+                detail,
+            });
+        }
+    }
+
+    let receipt = match coordinator.published_terminal_result() {
+        Some(receipt) => receipt,
+        None => match coordinator
+            .publish_current_terminal_result()
+            .map_err(|error| {
+                ExploreExecutionPreparationError::Execution(format!(
+                    "cannot publish exact terminal result: {error}"
+                ))
+            })? {
+            stream_coordinator::ExactTerminalPublicationAdvanceV1::Published(receipt) => receipt,
+            stream_coordinator::ExactTerminalPublicationAdvanceV1::LimitReached => {
+                return Ok(ExactStreamFinalizationAttempt::LimitReached {
+                    phase: "terminal_publication",
+                    detail: "canonical answer exceeds the atomic-v1 JSON publication envelope"
+                        .to_string(),
+                });
+            }
+        },
+    };
+    coordinator
+        .seal_completed_exact_exhaustion(receipt)
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot seal completed exact exploration: {error}"
+            ))
+        })?;
+    let bytes = coordinator
+        .read_verified_terminal_result_bytes()
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot read back sealed exact terminal result: {error}"
+            ))
+        })?;
+    Ok(ExactStreamFinalizationAttempt::Sealed(bytes))
+}
+
+/// Handle the exact point where CaseId classification is closed.
+///
+/// Without explicit opt-in this remains a cheap durable pause. With opt-in,
+/// the existing v1 finalizer is admitted as one atomic resource work unit:
+/// at most 65,536 freshly replayed witnesses and 32 MiB of retained replay
+/// bodies, followed by one full terminal JSON blob capped by its renderer. It
+/// is not a resumable inner loop. The process supervisor may interrupt it;
+/// replay then retries from the last committed replay-closure, publication, or
+/// seal event.
+fn finalize_or_pause_classification_closed_stream(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    query: &ExploreQueryIr,
+    finalize: bool,
+    deadline: Option<Instant>,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if !finalize {
+        return publish_and_pause_exact_stream_slice(
+            coordinator,
+            query,
+            run_stream::PauseReason::FinalizationPending,
+            ExploreStreamSliceStop::ClassificationClosedFinalizationPending,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+
+    let work_subject = stream_resource::ExactStreamWorkSubject::FinalizationPhase;
+    let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
+        ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+        ExactStreamWorkAdmission::TimeLimit => {
+            return publish_and_pause_exact_stream_slice(
+                coordinator,
+                query,
+                run_stream::PauseReason::TimeLimit,
+                ExploreStreamSliceStop::TimeLimit,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        }
+        ExactStreamWorkAdmission::ResourcePause(reason) => {
+            return publish_and_pause_exact_stream_slice(
+                coordinator,
+                query,
+                run_stream::PauseReason::ResourcePressure,
+                ExploreStreamSliceStop::ResourcePressure {
+                    detail: reason.code().to_string(),
+                },
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        }
+    };
+    if in_flight.subject() != work_subject {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "resource governor admitted another work unit instead of terminal finalization"
+                .to_string(),
+        ));
+    }
+
+    // Atomic-v1 may only clone/finalize reducer state that already fits the
+    // identity-bound observable snapshot envelope. Larger exact answers remain
+    // valid at the finalization frontier for a future chunked publisher.
+    let atomic_snapshot = coordinator.exact_snapshot();
+    if !atomic_snapshot.result_group_scan_complete {
+        let detail = format!(
+            "{} observed raw groups do not fit the bounded atomic snapshot envelope",
+            atomic_snapshot.observed_result_group_count
+        );
+        finish_exact_stream_work(resources, in_flight)?;
+        return publish_and_pause_exact_stream_slice(
+            coordinator,
+            query,
+            run_stream::PauseReason::FinalizationPending,
+            ExploreStreamSliceStop::FinalizationLimit {
+                phase: "result_snapshot".to_string(),
+                detail,
+            },
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+    drop(atomic_snapshot);
+
+    let attempt = attempt_atomic_exact_stream_finalization(coordinator);
+    finish_exact_stream_work(resources, in_flight)?;
+
+    match attempt? {
+        ExactStreamFinalizationAttempt::Sealed(bytes) => render_exact_stream_terminal(
+            coordinator,
+            ExploreStreamSliceStop::TerminalSealed(ExploreStreamTerminalStatus::Completed),
+            bytes,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        ),
+        ExactStreamFinalizationAttempt::WitnessOpen { rank, reason } => {
+            publish_and_pause_exact_stream_slice(
+                coordinator,
+                query,
+                run_stream::PauseReason::EvaluationLimit,
+                ExploreStreamSliceStop::EvaluationLimit {
+                    blocked_rank: rank,
+                    reason: public_stop(reason),
+                },
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            )
+        }
+        ExactStreamFinalizationAttempt::LimitReached { phase, detail } => {
+            publish_and_pause_exact_stream_slice(
+                coordinator,
+                query,
+                run_stream::PauseReason::FinalizationPending,
+                ExploreStreamSliceStop::FinalizationLimit {
+                    phase: phase.to_string(),
+                    detail,
+                },
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            )
+        }
+    }
+}
+
+/// Check, open or resume, and advance one bounded durable exact Explore slice.
+///
+/// Terminal witness replay remains opt-in because its first-generation
+/// manifest is one bounded-but-atomic work unit. Without `finalize`, closed
+/// classification pauses at the explicit finalization frontier. A hard process
+/// kill may omit the final pause or terminal record but cannot make an
+/// uncommitted CaseId, replay closure, publication, or seal disappear from the
+/// recovered durable state.
+pub fn execute_checked_exact_stream_slice(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    options: ExploreStreamSliceOptions,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if options.max_runtime.is_some_and(|runtime| runtime.is_zero()) {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "exact-stream max_runtime must be positive".to_string(),
+        ));
+    }
+    if options.max_runtime.is_none() && options.pause_after.is_none() {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "a first-generation exact stream slice requires max_runtime or pause_after".to_string(),
+        ));
+    }
+    if options.finalize && options.pause_after.is_some() {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "exact-stream finalize cannot be combined with pause_after".to_string(),
+        ));
+    }
+    if options.run_state.as_os_str().is_empty() {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "exact-stream run_state path must not be empty".to_string(),
+        ));
+    }
+
+    let started = Instant::now();
+    let deadline = match options.max_runtime {
+        Some(runtime) => Some(started.checked_add(runtime).ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "exact-stream runtime deadline exceeds the monotonic clock".to_string(),
+            )
+        })?),
+        None => None,
+    };
+    let mut resources = stream_resource::ExactStreamOneWorkerEnvelope::new().map_err(|reason| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot initialize exact-stream resource governor: {}",
+            reason.code()
+        ))
+    })?;
+    let preparation_in_flight = match admit_exact_stream_work(
+        &mut resources,
+        stream_resource::ExactStreamWorkSubject::PreparationPhase,
+        deadline,
+    )? {
+        ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+        ExactStreamWorkAdmission::TimeLimit => {
+            return Err(ExploreExecutionPreparationError::Execution(
+                "exact-stream time limit elapsed before checked preparation could be admitted; no run-state transition was made"
+                    .to_string(),
+            ))
+        }
+        ExactStreamWorkAdmission::ResourcePause(reason) => {
+            return Err(ExploreExecutionPreparationError::Execution(format!(
+                "exact-stream checked preparation was not admitted under the host resource envelope: {}",
+                reason.code()
+            )))
+        }
+    };
+    let artifacts = TypeChecker::check_with_artifacts(statements, source_dir.clone(), source);
+    if !artifacts.diagnostics.is_empty() {
+        finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+        return Err(ExploreExecutionPreparationError::Diagnostics(
+            artifacts.diagnostics,
+        ));
+    }
+    let selected = match select_checked_exact_query_index(&artifacts, query_name) {
+        Ok(selected) => selected,
+        Err(error) => {
+            finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+            return Err(error);
+        }
+    };
+    let query = &artifacts.exploration_universes[selected];
+    let coordinator_result = stream_coordinator::ExactStreamCoordinator::open_or_create(
+        &options.run_state,
+        run_store::RunStoreLimits::default(),
+        statements,
+        source_dir.as_deref(),
+        &artifacts,
+        selected,
+    );
+    let mut coordinator = match coordinator_result {
+        Ok(coordinator) => coordinator,
+        Err(error) => {
+            finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+            return Err(ExploreExecutionPreparationError::Execution(format!(
+                "cannot open durable exact Explore stream: {error}"
+            )));
+        }
+    };
+    let closed_cases_at_slice_start = coordinator.closed_case_count();
+
+    if coordinator.stream().lifecycle() == run_stream::RunLifecycle::Sealed {
+        let report = render_already_sealed_exact_stream(&coordinator, closed_cases_at_slice_start);
+        finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+        return report;
+    }
+    finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+
+    let mut singleton_cases_evaluated_this_slice = 0_u128;
+
+    let probe_case_batch_cap =
+        NonZeroU16::new(stream_coordinator::EXACT_STREAM_FIRST_GENERATION_BATCH_CASE_CAP)
+            .expect("the first-generation source-probe batch cap is positive");
+    while !coordinator.probe_phase_complete() {
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            let _ = resources.stop_at_work_boundary();
+            return publish_and_pause_exact_stream_slice(
+                &mut coordinator,
+                query,
+                run_stream::PauseReason::TimeLimit,
+                ExploreStreamSliceStop::TimeLimit,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        }
+
+        match coordinator.probe_phase().map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot derive source-probe phase: {error}"
+            ))
+        })? {
+            stream_probe::ExactSourceProbePhaseV1::Unprepared => {
+                let in_flight = match admit_exact_stream_work(
+                    &mut resources,
+                    stream_resource::ExactStreamWorkSubject::ProbePhase,
+                    deadline,
+                )? {
+                    ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                    ExactStreamWorkAdmission::TimeLimit => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::TimeLimit,
+                            ExploreStreamSliceStop::TimeLimit,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    ExactStreamWorkAdmission::ResourcePause(reason) => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::ResourcePressure,
+                            ExploreStreamSliceStop::ResourcePressure {
+                                detail: reason.code().to_string(),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                };
+                let probe_result = match source_proof_plan::prepare_source_proof_plan(
+                    &artifacts,
+                    selected,
+                    source_proof_plan::DEFAULT_SOURCE_PROOF_PROFILE_LIMIT,
+                ) {
+                    Ok(plan) => coordinator
+                        .persist_source_probe_manifest(&plan)
+                        .map(|_| ())
+                        .map_err(|error| error.to_string()),
+                    Err(error) if error.permits_canonical_fallback() => coordinator
+                        .persist_probe_fallback_manifest()
+                        .map(|_| ())
+                        .map_err(|error| error.to_string()),
+                    Err(error) => Err(error.to_string()),
+                };
+                finish_exact_stream_work(&mut resources, in_flight)?;
+                probe_result.map_err(ExploreExecutionPreparationError::Execution)?;
+            }
+            stream_probe::ExactSourceProbePhaseV1::Prepared => {
+                let in_flight = match admit_exact_stream_work(
+                    &mut resources,
+                    stream_resource::ExactStreamWorkSubject::ProbePhase,
+                    deadline,
+                )? {
+                    ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                    ExactStreamWorkAdmission::TimeLimit => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::TimeLimit,
+                            ExploreStreamSliceStop::TimeLimit,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    ExactStreamWorkAdmission::ResourcePause(reason) => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::ResourcePressure,
+                            ExploreStreamSliceStop::ResourcePressure {
+                                detail: reason.code().to_string(),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                };
+                let coverage = coordinator
+                    .accept_prepared_probe_coverage(NonZeroU64::new(1).expect("one is nonzero"))
+                    .map_err(|error| error.to_string());
+                finish_exact_stream_work(&mut resources, in_flight)?;
+                coverage.map_err(ExploreExecutionPreparationError::Execution)?;
+            }
+            stream_probe::ExactSourceProbePhaseV1::CoverageAccepted => {
+                let in_flight = match admit_exact_stream_work(
+                    &mut resources,
+                    stream_resource::ExactStreamWorkSubject::ProbePhase,
+                    deadline,
+                )? {
+                    ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                    ExactStreamWorkAdmission::TimeLimit => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::TimeLimit,
+                            ExploreStreamSliceStop::TimeLimit,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    ExactStreamWorkAdmission::ResourcePause(reason) => {
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::ResourcePressure,
+                            ExploreStreamSliceStop::ResourcePressure {
+                                detail: reason.code().to_string(),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                };
+                let completion = coordinator
+                    .complete_prepared_probe()
+                    .map_err(|error| error.to_string());
+                finish_exact_stream_work(&mut resources, in_flight)?;
+                completion.map_err(ExploreExecutionPreparationError::Execution)?;
+            }
+            stream_probe::ExactSourceProbePhaseV1::CandidateActive => {
+                let rank = coordinator
+                    .next_probe_candidate_rank_hint()
+                    .ok_or_else(|| {
+                        ExploreExecutionPreparationError::Execution(
+                            "active source-probe phase has no still-open discovered candidate"
+                                .to_string(),
+                        )
+                    })?;
+                let work_subject = stream_resource::ExactStreamWorkSubject::ProbeCandidateBatch {
+                    first_rank: rank,
+                    case_cap: probe_case_batch_cap,
+                };
+                let in_flight =
+                    match admit_exact_stream_work(&mut resources, work_subject, deadline)? {
+                        ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                        ExactStreamWorkAdmission::TimeLimit => {
+                            return publish_and_pause_exact_stream_slice(
+                                &mut coordinator,
+                                query,
+                                run_stream::PauseReason::TimeLimit,
+                                ExploreStreamSliceStop::TimeLimit,
+                                singleton_cases_evaluated_this_slice,
+                                closed_cases_at_slice_start,
+                            );
+                        }
+                        ExactStreamWorkAdmission::ResourcePause(reason) => {
+                            return publish_and_pause_exact_stream_slice(
+                                &mut coordinator,
+                                query,
+                                run_stream::PauseReason::ResourcePressure,
+                                ExploreStreamSliceStop::ResourcePressure {
+                                    detail: reason.code().to_string(),
+                                },
+                                singleton_cases_evaluated_this_slice,
+                                closed_cases_at_slice_start,
+                            );
+                        }
+                    };
+                if in_flight.subject() != work_subject
+                    || in_flight.first_case_id_rank() != Some(rank)
+                {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource governor admitted another source-probe candidate block"
+                            .to_string(),
+                    ));
+                }
+                let closed_cases_before_batch = coordinator.closed_case_count();
+                let advance =
+                    coordinator.advance_bounded_probe_candidate_batch(probe_case_batch_cap);
+                finish_exact_stream_work(&mut resources, in_flight)?;
+                match advance.map_err(|error| {
+                    ExploreExecutionPreparationError::Execution(format!(
+                        "cannot advance durable source-probe candidate block: {error}"
+                    ))
+                })? {
+                    stream_coordinator::ExactProbeCandidateBatchAdvance::CandidatesComplete => {
+                        continue;
+                    }
+                    stream_coordinator::ExactProbeCandidateBatchAdvance::Committed {
+                        ranks,
+                        canonical_blob_bytes,
+                        closed_case_count,
+                        stop,
+                    } => {
+                        let expected_closed_case_count = closed_cases_before_batch
+                            .checked_add(ranks.len() as u128)
+                            .ok_or_else(|| {
+                                ExploreExecutionPreparationError::Execution(
+                                    "source-probe closed case count exceeds u128::MAX".to_string(),
+                                )
+                            })?;
+                        if ranks.is_empty()
+                            || canonical_blob_bytes == 0
+                            || !ranks.contains(&rank)
+                            || closed_case_count != expected_closed_case_count
+                            || closed_case_count != coordinator.closed_case_count()
+                        {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "source-probe candidate block returned inconsistent evidence"
+                                    .to_string(),
+                            ));
+                        }
+                        singleton_cases_evaluated_this_slice = singleton_cases_evaluated_this_slice
+                            .checked_add(ranks.len() as u128)
+                            .ok_or_else(|| {
+                                ExploreExecutionPreparationError::Execution(
+                                    "source-probe evaluated case count exceeds u128::MAX"
+                                        .to_string(),
+                                )
+                            })?;
+                        match stop {
+                            stream_coordinator::ExactProbeCandidateBatchStop::CaseCapReached {
+                                next_rank,
+                            }
+                            | stream_coordinator::ExactProbeCandidateBatchStop::ByteTargetReached {
+                                next_rank,
+                            } => {
+                                if ranks.contains(&next_rank) {
+                                    return Err(ExploreExecutionPreparationError::Execution(
+                                        "source-probe block reports a committed rank as its next candidate"
+                                            .to_string(),
+                                    ));
+                                }
+                            }
+                            stream_coordinator::ExactProbeCandidateBatchStop::CandidatesComplete => {
+                            }
+                            stream_coordinator::ExactProbeCandidateBatchStop::CaseOpen {
+                                rank: open_rank,
+                                reason,
+                            } => {
+                                if ranks.contains(&open_rank) {
+                                    return Err(ExploreExecutionPreparationError::Execution(
+                                        "source-probe block reports its limited candidate as committed"
+                                            .to_string(),
+                                    ));
+                                }
+                                return publish_and_pause_exact_stream_slice(
+                                    &mut coordinator,
+                                    query,
+                                    run_stream::PauseReason::EvaluationLimit,
+                                    ExploreStreamSliceStop::EvaluationLimit {
+                                        blocked_rank: open_rank,
+                                        reason: public_stop(reason),
+                                    },
+                                    singleton_cases_evaluated_this_slice,
+                                    closed_cases_at_slice_start,
+                                );
+                            }
+                        }
+                    }
+                    stream_coordinator::ExactProbeCandidateBatchAdvance::CaseOpen {
+                        rank: open_rank,
+                        reason,
+                    } => {
+                        if open_rank != rank {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "source-probe evaluator blocked another rank than dispatched"
+                                    .to_string(),
+                            ));
+                        }
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::EvaluationLimit,
+                            ExploreStreamSliceStop::EvaluationLimit {
+                                blocked_rank: open_rank,
+                                reason: public_stop(reason),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                }
+            }
+            stream_probe::ExactSourceProbePhaseV1::Complete => break,
+        }
+    }
+
+    if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+        let _ = resources.stop_at_work_boundary();
+        return publish_and_pause_exact_stream_slice(
+            &mut coordinator,
+            query,
+            run_stream::PauseReason::TimeLimit,
+            ExploreStreamSliceStop::TimeLimit,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+
+    if options.pause_after == Some(ExploreStreamPauseAfter::Probes) {
+        return publish_and_pause_exact_stream_slice(
+            &mut coordinator,
+            query,
+            run_stream::PauseReason::ProbeMilestone,
+            ExploreStreamSliceStop::ProbeMilestone,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+
+    let case_batch_cap =
+        NonZeroU16::new(stream_coordinator::EXACT_STREAM_FIRST_GENERATION_BATCH_CASE_CAP)
+            .expect("the first-generation exact-stream batch cap is positive");
+    loop {
+        let Some(rank) = coordinator.next_open_rank_hint() else {
+            return finalize_or_pause_classification_closed_stream(
+                &mut coordinator,
+                &mut resources,
+                query,
+                options.finalize,
+                deadline,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        };
+        let work_subject = stream_resource::ExactStreamWorkSubject::BoundedCaseIdBatch {
+            first_rank: rank,
+            case_cap: case_batch_cap,
+        };
+        let in_flight = match admit_exact_stream_work(&mut resources, work_subject, deadline)? {
+            ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+            ExactStreamWorkAdmission::TimeLimit => {
+                return publish_and_pause_exact_stream_slice(
+                    &mut coordinator,
+                    query,
+                    run_stream::PauseReason::TimeLimit,
+                    ExploreStreamSliceStop::TimeLimit,
+                    singleton_cases_evaluated_this_slice,
+                    closed_cases_at_slice_start,
+                );
+            }
+            ExactStreamWorkAdmission::ResourcePause(reason) => {
+                return publish_and_pause_exact_stream_slice(
+                    &mut coordinator,
+                    query,
+                    run_stream::PauseReason::ResourcePressure,
+                    ExploreStreamSliceStop::ResourcePressure {
+                        detail: reason.code().to_string(),
+                    },
+                    singleton_cases_evaluated_this_slice,
+                    closed_cases_at_slice_start,
+                );
+            }
+        };
+        if in_flight.subject() != work_subject || in_flight.first_case_id_rank() != Some(rank) {
+            return Err(ExploreExecutionPreparationError::Execution(
+                "resource governor began another bounded CaseId block than the coordinator scheduled"
+                    .to_string(),
+            ));
+        }
+        let closed_cases_before_batch = coordinator.closed_case_count();
+        let advance = coordinator.advance_bounded_case_batch(case_batch_cap);
+        finish_exact_stream_work(&mut resources, in_flight)?;
+        match advance.map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot advance durable exact Explore evidence block: {error}"
+            ))
+        })? {
+            stream_coordinator::ExactStreamBatchAdvance::Committed {
+                ranks,
+                canonical_blob_bytes,
+                closed_case_count,
+                stop,
+            } => {
+                let expected_closed_case_count = closed_cases_before_batch
+                    .checked_add(ranks.len() as u128)
+                    .ok_or_else(|| {
+                        ExploreExecutionPreparationError::Execution(
+                            "committed exact-stream closed case count exceeds u128::MAX"
+                                .to_string(),
+                        )
+                    })?;
+                if ranks.is_empty()
+                    || canonical_blob_bytes == 0
+                    || !ranks.contains(&rank)
+                    || closed_case_count != expected_closed_case_count
+                    || closed_case_count != coordinator.closed_case_count()
+                {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource-bound CaseId block returned inconsistent committed evidence"
+                            .to_string(),
+                    ));
+                }
+                singleton_cases_evaluated_this_slice = singleton_cases_evaluated_this_slice
+                    .checked_add(ranks.len() as u128)
+                    .ok_or_else(|| {
+                        ExploreExecutionPreparationError::Execution(
+                            "committed exact-stream case count exceeds u128::MAX".to_string(),
+                        )
+                    })?;
+                match stop {
+                    stream_coordinator::ExactStreamBatchStop::CaseCapReached { next_rank }
+                    | stream_coordinator::ExactStreamBatchStop::ByteTargetReached { next_rank } => {
+                        if ranks.contains(&next_rank) {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "bounded exact evidence block reports a committed rank as its next open CaseId"
+                                    .to_string(),
+                            ));
+                        }
+                    }
+                    stream_coordinator::ExactStreamBatchStop::CaseOpen {
+                        rank: open_rank,
+                        reason,
+                    } => {
+                        if ranks.contains(&open_rank) {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "bounded exact evidence block reports its evaluation-limited CaseId as committed"
+                                    .to_string(),
+                            ));
+                        }
+                        return publish_and_pause_exact_stream_slice(
+                            &mut coordinator,
+                            query,
+                            run_stream::PauseReason::EvaluationLimit,
+                            ExploreStreamSliceStop::EvaluationLimit {
+                                blocked_rank: open_rank,
+                                reason: public_stop(reason),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    stream_coordinator::ExactStreamBatchStop::ClassificationClosedFinalizationPending => {
+                        return finalize_or_pause_classification_closed_stream(
+                            &mut coordinator,
+                            &mut resources,
+                            query,
+                            options.finalize,
+                            deadline,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                }
+            }
+            stream_coordinator::ExactStreamBatchAdvance::CaseOpen {
+                rank: open_rank,
+                reason,
+            } => {
+                if open_rank != rank {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource-bound CaseId disagrees with the open exact rank".to_string(),
+                    ));
+                }
+                return publish_and_pause_exact_stream_slice(
+                    &mut coordinator,
+                    query,
+                    run_stream::PauseReason::EvaluationLimit,
+                    ExploreStreamSliceStop::EvaluationLimit {
+                        blocked_rank: open_rank,
+                        reason: public_stop(reason),
+                    },
+                    singleton_cases_evaluated_this_slice,
+                    closed_cases_at_slice_start,
+                );
+            }
+            stream_coordinator::ExactStreamBatchAdvance::ClassificationClosedFinalizationPending => {
+                return finalize_or_pause_classification_closed_stream(
+                    &mut coordinator,
+                    &mut resources,
+                    query,
+                    options.finalize,
+                    deadline,
+                    singleton_cases_evaluated_this_slice,
+                    closed_cases_at_slice_start,
+                );
+            }
+        }
+    }
 }
 
 /// One named, canonical value in the exhaustive developer-preview ledger.
@@ -3321,6 +5287,7 @@ fn validate_query_replay_callable_identities(
             }
             TypedExploreBound::Where { .. } => None,
         }))
+        .chain(query.output.extrema.iter().map(|field| field.name.clone()))
         .chain(query.output.show.iter().map(|field| field.name.clone()))
         .collect::<BTreeSet<_>>();
     let mut check_expression = |expression: &Expr| {
@@ -3354,7 +5321,13 @@ fn validate_query_replay_callable_identities(
     if let Some(boundary) = &query.boundary {
         check_expression(&boundary.step);
     }
-    for field in query.output.key.iter().chain(&query.output.show) {
+    for field in &query.output.key {
+        check_expression(&field.value);
+    }
+    for field in &query.output.extrema {
+        check_expression(&field.value);
+    }
+    for field in &query.output.show {
         check_expression(&field.value);
     }
     match &query.output.representative {
@@ -3674,6 +5647,7 @@ fn elaborate_query(
             }
             TypedExploreBound::Where { .. } => None,
         }))
+        .chain(query.output.extrema.iter().map(|field| field.name.clone()))
         .chain(query.output.show.iter().map(|field| field.name.clone()))
         .collect::<BTreeSet<_>>();
     let mut dimensions = Vec::new();
@@ -4136,6 +6110,25 @@ fn elaborate_query(
             ));
         }
     }
+    for field in &query.output.extrema {
+        let dependencies =
+            expression_query_dependencies(&field.value, &all_local_names, &definitions);
+        let unavailable = dependencies
+            .difference(&output_available_names)
+            .cloned()
+            .collect::<Vec<_>>();
+        if !unavailable.is_empty() {
+            diagnostics.push(Diagnostic::error_at(
+                field.span,
+                format!(
+                    "exploration extrema `{}` depends on value(s) that are not yet available: {}",
+                    field.name,
+                    unavailable.join(", ")
+                ),
+            ));
+        }
+    }
+    output_available_names.extend(query.output.extrema.iter().map(|field| field.name.clone()));
     for field in &query.output.show {
         let dependencies =
             expression_query_dependencies(&field.value, &all_local_names, &definitions);
@@ -4188,7 +6181,7 @@ fn elaborate_query(
     })
 }
 
-fn preview_runtime_value(value: &ExploreValue) -> Value {
+fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
     match value {
         ExploreValue::Int(value) => Value::Int(*value),
         ExploreValue::FloatBits(bits) => Value::Float(f64::from_bits(*bits)),
@@ -4196,18 +6189,32 @@ fn preview_runtime_value(value: &ExploreValue) -> Value {
         ExploreValue::Character(value) => Value::Char(*value),
         ExploreValue::Boolean(value) => Value::Bool(*value),
         ExploreValue::Unit => Value::Unit,
-        ExploreValue::List(values) => {
-            Value::List(values.iter().map(preview_runtime_value).collect())
-        }
+        ExploreValue::List(values) => values.iter().rev().fold(
+            Value::Constructor("Nil".into(), vec![].into()),
+            |tail, value| {
+                Value::Constructor(
+                    "Cons".into(),
+                    vec![runtime_value_from_explore_value(value), tail].into(),
+                )
+            },
+        ),
         ExploreValue::Set(values) => Value::Set(
             values
                 .iter()
-                .map(|value| (value.runtime_display_key(), preview_runtime_value(value)))
+                .map(|value| {
+                    (
+                        value.runtime_display_key(),
+                        runtime_value_from_explore_value(value),
+                    )
+                })
                 .collect(),
         ),
-        ExploreValue::Tuple(values) => {
-            Value::Tuple(values.iter().map(preview_runtime_value).collect())
-        }
+        ExploreValue::Tuple(values) => Value::Tuple(
+            values
+                .iter()
+                .map(runtime_value_from_explore_value)
+                .collect(),
+        ),
         ExploreValue::Constructor {
             variant,
             positional: true,
@@ -4217,7 +6224,7 @@ fn preview_runtime_value(value: &ExploreValue) -> Value {
             variant.clone(),
             fields
                 .iter()
-                .map(|(_, value)| preview_runtime_value(value))
+                .map(|(_, value)| runtime_value_from_explore_value(value))
                 .collect::<Vec<_>>()
                 .into(),
         ),
@@ -4230,7 +6237,7 @@ fn preview_runtime_value(value: &ExploreValue) -> Value {
             variant.clone(),
             fields
                 .iter()
-                .map(|(name, value)| (name.clone(), preview_runtime_value(value)))
+                .map(|(name, value)| (name.clone(), runtime_value_from_explore_value(value)))
                 .collect::<Vec<_>>()
                 .into(),
         ),
@@ -4321,6 +6328,12 @@ pub fn execute_exhaustive_preview(
 ) -> Result<ExplorePreviewReport, String> {
     if case_limit == 0 {
         return Err("exploration preview limit must be positive".to_string());
+    }
+    if !query.query.output.extrema.is_empty() || query.query.output.having.is_some() {
+        return Err(
+            "exploration preview does not support grouped `extrema`/`having`; use the exact-finite executor"
+                .to_string(),
+        );
     }
     if !matches!(
         &query.query.output.representative,
@@ -4425,13 +6438,16 @@ pub fn execute_exhaustive_preview(
 
         let mut env = base_env.child();
         for (dimension, value) in query.universe.dimensions.iter().zip(&assignment) {
-            env.set(dimension.name.clone(), preview_runtime_value(value));
+            env.set(
+                dimension.name.clone(),
+                runtime_value_from_explore_value(value),
+            );
         }
         for fact in &query.universe.facts {
             let ExploreFactValue::Fixed(value) = &fact.value else {
                 unreachable!("derived facts were rejected above")
             };
-            env.set(fact.name.clone(), preview_runtime_value(value));
+            env.set(fact.name.clone(), runtime_value_from_explore_value(value));
         }
 
         evaluated_configurations = evaluated_configurations.saturating_add(1);
@@ -4486,7 +6502,7 @@ pub fn execute_exhaustive_preview(
             let replayed = preview_eval_field(&mut interpreter, &output_env, field, &catalog)?;
             output_env.set(
                 replayed.name.clone(),
-                preview_runtime_value(&replayed.value),
+                runtime_value_from_explore_value(&replayed.value),
             );
             shown.push(replayed);
         }
@@ -4545,6 +6561,248 @@ mod tests {
             Some(source_dir.to_string_lossy().to_string()),
             source,
         )
+    }
+
+    #[test]
+    fn durable_checkpoint_pause_resume_finalize_and_reopen_is_idempotent() {
+        let source = r#"
+| condition(value: Int) -> True
+? explore one_case_stream {
+    over condition(value)
+    find matches
+    bounds { value in [7] }
+    output { key [value] representative first }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let statements = Parser::new(tokens, source)
+            .parse_program()
+            .expect("parse one-case durable-stream fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let selected = 0;
+        let query = &artifacts.exploration_universes[selected];
+        assert_eq!(
+            query.universe.cartesian_count_before_constraints,
+            ExploreCardinality::Exact(1)
+        );
+
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_explore_durable_lifecycle_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+        )
+        .expect("create one-case durable stream");
+
+        match source_proof_plan::prepare_source_proof_plan(
+            &artifacts,
+            selected,
+            source_proof_plan::DEFAULT_SOURCE_PROOF_PROFILE_LIMIT,
+        ) {
+            Ok(plan) => {
+                coordinator
+                    .persist_source_probe_manifest(&plan)
+                    .expect("persist source-probe manifest");
+            }
+            Err(error) if error.permits_canonical_fallback() => {
+                coordinator
+                    .persist_probe_fallback_manifest()
+                    .expect("persist canonical probe fallback");
+            }
+            Err(error) => panic!("one-case source probe failed closed: {error:?}"),
+        }
+        coordinator
+            .accept_prepared_probe_coverage(NonZeroU64::new(1).expect("one is nonzero"))
+            .expect("accept one-case probe coverage");
+        let probe_progress = coordinator
+            .complete_prepared_probe()
+            .expect("complete one-case source probe");
+        assert!(probe_progress.complete());
+
+        let checkpoint = publish_and_pause_exact_stream_slice(
+            &mut coordinator,
+            query,
+            run_stream::PauseReason::ProbeMilestone,
+            ExploreStreamSliceStop::ProbeMilestone,
+            0,
+            0,
+        )
+        .expect("publish and pause one-case checkpoint");
+        assert_eq!(checkpoint.stop, ExploreStreamSliceStop::ProbeMilestone);
+        assert_eq!(
+            checkpoint.final_cursor.lifecycle,
+            ExploreStreamLifecycle::Paused
+        );
+        assert!(checkpoint.probe_milestone_complete);
+        let (checkpoint_cursor, publication_cursor) = match &checkpoint.artifact {
+            ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+                canonical_json_line,
+                checkpoint_cursor,
+                publication_cursor,
+                ..
+            } => {
+                assert!(canonical_json_line.ends_with(b"\n"));
+                assert_eq!(
+                    canonical_json_line
+                        .iter()
+                        .filter(|byte| **byte == b'\n')
+                        .count(),
+                    1
+                );
+                (checkpoint_cursor, publication_cursor)
+            }
+            ExploreStreamArtifact::TerminalResultJson { .. } => {
+                panic!("probe milestone returned a terminal artifact")
+            }
+        };
+        assert_eq!(checkpoint_cursor.lifecycle, ExploreStreamLifecycle::Running);
+        assert_eq!(
+            publication_cursor.lifecycle,
+            ExploreStreamLifecycle::Running
+        );
+        assert_eq!(
+            publication_cursor.sequence,
+            checkpoint_cursor.sequence.checked_add(1).expect("sequence")
+        );
+        assert_eq!(
+            checkpoint.final_cursor.sequence,
+            publication_cursor
+                .sequence
+                .checked_add(1)
+                .expect("sequence")
+        );
+        assert_eq!(checkpoint_cursor.run_id, publication_cursor.run_id);
+        assert_eq!(checkpoint_cursor.run_id, checkpoint.final_cursor.run_id);
+        assert_ne!(
+            checkpoint_cursor.journal_head,
+            publication_cursor.journal_head
+        );
+        assert_ne!(
+            publication_cursor.journal_head,
+            checkpoint.final_cursor.journal_head
+        );
+        assert_eq!(
+            checkpoint_cursor.evidence_root,
+            publication_cursor.evidence_root
+        );
+        assert_eq!(
+            publication_cursor.evidence_root,
+            checkpoint.final_cursor.evidence_root
+        );
+        let paused_cursor = checkpoint.final_cursor.clone();
+        drop(coordinator);
+
+        let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+        )
+        .expect("resume one-case durable stream");
+        let resumed_cursor = public_exact_stream_cursor(coordinator.stream().cursor());
+        assert_eq!(resumed_cursor.lifecycle, ExploreStreamLifecycle::Running);
+        assert_eq!(resumed_cursor.run_id, paused_cursor.run_id);
+        assert_eq!(
+            resumed_cursor.sequence,
+            paused_cursor.sequence.checked_add(1).expect("sequence")
+        );
+        assert_ne!(resumed_cursor.journal_head, paused_cursor.journal_head);
+        assert_eq!(resumed_cursor.evidence_root, paused_cursor.evidence_root);
+
+        let case_cap = NonZeroU16::new(1).expect("one is nonzero");
+        while let Some(rank) = coordinator.next_open_rank_hint() {
+            match coordinator
+                .advance_bounded_case_batch(case_cap)
+                .expect("classify one-case durable frontier")
+            {
+                stream_coordinator::ExactStreamBatchAdvance::Committed { ranks, .. } => {
+                    assert_eq!(ranks.as_ref(), &[rank]);
+                }
+                stream_coordinator::ExactStreamBatchAdvance::ClassificationClosedFinalizationPending => {
+                    panic!("open-rank hint disagreed with the exact frontier")
+                }
+                stream_coordinator::ExactStreamBatchAdvance::CaseOpen { .. } => {
+                    panic!("one-case fixture hit an evaluation limit")
+                }
+            }
+        }
+        assert_eq!(coordinator.closed_case_count(), 1);
+        assert!(coordinator.exact_snapshot().result_group_scan_complete);
+        let terminal_result_json = match attempt_atomic_exact_stream_finalization(&mut coordinator)
+            .expect("finalize one-case durable stream")
+        {
+            ExactStreamFinalizationAttempt::Sealed(bytes) => bytes,
+            ExactStreamFinalizationAttempt::WitnessOpen { .. } => {
+                panic!("one-case finalization left a replay witness open")
+            }
+            ExactStreamFinalizationAttempt::LimitReached { .. } => {
+                panic!("one-case finalization exceeded an atomic limit")
+            }
+        };
+        let sealed_cursor = public_exact_stream_cursor(coordinator.stream().cursor());
+        assert_eq!(sealed_cursor.lifecycle, ExploreStreamLifecycle::Sealed);
+        let terminal_blob_digest = coordinator
+            .published_terminal_result()
+            .expect("terminal publication receipt")
+            .blob_digest()
+            .to_lowercase_hex();
+        drop(coordinator);
+
+        let coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+        )
+        .expect("reopen sealed one-case durable stream");
+        assert_eq!(
+            public_exact_stream_cursor(coordinator.stream().cursor()),
+            sealed_cursor
+        );
+        let already_sealed =
+            render_already_sealed_exact_stream(&coordinator, coordinator.closed_case_count())
+                .expect("render already-sealed one-case receipt");
+        assert_eq!(
+            already_sealed.stop,
+            ExploreStreamSliceStop::AlreadySealed(ExploreStreamTerminalStatus::Completed)
+        );
+        assert_eq!(already_sealed.final_cursor, sealed_cursor);
+        assert_eq!(already_sealed.singleton_cases_evaluated_this_slice, 0);
+        assert_eq!(already_sealed.closed_cases_this_slice, 0);
+        match already_sealed.artifact {
+            ExploreStreamArtifact::TerminalResultJson {
+                canonical_json,
+                blob_digest,
+            } => {
+                assert_eq!(canonical_json, terminal_result_json);
+                assert_eq!(blob_digest, terminal_blob_digest);
+            }
+            ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
+                panic!("already-sealed reopen returned a checkpoint artifact")
+            }
+        }
+        drop(coordinator);
+        std::fs::remove_dir_all(&directory).expect("remove one-case durable-stream fixture");
     }
 
     #[test]

@@ -137,8 +137,11 @@
     {
       "id": "solver-backed-exploration",
       "kind": "verification",
-      "name": "Bounded ? explore declarations and typed query analysis",
+      "name": "Bounded ? explore declarations, typed query analysis, and exact-finite execution",
       "stage": "experimental",
+      "commands": [
+        "explore"
+      ],
       "docs": [
         "docs/rfcs/bounded-rule-exploration.md",
         "docs/rfcs/bounded-rule-exploration-workbook.md"
@@ -400,6 +403,11 @@
       "name": "audit",
       "stage": "experimental",
       "surface": "exploratory-audit-tooling"
+    },
+    {
+      "name": "explore",
+      "stage": "experimental",
+      "surface": "solver-backed-exploration"
     },
     {
       "name": "from-rust",

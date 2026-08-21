@@ -1,0 +1,26 @@
+-- Tiny domain-neutral oracle for exercising the durable Explore lifecycle.
+-- Of ten configurations, exactly two match. This is intentionally small: it
+-- demonstrates probe, pause, resume, publication, sealing, and readback
+-- without standing in for a real policy exploration.
+
+| synthetic_support_cliff(income_before: Int, step: Int) -> {
+    step == 1 && (income_before == 4 || income_before == 7)
+}
+
+? explore synthetic_support_cliffs {
+    over synthetic_support_cliff(income_before, step)
+    find matches
+    bounds {
+        income_before in range(0, 10)
+        step = 1
+    }
+    boundaries on income_before by step
+    output {
+        key [income_before]
+        show [
+            income_after = income_before + step,
+            amount_lost = 20
+        ]
+        representative first
+    }
+}

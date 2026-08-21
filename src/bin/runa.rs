@@ -3,6 +3,9 @@
 //! This binary provides the CLI interface for the Futuruna compiler.
 //! Core language implementation is in the library crate (src/lib.rs).
 
+mod runa_explore_heap;
+mod runa_explore_supervisor;
+
 use futuruna::*;
 use quote::ToTokens;
 use serde::{Deserialize, Serialize};
@@ -53,6 +56,10 @@ fn reorder_named_direct_call_args(
 }
 
 fn main() {
+    if let Err(error) = runa_explore_supervisor::activate_exact_stream_child_liveness() {
+        eprintln!("Fatal: invalid durable Explore supervisor channel: {error}");
+        std::process::exit(1);
+    }
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
     let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
     let handler = match builder.spawn(main_inner) {
@@ -89,6 +96,15 @@ fn main_inner() {
     let mut meta_role_filter = None;
     let mut meta_json = false;
     let mut audit_json = false;
+    let mut explore_json = false;
+    let mut explore_plan = false;
+    let mut explore_query = None;
+    let mut explore_case_limit = explore::DEFAULT_EXPLORE_EXACT_CASE_LIMIT;
+    let mut explore_case_limit_explicit = false;
+    let mut explore_run_state = None;
+    let mut explore_max_runtime = None;
+    let mut explore_pause_after_probes = false;
+    let mut explore_finalize = false;
     let mut explore_preview_json = false;
     let mut explore_preview_query = None;
     let mut explore_preview_limit = 10_000usize;
@@ -199,6 +215,105 @@ fn main_inner() {
             }
             "--json" if mode == "audit" => {
                 audit_json = true;
+                i += 1;
+            }
+            "--json" if mode == "explore" => {
+                explore_json = true;
+                i += 1;
+            }
+            "--plan" if mode == "explore" => {
+                explore_plan = true;
+                i += 1;
+            }
+            "--query" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_query = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--query=") => {
+                let value = &arg["--query=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_query = Some(value.to_string());
+                i += 1;
+            }
+            "--case-limit" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --case-limit requires a positive integer");
+                    std::process::exit(1);
+                }
+                explore_case_limit = parse_positive_u128_option("--case-limit", &args[i + 1]);
+                explore_case_limit_explicit = true;
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--case-limit=") => {
+                explore_case_limit =
+                    parse_positive_u128_option("--case-limit", &arg["--case-limit=".len()..]);
+                explore_case_limit_explicit = true;
+                i += 1;
+            }
+            "--run-state" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].is_empty() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --run-state requires a path");
+                    std::process::exit(1);
+                }
+                explore_run_state = Some(PathBuf::from(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--run-state=") => {
+                let value = &arg["--run-state=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --run-state requires a path");
+                    std::process::exit(1);
+                }
+                explore_run_state = Some(PathBuf::from(value));
+                i += 1;
+            }
+            "--time-limit" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --time-limit requires a positive duration such as `20m`");
+                    std::process::exit(1);
+                }
+                explore_max_runtime = Some(parse_explore_time_limit(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--time-limit=") => {
+                explore_max_runtime = Some(parse_explore_time_limit(&arg["--time-limit=".len()..]));
+                i += 1;
+            }
+            "--max-minutes" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --max-minutes requires a positive integer");
+                    std::process::exit(1);
+                }
+                explore_max_runtime = Some(parse_explore_max_minutes(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--max-minutes=") => {
+                explore_max_runtime =
+                    Some(parse_explore_max_minutes(&arg["--max-minutes=".len()..]));
+                i += 1;
+            }
+            "--pause-after" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --pause-after requires `probes`");
+                    std::process::exit(1);
+                }
+                explore_pause_after_probes = parse_explore_pause_after(&args[i + 1]);
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--pause-after=") => {
+                explore_pause_after_probes =
+                    parse_explore_pause_after(&arg["--pause-after=".len()..]);
+                i += 1;
+            }
+            "--finalize" if mode == "explore" => {
+                explore_finalize = true;
                 i += 1;
             }
             "--json" if mode == "__explore-preview" => {
@@ -424,6 +539,7 @@ fn main_inner() {
                 );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
+                eprintln!("  explore       Plan or execute one bounded exact-finite exploration");
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
@@ -449,6 +565,27 @@ fn main_inner() {
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ calculate entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
+                eprintln!("  explore --query NAME  Select one named exploration");
+                eprintln!("  explore --plan        Show search cost without evaluating any case");
+                eprintln!(
+                    "  explore --case-limit N  Cap work (execution: PARTIAL suffix; plan: cost estimate)"
+                );
+                eprintln!(
+                    "  explore --run-state PATH  Create or resume a durable observable exploration (macOS preview)"
+                );
+                eprintln!(
+                    "  explore --time-limit DURATION  Pause one stream slice after a positive s/m/h duration"
+                );
+                eprintln!("  explore --pause-after probes  Pause at the durable probe milestone");
+                eprintln!(
+                    "  explore --finalize    With --run-state and a time limit, opt in to bounded atomic-v1 terminal sealing"
+                );
+                eprintln!(
+                    "  explore --json        On durable --run-state runs, emit a typed receipt with the canonical artifact embedded losslessly"
+                );
+                eprintln!(
+                    "  explore --max-minutes N  Compatibility alias for a whole-minute time limit"
+                );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
                 eprintln!("  --input PATH       Read calculation cases");
                 eprintln!("  --output PATH      Write a contract, template, or result");
@@ -488,7 +625,7 @@ fn main_inner() {
                 eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
                 eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
                 eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call");
-                eprintln!("  Experimental: audit");
+                eprintln!("  Experimental: audit, explore");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
@@ -521,6 +658,21 @@ fn main_inner() {
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
                 eprintln!("  runa audit model.calculate.runa --entry calculate_tax --json");
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --case-limit 100000"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --plan --case-limit 100000"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --pause-after probes"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --json"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --finalize --json"
+                );
                 std::process::exit(0);
             }
             "init" => {
@@ -625,6 +777,10 @@ fn main_inner() {
             }
             "audit" => {
                 mode = "audit";
+                i += 1;
+            }
+            "explore" => {
+                mode = "explore";
                 i += 1;
             }
             "__explore-preview" => {
@@ -839,6 +995,109 @@ fn main_inner() {
         return;
     }
 
+    if mode == "explore" && filename.is_none() {
+        eprintln!(
+            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--finalize] [--json]"
+        );
+        std::process::exit(1);
+    }
+
+    if mode == "explore" {
+        let has_stream_control = explore_max_runtime.is_some() || explore_pause_after_probes;
+        if has_stream_control && explore_run_state.is_none() {
+            eprintln!(
+                "error: --time-limit/--max-minutes and --pause-after require a durable --run-state path"
+            );
+            std::process::exit(1);
+        }
+        if explore_finalize && explore_run_state.is_none() {
+            eprintln!("error: --finalize requires a durable --run-state path");
+            std::process::exit(1);
+        }
+        if explore_finalize && explore_pause_after_probes {
+            eprintln!("error: --finalize cannot be combined with --pause-after probes");
+            std::process::exit(1);
+        }
+        if explore_finalize && explore_max_runtime.is_none() {
+            eprintln!("error: --finalize requires --time-limit DURATION or --max-minutes N");
+            std::process::exit(1);
+        }
+        if explore_run_state.is_some() {
+            if explore_plan {
+                eprintln!("error: --run-state cannot be combined with --plan");
+                std::process::exit(1);
+            }
+            if explore_case_limit_explicit {
+                eprintln!(
+                    "error: --run-state cannot be combined with the one-shot --case-limit option"
+                );
+                std::process::exit(1);
+            }
+            if !has_stream_control {
+                eprintln!(
+                    "error: --run-state requires --time-limit DURATION or --pause-after probes"
+                );
+                std::process::exit(1);
+            }
+        }
+    }
+
+    // Durable exploration is always re-executed in an isolated process group.
+    // The child alone owns the run-state fence; the parent can therefore stop
+    // an unexpectedly large atomic probe/case unit without minting partial
+    // evidence or corrupting the last committed cursor.
+    if mode == "explore"
+        && explore_run_state.is_some()
+        && !runa_explore_supervisor::is_exact_stream_child()
+    {
+        let child_arguments = std::env::args_os().skip(1).collect::<Vec<_>>();
+        match runa_explore_supervisor::supervise_current_executable(
+            &child_arguments,
+            explore_max_runtime,
+        ) {
+            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Exited(status)) => {
+                if status.success() {
+                    return;
+                }
+                match status.code() {
+                    Some(code) => std::process::exit(code),
+                    None => {
+                        eprintln!(
+                            "error: contained durable Explore child ended without an exit code; any committed run state remains recoverable"
+                        );
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Contained(report)) => {
+                eprintln!(
+                    "error: durable Explore containment stopped the child at the {} guard; no uncommitted evidence was accepted",
+                    report.reason
+                );
+                if let Some(observed) = report.observed_group_rss_bytes {
+                    eprintln!(
+                        "  process-group RSS: {observed} bytes (guard {})",
+                        report.group_rss_limit_bytes
+                    );
+                }
+                if let Some(observed) = report.observed_available_memory_bytes {
+                    eprintln!(
+                        "  host available memory: {observed} bytes (guard floor {})",
+                        report.available_memory_floor_bytes
+                    );
+                }
+                eprintln!(
+                    "  any committed --run-state cursor is intact; rerunning the same command performs hash-validated recovery"
+                );
+                std::process::exit(1);
+            }
+            Err(error) => {
+                eprintln!("error: durable Explore process-group watchdog failed: {error}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     if let Some(ref path) = filename {
         if mode == "meta" && std::path::Path::new(path).is_dir() {
             print_meta_directory(
@@ -882,6 +1141,35 @@ fn main_inner() {
                 }
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
+                "explore" if explore_run_state.is_some() => run_exact_explore_stream(
+                    &source,
+                    path,
+                    use_prelude,
+                    explore_query.as_deref(),
+                    explore_json,
+                    explore_run_state
+                        .as_deref()
+                        .expect("stream dispatch requires --run-state"),
+                    explore_max_runtime,
+                    explore_pause_after_probes,
+                    explore_finalize,
+                ),
+                "explore" if explore_plan => run_explore_cost_plan(
+                    &source,
+                    path,
+                    use_prelude,
+                    explore_query.as_deref(),
+                    explore_json,
+                    explore_case_limit,
+                ),
+                "explore" => run_exact_explore(
+                    &source,
+                    path,
+                    use_prelude,
+                    explore_query.as_deref(),
+                    explore_json,
+                    explore_case_limit,
+                ),
                 "__explore-preview" => run_explore_preview(
                     &source,
                     path,
@@ -6093,6 +6381,964 @@ fn explore_preview_fields_json(fields: &[explore::ExplorePreviewField]) -> serde
     serde_json::Value::Object(object)
 }
 
+fn explore_count_text(count: explore::ExploreCountEvidence) -> String {
+    match count {
+        explore::ExploreCountEvidence::Exact(value) => value.to_string(),
+        explore::ExploreCountEvidence::LowerBound(value) => format!(">={value}"),
+        explore::ExploreCountEvidence::Unknown => "unknown".to_string(),
+    }
+}
+
+fn explore_cardinality_text(cardinality: &explore::ExploreCardinality) -> String {
+    match cardinality {
+        explore::ExploreCardinality::Exact(value) => value.to_string(),
+        explore::ExploreCardinality::ExceedsU128 => "overflow (> u128::MAX)".to_string(),
+    }
+}
+
+fn render_explore_cost_plan_human(plan: &explore::ExploreCostPlan) {
+    println!("Explore cost/search plan: {}", plan.query_name);
+    println!("PLAN ONLY: no cases were evaluated; this is not result evidence or closure.");
+    println!();
+    println!("Axes (source order):");
+    if plan.axes.is_empty() {
+        println!("  (none)");
+    } else {
+        for axis in &plan.axes {
+            println!(
+                "  {}: {}",
+                axis.name,
+                explore_cardinality_text(&axis.cardinality)
+            );
+        }
+    }
+    println!(
+        "Declared Cartesian assignments (U): {}",
+        explore_cardinality_text(&plan.declared_cartesian_count)
+    );
+    if let Some(boundary) = &plan.boundary {
+        println!("Boundary axis: {}", boundary.axis);
+        println!("Boundary step: {}", boundary.step);
+        println!(
+            "Boundary-eligible unconstrained pairs: {}",
+            explore_cardinality_text(&boundary.eligible_unconstrained_pairs)
+        );
+    }
+    println!("Requested case cap: {}", plan.requested_case_limit);
+    println!(
+        "Naive singleton classifications under cap: {}",
+        plan.naive_singleton_classifications
+    );
+    match plan.naive_remaining_open_lower_bound {
+        Some(remaining) => println!("Naive remaining-open lower bound after the cap: {remaining}"),
+        None => println!(
+            "Naive remaining-open lower bound after the cap: unavailable (U exceeds u128::MAX)"
+        ),
+    }
+    println!(
+        "Mechanism/symbolic candidate extraction: UNAVAILABLE (not part of this planning slice)"
+    );
+}
+
+fn explore_human_value(value: &explore::ExploreValue) -> String {
+    match value {
+        explore::ExploreValue::Int(value) => value.to_string(),
+        explore::ExploreValue::FloatBits(bits) => f64::from_bits(*bits).to_string(),
+        explore::ExploreValue::String(value) => {
+            serde_json::to_string(value).expect("serialize Explore string for human display")
+        }
+        explore::ExploreValue::Character(value) => format!("{value:?}"),
+        explore::ExploreValue::Boolean(value) => value.to_string(),
+        explore::ExploreValue::Unit => "()".to_string(),
+        explore::ExploreValue::List(values) => format!(
+            "[{}]",
+            values
+                .iter()
+                .map(explore_human_value)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        explore::ExploreValue::Set(values) => format!(
+            "{{{}}}",
+            values
+                .iter()
+                .map(explore_human_value)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        explore::ExploreValue::Tuple(values) => format!(
+            "({})",
+            values
+                .iter()
+                .map(explore_human_value)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+        explore::ExploreValue::Constructor {
+            variant,
+            positional,
+            fields,
+            ..
+        } => {
+            let fields = if *positional {
+                fields
+                    .iter()
+                    .map(|(_, value)| explore_human_value(value))
+                    .collect::<Vec<_>>()
+            } else {
+                fields
+                    .iter()
+                    .map(|(name, value)| format!("{name} = {}", explore_human_value(value)))
+                    .collect::<Vec<_>>()
+            };
+            if fields.is_empty() {
+                variant.clone()
+            } else {
+                format!("{variant}({})", fields.join(", "))
+            }
+        }
+    }
+}
+
+fn explore_human_fields(fields: &[explore::ExploreExecutionField]) -> String {
+    fields
+        .iter()
+        .map(|field| format!("{} = {}", field.name, explore_human_value(&field.value)))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn explore_coverage_name(coverage: explore::ExploreExecutionCoverage) -> &'static str {
+    match coverage {
+        explore::ExploreExecutionCoverage::Empty => "EMPTY",
+        explore::ExploreExecutionCoverage::None => "NONE",
+        explore::ExploreExecutionCoverage::Some => "SOME",
+        explore::ExploreExecutionCoverage::All => "ALL",
+        explore::ExploreExecutionCoverage::Undetermined => "UNDETERMINED",
+    }
+}
+
+fn explore_stop_text(stop: &explore::ExploreExecutionStopReason) -> String {
+    match stop {
+        explore::ExploreExecutionStopReason::CaseLimit { limit } => {
+            format!("case-classification limit {limit} reached")
+        }
+        explore::ExploreExecutionStopReason::RuntimeLimit {
+            resource,
+            limit,
+            observed,
+            phase,
+        } => {
+            let resource = match resource {
+                explore::ExploreExecutionLimitResource::Steps => "evaluation steps".to_string(),
+                explore::ExploreExecutionLimitResource::CollectionMembers { operation } => {
+                    format!("collection members produced by {operation}")
+                }
+            };
+            format!(
+                "{resource} exceeded {limit} (observed {observed}) during {}",
+                explore_phase_text(phase)
+            )
+        }
+    }
+}
+
+fn explore_phase_text(phase: &explore::ExploreExecutionPhase) -> String {
+    match phase {
+        explore::ExploreExecutionPhase::Initialization => "initialization".to_string(),
+        explore::ExploreExecutionPhase::DerivedFact { name } => {
+            format!("derived fact `{name}`")
+        }
+        explore::ExploreExecutionPhase::BoundaryEndpoint => "boundary evaluation".to_string(),
+        explore::ExploreExecutionPhase::Constraint { index } => {
+            format!("constraint {}", index + 1)
+        }
+        explore::ExploreExecutionPhase::Question => "question evaluation".to_string(),
+        explore::ExploreExecutionPhase::Key { name } => format!("key field `{name}`"),
+        explore::ExploreExecutionPhase::Extrema { name } => {
+            format!("extrema field `{name}`")
+        }
+        explore::ExploreExecutionPhase::Show { name } => format!("shown field `{name}`"),
+        explore::ExploreExecutionPhase::Objective => "representative objective".to_string(),
+        explore::ExploreExecutionPhase::Replay => "fresh replay".to_string(),
+    }
+}
+
+fn explore_outcome_name(outcome: &explore::ExploreExecutionOutcome) -> &'static str {
+    match outcome {
+        explore::ExploreExecutionOutcome::Complete { .. } => "COMPLETE",
+        explore::ExploreExecutionOutcome::Partial { .. } => "PARTIAL",
+        explore::ExploreExecutionOutcome::Unknown { .. } => "UNKNOWN",
+        explore::ExploreExecutionOutcome::Unsupported { .. } => "UNSUPPORTED",
+        explore::ExploreExecutionOutcome::Error { .. } => "ERROR",
+    }
+}
+
+fn render_explore_search_human(search: explore::ExploreExecutionSearchEvidence) {
+    match search {
+        explore::ExploreExecutionSearchEvidence::Canonical {
+            classified_cases,
+            remaining_open_cases,
+            exhausted,
+        } => {
+            println!("Search order: CANONICAL");
+            println!("Singleton-classified cases: {classified_cases}");
+            println!("Certified-region closed cases: 0");
+            println!("Remaining open cases: {remaining_open_cases}");
+            println!("Search exhausted: {exhausted}");
+        }
+        explore::ExploreExecutionSearchEvidence::SourceCandidateFirst {
+            distinct_source_candidates,
+            scheduled_source_candidates,
+            evaluated_source_candidates,
+            scheduled_fallback_cases,
+            evaluated_fallback_cases,
+            singleton_closed_cases,
+            certified_region_closed_cases,
+            pending_evaluations,
+            remaining_open_cases,
+            exhausted,
+        } => {
+            println!("Search order: SOURCE_CANDIDATE_FIRST");
+            println!("Distinct source candidates: {distinct_source_candidates}");
+            println!("Scheduled source candidates: {scheduled_source_candidates}");
+            println!("Evaluated source candidates: {evaluated_source_candidates}");
+            println!("Scheduled fallback cases: {scheduled_fallback_cases}");
+            println!("Evaluated fallback cases: {evaluated_fallback_cases}");
+            println!("Singleton-closed cases: {singleton_closed_cases}");
+            println!("Certified-region closed cases: {certified_region_closed_cases}");
+            println!("Pending evaluations: {pending_evaluations}");
+            println!("Remaining open cases: {remaining_open_cases}");
+            println!("Search exhausted: {exhausted}");
+        }
+    }
+}
+
+fn explore_exit_code(outcome: &explore::ExploreExecutionOutcome) -> i32 {
+    match outcome {
+        explore::ExploreExecutionOutcome::Complete { .. } => 0,
+        explore::ExploreExecutionOutcome::Partial { .. } => 2,
+        explore::ExploreExecutionOutcome::Unknown { .. } => 3,
+        explore::ExploreExecutionOutcome::Unsupported { .. } => 4,
+        explore::ExploreExecutionOutcome::Error { .. } => 1,
+    }
+}
+
+fn render_exact_explore_human(report: &explore::ExploreExecutionReport) {
+    println!("Exploration: {}", report.query_name);
+    println!("Status: {}", explore_outcome_name(&report.outcome));
+    println!(
+        "Polarity: {}",
+        match report.polarity {
+            ExplorePolarity::Matches => "MATCHES",
+            ExplorePolarity::Violations => "VIOLATIONS",
+        }
+    );
+    println!("Case-classification limit: {}", report.limits.case_limit);
+    println!();
+
+    if let Some(evidence) = report.outcome.evidence() {
+        println!(
+            "Declared assignments: {}",
+            explore_count_text(evidence.counts.declared_assignments)
+        );
+        println!(
+            "Admissible configurations: {}",
+            explore_count_text(evidence.counts.admissible_configurations)
+        );
+        println!(
+            "Matching configurations: {}",
+            explore_count_text(evidence.counts.matching_configurations)
+        );
+        println!(
+            "Distinct result keys: {}",
+            explore_count_text(evidence.counts.distinct_result_keys)
+        );
+        println!(
+            "Raw result groups: {}",
+            explore_count_text(evidence.group_counts.raw_groups)
+        );
+        println!(
+            "Emitted result groups: {}",
+            explore_count_text(evidence.group_counts.emitted_groups)
+        );
+        println!(
+            "Suppressed result groups: {}",
+            explore_count_text(evidence.group_counts.suppressed_groups)
+        );
+        println!(
+            "Matching configurations in emitted groups: {}",
+            explore_count_text(evidence.group_counts.qualifying_configurations)
+        );
+        println!(
+            "Matching configurations in suppressed groups: {}",
+            explore_count_text(evidence.group_counts.suppressed_configurations)
+        );
+        println!(
+            "Group filter: {}",
+            match &evidence.group_filter {
+                explore::ExploreExecutionGroupFilter::All => "ALL".to_string(),
+                explore::ExploreExecutionGroupFilter::Varies { extrema_name } => {
+                    format!("varies({extrema_name})")
+                }
+            }
+        );
+        println!("Coverage: {}", explore_coverage_name(evidence.coverage));
+        render_explore_search_human(evidence.search);
+
+        for row in &evidence.results {
+            println!();
+            let qualifier = if matches!(
+                &report.outcome,
+                explore::ExploreExecutionOutcome::Complete { .. }
+            ) {
+                "Finding"
+            } else {
+                "Confirmed finding"
+            };
+            println!("{qualifier}: {}", explore_human_fields(&row.key));
+            for summary in &row.extrema {
+                println!(
+                    "  {}: min {}, max {}, spread {}, min ties {}, max ties {}",
+                    summary.name,
+                    summary.minimum,
+                    summary.maximum,
+                    summary.spread,
+                    summary.minimum_tie_support,
+                    summary.maximum_tie_support
+                );
+                println!(
+                    "    min witness case ordinals: [{}]",
+                    summary
+                        .minimum_witness_case_id
+                        .iter()
+                        .map(u128::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+                println!(
+                    "    max witness case ordinals: [{}]",
+                    summary
+                        .maximum_witness_case_id
+                        .iter()
+                        .map(u128::to_string)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
+            if !row.shown.is_empty() {
+                println!("  {}", explore_human_fields(&row.shown));
+            }
+            println!(
+                "  matching configurations in this key: {}",
+                explore_count_text(row.support)
+            );
+            println!(
+                "  representative case ordinals: [{}]",
+                row.representative_case_id
+                    .iter()
+                    .map(u128::to_string)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+        }
+    }
+
+    match report.mechanism {
+        explore::ExploreExecutionMechanismEvidence::UnavailableDeferred => {
+            println!("Mechanism evidence: UNAVAILABLE (provenance replay is deferred)");
+        }
+    }
+
+    match &report.outcome {
+        explore::ExploreExecutionOutcome::Complete { method, .. } => {
+            println!(
+                "Completion method: {}",
+                match method {
+                    explore::ExploreExecutionMethod::ExactFiniteExhaustion => {
+                        "EXACT_FINITE_EXHAUSTION"
+                    }
+                    explore::ExploreExecutionMethod::ExactFiniteCertifiedClosure => {
+                        "EXACT_FINITE_CERTIFIED_CLOSURE"
+                    }
+                }
+            );
+        }
+        explore::ExploreExecutionOutcome::Partial { stop, .. } => {
+            println!();
+            println!("Open frontier: {}", explore_stop_text(stop));
+        }
+        explore::ExploreExecutionOutcome::Unknown { reason, .. } => {
+            println!();
+            println!("The backend could not close the remaining frontier: {reason}");
+        }
+        explore::ExploreExecutionOutcome::Unsupported { diagnostic } => {
+            println!();
+            println!("Unsupported exact path: {diagnostic}");
+        }
+        explore::ExploreExecutionOutcome::Error { diagnostics } => {
+            for diagnostic in diagnostics {
+                eprintln!("error: {diagnostic}");
+            }
+        }
+    }
+}
+
+fn run_explore_cost_plan(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    case_limit: u128,
+) {
+    if json {
+        eprintln!("error: `runa explore --plan` has no JSON surface; use the human cost plan");
+        std::process::exit(1);
+    }
+
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let options = explore::ExploreExactOptions {
+        case_limit: std::num::NonZeroU128::new(case_limit)
+            .expect("CLI parser requires a positive Explore case limit"),
+    };
+    let plan = explore::plan_checked_exact(
+        &statements,
+        source_dir_for(filename),
+        source,
+        query_name,
+        options,
+    )
+    .unwrap_or_else(|error| match error {
+        explore::ExploreExecutionPreparationError::Diagnostics(diagnostics) => {
+            print_type_check_diagnostics(&diagnostics, source, filename);
+            std::process::exit(1);
+        }
+        explore::ExploreExecutionPreparationError::Selection(message) => {
+            eprintln!("error: {message} in {filename}");
+            std::process::exit(1);
+        }
+        explore::ExploreExecutionPreparationError::Execution(message) => {
+            eprintln!("error: exploration cost planning failed: {message}");
+            std::process::exit(1);
+        }
+    });
+    render_explore_cost_plan_human(&plan);
+}
+
+fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
+    match stop {
+        explore::ExploreStreamSliceStop::ProbeMilestone => "probe milestone reached".to_string(),
+        explore::ExploreStreamSliceStop::TimeLimit => "invocation time limit reached".to_string(),
+        explore::ExploreStreamSliceStop::ResourcePressure { detail } => {
+            format!("resource pressure ({detail})")
+        }
+        explore::ExploreStreamSliceStop::EvaluationLimit {
+            blocked_rank,
+            reason,
+        } => {
+            format!(
+                "CaseId rank {blocked_rank} is blocked under the current evaluator contract; unchanged resume will retry that same CaseId ({})",
+                explore_stop_text(reason)
+            )
+        }
+        explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
+            format!("atomic finalization limit in {phase} ({detail})")
+        }
+        explore::ExploreStreamSliceStop::ClassificationClosedFinalizationPending => {
+            "case classification closed; terminal replay remains pending".to_string()
+        }
+        explore::ExploreStreamSliceStop::TerminalSealed(status) => format!(
+            "terminal result sealed ({})",
+            explore_stream_terminal_status_name(*status)
+        ),
+        explore::ExploreStreamSliceStop::AlreadySealed(status) => format!(
+            "run was already sealed ({})",
+            explore_stream_terminal_status_name(*status)
+        ),
+    }
+}
+
+fn explore_stream_terminal_status_name(
+    status: explore::ExploreStreamTerminalStatus,
+) -> &'static str {
+    match status {
+        explore::ExploreStreamTerminalStatus::Completed => "completed",
+        explore::ExploreStreamTerminalStatus::Partial => "partial",
+        explore::ExploreStreamTerminalStatus::Unknown => "unknown",
+        explore::ExploreStreamTerminalStatus::Unsupported => "unsupported",
+        explore::ExploreStreamTerminalStatus::Error => "error",
+        explore::ExploreStreamTerminalStatus::Cancelled => "cancelled",
+    }
+}
+
+fn explore_stream_lifecycle_name(lifecycle: explore::ExploreStreamLifecycle) -> &'static str {
+    match lifecycle {
+        explore::ExploreStreamLifecycle::Running => "running",
+        explore::ExploreStreamLifecycle::Paused => "paused",
+        explore::ExploreStreamLifecycle::Sealed => "sealed",
+    }
+}
+
+fn explore_stream_exit_code(stop: &explore::ExploreStreamSliceStop) -> i32 {
+    let status = match stop {
+        explore::ExploreStreamSliceStop::TerminalSealed(status)
+        | explore::ExploreStreamSliceStop::AlreadySealed(status) => *status,
+        _ => return 2,
+    };
+    match status {
+        explore::ExploreStreamTerminalStatus::Completed => 0,
+        explore::ExploreStreamTerminalStatus::Unknown => 3,
+        explore::ExploreStreamTerminalStatus::Unsupported => 4,
+        explore::ExploreStreamTerminalStatus::Error => 1,
+        explore::ExploreStreamTerminalStatus::Partial
+        | explore::ExploreStreamTerminalStatus::Cancelled => 2,
+    }
+}
+
+fn explore_stream_cursor_json(cursor: &explore::ExploreStreamCursor) -> serde_json::Value {
+    serde_json::json!({
+        "run_id": cursor.run_id,
+        "sequence": cursor.sequence,
+        "journal_head": cursor.journal_head,
+        "evidence_root": cursor.evidence_root,
+        "lifecycle": explore_stream_lifecycle_name(cursor.lifecycle),
+        "last_coverage_epoch": cursor.last_coverage_epoch,
+    })
+}
+
+fn explore_execution_limit_resource_json(
+    resource: &explore::ExploreExecutionLimitResource,
+) -> serde_json::Value {
+    match resource {
+        explore::ExploreExecutionLimitResource::Steps => {
+            serde_json::json!({ "kind": "steps" })
+        }
+        explore::ExploreExecutionLimitResource::CollectionMembers { operation } => {
+            serde_json::json!({
+                "kind": "collection_members",
+                "operation": operation,
+            })
+        }
+    }
+}
+
+fn explore_execution_phase_json(phase: &explore::ExploreExecutionPhase) -> serde_json::Value {
+    match phase {
+        explore::ExploreExecutionPhase::Initialization => {
+            serde_json::json!({ "kind": "initialization" })
+        }
+        explore::ExploreExecutionPhase::DerivedFact { name } => {
+            serde_json::json!({ "kind": "derived_fact", "name": name })
+        }
+        explore::ExploreExecutionPhase::BoundaryEndpoint => {
+            serde_json::json!({ "kind": "boundary_endpoint" })
+        }
+        explore::ExploreExecutionPhase::Constraint { index } => {
+            serde_json::json!({ "kind": "constraint", "index": index })
+        }
+        explore::ExploreExecutionPhase::Question => {
+            serde_json::json!({ "kind": "question" })
+        }
+        explore::ExploreExecutionPhase::Key { name } => {
+            serde_json::json!({ "kind": "key", "name": name })
+        }
+        explore::ExploreExecutionPhase::Extrema { name } => {
+            serde_json::json!({ "kind": "extrema", "name": name })
+        }
+        explore::ExploreExecutionPhase::Show { name } => {
+            serde_json::json!({ "kind": "show", "name": name })
+        }
+        explore::ExploreExecutionPhase::Objective => {
+            serde_json::json!({ "kind": "objective" })
+        }
+        explore::ExploreExecutionPhase::Replay => {
+            serde_json::json!({ "kind": "replay" })
+        }
+    }
+}
+
+fn explore_execution_stop_reason_json(
+    reason: &explore::ExploreExecutionStopReason,
+) -> serde_json::Value {
+    match reason {
+        explore::ExploreExecutionStopReason::CaseLimit { limit } => serde_json::json!({
+            "kind": "case_limit",
+            "limit": limit.to_string(),
+        }),
+        explore::ExploreExecutionStopReason::RuntimeLimit {
+            resource,
+            limit,
+            observed,
+            phase,
+        } => serde_json::json!({
+            "kind": "runtime_limit",
+            "resource": explore_execution_limit_resource_json(resource),
+            "limit": limit.to_string(),
+            "observed": observed.to_string(),
+            "phase": explore_execution_phase_json(phase),
+        }),
+    }
+}
+
+fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_json::Value {
+    match stop {
+        explore::ExploreStreamSliceStop::ProbeMilestone => {
+            serde_json::json!({ "kind": "probe_milestone" })
+        }
+        explore::ExploreStreamSliceStop::TimeLimit => {
+            serde_json::json!({ "kind": "time_limit" })
+        }
+        explore::ExploreStreamSliceStop::ResourcePressure { detail } => serde_json::json!({
+            "kind": "resource_pressure",
+            "detail": detail,
+        }),
+        explore::ExploreStreamSliceStop::EvaluationLimit {
+            blocked_rank,
+            reason,
+        } => serde_json::json!({
+            "kind": "evaluation_limit",
+            "blocked_case_id_rank": blocked_rank.to_string(),
+            "evaluator_reason": explore_execution_stop_reason_json(reason),
+        }),
+        explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
+            serde_json::json!({
+                "kind": "finalization_limit",
+                "phase": phase,
+                "detail": detail,
+            })
+        }
+        explore::ExploreStreamSliceStop::ClassificationClosedFinalizationPending => {
+            serde_json::json!({ "kind": "classification_closed_finalization_pending" })
+        }
+        explore::ExploreStreamSliceStop::TerminalSealed(status) => serde_json::json!({
+            "kind": "terminal_sealed",
+            "terminal_status": explore_stream_terminal_status_name(*status),
+        }),
+        explore::ExploreStreamSliceStop::AlreadySealed(status) => serde_json::json!({
+            "kind": "already_sealed",
+            "terminal_status": explore_stream_terminal_status_name(*status),
+        }),
+    }
+}
+
+fn write_exact_explore_stream_report(
+    report: &explore::ExploreStreamSliceReport,
+    run_state: &Path,
+    json: bool,
+) -> io::Result<()> {
+    let stdout = io::stdout();
+    let mut output = stdout.lock();
+    let (artifact_bytes, artifact_digest) = match &report.artifact {
+        explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            canonical_json_line,
+            blob_digest,
+            ..
+        } => (canonical_json_line, blob_digest),
+        explore::ExploreStreamArtifact::TerminalResultJson {
+            canonical_json,
+            blob_digest,
+        } => (canonical_json, blob_digest),
+    };
+    if json {
+        let artifact_metadata = match &report.artifact {
+            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+                blob_digest,
+                checkpoint_cursor,
+                publication_cursor,
+                ..
+            } => serde_json::json!({
+                "kind": "checkpoint",
+                "blob_digest": blob_digest,
+                "canonical_byte_framing": "json_line_lf",
+                "checkpoint_cursor": explore_stream_cursor_json(checkpoint_cursor),
+                "publication_cursor": explore_stream_cursor_json(publication_cursor),
+            }),
+            explore::ExploreStreamArtifact::TerminalResultJson { blob_digest, .. } => {
+                serde_json::json!({
+                    "kind": "terminal_result",
+                    "blob_digest": blob_digest,
+                    "canonical_byte_framing": "json_document",
+                })
+            }
+        };
+        let mut envelope_prefix = serde_json::to_vec(&serde_json::json!({
+            "schema": "futuruna.explore.invocation.v1",
+            "schema_version": 1,
+            "stop": explore_stream_stop_json(&report.stop),
+            "final_cursor": explore_stream_cursor_json(&report.final_cursor),
+            "probe_milestone_complete": report.probe_milestone_complete,
+            "slice": {
+                "singleton_cases_evaluated": report.singleton_cases_evaluated_this_slice.to_string(),
+                "closed_cases": report.closed_cases_this_slice.to_string(),
+            },
+        }))
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        if envelope_prefix.pop() != Some(b'}') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Explore invocation envelope is not a JSON object",
+            ));
+        }
+        let mut artifact_prefix = serde_json::to_vec(&artifact_metadata)
+            .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
+        if artifact_prefix.pop() != Some(b'}') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "Explore artifact metadata is not a JSON object",
+            ));
+        }
+        let canonical_payload = match &report.artifact {
+            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
+                let Some(payload) = artifact_bytes.strip_suffix(b"\n") else {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "canonical Explore checkpoint is missing its required trailing LF",
+                    ));
+                };
+                if payload.ends_with(b"\n") {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "canonical Explore checkpoint has more than one trailing LF",
+                    ));
+                }
+                payload
+            }
+            explore::ExploreStreamArtifact::TerminalResultJson { .. } => {
+                if artifact_bytes.ends_with(b"\n") {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "canonical Explore terminal document unexpectedly ends in LF",
+                    ));
+                }
+                artifact_bytes.as_slice()
+            }
+        };
+        if canonical_payload.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "canonical Explore artifact is empty",
+            ));
+        }
+        output.write_all(&envelope_prefix)?;
+        output.write_all(b",\"artifact\":")?;
+        output.write_all(&artifact_prefix)?;
+        output.write_all(b",\"canonical_payload\":")?;
+        // Raw embedding preserves canonical u128 decimal tokens exactly. A
+        // serde_json::Value round trip would coerce values above u64.
+        output.write_all(canonical_payload)?;
+        output.write_all(b"}}\n")?;
+        return output.flush();
+    }
+
+    let lifecycle = if matches!(
+        &report.stop,
+        explore::ExploreStreamSliceStop::TerminalSealed(_)
+            | explore::ExploreStreamSliceStop::AlreadySealed(_)
+    ) {
+        "SEALED"
+    } else {
+        "PAUSED"
+    };
+    writeln!(output, "Run: {lifecycle}")?;
+    writeln!(output, "Run state: {}", run_state.display())?;
+    writeln!(output, "Stop: {}", explore_stream_stop_text(&report.stop))?;
+    writeln!(
+        output,
+        "Final cursor: #{} {} ({})",
+        report.final_cursor.sequence,
+        report.final_cursor.journal_head,
+        explore_stream_lifecycle_name(report.final_cursor.lifecycle)
+    )?;
+    writeln!(
+        output,
+        "Probe milestone: {}",
+        if report.probe_milestone_complete {
+            "COMPLETE"
+        } else {
+            "INCOMPLETE"
+        }
+    )?;
+    writeln!(
+        output,
+        "Singleton cases evaluated this slice: {}",
+        report.singleton_cases_evaluated_this_slice
+    )?;
+    writeln!(
+        output,
+        "Total cases closed this slice: {}",
+        report.closed_cases_this_slice
+    )?;
+    writeln!(output)?;
+    writeln!(output, "Artifact blob: {artifact_digest}")?;
+    if let explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+        checkpoint_cursor,
+        publication_cursor,
+        ..
+    } = &report.artifact
+    {
+        writeln!(
+            output,
+            "Checkpoint cursor: #{} {}",
+            checkpoint_cursor.sequence, checkpoint_cursor.journal_head
+        )?;
+        writeln!(
+            output,
+            "Publication cursor: #{} {}",
+            publication_cursor.sequence, publication_cursor.journal_head
+        )?;
+    }
+    writeln!(
+        output,
+        "{}:",
+        match &report.artifact {
+            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
+                "Canonical observable checkpoint"
+            }
+            explore::ExploreStreamArtifact::TerminalResultJson { .. } => {
+                "Canonical terminal result"
+            }
+        }
+    )?;
+    output.write_all(artifact_bytes)?;
+    if !artifact_bytes.ends_with(b"\n") {
+        writeln!(output)?;
+    }
+    output.flush()
+}
+
+fn run_exact_explore_stream(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    run_state: &Path,
+    max_runtime: Option<std::time::Duration>,
+    pause_after_probes: bool,
+    finalize: bool,
+) {
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let options = explore::ExploreStreamSliceOptions {
+        run_state: run_state.to_path_buf(),
+        max_runtime,
+        pause_after: pause_after_probes.then_some(explore::ExploreStreamPauseAfter::Probes),
+        finalize,
+    };
+    let report = explore::execute_checked_exact_stream_slice(
+        &statements,
+        source_dir_for(filename),
+        source,
+        query_name,
+        options,
+    )
+    .unwrap_or_else(|error| match error {
+        explore::ExploreExecutionPreparationError::Diagnostics(diagnostics) => {
+            print_type_check_diagnostics(&diagnostics, source, filename);
+            std::process::exit(1);
+        }
+        explore::ExploreExecutionPreparationError::Selection(message) => {
+            eprintln!("error: {message} in {filename}");
+            std::process::exit(1);
+        }
+        explore::ExploreExecutionPreparationError::Execution(message) => {
+            eprintln!("error: durable exact exploration failed: {message}");
+            std::process::exit(1);
+        }
+    });
+    let exit = explore_stream_exit_code(&report.stop);
+    if let Err(error) = write_exact_explore_stream_report(&report, run_state, json) {
+        eprintln!("error: cannot write exact exploration artifact: {error}");
+        std::process::exit(1);
+    }
+    if exit != 0 {
+        std::process::exit(exit);
+    }
+}
+
+fn run_exact_explore(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    case_limit: u128,
+) {
+    if json {
+        eprintln!(
+            "error: one-shot compatibility Explore has no JSON surface; use a durable --run-state invocation for `futuruna.explore.invocation.v1`"
+        );
+        std::process::exit(1);
+    }
+
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let source_dir = source_dir_for(filename);
+    let options = explore::ExploreExactOptions {
+        case_limit: std::num::NonZeroU128::new(case_limit)
+            .expect("CLI parser requires a positive Explore case limit"),
+    };
+    let report =
+        explore::execute_checked_exact(&statements, source_dir, source, query_name, options)
+            .unwrap_or_else(|error| match error {
+                explore::ExploreExecutionPreparationError::Diagnostics(diagnostics) => {
+                    print_type_check_diagnostics(&diagnostics, source, filename);
+                    std::process::exit(1);
+                }
+                explore::ExploreExecutionPreparationError::Selection(message) => {
+                    eprintln!("error: {message} in {filename}");
+                    std::process::exit(1);
+                }
+                explore::ExploreExecutionPreparationError::Execution(message) => {
+                    eprintln!("error: exact exploration failed: {message}");
+                    std::process::exit(1);
+                }
+            });
+    let exit = explore_exit_code(&report.outcome);
+    render_exact_explore_human(&report);
+    if exit != 0 {
+        std::process::exit(exit);
+    }
+}
+
 fn run_explore_preview(
     source: &str,
     filename: &str,
@@ -6724,6 +7970,71 @@ fn parse_test_job_count(raw: &str) -> Result<usize, String> {
         return Err("--jobs requires a positive integer, got '0'".to_string());
     }
     Ok(jobs)
+}
+
+fn parse_positive_u128_option(option: &str, raw: &str) -> u128 {
+    raw.parse::<u128>()
+        .ok()
+        .filter(|value| *value > 0)
+        .unwrap_or_else(|| {
+            eprintln!("error: {option} requires a positive integer, got '{raw}'");
+            std::process::exit(1);
+        })
+}
+
+fn parse_explore_time_limit(raw: &str) -> std::time::Duration {
+    let (magnitude, seconds_per_unit) = if let Some(value) = raw.strip_suffix('s') {
+        (value, 1_u64)
+    } else if let Some(value) = raw.strip_suffix('m') {
+        (value, 60_u64)
+    } else if let Some(value) = raw.strip_suffix('h') {
+        (value, 60_u64 * 60)
+    } else {
+        eprintln!(
+            "error: --time-limit requires a positive whole-number s/m/h duration, got '{raw}'"
+        );
+        std::process::exit(1);
+    };
+    let value = magnitude
+        .parse::<u64>()
+        .ok()
+        .filter(|value| *value > 0 && magnitude.bytes().all(|byte| byte.is_ascii_digit()))
+        .unwrap_or_else(|| {
+            eprintln!(
+                "error: --time-limit requires a positive whole-number s/m/h duration, got '{raw}'"
+            );
+            std::process::exit(1);
+        });
+    let seconds = value.checked_mul(seconds_per_unit).unwrap_or_else(|| {
+        eprintln!("error: --time-limit duration is too large, got '{raw}'");
+        std::process::exit(1);
+    });
+    std::time::Duration::from_secs(seconds)
+}
+
+fn parse_explore_max_minutes(raw: &str) -> std::time::Duration {
+    let minutes = raw
+        .parse::<u64>()
+        .ok()
+        .filter(|value| *value > 0 && raw.bytes().all(|byte| byte.is_ascii_digit()))
+        .unwrap_or_else(|| {
+            eprintln!("error: --max-minutes requires a positive integer, got '{raw}'");
+            std::process::exit(1);
+        });
+    let seconds = minutes.checked_mul(60).unwrap_or_else(|| {
+        eprintln!("error: --max-minutes duration is too large, got '{raw}'");
+        std::process::exit(1);
+    });
+    std::time::Duration::from_secs(seconds)
+}
+
+fn parse_explore_pause_after(raw: &str) -> bool {
+    if raw == "probes" {
+        true
+    } else {
+        eprintln!("error: --pause-after requires `probes`, got '{raw}'");
+        std::process::exit(1);
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46394,10 +47705,11 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         assert_eq!(exploration["stage"], "experimental");
 
         let commands = metadata["commands"].as_array().expect("commands array");
-        assert!(
-            !commands.iter().any(|command| command["name"] == "explore"),
-            "the dedicated explore command must not be advertised before it exists"
-        );
+        assert!(commands.iter().any(|command| {
+            command["name"] == "explore"
+                && command["stage"] == "experimental"
+                && command["surface"] == "solver-backed-exploration"
+        }));
         assert!(commands.iter().any(|command| {
             command["name"] == "feature-stages" && command["stage"] == "stable"
         }));
@@ -47909,6 +49221,8 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     value: coverage_expr("explore_key"),
                     span: Span::dummy(),
                 }],
+                extrema: Vec::new(),
+                having: None,
                 show: vec![ExploreOutputField {
                     name: "shown".to_string(),
                     value: coverage_expr("explore_show"),

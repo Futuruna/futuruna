@@ -4908,6 +4908,35 @@ pub struct ExploreOutputField {
     pub span: Span,
 }
 
+/// One named per-case integer measure whose exact extrema are reduced inside
+/// every `output.key` class.
+#[derive(Debug, Clone)]
+pub struct ExploreExtrema {
+    pub name: String,
+    pub value: Expr,
+    pub span: Span,
+}
+
+/// A post-group predicate over closed extrema evidence. `Varies` is true only
+/// when the named measure has distinct observed values (`min < max`) in a
+/// closed group; partial evidence must remain unknown rather than becoming a
+/// negative result. V1 deliberately starts with the one monotone predicate
+/// required to suppress invariant
+/// groups; later group predicates can extend this enum without turning
+/// `having` into an ordinary per-case expression.
+#[derive(Debug, Clone)]
+pub enum ExploreHaving {
+    Varies { extrema_name: String, span: Span },
+}
+
+impl ExploreHaving {
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Varies { span, .. } => *span,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ExploreRepresentative {
     First { span: Span },
@@ -4928,6 +4957,8 @@ impl ExploreRepresentative {
 #[derive(Debug, Clone)]
 pub struct ExploreOutput {
     pub key: Vec<ExploreOutputField>,
+    pub extrema: Vec<ExploreExtrema>,
+    pub having: Option<ExploreHaving>,
     pub show: Vec<ExploreOutputField>,
     pub representative: ExploreRepresentative,
     pub span: Span,
@@ -5026,8 +5057,27 @@ pub struct TypedExploreOutputField {
 }
 
 #[derive(Debug, Clone)]
+pub struct TypedExploreExtrema {
+    pub name: String,
+    pub value: Expr,
+    pub ty: Ty,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypedExploreHaving {
+    Varies {
+        extrema_name: String,
+        extrema_index: usize,
+        span: Span,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub struct TypedExploreOutput {
     pub key: Vec<TypedExploreOutputField>,
+    pub extrema: Vec<TypedExploreExtrema>,
+    pub having: Option<TypedExploreHaving>,
     pub show: Vec<TypedExploreOutputField>,
     pub representative: ExploreRepresentative,
     pub representative_ty: Option<Ty>,
@@ -5507,8 +5557,10 @@ struct FreeSymbolUses {
     values: BTreeSet<String>,
     calls: BTreeSet<String>,
     member_calls: BTreeSet<(String, String)>,
+    member_values: BTreeSet<(String, String)>,
     typed_member_calls: BTreeSet<(String, String)>,
     runtime_calls: Vec<RuntimeCallUse>,
+    runtime_member_calls: Vec<RuntimeMemberCallUse>,
 }
 
 impl FreeSymbolUses {
@@ -5516,8 +5568,10 @@ impl FreeSymbolUses {
         self.values.extend(other.values);
         self.calls.extend(other.calls);
         self.member_calls.extend(other.member_calls);
+        self.member_values.extend(other.member_values);
         self.typed_member_calls.extend(other.typed_member_calls);
         self.runtime_calls.extend(other.runtime_calls);
+        self.runtime_member_calls.extend(other.runtime_member_calls);
     }
 }
 
@@ -5532,6 +5586,14 @@ pub(crate) struct RuntimeCallUse {
     pub(crate) through_pipe: bool,
     pub(crate) lexically_bound: bool,
     pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct RuntimeMemberCallUse {
+    receiver: String,
+    member: String,
+    effective_arity: usize,
+    typed_receiver: bool,
 }
 
 fn type_name(ty: &Ty) -> Option<&str> {
@@ -5757,6 +5819,7 @@ fn collect_true_free_symbol_uses_stmt(
                 }
                 ExploreBound::Where { .. } => None,
             }));
+            query_bound.extend(query.output.extrema.iter().map(|field| field.name.clone()));
             query_bound.extend(query.output.show.iter().map(|field| field.name.clone()));
             for clause in &query.bounds {
                 match clause {
@@ -5797,6 +5860,14 @@ fn collect_true_free_symbol_uses_stmt(
                 );
             }
             for field in &query.output.key {
+                collect_true_free_symbol_uses(
+                    &field.value,
+                    uses,
+                    &query_bound,
+                    &query_typed_receivers,
+                );
+            }
+            for field in &query.output.extrema {
                 collect_true_free_symbol_uses(
                     &field.value,
                     uses,
@@ -5934,9 +6005,21 @@ fn collect_true_free_symbol_uses(
                         if let Some(receiver_type) = typed_receivers.get(receiver_name) {
                             uses.typed_member_calls
                                 .insert((receiver_type.clone(), member.clone()));
+                            uses.runtime_member_calls.push(RuntimeMemberCallUse {
+                                receiver: receiver_type.clone(),
+                                member: member.clone(),
+                                effective_arity: args.len(),
+                                typed_receiver: true,
+                            });
                         } else if !bound.contains(receiver_name) {
                             uses.member_calls
                                 .insert((receiver_name.clone(), member.clone()));
+                            uses.runtime_member_calls.push(RuntimeMemberCallUse {
+                                receiver: receiver_name.clone(),
+                                member: member.clone(),
+                                effective_arity: args.len(),
+                                typed_receiver: false,
+                            });
                         }
                     }
                 }
@@ -5951,7 +6034,13 @@ fn collect_true_free_symbol_uses(
             collect_true_free_symbol_uses(then_expr, uses, bound, typed_receivers);
             collect_true_free_symbol_uses(else_expr, uses, bound, typed_receivers);
         }
-        ExprKind::Field(object, _) => {
+        ExprKind::Field(object, member) => {
+            if let ExprKind::Var(receiver) = &object.kind {
+                if !bound.contains(receiver) {
+                    uses.member_values
+                        .insert((receiver.clone(), member.clone()));
+                }
+            }
             collect_true_free_symbol_uses(object, uses, bound, typed_receivers)
         }
         ExprKind::Index(collection, index) => {
@@ -6090,6 +6179,89 @@ pub(crate) fn collect_scoped_runtime_calls(
     let mut uses = FreeSymbolUses::default();
     collect_true_free_symbol_uses(expr, &mut uses, bound, &BTreeMap::new());
     uses.runtime_calls
+}
+
+/// One exact runtime dependency root for bounded exploration initialization.
+/// Calls keep their effective runtime arity; the selected Explore question is
+/// additionally identified as a rule so a same-named function or value cannot
+/// silently redirect its dependency slice.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum ExploreRuntimeRoot {
+    Value {
+        name: String,
+    },
+    Call {
+        name: String,
+        arity: usize,
+    },
+    Rule {
+        name: String,
+        arity: usize,
+    },
+    MemberValue {
+        receiver: String,
+        member: String,
+    },
+    MemberCall {
+        receiver: String,
+        member: String,
+        arity: usize,
+        typed_receiver: bool,
+    },
+}
+
+fn collect_explore_runtime_roots_with_receivers(
+    expr: &Expr,
+    roots: &mut BTreeSet<ExploreRuntimeRoot>,
+    bound: &BTreeSet<String>,
+    typed_receivers: &BTreeMap<String, String>,
+) {
+    let mut uses = FreeSymbolUses::default();
+    collect_true_free_symbol_uses(expr, &mut uses, bound, typed_receivers);
+
+    roots.extend(
+        uses.values
+            .into_iter()
+            .map(|name| ExploreRuntimeRoot::Value { name }),
+    );
+    roots.extend(
+        uses.runtime_calls
+            .into_iter()
+            .filter(|call| !call.lexically_bound)
+            .map(|call| ExploreRuntimeRoot::Call {
+                name: call.name,
+                arity: call.effective_arity,
+            }),
+    );
+
+    let called_members = uses
+        .runtime_member_calls
+        .iter()
+        .map(|call| (call.receiver.clone(), call.member.clone()))
+        .collect::<BTreeSet<_>>();
+    roots.extend(
+        uses.member_values
+            .into_iter()
+            .filter(|member| !called_members.contains(member))
+            .map(|(receiver, member)| ExploreRuntimeRoot::MemberValue { receiver, member }),
+    );
+    roots.extend(uses.runtime_member_calls.into_iter().map(|call| {
+        ExploreRuntimeRoot::MemberCall {
+            receiver: call.receiver,
+            member: call.member,
+            arity: call.effective_arity,
+            typed_receiver: call.typed_receiver,
+        }
+    }));
+}
+
+pub(crate) fn collect_typed_explore_runtime_roots(
+    expr: &Expr,
+    roots: &mut BTreeSet<ExploreRuntimeRoot>,
+    bound: &BTreeSet<String>,
+    typed_receivers: &BTreeMap<String, String>,
+) {
+    collect_explore_runtime_roots_with_receivers(expr, roots, bound, typed_receivers);
 }
 
 pub fn collect_pattern_names(pat: &Pat, names: &mut BTreeSet<String>) {
@@ -6617,8 +6789,10 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
             values,
             calls,
             member_calls,
+            member_values: _,
             typed_member_calls,
             runtime_calls: _,
+            runtime_member_calls: _,
         } = uses;
         let mut callable_stack = calls.into_iter().collect::<Vec<_>>();
         callable_stack.extend(member_calls.iter().filter_map(|(receiver, member)| {
@@ -6795,6 +6969,22 @@ pub struct RuleScopeFrame {
     pub name: String,
     pub bindings: Rc<HashMap<String, Value>>,
     pub memoized_zero_arg_rules: HashMap<String, Value>,
+}
+
+/// Immutable dispatch metadata shared only while one exact Explore runtime is
+/// evaluating cases. Ordinary interpretation still derives the same metadata
+/// at each call; exact execution may retain it because its declaration graph
+/// is frozen after guarded initialization.
+#[derive(Debug)]
+struct PreparedRuntimeRuleDispatch {
+    matching: Vec<Rc<Rule>>,
+    exceptions: Vec<usize>,
+    conditional_defaults: Vec<usize>,
+    clauses: Vec<usize>,
+    unconditional_defaults: Vec<usize>,
+    named_parameter_order: Option<Vec<String>>,
+    head_local_names: BTreeSet<String>,
+    body_goal_local_names: BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -7058,7 +7248,13 @@ where
             if let Some(boundary) = &query.boundary {
                 visit(AstChild::Expr(&boundary.step));
             }
-            for field in query.output.key.iter().chain(query.output.show.iter()) {
+            for field in &query.output.key {
+                visit(AstChild::Expr(&field.value));
+            }
+            for field in &query.output.extrema {
+                visit(AstChild::Expr(&field.value));
+            }
+            for field in &query.output.show {
                 visit(AstChild::Expr(&field.value));
             }
             match &query.output.representative {
@@ -7333,6 +7529,23 @@ fn strip_spans_explore_output_field(field: &ExploreOutputField) -> ExploreOutput
     }
 }
 
+fn strip_spans_explore_extrema(field: &ExploreExtrema) -> ExploreExtrema {
+    ExploreExtrema {
+        name: field.name.clone(),
+        value: strip_spans_expr(&field.value),
+        span: Span::dummy(),
+    }
+}
+
+fn strip_spans_explore_having(having: &ExploreHaving) -> ExploreHaving {
+    match having {
+        ExploreHaving::Varies { extrema_name, .. } => ExploreHaving::Varies {
+            extrema_name: extrema_name.clone(),
+            span: Span::dummy(),
+        },
+    }
+}
+
 fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
     ExploreQuery {
         name: query.name.clone(),
@@ -7382,6 +7595,13 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
                 .iter()
                 .map(strip_spans_explore_output_field)
                 .collect(),
+            extrema: query
+                .output
+                .extrema
+                .iter()
+                .map(strip_spans_explore_extrema)
+                .collect(),
+            having: query.output.having.as_ref().map(strip_spans_explore_having),
             show: query
                 .output
                 .show
@@ -8250,7 +8470,7 @@ impl Parser {
                 format!("`{}`", token.source_text)
             };
             Err(format!(
-                "{}:{}: expected `{}` in exploration output, found {}; output clauses must appear as `key`, optional `show`, then `representative`",
+                "{}:{}: expected `{}` in exploration output, found {}; output clauses must appear as `key`, optional `extrema`, optional `having`, optional `show`, then `representative`",
                 token.line, token.col, word, found
             ))
         }
@@ -8442,10 +8662,40 @@ impl Parser {
             }
         }
         self.expect(TokenKind::RBracket)?;
-        if clause == "key" && fields.is_empty() {
-            return Err("exploration `output.key` must contain at least one field".to_string());
+        if matches!(clause, "key" | "extrema") && fields.is_empty() {
+            return Err(format!(
+                "exploration `output.{clause}` must contain at least one field"
+            ));
         }
         Ok(fields)
+    }
+
+    fn parse_explore_extrema(&mut self) -> Result<Vec<ExploreExtrema>, String> {
+        self.parse_explore_output_fields("extrema").map(|fields| {
+            fields
+                .into_iter()
+                .map(|field| ExploreExtrema {
+                    name: field.name,
+                    value: field.value,
+                    span: field.span,
+                })
+                .collect()
+        })
+    }
+
+    fn parse_explore_having(&mut self) -> Result<ExploreHaving, String> {
+        let start = self.expect_explore_output_word("having")?;
+        self.expect_explore_output_word("varies")?;
+        self.expect(TokenKind::LParen)?;
+        self.skip_semis();
+        let (extrema_name, _) =
+            self.expect_explore_binder("extrema name in `having varies(...)`")?;
+        self.skip_semis();
+        self.expect(TokenKind::RParen)?;
+        Ok(ExploreHaving::Varies {
+            extrema_name,
+            span: self.span_since(&start),
+        })
     }
 
     fn parse_explore_output(&mut self) -> Result<ExploreOutput, String> {
@@ -8453,6 +8703,25 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
         let key = self.parse_explore_output_fields("key")?;
+        self.skip_semis();
+        let extrema = if self.peek_word("extrema") {
+            self.parse_explore_extrema()?
+        } else {
+            Vec::new()
+        };
+        self.skip_semis();
+        let having = if self.peek_word("having") {
+            if extrema.is_empty() {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: exploration `having` requires a preceding nonempty `extrema` clause",
+                    token.line, token.col
+                ));
+            }
+            Some(self.parse_explore_having()?)
+        } else {
+            None
+        };
         self.skip_semis();
         let show = if self.peek_word("show") {
             self.parse_explore_output_fields("show")?
@@ -8497,18 +8766,24 @@ impl Parser {
         }
         self.expect(TokenKind::RBrace)?;
 
-        let mut output_names = BTreeSet::new();
-        for field in key.iter().chain(show.iter()) {
-            if !output_names.insert(field.name.clone()) {
+        let mut output_names = BTreeMap::<String, &'static str>::new();
+        for (kind, name) in key
+            .iter()
+            .map(|field| ("key", field.name.as_str()))
+            .chain(extrema.iter().map(|field| ("extrema", field.name.as_str())))
+            .chain(show.iter().map(|field| ("show", field.name.as_str())))
+        {
+            if let Some(previous) = output_names.insert(name.to_string(), kind) {
                 return Err(format!(
-                    "exploration output field `{}` appears in both `key` and `show`",
-                    field.name
+                    "exploration output field `{name}` appears in both `{previous}` and `{kind}`"
                 ));
             }
         }
 
         Ok(ExploreOutput {
             key,
+            extrema,
+            having,
             show,
             representative,
             span: self.span_since(&start),
@@ -11961,6 +12236,128 @@ impl RuntimeConstructorSignature {
     }
 }
 
+/// Typed failures from the exact, effect-free interpreter boundary used by
+/// bounded exploration.  These categories deliberately distinguish a finite
+/// search that ran out of an operational budget from a program that cannot be
+/// executed by the exact backend, and from an internal/runtime disagreement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExploreRuntimeFailure {
+    OperationalLimit {
+        resource: ExploreRuntimeResource,
+        limit: u128,
+        observed: u128,
+    },
+    UnsupportedCapability {
+        message: String,
+    },
+    ProducedOutput,
+    RuntimeError {
+        message: String,
+    },
+    Panicked,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum ExploreRuntimeResource {
+    InitializationSteps,
+    ExpressionSteps,
+    CollectionMembers { operation: String },
+}
+
+impl std::fmt::Display for ExploreRuntimeFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ExploreRuntimeFailure::OperationalLimit {
+                resource,
+                limit,
+                observed,
+            } => write!(
+                formatter,
+                "exact exploration {:?} limit {} was exceeded at {}",
+                resource, limit, observed
+            ),
+            ExploreRuntimeFailure::UnsupportedCapability { message }
+            | ExploreRuntimeFailure::RuntimeError { message } => formatter.write_str(message),
+            ExploreRuntimeFailure::ProducedOutput => {
+                formatter.write_str("exact exploration expression produced output")
+            }
+            ExploreRuntimeFailure::Panicked => {
+                formatter.write_str("exact exploration expression panicked during evaluation")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RuntimeInitializationMode {
+    Ordinary,
+    Calculation,
+    Exploration,
+}
+
+impl RuntimeInitializationMode {
+    fn prunes_top_level(self) -> bool {
+        !matches!(self, RuntimeInitializationMode::Ordinary)
+    }
+
+    fn forces_exported_bindings(self) -> bool {
+        matches!(self, RuntimeInitializationMode::Calculation)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum ExplorationCallableKind {
+    Function,
+    Rule,
+    Constructor,
+    Type,
+    Module,
+    RuleScope,
+    RuleScopeFunction,
+    RuleScopeRule,
+    Method,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct ExplorationCallableIdentity {
+    kind: ExplorationCallableKind,
+    owner: Option<String>,
+    name: String,
+    arity: usize,
+}
+
+#[derive(Debug, Clone)]
+struct ExplorationBindingDemand {
+    group_names: BTreeSet<String>,
+    dependencies: BTreeSet<ExploreRuntimeRoot>,
+}
+
+#[derive(Debug, Default)]
+struct ExplorationModuleIndex {
+    bindings: BTreeMap<String, ExplorationBindingDemand>,
+    callable_dependencies: BTreeMap<ExplorationCallableIdentity, BTreeSet<ExploreRuntimeRoot>>,
+    value_callables: BTreeMap<String, BTreeSet<ExplorationCallableIdentity>>,
+    qualified_imports: BTreeSet<String>,
+    local_modules: BTreeSet<String>,
+}
+
+#[derive(Debug, Default)]
+struct ExplorationModuleDemand {
+    symbols: BTreeSet<String>,
+    bindings: BTreeSet<String>,
+    plain_import_roots: BTreeSet<ExploreRuntimeRoot>,
+    qualified_import_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
+    local_module_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
+}
+
+#[derive(Debug, Default)]
+struct ExplorationRuntimeDemandState {
+    roots: BTreeSet<ExploreRuntimeRoot>,
+    plain_import_roots: BTreeSet<ExploreRuntimeRoot>,
+    qualified_import_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
+    local_module_roots: BTreeMap<String, BTreeSet<ExploreRuntimeRoot>>,
+}
+
 pub struct Interpreter {
     /// Logic rules (Prolog-style)
     rules: Vec<(String, Rc<Rule>)>,
@@ -11979,6 +12376,14 @@ pub struct Interpreter {
     /// canonical `False` identity. Static return sorts alone are not enough:
     /// rule bodies currently evaluate in their caller's environment.
     rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Lazily prepared rule-family metadata for one initialized exact Explore
+    /// runtime. This never caches values or skips rule-body evaluation. Misses
+    /// are not retained, so successful entries are bounded by the finite set of
+    /// declared global and RuleScope families.
+    exact_prepared_rule_dispatch: BTreeMap<RuleDispatchKey, Rc<PreparedRuntimeRuleDispatch>>,
+    /// Preparation is enabled only after the guarded Explore initialization
+    /// has completed, so declarations cannot make a retained family stale.
+    exact_prepared_rule_dispatch_enabled: bool,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -12030,11 +12435,15 @@ pub struct Interpreter {
     /// Resource/error guard used only by compile-time exploration-domain
     /// evaluation. Ordinary program execution leaves this disabled.
     ground_collection_limit: Option<usize>,
-    ground_error: RefCell<Option<String>>,
+    ground_error: RefCell<Option<ExploreRuntimeFailure>>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
     /// Top-level bindings needed to initialize the active calculation.
     calculation_runtime_bindings: BTreeSet<String>,
+    /// Module-local typed roots used only while building an exact Explore
+    /// initialization slice. Child imports replace this state temporarily so
+    /// an outer local declaration shadows a same-named imported declaration.
+    exploration_runtime_demand: ExplorationRuntimeDemandState,
     /// Callable families registered while loading the active source/import graph.
     runtime_callable_declarations: BTreeMap<String, RuntimeCallableDeclaration>,
     /// Parsed type annotations used by typed rule heads. A large rule corpus can
@@ -12052,6 +12461,8 @@ impl Interpreter {
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
             rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
+            exact_prepared_rule_dispatch: BTreeMap::new(),
+            exact_prepared_rule_dispatch_enabled: false,
             constructors: {
                 let mut c = BTreeMap::new();
                 c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
@@ -12104,6 +12515,7 @@ impl Interpreter {
             ground_error: RefCell::new(None),
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
+            exploration_runtime_demand: ExplorationRuntimeDemandState::default(),
             runtime_callable_declarations: BTreeMap::new(),
             runtime_type_annotations: RefCell::new(HashMap::new()),
         }
@@ -12112,18 +12524,67 @@ impl Interpreter {
     fn ground_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.ground_error.borrow_mut();
         if error.is_none() {
-            *error = Some(message.into());
+            *error = Some(ExploreRuntimeFailure::RuntimeError {
+                message: message.into(),
+            });
         }
         Value::Unit
     }
 
-    pub fn enable_exhaustive_preview_effect_guard(&mut self) {
+    /// Preserve ordinary interpreter panic behavior while turning user-level
+    /// partial operations into typed exact-exploration failures.  Catching a
+    /// Rust panic is only a last-resort internal-error boundary: the default
+    /// panic hook writes to stderr before `catch_unwind` can classify it.
+    fn panic_or_ground_fail(&self, message: impl Into<String>) -> Value {
+        let message = message.into();
+        if self.exhaustive_preview_forbid_effects || self.ground_collection_limit.is_some() {
+            self.ground_fail(message)
+        } else {
+            panic!("{}", message)
+        }
+    }
+
+    fn report_runtime_import_failure(&self, message: impl Into<String>) {
+        let message = message.into();
+        if self.exhaustive_preview_forbid_effects {
+            let _ = self.ground_fail(message);
+        } else {
+            eprintln!("{}", message);
+        }
+    }
+
+    fn ground_limit_fail(
+        &self,
+        resource: ExploreRuntimeResource,
+        limit: u128,
+        observed: u128,
+    ) -> Value {
+        let mut error = self.ground_error.borrow_mut();
+        if error.is_none() {
+            *error = Some(ExploreRuntimeFailure::OperationalLimit {
+                resource,
+                limit,
+                observed,
+            });
+        }
+        Value::Unit
+    }
+
+    pub(crate) fn enable_exact_exploration_effect_guard(&mut self) {
         self.exhaustive_preview_forbid_effects = true;
         self.exhaustive_preview_error.borrow_mut().take();
     }
 
-    pub fn take_exhaustive_preview_error(&self) -> Option<String> {
+    pub(crate) fn take_exact_exploration_effect_error(&self) -> Option<String> {
         self.exhaustive_preview_error.borrow_mut().take()
+    }
+
+    pub fn enable_exhaustive_preview_effect_guard(&mut self) {
+        self.enable_exact_exploration_effect_guard();
+    }
+
+    pub fn take_exhaustive_preview_error(&self) -> Option<String> {
+        self.take_exact_exploration_effect_error()
     }
 
     fn exhaustive_preview_fail(&self, message: impl Into<String>) -> Value {
@@ -12141,25 +12602,94 @@ impl Interpreter {
         if size <= limit {
             true
         } else {
-            self.ground_fail(format!(
-                "ground `{}` would produce {} collection members, exceeding limit {}",
-                operation, size, limit
-            ));
+            self.ground_limit_fail(
+                ExploreRuntimeResource::CollectionMembers {
+                    operation: operation.to_string(),
+                },
+                limit as u128,
+                size as u128,
+            );
             false
         }
+    }
+
+    fn ground_collection_growth_allowed(
+        &self,
+        current: usize,
+        additional: usize,
+        operation: &str,
+    ) -> Option<usize> {
+        let Some(size) = current.checked_add(additional) else {
+            self.ground_fail(format!("ground `{}` collection size overflow", operation));
+            return None;
+        };
+        self.ground_collection_allowed(size, operation)
+            .then_some(size)
+    }
+
+    fn runtime_collection_member_count(value: &Value) -> Option<usize> {
+        match value {
+            Value::List(items) | Value::Stream(items) | Value::Subject(items) => Some(items.len()),
+            Value::Map(items) | Value::Set(items) => Some(items.len()),
+            Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => Some(0),
+            Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
+                let mut count = 0usize;
+                let mut cursor = value;
+                loop {
+                    match cursor {
+                        Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
+                            let Some(next_count) = count.checked_add(1) else {
+                                return Some(usize::MAX);
+                            };
+                            count = next_count;
+                            cursor = &fields[1];
+                        }
+                        Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => {
+                            return Some(count);
+                        }
+                        Value::List(items) => {
+                            return Some(count.checked_add(items.len()).unwrap_or(usize::MAX));
+                        }
+                        // `list_to_vec` treats an improper tail as the end of
+                        // the traversable list, so count the same prefix here.
+                        _ => return Some(count),
+                    }
+                }
+            }
+            _ => None,
+        }
+    }
+
+    fn ground_collection_value_allowed(&self, value: &Value, operation: &str) -> bool {
+        if self.ground_collection_limit.is_none() {
+            return true;
+        }
+        let Some(size) = Self::runtime_collection_member_count(value) else {
+            return true;
+        };
+        self.ground_collection_allowed(size, operation)
     }
 
     /// Evaluate an already purity-checked compile-time expression with normal
     /// Futuruna semantics, but with a hard step/collection budget and checked
     /// integer arithmetic. This is the canonical value seam for exact bounded
     /// exploration domains.
-    pub(crate) fn eval_ground(
+    pub(crate) fn eval_exact_exploration(
         &mut self,
         expression: &Expr,
         env: &Env,
         step_limit: usize,
         collection_limit: usize,
-    ) -> Result<Value, String> {
+    ) -> Result<Value, ExploreRuntimeFailure> {
+        let previous_forbid_effects = self.exhaustive_preview_forbid_effects;
+        let previous_effect_error = self.exhaustive_preview_error.borrow_mut().take();
+        let previous_step_count = self.step_count;
+        let previous_step_limit = self.step_limit;
+        let previous_budget_exceeded = self.budget_exceeded;
+        let previous_collection_limit = self.ground_collection_limit;
+        let previous_ground_error = self.ground_error.borrow_mut().take();
+
+        self.exhaustive_preview_forbid_effects = true;
         self.step_count = 0;
         self.step_limit = step_limit;
         self.budget_exceeded = false;
@@ -12170,24 +12700,55 @@ impl Interpreter {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(expression, env)));
         let budget_exceeded = self.budget_exceeded;
         let error = self.ground_error.borrow_mut().take();
+        let effect_error = self.take_exact_exploration_effect_error();
         let produced_output = self.output.len() != output_len;
-        self.step_limit = 0;
-        self.budget_exceeded = false;
-        self.ground_collection_limit = None;
+        let observed_steps = self.step_count;
 
-        if budget_exceeded {
-            return Err(format!(
-                "ground expression exceeded its {}-step evaluation budget",
-                step_limit
-            ));
+        self.output.truncate(output_len);
+        self.exhaustive_preview_forbid_effects = previous_forbid_effects;
+        *self.exhaustive_preview_error.borrow_mut() = previous_effect_error;
+        self.step_count = previous_step_count;
+        self.step_limit = previous_step_limit;
+        self.budget_exceeded = previous_budget_exceeded;
+        self.ground_collection_limit = previous_collection_limit;
+        *self.ground_error.borrow_mut() = previous_ground_error;
+
+        // Semantic unsupported/error evidence must dominate an operational
+        // stop reached later in the same evaluation. Guard failures return
+        // `Unit` so evaluation can unwind normally; reporting fuel first would
+        // otherwise turn a known-invalid path into an apparently honest
+        // Partial frontier.
+        if let Some(message) = effect_error {
+            return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
         }
         if produced_output {
-            return Err("ground expression produced output".to_string());
+            return Err(ExploreRuntimeFailure::ProducedOutput);
         }
         if let Some(error) = error {
             return Err(error);
         }
-        evaluation.map_err(|_| "ground expression panicked during evaluation".to_string())
+        if evaluation.is_err() {
+            return Err(ExploreRuntimeFailure::Panicked);
+        }
+        if budget_exceeded {
+            return Err(ExploreRuntimeFailure::OperationalLimit {
+                resource: ExploreRuntimeResource::ExpressionSteps,
+                limit: step_limit as u128,
+                observed: observed_steps as u128,
+            });
+        }
+        evaluation.map_err(|_| ExploreRuntimeFailure::Panicked)
+    }
+
+    pub(crate) fn eval_ground(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<Value, String> {
+        self.eval_exact_exploration(expression, env, step_limit, collection_limit)
+            .map_err(|failure| failure.to_string())
     }
 
     pub fn install_rule_dispatch_metadata(&mut self, artifacts: &TypeCheckArtifacts) {
@@ -12245,7 +12806,19 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
+        if let Some(arity) = Self::rule_arity(&rule) {
+            self.exact_prepared_rule_dispatch.remove(&RuleDispatchKey {
+                scope: None,
+                name: name.clone(),
+                arity,
+            });
+        }
         if let Some((_, arity)) = rule.callable_name_arity() {
+            let dispatch_key = RuleDispatchKey {
+                scope: None,
+                name: name.clone(),
+                arity,
+            };
             let fallback = match &rule {
                 Rule::Default { .. } | Rule::Exception { .. } => RuleMissFallback::EmptyValue,
                 Rule::Clause {
@@ -12272,11 +12845,7 @@ impl Interpreter {
                     }
                 })
                 .or_insert(fallback);
-            self.rule_dispatch_keys.insert(RuleDispatchKey {
-                scope: None,
-                name: name.clone(),
-                arity,
-            });
+            self.rule_dispatch_keys.insert(dispatch_key);
         }
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
@@ -13080,6 +13649,8 @@ impl Interpreter {
                 // Handled in run_program (needs env to evaluate condition)
             }
             TypeDecl::RuleScope { name, params, body } => {
+                self.exact_prepared_rule_dispatch
+                    .retain(|key, _| key.scope.as_deref() != Some(name));
                 self.register_rule_scope_callable_declarations(name, body);
                 let positional = false;
                 self.constructors
@@ -13227,6 +13798,745 @@ impl Interpreter {
         }
     }
 
+    fn runtime_initialization_needs_statement(&self, statement: &Stmt) -> bool {
+        match statement {
+            Stmt::Bind(pattern, _, _) => {
+                let mut names = Vec::new();
+                Self::collect_pattern_binding_names(pattern, &mut names);
+                names
+                    .iter()
+                    .any(|name| self.calculation_runtime_bindings.contains(name))
+            }
+            Stmt::StreamBind(name, _) => self.calculation_runtime_bindings.contains(name),
+            Stmt::Expr(_)
+            | Stmt::Prove { .. }
+            | Stmt::Explore(_)
+            | Stmt::StreamSub(..)
+            | Stmt::Send(..)
+            | Stmt::For(..)
+            | Stmt::While(..)
+            | Stmt::MonadicBind(..)
+            | Stmt::Assert(..)
+            | Stmt::Retract(..)
+            | Stmt::Abort => false,
+            Stmt::Defn(_)
+            | Stmt::TypeDecl(_)
+            | Stmt::Rule(_)
+            | Stmt::Invariant { .. }
+            | Stmt::Use(_)
+            | Stmt::RustBlock(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(..)
+            | Stmt::HashImport(..)
+            | Stmt::Depend(..) => true,
+            Stmt::Annot(..) => false,
+        }
+    }
+
+    fn exact_exploration_unsupported_statement(statement: &Stmt) -> Option<&'static str> {
+        match statement {
+            Stmt::MonadicBind(..) => Some("monadic binding and propagation"),
+            Stmt::For(..) => Some("imperative `for` execution"),
+            Stmt::While(..) => Some("imperative `while` execution"),
+            Stmt::Send(..) => Some("actor message send"),
+            Stmt::StreamBind(..) => Some("reactive stream binding"),
+            Stmt::StreamSub(..) => Some("reactive stream subscription"),
+            Stmt::Rule(Rule::ReactiveScope { .. }) => Some("reactive rule scope"),
+            Stmt::Prove { .. } => Some("proof execution"),
+            Stmt::Explore(_) => Some("nested exploration"),
+            Stmt::Assert(..) => Some("persistent assertion"),
+            Stmt::Retract(..) => Some("persistent retraction"),
+            Stmt::Abort => Some("persistent scope abort"),
+            _ => None,
+        }
+    }
+
+    fn runtime_initialization_statement_refs<'a>(&self, statements: &'a [Stmt]) -> Vec<&'a Stmt> {
+        let mut retained = Vec::new();
+        for (index, statement) in statements.iter().enumerate() {
+            match statement {
+                Stmt::Annot(name, arguments) if name == "comptime" && arguments.is_empty() => {
+                    if statements
+                        .get(index + 1)
+                        .is_some_and(|next| self.runtime_initialization_needs_statement(next))
+                    {
+                        retained.push(statement);
+                    }
+                }
+                _ if self.runtime_initialization_needs_statement(statement) => {
+                    retained.push(statement);
+                }
+                _ => {}
+            }
+        }
+        retained
+    }
+
+    fn exploration_expression_dependencies(
+        expression: &Expr,
+        bound: &BTreeSet<String>,
+        typed_receivers: &BTreeMap<String, String>,
+    ) -> BTreeSet<ExploreRuntimeRoot> {
+        let mut dependencies = BTreeSet::new();
+        collect_explore_runtime_roots_with_receivers(
+            expression,
+            &mut dependencies,
+            bound,
+            typed_receivers,
+        );
+        dependencies
+    }
+
+    fn exploration_rule_dependencies(
+        rule: &Rule,
+        outer_bound: &BTreeSet<String>,
+        outer_typed_receivers: &BTreeMap<String, String>,
+    ) -> BTreeSet<ExploreRuntimeRoot> {
+        let (head, expressions) = match rule {
+            Rule::Clause {
+                head,
+                body: Some(body),
+            } => (head, vec![body]),
+            Rule::Default {
+                head,
+                value,
+                condition,
+            }
+            | Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            } => {
+                let mut expressions = vec![value];
+                expressions.extend(condition.iter());
+                (head, expressions)
+            }
+            Rule::Clause { head, body: None } => (head, Vec::new()),
+            Rule::ReactiveScope { .. } => return BTreeSet::new(),
+        };
+
+        let mut bound = outer_bound.clone();
+        bound.extend(rule_head_bound_names(head));
+        let mut typed_receivers = outer_typed_receivers.clone();
+        typed_receivers.extend(rule_head_typed_receivers(head));
+        let mut dependencies = BTreeSet::new();
+        for expression in expressions {
+            dependencies.extend(Self::exploration_expression_dependencies(
+                expression,
+                &bound,
+                &typed_receivers,
+            ));
+        }
+        dependencies
+    }
+
+    fn add_exploration_callable(
+        index: &mut ExplorationModuleIndex,
+        identity: ExplorationCallableIdentity,
+        dependencies: BTreeSet<ExploreRuntimeRoot>,
+        value_visible: bool,
+    ) {
+        index
+            .callable_dependencies
+            .entry(identity.clone())
+            .or_default()
+            .extend(dependencies);
+        if value_visible {
+            index
+                .value_callables
+                .entry(identity.name.clone())
+                .or_default()
+                .insert(identity);
+        }
+    }
+
+    fn exploration_function_identity(
+        kind: ExplorationCallableKind,
+        owner: Option<&str>,
+        name: &str,
+        params: &[Param],
+    ) -> ExplorationCallableIdentity {
+        ExplorationCallableIdentity {
+            kind,
+            owner: owner.map(str::to_string),
+            name: name.to_string(),
+            arity: params
+                .iter()
+                .filter(|parameter| parameter.name != "self")
+                .count(),
+        }
+    }
+
+    fn rewrite_rule_scope_sibling_roots(
+        roots: BTreeSet<ExploreRuntimeRoot>,
+        scope: &str,
+        members: &BTreeSet<(String, usize)>,
+    ) -> BTreeSet<ExploreRuntimeRoot> {
+        roots
+            .into_iter()
+            .map(|root| match root {
+                ExploreRuntimeRoot::Call { name, arity }
+                    if members.contains(&(name.clone(), arity)) =>
+                {
+                    ExploreRuntimeRoot::MemberCall {
+                        receiver: scope.to_string(),
+                        member: name,
+                        arity,
+                        typed_receiver: true,
+                    }
+                }
+                other => other,
+            })
+            .collect()
+    }
+
+    fn build_exploration_module_index(stmts: &[Stmt]) -> ExplorationModuleIndex {
+        let mut index = ExplorationModuleIndex::default();
+
+        for statement in stmts {
+            match statement {
+                Stmt::QualifiedImport(module, _) => {
+                    index.qualified_imports.insert(module.clone());
+                }
+                Stmt::Bind(pattern, _, expression) => {
+                    let mut group_names = BTreeSet::new();
+                    collect_pattern_names(pattern, &mut group_names);
+                    let dependencies = Self::exploration_expression_dependencies(
+                        expression,
+                        &BTreeSet::new(),
+                        &BTreeMap::new(),
+                    );
+                    let demand = ExplorationBindingDemand {
+                        group_names: group_names.clone(),
+                        dependencies,
+                    };
+                    for name in group_names {
+                        index.bindings.insert(name, demand.clone());
+                    }
+                }
+                Stmt::StreamBind(name, expression) => {
+                    index.bindings.insert(
+                        name.clone(),
+                        ExplorationBindingDemand {
+                            group_names: BTreeSet::from([name.clone()]),
+                            dependencies: Self::exploration_expression_dependencies(
+                                expression,
+                                &BTreeSet::new(),
+                                &BTreeMap::new(),
+                            ),
+                        },
+                    );
+                }
+                Stmt::Defn(Defn::Fn {
+                    name, params, body, ..
+                }) => {
+                    let bound = params
+                        .iter()
+                        .map(|parameter| parameter.name.clone())
+                        .collect::<BTreeSet<_>>();
+                    let typed_receivers = typed_member_receivers(params);
+                    Self::add_exploration_callable(
+                        &mut index,
+                        Self::exploration_function_identity(
+                            ExplorationCallableKind::Function,
+                            None,
+                            name,
+                            params,
+                        ),
+                        Self::exploration_expression_dependencies(body, &bound, &typed_receivers),
+                        true,
+                    );
+                }
+                Stmt::Defn(Defn::Module { name, .. }) => {
+                    index.local_modules.insert(name.clone());
+                    Self::add_exploration_callable(
+                        &mut index,
+                        ExplorationCallableIdentity {
+                            kind: ExplorationCallableKind::Module,
+                            owner: None,
+                            name: name.clone(),
+                            arity: 0,
+                        },
+                        BTreeSet::new(),
+                        true,
+                    );
+                }
+                Stmt::Defn(Defn::Actor { name, .. }) => {
+                    Self::add_exploration_callable(
+                        &mut index,
+                        ExplorationCallableIdentity {
+                            kind: ExplorationCallableKind::Function,
+                            owner: None,
+                            name: name.clone(),
+                            arity: 1,
+                        },
+                        BTreeSet::new(),
+                        true,
+                    );
+                }
+                Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                    if let Some((name, arity)) = rule.callable_name_arity() {
+                        Self::add_exploration_callable(
+                            &mut index,
+                            ExplorationCallableIdentity {
+                                kind: ExplorationCallableKind::Rule,
+                                owner: None,
+                                name,
+                                arity,
+                            },
+                            Self::exploration_rule_dependencies(
+                                rule,
+                                &BTreeSet::new(),
+                                &BTreeMap::new(),
+                            ),
+                            true,
+                        );
+                    }
+                }
+                Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+                    index.local_modules.insert(name.clone());
+                }
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    variants,
+                    methods,
+                    ..
+                }) => {
+                    Self::add_exploration_callable(
+                        &mut index,
+                        ExplorationCallableIdentity {
+                            kind: ExplorationCallableKind::Type,
+                            owner: None,
+                            name: name.clone(),
+                            arity: 0,
+                        },
+                        BTreeSet::new(),
+                        true,
+                    );
+                    for variant in variants {
+                        Self::add_exploration_callable(
+                            &mut index,
+                            ExplorationCallableIdentity {
+                                kind: ExplorationCallableKind::Constructor,
+                                owner: Some(name.clone()),
+                                name: variant.name.clone(),
+                                arity: variant.fields.len(),
+                            },
+                            BTreeSet::new(),
+                            true,
+                        );
+                    }
+                    for method in methods {
+                        let Defn::Fn {
+                            name: method_name,
+                            params,
+                            body,
+                            ..
+                        } = method
+                        else {
+                            continue;
+                        };
+                        let bound = params
+                            .iter()
+                            .map(|parameter| parameter.name.clone())
+                            .collect::<BTreeSet<_>>();
+                        Self::add_exploration_callable(
+                            &mut index,
+                            Self::exploration_function_identity(
+                                ExplorationCallableKind::Method,
+                                Some(name),
+                                method_name,
+                                params,
+                            ),
+                            Self::exploration_expression_dependencies(
+                                body,
+                                &bound,
+                                &typed_member_receivers(params),
+                            ),
+                            true,
+                        );
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::WhenType {
+                    name,
+                    condition,
+                    variants,
+                    ..
+                }) => {
+                    let type_dependencies = Self::exploration_expression_dependencies(
+                        condition,
+                        &BTreeSet::new(),
+                        &BTreeMap::new(),
+                    );
+                    Self::add_exploration_callable(
+                        &mut index,
+                        ExplorationCallableIdentity {
+                            kind: ExplorationCallableKind::Type,
+                            owner: None,
+                            name: name.clone(),
+                            arity: 0,
+                        },
+                        type_dependencies.clone(),
+                        true,
+                    );
+                    for variant in variants {
+                        Self::add_exploration_callable(
+                            &mut index,
+                            ExplorationCallableIdentity {
+                                kind: ExplorationCallableKind::Constructor,
+                                owner: Some(name.clone()),
+                                name: variant.name.clone(),
+                                arity: variant.fields.len(),
+                            },
+                            type_dependencies.clone(),
+                            true,
+                        );
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock {
+                    for_type, methods, ..
+                }) => {
+                    for method in methods {
+                        let Defn::Fn {
+                            name, params, body, ..
+                        } = method
+                        else {
+                            continue;
+                        };
+                        let bound = params
+                            .iter()
+                            .map(|parameter| parameter.name.clone())
+                            .collect::<BTreeSet<_>>();
+                        Self::add_exploration_callable(
+                            &mut index,
+                            Self::exploration_function_identity(
+                                ExplorationCallableKind::Method,
+                                Some(for_type),
+                                name,
+                                params,
+                            ),
+                            Self::exploration_expression_dependencies(
+                                body,
+                                &bound,
+                                &typed_member_receivers(params),
+                            ),
+                            true,
+                        );
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
+                    Self::add_exploration_callable(
+                        &mut index,
+                        ExplorationCallableIdentity {
+                            kind: ExplorationCallableKind::RuleScope,
+                            owner: None,
+                            name: name.clone(),
+                            arity: params.len(),
+                        },
+                        BTreeSet::new(),
+                        true,
+                    );
+
+                    let members = body
+                        .iter()
+                        .filter_map(|statement| match statement {
+                            Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
+                                name.clone(),
+                                params
+                                    .iter()
+                                    .filter(|parameter| parameter.name != "self")
+                                    .count(),
+                            )),
+                            Stmt::Rule(rule) => rule.callable_name_arity(),
+                            _ => None,
+                        })
+                        .collect::<BTreeSet<_>>();
+                    let scope_bound = params
+                        .iter()
+                        .map(|parameter| parameter.name.clone())
+                        .collect::<BTreeSet<_>>();
+                    let scope_typed_receivers = typed_member_receivers(params);
+
+                    for member in body {
+                        match member {
+                            Stmt::Defn(Defn::Fn {
+                                name: member_name,
+                                params: member_params,
+                                body: member_body,
+                                ..
+                            }) => {
+                                let mut bound = scope_bound.clone();
+                                let mut typed_receivers = scope_typed_receivers.clone();
+                                extend_param_bindings(
+                                    member_params,
+                                    &mut bound,
+                                    &mut typed_receivers,
+                                );
+                                let dependencies = Self::rewrite_rule_scope_sibling_roots(
+                                    Self::exploration_expression_dependencies(
+                                        member_body,
+                                        &bound,
+                                        &typed_receivers,
+                                    ),
+                                    name,
+                                    &members,
+                                );
+                                Self::add_exploration_callable(
+                                    &mut index,
+                                    Self::exploration_function_identity(
+                                        ExplorationCallableKind::RuleScopeFunction,
+                                        Some(name),
+                                        member_name,
+                                        member_params,
+                                    ),
+                                    dependencies,
+                                    false,
+                                );
+                            }
+                            Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                                if let Some((member_name, arity)) = rule.callable_name_arity() {
+                                    let dependencies = Self::rewrite_rule_scope_sibling_roots(
+                                        Self::exploration_rule_dependencies(
+                                            rule,
+                                            &scope_bound,
+                                            &scope_typed_receivers,
+                                        ),
+                                        name,
+                                        &members,
+                                    );
+                                    Self::add_exploration_callable(
+                                        &mut index,
+                                        ExplorationCallableIdentity {
+                                            kind: ExplorationCallableKind::RuleScopeRule,
+                                            owner: Some(name.clone()),
+                                            name: member_name,
+                                            arity,
+                                        },
+                                        dependencies,
+                                        false,
+                                    );
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        index
+    }
+
+    fn select_exploration_callable(
+        index: &ExplorationModuleIndex,
+        name: &str,
+        arity: usize,
+        required_kind: Option<ExplorationCallableKind>,
+    ) -> Option<ExplorationCallableIdentity> {
+        let priorities = [
+            ExplorationCallableKind::Function,
+            ExplorationCallableKind::Constructor,
+            ExplorationCallableKind::RuleScope,
+            ExplorationCallableKind::Rule,
+            ExplorationCallableKind::Method,
+        ];
+        let kinds = required_kind
+            .map(|kind| vec![kind])
+            .unwrap_or_else(|| priorities.to_vec());
+        for kind in kinds {
+            let matches = index
+                .callable_dependencies
+                .keys()
+                .filter(|identity| {
+                    identity.kind == kind && identity.name == name && identity.arity == arity
+                })
+                .cloned()
+                .collect::<Vec<_>>();
+            if matches.len() == 1 {
+                return matches.into_iter().next();
+            }
+            if !matches.is_empty() {
+                return None;
+            }
+        }
+        None
+    }
+
+    fn select_exploration_member(
+        index: &ExplorationModuleIndex,
+        owner: &str,
+        member: &str,
+        arity: Option<usize>,
+    ) -> Option<ExplorationCallableIdentity> {
+        let matches = index
+            .callable_dependencies
+            .keys()
+            .filter(|identity| {
+                identity.owner.as_deref() == Some(owner)
+                    && identity.name == member
+                    && arity.is_none_or(|arity| identity.arity == arity)
+                    && matches!(
+                        identity.kind,
+                        ExplorationCallableKind::RuleScopeFunction
+                            | ExplorationCallableKind::RuleScopeRule
+                            | ExplorationCallableKind::Method
+                    )
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        (matches.len() == 1).then(|| matches[0].clone())
+    }
+
+    fn exploration_module_demand(
+        stmts: &[Stmt],
+        roots: &BTreeSet<ExploreRuntimeRoot>,
+    ) -> ExplorationModuleDemand {
+        let index = Self::build_exploration_module_index(stmts);
+        let mut demand = ExplorationModuleDemand::default();
+        let mut queue = roots.iter().cloned().collect::<Vec<_>>();
+        let mut visited_roots = BTreeSet::new();
+        let mut visited_callables = BTreeSet::new();
+        let mut visited_bindings = BTreeSet::new();
+
+        while let Some(root) = queue.pop() {
+            if !visited_roots.insert(root.clone()) {
+                continue;
+            }
+
+            let mut selected_callable = None;
+            let mut selected_binding = None;
+            match &root {
+                ExploreRuntimeRoot::Value { name } => {
+                    if index.qualified_imports.contains(name) {
+                        demand.symbols.insert(name.clone());
+                        continue;
+                    }
+                    if index.bindings.contains_key(name) {
+                        selected_binding = Some(name.clone());
+                    } else if let Some(callables) = index.value_callables.get(name) {
+                        if callables.len() == 1 {
+                            selected_callable = callables.iter().next().cloned();
+                        }
+                    }
+                }
+                ExploreRuntimeRoot::Call { name, arity } => {
+                    if index.bindings.contains_key(name) {
+                        selected_binding = Some(name.clone());
+                    } else {
+                        selected_callable =
+                            Self::select_exploration_callable(&index, name, *arity, None);
+                    }
+                }
+                ExploreRuntimeRoot::Rule { name, arity } => {
+                    selected_callable = Self::select_exploration_callable(
+                        &index,
+                        name,
+                        *arity,
+                        Some(ExplorationCallableKind::Rule),
+                    );
+                }
+                ExploreRuntimeRoot::MemberValue { receiver, member } => {
+                    if index.qualified_imports.contains(receiver) {
+                        demand.symbols.insert(receiver.clone());
+                        demand
+                            .qualified_import_roots
+                            .entry(receiver.clone())
+                            .or_default()
+                            .insert(ExploreRuntimeRoot::Value {
+                                name: member.clone(),
+                            });
+                        continue;
+                    }
+                    if index.local_modules.contains(receiver) {
+                        demand.symbols.insert(receiver.clone());
+                        demand
+                            .local_module_roots
+                            .entry(receiver.clone())
+                            .or_default()
+                            .insert(ExploreRuntimeRoot::Value {
+                                name: member.clone(),
+                            });
+                        continue;
+                    }
+                    selected_callable =
+                        Self::select_exploration_member(&index, receiver, member, None);
+                    if selected_callable.is_none() && index.bindings.contains_key(receiver) {
+                        queue.push(ExploreRuntimeRoot::Value {
+                            name: receiver.clone(),
+                        });
+                    }
+                }
+                ExploreRuntimeRoot::MemberCall {
+                    receiver,
+                    member,
+                    arity,
+                    typed_receiver,
+                } => {
+                    if !*typed_receiver && index.qualified_imports.contains(receiver) {
+                        demand.symbols.insert(receiver.clone());
+                        demand
+                            .qualified_import_roots
+                            .entry(receiver.clone())
+                            .or_default()
+                            .insert(ExploreRuntimeRoot::Call {
+                                name: member.clone(),
+                                arity: *arity,
+                            });
+                        continue;
+                    }
+                    if !*typed_receiver && index.local_modules.contains(receiver) {
+                        demand.symbols.insert(receiver.clone());
+                        demand
+                            .local_module_roots
+                            .entry(receiver.clone())
+                            .or_default()
+                            .insert(ExploreRuntimeRoot::Call {
+                                name: member.clone(),
+                                arity: *arity,
+                            });
+                        continue;
+                    }
+                    selected_callable =
+                        Self::select_exploration_member(&index, receiver, member, Some(*arity));
+                    if selected_callable.is_none() && index.bindings.contains_key(receiver) {
+                        queue.push(ExploreRuntimeRoot::Value {
+                            name: receiver.clone(),
+                        });
+                    }
+                }
+            }
+
+            if let Some(binding_name) = selected_binding {
+                if visited_bindings.insert(binding_name.clone()) {
+                    let binding = &index.bindings[&binding_name];
+                    demand.bindings.extend(binding.group_names.iter().cloned());
+                    demand.symbols.extend(binding.group_names.iter().cloned());
+                    queue.extend(binding.dependencies.iter().cloned());
+                }
+                continue;
+            }
+
+            if let Some(identity) = selected_callable {
+                if visited_callables.insert(identity.clone()) {
+                    demand.symbols.insert(identity.name.clone());
+                    if let Some(owner) = &identity.owner {
+                        demand.symbols.insert(owner.clone());
+                    }
+                    if let Some(dependencies) = index.callable_dependencies.get(&identity) {
+                        queue.extend(dependencies.iter().cloned());
+                    }
+                }
+                continue;
+            }
+
+            demand.plain_import_roots.insert(root);
+        }
+
+        demand
+    }
+
     fn collect_runtime_references_from_stmt(
         stmt: &Stmt,
         qualified_modules: &BTreeSet<String>,
@@ -13305,7 +14615,7 @@ impl Interpreter {
         }
     }
 
-    fn extend_calculation_runtime_demand(&mut self, stmts: &[Stmt]) {
+    fn extend_calculation_runtime_demand(&mut self, stmts: &[Stmt], force_exported_bindings: bool) {
         let mut symbols: BTreeMap<String, Vec<&Stmt>> = BTreeMap::new();
         let mut bindings: BTreeMap<String, (&Expr, Vec<String>)> = BTreeMap::new();
         let mut forced_bindings = BTreeSet::new();
@@ -13320,7 +14630,7 @@ impl Interpreter {
 
         for stmt in stmts {
             if let Stmt::Annot(name, args) = stmt {
-                if name == "export" {
+                if name == "export" && force_exported_bindings {
                     for argument in args {
                         self.calculation_runtime_symbols.extend(
                             Self::collect_runtime_references_from_expr(
@@ -13337,12 +14647,21 @@ impl Interpreter {
             if let Stmt::Bind(pattern, _, value) = stmt {
                 let mut names = Vec::new();
                 Self::collect_pattern_binding_names(pattern, &mut names);
-                if matches!(pending_annotation.as_deref(), Some("comptime" | "export")) {
+                if force_exported_bindings
+                    && matches!(pending_annotation.as_deref(), Some("comptime" | "export"))
+                {
                     forced_bindings.extend(names.iter().cloned());
                 }
                 for name in &names {
                     bindings.insert(name.clone(), (value, names.clone()));
                 }
+            } else if let Stmt::StreamBind(name, value) = stmt {
+                if force_exported_bindings
+                    && matches!(pending_annotation.as_deref(), Some("export"))
+                {
+                    forced_bindings.insert(name.clone());
+                }
+                bindings.insert(name.clone(), (value, vec![name.clone()]));
             } else {
                 for name in self.calculation_runtime_symbol_names(stmt) {
                     symbols.entry(name).or_default().push(stmt);
@@ -13460,29 +14779,134 @@ impl Interpreter {
             &mut visited,
             &mut runtime_graph,
         );
-        self.extend_calculation_runtime_demand(&runtime_graph);
-        self.run_program_internal(stmts, env, true, true)
+        self.extend_calculation_runtime_demand(&runtime_graph, true);
+        self.run_program_internal(stmts, env, RuntimeInitializationMode::Calculation, true)
+    }
+
+    /// Initialize exactly the declaration and top-level binding slice needed
+    /// by a bounded exploration.  Unlike calculation initialization, exports
+    /// and comptime bindings are not roots merely because they are published:
+    /// every semantic root (question, derived facts, constraints, key/show and
+    /// objective expressions) must be supplied explicitly by the caller.
+    pub(crate) fn initialize_exploration_program(
+        &mut self,
+        roots: &BTreeSet<ExploreRuntimeRoot>,
+        stmts: &[Stmt],
+        env: &mut Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<Value, ExploreRuntimeFailure> {
+        self.exact_prepared_rule_dispatch_enabled = false;
+        self.exact_prepared_rule_dispatch.clear();
+        self.calculation_runtime_symbols.clear();
+        self.calculation_runtime_bindings.clear();
+        self.exploration_runtime_demand = ExplorationRuntimeDemandState {
+            roots: roots.clone(),
+            ..ExplorationRuntimeDemandState::default()
+        };
+
+        let previous_forbid_effects = self.exhaustive_preview_forbid_effects;
+        let previous_effect_error = self.exhaustive_preview_error.borrow_mut().take();
+        let previous_step_count = self.step_count;
+        let previous_step_limit = self.step_limit;
+        let previous_budget_exceeded = self.budget_exceeded;
+        let previous_collection_limit = self.ground_collection_limit;
+        let previous_ground_error = self.ground_error.borrow_mut().take();
+        let previous_suppress_output = self.suppress_output;
+
+        self.exhaustive_preview_forbid_effects = true;
+        self.step_count = 0;
+        self.step_limit = step_limit;
+        self.budget_exceeded = false;
+        self.ground_collection_limit = Some(collection_limit);
+        *self.ground_error.borrow_mut() = None;
+        let output_len = self.output.len();
+        self.suppress_output = true;
+
+        let initialization = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.run_program_internal(stmts, env, RuntimeInitializationMode::Exploration, true)
+        }));
+
+        let budget_exceeded = self.budget_exceeded;
+        let runtime_error = self.ground_error.borrow_mut().take();
+        let effect_error = self.take_exact_exploration_effect_error();
+        let produced_output = self.output.len() != output_len;
+        let observed_steps = self.step_count;
+
+        self.output.truncate(output_len);
+        self.exhaustive_preview_forbid_effects = previous_forbid_effects;
+        *self.exhaustive_preview_error.borrow_mut() = previous_effect_error;
+        self.step_count = previous_step_count;
+        self.step_limit = previous_step_limit;
+        self.budget_exceeded = previous_budget_exceeded;
+        self.ground_collection_limit = previous_collection_limit;
+        *self.ground_error.borrow_mut() = previous_ground_error;
+        self.suppress_output = previous_suppress_output;
+
+        if let Some(message) = effect_error {
+            return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
+        }
+        if produced_output {
+            return Err(ExploreRuntimeFailure::ProducedOutput);
+        }
+        if let Some(error) = runtime_error {
+            return Err(error);
+        }
+        if initialization.is_err() {
+            return Err(ExploreRuntimeFailure::Panicked);
+        }
+        if budget_exceeded {
+            return Err(ExploreRuntimeFailure::OperationalLimit {
+                resource: ExploreRuntimeResource::InitializationSteps,
+                limit: step_limit as u128,
+                observed: observed_steps as u128,
+            });
+        }
+        let initialization = initialization.map_err(|_| ExploreRuntimeFailure::Panicked)?;
+        self.exact_prepared_rule_dispatch_enabled = true;
+        Ok(initialization)
     }
 
     pub fn run_program(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
-        self.run_program_internal(stmts, env, false, true)
+        self.run_program_internal(stmts, env, RuntimeInitializationMode::Ordinary, true)
     }
 
     fn run_statement_block(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
-        self.run_program_internal(stmts, env, false, false)
+        self.run_program_internal(stmts, env, RuntimeInitializationMode::Ordinary, false)
     }
 
     fn run_program_internal(
         &mut self,
         stmts: &[Stmt],
         env: &mut Env,
-        prune_top_level_bindings: bool,
+        initialization_mode: RuntimeInitializationMode,
         order_value_bindings: bool,
     ) -> Value {
-        if prune_top_level_bindings {
-            self.extend_calculation_runtime_demand(stmts);
+        let prune_top_level_bindings = initialization_mode.prunes_top_level();
+        match initialization_mode {
+            RuntimeInitializationMode::Calculation => {
+                self.extend_calculation_runtime_demand(
+                    stmts,
+                    initialization_mode.forces_exported_bindings(),
+                );
+            }
+            RuntimeInitializationMode::Exploration => {
+                let demand =
+                    Self::exploration_module_demand(stmts, &self.exploration_runtime_demand.roots);
+                self.calculation_runtime_symbols = demand.symbols;
+                self.calculation_runtime_bindings = demand.bindings;
+                self.exploration_runtime_demand.plain_import_roots = demand.plain_import_roots;
+                self.exploration_runtime_demand.qualified_import_roots =
+                    demand.qualified_import_roots;
+                self.exploration_runtime_demand.local_module_roots = demand.local_module_roots;
+            }
+            RuntimeInitializationMode::Ordinary => {}
         }
-        let statement_refs = stmts.iter().collect::<Vec<_>>();
+        let statement_refs = if prune_top_level_bindings {
+            self.runtime_initialization_statement_refs(stmts)
+        } else {
+            stmts.iter().collect::<Vec<_>>()
+        };
         let ordered_stmts = if order_value_bindings {
             analyze_top_level_binding_dependencies(stmts)
                 .order_statement_refs(&statement_refs)
@@ -13524,12 +14948,52 @@ impl Interpreter {
 
             let current_annot = pending_annot.take();
 
+            if self.exhaustive_preview_forbid_effects {
+                if let Some(operation) = Self::exact_exploration_unsupported_statement(stmt) {
+                    return self.exhaustive_preview_fail(format!(
+                        "exact exploration refuses {}",
+                        operation
+                    ));
+                }
+            }
+
+            if prune_top_level_bindings
+                && matches!(
+                    stmt,
+                    Stmt::StreamSub(..)
+                        | Stmt::Send(..)
+                        | Stmt::For(..)
+                        | Stmt::While(..)
+                        | Stmt::MonadicBind(..)
+                        | Stmt::Assert(..)
+                        | Stmt::Retract(..)
+                        | Stmt::Abort
+                )
+            {
+                last = Value::Unit;
+                continue;
+            }
+
             match stmt {
                 Stmt::Defn(defn) => {
-                    if matches!(defn, Defn::Fn { .. }) {
+                    let definition_name = match defn {
+                        Defn::Fn { name, .. }
+                        | Defn::Actor { name, .. }
+                        | Defn::Module { name, .. } => name,
+                    };
+                    if prune_top_level_bindings
+                        && !self.calculation_runtime_symbols.contains(definition_name)
+                    {
                         last = Value::Unit;
-                    } else {
-                        last = self.eval_defn(defn, env);
+                        continue;
+                    }
+                    match defn {
+                        Defn::Fn { .. } => last = Value::Unit,
+                        Defn::Module { name, body } => {
+                            last =
+                                self.eval_module_definition(name, body, env, initialization_mode);
+                        }
+                        Defn::Actor { .. } => last = self.eval_defn(defn, env),
                     }
                 }
                 Stmt::TypeDecl(decl) => {
@@ -13541,6 +15005,15 @@ impl Interpreter {
                         except_from,
                     } = decl
                     {
+                        if prune_top_level_bindings
+                            && !self.calculation_runtime_symbols.contains(name)
+                            && !variants.iter().any(|variant| {
+                                self.calculation_runtime_symbols.contains(&variant.name)
+                            })
+                        {
+                            last = Value::Unit;
+                            continue;
+                        }
                         let cond_val = self.eval(condition, env);
                         if matches!(cond_val, Value::Bool(true)) {
                             // Condition is true — evolve the type
@@ -13562,6 +15035,12 @@ impl Interpreter {
                     // Ordinary rules were registered before statement evaluation.
                     // Reactive scopes remain imperative and execute in place.
                     if let Rule::ReactiveScope { name, body } = rule {
+                        if prune_top_level_bindings
+                            && !self.calculation_runtime_symbols.contains(name)
+                        {
+                            last = Value::Unit;
+                            continue;
+                        }
                         let mut scope_env = env.child();
                         // Execute all body statements in the child environment
                         let _scope_last = self.run_statement_block(body, &mut scope_env);
@@ -13653,12 +15132,24 @@ impl Interpreter {
                                         let previous_source_dir = self.source_dir.clone();
                                         self.source_dir =
                                             Some(Self::imported_source_dir(&file_path));
-                                        last = self.run_program_internal(
-                                            &defs,
-                                            env,
-                                            prune_top_level_bindings,
-                                            true,
-                                        );
+                                        last = if initialization_mode
+                                            == RuntimeInitializationMode::Exploration
+                                        {
+                                            let roots = self
+                                                .exploration_runtime_demand
+                                                .plain_import_roots
+                                                .clone();
+                                            self.run_program_internal_with_exploration_roots(
+                                                &defs, env, true, roots,
+                                            )
+                                        } else {
+                                            self.run_program_internal(
+                                                &defs,
+                                                env,
+                                                initialization_mode,
+                                                true,
+                                            )
+                                        };
                                         self.source_dir = previous_source_dir;
                                     }
                                     Err(error) => {
@@ -13735,12 +15226,28 @@ impl Interpreter {
                                     let mut mod_env = env.child();
                                     let previous_source_dir = self.source_dir.clone();
                                     self.source_dir = Some(Self::imported_source_dir(&file_path));
-                                    self.run_program_internal(
-                                        &defs,
-                                        &mut mod_env,
-                                        prune_top_level_bindings,
-                                        true,
-                                    );
+                                    if initialization_mode == RuntimeInitializationMode::Exploration
+                                    {
+                                        let roots = self
+                                            .exploration_runtime_demand
+                                            .qualified_import_roots
+                                            .get(mod_name)
+                                            .cloned()
+                                            .unwrap_or_default();
+                                        self.run_program_internal_with_exploration_roots(
+                                            &defs,
+                                            &mut mod_env,
+                                            true,
+                                            roots,
+                                        );
+                                    } else {
+                                        self.run_program_internal(
+                                            &defs,
+                                            &mut mod_env,
+                                            initialization_mode,
+                                            true,
+                                        );
+                                    }
                                     self.source_dir = previous_source_dir;
                                     // Filter to only exported bindings
                                     let mut bindings = HashMap::new();
@@ -13819,7 +15326,19 @@ impl Interpreter {
                                 if matching.len() == 1 {
                                     let previous_source_dir = self.source_dir.clone();
                                     self.source_dir = Some(Self::imported_source_dir(&file_path));
-                                    last = self.run_program(&matching, env);
+                                    last = if initialization_mode
+                                        == RuntimeInitializationMode::Exploration
+                                    {
+                                        let roots = self
+                                            .exploration_runtime_demand
+                                            .plain_import_roots
+                                            .clone();
+                                        self.run_program_internal_with_exploration_roots(
+                                            &matching, env, true, roots,
+                                        )
+                                    } else {
+                                        self.run_program(&matching, env)
+                                    };
                                     self.source_dir = previous_source_dir;
                                 } else {
                                     eprintln!(
@@ -13945,6 +15464,11 @@ impl Interpreter {
                 }
                 Stmt::Depend(_, _) => {} // @ depend is transpile-time only
                 Stmt::StreamBind(name, expr) => {
+                    if prune_top_level_bindings && !self.calculation_runtime_bindings.contains(name)
+                    {
+                        last = Value::Unit;
+                        continue;
+                    }
                     // ~ name = expr — evaluate expr and wrap in Stream if needed
                     // Subjects stay as Subject (not re-wrapped into Stream)
                     let val = self.eval(expr, env);
@@ -14204,6 +15728,74 @@ impl Interpreter {
         last
     }
 
+    fn run_program_internal_with_exploration_roots(
+        &mut self,
+        stmts: &[Stmt],
+        env: &mut Env,
+        order_value_bindings: bool,
+        roots: BTreeSet<ExploreRuntimeRoot>,
+    ) -> Value {
+        let parent_demand = std::mem::replace(
+            &mut self.exploration_runtime_demand,
+            ExplorationRuntimeDemandState {
+                roots,
+                ..ExplorationRuntimeDemandState::default()
+            },
+        );
+        let parent_symbols = std::mem::take(&mut self.calculation_runtime_symbols);
+        let parent_bindings = std::mem::take(&mut self.calculation_runtime_bindings);
+        let value = self.run_program_internal(
+            stmts,
+            env,
+            RuntimeInitializationMode::Exploration,
+            order_value_bindings,
+        );
+        self.exploration_runtime_demand = parent_demand;
+        self.calculation_runtime_symbols = parent_symbols;
+        self.calculation_runtime_bindings = parent_bindings;
+        value
+    }
+
+    fn eval_module_definition(
+        &mut self,
+        name: &str,
+        body: &[Stmt],
+        env: &mut Env,
+        initialization_mode: RuntimeInitializationMode,
+    ) -> Value {
+        let mut module_env = env.child();
+        if initialization_mode == RuntimeInitializationMode::Exploration {
+            let roots = self
+                .exploration_runtime_demand
+                .local_module_roots
+                .get(name)
+                .cloned()
+                .unwrap_or_default();
+            self.run_program_internal_with_exploration_roots(body, &mut module_env, true, roots);
+        } else {
+            self.run_program_internal(body, &mut module_env, initialization_mode, true);
+        }
+        let module_closure_env = module_env.child();
+        let bindings = Rc::new(
+            module_env
+                .bindings
+                .iter()
+                .map(|(binding_name, value)| {
+                    (
+                        binding_name.clone(),
+                        Self::capture_module_closure(value, &module_closure_env),
+                    )
+                })
+                .collect(),
+        );
+        let value = Value::Scope {
+            name: name.to_string(),
+            bindings,
+        };
+        env.set(name.to_string(), value.clone());
+        value
+    }
+
     pub fn eval_defn(&mut self, defn: &Defn, env: &mut Env) -> Value {
         match defn {
             Defn::Fn {
@@ -14260,29 +15852,7 @@ impl Interpreter {
                 val
             }
             Defn::Module { name, body } => {
-                let mut mod_env = env.child();
-                self.run_program(body, &mut mod_env);
-                // M3b: Store module as Value::Scope for qualified access (Name.func())
-                // No unqualified leaking — use Name.binding to access
-                let module_closure_env = mod_env.child();
-                let bindings = Rc::new(
-                    mod_env
-                        .bindings
-                        .iter()
-                        .map(|(binding_name, value)| {
-                            (
-                                binding_name.clone(),
-                                Self::capture_module_closure(value, &module_closure_env),
-                            )
-                        })
-                        .collect(),
-                );
-                let val = Value::Scope {
-                    name: name.clone(),
-                    bindings,
-                };
-                env.set(name.clone(), val.clone());
-                val
+                self.eval_module_definition(name, body, env, RuntimeInitializationMode::Ordinary)
             }
         }
     }
@@ -14502,15 +16072,35 @@ impl Interpreter {
                             .map(|reference| self.eval(&reference, env))
                             .unwrap_or(Value::Unit);
                     }
+                    if self.exhaustive_preview_forbid_effects
+                        && self.effect_decls.values().any(|operations| {
+                            operations.iter().any(|(operation, _)| operation == fn_name)
+                        })
+                    {
+                        return self.exhaustive_preview_fail(format!(
+                            "exact exploration refuses effect operation `{}`",
+                            fn_name
+                        ));
+                    }
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
                         return result;
                     }
                     // findall(template_var, goal) — collect all solutions
                     if fn_name == "findall" && args.len() == 2 {
+                        if self.exhaustive_preview_forbid_effects {
+                            return self.exhaustive_preview_fail(
+                                "exact exploration refuses nested `findall` search",
+                            );
+                        }
                         return self.eval_findall(&args[0], &args[1], env);
                     }
                     // search(template, goal) → first match (like findall but returns Option)
                     if fn_name == "search" && args.len() == 2 {
+                        if self.exhaustive_preview_forbid_effects {
+                            return self.exhaustive_preview_fail(
+                                "exact exploration refuses nested `search` evaluation",
+                            );
+                        }
                         let results = self.eval_findall(&args[0], &args[1], env);
                         return match results {
                             Value::List(items) if !items.is_empty() => {
@@ -14793,7 +16383,7 @@ impl Interpreter {
             ExprKind::Effect(name, args) => {
                 if self.exhaustive_preview_forbid_effects {
                     return self.exhaustive_preview_fail(format!(
-                        "exploration preview refuses effect operation `{}`",
+                        "exact exploration refuses effect operation `{}`",
                         name
                     ));
                 }
@@ -14807,7 +16397,7 @@ impl Interpreter {
             } => {
                 if self.exhaustive_preview_forbid_effects {
                     return self.exhaustive_preview_fail(format!(
-                        "exploration preview refuses effect handler `{}`",
+                        "exact exploration refuses effect handler `{}`",
                         effect
                     ));
                 }
@@ -14822,7 +16412,7 @@ impl Interpreter {
             ExprKind::Try(inner) => {
                 if self.exhaustive_preview_forbid_effects {
                     return self
-                        .exhaustive_preview_fail("exploration preview refuses `?` propagation");
+                        .exhaustive_preview_fail("exact exploration refuses `?` propagation");
                 }
                 // ? operator: unwrap Ok/Some, early-return Err/None (matches compiled ? behavior)
                 let val = self.eval(inner, env);
@@ -14974,9 +16564,22 @@ impl Interpreter {
         if self.exhaustive_preview_forbid_effects {
             let canonical = builtin_canonical(name);
             let impure = meta_impure_runtime_names();
-            if impure.contains(name) || impure.contains(canonical) {
+            let list_shaped = |value: &Value| {
+                matches!(value, Value::List(_))
+                    || matches!(value, Value::Constructor(name, _) if name == "Cons" || name == "Nil")
+            };
+            let pure_eager_collection_overload = match canonical {
+                "last" | "take" => args.first().is_some_and(list_shaped),
+                "collect" => args
+                    .first()
+                    .is_some_and(|value| matches!(value, Value::Stream(_)) || list_shaped(value)),
+                _ => false,
+            };
+            if (impure.contains(name) || impure.contains(canonical))
+                && !pure_eager_collection_overload
+            {
                 return self.exhaustive_preview_fail(format!(
-                    "exploration preview refuses impure runtime operation `{}`",
+                    "exact exploration refuses impure runtime operation `{}`",
                     name
                 ));
             }
@@ -15029,14 +16632,23 @@ impl Interpreter {
                 _ => Value::Unit,
             },
             "tail" => match args.first() {
-                Some(Value::Constructor(n, fields)) if n == "Cons" => fields
-                    .get(1)
-                    .cloned()
-                    .unwrap_or(Value::Constructor("Nil".into(), vec![].into())),
+                Some(Value::Constructor(n, fields)) if n == "Cons" => {
+                    let tail = fields
+                        .get(1)
+                        .cloned()
+                        .unwrap_or(Value::Constructor("Nil".into(), vec![].into()));
+                    if !self.ground_collection_value_allowed(&tail, "tail") {
+                        return Value::Unit;
+                    }
+                    tail
+                }
                 Some(Value::List(elems)) => {
                     if elems.len() <= 1 {
                         Value::Constructor("Nil".into(), vec![].into())
                     } else {
+                        if !self.ground_collection_allowed(elems.len() - 1, "tail") {
+                            return Value::Unit;
+                        }
                         Value::List(elems[1..].to_vec())
                     }
                 }
@@ -15164,10 +16776,27 @@ impl Interpreter {
                     (Some(Value::Str(pattern)), Some(Value::Str(text))) => {
                         match regex::Regex::new(pattern) {
                             Ok(re) => {
-                                let matches: Vec<Value> = re
-                                    .find_iter(text)
-                                    .map(|m| Value::Str(m.as_str().to_string()))
-                                    .collect();
+                                if self.ground_collection_limit.is_none() {
+                                    return Value::List(
+                                        re.find_iter(text)
+                                            .map(|matched| Value::Str(matched.as_str().to_string()))
+                                            .collect(),
+                                    );
+                                }
+                                let mut matches = Vec::new();
+                                for matched in re.find_iter(text) {
+                                    if self
+                                        .ground_collection_growth_allowed(
+                                            matches.len(),
+                                            1,
+                                            "regex_find_all",
+                                        )
+                                        .is_none()
+                                    {
+                                        return Value::Unit;
+                                    }
+                                    matches.push(Value::Str(matched.as_str().to_string()));
+                                }
                                 Value::List(matches)
                             }
                             Err(_) => Value::List(vec![]),
@@ -15201,14 +16830,20 @@ impl Interpreter {
                     (Some(Value::Str(a)), Some(Value::Str(b))) => Value::Str(format!("{}{}", a, b)),
                     (Some(a), Some(b)) => {
                         // List concat
+                        if self.ground_collection_limit.is_some() {
+                            let left_size =
+                                Self::runtime_collection_member_count(a).unwrap_or_default();
+                            let right_size =
+                                Self::runtime_collection_member_count(b).unwrap_or_default();
+                            if self
+                                .ground_collection_growth_allowed(left_size, right_size, "concat")
+                                .is_none()
+                            {
+                                return Value::Unit;
+                            }
+                        }
                         let mut items = list_to_vec(a);
                         let right = list_to_vec(b);
-                        let Some(size) = items.len().checked_add(right.len()) else {
-                            return self.ground_fail("ground `concat` collection size overflow");
-                        };
-                        if !self.ground_collection_allowed(size, "concat") {
-                            return Value::Unit;
-                        }
                         items.extend(right);
                         vec_to_list(items)
                     }
@@ -15217,6 +16852,9 @@ impl Interpreter {
             }
             "reverse" => match args.first() {
                 Some(v) => {
+                    if !self.ground_collection_value_allowed(v, "reverse") {
+                        return Value::Unit;
+                    }
                     let mut items = list_to_vec(v);
                     items.reverse();
                     vec_to_list(items)
@@ -15228,6 +16866,9 @@ impl Interpreter {
                 // TODO(perf): func.clone() per iteration is expensive (clones captured Env).
                 // Fix: wrap closures in Rc so clone is a refcount bump, or borrow via apply_ref.
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "map") {
+                    return Value::Unit;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
@@ -15248,6 +16889,9 @@ impl Interpreter {
                 // TODO(perf): same closure cloning issue as map. Also list_to_vec walks
                 // entire Cons chain before filtering — should iterate lazily.
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "filter") {
+                    return Value::Unit;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
@@ -15286,6 +16930,9 @@ impl Interpreter {
             // ---- Collection builtins (Kotlin-inspired) ----
             "sort" => match args.first() {
                 Some(list) => {
+                    if !self.ground_collection_value_allowed(list, "sort") {
+                        return Value::Unit;
+                    }
                     let mut items = list_to_vec(list);
                     items.sort_by(|a, b| format!("{}", a).cmp(&format!("{}", b)));
                     Value::List(items)
@@ -15294,6 +16941,9 @@ impl Interpreter {
             },
             "sort_by" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
+                    if !self.ground_collection_value_allowed(list, "sort_by") {
+                        return Value::Unit;
+                    }
                     let mut items = list_to_vec(list);
                     items.sort_by(|a, b| {
                         let ka = self.apply(func.clone(), vec![a.clone()], env);
@@ -15366,6 +17016,9 @@ impl Interpreter {
             "flat_map" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
                 let input = args.get(0).cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "flat_map") {
+                    return Value::Unit;
+                }
                 let func = args.get(1).cloned().unwrap_or(Value::Unit);
                 let (items, is_stream) = match &input {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
@@ -15375,8 +17028,37 @@ impl Interpreter {
                 for item in items {
                     let mapped = self.apply(func.clone(), vec![item], env);
                     match mapped {
-                        Value::Stream(v) | Value::Subject(v) => result.extend(v),
-                        other => result.extend(list_to_vec(&other)),
+                        Value::Stream(v) | Value::Subject(v) => {
+                            if self.ground_collection_limit.is_some()
+                                && self
+                                    .ground_collection_growth_allowed(
+                                        result.len(),
+                                        v.len(),
+                                        "flat_map",
+                                    )
+                                    .is_none()
+                            {
+                                return Value::Unit;
+                            }
+                            result.extend(v);
+                        }
+                        other => {
+                            if self.ground_collection_limit.is_some() {
+                                let additional = Self::runtime_collection_member_count(&other)
+                                    .unwrap_or_default();
+                                if self
+                                    .ground_collection_growth_allowed(
+                                        result.len(),
+                                        additional,
+                                        "flat_map",
+                                    )
+                                    .is_none()
+                                {
+                                    return Value::Unit;
+                                }
+                            }
+                            result.extend(list_to_vec(&other));
+                        }
                     }
                 }
                 if is_stream {
@@ -15389,6 +17071,11 @@ impl Interpreter {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
                 let a = args.get(0).cloned().unwrap_or(Value::Unit);
                 let b = args.get(1).cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&a, "zip")
+                    || !self.ground_collection_value_allowed(&b, "zip")
+                {
+                    return Value::Unit;
+                }
                 let (va, is_stream) = match &a {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
@@ -15411,6 +17098,9 @@ impl Interpreter {
             "enumerate" => {
                 // Polymorphic: Stream/Subject → Stream, List/Cons → List
                 let input = args.first().cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "enumerate") {
+                    return Value::Unit;
+                }
                 let (items, is_stream) = match &input {
                     Value::Stream(v) | Value::Subject(v) => (v.clone(), true),
                     other => (list_to_vec(other), false),
@@ -15428,6 +17118,9 @@ impl Interpreter {
             }
             "take_while" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
+                    if !self.ground_collection_value_allowed(list, "take_while") {
+                        return Value::Unit;
+                    }
                     let items = list_to_vec(list);
                     let taken: Vec<Value> = items
                         .into_iter()
@@ -15444,6 +17137,9 @@ impl Interpreter {
             },
             "drop_while" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
+                    if !self.ground_collection_value_allowed(list, "drop_while") {
+                        return Value::Unit;
+                    }
                     let items = list_to_vec(list);
                     let dropped: Vec<Value> = items
                         .into_iter()
@@ -15472,6 +17168,9 @@ impl Interpreter {
             "distinct" => {
                 // Polymorphic: List → global unique (HashSet), Stream → consecutive dedup
                 let input = args.first().cloned().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "distinct") {
+                    return Value::Unit;
+                }
                 match &input {
                     Value::Stream(v) | Value::Subject(v) => {
                         // Stream: remove consecutive duplicates (Rx distinctUntilChanged)
@@ -15516,6 +17215,9 @@ impl Interpreter {
             },
             "partition" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(func)) => {
+                    if !self.ground_collection_value_allowed(list, "partition") {
+                        return Value::Unit;
+                    }
                     let items = list_to_vec(list);
                     let mut yes = Vec::new();
                     let mut no = Vec::new();
@@ -15535,6 +17237,9 @@ impl Interpreter {
             },
             "chunked" => match (args.get(0), args.get(1)) {
                 (Some(list), Some(Value::Int(n))) if *n > 0 => {
+                    if !self.ground_collection_value_allowed(list, "chunked") {
+                        return Value::Unit;
+                    }
                     let items = list_to_vec(list);
                     let chunks: Vec<Value> = items
                         .chunks(*n as usize)
@@ -15558,8 +17263,16 @@ impl Interpreter {
             "map_new" => Value::Map(BTreeMap::new()),
             "map_insert" => match (args.get(0), args.get(1), args.get(2)) {
                 (Some(Value::Map(entries)), Some(key), Some(val)) => {
+                    let key = format!("{}", key);
+                    let additional = if entries.contains_key(&key) { 0 } else { 1 };
+                    if self
+                        .ground_collection_growth_allowed(entries.len(), additional, "map_insert")
+                        .is_none()
+                    {
+                        return Value::Unit;
+                    }
                     let mut new_map = entries.clone();
-                    new_map.insert(format!("{}", key), val.clone());
+                    new_map.insert(key, val.clone());
                     Value::Map(new_map)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
@@ -15614,6 +17327,9 @@ impl Interpreter {
             },
             "map_remove" => match (args.get(0), args.get(1)) {
                 (Some(Value::Map(entries)), Some(key)) => {
+                    if !self.ground_collection_allowed(entries.len(), "map_remove") {
+                        return Value::Unit;
+                    }
                     let mut new_map = entries.clone();
                     new_map.remove(&format!("{}", key));
                     Value::Map(new_map)
@@ -15622,21 +17338,34 @@ impl Interpreter {
             },
             "map_keys" => match args.first() {
                 Some(Value::Map(entries)) => {
+                    if !self.ground_collection_allowed(entries.len(), "map_keys") {
+                        return Value::Unit;
+                    }
                     Value::List(entries.keys().map(|k| Value::Str(k.clone())).collect())
                 }
                 _ => Value::List(vec![]),
             },
             "map_values" => match args.first() {
-                Some(Value::Map(entries)) => Value::List(entries.values().cloned().collect()),
+                Some(Value::Map(entries)) => {
+                    if !self.ground_collection_allowed(entries.len(), "map_values") {
+                        return Value::Unit;
+                    }
+                    Value::List(entries.values().cloned().collect())
+                }
                 _ => Value::List(vec![]),
             },
             "map_entries" => match args.first() {
-                Some(Value::Map(entries)) => Value::List(
-                    entries
-                        .iter()
-                        .map(|(k, v)| Value::Tuple(vec![Value::Str(k.clone()), v.clone()]))
-                        .collect(),
-                ),
+                Some(Value::Map(entries)) => {
+                    if !self.ground_collection_allowed(entries.len(), "map_entries") {
+                        return Value::Unit;
+                    }
+                    Value::List(
+                        entries
+                            .iter()
+                            .map(|(k, v)| Value::Tuple(vec![Value::Str(k.clone()), v.clone()]))
+                            .collect(),
+                    )
+                }
                 _ => Value::List(vec![]),
             },
             "map_len" => match args.first() {
@@ -15645,6 +17374,22 @@ impl Interpreter {
             },
             "map_merge" => match (args.get(0), args.get(1)) {
                 (Some(Value::Map(base)), Some(Value::Map(other))) => {
+                    if self.ground_collection_limit.is_some() {
+                        if !self.ground_collection_allowed(base.len(), "map_merge") {
+                            return Value::Unit;
+                        }
+                        let mut size = base.len();
+                        for key in other.keys() {
+                            if !base.contains_key(key) {
+                                let Some(next_size) =
+                                    self.ground_collection_growth_allowed(size, 1, "map_merge")
+                                else {
+                                    return Value::Unit;
+                                };
+                                size = next_size;
+                            }
+                        }
+                    }
                     let mut merged = base.clone();
                     for (k, v) in other {
                         merged.insert(k.clone(), v.clone());
@@ -15655,6 +17400,9 @@ impl Interpreter {
             },
             "map_from" => match args.first() {
                 Some(list) => {
+                    if !self.ground_collection_value_allowed(list, "map_from") {
+                        return Value::Unit;
+                    }
                     let items = list_to_vec(list);
                     let mut map = BTreeMap::new();
                     for v in items {
@@ -15672,6 +17420,9 @@ impl Interpreter {
             "set_new" => Value::Set(BTreeMap::new()),
             "set_insert" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
+                    if !self.ground_collection_allowed(items.len(), "set_insert") {
+                        return Value::Unit;
+                    }
                     let key = format!("{}", val);
                     if items.contains_key(&key) {
                         Value::Set(items.clone())
@@ -15699,6 +17450,9 @@ impl Interpreter {
             },
             "set_remove" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
+                    if !self.ground_collection_allowed(items.len(), "set_remove") {
+                        return Value::Unit;
+                    }
                     let key = format!("{}", val);
                     let mut new_items = items.clone();
                     new_items.remove(&key);
@@ -15711,11 +17465,32 @@ impl Interpreter {
                 _ => Value::Int(0),
             },
             "set_to_list" => match args.first() {
-                Some(Value::Set(items)) => Value::List(items.values().cloned().collect()),
+                Some(Value::Set(items)) => {
+                    if !self.ground_collection_allowed(items.len(), "set_to_list") {
+                        return Value::Unit;
+                    }
+                    Value::List(items.values().cloned().collect())
+                }
                 _ => Value::List(vec![]),
             },
             "set_union" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    if self.ground_collection_limit.is_some() {
+                        if !self.ground_collection_allowed(a.len(), "set_union") {
+                            return Value::Unit;
+                        }
+                        let mut size = a.len();
+                        for key in b.keys() {
+                            if !a.contains_key(key) {
+                                let Some(next_size) =
+                                    self.ground_collection_growth_allowed(size, 1, "set_union")
+                                else {
+                                    return Value::Unit;
+                                };
+                                size = next_size;
+                            }
+                        }
+                    }
                     let mut result = a.clone();
                     for (k, v) in b {
                         result.entry(k.clone()).or_insert_with(|| v.clone());
@@ -15726,6 +17501,9 @@ impl Interpreter {
             },
             "set_intersect" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    if !self.ground_collection_allowed(a.len(), "set_intersect") {
+                        return Value::Unit;
+                    }
                     let result: BTreeMap<String, Value> = a
                         .iter()
                         .filter(|(k, _)| b.contains_key(k.as_str()))
@@ -15737,6 +17515,9 @@ impl Interpreter {
             },
             "set_diff" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(a)), Some(Value::Set(b))) => {
+                    if !self.ground_collection_allowed(a.len(), "set_diff") {
+                        return Value::Unit;
+                    }
                     let result: BTreeMap<String, Value> = a
                         .iter()
                         .filter(|(k, _)| !b.contains_key(k.as_str()))
@@ -15748,10 +17529,10 @@ impl Interpreter {
             },
             "set_from_list" => match args.first() {
                 Some(list) => {
-                    let items = list_to_vec(list);
-                    if !self.ground_collection_allowed(items.len(), "set_from_list") {
+                    if !self.ground_collection_value_allowed(list, "set_from_list") {
                         return Value::Unit;
                     }
+                    let items = list_to_vec(list);
                     let mut result: BTreeMap<String, Value> = BTreeMap::new();
                     for v in items {
                         let key = format!("{}", v);
@@ -15773,11 +17554,26 @@ impl Interpreter {
             },
             // ---- M14a: String builtins ----
             "split" => match (args.get(0), args.get(1)) {
-                (Some(Value::Str(s)), Some(Value::Str(sep))) => Value::List(
-                    s.split(sep.as_str())
-                        .map(|p| Value::Str(p.to_string()))
-                        .collect(),
-                ),
+                (Some(Value::Str(s)), Some(Value::Str(sep))) => {
+                    if self.ground_collection_limit.is_none() {
+                        return Value::List(
+                            s.split(sep.as_str())
+                                .map(|part| Value::Str(part.to_string()))
+                                .collect(),
+                        );
+                    }
+                    let mut parts = Vec::new();
+                    for part in s.split(sep.as_str()) {
+                        if self
+                            .ground_collection_growth_allowed(parts.len(), 1, "split")
+                            .is_none()
+                        {
+                            return Value::Unit;
+                        }
+                        parts.push(Value::Str(part.to_string()));
+                    }
+                    Value::List(parts)
+                }
                 _ => Value::List(vec![]),
             },
             "join" => match args.get(1) {
@@ -15910,6 +17706,10 @@ impl Interpreter {
             },
             "string_chars" => match args.first() {
                 Some(Value::Str(s)) => {
+                    let size = s.chars().count();
+                    if !self.ground_collection_allowed(size, "string_chars") {
+                        return Value::Unit;
+                    }
                     Value::List(s.chars().map(|c| Value::Str(c.to_string())).collect())
                 }
                 _ => Value::List(vec![]),
@@ -16053,6 +17853,9 @@ impl Interpreter {
             "json_array" => match args.first() {
                 Some(Value::Str(json)) => match serde_json::from_str::<serde_json::Value>(json) {
                     Ok(serde_json::Value::Array(arr)) => {
+                        if !self.ground_collection_allowed(arr.len(), "json_array") {
+                            return Value::Unit;
+                        }
                         Value::List(arr.iter().map(|v| Value::Str(v.to_string())).collect())
                     }
                     _ => Value::List(vec![]),
@@ -16300,6 +18103,16 @@ impl Interpreter {
                 // push(list, elem) — append elem to list
                 match (args.get(0), args.get(1)) {
                     (Some(list), Some(elem)) => {
+                        if self.ground_collection_limit.is_some() {
+                            let size =
+                                Self::runtime_collection_member_count(list).unwrap_or_default();
+                            if self
+                                .ground_collection_growth_allowed(size, 1, "push")
+                                .is_none()
+                            {
+                                return Value::Unit;
+                            }
+                        }
                         let mut items = list_to_vec(list);
                         items.push(elem.clone());
                         let mut result = Value::Constructor("Nil".into(), vec![].into());
@@ -16907,7 +18720,11 @@ impl Interpreter {
             }
             "struct_type" => {
                 // struct_type([field("x", "Int"), field("y", "Float")]) → TypeDef { kind: "struct", fields }
-                let items = Self::cons_to_vec(args.into_iter().next().unwrap_or(Value::Unit));
+                let input = args.into_iter().next().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "struct_type") {
+                    return Value::Unit;
+                }
+                let items = Self::cons_to_vec(input);
                 let fields = items
                     .into_iter()
                     .filter_map(|item| match item {
@@ -16929,7 +18746,11 @@ impl Interpreter {
             "enum_type" => {
                 // enum_type(["Red", "Green", "Blue"]) → unit variants
                 // enum_type([("Circle", [field(...)]), ...]) → variants with fields
-                let items = Self::cons_to_vec(args.into_iter().next().unwrap_or(Value::Unit));
+                let input = args.into_iter().next().unwrap_or(Value::Unit);
+                if !self.ground_collection_value_allowed(&input, "enum_type") {
+                    return Value::Unit;
+                }
+                let items = Self::cons_to_vec(input);
                 let fields = items
                     .into_iter()
                     .filter_map(|item| {
@@ -16939,6 +18760,10 @@ impl Interpreter {
                             // Tuple(name, fields_cons_list) → variant with fields
                             Value::Tuple(pair) if pair.len() == 2 => {
                                 if let Value::Str(name) = &pair[0] {
+                                    if !self.ground_collection_value_allowed(&pair[1], "enum_type")
+                                    {
+                                        return None;
+                                    }
                                     let sub_items = Self::cons_to_vec(pair[1].clone());
                                     let field_str: String = sub_items
                                         .iter()
@@ -17574,6 +19399,147 @@ impl Interpreter {
             .collect()
     }
 
+    fn exact_prepared_rule_dispatch_is_active(&self) -> bool {
+        self.exact_prepared_rule_dispatch_enabled && self.exhaustive_preview_forbid_effects
+    }
+
+    fn collect_rule_goal_local_names(goal: &Expr, names: &mut BTreeSet<String>) {
+        let ExprKind::App(_, arguments) = &goal.kind else {
+            return;
+        };
+        for argument in arguments {
+            let mut local_names = Vec::new();
+            Self::collect_rule_head_vars(argument, &mut local_names);
+            names.extend(local_names);
+        }
+    }
+
+    fn collect_rule_body_goal_local_names(body: &Expr, names: &mut BTreeSet<String>) {
+        match &body.kind {
+            ExprKind::Conjunction(goals) => {
+                for goal in goals {
+                    Self::collect_rule_goal_local_names(goal, names);
+                }
+            }
+            ExprKind::Disjunction(alternatives) => {
+                for alternative in alternatives {
+                    if let ExprKind::Conjunction(goals) = &alternative.kind {
+                        for goal in goals {
+                            Self::collect_rule_goal_local_names(goal, names);
+                        }
+                    } else {
+                        Self::collect_rule_goal_local_names(alternative, names);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn prepare_runtime_rule_dispatch(
+        matching: Vec<Rc<Rule>>,
+        arity: usize,
+    ) -> Option<PreparedRuntimeRuleDispatch> {
+        let matching = matching
+            .into_iter()
+            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(arity))
+            .collect::<Vec<_>>();
+        if matching.is_empty() {
+            return None;
+        }
+
+        let named_parameter_order = Self::rule_param_names_from_rules(&matching);
+        let mut exceptions = Vec::new();
+        let mut conditional_defaults = Vec::new();
+        let mut clauses = Vec::new();
+        let mut unconditional_defaults = Vec::new();
+        let mut head_local_names = BTreeSet::new();
+        let mut body_goal_local_names = BTreeSet::new();
+
+        for (index, rule) in matching.iter().enumerate() {
+            match rule.dispatch_tier() {
+                Some(RuleDispatchTier::Exception) => exceptions.push(index),
+                Some(RuleDispatchTier::ConditionalDefault) => conditional_defaults.push(index),
+                Some(RuleDispatchTier::Clause) => clauses.push(index),
+                Some(RuleDispatchTier::UnconditionalDefault) => unconditional_defaults.push(index),
+                None => {}
+            }
+
+            if let Some(head) = rule.head() {
+                if let ExprKind::App(_, parameters) = &head.kind {
+                    for parameter in parameters {
+                        let mut local_names = Vec::new();
+                        Self::collect_rule_head_vars(parameter, &mut local_names);
+                        head_local_names.extend(local_names);
+                    }
+                }
+            }
+            if let Rule::Clause {
+                body: Some(body), ..
+            } = rule.as_ref()
+            {
+                Self::collect_rule_body_goal_local_names(body, &mut body_goal_local_names);
+            }
+        }
+
+        Some(PreparedRuntimeRuleDispatch {
+            matching,
+            exceptions,
+            conditional_defaults,
+            clauses,
+            unconditional_defaults,
+            named_parameter_order,
+            head_local_names,
+            body_goal_local_names,
+        })
+    }
+
+    fn exact_global_rule_dispatch(
+        &mut self,
+        name: &str,
+        arity: usize,
+    ) -> Option<Rc<PreparedRuntimeRuleDispatch>> {
+        let key = RuleDispatchKey {
+            scope: None,
+            name: name.to_string(),
+            arity,
+        };
+        if let Some(prepared) = self.exact_prepared_rule_dispatch.get(&key) {
+            return Some(prepared.clone());
+        }
+        let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
+            self.rules_named(name),
+            arity,
+        )?);
+        self.exact_prepared_rule_dispatch
+            .insert(key, prepared.clone());
+        Some(prepared)
+    }
+
+    fn exact_scoped_rule_dispatch(
+        &mut self,
+        scope: &str,
+        name: &str,
+        arity: usize,
+    ) -> Option<Rc<PreparedRuntimeRuleDispatch>> {
+        let key = RuleDispatchKey {
+            scope: Some(scope.to_string()),
+            name: name.to_string(),
+            arity,
+        };
+        if let Some(prepared) = self.exact_prepared_rule_dispatch.get(&key) {
+            return Some(prepared.clone());
+        }
+        let definition = self.rule_scopes.get(scope).cloned()?;
+        let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
+            Self::rule_scope_matching_rules(&definition, name, arity),
+            arity,
+        )?);
+        self.exact_prepared_rule_dispatch
+            .insert(key, prepared.clone());
+        Some(prepared)
+    }
+
     fn apply_rule_value(&mut self, name: &str, args: Vec<Value>, env: &Env) -> Value {
         let mut arg_env = env.child();
         let arg_exprs: Vec<Expr> = args
@@ -17616,13 +19582,22 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Value {
-        let Some(def) = self.rule_scopes.get(scope_name).cloned() else {
-            return Value::Unit;
+        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
+            let Some(prepared) = self.exact_scoped_rule_dispatch(scope_name, method, args.len())
+            else {
+                return Value::Unit;
+            };
+            (Some(prepared), None)
+        } else {
+            let Some(def) = self.rule_scopes.get(scope_name).cloned() else {
+                return Value::Unit;
+            };
+            let matching = Self::rule_scope_matching_rules(&def, method, args.len());
+            if matching.is_empty() {
+                return Value::Unit;
+            }
+            (None, Some(matching))
         };
-        let matching = Self::rule_scope_matching_rules(&def, method, args.len());
-        if matching.is_empty() {
-            return Value::Unit;
-        }
         let mut scoped_env = env.child();
         for (name, value) in bindings.iter() {
             scoped_env.set(name.clone(), value.clone());
@@ -17639,7 +19614,15 @@ impl Interpreter {
             bindings: bindings.clone(),
             memoized_zero_arg_rules: HashMap::new(),
         });
-        let result = self.try_rule_call_from_rules(method, args, &scoped_env, matching);
+        let result = match (prepared, matching) {
+            (Some(prepared), _) => {
+                self.try_rule_call_from_prepared(args, &scoped_env, prepared.as_ref())
+            }
+            (None, Some(matching)) => {
+                self.try_rule_call_from_rules(method, args, &scoped_env, matching)
+            }
+            (None, None) => None,
+        };
         self.active_rule_scopes.pop();
         result.unwrap_or_else(|| {
             self.boolean_rule_miss_value(&RuleDispatchKey {
@@ -17658,11 +19641,19 @@ impl Interpreter {
         env: &Env,
     ) -> Option<Value> {
         let frame = self.active_rule_scopes.last().cloned()?;
-        let def = self.rule_scopes.get(&frame.name).cloned()?;
-        let matching = Self::rule_scope_matching_rules(&def, fn_name, args.len());
-        if matching.is_empty() {
-            return None;
-        }
+        let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
+            (
+                Some(self.exact_scoped_rule_dispatch(&frame.name, fn_name, args.len())?),
+                None,
+            )
+        } else {
+            let def = self.rule_scopes.get(&frame.name).cloned()?;
+            let matching = Self::rule_scope_matching_rules(&def, fn_name, args.len());
+            if matching.is_empty() {
+                return None;
+            }
+            (None, Some(matching))
+        };
         if args.is_empty() {
             if let Some(value) = self
                 .active_rule_scopes
@@ -17683,16 +19674,23 @@ impl Interpreter {
                 bindings: frame.bindings.clone(),
             },
         );
-        let result = self
-            .try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
-            .unwrap_or_else(|| {
-                self.boolean_rule_miss_value(&RuleDispatchKey {
-                    scope: Some(frame.name.clone()),
-                    name: fn_name.to_string(),
-                    arity: args.len(),
-                })
-                .unwrap_or(Value::Bool(false))
-            });
+        let result = match (prepared, matching) {
+            (Some(prepared), _) => {
+                self.try_rule_call_from_prepared(args, &scoped_env, prepared.as_ref())
+            }
+            (None, Some(matching)) => {
+                self.try_rule_call_from_rules(fn_name, args, &scoped_env, matching)
+            }
+            (None, None) => None,
+        }
+        .unwrap_or_else(|| {
+            self.boolean_rule_miss_value(&RuleDispatchKey {
+                scope: Some(frame.name.clone()),
+                name: fn_name.to_string(),
+                arity: args.len(),
+            })
+            .unwrap_or(Value::Bool(false))
+        });
         if args.is_empty() {
             if let Some(active) = self.active_rule_scopes.last_mut() {
                 active
@@ -17714,6 +19712,11 @@ impl Interpreter {
     /// Within each priority tier, rules are tried in source order and the first
     /// applicable rule wins.
     pub fn try_rule_call(&mut self, fn_name: &str, args: &[Expr], env: &Env) -> Option<Value> {
+        if self.exact_prepared_rule_dispatch_is_active() {
+            let prepared = self.exact_global_rule_dispatch(fn_name, args.len())?;
+            return self.try_rule_call_from_prepared(args, env, prepared.as_ref());
+        }
+
         // Clone shared rule handles so evaluation can mutably borrow the interpreter.
         let matching = self.rules_named(fn_name);
 
@@ -17727,20 +19730,22 @@ impl Interpreter {
         env: &Env,
         matching: Vec<Rc<Rule>>,
     ) -> Option<Value> {
-        let matching: Vec<Rc<Rule>> = matching
-            .into_iter()
-            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(args.len()))
-            .collect();
-        if matching.is_empty() {
-            return None;
-        }
+        let prepared = Self::prepare_runtime_rule_dispatch(matching, args.len())?;
+        self.try_rule_call_from_prepared(args, env, &prepared)
+    }
 
+    fn try_rule_call_from_prepared(
+        &mut self,
+        args: &[Expr],
+        env: &Env,
+        dispatch: &PreparedRuntimeRuleDispatch,
+    ) -> Option<Value> {
         // Evaluate arguments once (in caller's env so variables resolve correctly).
         // Named rule calls are normalized to the declaration-order head names here
         // so exception/default/clause matching stays purely positional below.
         let ordered_args = if has_named_args(args) {
-            let param_names = Self::rule_param_names_from_rules(&matching)?;
-            reorder_named_args_by_names(&param_names, args)?
+            let param_names = dispatch.named_parameter_order.as_ref()?;
+            reorder_named_args_by_names(param_names, args)?
         } else {
             args.to_vec()
         };
@@ -17756,63 +19761,18 @@ impl Interpreter {
         // This prevents variables like `mid` from leaking between recursive rule calls
         // while preserving top-level bindings like `threshold`.
         let mut base_env = env.clone();
-        for rule in &matching {
-            let head = match rule.as_ref() {
-                Rule::Clause { head, .. }
-                | Rule::Default { head, .. }
-                | Rule::Exception { head, .. } => head,
-                _ => continue,
-            };
-            if let ExprKind::App(_, params) = &head.kind {
-                for param in params {
-                    let mut local_vars = Vec::new();
-                    Self::collect_rule_head_vars(param, &mut local_vars);
-                    for name in local_vars {
-                        base_env.remove(&name);
-                    }
-                }
-            }
-            // Also clear body variables from conjunction/disjunction bodies
-            if let Rule::Clause {
-                body: Some(body_expr),
-                ..
-            } = rule.as_ref()
-            {
-                let body_goals = match &body_expr.kind {
-                    ExprKind::Conjunction(goals) => Some(goals.clone()),
-                    ExprKind::Disjunction(alts) => Some(
-                        alts.iter()
-                            .flat_map(|a| match &a.kind {
-                                ExprKind::Conjunction(gs) => gs.clone(),
-                                _ => vec![a.clone()],
-                            })
-                            .collect(),
-                    ),
-                    _ => None,
-                };
-                if let Some(body_goals) = body_goals {
-                    for goal in &body_goals {
-                        if let ExprKind::App(_, goal_args) = &goal.kind {
-                            for ga in goal_args {
-                                let mut local_vars = Vec::new();
-                                Self::collect_rule_head_vars(ga, &mut local_vars);
-                                for name in local_vars {
-                                    if !scoped_binding_names.contains(&name) {
-                                        base_env.remove(&name);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+        for name in &dispatch.head_local_names {
+            base_env.remove(name);
+        }
+        for name in &dispatch.body_goal_local_names {
+            if !scoped_binding_names.contains(name) {
+                base_env.remove(name);
             }
         }
 
-        let dispatch = RuleDispatchPlan::from_rules(matching.iter().map(|rule| rule.as_ref()));
-
         // Check exceptions first — they override the default
-        for candidate in &dispatch.exceptions {
-            let rule = candidate.rule;
+        for index in &dispatch.exceptions {
+            let rule = dispatch.matching[*index].as_ref();
             if let Rule::Exception {
                 head,
                 value,
@@ -17833,8 +19793,8 @@ impl Interpreter {
         }
 
         // Catala-style: conditional defaults first
-        for candidate in &dispatch.conditional_defaults {
-            let rule = candidate.rule;
+        for index in &dispatch.conditional_defaults {
+            let rule = dispatch.matching[*index].as_ref();
             if let Rule::Default {
                 head,
                 value,
@@ -17852,8 +19812,8 @@ impl Interpreter {
         // Clauses with backtracking (Prolog-style):
         // Try each clause; if the body evaluates to false, try the next one.
         let mut matched_false_clause = false;
-        for candidate in &dispatch.clauses {
-            if let Rule::Clause { head, body } = candidate.rule {
+        for index in &dispatch.clauses {
+            if let Rule::Clause { head, body } = dispatch.matching[*index].as_ref() {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
                         None => return Some(Value::Bool(true)), // bare fact — head matched
@@ -17890,8 +19850,8 @@ impl Interpreter {
         }
 
         // Unconditional defaults (lowest priority)
-        for candidate in &dispatch.unconditional_defaults {
-            let rule = candidate.rule;
+        for index in &dispatch.unconditional_defaults {
+            let rule = dispatch.matching[*index].as_ref();
             if let Rule::Default {
                 head,
                 value,
@@ -19448,6 +21408,603 @@ impl StaticTypeBudget {
     }
 }
 
+/// Path-independent identity of one parsed Futuruna module.
+///
+/// `content_hash` covers normalized local source content. Import spellings are
+/// represented by their semantic kind, never by a filesystem path. The
+/// language-level `internal_path` records semantic namespace steps such as an
+/// inline module or a direct-qualified parent instance; file modules use the
+/// empty path. Canonical filesystem paths live only on [`SourcedStmt`] as
+/// diagnostic annotations.
+///
+/// Full SHA-256 equality is deliberately treated as content equality: two
+/// byte-distinct inputs that ever produced the same normalized digest would
+/// share this ID rather than being disambiguated with a checkout-local path.
+/// Ordinary duplicate content is expected and shares an ID by design; its
+/// retained occurrences are distinguished by [`SourcedStmt::normalized_ordinal`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ModuleId {
+    pub(crate) content_hash: Box<str>,
+    pub(crate) internal_path: Box<[String]>,
+}
+
+impl ModuleId {
+    fn top_level(content_hash: String) -> Self {
+        Self {
+            content_hash: content_hash.into_boxed_str(),
+            internal_path: Box::default(),
+        }
+    }
+
+    pub(crate) fn within_inline_module(&self, name: &str) -> Self {
+        let mut internal_path = self.internal_path.to_vec();
+        internal_path.push(name.to_string());
+        Self {
+            content_hash: self.content_hash.clone(),
+            internal_path: internal_path.into_boxed_slice(),
+        }
+    }
+}
+
+/// Stable declaration category used by checked-program analysis.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum DeclarationKind {
+    Function,
+    Actor,
+    InlineModule,
+    Adt,
+    Effect,
+    Trait,
+    Implementation,
+    WhenType,
+    RuleScope,
+    RuleClause,
+    RuleDefault,
+    RuleException,
+    ReactiveScope,
+    Binding,
+    MonadicBinding,
+    StreamBinding,
+    Invariant,
+    Explore,
+    QualifiedModule,
+    RustUse,
+    RustDependency,
+    RustBlock,
+}
+
+impl DeclarationKind {
+    fn token(self) -> &'static str {
+        match self {
+            Self::Function => "function",
+            Self::Actor => "actor",
+            Self::InlineModule => "inline-module",
+            Self::Adt => "adt",
+            Self::Effect => "effect",
+            Self::Trait => "trait",
+            Self::Implementation => "implementation",
+            Self::WhenType => "when-type",
+            Self::RuleScope => "rule-scope",
+            Self::RuleClause => "rule-clause",
+            Self::RuleDefault => "rule-default",
+            Self::RuleException => "rule-exception",
+            Self::ReactiveScope => "reactive-scope",
+            Self::Binding => "binding",
+            Self::MonadicBinding => "monadic-binding",
+            Self::StreamBinding => "stream-binding",
+            Self::Invariant => "invariant",
+            Self::Explore => "explore",
+            Self::QualifiedModule => "qualified-module",
+            Self::RustUse => "rust-use",
+            Self::RustDependency => "rust-dependency",
+            Self::RustBlock => "rust-block",
+        }
+    }
+}
+
+/// Stable identity of one declaration within a normalized source module.
+///
+/// The declaration ordinal counts declaration-shaped statements in the
+/// original module, before shadow filtering. It therefore disambiguates two
+/// same-kind, same-owner, same-name and same-arity declarations without using
+/// a byte offset. A byte-for-byte duplicate module reached through another
+/// physical path deliberately produces the same IDs. [`SourcedStmt`]'s
+/// `normalized_ordinal` preserves those repeated occurrences when the current
+/// import semantics retain both of them. Plain and hash imports of the same
+/// canonical declaration therefore reuse one ID; direct qualified aliases get
+/// their own parent declaration ID and derive distinct child-instance module
+/// namespaces through [`SourcedStmt::qualified_instance_module_id`].
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct DeclarationId {
+    pub(crate) module: ModuleId,
+    pub(crate) kind: DeclarationKind,
+    pub(crate) owner: Option<Box<str>>,
+    pub(crate) name: Box<str>,
+    pub(crate) arity: Option<usize>,
+    pub(crate) ordinal: usize,
+}
+
+impl DeclarationId {
+    pub(crate) fn semantic_key(&self) -> String {
+        let internal_path = self.module.internal_path.join("/");
+        format!(
+            "module={}:{};kind={};owner={};name={};arity={};ordinal={}",
+            self.module.content_hash,
+            internal_path,
+            self.kind.token(),
+            self.owner.as_deref().unwrap_or(""),
+            self.name,
+            self.arity
+                .map(|arity| arity.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            self.ordinal,
+        )
+    }
+}
+
+/// Stable semantic expression location. Structural child indices are recorded
+/// by the next resolution phase; source offsets are intentionally absent.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ExprSiteId {
+    pub(crate) analysis_program: AnalysisProgramId,
+    pub(crate) declaration: DeclarationId,
+    /// Disambiguates retained occurrences of one content-identical declaration
+    /// without changing that declaration's reusable semantic identity.
+    pub(crate) normalized_declaration_ordinal: usize,
+    /// Child-index path can address guards, clamp operands and other nested
+    /// proof roots without turning their source spans into identity.
+    pub(crate) ast_path: Box<[u32]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum SourcedImportKind {
+    Root,
+    PlainImport,
+    HashImport { selected_hash: Box<str> },
+    QualifiedImport { module_name: Box<str> },
+}
+
+/// One declaration in the checked, constructor-normalized source sequence.
+///
+/// Canonical source paths and `source_span` are annotations for diagnostics
+/// and display only. None participates in a semantic ID or program hash.
+#[derive(Debug, Clone)]
+pub(crate) struct SourcedStmt {
+    pub(crate) id: DeclarationId,
+    pub(crate) normalized_ordinal: usize,
+    pub(crate) import_kind: SourcedImportKind,
+    pub(crate) statement: Arc<Stmt>,
+    pub(crate) canonical_source_path: Option<Arc<PathBuf>>,
+    /// Content identity and diagnostic path of an opaque qualified target.
+    /// Its declarations are intentionally absent from `declarations`; the
+    /// alias declaration itself supplies the distinct parent-instance ID.
+    pub(crate) qualified_target_module: Option<ModuleId>,
+    pub(crate) qualified_target_source_path: Option<Arc<PathBuf>>,
+    pub(crate) source_span: Option<Span>,
+}
+
+impl SourcedStmt {
+    /// Canonical parent-instance namespace for declarations addressed through
+    /// a direct qualified import. The target's content identity is reusable,
+    /// while the path component binds a child declaration to this particular
+    /// path-independent parent alias/ordinal. Qualified contents remain opaque
+    /// until a later checked resolver explicitly asks for this namespace.
+    pub(crate) fn qualified_instance_module_id(&self) -> Option<ModuleId> {
+        let SourcedImportKind::QualifiedImport { module_name } = &self.import_kind else {
+            return None;
+        };
+        let target = self.qualified_target_module.as_ref()?;
+        let parent_hash = parsed_source_content_hash(&format!(
+            "{};occurrence={}",
+            self.id.semantic_key(),
+            self.normalized_ordinal
+        ));
+        Some(target.within_inline_module(&format!("qualified:{}:{}", module_name, parent_hash)))
+    }
+}
+
+/// Content identity of the declarations and Explore semantic roots accepted by
+/// the checked-program analysis boundary.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct AnalysisProgramId(Box<str>);
+
+impl AnalysisProgramId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Path-independent identity of the complete resolved program consumed by the
+/// backend. Unlike [`AnalysisProgramId`], this also commits execution and
+/// continuation statements which do not participate in Explore semantic-site
+/// identity.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedResolvedProgramId(Box<str>);
+
+impl CheckedResolvedProgramId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CheckedAnalysisProgram {
+    pub(crate) id: AnalysisProgramId,
+    pub(crate) declarations: Arc<[SourcedStmt]>,
+}
+
+impl CheckedAnalysisProgram {
+    /// Construct an unambiguous semantic site for a structural child of one
+    /// retained declaration occurrence. Resolution recording owns the AST-path
+    /// convention; this Phase-A seam only makes accidental omission of the
+    /// program namespace or duplicate occurrence impossible.
+    pub(crate) fn expression_site(
+        &self,
+        declaration: &SourcedStmt,
+        ast_path: Vec<u32>,
+    ) -> ExprSiteId {
+        ExprSiteId {
+            analysis_program: self.id.clone(),
+            declaration: declaration.id.clone(),
+            normalized_declaration_ordinal: declaration.normalized_ordinal,
+            ast_path: ast_path.into_boxed_slice(),
+        }
+    }
+}
+
+/// One retained occurrence of a semantic declaration. `DeclarationId` stays
+/// reusable when the same plain/hash declaration is consumed more than once;
+/// the normalized ordinal makes an occurrence addressable inside this checked
+/// analysis program without introducing a source path or byte offset.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedDeclarationOccurrenceId {
+    pub(crate) declaration: DeclarationId,
+    pub(crate) normalized_ordinal: usize,
+}
+
+impl CheckedDeclarationOccurrenceId {
+    fn from_sourced(declaration: &SourcedStmt) -> Self {
+        Self {
+            declaration: declaration.id.clone(),
+            normalized_ordinal: declaration.normalized_ordinal,
+        }
+    }
+}
+
+/// Stable identity of a lexical binder. Rule-head variables already have an
+/// expression site; parameters and patterns use a structural sub-path rooted
+/// in the declaration occurrence that owns them. Neither form uses spelling,
+/// spans, or filesystem paths as identity.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum CheckedBinderSiteId {
+    Expression(ExprSiteId),
+    Structural {
+        analysis_program: AnalysisProgramId,
+        declaration: DeclarationId,
+        normalized_declaration_ordinal: usize,
+        ast_path: Box<[u32]>,
+        binder_path: Box<[u32]>,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CheckedBinderKind {
+    Parameter,
+    Local,
+    Pattern,
+    RuleHead,
+    ExploreValue,
+    HandlerParameter,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedCallableId {
+    pub(crate) declaration: CheckedDeclarationOccurrenceId,
+    /// Empty for a top-level function. Nested method/function identities use
+    /// the same child-order convention as ExprSiteId.
+    pub(crate) structural_path: Box<[u32]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedTopLevelBindingId {
+    pub(crate) declaration: CheckedDeclarationOccurrenceId,
+    pub(crate) binder_path: Box<[u32]>,
+}
+
+/// Exact identity of a data-type owner used by checked constructor and field
+/// provenance. Declared owners are occurrence-sensitive; compiler-provided
+/// types use a closed canonical identity rather than a fabricated declaration.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum CheckedDataTypeId {
+    Declared(CheckedDeclarationOccurrenceId),
+    Intrinsic { canonical_name: Box<str> },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum CheckedConstructorLayout {
+    Positional,
+    Named,
+}
+
+/// A field is identified by its exact owner, variant ordinal, and field
+/// ordinal. `name` is retained as checked presentation metadata and is never
+/// sufficient identity by itself.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedDataFieldId {
+    pub(crate) owner: CheckedDataTypeId,
+    pub(crate) variant_index: usize,
+    pub(crate) field_index: usize,
+    pub(crate) name: Box<str>,
+}
+
+/// Complete checked identity of one constructor. This is the authoritative
+/// constructor provenance for analysis consumers; the spelling-oriented
+/// fields on legacy resolution variants remain compatibility annotations.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedConstructorIdentity {
+    pub(crate) owner: CheckedDataTypeId,
+    pub(crate) owner_type: Box<str>,
+    pub(crate) variant: Box<str>,
+    pub(crate) variant_index: usize,
+    pub(crate) layout: CheckedConstructorLayout,
+    pub(crate) fields: Box<[CheckedDataFieldId]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CheckedValueBinding {
+    Binder {
+        kind: CheckedBinderKind,
+        site: CheckedBinderSiteId,
+    },
+    TopLevel(CheckedTopLevelBindingId),
+    Callable(CheckedCallableId),
+    RuleFamily(RuleDispatchKey),
+    Constructor {
+        declaration: Option<CheckedDeclarationOccurrenceId>,
+        owner_type: Box<str>,
+        variant: Box<str>,
+        variant_index: Option<usize>,
+    },
+    OpaqueQualifiedOwner(CheckedDeclarationOccurrenceId),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedVariantField {
+    pub(crate) variant: Box<str>,
+    pub(crate) variant_index: usize,
+    pub(crate) field_index: usize,
+    pub(crate) layout: CheckedConstructorLayout,
+    pub(crate) identity: CheckedDataFieldId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CheckedFieldResolution {
+    Data {
+        owner_type: Box<str>,
+        fields: Box<[CheckedVariantField]>,
+    },
+    ScopedMember {
+        owner_type: Box<str>,
+        member: Box<str>,
+        rule_family: Option<RuleDispatchKey>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CheckedCallTarget {
+    Builtin {
+        canonical_name: Box<str>,
+        arity: usize,
+    },
+    Constructor {
+        declaration: Option<CheckedDeclarationOccurrenceId>,
+        owner_type: Box<str>,
+        variant: Box<str>,
+        variant_index: Option<usize>,
+        arity: usize,
+    },
+    Function {
+        callable: CheckedCallableId,
+        arity: usize,
+    },
+    RuleFamily(RuleDispatchKey),
+    ScopedMember {
+        owner_type: Box<str>,
+        member: Box<str>,
+        arity: usize,
+        rule_family: Option<RuleDispatchKey>,
+    },
+}
+
+/// Exact source/canonical argument permutation accepted by the checked call.
+/// `canonical_source_indices[i]` is the source argument that supplies canonical
+/// parameter `i`; consumers never need to repeat named-argument resolution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedNamedArgumentOrder {
+    pub(crate) parameter_names: Box<[Box<str>]>,
+    pub(crate) canonical_source_indices: Box<[usize]>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum CheckedExpressionType {
+    Resolved(Ty),
+    Unsupported,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedExpressionResolution {
+    pub(crate) resolved_type: CheckedExpressionType,
+    pub(crate) value_binding: Option<CheckedValueBinding>,
+    pub(crate) call_target: Option<CheckedCallTarget>,
+    pub(crate) field: Option<CheckedFieldResolution>,
+    pub(crate) named_arguments: Option<CheckedNamedArgumentOrder>,
+    /// Exact constructor identity for a constructor value or application at
+    /// this site. Consumers must prefer this over owner/variant spellings.
+    pub(crate) exact_constructor: Option<CheckedConstructorIdentity>,
+}
+
+/// Stable structural location of a source pattern. Match patterns are not
+/// expression AST nodes, so reusing `ExprSiteId` would invent an expression
+/// occurrence that does not exist.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedPatternSiteId {
+    pub(crate) analysis_program: AnalysisProgramId,
+    pub(crate) declaration: DeclarationId,
+    pub(crate) normalized_declaration_ordinal: usize,
+    pub(crate) ast_path: Box<[u32]>,
+    pub(crate) pattern_path: Box<[u32]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedConstructorPatternResolution {
+    pub(crate) constructor: CheckedConstructorIdentity,
+    /// Source-order fields for named patterns and canonical field order for
+    /// positional patterns. Each entry carries exact field identity.
+    pub(crate) source_fields: Box<[CheckedDataFieldId]>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CheckedResolutionIssue {
+    SourceSnapshotIncoherent,
+    ExpressionSiteNotRecorded,
+    TypeNotResolved,
+    TypeNotRepresentable(Box<str>),
+    ValueBindingNotResolved(Box<str>),
+    AmbiguousValueBinding(Box<str>),
+    CallableNotResolved {
+        name: Box<str>,
+        arity: usize,
+    },
+    AmbiguousCallable {
+        name: Box<str>,
+        arity: usize,
+    },
+    DynamicCallable,
+    FieldNotResolved {
+        owner_type: Option<Box<str>>,
+        field: Box<str>,
+    },
+    ConstructorPatternNotResolved(CheckedPatternSiteId),
+    NamedArgumentOrderNotResolved,
+    OpaqueQualifiedBody(CheckedDeclarationOccurrenceId),
+    OpaqueQualifiedMember {
+        owner: CheckedDeclarationOccurrenceId,
+        member: Box<str>,
+    },
+    UnsupportedExpression(Box<str>),
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedRuleCandidateResolution {
+    pub(crate) tier: RuleDispatchTier,
+    pub(crate) source_order: usize,
+    pub(crate) declaration: CheckedDeclarationOccurrenceId,
+    pub(crate) statement_path: Box<[u32]>,
+    pub(crate) head_site: ExprSiteId,
+    pub(crate) condition_site: Option<ExprSiteId>,
+    pub(crate) value_site: Option<ExprSiteId>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedRuleFamilyResolution {
+    pub(crate) key: RuleDispatchKey,
+    pub(crate) candidates: Box<[CheckedRuleCandidateResolution]>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedOpaqueQualifiedOwner {
+    pub(crate) declaration: CheckedDeclarationOccurrenceId,
+    pub(crate) target_module: Option<ModuleId>,
+}
+
+/// Checked, path-independent expression decisions for source bodies retained
+/// by Phase A. Coverage is deliberately composable: an opaque qualified owner
+/// is catalogued independently, and only a reachable expression that resolves
+/// through that owner receives an unsupported issue.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct CheckedResolutionArtifacts {
+    pub(crate) analysis_program: AnalysisProgramId,
+    /// False when a checker import reread did not match the Phase-A content
+    /// snapshot. Ordinary checking keeps its legacy behavior, while exact
+    /// source-resolution consumers fail closed through the issue seam below.
+    pub(crate) source_snapshot_coherent: bool,
+    pub(crate) expressions: BTreeMap<ExprSiteId, CheckedExpressionResolution>,
+    pub(crate) constructor_patterns:
+        BTreeMap<CheckedPatternSiteId, CheckedConstructorPatternResolution>,
+    /// Exact checked constructor/type catalog used to bind closed Explore
+    /// values before the artifact crosses into Phase B. Keys are annotations
+    /// for the producer only; consumers receive identities or location-bound
+    /// ground facts and never need to repeat this lookup.
+    constructor_identities: BTreeMap<(Box<str>, Box<str>), Arc<CheckedConstructorIdentity>>,
+    data_type_identities: BTreeMap<Box<str>, CheckedDataTypeId>,
+    pub(crate) rule_families: BTreeMap<RuleDispatchKey, CheckedRuleFamilyResolution>,
+    pub(crate) opaque_qualified_owners:
+        BTreeMap<CheckedDeclarationOccurrenceId, CheckedOpaqueQualifiedOwner>,
+    pub(crate) unsupported_sites: BTreeMap<ExprSiteId, BTreeSet<CheckedResolutionIssue>>,
+}
+
+impl CheckedResolutionArtifacts {
+    /// Reachability-sensitive fail-closed query. Unrelated opaque modules do not
+    /// poison a source slice; every issue attached to a requested site does.
+    pub(crate) fn issues_for_reachable_sites<'site>(
+        &self,
+        sites: impl IntoIterator<Item = &'site ExprSiteId>,
+    ) -> BTreeSet<CheckedResolutionIssue> {
+        let mut result = BTreeSet::new();
+        if !self.source_snapshot_coherent {
+            result.insert(CheckedResolutionIssue::SourceSnapshotIncoherent);
+        }
+        for site in sites {
+            if !self.expressions.contains_key(site) {
+                result.insert(CheckedResolutionIssue::ExpressionSiteNotRecorded);
+            }
+            if let Some(issues) = self.unsupported_sites.get(site) {
+                result.extend(issues.iter().cloned());
+            }
+        }
+        result
+    }
+}
+
+#[derive(Debug, Clone)]
+struct PrepassAnalysisDeclaration {
+    statement: Stmt,
+    module: ModuleId,
+    declaration_ordinal: usize,
+    import_kind: SourcedImportKind,
+    canonical_source_path: Option<Arc<PathBuf>>,
+    qualified_target_module: Option<ModuleId>,
+    qualified_target_source_path: Option<Arc<PathBuf>>,
+    participates_in_constructor_normalization: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum AnalysisDependencyImportKind {
+    Plain,
+    Hash(Box<str>),
+    Qualified(Box<str>),
+}
+
+#[derive(Debug, Clone)]
+struct AnalysisDependencyImport {
+    ordinal: usize,
+    kind: AnalysisDependencyImportKind,
+    physical_path: String,
+}
+
+#[derive(Debug, Clone)]
+struct AnalysisDependencyEdge {
+    ordinal: usize,
+    kind: AnalysisDependencyImportKind,
+    target: Option<usize>,
+}
+
+#[derive(Debug, Clone)]
+struct AnalysisDependencyModule {
+    local: ModuleId,
+    edges: Box<[AnalysisDependencyEdge]>,
+}
+
 #[derive(Debug, Default)]
 struct ConstructorPrepass {
     /// Codegen keeps only the last top-level function or actor of each name.
@@ -19460,6 +22017,26 @@ struct ConstructorPrepass {
     rule_names: BTreeSet<String>,
     actor_runtime_symbols: BTreeSet<String>,
     duplicate_bindings: BTreeSet<String>,
+    analysis_program: CheckedAnalysisProgram,
+    resolved_program: CheckedResolvedProgramId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum ExplorePurityNode {
+    Callable {
+        name: String,
+        arity: usize,
+        active_scope: Option<String>,
+    },
+    ScopedRule(RuleDispatchKey),
+    TopLevelBinding(String),
+}
+
+#[derive(Debug, Clone)]
+struct ExplorePurityExpression {
+    expression: Expr,
+    bound: BTreeSet<String>,
+    callable_bound: BTreeSet<String>,
 }
 
 pub struct TypeChecker {
@@ -19544,6 +22121,18 @@ pub struct TypeChecker {
     /// Runtime-visible declaration graph after recursively flattening plain
     /// imports. Qualified and hash import contents deliberately remain opaque.
     plain_import_rule_dispatch_statements: Vec<Stmt>,
+    /// Origin-preserving checked declaration sequence built by the same
+    /// constructor/import prepass. Downstream analysis must consume this
+    /// artifact instead of resolving imports a second time.
+    analysis_program: CheckedAnalysisProgram,
+    /// Complete span-free resolved program identity, including execution and
+    /// continuation statements omitted from `analysis_program`.
+    resolved_program: CheckedResolvedProgramId,
+    /// Legacy declaration collection still rereads imports. This sentinel is
+    /// cleared if any reread that can influence exact checked resolution does
+    /// not match the Phase-A content snapshot, so the recorder can fail closed
+    /// without changing ordinary checker behavior.
+    checked_resolution_source_snapshot_coherent: bool,
     /// Exploration rule result types resolved by exact name and arity.
     explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
     /// Explicit ordinary-function results used by exploration expressions.
@@ -19565,11 +22154,21 @@ pub struct TypeChecker {
     /// Bodies used to prove that an Explore question and its reachable helpers
     /// are free of effects and unsupported propagation paths.
     explore_callable_expressions_by_arity: BTreeMap<(String, usize), Vec<Expr>>,
+    /// RuleScope member bodies retain their lexical owner so a method call
+    /// cannot be redirected to a same-named root or different-scope rule.
+    explore_scoped_callable_expressions: BTreeMap<RuleDispatchKey, Vec<ExplorePurityExpression>>,
     /// Every rule clause in the flattened checked program, retained so exact
     /// result inference cannot lose conflicts split across imports.
     explore_rules_by_arity: BTreeMap<(String, usize), Vec<Rule>>,
     /// Ordinary functions that declare an effect row.
     explore_declared_effect_callables: BTreeSet<(String, usize)>,
+    /// Root/plain-import value bindings whose initializers may be demanded by
+    /// an exact exploration. Every declaration is retained so shadowing or a
+    /// duplicate import cannot hide an impure initializer from the proof.
+    explore_top_level_binding_initializers: BTreeMap<String, Vec<Expr>>,
+    /// Top-level binding forms whose execution is not part of the exact,
+    /// effect-free initializer model (reactive and propagating bindings).
+    explore_unsupported_top_level_bindings: BTreeSet<String>,
     /// RuleScope name -> scoped member name -> inferred value return type name.
     rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     /// Active RuleScope while fixed-point return inference resolves bare sibling calls.
@@ -19608,6 +22207,177 @@ pub struct TypeChecker {
     pub error_context: Vec<String>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreQueryId {
+    pub(crate) analysis_program: AnalysisProgramId,
+    pub(crate) declaration: CheckedDeclarationOccurrenceId,
+    /// Lowercase SHA-256 over the exact declaration occurrence, checked query,
+    /// closed universe/type facts, and every query-root site identity.
+    pub(crate) digest: Box<str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreBoundSites {
+    pub(crate) expression: ExprSiteId,
+    pub(crate) binder: Option<CheckedBinderSiteId>,
+}
+
+/// Exact Phase-B roots for one accepted Explore declaration. Vectors are in
+/// their source/typed-query order and therefore do not require a name lookup.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreQuerySites {
+    pub(crate) bounds: Box<[CheckedExploreBoundSites]>,
+    pub(crate) boundary_step: Option<ExprSiteId>,
+    pub(crate) key: Box<[ExprSiteId]>,
+    pub(crate) extrema: Box<[ExprSiteId]>,
+    pub(crate) show: Box<[ExprSiteId]>,
+    pub(crate) representative_objective: Option<ExprSiteId>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum CheckedExploreTypeUse {
+    Dimension(usize),
+    Fact(usize),
+    SlicedInput(usize),
+}
+
+/// The structurally checked type plus the exact declaration/intrinsic identity
+/// of its outer data constructor, where it has one.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedExploreTypeFact {
+    pub(crate) use_site: CheckedExploreTypeUse,
+    pub(crate) ty: Ty,
+    pub(crate) owner: CheckedDataTypeId,
+}
+
+/// Exact location of a constructor already evaluated into the closed universe.
+/// `value_path` descends through list/set/tuple/constructor children by ordinal.
+/// Finite-plan paths encode tuple edges as `[0, element]` and sum-field edges
+/// as `[1, variant, field]` segments.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum CheckedExploreGroundConstructorSite {
+    EnumeratedDimension {
+        dimension_index: usize,
+        ordinal: usize,
+        value_path: Box<[u32]>,
+    },
+    FixedFact {
+        fact_index: usize,
+        value_path: Box<[u32]>,
+    },
+    FiniteTypeVariant {
+        dimension_index: usize,
+        plan_path: Box<[u32]>,
+        plan_variant_index: usize,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreGroundConstructor {
+    pub(crate) site: CheckedExploreGroundConstructorSite,
+    /// Interned in the checked-resolution catalog so a large enumerated domain
+    /// does not duplicate owner/variant/field strings for every ground value.
+    pub(crate) constructor: Arc<CheckedConstructorIdentity>,
+}
+
+/// A location-bound structural witness for every node in a checked finite-type
+/// plan. Rebuilding these witnesses from the public compatibility universe lets
+/// the exact accessor reject plan mutation independently of its digest.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreFinitePlanFact {
+    pub(crate) dimension_index: usize,
+    pub(crate) plan_path: Box<[u32]>,
+    pub(crate) node: CheckedExploreFinitePlanNode,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CheckedExploreFinitePlanNode {
+    Unit,
+    Bool,
+    Tuple {
+        element_count: usize,
+        cardinality: explore::ExploreCardinality,
+    },
+    Sum {
+        owner: CheckedDataTypeId,
+        variant_count: usize,
+        cardinality: explore::ExploreCardinality,
+    },
+}
+
+/// One immutable checked query boundary. This is the only artifact an exact
+/// analysis consumer should select: it already joins the source occurrence,
+/// typed query, closed universe, query sites, and producer-minted digest.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedExploreQueryArtifact {
+    pub(crate) identity: CheckedExploreQueryId,
+    /// Producer-minted identity of the normalized finite domain and CaseId
+    /// convention, independently revalidated by the checked accessor.
+    pub(crate) domain_digest: Box<str>,
+    pub(crate) question: RuleDispatchKey,
+    pub(crate) sites: CheckedExploreQuerySites,
+    /// Index into the legacy compatibility vector. Access must go through
+    /// `TypeCheckArtifacts::checked_exploration_query`, which revalidates the
+    /// producer digest before exposing the borrowed closed query.
+    closed_query_index: usize,
+    pub(crate) type_facts: Box<[CheckedExploreTypeFact]>,
+    pub(crate) ground_constructors: Box<[CheckedExploreGroundConstructor]>,
+    pub(crate) finite_plan_facts: Box<[CheckedExploreFinitePlanFact]>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum CheckedExploreQueryArtifactIssue {
+    AcceptedQueryCountMismatch {
+        declarations: usize,
+        closed_queries: usize,
+    },
+    QuerySiteMissing(ExprSiteId),
+    QuestionNotResolved(RuleDispatchKey),
+    TypeOwnerNotResolved {
+        use_site: CheckedExploreTypeUse,
+        ty: Ty,
+    },
+    GroundConstructorNotResolved {
+        owner_type: Box<str>,
+        variant: Box<str>,
+    },
+    GroundConstructorLayoutMismatch {
+        owner_type: Box<str>,
+        variant: Box<str>,
+    },
+    FinitePlanTypeMismatch {
+        dimension_index: usize,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum CheckedExploreQueryAccessError {
+    Producer(CheckedExploreQueryArtifactIssue),
+    AcceptedQueryMissing { index: usize, available: usize },
+    AnalysisProgramIdentityMismatch,
+    SourceSnapshotIncoherent,
+    SourceDeclarationMissing(CheckedDeclarationOccurrenceId),
+    ArtifactDiverged,
+}
+
+pub(crate) struct CheckedExploreQueryView<'a> {
+    pub(crate) artifact: &'a CheckedExploreQueryArtifact,
+    pub(crate) closed_query: &'a explore::ExploreQueryIr,
+    resolved_program: &'a CheckedResolvedProgramId,
+}
+
+impl CheckedExploreQueryView<'_> {
+    /// Complete resolved-program identity belonging to this validated query.
+    pub(crate) fn program_hash(&self) -> &str {
+        self.resolved_program.as_str()
+    }
+
+    /// Producer-minted identity of this query's normalized finite domain.
+    pub(crate) fn domain_hash(&self) -> &str {
+        &self.artifact.domain_digest
+    }
+}
+
 pub struct TypeCheckArtifacts {
     pub diagnostics: Vec<Diagnostic>,
     pub calculation_contracts: Vec<calculate::CalculationContract>,
@@ -19621,6 +22391,3836 @@ pub struct TypeCheckArtifacts {
     /// Closed, exact universes.  Solver/executor code must consume this layer,
     /// never the typed source-domain syntax above.
     pub exploration_universes: Vec<explore::ExploreQueryIr>,
+    /// Declaration-occurrence-bound checked query artifacts. Legacy public
+    /// query/universe vectors remain for compatibility, but proof-first
+    /// consumers must use this immutable joined layer.
+    pub(crate) checked_exploration_queries: Vec<CheckedExploreQueryArtifact>,
+    pub(crate) checked_exploration_query_issue: Option<CheckedExploreQueryArtifactIssue>,
+    pub(crate) analysis_program: CheckedAnalysisProgram,
+    pub(crate) resolved_program: CheckedResolvedProgramId,
+    pub(crate) checked_resolutions: CheckedResolutionArtifacts,
+}
+
+impl TypeCheckArtifacts {
+    pub(crate) fn checked_exploration_query_for_declaration(
+        &self,
+        declaration: &CheckedDeclarationOccurrenceId,
+    ) -> Result<CheckedExploreQueryView<'_>, CheckedExploreQueryAccessError> {
+        if let Some(issue) = &self.checked_exploration_query_issue {
+            return Err(CheckedExploreQueryAccessError::Producer(issue.clone()));
+        }
+        let accepted_index = self
+            .checked_exploration_queries
+            .iter()
+            .position(|query| &query.identity.declaration == declaration)
+            .ok_or_else(|| {
+                CheckedExploreQueryAccessError::SourceDeclarationMissing(declaration.clone())
+            })?;
+        self.checked_exploration_query(accepted_index)
+    }
+
+    /// Select one producer-minted checked query. The compatibility vectors are
+    /// public and historically mutable, so the digest is recomputed before a
+    /// proof consumer receives a reference; stale or caller-modified state is
+    /// rejected rather than rebound to the declaration by spelling.
+    pub(crate) fn checked_exploration_query(
+        &self,
+        accepted_index: usize,
+    ) -> Result<CheckedExploreQueryView<'_>, CheckedExploreQueryAccessError> {
+        if let Some(issue) = &self.checked_exploration_query_issue {
+            return Err(CheckedExploreQueryAccessError::Producer(issue.clone()));
+        }
+        let artifact = self.checked_exploration_queries.get(accepted_index).ok_or(
+            CheckedExploreQueryAccessError::AcceptedQueryMissing {
+                index: accepted_index,
+                available: self.checked_exploration_queries.len(),
+            },
+        )?;
+        if artifact.identity.analysis_program != self.analysis_program.id
+            || artifact.identity.analysis_program != self.checked_resolutions.analysis_program
+        {
+            return Err(CheckedExploreQueryAccessError::AnalysisProgramIdentityMismatch);
+        }
+        if !self.checked_resolutions.source_snapshot_coherent {
+            return Err(CheckedExploreQueryAccessError::SourceSnapshotIncoherent);
+        }
+        let closed_query = self
+            .exploration_universes
+            .get(artifact.closed_query_index)
+            .ok_or(CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        let declaration = self
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| {
+                CheckedDeclarationOccurrenceId::from_sourced(declaration)
+                    == artifact.identity.declaration
+            })
+            .ok_or_else(|| {
+                CheckedExploreQueryAccessError::SourceDeclarationMissing(
+                    artifact.identity.declaration.clone(),
+                )
+            })?;
+        let Stmt::Explore(_) = &*declaration.statement else {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        };
+        let (type_facts, ground_constructors, finite_plan_facts) =
+            checked_explore_closed_facts(&self.checked_resolutions, closed_query)
+                .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        if !checked_explore_type_facts_equal(&type_facts, &artifact.type_facts)
+            || ground_constructors.as_ref() != artifact.ground_constructors.as_ref()
+            || finite_plan_facts.as_ref() != artifact.finite_plan_facts.as_ref()
+        {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
+        let domain_digest = checked_explore_domain_digest(
+            closed_query,
+            &type_facts,
+            &ground_constructors,
+            &finite_plan_facts,
+        );
+        let digest = checked_explore_query_digest(
+            &self.analysis_program,
+            declaration,
+            &artifact.question,
+            &artifact.sites,
+            closed_query,
+            &type_facts,
+            &ground_constructors,
+            &finite_plan_facts,
+        );
+        if domain_digest.as_ref() != artifact.domain_digest.as_ref()
+            || digest.as_ref() != artifact.identity.digest.as_ref()
+        {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
+        Ok(CheckedExploreQueryView {
+            artifact,
+            closed_query,
+            resolved_program: &self.resolved_program,
+        })
+    }
+}
+
+fn checked_explore_query_sites(
+    program: &CheckedAnalysisProgram,
+    declaration: &SourcedStmt,
+    query: &ExploreQuery,
+) -> CheckedExploreQuerySites {
+    let mut child = 0_u32;
+    let bounds = query
+        .bounds
+        .iter()
+        .enumerate()
+        .map(|(bound_index, bound)| {
+            let ast_path = vec![child];
+            child += 1;
+            let expression = program.expression_site(declaration, ast_path.clone());
+            let binder = matches!(
+                bound,
+                ExploreBound::Domain { .. } | ExploreBound::Value { .. }
+            )
+            .then(|| CheckedBinderSiteId::Structural {
+                analysis_program: program.id.clone(),
+                declaration: declaration.id.clone(),
+                normalized_declaration_ordinal: declaration.normalized_ordinal,
+                ast_path: ast_path.into_boxed_slice(),
+                binder_path: vec![
+                    CheckedResolutionRecorder::BINDER_EXPLORE,
+                    bound_index as u32,
+                ]
+                .into_boxed_slice(),
+            });
+            CheckedExploreBoundSites { expression, binder }
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let boundary_step = query.boundary.as_ref().map(|_| {
+        let site = program.expression_site(declaration, vec![child]);
+        child += 1;
+        site
+    });
+    let key = query
+        .output
+        .key
+        .iter()
+        .map(|_| {
+            let site = program.expression_site(declaration, vec![child]);
+            child += 1;
+            site
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let extrema = query
+        .output
+        .extrema
+        .iter()
+        .map(|_| {
+            let site = program.expression_site(declaration, vec![child]);
+            child += 1;
+            site
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let show = query
+        .output
+        .show
+        .iter()
+        .map(|_| {
+            let site = program.expression_site(declaration, vec![child]);
+            child += 1;
+            site
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let representative_objective = (!matches!(
+        &query.output.representative,
+        ExploreRepresentative::First { .. }
+    ))
+    .then(|| program.expression_site(declaration, vec![child]));
+    CheckedExploreQuerySites {
+        bounds,
+        boundary_step,
+        key,
+        extrema,
+        show,
+        representative_objective,
+    }
+}
+
+fn checked_explore_site_roots(sites: &CheckedExploreQuerySites) -> Vec<&ExprSiteId> {
+    sites
+        .bounds
+        .iter()
+        .map(|bound| &bound.expression)
+        .chain(sites.boundary_step.iter())
+        .chain(sites.key.iter())
+        .chain(sites.extrema.iter())
+        .chain(sites.show.iter())
+        .chain(sites.representative_objective.iter())
+        .collect()
+}
+
+fn checked_explore_outer_type_owner_name(ty: &Ty) -> Option<String> {
+    match ty {
+        Ty::Name(name) => Some(name.clone()),
+        Ty::App(constructor, _) => type_name(constructor).map(ToString::to_string),
+        Ty::Optional(_) => Some("Option".to_string()),
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+            checked_explore_outer_type_owner_name(inner)
+        }
+        Ty::Unit => Some("Unit".to_string()),
+        Ty::Arrow(_, _) | Ty::Var(_) | Ty::Hole => None,
+    }
+}
+
+fn checked_explore_type_fact(
+    resolutions: &CheckedResolutionArtifacts,
+    use_site: CheckedExploreTypeUse,
+    ty: &Ty,
+) -> Result<CheckedExploreTypeFact, CheckedExploreQueryArtifactIssue> {
+    let owner_name = checked_explore_outer_type_owner_name(ty).ok_or_else(|| {
+        CheckedExploreQueryArtifactIssue::TypeOwnerNotResolved {
+            use_site: use_site.clone(),
+            ty: ty.clone(),
+        }
+    })?;
+    let owner = resolutions
+        .data_type_identities
+        .get(owner_name.as_str())
+        .cloned()
+        .ok_or_else(|| CheckedExploreQueryArtifactIssue::TypeOwnerNotResolved {
+            use_site: use_site.clone(),
+            ty: ty.clone(),
+        })?;
+    Ok(CheckedExploreTypeFact {
+        use_site,
+        ty: ty.clone(),
+        owner,
+    })
+}
+
+fn checked_ground_constructor_identity(
+    resolutions: &CheckedResolutionArtifacts,
+    owner_type: &str,
+    variant: &str,
+) -> Result<Arc<CheckedConstructorIdentity>, CheckedExploreQueryArtifactIssue> {
+    resolutions
+        .constructor_identities
+        .get(&(owner_type.into(), variant.into()))
+        .cloned()
+        .ok_or_else(
+            || CheckedExploreQueryArtifactIssue::GroundConstructorNotResolved {
+                owner_type: owner_type.to_string().into_boxed_str(),
+                variant: variant.to_string().into_boxed_str(),
+            },
+        )
+}
+
+fn collect_checked_ground_value_constructors(
+    resolutions: &CheckedResolutionArtifacts,
+    root: impl Fn(Box<[u32]>) -> CheckedExploreGroundConstructorSite + Copy,
+    value: &explore::ExploreValue,
+    path: &mut Vec<u32>,
+    result: &mut Vec<CheckedExploreGroundConstructor>,
+) -> Result<(), CheckedExploreQueryArtifactIssue> {
+    match value {
+        explore::ExploreValue::List(values)
+        | explore::ExploreValue::Set(values)
+        | explore::ExploreValue::Tuple(values) => {
+            for (index, value) in values.iter().enumerate() {
+                path.push(index as u32);
+                collect_checked_ground_value_constructors(resolutions, root, value, path, result)?;
+                path.pop();
+            }
+        }
+        explore::ExploreValue::Constructor {
+            type_name: owner_type,
+            variant,
+            positional,
+            fields,
+        } => {
+            let constructor =
+                checked_ground_constructor_identity(resolutions, owner_type, variant)?;
+            let layout_matches = matches!(
+                (constructor.layout, *positional),
+                (CheckedConstructorLayout::Positional, true)
+                    | (CheckedConstructorLayout::Named, false)
+            );
+            let fields_match = constructor.fields.len() == fields.len()
+                && (constructor.layout == CheckedConstructorLayout::Positional
+                    || constructor
+                        .fields
+                        .iter()
+                        .zip(fields.iter())
+                        .all(|(checked, (name, _))| checked.name.as_ref() == name.as_str()));
+            if !layout_matches || !fields_match {
+                return Err(
+                    CheckedExploreQueryArtifactIssue::GroundConstructorLayoutMismatch {
+                        owner_type: owner_type.clone().into_boxed_str(),
+                        variant: variant.clone().into_boxed_str(),
+                    },
+                );
+            }
+            result.push(CheckedExploreGroundConstructor {
+                site: root(path.clone().into_boxed_slice()),
+                constructor,
+            });
+            for (index, (_, value)) in fields.iter().enumerate() {
+                path.push(index as u32);
+                collect_checked_ground_value_constructors(resolutions, root, value, path, result)?;
+                path.pop();
+            }
+        }
+        explore::ExploreValue::Int(_)
+        | explore::ExploreValue::FloatBits(_)
+        | explore::ExploreValue::String(_)
+        | explore::ExploreValue::Character(_)
+        | explore::ExploreValue::Boolean(_)
+        | explore::ExploreValue::Unit => {}
+    }
+    Ok(())
+}
+
+fn checked_ty_structurally_equal(left: &Ty, right: &Ty) -> bool {
+    match (left, right) {
+        (Ty::Name(left), Ty::Name(right)) | (Ty::Var(left), Ty::Var(right)) => left == right,
+        (Ty::App(left_base, left_arguments), Ty::App(right_base, right_arguments)) => {
+            checked_ty_structurally_equal(left_base, right_base)
+                && left_arguments.len() == right_arguments.len()
+                && left_arguments
+                    .iter()
+                    .zip(right_arguments)
+                    .all(|(left, right)| checked_ty_structurally_equal(left, right))
+        }
+        (Ty::Arrow(left_input, left_output), Ty::Arrow(right_input, right_output)) => {
+            checked_ty_structurally_equal(left_input, right_input)
+                && checked_ty_structurally_equal(left_output, right_output)
+        }
+        (Ty::Ref(left), Ty::Ref(right))
+        | (Ty::MutRef(left), Ty::MutRef(right))
+        | (Ty::Shared(left), Ty::Shared(right))
+        | (Ty::Optional(left), Ty::Optional(right)) => checked_ty_structurally_equal(left, right),
+        (Ty::Unit, Ty::Unit) | (Ty::Hole, Ty::Hole) => true,
+        _ => false,
+    }
+}
+
+fn checked_finite_plan_matches_outer_type(plan: &explore::ExploreFiniteTypePlan, ty: &Ty) -> bool {
+    match (plan, ty) {
+        (explore::ExploreFiniteTypePlan::Unit, Ty::Unit) => true,
+        (explore::ExploreFiniteTypePlan::Unit, Ty::Name(name)) => name == "Unit",
+        (explore::ExploreFiniteTypePlan::Bool, Ty::Name(name)) => name == "Bool",
+        (explore::ExploreFiniteTypePlan::Tuple { elements, .. }, Ty::App(base, arguments)) => {
+            matches!(base.as_ref(), Ty::Name(name) if name == "Tuple")
+                && elements.len() == arguments.len()
+                && elements
+                    .iter()
+                    .zip(arguments)
+                    .all(|(plan, ty)| checked_finite_plan_matches_outer_type(plan, ty))
+        }
+        (explore::ExploreFiniteTypePlan::Sum { type_name, .. }, Ty::Name(name)) => {
+            type_name == name
+        }
+        (explore::ExploreFiniteTypePlan::Sum { type_name, .. }, Ty::App(base, _)) => {
+            matches!(base.as_ref(), Ty::Name(name) if type_name == name)
+        }
+        (explore::ExploreFiniteTypePlan::Sum { type_name, .. }, Ty::Optional(_)) => {
+            type_name == "Option"
+        }
+        _ => false,
+    }
+}
+
+fn checked_explore_type_facts_equal(
+    left: &[CheckedExploreTypeFact],
+    right: &[CheckedExploreTypeFact],
+) -> bool {
+    left.len() == right.len()
+        && left.iter().zip(right).all(|(left, right)| {
+            left.use_site == right.use_site
+                && left.owner == right.owner
+                && checked_ty_structurally_equal(&left.ty, &right.ty)
+        })
+}
+
+fn collect_checked_finite_plan_constructors(
+    resolutions: &CheckedResolutionArtifacts,
+    dimension_index: usize,
+    plan: &explore::ExploreFiniteTypePlan,
+    path: &mut Vec<u32>,
+    result: &mut Vec<CheckedExploreGroundConstructor>,
+    plan_facts: &mut Vec<CheckedExploreFinitePlanFact>,
+) -> Result<(), CheckedExploreQueryArtifactIssue> {
+    match plan {
+        explore::ExploreFiniteTypePlan::Unit => {
+            plan_facts.push(CheckedExploreFinitePlanFact {
+                dimension_index,
+                plan_path: path.clone().into_boxed_slice(),
+                node: CheckedExploreFinitePlanNode::Unit,
+            });
+        }
+        explore::ExploreFiniteTypePlan::Bool => {
+            plan_facts.push(CheckedExploreFinitePlanFact {
+                dimension_index,
+                plan_path: path.clone().into_boxed_slice(),
+                node: CheckedExploreFinitePlanNode::Bool,
+            });
+        }
+        explore::ExploreFiniteTypePlan::Tuple {
+            elements,
+            cardinality,
+        } => {
+            plan_facts.push(CheckedExploreFinitePlanFact {
+                dimension_index,
+                plan_path: path.clone().into_boxed_slice(),
+                node: CheckedExploreFinitePlanNode::Tuple {
+                    element_count: elements.len(),
+                    cardinality: cardinality.clone(),
+                },
+            });
+            for (index, element) in elements.iter().enumerate() {
+                path.extend([0, index as u32]);
+                collect_checked_finite_plan_constructors(
+                    resolutions,
+                    dimension_index,
+                    element,
+                    path,
+                    result,
+                    plan_facts,
+                )?;
+                path.truncate(path.len() - 2);
+            }
+        }
+        explore::ExploreFiniteTypePlan::Sum {
+            type_name: owner_type,
+            variants,
+            cardinality,
+        } => {
+            let owner = resolutions
+                .data_type_identities
+                .get(owner_type.as_str())
+                .cloned()
+                .ok_or_else(|| CheckedExploreQueryArtifactIssue::TypeOwnerNotResolved {
+                    use_site: CheckedExploreTypeUse::Dimension(dimension_index),
+                    ty: Ty::Name(owner_type.clone()),
+                })?;
+            plan_facts.push(CheckedExploreFinitePlanFact {
+                dimension_index,
+                plan_path: path.clone().into_boxed_slice(),
+                node: CheckedExploreFinitePlanNode::Sum {
+                    owner,
+                    variant_count: variants.len(),
+                    cardinality: cardinality.clone(),
+                },
+            });
+            for (variant_index, variant) in variants.iter().enumerate() {
+                let constructor =
+                    checked_ground_constructor_identity(resolutions, owner_type, &variant.name)?;
+                let layout_matches = matches!(
+                    (constructor.layout, variant.positional),
+                    (CheckedConstructorLayout::Positional, true)
+                        | (CheckedConstructorLayout::Named, false)
+                );
+                let fields_match = constructor.fields.len() == variant.fields.len()
+                    && constructor
+                        .fields
+                        .iter()
+                        .zip(variant.fields.iter())
+                        .all(|(checked, field)| checked.name.as_ref() == field.name.as_str());
+                if !layout_matches || !fields_match {
+                    return Err(
+                        CheckedExploreQueryArtifactIssue::GroundConstructorLayoutMismatch {
+                            owner_type: owner_type.clone().into_boxed_str(),
+                            variant: variant.name.clone().into_boxed_str(),
+                        },
+                    );
+                }
+                result.push(CheckedExploreGroundConstructor {
+                    site: CheckedExploreGroundConstructorSite::FiniteTypeVariant {
+                        dimension_index,
+                        plan_path: path.clone().into_boxed_slice(),
+                        plan_variant_index: variant_index,
+                    },
+                    constructor,
+                });
+                for (field_index, field) in variant.fields.iter().enumerate() {
+                    path.extend([1, variant_index as u32, field_index as u32]);
+                    collect_checked_finite_plan_constructors(
+                        resolutions,
+                        dimension_index,
+                        &field.plan,
+                        path,
+                        result,
+                        plan_facts,
+                    )?;
+                    path.truncate(path.len() - 3);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn checked_explore_closed_facts(
+    resolutions: &CheckedResolutionArtifacts,
+    query: &explore::ExploreQueryIr,
+) -> Result<
+    (
+        Box<[CheckedExploreTypeFact]>,
+        Box<[CheckedExploreGroundConstructor]>,
+        Box<[CheckedExploreFinitePlanFact]>,
+    ),
+    CheckedExploreQueryArtifactIssue,
+> {
+    let mut type_facts = Vec::new();
+    let mut constructors = Vec::new();
+    let mut finite_plan_facts = Vec::new();
+    for (dimension_index, dimension) in query.universe.dimensions.iter().enumerate() {
+        type_facts.push(checked_explore_type_fact(
+            resolutions,
+            CheckedExploreTypeUse::Dimension(dimension_index),
+            &dimension.value_ty,
+        )?);
+        match &dimension.domain {
+            explore::ExploreExactDomain::Enumerated { values, .. } => {
+                for (ordinal, value) in values.iter().enumerate() {
+                    collect_checked_ground_value_constructors(
+                        resolutions,
+                        |value_path| CheckedExploreGroundConstructorSite::EnumeratedDimension {
+                            dimension_index,
+                            ordinal,
+                            value_path,
+                        },
+                        value,
+                        &mut Vec::new(),
+                        &mut constructors,
+                    )?;
+                }
+            }
+            explore::ExploreExactDomain::FiniteType { ty, plan } => {
+                if !checked_ty_structurally_equal(ty, &dimension.value_ty)
+                    || !checked_finite_plan_matches_outer_type(plan, ty)
+                {
+                    return Err(CheckedExploreQueryArtifactIssue::FinitePlanTypeMismatch {
+                        dimension_index,
+                    });
+                }
+                collect_checked_finite_plan_constructors(
+                    resolutions,
+                    dimension_index,
+                    plan,
+                    &mut Vec::new(),
+                    &mut constructors,
+                    &mut finite_plan_facts,
+                )?;
+            }
+            explore::ExploreExactDomain::IntRange { .. } => {}
+        }
+    }
+    for (fact_index, fact) in query.universe.facts.iter().enumerate() {
+        type_facts.push(checked_explore_type_fact(
+            resolutions,
+            CheckedExploreTypeUse::Fact(fact_index),
+            &fact.value_ty,
+        )?);
+        if let explore::ExploreFactValue::Fixed(value) = &fact.value {
+            collect_checked_ground_value_constructors(
+                resolutions,
+                |value_path| CheckedExploreGroundConstructorSite::FixedFact {
+                    fact_index,
+                    value_path,
+                },
+                value,
+                &mut Vec::new(),
+                &mut constructors,
+            )?;
+        }
+    }
+    for (input_index, input) in query.universe.sliced_inputs.iter().enumerate() {
+        type_facts.push(checked_explore_type_fact(
+            resolutions,
+            CheckedExploreTypeUse::SlicedInput(input_index),
+            &input.ty,
+        )?);
+    }
+    constructors.sort_by(|left, right| left.site.cmp(&right.site));
+    Ok((
+        type_facts.into_boxed_slice(),
+        constructors.into_boxed_slice(),
+        finite_plan_facts.into_boxed_slice(),
+    ))
+}
+
+fn checked_query_hash_component(hasher: &mut Sha256, label: &str, value: &str) {
+    hasher.update((label.len() as u64).to_le_bytes());
+    hasher.update(label.as_bytes());
+    hasher.update((value.len() as u64).to_le_bytes());
+    hasher.update(value.as_bytes());
+}
+
+fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
+    checked_query_hash_component(hasher, "name", &format!("{:?}", query.name));
+    checked_query_hash_component(hasher, "rule", &query.rule_name);
+    checked_query_hash_component(hasher, "rule-arity", &query.rule_arity.to_string());
+    checked_query_hash_component(hasher, "polarity", &format!("{:?}", query.polarity));
+    checked_query_hash_component(hasher, "input-count", &query.inputs.len().to_string());
+    for input in &query.inputs {
+        checked_query_hash_component(hasher, "input-name", &input.name);
+        checked_query_hash_component(hasher, "input-type", &format!("{:?}", input.ty));
+    }
+    checked_query_hash_component(
+        hasher,
+        "sliced-input-count",
+        &query.sliced_inputs.len().to_string(),
+    );
+    for input in &query.sliced_inputs {
+        checked_query_hash_component(hasher, "sliced-name", &input.name);
+        checked_query_hash_component(hasher, "sliced-type", &format!("{:?}", input.ty));
+    }
+    checked_query_hash_component(hasher, "bound-count", &query.bounds.len().to_string());
+    for bound in &query.bounds {
+        match bound {
+            TypedExploreBound::Domain {
+                name,
+                value_ty,
+                domain,
+                ..
+            } => {
+                checked_query_hash_component(hasher, "bound-kind", "domain");
+                checked_query_hash_component(hasher, "bound-name", name);
+                checked_query_hash_component(hasher, "bound-type", &format!("{:?}", value_ty));
+                match domain {
+                    TypedExploreDomain::FiniteExpr {
+                        expression,
+                        collection_ty,
+                        element_ty,
+                    } => {
+                        checked_query_hash_component(hasher, "domain-kind", "finite-expression");
+                        checked_query_hash_component(
+                            hasher,
+                            "collection-type",
+                            &format!("{:?}", collection_ty),
+                        );
+                        checked_query_hash_component(
+                            hasher,
+                            "element-type",
+                            &format!("{:?}", element_ty),
+                        );
+                        checked_query_hash_component(
+                            hasher,
+                            "domain-expression",
+                            &format!("{:?}", strip_spans_expr(expression)),
+                        );
+                    }
+                    TypedExploreDomain::Range {
+                        start,
+                        end_exclusive,
+                    } => {
+                        checked_query_hash_component(hasher, "domain-kind", "range");
+                        checked_query_hash_component(
+                            hasher,
+                            "range-start-expression",
+                            &format!("{:?}", strip_spans_expr(start)),
+                        );
+                        checked_query_hash_component(
+                            hasher,
+                            "range-end-expression",
+                            &format!("{:?}", strip_spans_expr(end_exclusive)),
+                        );
+                    }
+                    TypedExploreDomain::Values { ty } => {
+                        checked_query_hash_component(hasher, "domain-kind", "values");
+                        checked_query_hash_component(hasher, "values-type", &format!("{:?}", ty));
+                    }
+                }
+            }
+            TypedExploreBound::Value {
+                name,
+                value_ty,
+                value,
+                ..
+            } => {
+                checked_query_hash_component(hasher, "bound-kind", "value");
+                checked_query_hash_component(hasher, "bound-name", name);
+                checked_query_hash_component(hasher, "bound-type", &format!("{:?}", value_ty));
+                checked_query_hash_component(
+                    hasher,
+                    "bound-value",
+                    &format!("{:?}", strip_spans_expr(value)),
+                );
+            }
+            TypedExploreBound::Where { predicate, .. } => {
+                checked_query_hash_component(hasher, "bound-kind", "where");
+                checked_query_hash_component(
+                    hasher,
+                    "where-predicate",
+                    &format!("{:?}", strip_spans_expr(predicate)),
+                );
+            }
+        }
+    }
+    if let Some(boundary) = &query.boundary {
+        checked_query_hash_component(hasher, "boundary-axis", &boundary.axis);
+        checked_query_hash_component(
+            hasher,
+            "boundary-axis-type",
+            &format!("{:?}", boundary.axis_ty),
+        );
+        checked_query_hash_component(
+            hasher,
+            "boundary-step-type",
+            &format!("{:?}", boundary.step_ty),
+        );
+        checked_query_hash_component(
+            hasher,
+            "boundary-step",
+            &format!("{:?}", strip_spans_expr(&boundary.step)),
+        );
+    } else {
+        checked_query_hash_component(hasher, "boundary", "none");
+    }
+    for (role, fields) in [
+        ("key", query.output.key.as_slice()),
+        ("show", query.output.show.as_slice()),
+    ] {
+        checked_query_hash_component(hasher, &format!("{role}-count"), &fields.len().to_string());
+        for field in fields {
+            checked_query_hash_component(hasher, role, &field.name);
+            checked_query_hash_component(hasher, "output-type", &format!("{:?}", field.ty));
+            checked_query_hash_component(
+                hasher,
+                "output-expression",
+                &format!("{:?}", strip_spans_expr(&field.value)),
+            );
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "extrema-count",
+        &query.output.extrema.len().to_string(),
+    );
+    for field in &query.output.extrema {
+        checked_query_hash_component(hasher, "extrema", &field.name);
+        checked_query_hash_component(hasher, "extrema-type", &format!("{:?}", field.ty));
+        checked_query_hash_component(
+            hasher,
+            "extrema-expression",
+            &format!("{:?}", strip_spans_expr(&field.value)),
+        );
+    }
+    match &query.output.having {
+        None => checked_query_hash_component(hasher, "having", "none"),
+        Some(TypedExploreHaving::Varies {
+            extrema_name,
+            extrema_index,
+            ..
+        }) => {
+            checked_query_hash_component(hasher, "having", "varies");
+            checked_query_hash_component(hasher, "having-extrema", extrema_name);
+            checked_query_hash_component(
+                hasher,
+                "having-extrema-index",
+                &extrema_index.to_string(),
+            );
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "representative-type",
+        &format!("{:?}", query.output.representative_ty),
+    );
+    match &query.output.representative {
+        ExploreRepresentative::First { .. } => {
+            checked_query_hash_component(hasher, "representative", "first");
+        }
+        ExploreRepresentative::Maximize { objective, .. } => {
+            checked_query_hash_component(hasher, "representative", "maximize");
+            checked_query_hash_component(
+                hasher,
+                "representative-objective",
+                &format!("{:?}", strip_spans_expr(objective)),
+            );
+        }
+        ExploreRepresentative::Minimize { objective, .. } => {
+            checked_query_hash_component(hasher, "representative", "minimize");
+            checked_query_hash_component(
+                hasher,
+                "representative-objective",
+                &format!("{:?}", strip_spans_expr(objective)),
+            );
+        }
+    }
+}
+
+fn hash_checked_explore_value(hasher: &mut Sha256, value: &explore::ExploreValue) {
+    match value {
+        explore::ExploreValue::Int(value) => {
+            checked_query_hash_component(hasher, "value-kind", "int");
+            checked_query_hash_component(hasher, "value", &value.to_string());
+        }
+        explore::ExploreValue::FloatBits(value) => {
+            checked_query_hash_component(hasher, "value-kind", "float-bits");
+            checked_query_hash_component(hasher, "value", &value.to_string());
+        }
+        explore::ExploreValue::String(value) => {
+            checked_query_hash_component(hasher, "value-kind", "string");
+            checked_query_hash_component(hasher, "value", value);
+        }
+        explore::ExploreValue::Character(value) => {
+            checked_query_hash_component(hasher, "value-kind", "character");
+            checked_query_hash_component(hasher, "value", &(*value as u32).to_string());
+        }
+        explore::ExploreValue::Boolean(value) => {
+            checked_query_hash_component(hasher, "value-kind", "boolean");
+            checked_query_hash_component(hasher, "value", if *value { "true" } else { "false" });
+        }
+        explore::ExploreValue::Unit => {
+            checked_query_hash_component(hasher, "value-kind", "unit");
+        }
+        explore::ExploreValue::List(values)
+        | explore::ExploreValue::Set(values)
+        | explore::ExploreValue::Tuple(values) => {
+            let kind = match value {
+                explore::ExploreValue::List(_) => "list",
+                explore::ExploreValue::Set(_) => "set",
+                explore::ExploreValue::Tuple(_) => "tuple",
+                _ => unreachable!(),
+            };
+            checked_query_hash_component(hasher, "value-kind", kind);
+            checked_query_hash_component(hasher, "value-length", &values.len().to_string());
+            for value in values {
+                hash_checked_explore_value(hasher, value);
+            }
+        }
+        explore::ExploreValue::Constructor {
+            type_name,
+            variant,
+            positional,
+            fields,
+        } => {
+            checked_query_hash_component(hasher, "value-kind", "constructor");
+            checked_query_hash_component(hasher, "constructor-owner", type_name);
+            checked_query_hash_component(hasher, "constructor-variant", variant);
+            checked_query_hash_component(
+                hasher,
+                "constructor-layout",
+                if *positional { "positional" } else { "named" },
+            );
+            checked_query_hash_component(hasher, "constructor-arity", &fields.len().to_string());
+            for (field, value) in fields {
+                checked_query_hash_component(hasher, "constructor-field", field);
+                hash_checked_explore_value(hasher, value);
+            }
+        }
+    }
+}
+
+fn hash_checked_finite_plan(hasher: &mut Sha256, plan: &explore::ExploreFiniteTypePlan) {
+    match plan {
+        explore::ExploreFiniteTypePlan::Unit => {
+            checked_query_hash_component(hasher, "finite-plan-kind", "unit");
+        }
+        explore::ExploreFiniteTypePlan::Bool => {
+            checked_query_hash_component(hasher, "finite-plan-kind", "bool");
+        }
+        explore::ExploreFiniteTypePlan::Tuple {
+            elements,
+            cardinality,
+        } => {
+            checked_query_hash_component(hasher, "finite-plan-kind", "tuple");
+            checked_query_hash_component(
+                hasher,
+                "finite-cardinality",
+                &format!("{:?}", cardinality),
+            );
+            checked_query_hash_component(
+                hasher,
+                "finite-tuple-element-count",
+                &elements.len().to_string(),
+            );
+            for element in elements {
+                hash_checked_finite_plan(hasher, element);
+            }
+        }
+        explore::ExploreFiniteTypePlan::Sum {
+            type_name,
+            variants,
+            cardinality,
+        } => {
+            checked_query_hash_component(hasher, "finite-plan-kind", "sum");
+            checked_query_hash_component(hasher, "finite-type", type_name);
+            checked_query_hash_component(
+                hasher,
+                "finite-cardinality",
+                &format!("{:?}", cardinality),
+            );
+            checked_query_hash_component(
+                hasher,
+                "finite-sum-variant-count",
+                &variants.len().to_string(),
+            );
+            for (variant_index, variant) in variants.iter().enumerate() {
+                checked_query_hash_component(
+                    hasher,
+                    "finite-variant-index",
+                    &variant_index.to_string(),
+                );
+                checked_query_hash_component(hasher, "finite-variant", &variant.name);
+                checked_query_hash_component(
+                    hasher,
+                    "finite-variant-layout",
+                    if variant.positional {
+                        "positional"
+                    } else {
+                        "named"
+                    },
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "finite-variant-field-count",
+                    &variant.fields.len().to_string(),
+                );
+                for (field_index, field) in variant.fields.iter().enumerate() {
+                    checked_query_hash_component(
+                        hasher,
+                        "finite-field-index",
+                        &field_index.to_string(),
+                    );
+                    checked_query_hash_component(hasher, "finite-field", &field.name);
+                    hash_checked_finite_plan(hasher, &field.plan);
+                }
+            }
+        }
+    }
+}
+
+fn hash_checked_exact_domain(hasher: &mut Sha256, domain: &explore::ExploreExactDomain) {
+    match domain {
+        explore::ExploreExactDomain::Enumerated { values, source } => {
+            checked_query_hash_component(hasher, "domain-kind", "enumerated");
+            checked_query_hash_component(hasher, "domain-source", &format!("{:?}", source));
+            checked_query_hash_component(hasher, "domain-length", &values.len().to_string());
+            for value in values {
+                hash_checked_explore_value(hasher, value);
+            }
+        }
+        explore::ExploreExactDomain::IntRange {
+            start,
+            end_exclusive,
+            cardinality,
+        } => {
+            checked_query_hash_component(hasher, "domain-kind", "int-range");
+            checked_query_hash_component(hasher, "range-start", &start.to_string());
+            checked_query_hash_component(hasher, "range-end", &end_exclusive.to_string());
+            checked_query_hash_component(hasher, "range-cardinality", &cardinality.to_string());
+        }
+        explore::ExploreExactDomain::FiniteType { ty, plan } => {
+            checked_query_hash_component(hasher, "domain-kind", "finite-type");
+            checked_query_hash_component(hasher, "finite-type-ty", &format!("{:?}", ty));
+            hash_checked_finite_plan(hasher, plan);
+        }
+    }
+}
+
+fn hash_checked_universe(hasher: &mut Sha256, universe: &explore::ExploreUniverseIr) {
+    checked_query_hash_component(
+        hasher,
+        "dimension-count",
+        &universe.dimensions.len().to_string(),
+    );
+    for dimension in &universe.dimensions {
+        checked_query_hash_component(hasher, "dimension-name", &dimension.name);
+        checked_query_hash_component(
+            hasher,
+            "dimension-type",
+            &format!("{:?}", dimension.value_ty),
+        );
+        hash_checked_exact_domain(hasher, &dimension.domain);
+    }
+    checked_query_hash_component(hasher, "fact-count", &universe.facts.len().to_string());
+    for fact in &universe.facts {
+        checked_query_hash_component(hasher, "fact-name", &fact.name);
+        checked_query_hash_component(hasher, "fact-type", &format!("{:?}", fact.value_ty));
+        match &fact.value {
+            explore::ExploreFactValue::Fixed(value) => {
+                checked_query_hash_component(hasher, "fact-kind", "fixed");
+                hash_checked_explore_value(hasher, value);
+            }
+            explore::ExploreFactValue::Derived {
+                expression,
+                dependencies,
+            } => {
+                checked_query_hash_component(
+                    hasher,
+                    "fact-derived-expression",
+                    &format!("{:?}", strip_spans_expr(expression)),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "fact-dependencies",
+                    &format!("{:?}", dependencies),
+                );
+            }
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "constraint-count",
+        &universe.constraints.len().to_string(),
+    );
+    for constraint in &universe.constraints {
+        checked_query_hash_component(
+            hasher,
+            "constraint-scope",
+            &format!("{:?}", constraint.scope),
+        );
+        checked_query_hash_component(
+            hasher,
+            "constraint",
+            &format!("{:?}", strip_spans_expr(&constraint.predicate)),
+        );
+    }
+    checked_query_hash_component(
+        hasher,
+        "universe-sliced-count",
+        &universe.sliced_inputs.len().to_string(),
+    );
+    for input in &universe.sliced_inputs {
+        checked_query_hash_component(hasher, "universe-sliced-name", &input.name);
+        checked_query_hash_component(hasher, "universe-sliced-type", &format!("{:?}", input.ty));
+    }
+    checked_query_hash_component(
+        hasher,
+        "cartesian-count",
+        &format!("{:?}", universe.cartesian_count_before_constraints),
+    );
+    if let Some(boundary) = &universe.boundary {
+        checked_query_hash_component(
+            hasher,
+            "closed-boundary",
+            &format!(
+                "axis={:?};index={};step={};both={};recomputed={:?};eligible={:?};unconstrained={:?}",
+                boundary.axis,
+                boundary.axis_dimension_index,
+                boundary.step,
+                boundary.requires_both_endpoints_in_domain,
+                boundary.recomputed_fact_indices,
+                boundary.eligible_axis_pairs,
+                boundary.eligible_unconstrained_pairs,
+            ),
+        );
+    } else {
+        checked_query_hash_component(hasher, "closed-boundary", "none");
+    }
+}
+
+fn hash_checked_explore_closed_provenance(
+    hasher: &mut Sha256,
+    type_facts: &[CheckedExploreTypeFact],
+    ground_constructors: &[CheckedExploreGroundConstructor],
+    finite_plan_facts: &[CheckedExploreFinitePlanFact],
+) {
+    checked_query_hash_component(hasher, "type-fact-count", &type_facts.len().to_string());
+    for fact in type_facts {
+        checked_query_hash_component(hasher, "type-fact", &format!("{:?}", fact));
+    }
+    checked_query_hash_component(
+        hasher,
+        "ground-constructor-count",
+        &ground_constructors.len().to_string(),
+    );
+    for constructor in ground_constructors {
+        checked_query_hash_component(hasher, "ground-constructor", &format!("{:?}", constructor));
+    }
+    checked_query_hash_component(
+        hasher,
+        "finite-plan-fact-count",
+        &finite_plan_facts.len().to_string(),
+    );
+    for fact in finite_plan_facts {
+        checked_query_hash_component(hasher, "finite-plan-fact", &format!("{:?}", fact));
+    }
+}
+
+/// Producer-owned identity of the normalized finite universe independently of
+/// the queried rule, polarity and result projection. The explicit CaseId tags
+/// prevent a future rank-order change from silently reinterpreting durable
+/// evidence over an otherwise identical set of axis cardinalities.
+fn checked_explore_domain_digest(
+    closed_query: &explore::ExploreQueryIr,
+    type_facts: &[CheckedExploreTypeFact],
+    ground_constructors: &[CheckedExploreGroundConstructor],
+    finite_plan_facts: &[CheckedExploreFinitePlanFact],
+) -> Box<str> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-domain.v1\0");
+    checked_query_hash_component(&mut hasher, "case-id-axis-order", "source-dimension-order");
+    checked_query_hash_component(
+        &mut hasher,
+        "case-id-rank-order",
+        "mixed-radix-last-axis-fastest",
+    );
+    hash_checked_universe(&mut hasher, &closed_query.universe);
+    hash_checked_explore_closed_provenance(
+        &mut hasher,
+        type_facts,
+        ground_constructors,
+        finite_plan_facts,
+    );
+    format!("{:x}", hasher.finalize()).into_boxed_str()
+}
+
+fn checked_explore_query_digest(
+    program: &CheckedAnalysisProgram,
+    declaration: &SourcedStmt,
+    question: &RuleDispatchKey,
+    sites: &CheckedExploreQuerySites,
+    closed_query: &explore::ExploreQueryIr,
+    type_facts: &[CheckedExploreTypeFact],
+    ground_constructors: &[CheckedExploreGroundConstructor],
+    finite_plan_facts: &[CheckedExploreFinitePlanFact],
+) -> Box<str> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-query.v2\0");
+    checked_query_hash_component(&mut hasher, "analysis-program", program.id.as_str());
+    checked_query_hash_component(&mut hasher, "declaration", &declaration.id.semantic_key());
+    checked_query_hash_component(
+        &mut hasher,
+        "declaration-occurrence",
+        &declaration.normalized_ordinal.to_string(),
+    );
+    checked_query_hash_component(&mut hasher, "question", &format!("{:?}", question));
+    checked_query_hash_component(&mut hasher, "sites", &format!("{:?}", sites));
+    hash_checked_typed_query(&mut hasher, &closed_query.query);
+    hash_checked_universe(&mut hasher, &closed_query.universe);
+    hash_checked_explore_closed_provenance(
+        &mut hasher,
+        type_facts,
+        ground_constructors,
+        finite_plan_facts,
+    );
+    format!("{:x}", hasher.finalize()).into_boxed_str()
+}
+
+fn build_checked_explore_query_artifacts(
+    program: &CheckedAnalysisProgram,
+    resolutions: &CheckedResolutionArtifacts,
+    closed_queries: &[explore::ExploreQueryIr],
+) -> Result<Vec<CheckedExploreQueryArtifact>, CheckedExploreQueryArtifactIssue> {
+    let declarations = program
+        .declarations
+        .iter()
+        .filter(|declaration| {
+            matches!(&declaration.import_kind, SourcedImportKind::Root)
+                && matches!(&*declaration.statement, Stmt::Explore(_))
+        })
+        .collect::<Vec<_>>();
+    if declarations.len() != closed_queries.len() {
+        return Err(
+            CheckedExploreQueryArtifactIssue::AcceptedQueryCountMismatch {
+                declarations: declarations.len(),
+                closed_queries: closed_queries.len(),
+            },
+        );
+    }
+    let mut artifacts = Vec::with_capacity(closed_queries.len());
+    for (closed_query_index, (declaration, closed_query)) in
+        declarations.into_iter().zip(closed_queries).enumerate()
+    {
+        let Stmt::Explore(source_query) = &*declaration.statement else {
+            unreachable!("filtered Explore declaration")
+        };
+        let sites = checked_explore_query_sites(program, declaration, source_query);
+        if let Some(missing) = checked_explore_site_roots(&sites)
+            .into_iter()
+            .find(|site| !resolutions.expressions.contains_key(*site))
+        {
+            return Err(CheckedExploreQueryArtifactIssue::QuerySiteMissing(
+                missing.clone(),
+            ));
+        }
+        let question = RuleDispatchKey {
+            scope: None,
+            name: closed_query.query.rule_name.clone(),
+            arity: closed_query.query.rule_arity,
+        };
+        if !resolutions.rule_families.contains_key(&question) {
+            return Err(CheckedExploreQueryArtifactIssue::QuestionNotResolved(
+                question,
+            ));
+        }
+        let (type_facts, ground_constructors, finite_plan_facts) =
+            checked_explore_closed_facts(resolutions, closed_query)?;
+        let domain_digest = checked_explore_domain_digest(
+            closed_query,
+            &type_facts,
+            &ground_constructors,
+            &finite_plan_facts,
+        );
+        let digest = checked_explore_query_digest(
+            program,
+            declaration,
+            &question,
+            &sites,
+            closed_query,
+            &type_facts,
+            &ground_constructors,
+            &finite_plan_facts,
+        );
+        artifacts.push(CheckedExploreQueryArtifact {
+            identity: CheckedExploreQueryId {
+                analysis_program: program.id.clone(),
+                declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
+                digest,
+            },
+            domain_digest,
+            question,
+            sites,
+            closed_query_index,
+            type_facts,
+            ground_constructors,
+            finite_plan_facts,
+        });
+    }
+    Ok(artifacts)
+}
+
+#[derive(Debug, Clone)]
+struct CheckedLocalBinding {
+    kind: CheckedBinderKind,
+    site: CheckedBinderSiteId,
+    type_name: Option<String>,
+}
+
+/// Private marker carried only in the recorder's local type overlay. Source
+/// syntax cannot contain NUL, so this can never alias a user-authored type.
+/// Keeping the tombstone in the map is important: removing an untyped inner
+/// binder would let `infer_expr_type_name_with_locals` fall back to a typed
+/// top-level binding with the same spelling.
+const CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE: &str = "\0futuruna-checked-untyped-shadow";
+
+#[derive(Debug, Clone)]
+struct IndexedConstructor {
+    identity: CheckedConstructorIdentity,
+}
+
+enum ExactConstructorSignature {
+    NoMatch,
+    Unique(TypeConstructorSignature),
+    Ambiguous,
+}
+
+struct PendingCheckedRule {
+    rule: Rule,
+    declaration: SourcedStmt,
+    statement_path: Vec<u32>,
+}
+
+struct CheckedResolutionRecorder<'a> {
+    checker: &'a TypeChecker,
+    program: &'a CheckedAnalysisProgram,
+    artifacts: CheckedResolutionArtifacts,
+    scopes: Vec<BTreeMap<String, CheckedLocalBinding>>,
+    top_level_bindings: BTreeMap<String, Vec<CheckedTopLevelBindingId>>,
+    callables: BTreeMap<(Option<String>, String, usize), Vec<CheckedCallableId>>,
+    constructors: BTreeMap<(String, String), Vec<IndexedConstructor>>,
+    data_fields: BTreeMap<(String, String), Vec<CheckedVariantField>>,
+    data_owner_declarations: BTreeMap<String, BTreeSet<CheckedDeclarationOccurrenceId>>,
+    active_rule_scope_owners: BTreeMap<String, CheckedDeclarationOccurrenceId>,
+    qualified_aliases: BTreeMap<String, CheckedDeclarationOccurrenceId>,
+    pending_rules: BTreeMap<RuleDispatchKey, Vec<PendingCheckedRule>>,
+    duplicate_rule_scope_owners: BTreeSet<String>,
+    active_rule_scope: Option<String>,
+}
+
+impl<'a> CheckedResolutionRecorder<'a> {
+    const BINDER_PARAMETER: u32 = 0;
+    const BINDER_PATTERN: u32 = 1;
+    const BINDER_FOR: u32 = 2;
+    const BINDER_EXPLORE: u32 = 3;
+    const BINDER_HANDLER: u32 = 4;
+    const BINDER_CAPTURE: u32 = 5;
+
+    fn record(checker: &'a TypeChecker) -> CheckedResolutionArtifacts {
+        let program = &checker.analysis_program;
+        let mut active_rule_scope_owners = BTreeMap::new();
+        let mut rule_scope_owner_counts = BTreeMap::<String, usize>::new();
+        for declaration in program.declarations.iter() {
+            if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = &*declaration.statement {
+                active_rule_scope_owners.insert(name.clone(), Self::occurrence(declaration));
+                *rule_scope_owner_counts.entry(name.clone()).or_default() += 1;
+            }
+        }
+        let duplicate_rule_scope_owners = rule_scope_owner_counts
+            .into_iter()
+            .filter_map(|(name, count)| (count > 1).then_some(name))
+            .collect();
+        let mut recorder = Self {
+            checker,
+            program,
+            artifacts: CheckedResolutionArtifacts {
+                analysis_program: program.id.clone(),
+                source_snapshot_coherent: checker.checked_resolution_source_snapshot_coherent,
+                ..CheckedResolutionArtifacts::default()
+            },
+            scopes: vec![BTreeMap::new()],
+            top_level_bindings: BTreeMap::new(),
+            callables: BTreeMap::new(),
+            constructors: BTreeMap::new(),
+            data_fields: BTreeMap::new(),
+            data_owner_declarations: BTreeMap::new(),
+            active_rule_scope_owners,
+            qualified_aliases: BTreeMap::new(),
+            pending_rules: BTreeMap::new(),
+            duplicate_rule_scope_owners,
+            active_rule_scope: None,
+        };
+        recorder.index_program();
+        recorder.freeze_constructor_identities();
+        recorder.freeze_rule_families();
+        for declaration in program.declarations.iter() {
+            recorder.record_declaration(declaration);
+        }
+        recorder.artifacts
+    }
+
+    fn occurrence(declaration: &SourcedStmt) -> CheckedDeclarationOccurrenceId {
+        CheckedDeclarationOccurrenceId::from_sourced(declaration)
+    }
+
+    fn expression_site(&self, declaration: &SourcedStmt, path: &[u32]) -> ExprSiteId {
+        self.program.expression_site(declaration, path.to_vec())
+    }
+
+    fn structural_binder_site(
+        &self,
+        declaration: &SourcedStmt,
+        ast_path: &[u32],
+        binder_path: Vec<u32>,
+    ) -> CheckedBinderSiteId {
+        CheckedBinderSiteId::Structural {
+            analysis_program: self.program.id.clone(),
+            declaration: declaration.id.clone(),
+            normalized_declaration_ordinal: declaration.normalized_ordinal,
+            ast_path: ast_path.to_vec().into_boxed_slice(),
+            binder_path: binder_path.into_boxed_slice(),
+        }
+    }
+
+    fn pattern_site(
+        &self,
+        declaration: &SourcedStmt,
+        ast_path: &[u32],
+        pattern_path: &[u32],
+    ) -> CheckedPatternSiteId {
+        CheckedPatternSiteId {
+            analysis_program: self.program.id.clone(),
+            declaration: declaration.id.clone(),
+            normalized_declaration_ordinal: declaration.normalized_ordinal,
+            ast_path: ast_path.to_vec().into_boxed_slice(),
+            pattern_path: pattern_path.to_vec().into_boxed_slice(),
+        }
+    }
+
+    fn issue(&mut self, site: &ExprSiteId, issue: CheckedResolutionIssue) {
+        self.artifacts
+            .unsupported_sites
+            .entry(site.clone())
+            .or_default()
+            .insert(issue);
+    }
+
+    fn path_child(path: &[u32], child: usize) -> Vec<u32> {
+        let mut result = path.to_vec();
+        result.push(child as u32);
+        result
+    }
+
+    fn intrinsic_data_type_id(name: &str) -> CheckedDataTypeId {
+        CheckedDataTypeId::Intrinsic {
+            canonical_name: name.to_string().into_boxed_str(),
+        }
+    }
+
+    fn intrinsic_constructor_identity(
+        owner_type: &str,
+        variant: &str,
+    ) -> Option<CheckedConstructorIdentity> {
+        let (variant_index, layout, field_names): (usize, CheckedConstructorLayout, &[&str]) =
+            match (owner_type, variant) {
+                ("Option", "None") => (0, CheckedConstructorLayout::Positional, &[]),
+                ("Option", "Some") => (1, CheckedConstructorLayout::Positional, &["_0"]),
+                ("Result", "Ok") => (0, CheckedConstructorLayout::Positional, &["_0"]),
+                ("Result", "Err") => (1, CheckedConstructorLayout::Positional, &["_0"]),
+                ("Pair", "Pair") => (0, CheckedConstructorLayout::Named, &["fst", "snd"]),
+                ("Bool", "True") => (0, CheckedConstructorLayout::Positional, &[]),
+                ("Bool", "False") => (1, CheckedConstructorLayout::Positional, &[]),
+                _ => return None,
+            };
+        let owner = Self::intrinsic_data_type_id(owner_type);
+        let fields = field_names
+            .iter()
+            .enumerate()
+            .map(|(field_index, name)| CheckedDataFieldId {
+                owner: owner.clone(),
+                variant_index,
+                field_index,
+                name: (*name).to_string().into_boxed_str(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        Some(CheckedConstructorIdentity {
+            owner,
+            owner_type: owner_type.to_string().into_boxed_str(),
+            variant: variant.to_string().into_boxed_str(),
+            variant_index,
+            layout,
+            fields,
+        })
+    }
+
+    fn freeze_constructor_identities(&mut self) {
+        for (owner, declarations) in &self.data_owner_declarations {
+            if declarations.len() != 1 || self.duplicate_rule_scope_owners.contains(owner) {
+                self.artifacts.data_type_identities.remove(owner.as_str());
+            }
+        }
+
+        for ((owner, variant), constructors) in &self.constructors {
+            let owner_is_unique = self
+                .data_owner_declarations
+                .get(owner)
+                .is_some_and(|declarations| declarations.len() == 1)
+                && !self.duplicate_rule_scope_owners.contains(owner);
+            if !owner_is_unique {
+                continue;
+            }
+            if let [constructor] = constructors.as_slice() {
+                self.artifacts.constructor_identities.insert(
+                    (
+                        owner.clone().into_boxed_str(),
+                        variant.clone().into_boxed_str(),
+                    ),
+                    Arc::new(constructor.identity.clone()),
+                );
+            }
+        }
+        for (owner, variant) in [
+            ("Option", "None"),
+            ("Option", "Some"),
+            ("Result", "Ok"),
+            ("Result", "Err"),
+            ("Pair", "Pair"),
+            ("Bool", "True"),
+            ("Bool", "False"),
+        ] {
+            if self.data_owner_declarations.contains_key(owner)
+                || self
+                    .constructors
+                    .contains_key(&(owner.to_string(), variant.to_string()))
+            {
+                continue;
+            }
+            let identity = Self::intrinsic_constructor_identity(owner, variant)
+                .expect("closed intrinsic constructor table");
+            for field in identity.fields.iter().cloned() {
+                self.data_fields
+                    .entry((owner.to_string(), field.name.to_string()))
+                    .or_default()
+                    .push(CheckedVariantField {
+                        variant: variant.into(),
+                        variant_index: identity.variant_index,
+                        field_index: field.field_index,
+                        layout: identity.layout,
+                        identity: field,
+                    });
+            }
+            self.artifacts
+                .constructor_identities
+                .insert((owner.into(), variant.into()), Arc::new(identity));
+            self.artifacts
+                .data_type_identities
+                .entry(owner.into())
+                .or_insert_with(|| Self::intrinsic_data_type_id(owner));
+        }
+        for intrinsic in [
+            "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
+            "Stream", "Subject", "Db", "TypeDef", "Set", "Map",
+        ] {
+            if self.data_owner_declarations.contains_key(intrinsic) {
+                continue;
+            }
+            self.artifacts
+                .data_type_identities
+                .entry(intrinsic.into())
+                .or_insert_with(|| Self::intrinsic_data_type_id(intrinsic));
+        }
+    }
+
+    fn index_program(&mut self) {
+        let declarations = self.program.declarations.clone();
+        for declaration in declarations.iter() {
+            let occurrence = Self::occurrence(declaration);
+            match &*declaration.statement {
+                Stmt::QualifiedImport(alias, _) => {
+                    self.qualified_aliases
+                        .insert(alias.clone(), occurrence.clone());
+                    self.artifacts.opaque_qualified_owners.insert(
+                        occurrence.clone(),
+                        CheckedOpaqueQualifiedOwner {
+                            declaration: occurrence,
+                            target_module: declaration.qualified_target_module.clone(),
+                        },
+                    );
+                }
+                Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                    self.callables
+                        .entry((None, name.clone(), params.len()))
+                        .or_default()
+                        .push(CheckedCallableId {
+                            declaration: occurrence,
+                            structural_path: Box::new([]),
+                        });
+                }
+                Stmt::Defn(Defn::Module { name, .. }) => {
+                    self.qualified_aliases
+                        .insert(name.clone(), occurrence.clone());
+                    self.artifacts.opaque_qualified_owners.insert(
+                        occurrence.clone(),
+                        CheckedOpaqueQualifiedOwner {
+                            declaration: occurrence,
+                            target_module: None,
+                        },
+                    );
+                }
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    variants,
+                    methods,
+                    ..
+                }) => {
+                    let owner = CheckedDataTypeId::Declared(occurrence.clone());
+                    self.data_owner_declarations
+                        .entry(name.clone())
+                        .or_default()
+                        .insert(occurrence.clone());
+                    self.artifacts
+                        .data_type_identities
+                        .insert(name.clone().into_boxed_str(), owner.clone());
+                    for (variant_index, variant) in variants.iter().enumerate() {
+                        let layout = if variant.positional || variant.fields.is_empty() {
+                            CheckedConstructorLayout::Positional
+                        } else {
+                            CheckedConstructorLayout::Named
+                        };
+                        let exact_fields = variant
+                            .fields
+                            .iter()
+                            .enumerate()
+                            .map(|(field_index, field)| CheckedDataFieldId {
+                                owner: owner.clone(),
+                                variant_index,
+                                field_index,
+                                name: field.name.clone().into_boxed_str(),
+                            })
+                            .collect::<Vec<_>>();
+                        let identity = CheckedConstructorIdentity {
+                            owner: owner.clone(),
+                            owner_type: name.clone().into_boxed_str(),
+                            variant: variant.name.clone().into_boxed_str(),
+                            variant_index,
+                            layout,
+                            fields: exact_fields.clone().into_boxed_slice(),
+                        };
+                        self.constructors
+                            .entry((name.clone(), variant.name.clone()))
+                            .or_default()
+                            .push(IndexedConstructor { identity });
+                        for (field, identity) in variant.fields.iter().zip(exact_fields) {
+                            self.data_fields
+                                .entry((name.clone(), field.name.clone()))
+                                .or_default()
+                                .push(CheckedVariantField {
+                                    variant: variant.name.clone().into_boxed_str(),
+                                    variant_index,
+                                    field_index: identity.field_index,
+                                    layout,
+                                    identity,
+                                });
+                        }
+                    }
+                    let mut child_index = 0;
+                    for method in methods {
+                        match method {
+                            Defn::Fn {
+                                name: method,
+                                params,
+                                ..
+                            } => {
+                                self.callables
+                                    .entry((Some(name.clone()), method.clone(), params.len()))
+                                    .or_default()
+                                    .push(CheckedCallableId {
+                                        declaration: occurrence.clone(),
+                                        structural_path: vec![child_index].into_boxed_slice(),
+                                    });
+                                child_index += 1;
+                            }
+                            Defn::Actor { handlers, .. } => {
+                                child_index += handlers.len() as u32;
+                            }
+                            Defn::Module { body, .. } => {
+                                child_index += body.len() as u32;
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::ImplBlock {
+                    for_type, methods, ..
+                }) => {
+                    let mut child_index = 0;
+                    for method in methods {
+                        match method {
+                            Defn::Fn { name, params, .. } => {
+                                self.callables
+                                    .entry((Some(for_type.clone()), name.clone(), params.len()))
+                                    .or_default()
+                                    .push(CheckedCallableId {
+                                        declaration: occurrence.clone(),
+                                        structural_path: vec![child_index].into_boxed_slice(),
+                                    });
+                                child_index += 1;
+                            }
+                            Defn::Actor { handlers, .. } => {
+                                child_index += handlers.len() as u32;
+                            }
+                            Defn::Module { body, .. } => {
+                                child_index += body.len() as u32;
+                            }
+                        }
+                    }
+                }
+                Stmt::TypeDecl(TypeDecl::RuleScope {
+                    name, params, body, ..
+                }) => {
+                    if self.active_rule_scope_owners.get(name) != Some(&occurrence) {
+                        continue;
+                    }
+                    self.data_owner_declarations
+                        .entry(name.clone())
+                        .or_default()
+                        .insert(occurrence.clone());
+                    let owner = CheckedDataTypeId::Declared(occurrence.clone());
+                    self.artifacts
+                        .data_type_identities
+                        .insert(name.clone().into_boxed_str(), owner.clone());
+                    let exact_fields = params
+                        .iter()
+                        .enumerate()
+                        .map(|(field_index, parameter)| CheckedDataFieldId {
+                            owner: owner.clone(),
+                            variant_index: 0,
+                            field_index,
+                            name: parameter.name.clone().into_boxed_str(),
+                        })
+                        .collect::<Vec<_>>();
+                    self.constructors
+                        .entry((name.clone(), name.clone()))
+                        .or_default()
+                        .push(IndexedConstructor {
+                            identity: CheckedConstructorIdentity {
+                                owner,
+                                owner_type: name.clone().into_boxed_str(),
+                                variant: name.clone().into_boxed_str(),
+                                variant_index: 0,
+                                layout: CheckedConstructorLayout::Named,
+                                fields: exact_fields.clone().into_boxed_slice(),
+                            },
+                        });
+                    for (parameter, identity) in params.iter().zip(exact_fields) {
+                        self.data_fields
+                            .entry((name.clone(), parameter.name.clone()))
+                            .or_default()
+                            .push(CheckedVariantField {
+                                variant: name.clone().into_boxed_str(),
+                                variant_index: 0,
+                                field_index: identity.field_index,
+                                layout: CheckedConstructorLayout::Named,
+                                identity,
+                            });
+                    }
+                    for (statement_index, statement) in body.iter().enumerate() {
+                        let statement_path = vec![statement_index as u32];
+                        match statement {
+                            Stmt::Rule(rule) => self.index_rule(
+                                declaration,
+                                rule,
+                                statement_path,
+                                Some(name.clone()),
+                            ),
+                            Stmt::Defn(Defn::Fn {
+                                name: member,
+                                params,
+                                ..
+                            }) => {
+                                self.callables
+                                    .entry((Some(name.clone()), member.clone(), params.len()))
+                                    .or_default()
+                                    .push(CheckedCallableId {
+                                        declaration: occurrence.clone(),
+                                        structural_path: statement_path.into_boxed_slice(),
+                                    });
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                Stmt::Rule(rule) => self.index_rule(declaration, rule, Vec::new(), None),
+                Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+                    self.index_top_level_pattern(declaration, pattern, Vec::new());
+                }
+                Stmt::StreamBind(name, _) => {
+                    self.top_level_bindings
+                        .entry(name.clone())
+                        .or_default()
+                        .push(CheckedTopLevelBindingId {
+                            declaration: occurrence,
+                            binder_path: vec![Self::BINDER_PATTERN, 0].into_boxed_slice(),
+                        });
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn index_top_level_pattern(
+        &mut self,
+        declaration: &SourcedStmt,
+        pattern: &Pat,
+        path: Vec<u32>,
+    ) {
+        match pattern {
+            Pat::Var(name) => {
+                let mut binder_path = vec![Self::BINDER_PATTERN];
+                binder_path.extend(path);
+                self.top_level_bindings
+                    .entry(name.clone())
+                    .or_default()
+                    .push(CheckedTopLevelBindingId {
+                        declaration: Self::occurrence(declaration),
+                        binder_path: binder_path.into_boxed_slice(),
+                    });
+            }
+            Pat::Con(_, patterns) => {
+                for (index, pattern) in patterns.iter().enumerate() {
+                    let mut child = path.clone();
+                    child.push(index as u32);
+                    self.index_top_level_pattern(declaration, pattern, child);
+                }
+            }
+            Pat::NamedCon(_, fields) => {
+                for (index, (_, pattern)) in fields.iter().enumerate() {
+                    let mut child = path.clone();
+                    child.push(index as u32);
+                    self.index_top_level_pattern(declaration, pattern, child);
+                }
+            }
+            Pat::As(pattern, name) => {
+                self.index_top_level_pattern(declaration, pattern, path.clone());
+                let mut binder_path = vec![Self::BINDER_PATTERN];
+                binder_path.extend(path);
+                binder_path.push(u32::MAX);
+                self.top_level_bindings
+                    .entry(name.clone())
+                    .or_default()
+                    .push(CheckedTopLevelBindingId {
+                        declaration: Self::occurrence(declaration),
+                        binder_path: binder_path.into_boxed_slice(),
+                    });
+            }
+            Pat::Wild | Pat::Lit(_) => {}
+        }
+    }
+
+    fn index_rule(
+        &mut self,
+        declaration: &SourcedStmt,
+        rule: &Rule,
+        statement_path: Vec<u32>,
+        scope: Option<String>,
+    ) {
+        let Some((name, arity)) = rule.callable_name_arity() else {
+            return;
+        };
+        let key = RuleDispatchKey { scope, name, arity };
+        self.pending_rules
+            .entry(key)
+            .or_default()
+            .push(PendingCheckedRule {
+                rule: rule.clone(),
+                declaration: declaration.clone(),
+                statement_path,
+            });
+    }
+
+    fn freeze_rule_families(&mut self) {
+        let pending = std::mem::take(&mut self.pending_rules);
+        for (key, rules) in pending {
+            let plan = RuleDispatchPlan::from_rules(rules.iter().map(|candidate| &candidate.rule));
+            let candidates = plan
+                .candidates()
+                .filter_map(|candidate| {
+                    let pending = rules.get(candidate.source_order)?;
+                    let tier = pending.rule.dispatch_tier()?;
+                    let head_path = Self::path_child(&pending.statement_path, 0);
+                    let value_path = match &pending.rule {
+                        Rule::Clause { body: Some(_), .. }
+                        | Rule::Default { .. }
+                        | Rule::Exception { .. } => {
+                            Some(Self::path_child(&pending.statement_path, 1))
+                        }
+                        Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => None,
+                    };
+                    let condition_path = match &pending.rule {
+                        Rule::Default {
+                            condition: Some(_), ..
+                        }
+                        | Rule::Exception {
+                            condition: Some(_), ..
+                        } => Some(Self::path_child(&pending.statement_path, 2)),
+                        _ => None,
+                    };
+                    Some(CheckedRuleCandidateResolution {
+                        tier,
+                        source_order: candidate.source_order,
+                        declaration: Self::occurrence(&pending.declaration),
+                        statement_path: pending.statement_path.clone().into_boxed_slice(),
+                        head_site: self.expression_site(&pending.declaration, &head_path),
+                        condition_site: condition_path
+                            .as_ref()
+                            .map(|path| self.expression_site(&pending.declaration, path)),
+                        value_site: value_path
+                            .as_ref()
+                            .map(|path| self.expression_site(&pending.declaration, path)),
+                    })
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice();
+            self.artifacts
+                .rule_families
+                .insert(key.clone(), CheckedRuleFamilyResolution { key, candidates });
+        }
+    }
+
+    fn push_scope(&mut self) {
+        self.scopes.push(BTreeMap::new());
+    }
+
+    fn pop_scope(&mut self) {
+        self.scopes.pop();
+    }
+
+    fn define_local(&mut self, name: String, binding: CheckedLocalBinding) {
+        self.scopes
+            .last_mut()
+            .expect("checked resolution always has a lexical scope")
+            .insert(name, binding);
+    }
+
+    fn local(&self, name: &str) -> Option<CheckedLocalBinding> {
+        self.scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.get(name).cloned())
+    }
+
+    fn type_locals(&self) -> BTreeMap<String, String> {
+        let mut locals = BTreeMap::new();
+        for scope in &self.scopes {
+            for (name, binding) in scope {
+                match &binding.type_name {
+                    Some(type_name) => {
+                        locals.insert(name.clone(), type_name.clone());
+                    }
+                    None => {
+                        // An untyped inner binder is still a lexical shadow. It
+                        // must mask, rather than merely erase, an outer/global
+                        // type fact. The inference seam recognizes this private
+                        // marker and refuses its own global fallback.
+                        locals.insert(
+                            name.clone(),
+                            CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE.to_string(),
+                        );
+                    }
+                }
+            }
+        }
+        locals
+    }
+
+    fn infer_type(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        expression: &Expr,
+    ) -> CheckedExpressionType {
+        let site = self.expression_site(declaration, path);
+        let locals = self.type_locals();
+        let Some(type_name) = self
+            .checker
+            .infer_expr_type_name_with_locals(expression, &locals)
+        else {
+            self.issue(&site, CheckedResolutionIssue::TypeNotResolved);
+            return CheckedExpressionType::Unsupported;
+        };
+        match parse_type_annotation(&type_name) {
+            Ok(ty) => CheckedExpressionType::Resolved(ty),
+            Err(_) => {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::TypeNotRepresentable(type_name.into_boxed_str()),
+                );
+                CheckedExpressionType::Unsupported
+            }
+        }
+    }
+
+    /// Runtime value lookup places ordinary root functions, ADT methods and
+    /// implementation methods ahead of rule values and constructors. Phase A
+    /// retains an exact identity for those callable forms. Multiple retained
+    /// candidates remain unsupported here instead of guessing which legacy
+    /// flat-registry insertion won.
+    fn bare_runtime_callable_candidates(&self, name: &str) -> Vec<CheckedCallableId> {
+        let mut candidates = self
+            .callables
+            .iter()
+            .filter(|((_, candidate_name, _), _)| candidate_name == name)
+            .flat_map(|((scope, _, _), callables)| {
+                callables.iter().filter(move |callable| {
+                    scope.is_none()
+                        || matches!(
+                            callable.declaration.declaration.kind,
+                            DeclarationKind::Adt | DeclarationKind::Implementation
+                        )
+                })
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        candidates.sort_by(|left, right| {
+            left.declaration
+                .normalized_ordinal
+                .cmp(&right.declaration.normalized_ordinal)
+                .then_with(|| left.structural_path.cmp(&right.structural_path))
+        });
+        candidates.dedup();
+        candidates
+    }
+
+    /// A rule used as a first-class value dispatches by the arity supplied
+    /// later to `apply_rule_value`: an active RuleScope family wins for its
+    /// arity, otherwise the root family is used. A single checked RuleFamily
+    /// identity is sound only when that effective table has one entry.
+    fn effective_rule_value_candidates(&self, name: &str) -> Vec<RuleDispatchKey> {
+        let mut by_arity = self
+            .artifacts
+            .rule_families
+            .keys()
+            .filter(|key| key.scope.is_none() && key.name == name)
+            .map(|key| (key.arity, key.clone()))
+            .collect::<BTreeMap<_, _>>();
+        if let Some(scope) = &self.active_rule_scope {
+            for key in self
+                .artifacts
+                .rule_families
+                .keys()
+                .filter(|key| key.scope.as_deref() == Some(scope.as_str()) && key.name == name)
+            {
+                by_arity.insert(key.arity, key.clone());
+            }
+        }
+        by_arity.into_values().collect()
+    }
+
+    fn resolve_var(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        name: &str,
+    ) -> Option<CheckedValueBinding> {
+        let site = self.expression_site(declaration, path);
+        if let Some(binding) = self.local(name) {
+            return Some(CheckedValueBinding::Binder {
+                kind: binding.kind,
+                site: binding.site,
+            });
+        }
+        if let Some(owner) = self.qualified_aliases.get(name).cloned() {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::OpaqueQualifiedBody(owner.clone()),
+            );
+            return Some(CheckedValueBinding::OpaqueQualifiedOwner(owner));
+        }
+        if let Some(bindings) = self.top_level_bindings.get(name).cloned() {
+            return match bindings.as_slice() {
+                [binding] => Some(CheckedValueBinding::TopLevel(binding.clone())),
+                _ => {
+                    self.issue(
+                        &site,
+                        CheckedResolutionIssue::AmbiguousValueBinding(
+                            name.to_string().into_boxed_str(),
+                        ),
+                    );
+                    None
+                }
+            };
+        }
+
+        let callables = self.bare_runtime_callable_candidates(name);
+        if !callables.is_empty() && self.checker.constructor_signatures.contains_key(name) {
+            // Functions and constructors both install values in the runtime
+            // Env; their source-order winner is not represented by the
+            // namespace-only lookup below.
+            self.issue(
+                &site,
+                CheckedResolutionIssue::AmbiguousValueBinding(name.to_string().into_boxed_str()),
+            );
+            return None;
+        }
+        match callables.as_slice() {
+            [callable] => return Some(CheckedValueBinding::Callable(callable.clone())),
+            [] => {}
+            _ => {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::AmbiguousValueBinding(
+                        name.to_string().into_boxed_str(),
+                    ),
+                );
+                return None;
+            }
+        }
+
+        // Some runtime functions (for example raw Rust declarations or trait
+        // signatures) do not yet have a Phase-A callable occurrence. They
+        // still outrank rule values at runtime, so fail closed rather than
+        // redirecting the name to a rule or constructor.
+        if self
+            .checker
+            .reference_symbols
+            .get(name)
+            .is_some_and(|kinds| kinds.contains(&ProgramSymbolKind::Function))
+        {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::ValueBindingNotResolved(name.to_string().into_boxed_str()),
+            );
+            return None;
+        }
+
+        let rule_families = self.effective_rule_value_candidates(name);
+        if !rule_families.is_empty()
+            && (self.checker.constructor_signatures.contains_key(name)
+                || self.checker.builtins.contains_key(builtin_canonical(name)))
+        {
+            // A bare rule name is materialized only after runtime Env lookup;
+            // constructor and builtin values therefore make the first-class
+            // value identity collision-dependent.
+            self.issue(
+                &site,
+                CheckedResolutionIssue::AmbiguousValueBinding(name.to_string().into_boxed_str()),
+            );
+            return None;
+        }
+        match rule_families.as_slice() {
+            [key] => return Some(CheckedValueBinding::RuleFamily(key.clone())),
+            [] => {}
+            _ => {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::AmbiguousValueBinding(
+                        name.to_string().into_boxed_str(),
+                    ),
+                );
+                return None;
+            }
+        }
+        if self.duplicate_rule_scope_owners.contains(name)
+            && self.checker.constructor_signatures.contains_key(name)
+        {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::AmbiguousValueBinding(name.to_string().into_boxed_str()),
+            );
+            return None;
+        }
+        if let Some(signatures) = self.checker.constructor_signatures.get(name) {
+            let signature = match signatures.as_slice() {
+                [signature] if signature.arity() == 0 => signature.clone(),
+                [_] => {
+                    self.issue(
+                        &site,
+                        CheckedResolutionIssue::UnsupportedExpression(
+                            "non-nullary constructor used as a value".into(),
+                        ),
+                    );
+                    return None;
+                }
+                [] => return None,
+                _ => {
+                    // Constructor declarations install a same-named runtime
+                    // value in source order. A unique nullary signature is not
+                    // enough when another arity/layout can own that value.
+                    self.issue(
+                        &site,
+                        CheckedResolutionIssue::AmbiguousValueBinding(
+                            name.to_string().into_boxed_str(),
+                        ),
+                    );
+                    return None;
+                }
+            };
+            let (declaration_id, variant_index) =
+                match self.indexed_constructor_identity(&signature.parent, name) {
+                    Ok(identity) => identity,
+                    Err(()) => {
+                        self.issue(
+                            &site,
+                            CheckedResolutionIssue::AmbiguousValueBinding(
+                                name.to_string().into_boxed_str(),
+                            ),
+                        );
+                        return None;
+                    }
+                };
+            return Some(CheckedValueBinding::Constructor {
+                declaration: declaration_id,
+                owner_type: signature.parent.into_boxed_str(),
+                variant: name.to_string().into_boxed_str(),
+                variant_index,
+            });
+        }
+        // Callable-position variables are suppressed by their App parent, so
+        // reaching this branch means the builtin is genuinely first-class.
+        // CheckedValueBinding has no builtin-value identity yet.
+        if self.checker.builtins.contains_key(builtin_canonical(name)) {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::UnsupportedExpression(
+                    "builtin used as a first-class value".into(),
+                ),
+            );
+            None
+        } else {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::ValueBindingNotResolved(name.to_string().into_boxed_str()),
+            );
+            None
+        }
+    }
+
+    fn exact_callable_target(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        scope: Option<String>,
+        name: &str,
+        arity: usize,
+    ) -> Option<CheckedCallTarget> {
+        let site = self.expression_site(declaration, path);
+        let key = RuleDispatchKey {
+            scope: scope.clone(),
+            name: name.to_string(),
+            arity,
+        };
+        let rules = self.artifacts.rule_families.contains_key(&key);
+        let functions = self
+            .callables
+            .get(&(scope, name.to_string(), arity))
+            .cloned()
+            .unwrap_or_default();
+        match (functions.as_slice(), rules) {
+            ([callable], false) => Some(CheckedCallTarget::Function {
+                callable: callable.clone(),
+                arity,
+            }),
+            ([], true) => Some(CheckedCallTarget::RuleFamily(key)),
+            ([], false) => None,
+            _ => {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::AmbiguousCallable {
+                        name: name.to_string().into_boxed_str(),
+                        arity,
+                    },
+                );
+                None
+            }
+        }
+    }
+
+    fn has_callable_candidates(&self, scope: Option<&str>, name: &str, arity: usize) -> bool {
+        let key = RuleDispatchKey {
+            scope: scope.map(ToString::to_string),
+            name: name.to_string(),
+            arity,
+        };
+        self.artifacts.rule_families.contains_key(&key)
+            || self
+                .callables
+                .get(&(scope.map(ToString::to_string), name.to_string(), arity))
+                .is_some_and(|candidates| !candidates.is_empty())
+    }
+
+    fn exact_constructor_signature(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        effective_arity: usize,
+    ) -> ExactConstructorSignature {
+        // The legacy checker retains historical constructor signatures for a
+        // duplicate RuleScope while the runtime rule/member owner is replaced
+        // wholesale by the latest declaration. Until a signature itself
+        // carries an occurrence identity, pairing either historical layout
+        // with the latest owner would be an invented resolution.
+        if self.duplicate_rule_scope_owners.contains(name) {
+            return ExactConstructorSignature::Ambiguous;
+        }
+        let Some(signatures) = self.checker.constructor_signatures.get(name) else {
+            return ExactConstructorSignature::NoMatch;
+        };
+        let matching = signatures
+            .iter()
+            .filter(|signature| {
+                if effective_arity == arguments.len() {
+                    signature.matches_args(arguments)
+                } else {
+                    !has_named_args(arguments) && signature.arity() == effective_arity
+                }
+            })
+            .collect::<Vec<_>>();
+        match matching.as_slice() {
+            [] => ExactConstructorSignature::NoMatch,
+            [signature] => ExactConstructorSignature::Unique((*signature).clone()),
+            _ => ExactConstructorSignature::Ambiguous,
+        }
+    }
+
+    fn indexed_constructor_identity(
+        &self,
+        owner_type: &str,
+        variant: &str,
+    ) -> Result<(Option<CheckedDeclarationOccurrenceId>, Option<usize>), ()> {
+        let prelude_constructor = matches!(
+            (owner_type, variant),
+            ("Option", "None" | "Some")
+                | ("Result", "Ok" | "Err")
+                | ("Pair", "Pair")
+                | ("Bool", "True" | "False")
+        );
+        if prelude_constructor && self.data_owner_declarations.contains_key(owner_type) {
+            return Err(());
+        }
+        if self
+            .data_owner_declarations
+            .get(owner_type)
+            .is_some_and(|declarations| declarations.len() != 1)
+        {
+            return Err(());
+        }
+        match self
+            .constructors
+            .get(&(owner_type.to_string(), variant.to_string()))
+            .map(Vec::as_slice)
+        {
+            Some([constructor]) if !prelude_constructor => Ok((
+                match &constructor.identity.owner {
+                    CheckedDataTypeId::Declared(declaration) => Some(declaration.clone()),
+                    CheckedDataTypeId::Intrinsic { .. } => None,
+                },
+                Some(constructor.identity.variant_index),
+            )),
+            Some(_) => Err(()),
+            None if prelude_constructor => Ok((None, None)),
+            None => Err(()),
+        }
+    }
+
+    fn checked_constructor_identity(
+        &self,
+        owner_type: &str,
+        variant: &str,
+    ) -> Option<CheckedConstructorIdentity> {
+        self.artifacts
+            .constructor_identities
+            .get(&(owner_type.into(), variant.into()))
+            .map(|identity| identity.as_ref().clone())
+    }
+
+    fn named_order(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        arguments: &[Expr],
+        parameters: Option<Vec<String>>,
+    ) -> Option<CheckedNamedArgumentOrder> {
+        if !has_named_args(arguments) {
+            return None;
+        }
+        let site = self.expression_site(declaration, path);
+        let Some(parameters) = parameters else {
+            self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
+            return None;
+        };
+        if !all_named_args(arguments)
+            || reorder_named_args_by_names(&parameters, arguments).is_none()
+        {
+            self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
+            return None;
+        }
+        let source_names = arguments
+            .iter()
+            .filter_map(named_arg_parts)
+            .map(|(name, _)| name)
+            .collect::<Vec<_>>();
+        let canonical_source_indices = parameters
+            .iter()
+            .map(|parameter| {
+                source_names
+                    .iter()
+                    .position(|name| *name == parameter.as_str())
+            })
+            .collect::<Option<Vec<_>>>();
+        let Some(canonical_source_indices) = canonical_source_indices else {
+            self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
+            return None;
+        };
+        Some(CheckedNamedArgumentOrder {
+            parameter_names: parameters
+                .into_iter()
+                .map(String::into_boxed_str)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            canonical_source_indices: canonical_source_indices.into_boxed_slice(),
+        })
+    }
+
+    fn resolve_call(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        function: &Expr,
+        arguments: &[Expr],
+        effective_arity: usize,
+    ) -> (Option<CheckedCallTarget>, Option<CheckedNamedArgumentOrder>) {
+        let site = self.expression_site(declaration, path);
+        if let ExprKind::Var(name) = &function.kind {
+            if matches!(
+                name.as_str(),
+                NAMED_ARG_MARKER | "__typed" | PATHOF_MARKER | REFOF_MARKER
+            ) {
+                return (
+                    Some(CheckedCallTarget::Builtin {
+                        canonical_name: name.clone().into_boxed_str(),
+                        arity: effective_arity,
+                    }),
+                    None,
+                );
+            }
+            if let Some(scope) = self.active_rule_scope.clone() {
+                if let Some(target) = self.exact_callable_target(
+                    declaration,
+                    path,
+                    Some(scope.clone()),
+                    name,
+                    effective_arity,
+                ) {
+                    let parameters = self
+                        .checker
+                        .rule_scope_method_params
+                        .get(&scope)
+                        .and_then(|methods| methods.get(name))
+                        .or_else(|| {
+                            self.checker
+                                .rule_scope_value_method_params
+                                .get(&scope)
+                                .and_then(|methods| methods.get(name))
+                        })
+                        .cloned();
+                    let order = self.named_order(declaration, path, arguments, parameters);
+                    return (Some(target), order);
+                }
+                if self.has_callable_candidates(Some(&scope), name, effective_arity) {
+                    return (None, None);
+                }
+            }
+
+            // Runtime App semantics consult a lexical closure before any
+            // constructor, root function or rule family. Its concrete target
+            // is dynamic, but a same-named global must never be invented.
+            if self.local(name).is_some() {
+                self.issue(&site, CheckedResolutionIssue::DynamicCallable);
+                return (None, None);
+            }
+            if self.top_level_bindings.contains_key(name) {
+                // Runtime App consults the completed top-level Env at this
+                // point and applies the value when it is a closure. Phase B
+                // retains the binding occurrence but not its evaluated value,
+                // so it must not redirect the call to a same-named static
+                // constructor/function/rule.
+                self.issue(&site, CheckedResolutionIssue::DynamicCallable);
+                return (None, None);
+            }
+
+            match self.exact_constructor_signature(name, arguments, effective_arity) {
+                ExactConstructorSignature::Unique(signature) => {
+                    let Ok((constructor, variant_index)) =
+                        self.indexed_constructor_identity(&signature.parent, name)
+                    else {
+                        self.issue(
+                            &site,
+                            CheckedResolutionIssue::AmbiguousCallable {
+                                name: name.clone().into_boxed_str(),
+                                arity: effective_arity,
+                            },
+                        );
+                        return (None, None);
+                    };
+                    let order =
+                        self.named_order(declaration, path, arguments, Some(signature.fields));
+                    return (
+                        Some(CheckedCallTarget::Constructor {
+                            declaration: constructor,
+                            owner_type: signature.parent.into_boxed_str(),
+                            variant: name.clone().into_boxed_str(),
+                            variant_index,
+                            arity: effective_arity,
+                        }),
+                        order,
+                    );
+                }
+                ExactConstructorSignature::Ambiguous => {
+                    self.issue(
+                        &site,
+                        CheckedResolutionIssue::AmbiguousCallable {
+                            name: name.clone().into_boxed_str(),
+                            arity: effective_arity,
+                        },
+                    );
+                    return (None, None);
+                }
+                ExactConstructorSignature::NoMatch => {}
+            }
+
+            let canonical = builtin_canonical(name);
+            if self.checker.functions.contains_key(name) {
+                if let Some(target) =
+                    self.exact_callable_target(declaration, path, None, name, effective_arity)
+                {
+                    let parameters = self
+                        .checker
+                        .function_params_for_arity(name, effective_arity)
+                        .cloned()
+                        .or_else(|| self.checker.function_params.get(name).cloned());
+                    let order = self.named_order(declaration, path, arguments, parameters);
+                    return (Some(target), order);
+                }
+                if self.has_callable_candidates(None, name, effective_arity) {
+                    return (None, None);
+                }
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::CallableNotResolved {
+                        name: name.clone().into_boxed_str(),
+                        arity: effective_arity,
+                    },
+                );
+                return (None, None);
+            }
+            if self.checker.builtins.contains_key(canonical) {
+                if has_named_args(arguments) {
+                    self.issue(&site, CheckedResolutionIssue::NamedArgumentOrderNotResolved);
+                    return (None, None);
+                }
+                return (
+                    Some(CheckedCallTarget::Builtin {
+                        canonical_name: canonical.to_string().into_boxed_str(),
+                        arity: effective_arity,
+                    }),
+                    None,
+                );
+            }
+            self.issue(
+                &site,
+                CheckedResolutionIssue::CallableNotResolved {
+                    name: name.clone().into_boxed_str(),
+                    arity: effective_arity,
+                },
+            );
+            return (None, None);
+        }
+
+        if let ExprKind::Field(base, member) = &function.kind {
+            if let ExprKind::Var(alias) = &base.kind {
+                if let Some(owner) = self.qualified_aliases.get(alias).cloned() {
+                    self.issue(
+                        &site,
+                        CheckedResolutionIssue::OpaqueQualifiedMember {
+                            owner,
+                            member: member.clone().into_boxed_str(),
+                        },
+                    );
+                    return (None, None);
+                }
+            }
+            let locals = self.type_locals();
+            let Some(owner_type) = self.checker.infer_expr_type_name_with_locals(base, &locals)
+            else {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::CallableNotResolved {
+                        name: member.clone().into_boxed_str(),
+                        arity: effective_arity,
+                    },
+                );
+                return (None, None);
+            };
+            if self.duplicate_rule_scope_owners.contains(&owner_type) {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::UnsupportedExpression(
+                        "duplicate RuleScope receiver layout".into(),
+                    ),
+                );
+                return (None, None);
+            }
+            let key = RuleDispatchKey {
+                scope: Some(owner_type.clone()),
+                name: member.clone(),
+                arity: effective_arity,
+            };
+            let rule_family = self
+                .artifacts
+                .rule_families
+                .contains_key(&key)
+                .then_some(key.clone());
+            let method = self
+                .checker
+                .rule_scope_methods
+                .get(&owner_type)
+                .and_then(|methods| methods.get(member))
+                .is_some()
+                || self
+                    .checker
+                    .rule_scope_value_methods
+                    .get(&owner_type)
+                    .and_then(|methods| methods.get(member))
+                    .is_some();
+            if rule_family.is_none() && !method {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::CallableNotResolved {
+                        name: member.clone().into_boxed_str(),
+                        arity: effective_arity,
+                    },
+                );
+                return (None, None);
+            }
+            let parameters = self
+                .checker
+                .rule_scope_method_params
+                .get(&owner_type)
+                .and_then(|methods| methods.get(member))
+                .or_else(|| {
+                    self.checker
+                        .rule_scope_value_method_params
+                        .get(&owner_type)
+                        .and_then(|methods| methods.get(member))
+                })
+                .cloned();
+            let order = self.named_order(declaration, path, arguments, parameters);
+            return (
+                Some(CheckedCallTarget::ScopedMember {
+                    owner_type: owner_type.into_boxed_str(),
+                    member: member.clone().into_boxed_str(),
+                    arity: effective_arity,
+                    rule_family,
+                }),
+                order,
+            );
+        }
+
+        self.issue(&site, CheckedResolutionIssue::DynamicCallable);
+        (None, None)
+    }
+
+    fn resolve_field(
+        &mut self,
+        declaration: &SourcedStmt,
+        path: &[u32],
+        base: &Expr,
+        field: &str,
+    ) -> Option<CheckedFieldResolution> {
+        let site = self.expression_site(declaration, path);
+        if let ExprKind::Var(alias) = &base.kind {
+            if let Some(owner) = self.qualified_aliases.get(alias).cloned() {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::OpaqueQualifiedMember {
+                        owner,
+                        member: field.to_string().into_boxed_str(),
+                    },
+                );
+                return None;
+            }
+        }
+        let locals = self.type_locals();
+        let owner_type = self.checker.infer_expr_type_name_with_locals(base, &locals);
+        let Some(owner_type) = owner_type else {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::FieldNotResolved {
+                    owner_type: None,
+                    field: field.to_string().into_boxed_str(),
+                },
+            );
+            return None;
+        };
+        if self.duplicate_rule_scope_owners.contains(&owner_type) {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::UnsupportedExpression(
+                    "duplicate RuleScope field layout".into(),
+                ),
+            );
+            return None;
+        }
+        let scoped_key = self
+            .checker
+            .rule_scope_methods
+            .get(&owner_type)
+            .and_then(|methods| methods.get(field))
+            .map(|arity| RuleDispatchKey {
+                scope: Some(owner_type.clone()),
+                name: field.to_string(),
+                arity: *arity,
+            });
+        if scoped_key.is_some()
+            || self
+                .checker
+                .rule_scope_value_methods
+                .get(&owner_type)
+                .is_some_and(|methods| methods.contains_key(field))
+        {
+            let rule_family =
+                scoped_key.filter(|key| self.artifacts.rule_families.contains_key(key));
+            return Some(CheckedFieldResolution::ScopedMember {
+                owner_type: owner_type.into_boxed_str(),
+                member: field.to_string().into_boxed_str(),
+                rule_family,
+            });
+        }
+
+        if self.checker.field_type_name(&owner_type, field).is_none() {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::FieldNotResolved {
+                    owner_type: Some(owner_type.into_boxed_str()),
+                    field: field.to_string().into_boxed_str(),
+                },
+            );
+            return None;
+        }
+        let owner_is_unique = self
+            .artifacts
+            .data_type_identities
+            .contains_key(owner_type.as_str());
+        let fields = owner_is_unique
+            .then(|| {
+                self.data_fields
+                    .get(&(owner_type.clone(), field.to_string()))
+                    .cloned()
+            })
+            .flatten();
+        let Some(fields) = fields.filter(|fields| !fields.is_empty()) else {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::FieldNotResolved {
+                    owner_type: Some(owner_type.into_boxed_str()),
+                    field: field.to_string().into_boxed_str(),
+                },
+            );
+            return None;
+        };
+        Some(CheckedFieldResolution::Data {
+            owner_type: owner_type.into_boxed_str(),
+            fields: fields.into_boxed_slice(),
+        })
+    }
+
+    fn define_parameter(
+        &mut self,
+        declaration: &SourcedStmt,
+        ast_path: &[u32],
+        index: usize,
+        parameter: &Param,
+        extra_prefix: &[u32],
+    ) {
+        let mut binder_path = extra_prefix.to_vec();
+        binder_path.extend([Self::BINDER_PARAMETER, index as u32]);
+        self.define_local(
+            parameter.name.clone(),
+            CheckedLocalBinding {
+                kind: CheckedBinderKind::Parameter,
+                site: self.structural_binder_site(declaration, ast_path, binder_path),
+                type_name: parameter
+                    .ty
+                    .as_ref()
+                    .and_then(TypeChecker::type_name_from_ty),
+            },
+        );
+    }
+
+    fn define_pattern(
+        &mut self,
+        declaration: &SourcedStmt,
+        ast_path: &[u32],
+        pattern: &Pat,
+        pattern_path: Vec<u32>,
+        kind: CheckedBinderKind,
+        type_name: Option<String>,
+    ) {
+        match pattern {
+            Pat::Var(name) => {
+                let mut binder_path = vec![Self::BINDER_PATTERN];
+                binder_path.extend(pattern_path);
+                self.define_local(
+                    name.clone(),
+                    CheckedLocalBinding {
+                        kind,
+                        site: self.structural_binder_site(declaration, ast_path, binder_path),
+                        type_name,
+                    },
+                );
+            }
+            Pat::Con(constructor, patterns) => {
+                if let Some(owner_type) = type_name
+                    .as_deref()
+                    .and_then(Self::data_owner_name_from_checked_type)
+                {
+                    if let Some(identity) =
+                        self.checked_constructor_identity(&owner_type, constructor)
+                    {
+                        if identity.fields.len() == patterns.len() {
+                            self.artifacts.constructor_patterns.insert(
+                                self.pattern_site(declaration, ast_path, &pattern_path),
+                                CheckedConstructorPatternResolution {
+                                    source_fields: identity.fields.clone(),
+                                    constructor: identity,
+                                },
+                            );
+                        }
+                    }
+                }
+                for (index, child) in patterns.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.define_pattern(declaration, ast_path, child, child_path, kind, None);
+                }
+            }
+            Pat::NamedCon(constructor, fields) => {
+                if let Some(owner_type) = type_name
+                    .as_deref()
+                    .and_then(Self::data_owner_name_from_checked_type)
+                {
+                    if let Some(identity) =
+                        self.checked_constructor_identity(&owner_type, constructor)
+                    {
+                        if identity.layout == CheckedConstructorLayout::Named {
+                            let source_fields = fields
+                                .iter()
+                                .map(|(name, _)| {
+                                    identity
+                                        .fields
+                                        .iter()
+                                        .find(|field| field.name.as_ref() == name)
+                                        .cloned()
+                                })
+                                .collect::<Option<Vec<_>>>();
+                            if let Some(source_fields) = source_fields {
+                                self.artifacts.constructor_patterns.insert(
+                                    self.pattern_site(declaration, ast_path, &pattern_path),
+                                    CheckedConstructorPatternResolution {
+                                        constructor: identity,
+                                        source_fields: source_fields.into_boxed_slice(),
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+                for (index, (_, child)) in fields.iter().enumerate() {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.define_pattern(declaration, ast_path, child, child_path, kind, None);
+                }
+            }
+            Pat::As(child, name) => {
+                self.define_pattern(
+                    declaration,
+                    ast_path,
+                    child,
+                    pattern_path.clone(),
+                    kind,
+                    type_name.clone(),
+                );
+                let mut binder_path = vec![Self::BINDER_PATTERN];
+                binder_path.extend(pattern_path);
+                binder_path.push(u32::MAX);
+                self.define_local(
+                    name.clone(),
+                    CheckedLocalBinding {
+                        kind,
+                        site: self.structural_binder_site(declaration, ast_path, binder_path),
+                        type_name,
+                    },
+                );
+            }
+            Pat::Wild | Pat::Lit(_) => {}
+        }
+    }
+
+    fn first_unresolved_constructor_pattern(
+        &self,
+        declaration: &SourcedStmt,
+        ast_path: &[u32],
+        pattern: &Pat,
+        pattern_path: Vec<u32>,
+    ) -> Option<CheckedPatternSiteId> {
+        match pattern {
+            Pat::Con(_, children) => {
+                let site = self.pattern_site(declaration, ast_path, &pattern_path);
+                if !self.artifacts.constructor_patterns.contains_key(&site) {
+                    return Some(site);
+                }
+                children.iter().enumerate().find_map(|(index, child)| {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.first_unresolved_constructor_pattern(
+                        declaration,
+                        ast_path,
+                        child,
+                        child_path,
+                    )
+                })
+            }
+            Pat::NamedCon(_, fields) => {
+                let site = self.pattern_site(declaration, ast_path, &pattern_path);
+                if !self.artifacts.constructor_patterns.contains_key(&site) {
+                    return Some(site);
+                }
+                fields.iter().enumerate().find_map(|(index, (_, child))| {
+                    let mut child_path = pattern_path.clone();
+                    child_path.push(index as u32);
+                    self.first_unresolved_constructor_pattern(
+                        declaration,
+                        ast_path,
+                        child,
+                        child_path,
+                    )
+                })
+            }
+            Pat::As(child, _) => self.first_unresolved_constructor_pattern(
+                declaration,
+                ast_path,
+                child,
+                pattern_path,
+            ),
+            Pat::Wild | Pat::Var(_) | Pat::Lit(_) => None,
+        }
+    }
+
+    fn data_owner_name_from_checked_type(checked_type: &str) -> Option<String> {
+        let ty = parse_type_annotation(checked_type).ok()?;
+        match ty {
+            Ty::Name(name) => Some(name),
+            Ty::App(constructor, _) => type_name(constructor.as_ref()).map(ToString::to_string),
+            Ty::Optional(_) => Some("Option".to_string()),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                type_name(inner.as_ref()).map(ToString::to_string)
+            }
+            Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
+        }
+    }
+
+    fn define_rule_head_argument(
+        &mut self,
+        declaration: &SourcedStmt,
+        expression: &Expr,
+        path: &[u32],
+        expected_type: Option<String>,
+    ) {
+        if let Some((inner, type_name)) = typed_rule_head_argument(expression) {
+            let inner_path = Self::path_child(path, 1);
+            self.define_rule_head_argument(
+                declaration,
+                inner,
+                &inner_path,
+                Some(type_name.to_string()),
+            );
+            return;
+        }
+        if let Some((_, value)) = named_arg_parts(expression) {
+            let value_path = Self::path_child(path, 2);
+            self.define_rule_head_argument(declaration, value, &value_path, expected_type);
+            return;
+        }
+        match &expression.kind {
+            ExprKind::Var(name)
+                if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+            {
+                self.define_local(
+                    name.clone(),
+                    CheckedLocalBinding {
+                        kind: CheckedBinderKind::RuleHead,
+                        site: CheckedBinderSiteId::Expression(
+                            self.expression_site(declaration, path),
+                        ),
+                        type_name: expected_type,
+                    },
+                );
+            }
+            ExprKind::App(_, arguments) => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    let argument_path = Self::path_child(path, index + 1);
+                    self.define_rule_head_argument(declaration, argument, &argument_path, None);
+                }
+            }
+            ExprKind::Tuple(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    let item_path = Self::path_child(path, index);
+                    self.define_rule_head_argument(declaration, item, &item_path, None);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn define_rule_head(&mut self, declaration: &SourcedStmt, head: &Expr, path: &[u32]) {
+        if let ExprKind::App(_, arguments) = &head.kind {
+            for (index, argument) in arguments.iter().enumerate() {
+                let argument_path = Self::path_child(path, index + 1);
+                self.define_rule_head_argument(declaration, argument, &argument_path, None);
+            }
+        }
+    }
+
+    fn record_declaration(&mut self, declaration: &SourcedStmt) {
+        if matches!(
+            &declaration.import_kind,
+            SourcedImportKind::QualifiedImport { .. }
+        ) || matches!(&*declaration.statement, Stmt::Defn(Defn::Module { .. }))
+        {
+            return;
+        }
+        if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = &*declaration.statement {
+            if self.active_rule_scope_owners.get(name) != Some(&Self::occurrence(declaration)) {
+                return;
+            }
+        }
+        self.record_stmt(declaration, &declaration.statement, &[], true);
+    }
+
+    fn record_function_body(
+        &mut self,
+        declaration: &SourcedStmt,
+        parameters: &[Param],
+        body: &Expr,
+        body_path: &[u32],
+        prefix: &[u32],
+    ) {
+        self.push_scope();
+        for (index, parameter) in parameters.iter().enumerate() {
+            self.define_parameter(declaration, body_path, index, parameter, prefix);
+        }
+        self.record_expr(declaration, body, body_path, false, false);
+        self.pop_scope();
+    }
+
+    fn record_rule(&mut self, declaration: &SourcedStmt, rule: &Rule, statement_path: &[u32]) {
+        match rule {
+            Rule::Clause { head, body } => {
+                self.push_scope();
+                let head_path = Self::path_child(statement_path, 0);
+                self.define_rule_head(declaration, head, &head_path);
+                self.record_expr(declaration, head, &head_path, true, false);
+                if let Some(body) = body {
+                    let body_path = Self::path_child(statement_path, 1);
+                    self.record_expr(declaration, body, &body_path, false, false);
+                }
+                self.pop_scope();
+            }
+            Rule::Default {
+                head,
+                value,
+                condition,
+            }
+            | Rule::Exception {
+                head,
+                value,
+                condition,
+                ..
+            } => {
+                self.push_scope();
+                let head_path = Self::path_child(statement_path, 0);
+                self.define_rule_head(declaration, head, &head_path);
+                self.record_expr(declaration, head, &head_path, true, false);
+                let value_path = Self::path_child(statement_path, 1);
+                self.record_expr(declaration, value, &value_path, false, false);
+                if let Some(condition) = condition {
+                    let condition_path = Self::path_child(statement_path, 2);
+                    self.record_expr(declaration, condition, &condition_path, false, false);
+                }
+                self.pop_scope();
+            }
+            Rule::ReactiveScope { body, .. } => {
+                self.push_scope();
+                for (index, statement) in body.iter().enumerate() {
+                    let child_path = Self::path_child(statement_path, index);
+                    self.record_stmt(declaration, statement, &child_path, false);
+                }
+                self.pop_scope();
+            }
+        }
+    }
+
+    fn record_stmt(
+        &mut self,
+        declaration: &SourcedStmt,
+        statement: &Stmt,
+        path: &[u32],
+        top_level: bool,
+    ) {
+        match statement {
+            Stmt::Defn(Defn::Fn { params, body, .. }) => {
+                let body_path = Self::path_child(path, 0);
+                self.record_function_body(declaration, params, body, &body_path, &[]);
+            }
+            Stmt::Defn(Defn::Actor {
+                state_param,
+                handlers,
+                ..
+            }) => {
+                for (index, handler) in handlers.iter().enumerate() {
+                    let body_path = Self::path_child(path, index);
+                    self.push_scope();
+                    self.define_parameter(declaration, &body_path, 0, state_param, &[]);
+                    self.define_pattern(
+                        declaration,
+                        &body_path,
+                        &handler.msg_pat,
+                        vec![Self::BINDER_HANDLER],
+                        CheckedBinderKind::Pattern,
+                        None,
+                    );
+                    self.record_expr(declaration, &handler.body, &body_path, false, false);
+                    self.pop_scope();
+                }
+            }
+            Stmt::Defn(Defn::Module { .. }) => {
+                // Inline modules share the qualified-opacity boundary of direct
+                // qualified imports in this phase. Their owner is indexed above.
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { methods, .. })
+            | Stmt::TypeDecl(TypeDecl::ImplBlock { methods, .. }) => {
+                let mut child_index = 0;
+                for method in methods {
+                    match method {
+                        Defn::Fn { params, body, .. } => {
+                            let body_path = Self::path_child(path, child_index);
+                            self.record_function_body(
+                                declaration,
+                                params,
+                                body,
+                                &body_path,
+                                &[child_index as u32],
+                            );
+                            child_index += 1;
+                        }
+                        Defn::Actor {
+                            state_param,
+                            handlers,
+                            ..
+                        } => {
+                            for handler in handlers {
+                                let body_path = Self::path_child(path, child_index);
+                                self.push_scope();
+                                self.define_parameter(
+                                    declaration,
+                                    &body_path,
+                                    0,
+                                    state_param,
+                                    &[child_index as u32],
+                                );
+                                self.define_pattern(
+                                    declaration,
+                                    &body_path,
+                                    &handler.msg_pat,
+                                    vec![Self::BINDER_HANDLER],
+                                    CheckedBinderKind::Pattern,
+                                    None,
+                                );
+                                self.record_expr(
+                                    declaration,
+                                    &handler.body,
+                                    &body_path,
+                                    false,
+                                    false,
+                                );
+                                self.pop_scope();
+                                child_index += 1;
+                            }
+                        }
+                        Defn::Module { body, .. } => {
+                            // Nested qualified module body is opaque in Phase B.
+                            child_index += body.len();
+                        }
+                    }
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
+                let child_path = Self::path_child(path, 0);
+                self.record_expr(declaration, condition, &child_path, false, false);
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { methods, .. }) => {
+                let mut child_index = 0;
+                for method in methods {
+                    if let Some(body) = &method.default_body {
+                        let body_path = Self::path_child(path, child_index);
+                        self.record_function_body(
+                            declaration,
+                            &method.params,
+                            body,
+                            &body_path,
+                            &[child_index as u32],
+                        );
+                        child_index += 1;
+                    }
+                }
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
+            Stmt::TypeDecl(TypeDecl::RuleScope {
+                name, params, body, ..
+            }) => {
+                let previous_scope = self.active_rule_scope.replace(name.clone());
+                self.push_scope();
+                for (index, parameter) in params.iter().enumerate() {
+                    self.define_parameter(declaration, path, index, parameter, &[]);
+                }
+                for (index, statement) in body.iter().enumerate() {
+                    let child_path = Self::path_child(path, index);
+                    self.record_stmt(declaration, statement, &child_path, false);
+                }
+                self.pop_scope();
+                self.active_rule_scope = previous_scope;
+            }
+            Stmt::Rule(rule) => self.record_rule(declaration, rule, path),
+            Stmt::Annot(name, arguments) => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    let child_path = Self::path_child(path, index);
+                    self.record_expr(declaration, argument, &child_path, false, false);
+                    if matches!(name.as_str(), "store" | "migrate") {
+                        let site = self.expression_site(declaration, &child_path);
+                        self.issue(
+                            &site,
+                            CheckedResolutionIssue::UnsupportedExpression(
+                                "unchecked metadata payload".into(),
+                            ),
+                        );
+                    }
+                }
+            }
+            Stmt::Bind(pattern, annotation, expression)
+            | Stmt::MonadicBind(pattern, annotation, expression) => {
+                let expression_path = Self::path_child(path, 0);
+                let locals = self.type_locals();
+                let inferred = annotation
+                    .as_ref()
+                    .and_then(TypeChecker::type_name_from_ty)
+                    .or_else(|| {
+                        self.checker
+                            .infer_expr_type_name_with_locals(expression, &locals)
+                    });
+                self.record_expr(declaration, expression, &expression_path, false, false);
+                if !top_level {
+                    self.define_pattern(
+                        declaration,
+                        path,
+                        pattern,
+                        Vec::new(),
+                        CheckedBinderKind::Local,
+                        inferred,
+                    );
+                }
+            }
+            Stmt::For(variable, iterator, body) => {
+                let iterator_path = Self::path_child(path, 0);
+                self.record_expr(declaration, iterator, &iterator_path, false, false);
+                let locals = self.type_locals();
+                let iterator_type = self
+                    .checker
+                    .infer_expr_type_name_with_locals(iterator, &locals)
+                    .and_then(|name| TypeChecker::applied_type_argument(&name, "List", 0));
+                self.push_scope();
+                self.define_local(
+                    variable.clone(),
+                    CheckedLocalBinding {
+                        kind: CheckedBinderKind::Local,
+                        site: self.structural_binder_site(
+                            declaration,
+                            path,
+                            vec![Self::BINDER_FOR, 0],
+                        ),
+                        type_name: iterator_type,
+                    },
+                );
+                for (index, statement) in body.iter().enumerate() {
+                    let child_path = Self::path_child(path, index + 1);
+                    self.record_stmt(declaration, statement, &child_path, false);
+                }
+                self.pop_scope();
+            }
+            Stmt::While(condition, body) => {
+                let condition_path = Self::path_child(path, 0);
+                self.record_expr(declaration, condition, &condition_path, false, false);
+                self.push_scope();
+                for (index, statement) in body.iter().enumerate() {
+                    let child_path = Self::path_child(path, index + 1);
+                    self.record_stmt(declaration, statement, &child_path, false);
+                }
+                self.pop_scope();
+            }
+            Stmt::Send(target, message) => {
+                let target_path = Self::path_child(path, 0);
+                let message_path = Self::path_child(path, 1);
+                self.record_expr(declaration, target, &target_path, false, false);
+                self.record_expr(declaration, message, &message_path, false, false);
+            }
+            Stmt::StreamBind(name, expression) => {
+                let expression_path = Self::path_child(path, 0);
+                self.record_expr(declaration, expression, &expression_path, false, false);
+                if !top_level {
+                    self.define_local(
+                        name.clone(),
+                        CheckedLocalBinding {
+                            kind: CheckedBinderKind::Local,
+                            site: self.structural_binder_site(
+                                declaration,
+                                path,
+                                vec![Self::BINDER_PATTERN, 0],
+                            ),
+                            type_name: None,
+                        },
+                    );
+                }
+            }
+            Stmt::StreamSub(expression, arms) => {
+                let expression_path = Self::path_child(path, 0);
+                self.record_expr(declaration, expression, &expression_path, false, false);
+                let mut child_index = 1;
+                for (arm_index, arm) in arms.iter().enumerate() {
+                    self.push_scope();
+                    self.define_pattern(
+                        declaration,
+                        path,
+                        &arm.pat,
+                        vec![arm_index as u32],
+                        CheckedBinderKind::Pattern,
+                        None,
+                    );
+                    if let Some(guard) = &arm.guard {
+                        let guard_path = Self::path_child(path, child_index);
+                        self.record_expr(declaration, guard, &guard_path, false, false);
+                        child_index += 1;
+                    }
+                    let body_path = Self::path_child(path, child_index);
+                    self.record_expr(declaration, &arm.body, &body_path, false, false);
+                    child_index += 1;
+                    self.pop_scope();
+                }
+            }
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => {
+                self.push_scope();
+                let subject_path = Self::path_child(path, 0);
+                self.define_rule_head_argument(declaration, subject, &subject_path, None);
+                self.record_expr(declaration, subject, &subject_path, false, false);
+                let predicate_path = Self::path_child(path, 1);
+                self.record_expr(declaration, predicate, &predicate_path, false, false);
+                self.pop_scope();
+            }
+            Stmt::Prove {
+                capture,
+                pass_block,
+                else_block,
+                ..
+            } => {
+                self.push_scope();
+                if let Some(capture) = capture {
+                    self.define_local(
+                        capture.clone(),
+                        CheckedLocalBinding {
+                            kind: CheckedBinderKind::Local,
+                            site: self.structural_binder_site(
+                                declaration,
+                                path,
+                                vec![Self::BINDER_CAPTURE, 0],
+                            ),
+                            type_name: None,
+                        },
+                    );
+                }
+                let mut child_index = 0;
+                if let Some(block) = pass_block {
+                    for statement in block {
+                        let child_path = Self::path_child(path, child_index);
+                        self.record_stmt(declaration, statement, &child_path, false);
+                        child_index += 1;
+                    }
+                }
+                if let Some(block) = else_block {
+                    for statement in block {
+                        let child_path = Self::path_child(path, child_index);
+                        self.record_stmt(declaration, statement, &child_path, false);
+                        child_index += 1;
+                    }
+                }
+                self.pop_scope();
+            }
+            Stmt::Explore(query) => self.record_explore(declaration, query, path),
+            Stmt::Assert(_, arguments) | Stmt::Retract(_, arguments) => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    let child_path = Self::path_child(path, index);
+                    self.record_expr(declaration, argument, &child_path, false, false);
+                }
+            }
+            Stmt::Expr(expression) => {
+                let child_path = Self::path_child(path, 0);
+                self.record_expr(declaration, expression, &child_path, false, false);
+            }
+            Stmt::Use(_)
+            | Stmt::Import(_)
+            | Stmt::QualifiedImport(_, _)
+            | Stmt::HashImport(_, _)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Abort => {}
+        }
+    }
+
+    fn record_explore(&mut self, declaration: &SourcedStmt, query: &ExploreQuery, path: &[u32]) {
+        self.push_scope();
+        let parameter_types = self
+            .checker
+            .rule_param_types_by_arity
+            .get(&(query.over.rule_name.clone(), query.over.inputs.len()))
+            .cloned()
+            .unwrap_or_default();
+        let input_types = query
+            .over
+            .inputs
+            .iter()
+            .enumerate()
+            .filter_map(|(index, input)| {
+                parameter_types
+                    .get(index)
+                    .and_then(|ty| ty.as_ref())
+                    .and_then(TypeChecker::type_name_from_ty)
+                    .map(|ty| (input.name.clone(), ty))
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut child_index = 0;
+        for (bound_index, bound) in query.bounds.iter().enumerate() {
+            match bound {
+                ExploreBound::Domain { name, domain, .. } => {
+                    let expression_path = Self::path_child(path, child_index);
+                    self.record_expr(declaration, domain, &expression_path, false, false);
+                    self.define_local(
+                        name.clone(),
+                        CheckedLocalBinding {
+                            kind: CheckedBinderKind::ExploreValue,
+                            site: self.structural_binder_site(
+                                declaration,
+                                &expression_path,
+                                vec![Self::BINDER_EXPLORE, bound_index as u32],
+                            ),
+                            type_name: input_types.get(name).cloned(),
+                        },
+                    );
+                }
+                ExploreBound::Value { name, value, .. } => {
+                    let expression_path = Self::path_child(path, child_index);
+                    let locals = self.type_locals();
+                    let inferred = input_types.get(name).cloned().or_else(|| {
+                        self.checker
+                            .infer_expr_type_name_with_locals(value, &locals)
+                    });
+                    self.record_expr(declaration, value, &expression_path, false, false);
+                    self.define_local(
+                        name.clone(),
+                        CheckedLocalBinding {
+                            kind: CheckedBinderKind::ExploreValue,
+                            site: self.structural_binder_site(
+                                declaration,
+                                &expression_path,
+                                vec![Self::BINDER_EXPLORE, bound_index as u32],
+                            ),
+                            type_name: inferred,
+                        },
+                    );
+                }
+                ExploreBound::Where { predicate, .. } => {
+                    let expression_path = Self::path_child(path, child_index);
+                    self.record_expr(declaration, predicate, &expression_path, false, false);
+                }
+            }
+            child_index += 1;
+        }
+        if let Some(boundary) = &query.boundary {
+            let expression_path = Self::path_child(path, child_index);
+            self.record_expr(declaration, &boundary.step, &expression_path, false, false);
+            child_index += 1;
+        }
+        for field in &query.output.key {
+            let expression_path = Self::path_child(path, child_index);
+            self.record_expr(declaration, &field.value, &expression_path, false, false);
+            child_index += 1;
+        }
+        for field in &query.output.extrema {
+            let expression_path = Self::path_child(path, child_index);
+            self.record_expr(declaration, &field.value, &expression_path, false, false);
+            child_index += 1;
+        }
+        for field in &query.output.show {
+            let expression_path = Self::path_child(path, child_index);
+            self.record_expr(declaration, &field.value, &expression_path, false, false);
+            child_index += 1;
+        }
+        match &query.output.representative {
+            ExploreRepresentative::First { .. } => {}
+            ExploreRepresentative::Maximize { objective, .. }
+            | ExploreRepresentative::Minimize { objective, .. } => {
+                let expression_path = Self::path_child(path, child_index);
+                self.record_expr(declaration, objective, &expression_path, false, false);
+            }
+        }
+        self.pop_scope();
+    }
+
+    fn resolved_call_target_type(&self, target: &CheckedCallTarget) -> Option<Ty> {
+        match target {
+            CheckedCallTarget::Constructor { owner_type, .. } => {
+                parse_type_annotation(owner_type).ok()
+            }
+            CheckedCallTarget::Function { callable, arity } => self
+                .checker
+                .explore_function_return_types_by_arity
+                .get(&(callable.declaration.declaration.name.to_string(), *arity))
+                .cloned(),
+            CheckedCallTarget::RuleFamily(key) => self
+                .checker
+                .rule_dispatch_return_types
+                .get(key)
+                .and_then(|name| parse_type_annotation(name).ok()),
+            CheckedCallTarget::ScopedMember {
+                owner_type,
+                member,
+                rule_family,
+                ..
+            } => rule_family
+                .as_ref()
+                .and_then(|key| self.checker.rule_dispatch_return_types.get(key))
+                .and_then(|name| parse_type_annotation(name).ok())
+                .or_else(|| {
+                    self.checker
+                        .scoped_member_return_type(owner_type, member)
+                        .and_then(|name| parse_type_annotation(&name).ok())
+                }),
+            CheckedCallTarget::Builtin { .. } => None,
+        }
+    }
+
+    fn record_pipe_transform(&mut self, declaration: &SourcedStmt, transform: &Expr, path: &[u32]) {
+        let site = self.expression_site(declaration, path);
+        self.issue(
+            &site,
+            CheckedResolutionIssue::UnsupportedExpression(
+                "pipe transform uses runtime value dispatch".into(),
+            ),
+        );
+        let pipe_resolution = CheckedExpressionResolution {
+            resolved_type: CheckedExpressionType::Unsupported,
+            value_binding: None,
+            call_target: None,
+            field: None,
+            named_arguments: None,
+            exact_constructor: None,
+        };
+        self.artifacts
+            .expressions
+            .insert(site.clone(), pipe_resolution.clone());
+        let pipe_issues = self.artifacts.unsupported_sites.get(&site).cloned();
+
+        // Reuse canonical recursion and lexical-scope logic to retain every
+        // descendant site. The ordinary App decision at this root is discarded:
+        // runtime Pipe evaluates the transform as a value, whose collision
+        // precedence differs from direct App dispatch.
+        self.record_expr(declaration, transform, path, false, false);
+        self.artifacts
+            .expressions
+            .insert(site.clone(), pipe_resolution);
+        match pipe_issues {
+            Some(issues) => {
+                self.artifacts.unsupported_sites.insert(site, issues);
+            }
+            None => {
+                self.artifacts.unsupported_sites.remove(&site);
+            }
+        }
+    }
+
+    fn record_expr(
+        &mut self,
+        declaration: &SourcedStmt,
+        expression: &Expr,
+        path: &[u32],
+        suppress_call: bool,
+        declaration_callable: bool,
+    ) {
+        let site = self.expression_site(declaration, path);
+        if declaration.id.kind == DeclarationKind::RuleScope
+            && self
+                .duplicate_rule_scope_owners
+                .contains(declaration.id.name.as_ref())
+        {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::UnsupportedExpression(
+                    "expression belongs to a duplicate RuleScope owner".into(),
+                ),
+            );
+        }
+        let mut value_binding = None;
+        let mut call_target = None;
+        let mut named_arguments = None;
+        let mut field_resolution = None;
+        let mut exact_target_required = false;
+
+        match &expression.kind {
+            ExprKind::Var(name) if !declaration_callable => {
+                value_binding = self.resolve_var(declaration, path, name);
+            }
+            ExprKind::App(function, arguments) if !suppress_call => {
+                exact_target_required = true;
+                (call_target, named_arguments) =
+                    self.resolve_call(declaration, path, function, arguments, arguments.len());
+            }
+            ExprKind::Field(base, field) => {
+                exact_target_required = true;
+                field_resolution = self.resolve_field(declaration, path, base, field);
+            }
+            ExprKind::Pipe(_, _) => {
+                exact_target_required = true;
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::UnsupportedExpression(
+                        "pipe expression uses runtime value dispatch".into(),
+                    ),
+                );
+            }
+            _ => {}
+        }
+
+        let target_type = call_target
+            .as_ref()
+            .and_then(|target| self.resolved_call_target_type(target));
+        let resolved_type = if declaration_callable {
+            // A rule/function declaration name is not evaluated as a standalone
+            // value by check_expr. The enclosing checked App/rule-family record
+            // carries the exact decision, so no invented arrow type is emitted.
+            CheckedExpressionType::Unsupported
+        } else if exact_target_required && call_target.is_none() && field_resolution.is_none() {
+            CheckedExpressionType::Unsupported
+        } else if let Some(target_type) = target_type {
+            CheckedExpressionType::Resolved(target_type)
+        } else {
+            self.infer_type(declaration, path, expression)
+        };
+        if matches!(
+            &resolved_type,
+            CheckedExpressionType::Resolved(Ty::Name(name))
+                if self.duplicate_rule_scope_owners.contains(name)
+        ) {
+            self.issue(
+                &site,
+                CheckedResolutionIssue::UnsupportedExpression(
+                    "expression has a duplicate RuleScope type".into(),
+                ),
+            );
+        }
+        let exact_constructor = value_binding
+            .as_ref()
+            .and_then(|binding| match binding {
+                CheckedValueBinding::Constructor {
+                    owner_type,
+                    variant,
+                    ..
+                } => self.checked_constructor_identity(owner_type, variant),
+                _ => None,
+            })
+            .or_else(|| {
+                call_target.as_ref().and_then(|target| match target {
+                    CheckedCallTarget::Constructor {
+                        owner_type,
+                        variant,
+                        ..
+                    } => self.checked_constructor_identity(owner_type, variant),
+                    _ => None,
+                })
+            });
+        self.artifacts.expressions.insert(
+            site.clone(),
+            CheckedExpressionResolution {
+                resolved_type,
+                value_binding,
+                call_target,
+                field: field_resolution,
+                named_arguments,
+                exact_constructor,
+            },
+        );
+
+        match &expression.kind {
+            ExprKind::App(function, arguments) => {
+                let function_path = Self::path_child(path, 0);
+                let internal_marker = matches!(
+                    &function.kind,
+                    ExprKind::Var(name)
+                        if matches!(
+                            name.as_str(),
+                            NAMED_ARG_MARKER | "__typed" | PATHOF_MARKER | REFOF_MARKER
+                        )
+                );
+                let typed_marker =
+                    matches!(&function.kind, ExprKind::Var(name) if name == "__typed");
+                self.record_expr(
+                    declaration,
+                    function,
+                    &function_path,
+                    false,
+                    suppress_call || internal_marker,
+                );
+                for (index, argument) in arguments.iter().enumerate() {
+                    let argument_path = Self::path_child(path, index + 1);
+                    self.record_expr(
+                        declaration,
+                        argument,
+                        &argument_path,
+                        false,
+                        typed_marker && index == 1,
+                    );
+                }
+            }
+            ExprKind::Lambda(parameters, body) => {
+                self.push_scope();
+                for (index, parameter) in parameters.iter().enumerate() {
+                    self.define_parameter(declaration, path, index, parameter, &[]);
+                }
+                let body_path = Self::path_child(path, 0);
+                self.record_expr(declaration, body, &body_path, false, false);
+                self.pop_scope();
+            }
+            ExprKind::BinOp(_, left, right) | ExprKind::Index(left, right) => {
+                let left_path = Self::path_child(path, 0);
+                self.record_expr(declaration, left, &left_path, false, false);
+                let right_path = Self::path_child(path, 1);
+                self.record_expr(declaration, right, &right_path, false, false);
+            }
+            ExprKind::Pipe(left, transform) => {
+                let left_path = Self::path_child(path, 0);
+                self.record_expr(declaration, left, &left_path, false, false);
+                let transform_path = Self::path_child(path, 1);
+                self.record_pipe_transform(declaration, transform, &transform_path);
+            }
+            ExprKind::UnOp(_, operand) | ExprKind::Try(operand) => {
+                let operand_path = Self::path_child(path, 0);
+                self.record_expr(declaration, operand, &operand_path, false, false);
+            }
+            ExprKind::If(condition, then_expression, else_expression) => {
+                for (index, child) in [condition.as_ref(), then_expression, else_expression]
+                    .into_iter()
+                    .enumerate()
+                {
+                    let child_path = Self::path_child(path, index);
+                    self.record_expr(declaration, child, &child_path, false, false);
+                }
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                let scrutinee_path = Self::path_child(path, 0);
+                self.record_expr(declaration, scrutinee, &scrutinee_path, false, false);
+                let locals = self.type_locals();
+                let subject_type = self
+                    .checker
+                    .infer_expr_type_name_with_locals(scrutinee, &locals);
+                let mut child_index = 1;
+                for (arm_index, arm) in arms.iter().enumerate() {
+                    self.push_scope();
+                    let pattern_path = vec![arm_index as u32];
+                    self.define_pattern(
+                        declaration,
+                        path,
+                        &arm.pat,
+                        pattern_path.clone(),
+                        CheckedBinderKind::Pattern,
+                        subject_type.clone(),
+                    );
+                    if let Some(pattern_site) = self.first_unresolved_constructor_pattern(
+                        declaration,
+                        path,
+                        &arm.pat,
+                        pattern_path,
+                    ) {
+                        self.issue(
+                            &site,
+                            CheckedResolutionIssue::ConstructorPatternNotResolved(pattern_site),
+                        );
+                    }
+                    if let Some(guard) = &arm.guard {
+                        let guard_path = Self::path_child(path, child_index);
+                        self.record_expr(declaration, guard, &guard_path, false, false);
+                        child_index += 1;
+                    }
+                    let body_path = Self::path_child(path, child_index);
+                    self.record_expr(declaration, &arm.body, &body_path, false, false);
+                    child_index += 1;
+                    self.pop_scope();
+                }
+            }
+            ExprKind::Block(statements) => {
+                self.push_scope();
+                for (index, statement) in statements.iter().enumerate() {
+                    let child_path = Self::path_child(path, index);
+                    self.record_stmt(declaration, statement, &child_path, false);
+                }
+                self.pop_scope();
+            }
+            ExprKind::Field(base, _) => {
+                let base_path = Self::path_child(path, 0);
+                self.record_expr(declaration, base, &base_path, false, false);
+            }
+            ExprKind::List(items)
+            | ExprKind::Tuple(items)
+            | ExprKind::Conjunction(items)
+            | ExprKind::Disjunction(items) => {
+                for (index, item) in items.iter().enumerate() {
+                    let item_path = Self::path_child(path, index);
+                    self.record_expr(declaration, item, &item_path, false, false);
+                }
+            }
+            ExprKind::Effect(_, arguments) => {
+                for (index, argument) in arguments.iter().enumerate() {
+                    let argument_path = Self::path_child(path, index);
+                    self.record_expr(declaration, argument, &argument_path, false, false);
+                }
+            }
+            ExprKind::Handle { handlers, body, .. } => {
+                self.push_scope();
+                self.define_local(
+                    "resume".to_string(),
+                    CheckedLocalBinding {
+                        kind: CheckedBinderKind::HandlerParameter,
+                        site: self.structural_binder_site(
+                            declaration,
+                            path,
+                            vec![Self::BINDER_HANDLER, 0],
+                        ),
+                        type_name: None,
+                    },
+                );
+                let body_path = Self::path_child(path, 0);
+                self.record_expr(declaration, body, &body_path, false, false);
+                for (handler_index, handler) in handlers.iter().enumerate() {
+                    self.push_scope();
+                    for (parameter_index, parameter) in handler.params.iter().enumerate() {
+                        self.define_local(
+                            parameter.clone(),
+                            CheckedLocalBinding {
+                                kind: CheckedBinderKind::HandlerParameter,
+                                site: self.structural_binder_site(
+                                    declaration,
+                                    path,
+                                    vec![
+                                        Self::BINDER_HANDLER,
+                                        (handler_index + 1) as u32,
+                                        parameter_index as u32,
+                                    ],
+                                ),
+                                type_name: None,
+                            },
+                        );
+                    }
+                    let handler_path = Self::path_child(path, handler_index + 1);
+                    self.record_expr(declaration, &handler.body, &handler_path, false, false);
+                    self.pop_scope();
+                }
+                self.pop_scope();
+            }
+            ExprKind::Var(_) | ExprKind::Lit(_) | ExprKind::Unit => {}
+        }
+    }
 }
 
 impl TypeChecker {
@@ -19680,6 +26280,9 @@ impl TypeChecker {
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_has_opaque_runtime_graph: false,
             plain_import_rule_dispatch_statements: Vec::new(),
+            analysis_program: CheckedAnalysisProgram::default(),
+            resolved_program: CheckedResolvedProgramId::default(),
+            checked_resolution_source_snapshot_coherent: true,
             explore_rule_return_types_by_arity: BTreeMap::new(),
             explore_function_return_types_by_arity: BTreeMap::new(),
             explore_function_definitions_by_arity: BTreeMap::new(),
@@ -19689,8 +26292,11 @@ impl TypeChecker {
             checking_explore_query: false,
             checking_exhaustive_explore_preview: false,
             explore_callable_expressions_by_arity: BTreeMap::new(),
+            explore_scoped_callable_expressions: BTreeMap::new(),
             explore_rules_by_arity: BTreeMap::new(),
             explore_declared_effect_callables: BTreeSet::new(),
+            explore_top_level_binding_initializers: BTreeMap::new(),
+            explore_unsupported_top_level_bindings: BTreeSet::new(),
             rule_scope_member_return_types: BTreeMap::new(),
             active_rule_scope_inference: None,
             var_types: vec![BTreeMap::new()],
@@ -20001,6 +26607,34 @@ impl TypeChecker {
         }
     }
 
+    fn record_explore_top_level_binding_initializer(&mut self, statement: &Stmt) {
+        if self.explore_inline_module_depth != 0 {
+            return;
+        }
+        match statement {
+            Stmt::Bind(pattern, _, initializer) => {
+                let mut names = BTreeSet::new();
+                collect_pattern_names(pattern, &mut names);
+                for name in names {
+                    self.explore_top_level_binding_initializers
+                        .entry(name)
+                        .or_default()
+                        .push(initializer.clone());
+                }
+            }
+            Stmt::MonadicBind(pattern, _, _) => {
+                let mut names = BTreeSet::new();
+                collect_pattern_names(pattern, &mut names);
+                self.explore_unsupported_top_level_bindings.extend(names);
+            }
+            Stmt::StreamBind(name, _) | Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+                self.explore_unsupported_top_level_bindings
+                    .insert(name.clone());
+            }
+            _ => {}
+        }
+    }
+
     fn record_explore_rule_body(&mut self, rule: &Rule) {
         let Some(key) = Self::rule_name_arity(rule) else {
             return;
@@ -20026,6 +26660,105 @@ impl TypeChecker {
             }
             Rule::ReactiveScope { .. } => {}
         }
+    }
+
+    fn record_explore_scoped_rule_body(
+        &mut self,
+        scope_name: &str,
+        captures: &[Param],
+        rule: &Rule,
+    ) {
+        let Some((member, arity)) = Self::rule_name_arity(rule) else {
+            return;
+        };
+        let head = match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
+            Rule::ReactiveScope { .. } => return,
+        };
+        let mut bound = captures
+            .iter()
+            .map(|param| param.name.clone())
+            .collect::<BTreeSet<_>>();
+        let mut callable_bound = captures
+            .iter()
+            .filter(|param| param.ty.as_ref().is_some_and(Self::explore_ty_is_callable))
+            .map(|param| param.name.clone())
+            .collect::<BTreeSet<_>>();
+        if let ExprKind::App(_, arguments) = &head.kind {
+            let mut scopes = vec![BTreeSet::new()];
+            for argument in arguments {
+                Self::define_rule_head_vars(argument, &mut scopes);
+                if let Some((inner, type_name)) = Self::typed_rule_arg_parts(argument) {
+                    if parse_type_annotation(type_name)
+                        .ok()
+                        .as_ref()
+                        .is_some_and(Self::explore_ty_is_callable)
+                    {
+                        if let Some(name) = Self::rule_head_param_name(inner) {
+                            callable_bound.insert(name);
+                        }
+                    }
+                }
+            }
+            bound.extend(scopes.pop().unwrap_or_default());
+        }
+
+        let key = RuleDispatchKey {
+            scope: Some(scope_name.to_string()),
+            name: member,
+            arity,
+        };
+        let expressions = self
+            .explore_scoped_callable_expressions
+            .entry(key)
+            .or_default();
+        let mut push = |expression: &Expr| {
+            expressions.push(ExplorePurityExpression {
+                expression: expression.clone(),
+                bound: bound.clone(),
+                callable_bound: callable_bound.clone(),
+            });
+        };
+        match rule {
+            Rule::Clause {
+                body: Some(body), ..
+            } => push(body),
+            Rule::Default {
+                value, condition, ..
+            }
+            | Rule::Exception {
+                value, condition, ..
+            } => {
+                push(value);
+                if let Some(condition) = condition {
+                    push(condition);
+                }
+            }
+            Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => {}
+        }
+    }
+
+    fn explore_ty_is_callable(ty: &Ty) -> bool {
+        matches!(ty, Ty::Arrow(_, _))
+    }
+
+    fn explore_callable_bound_names(&self, key: &(String, usize)) -> BTreeSet<String> {
+        let Some(types) = self.rule_param_types_by_arity.get(key) else {
+            return BTreeSet::new();
+        };
+        self.function_params_by_arity
+            .get(key)
+            .into_iter()
+            .flatten()
+            .zip(types)
+            .filter_map(|(name, ty)| {
+                ty.as_ref()
+                    .is_some_and(Self::explore_ty_is_callable)
+                    .then(|| name.clone())
+            })
+            .collect()
     }
 
     fn record_rule_signature(&mut self, name: &str, head: &Expr) {
@@ -20515,31 +27248,492 @@ impl TypeChecker {
         Some((canonical, imported_dir))
     }
 
+    fn analysis_declaration_signature(
+        statement: &Stmt,
+    ) -> Option<(DeclarationKind, Option<String>, String, Option<usize>)> {
+        match statement {
+            Stmt::Defn(Defn::Fn { name, params, .. }) => Some((
+                DeclarationKind::Function,
+                None,
+                name.clone(),
+                Some(params.len()),
+            )),
+            Stmt::Defn(Defn::Actor { name, .. }) => {
+                Some((DeclarationKind::Actor, None, name.clone(), Some(1)))
+            }
+            Stmt::Defn(Defn::Module { name, .. }) => {
+                Some((DeclarationKind::InlineModule, None, name.clone(), None))
+            }
+            Stmt::TypeDecl(TypeDecl::ADT { name, params, .. }) => {
+                Some((DeclarationKind::Adt, None, name.clone(), Some(params.len())))
+            }
+            Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. }) => {
+                Some((DeclarationKind::Effect, None, name.clone(), None))
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl { name, params, .. }) => Some((
+                DeclarationKind::Trait,
+                None,
+                name.clone(),
+                Some(params.len()),
+            )),
+            Stmt::TypeDecl(TypeDecl::ImplBlock {
+                trait_name,
+                for_type,
+                ..
+            }) => Some((
+                DeclarationKind::Implementation,
+                Some(trait_name.clone()),
+                for_type.clone(),
+                None,
+            )),
+            Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
+                Some((DeclarationKind::WhenType, None, name.clone(), None))
+            }
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => Some((
+                DeclarationKind::RuleScope,
+                None,
+                name.clone(),
+                Some(params.len()),
+            )),
+            Stmt::Rule(Rule::Clause { head, .. }) => rule_head_name_arity(head)
+                .map(|(name, arity)| (DeclarationKind::RuleClause, None, name, Some(arity))),
+            Stmt::Rule(Rule::Default { head, .. }) => rule_head_name_arity(head)
+                .map(|(name, arity)| (DeclarationKind::RuleDefault, None, name, Some(arity))),
+            Stmt::Rule(Rule::Exception { head, .. }) => rule_head_name_arity(head)
+                .map(|(name, arity)| (DeclarationKind::RuleException, None, name, Some(arity))),
+            Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+                Some((DeclarationKind::ReactiveScope, None, name.clone(), None))
+            }
+            Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+                let mut names = BTreeSet::new();
+                collect_pattern_names(pattern, &mut names);
+                let name = if names.is_empty() {
+                    format!(
+                        "$pattern:{}",
+                        parsed_source_content_hash(&format!("{pattern:?}"))
+                    )
+                } else {
+                    names.into_iter().collect::<Vec<_>>().join(",")
+                };
+                let kind = if matches!(statement, Stmt::Bind(_, _, _)) {
+                    DeclarationKind::Binding
+                } else {
+                    DeclarationKind::MonadicBinding
+                };
+                Some((kind, None, name, None))
+            }
+            Stmt::StreamBind(name, _) => {
+                Some((DeclarationKind::StreamBinding, None, name.clone(), None))
+            }
+            Stmt::Invariant { name, .. } => {
+                Some((DeclarationKind::Invariant, None, name.clone(), Some(0)))
+            }
+            Stmt::Explore(query) => Some((
+                DeclarationKind::Explore,
+                None,
+                query
+                    .name
+                    .clone()
+                    .unwrap_or_else(|| "$anonymous".to_string()),
+                Some(query.over.inputs.len()),
+            )),
+            Stmt::QualifiedImport(name, _) => {
+                Some((DeclarationKind::QualifiedModule, None, name.clone(), None))
+            }
+            Stmt::Use(path) => Some((DeclarationKind::RustUse, None, path.clone(), None)),
+            Stmt::Depend(name, version) => Some((
+                DeclarationKind::RustDependency,
+                Some(name.clone()),
+                version.clone(),
+                None,
+            )),
+            Stmt::RustBlock(_) => {
+                Some((DeclarationKind::RustBlock, None, "$rust".to_string(), None))
+            }
+            Stmt::Import(_)
+            | Stmt::HashImport(_, _)
+            | Stmt::Annot(_, _)
+            | Stmt::For(_, _, _)
+            | Stmt::While(_, _)
+            | Stmt::Send(_, _)
+            | Stmt::StreamSub(_, _)
+            | Stmt::Prove { .. }
+            | Stmt::Assert(_, _)
+            | Stmt::Retract(_, _)
+            | Stmt::Abort
+            | Stmt::Expr(_) => None,
+        }
+    }
+
+    fn analysis_statement_span(statement: &Stmt) -> Option<Span> {
+        let span = match statement {
+            Stmt::Defn(Defn::Fn { body, .. }) => body.span,
+            Stmt::Defn(Defn::Actor { handlers, .. }) => handlers
+                .iter()
+                .map(|handler| handler.body.span)
+                .reduce(Span::merge)
+                .unwrap_or_else(Span::dummy),
+            Stmt::Rule(rule) => rule
+                .head()
+                .map(|head| head.span)
+                .unwrap_or_else(Span::dummy),
+            Stmt::Bind(_, _, expression)
+            | Stmt::MonadicBind(_, _, expression)
+            | Stmt::StreamBind(_, expression) => expression.span,
+            Stmt::Invariant {
+                subject, predicate, ..
+            } => subject.span.merge(predicate.span),
+            Stmt::Explore(query) => query.span,
+            _ => Span::dummy(),
+        };
+        (!span.is_dummy()).then_some(span)
+    }
+
+    /// Deterministic, span-free statement content with every nested physical
+    /// Futuruna import path replaced by a semantic import marker.
+    fn canonical_analysis_statement(statement: &Stmt) -> String {
+        let mut canonical = format!("{:?}", strip_spans_stmt(statement));
+        let mut replacements = BTreeMap::<String, String>::new();
+        walk_ast_stmt(statement, &mut |child| {
+            let AstChild::Stmt(statement) = child else {
+                return;
+            };
+            let replacement = match statement {
+                Stmt::Import(_) => Some("Import(\"$resolved\")".to_string()),
+                Stmt::QualifiedImport(name, _) => {
+                    Some(format!("QualifiedImport({name:?}, \"$opaque-target\")"))
+                }
+                Stmt::HashImport(hash, _) => {
+                    Some(format!("HashImport({hash:?}, \"$selected-target\")"))
+                }
+                _ => None,
+            };
+            if let Some(replacement) = replacement {
+                replacements.insert(format!("{statement:?}"), replacement);
+            }
+        });
+        // Longer fragments first make replacement independent of incidental
+        // enum-name overlap (`Import` / `HashImport`). The map itself removes
+        // duplicate paths without introducing HashMap iteration order.
+        let mut replacements = replacements.into_iter().collect::<Vec<_>>();
+        replacements.sort_by(|(left, _), (right, _)| {
+            right.len().cmp(&left.len()).then_with(|| left.cmp(right))
+        });
+        for (physical, semantic) in replacements {
+            canonical = canonical.replace(&physical, &semantic);
+        }
+        canonical
+    }
+
+    /// Commit the exact resolved statement sequence consumed by the backend.
+    /// `canonical_analysis_statement` is a span-free normalization despite its
+    /// historical name; applying it without the analysis-declaration filter
+    /// deliberately retains proof continuations and ordinary execution.
+    fn checked_resolved_program_id(
+        analysis_program: &CheckedAnalysisProgram,
+        statements: &[Stmt],
+    ) -> CheckedResolvedProgramId {
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-resolved-program.v1\0");
+        Self::hash_analysis_component(&mut hasher, analysis_program.id.as_str());
+        Self::hash_analysis_component(&mut hasher, &statements.len().to_string());
+        for statement in statements {
+            let canonical = Self::canonical_analysis_statement(statement);
+            Self::hash_analysis_component(&mut hasher, &canonical);
+        }
+        CheckedResolvedProgramId(format!("{:x}", hasher.finalize()).into_boxed_str())
+    }
+
+    /// Hash normalized local module content without admitting physical import
+    /// paths into semantic identity. Plain imports contribute ordered markers;
+    /// their resolved declarations are represented separately in the flattened
+    /// program. Hash imports retain the selected content hash. Qualified
+    /// imports retain only their local module name and stay opaque.
+    fn analysis_module_id(statements: &[Stmt]) -> ModuleId {
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-module.v1\0");
+        for statement in statements {
+            let canonical = match statement {
+                Stmt::Import(_) => Some("plain-import".to_string()),
+                Stmt::QualifiedImport(name, _) => Some(format!("qualified-import:{name}:opaque")),
+                Stmt::HashImport(hash, _) => Some(format!("hash-import:{hash}")),
+                other
+                    if Self::analysis_declaration_signature(other).is_some()
+                        || matches!(other, Stmt::Annot(_, _)) =>
+                {
+                    Some(Self::canonical_analysis_statement(other))
+                }
+                // Execution/proof continuations are not part of the checked
+                // analysis declaration content. In particular, changing a
+                // `? name -> { ... } else { ... }` presentation handler cannot
+                // rename every semantic site in an otherwise identical query.
+                _ => None,
+            };
+            let Some(canonical) = canonical else {
+                continue;
+            };
+            hasher.update((canonical.len() as u64).to_le_bytes());
+            hasher.update(canonical.as_bytes());
+        }
+        ModuleId::top_level(format!("{:x}", hasher.finalize()))
+    }
+
+    /// Find dependency edges only below content that participates in checked
+    /// analysis identity. A top-level proof continuation is intentionally not
+    /// followed, while an import nested in a declaration body remains part of
+    /// that declaration's conservative semantic closure.
+    fn analysis_dependency_imports(statements: &[Stmt]) -> Vec<AnalysisDependencyImport> {
+        let mut imports = Vec::new();
+        for statement in statements {
+            if !matches!(
+                statement,
+                Stmt::Import(_)
+                    | Stmt::QualifiedImport(_, _)
+                    | Stmt::HashImport(_, _)
+                    | Stmt::Annot(_, _)
+            ) && Self::analysis_declaration_signature(statement).is_none()
+            {
+                continue;
+            }
+            walk_ast_stmt(statement, &mut |child| {
+                let AstChild::Stmt(statement) = child else {
+                    return;
+                };
+                let (kind, physical_path) = match statement {
+                    Stmt::Import(path) => (AnalysisDependencyImportKind::Plain, path),
+                    Stmt::HashImport(hash, path) => (
+                        AnalysisDependencyImportKind::Hash(hash.clone().into_boxed_str()),
+                        path,
+                    ),
+                    Stmt::QualifiedImport(name, path) => (
+                        AnalysisDependencyImportKind::Qualified(name.clone().into_boxed_str()),
+                        path,
+                    ),
+                    _ => return,
+                };
+                imports.push(AnalysisDependencyImport {
+                    ordinal: imports.len(),
+                    kind,
+                    physical_path: physical_path.clone(),
+                });
+            });
+        }
+        imports
+    }
+
+    /// Discover a path-keyed dependency graph but retain only path-free node
+    /// and edge content. Canonical paths decide whether an edge is a graph
+    /// backreference; deterministic source-order discovery assigns the numeric
+    /// node identity that enters the digest. This preserves which dependency
+    /// belongs to which content-identical wrapper while making cycles finite.
+    fn collect_analysis_dependency_closure(
+        statements: &[Stmt],
+        dir: &str,
+        canonical_module: &str,
+        visited: &mut BTreeMap<String, usize>,
+        modules: &mut Vec<AnalysisDependencyModule>,
+    ) -> usize {
+        if let Some(index) = visited.get(canonical_module) {
+            return *index;
+        }
+
+        let index = modules.len();
+        visited.insert(canonical_module.to_string(), index);
+        modules.push(AnalysisDependencyModule {
+            local: Self::analysis_module_id(statements),
+            edges: Box::new([]),
+        });
+
+        let mut edges = Vec::new();
+        for import in Self::analysis_dependency_imports(statements) {
+            let Some((canonical_target, imported_dir)) =
+                Self::resolve_prepass_import(&import.physical_path, dir)
+            else {
+                edges.push(AnalysisDependencyEdge {
+                    ordinal: import.ordinal,
+                    kind: import.kind,
+                    target: None,
+                });
+                continue;
+            };
+            let target = if let Some(target) = visited.get(&canonical_target) {
+                Some(*target)
+            } else {
+                parse_source_module_file_cached(Path::new(&canonical_target))
+                    .ok()
+                    .map(|imported| {
+                        Self::collect_analysis_dependency_closure(
+                            imported.statements(),
+                            &imported_dir,
+                            &canonical_target,
+                            visited,
+                            modules,
+                        )
+                    })
+            };
+            edges.push(AnalysisDependencyEdge {
+                ordinal: import.ordinal,
+                kind: import.kind,
+                target,
+            });
+        }
+        modules[index].edges = edges.into_boxed_slice();
+        index
+    }
+
+    /// Cycle-safe transitive semantic identity for an opaque qualified target.
+    /// Canonical paths are used only to resolve and deduplicate graph nodes;
+    /// the digest contains the root's local content plus a deterministic
+    /// source-order graph serialization with numeric backreferences. Duplicate
+    /// physical modules therefore retain both multiplicity and parent/child
+    /// correlation without leaking their locations.
+    fn analysis_qualified_target_module_id(
+        statements: &[Stmt],
+        dir: &str,
+        canonical_module: &str,
+    ) -> ModuleId {
+        let root = Self::analysis_module_id(statements);
+        let mut visited = BTreeMap::new();
+        let mut modules = Vec::new();
+        Self::collect_analysis_dependency_closure(
+            statements,
+            dir,
+            canonical_module,
+            &mut visited,
+            &mut modules,
+        );
+
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-qualified-closure.v2\0");
+        Self::hash_analysis_component(&mut hasher, &root.content_hash);
+        Self::hash_analysis_component(&mut hasher, &root.internal_path.len().to_string());
+        for component in root.internal_path.iter() {
+            Self::hash_analysis_component(&mut hasher, component);
+        }
+        Self::hash_analysis_component(&mut hasher, &modules.len().to_string());
+        for (index, module) in modules.into_iter().enumerate() {
+            Self::hash_analysis_component(&mut hasher, "module");
+            Self::hash_analysis_component(&mut hasher, &index.to_string());
+            Self::hash_analysis_component(&mut hasher, &module.local.content_hash);
+            Self::hash_analysis_component(
+                &mut hasher,
+                &module.local.internal_path.len().to_string(),
+            );
+            for component in module.local.internal_path.iter() {
+                Self::hash_analysis_component(&mut hasher, component);
+            }
+            Self::hash_analysis_component(&mut hasher, &module.edges.len().to_string());
+            for edge in module.edges.iter() {
+                Self::hash_analysis_component(&mut hasher, &edge.ordinal.to_string());
+                match &edge.kind {
+                    AnalysisDependencyImportKind::Plain => {
+                        Self::hash_analysis_component(&mut hasher, "plain");
+                    }
+                    AnalysisDependencyImportKind::Hash(hash) => {
+                        Self::hash_analysis_component(&mut hasher, "hash");
+                        Self::hash_analysis_component(&mut hasher, hash);
+                    }
+                    AnalysisDependencyImportKind::Qualified(name) => {
+                        Self::hash_analysis_component(&mut hasher, "qualified");
+                        Self::hash_analysis_component(&mut hasher, name);
+                    }
+                }
+                if let Some(target) = edge.target {
+                    Self::hash_analysis_component(&mut hasher, "resolved-node");
+                    Self::hash_analysis_component(&mut hasher, &target.to_string());
+                } else {
+                    Self::hash_analysis_component(&mut hasher, "$unresolved-dependency-target");
+                }
+            }
+        }
+        ModuleId::top_level(format!("{:x}", hasher.finalize()))
+    }
+
+    fn imported_constructor_statement(imported_context: bool, statement: &Stmt) -> bool {
+        !imported_context
+            || matches!(
+                statement,
+                Stmt::Defn(_)
+                    | Stmt::TypeDecl(_)
+                    | Stmt::Rule(_)
+                    | Stmt::Use(_)
+                    | Stmt::RustBlock(_)
+                    | Stmt::Annot(_, _)
+                    | Stmt::Bind(_, _, _)
+                    | Stmt::StreamBind(_, _)
+                    | Stmt::Invariant { .. }
+            )
+    }
+
+    fn push_analysis_declaration(
+        declarations: &mut Vec<PrepassAnalysisDeclaration>,
+        statement: &Stmt,
+        module: &ModuleId,
+        declaration_ordinal: usize,
+        import_kind: &SourcedImportKind,
+        canonical_source_path: &Option<Arc<PathBuf>>,
+        qualified_target_module: Option<ModuleId>,
+        qualified_target_source_path: Option<Arc<PathBuf>>,
+        participates_in_constructor_normalization: bool,
+    ) {
+        if Self::analysis_declaration_signature(statement).is_some() {
+            declarations.push(PrepassAnalysisDeclaration {
+                statement: statement.clone(),
+                module: module.clone(),
+                declaration_ordinal,
+                import_kind: import_kind.clone(),
+                canonical_source_path: canonical_source_path.clone(),
+                qualified_target_module,
+                qualified_target_source_path,
+                participates_in_constructor_normalization,
+            });
+        }
+    }
+
     /// Build the same top-level declaration sequence that the Rust backend sees
-    /// for plain imports. This uses an independent seen set: declaration
-    /// collection's import cache must not make preprocessing order-dependent.
+    /// for plain imports while retaining checked origins for analysis. The
+    /// legacy constructor sequence and its independent plain-import `seen` set
+    /// remain unchanged. `checked_seen` deduplicates analysis plain/hash
+    /// selections independently; an opaque qualified alias does not consume a
+    /// later plain-import occurrence. Every module is parsed at most once per
+    /// visit here and no downstream analysis performs another import walk.
     fn flatten_constructor_prepass(
         &mut self,
         statements: &[Stmt],
         dir: &str,
         imported_context: bool,
-        seen: &mut BTreeSet<String>,
+        import_kind: SourcedImportKind,
+        canonical_source_path: Option<Arc<PathBuf>>,
+        emit_constructor_sequence: bool,
+        emit_analysis_sequence: bool,
+        constructor_seen: &mut BTreeSet<String>,
+        checked_seen: &mut BTreeSet<String>,
+        qualified_target_modules: &mut BTreeMap<String, ModuleId>,
         flattened: &mut Vec<Stmt>,
+        analysis_declarations: &mut Vec<PrepassAnalysisDeclaration>,
     ) {
+        let module = Self::analysis_module_id(statements);
+        let mut declaration_ordinal = 0usize;
         for statement in statements {
+            let statement_ordinal = Self::analysis_declaration_signature(statement).map(|_| {
+                let ordinal = declaration_ordinal;
+                declaration_ordinal += 1;
+                ordinal
+            });
+
             if let Stmt::Import(path) = statement {
                 let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
                 else {
                     continue;
                 };
-                if !seen.insert(canonical.clone()) {
+                let emit_constructor_import =
+                    emit_constructor_sequence && constructor_seen.insert(canonical.clone());
+                let emit_analysis_import =
+                    emit_analysis_sequence && checked_seen.insert(canonical.clone());
+                if !emit_constructor_import && !emit_analysis_import {
                     continue;
                 }
-                let source = match std::fs::read_to_string(&canonical) {
-                    Ok(source) => source,
-                    Err(_) => continue,
-                };
-                let imported = match parse_source_module_cached(Path::new(&canonical), &source) {
+                let imported = match parse_source_module_file_cached(Path::new(&canonical)) {
                     Ok(imported) => imported,
                     Err(_) => continue,
                 };
@@ -20547,42 +27741,321 @@ impl TypeChecker {
                     imported.statements(),
                     &imported_dir,
                     true,
-                    seen,
+                    SourcedImportKind::PlainImport,
+                    Some(Arc::new(PathBuf::from(&canonical))),
+                    emit_constructor_import,
+                    emit_analysis_import,
+                    constructor_seen,
+                    checked_seen,
+                    qualified_target_modules,
                     flattened,
+                    analysis_declarations,
                 );
                 continue;
             }
 
-            if imported_context && matches!(statement, Stmt::Annot(name, _) if name == "print") {
-                continue;
+            if let Stmt::QualifiedImport(name, path) = statement {
+                if emit_analysis_sequence {
+                    let mut qualified_target_module = None;
+                    let mut qualified_target_source_path = None;
+                    if let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
+                    {
+                        qualified_target_source_path = Some(Arc::new(PathBuf::from(&canonical)));
+                        if let Some(cached) = qualified_target_modules.get(&canonical) {
+                            qualified_target_module = Some(cached.clone());
+                        } else if let Ok(imported) =
+                            parse_source_module_file_cached(Path::new(&canonical))
+                        {
+                            let target = Self::analysis_qualified_target_module_id(
+                                imported.statements(),
+                                &imported_dir,
+                                &canonical,
+                            );
+                            qualified_target_modules.insert(canonical.clone(), target.clone());
+                            qualified_target_module = Some(target);
+                        }
+                    }
+                    if let Some(statement_ordinal) = statement_ordinal {
+                        Self::push_analysis_declaration(
+                            analysis_declarations,
+                            statement,
+                            &module,
+                            statement_ordinal,
+                            &SourcedImportKind::QualifiedImport {
+                                module_name: name.clone().into_boxed_str(),
+                            },
+                            &canonical_source_path,
+                            qualified_target_module,
+                            qualified_target_source_path,
+                            false,
+                        );
+                    }
+                }
             }
 
-            if !imported_context
-                || matches!(
-                    statement,
-                    Stmt::Defn(_)
-                        | Stmt::TypeDecl(_)
-                        | Stmt::Rule(_)
-                        | Stmt::Use(_)
-                        | Stmt::RustBlock(_)
-                        | Stmt::Annot(_, _)
-                        | Stmt::Bind(_, _, _)
-                        | Stmt::StreamBind(_, _)
-                        | Stmt::Invariant { .. }
-                )
-            {
+            if let Stmt::HashImport(hash, path) = statement {
+                if emit_analysis_sequence {
+                    if let Some((canonical, _)) = Self::resolve_prepass_import(path, dir) {
+                        let import_key = format!("{canonical}#{hash}");
+                        if checked_seen.insert(import_key) {
+                            if let Ok(imported) =
+                                parse_source_module_file_cached(Path::new(&canonical))
+                            {
+                                let imported_module =
+                                    Self::analysis_module_id(imported.statements());
+                                let imported_path = Some(Arc::new(PathBuf::from(&canonical)));
+                                let mut imported_ordinal = 0usize;
+                                let mut matching = Vec::new();
+                                for candidate in imported.statements() {
+                                    let Some(_) = Self::analysis_declaration_signature(candidate)
+                                    else {
+                                        continue;
+                                    };
+                                    let candidate_ordinal = imported_ordinal;
+                                    imported_ordinal += 1;
+                                    let selected = match candidate {
+                                        Stmt::Defn(definition) => {
+                                            content_hash_defn(definition) == *hash
+                                        }
+                                        Stmt::TypeDecl(declaration) => {
+                                            content_hash_type(declaration) == *hash
+                                        }
+                                        _ => false,
+                                    };
+                                    if selected {
+                                        matching.push((candidate, candidate_ordinal));
+                                    }
+                                }
+                                if let [(candidate, candidate_ordinal)] = matching.as_slice() {
+                                    Self::push_analysis_declaration(
+                                        analysis_declarations,
+                                        candidate,
+                                        &imported_module,
+                                        *candidate_ordinal,
+                                        &SourcedImportKind::HashImport {
+                                            selected_hash: hash.clone().into_boxed_str(),
+                                        },
+                                        &imported_path,
+                                        None,
+                                        None,
+                                        false,
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            let retained = Self::imported_constructor_statement(imported_context, statement);
+            let retained_for_constructor = retained
+                && !(imported_context
+                    && matches!(statement, Stmt::Annot(name, _) if name == "print"));
+            if emit_constructor_sequence && retained_for_constructor {
                 // Modules, ReactiveScopes and expression Blocks stay opaque: no
                 // recursive walk occurs after this top-level push.
                 flattened.push(statement.clone());
             }
+
+            if emit_analysis_sequence
+                && retained
+                && !matches!(statement, Stmt::QualifiedImport(_, _))
+            {
+                if let Some(statement_ordinal) = statement_ordinal {
+                    Self::push_analysis_declaration(
+                        analysis_declarations,
+                        statement,
+                        &module,
+                        statement_ordinal,
+                        &import_kind,
+                        &canonical_source_path,
+                        None,
+                        None,
+                        true,
+                    );
+                }
+            }
+        }
+    }
+
+    fn hash_analysis_component(hasher: &mut Sha256, value: &str) {
+        hasher.update((value.len() as u64).to_le_bytes());
+        hasher.update(value.as_bytes());
+    }
+
+    fn normalize_analysis_program(
+        mut declarations: Vec<PrepassAnalysisDeclaration>,
+    ) -> CheckedAnalysisProgram {
+        // Apply exactly the constructor prepass's existing first-type and
+        // last-function/actor rules to root/plain-import declarations. A hash
+        // selection did not participate in those legacy filters, so retaining
+        // it here preserves rather than changes current shadow behavior.
+        let mut seen_types = BTreeSet::new();
+        declarations.retain(|declaration| {
+            if !declaration.participates_in_constructor_normalization {
+                return true;
+            }
+            match &declaration.statement {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                | Stmt::TypeDecl(TypeDecl::EffectDecl { name, .. })
+                | Stmt::TypeDecl(TypeDecl::TraitDecl { name, .. }) => {
+                    seen_types.insert(name.clone())
+                }
+                _ => true,
+            }
+        });
+        let mut last_definitions = BTreeMap::new();
+        for (index, declaration) in declarations.iter().enumerate() {
+            if !declaration.participates_in_constructor_normalization {
+                continue;
+            }
+            if let Stmt::Defn(Defn::Fn { name, .. }) | Stmt::Defn(Defn::Actor { name, .. }) =
+                &declaration.statement
+            {
+                last_definitions.insert(name.clone(), index);
+            }
+        }
+        declarations = declarations
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, declaration)| {
+                if declaration.participates_in_constructor_normalization {
+                    if let Stmt::Defn(Defn::Fn { name, .. })
+                    | Stmt::Defn(Defn::Actor { name, .. }) = &declaration.statement
+                    {
+                        if last_definitions.get(name) != Some(&index) {
+                            return None;
+                        }
+                    }
+                }
+                Some(declaration)
+            })
+            .collect();
+
+        let declarations = declarations
+            .into_iter()
+            .enumerate()
+            .map(|(normalized_ordinal, declaration)| {
+                let (kind, owner, name, arity) =
+                    Self::analysis_declaration_signature(&declaration.statement)
+                        .expect("prepass analysis declarations have signatures");
+                let id = DeclarationId {
+                    module: declaration.module,
+                    kind,
+                    owner: owner.map(String::into_boxed_str),
+                    name: name.into_boxed_str(),
+                    arity,
+                    ordinal: declaration.declaration_ordinal,
+                };
+                let source_span = Self::analysis_statement_span(&declaration.statement);
+                SourcedStmt {
+                    id,
+                    normalized_ordinal,
+                    import_kind: declaration.import_kind,
+                    statement: Arc::new(declaration.statement),
+                    canonical_source_path: declaration.canonical_source_path,
+                    qualified_target_module: declaration.qualified_target_module,
+                    qualified_target_source_path: declaration.qualified_target_source_path,
+                    source_span,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        // This is deliberately a conservative whole-checked-declaration
+        // identity for Phase A. Every current Explore semantic root is inside
+        // its stripped `Stmt::Explore`: domain and fixed/derived bounds,
+        // constraints, question, boundary, key, extrema/filter, shown values
+        // and representative objective. Runtime proof/pass/else continuations
+        // are not declarations and are excluded. A later resolved reachability
+        // phase may derive a narrower dependency-slice identity from this
+        // complete, origin-preserving input without importing source again.
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-analysis-program.v1\0");
+        for declaration in &declarations {
+            Self::hash_analysis_component(&mut hasher, &declaration.id.module.content_hash);
+            Self::hash_analysis_component(
+                &mut hasher,
+                &declaration.id.module.internal_path.len().to_string(),
+            );
+            for component in declaration.id.module.internal_path.iter() {
+                Self::hash_analysis_component(&mut hasher, component);
+            }
+            Self::hash_analysis_component(&mut hasher, declaration.id.kind.token());
+            Self::hash_analysis_component(
+                &mut hasher,
+                declaration.id.owner.as_deref().unwrap_or(""),
+            );
+            Self::hash_analysis_component(&mut hasher, &declaration.id.name);
+            Self::hash_analysis_component(
+                &mut hasher,
+                &declaration
+                    .id
+                    .arity
+                    .map(|arity| arity.to_string())
+                    .unwrap_or_else(|| "-".to_string()),
+            );
+            Self::hash_analysis_component(&mut hasher, &declaration.id.ordinal.to_string());
+            Self::hash_analysis_component(&mut hasher, &declaration.normalized_ordinal.to_string());
+            match &declaration.import_kind {
+                SourcedImportKind::Root => {
+                    Self::hash_analysis_component(&mut hasher, "origin:root");
+                }
+                SourcedImportKind::PlainImport => {
+                    Self::hash_analysis_component(&mut hasher, "origin:plain-import");
+                }
+                SourcedImportKind::HashImport { selected_hash } => {
+                    Self::hash_analysis_component(&mut hasher, "origin:hash-import");
+                    Self::hash_analysis_component(&mut hasher, selected_hash);
+                }
+                SourcedImportKind::QualifiedImport { module_name } => {
+                    Self::hash_analysis_component(&mut hasher, "origin:qualified-import");
+                    Self::hash_analysis_component(&mut hasher, module_name);
+                }
+            }
+            if matches!(&*declaration.statement, Stmt::QualifiedImport(_, _)) {
+                if let Some(target) = &declaration.qualified_target_module {
+                    Self::hash_analysis_component(&mut hasher, &target.content_hash);
+                    Self::hash_analysis_component(
+                        &mut hasher,
+                        &target.internal_path.len().to_string(),
+                    );
+                    for component in target.internal_path.iter() {
+                        Self::hash_analysis_component(&mut hasher, component);
+                    }
+                } else {
+                    Self::hash_analysis_component(&mut hasher, "$unresolved-qualified-target");
+                }
+            }
+            let canonical_statement = Self::canonical_analysis_statement(&declaration.statement);
+            Self::hash_analysis_component(&mut hasher, &canonical_statement);
+        }
+        CheckedAnalysisProgram {
+            id: AnalysisProgramId(format!("{:x}", hasher.finalize()).into_boxed_str()),
+            declarations: declarations.into(),
         }
     }
 
     fn build_constructor_prepass(&mut self, statements: &[Stmt]) -> ConstructorPrepass {
         let mut flattened = Vec::new();
-        let mut seen = BTreeSet::new();
+        let mut analysis_declarations = Vec::new();
+        let mut constructor_seen = BTreeSet::new();
+        let mut checked_seen = BTreeSet::new();
+        let mut qualified_target_modules = BTreeMap::new();
         let root_dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
-        self.flatten_constructor_prepass(statements, &root_dir, false, &mut seen, &mut flattened);
+        self.flatten_constructor_prepass(
+            statements,
+            &root_dir,
+            false,
+            SourcedImportKind::Root,
+            None,
+            true,
+            true,
+            &mut constructor_seen,
+            &mut checked_seen,
+            &mut qualified_target_modules,
+            &mut flattened,
+            &mut analysis_declarations,
+        );
 
         // Mirror `scan_declarations`: ADTs, effects, and traits share a
         // first-declaration-wins namespace, while top-level functions and
@@ -20615,7 +28088,10 @@ impl TypeChecker {
             })
             .collect::<Vec<_>>();
 
-        let mut prepass = ConstructorPrepass::default();
+        let mut prepass = ConstructorPrepass {
+            analysis_program: Self::normalize_analysis_program(analysis_declarations),
+            ..ConstructorPrepass::default()
+        };
         let mut binding_counts = BTreeMap::<String, usize>::new();
         for statement in &flattened {
             if let Stmt::Bind(Pat::Var(name), _, _) = statement {
@@ -20759,6 +28235,8 @@ impl TypeChecker {
             }
             prepass.all_statements.push(statement);
         }
+        prepass.resolved_program =
+            Self::checked_resolved_program_id(&prepass.analysis_program, &prepass.all_statements);
         prepass
     }
 
@@ -20959,6 +28437,8 @@ impl TypeChecker {
     fn install_constructor_prepass(&mut self, statements: &[Stmt]) {
         let prepass = self.build_constructor_prepass(statements);
         self.plain_import_rule_dispatch_statements = prepass.all_statements.clone();
+        self.analysis_program = prepass.analysis_program.clone();
+        self.resolved_program = prepass.resolved_program.clone();
         self.top_level_constructor_names = prepass.constructors.clone();
         self.root_actor_runtime_symbols = prepass.actor_runtime_symbols.clone();
 
@@ -22012,6 +29492,59 @@ impl TypeChecker {
         self.infer_expr_type_name_with_locals(expr, &BTreeMap::new())
     }
 
+    fn is_polymorphic_empty_list_expr(expr: &Expr) -> bool {
+        match &expr.kind {
+            ExprKind::List(items) => items.is_empty(),
+            ExprKind::Block(stmts) => stmts.last().is_some_and(|stmt| match stmt {
+                Stmt::Expr(result) => Self::is_polymorphic_empty_list_expr(result),
+                _ => false,
+            }),
+            _ => false,
+        }
+    }
+
+    fn infer_callable_result_type_with_locals(
+        &self,
+        callable: &Expr,
+        arity: usize,
+        locals: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        match &callable.kind {
+            ExprKind::Lambda(params, body) if params.len() == arity => {
+                let mut lambda_locals = locals.clone();
+                for param in params {
+                    let ty = param.ty.as_ref().and_then(Self::type_name_from_ty)?;
+                    lambda_locals.insert(param.name.clone(), ty);
+                }
+                self.infer_expr_type_name_with_locals(body, &lambda_locals)
+            }
+            ExprKind::Var(name) => {
+                if let Some(local_type) = locals.get(name) {
+                    if let Ok(Ty::Arrow(_, return_type)) = parse_type_annotation(local_type) {
+                        return Self::type_name_from_ty(&return_type);
+                    }
+                }
+                self.explore_function_return_types_by_arity
+                    .get(&(name.clone(), arity))
+                    .or_else(|| {
+                        self.explore_rule_return_types_by_arity
+                            .get(&(name.clone(), arity))
+                    })
+                    .and_then(Self::type_name_from_ty)
+                    .or_else(|| {
+                        let key = RuleDispatchKey {
+                            scope: None,
+                            name: name.clone(),
+                            arity,
+                        };
+                        self.rule_dispatch_return_types.get(&key).cloned()
+                    })
+                    .or_else(|| self.rule_return_types.get(name).cloned())
+            }
+            _ => None,
+        }
+    }
+
     fn infer_expr_type_name_with_locals(
         &self,
         expr: &Expr,
@@ -22038,16 +29571,19 @@ impl TypeChecker {
                     .collect::<Option<Vec<_>>>()?;
                 Some(format!("Tuple({})", item_types.join(", ")))
             }
-            ExprKind::Var(name) => locals
-                .get(name)
-                .cloned()
-                .or_else(|| self.var_type_name(name).map(str::to_string))
-                .or_else(|| self.nullary_constructor_parent(name))
-                .or_else(|| {
-                    self.constructors
-                        .get(name)
-                        .map(|(parent, _)| parent.clone())
-                }),
+            ExprKind::Var(name) => match locals.get(name) {
+                Some(type_name) if type_name == CHECKED_UNTYPED_SHADOW_TYPE_TOMBSTONE => None,
+                Some(type_name) => Some(type_name.clone()),
+                None => self
+                    .var_type_name(name)
+                    .map(str::to_string)
+                    .or_else(|| self.nullary_constructor_parent(name))
+                    .or_else(|| {
+                        self.constructors
+                            .get(name)
+                            .map(|(parent, _)| parent.clone())
+                    }),
+            },
             ExprKind::App(func, args) => {
                 if let ExprKind::Var(name) = &func.as_ref().kind {
                     if name == NAMED_ARG_MARKER {
@@ -22066,6 +29602,68 @@ impl TypeChecker {
                         {
                             return Some(format!("Option({})", inner));
                         }
+                    }
+                    // `foldl(collection, initial, step)` always returns the
+                    // accumulator type, including for an empty collection.
+                    // This is an exact higher-order builtin law, not a guess
+                    // from the callback body, and lets Explore validate pure
+                    // corpus helpers without expanding their finite inputs.
+                    if name == "foldl" && args.len() == 3 {
+                        if let Some(initial_type) =
+                            self.infer_expr_type_name_with_locals(&args[1], locals)
+                        {
+                            return Some(initial_type);
+                        }
+                        if Self::is_polymorphic_empty_list_expr(&args[1]) {
+                            if let ExprKind::Lambda(params, _) = &args[2].kind {
+                                if params.len() == 2 {
+                                    return params[0].ty.as_ref().and_then(Self::type_name_from_ty);
+                                }
+                            }
+                        }
+                        return None;
+                    }
+                    if name == "map" && args.len() == 2 {
+                        let result =
+                            self.infer_callable_result_type_with_locals(&args[1], 1, locals)?;
+                        return Some(format!("List({result})"));
+                    }
+                    if name == "flat_map" && args.len() == 2 {
+                        return self.infer_callable_result_type_with_locals(&args[1], 1, locals);
+                    }
+                    if (matches!(name.as_str(), "distinct" | "reverse" | "sort") && args.len() == 1)
+                        || (matches!(name.as_str(), "filter" | "sort_by") && args.len() == 2)
+                    {
+                        return self.infer_expr_type_name_with_locals(&args[0], locals);
+                    }
+                    if matches!(name.as_str(), "head" | "last") && args.len() == 1 {
+                        let collection_type =
+                            self.infer_expr_type_name_with_locals(&args[0], locals)?;
+                        return Self::applied_type_argument(&collection_type, "List", 0);
+                    }
+                    if name == "find" && args.len() == 2 {
+                        let collection_type =
+                            self.infer_expr_type_name_with_locals(&args[0], locals)?;
+                        let element_type =
+                            Self::applied_type_argument(&collection_type, "List", 0)?;
+                        return Some(format!("Option({element_type})"));
+                    }
+                    if name == "concat" && !args.is_empty() {
+                        let mut result = self.infer_expr_type_name_with_locals(&args[0], locals)?;
+                        for argument in &args[1..] {
+                            let next = self.infer_expr_type_name_with_locals(argument, locals)?;
+                            result = Self::merge_inferred_type_names(&result, &next)?;
+                        }
+                        return Some(result);
+                    }
+                    if matches!(name.as_str(), "all" | "any") && args.len() == 2 {
+                        return Some("Bool".to_string());
+                    }
+                    if name == "length" && args.len() == 1 {
+                        return Some("Int".to_string());
+                    }
+                    if name == "sum_list" && args.len() == 1 {
+                        return Some("Int".to_string());
                     }
                     if let Some(local_type) = locals.get(name) {
                         if let Ok(Ty::Arrow(_, return_type)) = parse_type_annotation(local_type) {
@@ -22176,6 +29774,12 @@ impl TypeChecker {
                     (Some(then_ty), Some(else_ty)) => {
                         Self::merge_inferred_type_names(&then_ty, &else_ty)
                     }
+                    (Some(then_ty), None) if Self::is_polymorphic_empty_list_expr(else_expr) => {
+                        Some(then_ty)
+                    }
+                    (None, Some(else_ty)) if Self::is_polymorphic_empty_list_expr(then_expr) => {
+                        Some(else_ty)
+                    }
                     _ => None,
                 }
             }
@@ -22186,7 +29790,17 @@ impl TypeChecker {
                     let mut arm_locals = locals.clone();
                     arm_locals
                         .extend(self.pattern_type_bindings(&arm.pat, subject_type.as_deref()));
-                    let arm_type = self.infer_expr_type_name_with_locals(&arm.body, &arm_locals)?;
+                    let arm_type =
+                        match self.infer_expr_type_name_with_locals(&arm.body, &arm_locals) {
+                            Some(arm_type) => arm_type,
+                            None if Self::is_polymorphic_empty_list_expr(&arm.body) => {
+                                // `[]` is polymorphic. A nonempty sibling arm fixes
+                                // its exact list type; an all-empty match remains
+                                // intentionally uninferred.
+                                continue;
+                            }
+                            None => return None,
+                        };
                     let merged = match result_type {
                         Some(known) => Self::merge_inferred_type_names(&known, &arm_type),
                         None => Some(arm_type),
@@ -22222,6 +29836,83 @@ impl TypeChecker {
             ExprKind::Try(inner) => self.infer_expr_type_name_with_locals(inner, locals),
             ExprKind::Pipe(_, transform) => {
                 self.infer_expr_type_name_with_locals(transform, locals)
+            }
+            _ => None,
+        }
+    }
+
+    /// Find a conflict-free type seed inside a branching expression. This is
+    /// used only to start the exact rule-return fixed point: the completed
+    /// pass below re-infers every branch and rejects unresolved or conflicting
+    /// families before any Explore artifact is produced.
+    fn provisional_expr_type_name_with_locals(
+        &self,
+        expr: &Expr,
+        locals: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        if let Some(inferred) = self.infer_expr_type_name_with_locals(expr, locals) {
+            return Some(inferred);
+        }
+
+        let merge_candidates = |left: Option<String>, right: Option<String>| match (left, right) {
+            (Some(left), Some(right)) => Self::merge_inferred_type_names(&left, &right),
+            (Some(known), None) | (None, Some(known)) => Some(known),
+            (None, None) => None,
+        };
+
+        match &expr.kind {
+            ExprKind::If(_, then_expr, else_expr) => merge_candidates(
+                self.provisional_expr_type_name_with_locals(then_expr, locals),
+                self.provisional_expr_type_name_with_locals(else_expr, locals),
+            ),
+            ExprKind::Match(scrutinee, arms) => {
+                let subject_type = self.infer_expr_type_name_with_locals(scrutinee, locals);
+                let mut candidate: Option<String> = None;
+                for arm in arms {
+                    let mut arm_locals = locals.clone();
+                    arm_locals
+                        .extend(self.pattern_type_bindings(&arm.pat, subject_type.as_deref()));
+                    let Some(arm_candidate) =
+                        self.provisional_expr_type_name_with_locals(&arm.body, &arm_locals)
+                    else {
+                        continue;
+                    };
+                    candidate = match candidate {
+                        Some(known) => {
+                            Some(Self::merge_inferred_type_names(&known, &arm_candidate)?)
+                        }
+                        None => Some(arm_candidate),
+                    };
+                }
+                candidate
+            }
+            ExprKind::Block(stmts) => {
+                let mut block_locals = locals.clone();
+                let mut result = None;
+                for stmt in stmts {
+                    match stmt {
+                        Stmt::Bind(Pat::Var(name), annotation, value) => {
+                            result = annotation
+                                .as_ref()
+                                .and_then(Self::type_name_from_ty)
+                                .or_else(|| {
+                                    self.provisional_expr_type_name_with_locals(
+                                        value,
+                                        &block_locals,
+                                    )
+                                });
+                            if let Some(inferred) = &result {
+                                block_locals.insert(name.clone(), inferred.clone());
+                            }
+                        }
+                        Stmt::Expr(value) => {
+                            result =
+                                self.provisional_expr_type_name_with_locals(value, &block_locals);
+                        }
+                        _ => result = None,
+                    }
+                }
+                result
             }
             _ => None,
         }
@@ -22649,9 +30340,11 @@ impl TypeChecker {
         // A known base candidate can seed recursive references. Every result is
         // revalidated below after the fixed point, so a provisional type can
         // never hide a later conflict or unresolved dependency.
+        let previous_active_scope = self.active_rule_scope_inference.clone();
         for _ in 0..groups.len().saturating_add(1) {
             let mut changed = false;
             for (key, (captures, rules)) in &groups {
+                self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group(self, captures, rules);
                 let known = inferred.iter().flatten().collect::<Vec<_>>();
                 let Some(first) = known.first() else {
@@ -22682,6 +30375,7 @@ impl TypeChecker {
                 if self.rule_dispatch_return_issues.contains_key(key) {
                     continue;
                 }
+                self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group(self, captures, rules);
                 let issue = if inferred.iter().any(Option::is_none) {
                     Some(format!(
@@ -22725,6 +30419,7 @@ impl TypeChecker {
                 break;
             }
         }
+        self.active_rule_scope_inference = previous_active_scope;
         // Static return sorts are useful to Explore/SMT even when runtime
         // lookup is context-dependent. The Interpreter's Bool miss override
         // receives a strictly narrower proof: every possible hit expression
@@ -22951,13 +30646,13 @@ impl TypeChecker {
                         Rule::Clause { head, body } => match body {
                             Some(body) => {
                                 let locals = self.rule_head_local_types(head);
-                                self.infer_expr_type_name_with_locals(body, &locals)
+                                self.provisional_expr_type_name_with_locals(body, &locals)
                             }
                             None => Some("Bool".to_string()),
                         },
                         Rule::Default { head, value, .. } | Rule::Exception { head, value, .. } => {
                             let locals = self.rule_head_local_types(head);
-                            self.infer_expr_type_name_with_locals(value, &locals)
+                            self.provisional_expr_type_name_with_locals(value, &locals)
                         }
                         Rule::ReactiveScope { .. } => None,
                     })
@@ -23606,14 +31301,55 @@ impl TypeChecker {
         self.diagnostics.push(diag);
     }
 
+    fn phase_a_source_snapshot_match(
+        &self,
+        file_path: &str,
+        module: &ParsedSourceModule,
+    ) -> Option<bool> {
+        let canonical =
+            std::fs::canonicalize(file_path).unwrap_or_else(|_| PathBuf::from(file_path));
+        let current_module = Self::analysis_module_id(module.statements());
+        let expected = self
+            .analysis_program
+            .declarations
+            .iter()
+            .filter(|declaration| {
+                declaration
+                    .canonical_source_path
+                    .as_deref()
+                    .is_some_and(|path| path.as_path() == canonical.as_path())
+            })
+            .map(|declaration| declaration.id.module.clone())
+            .collect::<BTreeSet<_>>();
+        (!expected.is_empty()).then(|| expected.contains(&current_module))
+    }
+
+    fn phase_a_has_exact_source_snapshot(&self, file_path: &str) -> bool {
+        let canonical =
+            std::fs::canonicalize(file_path).unwrap_or_else(|_| PathBuf::from(file_path));
+        self.analysis_program
+            .declarations
+            .iter()
+            .any(|declaration| {
+                declaration
+                    .canonical_source_path
+                    .as_deref()
+                    .is_some_and(|path| path.as_path() == canonical.as_path())
+            })
+    }
+
     fn parse_imported_source_for_tc(
         &mut self,
         import_path: &str,
         file_path: &str,
+        feeds_checked_resolution: bool,
     ) -> Option<Arc<ParsedSourceModule>> {
         let source = match std::fs::read_to_string(file_path) {
             Ok(source) => source,
             Err(error) => {
+                if feeds_checked_resolution || self.phase_a_has_exact_source_snapshot(file_path) {
+                    self.checked_resolution_source_snapshot_coherent = false;
+                }
                 self.error_at_import_path(
                     import_path,
                     format!(
@@ -23625,8 +31361,19 @@ impl TypeChecker {
             }
         };
         match parse_source_module_cached(Path::new(file_path), &source) {
-            Ok(module) => Some(module),
+            Ok(module) => {
+                let snapshot_match = self.phase_a_source_snapshot_match(file_path, &module);
+                if (feeds_checked_resolution && snapshot_match != Some(true))
+                    || snapshot_match == Some(false)
+                {
+                    self.checked_resolution_source_snapshot_coherent = false;
+                }
+                Some(module)
+            }
             Err(error) => {
+                if feeds_checked_resolution || self.phase_a_has_exact_source_snapshot(file_path) {
+                    self.checked_resolution_source_snapshot_coherent = false;
+                }
                 self.error_at_import_path(
                     import_path,
                     format!(
@@ -23653,7 +31400,10 @@ impl TypeChecker {
         self.source_dir = Some(imported_dir);
         self.collect_declarations(import_stmts);
         self.infer_rule_return_types(import_stmts);
-        self.infer_explore_rule_return_types(import_stmts);
+        // Exact Explore rule-return inference is a whole-program fixed point.
+        // Running it at every nested import boundary repeatedly revisits the
+        // entire accumulated rule graph (quadratic on deep corpora) and cannot
+        // establish anything the root pass does not recompute after collection.
         self.infer_top_level_binding_types(import_stmts);
         self.source_dir = previous_dir;
     }
@@ -23876,6 +31626,7 @@ impl TypeChecker {
         self.rule_dispatch_has_opaque_runtime_graph |=
             Self::rule_dispatch_program_has_opaque_runtime_graph(stmts);
         for stmt in stmts {
+            self.record_explore_top_level_binding_initializer(stmt);
             match stmt {
                 Stmt::Defn(Defn::Fn {
                     name,
@@ -24034,6 +31785,17 @@ impl TypeChecker {
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) => {
                     self.record_explore_non_rule_runtime_name(name);
+                    // A later declaration replaces the complete scoped rule
+                    // surface, matching runtime RuleDispatchRegistry ownership.
+                    if self.explore_inline_module_depth == 0 {
+                        self.explore_scoped_callable_expressions
+                            .retain(|key, _| key.scope.as_deref() != Some(name));
+                        for statement in body {
+                            if let Stmt::Rule(rule) = statement {
+                                self.record_explore_scoped_rule_body(name, params, rule);
+                            }
+                        }
+                    }
                     self.types.insert(name.clone());
                     self.register_constructor_signature(
                         name,
@@ -24310,7 +32072,7 @@ impl TypeChecker {
                             if !self.imported.contains(&canon) {
                                 self.imported.insert(canon);
                                 if let Some(import_stmts) =
-                                    self.parse_imported_source_for_tc(path, &file_path)
+                                    self.parse_imported_source_for_tc(path, &file_path, true)
                                 {
                                     self.collect_declarations_from_imported_file(
                                         import_stmts.statements(),
@@ -24334,7 +32096,7 @@ impl TypeChecker {
                                 self.imported.insert(canon);
                             }
                             if let Some(import_stmts) =
-                                self.parse_imported_source_for_tc(path, &file_path)
+                                self.parse_imported_source_for_tc(path, &file_path, false)
                             {
                                 let exported =
                                     Self::exported_names_from_stmts(import_stmts.statements());
@@ -24354,7 +32116,7 @@ impl TypeChecker {
                             if !self.imported.contains(&import_key) {
                                 self.imported.insert(import_key);
                                 if let Some(import_stmts) =
-                                    self.parse_imported_source_for_tc(path, &file_path)
+                                    self.parse_imported_source_for_tc(path, &file_path, true)
                                 {
                                     let matched: Vec<Stmt> = import_stmts
                                         .statements()
@@ -24712,11 +32474,56 @@ impl TypeChecker {
         }
     }
 
+    fn explore_scoped_member_call_key(
+        &self,
+        function: &Expr,
+        arity: usize,
+    ) -> Option<RuleDispatchKey> {
+        let ExprKind::Field(receiver, member) = &function.kind else {
+            return None;
+        };
+        let ExprKind::App(constructor, constructor_arguments) = &receiver.kind else {
+            return None;
+        };
+        let ExprKind::Var(receiver_name) = &constructor.kind else {
+            return None;
+        };
+        let scope = if let Some(signature) =
+            self.constructor_signature_for_args(receiver_name, constructor_arguments)
+        {
+            (signature.parent == *receiver_name && self.type_has_scoped_members(&signature.parent))
+                .then_some(signature.parent)?
+        } else {
+            let receiver_key = RuleDispatchKey {
+                scope: None,
+                name: receiver_name.clone(),
+                arity: constructor_arguments.len(),
+            };
+            if self.explore_non_rule_runtime_names.contains(receiver_name)
+                || !self.rule_dispatch_keys.contains(&receiver_key)
+            {
+                return None;
+            }
+            let return_type = self.rule_dispatch_return_types.get(&receiver_key)?;
+            self.type_has_scoped_members(return_type)
+                .then_some(return_type.clone())?
+        };
+        let key = RuleDispatchKey {
+            scope: Some(scope),
+            name: member.clone(),
+            arity,
+        };
+        (self.rule_dispatch_keys.contains(&key)
+            && self.explore_scoped_callable_expressions.contains_key(&key))
+        .then_some(key)
+    }
+
     fn explore_expression_capabilities(
         &self,
         expr: &Expr,
         bound: &BTreeSet<String>,
-    ) -> (bool, BTreeSet<(String, usize)>) {
+        callable_bound: &BTreeSet<String>,
+    ) -> (bool, BTreeSet<(String, usize)>, BTreeSet<RuleDispatchKey>) {
         let impure_names = meta_impure_runtime_names();
         let effect_operations = self
             .effect_ops
@@ -24725,9 +32532,21 @@ impl TypeChecker {
             .collect::<BTreeSet<_>>();
         let mut supported = true;
         let mut calls = BTreeSet::new();
+        let mut scoped_calls = BTreeSet::new();
         walk_ast_expr(expr, &mut |child| match child {
             AstChild::Expr(expr) => match &expr.kind {
                 ExprKind::Effect(_, _) | ExprKind::Handle { .. } | ExprKind::Try(_) => {
+                    supported = false;
+                }
+                ExprKind::Field(receiver, _)
+                    if matches!(
+                        &receiver.kind,
+                        ExprKind::Var(module) if self.module_exports.contains_key(module)
+                    ) =>
+                {
+                    // Runtime initialization of a module member requires the
+                    // owner-aware namespace slice.  Ordinary ADT fields remain
+                    // supported; qualified module values fail closed in v1.
                     supported = false;
                 }
                 ExprKind::Pipe(_, transform)
@@ -24743,11 +32562,16 @@ impl TypeChecker {
                     // constructor, rule value, or builtin only at runtime.
                     supported = false;
                 }
-                ExprKind::App(function, _) => {
-                    if !matches!(&function.kind, ExprKind::Var(_)) {
-                        // Qualified and method calls need owner-aware callable identity.
-                        // Treat them as unsupported until the canonical rule-slice pass
-                        // can resolve the exact receiver and declaration.
+                ExprKind::App(function, arguments) => {
+                    if matches!(&function.kind, ExprKind::Var(_)) {
+                        // Bare calls are resolved below by exact name and arity.
+                    } else if let Some(key) =
+                        self.explore_scoped_member_call_key(function, arguments.len())
+                    {
+                        scoped_calls.insert(key);
+                    } else {
+                        // Qualified modules, ordinary methods, and computed
+                        // receivers need a different owner-aware purity model.
                         supported = false;
                     }
                 }
@@ -24765,18 +32589,25 @@ impl TypeChecker {
         });
         for call in collect_scoped_runtime_calls(expr, bound) {
             if call.lexically_bound {
-                supported = false;
+                if !callable_bound.contains(&call.name) {
+                    supported = false;
+                }
+                // Arrow-typed callable parameters are evaluated by the exact
+                // interpreter. The active exploration effect guard remains
+                // authoritative for the concrete closure supplied by a call.
+                continue;
             }
             let canonical = builtin_canonical(&call.name);
-            if impure_names.contains(&call.name)
-                || impure_names.contains(canonical)
+            if ((impure_names.contains(&call.name) || impure_names.contains(canonical))
+                && !matches!(canonical, "last" | "take" | "collect"))
                 || effect_operations.contains(&call.name)
+                || matches!(canonical, "findall" | "search")
             {
                 supported = false;
             }
             calls.insert((call.name, call.effective_arity));
         }
-        (supported, calls)
+        (supported, calls, scoped_calls)
     }
 
     fn explore_call_has_supported_definition(&self, key: &(String, usize)) -> bool {
@@ -24805,79 +32636,225 @@ impl TypeChecker {
             .is_some_and(|(_, fields)| fields == arity)
     }
 
-    fn explore_callable_is_pure_inner(
+    fn explore_expression_dependencies_are_pure_inner(
         &self,
-        key: &(String, usize),
-        visiting: &mut BTreeSet<(String, usize)>,
-        memo: &mut BTreeMap<(String, usize), bool>,
+        expr: &Expr,
+        bound: &BTreeSet<String>,
+        callable_bound: &BTreeSet<String>,
+        active_scope: Option<&str>,
+        visiting: &mut BTreeSet<ExplorePurityNode>,
+        memo: &mut BTreeMap<ExplorePurityNode, bool>,
     ) -> bool {
-        if let Some(pure) = memo.get(key) {
-            return *pure;
-        }
-        if self.explore_declared_effect_callables.contains(key) {
-            memo.insert(key.clone(), false);
+        let (supported, calls, scoped_calls) =
+            self.explore_expression_capabilities(expr, bound, callable_bound);
+        if !supported {
             return false;
         }
-        if !visiting.insert(key.clone()) {
+        for key in scoped_calls {
+            if !self.explore_purity_node_is_pure_inner(
+                &ExplorePurityNode::ScopedRule(key),
+                visiting,
+                memo,
+            ) {
+                return false;
+            }
+        }
+        for call in calls {
+            let scoped_key = active_scope.map(|scope| RuleDispatchKey {
+                scope: Some(scope.to_string()),
+                name: call.0.clone(),
+                arity: call.1,
+            });
+            if let Some(scoped_key) = scoped_key.filter(|key| self.rule_dispatch_keys.contains(key))
+            {
+                if !self
+                    .explore_scoped_callable_expressions
+                    .contains_key(&scoped_key)
+                {
+                    return false;
+                }
+                if !self.explore_purity_node_is_pure_inner(
+                    &ExplorePurityNode::ScopedRule(scoped_key),
+                    visiting,
+                    memo,
+                ) {
+                    return false;
+                }
+                continue;
+            }
+            if active_scope.is_some_and(|scope| {
+                self.rule_scope_value_methods
+                    .get(scope)
+                    .and_then(|methods| methods.get(&call.0))
+                    .is_some_and(|arity| *arity == call.1)
+            }) {
+                return false;
+            }
+            if !self.explore_call_has_supported_definition(&call) {
+                return false;
+            }
+            if (self
+                .explore_callable_expressions_by_arity
+                .contains_key(&call)
+                || self.explore_declared_effect_callables.contains(&call))
+                && !self.explore_purity_node_is_pure_inner(
+                    &ExplorePurityNode::Callable {
+                        name: call.0,
+                        arity: call.1,
+                        active_scope: active_scope.map(str::to_string),
+                    },
+                    visiting,
+                    memo,
+                )
+            {
+                return false;
+            }
+        }
+
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expr, &mut uses, bound, &BTreeMap::new());
+        for name in uses.values {
+            if (self
+                .explore_top_level_binding_initializers
+                .contains_key(&name)
+                || self.explore_unsupported_top_level_bindings.contains(&name))
+                && !self.explore_purity_node_is_pure_inner(
+                    &ExplorePurityNode::TopLevelBinding(name),
+                    visiting,
+                    memo,
+                )
+            {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn explore_purity_node_is_pure_inner(
+        &self,
+        node: &ExplorePurityNode,
+        visiting: &mut BTreeSet<ExplorePurityNode>,
+        memo: &mut BTreeMap<ExplorePurityNode, bool>,
+    ) -> bool {
+        if let Some(pure) = memo.get(node) {
+            return *pure;
+        }
+        if !visiting.insert(node.clone()) {
+            // Purity is coinductive over the callable/value dependency graph:
+            // recursion is not itself an effect. Every body on the cycle is
+            // still inspected by its first visit, while exact execution fuel
+            // reports a non-terminating concrete case as Partial rather than
+            // allowing it to contribute to a Complete result.
             return true;
         }
-        let expressions = self
-            .explore_callable_expressions_by_arity
-            .get(key)
-            .cloned()
-            .unwrap_or_default();
-        let mut pure = true;
-        let bound = self
-            .function_params_by_arity
-            .get(key)
-            .into_iter()
-            .flatten()
-            .cloned()
-            .collect::<BTreeSet<_>>();
-        for expression in expressions {
-            let (supported, calls) = self.explore_expression_capabilities(&expression, &bound);
-            if !supported {
-                pure = false;
-                break;
-            }
-            for call in calls {
-                if !self.explore_call_has_supported_definition(&call) {
-                    pure = false;
-                    break;
-                }
-                if (self
+
+        let (expressions, intrinsically_unsupported, definition_is_known, active_scope) = match node
+        {
+            ExplorePurityNode::Callable {
+                name,
+                arity,
+                active_scope,
+            } => {
+                let key = (name.clone(), *arity);
+                let definition_is_known = self
                     .explore_callable_expressions_by_arity
-                    .contains_key(&call)
-                    || self.explore_declared_effect_callables.contains(&call))
-                    && !self.explore_callable_is_pure_inner(&call, visiting, memo)
-                {
-                    pure = false;
-                    break;
-                }
+                    .contains_key(&key)
+                    || self.explore_declared_effect_callables.contains(&key);
+                let expressions = self
+                    .explore_callable_expressions_by_arity
+                    .get(&key)
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|expression| ExplorePurityExpression {
+                        expression,
+                        bound: self
+                            .function_params_by_arity
+                            .get(&key)
+                            .into_iter()
+                            .flatten()
+                            .cloned()
+                            .collect(),
+                        callable_bound: self.explore_callable_bound_names(&key),
+                    })
+                    .collect();
+                (
+                    expressions,
+                    self.explore_declared_effect_callables.contains(&key),
+                    definition_is_known,
+                    active_scope.clone(),
+                )
             }
-            if !pure {
-                break;
+            ExplorePurityNode::ScopedRule(key) => (
+                self.explore_scoped_callable_expressions
+                    .get(key)
+                    .cloned()
+                    .unwrap_or_default(),
+                false,
+                self.explore_scoped_callable_expressions.contains_key(key),
+                key.scope.clone(),
+            ),
+            ExplorePurityNode::TopLevelBinding(name) => {
+                let expressions = self
+                    .explore_top_level_binding_initializers
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|expression| ExplorePurityExpression {
+                        expression,
+                        bound: BTreeSet::new(),
+                        callable_bound: BTreeSet::new(),
+                    })
+                    .collect();
+                (
+                    expressions,
+                    self.explore_unsupported_top_level_bindings.contains(name),
+                    self.explore_top_level_binding_initializers
+                        .contains_key(name),
+                    None,
+                )
             }
-        }
-        visiting.remove(key);
-        memo.insert(key.clone(), pure);
+        };
+
+        let pure = !intrinsically_unsupported
+            && definition_is_known
+            && expressions.iter().all(|record| {
+                self.explore_expression_dependencies_are_pure_inner(
+                    &record.expression,
+                    &record.bound,
+                    &record.callable_bound,
+                    active_scope.as_deref(),
+                    visiting,
+                    memo,
+                )
+            });
+        visiting.remove(node);
+        memo.insert(node.clone(), pure);
         pure
     }
 
     fn explore_callable_is_pure(&self, key: &(String, usize)) -> bool {
-        self.explore_callable_is_pure_inner(key, &mut BTreeSet::new(), &mut BTreeMap::new())
+        self.explore_purity_node_is_pure_inner(
+            &ExplorePurityNode::Callable {
+                name: key.0.clone(),
+                arity: key.1,
+                active_scope: None,
+            },
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
     }
 
     fn explore_expression_is_pure(&self, expr: &Expr, bound: &BTreeSet<String>) -> bool {
-        let (supported, calls) = self.explore_expression_capabilities(expr, bound);
-        supported
-            && calls.into_iter().all(|call| {
-                self.explore_call_has_supported_definition(&call)
-                    && (!self
-                        .explore_callable_expressions_by_arity
-                        .contains_key(&call)
-                        || self.explore_callable_is_pure(&call))
-            })
+        self.explore_expression_dependencies_are_pure_inner(
+            expr,
+            bound,
+            &BTreeSet::new(),
+            None,
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
     }
 
     fn explore_exact_call_type_issue(&self, name: &str, arity: usize) -> Option<String> {
@@ -24947,7 +32924,12 @@ impl TypeChecker {
                     if matches!(operator.as_str(), "==" | "!=" | "<" | "<=" | ">" | ">=") =>
                 {
                     if let (Some(left), Some(right)) = (inferred(left), inferred(right)) {
-                        if left != right {
+                        let compatible = if matches!(operator.as_str(), "==" | "!=") {
+                            Self::merge_inferred_type_names(&left, &right).is_some()
+                        } else {
+                            left == right
+                        };
+                        if !compatible {
                             issues.push(format!(
                                 "exploration comparison `{}` requires compatible operands, but found `{}` and `{}`",
                                 operator, left, right
@@ -25283,6 +33265,7 @@ impl TypeChecker {
                 }
                 ExploreBound::Where { .. } => None,
             }))
+            .chain(query.output.extrema.iter().map(|field| field.name.clone()))
             .chain(query.output.show.iter().map(|field| field.name.clone()))
             .collect::<BTreeSet<_>>();
         for name in &reserved_names {
@@ -25562,6 +33545,7 @@ impl TypeChecker {
         });
 
         let mut typed_key = Vec::with_capacity(query.output.key.len());
+        let mut typed_extrema = Vec::with_capacity(query.output.extrema.len());
         let mut typed_show = Vec::with_capacity(query.output.show.len());
         for field in &query.output.key {
             self.check_explore_available_references(
@@ -25596,6 +33580,69 @@ impl TypeChecker {
                 span: field.span,
             });
         }
+        for field in &query.output.extrema {
+            self.check_explore_available_references(
+                &field.value,
+                &reserved_names,
+                &available_names,
+            );
+            self.check_explore_expression(&field.value);
+            let ty = self.inferred_explore_ty(&field.value).unwrap_or_else(|| {
+                self.error_at_expr(
+                    &field.value,
+                    format!(
+                        "cannot infer the type of exploration extrema `{}`",
+                        field.name
+                    ),
+                );
+                Ty::Hole
+            });
+            if ty.to_string() != "Int" {
+                self.error_at_expr(
+                    &field.value,
+                    format!(
+                        "exploration extrema `{}` must have type `Int`, found `{}`",
+                        field.name, ty
+                    ),
+                );
+            }
+            typed_extrema.push(TypedExploreExtrema {
+                name: field.name.clone(),
+                value: field.value.clone(),
+                ty,
+                span: field.span,
+            });
+        }
+        for field in &typed_extrema {
+            self.define_var(&field.name);
+            self.define_var_type(&field.name, &field.ty);
+            available_names.insert(field.name.clone());
+        }
+
+        let typed_having = query.output.having.as_ref().and_then(|having| match having {
+            ExploreHaving::Varies { extrema_name, span } => {
+                match typed_extrema
+                    .iter()
+                    .position(|field| field.name == *extrema_name)
+                {
+                    Some(extrema_index) => Some(TypedExploreHaving::Varies {
+                        extrema_name: extrema_name.clone(),
+                        extrema_index,
+                        span: *span,
+                    }),
+                    None => {
+                        self.error_at_span(
+                            *span,
+                            format!(
+                                "exploration `having varies({extrema_name})` must name a preceding extrema field"
+                            ),
+                        );
+                        None
+                    }
+                }
+            }
+        });
+
         for field in &query.output.show {
             self.check_explore_available_references(
                 &field.value,
@@ -25658,6 +33705,8 @@ impl TypeChecker {
                 boundary: typed_boundary,
                 output: TypedExploreOutput {
                     key: typed_key,
+                    extrema: typed_extrema,
+                    having: typed_having,
                     show: typed_show,
                     representative: query.output.representative.clone(),
                     representative_ty,
@@ -26806,6 +34855,10 @@ impl TypeChecker {
         tc.establish_explore_function_return_types();
         tc.infer_explore_rule_return_types(stmts);
         tc.validate_explore_function_return_types();
+        // Re-run canonical dispatch after the exact rule fixed point so
+        // recursive families can resolve through their validated provisional
+        // seed. The final exact pass then consumes only the canonical result.
+        tc.infer_canonical_rule_dispatch_metadata(stmts);
         tc.infer_explore_rule_return_types(stmts);
         tc.infer_top_level_binding_types(stmts);
         tc.check_program(stmts);
@@ -26843,6 +34896,20 @@ impl TypeChecker {
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
+        let checked_resolutions = CheckedResolutionRecorder::record(&tc);
+        let (checked_exploration_queries, checked_exploration_query_issue) =
+            if tc.diagnostics.is_empty() {
+                match build_checked_explore_query_artifacts(
+                    &tc.analysis_program,
+                    &checked_resolutions,
+                    &exploration_universes,
+                ) {
+                    Ok(queries) => (queries, None),
+                    Err(issue) => (Vec::new(), Some(issue)),
+                }
+            } else {
+                (Vec::new(), None)
+            };
         let exploration_queries = if tc.diagnostics.is_empty() {
             tc.exploration_queries
         } else {
@@ -26860,6 +34927,11 @@ impl TypeChecker {
             rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
             exploration_queries,
             exploration_universes,
+            checked_exploration_queries,
+            checked_exploration_query_issue,
+            analysis_program: tc.analysis_program,
+            resolved_program: tc.resolved_program,
+            checked_resolutions,
         }
     }
 
@@ -27002,6 +35074,802 @@ mod tests {
         TypeChecker::check_with_artifacts(&statements, None, source)
     }
 
+    fn checked_expression_paths<'a>(statement: &'a Stmt) -> Vec<(Vec<u32>, &'a Expr)> {
+        fn collect_expression<'a>(
+            node: &'a Expr,
+            path: Vec<u32>,
+            output: &mut Vec<(Vec<u32>, &'a Expr)>,
+        ) {
+            output.push((path.clone(), node));
+            let mut child_index = 0;
+            visit_ast_expr_children(node, &mut |child| {
+                let mut child_path = path.clone();
+                child_path.push(child_index);
+                child_index += 1;
+                match child {
+                    AstChild::Expr(expression) => {
+                        collect_expression(expression, child_path, output)
+                    }
+                    AstChild::Stmt(statement) => collect_statement(statement, child_path, output),
+                }
+            });
+        }
+
+        fn collect_statement<'a>(
+            node: &'a Stmt,
+            path: Vec<u32>,
+            output: &mut Vec<(Vec<u32>, &'a Expr)>,
+        ) {
+            let mut child_index = 0;
+            visit_ast_stmt_children(node, &mut |child| {
+                let mut child_path = path.clone();
+                child_path.push(child_index);
+                child_index += 1;
+                match child {
+                    AstChild::Expr(expression) => {
+                        collect_expression(expression, child_path, output)
+                    }
+                    AstChild::Stmt(statement) => collect_statement(statement, child_path, output),
+                }
+            });
+        }
+
+        let mut output = Vec::new();
+        collect_statement(statement, Vec::new(), &mut output);
+        output
+    }
+
+    #[test]
+    fn checked_resolution_sites_are_stable_and_binders_are_structural() {
+        let source = r#"
+= value = 99
+# Pairish(left: Int, right: Int)
+> twice(value: Int) -> Int { value + value }
+> ordered(left: Int, right: Int) -> Int { left - right }
+> named() -> Int { ordered(right = 1, left = 2) }
+> constructed() -> Pairish { Pairish(right = 1, left = 2) }
+> pair_left(pair: Pairish) -> Int { pair.left }
+> list_len() -> Int { length([1]) }
+| overloaded(value: Int) -> value
+| overloaded(left: Int, right: Int) -> left + right
+> call_overloads() -> Int { overloaded(1) + overloaded(1, 2) }
+| pipe_target(value: Int, limit: Int) -> value > limit
+> piped(value: Int) -> Bool { value |> pipe_target(0) }
+"#;
+        let check = || {
+            let statements = parse_test_program(source).expect("parse resolution fixture");
+            TypeChecker::check_with_artifacts(&statements, None, source)
+        };
+        let first = check();
+        let second = check();
+        assert!(first.diagnostics.is_empty(), "{:?}", first.diagnostics);
+        assert_eq!(
+            first
+                .checked_resolutions
+                .expressions
+                .keys()
+                .collect::<Vec<_>>(),
+            second
+                .checked_resolutions
+                .expressions
+                .keys()
+                .collect::<Vec<_>>()
+        );
+
+        let twice = first
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "twice")
+            .expect("twice declaration");
+        let twice_bindings = first
+            .checked_resolutions
+            .expressions
+            .iter()
+            .filter(|(site, _)| {
+                site.declaration == twice.id
+                    && site.normalized_declaration_ordinal == twice.normalized_ordinal
+            })
+            .filter_map(|(site, resolution)| match &resolution.value_binding {
+                Some(CheckedValueBinding::Binder { site: binder, .. }) => {
+                    Some((site.clone(), binder.clone()))
+                }
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(twice_bindings.len(), 2);
+        assert_ne!(twice_bindings[0].0, twice_bindings[1].0);
+        assert_eq!(twice_bindings[0].1, twice_bindings[1].1);
+
+        let named = first
+            .checked_resolutions
+            .expressions
+            .values()
+            .find_map(|resolution| resolution.named_arguments.as_ref())
+            .expect("checked named-argument order");
+        assert_eq!(named.canonical_source_indices.as_ref(), [1, 0]);
+        assert_eq!(
+            named
+                .parameter_names
+                .iter()
+                .map(|name| name.as_ref())
+                .collect::<Vec<_>>(),
+            ["left", "right"]
+        );
+        assert!(first
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| matches!(
+                &resolution.call_target,
+                Some(CheckedCallTarget::Function { callable, arity: 2 })
+                    if callable.declaration.declaration.name.as_ref() == "ordered"
+            )));
+        assert!(first
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| matches!(
+                &resolution.call_target,
+                Some(CheckedCallTarget::Builtin { canonical_name, arity: 1 })
+                    if canonical_name.as_ref() == "length"
+            )));
+        let overloads = first
+            .checked_resolutions
+            .expressions
+            .values()
+            .filter_map(|resolution| match &resolution.call_target {
+                Some(CheckedCallTarget::RuleFamily(key)) if key.name == "overloaded" => {
+                    Some(key.arity)
+                }
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        assert_eq!(overloads, BTreeSet::from([1, 2]));
+        assert!(first
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| matches!(
+                &resolution.call_target,
+                Some(CheckedCallTarget::Constructor { owner_type, variant, .. })
+                    if owner_type.as_ref() == "Pairish" && variant.as_ref() == "Pairish"
+            )));
+        assert!(first
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| matches!(
+                &resolution.field,
+                Some(CheckedFieldResolution::Data { owner_type, fields })
+                    if owner_type.as_ref() == "Pairish"
+                        && fields.iter().any(|field| field.field_index == 0)
+            )));
+        let piped = first
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "piped")
+            .expect("piped declaration");
+        assert!(
+            first
+                .checked_resolutions
+                .unsupported_sites
+                .iter()
+                .filter(|(site, _)| site.declaration == piped.id)
+                .flat_map(|(_, issues)| issues)
+                .filter(|issue| matches!(
+                    issue,
+                    CheckedResolutionIssue::UnsupportedExpression(reason)
+                        if reason.starts_with("pipe ")
+                ))
+                .count()
+                >= 2
+        );
+        assert!(!first
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == piped.id
+                    && matches!(
+                        &resolution.call_target,
+                        Some(CheckedCallTarget::RuleFamily(key))
+                            if key.name == "pipe_target"
+                    )
+            }));
+    }
+
+    #[test]
+    fn checked_resolution_rule_family_uses_authoritative_tier_order() {
+        let source = r#"
+| choose(value: Int) -> 0
+| choose(value: Int) -> 1 under value > 0
+| exception high choose(value: Int) -> 2 under value > 10
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let family = artifacts
+            .checked_resolutions
+            .rule_families
+            .get(&RuleDispatchKey {
+                scope: None,
+                name: "choose".to_string(),
+                arity: 1,
+            })
+            .expect("checked choose family");
+        assert_eq!(
+            family
+                .candidates
+                .iter()
+                .map(|candidate| candidate.tier)
+                .collect::<Vec<_>>(),
+            [
+                RuleDispatchTier::Exception,
+                RuleDispatchTier::ConditionalDefault,
+                RuleDispatchTier::Clause,
+            ]
+        );
+        assert_eq!(
+            family
+                .candidates
+                .iter()
+                .map(|candidate| candidate.source_order)
+                .collect::<Vec<_>>(),
+            [2, 1, 0]
+        );
+        assert!(family
+            .candidates
+            .windows(2)
+            .all(|pair| pair[0].head_site != pair[1].head_site));
+    }
+
+    #[test]
+    fn checked_resolution_opaque_coverage_is_reachability_composable() {
+        let source = r#"
+> module Hidden { > secret(value: Int) -> Int { value + 10 } }
+> plain(value: Int) -> Int { value + 1 }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(
+            artifacts.checked_resolutions.opaque_qualified_owners.len(),
+            1
+        );
+        let plain = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "plain")
+            .expect("plain declaration");
+        let reachable = artifacts
+            .checked_resolutions
+            .expressions
+            .keys()
+            .filter(|site| {
+                site.declaration == plain.id
+                    && site.normalized_declaration_ordinal == plain.normalized_ordinal
+            })
+            .collect::<Vec<_>>();
+        assert!(artifacts
+            .checked_resolutions
+            .issues_for_reachable_sites(reachable)
+            .is_empty());
+    }
+
+    #[test]
+    fn checked_resolution_prefers_lexical_callable_and_tombstones_shadowed_types() {
+        let source = r#"
+# Box(value: Int)
+> chosen(value: Int) -> Int { value + 1 }
+> invoke(chosen) -> Int { chosen(1) }
+> shadow(box: Box) -> Int { (|box| box.value)(1) }
+= global_box: Box = Box(value = 1)
+> global_shadow(global_box) -> Int { global_box.value }
+> rebound(value: Int) -> Int { value + 1 }
+= rebound = |value: Int| value + 100
+> invoke_rebound() -> Int { rebound(1) }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let invoke = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "invoke")
+            .expect("invoke declaration");
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .iter()
+            .any(|(site, issues)| {
+                site.declaration == invoke.id
+                    && issues.contains(&CheckedResolutionIssue::DynamicCallable)
+            }));
+        assert!(!artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == invoke.id
+                    && matches!(
+                        &resolution.call_target,
+                        Some(CheckedCallTarget::Function { callable, .. })
+                            if callable.declaration.declaration.name.as_ref() == "chosen"
+                    )
+            }));
+
+        let shadow = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "shadow")
+            .expect("shadow declaration");
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .iter()
+            .any(|(site, issues)| {
+                site.declaration == shadow.id
+                    && issues.iter().any(|issue| {
+                        matches!(
+                            issue,
+                            CheckedResolutionIssue::FieldNotResolved {
+                                owner_type: None,
+                                field,
+                            } if field.as_ref() == "value"
+                        )
+                    })
+            }));
+        assert!(!artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == shadow.id
+                    && matches!(
+                            &resolution.field,
+                            Some(CheckedFieldResolution::Data { owner_type, .. })
+                                if owner_type.as_ref() == "Box"
+                    )
+            }));
+
+        let global_shadow = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "global_shadow")
+            .expect("global-shadow declaration");
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .iter()
+            .any(|(site, issues)| {
+                site.declaration == global_shadow.id
+                    && issues.iter().any(|issue| {
+                        matches!(
+                            issue,
+                            CheckedResolutionIssue::FieldNotResolved {
+                                owner_type: None,
+                                field,
+                            } if field.as_ref() == "value"
+                        )
+                    })
+            }));
+        assert!(!artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == global_shadow.id
+                    && matches!(
+                        &resolution.field,
+                        Some(CheckedFieldResolution::Data { owner_type, .. })
+                            if owner_type.as_ref() == "Box"
+                    )
+            }));
+
+        let invoke_rebound = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "invoke_rebound")
+            .expect("top-level callable-shadow declaration");
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .iter()
+            .any(|(site, issues)| {
+                site.declaration == invoke_rebound.id
+                    && issues.contains(&CheckedResolutionIssue::DynamicCallable)
+            }));
+        assert!(!artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == invoke_rebound.id
+                    && matches!(
+                        &resolution.call_target,
+                        Some(CheckedCallTarget::Function { callable, .. })
+                            if callable.declaration.declaration.name.as_ref() == "rebound"
+                    )
+            }));
+    }
+
+    #[test]
+    fn checked_resolution_bare_value_prefers_function_identity_over_rule_family() {
+        let source = r#"
+> callable_collision(value: Int) -> Int { value }
+| callable_collision(value: Int) -> value + 1
+> expose_callable() -> Int {
+    = captured = callable_collision
+    0
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let expose = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "expose_callable")
+            .expect("bare-callable declaration");
+        assert!(artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == expose.id
+                    && matches!(
+                        &resolution.value_binding,
+                        Some(CheckedValueBinding::Callable(callable))
+                            if callable.declaration.declaration.name.as_ref()
+                                == "callable_collision"
+                    )
+            }));
+        assert!(!artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .any(|(site, resolution)| {
+                site.declaration == expose.id
+                    && matches!(
+                        &resolution.value_binding,
+                        Some(CheckedValueBinding::RuleFamily(key))
+                            if key.name == "callable_collision"
+                    )
+            }));
+    }
+
+    #[test]
+    fn checked_resolution_uses_authoritative_product_and_rulescope_field_layouts() {
+        let source = r#"
+# Product(value: Int)
+# Scope(value: Int) {
+    | result() -> value
+}
+> product_value(item: Product) -> Int { item.value }
+> scope_value(item: Scope) -> Int { item.value }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        for (owner, variant) in [("Product", "Product"), ("Scope", "Scope")] {
+            assert!(
+                artifacts
+                    .checked_resolutions
+                    .expressions
+                    .values()
+                    .any(|resolution| matches!(
+                        &resolution.field,
+                        Some(CheckedFieldResolution::Data { owner_type, fields })
+                            if owner_type.as_ref() == owner
+                                && matches!(fields.as_ref(), [field]
+                                    if field.variant.as_ref() == variant
+                                        && field.variant_index == 0
+                                        && field.field_index == 0)
+                    )),
+                "missing exact {owner} field layout"
+            );
+        }
+    }
+
+    #[test]
+    fn checked_resolution_pipe_recurses_all_transform_shapes_and_missing_sites_fail_closed() {
+        let source = r#"
+> increment(value: Int) -> Int { value + 1 }
+> pipe_lambda(value: Int) -> Int { value |> |next: Int| increment(next) }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let declaration = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "pipe_lambda")
+            .expect("pipe-lambda declaration");
+        let lambda_body = artifacts
+            .analysis_program
+            .expression_site(declaration, vec![0, 1, 0]);
+        assert!(artifacts
+            .checked_resolutions
+            .expressions
+            .contains_key(&lambda_body));
+        for path in [vec![0], vec![0, 1]] {
+            let pipe_site = artifacts
+                .analysis_program
+                .expression_site(declaration, path);
+            assert!(artifacts
+                .checked_resolutions
+                .unsupported_sites
+                .get(&pipe_site)
+                .is_some_and(|issues| issues.iter().any(|issue| matches!(
+                    issue,
+                    CheckedResolutionIssue::UnsupportedExpression(reason)
+                        if reason.starts_with("pipe ")
+                ))));
+        }
+
+        let absent = artifacts
+            .analysis_program
+            .expression_site(declaration, vec![u32::MAX]);
+        assert!(artifacts
+            .checked_resolutions
+            .issues_for_reachable_sites([&absent])
+            .contains(&CheckedResolutionIssue::ExpressionSiteNotRecorded));
+    }
+
+    #[test]
+    fn checked_resolution_import_reread_mismatch_clears_snapshot_sentinel() {
+        let temp_name = format!(
+            "futuruna_checked_resolution_snapshot_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create snapshot canary directory");
+        let imported_path = temp_dir.join("changing.runa");
+        std::fs::write(
+            &imported_path,
+            "> observed(value: Int) -> Int { value + 1 }\n",
+        )
+        .expect("write Phase-A import");
+        let root = "@ import ./changing\n";
+        let statements = parse_test_program(root).expect("parse snapshot root");
+        let mut checker = TypeChecker::new();
+        checker.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        checker.source_text = root.to_string();
+        checker.install_constructor_prepass(&statements);
+        std::fs::write(
+            &imported_path,
+            "> observed(value: Int) -> Int { value + 2 }\n",
+        )
+        .expect("rewrite import before legacy collection");
+        checker.collect_declarations(&statements);
+        let resolutions = CheckedResolutionRecorder::record(&checker);
+        assert!(!resolutions.source_snapshot_coherent);
+        assert!(resolutions
+            .issues_for_reachable_sites(std::iter::empty::<&ExprSiteId>())
+            .contains(&CheckedResolutionIssue::SourceSnapshotIncoherent));
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn checked_resolution_replaces_duplicate_rulescope_owner_and_never_merges() {
+        let source = r#"
+# Case(old_value: Int) {
+    | selected() -> old_value + 1
+}
+# Case(new_value: Int) {
+    | selected() -> new_value + 2
+}
+> stale_case() -> Case { Case(old_value = 1) }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let owners = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.id.name.as_ref() == "Case")
+            .collect::<Vec<_>>();
+        let latest = owners.last().expect("latest Case owner");
+        let family = artifacts
+            .checked_resolutions
+            .rule_families
+            .get(&RuleDispatchKey {
+                scope: Some("Case".to_string()),
+                name: "selected".to_string(),
+                arity: 0,
+            })
+            .expect("selected family");
+        assert!(matches!(family.candidates.as_ref(), [candidate]
+            if candidate.declaration == CheckedDeclarationOccurrenceId::from_sourced(latest)));
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .values()
+            .any(
+                |issues| issues.contains(&CheckedResolutionIssue::AmbiguousCallable {
+                    name: "Case".into(),
+                    arity: 1,
+                })
+            ));
+    }
+
+    #[test]
+    fn checked_resolution_requires_exact_constructor_identity_and_binds_nullary_tags() {
+        let source = r#"
+# Event = Shared(value: Int)
+# Legacy = Shared(legacy_value: Int)
+# Marker = Mixed
+# Payload = Mixed(value: Int)
+> ambiguous() -> Event { Shared(1) }
+> mixed_value() -> Int {
+    = captured = Mixed
+    0
+}
+> flag() -> Bool { True }
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .values()
+            .any(
+                |issues| issues.contains(&CheckedResolutionIssue::AmbiguousCallable {
+                    name: "Shared".into(),
+                    arity: 1,
+                })
+            ));
+        assert!(artifacts
+            .checked_resolutions
+            .unsupported_sites
+            .values()
+            .any(
+                |issues| issues.contains(&CheckedResolutionIssue::AmbiguousValueBinding(
+                    "Mixed".into(),
+                ))
+            ));
+        assert!(artifacts
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| matches!(
+                &resolution.value_binding,
+                Some(CheckedValueBinding::Constructor {
+                    declaration: None,
+                    owner_type,
+                    variant,
+                    variant_index: None,
+                }) if owner_type.as_ref() == "Bool" && variant.as_ref() == "True"
+            )));
+    }
+
+    #[test]
+    fn checked_resolution_nested_module_index_matches_canonical_ast_children() {
+        let source = r#"
+# Carrier = Carrier(Int) {
+    > module Hidden {
+        > first(value: Int) -> Int { value + 1 }
+        > second(value: Int) -> Int { value + 2 }
+    }
+    > visible(value: Int) -> Int { value + 99 }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let declaration = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "Carrier")
+            .expect("Carrier declaration");
+        let (canonical_path, _) = checked_expression_paths(&declaration.statement)
+            .into_iter()
+            .find(|(_, expression)| {
+                matches!(
+                    &expression.kind,
+                    ExprKind::BinOp(operator, _, right)
+                        if operator == "+"
+                            && matches!(&right.kind, ExprKind::Lit(Literal::Int(99)))
+                )
+            })
+            .expect("visible method body in canonical AST order");
+        let site = artifacts
+            .analysis_program
+            .expression_site(declaration, canonical_path);
+        assert!(artifacts
+            .checked_resolutions
+            .expressions
+            .contains_key(&site));
+    }
+
+    #[test]
+    fn checked_resolution_locates_personskat_section_9c_division_and_clamps() {
+        let directory =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/danish-income-tax");
+        let path = directory.join("personskat-income-cliffs.audit.runa");
+        let source = std::fs::read_to_string(&path).expect("read Personskat exploration");
+        let statements = parse_test_program(&source).expect("parse Personskat exploration");
+        let artifacts = TypeChecker::check_with_artifacts(
+            &statements,
+            Some(directory.to_string_lossy().to_string()),
+            &source,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+
+        let division_declaration = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| {
+                declaration.id.name.as_ref() == "ll9c_lavindkomst_aftrapningstrin_1000"
+            })
+            .expect("§9C /1000 declaration in the canonical plain-import chain");
+        let (division_path, _) = checked_expression_paths(&division_declaration.statement)
+            .into_iter()
+            .find(|(_, expression)| {
+                matches!(
+                    &expression.kind,
+                    ExprKind::BinOp(operator, _, right)
+                        if operator == "/"
+                            && matches!(&right.kind, ExprKind::Lit(Literal::Int(1000)))
+                )
+            })
+            .expect("exact §9C /1000 occurrence");
+        let division_site = artifacts
+            .analysis_program
+            .expression_site(division_declaration, division_path);
+        let division = artifacts
+            .checked_resolutions
+            .expressions
+            .get(&division_site)
+            .expect("checked §9C division site");
+        assert!(matches!(
+            &division.resolved_type,
+            CheckedExpressionType::Resolved(Ty::Name(name))
+                if matches!(name.as_str(), "Int" | "Heltal")
+        ));
+
+        for clamp in [
+            "ll9c_lavindkomst_overskydende_indkomst_kroner",
+            "ll9c_op_til_120_kilometer_pr_dag",
+        ] {
+            let declaration = artifacts
+                .analysis_program
+                .declarations
+                .iter()
+                .find(|declaration| declaration.id.name.as_ref() == clamp)
+                .unwrap_or_else(|| panic!("missing §9C clamp root {clamp}"));
+            assert!(artifacts
+                .checked_resolutions
+                .expressions
+                .iter()
+                .any(|(site, resolution)| {
+                    site.declaration == declaration.id
+                        && site.normalized_declaration_ordinal == declaration.normalized_ordinal
+                        && matches!(
+                            &resolution.call_target,
+                            Some(CheckedCallTarget::RuleFamily(key))
+                                if matches!(
+                                    key.name.as_str(),
+                                    "ligningslov_positivt_beløb" | "ligningslov_mindste_beløb"
+                                )
+                        )
+                }));
+        }
+    }
+
     fn checked_and_lightweight_rule_dispatch_metadata(
         source: &str,
     ) -> (Vec<Stmt>, TypeCheckArtifacts) {
@@ -27049,6 +35917,533 @@ mod tests {
     }
 
     #[test]
+    fn checked_analysis_origins_are_path_independent_and_keep_duplicate_occurrences() {
+        let temp_name = format!(
+            "futuruna_checked_analysis_origins_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create checked-analysis directory");
+        let module_source = r#"
+> helper(value: Int) -> Int { value + 1 }
+| eligible(value: Int) -> True under helper(value) > 0
+"#;
+        let module_statements =
+            parse_test_program(module_source).expect("parse reusable import module");
+        let helper_hash = module_statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::Defn(definition) if defn_name(definition) == "helper" => {
+                    Some(content_hash_defn(definition))
+                }
+                _ => None,
+            })
+            .expect("helper definition hash");
+        std::fs::write(temp_dir.join("left.runa"), module_source).expect("write left module");
+        std::fs::write(temp_dir.join("right.runa"), module_source).expect("write right module");
+
+        let check = |imports: &str| {
+            let source = format!(
+                r#"{imports}
+? explore scan {{
+    over eligible(value)
+    find matches
+    bounds {{ value in [1] }}
+    output {{ key [value] representative first }}
+}}
+"#
+            );
+            let statements = parse_test_program(&source).expect("parse checked-analysis root");
+            let artifacts = TypeChecker::check_with_artifacts(
+                &statements,
+                Some(temp_dir.to_string_lossy().to_string()),
+                &source,
+            );
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "unexpected checked-analysis diagnostics: {:?}",
+                artifacts.diagnostics
+            );
+            artifacts
+        };
+
+        let left = check("@ import ./left");
+        let right = check("@ import ./right");
+        let left_helper = left
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "helper")
+            .expect("left helper origin");
+        let right_helper = right
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "helper")
+            .expect("right helper origin");
+        assert_eq!(left_helper.id, right_helper.id);
+        assert_ne!(
+            left_helper.canonical_source_path, right_helper.canonical_source_path,
+            "physical paths are retained only as annotations"
+        );
+        assert_eq!(left.analysis_program.id, right.analysis_program.id);
+
+        let plain_and_hash = check(&format!(
+            "@ import ./left\n@ import #{} from ./left",
+            helper_hash
+        ));
+        let reused_helpers = plain_and_hash
+            .analysis_program
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.id.name.as_ref() == "helper")
+            .collect::<Vec<_>>();
+        assert_eq!(reused_helpers.len(), 2);
+        assert_eq!(reused_helpers[0].id, reused_helpers[1].id);
+        assert!(matches!(
+            &reused_helpers[0].import_kind,
+            SourcedImportKind::PlainImport
+        ));
+        assert!(matches!(
+            &reused_helpers[1].import_kind,
+            SourcedImportKind::HashImport { .. }
+        ));
+
+        let duplicate = check("@ import ./left\n@ import ./right");
+        let duplicate_rules = duplicate
+            .analysis_program
+            .declarations
+            .iter()
+            .filter(|declaration| declaration.id.name.as_ref() == "eligible")
+            .collect::<Vec<_>>();
+        assert_eq!(duplicate_rules.len(), 2);
+        assert_eq!(duplicate_rules[0].id, duplicate_rules[1].id);
+        assert_ne!(
+            duplicate_rules[0].normalized_ordinal, duplicate_rules[1].normalized_ordinal,
+            "one semantic site may have multiple retained import occurrences"
+        );
+        assert_ne!(
+            duplicate
+                .analysis_program
+                .expression_site(duplicate_rules[0], vec![0]),
+            duplicate
+                .analysis_program
+                .expression_site(duplicate_rules[1], vec![0]),
+            "equal declaration IDs cannot make expression-site resolution ambiguous"
+        );
+        assert_ne!(duplicate.analysis_program.id, left.analysis_program.id);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn checked_analysis_sequence_preserves_plain_and_hash_origins_but_not_qualified_contents() {
+        let temp_name = format!(
+            "futuruna_checked_analysis_import_kinds_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create checked-analysis import directory");
+        std::fs::write(
+            temp_dir.join("plain.runa"),
+            "> helper(value: Int) -> Int { value + 1 }\n| eligible(value: Int) -> True under helper(value) > 0\n",
+        )
+        .expect("write plain module");
+        let selected_source =
+            "# Selected(value: Int)\n> hash_hidden(value: Int) -> Int { value }\n";
+        std::fs::write(temp_dir.join("selected.runa"), selected_source).expect("write hash module");
+        std::fs::write(
+            temp_dir.join("qualified.runa"),
+            "> qualified_only(value: Int) -> Int { value }\n",
+        )
+        .expect("write qualified module");
+        let selected_statements =
+            parse_test_program(selected_source).expect("parse hash-selected module");
+        let selected_hash = selected_statements
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(declaration) => Some(content_hash_type(declaration)),
+                _ => None,
+            })
+            .expect("selected declaration hash");
+        let source = format!(
+            r#"
+@ import ./plain
+@ import #{selected_hash} from ./selected
+@ import Qualified from ./qualified
+@ import OtherQualified from ./qualified
+> helper(value: Int) -> Int {{ value + 2 }}
+? explore scan {{
+    over eligible(value)
+    find matches
+    bounds {{ value in [1] }}
+    output {{ key [value] representative first }}
+}}
+"#
+        );
+        let statements = parse_test_program(&source).expect("parse import-origin root");
+        let artifacts = TypeChecker::check_with_artifacts(
+            &statements,
+            Some(temp_dir.to_string_lossy().to_string()),
+            &source,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected import-origin diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let declarations = artifacts.analysis_program.declarations.as_ref();
+        assert_eq!(
+            declarations
+                .iter()
+                .map(|declaration| declaration.id.name.as_ref())
+                .collect::<Vec<_>>(),
+            vec![
+                "eligible",
+                "Selected",
+                "Qualified",
+                "OtherQualified",
+                "helper",
+                "scan",
+            ]
+        );
+        assert!(matches!(
+            &declarations[0].import_kind,
+            SourcedImportKind::PlainImport
+        ));
+        assert_eq!(declarations[0].id.ordinal, 1);
+        assert!(matches!(
+            &declarations[1].import_kind,
+            SourcedImportKind::HashImport { selected_hash: actual }
+                if actual.as_ref() == selected_hash.as_str()
+        ));
+        assert_eq!(declarations[1].id.ordinal, 0);
+        assert!(matches!(
+            &declarations[2].import_kind,
+            SourcedImportKind::QualifiedImport { module_name }
+                if module_name.as_ref() == "Qualified"
+        ));
+        assert_eq!(declarations[2].id.kind, DeclarationKind::QualifiedModule);
+        assert!(declarations[2].qualified_target_module.is_some());
+        assert!(matches!(
+            &declarations[3].import_kind,
+            SourcedImportKind::QualifiedImport { module_name }
+                if module_name.as_ref() == "OtherQualified"
+        ));
+        assert_ne!(declarations[2].id, declarations[3].id);
+        assert_eq!(
+            declarations[2].qualified_target_module, declarations[3].qualified_target_module,
+            "qualified aliases share target content but retain parent-instance IDs"
+        );
+        assert_ne!(
+            declarations[2].qualified_instance_module_id(),
+            declarations[3].qualified_instance_module_id(),
+            "direct-qualified children retain distinct canonical parent instances"
+        );
+        let mut repeated_alias_occurrence = declarations[2].clone();
+        repeated_alias_occurrence.normalized_ordinal += 1;
+        assert_ne!(
+            declarations[2].qualified_instance_module_id(),
+            repeated_alias_occurrence.qualified_instance_module_id(),
+            "content-identical qualified aliases retain occurrence-scoped child namespaces"
+        );
+        assert!(matches!(
+            &declarations[4].import_kind,
+            SourcedImportKind::Root
+        ));
+        assert_eq!(declarations[4].id.ordinal, 2);
+        assert!(declarations
+            .iter()
+            .all(|declaration| declaration.id.name.as_ref() != "qualified_only"));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn checked_analysis_qualified_target_identity_is_path_free_and_transitive() {
+        let temp_name = format!(
+            "futuruna_checked_analysis_qualified_closure_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create qualified-closure directory");
+        let dependency = "> nested(value: Int) -> Int { value + 1 }\n";
+        std::fs::write(temp_dir.join("dep_left.runa"), dependency).expect("write left dependency");
+        std::fs::write(temp_dir.join("dep_right.runa"), dependency)
+            .expect("write right dependency");
+        std::fs::write(
+            temp_dir.join("qualified_left.runa"),
+            "@ import ./dep_left\n> exposed(value: Int) -> Int { nested(value) }\n",
+        )
+        .expect("write left qualified target");
+        std::fs::write(
+            temp_dir.join("qualified_right.runa"),
+            "@ import ./dep_right\n> exposed(value: Int) -> Int { nested(value) }\n",
+        )
+        .expect("write right qualified target");
+
+        let check = |target: &str| {
+            let source = format!(
+                r#"@ import Qualified from ./{target}
+| eligible(value: Int) -> True under value > 0
+? explore scan {{
+    over eligible(value)
+    find matches
+    bounds {{ value in [1] }}
+    output {{ key [value] representative first }}
+}}
+"#
+            );
+            let statements = parse_test_program(&source).expect("parse qualified-closure root");
+            TypeChecker::check_with_artifacts(
+                &statements,
+                Some(temp_dir.to_string_lossy().to_string()),
+                &source,
+            )
+        };
+
+        let left = check("qualified_left");
+        let right = check("qualified_right");
+        assert!(left.diagnostics.is_empty());
+        assert!(right.diagnostics.is_empty());
+        let target = |artifacts: &TypeCheckArtifacts| {
+            artifacts
+                .analysis_program
+                .declarations
+                .iter()
+                .find(|declaration| declaration.id.name.as_ref() == "Qualified")
+                .and_then(|declaration| declaration.qualified_target_module.clone())
+                .expect("qualified target identity")
+        };
+        assert_eq!(target(&left), target(&right));
+        assert_eq!(left.analysis_program.id, right.analysis_program.id);
+
+        std::fs::write(
+            temp_dir.join("dep_right.runa"),
+            "> nested(value: Int) -> Int { value + 2 }\n",
+        )
+        .expect("rewrite right dependency");
+        let changed = check("qualified_right");
+        assert_ne!(target(&right), target(&changed));
+        assert_ne!(right.analysis_program.id, changed.analysis_program.id);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn checked_analysis_qualified_closure_preserves_alias_dependency_correlation() {
+        let temp_name = format!(
+            "futuruna_checked_analysis_qualified_alias_graph_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(temp_dir.join("a")).expect("create left wrapper directory");
+        std::fs::create_dir_all(temp_dir.join("b")).expect("create right wrapper directory");
+        let wrapper = "@ import ./dep\n> wrapped(value: Int) -> Int { leaf(value) }\n";
+        std::fs::write(temp_dir.join("a/wrapper.runa"), wrapper).expect("write left wrapper");
+        std::fs::write(temp_dir.join("b/wrapper.runa"), wrapper).expect("write right wrapper");
+        std::fs::write(
+            temp_dir.join("qualified_pair.runa"),
+            "@ import Q1 from ./a/wrapper\n@ import Q2 from ./b/wrapper\n> exposed(value: Int) -> Int { value }\n",
+        )
+        .expect("write paired qualified target");
+
+        let left_leaf = "> leaf(value: Int) -> Int { value + 1 }\n";
+        let right_leaf = "> leaf(value: Int) -> Int { value + 2 }\n";
+        std::fs::write(temp_dir.join("a/dep.runa"), left_leaf).expect("write left leaf");
+        std::fs::write(temp_dir.join("b/dep.runa"), right_leaf).expect("write right leaf");
+        let source = r#"@ import Qualified from ./qualified_pair
+| eligible(value: Int) -> True under value > 0
+? explore scan {
+    over eligible(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let check = || {
+            let statements = parse_test_program(source).expect("parse alias-graph root");
+            TypeChecker::check_with_artifacts(
+                &statements,
+                Some(temp_dir.to_string_lossy().to_string()),
+                source,
+            )
+            .analysis_program
+            .id
+        };
+        let before = check();
+
+        std::fs::write(temp_dir.join("a/dep.runa"), right_leaf)
+            .expect("swap right leaf into left wrapper");
+        std::fs::write(temp_dir.join("b/dep.runa"), left_leaf)
+            .expect("swap left leaf into right wrapper");
+        assert_ne!(
+            before,
+            check(),
+            "swapping content-identical wrappers' dependencies changes Q1/Q2 semantics"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn checked_analysis_qualified_import_does_not_consume_later_plain_origin() {
+        let temp_name = format!(
+            "futuruna_checked_analysis_qualified_then_plain_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create qualified-then-plain directory");
+        std::fs::write(
+            temp_dir.join("shared.runa"),
+            "> helper(value: Int) -> Int { value + 1 }\n| eligible(value: Int) -> True under helper(value) > 0\n",
+        )
+        .expect("write shared target");
+        let source = r#"@ import Qualified from ./shared
+@ import ./shared
+? explore scan {
+    over eligible(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] representative first }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse qualified-then-plain root");
+        let mut checker = TypeChecker::new();
+        checker.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        let prepass = checker.build_constructor_prepass(&statements);
+        let declarations = prepass.analysis_program.declarations;
+        assert_eq!(
+            declarations
+                .iter()
+                .map(|declaration| declaration.id.name.as_ref())
+                .collect::<Vec<_>>(),
+            vec!["Qualified", "helper", "eligible", "scan"]
+        );
+        assert!(declarations[1..3]
+            .iter()
+            .all(|declaration| matches!(&declaration.import_kind, SourcedImportKind::PlainImport)));
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn checked_analysis_identity_covers_query_roots_but_excludes_proof_continuations() {
+        let source = |continuation: &str| {
+            format!(
+                r#"
+| eligible(value: Int) -> True under value > 0
+| other(value: Int) -> True under value >= 0
+? explore scan {{
+    over eligible(value)
+    find matches
+    bounds {{
+        value in [1, 2]
+        fixed = 3
+        where value >= 0
+    }}
+    boundaries on value by 1
+    output {{
+        key [bucket = value]
+        extrema [measure = value + fixed, alternate = value]
+        having varies(measure)
+        show [shown = value]
+        representative maximize shown
+    }}
+}}
+| always: True -> True
+? always -> {{ @ print("{continuation}") }}
+"#
+            )
+        };
+        let identity = |source: &str| {
+            let statements = parse_test_program(&source).expect("parse analysis identity fixture");
+            TypeChecker::check_with_artifacts(&statements, None, &source)
+                .analysis_program
+                .id
+        };
+        let baseline_source = source("first");
+        let baseline = identity(&baseline_source);
+        for (root, changed) in [
+            (
+                "question",
+                baseline_source.replacen("over eligible(value)", "over other(value)", 1),
+            ),
+            (
+                "polarity",
+                baseline_source.replacen("find matches", "find violations", 1),
+            ),
+            (
+                "domain",
+                baseline_source.replacen("value in [1, 2]", "value in [1, 3]", 1),
+            ),
+            (
+                "derived value",
+                baseline_source.replacen("fixed = 3", "fixed = 4", 1),
+            ),
+            (
+                "constraint",
+                baseline_source.replacen("where value >= 0", "where value > 0", 1),
+            ),
+            (
+                "boundary",
+                baseline_source.replacen("boundaries on value by 1", "boundaries on value by 2", 1),
+            ),
+            (
+                "key",
+                baseline_source.replacen("bucket = value", "bucket = value + 1", 1),
+            ),
+            (
+                "extrema",
+                baseline_source.replacen("measure = value + fixed", "measure = value - fixed", 1),
+            ),
+            (
+                "group filter",
+                baseline_source.replacen("varies(measure)", "varies(alternate)", 1),
+            ),
+            (
+                "shown value",
+                baseline_source.replacen("shown = value", "shown = fixed", 1),
+            ),
+            (
+                "representative",
+                baseline_source.replacen("maximize shown", "minimize shown", 1),
+            ),
+        ] {
+            assert_ne!(
+                baseline,
+                identity(&changed),
+                "{root} must affect analysis identity"
+            );
+        }
+        assert_eq!(
+            baseline,
+            identity(&source("second")),
+            "proof presentation continuations do not rename Explore sites"
+        );
+    }
+
+    #[test]
     fn explore_parser_builds_contextual_query_with_spans() {
         let source = r#"
 ? explore income_cliffs {
@@ -27063,6 +36458,8 @@ mod tests {
     boundaries on income by step
     output {
         key [income_before = income]
+        extrema [income_gain = income + step - income]
+        having varies(income_gain)
         show [income_after = income + step, profile]
         representative maximize income_after
     }
@@ -27090,6 +36487,12 @@ mod tests {
             Some("income")
         );
         assert_eq!(query.output.key.len(), 1);
+        assert_eq!(query.output.extrema.len(), 1);
+        assert!(matches!(
+            &query.output.having,
+            Some(ExploreHaving::Varies { extrema_name, .. })
+                if extrema_name == "income_gain"
+        ));
         assert_eq!(query.output.show.len(), 2);
         assert!(matches!(
             query.output.representative,
@@ -27115,8 +36518,27 @@ mod tests {
             .output
             .key
             .iter()
-            .chain(query.output.show.iter())
-            .all(|field| !field.span.is_dummy() && !field.value.span.is_dummy()));
+            .map(|field| (&field.value, field.span))
+            .chain(
+                query
+                    .output
+                    .extrema
+                    .iter()
+                    .map(|field| (&field.value, field.span)),
+            )
+            .chain(
+                query
+                    .output
+                    .show
+                    .iter()
+                    .map(|field| (&field.value, field.span)),
+            )
+            .all(|(value, span)| !span.is_dummy() && !value.span.is_dummy()));
+        assert!(query
+            .output
+            .having
+            .as_ref()
+            .is_some_and(|having| !having.span().is_dummy()));
         let ExploreRepresentative::Maximize { objective, span } = &query.output.representative
         else {
             unreachable!()
@@ -27142,7 +36564,8 @@ mod tests {
             );
         }
 
-        let words = "explore over find bounds boundaries output key show representative";
+        let words =
+            "explore over find bounds boundaries output key extrema having varies show representative";
         let mut lexer = Lexer::new(words);
         let tokens = lexer.tokenize();
         let identifiers = tokens
@@ -27192,6 +36615,14 @@ mod tests {
                 "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] show [x] representative first } }",
                 "output field `x` appears in both `key` and `show`",
             ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] extrema [x = 1] representative first } }",
+                "output field `x` appears in both `key` and `extrema`",
+            ),
+            (
+                "? explore bad { over p(x) find matches bounds { x in [1] } output { key [x] having varies(x) representative first } }",
+                "`having` requires a preceding nonempty `extrema` clause",
+            ),
         ] {
             let error = parse_test_program(source).expect_err(source);
             assert!(
@@ -27222,6 +36653,8 @@ mod tests {
     boundaries on axis by explore_step_marker
     output {
         key [key_value = explore_key_marker]
+        extrema [extrema_value = explore_extrema_marker]
+        having varies(extrema_value)
         show [shown_value = explore_show_marker]
         representative minimize explore_representative_marker
     }
@@ -27244,6 +36677,7 @@ mod tests {
             "explore_where_marker",
             "explore_step_marker",
             "explore_key_marker",
+            "explore_extrema_marker",
             "explore_show_marker",
             "explore_representative_marker",
         ] {
@@ -27324,8 +36758,13 @@ mod tests {
     boundaries on income by step
     output {
         key [income_before = income]
-        show [income_after = next_income(income, step)]
-        representative maximize income_after
+        extrema [income_gain = next_income(income, step) - income]
+        having varies(income_gain)
+        show [
+            income_after = next_income(income, step),
+            reported_gain = income_gain
+        ]
+        representative maximize income_gain
     }
 }
 "#;
@@ -27379,7 +36818,17 @@ mod tests {
             Some(("income", "Int".to_string(), "Int".to_string()))
         );
         assert_eq!(query.output.key[0].ty.to_string(), "Int");
+        assert_eq!(query.output.extrema[0].ty.to_string(), "Int");
+        assert!(matches!(
+            &query.output.having,
+            Some(TypedExploreHaving::Varies {
+                extrema_name,
+                extrema_index: 0,
+                ..
+            }) if extrema_name == "income_gain"
+        ));
         assert_eq!(query.output.show[0].ty.to_string(), "Int");
+        assert_eq!(query.output.show[1].ty.to_string(), "Int");
         assert_eq!(
             query
                 .output
@@ -27388,6 +36837,199 @@ mod tests {
                 .map(ToString::to_string),
             Some("Int".to_string())
         );
+    }
+
+    #[test]
+    fn checked_finite_plan_digest_frames_recursive_collections() {
+        fn digest(plan: &explore::ExploreFiniteTypePlan) -> Box<str> {
+            let mut hasher = Sha256::new();
+            hasher.update(b"futuruna.checked-finite-plan-canary.v1\0");
+            hash_checked_finite_plan(&mut hasher, plan);
+            format!("{:x}", hasher.finalize()).into_boxed_str()
+        }
+
+        let left = explore::ExploreFiniteTypePlan::Tuple {
+            elements: vec![
+                explore::ExploreFiniteTypePlan::Tuple {
+                    elements: vec![explore::ExploreFiniteTypePlan::Unit],
+                    cardinality: explore::ExploreCardinality::Exact(1),
+                },
+                explore::ExploreFiniteTypePlan::Unit,
+            ],
+            cardinality: explore::ExploreCardinality::Exact(1),
+        };
+        let right = explore::ExploreFiniteTypePlan::Tuple {
+            elements: vec![explore::ExploreFiniteTypePlan::Tuple {
+                elements: vec![
+                    explore::ExploreFiniteTypePlan::Unit,
+                    explore::ExploreFiniteTypePlan::Unit,
+                ],
+                cardinality: explore::ExploreCardinality::Exact(1),
+            }],
+            cardinality: explore::ExploreCardinality::Exact(1),
+        };
+        assert_ne!(digest(&left), digest(&right));
+    }
+
+    #[test]
+    fn checked_explore_query_artifact_binds_occurrence_sites_universe_and_digest() {
+        let source = r#"
+# Profile = Worker | Student
+| eligible(profile: Profile, baseline: Profile, income: Int) -> income >= 0
+? explore scan {
+    over eligible(profile, baseline, income)
+    find matches
+    bounds {
+        profile in values(Profile)
+        baseline = Worker
+        income in range(0, 3)
+    }
+    boundaries on income by 1
+    output { key [profile, income] representative first }
+}
+"#;
+        let mut artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let (digest, declaration) = {
+            let checked = artifacts
+                .checked_exploration_query(0)
+                .expect("producer-minted checked query");
+            assert_eq!(checked.artifact.identity.digest.len(), 64);
+            assert_eq!(
+                checked.artifact.identity.analysis_program,
+                artifacts.analysis_program.id
+            );
+            assert_eq!(checked.artifact.sites.bounds.len(), 3);
+            assert!(checked.artifact.sites.bounds[0].binder.is_some());
+            assert!(checked.artifact.sites.boundary_step.is_some());
+            assert_eq!(checked.artifact.sites.key.len(), 2);
+            assert_eq!(checked.artifact.type_facts.len(), 3);
+            assert_eq!(checked.artifact.ground_constructors.len(), 3);
+            assert_eq!(checked.artifact.finite_plan_facts.len(), 1);
+            assert!(checked
+                .artifact
+                .ground_constructors
+                .iter()
+                .any(|constructor| {
+                    matches!(
+                        &constructor.site,
+                        CheckedExploreGroundConstructorSite::FixedFact {
+                            fact_index: 0,
+                            value_path,
+                        } if value_path.is_empty()
+                    ) && constructor.constructor.variant.as_ref() == "Worker"
+                        && constructor.constructor.variant_index == 0
+                        && matches!(
+                            &constructor.constructor.as_ref().owner,
+                            CheckedDataTypeId::Declared(owner)
+                                if owner.declaration.name.as_ref() == "Profile"
+                        )
+                }));
+            assert_eq!(checked.closed_query.universe.dimensions.len(), 2);
+            (
+                checked.artifact.identity.digest.clone(),
+                checked.artifact.identity.declaration.clone(),
+            )
+        };
+        assert_eq!(
+            artifacts
+                .checked_exploration_query_for_declaration(&declaration)
+                .expect("exact declaration occurrence")
+                .artifact
+                .identity
+                .digest
+                .as_ref(),
+            digest.as_ref()
+        );
+        let original_plan =
+            match &mut artifacts.exploration_universes[0].universe.dimensions[0].domain {
+                explore::ExploreExactDomain::FiniteType { plan, .. } => {
+                    std::mem::replace(plan, explore::ExploreFiniteTypePlan::Bool)
+                }
+                _ => panic!("Profile dimension uses a finite-type plan"),
+            };
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
+        match &mut artifacts.exploration_universes[0].universe.dimensions[0].domain {
+            explore::ExploreExactDomain::FiniteType { plan, .. } => *plan = original_plan,
+            _ => unreachable!("Profile dimension remains finite"),
+        }
+        artifacts.exploration_universes[0].query.polarity = ExplorePolarity::Violations;
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
+        assert_eq!(digest.len(), 64);
+    }
+
+    #[test]
+    fn checked_constructor_provenance_binds_owner_layout_fields_and_patterns() {
+        let source = r#"
+# Record(value: Int)
+# Event = Open(code: Int) | Closed(reason: String)
+> record_value(record: Record) -> Int { record.value }
+> make_open() -> Event { Open(1) }
+> event_code(event: Event) -> Int {
+    match event {
+        | Open(code) -> code
+        | Closed(_) -> 0
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let event = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "Event")
+            .expect("Event declaration");
+        let event_owner =
+            CheckedDataTypeId::Declared(CheckedDeclarationOccurrenceId::from_sourced(event));
+        let open = artifacts
+            .checked_resolutions
+            .expressions
+            .values()
+            .filter_map(|resolution| resolution.exact_constructor.as_ref())
+            .find(|constructor| constructor.variant.as_ref() == "Open")
+            .expect("exact Open constructor expression");
+        assert_eq!(open.owner, event_owner);
+        assert_eq!(open.variant_index, 0);
+        assert_eq!(open.layout, CheckedConstructorLayout::Named);
+        assert_eq!(open.fields.len(), 1);
+        assert_eq!(open.fields[0].name.as_ref(), "code");
+        assert!(artifacts
+            .checked_resolutions
+            .constructor_patterns
+            .values()
+            .any(|pattern| {
+                pattern.constructor.owner == event_owner
+                    && pattern.constructor.variant.as_ref() == "Open"
+                    && pattern.source_fields.as_ref() == open.fields.as_ref()
+            }));
+        assert!(artifacts
+            .checked_resolutions
+            .expressions
+            .values()
+            .any(|resolution| {
+                matches!(
+                    &resolution.field,
+                    Some(CheckedFieldResolution::Data { fields, .. })
+                        if fields.len() == 1
+                            && fields[0].identity.name.as_ref() == "value"
+                            && fields[0].layout == CheckedConstructorLayout::Named
+                )
+            }));
     }
 
     #[test]
@@ -27701,6 +37343,20 @@ fn opaque(value: i64) -> i64 { value }
 ? explore bad_where { over condition(value) find matches bounds { value in [1]; where value && 1 } output { key [value] representative first } }
 "#,
                 "requires `Bool` operands",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore non_integer_extrema { over condition(value) find matches bounds { value in [1] } output { key [value] extrema [positive = value > 0] representative first } }
+"#,
+                "extrema `positive` must have type `Int`",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore unknown_having { over condition(value) find matches bounds { value in [1] } output { key [value] extrema [score = value] having varies(missing) representative first } }
+"#,
+                "`having varies(missing)` must name a preceding extrema field",
             ),
         ];
         for (source, expected) in cases {
@@ -31469,6 +41125,15 @@ fn opaque(value: i64) -> i64 { value }
                             value: typechecker_missing_expr("missing_explore_key"),
                             span: Span::dummy(),
                         }],
+                        extrema: vec![ExploreExtrema {
+                            name: "extrema".to_string(),
+                            value: typechecker_missing_expr("missing_explore_extrema"),
+                            span: Span::dummy(),
+                        }],
+                        having: Some(ExploreHaving::Varies {
+                            extrema_name: "extrema".to_string(),
+                            span: Span::dummy(),
+                        }),
                         show: vec![ExploreOutputField {
                             name: "shown".to_string(),
                             value: typechecker_missing_expr("missing_explore_show"),
@@ -31487,6 +41152,7 @@ fn opaque(value: i64) -> i64 { value }
                     "missing_explore_value",
                     "missing_explore_where",
                     "missing_explore_key",
+                    "missing_explore_extrema",
                     "missing_explore_show",
                     "missing_explore_representative",
                 ],
