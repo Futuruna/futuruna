@@ -35,6 +35,7 @@ use super::resource_sampler::{
     OwnedProcessSnapshot, RawHostFacts, RawHostSample, ReducedResourceSample, ReducerEpochSeed,
     SampleUnavailable, SamplerWatchdog, StabilityWindowReducer,
 };
+use super::stream_snapshot::EXACT_OBSERVABLE_SNAPSHOT_ACCOUNTED_WORKING_SET_V1;
 
 const SAMPLE_DEADLINE: Duration = Duration::from_secs(3);
 const SAMPLE_CADENCE: Duration = Duration::from_secs(5);
@@ -121,6 +122,11 @@ pub(super) enum ExactStreamWorkSubject {
     /// One bounded source-probe phase unit: initial analysis/manifest publish,
     /// manifest-backed coverage acceptance, or completion marker publication.
     ProbePhase,
+    /// One bounded materialized-view phase. Snapshot lowering and canonical
+    /// serialization may allocate tens of MiB, so they require the same
+    /// sampled worker authority as semantic evaluation. If this phase is not
+    /// admitted, the journal can still pause without minting a snapshot.
+    SnapshotPublicationPhase,
     /// The explicitly requested atomic v1 terminal phase: fresh replay of the
     /// complete selected witness set, full answer publication, and sealing.
     /// Its retained replay bodies are hard-capped at 65,536 observations /
@@ -174,6 +180,7 @@ impl ExactStreamWorkDispatchPermit {
             ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::BoundedCaseIdBatch { .. }
             | ExactStreamWorkSubject::ProbeCandidateBatch { .. } => None,
@@ -187,6 +194,7 @@ impl ExactStreamWorkDispatchPermit {
             | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase => None,
         }
     }
@@ -218,9 +226,31 @@ pub(super) struct ExactStreamWorkInFlight {
     identity: PermitIdentity,
 }
 
+/// Linear proof that the governor currently owns one admitted snapshot
+/// materialization phase. It consumes the in-flight work unit, authorizes one
+/// preparation attempt, and must be converted back into that same work unit
+/// before the governor can finish it.
+#[derive(Debug)]
+pub(super) struct ExactStreamSnapshotPublicationAuthority {
+    in_flight: ExactStreamWorkInFlight,
+    preparation_consumed: bool,
+}
+
 impl ExactStreamWorkInFlight {
     pub(super) const fn subject(&self) -> ExactStreamWorkSubject {
         self.identity.subject
+    }
+
+    pub(super) fn into_snapshot_publication_authority(
+        self,
+    ) -> Result<ExactStreamSnapshotPublicationAuthority, Self> {
+        if self.subject() != ExactStreamWorkSubject::SnapshotPublicationPhase {
+            return Err(self);
+        }
+        Ok(ExactStreamSnapshotPublicationAuthority {
+            in_flight: self,
+            preparation_consumed: false,
+        })
     }
 
     pub(super) const fn case_id_rank(&self) -> Option<u128> {
@@ -228,6 +258,7 @@ impl ExactStreamWorkInFlight {
             ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::BoundedCaseIdBatch { .. }
             | ExactStreamWorkSubject::ProbeCandidateBatch { .. } => None,
@@ -241,6 +272,7 @@ impl ExactStreamWorkInFlight {
             | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase => None,
         }
     }
@@ -251,6 +283,20 @@ impl ExactStreamWorkInFlight {
 
     pub(super) const fn purpose(&self) -> ExactStreamWorkPurpose {
         self.identity.purpose
+    }
+}
+
+impl ExactStreamSnapshotPublicationAuthority {
+    pub(super) fn consume_preparation(&mut self) -> bool {
+        if self.preparation_consumed {
+            return false;
+        }
+        self.preparation_consumed = true;
+        true
+    }
+
+    pub(super) fn into_in_flight(self) -> ExactStreamWorkInFlight {
+        self.in_flight
     }
 }
 
@@ -343,6 +389,11 @@ impl ExactStreamOneWorkerEnvelope {
         // max(2 GiB, ceil(total RAM / 4)) pre-calibration worker charge.
         policy.configured_worker_ceiling = Some(1);
         policy.requested_jobs_ceiling = Some(1);
+        if policy.minimum_cold_calibration_memory_charge_bytes
+            < EXACT_OBSERVABLE_SNAPSHOT_ACCOUNTED_WORKING_SET_V1
+        {
+            return Err(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
         let watchdog = SamplerWatchdog::new(SAMPLE_CADENCE, SAMPLE_DEADLINE)
             .map_err(|_| ExactStreamResourcePauseReason::InvalidConfiguration)?;
         Ok(Self {
@@ -669,10 +720,12 @@ impl ExactStreamOneWorkerEnvelope {
             work.identity.subject,
             ExactStreamWorkSubject::PreparationPhase
                 | ExactStreamWorkSubject::ProbePhase
+                | ExactStreamWorkSubject::SnapshotPublicationPhase
                 | ExactStreamWorkSubject::FinalizationPhase
         ) {
-            // Never carry pre-preparation/probe host headroom across a
-            // potentially heavy phase. The next poll samples immediately.
+            // Never carry host headroom across a potentially heavy
+            // preparation, probe, view-publication, or finalization phase.
+            // The next poll samples immediately.
             self.revoke_dispatch_authority();
             self.last_sample_started = None;
         }
@@ -895,6 +948,7 @@ fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWor
     match (purpose, subject) {
         (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::PreparationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::ProbePhase)
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::SnapshotPublicationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::FinalizationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::CaseIdRank(_))
         | (
@@ -910,7 +964,8 @@ fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWor
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbeCandidateBatch { .. })
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::FinalizationPhase) => true,
         (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::PreparationPhase)
-        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbePhase) => false,
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbePhase)
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::SnapshotPublicationPhase) => false,
     }
 }
 

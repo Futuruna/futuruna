@@ -69,6 +69,607 @@ pub(crate) enum CaseTerminal {
 pub(crate) type CaseDecisionDag = OrderedDecisionDag<CaseTerminal>;
 pub(super) type CaseGraphBuilder = OrderedDecisionDagBuilder<CaseTerminal>;
 
+pub(super) const DEFAULT_MAX_CASE_RANK_RUN_AXES: usize = 256;
+pub(super) const DEFAULT_MAX_CASE_RANK_RUNS: usize = 65_536;
+pub(super) const DEFAULT_MAX_CASE_RANK_RUN_NODES: usize = 131_072;
+pub(super) const DEFAULT_MAX_CASE_RANK_RUN_ARCS: usize = 262_144;
+pub(super) const DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS: usize = 262_144;
+pub(super) const DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES: usize = 64 * 1024 * 1024;
+
+// Platform-independent upper weights account for each payload together with
+// vector slack and interner/map overhead. This is deliberately conservative
+// work accounting, not a claim about the allocator's exact resident bytes.
+const ACCOUNTED_AXIS_BYTES: usize = 16;
+const ACCOUNTED_STRIDE_BYTES: usize = 16;
+const ACCOUNTED_INPUT_RUN_BYTES: usize = 64;
+const ACCOUNTED_NORMALIZED_SEGMENT_BYTES: usize = 96;
+const ACCOUNTED_CUT_BYTES: usize = 16;
+const ACCOUNTED_TERMINAL_BYTES: usize = 64;
+const ACCOUNTED_NODE_BYTES: usize = 256;
+const ACCOUNTED_ARC_BYTES: usize = 192;
+const ACCOUNTED_ORDINAL_INTERVAL_BYTES: usize = 96;
+
+/// One nonempty uniform classification in canonical mixed-radix rank space.
+///
+/// Construction deliberately does not validate the endpoints. The bounded
+/// lowerer validates the complete sorted stream before any run becomes case
+/// evidence, which also keeps malformed-input tests at the public seam.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) struct CaseTerminalRankRun {
+    start: u128,
+    end_exclusive: u128,
+    terminal: CaseTerminal,
+}
+
+impl CaseTerminalRankRun {
+    pub(super) const fn new(start: u128, end_exclusive: u128, terminal: CaseTerminal) -> Self {
+        Self {
+            start,
+            end_exclusive,
+            terminal,
+        }
+    }
+
+    pub(super) const fn start(&self) -> u128 {
+        self.start
+    }
+
+    pub(super) const fn end_exclusive(&self) -> u128 {
+        self.end_exclusive
+    }
+
+    pub(super) const fn terminal(&self) -> &CaseTerminal {
+        &self.terminal
+    }
+}
+
+/// Operational materialization limits for lowering uniform rank runs.
+///
+/// These limits do not enter graph identity. Exceeding one returns no graph;
+/// callers must report unavailable bounded evidence rather than a partial or
+/// zero-valued case DAG.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) struct CaseRankRunLoweringLimits {
+    max_axes: usize,
+    max_runs: usize,
+    max_nodes: usize,
+    max_arcs: usize,
+    max_ordinal_intervals: usize,
+    max_accounted_bytes: usize,
+}
+
+impl CaseRankRunLoweringLimits {
+    pub(super) const fn new(
+        max_axes: usize,
+        max_runs: usize,
+        max_nodes: usize,
+        max_arcs: usize,
+        max_ordinal_intervals: usize,
+        max_accounted_bytes: usize,
+    ) -> Self {
+        Self {
+            max_axes,
+            max_runs,
+            max_nodes,
+            max_arcs,
+            max_ordinal_intervals,
+            max_accounted_bytes,
+        }
+    }
+
+    pub(super) const fn max_axes(self) -> usize {
+        self.max_axes
+    }
+
+    pub(super) const fn max_runs(self) -> usize {
+        self.max_runs
+    }
+
+    pub(super) const fn max_nodes(self) -> usize {
+        self.max_nodes
+    }
+
+    pub(super) const fn max_arcs(self) -> usize {
+        self.max_arcs
+    }
+
+    pub(super) const fn max_ordinal_intervals(self) -> usize {
+        self.max_ordinal_intervals
+    }
+
+    pub(super) const fn max_accounted_bytes(self) -> usize {
+        self.max_accounted_bytes
+    }
+}
+
+impl Default for CaseRankRunLoweringLimits {
+    fn default() -> Self {
+        Self::new(
+            DEFAULT_MAX_CASE_RANK_RUN_AXES,
+            DEFAULT_MAX_CASE_RANK_RUNS,
+            DEFAULT_MAX_CASE_RANK_RUN_NODES,
+            DEFAULT_MAX_CASE_RANK_RUN_ARCS,
+            DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS,
+            DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum CaseRankRunLoweringResource {
+    Axes,
+    Runs,
+    Nodes,
+    Arcs,
+    OrdinalIntervals,
+    AccountedBytes,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(super) enum CaseRankRunLoweringError {
+    InvalidOpenComplement,
+    UniverseCardinalityOverflow,
+    RunInEmptyUniverse {
+        index: usize,
+    },
+    EmptyOrReversedRun {
+        index: usize,
+        start: u128,
+        end_exclusive: u128,
+    },
+    UnsortedOrOverlappingRun {
+        index: usize,
+        previous_end_exclusive: u128,
+        start: u128,
+    },
+    RunOutOfBounds {
+        index: usize,
+        end_exclusive: u128,
+        universe: u128,
+    },
+    LimitExceeded {
+        resource: CaseRankRunLoweringResource,
+        observed: usize,
+        limit: usize,
+    },
+    AllocationFailed {
+        resource: CaseRankRunLoweringResource,
+    },
+    ArithmeticOverflow(&'static str),
+    TerminalCountOverflow,
+    TerminalCountMismatch {
+        expected: BTreeMap<CaseTerminal, u128>,
+        actual: BTreeMap<CaseTerminal, u128>,
+    },
+    Graph(CaseGraphError),
+    InternalInvariant(&'static str),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NormalizedCaseTerminalRankSegment {
+    start: u128,
+    end_exclusive: u128,
+    terminal: CaseTerminal,
+}
+
+struct CaseRankRunLoweringBudget {
+    limits: CaseRankRunLoweringLimits,
+    runs: usize,
+    nodes: usize,
+    arcs: usize,
+    ordinal_intervals: usize,
+    accounted_bytes: usize,
+}
+
+impl CaseRankRunLoweringBudget {
+    fn new(limits: CaseRankRunLoweringLimits) -> Self {
+        Self {
+            limits,
+            runs: 0,
+            nodes: 0,
+            arcs: 0,
+            ordinal_intervals: 0,
+            accounted_bytes: 0,
+        }
+    }
+
+    fn charge_axes(&mut self, axes: usize) -> Result<(), CaseRankRunLoweringError> {
+        if axes > self.limits.max_axes() {
+            return Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::Axes,
+                observed: axes,
+                limit: self.limits.max_axes(),
+            });
+        }
+        self.charge_scaled_bytes(axes, ACCOUNTED_AXIS_BYTES, "axis byte accounting")
+    }
+
+    fn charge_strides(&mut self, strides: usize) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_scaled_bytes(strides, ACCOUNTED_STRIDE_BYTES, "stride byte accounting")
+    }
+
+    fn charge_run(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        Self::charge_counter(
+            &mut self.runs,
+            1,
+            self.limits.max_runs(),
+            CaseRankRunLoweringResource::Runs,
+        )?;
+        self.charge_bytes(ACCOUNTED_INPUT_RUN_BYTES)
+    }
+
+    fn charge_segment(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_bytes(ACCOUNTED_NORMALIZED_SEGMENT_BYTES)
+    }
+
+    fn charge_cuts(&mut self, cuts: usize) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_scaled_bytes(cuts, ACCOUNTED_CUT_BYTES, "cut byte accounting")
+    }
+
+    fn charge_terminal(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_bytes(ACCOUNTED_TERMINAL_BYTES)
+    }
+
+    fn charge_node_construction(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_bytes(ACCOUNTED_NODE_BYTES)
+    }
+
+    fn charge_unique_node(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        Self::charge_counter(
+            &mut self.nodes,
+            1,
+            self.limits.max_nodes(),
+            CaseRankRunLoweringResource::Nodes,
+        )
+    }
+
+    fn charge_arc_construction(&mut self, arcs: usize) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_scaled_bytes(arcs, ACCOUNTED_ARC_BYTES, "arc byte accounting")
+    }
+
+    fn charge_unique_arcs(&mut self, arcs: usize) -> Result<(), CaseRankRunLoweringError> {
+        Self::charge_counter(
+            &mut self.arcs,
+            arcs,
+            self.limits.max_arcs(),
+            CaseRankRunLoweringResource::Arcs,
+        )
+    }
+
+    fn charge_ordinal_interval_construction(&mut self) -> Result<(), CaseRankRunLoweringError> {
+        self.charge_bytes(ACCOUNTED_ORDINAL_INTERVAL_BYTES)
+    }
+
+    fn charge_unique_ordinal_intervals(
+        &mut self,
+        intervals: usize,
+    ) -> Result<(), CaseRankRunLoweringError> {
+        Self::charge_counter(
+            &mut self.ordinal_intervals,
+            intervals,
+            self.limits.max_ordinal_intervals(),
+            CaseRankRunLoweringResource::OrdinalIntervals,
+        )
+    }
+
+    fn charge_scaled_bytes(
+        &mut self,
+        count: usize,
+        width: usize,
+        context: &'static str,
+    ) -> Result<(), CaseRankRunLoweringError> {
+        let bytes = count
+            .checked_mul(width)
+            .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(context))?;
+        self.charge_bytes(bytes)
+    }
+
+    fn charge_bytes(&mut self, bytes: usize) -> Result<(), CaseRankRunLoweringError> {
+        Self::charge_counter(
+            &mut self.accounted_bytes,
+            bytes,
+            self.limits.max_accounted_bytes(),
+            CaseRankRunLoweringResource::AccountedBytes,
+        )
+    }
+
+    fn charge_counter(
+        current: &mut usize,
+        amount: usize,
+        limit: usize,
+        resource: CaseRankRunLoweringResource,
+    ) -> Result<(), CaseRankRunLoweringError> {
+        let Some(next) = current.checked_add(amount) else {
+            return Err(CaseRankRunLoweringError::LimitExceeded {
+                resource,
+                observed: usize::MAX,
+                limit,
+            });
+        };
+        if next > limit {
+            return Err(CaseRankRunLoweringError::LimitExceeded {
+                resource,
+                observed: next,
+                limit,
+            });
+        }
+        *current = next;
+        Ok(())
+    }
+}
+
+/// Lower sorted, disjoint uniform rank runs plus an explicit open complement
+/// into the canonical case decision DAG without enumerating singleton ranks.
+pub(super) fn lower_case_terminal_rank_runs<I>(
+    axis_cardinalities: Vec<u128>,
+    runs: I,
+    open_complement: CaseTerminal,
+) -> Result<CaseDecisionDag, CaseRankRunLoweringError>
+where
+    I: IntoIterator<Item = CaseTerminalRankRun>,
+{
+    lower_case_terminal_rank_runs_with_limits(
+        axis_cardinalities,
+        runs,
+        open_complement,
+        CaseRankRunLoweringLimits::default(),
+    )
+}
+
+pub(super) fn lower_case_terminal_rank_runs_with_limits<I>(
+    axis_cardinalities: Vec<u128>,
+    runs: I,
+    open_complement: CaseTerminal,
+    limits: CaseRankRunLoweringLimits,
+) -> Result<CaseDecisionDag, CaseRankRunLoweringError>
+where
+    I: IntoIterator<Item = CaseTerminalRankRun>,
+{
+    if !matches!(
+        &open_complement,
+        CaseTerminal::EligibilityOpen(_) | CaseTerminal::AdmissibleOpen(_)
+    ) {
+        return Err(CaseRankRunLoweringError::InvalidOpenComplement);
+    }
+
+    let mut budget = CaseRankRunLoweringBudget::new(limits);
+    budget.charge_axes(axis_cardinalities.len())?;
+
+    if axis_cardinalities.contains(&0) {
+        for (index, _) in runs.into_iter().enumerate() {
+            budget.charge_run()?;
+            return Err(CaseRankRunLoweringError::RunInEmptyUniverse { index });
+        }
+        let graph = CaseDecisionDag {
+            axis_cardinalities,
+            root: DecisionRoot::EmptySpace,
+            nodes: Vec::new(),
+            terminals: Vec::new(),
+        };
+        graph.validate()?;
+        return Ok(graph);
+    }
+
+    let stride_count = axis_cardinalities.len().checked_add(1).ok_or(
+        CaseRankRunLoweringError::ArithmeticOverflow("mixed-radix stride count"),
+    )?;
+    budget.charge_strides(stride_count)?;
+    let mut suffix_strides = Vec::new();
+    suffix_strides
+        .try_reserve_exact(stride_count)
+        .map_err(|_| CaseRankRunLoweringError::AllocationFailed {
+            resource: CaseRankRunLoweringResource::AccountedBytes,
+        })?;
+    suffix_strides.resize(stride_count, 1_u128);
+    for dimension in (0..axis_cardinalities.len()).rev() {
+        suffix_strides[dimension] = axis_cardinalities[dimension]
+            .checked_mul(suffix_strides[dimension + 1])
+            .ok_or(CaseRankRunLoweringError::UniverseCardinalityOverflow)?;
+    }
+    let universe = suffix_strides[0];
+
+    let mut segments = Vec::<NormalizedCaseTerminalRankSegment>::new();
+    let mut previous_end_exclusive = 0_u128;
+    for (index, run) in runs.into_iter().enumerate() {
+        budget.charge_run()?;
+        if run.start >= run.end_exclusive {
+            return Err(CaseRankRunLoweringError::EmptyOrReversedRun {
+                index,
+                start: run.start,
+                end_exclusive: run.end_exclusive,
+            });
+        }
+        if run.start < previous_end_exclusive {
+            return Err(CaseRankRunLoweringError::UnsortedOrOverlappingRun {
+                index,
+                previous_end_exclusive,
+                start: run.start,
+            });
+        }
+        if run.end_exclusive > universe {
+            return Err(CaseRankRunLoweringError::RunOutOfBounds {
+                index,
+                end_exclusive: run.end_exclusive,
+                universe,
+            });
+        }
+        if previous_end_exclusive < run.start {
+            append_normalized_rank_segment(
+                &mut segments,
+                previous_end_exclusive,
+                run.start,
+                open_complement.clone(),
+                &mut budget,
+            )?;
+        }
+        append_normalized_rank_segment(
+            &mut segments,
+            run.start,
+            run.end_exclusive,
+            run.terminal,
+            &mut budget,
+        )?;
+        previous_end_exclusive = run.end_exclusive;
+    }
+    if previous_end_exclusive < universe {
+        append_normalized_rank_segment(
+            &mut segments,
+            previous_end_exclusive,
+            universe,
+            open_complement,
+            &mut budget,
+        )?;
+    }
+    if segments.is_empty() {
+        return Err(CaseRankRunLoweringError::InternalInvariant(
+            "nonempty rank universe normalized to no terminal segments",
+        ));
+    }
+
+    let expected_counts = terminal_counts_from_rank_segments(&segments, universe)?;
+    let mut builder = DecisionPartitionDagBuilder::new(axis_cardinalities);
+    let root = builder.build_rank_segment_target(
+        &segments,
+        0,
+        segments.len(),
+        &suffix_strides,
+        0,
+        0,
+        &mut budget,
+    )?;
+    let graph = CaseDecisionDag {
+        axis_cardinalities: builder.axis_cardinalities,
+        root: DecisionRoot::Target(root),
+        nodes: builder.nodes,
+        terminals: builder.terminals,
+    };
+    graph.validate()?;
+    validate_rank_run_graph_shape(&graph, limits)?;
+
+    let actual_counts = graph
+        .terminal_counts()?
+        .into_iter()
+        .map(|(terminal, count)| match count {
+            CheckedCardinality::Exact(count) => Ok((terminal, count)),
+            CheckedCardinality::ExceedsU128 => Err(CaseRankRunLoweringError::TerminalCountOverflow),
+        })
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    if actual_counts != expected_counts {
+        return Err(CaseRankRunLoweringError::TerminalCountMismatch {
+            expected: expected_counts,
+            actual: actual_counts,
+        });
+    }
+    Ok(graph)
+}
+
+fn append_normalized_rank_segment(
+    segments: &mut Vec<NormalizedCaseTerminalRankSegment>,
+    start: u128,
+    end_exclusive: u128,
+    terminal: CaseTerminal,
+    budget: &mut CaseRankRunLoweringBudget,
+) -> Result<(), CaseRankRunLoweringError> {
+    if start == end_exclusive {
+        return Ok(());
+    }
+    if let Some(last) = segments.last_mut() {
+        if last.end_exclusive != start {
+            return Err(CaseRankRunLoweringError::InternalInvariant(
+                "normalized rank segments are not contiguous",
+            ));
+        }
+        if last.terminal == terminal {
+            last.end_exclusive = end_exclusive;
+            return Ok(());
+        }
+    } else if start != 0 {
+        return Err(CaseRankRunLoweringError::InternalInvariant(
+            "normalized rank segments do not begin at rank zero",
+        ));
+    }
+    budget.charge_segment()?;
+    segments
+        .try_reserve(1)
+        .map_err(|_| CaseRankRunLoweringError::AllocationFailed {
+            resource: CaseRankRunLoweringResource::AccountedBytes,
+        })?;
+    segments.push(NormalizedCaseTerminalRankSegment {
+        start,
+        end_exclusive,
+        terminal,
+    });
+    Ok(())
+}
+
+fn terminal_counts_from_rank_segments(
+    segments: &[NormalizedCaseTerminalRankSegment],
+    universe: u128,
+) -> Result<BTreeMap<CaseTerminal, u128>, CaseRankRunLoweringError> {
+    let mut counts = BTreeMap::new();
+    let mut total = 0_u128;
+    for segment in segments {
+        let width = segment.end_exclusive.checked_sub(segment.start).ok_or(
+            CaseRankRunLoweringError::InternalInvariant(
+                "normalized rank segment is empty or reversed",
+            ),
+        )?;
+        total = total
+            .checked_add(width)
+            .ok_or(CaseRankRunLoweringError::TerminalCountOverflow)?;
+        let count = counts.entry(segment.terminal.clone()).or_insert(0_u128);
+        *count = count
+            .checked_add(width)
+            .ok_or(CaseRankRunLoweringError::TerminalCountOverflow)?;
+    }
+    if total != universe {
+        return Err(CaseRankRunLoweringError::InternalInvariant(
+            "normalized rank terminal counts do not cover the universe",
+        ));
+    }
+    Ok(counts)
+}
+
+fn validate_rank_run_graph_shape(
+    graph: &CaseDecisionDag,
+    limits: CaseRankRunLoweringLimits,
+) -> Result<(), CaseRankRunLoweringError> {
+    if graph.nodes.len() > limits.max_nodes() {
+        return Err(CaseRankRunLoweringError::LimitExceeded {
+            resource: CaseRankRunLoweringResource::Nodes,
+            observed: graph.nodes.len(),
+            limit: limits.max_nodes(),
+        });
+    }
+    let mut arcs = 0_usize;
+    let mut intervals = 0_usize;
+    for node in &graph.nodes {
+        arcs = arcs.checked_add(node.arcs.len()).ok_or(
+            CaseRankRunLoweringError::ArithmeticOverflow("case DAG arc count"),
+        )?;
+        for arc in &node.arcs {
+            intervals = intervals.checked_add(arc.ordinals.intervals.len()).ok_or(
+                CaseRankRunLoweringError::ArithmeticOverflow("case DAG ordinal interval count"),
+            )?;
+        }
+    }
+    if arcs > limits.max_arcs() {
+        return Err(CaseRankRunLoweringError::LimitExceeded {
+            resource: CaseRankRunLoweringResource::Arcs,
+            observed: arcs,
+            limit: limits.max_arcs(),
+        });
+    }
+    if intervals > limits.max_ordinal_intervals() {
+        return Err(CaseRankRunLoweringError::LimitExceeded {
+            resource: CaseRankRunLoweringResource::OrdinalIntervals,
+            observed: intervals,
+            limit: limits.max_ordinal_intervals(),
+        });
+    }
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct NodeId(usize);
 
@@ -1378,6 +1979,273 @@ impl<T: Clone + Ord> DecisionPartitionDagBuilder<T> {
     }
 }
 
+impl DecisionPartitionDagBuilder<CaseTerminal> {
+    #[allow(clippy::too_many_arguments)]
+    fn build_rank_segment_target(
+        &mut self,
+        segments: &[NormalizedCaseTerminalRankSegment],
+        segment_start: usize,
+        segment_end: usize,
+        suffix_strides: &[u128],
+        dimension: usize,
+        base: u128,
+        budget: &mut CaseRankRunLoweringBudget,
+    ) -> Result<DecisionRef, CaseRankRunLoweringError> {
+        if segment_start >= segment_end || segment_end > segments.len() {
+            return Err(CaseRankRunLoweringError::InternalInvariant(
+                "rank block received an empty or out-of-bounds segment slice",
+            ));
+        }
+        let block_span = suffix_strides.get(dimension).copied().ok_or(
+            CaseRankRunLoweringError::InternalInvariant(
+                "rank block dimension has no suffix stride",
+            ),
+        )?;
+        let block_end =
+            base.checked_add(block_span)
+                .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(
+                    "rank block endpoint",
+                ))?;
+        let first = &segments[segment_start];
+        if first.start <= base && first.end_exclusive >= block_end {
+            return self.intern_rank_terminal(first.terminal.clone(), budget);
+        }
+        if dimension >= self.axis_cardinalities.len() {
+            return Err(CaseRankRunLoweringError::InternalInvariant(
+                "a singleton rank block contains a terminal boundary",
+            ));
+        }
+
+        let cardinality = self.axis_cardinalities[dimension];
+        let child_span = suffix_strides[dimension + 1];
+        if cardinality == 0 || child_span == 0 {
+            return Err(CaseRankRunLoweringError::InternalInvariant(
+                "nonempty rank lowering reached an empty mixed-radix axis",
+            ));
+        }
+
+        let segment_count = segment_end.checked_sub(segment_start).ok_or(
+            CaseRankRunLoweringError::InternalInvariant("rank segment range is reversed"),
+        )?;
+        let cut_capacity = segment_count
+            .checked_mul(2)
+            .and_then(|count| count.checked_add(2))
+            .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(
+                "rank-boundary cut capacity",
+            ))?;
+        budget.charge_cuts(cut_capacity)?;
+        let mut cuts = Vec::new();
+        cuts.try_reserve_exact(cut_capacity).map_err(|_| {
+            CaseRankRunLoweringError::AllocationFailed {
+                resource: CaseRankRunLoweringResource::AccountedBytes,
+            }
+        })?;
+        cuts.push(0_u128);
+        cuts.push(cardinality);
+        for segment in &segments[segment_start..segment_end] {
+            let boundary = segment.end_exclusive;
+            if boundary <= base || boundary >= block_end {
+                continue;
+            }
+            let offset =
+                boundary
+                    .checked_sub(base)
+                    .ok_or(CaseRankRunLoweringError::InternalInvariant(
+                        "rank boundary precedes its enclosing block",
+                    ))?;
+            let ordinal = offset / child_span;
+            let remainder = offset % child_span;
+            if ordinal > cardinality {
+                return Err(CaseRankRunLoweringError::InternalInvariant(
+                    "rank boundary projects outside its mixed-radix axis",
+                ));
+            }
+            cuts.push(ordinal);
+            if remainder != 0 {
+                let after =
+                    ordinal
+                        .checked_add(1)
+                        .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(
+                            "boundary-pierced child ordinal",
+                        ))?;
+                if after > cardinality {
+                    return Err(CaseRankRunLoweringError::InternalInvariant(
+                        "boundary-pierced child exceeds its axis cardinality",
+                    ));
+                }
+                cuts.push(after);
+            }
+        }
+        cuts.sort_unstable();
+        cuts.dedup();
+        if cuts.first() != Some(&0) || cuts.last() != Some(&cardinality) {
+            return Err(CaseRankRunLoweringError::InternalInvariant(
+                "rank-boundary cuts do not cover the current axis",
+            ));
+        }
+
+        let mut intervals_by_child = BTreeMap::<DecisionRef, Vec<OrdinalInterval>>::new();
+        let mut scan = segment_start;
+        for pair in cuts.windows(2) {
+            let ordinal_start = pair[0];
+            let ordinal_end = pair[1];
+            if ordinal_start >= ordinal_end {
+                return Err(CaseRankRunLoweringError::InternalInvariant(
+                    "rank-boundary cuts contain an empty ordinal band",
+                ));
+            }
+            let rank_start = ordinal_start
+                .checked_mul(child_span)
+                .and_then(|offset| base.checked_add(offset))
+                .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(
+                    "ordinal-band start rank",
+                ))?;
+            let rank_end = ordinal_end
+                .checked_mul(child_span)
+                .and_then(|offset| base.checked_add(offset))
+                .ok_or(CaseRankRunLoweringError::ArithmeticOverflow(
+                    "ordinal-band end rank",
+                ))?;
+            while scan < segment_end && segments[scan].end_exclusive <= rank_start {
+                scan += 1;
+            }
+            if scan >= segment_end || segments[scan].start > rank_start {
+                return Err(CaseRankRunLoweringError::InternalInvariant(
+                    "ordinal band is not covered by normalized rank segments",
+                ));
+            }
+            let child_segment_start = scan;
+            let mut child_segment_end = child_segment_start;
+            while child_segment_end < segment_end && segments[child_segment_end].start < rank_end {
+                child_segment_end += 1;
+            }
+            if child_segment_end == child_segment_start {
+                return Err(CaseRankRunLoweringError::InternalInvariant(
+                    "ordinal band intersects no normalized rank segment",
+                ));
+            }
+
+            let child = if ordinal_end - ordinal_start == 1 {
+                self.build_rank_segment_target(
+                    segments,
+                    child_segment_start,
+                    child_segment_end,
+                    suffix_strides,
+                    dimension + 1,
+                    rank_start,
+                    budget,
+                )?
+            } else {
+                let segment = &segments[child_segment_start];
+                if child_segment_end != child_segment_start + 1
+                    || segment.start > rank_start
+                    || segment.end_exclusive < rank_end
+                {
+                    return Err(CaseRankRunLoweringError::InternalInvariant(
+                        "a wide ordinal band contains an unprojected rank boundary",
+                    ));
+                }
+                self.intern_rank_terminal(segment.terminal.clone(), budget)?
+            };
+            let interval = OrdinalInterval::new(ordinal_start, ordinal_end)?;
+            if let Some(last) = intervals_by_child
+                .get_mut(&child)
+                .and_then(|intervals| intervals.last_mut())
+            {
+                if last.end_exclusive == interval.start {
+                    last.end_exclusive = interval.end_exclusive;
+                    continue;
+                }
+            }
+            budget.charge_ordinal_interval_construction()?;
+            let child_intervals = intervals_by_child.entry(child).or_default();
+            child_intervals.try_reserve(1).map_err(|_| {
+                CaseRankRunLoweringError::AllocationFailed {
+                    resource: CaseRankRunLoweringResource::OrdinalIntervals,
+                }
+            })?;
+            child_intervals.push(interval);
+        }
+
+        if intervals_by_child.len() == 1 {
+            return Ok(*intervals_by_child
+                .first_key_value()
+                .expect("one rank-lowered child was just checked")
+                .0);
+        }
+        budget.charge_node_construction()?;
+        budget.charge_arc_construction(intervals_by_child.len())?;
+        let mut arcs = Vec::new();
+        arcs.try_reserve_exact(intervals_by_child.len())
+            .map_err(|_| CaseRankRunLoweringError::AllocationFailed {
+                resource: CaseRankRunLoweringResource::Arcs,
+            })?;
+        for (child, intervals) in intervals_by_child {
+            arcs.push(DecisionArc {
+                ordinals: OrdinalSet::from_normalized(intervals)?,
+                child,
+            });
+        }
+        arcs.sort_by_key(|arc| arc.ordinals.first_start());
+        self.intern_rank_node(
+            DecisionNode {
+                dimension_index: dimension,
+                arcs,
+            },
+            budget,
+        )
+    }
+
+    fn intern_rank_terminal(
+        &mut self,
+        terminal: CaseTerminal,
+        budget: &mut CaseRankRunLoweringBudget,
+    ) -> Result<DecisionRef, CaseRankRunLoweringError> {
+        if let Some(id) = self.terminal_interner.get(&terminal) {
+            return Ok(DecisionRef::Terminal(*id));
+        }
+        budget.charge_terminal()?;
+        self.terminals
+            .try_reserve(1)
+            .map_err(|_| CaseRankRunLoweringError::AllocationFailed {
+                resource: CaseRankRunLoweringResource::AccountedBytes,
+            })?;
+        let id = TerminalId(self.terminals.len());
+        self.terminals.push(terminal.clone());
+        self.terminal_interner.insert(terminal, id);
+        Ok(DecisionRef::Terminal(id))
+    }
+
+    fn intern_rank_node(
+        &mut self,
+        node: DecisionNode,
+        budget: &mut CaseRankRunLoweringBudget,
+    ) -> Result<DecisionRef, CaseRankRunLoweringError> {
+        if let Some(id) = self.node_interner.get(&node) {
+            return Ok(DecisionRef::Node(*id));
+        }
+        let interval_count = node.arcs.iter().try_fold(0_usize, |count, arc| {
+            count.checked_add(arc.ordinals.intervals.len()).ok_or(
+                CaseRankRunLoweringError::ArithmeticOverflow(
+                    "unique case DAG ordinal interval count",
+                ),
+            )
+        })?;
+        budget.charge_unique_node()?;
+        budget.charge_unique_arcs(node.arcs.len())?;
+        budget.charge_unique_ordinal_intervals(interval_count)?;
+        self.nodes
+            .try_reserve(1)
+            .map_err(|_| CaseRankRunLoweringError::AllocationFailed {
+                resource: CaseRankRunLoweringResource::Nodes,
+            })?;
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(node.clone());
+        self.node_interner.insert(node, id);
+        Ok(DecisionRef::Node(id))
+    }
+}
+
 fn append_sparse_run(
     runs: &mut Vec<OrdinalRun>,
     start: u128,
@@ -1844,6 +2712,87 @@ impl fmt::Display for CaseGraphError {
 
 impl Error for CaseGraphError {}
 
+impl From<CaseGraphError> for CaseRankRunLoweringError {
+    fn from(error: CaseGraphError) -> Self {
+        Self::Graph(error)
+    }
+}
+
+impl fmt::Display for CaseRankRunLoweringError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidOpenComplement => formatter.write_str(
+                "rank-run case lowering requires an eligibility-open or admissible-open complement",
+            ),
+            Self::UniverseCardinalityOverflow => formatter.write_str(
+                "rank-run case lowering requires a mixed-radix universe that fits in u128",
+            ),
+            Self::RunInEmptyUniverse { index } => {
+                write!(formatter, "rank run {index} is present in an empty case universe")
+            }
+            Self::EmptyOrReversedRun {
+                index,
+                start,
+                end_exclusive,
+            } => write!(
+                formatter,
+                "rank run {index} has empty or reversed bounds [{start}, {end_exclusive})"
+            ),
+            Self::UnsortedOrOverlappingRun {
+                index,
+                previous_end_exclusive,
+                start,
+            } => write!(
+                formatter,
+                "rank run {index} starts at {start} before the previous end {previous_end_exclusive}"
+            ),
+            Self::RunOutOfBounds {
+                index,
+                end_exclusive,
+                universe,
+            } => write!(
+                formatter,
+                "rank run {index} ends at {end_exclusive}, outside universe cardinality {universe}"
+            ),
+            Self::LimitExceeded {
+                resource,
+                observed,
+                limit,
+            } => write!(
+                formatter,
+                "rank-run case lowering exceeded its {resource:?} limit: observed {observed}, limit {limit}"
+            ),
+            Self::AllocationFailed { resource } => write!(
+                formatter,
+                "rank-run case lowering could not reserve bounded {resource:?} storage"
+            ),
+            Self::ArithmeticOverflow(context) => {
+                write!(formatter, "rank-run case lowering overflowed {context}")
+            }
+            Self::TerminalCountOverflow => {
+                formatter.write_str("rank-run terminal counts exceed u128")
+            }
+            Self::TerminalCountMismatch { expected, actual } => write!(
+                formatter,
+                "rank-run terminal counts disagree with the lowered graph: expected {expected:?}, got {actual:?}"
+            ),
+            Self::Graph(error) => write!(formatter, "rank-run case graph is invalid: {error}"),
+            Self::InternalInvariant(message) => {
+                write!(formatter, "rank-run lowering invariant failed: {message}")
+            }
+        }
+    }
+}
+
+impl Error for CaseRankRunLoweringError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::Graph(error) => Some(error),
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1858,6 +2807,442 @@ mod tests {
 
     fn raw(path: &CaseOrdinalPath) -> Vec<u128> {
         path.to_raw_ordinals()
+    }
+
+    fn case_open() -> CaseTerminal {
+        CaseTerminal::EligibilityOpen(CaseOpenReason::SearchBudgetExhausted)
+    }
+
+    fn case_run(start: u128, end_exclusive: u128, terminal: CaseTerminal) -> CaseTerminalRankRun {
+        CaseTerminalRankRun::new(start, end_exclusive, terminal)
+    }
+
+    fn path_for_rank(axis_cardinalities: &[u128], mut rank: u128) -> Vec<u128> {
+        let mut suffix = vec![1_u128; axis_cardinalities.len() + 1];
+        for dimension in (0..axis_cardinalities.len()).rev() {
+            suffix[dimension] = axis_cardinalities[dimension] * suffix[dimension + 1];
+        }
+        assert!(rank < suffix[0]);
+        let mut path = Vec::with_capacity(axis_cardinalities.len());
+        for dimension in 0..axis_cardinalities.len() {
+            let stride = suffix[dimension + 1];
+            path.push(rank / stride);
+            rank %= stride;
+        }
+        path
+    }
+
+    fn terminal_for_rank(
+        graph: &CaseDecisionDag,
+        rank: u128,
+    ) -> Result<&CaseTerminal, CaseGraphError> {
+        graph
+            .terminal_for_path(&path_for_rank(graph.axis_cardinalities(), rank))?
+            .ok_or(CaseGraphError::InternalInvariant(
+                "nonempty rank has no case terminal",
+            ))
+    }
+
+    #[test]
+    fn rank_runs_match_the_canonical_singleton_builder_on_a_tiny_product() {
+        let axes = vec![2, 3];
+        let open = case_open();
+        let runs = vec![
+            case_run(1, 3, CaseTerminal::AdmissibleMatch),
+            case_run(4, 5, CaseTerminal::Excluded),
+        ];
+        let lowered = lower_case_terminal_rank_runs(axes.clone(), runs, open.clone()).unwrap();
+
+        let mut singleton = CaseGraphBuilder::new(axes);
+        for terminal in [
+            open.clone(),
+            CaseTerminal::AdmissibleMatch,
+            CaseTerminal::AdmissibleMatch,
+            open.clone(),
+            CaseTerminal::Excluded,
+            open,
+        ] {
+            singleton.push_next(terminal).unwrap();
+        }
+        let singleton = singleton.finish_complete().unwrap();
+        assert_eq!(lowered, singleton);
+    }
+
+    #[test]
+    fn one_uniform_run_can_cover_the_full_u128_rank_universe() {
+        let graph = lower_case_terminal_rank_runs(
+            vec![u128::MAX],
+            [case_run(0, u128::MAX, CaseTerminal::AdmissibleMatch)],
+            case_open(),
+        )
+        .unwrap();
+        assert!(matches!(
+            graph.root(),
+            DecisionRoot::Target(DecisionRef::Terminal(_))
+        ));
+        assert!(graph.nodes().is_empty());
+        assert_eq!(
+            graph.terminal_counts().unwrap(),
+            BTreeMap::from([(
+                CaseTerminal::AdmissibleMatch,
+                CheckedCardinality::Exact(u128::MAX),
+            )])
+        );
+    }
+
+    #[test]
+    fn aligned_and_unaligned_rank_runs_lower_only_boundary_pierced_subtrees() {
+        let axes = vec![3, 4, 5];
+        let open = case_open();
+        let aligned = lower_case_terminal_rank_runs(
+            axes.clone(),
+            [case_run(20, 40, CaseTerminal::AdmissibleMatch)],
+            open.clone(),
+        )
+        .unwrap();
+        assert_eq!(aligned.nodes().len(), 1);
+        assert_eq!(
+            aligned.terminal_counts().unwrap(),
+            BTreeMap::from([
+                (open.clone(), CheckedCardinality::Exact(40),),
+                (CaseTerminal::AdmissibleMatch, CheckedCardinality::Exact(20),),
+            ])
+        );
+
+        let unaligned = lower_case_terminal_rank_runs(
+            axes,
+            [case_run(19, 41, CaseTerminal::AdmissibleMatch)],
+            open.clone(),
+        )
+        .unwrap();
+        assert!(unaligned.nodes().len() <= 5);
+        assert_eq!(terminal_for_rank(&unaligned, 18).unwrap(), &open);
+        assert_eq!(
+            terminal_for_rank(&unaligned, 19).unwrap(),
+            &CaseTerminal::AdmissibleMatch
+        );
+        assert_eq!(
+            terminal_for_rank(&unaligned, 40).unwrap(),
+            &CaseTerminal::AdmissibleMatch
+        );
+        assert_eq!(terminal_for_rank(&unaligned, 41).unwrap(), &open);
+        assert_eq!(
+            unaligned.terminal_counts().unwrap(),
+            BTreeMap::from([
+                (open, CheckedCardinality::Exact(38)),
+                (CaseTerminal::AdmissibleMatch, CheckedCardinality::Exact(22),),
+            ])
+        );
+    }
+
+    #[test]
+    fn rank_run_gaps_are_open_and_adjacent_equal_runs_normalize_identically() {
+        let open = case_open();
+        let split = lower_case_terminal_rank_runs(
+            vec![10],
+            [
+                case_run(2, 3, CaseTerminal::AdmissibleMatch),
+                case_run(3, 4, CaseTerminal::AdmissibleMatch),
+                case_run(6, 8, CaseTerminal::AdmissibleNonmatch),
+            ],
+            open.clone(),
+        )
+        .unwrap();
+        let coalesced = lower_case_terminal_rank_runs(
+            vec![10],
+            [
+                case_run(2, 4, CaseTerminal::AdmissibleMatch),
+                case_run(6, 8, CaseTerminal::AdmissibleNonmatch),
+            ],
+            open.clone(),
+        )
+        .unwrap();
+        assert_eq!(split, coalesced);
+        assert_eq!(
+            split.terminal_counts().unwrap(),
+            BTreeMap::from([
+                (open.clone(), CheckedCardinality::Exact(6)),
+                (
+                    CaseTerminal::AdmissibleNonmatch,
+                    CheckedCardinality::Exact(2),
+                ),
+                (CaseTerminal::AdmissibleMatch, CheckedCardinality::Exact(2),),
+            ])
+        );
+        for rank in [0, 1, 4, 5, 8, 9] {
+            assert_eq!(terminal_for_rank(&split, rank).unwrap(), &open);
+        }
+    }
+
+    #[test]
+    fn rank_run_lowering_distinguishes_zero_axis_singletons_and_empty_axes() {
+        let open = case_open();
+        let singleton =
+            lower_case_terminal_rank_runs(Vec::new(), std::iter::empty(), open.clone()).unwrap();
+        assert_eq!(
+            singleton.terminal_counts().unwrap(),
+            BTreeMap::from([(open.clone(), CheckedCardinality::Exact(1))])
+        );
+        let classified_singleton = lower_case_terminal_rank_runs(
+            Vec::new(),
+            [case_run(0, 1, CaseTerminal::AdmissibleMatch)],
+            open.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            classified_singleton.terminal_counts().unwrap(),
+            BTreeMap::from([(CaseTerminal::AdmissibleMatch, CheckedCardinality::Exact(1),)])
+        );
+
+        let empty =
+            lower_case_terminal_rank_runs(vec![2, 0, 3], std::iter::empty(), open.clone()).unwrap();
+        assert_eq!(empty.root(), DecisionRoot::EmptySpace);
+        assert!(empty.nodes().is_empty());
+        assert!(empty.terminals().is_empty());
+        assert!(matches!(
+            lower_case_terminal_rank_runs(
+                vec![2, 0, 3],
+                [case_run(0, 1, CaseTerminal::AdmissibleMatch)],
+                open,
+            ),
+            Err(CaseRankRunLoweringError::RunInEmptyUniverse { index: 0 })
+        ));
+    }
+
+    #[test]
+    fn rank_run_lowering_rejects_malformed_streams_and_overflowing_universes() {
+        let open = case_open();
+        assert_eq!(
+            lower_case_terminal_rank_runs(
+                vec![2],
+                std::iter::empty(),
+                CaseTerminal::AdmissibleMatch,
+            )
+            .unwrap_err(),
+            CaseRankRunLoweringError::InvalidOpenComplement
+        );
+        assert_eq!(
+            lower_case_terminal_rank_runs(vec![u128::MAX, 2], std::iter::empty(), open.clone(),)
+                .unwrap_err(),
+            CaseRankRunLoweringError::UniverseCardinalityOverflow
+        );
+        assert!(matches!(
+            lower_case_terminal_rank_runs(
+                vec![6],
+                [case_run(2, 2, CaseTerminal::AdmissibleMatch)],
+                open.clone(),
+            ),
+            Err(CaseRankRunLoweringError::EmptyOrReversedRun { index: 0, .. })
+        ));
+        assert!(matches!(
+            lower_case_terminal_rank_runs(
+                vec![6],
+                [
+                    case_run(3, 5, CaseTerminal::AdmissibleMatch),
+                    case_run(4, 6, CaseTerminal::AdmissibleNonmatch),
+                ],
+                open.clone(),
+            ),
+            Err(CaseRankRunLoweringError::UnsortedOrOverlappingRun { index: 1, .. })
+        ));
+        assert!(matches!(
+            lower_case_terminal_rank_runs(
+                vec![6],
+                [
+                    case_run(4, 5, CaseTerminal::AdmissibleMatch),
+                    case_run(1, 2, CaseTerminal::AdmissibleNonmatch),
+                ],
+                open.clone(),
+            ),
+            Err(CaseRankRunLoweringError::UnsortedOrOverlappingRun { index: 1, .. })
+        ));
+        assert!(matches!(
+            lower_case_terminal_rank_runs(
+                vec![6],
+                [case_run(5, 7, CaseTerminal::AdmissibleMatch)],
+                open,
+            ),
+            Err(CaseRankRunLoweringError::RunOutOfBounds { index: 0, .. })
+        ));
+    }
+
+    #[test]
+    fn rank_run_limits_are_inclusive_and_fail_on_the_next_materialized_unit() {
+        let open = case_open();
+        let mut axis_limits = CaseRankRunLoweringLimits::default();
+        axis_limits.max_axes = 1;
+        lower_case_terminal_rank_runs_with_limits(
+            vec![1],
+            std::iter::empty(),
+            open.clone(),
+            axis_limits,
+        )
+        .unwrap();
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                vec![1, 1],
+                std::iter::empty(),
+                open.clone(),
+                axis_limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::Axes,
+                observed: 2,
+                limit: 1,
+            })
+        ));
+
+        let mut limits = CaseRankRunLoweringLimits::default();
+        limits.max_runs = 1;
+        lower_case_terminal_rank_runs_with_limits(
+            vec![4],
+            [case_run(1, 2, CaseTerminal::AdmissibleMatch)],
+            open.clone(),
+            limits,
+        )
+        .unwrap();
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                vec![4],
+                [
+                    case_run(0, 1, CaseTerminal::AdmissibleMatch),
+                    case_run(2, 3, CaseTerminal::AdmissibleNonmatch),
+                ],
+                open.clone(),
+                limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::Runs,
+                observed: 2,
+                limit: 1,
+            })
+        ));
+
+        let one_middle_run = [case_run(1, 2, CaseTerminal::AdmissibleMatch)];
+        let mut node_limits = CaseRankRunLoweringLimits::default();
+        node_limits.max_nodes = 0;
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                vec![3],
+                one_middle_run.clone(),
+                open.clone(),
+                node_limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::Nodes,
+                observed: 1,
+                limit: 0,
+            })
+        ));
+
+        let mut arc_limits = CaseRankRunLoweringLimits::default();
+        arc_limits.max_nodes = 1;
+        arc_limits.max_arcs = 2;
+        lower_case_terminal_rank_runs_with_limits(
+            vec![3],
+            one_middle_run.clone(),
+            open.clone(),
+            arc_limits,
+        )
+        .unwrap();
+        arc_limits.max_arcs = 1;
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                vec![3],
+                one_middle_run.clone(),
+                open.clone(),
+                arc_limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::Arcs,
+                observed: 2,
+                limit: 1,
+            })
+        ));
+
+        let mut interval_limits = CaseRankRunLoweringLimits::default();
+        interval_limits.max_nodes = 1;
+        interval_limits.max_arcs = 2;
+        interval_limits.max_ordinal_intervals = 3;
+        lower_case_terminal_rank_runs_with_limits(
+            vec![3],
+            one_middle_run.clone(),
+            open.clone(),
+            interval_limits,
+        )
+        .unwrap();
+        interval_limits.max_ordinal_intervals = 2;
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                vec![3],
+                one_middle_run,
+                open.clone(),
+                interval_limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::OrdinalIntervals,
+                observed: 3,
+                limit: 2,
+            })
+        ));
+
+        let mut byte_limits = CaseRankRunLoweringLimits::default();
+        byte_limits.max_accounted_bytes =
+            ACCOUNTED_STRIDE_BYTES + ACCOUNTED_NORMALIZED_SEGMENT_BYTES + ACCOUNTED_TERMINAL_BYTES;
+        lower_case_terminal_rank_runs_with_limits(
+            Vec::new(),
+            std::iter::empty(),
+            open.clone(),
+            byte_limits,
+        )
+        .unwrap();
+        byte_limits.max_accounted_bytes -= 1;
+        assert!(matches!(
+            lower_case_terminal_rank_runs_with_limits(
+                Vec::new(),
+                std::iter::empty(),
+                open,
+                byte_limits,
+            ),
+            Err(CaseRankRunLoweringError::LimitExceeded {
+                resource: CaseRankRunLoweringResource::AccountedBytes,
+                ..
+            })
+        ));
+    }
+
+    #[test]
+    fn repeated_equal_suffixes_charge_only_retained_dag_units_against_shape_caps() {
+        let open = case_open();
+        let limits = CaseRankRunLoweringLimits::new(
+            2,
+            2,
+            1,
+            2,
+            2,
+            DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
+        );
+        let graph = lower_case_terminal_rank_runs_with_limits(
+            vec![2, 2],
+            [
+                case_run(0, 1, CaseTerminal::AdmissibleMatch),
+                case_run(2, 3, CaseTerminal::AdmissibleMatch),
+            ],
+            open,
+            limits,
+        )
+        .unwrap();
+
+        assert_eq!(graph.nodes().len(), 1);
+        assert_eq!(graph.nodes()[0].arcs().len(), 2);
+        assert_eq!(
+            graph.nodes()[0]
+                .arcs()
+                .iter()
+                .map(|arc| arc.ordinals().intervals().len())
+                .sum::<usize>(),
+            2
+        );
     }
 
     #[test]

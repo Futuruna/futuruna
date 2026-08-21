@@ -105,6 +105,7 @@ fn main_inner() {
     let mut explore_max_runtime = None;
     let mut explore_pause_after_probes = false;
     let mut explore_finalize = false;
+    let mut explore_case_graph = explore::ExploreStreamCaseGraphRequest::Omit;
     let mut explore_preview_json = false;
     let mut explore_preview_query = None;
     let mut explore_preview_limit = 10_000usize;
@@ -314,6 +315,18 @@ fn main_inner() {
             }
             "--finalize" if mode == "explore" => {
                 explore_finalize = true;
+                i += 1;
+            }
+            "--case-graph" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --case-graph requires `full`");
+                    std::process::exit(1);
+                }
+                explore_case_graph = parse_explore_case_graph(&args[i + 1]);
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--case-graph=") => {
+                explore_case_graph = parse_explore_case_graph(&arg["--case-graph=".len()..]);
                 i += 1;
             }
             "--json" if mode == "__explore-preview" => {
@@ -578,6 +591,9 @@ fn main_inner() {
                 );
                 eprintln!("  explore --pause-after probes  Pause at the durable probe milestone");
                 eprintln!(
+                    "  explore --case-graph full  Explicitly authorize full bounded case-DAG publication"
+                );
+                eprintln!(
                     "  explore --finalize    With --run-state and a time limit, opt in to bounded atomic-v1 terminal sealing"
                 );
                 eprintln!(
@@ -669,6 +685,9 @@ fn main_inner() {
                 );
                 eprintln!(
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --json"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --case-graph full --json"
                 );
                 eprintln!(
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --finalize --json"
@@ -997,7 +1016,7 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--finalize] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--json]"
         );
         std::process::exit(1);
     }
@@ -1012,6 +1031,12 @@ fn main_inner() {
         }
         if explore_finalize && explore_run_state.is_none() {
             eprintln!("error: --finalize requires a durable --run-state path");
+            std::process::exit(1);
+        }
+        if explore_case_graph == explore::ExploreStreamCaseGraphRequest::Full
+            && explore_run_state.is_none()
+        {
+            eprintln!("error: --case-graph full requires a durable --run-state path");
             std::process::exit(1);
         }
         if explore_finalize && explore_pause_after_probes {
@@ -1152,6 +1177,7 @@ fn main_inner() {
                         .expect("stream dispatch requires --run-state"),
                     explore_max_runtime,
                     explore_pause_after_probes,
+                    explore_case_graph,
                     explore_finalize,
                 ),
                 "explore" if explore_plan => run_explore_cost_plan(
@@ -6842,6 +6868,9 @@ fn run_explore_cost_plan(
 fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
     match stop {
         explore::ExploreStreamSliceStop::ProbeMilestone => "probe milestone reached".to_string(),
+        explore::ExploreStreamSliceStop::SnapshotCatchUp => {
+            "pending observable snapshot catch-up attempted before further search".to_string()
+        }
         explore::ExploreStreamSliceStop::TimeLimit => "invocation time limit reached".to_string(),
         explore::ExploreStreamSliceStop::ResourcePressure { detail } => {
             format!("resource pressure ({detail})")
@@ -6999,6 +7028,9 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
         explore::ExploreStreamSliceStop::ProbeMilestone => {
             serde_json::json!({ "kind": "probe_milestone" })
         }
+        explore::ExploreStreamSliceStop::SnapshotCatchUp => {
+            serde_json::json!({ "kind": "snapshot_catch_up" })
+        }
         explore::ExploreStreamSliceStop::TimeLimit => {
             serde_json::json!({ "kind": "time_limit" })
         }
@@ -7035,6 +7067,33 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
     }
 }
 
+fn explore_stream_snapshot_deferral_text(
+    deferral: &explore::ExploreStreamSnapshotDeferral,
+) -> String {
+    match deferral {
+        explore::ExploreStreamSnapshotDeferral::TimeLimit => "invocation time limit".to_string(),
+        explore::ExploreStreamSnapshotDeferral::ResourceAdmission { detail } => {
+            format!("snapshot work was not admitted ({detail})")
+        }
+    }
+}
+
+fn explore_stream_snapshot_deferral_json(
+    deferral: &explore::ExploreStreamSnapshotDeferral,
+) -> serde_json::Value {
+    match deferral {
+        explore::ExploreStreamSnapshotDeferral::TimeLimit => {
+            serde_json::json!({ "kind": "time_limit" })
+        }
+        explore::ExploreStreamSnapshotDeferral::ResourceAdmission { detail } => {
+            serde_json::json!({
+                "kind": "resource_admission",
+                "detail": detail,
+            })
+        }
+    }
+}
+
 fn write_exact_explore_stream_report(
     report: &explore::ExploreStreamSliceReport,
     run_state: &Path,
@@ -7042,17 +7101,6 @@ fn write_exact_explore_stream_report(
 ) -> io::Result<()> {
     let stdout = io::stdout();
     let mut output = stdout.lock();
-    let (artifact_bytes, artifact_digest) = match &report.artifact {
-        explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
-            canonical_json_line,
-            blob_digest,
-            ..
-        } => (canonical_json_line, blob_digest),
-        explore::ExploreStreamArtifact::TerminalResultJson {
-            canonical_json,
-            blob_digest,
-        } => (canonical_json, blob_digest),
-    };
     if json {
         let artifact_metadata = match &report.artifact {
             explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
@@ -7067,6 +7115,35 @@ fn write_exact_explore_stream_report(
                 "checkpoint_cursor": explore_stream_cursor_json(checkpoint_cursor),
                 "publication_cursor": explore_stream_cursor_json(publication_cursor),
             }),
+            explore::ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+                blob_digest,
+                checkpoint_cursor,
+                publication_cursor,
+                detail,
+                ..
+            } => serde_json::json!({
+                "kind": "snapshot_unavailable",
+                "blob_digest": blob_digest,
+                "canonical_byte_framing": "json_line_lf",
+                "checkpoint_cursor": explore_stream_cursor_json(checkpoint_cursor),
+                "publication_cursor": explore_stream_cursor_json(publication_cursor),
+                "snapshot": {
+                    "status": "unavailable",
+                    "reason": {
+                        "kind": "capacity",
+                        "detail": detail,
+                    },
+                },
+            }),
+            explore::ExploreStreamArtifact::JournalOnlyCheckpoint { snapshot_deferral } => {
+                serde_json::json!({
+                    "kind": "journal_checkpoint",
+                    "snapshot": {
+                        "status": "deferred",
+                        "reason": explore_stream_snapshot_deferral_json(snapshot_deferral),
+                    },
+                })
+            }
             explore::ExploreStreamArtifact::TerminalResultJson { blob_digest, .. } => {
                 serde_json::json!({
                     "kind": "terminal_result",
@@ -7101,45 +7178,48 @@ fn write_exact_explore_stream_report(
                 "Explore artifact metadata is not a JSON object",
             ));
         }
-        let canonical_payload = match &report.artifact {
-            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
-                let Some(payload) = artifact_bytes.strip_suffix(b"\n") else {
+        output.write_all(&envelope_prefix)?;
+        output.write_all(b",\"artifact\":")?;
+        output.write_all(&artifact_prefix)?;
+        match &report.artifact {
+            explore::ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {}
+            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+                canonical_json_line,
+                ..
+            }
+            | explore::ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+                canonical_json_line,
+                ..
+            } => {
+                let Some(canonical_payload) = canonical_json_line.strip_suffix(b"\n") else {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
                         "canonical Explore checkpoint is missing its required trailing LF",
                     ));
                 };
-                if payload.ends_with(b"\n") {
+                if canonical_payload.is_empty() || canonical_payload.ends_with(b"\n") {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "canonical Explore checkpoint has more than one trailing LF",
+                        "canonical Explore checkpoint has invalid LF framing",
                     ));
                 }
-                payload
+                output.write_all(b",\"canonical_payload\":")?;
+                // Raw embedding preserves canonical u128 decimal tokens
+                // exactly. A serde_json::Value round trip would coerce values
+                // above u64.
+                output.write_all(canonical_payload)?;
             }
-            explore::ExploreStreamArtifact::TerminalResultJson { .. } => {
-                if artifact_bytes.ends_with(b"\n") {
+            explore::ExploreStreamArtifact::TerminalResultJson { canonical_json, .. } => {
+                if canonical_json.is_empty() || canonical_json.ends_with(b"\n") {
                     return Err(io::Error::new(
                         io::ErrorKind::InvalidData,
-                        "canonical Explore terminal document unexpectedly ends in LF",
+                        "canonical Explore terminal document has invalid framing",
                     ));
                 }
-                artifact_bytes.as_slice()
+                output.write_all(b",\"canonical_payload\":")?;
+                output.write_all(canonical_json)?;
             }
-        };
-        if canonical_payload.is_empty() {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidData,
-                "canonical Explore artifact is empty",
-            ));
         }
-        output.write_all(&envelope_prefix)?;
-        output.write_all(b",\"artifact\":")?;
-        output.write_all(&artifact_prefix)?;
-        output.write_all(b",\"canonical_payload\":")?;
-        // Raw embedding preserves canonical u128 decimal tokens exactly. A
-        // serde_json::Value round trip would coerce values above u64.
-        output.write_all(canonical_payload)?;
         output.write_all(b"}}\n")?;
         return output.flush();
     }
@@ -7183,39 +7263,71 @@ fn write_exact_explore_stream_report(
         report.closed_cases_this_slice
     )?;
     writeln!(output)?;
-    writeln!(output, "Artifact blob: {artifact_digest}")?;
-    if let explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
-        checkpoint_cursor,
-        publication_cursor,
-        ..
-    } = &report.artifact
-    {
-        writeln!(
-            output,
-            "Checkpoint cursor: #{} {}",
-            checkpoint_cursor.sequence, checkpoint_cursor.journal_head
-        )?;
-        writeln!(
-            output,
-            "Publication cursor: #{} {}",
-            publication_cursor.sequence, publication_cursor.journal_head
-        )?;
-    }
-    writeln!(
-        output,
-        "{}:",
-        match &report.artifact {
-            explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
-                "Canonical observable checkpoint"
-            }
-            explore::ExploreStreamArtifact::TerminalResultJson { .. } => {
-                "Canonical terminal result"
+    match &report.artifact {
+        explore::ExploreStreamArtifact::JournalOnlyCheckpoint { snapshot_deferral } => {
+            writeln!(output, "Artifact: journal-only checkpoint")?;
+            writeln!(
+                output,
+                "Observable snapshot: deferred ({})",
+                explore_stream_snapshot_deferral_text(snapshot_deferral)
+            )?;
+        }
+        explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+        } => {
+            writeln!(output, "Artifact blob: {blob_digest}")?;
+            writeln!(
+                output,
+                "Checkpoint cursor: #{} {}",
+                checkpoint_cursor.sequence, checkpoint_cursor.journal_head
+            )?;
+            writeln!(
+                output,
+                "Publication cursor: #{} {}",
+                publication_cursor.sequence, publication_cursor.journal_head
+            )?;
+            writeln!(output, "Canonical observable checkpoint:")?;
+            output.write_all(canonical_json_line)?;
+        }
+        explore::ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+            detail,
+        } => {
+            writeln!(output, "Artifact blob: {blob_digest}")?;
+            writeln!(
+                output,
+                "Checkpoint cursor: #{} {}",
+                checkpoint_cursor.sequence, checkpoint_cursor.journal_head
+            )?;
+            writeln!(
+                output,
+                "Publication cursor: #{} {}",
+                publication_cursor.sequence, publication_cursor.journal_head
+            )?;
+            writeln!(
+                output,
+                "Observable snapshot: unavailable; the admitted publisher reported capacity at this cursor ({detail})"
+            )?;
+            writeln!(output, "Canonical observable status:")?;
+            output.write_all(canonical_json_line)?;
+        }
+        explore::ExploreStreamArtifact::TerminalResultJson {
+            canonical_json,
+            blob_digest,
+        } => {
+            writeln!(output, "Artifact blob: {blob_digest}")?;
+            writeln!(output, "Canonical terminal result:")?;
+            output.write_all(canonical_json)?;
+            if !canonical_json.ends_with(b"\n") {
+                writeln!(output)?;
             }
         }
-    )?;
-    output.write_all(artifact_bytes)?;
-    if !artifact_bytes.ends_with(b"\n") {
-        writeln!(output)?;
     }
     output.flush()
 }
@@ -7229,6 +7341,7 @@ fn run_exact_explore_stream(
     run_state: &Path,
     max_runtime: Option<std::time::Duration>,
     pause_after_probes: bool,
+    case_graph: explore::ExploreStreamCaseGraphRequest,
     finalize: bool,
 ) {
     let mut lexer = Lexer::new(source);
@@ -7249,6 +7362,7 @@ fn run_exact_explore_stream(
         run_state: run_state.to_path_buf(),
         max_runtime,
         pause_after: pause_after_probes.then_some(explore::ExploreStreamPauseAfter::Probes),
+        case_graph,
         finalize,
     };
     let report = explore::execute_checked_exact_stream_slice(
@@ -8033,6 +8147,15 @@ fn parse_explore_pause_after(raw: &str) -> bool {
         true
     } else {
         eprintln!("error: --pause-after requires `probes`, got '{raw}'");
+        std::process::exit(1);
+    }
+}
+
+fn parse_explore_case_graph(raw: &str) -> explore::ExploreStreamCaseGraphRequest {
+    if raw == "full" {
+        explore::ExploreStreamCaseGraphRequest::Full
+    } else {
+        eprintln!("error: --case-graph requires `full`, got '{raw}'");
         std::process::exit(1);
     }
 }

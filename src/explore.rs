@@ -525,15 +525,42 @@ pub enum ExploreStreamPauseAfter {
     Probes,
 }
 
-/// Operational controls for one resumable Explore invocation.
+/// Explicit case-level disclosure requested for one durable Explore stream.
 ///
-/// These values never enter semantic run identity. Reopening the same
-/// `run_state` path with another time slice continues the same checked answer.
+/// The request is part of immutable run identity. A run created with omitted
+/// case evidence cannot later be reopened as a graph-bearing run, or vice
+/// versa.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStreamCaseGraphRequest {
+    Omit,
+    Full,
+}
+
+impl ExploreStreamCaseGraphRequest {
+    fn report_request(self) -> report::ExploreReportRequest {
+        report::ExploreReportRequest {
+            case_graph: match self {
+                Self::Omit => report::ExploreCaseGraphRequest::Omit,
+                Self::Full => report::ExploreCaseGraphRequest::Include,
+            },
+            ledger: report::ExploreLedgerRequest::Omit,
+        }
+    }
+}
+
+/// Controls for one resumable Explore invocation.
+///
+/// Time, milestone, and finalization choices are operational. The explicit
+/// case-level disclosure request is immutable report identity. Reopening the
+/// same `run_state` may vary slice controls but must repeat that request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExploreStreamSliceOptions {
     pub run_state: PathBuf,
     pub max_runtime: Option<Duration>,
     pub pause_after: Option<ExploreStreamPauseAfter>,
+    /// Privacy-sensitive case-classification DAG disclosure. Omitted streams
+    /// publish counts and result rows without exposing the full case graph.
+    pub case_graph: ExploreStreamCaseGraphRequest,
     /// Opt in to the bounded atomic-v1 terminal replay/publication phase once
     /// case classification is closed. This does not replace the required
     /// invocation time/milestone control.
@@ -546,6 +573,11 @@ pub struct ExploreStreamSliceOptions {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreStreamSliceStop {
     ProbeMilestone,
+    /// A preceding invocation committed a journal-only pause. This resumed
+    /// invocation serviced that pending observer boundary before advancing the
+    /// semantic frontier; the artifact says whether materialization succeeded
+    /// or had to remain deferred.
+    SnapshotCatchUp,
     TimeLimit,
     ResourcePressure {
         detail: String,
@@ -584,9 +616,9 @@ pub enum ExploreStreamTerminalStatus {
 
 /// Public cursor for one observable point in the append-only Explore stream.
 ///
-/// Hashes use canonical lowercase SHA-256 spelling. The checkpoint cursor and
-/// final invocation cursor deliberately differ: snapshot publication and the
-/// following pause are themselves durable journal records.
+/// Hashes use canonical lowercase SHA-256 spelling. A materialized snapshot
+/// report exposes its pre-publication and publication cursors; a journal-only
+/// pause has only the final pause cursor because no view record was minted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExploreStreamLifecycle {
     Running,
@@ -604,7 +636,17 @@ pub struct ExploreStreamCursor {
     pub last_coverage_epoch: Option<u64>,
 }
 
-/// Canonical artifact returned by one durable invocation.
+/// Why this invocation committed a replayable journal pause without also
+/// materializing its potentially much larger observable snapshot. This is an
+/// operational view status, not evidence that the requested case graph hit a
+/// semantic or schema capacity bound.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ExploreStreamSnapshotDeferral {
+    TimeLimit,
+    ResourceAdmission { detail: String },
+}
+
+/// Observable artifact status returned by one durable invocation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreStreamArtifact {
     /// Cursor-bearing, bounded observable checkpoint followed by one LF. The
@@ -615,6 +657,22 @@ pub enum ExploreStreamArtifact {
         blob_digest: String,
         checkpoint_cursor: ExploreStreamCursor,
         publication_cursor: ExploreStreamCursor,
+    },
+    /// Cursor-bearing bounded receipt published when an admitted full-snapshot
+    /// attempt reports capacity at this cursor. This is neither a partial
+    /// snapshot nor a claim that a later attempt can never fit.
+    CheckpointSnapshotUnavailableJsonLine {
+        canonical_json_line: Vec<u8>,
+        blob_digest: String,
+        checkpoint_cursor: ExploreStreamCursor,
+        publication_cursor: ExploreStreamCursor,
+        detail: String,
+    },
+    /// The append-only journal is already a complete resume checkpoint. When
+    /// the bounded snapshot phase is not admitted, pausing must not spend the
+    /// host reserve to manufacture a materialized view.
+    JournalOnlyCheckpoint {
+        snapshot_deferral: ExploreStreamSnapshotDeferral,
     },
     /// History-independent immutable terminal answer bytes and their raw blob
     /// address. The final cursor commits the separate semantic payload hash.
@@ -1429,6 +1487,46 @@ fn admit_exact_stream_work(
     }
 }
 
+/// Try exactly once to admit the optional materialized-view phase. A semantic
+/// work loop may wait for a stable resource window; an invocation that has
+/// already reached a useful pause boundary must instead durably pause and let
+/// a later invocation mint the view. This keeps checkpointing from consuming
+/// the host reserve precisely when the governor has withdrawn work authority.
+fn try_admit_exact_stream_snapshot_work(
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    deadline: Option<Instant>,
+) -> Result<ExactStreamWorkAdmission, ExploreExecutionPreparationError> {
+    let now = Instant::now();
+    if deadline.is_some_and(|deadline| now >= deadline) {
+        let _ = resources.stop_at_work_boundary();
+        return Ok(ExactStreamWorkAdmission::TimeLimit);
+    }
+
+    let subject = stream_resource::ExactStreamWorkSubject::SnapshotPublicationPhase;
+    let owned = resources.conservative_in_process_owned_snapshot();
+    let poll = resources.poll(owned, None, Some(subject));
+    match poll.action {
+        stream_resource::ExactStreamResourceAction::Dispatch(permit) => {
+            if permit.subject() != subject {
+                return Err(ExploreExecutionPreparationError::Execution(
+                    "resource governor dispatched authority for another Explore snapshot phase"
+                        .to_string(),
+                ));
+            }
+            let in_flight = resources.begin_work(permit).map_err(|error| {
+                ExploreExecutionPreparationError::Execution(format!(
+                    "cannot consume exact-stream snapshot resource permit: {error:?}"
+                ))
+            })?;
+            Ok(ExactStreamWorkAdmission::Granted(in_flight))
+        }
+        stream_resource::ExactStreamResourceAction::Pause(reason)
+        | stream_resource::ExactStreamResourceAction::Wait(reason) => {
+            Ok(ExactStreamWorkAdmission::ResourcePause(reason))
+        }
+    }
+}
+
 fn finish_exact_stream_work(
     resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
     in_flight: stream_resource::ExactStreamWorkInFlight,
@@ -1461,54 +1559,34 @@ fn public_exact_stream_cursor(cursor: run_stream::ExploreRunCursor) -> ExploreSt
 /// append the invocation's pause record. Keeping those as two ordered records
 /// avoids the circularity of making a snapshot hash name the event that names
 /// that same hash. The returned report carries both cursors and the typed stop.
-fn publish_and_pause_exact_stream_slice(
+fn publish_prepared_snapshot_and_pause_exact_stream_slice(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
-    query: &ExploreQueryIr,
+    prepared_snapshot: stream_coordinator::PreparedExactObservableSnapshotPublication,
     pause_reason: run_stream::PauseReason,
     stop: ExploreStreamSliceStop,
     singleton_cases_evaluated_this_slice: u128,
     closed_cases_at_slice_start: u128,
 ) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
-    let probe_progress = coordinator.probe_progress().map_err(|error| {
-        ExploreExecutionPreparationError::Execution(format!(
-            "cannot derive durable source-probe progress: {error}"
-        ))
-    })?;
-    let probe_milestone_complete = probe_progress.complete();
-    let checkpoint_cursor = coordinator.stream().cursor();
+    let materialization_capacity_detail = prepared_snapshot
+        .materialization_capacity_detail()
+        .map(str::to_string);
+    let probe_milestone_complete = prepared_snapshot.probe_milestone_complete();
+    let checkpoint_cursor = prepared_snapshot.cursor();
     checkpoint_cursor.sequence().checked_add(2).ok_or_else(|| {
         ExploreExecutionPreparationError::Execution(
             "exact-stream journal sequence cannot fit checkpoint publication and pause".to_string(),
         )
     })?;
-    let metadata = stream_snapshot::ExactObservableSnapshotMetadataV1::from_checked_stream(
-        coordinator.stream(),
-        query,
-        probe_progress,
-    )
-    .map_err(|error| {
-        ExploreExecutionPreparationError::Execution(format!(
-            "cannot derive exact-stream snapshot metadata: {error}"
-        ))
-    })?;
-    let snapshot = coordinator.exact_snapshot();
-    let closed_cases_this_slice = snapshot
-        .closed_case_count
+    let closed_cases_this_slice = prepared_snapshot
+        .closed_case_count()
         .checked_sub(closed_cases_at_slice_start)
         .ok_or_else(|| {
             ExploreExecutionPreparationError::Execution(
                 "exact-stream closed support regressed during one invocation".to_string(),
             )
         })?;
-    let snapshot_json_line =
-        stream_snapshot::render_exact_observable_snapshot_json_line_v1(&metadata, &snapshot)
-            .map_err(|error| {
-                ExploreExecutionPreparationError::Execution(format!(
-                    "cannot render exact-stream snapshot: {error}"
-                ))
-            })?;
     let blob_digest = coordinator
-        .publish_snapshot_bytes(checkpoint_cursor, &snapshot_json_line)
+        .publish_prepared_snapshot(&prepared_snapshot)
         .map_err(|error| {
             ExploreExecutionPreparationError::Execution(format!(
                 "cannot publish exact-stream checkpoint: {error}"
@@ -1522,19 +1600,143 @@ fn publish_and_pause_exact_stream_slice(
             publication_cursor.sequence(),
         ))
     })?;
+    let blob_digest = blob_digest.to_lowercase_hex();
+    let checkpoint_cursor = public_exact_stream_cursor(checkpoint_cursor);
+    let publication_cursor = public_exact_stream_cursor(publication_cursor);
+    let canonical_json_line = prepared_snapshot.into_canonical_json_line();
+    let artifact = match materialization_capacity_detail {
+        Some(detail) => ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+            detail,
+        },
+        None => ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+        },
+    };
     Ok(ExploreStreamSliceReport {
         stop,
         final_cursor: public_exact_stream_cursor(final_cursor),
         probe_milestone_complete,
         singleton_cases_evaluated_this_slice,
         closed_cases_this_slice,
-        artifact: ExploreStreamArtifact::CheckpointSnapshotJsonLine {
-            canonical_json_line: snapshot_json_line,
-            blob_digest: blob_digest.to_lowercase_hex(),
-            checkpoint_cursor: public_exact_stream_cursor(checkpoint_cursor),
-            publication_cursor: public_exact_stream_cursor(publication_cursor),
-        },
+        artifact,
     })
+}
+
+fn pause_exact_stream_slice_without_snapshot(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    pause_reason: run_stream::PauseReason,
+    stop: ExploreStreamSliceStop,
+    snapshot_deferral: ExploreStreamSnapshotDeferral,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    let probe_milestone_complete = coordinator
+        .probe_progress()
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot derive journal-only source-probe progress: {error}"
+            ))
+        })?
+        .complete();
+    let closed_cases_this_slice = coordinator
+        .closed_case_count()
+        .checked_sub(closed_cases_at_slice_start)
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "exact-stream closed support regressed during one invocation".to_string(),
+            )
+        })?;
+    let final_cursor = coordinator.pause(pause_reason).map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot append journal-only exact-stream pause: {error}"
+        ))
+    })?;
+    Ok(ExploreStreamSliceReport {
+        stop,
+        final_cursor: public_exact_stream_cursor(final_cursor),
+        probe_milestone_complete,
+        singleton_cases_evaluated_this_slice,
+        closed_cases_this_slice,
+        artifact: ExploreStreamArtifact::JournalOnlyCheckpoint { snapshot_deferral },
+    })
+}
+
+/// Mint a materialized snapshot only while the 80%-ceiling governor grants a
+/// bounded phase. The append-only journal remains the authoritative resume
+/// checkpoint, so denied view work degrades to a typed journal-only pause
+/// rather than borrowing memory from the host reserve.
+fn publish_or_defer_and_pause_exact_stream_slice(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    _query: &ExploreQueryIr,
+    deadline: Option<Instant>,
+    pause_reason: run_stream::PauseReason,
+    stop: ExploreStreamSliceStop,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    match try_admit_exact_stream_snapshot_work(resources, deadline)? {
+        ExactStreamWorkAdmission::Granted(in_flight) => {
+            let mut snapshot_authority = match in_flight.into_snapshot_publication_authority() {
+                Ok(authority) => authority,
+                Err(in_flight) => {
+                    finish_exact_stream_work(resources, in_flight)?;
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "admitted Explore work unit did not carry snapshot-publication authority"
+                            .to_string(),
+                    ));
+                }
+            };
+            let prepared_snapshot = match coordinator
+                .prepare_observable_snapshot_publication(&mut snapshot_authority)
+            {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    finish_exact_stream_work(resources, snapshot_authority.into_in_flight())?;
+                    return Err(ExploreExecutionPreparationError::Execution(format!(
+                        "cannot prepare exact-stream snapshot publication: {error}"
+                    )));
+                }
+            };
+            let publication = publish_prepared_snapshot_and_pause_exact_stream_slice(
+                coordinator,
+                prepared_snapshot,
+                pause_reason,
+                stop,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+            finish_exact_stream_work(resources, snapshot_authority.into_in_flight())?;
+            publication
+        }
+        ExactStreamWorkAdmission::TimeLimit => pause_exact_stream_slice_without_snapshot(
+            coordinator,
+            pause_reason,
+            stop,
+            ExploreStreamSnapshotDeferral::TimeLimit,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        ),
+        ExactStreamWorkAdmission::ResourcePause(reason) => {
+            pause_exact_stream_slice_without_snapshot(
+                coordinator,
+                pause_reason,
+                stop,
+                ExploreStreamSnapshotDeferral::ResourceAdmission {
+                    detail: reason.code().to_string(),
+                },
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            )
+        }
+    }
 }
 
 fn render_exact_stream_terminal(
@@ -1637,6 +1839,7 @@ enum ExactStreamFinalizationAttempt {
 /// cardinality-one lifecycle test invokes it directly to avoid live telemetry.
 fn attempt_atomic_exact_stream_finalization(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    case_graph_publication: &stream_coordinator::PreparedExactCaseGraphPublication,
 ) -> Result<ExactStreamFinalizationAttempt, ExploreExecutionPreparationError> {
     match coordinator.close_replay_obligation().map_err(|error| {
         ExploreExecutionPreparationError::Execution(format!(
@@ -1659,19 +1862,18 @@ fn attempt_atomic_exact_stream_finalization(
     let receipt = match coordinator.published_terminal_result() {
         Some(receipt) => receipt,
         None => match coordinator
-            .publish_current_terminal_result()
+            .publish_current_terminal_result(case_graph_publication)
             .map_err(|error| {
                 ExploreExecutionPreparationError::Execution(format!(
                     "cannot publish exact terminal result: {error}"
                 ))
             })? {
             stream_coordinator::ExactTerminalPublicationAdvanceV1::Published(receipt) => receipt,
-            stream_coordinator::ExactTerminalPublicationAdvanceV1::LimitReached => {
-                return Ok(ExactStreamFinalizationAttempt::LimitReached {
-                    phase: "terminal_publication",
-                    detail: "canonical answer exceeds the atomic-v1 JSON publication envelope"
-                        .to_string(),
-                });
+            stream_coordinator::ExactTerminalPublicationAdvanceV1::LimitReached {
+                phase,
+                detail,
+            } => {
+                return Ok(ExactStreamFinalizationAttempt::LimitReached { phase, detail });
             }
         },
     };
@@ -1711,9 +1913,11 @@ fn finalize_or_pause_classification_closed_stream(
     closed_cases_at_slice_start: u128,
 ) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
     if !finalize {
-        return publish_and_pause_exact_stream_slice(
+        return publish_or_defer_and_pause_exact_stream_slice(
             coordinator,
+            resources,
             query,
+            deadline,
             run_stream::PauseReason::FinalizationPending,
             ExploreStreamSliceStop::ClassificationClosedFinalizationPending,
             singleton_cases_evaluated_this_slice,
@@ -1725,9 +1929,11 @@ fn finalize_or_pause_classification_closed_stream(
     let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
         ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
         ExactStreamWorkAdmission::TimeLimit => {
-            return publish_and_pause_exact_stream_slice(
+            return publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
+                resources,
                 query,
+                deadline,
                 run_stream::PauseReason::TimeLimit,
                 ExploreStreamSliceStop::TimeLimit,
                 singleton_cases_evaluated_this_slice,
@@ -1735,9 +1941,11 @@ fn finalize_or_pause_classification_closed_stream(
             );
         }
         ExactStreamWorkAdmission::ResourcePause(reason) => {
-            return publish_and_pause_exact_stream_slice(
+            return publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
+                resources,
                 query,
+                deadline,
                 run_stream::PauseReason::ResourcePressure,
                 ExploreStreamSliceStop::ResourcePressure {
                     detail: reason.code().to_string(),
@@ -1764,9 +1972,11 @@ fn finalize_or_pause_classification_closed_stream(
             atomic_snapshot.observed_result_group_count
         );
         finish_exact_stream_work(resources, in_flight)?;
-        return publish_and_pause_exact_stream_slice(
+        return publish_or_defer_and_pause_exact_stream_slice(
             coordinator,
+            resources,
             query,
+            deadline,
             run_stream::PauseReason::FinalizationPending,
             ExploreStreamSliceStop::FinalizationLimit {
                 phase: "result_snapshot".to_string(),
@@ -1776,9 +1986,50 @@ fn finalize_or_pause_classification_closed_stream(
             closed_cases_at_slice_start,
         );
     }
+    let case_graph_publication = match coordinator.prepare_case_graph_publication() {
+        Ok(publication) => publication,
+        Err(error) => {
+            finish_exact_stream_work(resources, in_flight)?;
+            return Err(ExploreExecutionPreparationError::Execution(format!(
+                "cannot prepare final case-graph publication: {error}"
+            )));
+        }
+    };
+    let capacity_status = match stream_snapshot::exact_case_graph_capacity_status_v1(
+        case_graph_publication.publication(),
+        &atomic_snapshot,
+    ) {
+        Ok(status) => status,
+        Err(error) => {
+            finish_exact_stream_work(resources, in_flight)?;
+            return Err(ExploreExecutionPreparationError::Execution(format!(
+                "cannot validate final case-graph publication: {error}"
+            )));
+        }
+    };
+    if let Some((resource, maximum, required_at_least)) = capacity_status {
+        let detail = format!(
+            "requested complete case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
+            resource.name()
+        );
+        finish_exact_stream_work(resources, in_flight)?;
+        return publish_or_defer_and_pause_exact_stream_slice(
+            coordinator,
+            resources,
+            query,
+            deadline,
+            run_stream::PauseReason::FinalizationPending,
+            ExploreStreamSliceStop::FinalizationLimit {
+                phase: "case_graph_publication".to_string(),
+                detail,
+            },
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
     drop(atomic_snapshot);
 
-    let attempt = attempt_atomic_exact_stream_finalization(coordinator);
+    let attempt = attempt_atomic_exact_stream_finalization(coordinator, &case_graph_publication);
     finish_exact_stream_work(resources, in_flight)?;
 
     match attempt? {
@@ -1790,9 +2041,11 @@ fn finalize_or_pause_classification_closed_stream(
             closed_cases_at_slice_start,
         ),
         ExactStreamFinalizationAttempt::WitnessOpen { rank, reason } => {
-            publish_and_pause_exact_stream_slice(
+            publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
+                resources,
                 query,
+                deadline,
                 run_stream::PauseReason::EvaluationLimit,
                 ExploreStreamSliceStop::EvaluationLimit {
                     blocked_rank: rank,
@@ -1803,9 +2056,11 @@ fn finalize_or_pause_classification_closed_stream(
             )
         }
         ExactStreamFinalizationAttempt::LimitReached { phase, detail } => {
-            publish_and_pause_exact_stream_slice(
+            publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
+                resources,
                 query,
+                deadline,
                 run_stream::PauseReason::FinalizationPending,
                 ExploreStreamSliceStop::FinalizationLimit {
                     phase: phase.to_string(),
@@ -1903,6 +2158,7 @@ pub fn execute_checked_exact_stream_slice(
         }
     };
     let query = &artifacts.exploration_universes[selected];
+    let report_request = options.case_graph.report_request();
     let coordinator_result = stream_coordinator::ExactStreamCoordinator::open_or_create(
         &options.run_state,
         run_store::RunStoreLimits::default(),
@@ -1910,6 +2166,7 @@ pub fn execute_checked_exact_stream_slice(
         source_dir.as_deref(),
         &artifacts,
         selected,
+        report_request,
     );
     let mut coordinator = match coordinator_result {
         Ok(coordinator) => coordinator,
@@ -1927,7 +2184,25 @@ pub fn execute_checked_exact_stream_slice(
         finish_exact_stream_work(&mut resources, preparation_in_flight)?;
         return report;
     }
+    let pending_observable_snapshot_on_resume = coordinator.pending_observable_snapshot_on_resume();
     finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+
+    // The journal is already the resume checkpoint, but a time-boxed slice may
+    // have ended without enough admitted tail to mint its observer view. Give
+    // that view first claim on the next invocation so repeated deadlines cannot
+    // indefinitely hide otherwise durable progress.
+    if pending_observable_snapshot_on_resume {
+        return publish_or_defer_and_pause_exact_stream_slice(
+            &mut coordinator,
+            &mut resources,
+            query,
+            deadline,
+            run_stream::PauseReason::Explicit,
+            ExploreStreamSliceStop::SnapshotCatchUp,
+            0,
+            closed_cases_at_slice_start,
+        );
+    }
 
     let mut singleton_cases_evaluated_this_slice = 0_u128;
 
@@ -1937,9 +2212,11 @@ pub fn execute_checked_exact_stream_slice(
     while !coordinator.probe_phase_complete() {
         if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
             let _ = resources.stop_at_work_boundary();
-            return publish_and_pause_exact_stream_slice(
+            return publish_or_defer_and_pause_exact_stream_slice(
                 &mut coordinator,
+                &mut resources,
                 query,
+                deadline,
                 run_stream::PauseReason::TimeLimit,
                 ExploreStreamSliceStop::TimeLimit,
                 singleton_cases_evaluated_this_slice,
@@ -1960,9 +2237,11 @@ pub fn execute_checked_exact_stream_slice(
                 )? {
                     ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
                     ExactStreamWorkAdmission::TimeLimit => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::TimeLimit,
                             ExploreStreamSliceStop::TimeLimit,
                             singleton_cases_evaluated_this_slice,
@@ -1970,9 +2249,11 @@ pub fn execute_checked_exact_stream_slice(
                         );
                     }
                     ExactStreamWorkAdmission::ResourcePause(reason) => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::ResourcePressure,
                             ExploreStreamSliceStop::ResourcePressure {
                                 detail: reason.code().to_string(),
@@ -2008,9 +2289,11 @@ pub fn execute_checked_exact_stream_slice(
                 )? {
                     ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
                     ExactStreamWorkAdmission::TimeLimit => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::TimeLimit,
                             ExploreStreamSliceStop::TimeLimit,
                             singleton_cases_evaluated_this_slice,
@@ -2018,9 +2301,11 @@ pub fn execute_checked_exact_stream_slice(
                         );
                     }
                     ExactStreamWorkAdmission::ResourcePause(reason) => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::ResourcePressure,
                             ExploreStreamSliceStop::ResourcePressure {
                                 detail: reason.code().to_string(),
@@ -2044,9 +2329,11 @@ pub fn execute_checked_exact_stream_slice(
                 )? {
                     ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
                     ExactStreamWorkAdmission::TimeLimit => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::TimeLimit,
                             ExploreStreamSliceStop::TimeLimit,
                             singleton_cases_evaluated_this_slice,
@@ -2054,9 +2341,11 @@ pub fn execute_checked_exact_stream_slice(
                         );
                     }
                     ExactStreamWorkAdmission::ResourcePause(reason) => {
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::ResourcePressure,
                             ExploreStreamSliceStop::ResourcePressure {
                                 detail: reason.code().to_string(),
@@ -2089,9 +2378,11 @@ pub fn execute_checked_exact_stream_slice(
                     match admit_exact_stream_work(&mut resources, work_subject, deadline)? {
                         ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
                         ExactStreamWorkAdmission::TimeLimit => {
-                            return publish_and_pause_exact_stream_slice(
+                            return publish_or_defer_and_pause_exact_stream_slice(
                                 &mut coordinator,
+                                &mut resources,
                                 query,
+                                deadline,
                                 run_stream::PauseReason::TimeLimit,
                                 ExploreStreamSliceStop::TimeLimit,
                                 singleton_cases_evaluated_this_slice,
@@ -2099,9 +2390,11 @@ pub fn execute_checked_exact_stream_slice(
                             );
                         }
                         ExactStreamWorkAdmission::ResourcePause(reason) => {
-                            return publish_and_pause_exact_stream_slice(
+                            return publish_or_defer_and_pause_exact_stream_slice(
                                 &mut coordinator,
+                                &mut resources,
                                 query,
+                                deadline,
                                 run_stream::PauseReason::ResourcePressure,
                                 ExploreStreamSliceStop::ResourcePressure {
                                     detail: reason.code().to_string(),
@@ -2189,9 +2482,11 @@ pub fn execute_checked_exact_stream_slice(
                                             .to_string(),
                                     ));
                                 }
-                                return publish_and_pause_exact_stream_slice(
+                                return publish_or_defer_and_pause_exact_stream_slice(
                                     &mut coordinator,
+                                    &mut resources,
                                     query,
+                                    deadline,
                                     run_stream::PauseReason::EvaluationLimit,
                                     ExploreStreamSliceStop::EvaluationLimit {
                                         blocked_rank: open_rank,
@@ -2213,9 +2508,11 @@ pub fn execute_checked_exact_stream_slice(
                                     .to_string(),
                             ));
                         }
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::EvaluationLimit,
                             ExploreStreamSliceStop::EvaluationLimit {
                                 blocked_rank: open_rank,
@@ -2233,9 +2530,11 @@ pub fn execute_checked_exact_stream_slice(
 
     if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
         let _ = resources.stop_at_work_boundary();
-        return publish_and_pause_exact_stream_slice(
+        return publish_or_defer_and_pause_exact_stream_slice(
             &mut coordinator,
+            &mut resources,
             query,
+            deadline,
             run_stream::PauseReason::TimeLimit,
             ExploreStreamSliceStop::TimeLimit,
             singleton_cases_evaluated_this_slice,
@@ -2244,9 +2543,11 @@ pub fn execute_checked_exact_stream_slice(
     }
 
     if options.pause_after == Some(ExploreStreamPauseAfter::Probes) {
-        return publish_and_pause_exact_stream_slice(
+        return publish_or_defer_and_pause_exact_stream_slice(
             &mut coordinator,
+            &mut resources,
             query,
+            deadline,
             run_stream::PauseReason::ProbeMilestone,
             ExploreStreamSliceStop::ProbeMilestone,
             singleton_cases_evaluated_this_slice,
@@ -2276,9 +2577,11 @@ pub fn execute_checked_exact_stream_slice(
         let in_flight = match admit_exact_stream_work(&mut resources, work_subject, deadline)? {
             ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
             ExactStreamWorkAdmission::TimeLimit => {
-                return publish_and_pause_exact_stream_slice(
+                return publish_or_defer_and_pause_exact_stream_slice(
                     &mut coordinator,
+                    &mut resources,
                     query,
+                    deadline,
                     run_stream::PauseReason::TimeLimit,
                     ExploreStreamSliceStop::TimeLimit,
                     singleton_cases_evaluated_this_slice,
@@ -2286,9 +2589,11 @@ pub fn execute_checked_exact_stream_slice(
                 );
             }
             ExactStreamWorkAdmission::ResourcePause(reason) => {
-                return publish_and_pause_exact_stream_slice(
+                return publish_or_defer_and_pause_exact_stream_slice(
                     &mut coordinator,
+                    &mut resources,
                     query,
+                    deadline,
                     run_stream::PauseReason::ResourcePressure,
                     ExploreStreamSliceStop::ResourcePressure {
                         detail: reason.code().to_string(),
@@ -2364,9 +2669,11 @@ pub fn execute_checked_exact_stream_slice(
                                     .to_string(),
                             ));
                         }
-                        return publish_and_pause_exact_stream_slice(
+                        return publish_or_defer_and_pause_exact_stream_slice(
                             &mut coordinator,
+                            &mut resources,
                             query,
+                            deadline,
                             run_stream::PauseReason::EvaluationLimit,
                             ExploreStreamSliceStop::EvaluationLimit {
                                 blocked_rank: open_rank,
@@ -2398,9 +2705,11 @@ pub fn execute_checked_exact_stream_slice(
                         "resource-bound CaseId disagrees with the open exact rank".to_string(),
                     ));
                 }
-                return publish_and_pause_exact_stream_slice(
+                return publish_or_defer_and_pause_exact_stream_slice(
                     &mut coordinator,
+                    &mut resources,
                     query,
+                    deadline,
                     run_stream::PauseReason::EvaluationLimit,
                     ExploreStreamSliceStop::EvaluationLimit {
                         blocked_rank: open_rank,
@@ -6587,6 +6896,10 @@ mod tests {
         );
         let selected = 0;
         let query = &artifacts.exploration_universes[selected];
+        let graph_request = report::ExploreReportRequest {
+            case_graph: report::ExploreCaseGraphRequest::Include,
+            ledger: report::ExploreLedgerRequest::Omit,
+        };
         assert_eq!(
             query.universe.cartesian_count_before_constraints,
             ExploreCardinality::Exact(1)
@@ -6607,6 +6920,7 @@ mod tests {
             None,
             &artifacts,
             selected,
+            graph_request,
         )
         .expect("create one-case durable stream");
 
@@ -6635,9 +6949,12 @@ mod tests {
             .expect("complete one-case source probe");
         assert!(probe_progress.complete());
 
-        let checkpoint = publish_and_pause_exact_stream_slice(
+        let prepared_checkpoint = coordinator
+            .prepare_observable_snapshot_publication_for_test()
+            .expect("prepare one-case checkpoint");
+        let checkpoint = publish_prepared_snapshot_and_pause_exact_stream_slice(
             &mut coordinator,
-            query,
+            prepared_checkpoint,
             run_stream::PauseReason::ProbeMilestone,
             ExploreStreamSliceStop::ProbeMilestone,
             0,
@@ -6665,10 +6982,21 @@ mod tests {
                         .count(),
                     1
                 );
+                let rendered =
+                    std::str::from_utf8(canonical_json_line).expect("checkpoint JSON is UTF-8");
+                assert!(rendered.contains("\"case_graph\":\"full\""));
+                assert!(rendered.contains("\"status\":\"included\""));
+                assert!(rendered.contains("\"classification\":\"eligibility_open\""));
                 (checkpoint_cursor, publication_cursor)
             }
             ExploreStreamArtifact::TerminalResultJson { .. } => {
                 panic!("probe milestone returned a terminal artifact")
+            }
+            ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine { .. } => {
+                panic!("one-case probe checkpoint unexpectedly hit snapshot capacity")
+            }
+            ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {
+                panic!("direct graph-bearing checkpoint publication was deferred")
             }
         };
         assert_eq!(checkpoint_cursor.lifecycle, ExploreStreamLifecycle::Running);
@@ -6708,6 +7036,22 @@ mod tests {
         let paused_cursor = checkpoint.final_cursor.clone();
         drop(coordinator);
 
+        let mismatch = match stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+            report::ExploreReportRequest::baseline(),
+        ) {
+            Ok(_) => panic!("case-graph authorization is immutable run identity"),
+            Err(error) => error,
+        };
+        assert!(mismatch
+            .to_string()
+            .contains("stored Explore stream header does not match"));
+
         let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
             &directory,
             run_store::RunStoreLimits::default(),
@@ -6715,8 +7059,10 @@ mod tests {
             None,
             &artifacts,
             selected,
+            graph_request,
         )
         .expect("resume one-case durable stream");
+        assert!(!coordinator.pending_observable_snapshot_on_resume());
         let resumed_cursor = public_exact_stream_cursor(coordinator.stream().cursor());
         assert_eq!(resumed_cursor.lifecycle, ExploreStreamLifecycle::Running);
         assert_eq!(resumed_cursor.run_id, paused_cursor.run_id);
@@ -6726,6 +7072,161 @@ mod tests {
         );
         assert_ne!(resumed_cursor.journal_head, paused_cursor.journal_head);
         assert_eq!(resumed_cursor.evidence_root, paused_cursor.evidence_root);
+
+        let journal_only = pause_exact_stream_slice_without_snapshot(
+            &mut coordinator,
+            run_stream::PauseReason::TimeLimit,
+            ExploreStreamSliceStop::TimeLimit,
+            ExploreStreamSnapshotDeferral::TimeLimit,
+            0,
+            0,
+        )
+        .expect("pause one-case stream without materializing another snapshot");
+        assert_eq!(
+            journal_only.final_cursor.sequence,
+            resumed_cursor.sequence.checked_add(1).expect("sequence")
+        );
+        assert!(matches!(
+            journal_only.artifact,
+            ExploreStreamArtifact::JournalOnlyCheckpoint {
+                snapshot_deferral: ExploreStreamSnapshotDeferral::TimeLimit,
+            }
+        ));
+        assert!(coordinator.pending_observable_snapshot_on_resume());
+        let journal_only_cursor = journal_only.final_cursor;
+        drop(coordinator);
+
+        let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+            graph_request,
+        )
+        .expect("resume journal-only one-case checkpoint");
+        let resumed_cursor = public_exact_stream_cursor(coordinator.stream().cursor());
+        assert_eq!(
+            resumed_cursor.sequence,
+            journal_only_cursor
+                .sequence
+                .checked_add(1)
+                .expect("sequence")
+        );
+        assert_eq!(
+            resumed_cursor.evidence_root,
+            journal_only_cursor.evidence_root
+        );
+        assert!(coordinator.pending_observable_snapshot_on_resume());
+        let debt_resume_cursor = coordinator.stream().cursor();
+        drop(coordinator);
+
+        // Simulate process loss after Resumed but before materialization. A
+        // Recovery record must preserve observer debt rather than letting
+        // semantic work outrun it.
+        let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+            graph_request,
+        )
+        .expect("recover pending observer debt after an interrupted resume");
+        assert!(coordinator.pending_observable_snapshot_on_resume());
+        assert_eq!(
+            coordinator.stream().cursor().sequence(),
+            debt_resume_cursor
+                .sequence()
+                .checked_add(1)
+                .expect("sequence")
+        );
+
+        let prepared_catch_up = coordinator
+            .prepare_observable_snapshot_unavailable_for_test(
+                "forced admitted-capacity outcome for lifecycle coverage",
+            )
+            .expect("prepare pending observer-unavailable receipt");
+        let catch_up = publish_prepared_snapshot_and_pause_exact_stream_slice(
+            &mut coordinator,
+            prepared_catch_up,
+            run_stream::PauseReason::Explicit,
+            ExploreStreamSliceStop::SnapshotCatchUp,
+            0,
+            0,
+        )
+        .expect("materialize the pending observer view before further search");
+        assert_eq!(catch_up.stop, ExploreStreamSliceStop::SnapshotCatchUp);
+        match &catch_up.artifact {
+            ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+                canonical_json_line,
+                checkpoint_cursor,
+                publication_cursor,
+                detail,
+                ..
+            } => {
+                let rendered = std::str::from_utf8(canonical_json_line)
+                    .expect("snapshot-unavailable JSON is UTF-8");
+                assert!(rendered.contains("\"status\":\"unavailable\""));
+                assert!(rendered.contains("\"reason\":{\"kind\":\"capacity\"}"));
+                assert!(!rendered.contains("\"configuration\""));
+                assert!(!rendered.contains("\"answer\""));
+                assert!(!rendered.contains("\"case_graph\""));
+                assert_eq!(
+                    canonical_json_line
+                        .iter()
+                        .filter(|byte| **byte == b'\n')
+                        .count(),
+                    1
+                );
+                assert!(
+                    canonical_json_line.len()
+                        <= stream_snapshot::EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1
+                );
+                assert_eq!(
+                    checkpoint_cursor.evidence_root,
+                    publication_cursor.evidence_root
+                );
+                assert_eq!(
+                    publication_cursor.evidence_root,
+                    catch_up.final_cursor.evidence_root
+                );
+                assert_eq!(
+                    detail,
+                    "forced admitted-capacity outcome for lifecycle coverage"
+                );
+            }
+            _ => panic!("catch-up did not publish the bounded snapshot-unavailable receipt"),
+        }
+        assert!(!coordinator.pending_observable_snapshot_on_resume());
+        let catch_up_cursor = catch_up.final_cursor;
+        drop(coordinator);
+
+        let mut coordinator = stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &directory,
+            run_store::RunStoreLimits::default(),
+            &statements,
+            None,
+            &artifacts,
+            selected,
+            graph_request,
+        )
+        .expect("resume after materializing the pending observer view");
+        assert!(!coordinator.pending_observable_snapshot_on_resume());
+        assert_eq!(
+            coordinator.stream().cursor().sequence(),
+            catch_up_cursor.sequence.checked_add(1).expect("sequence")
+        );
+        assert_eq!(
+            coordinator
+                .stream()
+                .cursor()
+                .evidence_root()
+                .to_lowercase_hex(),
+            catch_up_cursor.evidence_root
+        );
 
         let case_cap = NonZeroU16::new(1).expect("one is nonzero");
         while let Some(rank) = coordinator.next_open_rank_hint() {
@@ -6746,17 +7247,27 @@ mod tests {
         }
         assert_eq!(coordinator.closed_case_count(), 1);
         assert!(coordinator.exact_snapshot().result_group_scan_complete);
-        let terminal_result_json = match attempt_atomic_exact_stream_finalization(&mut coordinator)
-            .expect("finalize one-case durable stream")
-        {
-            ExactStreamFinalizationAttempt::Sealed(bytes) => bytes,
-            ExactStreamFinalizationAttempt::WitnessOpen { .. } => {
-                panic!("one-case finalization left a replay witness open")
-            }
-            ExactStreamFinalizationAttempt::LimitReached { .. } => {
-                panic!("one-case finalization exceeded an atomic limit")
-            }
-        };
+        let final_case_graph = coordinator
+            .prepare_case_graph_publication()
+            .expect("prepare final one-case graph");
+        let terminal_result_json =
+            match attempt_atomic_exact_stream_finalization(&mut coordinator, &final_case_graph)
+                .expect("finalize one-case durable stream")
+            {
+                ExactStreamFinalizationAttempt::Sealed(bytes) => bytes,
+                ExactStreamFinalizationAttempt::WitnessOpen { .. } => {
+                    panic!("one-case finalization left a replay witness open")
+                }
+                ExactStreamFinalizationAttempt::LimitReached { .. } => {
+                    panic!("one-case finalization exceeded an atomic limit")
+                }
+            };
+        let terminal_rendered =
+            std::str::from_utf8(&terminal_result_json).expect("terminal JSON is UTF-8");
+        assert!(terminal_rendered.contains("\"case_graph\":\"full\""));
+        assert!(terminal_rendered.contains("\"status\":\"included\""));
+        assert!(terminal_rendered.contains("\"classification\":\"admissible_match\""));
+        assert!(terminal_rendered.contains("\"views\":\"closed\""));
         let sealed_cursor = public_exact_stream_cursor(coordinator.stream().cursor());
         assert_eq!(sealed_cursor.lifecycle, ExploreStreamLifecycle::Sealed);
         let terminal_blob_digest = coordinator
@@ -6773,6 +7284,7 @@ mod tests {
             None,
             &artifacts,
             selected,
+            graph_request,
         )
         .expect("reopen sealed one-case durable stream");
         assert_eq!(
@@ -6799,6 +7311,12 @@ mod tests {
             }
             ExploreStreamArtifact::CheckpointSnapshotJsonLine { .. } => {
                 panic!("already-sealed reopen returned a checkpoint artifact")
+            }
+            ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine { .. } => {
+                panic!("already-sealed reopen returned a snapshot-capacity artifact")
+            }
+            ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {
+                panic!("already-sealed reopen returned a journal-only checkpoint")
             }
         }
         drop(coordinator);

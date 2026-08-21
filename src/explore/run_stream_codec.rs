@@ -1180,6 +1180,7 @@ fn discovery_tag(value: DiscoveryEventKind) -> u8 {
         DiscoveryEventKind::SnapshotPublished => 5,
         DiscoveryEventKind::TerminalResultPublished => 6,
         DiscoveryEventKind::ProbePlanPrepared => 7,
+        DiscoveryEventKind::SnapshotUnavailablePublished => 8,
     }
 }
 
@@ -1193,6 +1194,7 @@ fn decode_discovery(value: u8) -> Result<DiscoveryEventKind, RunStreamCodecError
         5 => Ok(DiscoveryEventKind::SnapshotPublished),
         6 => Ok(DiscoveryEventKind::TerminalResultPublished),
         7 => Ok(DiscoveryEventKind::ProbePlanPrepared),
+        8 => Ok(DiscoveryEventKind::SnapshotUnavailablePublished),
         value => Err(RunStreamCodecError::InvalidTag {
             field: "discovery_kind",
             value,

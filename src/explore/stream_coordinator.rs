@@ -31,6 +31,11 @@ use std::io::Read;
 
 use sha2::{Digest, Sha256};
 
+use super::case_graph::{
+    lower_case_terminal_rank_runs, CaseOpenReason, CaseRankRunLoweringError,
+    CaseRankRunLoweringResource, CaseTerminal, CaseTerminalRankRun, DEFAULT_MAX_CASE_RANK_RUNS,
+    DEFAULT_MAX_CASE_RANK_RUN_AXES,
+};
 use super::exact::{
     seal_local_evaluator_observation_batch_v1, ExactStreamCaseAttempt, ExactStreamEvaluator,
 };
@@ -39,18 +44,20 @@ use super::exact_stream::{
     encode_exact_case_observation_batch_v1, encode_exact_closed_region_batch_v1,
     restore_coordinator_committed_observation_batch_v1,
     restore_coordinator_committed_region_batch_v1, ExactCaseObservationBatchProposalV1,
-    ExactCaseObservationProposalV1, ExactClosedRegionBatchProposalV1, ExactEvidenceReducer,
+    ExactCaseObservationProposalV1, ExactClosedClassificationSupportsV1,
+    ExactClosedClassificationV1, ExactClosedRegionBatchProposalV1, ExactEvidenceReducer,
     ExactEvidenceSnapshotV1, ExactProjectionShapeV1, ExactRepresentativePolicyV1,
     ValidatedExactCaseObservationBatchV1, ValidatedExactClosedRegionBatchV1,
 };
 use super::report::{
-    ExploreStopReason, DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
+    ExploreCaseGraphRequest, ExploreReportRequest, ExploreStopReason,
+    DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
 };
 use super::run_store::RunStoreLimits;
 use super::run_stream::{
     CanonicalDigest, CanonicalRunRecordPayload, CoveragePlan, DiscoveryEventKind, ExactCaseSupport,
-    ExploreRunCursor, ExploreRunHeader, ExploreRunStream, ExploreWriterId, FencedWriterLease,
-    FrontierEvidenceKind, PauseReason, PreparedRunTransition, RequiredFrontier,
+    ExploreRunCursor, ExploreRunHeader, ExploreRunId, ExploreRunStream, ExploreWriterId,
+    FencedWriterLease, FrontierEvidenceKind, PauseReason, PreparedRunTransition, RequiredFrontier,
     RequiredObligationId, RunLifecycle, SemanticEvidenceFact, SemanticEvidenceLayer,
     SemanticEvidenceSubject, TerminalMethodHash, TerminalPayloadHash, TerminalSealKind,
 };
@@ -71,10 +78,14 @@ use super::stream_replay::{
     exact_replay_witness_ranks_v1, validate_exact_replay_closure_v1, ExactReplayClosureManifestV1,
     EXACT_REPLAY_CLOSURE_BLOB_KIND_V1,
 };
+use super::stream_resource::ExactStreamSnapshotPublicationAuthority;
 use super::stream_snapshot::{
-    render_exact_observable_snapshot_json_line_v1, render_exact_semantic_answer_json_v1,
-    ExactObservableSnapshotMetadataV1, ExactSemanticAnswerMetadataV1,
-    EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1, EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1,
+    render_exact_observable_snapshot_json_line_v1,
+    render_exact_observable_snapshot_unavailable_json_line_v1,
+    render_exact_semantic_answer_json_v1, ExactCaseGraphPublicationResourceV1,
+    ExactObservableSnapshotMetadataV1, ExactPreparedCaseGraphPublicationV1,
+    ExactSemanticAnswerMetadataV1, EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
+    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1, EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1,
 };
 use super::ExploreQueryIr;
 use crate::{ExploreRepresentative, Stmt, TypeCheckArtifacts};
@@ -106,21 +117,38 @@ const EXACT_STREAM_OBSERVATION_BATCH_TARGET_BYTES_V1: usize = 8 * 1024 * 1024;
 /// public sum type: the underlying store/codec/reducer errors already carry
 /// the precise invariant which failed.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(super) struct ExactStreamCoordinatorError(Box<str>);
+pub(super) struct ExactStreamCoordinatorError {
+    message: Box<str>,
+    snapshot_publication_capacity: bool,
+}
 
 impl ExactStreamCoordinatorError {
     fn invalid(message: impl Into<String>) -> Self {
-        Self(message.into().into_boxed_str())
+        Self {
+            message: message.into().into_boxed_str(),
+            snapshot_publication_capacity: false,
+        }
     }
 
     fn context(context: &str, error: impl fmt::Display) -> Self {
         Self::invalid(format!("{context}: {error}"))
     }
+
+    fn snapshot_capacity(context: &str, error: impl fmt::Display) -> Self {
+        Self {
+            message: format!("{context}: {error}").into_boxed_str(),
+            snapshot_publication_capacity: true,
+        }
+    }
+
+    const fn is_snapshot_publication_capacity(&self) -> bool {
+        self.snapshot_publication_capacity
+    }
 }
 
 impl fmt::Display for ExactStreamCoordinatorError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
+        formatter.write_str(&self.message)
     }
 }
 
@@ -237,10 +265,75 @@ pub(super) struct ExactTerminalPublicationReceiptV1 {
     payload_hash: TerminalPayloadHash,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum ExactTerminalPublicationAdvanceV1 {
     Published(ExactTerminalPublicationReceiptV1),
-    LimitReached,
+    LimitReached { phase: &'static str, detail: String },
+}
+
+/// Opaque coordinator-minted case-view materialization bound to the current
+/// monotone classification state and immutable report request. Publication
+/// hooks accept this token rather than a caller-constructible graph enum, so a
+/// same-count but rank-permuted DAG cannot cross the checked byte seam.
+pub(super) struct PreparedExactCaseGraphPublication {
+    publication: ExactPreparedCaseGraphPublicationV1,
+    run_id: ExploreRunId,
+    report_request: ExploreReportRequest,
+    closed_case_count: u128,
+    classification_support_identity_hashes: [CanonicalDigest; 4],
+}
+
+impl PreparedExactCaseGraphPublication {
+    pub(super) const fn publication(&self) -> &ExactPreparedCaseGraphPublicationV1 {
+        &self.publication
+    }
+}
+
+/// Opaque canonical checkpoint bytes minted from one exact running cursor.
+/// Callers can inspect and eventually move the bytes, but cannot construct a
+/// token that bypasses the coordinator-owned encoder.
+pub(super) struct PreparedExactObservableSnapshotPublication {
+    cursor: ExploreRunCursor,
+    canonical_json_line: Vec<u8>,
+    probe_milestone_complete: bool,
+    closed_case_count: u128,
+    kind: PreparedExactObservableSnapshotPublicationKind,
+}
+
+enum PreparedExactObservableSnapshotPublicationKind {
+    Included,
+    CapacityUnavailable { detail: Box<str> },
+}
+
+impl PreparedExactObservableSnapshotPublication {
+    pub(super) const fn cursor(&self) -> ExploreRunCursor {
+        self.cursor
+    }
+
+    pub(super) fn canonical_json_line(&self) -> &[u8] {
+        &self.canonical_json_line
+    }
+
+    pub(super) const fn probe_milestone_complete(&self) -> bool {
+        self.probe_milestone_complete
+    }
+
+    pub(super) const fn closed_case_count(&self) -> u128 {
+        self.closed_case_count
+    }
+
+    pub(super) fn materialization_capacity_detail(&self) -> Option<&str> {
+        match &self.kind {
+            PreparedExactObservableSnapshotPublicationKind::Included => None,
+            PreparedExactObservableSnapshotPublicationKind::CapacityUnavailable { detail } => {
+                Some(detail)
+            }
+        }
+    }
+
+    pub(super) fn into_canonical_json_line(self) -> Vec<u8> {
+        self.canonical_json_line
+    }
 }
 
 impl ExactTerminalPublicationReceiptV1 {
@@ -264,6 +357,7 @@ pub(super) struct ExactStreamCoordinator<'a> {
     source_dir: Option<&'a str>,
     artifacts: &'a TypeCheckArtifacts,
     query: &'a ExploreQueryIr,
+    report_request: ExploreReportRequest,
     replay_closure: RequiredObligationId,
     writer_fence: Option<ExploreWriterFenceReceipt>,
     active_lease: Option<FencedWriterLease>,
@@ -273,6 +367,16 @@ pub(super) struct ExactStreamCoordinator<'a> {
     source_proof_set_id: Option<CanonicalDigest>,
     source_proof_completed: Option<CanonicalDigest>,
     published_terminal_result: Option<ExactTerminalPublicationReceiptV1>,
+    /// Replay-derived materialized-view debt. A pause not immediately preceded
+    /// by snapshot publication sets it; Resume/Recovery and crashes preserve
+    /// it, and only a committed full-snapshot or snapshot-unavailable observer
+    /// publication clears it. The next invocation services the debt before
+    /// dispatching more semantic work.
+    pending_observable_snapshot_on_resume: bool,
+    /// Whether the immediately preceding committed record was a full snapshot
+    /// or snapshot-unavailable observer publication. A following pause uses
+    /// this to derive live debt exactly as replay does.
+    last_committed_record_serviced_snapshot_view: bool,
 }
 
 impl<'a> ExactStreamCoordinator<'a> {
@@ -288,6 +392,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         source_dir: Option<&'a str>,
         artifacts: &'a TypeCheckArtifacts,
         accepted_query_index: usize,
+        report_request: ExploreReportRequest,
     ) -> Result<Self, ExactStreamCoordinatorError> {
         let checked = artifacts
             .checked_exploration_query(accepted_query_index)
@@ -310,15 +415,18 @@ impl<'a> ExactStreamCoordinator<'a> {
         match genesis {
             None => {
                 let nonce = os_random_nonzero_digest("run nonce")?;
-                let prepared_header =
-                    prepare_exact_stream_header(artifacts, accepted_query_index, nonce).map_err(
-                        |error| {
-                            ExactStreamCoordinatorError::context(
-                                "cannot prepare checked stream header",
-                                error,
-                            )
-                        },
-                    )?;
+                let prepared_header = prepare_exact_stream_header(
+                    artifacts,
+                    accepted_query_index,
+                    nonce,
+                    report_request,
+                )
+                .map_err(|error| {
+                    ExactStreamCoordinatorError::context(
+                        "cannot prepare checked stream header",
+                        error,
+                    )
+                })?;
                 require_reducer_universe(&exact, &prepared_header.header)?;
 
                 let writer_id = ExploreWriterId::new(os_random_nonzero_digest("writer id")?);
@@ -403,6 +511,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     source_dir,
                     artifacts,
                     query,
+                    report_request,
                     replay_closure: prepared_header.replay_closure,
                     writer_fence: Some(receipt),
                     active_lease: Some(lease),
@@ -412,6 +521,8 @@ impl<'a> ExactStreamCoordinator<'a> {
                     source_proof_set_id: None,
                     source_proof_completed: None,
                     published_terminal_result: None,
+                    pending_observable_snapshot_on_resume: false,
+                    last_committed_record_serviced_snapshot_view: false,
                 })
             }
             Some(genesis_bytes) => {
@@ -438,6 +549,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     artifacts,
                     accepted_query_index,
                     stored_header.nonce().identity(),
+                    report_request,
                 )
                 .map_err(|error| {
                     ExactStreamCoordinatorError::context(
@@ -465,6 +577,8 @@ impl<'a> ExactStreamCoordinator<'a> {
                 let mut source_proof_set_id = None;
                 let mut source_proof_completed = None;
                 let mut published_terminal_result = None;
+                let mut previous_record_serviced_snapshot_view = false;
+                let mut observable_snapshot_debt = false;
 
                 let replay = store.replay_events().map_err(|error| {
                     ExactStreamCoordinatorError::context(
@@ -487,6 +601,19 @@ impl<'a> ExactStreamCoordinator<'a> {
                             )
                         })?;
                     let (event, payload) = decoded.into_parts();
+                    let services_snapshot_view = matches!(
+                        &payload,
+                        CanonicalRunRecordPayload::Discovery {
+                            kind: DiscoveryEventKind::SnapshotPublished
+                                | DiscoveryEventKind::SnapshotUnavailablePublished,
+                            ..
+                        }
+                    );
+                    if matches!(&payload, CanonicalRunRecordPayload::Paused { .. }) {
+                        observable_snapshot_debt = !previous_record_serviced_snapshot_view;
+                    } else if services_snapshot_view {
+                        observable_snapshot_debt = false;
+                    }
                     if event.sequence() != raw.sequence
                         || event.journal_head().to_lowercase_hex() != raw.journal_head.as_ref()
                     {
@@ -640,6 +767,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                                 &stream,
                                 &exact,
                                 query,
+                                report_request,
                                 derive_probe_progress(
                                     staged_manifest_blob,
                                     staged_manifest,
@@ -647,6 +775,36 @@ impl<'a> ExactStreamCoordinator<'a> {
                                     staged_proof_completed,
                                     &candidate_ranks,
                                 )?,
+                                &bytes,
+                            )?;
+                        }
+                        CanonicalRunRecordPayload::Discovery {
+                            kind: DiscoveryEventKind::SnapshotUnavailablePublished,
+                            canonical_discovery_hash,
+                            ..
+                        } => {
+                            let bytes = store
+                                .read_blob(
+                                    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1,
+                                    &canonical_discovery_hash.to_lowercase_hex(),
+                                )
+                                .map_err(|error| {
+                                    ExactStreamCoordinatorError::context(
+                                        "cannot verify published snapshot-unavailable receipt blob",
+                                        error,
+                                    )
+                                })?;
+                            require_canonical_snapshot_unavailable_bytes(
+                                &stream,
+                                derive_probe_progress(
+                                    staged_manifest_blob,
+                                    staged_manifest,
+                                    staged_proof_set,
+                                    staged_proof_completed,
+                                    &candidate_ranks,
+                                )?
+                                .complete(),
+                                exact.closed_case_count(),
                                 &bytes,
                             )?;
                         }
@@ -667,7 +825,11 @@ impl<'a> ExactStreamCoordinator<'a> {
                                     )
                                 })?;
                             require_canonical_terminal_result_bytes(
-                                &stream, &exact, query, &bytes,
+                                &stream,
+                                &exact,
+                                query,
+                                report_request,
+                                &bytes,
                             )?;
                             if content_digest(&bytes) != *canonical_discovery_hash {
                                 return Err(ExactStreamCoordinatorError::invalid(
@@ -781,6 +943,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     source_probe_manifest = staged_manifest;
                     source_proof_completed = staged_proof_completed;
                     published_terminal_result = staged_terminal_result;
+                    previous_record_serviced_snapshot_view = services_snapshot_view;
                 }
                 if source_proof_completed.is_some() && source_proof_set_id.is_none() {
                     return Err(ExactStreamCoordinatorError::invalid(
@@ -808,6 +971,12 @@ impl<'a> ExactStreamCoordinator<'a> {
                     &candidate_ranks,
                 )?;
 
+                // Debt survives Resumed/Recovered and any crash before the
+                // corresponding full-snapshot or snapshot-unavailable record.
+                // Only a successfully replayed observer publication clears it;
+                // a sealed stream has no continuation to service.
+                let pending_observable_snapshot_on_resume =
+                    stream.lifecycle() != RunLifecycle::Sealed && observable_snapshot_debt;
                 let mut coordinator = Self {
                     store,
                     stream,
@@ -817,6 +986,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     source_dir,
                     artifacts,
                     query,
+                    report_request,
                     replay_closure: expected.replay_closure,
                     writer_fence: None,
                     active_lease: None,
@@ -826,6 +996,9 @@ impl<'a> ExactStreamCoordinator<'a> {
                     source_proof_set_id,
                     source_proof_completed,
                     published_terminal_result,
+                    pending_observable_snapshot_on_resume,
+                    last_committed_record_serviced_snapshot_view:
+                        previous_record_serviced_snapshot_view,
                 };
                 if coordinator.stream.lifecycle() != RunLifecycle::Sealed {
                     coordinator.acquire_continuation_lease()?;
@@ -837,6 +1010,182 @@ impl<'a> ExactStreamCoordinator<'a> {
 
     pub(super) fn stream(&self) -> &ExploreRunStream {
         &self.stream
+    }
+
+    pub(super) const fn report_request(&self) -> ExploreReportRequest {
+        self.report_request
+    }
+
+    /// A preceding journal-only pause is durable but has no observer view.
+    /// Service that debt before this resumed invocation advances the semantic
+    /// frontier, otherwise repeated time-boxed slices could defer forever.
+    pub(super) const fn pending_observable_snapshot_on_resume(&self) -> bool {
+        self.pending_observable_snapshot_on_resume
+    }
+
+    /// Materialize the exact current-evidence case view requested by this
+    /// stream. The result is total over the declared universe: every rank not
+    /// yet present in one typed closed support resolves to an explicit open
+    /// terminal. Capacity failures return a status value, never a graph
+    /// prefix.
+    pub(super) fn prepare_case_graph_publication(
+        &self,
+    ) -> Result<PreparedExactCaseGraphPublication, ExactStreamCoordinatorError> {
+        Ok(PreparedExactCaseGraphPublication {
+            publication: prepare_case_graph_publication(
+                &self.stream,
+                &self.exact,
+                self.report_request,
+            )?,
+            run_id: self.stream.header().run_id(),
+            report_request: self.report_request,
+            closed_case_count: self.exact.closed_case_count(),
+            classification_support_identity_hashes: self
+                .exact
+                .classification_support_identity_hashes(),
+        })
+    }
+
+    fn require_prepared_case_graph_publication(
+        &self,
+        prepared: &PreparedExactCaseGraphPublication,
+    ) -> Result<(), ExactStreamCoordinatorError> {
+        if prepared.run_id != self.stream.header().run_id()
+            || prepared.report_request != self.report_request
+            || prepared.closed_case_count != self.exact.closed_case_count()
+            || prepared.classification_support_identity_hashes
+                != self.exact.classification_support_identity_hashes()
+        {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "prepared case-graph publication is stale or belongs to another report request",
+            ));
+        }
+        require_case_graph_request_matches(self.report_request, prepared.publication())
+    }
+
+    pub(super) fn prepare_observable_snapshot_publication(
+        &self,
+        authority: &mut ExactStreamSnapshotPublicationAuthority,
+    ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        if !authority.consume_preparation() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "snapshot-publication authority has already prepared one materialized view",
+            ));
+        }
+        self.prepare_observable_snapshot_publication_inner()
+    }
+
+    #[cfg(test)]
+    pub(super) fn prepare_observable_snapshot_publication_for_test(
+        &self,
+    ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        self.prepare_observable_snapshot_publication_inner()
+    }
+
+    #[cfg(test)]
+    pub(super) fn prepare_observable_snapshot_unavailable_for_test(
+        &self,
+        detail: impl Into<String>,
+    ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        let probe_progress = self.probe_progress()?;
+        self.prepare_observable_snapshot_capacity_status_inner(
+            probe_progress.complete(),
+            self.exact.closed_case_count(),
+            detail.into(),
+        )
+    }
+
+    fn prepare_observable_snapshot_publication_inner(
+        &self,
+    ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        let probe_progress = self.probe_progress()?;
+        let snapshot = self.exact.observable_snapshot();
+        let metadata = match ExactObservableSnapshotMetadataV1::from_checked_stream(
+            &self.stream,
+            self.query,
+            probe_progress,
+        ) {
+            Ok(metadata) => metadata,
+            Err(error) if error.is_capacity_limit() => {
+                return self.prepare_observable_snapshot_capacity_status_inner(
+                    probe_progress.complete(),
+                    snapshot.closed_case_count,
+                    format!("cannot derive canonical observable snapshot metadata: {error}"),
+                )
+            }
+            Err(error) => {
+                return Err(ExactStreamCoordinatorError::context(
+                    "cannot derive canonical observable snapshot metadata",
+                    error,
+                ))
+            }
+        };
+        let case_graph = match self.prepare_case_graph_publication() {
+            Ok(case_graph) => case_graph,
+            Err(error) if error.is_snapshot_publication_capacity() => {
+                return self.prepare_observable_snapshot_capacity_status_inner(
+                    probe_progress.complete(),
+                    snapshot.closed_case_count,
+                    error.to_string(),
+                )
+            }
+            Err(error) => return Err(error),
+        };
+        let canonical_json_line = match render_exact_observable_snapshot_json_line_v1(
+            &metadata,
+            &snapshot,
+            case_graph.publication(),
+        ) {
+            Ok(bytes) => bytes,
+            Err(error) if error.is_capacity_limit() => {
+                return self.prepare_observable_snapshot_capacity_status_inner(
+                    probe_progress.complete(),
+                    snapshot.closed_case_count,
+                    format!("cannot render canonical observable snapshot: {error}"),
+                )
+            }
+            Err(error) => {
+                return Err(ExactStreamCoordinatorError::context(
+                    "cannot render canonical observable snapshot",
+                    error,
+                ))
+            }
+        };
+        Ok(PreparedExactObservableSnapshotPublication {
+            cursor: self.stream.cursor(),
+            canonical_json_line,
+            probe_milestone_complete: probe_progress.complete(),
+            closed_case_count: snapshot.closed_case_count,
+            kind: PreparedExactObservableSnapshotPublicationKind::Included,
+        })
+    }
+
+    fn prepare_observable_snapshot_capacity_status_inner(
+        &self,
+        probe_milestone_complete: bool,
+        closed_case_count: u128,
+        detail: String,
+    ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        let canonical_json_line = render_exact_observable_snapshot_unavailable_json_line_v1(
+            &self.stream,
+            probe_milestone_complete,
+            closed_case_count,
+        )
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot render bounded observable snapshot-unavailable receipt",
+                error,
+            )
+        })?;
+        Ok(PreparedExactObservableSnapshotPublication {
+            cursor: self.stream.cursor(),
+            canonical_json_line,
+            probe_milestone_complete,
+            closed_case_count,
+            kind: PreparedExactObservableSnapshotPublicationKind::CapacityUnavailable {
+                detail: detail.into_boxed_str(),
+            },
+        })
     }
 
     pub(super) fn exact_snapshot(&self) -> ExactEvidenceSnapshotV1 {
@@ -1731,35 +2080,31 @@ impl<'a> ExactStreamCoordinator<'a> {
         Ok(self.stream.cursor())
     }
 
-    /// Narrow publication hook for the separately owned snapshot encoder.
-    /// The coordinator regenerates and byte-compares the canonical projection,
-    /// then commits only its content pointer as operational journal provenance;
-    /// the snapshot does not alter the normalized evidence root.
-    /// Its caller-supplied cursor must be the current pre-publication cursor,
-    /// so the snapshot hash never needs to commit the pointer event which will
-    /// name that hash.
-    pub(super) fn publish_snapshot_bytes(
+    /// Install one coordinator-minted canonical projection and commit only its
+    /// content pointer as operational journal provenance. The snapshot does
+    /// not alter the normalized evidence root. Its cursor must still be the
+    /// current pre-publication cursor, so the snapshot hash never needs to
+    /// commit the pointer event which will name that hash.
+    pub(super) fn publish_prepared_snapshot(
         &mut self,
-        snapshot_cursor: ExploreRunCursor,
-        canonical_bytes: &[u8],
+        prepared: &PreparedExactObservableSnapshotPublication,
     ) -> Result<CanonicalDigest, ExactStreamCoordinatorError> {
-        if snapshot_cursor != self.stream.cursor() {
+        if prepared.cursor() != self.stream.cursor() {
             return Err(ExactStreamCoordinatorError::invalid(
-                "observable snapshot bytes were rendered for a stale stream cursor",
+                "prepared observable snapshot belongs to a stale stream cursor",
             ));
         }
-        require_canonical_snapshot_bytes(
-            &self.stream,
-            &self.exact,
-            self.query,
-            self.probe_progress()?,
-            canonical_bytes,
-        )?;
-        self.install_discovery_blob(
-            EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
-            canonical_bytes,
-            DiscoveryEventKind::SnapshotPublished,
-        )
+        let (blob_kind, event_kind) = match &prepared.kind {
+            PreparedExactObservableSnapshotPublicationKind::Included => (
+                EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
+                DiscoveryEventKind::SnapshotPublished,
+            ),
+            PreparedExactObservableSnapshotPublicationKind::CapacityUnavailable { .. } => (
+                EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1,
+                DiscoveryEventKind::SnapshotUnavailablePublished,
+            ),
+        };
+        self.install_discovery_blob(blob_kind, prepared.canonical_json_line(), event_kind)
     }
 
     pub(super) const fn published_terminal_result(
@@ -1776,7 +2121,24 @@ impl<'a> ExactStreamCoordinator<'a> {
     /// hard ceiling; chunked terminal publication is a later protocol.
     pub(super) fn publish_current_terminal_result(
         &mut self,
+        case_graph_publication: &PreparedExactCaseGraphPublication,
     ) -> Result<ExactTerminalPublicationAdvanceV1, ExactStreamCoordinatorError> {
+        self.require_prepared_case_graph_publication(case_graph_publication)?;
+        let publication = case_graph_publication.publication();
+        if let ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource,
+            maximum,
+            required_at_least,
+        } = publication
+        {
+            return Ok(ExactTerminalPublicationAdvanceV1::LimitReached {
+                phase: "case_graph_publication",
+                detail: format!(
+                    "requested complete case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
+                    resource.name()
+                ),
+            });
+        }
         let metadata = ExactSemanticAnswerMetadataV1::from_checked_stream(&self.stream, self.query)
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
@@ -1784,10 +2146,17 @@ impl<'a> ExactStreamCoordinator<'a> {
                     error,
                 )
             })?;
-        let bytes = match render_exact_semantic_answer_json_v1(&metadata, &self.exact.snapshot()) {
+        let bytes = match render_exact_semantic_answer_json_v1(
+            &metadata,
+            &self.exact.snapshot(),
+            publication,
+        ) {
             Ok(bytes) => bytes,
             Err(error) if error.is_capacity_limit() => {
-                return Ok(ExactTerminalPublicationAdvanceV1::LimitReached)
+                return Ok(ExactTerminalPublicationAdvanceV1::LimitReached {
+                    phase: "terminal_publication",
+                    detail: error.to_string(),
+                })
             }
             Err(error) => {
                 return Err(ExactStreamCoordinatorError::context(
@@ -1796,21 +2165,17 @@ impl<'a> ExactStreamCoordinator<'a> {
                 ))
             }
         };
-        self.publish_terminal_result_bytes(&bytes)
+        self.install_prepared_terminal_result_bytes(&bytes)
             .map(ExactTerminalPublicationAdvanceV1::Published)
     }
 
-    /// Equivalent checked hook for history-independent terminal result bytes.
-    pub(super) fn publish_terminal_result_bytes(
+    /// Install bytes minted by `publish_current_terminal_result`. This helper
+    /// is private so arbitrary caller-supplied JSON cannot cross the journal
+    /// publication seam.
+    fn install_prepared_terminal_result_bytes(
         &mut self,
         canonical_bytes: &[u8],
     ) -> Result<ExactTerminalPublicationReceiptV1, ExactStreamCoordinatorError> {
-        require_canonical_terminal_result_bytes(
-            &self.stream,
-            &self.exact,
-            self.query,
-            canonical_bytes,
-        )?;
         let receipt = ExactTerminalPublicationReceiptV1 {
             blob_digest: content_digest(canonical_bytes),
             payload_hash: TerminalPayloadHash::from_canonical_semantic_payload(canonical_bytes),
@@ -2193,6 +2558,17 @@ impl<'a> ExactStreamCoordinator<'a> {
         &mut self,
         prepared: PreparedRunTransition,
     ) -> Result<(), ExactStreamCoordinatorError> {
+        let services_snapshot_view = matches!(
+            prepared.payload(),
+            CanonicalRunRecordPayload::Discovery {
+                kind: DiscoveryEventKind::SnapshotPublished
+                    | DiscoveryEventKind::SnapshotUnavailablePublished,
+                ..
+            }
+        );
+        let pauses = matches!(prepared.payload(), CanonicalRunRecordPayload::Paused { .. });
+        let pause_creates_snapshot_debt =
+            pauses && !self.last_committed_record_serviced_snapshot_view;
         let invalidates_terminal_payload = matches!(
             prepared.payload(),
             CanonicalRunRecordPayload::CoveragePlanAccepted { .. }
@@ -2223,6 +2599,12 @@ impl<'a> ExactStreamCoordinator<'a> {
         if invalidates_terminal_payload {
             self.published_terminal_result = None;
         }
+        if services_snapshot_view {
+            self.pending_observable_snapshot_on_resume = false;
+        } else if pauses {
+            self.pending_observable_snapshot_on_resume = pause_creates_snapshot_debt;
+        }
+        self.last_committed_record_serviced_snapshot_view = services_snapshot_view;
         Ok(())
     }
 
@@ -2431,6 +2813,7 @@ fn require_canonical_snapshot_bytes(
     stream: &ExploreRunStream,
     exact: &ExactEvidenceReducer,
     query: &ExploreQueryIr,
+    report_request: ExploreReportRequest,
     probe_progress: ExactSourceProbeProgressV1,
     bytes: &[u8],
 ) -> Result<(), ExactStreamCoordinatorError> {
@@ -2442,17 +2825,46 @@ fn require_canonical_snapshot_bytes(
                     error,
                 )
             })?;
-    let expected =
-        render_exact_observable_snapshot_json_line_v1(&metadata, &exact.observable_snapshot())
-            .map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot reconstruct canonical observable snapshot",
-                    error,
-                )
-            })?;
+    let case_graph = prepare_case_graph_publication(stream, exact, report_request)?;
+    let expected = render_exact_observable_snapshot_json_line_v1(
+        &metadata,
+        &exact.observable_snapshot(),
+        &case_graph,
+    )
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot reconstruct canonical observable snapshot",
+            error,
+        )
+    })?;
     if expected.as_slice() != bytes {
         return Err(ExactStreamCoordinatorError::invalid(
             "observable snapshot blob does not encode its committed pre-publication cursor and exact evidence",
+        ));
+    }
+    Ok(())
+}
+
+fn require_canonical_snapshot_unavailable_bytes(
+    stream: &ExploreRunStream,
+    probe_milestone_complete: bool,
+    closed_case_count: u128,
+    bytes: &[u8],
+) -> Result<(), ExactStreamCoordinatorError> {
+    let expected = render_exact_observable_snapshot_unavailable_json_line_v1(
+        stream,
+        probe_milestone_complete,
+        closed_case_count,
+    )
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot reconstruct canonical observable snapshot-unavailable receipt",
+            error,
+        )
+    })?;
+    if expected.as_slice() != bytes {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "snapshot-unavailable receipt blob does not encode its committed pre-publication cursor and exact progress",
         ));
     }
     Ok(())
@@ -2462,6 +2874,7 @@ fn require_canonical_terminal_result_bytes(
     stream: &ExploreRunStream,
     exact: &ExactEvidenceReducer,
     query: &ExploreQueryIr,
+    report_request: ExploreReportRequest,
     bytes: &[u8],
 ) -> Result<(), ExactStreamCoordinatorError> {
     let metadata =
@@ -2471,8 +2884,9 @@ fn require_canonical_terminal_result_bytes(
                 error,
             )
         })?;
-    let expected =
-        render_exact_semantic_answer_json_v1(&metadata, &exact.snapshot()).map_err(|error| {
+    let case_graph = prepare_case_graph_publication(stream, exact, report_request)?;
+    let expected = render_exact_semantic_answer_json_v1(&metadata, &exact.snapshot(), &case_graph)
+        .map_err(|error| {
             ExactStreamCoordinatorError::context(
                 "cannot reconstruct canonical semantic answer",
                 error,
@@ -2484,6 +2898,193 @@ fn require_canonical_terminal_result_bytes(
         ));
     }
     Ok(())
+}
+
+fn prepare_case_graph_publication(
+    stream: &ExploreRunStream,
+    exact: &ExactEvidenceReducer,
+    request: ExploreReportRequest,
+) -> Result<ExactPreparedCaseGraphPublicationV1, ExactStreamCoordinatorError> {
+    if request.case_graph == ExploreCaseGraphRequest::Omit {
+        return Ok(ExactPreparedCaseGraphPublicationV1::NotRequested);
+    }
+
+    let axis_cardinalities = stream.header().case_universe().axis_cardinalities();
+    if axis_cardinalities.len() > DEFAULT_MAX_CASE_RANK_RUN_AXES {
+        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource: ExactCaseGraphPublicationResourceV1::LoweringAxes,
+            maximum: DEFAULT_MAX_CASE_RANK_RUN_AXES,
+            required_at_least: axis_cardinalities.len(),
+        });
+    }
+
+    let Some(run_count) = exact.classification_rank_run_count() else {
+        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource: ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
+            maximum: DEFAULT_MAX_CASE_RANK_RUNS,
+            required_at_least: DEFAULT_MAX_CASE_RANK_RUNS.saturating_add(1),
+        });
+    };
+    if run_count > DEFAULT_MAX_CASE_RANK_RUNS {
+        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource: ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
+            maximum: DEFAULT_MAX_CASE_RANK_RUNS,
+            required_at_least: run_count,
+        });
+    }
+
+    let total_intervals = exact
+        .classification_support_interval_count()
+        .ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "case-classification support interval count exceeds usize::MAX",
+            )
+        })?;
+    let supports = exact
+        .classification_supports_bounded(total_intervals)
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot validate persistent case-classification supports",
+                error,
+            )
+        })?
+        .ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "bounded case-classification support traversal was unexpectedly refused",
+            )
+        })?;
+    let runs = case_terminal_rank_runs(&supports, run_count)?;
+    let axis_cardinalities = axis_cardinalities.to_vec();
+    match lower_case_terminal_rank_runs(
+        axis_cardinalities,
+        runs,
+        CaseTerminal::EligibilityOpen(CaseOpenReason::SearchBudgetExhausted),
+    ) {
+        Ok(graph) => Ok(ExactPreparedCaseGraphPublicationV1::Included(graph)),
+        Err(CaseRankRunLoweringError::LimitExceeded {
+            resource,
+            observed,
+            limit,
+        }) => Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource: case_graph_publication_resource(resource),
+            maximum: limit,
+            required_at_least: observed,
+        }),
+        Err(error @ CaseRankRunLoweringError::AllocationFailed { .. }) => {
+            Err(ExactStreamCoordinatorError::snapshot_capacity(
+                "cannot lower persistent case classifications into a total decision DAG",
+                error,
+            ))
+        }
+        Err(error) => Err(ExactStreamCoordinatorError::context(
+            "cannot lower persistent case classifications into a total decision DAG",
+            error,
+        )),
+    }
+}
+
+fn require_case_graph_request_matches(
+    request: ExploreReportRequest,
+    publication: &ExactPreparedCaseGraphPublicationV1,
+) -> Result<(), ExactStreamCoordinatorError> {
+    let matches = match (request.case_graph, publication) {
+        (ExploreCaseGraphRequest::Omit, ExactPreparedCaseGraphPublicationV1::NotRequested) => true,
+        (
+            ExploreCaseGraphRequest::Include,
+            ExactPreparedCaseGraphPublicationV1::Included(_)
+            | ExactPreparedCaseGraphPublicationV1::CapacityLimited { .. },
+        ) => true,
+        _ => false,
+    };
+    if !matches {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "prepared case-graph publication does not match the immutable report request",
+        ));
+    }
+    Ok(())
+}
+
+fn case_terminal_rank_runs(
+    supports: &ExactClosedClassificationSupportsV1,
+    run_count: usize,
+) -> Result<Vec<CaseTerminalRankRun>, ExactStreamCoordinatorError> {
+    let mut runs = Vec::new();
+    runs.try_reserve_exact(run_count).map_err(|_| {
+        ExactStreamCoordinatorError::snapshot_capacity(
+            "cannot allocate the bounded case-classification rank-run vector",
+            "allocation request was refused",
+        )
+    })?;
+    let mut fibers = [
+        (
+            supports
+                .support(ExactClosedClassificationV1::Excluded)
+                .iter_intervals()
+                .peekable(),
+            CaseTerminal::Excluded,
+        ),
+        (
+            supports
+                .support(ExactClosedClassificationV1::AdmissibleNonmatch)
+                .iter_intervals()
+                .peekable(),
+            CaseTerminal::AdmissibleNonmatch,
+        ),
+        (
+            supports
+                .support(ExactClosedClassificationV1::AdmissibleMatch)
+                .iter_intervals()
+                .peekable(),
+            CaseTerminal::AdmissibleMatch,
+        ),
+    ];
+    loop {
+        let mut next = None::<(u128, usize)>;
+        for (index, (intervals, _)) in fibers.iter_mut().enumerate() {
+            if let Some(interval) = intervals.peek() {
+                let candidate = (interval.start(), index);
+                if next.is_none_or(|current| candidate < current) {
+                    next = Some(candidate);
+                }
+            }
+        }
+        let Some((_, index)) = next else {
+            break;
+        };
+        let (intervals, terminal) = &mut fibers[index];
+        let interval = intervals
+            .next()
+            .expect("peeked case-classification interval must still exist");
+        runs.push(CaseTerminalRankRun::new(
+            interval.start(),
+            interval.end_exclusive(),
+            terminal.clone(),
+        ));
+    }
+    if runs.len() != run_count {
+        return Err(ExactStreamCoordinatorError::invalid(format!(
+            "materialized {} case-classification rank runs, expected {run_count}",
+            runs.len()
+        )));
+    }
+    Ok(runs)
+}
+
+fn case_graph_publication_resource(
+    resource: CaseRankRunLoweringResource,
+) -> ExactCaseGraphPublicationResourceV1 {
+    match resource {
+        CaseRankRunLoweringResource::Axes => ExactCaseGraphPublicationResourceV1::LoweringAxes,
+        CaseRankRunLoweringResource::Runs => ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
+        CaseRankRunLoweringResource::Nodes => ExactCaseGraphPublicationResourceV1::LoweringNodes,
+        CaseRankRunLoweringResource::Arcs => ExactCaseGraphPublicationResourceV1::LoweringArcs,
+        CaseRankRunLoweringResource::OrdinalIntervals => {
+            ExactCaseGraphPublicationResourceV1::LoweringOrdinalIntervals
+        }
+        CaseRankRunLoweringResource::AccountedBytes => {
+            ExactCaseGraphPublicationResourceV1::LoweringAccountedBytes
+        }
+    }
 }
 
 fn exact_reducer_for_query(

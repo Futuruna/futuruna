@@ -7,6 +7,11 @@
 
 use sha2::{Digest, Sha256};
 
+use super::case_graph::{
+    DEFAULT_MAX_CASE_RANK_RUNS, DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
+    DEFAULT_MAX_CASE_RANK_RUN_ARCS, DEFAULT_MAX_CASE_RANK_RUN_AXES,
+    DEFAULT_MAX_CASE_RANK_RUN_NODES, DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS,
+};
 use super::classification_regions::SOURCE_PROOF_CLASSIFICATION_OPTIONS_V1;
 use super::exact_stream::{
     EXACT_OBSERVABLE_RESULT_PREVIEW_GROUP_LIMIT_V1,
@@ -14,7 +19,10 @@ use super::exact_stream::{
     EXACT_OBSERVABLE_RESULT_PREVIEW_SEMANTIC_BYTE_LIMIT_V1,
     EXACT_OBSERVABLE_RESULT_PREVIEW_VALUE_NODE_LIMIT_V1,
 };
-use super::report::{DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT};
+use super::report::{
+    ExploreCaseGraphRequest, ExploreLedgerRequest, ExploreReportRequest,
+    DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
+};
 use super::run_stream::{
     CanonicalDigest, ExploreCaseUniverse, ExploreRunHeader, ExploreRunIdentity, ExploreRunNonce,
     ExploreRunSchemas, RequiredObligationId,
@@ -25,6 +33,14 @@ use super::stream_probe::SOURCE_PROBE_MANIFEST_MAX_BYTES_V1;
 use super::stream_proof::{
     source_proof_candidate_rank_bytes_limit_v1, source_proof_candidate_rank_limit_v1,
     source_proof_closed_region_limit_v1,
+};
+use super::stream_snapshot::{
+    validate_exact_snapshot_presentation_v1, ExactProjectionLabelsV1,
+    EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1, MAX_CANONICAL_JSON_BYTES,
+    MAX_PRESENTATION_STRING_JSON_BYTES_V1, MAX_PRESENTATION_STRING_OCCURRENCES_V1,
+    MAX_PROJECTION_LABELS, MAX_PROJECTION_LABEL_BYTES, MAX_PROJECTION_LABEL_TOTAL_BYTES_V1,
+    MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1,
 };
 use crate::TypeCheckArtifacts;
 
@@ -51,10 +67,20 @@ pub(super) fn prepare_exact_stream_header(
     artifacts: &TypeCheckArtifacts,
     accepted_query_index: usize,
     nonce: CanonicalDigest,
+    report_request: ExploreReportRequest,
 ) -> Result<PreparedExactStreamHeader, String> {
+    if report_request.ledger != ExploreLedgerRequest::Omit {
+        return Err(
+            "durable exact streams do not yet implement matching-ledger publication".to_string(),
+        );
+    }
     let checked = artifacts
         .checked_exploration_query(accepted_query_index)
         .map_err(|error| format!("cannot bind checked Explore stream identity: {error:?}"))?;
+    validate_exact_snapshot_presentation_v1(checked.closed_query)
+        .map_err(|error| format!("cannot bind bounded Explore presentation metadata: {error}"))?;
+    ExactProjectionLabelsV1::from_checked_query(checked.closed_query)
+        .map_err(|error| format!("cannot bind bounded Explore projection labels: {error}"))?;
 
     let axis_cardinalities = checked
         .closed_query
@@ -81,6 +107,7 @@ pub(super) fn prepare_exact_stream_header(
             b"prepared-manifest-codec-v1",
             b"prepared-manifest-byte-limit",
             &usize_bytes(SOURCE_PROBE_MANIFEST_MAX_BYTES_V1),
+            b"snapshot-unavailable-discovery-v1",
         ]),
         contract_digest(&[
             b"semantic-evidence",
@@ -89,7 +116,7 @@ pub(super) fn prepare_exact_stream_header(
         ]),
         contract_digest(&[
             b"exact-snapshot",
-            b"exact-observable-snapshot-v4",
+            b"exact-observable-snapshot-v5",
             b"grouped-having-filter-v1",
             b"bounded-canonical-raw-group-preview-v1",
             b"result-preview-group-limit",
@@ -100,6 +127,22 @@ pub(super) fn prepare_exact_stream_header(
             &usize_bytes(EXACT_OBSERVABLE_RESULT_PREVIEW_SEMANTIC_BYTE_LIMIT_V1),
             b"result-preview-json-byte-limit",
             &usize_bytes(EXACT_OBSERVABLE_RESULT_PREVIEW_JSON_BYTE_LIMIT_V1),
+            b"observable-snapshot-outer-canonical-json-byte-limit-v1",
+            &usize_bytes(MAX_CANONICAL_JSON_BYTES),
+            b"projection-label-count-limit",
+            &usize_bytes(MAX_PROJECTION_LABELS),
+            b"projection-label-byte-limit",
+            &usize_bytes(MAX_PROJECTION_LABEL_BYTES),
+            b"projection-label-total-byte-limit",
+            &usize_bytes(MAX_PROJECTION_LABEL_TOTAL_BYTES_V1),
+            b"checked-presentation-string-budget-v1",
+            b"presentation-string-canonical-json-byte-limit",
+            &usize_bytes(MAX_PRESENTATION_STRING_JSON_BYTES_V1),
+            b"presentation-string-occurrence-limit",
+            &usize_bytes(MAX_PRESENTATION_STRING_OCCURRENCES_V1),
+            b"cursor-bound-snapshot-unavailable-v1",
+            b"snapshot-unavailable-json-byte-limit",
+            &usize_bytes(EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1),
             b"inspectable-configuration-manifest-v2",
             b"configuration-value-node-limit",
             &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
@@ -107,12 +150,59 @@ pub(super) fn prepare_exact_stream_header(
             &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),
             b"replay-derived-source-probe-progress-v1",
             b"inspectable-source-probe-limits-v1",
+            b"explicit-case-graph-publication-v1",
+            b"mixed-radix-rank-run-lowerer-v1",
+            b"case-graph-axis-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_AXES),
+            b"case-graph-rank-run-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUNS),
+            b"case-graph-node-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_NODES),
+            b"case-graph-arc-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ARCS),
+            b"case-graph-ordinal-interval-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS),
+            b"case-graph-accounted-byte-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES),
+            b"case-graph-canonical-json-byte-limit",
+            &usize_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
         ]),
         contract_digest(&[
             b"terminal-result",
-            b"exact-report-v3",
+            b"exact-report-v4",
             b"grouped-having-filter-v1",
             b"full-result-publication-required-v1",
+            b"terminal-result-row-json-byte-limit-v1",
+            &usize_bytes(MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1),
+            b"terminal-outer-canonical-json-byte-limit-v1",
+            &usize_bytes(MAX_CANONICAL_JSON_BYTES),
+            b"projection-label-count-limit",
+            &usize_bytes(MAX_PROJECTION_LABELS),
+            b"projection-label-byte-limit",
+            &usize_bytes(MAX_PROJECTION_LABEL_BYTES),
+            b"projection-label-total-byte-limit",
+            &usize_bytes(MAX_PROJECTION_LABEL_TOTAL_BYTES_V1),
+            b"checked-presentation-string-budget-v1",
+            b"presentation-string-canonical-json-byte-limit",
+            &usize_bytes(MAX_PRESENTATION_STRING_JSON_BYTES_V1),
+            b"presentation-string-occurrence-limit",
+            &usize_bytes(MAX_PRESENTATION_STRING_OCCURRENCES_V1),
+            b"explicit-case-graph-publication-v1",
+            b"mixed-radix-rank-run-lowerer-v1",
+            b"case-graph-axis-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_AXES),
+            b"case-graph-rank-run-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUNS),
+            b"case-graph-node-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_NODES),
+            b"case-graph-arc-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ARCS),
+            b"case-graph-ordinal-interval-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS),
+            b"case-graph-accounted-byte-limit",
+            &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES),
+            b"case-graph-canonical-json-byte-limit",
+            &usize_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
         ]),
     );
     let identity = ExploreRunIdentity::new(
@@ -123,14 +213,7 @@ pub(super) fn prepare_exact_stream_header(
         )?,
         parse_checked_digest("query_hash", &checked.artifact.identity.digest)?,
         parse_checked_digest("domain_hash", checked.domain_hash())?,
-        contract_digest(&[
-            b"report-request",
-            b"baseline-projected-rows",
-            b"ledger-omitted",
-            b"mechanisms-deferred",
-            b"bounded-canonical-raw-group-preview-v1",
-            b"inspectable-configuration-manifest-v2",
-        ]),
+        report_request_digest(report_request),
         contract_digest(&[
             b"probe-plan",
             b"source-proof-prepared-manifest-phase-v2",
@@ -176,14 +259,7 @@ pub(super) fn prepare_exact_stream_header(
             &usize_bytes(DEFAULT_EXPLORE_COLLECTION_LIMIT),
         ]),
         contract_digest(&[b"mechanism-observation", b"deferred"]),
-        contract_digest(&[
-            b"retention",
-            b"projected-results",
-            b"configuration-manifest-v2",
-            b"globally-bounded-value-disclosure",
-            &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
-            &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),
-        ]),
+        retention_authorization_digest(report_request),
         schemas,
     );
     let replay_closure = RequiredObligationId::new(contract_digest(&[REPLAY_CLOSURE_CONTRACT_V1]));
@@ -194,6 +270,49 @@ pub(super) fn prepare_exact_stream_header(
         header,
         replay_closure,
     })
+}
+
+fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
+    let case_graph = match request.case_graph {
+        ExploreCaseGraphRequest::Omit => b"case-graph-omitted".as_slice(),
+        ExploreCaseGraphRequest::Include => b"case-graph-full".as_slice(),
+    };
+    let ledger = match request.ledger {
+        ExploreLedgerRequest::Omit => b"ledger-omitted".as_slice(),
+        ExploreLedgerRequest::MatchingConfigurations => {
+            b"ledger-matching-configurations".as_slice()
+        }
+    };
+    contract_digest(&[
+        b"report-request-v2",
+        b"projected-rows",
+        case_graph,
+        ledger,
+        b"mechanisms-deferred",
+        b"bounded-canonical-raw-group-preview-v1",
+        b"inspectable-configuration-manifest-v2",
+    ])
+}
+
+fn retention_authorization_digest(request: ExploreReportRequest) -> CanonicalDigest {
+    let case_graph = match request.case_graph {
+        ExploreCaseGraphRequest::Omit => b"ordinal-case-classification-omitted".as_slice(),
+        ExploreCaseGraphRequest::Include => b"ordinal-case-classification-graph-full".as_slice(),
+    };
+    let ledger = match request.ledger {
+        ExploreLedgerRequest::Omit => b"matching-ledger-omitted".as_slice(),
+        ExploreLedgerRequest::MatchingConfigurations => b"matching-ledger-full".as_slice(),
+    };
+    contract_digest(&[
+        b"retention-v2",
+        b"projected-results",
+        b"configuration-manifest-v2",
+        b"globally-bounded-value-disclosure",
+        &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
+        &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),
+        case_graph,
+        ledger,
+    ])
 }
 
 fn parse_checked_digest(field: &'static str, value: &str) -> Result<CanonicalDigest, String> {

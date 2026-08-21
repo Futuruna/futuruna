@@ -20,16 +20,26 @@ development slice contains the human-only capped exact-finite compatibility
 executor and the first macOS-supervised durable observable coordinator:
 immutable run identity, a checked source-probe phase, candidate-first
 evaluation, authenticated frontier deltas, bounded canonical snapshots and
-exact restart from an owner-supplied run-state directory. Every nonterminal
-durable invocation now publishes its checkpoint before it pauses and returns
-the checkpoint, publication and final cursors in a typed receipt. Explicit
-`--finalize` can atomically replay, publish and seal a small
-enough closed answer; a larger answer pauses at an honest finalization limit for
-future chunking. Case/mechanism graph publication, user-authored `probes`, typed
-`output as` rows, `after`, detached following, parallel workers and resumable
-chunked terminal publication are subsequent slices described below. The
-snapshot explicitly reports mechanism evidence as unavailable until that replay
-path exists; it never infers a mechanism count from result groups.
+exact restart from an owner-supplied run-state directory. The append-only
+journal pause is the authoritative resume checkpoint. Snapshot v5 and its
+optional case DAG are a separately admitted materialized view: when deadline or
+resource admission denies that phase, the invocation returns a typed
+`JournalOnlyCheckpoint` at the final paused cursor without a snapshot blob or
+canonical payload. If the phase is admitted but its publisher reports
+capacity, a separate bounded `snapshot_unavailable` receipt makes that cursor
+observable without publishing partial semantics or blocking later work.
+Explicit `--finalize` can atomically replay, publish and
+seal a small enough closed answer; a larger answer pauses at an honest
+finalization limit for future chunking. An explicit durable
+`--case-graph full` request now enables
+bounded, all-or-nothing publication of a total current-evidence case DAG.
+Mechanism-graph publication, user-authored `probes`, typed `output as` rows,
+`after`, detached following, parallel workers and resumable chunked terminal
+publication are subsequent slices described below. The snapshot explicitly
+reports mechanism evidence as unavailable until that replay path exists; it
+never infers a mechanism count from result groups. This is the implemented
+artifact contract, not a claim that a graph-bearing policy exploration has
+already been executed.
 
 ## Five search clauses, an optional probe plan, plus a continuation
 
@@ -315,8 +325,10 @@ runa explore support.runa \
 ```
 
 The explicit `--pause-after probes` asks Futuruna to stop at the inspection
-point. Detached `--follow` is a later observer surface. Human mode currently
-shows the append-only receipt directly:
+point. Detached `--follow` is a later observer surface. The journal pause is
+already sufficient to resume. Futuruna then gets one separately governed
+opportunity to materialize the larger observer view. When that phase is
+admitted, human mode shows all three cursors:
 
 ```text
 Run: PAUSED
@@ -329,12 +341,13 @@ Checkpoint cursor: #40 <running-journal-head>
 Publication cursor: #41 <publication-journal-head>
 ```
 
-That snapshot is already useful: it shows aggregate match, nonmatch, exclusion
+That admitted snapshot is already useful: it shows aggregate match, nonmatch, exclusion
 and closure counts; checked probe phase, candidate counts and commitments;
 bounded configuration and representative-result prefixes; and exact or
 lower-bound count labels. Individual nonmatch cases and candidate reasons
-remain private journal material; DAG views await future authorized observer
-surfaces.
+remain private journal material by default. A durable run created with
+`--case-graph full` additionally authorizes its complete current case
+classification DAG; mechanism-DAG views still await a future replay path.
 Mechanism evidence is explicitly `unavailable_deferred`; result groups are
 never relabelled as mechanisms. It is not final while the required frontier is
 open. To continue after this inspection, replace `--pause-after probes` with a
@@ -344,12 +357,55 @@ frontier. With the required time limit and without the explicit pause option,
 the first invocation passes directly from the probe milestone into proof and
 residual refinement.
 
+If the deadline has expired or snapshot work is not admitted, human mode
+instead makes the missing view explicit:
+
+```text
+Run: PAUSED
+Run state: /private/work/support-cliffs.run
+Stop: probe milestone reached
+Final cursor: #<n> <paused-journal-head> (paused)
+Probe milestone: COMPLETE
+
+Artifact: journal-only checkpoint
+Observable snapshot: deferred (<time-limit or resource-admission reason>)
+```
+
+There is no snapshot blob, checkpoint cursor or publication cursor in this
+form. Nothing has been lost from the resume state: the final journal cursor is
+authoritative.
+
 Machine mode wraps the exact stored checkpoint in
-`futuruna.explore.invocation.v1`. The checkpoint describes cursor 40; cursor 41
-durably names its blob; cursor 42 commits the pause. The wrapper carries the
-typed stop and final cursor without making the checkpoint hash depend on the
-event that names that hash. `canonical_byte_framing: "json_line_lf"` records
+`futuruna.explore.invocation.v1`; the invocation schema stays v1 for both
+forms. An admitted checkpoint uses artifact kind `checkpoint`, embeds
+`futuruna.explore.snapshot.v5`, and names its checkpoint, publication and final
+cursors. The checkpoint describes cursor 40; cursor 41 durably names its blob;
+cursor 42 commits the pause. `canonical_byte_framing: "json_line_lf"` records
 that reproducing the blob digest requires the checkpoint object plus one LF.
+
+A deferred view uses artifact kind `journal_checkpoint` with
+`snapshot.status = "deferred"` and a reason of `time_limit` or
+`resource_admission`. It has no `blob_digest`, `canonical_payload`, checkpoint
+cursor or publication cursor. This operational deferral is not new evidence,
+does not change the evidence root or immutable run identity, and does not mean
+that the requested case graph was `capacity_limited`.
+
+If the snapshot phase is admitted but its bounded publisher reports capacity,
+the outcome is observable rather than deferred. Futuruna publishes a separate
+`futuruna.explore.snapshot-unavailable.v1` JSON line, appends
+`SnapshotUnavailablePublished`, then pauses. Invocation-v1 uses artifact kind
+`snapshot_unavailable`, `snapshot.status = unavailable`, and reason kind
+`capacity`; the receipt has a blob plus checkpoint and publication cursors.
+Its canonical payload is capped at 4 KiB and contains only cursor hashes and
+bounded progress—never a partial configuration, answer, or graph. It reports
+only this admitted attempt and does not claim that a later attempt can never
+fit.
+
+The next invocation services this pending observer view before doing more
+search and stops with `snapshot_catch_up`. Its artifact is the admitted full
+checkpoint, the bounded `snapshot_unavailable` receipt if the publisher reports
+capacity, or another honest `journal_checkpoint` if that invocation still lacks
+time or resource authority. No CaseId is evaluated during catch-up.
 
 A time slice works the same way:
 
@@ -361,10 +417,12 @@ runa explore support.runa \
 ```
 
 At expiry the library stops dispatch, commits accepted work and the exact open
-frontier, and pauses at its next work boundary. If the child does not exit
-within the supervisor grace interval, the parent contains it instead; the next
-invocation recovers the last durable journal head and evidence root. An abrupt
-process or machine failure likewise loses only the uncommitted suffix.
+frontier, and pauses at its next work boundary. If time remains and the view is
+admitted, it also publishes snapshot v5; otherwise it returns the journal-only
+form above. If the child does not exit within the supervisor grace interval,
+the parent contains it instead; the next invocation recovers the last durable
+journal head and evidence root. An abrupt process or machine failure likewise
+loses only the uncommitted suffix.
 
 When case classification closes, the ordinary invocation pauses at
 `classification_closed_finalization_pending`. A deliberate terminal attempt is
@@ -381,18 +439,19 @@ runa explore support.runa \
 ```
 
 Atomic-v1 fresh-replays the selected representative/extrema witnesses,
-publishes `futuruna.explore.exact-answer.v3`, and seals only if the full
+publishes `futuruna.explore.exact-answer.v4`, and seals only if the full
 snapshot, retained replay manifest and terminal JSON fit its conservative
-envelope. If not, the same invocation publishes a checkpoint and stops with
-typed `FinalizationLimit` details (`finalization_limit` in JSON); the exact
-closed evidence is preserved for a future chunked finalizer. Repeating the
-unchanged atomic-v1 invocation reaches the same capability limit rather than
-making chunked progress. The in-process time limit is a work-boundary soft
-deadline during this atomic unit. The CLI supervisor may interrupt it, and
-replay safely resumes from the last committed event.
+envelope. If not, the same invocation commits a journal pause with typed
+`FinalizationLimit` details (`finalization_limit` in JSON); it carries a
+snapshot only if that separate view phase is admitted. The exact closed
+evidence is preserved for a future chunked finalizer. Repeating the unchanged
+atomic-v1 invocation reaches the same capability limit rather than making
+chunked progress. The in-process time limit is a work-boundary soft deadline
+during this atomic unit. The CLI supervisor may interrupt it, and replay safely
+resumes from the last committed event.
 
 The present atomic guardrails are intentionally conservative: all raw groups
-must fit the v4 complete raw-group preflight (at most 256 groups, 16,384
+must fit the v5 complete raw-group preflight (at most 256 groups, 16,384
 recursive value nodes and 4 MiB semantic payload), at most 65,536 selected
 replay witnesses may be retained, replay observations may use at most 32 MiB
 of canonical manifest bodies, rendered result rows may use at most 48 MiB,
@@ -400,6 +459,53 @@ and the complete single JSON document may use at most 64 MiB. These are
 finalizer-capability limits, not limits on exact case counts. Reaching one
 leaves classification evidence closed and the terminal frontier durable, but
 unchanged atomic-v1 cannot advance it past that limit.
+Projection labels are also bounded: at most 65,536 labels per projection kind,
+at most 1 MiB per label, and at most 4 MiB of UTF-8 label bytes cumulatively
+across key, extrema and shown labels. The cumulative cap belongs to snapshot
+and terminal schema identity. Before run creation, every checked presentation
+string copied into those artifacts—query and axis names, named domain sources,
+fact and boundary names, plus projection/having labels—must additionally fit an
+exact cumulative 8 MiB canonical-JSON string budget and 262,144 total
+occurrences. The occurrence cap bounds retained metadata objects even for tiny
+or repeated names. Repeated serialized occurrences are charged repeatedly, and
+both limits are schema identity.
+
+The complete snapshot/case-DAG materialization phase has a fixed 256 MiB
+accounted working-set envelope. It is admitted under the same 80-percent CPU
+and RAM policy and may never borrow the reserved 20 percent of CPU or the
+memory reserve, which is at least 20 percent and never below 1 GiB. The current
+single-worker run stays in the conservative cold phase, whose
+`max(2 GiB, ceil(total RAM / 4))` charge dominates this view envelope. A future
+calibrated scan-mode or multi-worker publisher needs a distinct snapshot
+charge; it cannot reuse that cold-phase argument.
+
+Case-DAG publication has a separate fixed envelope: at most 256 axes, 65,536
+uniform rank runs, 131,072 nodes, 262,144 arcs, 262,144 ordinal intervals and
+64 MiB of conservative lowerer-accounted work. The complete nested
+`futuruna.explore.case-graph.v1` object must then fit in 8 MiB of canonical
+JSON. An admitted requested pause snapshot publishes the entire graph or a typed
+`capacity_limited` status with the resource, fixed `maximum`, and honest
+`required_at_least`; it never emits a graph prefix. A requested terminal graph
+must be included with closed admissibility and polarity. Otherwise finalization
+pauses with phase `case_graph_publication` and does not seal.
+
+The graph choice is deliberately durable identity, not a display toggle. Start
+the graph-bearing run this way and repeat the option on every resume:
+
+```bash
+runa explore support.runa \
+  --query support_cliffs \
+  --run-state /private/work/support-cliffs-with-graph.run \
+  --time-limit 20m \
+  --case-graph full \
+  --json
+```
+
+The report-request digest binds `full` versus `omit`; the retention-
+authorization digest binds case-classification disclosure; and the snapshot
+and terminal schema digests bind the fixed lowerer and JSON limits. All are
+immutable run identity. Futuruna rejects trying to reopen an omitted-graph run
+with the option, or a graph-bearing run without it.
 
 The run journal retains every selected `CaseId`, match, nonmatch and exclusion;
 the actual lower and upper boundary endpoint values; exact question and
@@ -455,8 +561,9 @@ Stale identities, a corrupt journal, overlapping chunks or replay differences
 fail closed and preserve the last valid journal head and evidence root. A
 changed query or probe plan
 starts a new run rather than rewriting old evidence. A pause with remaining
-frontier exits `2` and emits a snapshot. Only the durable `Completed` seal over
-an empty required frontier exits `0` as a final answer.
+frontier exits `2` and commits a journal checkpoint; it emits snapshot v5 only
+when materialized-view admission succeeds. Only the durable `Completed` seal
+over an empty required frontier exits `0` as a final answer.
 
 ## 4. Decide what one answer means
 
@@ -664,7 +771,7 @@ The snapshot reports how many raw groups were observed and scanned, whether the
 scan closed, and whether every displayed count is exact or only a lower bound.
 This gives a saved probe enough human context to say which bounds it matches
 without turning an accidental domain or result dump into the output contract.
-The current v4 identity fixes the configuration budget at 4,096 recursive
+The current v5 identity fixes the configuration budget at 4,096 recursive
 value nodes and 4 MiB of semantic value bytes. Its result preview selects at
 most 256 canonical raw groups under 16,384 recursive value nodes, 4 MiB of
 semantic payload and 8 MiB of rendered row JSON. These are disclosure limits,
@@ -676,14 +783,14 @@ owner-local directory; they do not authenticate a hostile owner or magically
 prove that an evaluated case was correct. Exact certificates and fresh
 publication replay remain the semantic checks.
 
-Specified observers will derive case and mechanism DAG snapshots from that
-journal; the first executable snapshot keeps both graph publications deferred.
-Closed facts and exact lower bounds only move forward, while graph reduction,
-node numbering, provisional representatives and display order may change as
-more evidence arrives. Once implemented, a new replayed signature can therefore
-appear immediately as a confirmed mechanism lower bound, and the scheduler can
-use that novelty to prioritize informative open regions without pretending the
-mechanism inventory is exact before its target incidence closes.
+The current executable v5 snapshot can derive the explicitly authorized case
+DAG from that evidence; only mechanism-DAG publication remains deferred. Closed
+facts and exact lower bounds only move forward, while graph reduction, node
+numbering, provisional representatives and display order may change as more
+evidence arrives. Once mechanism replay is implemented, a new replayed
+signature can appear immediately as a confirmed mechanism lower bound, and the
+scheduler can use that novelty to prioritize informative open regions without
+pretending the mechanism inventory is exact before its target incidence closes.
 
 This separation also gives a clean future map-reduce boundary without changing
 the meaning of Explore. Map workers can own disjoint canonical CaseId-rank
@@ -757,23 +864,24 @@ infinity belongs to a future unbounded contract.
 
 A lower bound can instead mean unfinished search. If 37 cases are confirmed
 and a solver cannot decide the remaining region, the count is `at least 37`
-and the frontier stays open (`UNKNOWN`). A timeout pauses the run with a
-`PARTIAL` answer snapshot; an unsupported construct yields `UNSUPPORTED` and
-may seal only when no permitted exact continuation remains. It is also possible
-for the case graph to close at exactly 3,000 matches while mechanism tracing
-remains open: the total case count is exact, but observed mechanism supports
-and even the number of mechanisms are only lower bounds. Count certainty and
-layer closure must therefore be read together.
+and the frontier stays open (`UNKNOWN`). A timeout pauses the run with
+`PARTIAL` answer evidence and may materialize a snapshot when admitted; an
+unsupported construct yields `UNSUPPORTED` and may seal only when no permitted
+exact continuation remains. It is also possible for the case graph to close at
+exactly 3,000 matches while mechanism tracing remains open: the total case
+count is exact, but observed mechanism supports and even the number of
+mechanisms are only lower bounds. Count certainty and layer closure must
+therefore be read together.
 
 Not every durable stop is automatically productive to resume. A time,
 pressure or explicit milestone pause continues from the committed open
 frontier. But if a particular whole case deterministically exhausts the step
 or collection budget bound into this run's evaluator identity, retrying the
-same run unchanged would stop at that same case forever. The snapshot must say
-that the rank is open and blocked under the current evaluator contract, rather
-than calling the stop ordinarily resumable. Budget refinement needs an
-explicit compatible protocol; otherwise it begins a differently identified
-run.
+same run unchanged would stop at that same case forever. The invocation stop
+must say that the rank is open and blocked under the current evaluator
+contract; an admitted snapshot reflects the same evidence. Budget refinement
+needs an explicit compatible protocol; otherwise it begins a differently
+identified run.
 
 Mechanism-guided symbolic search may use one replayed witness to prioritize the
 next case region, but version one assigns that signature only to cases freshly
@@ -809,22 +917,30 @@ separately.
 
 #### Honest DAG publication path
 
-The durable journal already contains typed singleton and closed-region
-classifications, but the current reducer keeps only their union plus scalar
-class counts. It therefore cannot reconstruct the terminal attached to each
-rank from its live snapshot. The smallest scalable case-DAG step is to retain
-three arrival-order-independent persistent supports—excluded, admissible
-nonmatch and admissible match—and derive open support as their complement.
-Recovery can rebuild those supports from the existing typed journal blobs; no
-historical case codec needs to change.
+The implemented reducer retains three arrival-order-independent persistent
+supports—excluded, admissible nonmatch and admissible match—and derives the
+open support as their exact complement. Typed singleton and closed-region
+events update those supports; recovery rebuilds them from the typed journal.
+The reducer validates that the supports are pairwise disjoint, their counts
+equal the scalar classification counts, and their union equals closed support.
 
-Publication then needs a bounded rank-run lowerer into the existing canonical
-ordered decision DAG. It must split mixed-radix runs into aligned subtrees
-rather than enumerate every case, validate terminal multiplicities against the
-exact reducer counts, and publish either one complete DAG or an explicit
-capacity-limited status. A node prefix is not a case graph. The graph request,
-disclosure authorization and fixed limits must enter the run identity before
-graph-bearing runs begin; existing baseline runs continue to omit it.
+For `--case-graph full`, a bounded mixed-radix rank-run lowerer turns those
+supports into the existing canonical ordered decision DAG without enumerating
+every case. It validates terminal multiplicities against the exact reducer
+counts and gives every rank in the declared universe one terminal. Current
+closed support ends at `excluded`, `admissible_nonmatch` or
+`admissible_match`; the exact remainder ends at
+`eligibility_open(search_budget_exhausted)`. That makes the snapshot graph
+total over current evidence even while exploration closure is open.
+
+Publication is all-or-nothing. Within the fixed lowerer and 8 MiB nested-JSON
+limits, `graph.case_graph.status` is `included` and carries the complete graph,
+its artifact hash, closures, polarity, terminal multiplicities and limits.
+Otherwise status is `capacity_limited`, the graph and graph hash are absent,
+and typed capacity evidence names what exceeded its maximum. Baseline runs keep
+status `not_requested`. The request, retention authorization and schema limits
+were bound before the run began, so publication cannot silently widen
+disclosure or change limits during resume.
 
 The mechanism DAG cannot be derived by the same shortcut. The repository has
 the validated mechanism identity, signature and incidence data model, but the
@@ -1063,8 +1179,8 @@ Coverage is a separate axis:
 | `UNDETERMINED` | The required case population is not closed |
 
 Only a sealed terminal result has a typed report; a routine time/resource pause
-has an observable snapshot and never invokes `after`. Terminal reports preserve
-the distinction:
+has an authoritative journal checkpoint, may also have an admitted observable
+snapshot, and never invokes `after`. Terminal reports preserve the distinction:
 
 | Status | Typed report payload |
 |---|---|
@@ -1631,6 +1747,19 @@ figures are admission ceilings, not utilization targets or kernel-enforced
 guarantees against momentary CPU/RSS overshoot, and not permission to ignore
 swap growth or warning pressure.
 
+Pause does not bypass that envelope. The small append-only journal transition
+is the resume checkpoint; the potentially much larger snapshot and case DAG
+form a separate materialized-view work subject with 256 MiB of accounted
+working set. It receives one normal admission opportunity after semantic work
+stops. If the deadline or current host sample denies it, Futuruna preserves the
+20-percent/1-GiB reserve, appends the pause directly and reports
+`JournalOnlyCheckpoint`. The next resumed invocation retries that observation
+work before semantic dispatch and pauses at `snapshot_catch_up`; it is not lost
+evidence and is not permission to relabel the graph as capacity-limited. If an
+admitted attempt reports capacity, it instead publishes the bounded
+`snapshot_unavailable` observer receipt, satisfying that cursor's observation
+boundary without claiming that a later attempt can never fit.
+
 The first executable slice is deliberately one worker, but it still runs in a
 fresh macOS process group. Other platforms currently reject the durable path
 rather than run without that supervisor. A parent sampler holds no writer
@@ -1888,8 +2017,10 @@ is closed.
 
 - Pause through time and test resource limits, retain closed regions plus the
   exact open frontier, and resume without reclassifying accepted support.
-- Distinguish lifecycle `paused` from answer snapshot `partial`; never construct
-  a typed terminal report or execute `after` at a routine pause.
+- Distinguish lifecycle `paused` from answer-evidence status `partial`; admit
+  snapshot materialization separately and keep a journal-only pause resumable;
+  never construct a typed terminal report or execute `after` at a routine
+  pause.
 - Recover the last committed journal head and evidence root after a simulated
   unclean stop and ignore uncommitted worker proposals.
 - Seal `Completed` only over an empty required frontier and a canonical final
@@ -1906,6 +2037,9 @@ is closed.
   ordinary `--json` a single document rather than implicit JSONL.
 - Add exact pause/resume/time-slice exit behavior without constructing a typed
   `ExplorationReport` or executing `after` at pause.
+- Keep invocation-v1 stable across admitted full snapshots, bounded
+  `snapshot_unavailable` receipts, and typed `journal_checkpoint` artifacts;
+  the latter has `snapshot.status = deferred` and no canonical payload or blob.
 - Add deterministic human output.
 - Add sealed versioned `futuruna.explore.v1` JSON with a `Completed` seal.
 - Keep case graph, mechanism graph and their incidence referentially sound.

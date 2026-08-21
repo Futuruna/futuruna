@@ -13,9 +13,11 @@ development slice includes the capped exact-finite reference executor and the
 first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
-Dynamic mechanism replay, case/mechanism DAG publication, symbolic/SMT closure,
-typed output rows, result continuations, detached observation, parallel workers,
-and chunked terminal publication remain later implementation slices.
+An explicit durable-only `--case-graph full` request now publishes a bounded,
+total current-evidence case DAG. Dynamic mechanism replay and mechanism-DAG
+publication, symbolic/SMT closure, typed output rows, result continuations,
+detached observation, parallel workers, and chunked terminal publication remain
+later implementation slices. No result group is treated as a mechanism.
 
 ## Summary
 
@@ -226,10 +228,33 @@ The first version does not:
   evidence root: current closure states, exact counts or lower bounds,
   confirmed rows, open frontier and operational metadata. The full protocol
   may also include explicitly authorized case/mechanism graph views when the
-  implementation supports them. Current executable `snapshot.v4` omits both
-  DAG publications and reports mechanism evidence as `unavailable_deferred`.
-  A snapshot is never the canonical terminal result; sealing produces a
-  distinct terminal document.
+  implementation supports them. Current executable `snapshot.v5` supports an
+  explicitly requested total current-evidence case DAG and reports mechanism
+  evidence as `unavailable_deferred`. Snapshot materialization is an optional,
+  separately admitted observer phase; it is neither the resume checkpoint nor
+  a prerequisite for a valid pause. A snapshot is never the canonical terminal
+  result; sealing produces a distinct terminal document.
+
+**Journal-only checkpoint**
+: The authoritative append-only journal pause returned when snapshot
+  materialization is not admitted before the invocation deadline. The current
+  typed artifact is `JournalOnlyCheckpoint`; invocation-v1 JSON names artifact
+  kind `journal_checkpoint`, reports `snapshot.status` as `deferred`, and has no
+  snapshot blob, canonical payload, checkpoint cursor or publication cursor.
+  This is operational view deferral, not evidence, graph-capacity status or a
+  change to run identity.
+
+**Snapshot-unavailable receipt**
+: A separate, cursor-bound observer publication emitted when the snapshot phase
+  was admitted but that publication attempt reported capacity. The journal
+  records `SnapshotUnavailablePublished`, invocation-v1 uses artifact kind
+  `snapshot_unavailable`, and its canonical JSON line is capped at 4 KiB. It
+  carries hashes and bounded progress only: no configuration, answer rows,
+  case-graph prefix or arbitrary diagnostic text. It services that cursor's
+  observer boundary without claiming that a later attempt can never fit and
+  without changing semantic evidence. This is distinct from both transient
+  `journal_checkpoint` deferral and case-graph `capacity_limited` status inside
+  an otherwise complete snapshot.
 
 **Probe-complete**
 : Every selector and adaptive decision required by the declared finite probe
@@ -1287,13 +1312,18 @@ Incomplete global closure yields `undetermined` even when some confirmed cases
 are already known.
 
 The source syntax for requesting additional graph views is intentionally left
-open until the graph artifact has executable corpus experience. The engine
-nevertheless uses an explicit `ReportRequest` value whose requested case
-graph, ledger population, case views, histograms and mechanism scope are
-recorded in the artifact. The baseline request omits the full case graph and
-ledger, requests no case-level view, and permits only representative
-provenance when available. CLI flags or a future source form may construct a
-larger request, but canonical output never silently expands it.
+open until the graph artifact has executable corpus experience. The durable
+CLI currently exposes exactly one case-graph choice: `--case-graph full`.
+The engine represents it in an explicit `ReportRequest`: the report-request
+digest binds `full` versus `omit`, the retention-authorization digest binds
+case-classification disclosure, and the snapshot/terminal schema digests bind
+the lowerer and serialization contracts with their fixed limits. All are
+immutable run identity.
+An omitted-graph run therefore cannot be resumed with full disclosure enabled,
+or vice versa. The baseline request omits the full case graph and ledger,
+requests no case-level view, and permits only representative provenance when
+available. A future source form may construct a larger request, but canonical
+output never silently expands it.
 
 `output.key` continues to define result identity. Adding a case/value view
 MUST NOT change the question, universe or case classification. Changing the
@@ -1316,7 +1346,7 @@ The limit classes have different meanings:
 | Source `bounds` and `where` | Defines the proposition by defining `D` |
 | Source `probes.at_most` | Defines completion of the initial scheduling plan; never restricts `D` or closes an unprobed case |
 | Invocation time, work or artifact budget | Commits the current evidence and exact open frontier, then pauses the run |
-| Answer/case/value classification cap | Stops required closure at a resumable open frontier; the current answer snapshot is `partial` |
+| Answer/case/value classification cap | Stops required closure at a resumable open frontier; current answer evidence is `partial`, which an admitted snapshot reports |
 | Mechanism-only tracing budget | Leaves mechanism status `scope_open` or `incidence_open` without changing exploration status |
 | Noncanonical presentation or example budget | Limits console rows, per-mechanism examples or explanations without truncating an authorized canonical graph or ledger |
 
@@ -1351,16 +1381,18 @@ Three status axes remain independent:
 | Answer closure | `partial`, `complete`, `unknown`, `unsupported`, `error` | What has been established about requested answer/case/value layers at the current committed cursor |
 | Mechanism closure | the mechanism-evidence status contract | What has been replayed or proved about the requested mechanism population |
 
-A paused run normally has a `partial` answer snapshot, but `paused` is not a
-terminal answer status. `unknown` or `unsupported` may either pause a run with
-an explicit open obligation that another exact backend can attempt, or seal a
-non-successful run when no permitted continuation exists. Only a `Completed`
-seal asserts complete answer closure.
+A paused run normally has `partial` answer evidence at its committed journal
+cursor; an admitted snapshot makes that state observable, but a journal-only
+pause is equally resumable. `paused` is not a terminal answer status. `unknown`
+or `unsupported` may either pause a run with an explicit open obligation that
+another exact backend can attempt, or seal a non-successful run when no
+permitted continuation exists. Only a `Completed` seal asserts complete answer
+closure.
 
 Answer closure may become `complete` while requested mechanism replay is still
 running or paused. That does not reopen the answer, but the observable run may
 continue producing mechanism evidence. A mechanism-only operational cap leaves
-the run resumable even though its answer snapshot is complete. The terminal
+the run resumable even though its answer evidence is complete. The terminal
 seal requires that no permitted work remain under the selected run contract:
 every completion-blocking frontier is closed, or its independent layer has a
 terminal `unavailable` outcome. An operationally capped open mechanism frontier
@@ -1459,14 +1491,33 @@ fresh publication replays remain the semantic validation mechanisms.
 The full observer protocol permits a versioned snapshot to be derived at a
 committed cursor with exact counts or labelled lower bounds, confirmed rows,
 provisional discoveries, requested histograms, open frontier and run metadata.
-Explicitly authorized case and mechanism DAGs may join that view once their
-publication paths exist. The current executable slice publishes bounded v4
-snapshots at invocation stops, omits both DAGs and labels mechanism evidence
-`unavailable_deferred`. The underlying relations and closure evidence are
+The current executable slice first commits an authoritative journal pause, and
+materializes snapshot v5 only when a separate bounded observer phase is
+admitted before the invocation deadline. If admission is denied, invocation-v1
+returns a typed journal-only checkpoint with snapshot status `deferred`; no
+snapshot blob or graph is minted. Reopening such a pause services the pending
+snapshot before dispatching more semantic work and stops at a typed
+`snapshot_catch_up` boundary. The artifact still says whether that attempt
+materialized the view, published a bounded `snapshot_unavailable` capacity
+receipt, or remained deferred, so repeated time-boxed search slices cannot
+silently outrun observation forever.
+
+When the view phase is admitted, the baseline snapshot marks the case graph
+`not_requested`. A run created with `--case-graph full` instead publishes
+either the entire canonical total current-evidence DAG or typed
+`capacity_limited` evidence; it never publishes a node or rank prefix. The DAG
+covers the full declared universe: closed support ends at `excluded`,
+`admissible_nonmatch` or `admissible_match`, and its exact current open
+complement ends at `eligibility_open(search_budget_exhausted)`. Thus totality
+describes the current evidence partition, not completed exploration.
+Operational snapshot deferral is not case-graph capacity evidence, does not
+alter semantic evidence, and does not change the immutable graph request or
+run identity. Mechanism-DAG publication remains absent and mechanism evidence
+is `unavailable_deferred`. The underlying relations and closure evidence are
 monotone; serialized graph node identifiers, reduced layout, provisional
 representative choices and presentation order need not be. Privacy and
-disclosure rules apply to every event and snapshot exactly as they do to the
-final artifact.
+disclosure rules apply to every event and admitted snapshot exactly as they do
+to the final artifact.
 
 Every published event envelope names `run_id`, a monotonic committed sequence,
 previous and new journal heads, resulting evidence root, record kind and
@@ -1488,12 +1539,22 @@ not a resume artifact.
 
 An invocation time cap, an orderly interrupt or an explicit pause first stops
 new dispatch, then drains or revokes owned work and commits all accepted
-evidence plus the exact open frontier. The current executable slice renders and
-installs a checkpoint at that running cursor, appends
-`SnapshotPublished(checkpoint_cursor, blob_digest)`, and only then appends
-`Paused(reason, journal_head, evidence_root)`. The receipt therefore exposes
-three distinct points: the checkpoint cursor, its publication cursor and the
-final paused cursor. A hard kill may omit the publication or pause suffix, but
+evidence plus the exact open frontier. The append-only journal is already the
+authoritative resume checkpoint. The current executable slice then tries once
+to admit bounded snapshot work. When admitted, it renders and installs a
+snapshot at the running cursor, appends
+`SnapshotPublished(checkpoint_cursor, blob_digest)`, and finally appends
+`Paused(reason, journal_head, evidence_root)`; the receipt exposes checkpoint,
+publication and final paused cursors. If the admitted publisher instead reports
+capacity, it installs the bounded cursor/progress-only receipt, appends
+`SnapshotUnavailablePublished`, then pauses through the same two-record suffix.
+That publication says only that this attempt was unavailable; it is not a
+partial snapshot or a permanence claim. When the deadline has expired or
+resource admission is unavailable, it appends `Paused` directly and returns
+only the final paused cursor in `JournalOnlyCheckpoint`. It never consumes the
+reserved host headroom merely to manufacture the view.
+
+A hard kill may omit any uncommitted publication or pause suffix, but
 resumption starts from the last fully committed journal head and evidence root
 and treats uncommitted worker output as absent. Resume validates the journal and
 immutable run identities, appends `Resumed(previous_journal_head)`, and
@@ -1503,11 +1564,12 @@ expands a proof-closed region merely to reconstruct progress.
 A per-case evaluator step or collection limit is different from a time-slice
 boundary. If one whole `CaseId` deterministically reaches a limit fixed by the
 run's evaluator contract, reopening the unchanged run would only reach the
-same limit again. The snapshot therefore identifies that rank as still open
-and reports the evaluator-limit stop as blocked under the current contract; it
-MUST NOT promise that an unchanged resume will progress. Continuing requires a
-new compatible evaluator-budget refinement protocol, or a new run whose
-different evaluator identity is explicit.
+same limit again. The invocation stop therefore identifies that rank as still
+open and reports it as blocked under the current contract; an admitted snapshot
+reflects the same open evidence. Neither form MUST promise that an unchanged
+resume will progress. Continuing requires a new compatible evaluator-budget
+refinement protocol, or a new run whose different evaluator identity is
+explicit.
 
 Declared probes receive initial scheduling priority in this same stream. Their
 observations become ordinary singleton evidence after exact evaluation, while
@@ -1565,6 +1627,24 @@ work immediately when memory pressure rises or swap activity grows, and drains
 back toward one worker before considering another increase. A user-supplied
 worker count may lower or cap this policy but MUST NOT disable the memory
 reserve in an automatic run.
+
+Snapshot and case-DAG materialization are a separate admitted work subject,
+not free work performed after the semantic permit ends. The current
+single-worker publisher assigns that phase a fixed 256 MiB accounted
+working-set envelope and admits it only through the same fresh telemetry,
+normal-pressure and 80-percent CPU/RAM policy. It never spends the CPU reserve
+or the memory reserve, which is at least 20 percent of physical RAM and never
+less than 1 GiB. In the current conservative cold phase, the worker charge is
+`max(2 GiB, ceil(total_memory / 4))`, so it dominates the 256 MiB view
+envelope. Snapshot admission therefore receives one bounded opportunity at a
+pause boundary; deadline expiry or denied authority produces a journal-only
+checkpoint rather than borrowing the reserve. On resume, that pending view gets
+the next separately admitted opportunity before semantic dispatch. A future
+calibrated scan-mode or multi-worker publisher MUST introduce a distinct
+materialized-view charge before admitting this phase; it cannot reuse the
+current cold-charge dominance argument. An admitted attempt that reports
+capacity publishes the fixed-size `snapshot_unavailable` observer receipt; it
+does not become journal-only deferral and does not block later semantic work.
 
 Automatic worker admission uses reservations, not process counts alone. Let
 `W` be the calibrated per-worker memory charge, including a safety factor, and
@@ -1706,12 +1786,14 @@ are independently checked. Deployments that cannot trust the local owner
 boundary MUST discard or fully replay the journal before publication.
 
 Resource pressure is an orderly operational stop when the coordinator can
-checkpoint: the snapshot preserves every established layer status, commits the
-exact open frontier and records a resource-pressure pause reason. Answer
-closure is normally `partial`, but may already be `complete` while a separate
-mechanism frontier remains open. An external kill or machine failure emits no
-new snapshot; the next invocation validates and resumes the last durable
-journal head and evidence root.
+commit the journal: the pause preserves every established layer status and the
+exact open frontier. If the separately governed view phase is admitted, a
+snapshot also records the resource-pressure stop; otherwise the receipt returns
+`JournalOnlyCheckpoint` with resource-admission deferral. Answer closure is
+normally `partial`, but may already be `complete` while a separate mechanism
+frontier remains open. An external kill or machine failure emits no new
+snapshot; the next invocation validates and resumes the last durable journal
+head and evidence root.
 Neither event is evidence about the unexplored complement.
 
 ### Non-normative theoretical basis
@@ -2070,9 +2152,9 @@ owner-only permissions where supported.
 ### Probe milestone and snapshots
 
 Probe-plan progress, semantic-answer closure and stream lifecycle remain
-separate fields. Current checkpoint payloads describe their pre-publication
-`running` cursor; the surrounding invocation receipt carries the final
-`paused` cursor:
+separate fields. When snapshot materialization is admitted, its payload
+describes the pre-publication `running` cursor and the surrounding invocation
+receipt carries the final `paused` cursor:
 
 | Snapshot phase | Probe milestone | Answer snapshot | Meaning |
 |---|---|---|---|
@@ -2087,12 +2169,14 @@ artifact.
 
 The positive `at_most` count is part of `ProbePlan`; reaching it is a normal
 milestone, not an answer result. A time, work, storage or explicit
-`--pause-after probes` limit commits a normal exploration snapshot and exits
-with the partial-result code while required frontier remains. It never emits
-an answer-not-started phase: validated probe classifications already belong to
-the same case relation being explored, whose current snapshot is `partial`.
+`--pause-after probes` limit commits the journal frontier and exits with the
+partial-result code while required frontier remains. It attempts the optional
+snapshot phase only under a separate resource permit. It never emits an
+answer-not-started phase: validated probe classifications already belong to the
+same case relation being explored, whose current answer evidence is `partial`.
 
-Human output at an inspection pause includes the durable cursor:
+When view admission succeeds, human output at an inspection pause includes all
+three durable cursors:
 
 ```text
 Run: PAUSED
@@ -2110,34 +2194,103 @@ Canonical observable checkpoint:
 {...}
 ```
 
+If the invocation deadline has expired or the view phase is not admitted, the
+journal pause remains complete and human output instead says:
+
+```text
+Run: PAUSED
+Run state: /private/path/income-cliffs.run
+Stop: <typed stop>
+Final cursor: #<n> <paused-journal-head> (paused)
+Probe milestone: COMPLETE | INCOMPLETE
+
+Artifact: journal-only checkpoint
+Observable snapshot: deferred (<time-limit or resource-admission reason>)
+```
+
+There is then no snapshot blob, checkpoint cursor or publication cursor.
+
+If the view phase was admitted but the bounded publisher reported capacity,
+human output instead names an observable snapshot as `unavailable` and prints
+the canonical `futuruna.explore.snapshot-unavailable.v1` receipt. The receipt
+has its own blob, checkpoint cursor and `SnapshotUnavailablePublished` cursor;
+it contains no configuration, answer, or graph prefix.
+
 A machine observer currently receives a
-`futuruna.explore.invocation.v1` receipt. For a nonterminal stop it embeds the
-exact content-addressed `futuruna.explore.snapshot.v4` document plus three
-distinct cursors: the running cursor described by the checkpoint, the following
-`SnapshotPublished` cursor, and the final paused cursor. This two-record suffix
-avoids a circular hash while proving that the returned bytes were durably named
-before pause. Invocation-local stop details stay in the receipt; the embedded
-checkpoint keeps `invocation_stop` and `pause_reason` null. Pausing never
-constructs `ExplorationReport(Row)` and never executes `after`.
+`futuruna.explore.invocation.v1` receipt; the invocation schema remains v1 for
+all pause artifact forms. An admitted full view embeds the exact content-addressed
+`futuruna.explore.snapshot.v5` document plus three distinct cursors: the running
+cursor described by the checkpoint, the following `SnapshotPublished` cursor,
+and the final paused cursor. This two-record suffix avoids a circular hash while
+proving that the returned bytes were durably named before pause.
+
+A deferred view instead returns typed `JournalOnlyCheckpoint`; JSON uses
+`artifact.kind = "journal_checkpoint"`, `snapshot.status = "deferred"`, and a
+reason kind of `time_limit` or `resource_admission`. It has no `blob_digest`,
+`canonical_payload`, checkpoint cursor or publication cursor. The final paused
+cursor is sufficient for exact resume. Deferral is operational metadata only:
+it does not add evidence, change the evidence root or run identity, or mean that
+an authorized case graph exceeded a capacity limit. Invocation-local stop
+details stay in the receipt; an embedded snapshot keeps `invocation_stop` and
+`pause_reason` null. Pausing never constructs `ExplorationReport(Row)` and never
+executes `after`.
+
+An admitted capacity outcome is not deferred. Invocation-v1 uses artifact kind
+`snapshot_unavailable`, embeds the separately framed canonical receipt, and
+names its blob, checkpoint and publication cursors. Its reason kind is
+`capacity`; diagnostic detail remains in the invocation envelope rather than
+the canonical receipt. This publication leaves the evidence root unchanged and
+does not assert that a future attempt can never fit.
+
+The next invocation resumed from that journal-only suffix attempts the pending
+view before further search. It pauses again with stop kind `snapshot_catch_up`:
+with the materialized checkpoint, a bounded `snapshot_unavailable` receipt if
+the admitted publisher reports capacity, or honestly with another
+`journal_checkpoint` if its own deadline or current resource admission still
+cannot admit the view. This catch-up does not evaluate a CaseId.
 
 Once classification closes, ordinary slicing pauses at
 `classification_closed_finalization_pending`. Explicit `--finalize` admits one
 atomic-v1 replay/publication unit. It either publishes and seals
-`futuruna.explore.exact-answer.v3`, or publishes another checkpoint and pauses
-with typed `FinalizationLimit` details (`finalization_limit` in JSON) when the
-witness set, complete raw-group preflight, replay manifest, or single JSON blob
-does not fit. Repeating that unchanged v1 invocation reaches the same capability
-limit; it does not make chunked progress. A time limit is a work-boundary soft
-deadline inside the library API; the CLI supervisor may interrupt an atomic
-unit and replay safely from the last committed event. Resumable inner batches
-and chunked terminal blobs remain future protocol work.
+`futuruna.explore.exact-answer.v4`, or commits another pause with typed
+`FinalizationLimit` details (`finalization_limit` in JSON) when the witness set,
+complete raw-group preflight, replay manifest, requested case graph, or single
+JSON blob does not fit. That pause may carry an admitted snapshot or a
+journal-only checkpoint under the same view-admission rule. If the immutable
+request includes the case graph, the finalizer refuses to seal unless the graph
+is included and both its admissibility and polarity closures are closed.
+Repeating that unchanged v1 invocation reaches the same capability limit; it
+does not make chunked progress. A time limit is a work-boundary soft deadline
+inside the library API; the CLI supervisor may interrupt an atomic unit and
+replay safely from the last committed event. Resumable inner batches and
+chunked terminal blobs remain future protocol work.
 
-Atomic-v1 currently requires the full raw-group snapshot to fit the v4 bounded
+Atomic-v1 currently requires the full raw-group snapshot to fit the v5 bounded
 group/value envelope (256 groups, 16,384 recursive value nodes and 4 MiB of
 semantic value payload), permits at most 65,536 selected replay witnesses, caps
 retained replay bodies at 32 MiB, caps rendered row JSON at 48 MiB, and caps the
 complete terminal JSON blob at 64 MiB. These limits constrain this finalizer
 implementation, not the exact case cardinality proved by the run.
+Projection labels are independently bounded to 65,536 labels per projection
+kind and 1 MiB per label, with a cumulative 4 MiB UTF-8 byte cap across key,
+extrema and shown labels. The cumulative cap is part of the snapshot and
+terminal schema identity. Before a run is created, all checked presentation
+strings copied into either document—query and axis names, named domain sources,
+fact and boundary names, plus projection/having labels—must also fit an exact
+8 MiB cumulative canonical-JSON string budget and 262,144 total occurrences.
+The occurrence cap bounds retained per-entry metadata even for many tiny or
+repeated names. Repeated serialized occurrences are charged repeatedly; both
+caps are bound into the snapshot and terminal schema identities.
+
+Case-graph materialization has its own fixed all-or-nothing envelope: at most
+256 axes, 65,536 uniform rank runs, 131,072 DAG nodes, 262,144 arcs, 262,144
+ordinal intervals and 64 MiB of conservative lowerer-accounted work, followed
+by an 8 MiB limit for the canonical nested `futuruna.explore.case-graph.v1`
+JSON object. An admitted pause snapshot reports the first exceeded graph
+resource with its fixed `maximum` and an honest `required_at_least`; these are
+publication limits, not case-space bounds or fabricated totals. A
+graph-requested terminal reaches `FinalizationLimit` instead of sealing when
+any one is exceeded.
 
 ## Enumeration, Graph Construction and Replay
 
@@ -2220,8 +2373,10 @@ sealed state, Futuruna finalizes the canonical report, constructs
 `complete` requires every requested answer/case/value layer to be closed.
 Terminal partial and unknown reports contain only selection-closed confirmed
 rows, and mechanism evidence may independently be closed, open or unavailable.
-A routine time slice, resource pause or orderly interrupt emits a snapshot,
-not `ExplorationPartial`, and does not invoke `after`.
+A routine time slice, resource pause or orderly interrupt commits a resumable
+journal checkpoint, not `ExplorationPartial`, and does not invoke `after`. It
+emits snapshot v5 only when the separate materialized-view phase is admitted;
+otherwise the invocation reports a journal-only checkpoint.
 
 ## Completion Status
 
@@ -2330,7 +2485,8 @@ An unsupported mechanism-only trace or endpoint pairing instead makes
 Exploration uses a dedicated analysis command. The current human-only
 compatibility path accepts `--case-limit`. The current macOS-supervised durable
 path accepts `--run-state`, `--time-limit`/`--max-minutes`,
-`--pause-after probes`, explicit `--finalize`, and `--json`:
+`--pause-after probes`, explicit `--case-graph full`, explicit `--finalize`, and
+`--json`:
 
 ```bash
 runa explore model.runa
@@ -2338,6 +2494,7 @@ runa explore model.runa --query income_cliffs
 runa explore model.runa --query income_cliffs --case-limit 100000
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --pause-after probes --json
+runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --case-graph full --json
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --finalize --json
 ```
 
@@ -2368,26 +2525,42 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
 - Repeating the same command with the same `--run-state` validates the journal
   and resumes its exact open frontier. A changed immutable identity is an error,
   not an implicit new run or probe refresh.
+- `--case-graph full` is available only with `--run-state` and explicitly
+  authorizes disclosure and retention of the complete current case
+  classification graph. Full versus omitted is bound through the report
+  request, retention authorization and schema contracts at run creation; it
+  cannot be toggled on resume. Without the option, graph status is
+  `not_requested` and no case DAG is published.
 - `--time-limit DURATION` (with current whole-minute alias `--max-minutes`)
   caps one active invocation slice. The library orderly-pauses at a work
   boundary when it reaches the deadline; the outer supervisor may contain a
   child that does not exit within its grace interval, preserving the last
   committed cursor. A time limit does not alter query identity or seal a
-  partial answer. In atomic-v1 finalization it remains a work-boundary soft
-  deadline whose uncommitted suffix may be retried safely.
+  partial answer. If it leaves no time to admit the optional snapshot phase,
+  the invocation returns a journal-only checkpoint. In atomic-v1 finalization
+  it remains a work-boundary soft deadline whose uncommitted suffix may be
+  retried safely.
 - `--pause-after probes` asks for the inspection point explicitly. Without it,
   reaching the probe milestone falls through into ordinary exact refinement in
   the same run.
 - `--finalize` opts into bounded atomic-v1 finalization once classification
   closes. It requires `--run-state` plus `--time-limit`/`--max-minutes` and
   cannot be combined with `--pause-after probes`. It either seals the bounded
-  answer or returns typed `finalization_limit` details with another checkpoint.
+  answer or returns typed `finalization_limit` details with another journal
+  checkpoint and, when separately admitted, snapshot v5.
+  When `--case-graph full` belongs to the run identity, the requested graph
+  must be included and closed; capacity-limited graph materialization refuses
+  the seal rather than silently dropping the view.
   Repeating the unchanged v1 invocation reaches the same capability limit;
   productive chunked continuation remains future protocol work.
 - On a durable invocation, current `--json` emits one
-  `futuruna.explore.invocation.v1` receipt with its canonical checkpoint or
-  terminal answer raw-embedded; it is not JSONL. Compatibility and plan JSON
-  remain unavailable.
+  `futuruna.explore.invocation.v1` receipt. It raw-embeds an admitted canonical
+  snapshot, bounded snapshot-unavailable receipt, or terminal answer; a
+  journal-only pause instead has artifact kind `journal_checkpoint`,
+  `snapshot.status = "deferred"`, and no canonical payload or blob. The
+  admitted capacity receipt has distinct kind `snapshot_unavailable`, status
+  `unavailable`, reason kind `capacity`, and its own content-addressed payload.
+  It is not JSONL. Compatibility and plan JSON remain unavailable.
 - Future `--follow`/`--jsonl` surfaces will expose committed deltas without
   changing ordinary `--json` from one invocation receipt into a stream.
 - Future `--jobs auto` and `--jobs N` use the resource envelope as a ceiling,
@@ -2426,14 +2599,16 @@ counterexample as an operational error. Automation that branches on result
 cardinality MUST read the versioned report. Exit `2` is an honest committed
 checkpoint, not evidence that the remaining frontier is empty or that an
 unchanged retry can progress. Automation MUST read the typed `stop` plus the
-checkpoint, publication and final cursors before deciding whether and how to
-resume.
+artifact kind and final cursor before deciding whether and how to resume. A
+materialized checkpoint additionally supplies its checkpoint and publication
+cursors; a journal-only checkpoint deliberately does not.
 
 When a sealed typed report exists, nonzero terminal statuses still emit or
-preserve that canonical report. A nonterminal exit `2` emits only a snapshot.
-Parse, type and query-validation failures happen before either exists. Exit `5`
-takes precedence as the command outcome when a continuation fails, while the
-artifact retains its original exploration status and counts.
+preserve that canonical report. A nonterminal exit `2` emits either an admitted
+snapshot or a journal-only checkpoint. Parse, type and query-validation
+failures happen before either exists. Exit `5` takes precedence as the command
+outcome when a continuation fails, while the artifact retains its original
+exploration status and counts.
 
 The specified continuation is analysis-only:
 
@@ -2466,14 +2641,61 @@ to stderr, so post-processing cannot corrupt the JSON transport.
 
 On the current durable path, `--json` emits one versioned
 `futuruna.explore.invocation.v1` document. Its `stop`, `final_cursor`, and
-per-slice counters are operational receipt data. Its `artifact` contains a
-raw-embedded canonical payload plus the exact blob digest and byte framing
-needed to recover the content-addressed bytes. A paused receipt embeds
-`futuruna.explore.snapshot.v4` and names its checkpoint and publication
-cursors; a sealed receipt embeds the current experimental
-`futuruna.explore.exact-answer.v3` semantic answer. Compatibility and plan JSON
-are not implemented. JSONL following and the expanded public
+per-slice counters are operational receipt data. Its `artifact` has four
+current forms. An admitted pause uses kind `checkpoint`, raw-embeds
+`futuruna.explore.snapshot.v5`, and supplies the blob digest, byte framing,
+checkpoint cursor and publication cursor. A denied or deadline-exhausted view
+uses kind `journal_checkpoint`, contains `snapshot.status = "deferred"` and its
+operational reason, and has no canonical payload or blob. An admitted publisher
+that reports capacity uses kind `snapshot_unavailable`, raw-embeds the bounded
+`futuruna.explore.snapshot-unavailable.v1` receipt, and supplies the same three
+cursors as a full snapshot publication. A sealed receipt uses kind
+`terminal_result` and raw-embeds the current experimental
+`futuruna.explore.exact-answer.v4` semantic answer. The invocation schema stays
+`futuruna.explore.invocation.v1` for all four forms. Compatibility and plan
+JSON are not implemented. JSONL following and the expanded public
 `futuruna.explore.v1` terminal report below remain specified future surfaces.
+
+A journal-only artifact has this shape inside the invocation receipt:
+
+```json
+{
+  "kind": "journal_checkpoint",
+  "snapshot": {
+    "status": "deferred",
+    "reason": {"kind": "time_limit"}
+  }
+}
+```
+
+`reason.kind` may instead be `resource_admission` with a typed detail. This
+deferral says only that the materialized view was not admitted. It is not an
+open-evidence claim, a case-graph `capacity_limited` result, or an identity
+change; the receipt's final paused cursor names the authoritative resume state.
+
+An admitted capacity receipt has this artifact shape:
+
+```json
+{
+  "kind": "snapshot_unavailable",
+  "snapshot": {
+    "status": "unavailable",
+    "reason": {"kind": "capacity", "detail": "<invocation diagnostic>"}
+  },
+  "blob_digest": "<sha256>",
+  "canonical_byte_framing": "json_line_lf",
+  "checkpoint_cursor": {"sequence": 40},
+  "publication_cursor": {"sequence": 41},
+  "canonical_payload": {
+    "schema": "futuruna.explore.snapshot-unavailable.v1",
+    "snapshot": {"status": "unavailable", "reason": {"kind": "capacity"}}
+  }
+}
+```
+
+The canonical payload omits the diagnostic, configuration, answer and graphs;
+it is a replay-verified operational receipt for that cursor, not a partial
+snapshot or a claim about later attempts.
 
 Every snapshot or terminal exploration document contains the identities and
 closure/count evidence available to that artifact. Hypotheses never appear
@@ -2481,22 +2703,27 @@ under confirmed results and never contribute to an evidence-backed lower bound
 before validation. Optional case-level sections appear only when authorized.
 Only a terminal seal can make a completed terminal claim.
 
-The executable v4 pause snapshot is deliberately a bounded observation, not a
+The executable v5 pause snapshot is deliberately a bounded observation, not a
 full terminal artifact. Configuration values share one identity-bound node and
 semantic-byte budget. Results use a canonical raw-key prefix with independent
 group, recursive-value, semantic-byte and rendered-JSON caps. The document
 reports observed versus scanned raw groups, truncation and exact versus
 lower-bound count status, so preview limits never masquerade as semantic case
-limits. Until dynamic mechanism replay is implemented,
+limits. Its `graph.case_graph` envelope is `not_requested`, `included`, or
+`capacity_limited`. An included graph is a complete total current-evidence DAG;
+capacity evidence names the fixed resource, `maximum`, and
+`required_at_least`, with both the graph object and graph hash absent. Until
+dynamic mechanism replay is implemented,
 `mechanism_evidence.status` is `unavailable_deferred` rather than an inferred
 count.
 
-The embedded checkpoint is the exact pre-publication JSON-line blob, including
-one trailing LF in storage. The invocation envelope raw-embeds its JSON object
-and declares `canonical_byte_framing: "json_line_lf"`; consumers append that
-single LF when reproducing `blob_digest`. Terminal answer framing is
-`json_document`. Decimal counts are encoded losslessly and are never routed
-through a floating-point JSON value representation.
+An embedded materialized checkpoint is the exact pre-publication JSON-line
+blob, including one trailing LF in storage. The invocation envelope raw-embeds
+its JSON object and declares `canonical_byte_framing: "json_line_lf"`;
+consumers append that single LF when reproducing `blob_digest`. A journal-only
+checkpoint has neither field. Terminal answer framing is `json_document`.
+Decimal counts are encoded losslessly and are never routed through a
+floating-point JSON value representation.
 
 The following is an expanded, explicitly authorized example:
 

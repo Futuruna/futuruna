@@ -18,6 +18,12 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
+use super::case_graph::{
+    CaseDecisionDag, CaseOpenReason, CaseTerminal, CheckedCardinality, DecisionRef, DecisionRoot,
+    DEFAULT_MAX_CASE_RANK_RUNS, DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
+    DEFAULT_MAX_CASE_RANK_RUN_ARCS, DEFAULT_MAX_CASE_RANK_RUN_AXES,
+    DEFAULT_MAX_CASE_RANK_RUN_NODES, DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS,
+};
 use super::classification_regions::SOURCE_PROOF_CLASSIFICATION_OPTIONS_V1;
 use super::exact_stream::{
     ExactCanonicalCaseIdV1, ExactCountBoundV1, ExactEvidenceSnapshotV1, ExactExtremaAggregateV1,
@@ -46,27 +52,227 @@ use super::{
 use crate::ExplorePolarity;
 
 /// Content-addressed kind for cursor-bearing observable snapshots.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v4";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v5";
 
 /// Schema name written into every cursor-bearing observable snapshot.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v4";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v5";
+
+/// Content-addressed kind for a bounded observer receipt reporting that one
+/// admitted full-snapshot attempt was unavailable because of capacity.
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1: &str =
+    "exact-observable-snapshot-unavailable-v1";
+
+/// Schema name for the bounded, cursor-bearing unavailable receipt above.
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_SCHEMA_V1: &str =
+    "futuruna.explore.snapshot-unavailable.v1";
 
 /// Content-addressed kind for history-independent semantic answers.
-pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v3";
+pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v4";
 
 /// Internal schema for the evidence-derived answer committed by a terminal
 /// payload hash. A public terminal report may wrap this object with additional
 /// checked-query presentation metadata.
-pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v3";
+pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v4";
 
-const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 4;
-const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 3;
-const MAX_CANONICAL_JSON_BYTES: usize = 64 * 1024 * 1024;
+const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 5;
+const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 4;
+pub(crate) const MAX_CANONICAL_JSON_BYTES: usize = 64 * 1024 * 1024;
 /// Cumulative terminal row budget. The remaining 16 MiB is reserved for answer
 /// metadata, projection labels, JSON escaping, and the enclosing writer.
-const MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1: usize = 48 * 1024 * 1024;
-const MAX_PROJECTION_LABELS: usize = 65_536;
-const MAX_PROJECTION_LABEL_BYTES: usize = 1024 * 1024;
+pub(crate) const MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1: usize = 48 * 1024 * 1024;
+pub(crate) const MAX_PROJECTION_LABELS: usize = 65_536;
+pub(crate) const MAX_PROJECTION_LABEL_BYTES: usize = 1024 * 1024;
+pub(crate) const MAX_PROJECTION_LABEL_TOTAL_BYTES_V1: usize = 4 * 1024 * 1024;
+/// Exact canonical-JSON byte budget for every checked presentation string that
+/// snapshot/terminal metadata clones outside the separately bounded value
+/// bodies. Repeated occurrences (for example a boundary axis or `having`
+/// extrema label) are charged repeatedly because they are serialized twice.
+pub(crate) const MAX_PRESENTATION_STRING_JSON_BYTES_V1: usize = 8 * 1024 * 1024;
+/// Total occurrences, not unique values. Every axis, fact, named source and
+/// projection entry therefore charges retained structural overhead even when
+/// its string is empty or repeated. At a conservative 256-byte metadata charge
+/// this caps entry structure at 64 MiB inside the 256 MiB view envelope.
+pub(crate) const MAX_PRESENTATION_STRING_OCCURRENCES_V1: usize = 262_144;
+
+/// Conservative peak envelope for one admitted snapshot materialization.
+///
+/// This covers the 64 MiB case-DAG lowerer, 64 MiB outer canonical writer,
+/// nested graph/result/configuration JSON limits, validation scratch and
+/// reallocation overlap. The current one-worker stream remains in the cold
+/// resource phase whose >=2 GiB charge dominates this value. A future
+/// calibrated/multiworker publisher must introduce a distinct snapshot charge
+/// before it may admit this work in scan mode.
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_ACCOUNTED_WORKING_SET_V1: u64 = 256 * 1024 * 1024;
+
+/// The unavailable observer receipt is deliberately tiny and independent of
+/// query-controlled strings. It can therefore close an observation debt even
+/// when an admitted full-snapshot attempt cannot complete.
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1: usize = 4 * 1024;
+
+/// Atomic publication cap for the canonical nested case-graph object.
+///
+/// The object is rendered and hashed independently before it is embedded in a
+/// snapshot. Crossing this bound never emits a graph prefix.
+pub(crate) const EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1: usize = 8 * 1024 * 1024;
+
+struct ExactPresentationStringBudgetV1 {
+    encoded_bytes: usize,
+    occurrences: usize,
+}
+
+impl ExactPresentationStringBudgetV1 {
+    fn new() -> Self {
+        Self {
+            encoded_bytes: 0,
+            occurrences: 0,
+        }
+    }
+
+    fn charge(&mut self, kind: &str, value: &str) -> Result<(), ExactSnapshotRenderError> {
+        self.occurrences = self.occurrences.checked_add(1).ok_or_else(|| {
+            ExactSnapshotRenderError::limit("presentation-string occurrence count overflow")
+        })?;
+        if self.occurrences > MAX_PRESENTATION_STRING_OCCURRENCES_V1 {
+            return Err(ExactSnapshotRenderError::limit(format!(
+                "checked presentation strings exceed the cumulative {MAX_PRESENTATION_STRING_OCCURRENCES_V1}-occurrence metadata limit"
+            )));
+        }
+        if value.len() > MAX_PROJECTION_LABEL_BYTES {
+            return Err(ExactSnapshotRenderError::limit(format!(
+                "{kind} exceeds the {MAX_PROJECTION_LABEL_BYTES}-byte presentation-string limit"
+            )));
+        }
+        let encoded = canonical_json_string_encoded_len(value).ok_or_else(|| {
+            ExactSnapshotRenderError::limit("presentation-string JSON byte accounting overflow")
+        })?;
+        self.encoded_bytes = self.encoded_bytes.checked_add(encoded).ok_or_else(|| {
+            ExactSnapshotRenderError::limit("presentation-string JSON byte accounting overflow")
+        })?;
+        if self.encoded_bytes > MAX_PRESENTATION_STRING_JSON_BYTES_V1 {
+            return Err(ExactSnapshotRenderError::limit(format!(
+                "checked presentation strings exceed the cumulative {MAX_PRESENTATION_STRING_JSON_BYTES_V1}-byte canonical-JSON limit"
+            )));
+        }
+        Ok(())
+    }
+}
+
+fn canonical_json_string_encoded_len(value: &str) -> Option<usize> {
+    value.bytes().try_fold(2_usize, |total, byte| {
+        let width = match byte {
+            b'"' | b'\\' | b'\x08' | b'\x0c' | b'\n' | b'\r' | b'\t' => 2,
+            0x00..=0x1f => 6,
+            _ => 1,
+        };
+        total.checked_add(width)
+    })
+}
+
+/// Preflight every checked name copied into snapshot/terminal metadata before
+/// run creation. This is identity-bound and allocation-free over borrowed IR,
+/// so a valid but pathologically named query cannot escape the admitted view
+/// working-set envelope before the bounded writer sees it.
+pub(crate) fn validate_exact_snapshot_presentation_v1(
+    query: &ExploreQueryIr,
+) -> Result<(), ExactSnapshotRenderError> {
+    let mut budget = ExactPresentationStringBudgetV1::new();
+    if let Some(name) = query.query.name.as_deref() {
+        budget.charge("Explore query name", name)?;
+    }
+    for field in &query.query.output.key {
+        budget.charge("key projection label", &field.name)?;
+    }
+    for field in &query.query.output.extrema {
+        budget.charge("extrema projection label", &field.name)?;
+    }
+    for field in &query.query.output.show {
+        budget.charge("shown projection label", &field.name)?;
+    }
+    if let Some(crate::TypedExploreHaving::Varies { extrema_name, .. }) = &query.query.output.having
+    {
+        budget.charge("having extrema label", extrema_name)?;
+    }
+    for axis in &query.universe.dimensions {
+        budget.charge("axis name", &axis.name)?;
+        match &axis.domain {
+            ExploreExactDomain::Enumerated {
+                source: ExploreEnumeratedSource::NamedList { name },
+                ..
+            } => budget.charge("named-list source", name)?,
+            ExploreExactDomain::Enumerated {
+                source: ExploreEnumeratedSource::NamedSet { name },
+                ..
+            } => budget.charge("named-set source", name)?,
+            ExploreExactDomain::Enumerated {
+                source: ExploreEnumeratedSource::ExplicitList,
+                ..
+            }
+            | ExploreExactDomain::IntRange { .. }
+            | ExploreExactDomain::FiniteType { .. } => {}
+        }
+    }
+    for fact in &query.universe.facts {
+        budget.charge("fact name", &fact.name)?;
+    }
+    if let Some(boundary) = &query.universe.boundary {
+        budget.charge("boundary axis", &boundary.axis)?;
+    }
+    Ok(())
+}
+
+/// One fixed resource that can prevent all-or-nothing case-DAG publication.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ExactCaseGraphPublicationResourceV1 {
+    LoweringAxes,
+    LoweringRankRuns,
+    LoweringNodes,
+    LoweringArcs,
+    LoweringOrdinalIntervals,
+    LoweringAccountedBytes,
+    CanonicalJsonBytes,
+}
+
+impl ExactCaseGraphPublicationResourceV1 {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::LoweringAxes => "lowering_axes",
+            Self::LoweringRankRuns => "lowering_rank_runs",
+            Self::LoweringNodes => "lowering_nodes",
+            Self::LoweringArcs => "lowering_arcs",
+            Self::LoweringOrdinalIntervals => "lowering_ordinal_intervals",
+            Self::LoweringAccountedBytes => "lowering_accounted_bytes",
+            Self::CanonicalJsonBytes => "canonical_json_bytes",
+        }
+    }
+
+    pub(crate) const fn fixed_maximum(self) -> usize {
+        match self {
+            Self::LoweringAxes => DEFAULT_MAX_CASE_RANK_RUN_AXES,
+            Self::LoweringRankRuns => DEFAULT_MAX_CASE_RANK_RUNS,
+            Self::LoweringNodes => DEFAULT_MAX_CASE_RANK_RUN_NODES,
+            Self::LoweringArcs => DEFAULT_MAX_CASE_RANK_RUN_ARCS,
+            Self::LoweringOrdinalIntervals => DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS,
+            Self::LoweringAccountedBytes => DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
+            Self::CanonicalJsonBytes => EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+        }
+    }
+}
+
+/// Fully prepared disclosure state for the case graph requested by one run.
+///
+/// `CapacityLimited` is evidence that a complete graph could not be
+/// materialized under one fixed schema limit. `required_at_least` is a lower
+/// bound, not an invented total. No variant can represent a graph prefix.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ExactPreparedCaseGraphPublicationV1 {
+    NotRequested,
+    Included(CaseDecisionDag),
+    CapacityLimited {
+        resource: ExactCaseGraphPublicationResourceV1,
+        maximum: usize,
+        required_at_least: usize,
+    },
+}
 
 /// Owned names from the type-checked Explore output projection.
 ///
@@ -84,6 +290,68 @@ impl ExactProjectionLabelsV1 {
     pub(crate) fn from_checked_query(
         query: &ExploreQueryIr,
     ) -> Result<Self, ExactSnapshotRenderError> {
+        for (kind, count) in [
+            ("key", query.query.output.key.len()),
+            ("extrema", query.query.output.extrema.len()),
+            ("shown", query.query.output.show.len()),
+        ] {
+            if count > MAX_PROJECTION_LABELS {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "{kind} projection has {count} labels; limit is {MAX_PROJECTION_LABELS}"
+                )));
+            }
+        }
+        let mut total_bytes = 0_usize;
+        let mut unique = BTreeSet::new();
+        let borrowed_labels = query
+            .query
+            .output
+            .key
+            .iter()
+            .map(|field| ("key", field.name.as_str()))
+            .chain(
+                query
+                    .query
+                    .output
+                    .extrema
+                    .iter()
+                    .map(|field| ("extrema", field.name.as_str())),
+            )
+            .chain(
+                query
+                    .query
+                    .output
+                    .show
+                    .iter()
+                    .map(|field| ("shown", field.name.as_str())),
+            );
+        for (kind, label) in borrowed_labels {
+            if label.is_empty() {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "{kind} projection label must not be empty"
+                )));
+            }
+            if label.len() > MAX_PROJECTION_LABEL_BYTES {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "{kind} projection label `{label}` exceeds {MAX_PROJECTION_LABEL_BYTES} UTF-8 bytes"
+                )));
+            }
+            total_bytes = total_bytes.checked_add(label.len()).ok_or_else(|| {
+                ExactSnapshotRenderError::limit(
+                    "projection label byte accounting exceeds usize::MAX",
+                )
+            })?;
+            if total_bytes > MAX_PROJECTION_LABEL_TOTAL_BYTES_V1 {
+                return Err(ExactSnapshotRenderError::limit(format!(
+                    "projection labels exceed the cumulative {MAX_PROJECTION_LABEL_TOTAL_BYTES_V1}-byte snapshot limit"
+                )));
+            }
+            if !unique.insert(label) {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "projection label `{label}` occurs more than once"
+                )));
+            }
+        }
         let labels = Self {
             key: query
                 .query
@@ -329,6 +597,7 @@ impl ExactObservableConfigurationV1 {
         stream: &ExploreRunStream,
         query: &ExploreQueryIr,
     ) -> Result<Self, ExactSnapshotRenderError> {
+        validate_exact_snapshot_presentation_v1(query)?;
         let expected_cardinalities = stream.header().case_universe().axis_cardinalities();
         if query.universe.dimensions.len() != expected_cardinalities.len() {
             return Err(ExactSnapshotRenderError::invalid(
@@ -862,6 +1131,7 @@ impl ExactSemanticAnswerMetadataV1 {
         stream: &ExploreRunStream,
         query: &ExploreQueryIr,
     ) -> Result<Self, ExactSnapshotRenderError> {
+        validate_exact_snapshot_presentation_v1(query)?;
         let projection_labels = ExactProjectionLabelsV1::from_checked_query(query)?;
         let group_filter = ExactGroupFilterV1::from_checked_query(query, &projection_labels)?;
         if query
@@ -984,10 +1254,16 @@ impl Error for ExactSnapshotRenderError {}
 pub(crate) fn render_exact_observable_snapshot_json_line_v1(
     metadata: &ExactObservableSnapshotMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
+    case_graph_publication: &ExactPreparedCaseGraphPublicationV1,
 ) -> Result<Vec<u8>, ExactSnapshotRenderError> {
     let prepared_results = validate_snapshot(
         snapshot,
         &metadata.semantic_answer,
+        ExactResultRenderModeV1::ObservablePreview,
+    )?;
+    let prepared_case_graph = prepare_case_graph_publication(
+        case_graph_publication,
+        snapshot,
         ExactResultRenderModeV1::ObservablePreview,
     )?;
     let mut writer = CanonicalJsonWriter::new();
@@ -1043,8 +1319,71 @@ pub(crate) fn render_exact_observable_snapshot_json_line_v1(
         &metadata.semantic_answer,
         snapshot,
         &prepared_results,
+        &prepared_case_graph,
     )?;
     writer.raw(b"}\n")?;
+    Ok(writer.finish())
+}
+
+/// Render the durable bounded alternative to a full observable snapshot.
+///
+/// This is not a partial semantic snapshot: it discloses no configuration,
+/// result rows, or graph prefix. It merely authenticates that the view at this
+/// exact cursor was unavailable during its admitted publication attempt, so
+/// replay can distinguish a serviced observer boundary from a transiently
+/// deferred one. It does not claim that a later attempt can never fit.
+pub(crate) fn render_exact_observable_snapshot_unavailable_json_line_v1(
+    stream: &ExploreRunStream,
+    probe_milestone_complete: bool,
+    closed_case_count: u128,
+) -> Result<Vec<u8>, ExactSnapshotRenderError> {
+    let cursor = stream.cursor();
+    if cursor.lifecycle() != RunLifecycle::Running {
+        return Err(ExactSnapshotRenderError::invalid(
+            "snapshot-unavailable receipt requires a running pre-publication cursor",
+        ));
+    }
+    let mut writer = CanonicalJsonWriter::with_max_bytes(
+        EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1,
+    );
+    writer.raw(b"{")?;
+    writer.member_string("schema", EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_SCHEMA_V1)?;
+    writer.raw(b",")?;
+    writer.member_u64("schema_version", 1)?;
+    writer.raw(b",")?;
+    writer.member_string(
+        "schema_digest",
+        &stream
+            .header()
+            .identity()
+            .schemas()
+            .snapshot()
+            .to_lowercase_hex(),
+    )?;
+    writer.raw(b",\"run\":{")?;
+    writer.member_string("run_id", &cursor.run_id().to_lowercase_hex())?;
+    writer.raw(b",")?;
+    writer.member_decimal("sequence", cursor.sequence())?;
+    writer.raw(b",")?;
+    writer.member_string("journal_head", &cursor.journal_head().to_lowercase_hex())?;
+    writer.raw(b",")?;
+    writer.member_string("evidence_root", &cursor.evidence_root().to_lowercase_hex())?;
+    writer.raw(b",")?;
+    writer.member_string("lifecycle", lifecycle_name(cursor.lifecycle()))?;
+    writer.raw(b",")?;
+    writer.member_optional_decimal(
+        "last_coverage_epoch",
+        cursor.last_coverage_epoch().map(|epoch| epoch.get()),
+    )?;
+    writer.raw(b"},\"snapshot\":{")?;
+    writer.member_string("status", "unavailable")?;
+    writer.raw(b",\"reason\":{")?;
+    writer.member_string("kind", "capacity")?;
+    writer.raw(b"}},\"progress\":{")?;
+    writer.member_bool("probe_milestone_complete", probe_milestone_complete)?;
+    writer.raw(b",")?;
+    writer.member_decimal("closed_case_count", closed_case_count)?;
+    writer.raw(b"}}\n")?;
     Ok(writer.finish())
 }
 
@@ -1060,11 +1399,23 @@ pub(crate) fn render_exact_observable_snapshot_json_line_v1(
 pub(crate) fn render_exact_semantic_answer_json_v1(
     metadata: &ExactSemanticAnswerMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
+    case_graph_publication: &ExactPreparedCaseGraphPublicationV1,
 ) -> Result<Vec<u8>, ExactSnapshotRenderError> {
     let prepared_results =
         validate_snapshot(snapshot, metadata, ExactResultRenderModeV1::FullPublication)?;
+    let prepared_case_graph = prepare_case_graph_publication(
+        case_graph_publication,
+        snapshot,
+        ExactResultRenderModeV1::FullPublication,
+    )?;
     let mut writer = CanonicalJsonWriter::new();
-    write_semantic_answer_object(&mut writer, metadata, snapshot, &prepared_results)?;
+    write_semantic_answer_object(
+        &mut writer,
+        metadata,
+        snapshot,
+        &prepared_results,
+        &prepared_case_graph,
+    )?;
     Ok(writer.finish())
 }
 
@@ -1594,6 +1945,316 @@ struct ExactPreparedResultsV1 {
     rendered_json_bytes: usize,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExactCaseGraphTerminalMultiplicityV1 {
+    terminal_id: usize,
+    terminal: CaseTerminal,
+    case_count: u128,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExactCaseGraphSummaryV1 {
+    terminal_multiplicities: Vec<ExactCaseGraphTerminalMultiplicityV1>,
+    excluded: u128,
+    eligibility_open: u128,
+    admissible_nonmatch: u128,
+    admissible_match: u128,
+    admissible_open: u128,
+}
+
+impl ExactCaseGraphSummaryV1 {
+    fn admissibility_closed(&self) -> bool {
+        self.eligibility_open == 0
+    }
+
+    fn polarity_closed(&self) -> bool {
+        self.admissibility_closed() && self.admissible_open == 0
+    }
+
+    fn fully_closed_case_count(&self) -> Result<u128, ExactSnapshotRenderError> {
+        checked_case_graph_sum(
+            checked_case_graph_sum(self.excluded, self.admissible_nonmatch, "fully closed case")?,
+            self.admissible_match,
+            "fully closed case",
+        )
+    }
+
+    fn open_case_count(&self) -> Result<u128, ExactSnapshotRenderError> {
+        checked_case_graph_sum(self.eligibility_open, self.admissible_open, "open case")
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum ExactRenderedCaseGraphPublicationV1 {
+    NotRequested,
+    Included {
+        canonical_graph_object: Vec<u8>,
+        artifact_graph_hash: String,
+        summary: ExactCaseGraphSummaryV1,
+    },
+    CapacityLimited {
+        resource: ExactCaseGraphPublicationResourceV1,
+        maximum: usize,
+        required_at_least: usize,
+    },
+}
+
+impl ExactRenderedCaseGraphPublicationV1 {
+    fn requested(&self) -> bool {
+        !matches!(self, Self::NotRequested)
+    }
+
+    fn complete_for_answer(&self) -> bool {
+        match self {
+            Self::NotRequested => true,
+            Self::Included { summary, .. } => {
+                summary.admissibility_closed() && summary.polarity_closed()
+            }
+            Self::CapacityLimited { .. } => false,
+        }
+    }
+}
+
+fn prepare_case_graph_publication(
+    publication: &ExactPreparedCaseGraphPublicationV1,
+    snapshot: &ExactEvidenceSnapshotV1,
+    mode: ExactResultRenderModeV1,
+) -> Result<ExactRenderedCaseGraphPublicationV1, ExactSnapshotRenderError> {
+    match publication {
+        ExactPreparedCaseGraphPublicationV1::NotRequested => {
+            Ok(ExactRenderedCaseGraphPublicationV1::NotRequested)
+        }
+        ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+            resource,
+            maximum,
+            required_at_least,
+        } => {
+            validate_case_graph_capacity_limit(*resource, *maximum, *required_at_least)?;
+            if mode == ExactResultRenderModeV1::FullPublication {
+                return Err(ExactSnapshotRenderError::limit(format!(
+                    "requested terminal case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
+                    resource.name()
+                )));
+            }
+            Ok(ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+                resource: *resource,
+                maximum: *maximum,
+                required_at_least: *required_at_least,
+            })
+        }
+        ExactPreparedCaseGraphPublicationV1::Included(graph) => {
+            let summary = validate_case_graph_against_snapshot(graph, snapshot)?;
+            if mode == ExactResultRenderModeV1::FullPublication
+                && (!summary.admissibility_closed()
+                    || !summary.polarity_closed()
+                    || snapshot.open_case_count != 0)
+            {
+                return Err(ExactSnapshotRenderError::invalid(
+                    "requested terminal case-graph publication must be included with closed admissibility and polarity",
+                ));
+            }
+
+            let canonical_graph_object = match render_canonical_case_graph_object(graph) {
+                Ok(bytes) => bytes,
+                Err(error)
+                    if error.is_capacity_limit()
+                        && mode == ExactResultRenderModeV1::ObservablePreview =>
+                {
+                    return Ok(ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+                        resource: ExactCaseGraphPublicationResourceV1::CanonicalJsonBytes,
+                        maximum: EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+                        required_at_least: EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1 + 1,
+                    });
+                }
+                Err(error) => return Err(error),
+            };
+            let artifact_graph_hash = exact_stream_blob_sha256(&canonical_graph_object);
+            Ok(ExactRenderedCaseGraphPublicationV1::Included {
+                canonical_graph_object,
+                artifact_graph_hash,
+                summary,
+            })
+        }
+    }
+}
+
+/// Resolve the all-or-status case-graph view before an atomic terminal replay
+/// begins. This uses the observable rules so a graph that crosses only the
+/// nested canonical-JSON cap is reported as typed capacity evidence rather
+/// than surfacing later as a generic terminal writer failure.
+pub(crate) fn exact_case_graph_capacity_status_v1(
+    publication: &ExactPreparedCaseGraphPublicationV1,
+    snapshot: &ExactEvidenceSnapshotV1,
+) -> Result<Option<(ExactCaseGraphPublicationResourceV1, usize, usize)>, ExactSnapshotRenderError> {
+    match prepare_case_graph_publication(
+        publication,
+        snapshot,
+        ExactResultRenderModeV1::ObservablePreview,
+    )? {
+        ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+            resource,
+            maximum,
+            required_at_least,
+        } => Ok(Some((resource, maximum, required_at_least))),
+        ExactRenderedCaseGraphPublicationV1::NotRequested
+        | ExactRenderedCaseGraphPublicationV1::Included { .. } => Ok(None),
+    }
+}
+
+fn validate_case_graph_capacity_limit(
+    resource: ExactCaseGraphPublicationResourceV1,
+    maximum: usize,
+    required_at_least: usize,
+) -> Result<(), ExactSnapshotRenderError> {
+    if maximum != resource.fixed_maximum() {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "case-graph capacity status for {} names maximum {maximum}, fixed schema maximum is {}",
+            resource.name(),
+            resource.fixed_maximum()
+        )));
+    }
+    if required_at_least <= maximum {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "case-graph capacity status for {} requires at least {required_at_least}, which does not exceed maximum {maximum}",
+            resource.name()
+        )));
+    }
+    Ok(())
+}
+
+fn validate_case_graph_against_snapshot(
+    graph: &CaseDecisionDag,
+    snapshot: &ExactEvidenceSnapshotV1,
+) -> Result<ExactCaseGraphSummaryV1, ExactSnapshotRenderError> {
+    graph.validate().map_err(|error| {
+        ExactSnapshotRenderError::invalid(format!("included case graph is invalid: {error}"))
+    })?;
+    let universe = match graph.universe_cardinality() {
+        CheckedCardinality::Exact(universe) => universe,
+        CheckedCardinality::ExceedsU128 => {
+            return Err(ExactSnapshotRenderError::invalid(
+                "included case-graph universe exceeds u128::MAX",
+            ));
+        }
+    };
+    if universe != snapshot.universe_case_count {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "included case-graph universe {universe} disagrees with exact evidence universe {}",
+            snapshot.universe_case_count
+        )));
+    }
+
+    let mut counts = graph.terminal_counts().map_err(|error| {
+        ExactSnapshotRenderError::invalid(format!(
+            "cannot count included case-graph terminals: {error}"
+        ))
+    })?;
+    let mut summary = ExactCaseGraphSummaryV1 {
+        terminal_multiplicities: Vec::new(),
+        excluded: 0,
+        eligibility_open: 0,
+        admissible_nonmatch: 0,
+        admissible_match: 0,
+        admissible_open: 0,
+    };
+    summary
+        .terminal_multiplicities
+        .try_reserve_exact(graph.terminals().len())
+        .map_err(|_| {
+            ExactSnapshotRenderError::limit(
+                "cannot allocate included case-graph terminal multiplicities",
+            )
+        })?;
+    for (terminal_id, terminal) in graph.terminals().iter().enumerate() {
+        let cardinality = counts.remove(terminal).ok_or_else(|| {
+            ExactSnapshotRenderError::invalid(format!(
+                "included case-graph terminal {terminal_id} has no multiplicity"
+            ))
+        })?;
+        let case_count = match cardinality {
+            CheckedCardinality::Exact(case_count) => case_count,
+            CheckedCardinality::ExceedsU128 => {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "included case-graph terminal {terminal_id} multiplicity exceeds u128::MAX"
+                )));
+            }
+        };
+        match terminal {
+            CaseTerminal::Excluded => summary.excluded = case_count,
+            CaseTerminal::EligibilityOpen(_) => {
+                summary.eligibility_open = checked_case_graph_sum(
+                    summary.eligibility_open,
+                    case_count,
+                    "eligibility-open",
+                )?;
+            }
+            CaseTerminal::AdmissibleNonmatch => summary.admissible_nonmatch = case_count,
+            CaseTerminal::AdmissibleMatch => summary.admissible_match = case_count,
+            CaseTerminal::AdmissibleOpen(_) => {
+                summary.admissible_open =
+                    checked_case_graph_sum(summary.admissible_open, case_count, "admissible-open")?;
+            }
+        }
+        summary
+            .terminal_multiplicities
+            .push(ExactCaseGraphTerminalMultiplicityV1 {
+                terminal_id,
+                terminal: terminal.clone(),
+                case_count,
+            });
+    }
+    if !counts.is_empty() {
+        return Err(ExactSnapshotRenderError::invalid(
+            "included case-graph multiplicities contain an unindexed terminal",
+        ));
+    }
+
+    let fully_closed = summary.fully_closed_case_count()?;
+    let open = summary.open_case_count()?;
+    if fully_closed != snapshot.closed_case_count || open != snapshot.open_case_count {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "included case-graph closed/open multiplicities {fully_closed}/{open} disagree with exact evidence {}/{}",
+            snapshot.closed_case_count, snapshot.open_case_count
+        )));
+    }
+    if summary.excluded != snapshot.excluded.lower_bound {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "included case-graph excluded multiplicity {} disagrees with exact evidence {}",
+            summary.excluded, snapshot.excluded.lower_bound
+        )));
+    }
+    let admissible = checked_case_graph_sum(
+        summary.admissible_nonmatch,
+        summary.admissible_match,
+        "admissible",
+    )?;
+    if admissible != snapshot.admissible.lower_bound {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "included case-graph admissible multiplicity {admissible} disagrees with exact evidence {}",
+            snapshot.admissible.lower_bound
+        )));
+    }
+    if summary.admissible_match != snapshot.matching.lower_bound {
+        return Err(ExactSnapshotRenderError::invalid(format!(
+            "included case-graph matching multiplicity {} disagrees with exact evidence {}",
+            summary.admissible_match, snapshot.matching.lower_bound
+        )));
+    }
+    Ok(summary)
+}
+
+fn checked_case_graph_sum(
+    left: u128,
+    right: u128,
+    label: &str,
+) -> Result<u128, ExactSnapshotRenderError> {
+    left.checked_add(right).ok_or_else(|| {
+        ExactSnapshotRenderError::invalid(format!(
+            "included case-graph {label} multiplicity exceeds u128::MAX"
+        ))
+    })
+}
+
 fn count_bound(value: u128, exact: bool) -> ExactCountBoundV1 {
     ExactCountBoundV1 {
         lower_bound: value,
@@ -1807,11 +2468,267 @@ fn prepare_result_rows(
     })
 }
 
+fn render_canonical_case_graph_object(
+    graph: &CaseDecisionDag,
+) -> Result<Vec<u8>, ExactSnapshotRenderError> {
+    let mut writer =
+        CanonicalJsonWriter::with_max_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1);
+    writer.raw(b"{")?;
+    writer.member_string("schema", "futuruna.explore.case-graph.v1")?;
+    writer.raw(b",")?;
+    writer.member_u64("schema_version", 1)?;
+    writer.raw(b",")?;
+    writer.member_string("ordinal_interval_encoding", "half_open")?;
+    writer.raw(b",\"axis_cardinalities\":[")?;
+    for (index, cardinality) in graph.axis_cardinalities().iter().enumerate() {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.decimal(*cardinality)?;
+    }
+    writer.raw(b"],\"root\":")?;
+    write_case_graph_root(&mut writer, graph.root())?;
+    writer.raw(b",\"nodes\":[")?;
+    for (node_index, node) in graph.nodes().iter().enumerate() {
+        if node_index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.raw(b"{")?;
+        writer.member_decimal("id", node_index)?;
+        writer.raw(b",")?;
+        writer.member_decimal("dimension_index", node.dimension_index())?;
+        writer.raw(b",\"arcs\":[")?;
+        for (arc_index, arc) in node.arcs().iter().enumerate() {
+            if arc_index != 0 {
+                writer.raw(b",")?;
+            }
+            writer.raw(b"{\"ordinal_intervals\":[")?;
+            for (interval_index, interval) in arc.ordinals().intervals().iter().enumerate() {
+                if interval_index != 0 {
+                    writer.raw(b",")?;
+                }
+                writer.raw(b"{")?;
+                writer.member_decimal("start", interval.start().get())?;
+                writer.raw(b",")?;
+                writer.member_decimal("end_exclusive", interval.end_exclusive().get())?;
+                writer.raw(b"}")?;
+            }
+            writer.raw(b"],\"target\":")?;
+            write_case_graph_ref(&mut writer, arc.child())?;
+            writer.raw(b"}")?;
+        }
+        writer.raw(b"]}")?;
+    }
+    writer.raw(b"],\"terminals\":[")?;
+    for (terminal_index, terminal) in graph.terminals().iter().enumerate() {
+        if terminal_index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.raw(b"{")?;
+        writer.member_decimal("id", terminal_index)?;
+        writer.raw(b",")?;
+        write_case_terminal_members(&mut writer, terminal)?;
+        writer.raw(b"}")?;
+    }
+    writer.raw(b"]}")?;
+    Ok(writer.finish())
+}
+
+fn write_case_graph_root(
+    writer: &mut CanonicalJsonWriter,
+    root: DecisionRoot,
+) -> Result<(), ExactSnapshotRenderError> {
+    match root {
+        DecisionRoot::EmptySpace => writer.raw(b"{\"kind\":\"empty_space\"}"),
+        DecisionRoot::Target(target) => write_case_graph_ref(writer, target),
+    }
+}
+
+fn write_case_graph_ref(
+    writer: &mut CanonicalJsonWriter,
+    target: DecisionRef,
+) -> Result<(), ExactSnapshotRenderError> {
+    writer.raw(b"{")?;
+    match target {
+        DecisionRef::Node(id) => {
+            writer.member_string("kind", "node")?;
+            writer.raw(b",")?;
+            writer.member_decimal("id", id.index())?;
+        }
+        DecisionRef::Terminal(id) => {
+            writer.member_string("kind", "terminal")?;
+            writer.raw(b",")?;
+            writer.member_decimal("id", id.index())?;
+        }
+    }
+    writer.raw(b"}")
+}
+
+fn write_case_terminal_members(
+    writer: &mut CanonicalJsonWriter,
+    terminal: &CaseTerminal,
+) -> Result<(), ExactSnapshotRenderError> {
+    match terminal {
+        CaseTerminal::Excluded => writer.member_string("classification", "excluded"),
+        CaseTerminal::EligibilityOpen(reason) => {
+            writer.member_string("classification", "eligibility_open")?;
+            writer.raw(b",")?;
+            writer.member_string("reason", case_open_reason_name(reason))
+        }
+        CaseTerminal::AdmissibleNonmatch => {
+            writer.member_string("classification", "admissible_nonmatch")
+        }
+        CaseTerminal::AdmissibleMatch => writer.member_string("classification", "admissible_match"),
+        CaseTerminal::AdmissibleOpen(reason) => {
+            writer.member_string("classification", "admissible_open")?;
+            writer.raw(b",")?;
+            writer.member_string("reason", case_open_reason_name(reason))
+        }
+    }
+}
+
+fn case_open_reason_name(reason: &CaseOpenReason) -> &'static str {
+    match reason {
+        CaseOpenReason::SearchBudgetExhausted => "search_budget_exhausted",
+        CaseOpenReason::EvaluationUnknown => "evaluation_unknown",
+    }
+}
+
+fn write_report_request(
+    writer: &mut CanonicalJsonWriter,
+    publication: &ExactRenderedCaseGraphPublicationV1,
+) -> Result<(), ExactSnapshotRenderError> {
+    writer.raw(b"{")?;
+    writer.member_string(
+        "case_graph",
+        if publication.requested() {
+            "full"
+        } else {
+            "omit"
+        },
+    )?;
+    writer.raw(b",")?;
+    writer.member_string("matching_ledger", "omit")?;
+    writer.raw(b",")?;
+    writer.member_string("mechanism_evidence", "unavailable_deferred")?;
+    writer.raw(b"}")
+}
+
+fn write_graph_envelope(
+    writer: &mut CanonicalJsonWriter,
+    polarity: ExplorePolarity,
+    publication: &ExactRenderedCaseGraphPublicationV1,
+) -> Result<(), ExactSnapshotRenderError> {
+    writer.raw(b"{\"case_graph\":{")?;
+    match publication {
+        ExactRenderedCaseGraphPublicationV1::NotRequested => {
+            writer.member_string("status", "not_requested")?;
+            writer.raw(b",\"artifact_graph_hash\":null,\"closure\":null,\"polarity\":null,\"terminal_multiplicities\":null,\"capacity\":null")?;
+        }
+        ExactRenderedCaseGraphPublicationV1::Included {
+            artifact_graph_hash,
+            summary,
+            ..
+        } => {
+            writer.member_string("status", "included")?;
+            writer.raw(b",")?;
+            writer.member_string("artifact_graph_hash", artifact_graph_hash)?;
+            writer.raw(b",\"closure\":{")?;
+            writer.member_string(
+                "admissibility",
+                if summary.admissibility_closed() {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b",")?;
+            writer.member_string(
+                "polarity",
+                if summary.polarity_closed() {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b"},")?;
+            writer.member_string("polarity", polarity_name(polarity))?;
+            writer.raw(b",\"terminal_multiplicities\":[")?;
+            for (index, multiplicity) in summary.terminal_multiplicities.iter().enumerate() {
+                if index != 0 {
+                    writer.raw(b",")?;
+                }
+                writer.raw(b"{")?;
+                writer.member_decimal("terminal_id", multiplicity.terminal_id)?;
+                writer.raw(b",\"terminal\":{")?;
+                write_case_terminal_members(writer, &multiplicity.terminal)?;
+                writer.raw(b"},")?;
+                writer.member_decimal("case_count", multiplicity.case_count)?;
+                writer.raw(b"}")?;
+            }
+            writer.raw(b"],\"capacity\":null")?;
+        }
+        ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+            resource,
+            maximum,
+            required_at_least,
+        } => {
+            writer.member_string("status", "capacity_limited")?;
+            writer.raw(b",\"artifact_graph_hash\":null,\"closure\":null,\"polarity\":null,\"terminal_multiplicities\":null,\"capacity\":{")?;
+            writer.member_string("resource", resource.name())?;
+            writer.raw(b",")?;
+            writer.member_decimal("maximum", *maximum)?;
+            writer.raw(b",")?;
+            writer.member_decimal("required_at_least", *required_at_least)?;
+            writer.raw(b"}")?;
+        }
+    }
+    writer.raw(b",\"limits\":")?;
+    write_case_graph_limits(writer)?;
+    writer.raw(b",\"case_graph\":")?;
+    match publication {
+        ExactRenderedCaseGraphPublicationV1::Included {
+            canonical_graph_object,
+            ..
+        } => writer.raw(canonical_graph_object)?,
+        ExactRenderedCaseGraphPublicationV1::NotRequested
+        | ExactRenderedCaseGraphPublicationV1::CapacityLimited { .. } => writer.raw(b"null")?,
+    }
+    writer.raw(b"},\"mechanism_graph\":{")?;
+    writer.member_string("status", "unavailable_deferred")?;
+    writer.raw(b"}}")
+}
+
+fn write_case_graph_limits(
+    writer: &mut CanonicalJsonWriter,
+) -> Result<(), ExactSnapshotRenderError> {
+    writer.raw(b"{")?;
+    for (index, resource) in [
+        ExactCaseGraphPublicationResourceV1::LoweringAxes,
+        ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
+        ExactCaseGraphPublicationResourceV1::LoweringNodes,
+        ExactCaseGraphPublicationResourceV1::LoweringArcs,
+        ExactCaseGraphPublicationResourceV1::LoweringOrdinalIntervals,
+        ExactCaseGraphPublicationResourceV1::LoweringAccountedBytes,
+        ExactCaseGraphPublicationResourceV1::CanonicalJsonBytes,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.member_decimal(resource.name(), resource.fixed_maximum())?;
+    }
+    writer.raw(b"}")
+}
+
 fn write_semantic_answer_object(
     writer: &mut CanonicalJsonWriter,
     metadata: &ExactSemanticAnswerMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
     prepared_results: &ExactPreparedResultsV1,
+    case_graph_publication: &ExactRenderedCaseGraphPublicationV1,
 ) -> Result<(), ExactSnapshotRenderError> {
     let group_accounting = prepared_results.accounting;
     let classification_closed = snapshot.open_case_count == 0;
@@ -1820,7 +2737,8 @@ fn write_semantic_answer_object(
     let answer_complete = classification_closed
         && snapshot.projection_complete
         && required_frontier_closed
-        && prepared_results.scan_complete;
+        && prepared_results.scan_complete
+        && case_graph_publication.complete_for_answer();
 
     writer.raw(b"{")?;
     writer.member_string("schema", EXACT_SEMANTIC_ANSWER_SCHEMA_V1)?;
@@ -1877,6 +2795,15 @@ fn write_semantic_answer_object(
     writer.member_string(
         "observable_rows",
         if prepared_results.scan_complete {
+            "closed"
+        } else {
+            "open"
+        },
+    )?;
+    writer.raw(b",")?;
+    writer.member_string(
+        "views",
+        if case_graph_publication.complete_for_answer() {
             "closed"
         } else {
             "open"
@@ -1956,7 +2883,11 @@ fn write_semantic_answer_object(
     writer.raw(b"],\"shown\":[")?;
     write_strings(writer, &metadata.projection_labels.shown)?;
     writer.raw(b"],\"value_encoding\":\"typed_exact_v1\"")?;
-    writer.raw(b"},\"mechanism_evidence\":{")?;
+    writer.raw(b"},\"report_request\":")?;
+    write_report_request(writer, case_graph_publication)?;
+    writer.raw(b",\"graph\":")?;
+    write_graph_envelope(writer, metadata.polarity, case_graph_publication)?;
+    writer.raw(b",\"mechanism_evidence\":{")?;
     writer.member_string("status", "unavailable_deferred")?;
     writer.raw(b"},\"results_preview\":{")?;
     writer.member_string(
@@ -2739,6 +3670,45 @@ impl CanonicalJsonWriter {
         self.string(name)?;
         self.raw(b":")?;
         self.raw(value.to_string().as_bytes())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{
+        canonical_json_string_encoded_len, ExactPresentationStringBudgetV1,
+        MAX_PRESENTATION_STRING_OCCURRENCES_V1, MAX_PROJECTION_LABEL_BYTES,
+    };
+
+    #[test]
+    fn presentation_budget_uses_exact_canonical_json_string_bytes() {
+        assert_eq!(canonical_json_string_encoded_len("plain"), Some(7));
+        assert_eq!(
+            canonical_json_string_encoded_len("\"\\\n\u{0001}"),
+            Some(14)
+        );
+        assert_eq!(canonical_json_string_encoded_len("ø"), Some(4));
+
+        let maximal_string = "x".repeat(MAX_PROJECTION_LABEL_BYTES);
+        let mut budget = ExactPresentationStringBudgetV1::new();
+        for _ in 0..7 {
+            budget
+                .charge("test presentation string", &maximal_string)
+                .expect("seven individually maximal strings fit the cumulative JSON budget");
+        }
+        let error = budget
+            .charge("test presentation string", &maximal_string)
+            .expect_err("the eighth encoded string crosses the cumulative JSON budget");
+        assert!(error.is_capacity_limit());
+
+        let mut occurrence_budget = ExactPresentationStringBudgetV1 {
+            encoded_bytes: 0,
+            occurrences: MAX_PRESENTATION_STRING_OCCURRENCES_V1,
+        };
+        let error = occurrence_budget
+            .charge("test presentation string", "")
+            .expect_err("one occurrence beyond the retained metadata cap is rejected");
+        assert!(error.is_capacity_limit());
     }
 }
 

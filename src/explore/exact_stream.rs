@@ -14,7 +14,10 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use super::ExploreValue;
+use super::{
+    run_stream::{CanonicalDigest, ExactCaseSupport, ExploreCaseUniverse},
+    ExploreValue,
+};
 
 const OBSERVATION_MAGIC_V1: &[u8; 8] = b"FXOBS001";
 const OBSERVATION_BATCH_MAGIC_V1: &[u8; 8] = b"FXOBB001";
@@ -583,6 +586,254 @@ struct ObservableResultCostV1 {
     semantic_bytes: usize,
 }
 
+/// Persistent exact rank supports for the closed case-classification
+/// partition.
+///
+/// `closed` is retained separately because it is the hot duplicate-detection
+/// support. The three classified supports are extended from the same bounded
+/// delta, making their disjoint union equal to `closed` by construction. A
+/// later case-DAG lowerer may obtain a bounded clone of these authenticated
+/// roots without retaining or copying a case ledger.
+#[allow(dead_code)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct ExactClosedClassificationSupportsV1 {
+    closed: ExactCaseSupport,
+    excluded: ExactCaseSupport,
+    admissible_nonmatch: ExactCaseSupport,
+    admissible_match: ExactCaseSupport,
+}
+
+#[allow(dead_code)]
+impl ExactClosedClassificationSupportsV1 {
+    fn empty(universe: &ExploreCaseUniverse) -> Self {
+        Self {
+            closed: ExactCaseSupport::empty(universe),
+            excluded: ExactCaseSupport::empty(universe),
+            admissible_nonmatch: ExactCaseSupport::empty(universe),
+            admissible_match: ExactCaseSupport::empty(universe),
+        }
+    }
+
+    fn merge_delta(
+        &self,
+        universe: &ExploreCaseUniverse,
+        excluded: Vec<(u128, u128)>,
+        admissible_nonmatch: Vec<(u128, u128)>,
+        admissible_match: Vec<(u128, u128)>,
+    ) -> Result<Self, ExactStreamError> {
+        let excluded_delta = exact_case_support(universe, "excluded delta", excluded)?;
+        let admissible_nonmatch_delta =
+            exact_case_support(universe, "admissible-nonmatch delta", admissible_nonmatch)?;
+        let admissible_match_delta =
+            exact_case_support(universe, "admissible-match delta", admissible_match)?;
+
+        // The delta union is deliberately constructed from its typed fibers.
+        // This rejects conflicting classifications inside one batch before
+        // any reducer state changes.
+        let classified_delta = merge_exact_case_supports(
+            "classification delta",
+            &excluded_delta,
+            &admissible_nonmatch_delta,
+        )?;
+        let classified_delta = merge_exact_case_supports(
+            "classification delta",
+            &classified_delta,
+            &admissible_match_delta,
+        )?;
+
+        // This one global merge rejects every overlap with earlier evidence,
+        // including an attempt to change an already-closed classification.
+        let closed = merge_exact_case_supports("closed support", &self.closed, &classified_delta)?;
+        let excluded =
+            merge_exact_case_supports("excluded support", &self.excluded, &excluded_delta)?;
+        let admissible_nonmatch = merge_exact_case_supports(
+            "admissible-nonmatch support",
+            &self.admissible_nonmatch,
+            &admissible_nonmatch_delta,
+        )?;
+        let admissible_match = merge_exact_case_supports(
+            "admissible-match support",
+            &self.admissible_match,
+            &admissible_match_delta,
+        )?;
+
+        Ok(Self {
+            closed,
+            excluded,
+            admissible_nonmatch,
+            admissible_match,
+        })
+    }
+
+    fn validate_scalar_counts(
+        &self,
+        closed: u128,
+        excluded: u128,
+        admissible_nonmatch: u128,
+        admissible_match: u128,
+    ) -> Result<(), ExactStreamError> {
+        for (label, support, expected) in [
+            ("closed", &self.closed, closed),
+            ("excluded", &self.excluded, excluded),
+            (
+                "admissible nonmatch",
+                &self.admissible_nonmatch,
+                admissible_nonmatch,
+            ),
+            ("admissible match", &self.admissible_match, admissible_match),
+        ] {
+            if support.case_count() != expected {
+                return Err(ExactStreamError::invalid(format!(
+                    "{label} persistent support count {} disagrees with scalar count {expected}",
+                    support.case_count()
+                )));
+            }
+        }
+        let classified = excluded
+            .checked_add(admissible_nonmatch)
+            .and_then(|count| count.checked_add(admissible_match))
+            .ok_or_else(|| {
+                ExactStreamError::invalid("classified persistent support count exceeds u128::MAX")
+            })?;
+        if classified != closed {
+            return Err(ExactStreamError::invalid(format!(
+                "classified persistent support count {classified} disagrees with closed count {closed}"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Expensive structural validation, called only after the caller has
+    /// bounded the complete interval population.
+    fn validate_exact_partition(&self) -> Result<(), ExactStreamError> {
+        let mut excluded = self.excluded.iter_intervals().peekable();
+        let mut admissible_nonmatch = self.admissible_nonmatch.iter_intervals().peekable();
+        let mut admissible_match = self.admissible_match.iter_intervals().peekable();
+        let mut closed = self.closed.iter_intervals();
+        let mut classified_union = None::<(u128, u128)>;
+
+        loop {
+            let source = [
+                excluded.peek().map(|interval| (interval.start(), 0_u8)),
+                admissible_nonmatch
+                    .peek()
+                    .map(|interval| (interval.start(), 1_u8)),
+                admissible_match
+                    .peek()
+                    .map(|interval| (interval.start(), 2_u8)),
+            ]
+            .into_iter()
+            .flatten()
+            .min();
+            let Some((_, source)) = source else {
+                break;
+            };
+            let interval = match source {
+                0 => excluded.next(),
+                1 => admissible_nonmatch.next(),
+                2 => admissible_match.next(),
+                _ => unreachable!("classification support source is bounded to three fibers"),
+            }
+            .expect("peeked classification support interval must still exist");
+
+            match classified_union {
+                None => {
+                    classified_union = Some((interval.start(), interval.end_exclusive()));
+                }
+                Some((_, end_exclusive)) if interval.start() < end_exclusive => {
+                    return Err(ExactStreamError::invalid(
+                        "closed classification supports overlap",
+                    ));
+                }
+                Some((start, end_exclusive)) if interval.start() == end_exclusive => {
+                    classified_union = Some((start, interval.end_exclusive()));
+                }
+                Some(expected) => {
+                    let actual = closed
+                        .next()
+                        .map(|interval| (interval.start(), interval.end_exclusive()));
+                    if actual != Some(expected) {
+                        return Err(ExactStreamError::invalid(
+                            "classified persistent supports do not form the exact closed support",
+                        ));
+                    }
+                    classified_union = Some((interval.start(), interval.end_exclusive()));
+                }
+            }
+        }
+
+        if let Some(expected) = classified_union {
+            let actual = closed
+                .next()
+                .map(|interval| (interval.start(), interval.end_exclusive()));
+            if actual != Some(expected) {
+                return Err(ExactStreamError::invalid(
+                    "classified persistent supports do not form the exact closed support",
+                ));
+            }
+        }
+        if closed.next().is_some() {
+            return Err(ExactStreamError::invalid(
+                "classified persistent supports do not form the exact closed support",
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn closed(&self) -> &ExactCaseSupport {
+        &self.closed
+    }
+
+    pub(crate) fn support(&self, classification: ExactClosedClassificationV1) -> &ExactCaseSupport {
+        match classification {
+            ExactClosedClassificationV1::Excluded => &self.excluded,
+            ExactClosedClassificationV1::AdmissibleNonmatch => &self.admissible_nonmatch,
+            ExactClosedClassificationV1::AdmissibleMatch => &self.admissible_match,
+        }
+    }
+
+    /// Aggregate interval population across the closed support and its three
+    /// typed fibers. This is O(1) and lets a caller reject materialization
+    /// before traversing any persistent tree.
+    pub(crate) fn total_interval_count(&self) -> Option<usize> {
+        self.closed
+            .interval_count()
+            .checked_add(self.excluded.interval_count())
+            .and_then(|count| count.checked_add(self.admissible_nonmatch.interval_count()))
+            .and_then(|count| count.checked_add(self.admissible_match.interval_count()))
+    }
+
+    pub(crate) fn identity_hashes(&self) -> [CanonicalDigest; 4] {
+        [
+            self.closed.identity_hash(),
+            self.excluded.identity_hash(),
+            self.admissible_nonmatch.identity_hash(),
+            self.admissible_match.identity_hash(),
+        ]
+    }
+}
+
+fn exact_case_support(
+    universe: &ExploreCaseUniverse,
+    label: &str,
+    intervals: Vec<(u128, u128)>,
+) -> Result<ExactCaseSupport, ExactStreamError> {
+    ExactCaseSupport::new(universe, intervals).map_err(|error| {
+        ExactStreamError::invalid(format!(
+            "cannot construct {label} persistent support: {error}"
+        ))
+    })
+}
+
+fn merge_exact_case_supports(
+    label: &str,
+    left: &ExactCaseSupport,
+    right: &ExactCaseSupport,
+) -> Result<ExactCaseSupport, ExactStreamError> {
+    left.merge_disjoint(right)
+        .map_err(|error| ExactStreamError::invalid(format!("cannot extend {label}: {error}")))
+}
+
 /// Pure reducer for exact classification and projection evidence.
 ///
 /// The reducer is intentionally not `Clone`: copying the accumulated result
@@ -593,13 +844,11 @@ struct ObservableResultCostV1 {
 /// replaying that durable event into a fresh reducer.
 pub(crate) struct ExactEvidenceReducer {
     axis_cardinalities: Box<[u128]>,
+    case_universe: ExploreCaseUniverse,
     universe_case_count: u128,
     projection_shape: ExactProjectionShapeV1,
     representative_policy: ExactRepresentativePolicyV1,
-    /// Normalized union of every accepted rank. Adjacent records merge, so a
-    /// long canonical stream does not require one allocation per case merely
-    /// to detect duplicates.
-    closed_intervals: BTreeMap<u128, u128>,
+    classification_supports: ExactClosedClassificationSupportsV1,
     closed_case_count: u128,
     excluded_case_count: u128,
     admissible_nonmatch_case_count: u128,
@@ -611,8 +860,9 @@ pub(crate) struct ExactEvidenceReducer {
 }
 
 pub(crate) struct PreparedExactClosedRegionBatchV1 {
-    batch: ValidatedExactClosedRegionBatchV1,
     prior_closed_case_count: u128,
+    prior_classification_supports: ExactClosedClassificationSupportsV1,
+    next_classification_supports: ExactClosedClassificationSupportsV1,
     next_closed_case_count: u128,
     next_excluded_case_count: u128,
     next_admissible_nonmatch_case_count: u128,
@@ -621,6 +871,8 @@ pub(crate) struct PreparedExactClosedRegionBatchV1 {
 pub(crate) struct PreparedExactObservationBatchV1 {
     batch: ValidatedExactCaseObservationBatchV1,
     prior_closed_case_count: u128,
+    prior_classification_supports: ExactClosedClassificationSupportsV1,
+    next_classification_supports: ExactClosedClassificationSupportsV1,
     next_closed_case_count: u128,
     next_excluded_case_count: u128,
     next_admissible_nonmatch_case_count: u128,
@@ -642,13 +894,21 @@ impl ExactEvidenceReducer {
                 axis_cardinalities.len()
             )));
         }
-        let universe_case_count = mixed_radix_case_count(&axis_cardinalities)?;
+        let case_universe =
+            ExploreCaseUniverse::new(axis_cardinalities.clone()).map_err(|error| {
+                ExactStreamError::invalid(format!(
+                    "cannot construct exact reducer case universe: {error}"
+                ))
+            })?;
+        let universe_case_count = case_universe.case_count();
+        let classification_supports = ExactClosedClassificationSupportsV1::empty(&case_universe);
         Ok(Self {
             axis_cardinalities,
+            case_universe,
             universe_case_count,
             projection_shape,
             representative_policy,
-            closed_intervals: BTreeMap::new(),
+            classification_supports,
             closed_case_count: 0,
             excluded_case_count: 0,
             admissible_nonmatch_case_count: 0,
@@ -668,6 +928,77 @@ impl ExactEvidenceReducer {
     /// this does not clone result groups, witnesses, or the matching ledger.
     pub(crate) fn closed_case_count(&self) -> u128 {
         self.closed_case_count
+    }
+
+    /// Return authenticated classification supports only when their complete
+    /// interval population fits the caller's explicit traversal bound.
+    ///
+    /// Validation of disjointness and exact union is intentionally performed
+    /// here, at a bounded traversal boundary, rather than on every hot reducer
+    /// mutation.
+    #[allow(dead_code)]
+    pub(crate) fn classification_supports_bounded(
+        &self,
+        max_total_intervals: usize,
+    ) -> Result<Option<ExactClosedClassificationSupportsV1>, ExactStreamError> {
+        let Some(total_intervals) = self.classification_supports.total_interval_count() else {
+            return Ok(None);
+        };
+        if total_intervals > max_total_intervals {
+            return Ok(None);
+        }
+        self.classification_supports.validate_scalar_counts(
+            self.closed_case_count,
+            self.excluded_case_count,
+            self.admissible_nonmatch_case_count,
+            self.matching_case_count,
+        )?;
+        self.classification_supports.validate_exact_partition()?;
+        Ok(Some(self.classification_supports.clone()))
+    }
+
+    /// O(1) count of uniform typed rank runs needed by the case-DAG lowerer.
+    /// This excludes the redundant `closed` union index.
+    pub(crate) fn classification_rank_run_count(&self) -> Option<usize> {
+        self.classification_supports
+            .excluded
+            .interval_count()
+            .checked_add(
+                self.classification_supports
+                    .admissible_nonmatch
+                    .interval_count(),
+            )
+            .and_then(|count| {
+                count.checked_add(
+                    self.classification_supports
+                        .admissible_match
+                        .interval_count(),
+                )
+            })
+    }
+
+    /// O(1) traversal bound including the redundant authenticated closed
+    /// support and all three typed fibers.
+    pub(crate) fn classification_support_interval_count(&self) -> Option<usize> {
+        self.classification_supports.total_interval_count()
+    }
+
+    pub(crate) fn classification_support_identity_hashes(&self) -> [CanonicalDigest; 4] {
+        self.classification_supports.identity_hashes()
+    }
+
+    fn debug_assert_classification_support_counts(&self) {
+        debug_assert!(
+            self.classification_supports
+                .validate_scalar_counts(
+                    self.closed_case_count,
+                    self.excluded_case_count,
+                    self.admissible_nonmatch_case_count,
+                    self.matching_case_count,
+                )
+                .is_ok(),
+            "exact classification support counts disagree with reducer scalars"
+        );
     }
 
     pub(crate) fn canonical_case_id_at_rank(
@@ -699,6 +1030,8 @@ impl ExactEvidenceReducer {
         let mut delta_closed = 0_u128;
         let mut delta_excluded = 0_u128;
         let mut delta_nonmatch = 0_u128;
+        let mut excluded_intervals = Vec::new();
+        let mut nonmatch_intervals = Vec::new();
 
         for region in batch.regions.iter() {
             let region = &region.proposal;
@@ -708,16 +1041,17 @@ impl ExactEvidenceReducer {
                     region.start_rank, region.end_rank_exclusive, self.universe_case_count
                 )));
             }
-            self.validate_interval_is_open(region.start_rank, region.end_rank_exclusive)?;
             let count = region.case_count();
             delta_closed = checked_count_add(delta_closed, count, "closed-region batch")?;
             match region.classification {
                 ExactClosedClassificationV1::Excluded => {
                     delta_excluded = checked_count_add(delta_excluded, count, "excluded region")?;
+                    excluded_intervals.push((region.start_rank, region.end_rank_exclusive));
                 }
                 ExactClosedClassificationV1::AdmissibleNonmatch => {
                     delta_nonmatch =
                         checked_count_add(delta_nonmatch, count, "nonmatching region")?;
+                    nonmatch_intervals.push((region.start_rank, region.end_rank_exclusive));
                 }
                 ExactClosedClassificationV1::AdmissibleMatch => {
                     return Err(ExactStreamError::invalid(
@@ -742,10 +1076,23 @@ impl ExactEvidenceReducer {
             delta_nonmatch,
             "admissible nonmatch",
         )?;
+        let next_classification_supports = self.classification_supports.merge_delta(
+            &self.case_universe,
+            excluded_intervals,
+            nonmatch_intervals,
+            Vec::new(),
+        )?;
+        next_classification_supports.validate_scalar_counts(
+            next_closed,
+            next_excluded,
+            next_nonmatch,
+            self.matching_case_count,
+        )?;
 
         Ok(PreparedExactClosedRegionBatchV1 {
-            batch,
             prior_closed_case_count: self.closed_case_count,
+            prior_classification_supports: self.classification_supports.clone(),
+            next_classification_supports,
             next_closed_case_count: next_closed,
             next_excluded_case_count: next_excluded,
             next_admissible_nonmatch_case_count: next_nonmatch,
@@ -765,13 +1112,15 @@ impl ExactEvidenceReducer {
             self.closed_case_count, prepared.prior_closed_case_count,
             "prepared exact region block is stale"
         );
-        for region in prepared.batch.regions.iter() {
-            let region = &region.proposal;
-            self.insert_open_interval(region.start_rank, region.end_rank_exclusive);
-        }
+        assert_eq!(
+            self.classification_supports, prepared.prior_classification_supports,
+            "prepared exact region support block is stale"
+        );
+        self.classification_supports = prepared.next_classification_supports;
         self.closed_case_count = prepared.next_closed_case_count;
         self.excluded_case_count = prepared.next_excluded_case_count;
         self.admissible_nonmatch_case_count = prepared.next_admissible_nonmatch_case_count;
+        self.debug_assert_classification_support_counts();
     }
 
     pub(crate) fn accept_closed_region(
@@ -815,6 +1164,9 @@ impl ExactEvidenceReducer {
         let mut delta_nonmatch = 0_u128;
         let mut delta_matching = 0_u128;
         let mut group_deltas = BTreeMap::<Box<[ExploreValue]>, u128>::new();
+        let mut excluded_intervals = Vec::new();
+        let mut nonmatch_intervals = Vec::new();
+        let mut matching_intervals = Vec::new();
 
         for observation in batch.observations.iter() {
             let proposal = &observation.proposal;
@@ -823,17 +1175,19 @@ impl ExactEvidenceReducer {
                 self.universe_case_count,
                 &proposal.case_id,
             )?;
-            self.validate_interval_is_open(proposal.case_id.rank, proposal.case_id.rank + 1)?;
             self.validate_observation_projection(proposal)?;
             match proposal.classification {
                 ExactClosedClassificationV1::Excluded => {
                     delta_excluded = checked_count_add(delta_excluded, 1, "excluded batch")?;
+                    excluded_intervals.push((proposal.case_id.rank, proposal.case_id.rank + 1));
                 }
                 ExactClosedClassificationV1::AdmissibleNonmatch => {
                     delta_nonmatch = checked_count_add(delta_nonmatch, 1, "nonmatching batch")?;
+                    nonmatch_intervals.push((proposal.case_id.rank, proposal.case_id.rank + 1));
                 }
                 ExactClosedClassificationV1::AdmissibleMatch => {
                     delta_matching = checked_count_add(delta_matching, 1, "matching batch")?;
+                    matching_intervals.push((proposal.case_id.rank, proposal.case_id.rank + 1));
                     let projection = proposal
                         .match_projection
                         .as_ref()
@@ -865,6 +1219,18 @@ impl ExactEvidenceReducer {
             delta_matching,
             "projected matching",
         )?;
+        let next_classification_supports = self.classification_supports.merge_delta(
+            &self.case_universe,
+            excluded_intervals,
+            nonmatch_intervals,
+            matching_intervals,
+        )?;
+        next_classification_supports.validate_scalar_counts(
+            next_closed,
+            next_excluded,
+            next_nonmatch,
+            next_matching,
+        )?;
         for (key, delta) in group_deltas {
             if let Some(group) = self.groups.get(key.as_ref()) {
                 checked_count_add(group.support, delta, "result-group support")?;
@@ -879,6 +1245,8 @@ impl ExactEvidenceReducer {
         Ok(PreparedExactObservationBatchV1 {
             batch,
             prior_closed_case_count: self.closed_case_count,
+            prior_classification_supports: self.classification_supports.clone(),
+            next_classification_supports,
             next_closed_case_count: next_closed,
             next_excluded_case_count: next_excluded,
             next_admissible_nonmatch_case_count: next_nonmatch,
@@ -896,9 +1264,12 @@ impl ExactEvidenceReducer {
             self.closed_case_count, prepared.prior_closed_case_count,
             "prepared exact observation block is stale"
         );
+        assert_eq!(
+            self.classification_supports, prepared.prior_classification_supports,
+            "prepared exact observation support block is stale"
+        );
         for observation in prepared.batch.observations.iter() {
             let proposal = &observation.proposal;
-            self.insert_open_interval(proposal.case_id.rank, proposal.case_id.rank + 1);
             if let Some(projection) = proposal.match_projection.as_ref() {
                 self.observe_match(&proposal.case_id, projection);
                 if let Some(ledger) = self.matching_ledger.as_mut() {
@@ -912,11 +1283,13 @@ impl ExactEvidenceReducer {
                 }
             }
         }
+        self.classification_supports = prepared.next_classification_supports;
         self.closed_case_count = prepared.next_closed_case_count;
         self.excluded_case_count = prepared.next_excluded_case_count;
         self.admissible_nonmatch_case_count = prepared.next_admissible_nonmatch_case_count;
         self.matching_case_count = prepared.next_matching_case_count;
         self.projected_matching_case_count = prepared.next_projected_matching_case_count;
+        self.debug_assert_classification_support_counts();
     }
 
     pub(crate) fn snapshot(&self) -> ExactEvidenceSnapshotV1 {
@@ -1051,59 +1424,6 @@ impl ExactEvidenceReducer {
                 "ordered representative observation is missing its Int objective",
             )),
         }
-    }
-
-    fn validate_interval_is_open(
-        &self,
-        start_rank: u128,
-        end_rank_exclusive: u128,
-    ) -> Result<(), ExactStreamError> {
-        if start_rank >= end_rank_exclusive {
-            return Err(ExactStreamError::invalid(format!(
-                "closed interval [{start_rank}, {end_rank_exclusive}) is empty or reversed"
-            )));
-        }
-        if let Some((&left_start, &left_end)) =
-            self.closed_intervals.range(..=start_rank).next_back()
-        {
-            if left_end > start_rank {
-                return Err(ExactStreamError::invalid(format!(
-                    "closed interval [{start_rank}, {end_rank_exclusive}) overlaps accepted interval [{left_start}, {left_end})"
-                )));
-            }
-        }
-        if let Some((&right_start, &right_end)) = self.closed_intervals.range(start_rank..).next() {
-            if right_start < end_rank_exclusive {
-                return Err(ExactStreamError::invalid(format!(
-                    "closed interval [{start_rank}, {end_rank_exclusive}) overlaps accepted interval [{right_start}, {right_end})"
-                )));
-            }
-        }
-        Ok(())
-    }
-
-    /// Insert an already-validated open interval and coalesce adjacency.
-    fn insert_open_interval(&mut self, start_rank: u128, end_rank_exclusive: u128) {
-        let left = self
-            .closed_intervals
-            .range(..start_rank)
-            .next_back()
-            .and_then(|(&start, &end)| (end == start_rank).then_some((start, end)));
-        let right = self
-            .closed_intervals
-            .range(end_rank_exclusive..)
-            .next()
-            .and_then(|(&start, &end)| (start == end_rank_exclusive).then_some((start, end)));
-        let merged_start = left.map_or(start_rank, |(start, _)| start);
-        let merged_end = right.map_or(end_rank_exclusive, |(_, end)| end);
-        if let Some((start, _)) = left {
-            self.closed_intervals.remove(&start);
-        }
-        if let Some((start, _)) = right {
-            self.closed_intervals.remove(&start);
-        }
-        let previous = self.closed_intervals.insert(merged_start, merged_end);
-        debug_assert!(previous.is_none(), "validated interval has a unique start");
     }
 
     fn observe_match(
@@ -1287,19 +1607,6 @@ fn representative_is_better(
                     && candidate.case_id.rank < incumbent.case_id.rank)
         }
     }
-}
-
-fn mixed_radix_case_count(cardinalities: &[u128]) -> Result<u128, ExactStreamError> {
-    if cardinalities.contains(&0) {
-        return Ok(0);
-    }
-    cardinalities
-        .iter()
-        .try_fold(1_u128, |product, cardinality| {
-            product.checked_mul(*cardinality).ok_or_else(|| {
-                ExactStreamError::invalid("mixed-radix case universe exceeds u128::MAX")
-            })
-        })
 }
 
 fn unrank_mixed_radix(
@@ -2692,6 +2999,58 @@ mod tests {
         .unwrap()
     }
 
+    fn classified_singleton(
+        reducer: &ExactEvidenceReducer,
+        rank: u128,
+        classification: ExactClosedClassificationV1,
+    ) -> ValidatedExactCaseObservationV1 {
+        assert_ne!(classification, ExactClosedClassificationV1::AdmissibleMatch);
+        validation_boundary::test_only_seal_observation(
+            ExactCaseObservationProposalV1::new(
+                reducer.canonical_case_id_at_rank(rank).unwrap(),
+                classification,
+                None,
+                receipt((rank as u8).wrapping_add(31)),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn interval_pairs(support: &ExactCaseSupport) -> Vec<(u128, u128)> {
+        support
+            .intervals()
+            .into_iter()
+            .map(|interval| (interval.start(), interval.end_exclusive()))
+            .collect()
+    }
+
+    fn observation_batch(
+        observations: impl IntoIterator<Item = ValidatedExactCaseObservationV1>,
+    ) -> ValidatedExactCaseObservationBatchV1 {
+        let proposal = ExactCaseObservationBatchProposalV1::new(
+            observations
+                .into_iter()
+                .map(|observation| observation.proposal().clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        validation_boundary::test_only_seal_observation_batch(proposal).unwrap()
+    }
+
+    fn region_batch(
+        regions: impl IntoIterator<Item = ValidatedExactClosedRankRegionV1>,
+    ) -> ValidatedExactClosedRegionBatchV1 {
+        let proposal = ExactClosedRegionBatchProposalV1::new(
+            regions
+                .into_iter()
+                .map(|region| region.proposal().clone())
+                .collect::<Vec<_>>(),
+        )
+        .unwrap();
+        validation_boundary::test_only_seal_region_batch(proposal).unwrap()
+    }
+
     fn sealed_region(
         start_rank: u128,
         end_rank_exclusive: u128,
@@ -2791,6 +3150,183 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![2, 3, 4]
         );
+    }
+
+    #[test]
+    fn classification_supports_do_not_depend_on_arrival_order() {
+        let shape = ExactProjectionShapeV1::new(1, 1, 1).unwrap();
+        let mut forward =
+            ExactEvidenceReducer::new(vec![12], shape, ExactRepresentativePolicyV1::First, false)
+                .unwrap();
+        let mut reverse =
+            ExactEvidenceReducer::new(vec![12], shape, ExactRepresentativePolicyV1::First, false)
+                .unwrap();
+
+        let excluded_region = sealed_region(
+            0,
+            2,
+            ExactClosedRegionKindV1::Structural,
+            ExactClosedClassificationV1::Excluded,
+            70,
+        );
+        let nonmatch_region = sealed_region(
+            10,
+            12,
+            ExactClosedRegionKindV1::Proof,
+            ExactClosedClassificationV1::AdmissibleNonmatch,
+            71,
+        );
+        let observations = [
+            matching(&forward, 2, 1, 20, "first-match", None),
+            classified_singleton(&forward, 4, ExactClosedClassificationV1::Excluded),
+            classified_singleton(&forward, 5, ExactClosedClassificationV1::AdmissibleNonmatch),
+            matching(&forward, 7, 1, 10, "second-match", None),
+        ];
+
+        forward
+            .accept_closed_region(excluded_region.clone())
+            .unwrap();
+        for observation in observations.iter().cloned() {
+            forward.accept_observation(observation).unwrap();
+        }
+        forward
+            .accept_closed_region(nonmatch_region.clone())
+            .unwrap();
+
+        reverse.accept_closed_region(nonmatch_region).unwrap();
+        for observation in observations.iter().rev().cloned() {
+            reverse.accept_observation(observation).unwrap();
+        }
+        reverse.accept_closed_region(excluded_region).unwrap();
+
+        let forward_supports = forward
+            .classification_supports_bounded(16)
+            .unwrap()
+            .unwrap();
+        let reverse_supports = reverse
+            .classification_supports_bounded(16)
+            .unwrap()
+            .unwrap();
+        assert_eq!(forward_supports, reverse_supports);
+        assert_eq!(
+            interval_pairs(forward_supports.closed()),
+            vec![(0, 3), (4, 6), (7, 8), (10, 12)]
+        );
+    }
+
+    #[test]
+    fn mixed_regions_and_singletons_form_one_exact_classification_partition() {
+        let mut reducer = ExactEvidenceReducer::new(
+            vec![10],
+            ExactProjectionShapeV1::new(1, 1, 1).unwrap(),
+            ExactRepresentativePolicyV1::First,
+            false,
+        )
+        .unwrap();
+        let regions = region_batch([
+            sealed_region(
+                0,
+                3,
+                ExactClosedRegionKindV1::Structural,
+                ExactClosedClassificationV1::Excluded,
+                80,
+            ),
+            sealed_region(
+                6,
+                9,
+                ExactClosedRegionKindV1::Proof,
+                ExactClosedClassificationV1::AdmissibleNonmatch,
+                81,
+            ),
+        ]);
+        reducer.accept_closed_region_batch(&regions).unwrap();
+        let rank_three = classified_singleton(&reducer, 3, ExactClosedClassificationV1::Excluded);
+        let rank_four = matching(&reducer, 4, 9, 4, "lower", None);
+        let rank_five =
+            classified_singleton(&reducer, 5, ExactClosedClassificationV1::AdmissibleNonmatch);
+        let rank_nine = matching(&reducer, 9, 9, 9, "upper", None);
+        let observations = observation_batch([rank_three, rank_four, rank_five, rank_nine]);
+        reducer.accept_observation_batch(&observations).unwrap();
+
+        assert!(reducer
+            .classification_supports_bounded(4)
+            .unwrap()
+            .is_none());
+        let supports = reducer.classification_supports_bounded(5).unwrap().unwrap();
+        assert_eq!(interval_pairs(supports.closed()), vec![(0, 10)]);
+        assert_eq!(
+            interval_pairs(supports.support(ExactClosedClassificationV1::Excluded)),
+            vec![(0, 4)]
+        );
+        assert_eq!(
+            interval_pairs(supports.support(ExactClosedClassificationV1::AdmissibleNonmatch)),
+            vec![(5, 9)]
+        );
+        assert_eq!(
+            interval_pairs(supports.support(ExactClosedClassificationV1::AdmissibleMatch)),
+            vec![(4, 5), (9, 10)]
+        );
+
+        let snapshot = reducer.snapshot();
+        assert_eq!(snapshot.closed_case_count, 10);
+        assert_eq!(snapshot.excluded.exact, Some(4));
+        assert_eq!(snapshot.admissible.exact, Some(6));
+        assert_eq!(snapshot.matching.exact, Some(2));
+    }
+
+    #[test]
+    fn alternating_classifications_preserve_fragmented_fibers_and_compact_union() {
+        let mut reducer = ExactEvidenceReducer::new(
+            vec![16],
+            ExactProjectionShapeV1::new(0, 0, 0).unwrap(),
+            ExactRepresentativePolicyV1::First,
+            false,
+        )
+        .unwrap();
+
+        for rank in (0_u128..16).step_by(2) {
+            let observation =
+                classified_singleton(&reducer, rank, ExactClosedClassificationV1::Excluded);
+            reducer.accept_observation(observation).unwrap();
+        }
+        for rank in (0_u128..8).rev().map(|index| index * 2 + 1) {
+            let observation = classified_singleton(
+                &reducer,
+                rank,
+                ExactClosedClassificationV1::AdmissibleNonmatch,
+            );
+            reducer.accept_observation(observation).unwrap();
+        }
+
+        assert!(reducer
+            .classification_supports_bounded(16)
+            .unwrap()
+            .is_none());
+        let supports = reducer
+            .classification_supports_bounded(17)
+            .unwrap()
+            .unwrap();
+        assert_eq!(supports.closed().interval_count(), 1);
+        assert_eq!(
+            supports
+                .support(ExactClosedClassificationV1::Excluded)
+                .interval_count(),
+            8
+        );
+        assert_eq!(
+            supports
+                .support(ExactClosedClassificationV1::AdmissibleNonmatch)
+                .interval_count(),
+            8
+        );
+        assert_eq!(
+            supports
+                .support(ExactClosedClassificationV1::AdmissibleMatch)
+                .interval_count(),
+            0
+        );
+        assert_eq!(interval_pairs(supports.closed()), vec![(0, 16)]);
+        assert_eq!(reducer.snapshot().closed_case_count, 16);
     }
 
     #[test]

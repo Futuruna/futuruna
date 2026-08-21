@@ -530,7 +530,8 @@ impl ExactCaseSupport {
         self.interval_count
     }
 
-    fn iter_intervals(&self) -> ExactCaseSupportIntervalIter<'_> {
+    /// Traverse canonical intervals without allocating a flat support body.
+    pub(crate) fn iter_intervals(&self) -> impl Iterator<Item = ExploreRankInterval> + '_ {
         ExactCaseSupportIntervalIter::new(self.root.as_ref())
     }
 
@@ -626,7 +627,12 @@ impl ExactCaseSupport {
             .is_ok_and(|remainder| remainder == *right))
     }
 
-    fn merge_disjoint(&self, other: &Self) -> Result<Self, ExploreRunStreamError> {
+    /// Return the canonical union of two proven-disjoint supports.
+    ///
+    /// This is exposed within the Explore implementation so typed semantic
+    /// reducers can retain persistent support partitions without
+    /// materializing their accumulated interval histories.
+    pub(crate) fn merge_disjoint(&self, other: &Self) -> Result<Self, ExploreRunStreamError> {
         if self.universe_id != other.universe_id {
             return Err(ExploreRunStreamError::StaleCaseUniverse);
         }
@@ -1872,6 +1878,11 @@ pub(crate) enum DiscoveryEventKind {
     /// it changes the ordered journal only; replay derives the same answer
     /// state and verifies the snapshot separately.
     SnapshotPublished,
+    /// Content-addressed bounded observer receipt reporting that one admitted
+    /// full-snapshot attempt hit capacity at this cursor. This services the
+    /// observation boundary without publishing partial semantics or claiming
+    /// that a later attempt can never fit.
+    SnapshotUnavailablePublished,
     /// Content-addressed pointer to the history-independent semantic answer
     /// bytes later committed by a terminal seal.
     TerminalResultPublished,
@@ -3541,6 +3552,7 @@ fn hash_discovery_kind(kind: DiscoveryEventKind, hasher: &mut StableHasher) {
         DiscoveryEventKind::SnapshotPublished => 5,
         DiscoveryEventKind::TerminalResultPublished => 6,
         DiscoveryEventKind::ProbePlanPrepared => 7,
+        DiscoveryEventKind::SnapshotUnavailablePublished => 8,
     });
 }
 
