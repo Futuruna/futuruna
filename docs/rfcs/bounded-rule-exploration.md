@@ -1526,6 +1526,12 @@ every completion-blocking frontier is closed, or its independent layer has a
 terminal `unavailable` outcome. An operationally capped open mechanism frontier
 is not terminal merely because answer closure succeeded.
 
+A fixed implementation ceiling is reported separately from operational host
+pressure. In particular, a V1 mechanism reducer ceiling returns a typed
+`mechanism_limit` at the still-open rank and states that unchanged resume cannot
+advance; it requires a later storage-backed mechanism contract rather than
+blindly retrying the same observation as transient `resource_pressure`.
+
 The first durable record is `RunOpened`. It binds `run_id` to the selected
 `program_hash`, `analysis_program_hash`, `query_hash`, `domain_hash`,
 `report_request_hash`, `probe_plan_hash`, evaluator contract and canonical
@@ -1576,6 +1582,23 @@ arrived. Before matching scope closes, only already classified matching support
 may authorize a mechanism observation; those facts are immediately visible as
 `scope_open` lower bounds. Exact case closure seals that same support as the
 target without enumerating its ranks.
+
+The first mechanism-aware slice scheduler runs only after the checked probe
+milestone and gives confirmed mechanism backlog strict priority over another
+case classification. Replay and classification are separately admitted atomic
+subjects, `MechanismCaseIdRank(rank)` and `CaseIdRank(rank)`, under the same
+resource envelope. After one matching classification, its mechanism rank must
+therefore cross a replay boundary before classification can expand again. A
+failed or operationally capped replay commits neither the rank nor a prefix;
+the same rank remains first after resume. When neither frontier has work, the
+coordinator publishes `matching_closed` count evidence and pauses at the
+deferred mechanism-terminal frontier rather than invoking the exact-only
+finalizer.
+
+Before the probe milestone, a mechanism checkpoint is not defined. A
+journal-only pause there is therefore a complete resume boundary but not
+observer-view debt. After the milestone, a journal-only pause does create view
+debt, and resume must service it before admitting another semantic work unit.
 
 The private mechanism-enabled identity reuses `SnapshotPublished` and
 `SnapshotUnavailablePublished`, but its snapshot schema digest dispatches

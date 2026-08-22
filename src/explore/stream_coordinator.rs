@@ -145,7 +145,7 @@ const EXACT_STREAM_OBSERVATION_BATCH_TARGET_BYTES_V1: usize = 8 * 1024 * 1024;
 pub(super) struct ExactStreamCoordinatorError {
     message: Box<str>,
     snapshot_publication_capacity: bool,
-    mechanism_operational_capacity: bool,
+    mechanism_fixed_capacity: bool,
 }
 
 impl ExactStreamCoordinatorError {
@@ -153,7 +153,7 @@ impl ExactStreamCoordinatorError {
         Self {
             message: message.into().into_boxed_str(),
             snapshot_publication_capacity: false,
-            mechanism_operational_capacity: false,
+            mechanism_fixed_capacity: false,
         }
     }
 
@@ -165,7 +165,7 @@ impl ExactStreamCoordinatorError {
         Self {
             message: format!("{context}: {error}").into_boxed_str(),
             snapshot_publication_capacity: true,
-            mechanism_operational_capacity: false,
+            mechanism_fixed_capacity: false,
         }
     }
 
@@ -173,7 +173,7 @@ impl ExactStreamCoordinatorError {
         Self {
             message: format!("{context}: {error}").into_boxed_str(),
             snapshot_publication_capacity: false,
-            mechanism_operational_capacity: true,
+            mechanism_fixed_capacity: true,
         }
     }
 
@@ -181,8 +181,8 @@ impl ExactStreamCoordinatorError {
         self.snapshot_publication_capacity
     }
 
-    pub(super) const fn is_mechanism_operational_capacity(&self) -> bool {
-        self.mechanism_operational_capacity
+    pub(super) const fn is_mechanism_fixed_capacity(&self) -> bool {
+        self.mechanism_fixed_capacity
     }
 }
 
@@ -385,6 +385,15 @@ impl PreparedMechanismObservableCheckpointPublicationV1 {
 
     pub(super) fn canonical_json_line(&self) -> &[u8] {
         &self.canonical_json_line
+    }
+
+    pub(super) const fn materialization_capacity_detail(&self) -> Option<&'static str> {
+        match self.kind {
+            PreparedMechanismObservableCheckpointPublicationKindV1::Included => None,
+            PreparedMechanismObservableCheckpointPublicationKindV1::CapacityUnavailable => {
+                Some("mechanism checkpoint exceeded its bounded canonical rendering envelope")
+            }
+        }
     }
 
     pub(super) fn into_canonical_json_line(self) -> Vec<u8> {
@@ -800,7 +809,14 @@ impl<'a> ExactStreamCoordinator<'a> {
                         }
                     );
                     if matches!(&payload, CanonicalRunRecordPayload::Paused { .. }) {
-                        observable_snapshot_debt = !previous_record_serviced_snapshot_view;
+                        // A mechanism checkpoint is not defined before its
+                        // source-probe milestone. Such a pause is already a
+                        // complete journal resume point, not deferred observer
+                        // work that could have been published at that cursor.
+                        let mechanism_checkpoint_not_yet_available =
+                            mechanism_request.is_some() && source_proof_completed.is_none();
+                        observable_snapshot_debt = !previous_record_serviced_snapshot_view
+                            && !mechanism_checkpoint_not_yet_available;
                     } else if services_snapshot_view {
                         observable_snapshot_debt = false;
                     }
@@ -1305,6 +1321,10 @@ impl<'a> ExactStreamCoordinator<'a> {
 
     pub(super) const fn report_request(&self) -> ExploreReportRequest {
         self.report_request
+    }
+
+    pub(super) const fn mechanism_checkpoint_enabled(&self) -> bool {
+        self.mechanism_request.is_some()
     }
 
     fn require_exact_only_publication_contract(
@@ -3281,8 +3301,11 @@ impl<'a> ExactStreamCoordinator<'a> {
             }
         );
         let pauses = matches!(prepared.payload(), CanonicalRunRecordPayload::Paused { .. });
-        let pause_creates_snapshot_debt =
-            pauses && !self.last_committed_record_serviced_snapshot_view;
+        let mechanism_checkpoint_not_yet_available =
+            self.mechanism_request.is_some() && !self.probe_phase_complete();
+        let pause_creates_snapshot_debt = pauses
+            && !self.last_committed_record_serviced_snapshot_view
+            && !mechanism_checkpoint_not_yet_available;
         let invalidates_terminal_payload = matches!(
             prepared.payload(),
             CanonicalRunRecordPayload::CoveragePlanAccepted { .. }

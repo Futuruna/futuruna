@@ -1003,6 +1003,11 @@ impl MacOsTopCpu {
 
 #[cfg(target_os = "macos")]
 fn parse_macos_top_cpu(bytes: &[u8]) -> Result<MacOsTopCpu, SampleUnavailable> {
+    // `top -l 1 -n 0` terminates its report with one blank display line on
+    // current macOS releases. Remove only that command-specific extra LF;
+    // `parse_ascii_lines` still rejects an empty line anywhere in the body and
+    // accepts at most the ordinary final record terminator after this step.
+    let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
     let lines = parse_ascii_lines(bytes, "top")?;
     let mut parsed = None;
     for line in lines {
@@ -1293,5 +1298,20 @@ mod source_canaries {
         assert_eq!(parse_macos_pressure(b"2\n"), Ok(MemoryPressure::Warning));
         assert_eq!(parse_macos_pressure(b"4\n"), Ok(MemoryPressure::Critical));
         assert!(parse_macos_pressure(b"5\n").is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_top_parser_accepts_the_command_trailing_display_line() {
+        let sample = b"Processes: 4 total\nCPU usage: 12.50% user, 7.50% sys, 80.00% idle\n\n";
+
+        let parsed = parse_macos_top_cpu(sample).expect("parse current top report ending");
+
+        assert_eq!(parsed.idle.millionths, 80_000_000);
+        assert_eq!(parsed.idle.quantum_millionths, 10_000);
+        assert!(parse_macos_top_cpu(
+            b"Processes: 4 total\n\nCPU usage: 12.50% user, 7.50% sys, 80.00% idle\n\n"
+        )
+        .is_err());
     }
 }

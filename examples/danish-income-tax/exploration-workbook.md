@@ -441,9 +441,15 @@ path for two positional shown calls into the same single-`if` function:
 checked request, canonical output-environment replay, signature mint, journal
 commit, count-only checkpoint, and crash recovery. A checked numeric shown root
 now also reuses its canonical evaluated `Int` value for durable 50-DKK bin
-incidence. General nested rule/call tracing, mechanism-DAG publication and
-public mechanism-aware result JSON are still deliberately deferred, so this
-architecture is not yet a claim of completed Personskat mechanism results.
+incidence. The first nested-helper profile now runs through a bounded,
+resource-governed slice: probes first, then one confirmed mechanism replay
+before another case classification, with a count checkpoint followed by a
+durable pause. Its crash experiment stops with a confirmed rank still pending;
+resume services that rank first and closes at three cases / three mechanisms.
+General multi-activation and rule-attempt tracing, mechanism-DAG publication
+and public mechanism-aware result JSON are still deliberately deferred, so
+this architecture is not yet a claim of completed Personskat mechanism
+results.
 
 #### Empirical checkpoint: first exact runtime mechanism bins (2026-08-22)
 

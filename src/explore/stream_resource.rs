@@ -136,6 +136,11 @@ pub(super) enum ExactStreamWorkSubject {
     FinalizationPhase,
     /// One canonical mixed-radix CaseId rank.
     CaseIdRank(u128),
+    /// One canonical mixed-radix CaseId rank evaluated as an individually
+    /// admitted mechanism-discovery case. Keeping this subject distinct from
+    /// `CaseIdRank` prevents authority for an ordinary case evaluation from
+    /// being reused to mint mechanism evidence at the same numeric rank.
+    MechanismCaseIdRank(u128),
     /// One deterministic candidate-first batch beginning at `first_rank` and
     /// evaluating no more than `case_cap` whole CaseIds.
     BoundedCaseIdBatch {
@@ -177,7 +182,8 @@ impl ExactStreamWorkDispatchPermit {
 
     pub(super) const fn case_id_rank(&self) -> Option<u128> {
         match self.identity.subject {
-            ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
@@ -189,7 +195,8 @@ impl ExactStreamWorkDispatchPermit {
 
     pub(super) const fn first_case_id_rank(&self) -> Option<u128> {
         match self.identity.subject {
-            ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. }
             | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
@@ -255,7 +262,8 @@ impl ExactStreamWorkInFlight {
 
     pub(super) const fn case_id_rank(&self) -> Option<u128> {
         match self.identity.subject {
-            ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
             | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
@@ -267,7 +275,8 @@ impl ExactStreamWorkInFlight {
 
     pub(super) const fn first_case_id_rank(&self) -> Option<u128> {
         match self.identity.subject {
-            ExactStreamWorkSubject::CaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. }
             | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
@@ -370,6 +379,8 @@ pub(super) struct ExactStreamOneWorkerEnvelope {
     next_permit_sequence: u64,
     terminal_reason: Option<ExactStreamResourcePauseReason>,
     revoked_lease_generation: Option<LeaseGeneration>,
+    #[cfg(test)]
+    unmetered_test_mode: bool,
     #[cfg(target_os = "macos")]
     provider: MacOsCommandProvider,
 }
@@ -416,9 +427,22 @@ impl ExactStreamOneWorkerEnvelope {
             next_permit_sequence: 0,
             terminal_reason: None,
             revoked_lease_generation: None,
+            #[cfg(test)]
+            unmetered_test_mode: false,
             #[cfg(target_os = "macos")]
             provider: MacOsCommandProvider::default(),
         })
+    }
+
+    /// Deterministic authority source for scheduler protocol tests. It keeps
+    /// the same linear subject/rank capability checks but deliberately does
+    /// not make a claim about live host telemetry; resource-governor behavior
+    /// is tested at its own boundary.
+    #[cfg(test)]
+    pub(super) fn new_unmetered_for_test() -> Result<Self, ExactStreamResourcePauseReason> {
+        let mut envelope = Self::new()?;
+        envelope.unmetered_test_mode = true;
+        Ok(envelope)
     }
 
     pub(super) fn target_worker_leases(&self) -> u16 {
@@ -514,6 +538,37 @@ impl ExactStreamOneWorkerEnvelope {
                 return self.wait(ExactStreamResourcePauseReason::PermitOutstanding);
             }
             self.revoke_dispatch_authority();
+        }
+
+        #[cfg(test)]
+        if self.unmetered_test_mode {
+            let Some(subject) = next_work_subject else {
+                return self.wait(ExactStreamResourcePauseReason::WaitingForWorkSubject);
+            };
+            if !work_subject_allowed(ExactStreamWorkPurpose::Calibration, subject) {
+                return self.wait(ExactStreamResourcePauseReason::InvalidWorkSubject);
+            }
+            let Some(sequence) = self.next_permit_sequence.checked_add(1) else {
+                return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            };
+            self.next_permit_sequence = sequence;
+            let identity = PermitIdentity {
+                sequence,
+                subject,
+                purpose: ExactStreamWorkPurpose::Calibration,
+                lease_generation: LeaseGeneration(1),
+                telemetry_cursor: TelemetryCursor {
+                    epoch: super::resource_governor::TelemetryEpoch(1),
+                    sequence,
+                    observed_at_millis: sequence,
+                },
+                stability_epoch: StabilityEpoch(1),
+                expires_at: now.checked_add(Duration::from_secs(60)).unwrap_or(now),
+            };
+            self.outstanding_permit = Some(identity);
+            return self.directive(ExactStreamResourceAction::Dispatch(
+                ExactStreamWorkDispatchPermit { identity },
+            ));
         }
 
         let calibration_confirmation = measured_calibration_peak_rss_bytes.is_some()
@@ -686,15 +741,18 @@ impl ExactStreamOneWorkerEnvelope {
             self.revoke_dispatch_authority();
             return Err(ExactStreamPermitError::Expired);
         }
-        if !self.cached_admission.is_some_and(|cached| {
+        let admission_is_current = self.cached_admission.is_some_and(|cached| {
             cached.purpose == permit.identity.purpose
                 && cached.lease_generation == permit.identity.lease_generation
                 && cached.telemetry_cursor == permit.identity.telemetry_cursor
                 && cached.stability_epoch == permit.identity.stability_epoch
                 && cached.expires_at == permit.identity.expires_at
-        }) || !self.governor.as_ref().is_some_and(|governor| {
+        }) && self.governor.as_ref().is_some_and(|governor| {
             decision_allows_case_for_purpose(governor.decision(), permit.identity.purpose)
-        }) {
+        });
+        #[cfg(test)]
+        let admission_is_current = admission_is_current || self.unmetered_test_mode;
+        if !admission_is_current {
             self.latch_terminal(ExactStreamResourcePauseReason::IncoherentTelemetry);
             return Err(ExactStreamPermitError::Revoked);
         }
@@ -951,6 +1009,7 @@ fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWor
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::SnapshotPublicationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::FinalizationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::CaseIdRank(_))
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::MechanismCaseIdRank(_))
         | (
             ExactStreamWorkPurpose::Calibration,
             ExactStreamWorkSubject::BoundedCaseIdBatch { .. },
@@ -960,6 +1019,7 @@ fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWor
             ExactStreamWorkSubject::ProbeCandidateBatch { .. },
         )
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::CaseIdRank(_))
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::MechanismCaseIdRank(_))
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::BoundedCaseIdBatch { .. })
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbeCandidateBatch { .. })
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::FinalizationPhase) => true,
@@ -1147,4 +1207,20 @@ const fn platform_supported() -> bool {
 #[cfg(not(target_os = "macos"))]
 const fn platform_supported() -> bool {
     false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn mechanism_case_rank_is_individually_admitted_for_calibration_and_scan() {
+        let subject = ExactStreamWorkSubject::MechanismCaseIdRank(37);
+
+        assert!(work_subject_allowed(
+            ExactStreamWorkPurpose::Calibration,
+            subject
+        ));
+        assert!(work_subject_allowed(ExactStreamWorkPurpose::Scan, subject));
+    }
 }

@@ -593,6 +593,13 @@ pub enum ExploreStreamSliceStop {
         blocked_rank: u128,
         reason: ExploreExecutionStopReason,
     },
+    /// The next confirmed mechanism observation cannot fit an immutable V1
+    /// reducer ceiling. This is not transient host pressure: unchanged resume
+    /// will reach the same rank and requires a later storage-backed contract.
+    MechanismLimit {
+        blocked_rank: u128,
+        detail: String,
+    },
     /// Classification is closed, but the current atomic finalizer cannot fit
     /// this answer inside its versioned witness/snapshot/publication envelope.
     /// The evidence remains valid and resumable for a future chunked finalizer.
@@ -647,7 +654,14 @@ pub struct ExploreStreamCursor {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreStreamSnapshotDeferral {
     TimeLimit,
-    ResourceAdmission { detail: String },
+    ResourceAdmission {
+        detail: String,
+    },
+    /// A mechanism-enabled run may pause while its source-probe obligation is
+    /// still open. Its count checkpoint is intentionally unavailable until
+    /// that milestone closes, while the journal remains a complete resume
+    /// point.
+    ProbeIncomplete,
 }
 
 /// Observable artifact status returned by one durable invocation.
@@ -1633,6 +1647,80 @@ fn publish_prepared_snapshot_and_pause_exact_stream_slice(
     })
 }
 
+/// Publish the mechanism count checkpoint at the current cursor, then append
+/// the ordinary pause record. Mechanism signatures and incidence remain in
+/// the private authenticated run state; this bounded observer is deliberately
+/// count-only until the public mechanism-DAG schema exists.
+fn publish_prepared_mechanism_checkpoint_and_pause_stream_slice(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    prepared_checkpoint: stream_coordinator::PreparedMechanismObservableCheckpointPublicationV1,
+    pause_reason: run_stream::PauseReason,
+    stop: ExploreStreamSliceStop,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    let materialization_capacity_detail = prepared_checkpoint
+        .materialization_capacity_detail()
+        .map(str::to_string);
+    let checkpoint_cursor = prepared_checkpoint.cursor();
+    checkpoint_cursor.sequence().checked_add(2).ok_or_else(|| {
+        ExploreExecutionPreparationError::Execution(
+            "mechanism-stream journal sequence cannot fit checkpoint publication and pause"
+                .to_string(),
+        )
+    })?;
+    let closed_cases_this_slice = coordinator
+        .closed_case_count()
+        .checked_sub(closed_cases_at_slice_start)
+        .ok_or_else(|| {
+            ExploreExecutionPreparationError::Execution(
+                "mechanism-stream closed support regressed during one invocation".to_string(),
+            )
+        })?;
+    let blob_digest = coordinator
+        .publish_prepared_mechanism_checkpoint(&prepared_checkpoint)
+        .map_err(|error| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot publish mechanism-stream checkpoint: {error}"
+            ))
+        })?;
+    let publication_cursor = coordinator.stream().cursor();
+    let final_cursor = coordinator.pause(pause_reason).map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "mechanism checkpoint {} was published at sequence {}, but the stream could not append its pause record: {error}",
+            blob_digest.to_lowercase_hex(),
+            publication_cursor.sequence(),
+        ))
+    })?;
+    let blob_digest = blob_digest.to_lowercase_hex();
+    let checkpoint_cursor = public_exact_stream_cursor(checkpoint_cursor);
+    let publication_cursor = public_exact_stream_cursor(publication_cursor);
+    let canonical_json_line = prepared_checkpoint.into_canonical_json_line();
+    let artifact = match materialization_capacity_detail {
+        Some(detail) => ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+            detail,
+        },
+        None => ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            canonical_json_line,
+            blob_digest,
+            checkpoint_cursor,
+            publication_cursor,
+        },
+    };
+    Ok(ExploreStreamSliceReport {
+        stop,
+        final_cursor: public_exact_stream_cursor(final_cursor),
+        probe_milestone_complete: true,
+        singleton_cases_evaluated_this_slice,
+        closed_cases_this_slice,
+        artifact,
+    })
+}
+
 fn pause_exact_stream_slice_without_snapshot(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
     pause_reason: run_stream::PauseReason,
@@ -1686,6 +1774,28 @@ fn publish_or_defer_and_pause_exact_stream_slice(
     singleton_cases_evaluated_this_slice: u128,
     closed_cases_at_slice_start: u128,
 ) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if coordinator.mechanism_checkpoint_enabled() {
+        if !coordinator.probe_phase_complete() {
+            return pause_exact_stream_slice_without_snapshot(
+                coordinator,
+                pause_reason,
+                stop,
+                ExploreStreamSnapshotDeferral::ProbeIncomplete,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        }
+        return publish_or_defer_and_pause_mechanism_stream_slice(
+            coordinator,
+            resources,
+            deadline,
+            pause_reason,
+            stop,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+
     match try_admit_exact_stream_snapshot_work(resources, deadline)? {
         ExactStreamWorkAdmission::Granted(in_flight) => {
             let mut snapshot_authority = match in_flight.into_snapshot_publication_authority() {
@@ -1712,6 +1822,72 @@ fn publish_or_defer_and_pause_exact_stream_slice(
             let publication = publish_prepared_snapshot_and_pause_exact_stream_slice(
                 coordinator,
                 prepared_snapshot,
+                pause_reason,
+                stop,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+            finish_exact_stream_work(resources, snapshot_authority.into_in_flight())?;
+            publication
+        }
+        ExactStreamWorkAdmission::TimeLimit => pause_exact_stream_slice_without_snapshot(
+            coordinator,
+            pause_reason,
+            stop,
+            ExploreStreamSnapshotDeferral::TimeLimit,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        ),
+        ExactStreamWorkAdmission::ResourcePause(reason) => {
+            pause_exact_stream_slice_without_snapshot(
+                coordinator,
+                pause_reason,
+                stop,
+                ExploreStreamSnapshotDeferral::ResourceAdmission {
+                    detail: reason.code().to_string(),
+                },
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            )
+        }
+    }
+}
+
+fn publish_or_defer_and_pause_mechanism_stream_slice(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    deadline: Option<Instant>,
+    pause_reason: run_stream::PauseReason,
+    stop: ExploreStreamSliceStop,
+    singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    match try_admit_exact_stream_snapshot_work(resources, deadline)? {
+        ExactStreamWorkAdmission::Granted(in_flight) => {
+            let mut snapshot_authority = match in_flight.into_snapshot_publication_authority() {
+                Ok(authority) => authority,
+                Err(in_flight) => {
+                    finish_exact_stream_work(resources, in_flight)?;
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "admitted mechanism work unit did not carry snapshot-publication authority"
+                            .to_string(),
+                    ));
+                }
+            };
+            let prepared_checkpoint = match coordinator
+                .prepare_mechanism_checkpoint_publication(&mut snapshot_authority)
+            {
+                Ok(prepared) => prepared,
+                Err(error) => {
+                    finish_exact_stream_work(resources, snapshot_authority.into_in_flight())?;
+                    return Err(ExploreExecutionPreparationError::Execution(format!(
+                        "cannot prepare mechanism-stream checkpoint publication: {error}"
+                    )));
+                }
+            };
+            let publication = publish_prepared_mechanism_checkpoint_and_pause_stream_slice(
+                coordinator,
+                prepared_checkpoint,
                 pause_reason,
                 stop,
                 singleton_cases_evaluated_this_slice,
@@ -2077,6 +2253,305 @@ fn finalize_or_pause_classification_closed_stream(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NestedIfMechanismStreamWorkV1 {
+    ReplayConfirmedMechanism { rank: u128 },
+    ClassifyCase { rank: u128 },
+    ClassificationAndMechanismClosed,
+}
+
+fn fixed_mechanism_limit_stop_v1(
+    blocked_rank: u128,
+    detail: String,
+) -> (run_stream::PauseReason, ExploreStreamSliceStop) {
+    (
+        run_stream::PauseReason::StorageLimit,
+        ExploreStreamSliceStop::MechanismLimit {
+            blocked_rank,
+            detail,
+        },
+    )
+}
+
+/// Choose one atomic semantic work unit without mutating the stream. Confirmed
+/// mechanism incidence always wins over further classification so a bounded
+/// invocation exposes newly discovered signatures promptly and never grows an
+/// avoidable replay backlog.
+fn next_nested_if_mechanism_stream_work_v1(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+) -> Result<NestedIfMechanismStreamWorkV1, ExploreExecutionPreparationError> {
+    if let Some(rank) = coordinator.next_mechanism_rank_hint().map_err(|error| {
+        ExploreExecutionPreparationError::Execution(format!(
+            "cannot select confirmed mechanism replay work: {error}"
+        ))
+    })? {
+        return Ok(NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank });
+    }
+    Ok(match coordinator.next_open_rank_hint() {
+        Some(rank) => NestedIfMechanismStreamWorkV1::ClassifyCase { rank },
+        None => NestedIfMechanismStreamWorkV1::ClassificationAndMechanismClosed,
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+fn advance_nested_if_mechanism_stream_slice_v1(
+    coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
+    resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
+    query: &ExploreQueryIr,
+    plan: &mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1,
+    deadline: Option<Instant>,
+    mut singleton_cases_evaluated_this_slice: u128,
+    closed_cases_at_slice_start: u128,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if !coordinator.probe_phase_complete() {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "mechanism scheduler cannot precede the completed source-probe milestone".to_string(),
+        ));
+    }
+
+    loop {
+        if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
+            let _ = resources.stop_at_work_boundary();
+            return publish_or_defer_and_pause_exact_stream_slice(
+                coordinator,
+                resources,
+                query,
+                deadline,
+                run_stream::PauseReason::TimeLimit,
+                ExploreStreamSliceStop::TimeLimit,
+                singleton_cases_evaluated_this_slice,
+                closed_cases_at_slice_start,
+            );
+        }
+
+        match next_nested_if_mechanism_stream_work_v1(coordinator)? {
+            NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank } => {
+                let work_subject =
+                    stream_resource::ExactStreamWorkSubject::MechanismCaseIdRank(rank);
+                let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
+                    ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                    ExactStreamWorkAdmission::TimeLimit => {
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::TimeLimit,
+                            ExploreStreamSliceStop::TimeLimit,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    ExactStreamWorkAdmission::ResourcePause(reason) => {
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::ResourcePressure,
+                            ExploreStreamSliceStop::ResourcePressure {
+                                detail: reason.code().to_string(),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                };
+                if in_flight.subject() != work_subject || in_flight.case_id_rank() != Some(rank) {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource governor began another mechanism CaseId than the coordinator scheduled"
+                            .to_string(),
+                    ));
+                }
+                let advance = coordinator.advance_one_nested_if_mechanism_case(plan);
+                finish_exact_stream_work(resources, in_flight)?;
+                let advance = match advance {
+                    Ok(advance) => advance,
+                    Err(error) if error.is_mechanism_fixed_capacity() => {
+                        let (pause_reason, stop) =
+                            fixed_mechanism_limit_stop_v1(rank, error.to_string());
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            pause_reason,
+                            stop,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    Err(error) => {
+                        return Err(ExploreExecutionPreparationError::Execution(format!(
+                            "cannot advance durable nested mechanism evidence: {error}"
+                        )));
+                    }
+                };
+                match advance {
+                    stream_coordinator::MechanismStreamAdvanceV1::Committed {
+                        rank: committed_rank,
+                        canonical_blob_bytes,
+                    } => {
+                        if committed_rank != rank || canonical_blob_bytes == 0 {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "resource-bound mechanism replay returned inconsistent committed evidence"
+                                    .to_string(),
+                            ));
+                        }
+                    }
+                    stream_coordinator::MechanismStreamAdvanceV1::NoConfirmedTargetBacklog => {
+                        return Err(ExploreExecutionPreparationError::Execution(
+                            "confirmed mechanism backlog disappeared after its ranked dispatch"
+                                .to_string(),
+                        ));
+                    }
+                    stream_coordinator::MechanismStreamAdvanceV1::CaseOpen {
+                        rank: open_rank,
+                        reason,
+                    } => {
+                        if open_rank != rank {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "mechanism evaluator blocked another rank than the dispatched CaseId"
+                                    .to_string(),
+                            ));
+                        }
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::EvaluationLimit,
+                            ExploreStreamSliceStop::EvaluationLimit {
+                                blocked_rank: open_rank,
+                                reason: public_stop(reason),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                }
+            }
+            NestedIfMechanismStreamWorkV1::ClassifyCase { rank } => {
+                let work_subject = stream_resource::ExactStreamWorkSubject::CaseIdRank(rank);
+                let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
+                    ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
+                    ExactStreamWorkAdmission::TimeLimit => {
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::TimeLimit,
+                            ExploreStreamSliceStop::TimeLimit,
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    ExactStreamWorkAdmission::ResourcePause(reason) => {
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::ResourcePressure,
+                            ExploreStreamSliceStop::ResourcePressure {
+                                detail: reason.code().to_string(),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                };
+                if in_flight.subject() != work_subject || in_flight.case_id_rank() != Some(rank) {
+                    return Err(ExploreExecutionPreparationError::Execution(
+                        "resource governor began another classification CaseId than the mechanism scheduler requested"
+                            .to_string(),
+                    ));
+                }
+                let closed_cases_before = coordinator.closed_case_count();
+                let advance = coordinator.advance_one_case();
+                finish_exact_stream_work(resources, in_flight)?;
+                match advance.map_err(|error| {
+                    ExploreExecutionPreparationError::Execution(format!(
+                        "cannot advance durable mechanism-target classification: {error}"
+                    ))
+                })? {
+                    stream_coordinator::ExactStreamAdvance::Committed {
+                        rank: committed_rank,
+                        closed_case_count,
+                    } => {
+                        let expected_closed_case_count =
+                            closed_cases_before.checked_add(1).ok_or_else(|| {
+                                ExploreExecutionPreparationError::Execution(
+                                    "mechanism-stream closed case count exceeds u128::MAX"
+                                        .to_string(),
+                                )
+                            })?;
+                        if committed_rank != rank
+                            || closed_case_count != expected_closed_case_count
+                            || closed_case_count != coordinator.closed_case_count()
+                        {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "resource-bound mechanism target returned inconsistent classification evidence"
+                                    .to_string(),
+                            ));
+                        }
+                        singleton_cases_evaluated_this_slice =
+                            singleton_cases_evaluated_this_slice.checked_add(1).ok_or_else(|| {
+                                ExploreExecutionPreparationError::Execution(
+                                    "mechanism-stream evaluated case count exceeds u128::MAX"
+                                        .to_string(),
+                                )
+                            })?;
+                    }
+                    stream_coordinator::ExactStreamAdvance::CaseOpen {
+                        rank: open_rank,
+                        reason,
+                    } => {
+                        if open_rank != rank {
+                            return Err(ExploreExecutionPreparationError::Execution(
+                                "mechanism target evaluator blocked another rank than the dispatched CaseId"
+                                    .to_string(),
+                            ));
+                        }
+                        return publish_or_defer_and_pause_exact_stream_slice(
+                            coordinator,
+                            resources,
+                            query,
+                            deadline,
+                            run_stream::PauseReason::EvaluationLimit,
+                            ExploreStreamSliceStop::EvaluationLimit {
+                                blocked_rank: open_rank,
+                                reason: public_stop(reason),
+                            },
+                            singleton_cases_evaluated_this_slice,
+                            closed_cases_at_slice_start,
+                        );
+                    }
+                    stream_coordinator::ExactStreamAdvance::ClassificationClosedFinalizationPending => {
+                        return Err(ExploreExecutionPreparationError::Execution(
+                            "mechanism scheduler dispatched a CaseId after classification had closed"
+                                .to_string(),
+                        ));
+                    }
+                }
+            }
+            NestedIfMechanismStreamWorkV1::ClassificationAndMechanismClosed => {
+                return publish_or_defer_and_pause_exact_stream_slice(
+                    coordinator,
+                    resources,
+                    query,
+                    deadline,
+                    run_stream::PauseReason::FinalizationPending,
+                    ExploreStreamSliceStop::ClassificationClosedFinalizationPending,
+                    singleton_cases_evaluated_this_slice,
+                    closed_cases_at_slice_start,
+                );
+            }
+        }
+    }
+}
+
 /// Check, open or resume, and advance one bounded durable exact Explore slice.
 ///
 /// Terminal witness replay remains opt-in because its first-generation
@@ -2091,6 +2566,75 @@ pub fn execute_checked_exact_stream_slice(
     source: &str,
     query_name: Option<&str>,
     options: ExploreStreamSliceOptions,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    execute_checked_stream_slice_v1(
+        statements,
+        source_dir,
+        source,
+        query_name,
+        options,
+        CheckedStreamExecutionProfileV1::ExactOnly,
+        None,
+    )
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CheckedStreamExecutionProfileV1 {
+    ExactOnly,
+    NestedIfMechanism {
+        before_show_index: usize,
+        after_show_index: usize,
+    },
+}
+
+/// First executable orchestration seam for mechanism discovery. The selection
+/// remains invocation-side and crate-private while the mechanism-DAG result
+/// schema is designed; the durable count checkpoint is already observable and
+/// resumable through the ordinary stream report.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn execute_checked_nested_if_mechanism_stream_slice_v1(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    before_show_index: usize,
+    after_show_index: usize,
+    options: ExploreStreamSliceOptions,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if options.finalize {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "mechanism-stream terminal finalization is not implemented".to_string(),
+        ));
+    }
+    if options.case_graph != ExploreStreamCaseGraphRequest::Omit {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "mechanism-stream execution currently requires omitted public case-graph disclosure"
+                .to_string(),
+        ));
+    }
+    execute_checked_stream_slice_v1(
+        statements,
+        source_dir,
+        source,
+        query_name,
+        options,
+        CheckedStreamExecutionProfileV1::NestedIfMechanism {
+            before_show_index,
+            after_show_index,
+        },
+        None,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn execute_checked_stream_slice_v1(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    options: ExploreStreamSliceOptions,
+    profile: CheckedStreamExecutionProfileV1,
+    resources: Option<stream_resource::ExactStreamOneWorkerEnvelope>,
 ) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
     if options.max_runtime.is_some_and(|runtime| runtime.is_zero()) {
         return Err(ExploreExecutionPreparationError::Execution(
@@ -2122,12 +2666,15 @@ pub fn execute_checked_exact_stream_slice(
         })?),
         None => None,
     };
-    let mut resources = stream_resource::ExactStreamOneWorkerEnvelope::new().map_err(|reason| {
-        ExploreExecutionPreparationError::Execution(format!(
-            "cannot initialize exact-stream resource governor: {}",
-            reason.code()
-        ))
-    })?;
+    let mut resources = match resources {
+        Some(resources) => resources,
+        None => stream_resource::ExactStreamOneWorkerEnvelope::new().map_err(|reason| {
+            ExploreExecutionPreparationError::Execution(format!(
+                "cannot initialize exact-stream resource governor: {}",
+                reason.code()
+            ))
+        })?,
+    };
     let preparation_in_flight = match admit_exact_stream_work(
         &mut resources,
         stream_resource::ExactStreamWorkSubject::PreparationPhase,
@@ -2161,17 +2708,53 @@ pub fn execute_checked_exact_stream_slice(
             return Err(error);
         }
     };
+    let mechanism_plan = match profile {
+        CheckedStreamExecutionProfileV1::ExactOnly => None,
+        CheckedStreamExecutionProfileV1::NestedIfMechanism {
+            before_show_index,
+            after_show_index,
+        } => {
+            let plan =
+                match mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
+                    &artifacts,
+                    selected,
+                    before_show_index,
+                    after_show_index,
+                ) {
+                    Ok(plan) => plan,
+                    Err(error) => {
+                        finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+                        return Err(ExploreExecutionPreparationError::Execution(format!(
+                            "cannot prepare checked nested mechanism stream: {error}"
+                        )));
+                    }
+                };
+            Some(plan)
+        }
+    };
     let query = &artifacts.exploration_universes[selected];
     let report_request = options.case_graph.report_request();
-    let coordinator_result = stream_coordinator::ExactStreamCoordinator::open_or_create(
-        &options.run_state,
-        run_store::RunStoreLimits::default(),
-        statements,
-        source_dir.as_deref(),
-        &artifacts,
-        selected,
-        report_request,
-    );
+    let coordinator_result = match mechanism_plan.as_ref() {
+        Some(plan) => stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+            &options.run_state,
+            run_store::RunStoreLimits::default(),
+            statements,
+            source_dir.as_deref(),
+            &artifacts,
+            selected,
+            report_request,
+            plan.request().clone(),
+        ),
+        None => stream_coordinator::ExactStreamCoordinator::open_or_create(
+            &options.run_state,
+            run_store::RunStoreLimits::default(),
+            statements,
+            source_dir.as_deref(),
+            &artifacts,
+            selected,
+            report_request,
+        ),
+    };
     let mut coordinator = match coordinator_result {
         Ok(coordinator) => coordinator,
         Err(error) => {
@@ -2184,6 +2767,12 @@ pub fn execute_checked_exact_stream_slice(
     let closed_cases_at_slice_start = coordinator.closed_case_count();
 
     if coordinator.stream().lifecycle() == run_stream::RunLifecycle::Sealed {
+        if mechanism_plan.is_some() {
+            finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+            return Err(ExploreExecutionPreparationError::Execution(
+                "mechanism-enabled stream unexpectedly recovered a terminal seal".to_string(),
+            ));
+        }
         let report = render_already_sealed_exact_stream(&coordinator, closed_cases_at_slice_start);
         finish_exact_stream_work(&mut resources, preparation_in_flight)?;
         return report;
@@ -2554,6 +3143,18 @@ pub fn execute_checked_exact_stream_slice(
             deadline,
             run_stream::PauseReason::ProbeMilestone,
             ExploreStreamSliceStop::ProbeMilestone,
+            singleton_cases_evaluated_this_slice,
+            closed_cases_at_slice_start,
+        );
+    }
+
+    if let Some(plan) = mechanism_plan.as_ref() {
+        return advance_nested_if_mechanism_stream_slice_v1(
+            &mut coordinator,
+            &mut resources,
+            query,
+            plan,
+            deadline,
             singleton_cases_evaluated_this_slice,
             closed_cases_at_slice_start,
         );
@@ -7092,6 +7693,21 @@ mod tests {
     }
 
     #[test]
+    fn fixed_mechanism_capacity_is_not_reported_as_transient_resource_pressure() {
+        let (pause_reason, stop) =
+            fixed_mechanism_limit_stop_v1(37, "fixed signature ceiling reached".to_string());
+
+        assert_eq!(pause_reason, run_stream::PauseReason::StorageLimit);
+        assert_eq!(
+            stop,
+            ExploreStreamSliceStop::MechanismLimit {
+                blocked_rank: 37,
+                detail: "fixed signature ceiling reached".to_string(),
+            }
+        );
+    }
+
+    #[test]
     fn nested_mechanism_stream_traces_actual_helper_if_and_recovers() {
         let source = r#"
 > adjustment(income: Int) -> Int {
@@ -7159,17 +7775,80 @@ mod tests {
                 mechanism_request.clone(),
             )
         };
-        let mut coordinator = open().expect("create nested mechanism stream");
-        coordinator
-            .persist_probe_fallback_manifest()
-            .expect("persist bounded canonical probe fallback");
-        coordinator
-            .accept_prepared_probe_coverage(NonZeroU64::new(1).expect("one is nonzero"))
-            .expect("accept bounded probe coverage");
-        assert!(coordinator
-            .complete_prepared_probe()
-            .expect("complete source-probe milestone")
-            .complete());
+
+        let mut coordinator = open().expect("create pre-probe nested mechanism stream");
+        let pre_probe_pause = pause_exact_stream_slice_without_snapshot(
+            &mut coordinator,
+            run_stream::PauseReason::TimeLimit,
+            ExploreStreamSliceStop::TimeLimit,
+            ExploreStreamSnapshotDeferral::ProbeIncomplete,
+            0,
+            0,
+        )
+        .expect("commit journal-only pre-probe pause");
+        assert!(!pre_probe_pause.probe_milestone_complete);
+        assert!(matches!(
+            pre_probe_pause.artifact,
+            ExploreStreamArtifact::JournalOnlyCheckpoint {
+                snapshot_deferral: ExploreStreamSnapshotDeferral::ProbeIncomplete,
+            }
+        ));
+        assert!(!coordinator.pending_observable_snapshot_on_resume());
+        drop(coordinator);
+
+        let coordinator = open().expect("resume journal-only pre-probe mechanism stream");
+        assert!(!coordinator.probe_phase_complete());
+        assert!(!coordinator.pending_observable_snapshot_on_resume());
+        drop(coordinator);
+
+        let probe_report = execute_checked_stream_slice_v1(
+            &statements,
+            None,
+            source,
+            Some("nested_mechanism_stream_fixture"),
+            ExploreStreamSliceOptions {
+                run_state: directory.clone(),
+                max_runtime: None,
+                pause_after: Some(ExploreStreamPauseAfter::Probes),
+                case_graph: ExploreStreamCaseGraphRequest::Omit,
+                finalize: false,
+            },
+            CheckedStreamExecutionProfileV1::NestedIfMechanism {
+                before_show_index: 0,
+                after_show_index: 1,
+            },
+            Some(
+                stream_resource::ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+                    .expect("create deterministic scheduler-test resource authority"),
+            ),
+        )
+        .expect("run the bounded mechanism stream through its probe milestone");
+        assert_eq!(probe_report.stop, ExploreStreamSliceStop::ProbeMilestone);
+        assert!(probe_report.probe_milestone_complete);
+        assert_eq!(probe_report.singleton_cases_evaluated_this_slice, 0);
+        let initial_json = match &probe_report.artifact {
+            ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+                canonical_json_line,
+                ..
+            } => std::str::from_utf8(canonical_json_line)
+                .expect("initial mechanism checkpoint is UTF-8"),
+            other => panic!("expected initial mechanism checkpoint, got {other:?}"),
+        };
+        assert!(initial_json.contains("\"schema\":\"futuruna.explore.mechanism-checkpoint.v1\""));
+        assert!(initial_json.contains("\"status\":\"scope_open\""));
+        assert!(initial_json.contains(
+            "\"mechanism_signatures\":{\"certainty\":\"unknown\",\"value\":null,\"confirmed_lower_bound\":\"0\"}"
+        ));
+
+        // Simulate an abrupt process stop after exact classification but before
+        // its newly confirmed target receives mechanism replay. The recovered
+        // scheduler must service that durable backlog before classifying rank 1.
+        let mut coordinator = open().expect("resume the probe-paused nested mechanism stream");
+        assert_eq!(
+            next_nested_if_mechanism_stream_work_v1(&mut coordinator)
+                .expect("select first post-probe work"),
+            NestedIfMechanismStreamWorkV1::ClassifyCase { rank: 0 }
+        );
 
         assert!(matches!(
             coordinator
@@ -7177,65 +7856,66 @@ mod tests {
                 .expect("classify first nested mechanism case"),
             stream_coordinator::ExactStreamAdvance::Committed { rank: 0, .. }
         ));
-        assert!(matches!(
-            coordinator
-                .advance_one_nested_if_mechanism_case(&plan)
-                .expect("trace first nested mechanism case"),
-            stream_coordinator::MechanismStreamAdvanceV1::Committed { rank: 0, .. }
-        ));
+        assert_eq!(
+            next_nested_if_mechanism_stream_work_v1(&mut coordinator)
+                .expect("prioritize the newly confirmed mechanism target"),
+            NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank: 0 }
+        );
         let partial_before_recovery = coordinator
             .mechanism_snapshot()
             .expect("materialize partial nested mechanism evidence")
             .expect("nested mechanism evidence is enabled");
         drop(coordinator);
 
-        let recovered_plan =
-            mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
-                &artifacts, selected, 0, 1,
-            )
-            .expect("rebuild nested-if plan after recovery");
-        let mut coordinator = open().expect("recover partial nested mechanism stream");
-        let partial_after_recovery = coordinator
-            .mechanism_snapshot()
-            .expect("materialize recovered partial nested mechanism evidence")
-            .expect("recovered nested mechanism evidence is enabled");
-        assert_eq!(partial_after_recovery, partial_before_recovery);
+        let final_report = execute_checked_stream_slice_v1(
+            &statements,
+            None,
+            source,
+            Some("nested_mechanism_stream_fixture"),
+            ExploreStreamSliceOptions {
+                run_state: directory.clone(),
+                max_runtime: Some(Duration::from_secs(10)),
+                pause_after: None,
+                case_graph: ExploreStreamCaseGraphRequest::Omit,
+                finalize: false,
+            },
+            CheckedStreamExecutionProfileV1::NestedIfMechanism {
+                before_show_index: 0,
+                after_show_index: 1,
+            },
+            Some(
+                stream_resource::ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+                    .expect("create resumed scheduler-test resource authority"),
+            ),
+        )
+        .expect("resume and close the bounded mechanism stream");
+        assert_eq!(
+            final_report.stop,
+            ExploreStreamSliceStop::ClassificationClosedFinalizationPending
+        );
+        assert!(final_report.probe_milestone_complete);
+        assert_eq!(final_report.singleton_cases_evaluated_this_slice, 3);
+        assert_eq!(final_report.closed_cases_this_slice, 3);
+        let final_json = match &final_report.artifact {
+            ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+                canonical_json_line,
+                ..
+            } => std::str::from_utf8(canonical_json_line)
+                .expect("closed mechanism checkpoint is UTF-8"),
+            other => panic!("expected closed mechanism checkpoint, got {other:?}"),
+        };
+        assert!(final_json.contains("\"status\":\"matching_closed\""));
+        assert!(final_json.contains("\"target_cases\":{\"certainty\":\"exact\",\"value\":\"3\"}"));
+        assert!(final_json.contains("\"traced_cases\":\"3\""));
+        assert!(final_json
+            .contains("\"mechanism_signatures\":{\"certainty\":\"exact\",\"value\":\"3\"}"));
 
-        loop {
-            while coordinator
-                .next_mechanism_rank_hint()
-                .expect("select nested mechanism backlog")
-                .is_some()
-            {
-                assert!(matches!(
-                    coordinator
-                        .advance_one_nested_if_mechanism_case(&recovered_plan)
-                        .expect("trace nested mechanism case"),
-                    stream_coordinator::MechanismStreamAdvanceV1::Committed { .. }
-                ));
-            }
-            if coordinator.next_open_rank_hint().is_none() {
-                break;
-            }
-            assert!(matches!(
-                coordinator
-                    .advance_one_case()
-                    .expect("classify nested mechanism case"),
-                stream_coordinator::ExactStreamAdvance::Committed { .. }
-            ));
-        }
-        while coordinator
+        let mut coordinator = open().expect("recover the closed nested mechanism stream");
+        assert!(coordinator
             .next_mechanism_rank_hint()
-            .expect("select final nested mechanism backlog")
-            .is_some()
-        {
-            assert!(matches!(
-                coordinator
-                    .advance_one_nested_if_mechanism_case(&recovered_plan)
-                    .expect("trace final nested mechanism case"),
-                stream_coordinator::MechanismStreamAdvanceV1::Committed { .. }
-            ));
-        }
+            .expect("inspect recovered nested mechanism backlog")
+            .is_none());
+        assert_eq!(coordinator.closed_case_count(), 4);
 
         let evidence = coordinator
             .mechanism_snapshot()
@@ -7253,6 +7933,7 @@ mod tests {
         assert_eq!(evidence.population.known_target_untraced, 0);
         assert_eq!(evidence.signatures.len(), 3);
         assert!(evidence.bin_fields.is_empty());
+        assert_ne!(evidence, partial_before_recovery);
 
         let mut outcomes = BTreeSet::new();
         let mut stable_shape = None;

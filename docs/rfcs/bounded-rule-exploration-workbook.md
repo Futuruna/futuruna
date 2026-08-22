@@ -44,8 +44,15 @@ signature observations, and publish count-only mechanism checkpoints that
 survive crash/reopen. Mechanism replay V1 owns an immutable checked root-module
 snapshot and refuses every external Futuruna import before stream creation;
 import support waits for a boundary-preserving frozen module graph rather than
-rereading live files or flattening module initialization. The paths have no CLI
-selector, general multi-event/rule-call
+rereading live files or flattening module initialization. The nested profile is
+now driven by the same bounded invocation lifecycle as ordinary exact Explore:
+source probes run first; each confirmed mechanism replay is individually
+admitted under the 80% resource envelope; that backlog is drained before
+another CaseId is classified; and every orderly stop publishes the existing
+count checkpoint before its pause when view work is admitted. A pre-probe stop
+is journal-only because the mechanism checkpoint intentionally requires the
+completed probe milestone. The paths have no CLI selector, general
+multi-event/rule-call
 tracing, public bin surface, or mechanism-DAG/terminal publication yet. Those
 surfaces, user-authored
 `probes`, typed `output as` rows, `after`, detached following, parallel workers
@@ -72,11 +79,15 @@ private canonical checkpoint are:
 }
 ```
 
-The fixture then drops the live coordinator without a pause, reopens the same
-run directory from its authenticated journal and blobs, and requires identical
-mechanism evidence with no replay backlog. The excerpt is for readability; the
-committed artifact is one cursor-bound canonical JSON line with the complete
-conservation fields and hashes.
+The fixture first publishes its `scope_open` probe checkpoint. It then commits
+one exact classification, verifies that the newly confirmed mechanism rank has
+priority over the next classification, and drops the live coordinator without
+a pause. A fresh bounded invocation recovers that pending rank from the
+authenticated journal, drains it first, alternates the remaining classification
+and mechanism work, and publishes the `matching_closed` checkpoint. Reopening
+again has no replay backlog. The excerpt is for readability; each committed
+artifact is one cursor-bound canonical JSON line with the complete conservation
+fields and hashes.
 
 ## Five search clauses, an optional probe plan, plus a continuation
 
@@ -1062,13 +1073,39 @@ slice traces confirmed matching cases only (`S_req = M`); representative and
 nonmatching trace populations remain later profiles. These restrictions narrow
 only the executable producer, not the general mechanism-DAG model above.
 
+The nested producer is now joined to a bounded orchestration loop rather than
+being exercised by a hand-written completion loop. After the checked probe
+milestone, the scheduler chooses exactly one atomic work subject at a time:
+
+1. if confirmed mechanism incidence is pending, admit
+   `MechanismCaseIdRank(rank)` and fresh-replay that rank;
+2. otherwise admit one ordinary `CaseIdRank(rank)` classification; and
+3. when both frontiers are empty, publish the count-only mechanism checkpoint
+   and pause at the still-explicit terminal-publication frontier.
+
+The subject distinction is capability-bearing, not a label: authority to
+classify rank 7 cannot be reused to mint mechanism evidence for rank 7. Each
+new matching classification is therefore reflected into its mechanism graph
+before the scheduler may expand the case frontier again. This bounds replay
+backlog, makes novel signatures observable early, and preserves the same exact
+resume rank when evaluation leaves a work unit open. An immutable V1 reducer
+ceiling instead returns a typed `mechanism_limit`; it is not transient resource
+pressure, and unchanged resume is not advertised as productive. Mechanism
+checkpoint publication remains a separately admitted view phase; denial after
+the probe milestone leaves a journal-only pause and a later invocation services
+that view debt before advancing further. A pre-probe journal pause creates no
+such debt because no mechanism checkpoint is defined at that cursor.
+
 The executable four-income fixture yields three exact matching cases and three
 exact signatures. Their endpoint outcomes are `Else/Else`, `Else/Then` and
 `Then/Then`, each with support one. Every signature contains the same one-node
 checked shape—one helper activation frame and its actual `IfDecision`—while the
-outcome pair distinguishes the signatures. The experiment commits the first
-case, drops and reopens the coordinator, requires identical reduced evidence at
-that cursor, and then closes all three cases with no untraced remainder.
+outcome pair distinguishes the signatures. The experiment publishes the probe
+checkpoint, commits the first classification, drops with its mechanism rank
+pending, and resumes through the formal scheduler. The closing invocation
+classifies the remaining three boundary configurations, traces all three
+matching targets, and publishes exact three-case / three-signature counts with
+no untraced remainder.
 A second focused source-boundary experiment checks the same shape through a
 plain-import helper and requires plan construction to fail with the frozen-
 module-graph requirement. The rejection happens before a mechanism stream is

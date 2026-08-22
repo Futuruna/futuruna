@@ -6884,6 +6884,12 @@ fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
                 explore_stop_text(reason)
             )
         }
+        explore::ExploreStreamSliceStop::MechanismLimit {
+            blocked_rank,
+            detail,
+        } => format!(
+            "mechanism CaseId rank {blocked_rank} exceeds the immutable reducer contract; unchanged resume cannot advance ({detail})"
+        ),
         explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
             format!("atomic finalization limit in {phase} ({detail})")
         }
@@ -7046,6 +7052,14 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
             "blocked_case_id_rank": blocked_rank.to_string(),
             "evaluator_reason": explore_execution_stop_reason_json(reason),
         }),
+        explore::ExploreStreamSliceStop::MechanismLimit {
+            blocked_rank,
+            detail,
+        } => serde_json::json!({
+            "kind": "mechanism_limit",
+            "blocked_case_id_rank": blocked_rank.to_string(),
+            "detail": detail,
+        }),
         explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
             serde_json::json!({
                 "kind": "finalization_limit",
@@ -7075,6 +7089,9 @@ fn explore_stream_snapshot_deferral_text(
         explore::ExploreStreamSnapshotDeferral::ResourceAdmission { detail } => {
             format!("snapshot work was not admitted ({detail})")
         }
+        explore::ExploreStreamSnapshotDeferral::ProbeIncomplete => {
+            "mechanism checkpoint awaits the completed source-probe milestone".to_string()
+        }
     }
 }
 
@@ -7090,6 +7107,9 @@ fn explore_stream_snapshot_deferral_json(
                 "kind": "resource_admission",
                 "detail": detail,
             })
+        }
+        explore::ExploreStreamSnapshotDeferral::ProbeIncomplete => {
+            serde_json::json!({ "kind": "probe_incomplete" })
         }
     }
 }
