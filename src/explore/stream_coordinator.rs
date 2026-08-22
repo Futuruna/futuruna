@@ -52,6 +52,16 @@ use super::exact_stream::{
 use super::mechanism::{
     CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
 };
+use super::mechanism_runtime::{
+    mint_single_if_mechanism_observation_v1, seal_runtime_confirmed_mechanism_observation_v1,
+    CheckedSingleIfMechanismRuntimePlanV1,
+};
+use super::mechanism_snapshot::{
+    render_mechanism_observable_checkpoint_json_line_v1,
+    render_mechanism_observable_checkpoint_unavailable_json_line_v1,
+    MechanismObservableCheckpointMetadataV1, MECHANISM_OBSERVABLE_CHECKPOINT_BLOB_KIND_V1,
+    MECHANISM_OBSERVABLE_CHECKPOINT_UNAVAILABLE_BLOB_KIND_V1,
+};
 use super::mechanism_stream::{
     decode_mechanism_observation_batch_v1, encode_mechanism_observation_batch_v1,
     restore_committed_mechanism_batch_v1, MechanismBinAssignmentOutcomeV1,
@@ -197,6 +207,18 @@ pub(super) enum ExactStreamAdvance {
     },
 }
 
+/// One atomic fresh-replay mechanism step over an already confirmed matching
+/// CaseId. No backlog means classification can continue; a committed result
+/// has crossed the blob -> journal -> reducer boundary.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(super) enum MechanismStreamAdvanceV1 {
+    NoConfirmedTargetBacklog,
+    Committed {
+        rank: u128,
+        canonical_blob_bytes: usize,
+    },
+}
+
 /// Why a committed bounded classification block stopped growing. Every rank
 /// named here remains open unless `ClassificationClosedFinalizationPending`
 /// is selected.
@@ -328,6 +350,35 @@ pub(super) struct PreparedExactObservableSnapshotPublication {
     kind: PreparedExactObservableSnapshotPublicationKind,
 }
 
+/// Opaque canonical mechanism-checkpoint bytes bound to the current running
+/// cursor. As with exact snapshots, the content is installed before the
+/// journal pointer and never changes semantic evidence.
+pub(super) struct PreparedMechanismObservableCheckpointPublicationV1 {
+    cursor: ExploreRunCursor,
+    canonical_json_line: Vec<u8>,
+    kind: PreparedMechanismObservableCheckpointPublicationKindV1,
+}
+
+#[derive(Clone, Copy)]
+enum PreparedMechanismObservableCheckpointPublicationKindV1 {
+    Included,
+    CapacityUnavailable,
+}
+
+impl PreparedMechanismObservableCheckpointPublicationV1 {
+    pub(super) const fn cursor(&self) -> ExploreRunCursor {
+        self.cursor
+    }
+
+    pub(super) fn canonical_json_line(&self) -> &[u8] {
+        &self.canonical_json_line
+    }
+
+    pub(super) fn into_canonical_json_line(self) -> Vec<u8> {
+        self.canonical_json_line
+    }
+}
+
 enum PreparedExactObservableSnapshotPublicationKind {
     Included,
     CapacityUnavailable { detail: Box<str> },
@@ -388,6 +439,7 @@ pub(super) struct ExactStreamCoordinator<'a> {
     statements: &'a [Stmt],
     source_dir: Option<&'a str>,
     artifacts: &'a TypeCheckArtifacts,
+    accepted_query_index: usize,
     query: &'a ExploreQueryIr,
     report_request: ExploreReportRequest,
     replay_closure: RequiredObligationId,
@@ -616,6 +668,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     statements,
                     source_dir,
                     artifacts,
+                    accepted_query_index,
                     query,
                     report_request,
                     replay_closure: prepared_header.replay_closure,
@@ -743,15 +796,13 @@ impl<'a> ExactStreamCoordinator<'a> {
                         && matches!(
                             &payload,
                             CanonicalRunRecordPayload::Discovery {
-                                kind: DiscoveryEventKind::SnapshotPublished
-                                    | DiscoveryEventKind::SnapshotUnavailablePublished
-                                    | DiscoveryEventKind::TerminalResultPublished,
+                                kind: DiscoveryEventKind::TerminalResultPublished,
                                 ..
                             } | CanonicalRunRecordPayload::TerminalSeal { .. }
                         )
                     {
                         return Err(ExactStreamCoordinatorError::invalid(
-                            "mechanism-enabled stream contains an exact-only publication or terminal seal",
+                            "mechanism-enabled stream contains an exact-only terminal publication or seal",
                         ));
                     }
 
@@ -899,61 +950,129 @@ impl<'a> ExactStreamCoordinator<'a> {
                             canonical_discovery_hash,
                             ..
                         } => {
-                            let bytes = store
-                                .read_blob(
-                                    EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
-                                    &canonical_discovery_hash.to_lowercase_hex(),
-                                )
-                                .map_err(|error| {
-                                    ExactStreamCoordinatorError::context(
-                                        "cannot verify published snapshot blob",
-                                        error,
+                            if mechanism_request.is_some() {
+                                synchronize_mechanism_target_knowledge(
+                                    &exact,
+                                    mechanism.as_mut(),
+                                    false,
+                                )?;
+                                let bytes = store
+                                    .read_blob(
+                                        MECHANISM_OBSERVABLE_CHECKPOINT_BLOB_KIND_V1,
+                                        &canonical_discovery_hash.to_lowercase_hex(),
                                     )
-                                })?;
-                            require_canonical_snapshot_bytes(
-                                &stream,
-                                &exact,
-                                query,
-                                report_request,
-                                derive_probe_progress(
-                                    staged_manifest_blob,
-                                    staged_manifest,
-                                    staged_proof_set,
-                                    staged_proof_completed,
-                                    &candidate_ranks,
-                                )?,
-                                &bytes,
-                            )?;
+                                    .map_err(|error| {
+                                        ExactStreamCoordinatorError::context(
+                                            "cannot verify published mechanism checkpoint blob",
+                                            error,
+                                        )
+                                    })?;
+                                require_canonical_mechanism_checkpoint_bytes(
+                                    &stream,
+                                    &exact,
+                                    mechanism.as_ref(),
+                                    derive_probe_progress(
+                                        staged_manifest_blob,
+                                        staged_manifest,
+                                        staged_proof_set,
+                                        staged_proof_completed,
+                                        &candidate_ranks,
+                                    )?
+                                    .complete(),
+                                    false,
+                                    &bytes,
+                                )?;
+                            } else {
+                                let bytes = store
+                                    .read_blob(
+                                        EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
+                                        &canonical_discovery_hash.to_lowercase_hex(),
+                                    )
+                                    .map_err(|error| {
+                                        ExactStreamCoordinatorError::context(
+                                            "cannot verify published snapshot blob",
+                                            error,
+                                        )
+                                    })?;
+                                require_canonical_snapshot_bytes(
+                                    &stream,
+                                    &exact,
+                                    query,
+                                    report_request,
+                                    derive_probe_progress(
+                                        staged_manifest_blob,
+                                        staged_manifest,
+                                        staged_proof_set,
+                                        staged_proof_completed,
+                                        &candidate_ranks,
+                                    )?,
+                                    &bytes,
+                                )?;
+                            }
                         }
                         CanonicalRunRecordPayload::Discovery {
                             kind: DiscoveryEventKind::SnapshotUnavailablePublished,
                             canonical_discovery_hash,
                             ..
                         } => {
-                            let bytes = store
-                                .read_blob(
-                                    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1,
-                                    &canonical_discovery_hash.to_lowercase_hex(),
-                                )
-                                .map_err(|error| {
-                                    ExactStreamCoordinatorError::context(
-                                        "cannot verify published snapshot-unavailable receipt blob",
-                                        error,
+                            if mechanism_request.is_some() {
+                                synchronize_mechanism_target_knowledge(
+                                    &exact,
+                                    mechanism.as_mut(),
+                                    false,
+                                )?;
+                                let bytes = store
+                                    .read_blob(
+                                        MECHANISM_OBSERVABLE_CHECKPOINT_UNAVAILABLE_BLOB_KIND_V1,
+                                        &canonical_discovery_hash.to_lowercase_hex(),
                                     )
-                                })?;
-                            require_canonical_snapshot_unavailable_bytes(
-                                &stream,
-                                derive_probe_progress(
-                                    staged_manifest_blob,
-                                    staged_manifest,
-                                    staged_proof_set,
-                                    staged_proof_completed,
-                                    &candidate_ranks,
-                                )?
-                                .complete(),
-                                exact.closed_case_count(),
-                                &bytes,
-                            )?;
+                                    .map_err(|error| {
+                                        ExactStreamCoordinatorError::context(
+                                            "cannot verify published mechanism checkpoint-unavailable blob",
+                                            error,
+                                        )
+                                    })?;
+                                require_canonical_mechanism_checkpoint_bytes(
+                                    &stream,
+                                    &exact,
+                                    mechanism.as_ref(),
+                                    derive_probe_progress(
+                                        staged_manifest_blob,
+                                        staged_manifest,
+                                        staged_proof_set,
+                                        staged_proof_completed,
+                                        &candidate_ranks,
+                                    )?
+                                    .complete(),
+                                    true,
+                                    &bytes,
+                                )?;
+                            } else {
+                                let bytes = store
+                                    .read_blob(
+                                        EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1,
+                                        &canonical_discovery_hash.to_lowercase_hex(),
+                                    )
+                                    .map_err(|error| {
+                                        ExactStreamCoordinatorError::context(
+                                            "cannot verify published snapshot-unavailable receipt blob",
+                                            error,
+                                        )
+                                    })?;
+                                require_canonical_snapshot_unavailable_bytes(
+                                    &stream,
+                                    derive_probe_progress(
+                                        staged_manifest_blob,
+                                        staged_manifest,
+                                        staged_proof_set,
+                                        staged_proof_completed,
+                                        &candidate_ranks,
+                                    )?
+                                    .complete(),
+                                    exact.closed_case_count(),
+                                    &bytes,
+                                )?;
+                            }
                         }
                         CanonicalRunRecordPayload::Discovery {
                             kind: DiscoveryEventKind::TerminalResultPublished,
@@ -1134,6 +1253,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     statements,
                     source_dir,
                     artifacts,
+                    accepted_query_index,
                     query,
                     report_request,
                     replay_closure: expected.replay_closure,
@@ -1175,6 +1295,84 @@ impl<'a> ExactStreamCoordinator<'a> {
             )));
         }
         Ok(())
+    }
+
+    /// The next confirmed matching CaseId which has not crossed a durable
+    /// mechanism observation boundary. This projection allocates no rank
+    /// list or support difference.
+    pub(super) fn next_mechanism_rank_hint(
+        &mut self,
+    ) -> Result<Option<u128>, ExactStreamCoordinatorError> {
+        synchronize_mechanism_target_knowledge(&self.exact, self.mechanism.as_mut(), false)?;
+        self.mechanism
+            .as_ref()
+            .ok_or_else(|| {
+                ExactStreamCoordinatorError::invalid(
+                    "this Explore stream identity does not authorize mechanism replay",
+                )
+            })?
+            .first_known_unprocessed_rank()
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot select the next confirmed mechanism target",
+                    error,
+                )
+            })
+    }
+
+    /// Fresh-replay and commit one confirmed matching case through the
+    /// constrained checked single-`if` mechanism plan. A crash before the
+    /// journal append leaves the rank unprocessed; a crash afterwards is
+    /// restored from the authenticated blob without replaying the trace.
+    pub(super) fn advance_one_single_if_mechanism_case(
+        &mut self,
+        plan: &CheckedSingleIfMechanismRuntimePlanV1,
+    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
+        if !self.probe_phase_complete() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "mechanism replay cannot precede the completed source-probe milestone",
+            ));
+        }
+        let request = self.mechanism_request.as_ref().ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "this Explore stream identity does not authorize mechanism replay",
+            )
+        })?;
+        if request != plan.request() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "single-if mechanism runtime plan disagrees with sequence-zero request identity",
+            ));
+        }
+        let Some(rank) = self.next_mechanism_rank_hint()? else {
+            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
+        };
+        let confirmed = {
+            let evaluator = self.ensure_evaluator()?;
+            mint_single_if_mechanism_observation_v1(plan, evaluator, rank).map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot fresh-replay confirmed mechanism case",
+                    error,
+                )
+            })?
+        };
+        if confirmed.rank() != rank {
+            return Err(ExactStreamCoordinatorError::invalid(format!(
+                "mechanism runtime returned rank {} while coordinating rank {rank}",
+                confirmed.rank()
+            )));
+        }
+        let validated =
+            seal_runtime_confirmed_mechanism_observation_v1(plan, confirmed).map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot seal fresh-replay-confirmed mechanism case",
+                    error,
+                )
+            })?;
+        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
+        Ok(MechanismStreamAdvanceV1::Committed {
+            rank,
+            canonical_blob_bytes,
+        })
     }
 
     /// Commit one already fresh-replay-confirmed mechanism block through the
@@ -1293,6 +1491,109 @@ impl<'a> ExactStreamCoordinator<'a> {
                 })
             })
             .transpose()
+    }
+
+    pub(super) fn prepare_mechanism_checkpoint_publication(
+        &mut self,
+        authority: &mut ExactStreamSnapshotPublicationAuthority,
+    ) -> Result<PreparedMechanismObservableCheckpointPublicationV1, ExactStreamCoordinatorError>
+    {
+        if !authority.consume_preparation() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "snapshot-publication authority has already prepared one materialized view",
+            ));
+        }
+        self.prepare_mechanism_checkpoint_publication_inner()
+    }
+
+    #[cfg(test)]
+    pub(super) fn prepare_mechanism_checkpoint_publication_for_test(
+        &mut self,
+    ) -> Result<PreparedMechanismObservableCheckpointPublicationV1, ExactStreamCoordinatorError>
+    {
+        self.prepare_mechanism_checkpoint_publication_inner()
+    }
+
+    fn prepare_mechanism_checkpoint_publication_inner(
+        &mut self,
+    ) -> Result<PreparedMechanismObservableCheckpointPublicationV1, ExactStreamCoordinatorError>
+    {
+        if self.mechanism_request.is_none() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "exact-only stream identity does not authorize a mechanism checkpoint",
+            ));
+        }
+        if !self.probe_phase_complete() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "mechanism checkpoint publication requires the completed source-probe milestone",
+            ));
+        }
+        synchronize_mechanism_target_knowledge(&self.exact, self.mechanism.as_mut(), false)?;
+        let authoritative_target = self.exact.authoritative_admissible_match_support();
+        let summary = self
+            .mechanism
+            .as_ref()
+            .ok_or_else(|| {
+                ExactStreamCoordinatorError::invalid(
+                    "mechanism-enabled stream has no mechanism evidence reducer",
+                )
+            })?
+            .checkpoint_summary_with_authoritative_target(authoritative_target.as_ref())
+            .map_err(|error| {
+                if error.is_snapshot_capacity() {
+                    ExactStreamCoordinatorError::snapshot_capacity(
+                        "cannot derive mechanism checkpoint summary",
+                        error,
+                    )
+                } else {
+                    ExactStreamCoordinatorError::context(
+                        "cannot derive mechanism checkpoint summary",
+                        error,
+                    )
+                }
+            })?;
+        let metadata = MechanismObservableCheckpointMetadataV1::from_running_cursor(
+            self.stream.header().identity().schemas().snapshot(),
+            self.stream.cursor(),
+            true,
+            self.stream.header().case_universe().case_count(),
+            self.exact.closed_case_count(),
+        )
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot derive mechanism checkpoint metadata",
+                error,
+            )
+        })?;
+        match render_mechanism_observable_checkpoint_json_line_v1(&metadata, &summary) {
+            Ok(canonical_json_line) => Ok(PreparedMechanismObservableCheckpointPublicationV1 {
+                cursor: self.stream.cursor(),
+                canonical_json_line,
+                kind: PreparedMechanismObservableCheckpointPublicationKindV1::Included,
+            }),
+            Err(error) if error.is_capacity_limit() => {
+                let canonical_json_line =
+                    render_mechanism_observable_checkpoint_unavailable_json_line_v1(
+                        &metadata, &summary,
+                    )
+                    .map_err(|unavailable_error| {
+                        ExactStreamCoordinatorError::context(
+                            "cannot render bounded mechanism checkpoint-unavailable receipt",
+                            unavailable_error,
+                        )
+                    })?;
+                Ok(PreparedMechanismObservableCheckpointPublicationV1 {
+                    cursor: self.stream.cursor(),
+                    canonical_json_line,
+                    kind:
+                        PreparedMechanismObservableCheckpointPublicationKindV1::CapacityUnavailable,
+                })
+            }
+            Err(error) => Err(ExactStreamCoordinatorError::context(
+                "cannot render mechanism checkpoint",
+                error,
+            )),
+        }
     }
 
     /// A preceding journal-only pause is durable but has no observer view.
@@ -2390,6 +2691,33 @@ impl<'a> ExactStreamCoordinator<'a> {
         self.install_discovery_blob(blob_kind, prepared.canonical_json_line(), event_kind)
     }
 
+    pub(super) fn publish_prepared_mechanism_checkpoint(
+        &mut self,
+        prepared: &PreparedMechanismObservableCheckpointPublicationV1,
+    ) -> Result<CanonicalDigest, ExactStreamCoordinatorError> {
+        if self.mechanism_request.is_none() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "exact-only stream identity does not authorize mechanism checkpoint publication",
+            ));
+        }
+        if prepared.cursor() != self.stream.cursor() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "prepared mechanism checkpoint belongs to a stale stream cursor",
+            ));
+        }
+        let (blob_kind, event_kind) = match prepared.kind {
+            PreparedMechanismObservableCheckpointPublicationKindV1::Included => (
+                MECHANISM_OBSERVABLE_CHECKPOINT_BLOB_KIND_V1,
+                DiscoveryEventKind::SnapshotPublished,
+            ),
+            PreparedMechanismObservableCheckpointPublicationKindV1::CapacityUnavailable => (
+                MECHANISM_OBSERVABLE_CHECKPOINT_UNAVAILABLE_BLOB_KIND_V1,
+                DiscoveryEventKind::SnapshotUnavailablePublished,
+            ),
+        };
+        self.install_discovery_blob(blob_kind, prepared.canonical_json_line(), event_kind)
+    }
+
     pub(super) const fn published_terminal_result(
         &self,
     ) -> Option<ExactTerminalPublicationReceiptV1> {
@@ -2901,17 +3229,16 @@ impl<'a> ExactStreamCoordinator<'a> {
         })
     }
 
-    fn evaluate_rank(
+    fn ensure_evaluator(
         &mut self,
-        rank: u128,
-        context: &'static str,
-    ) -> Result<ExactStreamCaseAttempt, ExactStreamCoordinatorError> {
+    ) -> Result<&mut ExactStreamEvaluator<'a>, ExactStreamCoordinatorError> {
         if self.evaluator.is_none() {
             self.evaluator = Some(
                 ExactStreamEvaluator::prepare(
                     self.statements,
                     self.source_dir,
                     self.artifacts,
+                    self.accepted_query_index,
                     self.query,
                     DEFAULT_EXPLORE_STEP_LIMIT,
                     DEFAULT_EXPLORE_COLLECTION_LIMIT,
@@ -2924,12 +3251,19 @@ impl<'a> ExactStreamCoordinator<'a> {
                 })?,
             );
         }
-        let evaluator = self.evaluator.as_mut().ok_or_else(|| {
+        self.evaluator.as_mut().ok_or_else(|| {
             ExactStreamCoordinatorError::invalid(
                 "exact stream evaluator initialization did not publish its instance",
             )
-        })?;
-        evaluator
+        })
+    }
+
+    fn evaluate_rank(
+        &mut self,
+        rank: u128,
+        context: &'static str,
+    ) -> Result<ExactStreamCaseAttempt, ExactStreamCoordinatorError> {
+        self.ensure_evaluator()?
             .evaluate_rank(rank)
             .map_err(|error| ExactStreamCoordinatorError::context(context, error))
     }
@@ -3152,6 +3486,84 @@ fn require_canonical_snapshot_unavailable_bytes(
     if expected.as_slice() != bytes {
         return Err(ExactStreamCoordinatorError::invalid(
             "snapshot-unavailable receipt blob does not encode its committed pre-publication cursor and exact progress",
+        ));
+    }
+    Ok(())
+}
+
+fn require_canonical_mechanism_checkpoint_bytes(
+    stream: &ExploreRunStream,
+    exact: &ExactEvidenceReducer,
+    mechanism: Option<&MechanismEvidenceReducerV1>,
+    probe_milestone_complete: bool,
+    unavailable: bool,
+    bytes: &[u8],
+) -> Result<(), ExactStreamCoordinatorError> {
+    let mechanism = mechanism.ok_or_else(|| {
+        ExactStreamCoordinatorError::invalid(
+            "mechanism checkpoint journal record has no mechanism reducer",
+        )
+    })?;
+    let authoritative_target = exact.authoritative_admissible_match_support();
+    let summary = mechanism
+        .checkpoint_summary_with_authoritative_target(authoritative_target.as_ref())
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot reconstruct mechanism checkpoint summary",
+                error,
+            )
+        })?;
+    let metadata = MechanismObservableCheckpointMetadataV1::from_running_cursor(
+        stream.header().identity().schemas().snapshot(),
+        stream.cursor(),
+        probe_milestone_complete,
+        stream.header().case_universe().case_count(),
+        exact.closed_case_count(),
+    )
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot reconstruct mechanism checkpoint metadata",
+            error,
+        )
+    })?;
+    let expected = if unavailable {
+        match render_mechanism_observable_checkpoint_json_line_v1(&metadata, &summary) {
+            Err(error) if error.is_capacity_limit() => {
+                render_mechanism_observable_checkpoint_unavailable_json_line_v1(
+                    &metadata, &summary,
+                )
+                .map_err(|error| {
+                    ExactStreamCoordinatorError::context(
+                        "cannot reconstruct canonical mechanism checkpoint-unavailable receipt",
+                        error,
+                    )
+                })?
+            }
+            Ok(_) => {
+                return Err(ExactStreamCoordinatorError::invalid(
+                    "mechanism checkpoint-unavailable receipt was published when the full checkpoint fit its fixed capacity",
+                ))
+            }
+            Err(error) => {
+                return Err(ExactStreamCoordinatorError::context(
+                    "cannot reconstruct full mechanism checkpoint before unavailable receipt",
+                    error,
+                ))
+            }
+        }
+    } else {
+        render_mechanism_observable_checkpoint_json_line_v1(&metadata, &summary).map_err(
+            |error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot reconstruct canonical mechanism checkpoint",
+                    error,
+                )
+            },
+        )?
+    };
+    if expected.as_slice() != bytes {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism checkpoint blob does not encode its committed pre-publication cursor and evidence",
         ));
     }
     Ok(())
@@ -3538,14 +3950,14 @@ fn synchronize_mechanism_target_knowledge(
         let Some(authoritative) = exact.authoritative_admissible_match_support() else {
             return Ok(());
         };
-        if authoritative != confirmed {
+        if authoritative.support() != &confirmed {
             return Err(ExactStreamCoordinatorError::invalid(
                 "closure-gated matching support disagrees with confirmed matching support",
             ));
         }
         if !mechanism.has_exact_target() {
             let prepared = mechanism
-                .prepare_exact_target_from_known_support()
+                .prepare_exact_target_from_known_support(&authoritative)
                 .map_err(|error| {
                     if error.is_snapshot_capacity() {
                         ExactStreamCoordinatorError::snapshot_capacity(

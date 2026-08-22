@@ -53,9 +53,11 @@ use crate::Span;
 mod resolved_event_adapter;
 
 pub(super) use resolved_event_adapter::{
-    adapt_checked_boundary_fragment, AdaptedBoundaryFragment, PreparedResolvedEventAdapter,
-    ResolvedEventAdapterError, ResolvedEventAdapterLimits, ResolvedEventAdapterRequest,
-    CHECKED_RESOLUTION_CONTRACT_SHA256, SOURCE_PROOF_ADAPTER_LIMITS_V1,
+    adapt_checked_boundary_fragment, preflight_checked_query_access, AdaptedBoundaryFragment,
+    CheckedCallableSourceSlice, CheckedProgramSiteIndex, CheckedSourceExpressionSlice,
+    PreparedResolvedEventAdapter, ResolvedEventAdapterError, ResolvedEventAdapterLimits,
+    ResolvedEventAdapterRequest, CHECKED_RESOLUTION_CONTRACT_SHA256,
+    SOURCE_PROOF_ADAPTER_LIMITS_V1,
 };
 
 /// Stable semantic location of one expression in the resolved program.

@@ -13,18 +13,19 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use super::{
+    exact_stream::ExactClosedMatchSupportV1,
     mechanism::{
         CanonicalSignatureInterner, CheckedMechanismObservationRequestV1,
         CheckedMechanismRequestId, DynamicEventKind, DynamicEventOutcome,
         DynamicMechanismSignature, ExactMatchingTargetMembership, IfDecisionOutcome,
-        KnownTargetUntracedReason, MechanismActivationStepV1, MechanismBinFieldEvidence,
-        MechanismBinUnavailableReason, MechanismBinUnavailableSupport, MechanismCallableSiteId,
-        MechanismCount, MechanismEvidenceStatus, MechanismIncidenceDisclosure,
-        MechanismIncidenceTerminal, MechanismNumericBin, MechanismObservationRequest,
-        MechanismObservedEvidence, MechanismOccurrenceId, MechanismOccurrenceSlotV1,
-        MechanismPopulationEvidence, MechanismSignatureBinIncidence, MechanismSignatureId,
-        MechanismSiteId, MechanismSiteKind, MechanismTargetMembership, PairedOccurrenceNode,
-        RuleAttemptOutcome, RuleSelectionOutcome, ShortCircuitOutcome,
+        KnownTargetUntracedReason, MechanismActivationStepV1, MechanismBinField,
+        MechanismBinFieldEvidence, MechanismBinUnavailableReason, MechanismBinUnavailableSupport,
+        MechanismCallableSiteId, MechanismCount, MechanismEvidenceStatus,
+        MechanismIncidenceDisclosure, MechanismIncidenceTerminal, MechanismNumericBin,
+        MechanismObservationRequest, MechanismObservedEvidence, MechanismOccurrenceId,
+        MechanismOccurrenceSlotV1, MechanismPopulationEvidence, MechanismSignatureBinIncidence,
+        MechanismSignatureId, MechanismSiteId, MechanismSiteKind, MechanismTargetMembership,
+        PairedOccurrenceNode, RuleAttemptOutcome, RuleSelectionOutcome, ShortCircuitOutcome,
     },
     report::ExploreCaseId,
     run_stream::{ExactCaseSupport, ExploreCaseUniverse},
@@ -37,7 +38,7 @@ pub(crate) const MECHANISM_OBSERVATION_BLOB_KIND_V1: &str = "mechanism-observati
 // independent. They bound one journal proposal; they do not authorize a
 // producer to truncate semantic evidence silently.
 const MAX_BATCH_BYTES: usize = 16 * 1024 * 1024;
-const MAX_AXES: usize = 256;
+pub(crate) const MAX_AXES: usize = 256;
 const MAX_OBSERVATIONS_PER_BATCH: usize = 4_096;
 const MAX_SIGNATURES_PER_BATCH: usize = 4_096;
 const MAX_SIGNATURE_NODES_PER_BATCH: usize = 65_536;
@@ -45,7 +46,7 @@ const MAX_SIGNATURE_EDGES_PER_BATCH: usize = 262_144;
 const MAX_INCIDENCE_OVERRIDE_INTERVALS: usize = 262_144;
 pub(crate) const MAX_NORMALIZED_SEMANTIC_FACTS_PER_BATCH: usize = 262_144;
 const MAX_ACTIVATION_DEPTH: usize = 256;
-const MAX_BIN_FIELDS: usize = 256;
+pub(crate) const MAX_BIN_FIELDS: usize = 256;
 pub(crate) const MAX_BINS_PER_FIELD: usize = 65_536;
 pub(crate) const MAX_TOTAL_BINS: usize = 262_144;
 pub(crate) const MAX_RETAINED_EXAMPLES_PER_SIGNATURE: usize = 1_024;
@@ -584,6 +585,73 @@ pub(crate) struct PreparedExactMechanismTargetV1 {
     target: ExactMatchingTargetMembership,
 }
 
+/// Certainty attached to one count in a lightweight observable checkpoint.
+///
+/// `Unknown` is deliberately distinct from a zero lower bound. It means the
+/// current evidence has not confirmed any member, while still refusing to
+/// publish zero as a mathematical lower-bound result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MechanismCheckpointCountV1 {
+    Exact(u128),
+    LowerBound(u128),
+    Unknown { confirmed_lower_bound: u128 },
+}
+
+impl MechanismCheckpointCountV1 {
+    pub(crate) const fn confirmed_lower_bound(self) -> u128 {
+        match self {
+            Self::Exact(value) | Self::LowerBound(value) => value,
+            Self::Unknown {
+                confirmed_lower_bound,
+            } => confirmed_lower_bound,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct MechanismCheckpointUntracedV1 {
+    pub(crate) total: u128,
+    pub(crate) pending: u128,
+    pub(crate) replay_unavailable: u128,
+    pub(crate) observation_unsupported: u128,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct MechanismCheckpointBinV1 {
+    pub(crate) bin: MechanismNumericBin,
+    pub(crate) confirmed_case_support: u128,
+    pub(crate) mechanism_count: MechanismCheckpointCountV1,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MechanismCheckpointBinFieldV1 {
+    pub(crate) name: Box<str>,
+    pub(crate) binned_cases: u128,
+    pub(crate) outside_declared_bins_cases: u128,
+    pub(crate) unavailable_cases: u128,
+    pub(crate) replay_unavailable_cases: u128,
+    pub(crate) observation_unsupported_cases: u128,
+    pub(crate) bins: Box<[MechanismCheckpointBinV1]>,
+}
+
+/// Count-only projection of the mechanism reducer at one durable cursor.
+///
+/// This intentionally omits signature definitions, retained examples and both
+/// incidence DAGs. It is therefore cheap enough to expose during a running
+/// stream, while its certainty tags prevent open scope or unavailable bin
+/// values from being mistaken for exact counts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MechanismCheckpointSummaryV1 {
+    pub(crate) checked_request_hash: [u8; 32],
+    pub(crate) observation_spec_hash: [u8; 32],
+    pub(crate) status: MechanismEvidenceStatus,
+    pub(crate) target_cases: MechanismCount,
+    pub(crate) traced_cases: u128,
+    pub(crate) known_target_untraced: MechanismCheckpointUntracedV1,
+    pub(crate) mechanism_signatures: MechanismCheckpointCountV1,
+    pub(crate) bin_fields: Box<[MechanismCheckpointBinFieldV1]>,
+}
+
 /// Pure, non-Clone replay reducer for mechanism definitions and incidence.
 pub(crate) struct MechanismEvidenceReducerV1 {
     request: CheckedMechanismObservationRequestV1,
@@ -677,6 +745,18 @@ impl MechanismEvidenceReducerV1 {
 
     pub(crate) fn known_target_support(&self) -> &ExactCaseSupport {
         &self.known_target_support
+    }
+
+    pub(crate) fn first_known_unprocessed_rank(
+        &self,
+    ) -> Result<Option<u128>, MechanismStreamError> {
+        self.known_target_support
+            .first_rank_excluding(&self.processed)
+            .map_err(|error| {
+                MechanismStreamError::invalid(format!(
+                    "processed mechanism support is not a subset of known target support: {error}"
+                ))
+            })
     }
 
     pub(crate) fn has_exact_target(&self) -> bool {
@@ -946,10 +1026,16 @@ impl MechanismEvidenceReducerV1 {
     /// the caller never enumerates ranks or supplies a second target shape.
     pub(crate) fn prepare_exact_target_from_known_support(
         &self,
+        authoritative_target: &ExactClosedMatchSupportV1,
     ) -> Result<PreparedExactMechanismTargetV1, MechanismStreamError> {
         if self.exact_target.is_some() {
             return Err(MechanismStreamError::invalid(
                 "exact mechanism target membership was already installed",
+            ));
+        }
+        if authoritative_target.support() != &self.known_target_support {
+            return Err(MechanismStreamError::invalid(
+                "closure-gated exact target disagrees with known matching support",
             ));
         }
         validate_exact_target_lowering_capacity(
@@ -1008,6 +1094,441 @@ impl MechanismEvidenceReducerV1 {
             .revision
             .checked_add(1)
             .expect("bounded journal revision");
+    }
+
+    /// Project the current reducer into a bounded, count-only checkpoint.
+    ///
+    /// The projection repeats all population and bin conservation checks at
+    /// the publication boundary. It never constructs or clones the target or
+    /// incidence DAG, and it never discloses signatures or case identities.
+    pub(crate) fn checkpoint_summary(
+        &self,
+    ) -> Result<MechanismCheckpointSummaryV1, MechanismStreamError> {
+        self.checkpoint_summary_with_authoritative_target(None)
+    }
+
+    /// Count-only checkpoint projection with optional closure-gated target
+    /// support from the exact reducer. Supplying authoritative support lets a
+    /// checkpoint become exact without constructing the much larger target or
+    /// incidence DAG first.
+    pub(crate) fn checkpoint_summary_with_authoritative_target(
+        &self,
+        authoritative_target: Option<&ExactClosedMatchSupportV1>,
+    ) -> Result<MechanismCheckpointSummaryV1, MechanismStreamError> {
+        validate_mechanism_stream_request_v1(&self.request)?;
+
+        let processed_count = checked_add(
+            self.traced,
+            self.permanently_untraced,
+            "processed mechanism checkpoint population",
+        )?;
+        if self.processed.case_count() != processed_count {
+            return Err(MechanismStreamError::invalid(
+                "processed mechanism support disagrees with checkpoint population accounting",
+            ));
+        }
+        let pending_support = self
+            .known_target_support
+            .subtract_exact(&self.processed)
+            .map_err(|error| {
+                MechanismStreamError::invalid(format!(
+                    "processed mechanism support is not a subset of known target support: {error}"
+                ))
+            })?;
+
+        if !self.signatures.keys().eq(self.signature_supports.keys()) {
+            return Err(MechanismStreamError::invalid(
+                "retained mechanism signatures and signature supports have different identities",
+            ));
+        }
+        let traced_from_signatures =
+            self.signature_supports
+                .iter()
+                .try_fold(0_u128, |total, (_, support)| {
+                    if support.is_empty() {
+                        return Err(MechanismStreamError::invalid(
+                            "mechanism signature has empty retained support",
+                        ));
+                    }
+                    checked_add(total, support.case_count(), "checkpoint signature support")
+                })?;
+        if traced_from_signatures != self.traced {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint signature supports do not conserve the traced population",
+            ));
+        }
+
+        let replay_unavailable = self
+            .untraced_supports
+            .get(&MechanismPermanentUntracedReasonV1::ReplayUnavailable)
+            .map(ExactCaseSupport::case_count)
+            .unwrap_or(0);
+        let observation_unsupported = self
+            .untraced_supports
+            .get(&MechanismPermanentUntracedReasonV1::ObservationUnsupported)
+            .map(ExactCaseSupport::case_count)
+            .unwrap_or(0);
+        if self
+            .untraced_supports
+            .values()
+            .any(ExactCaseSupport::is_empty)
+        {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint permanently-untraced support must not retain empty entries",
+            ));
+        }
+        let permanent_from_reasons = checked_add(
+            replay_unavailable,
+            observation_unsupported,
+            "checkpoint permanently-untraced reasons",
+        )?;
+        if permanent_from_reasons != self.permanently_untraced {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint untraced reasons do not conserve the permanently-untraced population",
+            ));
+        }
+
+        let pending = pending_support.case_count();
+        let known_target_untraced = checked_add(
+            pending,
+            permanent_from_reasons,
+            "checkpoint known-target untraced population",
+        )?;
+        let known_target_count = self.known_target_support.case_count();
+        if checked_add(
+            self.traced,
+            known_target_untraced,
+            "checkpoint known target population",
+        )? != known_target_count
+        {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint traced and untraced populations do not conserve known target support",
+            ));
+        }
+
+        let authoritative_target_count = authoritative_target
+            .map(|closed| {
+                if closed.support() != &self.known_target_support {
+                    return Err(MechanismStreamError::invalid(
+                        "authoritative checkpoint target disagrees with confirmed matching support",
+                    ));
+                }
+                Ok(closed.case_count())
+            })
+            .transpose()?;
+        let materialized_target_count = self
+            .exact_target
+            .as_ref()
+            .map(|target| {
+                target
+                    .inside_count()
+                    .map_err(|error| MechanismStreamError::invalid(error.to_string()))
+            })
+            .transpose()?;
+        if authoritative_target_count.is_some()
+            && materialized_target_count.is_some()
+            && authoritative_target_count != materialized_target_count
+        {
+            return Err(MechanismStreamError::invalid(
+                "authoritative and materialized checkpoint targets disagree",
+            ));
+        }
+        let exact_target_count = authoritative_target_count.or(materialized_target_count);
+        let (status, target_cases) = match exact_target_count {
+            None => (
+                MechanismEvidenceStatus::ScopeOpen,
+                MechanismCount::LowerBound(known_target_count),
+            ),
+            Some(exact_target_count) => {
+                if exact_target_count != known_target_count {
+                    return Err(MechanismStreamError::invalid(
+                        "exact mechanism target disagrees with checkpoint known target support",
+                    ));
+                }
+                let status = if known_target_untraced == 0 {
+                    MechanismEvidenceStatus::MatchingClosed
+                } else {
+                    MechanismEvidenceStatus::IncidenceOpen
+                };
+                (status, MechanismCount::Exact(exact_target_count))
+            }
+        };
+
+        let signature_count = self.signatures.len() as u128;
+        let mechanism_signatures = checkpoint_count_for_open_population(status, signature_count);
+        let bin_fields = self.checkpoint_bin_fields(status)?;
+        Ok(MechanismCheckpointSummaryV1 {
+            checked_request_hash: self.request.id.digest_bytes(),
+            observation_spec_hash: self.request.observation.id.digest_bytes(),
+            status,
+            target_cases,
+            traced_cases: self.traced,
+            known_target_untraced: MechanismCheckpointUntracedV1 {
+                total: known_target_untraced,
+                pending,
+                replay_unavailable,
+                observation_unsupported,
+            },
+            mechanism_signatures,
+            bin_fields,
+        })
+    }
+
+    fn checkpoint_bin_fields(
+        &self,
+        status: MechanismEvidenceStatus,
+    ) -> Result<Box<[MechanismCheckpointBinFieldV1]>, MechanismStreamError> {
+        let requested_fields = self
+            .request
+            .observation
+            .bin_fields
+            .iter()
+            .map(|field| (field.name.as_ref(), field))
+            .collect::<BTreeMap<_, _>>();
+        let mut bin_stats =
+            BTreeMap::<(&str, MechanismNumericBin), MechanismCheckpointBinAccumulatorV1>::new();
+        let mut binned_by_field_signature = BTreeMap::<(&str, &MechanismSignatureId), u128>::new();
+        for (incidence, support) in &self.signature_bin_supports {
+            let field = requested_fields
+                .get(incidence.field_name.as_ref())
+                .ok_or_else(|| {
+                    MechanismStreamError::invalid(format!(
+                        "checkpoint bin incidence references unknown field `{}`",
+                        incidence.field_name
+                    ))
+                })?;
+            if field.bins.binary_search(&incidence.bin).is_err() {
+                return Err(MechanismStreamError::invalid(format!(
+                    "checkpoint bin incidence for `{}` references an undeclared bin",
+                    incidence.field_name
+                )));
+            }
+            if !self.signature_supports.contains_key(&incidence.signature) {
+                return Err(MechanismStreamError::invalid(
+                    "checkpoint bin incidence references an unknown mechanism signature",
+                ));
+            }
+            if support.is_empty() {
+                return Err(MechanismStreamError::invalid(
+                    "checkpoint bin incidence retains empty support",
+                ));
+            }
+            let cases = support.case_count();
+            add_checkpoint_map_count(
+                &mut binned_by_field_signature,
+                (incidence.field_name.as_ref(), &incidence.signature),
+                cases,
+                "checkpoint binned support by field and signature",
+            )?;
+            let stats = bin_stats
+                .entry((incidence.field_name.as_ref(), incidence.bin))
+                .or_default();
+            stats.confirmed_case_support = checked_add(
+                stats.confirmed_case_support,
+                cases,
+                "checkpoint bin case support",
+            )?;
+            stats.confirmed_signatures = checked_add(
+                stats.confirmed_signatures,
+                1,
+                "checkpoint bin signature support",
+            )?;
+        }
+
+        let mut classified_by_field_signature =
+            BTreeMap::<(&str, &MechanismSignatureId), u128>::new();
+        let mut field_totals = BTreeMap::<&str, MechanismCheckpointFieldAccumulatorV1>::new();
+        for ((field_name, signature), support) in &self.field_signature_binned_supports {
+            validate_checkpoint_field_signature(
+                &requested_fields,
+                &self.signature_supports,
+                field_name,
+                signature,
+                support,
+                "binned",
+            )?;
+            let cases = support.case_count();
+            if binned_by_field_signature
+                .get(&(field_name.as_ref(), signature))
+                .copied()
+                != Some(cases)
+            {
+                return Err(MechanismStreamError::invalid(
+                    "checkpoint bin incidences do not conserve binned support by field and signature",
+                ));
+            }
+            add_checkpoint_map_count(
+                &mut classified_by_field_signature,
+                (field_name.as_ref(), signature),
+                cases,
+                "checkpoint classified support",
+            )?;
+            let totals = field_totals.entry(field_name.as_ref()).or_default();
+            totals.binned = checked_add(totals.binned, cases, "checkpoint binned cases")?;
+        }
+        if binned_by_field_signature.len() != self.field_signature_binned_supports.len() {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint binned support maps retain different field/signature identities",
+            ));
+        }
+
+        for ((field_name, signature), support) in &self.field_signature_outside_supports {
+            validate_checkpoint_field_signature(
+                &requested_fields,
+                &self.signature_supports,
+                field_name,
+                signature,
+                support,
+                "outside-declared-bins",
+            )?;
+            let cases = support.case_count();
+            add_checkpoint_map_count(
+                &mut classified_by_field_signature,
+                (field_name.as_ref(), signature),
+                cases,
+                "checkpoint classified support",
+            )?;
+            let totals = field_totals.entry(field_name.as_ref()).or_default();
+            totals.outside = checked_add(
+                totals.outside,
+                cases,
+                "checkpoint outside-declared-bins cases",
+            )?;
+        }
+
+        for ((field_name, signature, outcome), support) in &self.field_unavailable_supports {
+            validate_checkpoint_field_signature(
+                &requested_fields,
+                &self.signature_supports,
+                field_name,
+                signature,
+                support,
+                "unavailable",
+            )?;
+            let cases = support.case_count();
+            add_checkpoint_map_count(
+                &mut classified_by_field_signature,
+                (field_name.as_ref(), signature),
+                cases,
+                "checkpoint classified support",
+            )?;
+            let totals = field_totals.entry(field_name.as_ref()).or_default();
+            match outcome {
+                MechanismBinAssignmentOutcomeV1::ReplayUnavailable => {
+                    totals.replay_unavailable = checked_add(
+                        totals.replay_unavailable,
+                        cases,
+                        "checkpoint replay-unavailable bin cases",
+                    )?;
+                }
+                MechanismBinAssignmentOutcomeV1::ObservationUnsupported => {
+                    totals.observation_unsupported = checked_add(
+                        totals.observation_unsupported,
+                        cases,
+                        "checkpoint observation-unsupported bin cases",
+                    )?;
+                }
+                MechanismBinAssignmentOutcomeV1::Binned(_)
+                | MechanismBinAssignmentOutcomeV1::OutsideDeclaredBins => {
+                    return Err(MechanismStreamError::invalid(
+                        "checkpoint unavailable support contains a successful bin outcome",
+                    ));
+                }
+            }
+        }
+
+        let expected_classifications = requested_fields
+            .len()
+            .checked_mul(self.signature_supports.len())
+            .ok_or_else(|| {
+                MechanismStreamError::invalid(
+                    "checkpoint field/signature classification count exceeds usize::MAX",
+                )
+            })?;
+        if classified_by_field_signature.len() != expected_classifications {
+            return Err(MechanismStreamError::invalid(
+                "checkpoint fields do not classify every traced signature support exactly once",
+            ));
+        }
+        for ((_, signature), classified_cases) in &classified_by_field_signature {
+            let signature_cases = self
+                .signature_supports
+                .get(*signature)
+                .expect("checkpoint classification signatures were validated")
+                .case_count();
+            if *classified_cases != signature_cases {
+                return Err(MechanismStreamError::invalid(
+                    "checkpoint field classification does not conserve one signature support",
+                ));
+            }
+        }
+
+        let mut result = Vec::with_capacity(self.request.observation.bin_fields.len());
+        for field in self.request.observation.bin_fields.iter() {
+            let totals = field_totals
+                .get(field.name.as_ref())
+                .copied()
+                .unwrap_or_default();
+            let unavailable = checked_add(
+                totals.replay_unavailable,
+                totals.observation_unsupported,
+                "checkpoint unavailable bin cases",
+            )?;
+            let classified = checked_add(
+                checked_add(
+                    totals.binned,
+                    totals.outside,
+                    "checkpoint classified bin cases",
+                )?,
+                unavailable,
+                "checkpoint classified bin cases",
+            )?;
+            if classified != self.traced {
+                return Err(MechanismStreamError::invalid(format!(
+                    "checkpoint bin field `{}` does not conserve the traced population",
+                    field.name
+                )));
+            }
+
+            let mut binned_from_bins = 0_u128;
+            let mut bins = Vec::with_capacity(field.bins.len());
+            for bin in field.bins.iter().copied() {
+                let stats = bin_stats
+                    .get(&(field.name.as_ref(), bin))
+                    .copied()
+                    .unwrap_or_default();
+                binned_from_bins = checked_add(
+                    binned_from_bins,
+                    stats.confirmed_case_support,
+                    "checkpoint declared-bin support",
+                )?;
+                bins.push(MechanismCheckpointBinV1 {
+                    bin,
+                    confirmed_case_support: stats.confirmed_case_support,
+                    mechanism_count: checkpoint_bin_count(
+                        status,
+                        unavailable,
+                        stats.confirmed_signatures,
+                    ),
+                });
+            }
+            if binned_from_bins != totals.binned {
+                return Err(MechanismStreamError::invalid(format!(
+                    "checkpoint declared bins for `{}` do not conserve binned case support",
+                    field.name
+                )));
+            }
+            result.push(MechanismCheckpointBinFieldV1 {
+                name: field.name.clone(),
+                binned_cases: totals.binned,
+                outside_declared_bins_cases: totals.outside,
+                unavailable_cases: unavailable,
+                replay_unavailable_cases: totals.replay_unavailable,
+                observation_unsupported_cases: totals.observation_unsupported,
+                bins: bins.into_boxed_slice(),
+            });
+        }
+        Ok(result.into_boxed_slice())
     }
 
     pub(crate) fn snapshot(&self) -> Result<MechanismObservedEvidence, MechanismStreamError> {
@@ -1395,6 +1916,88 @@ impl MechanismEvidenceReducerV1 {
             })
             .collect()
     }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct MechanismCheckpointBinAccumulatorV1 {
+    confirmed_case_support: u128,
+    confirmed_signatures: u128,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+struct MechanismCheckpointFieldAccumulatorV1 {
+    binned: u128,
+    outside: u128,
+    replay_unavailable: u128,
+    observation_unsupported: u128,
+}
+
+fn checkpoint_count_for_open_population(
+    status: MechanismEvidenceStatus,
+    confirmed: u128,
+) -> MechanismCheckpointCountV1 {
+    if status == MechanismEvidenceStatus::MatchingClosed {
+        MechanismCheckpointCountV1::Exact(confirmed)
+    } else if confirmed == 0 {
+        MechanismCheckpointCountV1::Unknown {
+            confirmed_lower_bound: 0,
+        }
+    } else {
+        MechanismCheckpointCountV1::LowerBound(confirmed)
+    }
+}
+
+fn checkpoint_bin_count(
+    status: MechanismEvidenceStatus,
+    unavailable_cases: u128,
+    confirmed: u128,
+) -> MechanismCheckpointCountV1 {
+    if status == MechanismEvidenceStatus::MatchingClosed && unavailable_cases == 0 {
+        MechanismCheckpointCountV1::Exact(confirmed)
+    } else if confirmed == 0 {
+        MechanismCheckpointCountV1::Unknown {
+            confirmed_lower_bound: 0,
+        }
+    } else {
+        MechanismCheckpointCountV1::LowerBound(confirmed)
+    }
+}
+
+fn add_checkpoint_map_count<K: Ord>(
+    counts: &mut BTreeMap<K, u128>,
+    key: K,
+    value: u128,
+    what: &str,
+) -> Result<(), MechanismStreamError> {
+    let total = counts.entry(key).or_insert(0);
+    *total = checked_add(*total, value, what)?;
+    Ok(())
+}
+
+fn validate_checkpoint_field_signature(
+    requested_fields: &BTreeMap<&str, &MechanismBinField>,
+    signature_supports: &BTreeMap<MechanismSignatureId, ExactCaseSupport>,
+    field_name: &str,
+    signature: &MechanismSignatureId,
+    support: &ExactCaseSupport,
+    support_kind: &str,
+) -> Result<(), MechanismStreamError> {
+    if !requested_fields.contains_key(field_name) {
+        return Err(MechanismStreamError::invalid(format!(
+            "checkpoint {support_kind} support references unknown field `{field_name}`"
+        )));
+    }
+    if !signature_supports.contains_key(signature) {
+        return Err(MechanismStreamError::invalid(format!(
+            "checkpoint {support_kind} support references an unknown mechanism signature"
+        )));
+    }
+    if support.is_empty() {
+        return Err(MechanismStreamError::invalid(format!(
+            "checkpoint {support_kind} support must not be empty"
+        )));
+    }
+    Ok(())
 }
 
 fn signature_collection_resource_counts<'a>(
@@ -1898,6 +2501,7 @@ pub(crate) fn validate_mechanism_stream_request_v1(
             request.observation.axis_cardinalities.len()
         )));
     }
+    checked_case_count(&request.observation.axis_cardinalities)?;
     if request.observation.bin_fields.len() > MAX_BIN_FIELDS {
         return Err(MechanismStreamError::invalid(format!(
             "mechanism request has {} bin fields; limit is {MAX_BIN_FIELDS}",
@@ -3149,9 +3753,10 @@ mod tests {
 
     fn install_target(reducer: &mut MechanismEvidenceReducerV1) {
         let full = ExactCaseSupport::full(&reducer.case_universe);
+        let authoritative = ExactClosedMatchSupportV1::from_support_for_test(full.clone());
         sync_known_support(reducer, full);
         let prepared = reducer
-            .prepare_exact_target_from_known_support()
+            .prepare_exact_target_from_known_support(&authoritative)
             .expect("prepared target");
         reducer.apply_prepared_exact_target(prepared);
     }
@@ -3557,13 +4162,15 @@ mod tests {
         assert!(early.population.incidence.is_none());
 
         let complete_known = ExactCaseSupport::full(&reducer.case_universe);
+        let authoritative =
+            ExactClosedMatchSupportV1::from_support_for_test(complete_known.clone());
         sync_known_support(&mut reducer, complete_known);
         assert_eq!(
             reducer.snapshot().unwrap().population.requested_target,
             MechanismCount::LowerBound(2)
         );
         let exact = reducer
-            .prepare_exact_target_from_known_support()
+            .prepare_exact_target_from_known_support(&authoritative)
             .expect("exact target from complete known support");
         reducer.apply_prepared_exact_target(exact);
         assert_eq!(
@@ -3819,5 +4426,180 @@ mod tests {
             target_backpressure.snapshot_capacity_details(),
             Some(("target rank-interval dimension steps", 6, 5))
         );
+    }
+
+    #[test]
+    fn count_only_checkpoint_closes_without_materializing_target_dag() {
+        let reducer = MechanismEvidenceReducerV1::new(checked_request(vec![1], false)).unwrap();
+        let authoritative =
+            ExactClosedMatchSupportV1::from_support_for_test(reducer.known_target_support.clone());
+        assert!(reducer.exact_target.is_none());
+
+        let summary = reducer
+            .checkpoint_summary_with_authoritative_target(Some(&authoritative))
+            .expect("authoritative exact support is sufficient for count closure");
+        assert_eq!(summary.status, MechanismEvidenceStatus::MatchingClosed);
+        assert_eq!(summary.target_cases, MechanismCount::Exact(0));
+        assert_eq!(
+            summary.mechanism_signatures,
+            MechanismCheckpointCountV1::Exact(0)
+        );
+        assert!(reducer.exact_target.is_none());
+    }
+
+    #[test]
+    fn checkpoint_summary_conserves_closed_signature_and_bin_counts() {
+        let request = checked_request(vec![2], true);
+        let (then_id, then_definition) = signature(&request.observation, IfDecisionOutcome::Then);
+        let (else_id, else_definition) = signature(&request.observation, IfDecisionOutcome::Else);
+        let batch = validated_batch(
+            &request,
+            vec![then_definition, else_definition],
+            vec![
+                observed(
+                    0,
+                    then_id,
+                    vec![MechanismBinAssignmentV1::binned(
+                        "loss",
+                        MechanismNumericBin::new(0, 50).unwrap(),
+                    )],
+                ),
+                observed(
+                    1,
+                    else_id,
+                    vec![MechanismBinAssignmentV1::outside_declared_bins("loss")],
+                ),
+            ],
+        );
+        let mut reducer = MechanismEvidenceReducerV1::new(request).unwrap();
+        install_target(&mut reducer);
+        apply(&mut reducer, batch);
+
+        let summary = reducer.checkpoint_summary().unwrap();
+        assert_eq!(summary.status, MechanismEvidenceStatus::MatchingClosed);
+        assert_eq!(summary.target_cases, MechanismCount::Exact(2));
+        assert_eq!(summary.traced_cases, 2);
+        assert_eq!(summary.known_target_untraced.total, 0);
+        assert_eq!(
+            summary.mechanism_signatures,
+            MechanismCheckpointCountV1::Exact(2)
+        );
+        assert_eq!(summary.bin_fields.len(), 1);
+        let field = &summary.bin_fields[0];
+        assert_eq!(field.binned_cases, 1);
+        assert_eq!(field.outside_declared_bins_cases, 1);
+        assert_eq!(field.unavailable_cases, 0);
+        assert_eq!(field.bins[0].confirmed_case_support, 1);
+        assert_eq!(
+            field.bins[0].mechanism_count,
+            MechanismCheckpointCountV1::Exact(1)
+        );
+        assert_eq!(field.bins[1].confirmed_case_support, 0);
+        assert_eq!(
+            field.bins[1].mechanism_count,
+            MechanismCheckpointCountV1::Exact(0)
+        );
+    }
+
+    #[test]
+    fn checkpoint_bin_count_is_unknown_when_a_closed_value_is_unavailable() {
+        let request = checked_request(vec![1], true);
+        let (id, definition) = signature(&request.observation, IfDecisionOutcome::Then);
+        let assignment = MechanismBinAssignmentV1::unavailable(
+            "loss",
+            MechanismBinAssignmentOutcomeV1::ReplayUnavailable,
+        )
+        .unwrap();
+        let batch = validated_batch(
+            &request,
+            vec![definition],
+            vec![observed(0, id, vec![assignment])],
+        );
+        let mut reducer = MechanismEvidenceReducerV1::new(request).unwrap();
+        install_target(&mut reducer);
+        apply(&mut reducer, batch);
+
+        let summary = reducer.checkpoint_summary().unwrap();
+        assert_eq!(summary.status, MechanismEvidenceStatus::MatchingClosed);
+        assert_eq!(
+            summary.mechanism_signatures,
+            MechanismCheckpointCountV1::Exact(1)
+        );
+        let field = &summary.bin_fields[0];
+        assert_eq!(field.unavailable_cases, 1);
+        assert_eq!(field.replay_unavailable_cases, 1);
+        assert!(field.bins.iter().all(|bin| {
+            bin.mechanism_count
+                == MechanismCheckpointCountV1::Unknown {
+                    confirmed_lower_bound: 0,
+                }
+        }));
+    }
+
+    #[test]
+    fn scope_open_checkpoint_never_promotes_confirmed_counts_to_exact() {
+        let request = checked_request(vec![2], true);
+        let (id, definition) = signature(&request.observation, IfDecisionOutcome::Then);
+        let batch = validated_batch(
+            &request,
+            vec![definition],
+            vec![observed(
+                0,
+                id,
+                vec![MechanismBinAssignmentV1::binned(
+                    "loss",
+                    MechanismNumericBin::new(0, 50).unwrap(),
+                )],
+            )],
+        );
+        let mut reducer = MechanismEvidenceReducerV1::new(request).unwrap();
+        let known = known_support(&reducer, [(0, 1)]);
+        sync_known_support(&mut reducer, known);
+        apply(&mut reducer, batch);
+
+        let summary = reducer.checkpoint_summary().unwrap();
+        assert_eq!(summary.status, MechanismEvidenceStatus::ScopeOpen);
+        assert_eq!(summary.target_cases, MechanismCount::LowerBound(1));
+        assert_eq!(
+            summary.mechanism_signatures,
+            MechanismCheckpointCountV1::LowerBound(1)
+        );
+        assert_eq!(
+            summary.bin_fields[0].bins[0].mechanism_count,
+            MechanismCheckpointCountV1::LowerBound(1)
+        );
+        assert_eq!(
+            summary.bin_fields[0].bins[1].mechanism_count,
+            MechanismCheckpointCountV1::Unknown {
+                confirmed_lower_bound: 0,
+            }
+        );
+    }
+
+    #[test]
+    fn checkpoint_summary_rejects_nonconserving_internal_bin_support() {
+        let request = checked_request(vec![1], true);
+        let (id, definition) = signature(&request.observation, IfDecisionOutcome::Then);
+        let batch = validated_batch(
+            &request,
+            vec![definition],
+            vec![observed(
+                0,
+                id,
+                vec![MechanismBinAssignmentV1::binned(
+                    "loss",
+                    MechanismNumericBin::new(0, 50).unwrap(),
+                )],
+            )],
+        );
+        let mut reducer = MechanismEvidenceReducerV1::new(request).unwrap();
+        install_target(&mut reducer);
+        apply(&mut reducer, batch);
+        reducer.field_signature_binned_supports.clear();
+
+        let error = reducer
+            .checkpoint_summary()
+            .expect_err("publication must fail closed on nonconserving support");
+        assert!(error.to_string().contains("do not conserve"));
     }
 }

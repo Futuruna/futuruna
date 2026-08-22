@@ -859,6 +859,30 @@ pub(crate) struct ExactEvidenceReducer {
     matching_ledger: Option<BTreeMap<u128, ExactMatchingLedgerRowV1>>,
 }
 
+/// Non-forgeable proof that the enclosed matching support came from an exact
+/// reducer after every case in its declared universe was classified. A bare
+/// [`ExactCaseSupport`] is only a set; it cannot establish that the matching
+/// complement is closed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExactClosedMatchSupportV1 {
+    support: ExactCaseSupport,
+}
+
+impl ExactClosedMatchSupportV1 {
+    pub(crate) fn support(&self) -> &ExactCaseSupport {
+        &self.support
+    }
+
+    pub(crate) fn case_count(&self) -> u128 {
+        self.support.case_count()
+    }
+
+    #[cfg(test)]
+    pub(in crate::explore) fn from_support_for_test(support: ExactCaseSupport) -> Self {
+        Self { support }
+    }
+}
+
 pub(crate) struct PreparedExactClosedRegionBatchV1 {
     prior_closed_case_count: u128,
     prior_classification_supports: ExactClosedClassificationSupportsV1,
@@ -958,13 +982,19 @@ impl ExactEvidenceReducer {
     /// install the derived mechanism target before accepting mechanism
     /// observations.
     ///
-    /// `ExactCaseSupport` is persistent, so this clone shares its authenticated
-    /// tree and does not enumerate ranks or intervals.
-    pub(crate) fn authoritative_admissible_match_support(&self) -> Option<ExactCaseSupport> {
+    /// The returned token is unforgeable outside this reducer module; callers
+    /// cannot accidentally promote a known matching subset merely because its
+    /// support equals another local set. Its persistent support clone shares
+    /// the authenticated tree and does not enumerate ranks or intervals.
+    pub(crate) fn authoritative_admissible_match_support(
+        &self,
+    ) -> Option<ExactClosedMatchSupportV1> {
         if self.closed_case_count != self.universe_case_count {
             return None;
         }
-        Some(self.confirmed_admissible_match_support())
+        Some(ExactClosedMatchSupportV1 {
+            support: self.confirmed_admissible_match_support(),
+        })
     }
 
     /// Return authenticated classification supports only when their complete
@@ -3317,7 +3347,10 @@ mod tests {
             .expect("complete classification has an authoritative target");
         assert_eq!(forward_target, reverse_target);
         assert_eq!(forward_target.case_count(), 2);
-        assert_eq!(interval_pairs(&forward_target), vec![(2, 3), (5, 6)]);
+        assert_eq!(
+            interval_pairs(forward_target.support()),
+            vec![(2, 3), (5, 6)]
+        );
     }
 
     #[test]

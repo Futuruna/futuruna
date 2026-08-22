@@ -243,6 +243,29 @@ struct ProgramIndex<'a> {
     callables: BTreeMap<CheckedCallableId, CallableEntry>,
 }
 
+/// Read-only checked source index shared with the private mechanism replay
+/// adapter.  Every lookup is keyed by [`ExprSiteId`] or [`CheckedCallableId`];
+/// source spans and AST addresses remain diagnostic-only and never become
+/// durable identity.
+pub(in crate::explore) struct CheckedProgramSiteIndex<'a> {
+    inner: ProgramIndex<'a>,
+}
+
+pub(in crate::explore) struct CheckedSourceExpression<'a> {
+    pub(in crate::explore) site: ExprSiteId,
+    pub(in crate::explore) expression: &'a Expr,
+}
+
+pub(in crate::explore) struct CheckedSourceExpressionSlice<'a> {
+    pub(in crate::explore) root: CheckedSourceExpression<'a>,
+    pub(in crate::explore) descendants: Box<[CheckedSourceExpression<'a>]>,
+}
+
+pub(in crate::explore) struct CheckedCallableSourceSlice<'a> {
+    pub(in crate::explore) declaration: &'a SourcedStmt,
+    pub(in crate::explore) body: CheckedSourceExpressionSlice<'a>,
+}
+
 struct StructuralIndexBudget {
     work: usize,
     work_limit: usize,
@@ -729,6 +752,72 @@ impl<'a> ProgramIndex<'a> {
                         == root.normalized_declaration_ordinal
                     && candidate.ast_path.starts_with(&root.ast_path)
             })
+    }
+}
+
+impl<'a> CheckedProgramSiteIndex<'a> {
+    pub(in crate::explore) fn build(
+        artifacts: &'a TypeCheckArtifacts,
+        limits: ResolvedEventAdapterLimits,
+    ) -> Result<Self, ResolvedEventAdapterError> {
+        ProgramIndex::build(artifacts, limits).map(|inner| Self { inner })
+    }
+
+    pub(in crate::explore) fn expression_slice(
+        &self,
+        root: &ExprSiteId,
+    ) -> Result<CheckedSourceExpressionSlice<'a>, ResolvedEventAdapterError> {
+        let indexed = self.inner.expression(root).ok_or_else(|| {
+            ResolvedEventAdapterError::InternalArtifactGap(
+                "checked expression site has no Phase-A source expression".into(),
+            )
+        })?;
+        let descendants =
+            self.inner
+                .descendants(root)
+                .map(|site| {
+                    let indexed = self.inner.expression(site).expect(
+                        "ProgramIndex descendants are drawn from the indexed expression map",
+                    );
+                    CheckedSourceExpression {
+                        site: site.clone(),
+                        expression: indexed.expression,
+                    }
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice();
+        Ok(CheckedSourceExpressionSlice {
+            root: CheckedSourceExpression {
+                site: root.clone(),
+                expression: indexed.expression,
+            },
+            descendants,
+        })
+    }
+
+    pub(in crate::explore) fn callable_slice(
+        &self,
+        callable: &CheckedCallableId,
+    ) -> Result<CheckedCallableSourceSlice<'a>, ResolvedEventAdapterError> {
+        let declaration = self
+            .inner
+            .declarations
+            .get(&callable.declaration)
+            .copied()
+            .ok_or_else(|| {
+                ResolvedEventAdapterError::InternalArtifactGap(
+                    "checked callable has no Phase-A declaration occurrence".into(),
+                )
+            })?;
+        let entry = self.inner.callables.get(callable).ok_or_else(|| {
+            ResolvedEventAdapterError::InternalArtifactGap(
+                "checked callable has no Phase-A body".into(),
+            )
+        })?;
+        Ok(CheckedCallableSourceSlice {
+            declaration,
+            body: self.expression_slice(&entry.body_site)?,
+        })
     }
 }
 
@@ -1277,7 +1366,10 @@ fn checked_ground_constructor_index(
     Ok(constructors)
 }
 
-fn preflight_checked_query_access(
+/// Bound compatibility-vector reads before authoritative checked-query access.
+/// Shared private request builders may reuse this guard; it performs no
+/// selection and does not change checked-query semantics.
+pub(in crate::explore) fn preflight_checked_query_access(
     artifacts: &TypeCheckArtifacts,
     accepted_query_index: usize,
     limits: ResolvedEventAdapterLimits,

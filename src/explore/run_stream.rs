@@ -559,6 +559,50 @@ impl ExactCaseSupport {
         case_support_treap_lower_bound(self.root.as_ref(), rank).map(|interval| interval.start)
     }
 
+    /// First rank in this support which is absent from a proven subset.
+    ///
+    /// Both inputs are already canonical interval streams, so scheduler
+    /// lookup uses two logarithmic-depth traversal stacks rather than
+    /// materializing the full set difference for every work item. Callers are
+    /// responsible for the subset proof; mutating reducers establish it when
+    /// evidence is applied.
+    pub(crate) fn first_rank_excluding(
+        &self,
+        removed: &Self,
+    ) -> Result<Option<u128>, ExploreRunStreamError> {
+        if self.universe_id != removed.universe_id {
+            return Err(ExploreRunStreamError::StaleCaseUniverse);
+        }
+        let mut removed = removed.iter_intervals().peekable();
+        for available in self.iter_intervals() {
+            let mut candidate = available.start;
+            loop {
+                let Some(excluded) = removed.peek().copied() else {
+                    return Ok(Some(candidate));
+                };
+                if excluded.start >= available.end_exclusive {
+                    return Ok(Some(candidate));
+                }
+                if excluded.start > candidate {
+                    return Ok(Some(candidate));
+                }
+                if excluded.start < candidate || excluded.end_exclusive > available.end_exclusive {
+                    return Err(ExploreRunStreamError::FrontierNotConserved);
+                }
+                candidate = excluded.end_exclusive;
+                removed.next();
+                if candidate < available.end_exclusive {
+                    continue;
+                }
+                break;
+            }
+        }
+        if removed.next().is_some() {
+            return Err(ExploreRunStreamError::FrontierNotConserved);
+        }
+        Ok(None)
+    }
+
     pub(crate) fn identity_hash(&self) -> CanonicalDigest {
         CanonicalDigest(self.id.0)
     }
@@ -3994,6 +4038,28 @@ mod tests {
         assert!(matches!(
             open.subtract_exact(&outside),
             Err(ExploreRunStreamError::FrontierNotConserved)
+        ));
+    }
+
+    #[test]
+    fn support_first_rank_excluding_merges_intervals_without_materializing_remainder() {
+        let run_header = header(20, 'f', 'd');
+        let known =
+            ExactCaseSupport::new(run_header.case_universe(), [(0, 5), (8, 15), (18, 20)]).unwrap();
+        let processed =
+            ExactCaseSupport::new(run_header.case_universe(), [(0, 5), (8, 12)]).unwrap();
+        assert_eq!(known.first_rank_excluding(&processed).unwrap(), Some(12));
+        assert_eq!(
+            known.first_rank_excluding(&known).unwrap(),
+            None,
+            "a fully processed support has no scheduler rank"
+        );
+
+        let other_header = header(21, 'a', 'b');
+        let stale = ExactCaseSupport::empty(other_header.case_universe());
+        assert!(matches!(
+            known.first_rank_excluding(&stale),
+            Err(ExploreRunStreamError::StaleCaseUniverse)
         ));
     }
 

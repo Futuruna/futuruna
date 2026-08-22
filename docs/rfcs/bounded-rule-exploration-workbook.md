@@ -33,13 +33,42 @@ seal a small enough closed answer; a larger answer pauses at an honest
 finalization limit for future chunking. An explicit durable
 `--case-graph full` request now enables
 bounded, all-or-nothing publication of a total current-evidence case DAG.
-Mechanism-graph publication, user-authored `probes`, typed `output as` rows,
-`after`, detached following, parallel workers and resumable chunked terminal
-publication are subsequent slices described below. The snapshot explicitly
-reports mechanism evidence as unavailable until that replay path exists; it
-never infers a mechanism count from result groups. This is the implemented
-artifact contract, not a claim that a graph-bearing policy exploration has
-already been executed.
+A private developer-only mechanism path now executes one deliberately narrow
+profile: two positional shown expressions must call the same checked top-level
+function whose body is exactly one `if`. It fresh-replays confirmed matching
+cases in canonical output order, appends complete signature observations, and
+publishes count-only mechanism checkpoints that survive a crash/reopen. It has
+no CLI selector, general nested-call/event tracing, runtime bin observations,
+or mechanism-DAG/terminal publication yet. Those surfaces, user-authored
+`probes`, typed `output as` rows, `after`, detached following, parallel workers
+and resumable chunked terminal publication are subsequent slices described
+below. Ordinary snapshot v5 therefore still reports mechanism evidence as
+unavailable and never infers a mechanism count from result groups. This is the
+implemented artifact contract, not a claim that a graph-bearing policy
+exploration has already been executed.
+
+The smallest executable mechanism-stream fixture deliberately declares only
+four incomes, of which three are eligible lower boundary endpoints around one
+thresholding `if`. Its first post-probe checkpoint is `scope_open` with zero
+confirmed evidence and an honestly `unknown` mechanism-signature count. After
+case classification and fresh mechanism replay, selected members of the final
+private canonical checkpoint are:
+
+```json
+{
+  "status": "matching_closed",
+  "target_cases": { "certainty": "exact", "value": "3" },
+  "traced_cases": "3",
+  "known_target_untraced": { "total": "0" },
+  "mechanism_signatures": { "certainty": "exact", "value": "3" }
+}
+```
+
+The fixture then drops the live coordinator without a pause, reopens the same
+run directory from its authenticated journal and blobs, and requires identical
+mechanism evidence with no replay backlog. The excerpt is for readability; the
+committed artifact is one cursor-bound canonical JSON line with the complete
+conservation fields and hashes.
 
 ## Five search clauses, an optional probe plan, plus a continuation
 
@@ -347,7 +376,7 @@ bounded configuration and representative-result prefixes; and exact or
 lower-bound count labels. Individual nonmatch cases and candidate reasons
 remain private journal material by default. A durable run created with
 `--case-graph full` additionally authorizes its complete current case
-classification DAG; mechanism-DAG views still await a future replay path.
+classification DAG; mechanism-DAG views still await the general replay path.
 Mechanism evidence is explicitly `unavailable_deferred`; result groups are
 never relabelled as mechanisms. It is not final while the required frontier is
 open. To continue after this inspection, replace `--pause-after probes` with a
@@ -903,13 +932,15 @@ Three limits must not be confused:
 The current exact implementation is case-first: classify the finite world,
 then derive keys and representatives. Its first bounded terminal replay checks
 only selected representative/extrema witnesses; it publishes no mechanism
-incidence. The later mechanism-enabled slice adds canonical mechanism replay.
-A symbolic implementation may then alternate between finding one uncovered
-case, replaying its mechanism, proving an exact case-classification region and
-subtracting that region. In that first mechanism-enabled version, closure still
-replays every case in its target; a later proof-backed mode may certify a shared
-signature for a whole region. Answer/case/value completion requires no
-corresponding mechanism frontier.
+incidence. The private mechanism-enabled experiment now adds canonical replay
+for the deliberately constrained same-function, single-`if` profile and
+commits its count-only checkpoint; general mechanisms remain deferred. A
+symbolic implementation may then alternate between finding one uncovered case,
+replaying its mechanism, proving an exact case-classification region and
+subtracting that region. In the first general mechanism-enabled version,
+closure still replays every case in its target; a later proof-backed mode may
+certify a shared signature for a whole region. Answer/case/value completion
+requires no corresponding mechanism frontier.
 
 The exploration can still be case-complete while mechanism evidence is only
 representative-scoped or unavailable; those closure claims are reported

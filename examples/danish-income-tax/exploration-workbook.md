@@ -436,9 +436,13 @@ Already confirmed matching cases may contribute honest `scope_open` lower
 bounds while the rest of the case frontier remains open; a mechanism trace for
 an unconfirmed rank is rejected. Once case polarity closes, the accumulated
 known-match support becomes the exact mechanism target without enumerating one
-row per rank. Runtime trace instrumentation and public mechanism-aware result
-JSON are still deliberately deferred, so this architecture is not yet a claim
-of completed Personskat mechanism results.
+row per rank. The first private runtime slice now proves the complete durable
+path for two positional shown calls into the same single-`if` function:
+checked request, canonical output-environment replay, signature mint, journal
+commit, count-only checkpoint, and crash recovery. General nested rule/call
+tracing, runtime 50-DKK bin values, mechanism-DAG publication and public
+mechanism-aware result JSON are still deliberately deferred, so this
+architecture is not yet a claim of completed Personskat mechanism results.
 
 ### The case DAG answers where; the mechanism DAG answers how
 

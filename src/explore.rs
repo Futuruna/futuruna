@@ -17,6 +17,9 @@ mod classification_regions;
 mod exact;
 mod exact_stream;
 mod mechanism;
+mod mechanism_request;
+mod mechanism_runtime;
+mod mechanism_snapshot;
 mod mechanism_stream;
 mod probe;
 mod probe_codec;
@@ -6871,6 +6874,258 @@ mod tests {
             Some(source_dir.to_string_lossy().to_string()),
             source,
         )
+    }
+
+    #[test]
+    fn mechanism_stream_mints_checkpoints_and_replays_the_same_case_graph() {
+        let source = r#"
+> net_income(income: Int) -> Int {
+    if income >= 200 { income - 20 } else { income }
+}
+| eligible(income: Int, step: Int) -> True
+? explore mechanism_stream_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [before = net_income(income), after = net_income(income + step)]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse mechanism stream fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let selected = 0;
+        let plan = mechanism_runtime::CheckedSingleIfMechanismRuntimePlanV1::from_show_call_roots(
+            &artifacts, selected, 0, 1,
+        )
+        .expect("check single-if mechanism runtime plan");
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_mechanism_stream_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let report_request = report::ExploreReportRequest {
+            case_graph: report::ExploreCaseGraphRequest::Omit,
+            ledger: report::ExploreLedgerRequest::Omit,
+        };
+        let mut coordinator =
+            stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+                &directory,
+                run_store::RunStoreLimits::default(),
+                &statements,
+                None,
+                &artifacts,
+                selected,
+                report_request,
+                plan.request().clone(),
+            )
+            .expect("create mechanism-enabled stream");
+        coordinator
+            .persist_probe_fallback_manifest()
+            .expect("persist bounded canonical probe fallback");
+        coordinator
+            .accept_prepared_probe_coverage(NonZeroU64::new(1).expect("one is nonzero"))
+            .expect("accept bounded probe coverage");
+        assert!(coordinator
+            .complete_prepared_probe()
+            .expect("complete source-probe milestone")
+            .complete());
+
+        let initial_checkpoint = coordinator
+            .prepare_mechanism_checkpoint_publication_for_test()
+            .expect("prepare zero-evidence mechanism checkpoint");
+        let initial_json = std::str::from_utf8(initial_checkpoint.canonical_json_line())
+            .expect("initial mechanism checkpoint is UTF-8");
+        assert!(initial_json.contains("\"status\":\"scope_open\""));
+        assert!(initial_json.contains(
+            "\"mechanism_signatures\":{\"certainty\":\"unknown\",\"value\":null,\"confirmed_lower_bound\":\"0\"}"
+        ));
+        coordinator
+            .publish_prepared_mechanism_checkpoint(&initial_checkpoint)
+            .expect("publish zero-evidence mechanism checkpoint");
+
+        let mut traced_ranks = Vec::new();
+        loop {
+            while coordinator
+                .next_mechanism_rank_hint()
+                .expect("select confirmed mechanism backlog")
+                .is_some()
+            {
+                match coordinator
+                    .advance_one_single_if_mechanism_case(&plan)
+                    .expect("fresh-replay one mechanism case")
+                {
+                    stream_coordinator::MechanismStreamAdvanceV1::Committed { rank, .. } => {
+                        traced_ranks.push(rank);
+                    }
+                    stream_coordinator::MechanismStreamAdvanceV1::NoConfirmedTargetBacklog => {
+                        panic!("mechanism backlog disappeared before its selected replay")
+                    }
+                }
+            }
+            if coordinator.next_open_rank_hint().is_none() {
+                break;
+            }
+            assert!(matches!(
+                coordinator
+                    .advance_one_case()
+                    .expect("classify one exact mechanism target case"),
+                stream_coordinator::ExactStreamAdvance::Committed { .. }
+            ));
+        }
+        while coordinator
+            .next_mechanism_rank_hint()
+            .expect("select final confirmed mechanism backlog")
+            .is_some()
+        {
+            match coordinator
+                .advance_one_single_if_mechanism_case(&plan)
+                .expect("fresh-replay final mechanism case")
+            {
+                stream_coordinator::MechanismStreamAdvanceV1::Committed { rank, .. } => {
+                    traced_ranks.push(rank)
+                }
+                stream_coordinator::MechanismStreamAdvanceV1::NoConfirmedTargetBacklog => {
+                    panic!("final mechanism backlog disappeared before replay")
+                }
+            }
+        }
+
+        let final_checkpoint = coordinator
+            .prepare_mechanism_checkpoint_publication_for_test()
+            .expect("prepare closed mechanism checkpoint");
+        let final_json = final_checkpoint.canonical_json_line().to_vec();
+        let final_text = std::str::from_utf8(&final_json).expect("final checkpoint is UTF-8");
+        assert!(final_text.contains("\"status\":\"matching_closed\""));
+        assert!(final_text.contains("\"target_cases\":{\"certainty\":\"exact\",\"value\":\"3\"}"));
+        assert!(final_text.contains("\"traced_cases\":\"3\""));
+        assert!(final_text.contains(
+            "\"known_target_untraced\":{\"total\":\"0\",\"pending\":\"0\",\"replay_unavailable\":\"0\",\"observation_unsupported\":\"0\"}"
+        ));
+        assert!(final_text
+            .contains("\"mechanism_signatures\":{\"certainty\":\"exact\",\"value\":\"3\"}"));
+        coordinator
+            .publish_prepared_mechanism_checkpoint(&final_checkpoint)
+            .expect("publish closed mechanism checkpoint");
+        assert_eq!(traced_ranks, vec![0, 1, 2]);
+        let evidence_before_recovery = coordinator
+            .mechanism_snapshot()
+            .expect("materialize pre-recovery mechanism evidence")
+            .expect("mechanism evidence is enabled");
+        drop(coordinator);
+
+        let mut recovered =
+            stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+                &directory,
+                run_store::RunStoreLimits::default(),
+                &statements,
+                None,
+                &artifacts,
+                selected,
+                report_request,
+                plan.request().clone(),
+            )
+            .expect("recover mechanism-enabled stream");
+        assert!(recovered
+            .next_mechanism_rank_hint()
+            .expect("inspect recovered mechanism backlog")
+            .is_none());
+        let evidence_after_recovery = recovered
+            .mechanism_snapshot()
+            .expect("materialize recovered mechanism evidence")
+            .expect("recovered mechanism evidence is enabled");
+        assert_eq!(evidence_after_recovery, evidence_before_recovery);
+        drop(recovered);
+        std::fs::remove_dir_all(&directory).expect("remove mechanism stream fixture directory");
+    }
+
+    #[test]
+    fn mechanism_runtime_rejects_equal_shape_query_identity_drift() {
+        let source = r#"
+> net_income(income: Int) -> Int {
+    if income >= 200 { income - 20 } else { income }
+}
+| eligible(income: Int, step: Int) -> True
+? explore first_query {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [before = net_income(income), after = net_income(income + step)]
+        representative first
+    }
+}
+? explore second_query {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [before = net_income(income), after = net_income(income + step)]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse equal-shape mechanism queries");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let plan = mechanism_runtime::CheckedSingleIfMechanismRuntimePlanV1::from_show_call_roots(
+            &artifacts, 0, 0, 1,
+        )
+        .expect("check first mechanism plan");
+        let second = artifacts
+            .checked_exploration_query(1)
+            .expect("select second checked query");
+        let evaluator = exact::ExactStreamEvaluator::prepare(
+            &statements,
+            None,
+            &artifacts,
+            1,
+            second.closed_query,
+            report::DEFAULT_EXPLORE_STEP_LIMIT,
+            report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
+        )
+        .expect("prepare second query evaluator");
+        let error = match mechanism_runtime::mint_single_if_mechanism_observation_v1(
+            &plan, &evaluator, 0,
+        ) {
+            Ok(_) => panic!("another checked query minted this plan's evidence"),
+            Err(error) => error,
+        };
+        assert!(error.contains("different checked queries"), "{error}");
     }
 
     #[test]

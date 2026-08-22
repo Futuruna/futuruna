@@ -22,6 +22,7 @@ use super::exact_stream::{
     ExactClosedClassificationV1, ExactMatchProjectionV1, ExactValidationReceiptDigestV1,
     ValidatedExactCaseObservationBatchV1,
 };
+use super::mechanism::MechanismQueryId;
 use super::report::{
     ExploreCaseGraphEvidence, ExploreCaseGraphRequest, ExploreCaseId, ExploreClosure,
     ExploreCompletionMethod, ExploreCount, ExploreCounts, ExploreCoverage, ExploreEvaluationPhase,
@@ -1618,6 +1619,7 @@ pub(super) struct ExactStreamEvaluator<'a> {
     source_dir: Option<&'a str>,
     artifacts: &'a TypeCheckArtifacts,
     query: &'a ExploreQueryIr,
+    checked_mechanism_query_id: MechanismQueryId,
     catalog: calculate::TypeCatalog,
     roots: BTreeSet<ExploreRuntimeRoot>,
     runtime: ExactRuntime,
@@ -1630,6 +1632,26 @@ pub(super) struct ExactStreamEvaluator<'a> {
 pub(super) enum ExactStreamCaseAttempt {
     Complete(ExactEvaluatorConfirmedObservationV1),
     Open(ExploreStopReason),
+}
+
+#[derive(Debug)]
+pub(super) enum ExactFreshMatchReplayError {
+    OperationalLimit(ExploreStopReason),
+    NotConfirmedMatch,
+    ObservationUnsupported(String),
+    ReplayUnavailable(String),
+    Failure(String),
+}
+
+fn exact_fresh_match_replay_error(failure: ExactEngineFailure) -> ExactFreshMatchReplayError {
+    match failure {
+        ExactEngineFailure::OperationalLimit(stop) => {
+            ExactFreshMatchReplayError::OperationalLimit(stop)
+        }
+        ExactEngineFailure::Unsupported(message) | ExactEngineFailure::Error(message) => {
+            ExactFreshMatchReplayError::Failure(message)
+        }
+    }
 }
 
 /// Non-forgeable (outside this module) evidence that one proposal came
@@ -1684,6 +1706,7 @@ impl<'a> ExactStreamEvaluator<'a> {
         statements: &'a [Stmt],
         source_dir: Option<&'a str>,
         artifacts: &'a TypeCheckArtifacts,
+        accepted_query_index: usize,
         query: &'a ExploreQueryIr,
         step_limit: usize,
         collection_limit: usize,
@@ -1693,6 +1716,17 @@ impl<'a> ExactStreamEvaluator<'a> {
                 "durable exact evaluation requires positive step and collection limits".to_string(),
             );
         }
+        let checked = artifacts
+            .checked_exploration_query(accepted_query_index)
+            .map_err(|error| format!("cannot revalidate exact evaluator query: {error:?}"))?;
+        if !std::ptr::eq(checked.closed_query, query) {
+            return Err(
+                "exact evaluator query does not match its producer-minted checked query"
+                    .to_string(),
+            );
+        }
+        let checked_mechanism_query_id = MechanismQueryId::from_checked_query(&checked)
+            .map_err(|error| format!("cannot bind exact evaluator query identity: {error}"))?;
         let catalog = calculate::TypeCatalog::collect_checked(statements, source_dir).map_err(
             |diagnostics| {
                 format!(
@@ -1719,6 +1753,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             source_dir,
             artifacts,
             query,
+            checked_mechanism_query_id,
             catalog,
             roots,
             runtime,
@@ -1726,6 +1761,111 @@ impl<'a> ExactStreamEvaluator<'a> {
             step_limit,
             collection_limit,
         })
+    }
+
+    pub(super) fn canonical_ordinals_for_rank(&self, rank: u128) -> Result<Box<[u128]>, String> {
+        unrank_product(
+            self.query
+                .universe
+                .dimensions
+                .iter()
+                .map(|dimension| dimension.domain.cardinality()),
+            rank,
+        )
+        .map(Vec::into_boxed_slice)
+    }
+
+    pub(super) fn checked_mechanism_query_id(&self) -> &MechanismQueryId {
+        &self.checked_mechanism_query_id
+    }
+
+    /// Reconstruct one coordinator-confirmed matching case in a fresh exact
+    /// runtime and replay its output pipeline in canonical order. The observer
+    /// sees the exact environment immediately before each `show` expression:
+    /// extrema and preceding shown aliases are already bound, while the
+    /// current shown value is not. No state from classification is shared with
+    /// this replay.
+    pub(super) fn fresh_replay_confirmed_match_shows(
+        &self,
+        rank: u128,
+        mut observe: impl FnMut(
+            usize,
+            &mut Interpreter,
+            &Env,
+            usize,
+            usize,
+        ) -> Result<(), ExactFreshMatchReplayError>,
+    ) -> Result<(), ExactFreshMatchReplayError> {
+        let ordinals = self
+            .canonical_ordinals_for_rank(rank)
+            .map_err(ExactFreshMatchReplayError::Failure)?;
+        let context = ExactRuntimeContext {
+            statements: self.statements,
+            source_dir: self.source_dir,
+            artifacts: self.artifacts,
+            catalog: &self.catalog,
+            roots: &self.roots,
+            step_limit: self.step_limit,
+            collection_limit: self.collection_limit,
+            phase_override: None,
+        }
+        .for_replay();
+        let mut runtime = context.fresh().map_err(exact_fresh_match_replay_error)?;
+        let assignment = assignment_values(self.query, &ordinals)
+            .map_err(ExactFreshMatchReplayError::Failure)?;
+        let lower_env =
+            match evaluate_admissibility(&mut runtime, &context, self.query, &assignment)
+                .map_err(exact_fresh_match_replay_error)?
+            {
+                Admissibility::Excluded => {
+                    return Err(ExactFreshMatchReplayError::NotConfirmedMatch)
+                }
+                Admissibility::Admissible(environment) => environment,
+            };
+        if !evaluate_polarity(
+            &mut runtime,
+            &context,
+            self.query,
+            &self.question,
+            &lower_env,
+        )
+        .map_err(exact_fresh_match_replay_error)?
+        {
+            return Err(ExactFreshMatchReplayError::NotConfirmedMatch);
+        }
+        evaluate_key(&mut runtime, &context, self.query, &lower_env)
+            .map_err(exact_fresh_match_replay_error)?;
+        let extrema = evaluate_extrema(&mut runtime, &context, self.query, &lower_env)
+            .map_err(exact_fresh_match_replay_error)?;
+        let mut output_env = lower_env.child();
+        for (field, value) in self.query.query.output.extrema.iter().zip(extrema.iter()) {
+            output_env.set(field.name.clone(), Value::Int(*value));
+        }
+        for (show_index, field) in self.query.query.output.show.iter().enumerate() {
+            observe(
+                show_index,
+                &mut runtime.interpreter,
+                &output_env,
+                self.step_limit,
+                self.collection_limit,
+            )?;
+            let value = runtime
+                .eval_value(
+                    &field.value,
+                    &output_env,
+                    &field.ty,
+                    context.catalog,
+                    context.step_limit,
+                    context.collection_limit,
+                    &format!("fresh-replaying Explore shown field `{}`", field.name),
+                    context.phase(ExploreEvaluationPhase::Show {
+                        name: field.name.clone(),
+                    }),
+                )
+                .map_err(exact_fresh_match_replay_error)?;
+            bind_canonical(&mut output_env, &field.name, &value);
+        }
+        Ok(())
     }
 
     /// Evaluate one rank as a whole-CaseId retry unit. Matching cases always

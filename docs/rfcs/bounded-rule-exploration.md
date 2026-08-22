@@ -14,12 +14,14 @@ first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
 An explicit durable-only `--case-graph full` request now publishes a bounded,
-total current-evidence case DAG. A private, dormant mechanism-stream substrate
-now source-binds observation identity, encodes replay-confirmed signature
-blocks, retains compressed case incidence, and can join those blocks to the
-authenticated journal with `scope_open`, `incidence_open`, and
-`matching_closed` materializations. Runtime trace minting and public
-mechanism-aware snapshot/terminal schemas remain later slices, so the ordinary
+total current-evidence case DAG. A private first executable mechanism-stream
+slice source-binds two positional `show` call roots, admits only the same
+checked top-level function with one `if`, fresh-replays each confirmed matching
+case in its canonical output environment, journals replay-confirmed signature
+blocks, and publishes resumable count-only mechanism checkpoints with
+`scope_open`, `incidence_open`, or `matching_closed` status. General runtime
+event instrumentation, mechanism-bin replay, mechanism-DAG publication and
+public mechanism-aware terminal schemas remain later slices, so the ordinary
 CLI continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
 typed output rows, result continuations, detached observation, parallel
 workers, and chunked terminal publication also remain later implementation
@@ -1476,6 +1478,24 @@ arrived. Before matching scope closes, only already classified matching support
 may authorize a mechanism observation; those facts are immediately visible as
 `scope_open` lower bounds. Exact case closure seals that same support as the
 target without enumerating its ranks.
+
+The private mechanism-enabled identity reuses `SnapshotPublished` and
+`SnapshotUnavailablePublished`, but its snapshot schema digest dispatches
+those records to `futuruna.explore.mechanism-checkpoint.v1` rather than the
+exact-only snapshot-v5 schema. The canonical count-only checkpoint binds its
+pre-publication cursor, run and journal/evidence heads, checked request and
+observation identities, probe/classification progress, closure status,
+confirmed target/traced/untraced populations, distinct signature certainty and
+requested bin counts. It discloses no signature definitions, CaseIds, examples
+or incidence DAG. Exact case closure may supply an unforgeable closure-gated
+target-support token to this projection without first materializing a target
+DAG. If the full bounded document cannot fit, an independently capped
+capacity receipt commits the same cursor and progress; it is valid only when
+canonical reconstruction proves the
+full document exceeded its fixed limit. Recovery rerenders the appropriate
+document from the pre-event reducer state and requires byte equality before
+applying the journal record. Exact-only snapshot identity and bytes remain
+unchanged.
 
 Every semantic commit MUST conserve the frontier exactly. If `C_new` is the
 newly accepted disjoint closed support, then:
