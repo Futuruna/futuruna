@@ -1643,6 +1643,34 @@ pub(super) enum ExactFreshMatchReplayError {
     Failure(String),
 }
 
+/// Private hook over the canonical fresh-replay output pipeline.
+///
+/// `before_show` sees the environment before the current alias is bound.  The
+/// expression is then evaluated exactly once by the ordinary exact runtime;
+/// `after_show` receives that canonical value before the alias is added to the
+/// environment.  Keeping both edges explicit lets mechanism tracing surround
+/// the real computation while numeric observers reuse its result.
+pub(super) trait ExactFreshMatchShowObserver {
+    fn before_show(
+        &mut self,
+        show_index: usize,
+        interpreter: &mut Interpreter,
+        environment: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError>;
+
+    fn after_show(
+        &mut self,
+        show_index: usize,
+        interpreter: &mut Interpreter,
+        environment: &Env,
+        value: &ExploreValue,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError>;
+}
+
 fn exact_fresh_match_replay_error(failure: ExactEngineFailure) -> ExactFreshMatchReplayError {
     match failure {
         ExactEngineFailure::OperationalLimit(stop) => {
@@ -1788,13 +1816,7 @@ impl<'a> ExactStreamEvaluator<'a> {
     pub(super) fn fresh_replay_confirmed_match_shows(
         &self,
         rank: u128,
-        mut observe: impl FnMut(
-            usize,
-            &mut Interpreter,
-            &Env,
-            usize,
-            usize,
-        ) -> Result<(), ExactFreshMatchReplayError>,
+        observer: &mut impl ExactFreshMatchShowObserver,
     ) -> Result<(), ExactFreshMatchReplayError> {
         let ordinals = self
             .canonical_ordinals_for_rank(rank)
@@ -1842,7 +1864,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             output_env.set(field.name.clone(), Value::Int(*value));
         }
         for (show_index, field) in self.query.query.output.show.iter().enumerate() {
-            observe(
+            observer.before_show(
                 show_index,
                 &mut runtime.interpreter,
                 &output_env,
@@ -1863,6 +1885,14 @@ impl<'a> ExactStreamEvaluator<'a> {
                     }),
                 )
                 .map_err(exact_fresh_match_replay_error)?;
+            observer.after_show(
+                show_index,
+                &mut runtime.interpreter,
+                &output_env,
+                &value,
+                self.step_limit,
+                self.collection_limit,
+            )?;
             bind_canonical(&mut output_env, &field.name, &value);
         }
         Ok(())

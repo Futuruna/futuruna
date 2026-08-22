@@ -439,10 +439,32 @@ known-match support becomes the exact mechanism target without enumerating one
 row per rank. The first private runtime slice now proves the complete durable
 path for two positional shown calls into the same single-`if` function:
 checked request, canonical output-environment replay, signature mint, journal
-commit, count-only checkpoint, and crash recovery. General nested rule/call
-tracing, runtime 50-DKK bin values, mechanism-DAG publication and public
-mechanism-aware result JSON are still deliberately deferred, so this
+commit, count-only checkpoint, and crash recovery. A checked numeric shown root
+now also reuses its canonical evaluated `Int` value for durable 50-DKK bin
+incidence. General nested rule/call tracing, mechanism-DAG publication and
+public mechanism-aware result JSON are still deliberately deferred, so this
 architecture is not yet a claim of completed Personskat mechanism results.
+
+#### Empirical checkpoint: first exact runtime mechanism bins (2026-08-22)
+
+The deliberately synthetic three-transition fixture now asks for a replayed
+loss in øre and two half-open 50-DKK bins. It contains one stable `if` at an
+income threshold and evaluates lower endpoints 198, 199 and 200 against their
+next-krone endpoints. The mechanism observer does not manufacture a histogram
+from those three cases: it interns the three before/after branch signatures,
+then relates each signature to the canonical replayed loss value.
+
+| Loss bin in øre | Confirmed cases | Exact distinct mechanisms |
+| --- | ---: | ---: |
+| `[-5,000, 0)` | 2 | 2 |
+| `[0, 5,000)` | 1 | 1 |
+
+The closed checkpoint also reports 3 target cases, 3 traced cases, 3 exact
+signatures, zero cases outside the declared bins and zero unavailable bin
+values. Reopening after the checkpoint reconstructs byte-identical mechanism
+and bin evidence. This proves the runtime-to-journal-to-reducer-to-checkpoint
+path for exact mechanism-bin counts; it says nothing yet about the number of
+mechanisms in the Personskat model.
 
 ### The case DAG answers where; the mechanism DAG answers how
 

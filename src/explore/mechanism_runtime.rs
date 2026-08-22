@@ -11,19 +11,19 @@ use std::collections::BTreeSet;
 
 use sha2::{Digest, Sha256};
 
-use super::exact::{ExactFreshMatchReplayError, ExactStreamEvaluator};
+use super::exact::{ExactFreshMatchReplayError, ExactFreshMatchShowObserver, ExactStreamEvaluator};
 use super::mechanism::{
     CanonicalSignatureInterner, CheckedMechanismObservationRequestV1, CheckedMechanismRequestId,
     DynamicEndpointTraceV1, DynamicEventKind, DynamicEventOutcome, DynamicMechanismSignature,
-    EndpointOccurrenceV1, IfDecisionOutcome, MechanismActivationStepV1, MechanismOccurrenceSlotV1,
-    MechanismSignatureId, MechanismSiteId,
+    EndpointOccurrenceV1, IfDecisionOutcome, MechanismActivationStepV1, MechanismNumericBin,
+    MechanismOccurrenceSlotV1, MechanismSignatureId, MechanismSiteId,
 };
 use super::mechanism_request::{build_checked_mechanism_request_v1, MechanismTraceSelectionV1};
 use super::mechanism_stream::{
-    seal_fresh_replay_confirmed_mechanism_batch_v1, MechanismCanonicalCaseIdV1,
-    MechanismCaseObservationProposalV1, MechanismObservationBatchProposalV1,
-    MechanismPermanentUntracedReasonV1, MechanismValidationReceiptDigestV1,
-    ValidatedMechanismObservationBatchV1,
+    seal_fresh_replay_confirmed_mechanism_batch_v1, MechanismBinAssignmentOutcomeV1,
+    MechanismBinAssignmentV1, MechanismCanonicalCaseIdV1, MechanismCaseObservationProposalV1,
+    MechanismObservationBatchProposalV1, MechanismPermanentUntracedReasonV1,
+    MechanismValidationReceiptDigestV1, ValidatedMechanismObservationBatchV1,
 };
 use super::report::{ExploreEvaluationPhase, ExploreLimitResource, ExploreStopReason};
 use super::source_events::{
@@ -37,10 +37,19 @@ use crate::{
 
 const SINGLE_IF_REPLAY_RECEIPT_V1: &[u8] =
     b"futuruna.explore.single-if-mechanism-replay-receipt.v1";
+const SINGLE_IF_REPLAY_RECEIPT_V2: &[u8] =
+    b"futuruna.explore.single-if-mechanism-replay-receipt.v2";
 
 #[derive(Clone)]
 struct CheckedEndpointReplayV1 {
     arguments: Box<[Expr]>,
+}
+
+#[derive(Clone)]
+struct CheckedBinReplayV1 {
+    show_index: usize,
+    field_name: Box<str>,
+    bins: Box<[MechanismNumericBin]>,
 }
 
 /// Checked, source-bound plan for the deliberately constrained first runtime
@@ -55,6 +64,7 @@ pub(super) struct CheckedSingleIfMechanismRuntimePlanV1 {
     parameter_names: Box<[Box<str>]>,
     condition: Expr,
     if_site: MechanismSiteId,
+    bin_fields: Box<[CheckedBinReplayV1]>,
 }
 
 impl CheckedSingleIfMechanismRuntimePlanV1 {
@@ -64,14 +74,7 @@ impl CheckedSingleIfMechanismRuntimePlanV1 {
         before_show_index: usize,
         after_show_index: usize,
     ) -> Result<Self, String> {
-        if before_show_index == after_show_index {
-            return Err("mechanism before and after show roots must be distinct".to_string());
-        }
-        // Keep the runtime plan's durable identity exactly equivalent to the
-        // shared checked request seam. This first executable profile has no
-        // bin observations; optional request bins are intentionally not
-        // claimed or partially replayed here.
-        let request = build_checked_mechanism_request_v1(
+        Self::from_trace_selection(
             artifacts,
             accepted_query_index,
             MechanismTraceSelectionV1 {
@@ -81,7 +84,23 @@ impl CheckedSingleIfMechanismRuntimePlanV1 {
                 retained_examples_per_signature: 1,
             },
         )
-        .map_err(|error| format!("cannot check single-if mechanism request: {error}"))?;
+    }
+
+    pub(super) fn from_trace_selection(
+        artifacts: &TypeCheckArtifacts,
+        accepted_query_index: usize,
+        selection: MechanismTraceSelectionV1,
+    ) -> Result<Self, String> {
+        let before_show_index = selection.before_show_index;
+        let after_show_index = selection.after_show_index;
+        if before_show_index == after_show_index {
+            return Err("mechanism before and after show roots must be distinct".to_string());
+        }
+        let mut selected_bin_fields = selection.bin_fields.to_vec();
+        selected_bin_fields.sort_by_key(|field| field.show_index);
+        let request =
+            build_checked_mechanism_request_v1(artifacts, accepted_query_index, selection)
+                .map_err(|error| format!("cannot check single-if mechanism request: {error}"))?;
         let checked = artifacts
             .checked_exploration_query(accepted_query_index)
             .map_err(|error| format!("cannot select checked mechanism query: {error:?}"))?;
@@ -159,6 +178,23 @@ impl CheckedSingleIfMechanismRuntimePlanV1 {
             );
         }
 
+        if selected_bin_fields.len() != request.observation.bin_fields.len() {
+            return Err(
+                "checked mechanism bin selection width changed while building runtime plan"
+                    .to_string(),
+            );
+        }
+        let bin_fields = selected_bin_fields
+            .into_iter()
+            .zip(request.observation.bin_fields.iter())
+            .map(|(selected, checked)| CheckedBinReplayV1 {
+                show_index: selected.show_index,
+                field_name: checked.name.clone(),
+                bins: checked.bins.clone(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+
         Ok(Self {
             request,
             before_show_index,
@@ -169,6 +205,7 @@ impl CheckedSingleIfMechanismRuntimePlanV1 {
             condition,
             if_site: MechanismSiteId::from_expression_site(&if_site)
                 .map_err(|error| error.to_string())?,
+            bin_fields,
         })
     }
 
@@ -370,6 +407,137 @@ impl RuntimeConfirmedMechanismObservationV1 {
     }
 }
 
+struct SingleIfReplayObserver<'plan> {
+    plan: &'plan CheckedSingleIfMechanismRuntimePlanV1,
+    before: Option<IfDecisionOutcome>,
+    after: Option<IfDecisionOutcome>,
+    bin_assignments: Vec<MechanismBinAssignmentV1>,
+}
+
+impl<'plan> SingleIfReplayObserver<'plan> {
+    fn new(plan: &'plan CheckedSingleIfMechanismRuntimePlanV1) -> Self {
+        Self {
+            plan,
+            before: None,
+            after: None,
+            bin_assignments: Vec::with_capacity(plan.bin_fields.len()),
+        }
+    }
+
+    fn finish(
+        mut self,
+    ) -> Result<
+        (
+            IfDecisionOutcome,
+            IfDecisionOutcome,
+            Box<[MechanismBinAssignmentV1]>,
+        ),
+        String,
+    > {
+        if self.bin_assignments.len() != self.plan.bin_fields.len() {
+            return Err(format!(
+                "mechanism replay observed {} bin fields but the checked request requires {}",
+                self.bin_assignments.len(),
+                self.plan.bin_fields.len()
+            ));
+        }
+        self.bin_assignments
+            .sort_by(|left, right| left.field_name.cmp(&right.field_name));
+        Ok((
+            self.before
+                .ok_or_else(|| "before mechanism show root was not replayed".to_string())?,
+            self.after
+                .ok_or_else(|| "after mechanism show root was not replayed".to_string())?,
+            self.bin_assignments.into_boxed_slice(),
+        ))
+    }
+}
+
+impl ExactFreshMatchShowObserver for SingleIfReplayObserver<'_> {
+    fn before_show(
+        &mut self,
+        show_index: usize,
+        interpreter: &mut Interpreter,
+        environment: &Env,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError> {
+        let (slot, endpoint, phase_name) = if show_index == self.plan.before_show_index {
+            (
+                &mut self.before,
+                &self.plan.before,
+                "mechanism before endpoint",
+            )
+        } else if show_index == self.plan.after_show_index {
+            (
+                &mut self.after,
+                &self.plan.after,
+                "mechanism after endpoint",
+            )
+        } else {
+            return Ok(());
+        };
+        if slot.is_some() {
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "mechanism show index {show_index} was replayed more than once"
+            )));
+        }
+        *slot = Some(replay_endpoint(
+            interpreter,
+            environment,
+            endpoint,
+            &self.plan.parameter_names,
+            &self.plan.condition,
+            phase_name,
+            step_limit,
+            collection_limit,
+        )?);
+        Ok(())
+    }
+
+    fn after_show(
+        &mut self,
+        show_index: usize,
+        _interpreter: &mut Interpreter,
+        _environment: &Env,
+        value: &super::ExploreValue,
+        _step_limit: usize,
+        _collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError> {
+        let Some(field) = self
+            .plan
+            .bin_fields
+            .iter()
+            .find(|field| field.show_index == show_index)
+        else {
+            return Ok(());
+        };
+        let super::ExploreValue::Int(value) = value else {
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "checked Int mechanism bin field `{}` replayed as a non-Int value",
+                field.field_name
+            )));
+        };
+        self.bin_assignments.push(assign_numeric_bin(field, *value));
+        Ok(())
+    }
+}
+
+fn assign_numeric_bin(field: &CheckedBinReplayV1, value: i64) -> MechanismBinAssignmentV1 {
+    let insertion = field
+        .bins
+        .partition_point(|bin| bin.lower_inclusive <= value);
+    let selected = insertion
+        .checked_sub(1)
+        .and_then(|index| field.bins.get(index))
+        .copied()
+        .filter(|bin| value < bin.upper_exclusive);
+    match selected {
+        Some(bin) => MechanismBinAssignmentV1::binned(field.field_name.clone(), bin),
+        None => MechanismBinAssignmentV1::outside_declared_bins(field.field_name.clone()),
+    }
+}
+
 pub(super) fn mint_single_if_mechanism_observation_v1(
     plan: &CheckedSingleIfMechanismRuntimePlanV1,
     evaluator: &ExactStreamEvaluator<'_>,
@@ -383,44 +551,14 @@ pub(super) fn mint_single_if_mechanism_observation_v1(
     }
     let ordinals = evaluator.canonical_ordinals_for_rank(rank)?;
     let case_id = MechanismCanonicalCaseIdV1::new(rank, ordinals);
-    let mut before = None;
-    let mut after = None;
-    let replay = evaluator.fresh_replay_confirmed_match_shows(
-        rank,
-        |show_index, interpreter, environment, step_limit, collection_limit| {
-            let (slot, endpoint, phase_name) = if show_index == plan.before_show_index {
-                (&mut before, &plan.before, "mechanism before endpoint")
-            } else if show_index == plan.after_show_index {
-                (&mut after, &plan.after, "mechanism after endpoint")
-            } else {
-                return Ok(());
-            };
-            if slot.is_some() {
-                return Err(ExactFreshMatchReplayError::Failure(format!(
-                    "mechanism show index {show_index} was replayed more than once"
-                )));
-            }
-            *slot = Some(replay_endpoint(
-                interpreter,
-                environment,
-                endpoint,
-                &plan.parameter_names,
-                &plan.condition,
-                phase_name,
-                step_limit,
-                collection_limit,
-            )?);
-            Ok(())
-        },
-    );
+    let mut observer = SingleIfReplayObserver::new(plan);
+    let replay = evaluator.fresh_replay_confirmed_match_shows(rank, &mut observer);
 
     match replay {
-        Ok(()) => observed_token(
-            plan,
-            case_id,
-            before.ok_or_else(|| "before mechanism show root was not replayed".to_string())?,
-            after.ok_or_else(|| "after mechanism show root was not replayed".to_string())?,
-        ),
+        Ok(()) => {
+            let (before, after, bin_assignments) = observer.finish()?;
+            observed_token(plan, case_id, before, after, bin_assignments)
+        }
         Err(ExactFreshMatchReplayError::ReplayUnavailable(_)) => Ok(untraced_token(
             plan,
             case_id,
@@ -536,6 +674,7 @@ fn observed_token(
     case_id: MechanismCanonicalCaseIdV1,
     before: IfDecisionOutcome,
     after: IfDecisionOutcome,
+    bin_assignments: Box<[MechanismBinAssignmentV1]>,
 ) -> Result<RuntimeConfirmedMechanismObservationV1, String> {
     let slot = MechanismOccurrenceSlotV1::new(
         &plan.request.observation,
@@ -581,7 +720,13 @@ fn observed_token(
         .into_values()
         .collect::<Vec<_>>()
         .into_boxed_slice();
-    let receipt = replay_receipt(&plan.request, &case_id, Some(&signature_id), None);
+    let receipt = replay_receipt(
+        &plan.request,
+        &case_id,
+        Some(&signature_id),
+        &bin_assignments,
+        None,
+    );
     Ok(RuntimeConfirmedMechanismObservationV1 {
         checked_request_id: plan.request.id.clone(),
         rank: case_id.rank,
@@ -589,7 +734,7 @@ fn observed_token(
         observation: MechanismCaseObservationProposalV1::observed(
             case_id,
             signature_id,
-            Vec::new(),
+            bin_assignments,
             receipt,
         ),
     })
@@ -600,7 +745,7 @@ fn untraced_token(
     case_id: MechanismCanonicalCaseIdV1,
     reason: MechanismPermanentUntracedReasonV1,
 ) -> RuntimeConfirmedMechanismObservationV1 {
-    let receipt = replay_receipt(&plan.request, &case_id, None, Some(reason));
+    let receipt = replay_receipt(&plan.request, &case_id, None, &[], Some(reason));
     RuntimeConfirmedMechanismObservationV1 {
         checked_request_id: plan.request.id.clone(),
         rank: case_id.rank,
@@ -615,6 +760,7 @@ fn replay_receipt(
     request: &CheckedMechanismObservationRequestV1,
     case_id: &MechanismCanonicalCaseIdV1,
     signature: Option<&MechanismSignatureId>,
+    bin_assignments: &[MechanismBinAssignmentV1],
     untraced: Option<MechanismPermanentUntracedReasonV1>,
 ) -> MechanismValidationReceiptDigestV1 {
     fn segment(hasher: &mut Sha256, bytes: &[u8]) {
@@ -622,12 +768,42 @@ fn replay_receipt(
         hasher.update(bytes);
     }
     let mut hasher = Sha256::new();
-    segment(&mut hasher, SINGLE_IF_REPLAY_RECEIPT_V1);
+    let bins_requested = !request.observation.bin_fields.is_empty();
+    segment(
+        &mut hasher,
+        if bins_requested {
+            SINGLE_IF_REPLAY_RECEIPT_V2
+        } else {
+            SINGLE_IF_REPLAY_RECEIPT_V1
+        },
+    );
     segment(&mut hasher, &request.id.digest_bytes());
     segment(&mut hasher, &case_id.rank.to_le_bytes());
     segment(&mut hasher, &(case_id.ordinals.len() as u64).to_le_bytes());
     for ordinal in case_id.ordinals.iter().copied() {
         segment(&mut hasher, &ordinal.to_le_bytes());
+    }
+    if bins_requested {
+        segment(&mut hasher, &(bin_assignments.len() as u64).to_le_bytes());
+        for assignment in bin_assignments {
+            segment(&mut hasher, assignment.field_name.as_bytes());
+            match assignment.outcome {
+                MechanismBinAssignmentOutcomeV1::Binned(bin) => {
+                    segment(&mut hasher, b"binned");
+                    segment(&mut hasher, &bin.lower_inclusive.to_le_bytes());
+                    segment(&mut hasher, &bin.upper_exclusive.to_le_bytes());
+                }
+                MechanismBinAssignmentOutcomeV1::OutsideDeclaredBins => {
+                    segment(&mut hasher, b"outside-declared-bins");
+                }
+                MechanismBinAssignmentOutcomeV1::ReplayUnavailable => {
+                    segment(&mut hasher, b"replay-unavailable");
+                }
+                MechanismBinAssignmentOutcomeV1::ObservationUnsupported => {
+                    segment(&mut hasher, b"observation-unsupported");
+                }
+            }
+        }
     }
     match (signature, untraced) {
         (Some(signature), None) => {
@@ -676,6 +852,45 @@ pub(super) fn seal_runtime_confirmed_mechanism_observation_v1(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn bin_field(bins: Vec<MechanismNumericBin>) -> CheckedBinReplayV1 {
+        CheckedBinReplayV1 {
+            show_index: 0,
+            field_name: "loss_ore".into(),
+            bins: bins.into_boxed_slice(),
+        }
+    }
+
+    #[test]
+    fn numeric_bin_assignment_is_half_open_and_preserves_gaps() {
+        let field = bin_field(vec![
+            MechanismNumericBin::new(-5_000, 0).expect("negative bin"),
+            MechanismNumericBin::new(5_000, 10_000).expect("positive bin"),
+        ]);
+        for (value, expected) in [
+            (-5_000, Some((-5_000, 0))),
+            (-1, Some((-5_000, 0))),
+            (0, None),
+            (4_999, None),
+            (5_000, Some((5_000, 10_000))),
+            (9_999, Some((5_000, 10_000))),
+            (10_000, None),
+        ] {
+            let assignment = assign_numeric_bin(&field, value);
+            match (assignment.outcome, expected) {
+                (MechanismBinAssignmentOutcomeV1::Binned(actual), Some((lower, upper))) => {
+                    assert_eq!(
+                        (actual.lower_inclusive, actual.upper_exclusive),
+                        (lower, upper)
+                    );
+                }
+                (MechanismBinAssignmentOutcomeV1::OutsideDeclaredBins, None) => {}
+                (actual, expected) => {
+                    panic!("value {value} assigned as {actual:?}; expected {expected:?}")
+                }
+            }
+        }
+    }
 
     #[test]
     fn operational_observer_failure_stays_pending_and_runtime_failure_fails_closed() {

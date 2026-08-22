@@ -37,9 +37,11 @@ A private developer-only mechanism path now executes one deliberately narrow
 profile: two positional shown expressions must call the same checked top-level
 function whose body is exactly one `if`. It fresh-replays confirmed matching
 cases in canonical output order, appends complete signature observations, and
-publishes count-only mechanism checkpoints that survive a crash/reopen. It has
-no CLI selector, general nested-call/event tracing, runtime bin observations,
-or mechanism-DAG/terminal publication yet. Those surfaces, user-authored
+publishes count-only mechanism checkpoints that survive a crash/reopen. A
+checked numeric shown field can also populate private half-open bin incidence
+from its canonical replayed value. It has no CLI selector, general
+nested-call/event tracing, public bin surface, or mechanism-DAG/terminal
+publication yet. Those surfaces, user-authored
 `probes`, typed `output as` rows, `after`, detached following, parallel workers
 and resumable chunked terminal publication are subsequent slices described
 below. Ordinary snapshot v5 therefore still reports mechanism evidence as
@@ -934,7 +936,9 @@ then derive keys and representatives. Its first bounded terminal replay checks
 only selected representative/extrema witnesses; it publishes no mechanism
 incidence. The private mechanism-enabled experiment now adds canonical replay
 for the deliberately constrained same-function, single-`if` profile and
-commits its count-only checkpoint; general mechanisms remain deferred. A
+commits its count-only checkpoint. Requested numeric `show` fields reuse their
+canonical evaluated values and feed the durable half-open-bin incidence
+relation; general dynamic mechanisms remain deferred. A
 symbolic implementation may then alternate between finding one uncovered case,
 replaying its mechanism, proving an exact case-classification region and
 subtracting that region. In the first general mechanism-enabled version,
@@ -973,15 +977,17 @@ status `not_requested`. The request, retention authorization and schema limits
 were bound before the run began, so publication cannot silently widen
 disclosure or change limits during resume.
 
-The mechanism DAG cannot be derived by the same shortcut. The repository has
-the validated mechanism identity, signature and incidence data model, but the
-ordinary evaluator does not yet emit paired dynamic control observations and
-the durable coordinator has no typed mechanism batch/reducer. Consequently,
-current result groups must remain separate from mechanisms and
-`unavailable_deferred` is the only honest status. The mechanism-enabled slice
-starts with identity-bound trace authorization, fresh stable-site replay,
-durable signature/incidence batches and an explicit untraced target support;
-only then may it publish lower-bound or exact mechanism counts and DAGs.
+The mechanism DAG cannot be derived by the same shortcut. The private durable
+path now has identity-bound trace authorization, typed signature/incidence
+batches, an arrival-order-independent reducer, explicit untraced support and
+count-only mechanism/bin checkpoints. Its executable producer remains limited
+to one stable `if` site in the same checked top-level function, however. The
+ordinary evaluator does not yet carry structural `ExprSiteId` context through
+nested calls, rule attempts, `match` arms and short circuits, and no public
+mechanism DAG is assembled. Consequently, result groups remain separate from
+mechanisms; the ordinary CLI still reports mechanisms as
+`unavailable_deferred`, while the private stream may publish only the lower
+bounds or exact counts its replayed incidence actually proves.
 
 ### Shown values and representatives
 
@@ -2101,7 +2107,7 @@ is closed.
 - Replay the established first loss through `beregn_personskat`.
 - Run the broad declared query and accept its discovered total rather than
   forcing the known sequence to be the entire answer.
-- Extend the income axis through 3,000,000 DKK using a certified boundary plan;
+- Extend the income axis through 1,500,000 DKK using a certified boundary plan;
   do not promote the 50 § 9 C candidates to a full result until their
   complement and every residual region are closed.
 - Group by earnings step while preserving every profile-step case region.

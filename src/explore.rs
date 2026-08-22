@@ -6893,7 +6893,11 @@ mod tests {
     boundaries on income by step
     output {
         key [income]
-        show [before = net_income(income), after = net_income(income + step)]
+        show [
+            before = net_income(income),
+            after = net_income(income + step),
+            loss_ore = (net_income(income) - net_income(income + step)) * 100
+        ]
         representative first
     }
 }
@@ -6909,10 +6913,26 @@ mod tests {
             artifacts.diagnostics
         );
         let selected = 0;
-        let plan = mechanism_runtime::CheckedSingleIfMechanismRuntimePlanV1::from_show_call_roots(
-            &artifacts, selected, 0, 1,
+        let plan = mechanism_runtime::CheckedSingleIfMechanismRuntimePlanV1::from_trace_selection(
+            &artifacts,
+            selected,
+            mechanism_request::MechanismTraceSelectionV1 {
+                before_show_index: 0,
+                after_show_index: 1,
+                bin_fields: vec![mechanism_request::MechanismBinShowSelectionV1 {
+                    show_index: 2,
+                    bins: vec![
+                        mechanism::MechanismNumericBin::new(-5_000, 0)
+                            .expect("negative 50-DKK bin"),
+                        mechanism::MechanismNumericBin::new(0, 5_000).expect("positive 50-DKK bin"),
+                    ]
+                    .into_boxed_slice(),
+                }]
+                .into_boxed_slice(),
+                retained_examples_per_signature: 1,
+            },
         )
-        .expect("check single-if mechanism runtime plan");
+        .expect("check single-if mechanism runtime plan with bins");
         let directory = std::env::temp_dir().join(format!(
             "futuruna_mechanism_stream_{}_{}",
             std::process::id(),
@@ -7021,6 +7041,15 @@ mod tests {
         ));
         assert!(final_text
             .contains("\"mechanism_signatures\":{\"certainty\":\"exact\",\"value\":\"3\"}"));
+        assert!(final_text.contains(
+            "\"coverage\":{\"binned_cases\":\"3\",\"outside_declared_bins_cases\":\"0\",\"unavailable_cases\":\"0\",\"replay_unavailable_cases\":\"0\",\"observation_unsupported_cases\":\"0\"}"
+        ));
+        assert!(final_text.contains(
+            "\"lower_inclusive\":\"-5000\",\"upper_exclusive\":\"0\",\"confirmed_case_support\":\"2\",\"mechanism_count\":{\"certainty\":\"exact\",\"value\":\"2\"}"
+        ));
+        assert!(final_text.contains(
+            "\"lower_inclusive\":\"0\",\"upper_exclusive\":\"5000\",\"confirmed_case_support\":\"1\",\"mechanism_count\":{\"certainty\":\"exact\",\"value\":\"1\"}"
+        ));
         coordinator
             .publish_prepared_mechanism_checkpoint(&final_checkpoint)
             .expect("publish closed mechanism checkpoint");

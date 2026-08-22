@@ -19,10 +19,12 @@ slice source-binds two positional `show` call roots, admits only the same
 checked top-level function with one `if`, fresh-replays each confirmed matching
 case in its canonical output environment, journals replay-confirmed signature
 blocks, and publishes resumable count-only mechanism checkpoints with
-`scope_open`, `incidence_open`, or `matching_closed` status. General runtime
-event instrumentation, mechanism-bin replay, mechanism-DAG publication and
-public mechanism-aware terminal schemas remain later slices, so the ordinary
-CLI continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
+`scope_open`, `incidence_open`, or `matching_closed` status. Checked numeric
+`show` roots can now reuse their canonical replayed `Int` values to publish
+exact or lower-bound distinct-mechanism counts in requested half-open bins.
+General runtime event instrumentation, mechanism-DAG publication and public
+mechanism-aware terminal schemas remain later slices, so the ordinary CLI
+continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
 typed output rows, result continuations, detached observation, parallel
 workers, and chunked terminal publication also remain later implementation
 slices. No result group is treated as a mechanism.
@@ -1067,10 +1069,13 @@ Sigma_(q,h) : T -> Signature
 
 `S_req` is not known until its prerequisite closes: representative scope needs
 projection plus representative-policy closure, and matching scope needs
-polarity closure. The first implementation defers that mechanism request until
-the target population is exact. Changing an unrelated case view does not
-change `h`. Changing the observation roots or endpoint-pairing contract creates
-a different mechanism request and signature identity.
+polarity closure. The durable implementation may nevertheless replay a case
+already confirmed inside the eventual target and publish its signature as a
+`scope_open` lower bound. It rejects every unconfirmed rank; only prerequisite
+closure turns the accumulated known support into exact `S_req`. Changing an
+unrelated case view does not change `h`. Changing the observation roots or
+endpoint-pairing contract creates a different mechanism request and signature
+identity.
 
 Each endpoint replay constructs a finite dynamic occurrence DAG. Occurrence
 nodes are annotated with stable semantic-site IDs, an event kind and canonical
@@ -2774,7 +2779,7 @@ limits. Its `graph.case_graph` envelope is `not_requested`, `included`, or
 `capacity_limited`. An included graph is a complete total current-evidence DAG;
 capacity evidence names the fixed resource, `maximum`, and
 `required_at_least`, with both the graph object and graph hash absent. Until
-dynamic mechanism replay is implemented,
+general mechanism replay is wired into the public snapshot-v5 contract,
 `mechanism_evidence.status` is `unavailable_deferred` rather than an inferred
 count.
 
