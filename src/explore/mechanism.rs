@@ -18,15 +18,22 @@ use super::{
         OrderedDecisionDag,
     },
     report::ExploreCaseId,
+    run_stream::{ExactCaseSupport, ExploreCaseUniverse},
 };
-use crate::{AnalysisProgramId, ExprSiteId};
+use crate::{
+    AnalysisProgramId, CheckedCallTarget, CheckedCallableId, CheckedExploreQueryView,
+    CheckedResolutionArtifacts, CheckedRuleCandidateResolution, ExprSiteId, RuleDispatchKey,
+    RuleDispatchTier,
+};
 
-const MECHANISM_REQUEST_HASH_V1: &[u8] = b"futuruna.explore.mechanism-request.v1";
+const MECHANISM_REQUEST_HASH_V2: &[u8] = b"futuruna.explore.mechanism-request.v2";
 const MECHANISM_CASE_TARGET_HASH_V1: &[u8] = b"futuruna.explore.case-target.v1";
-const MECHANISM_TARGET_MEMBERSHIP_HASH_V1: &[u8] = b"futuruna.explore.target-membership.v1";
-const MECHANISM_SITE_HASH_V1: &[u8] = b"futuruna.explore.mechanism-site.v1";
-const MECHANISM_OCCURRENCE_HASH_V1: &[u8] = b"futuruna.explore.mechanism-occurrence.v1";
-const MECHANISM_SIGNATURE_HASH_V1: &[u8] = b"futuruna.explore.mechanism-signature.v1";
+const MECHANISM_TARGET_MEMBERSHIP_HASH_V2: &[u8] = b"futuruna.explore.target-membership.v2";
+const MECHANISM_SITE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-site.v2";
+const MECHANISM_OCCURRENCE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-occurrence.v2";
+const MECHANISM_SIGNATURE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-signature.v2";
+const CHECKED_MECHANISM_REQUEST_HASH_V1: &[u8] = b"futuruna.explore.checked-mechanism-request.v1";
+const MECHANISM_CHECKED_QUERY_HASH_V1: &[u8] = b"futuruna.explore.mechanism-checked-query.v1";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismValidationError(String);
@@ -101,35 +108,112 @@ fn validate_analysis_program_id(
     Ok(())
 }
 
-/// Hash identity of the checked query-and-domain contract.
+/// Hash identity of the producer-minted checked query-and-domain contract.
 ///
-/// The checked Explore adapter supplies its canonical bytes. Operational
-/// budgets and sampling order must not be included in those bytes.
+/// Operational budgets and sampling order are deliberately absent. Production
+/// construction consumes only a [`CheckedExploreQueryView`], whose accessor
+/// has already revalidated both producer digests against the checked source
+/// declaration and closed finite universe.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct MechanismQueryId(StableDigest);
 
 impl MechanismQueryId {
-    pub(crate) fn from_checked_query_bytes(canonical: &[u8]) -> Self {
-        let mut hasher = StableHasher::new(b"futuruna.explore.checked-query.v1");
+    pub(crate) fn from_checked_query(
+        checked: &CheckedExploreQueryView<'_>,
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(&checked.artifact.identity.analysis_program)?;
+        validate_lowercase_sha256(
+            checked.artifact.identity.digest.as_ref(),
+            "checked Explore query identity",
+        )?;
+        validate_lowercase_sha256(checked.domain_hash(), "checked Explore domain identity")?;
+
+        let mut hasher = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V1);
+        hasher.segment(checked.artifact.identity.digest.as_bytes());
+        hasher.segment(checked.domain_hash().as_bytes());
+        Ok(Self(hasher.digest()))
+    }
+
+    /// Synthetic identity for isolated mechanism-core tests. Runtime callers
+    /// must bind through [`Self::from_checked_query`].
+    #[cfg(test)]
+    pub(super) fn from_checked_query_bytes(canonical: &[u8]) -> Self {
+        let mut hasher = StableHasher::new(b"futuruna.explore.synthetic-checked-query.test.v1");
         hasher.segment(canonical);
         Self(hasher.digest())
     }
 }
 
-/// Stable semantic expression site, scoped to one checked analysis program.
-/// Spans and filesystem paths never participate in this identity.
+fn validate_lowercase_sha256(value: &str, what: &str) -> Result<(), MechanismValidationError> {
+    if value.len() != 64
+        || !value
+            .as_bytes()
+            .iter()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(byte))
+    {
+        return Err(invalid(format!(
+            "{what} must be a lowercase SHA-256 digest"
+        )));
+    }
+    Ok(())
+}
+
+/// Kind of stable semantic program site retained by a mechanism trace.
+///
+/// Keeping the kind in the identity prevents an expression which happens to
+/// share a structural prefix with a callable, dispatch family, or rule
+/// candidate from being treated as the same observation site.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum MechanismSiteKind {
+    Expression,
+    Callable,
+    RuleFamily,
+    RuleCandidate,
+}
+
+impl MechanismSiteKind {
+    fn token(self) -> &'static [u8] {
+        match self {
+            Self::Expression => b"expression",
+            Self::Callable => b"callable",
+            Self::RuleFamily => b"rule-family",
+            Self::RuleCandidate => b"rule-candidate",
+        }
+    }
+}
+
+/// Stable semantic site, scoped to one checked analysis program. Spans,
+/// filesystem paths, and runtime addresses never participate in this identity.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct MechanismSiteId {
     analysis_program: AnalysisProgramId,
+    kind: MechanismSiteKind,
     digest: StableDigest,
 }
 
 impl MechanismSiteId {
+    /// Reconstruct a decoder proposal from canonical wire identity. This does
+    /// not prove that the site occurs in the checked program; the sealing
+    /// boundary must source-confirm it before evidence is accepted.
+    pub(crate) fn from_untrusted_digest(
+        analysis_program: AnalysisProgramId,
+        kind: MechanismSiteKind,
+        digest: [u8; 32],
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(&analysis_program)?;
+        Ok(Self {
+            analysis_program,
+            kind,
+            digest: StableDigest(digest),
+        })
+    }
+
     pub(crate) fn from_expression_site(
         site: &ExprSiteId,
     ) -> Result<Self, MechanismValidationError> {
         validate_analysis_program_id(&site.analysis_program)?;
-        let mut hasher = StableHasher::new(MECHANISM_SITE_HASH_V1);
+        let mut hasher = StableHasher::new(MECHANISM_SITE_HASH_V2);
+        hasher.segment(MechanismSiteKind::Expression.token());
         hasher.segment(site.analysis_program.as_str().as_bytes());
         hasher.segment(site.declaration.semantic_key().as_bytes());
         hasher.u128(site.normalized_declaration_ordinal as u128);
@@ -139,8 +223,99 @@ impl MechanismSiteId {
         }
         Ok(Self {
             analysis_program: site.analysis_program.clone(),
+            kind: MechanismSiteKind::Expression,
             digest: hasher.digest(),
         })
+    }
+
+    pub(crate) fn from_callable(
+        analysis_program: &AnalysisProgramId,
+        callable: &CheckedCallableId,
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(analysis_program)?;
+        let mut hasher = StableHasher::new(MECHANISM_SITE_HASH_V2);
+        hasher.segment(MechanismSiteKind::Callable.token());
+        hasher.segment(analysis_program.as_str().as_bytes());
+        hasher.segment(callable.declaration.declaration.semantic_key().as_bytes());
+        hasher.u128(callable.declaration.normalized_ordinal as u128);
+        hasher.u128(callable.structural_path.len() as u128);
+        for child in callable.structural_path.iter().copied() {
+            hasher.u32(child);
+        }
+        Ok(Self {
+            analysis_program: analysis_program.clone(),
+            kind: MechanismSiteKind::Callable,
+            digest: hasher.digest(),
+        })
+    }
+
+    pub(crate) fn from_rule_family(
+        analysis_program: &AnalysisProgramId,
+        family: &RuleDispatchKey,
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(analysis_program)?;
+        let mut hasher = StableHasher::new(MECHANISM_SITE_HASH_V2);
+        hasher.segment(MechanismSiteKind::RuleFamily.token());
+        hasher.segment(analysis_program.as_str().as_bytes());
+        match family.scope.as_deref() {
+            Some(scope) => {
+                hasher.segment(b"scope-present");
+                hasher.segment(scope.as_bytes());
+            }
+            None => hasher.segment(b"scope-absent"),
+        }
+        hasher.segment(family.name.as_bytes());
+        hasher.u128(family.arity as u128);
+        Ok(Self {
+            analysis_program: analysis_program.clone(),
+            kind: MechanismSiteKind::RuleFamily,
+            digest: hasher.digest(),
+        })
+    }
+
+    pub(crate) fn from_rule_candidate(
+        analysis_program: &AnalysisProgramId,
+        candidate: &CheckedRuleCandidateResolution,
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(analysis_program)?;
+        if std::iter::once(&candidate.head_site)
+            .chain(candidate.condition_site.iter())
+            .chain(candidate.value_site.iter())
+            .any(|site| &site.analysis_program != analysis_program)
+        {
+            return Err(invalid(
+                "rule candidate belongs to another analysis program",
+            ));
+        }
+        let mut hasher = StableHasher::new(MECHANISM_SITE_HASH_V2);
+        hasher.segment(MechanismSiteKind::RuleCandidate.token());
+        hasher.segment(analysis_program.as_str().as_bytes());
+        hasher.segment(candidate.declaration.declaration.semantic_key().as_bytes());
+        hasher.u128(candidate.declaration.normalized_ordinal as u128);
+        hasher.u128(candidate.statement_path.len() as u128);
+        for child in candidate.statement_path.iter().copied() {
+            hasher.u32(child);
+        }
+        hasher.segment(match candidate.tier {
+            RuleDispatchTier::Exception => b"exception",
+            RuleDispatchTier::ConditionalDefault => b"conditional-default",
+            RuleDispatchTier::Clause => b"clause",
+            RuleDispatchTier::UnconditionalDefault => b"unconditional-default",
+        });
+        hasher.u128(candidate.source_order as u128);
+        Ok(Self {
+            analysis_program: analysis_program.clone(),
+            kind: MechanismSiteKind::RuleCandidate,
+            digest: hasher.digest(),
+        })
+    }
+
+    pub(crate) const fn kind(&self) -> MechanismSiteKind {
+        self.kind
+    }
+
+    pub(crate) const fn digest_bytes(&self) -> [u8; 32] {
+        self.digest.0
     }
 
     fn validate_scope(
@@ -163,8 +338,34 @@ impl MechanismSiteId {
 pub(crate) struct MechanismSemanticRootId(MechanismSiteId);
 
 impl MechanismSemanticRootId {
-    pub(crate) fn from_site(site: MechanismSiteId) -> Self {
-        Self(site)
+    pub(crate) fn from_checked_expression(
+        resolutions: &CheckedResolutionArtifacts,
+        site: &ExprSiteId,
+    ) -> Result<Self, MechanismValidationError> {
+        if site.analysis_program != resolutions.analysis_program
+            || !resolutions.issues_for_reachable_sites([site]).is_empty()
+        {
+            return Err(invalid(
+                "mechanism semantic root lacks coherent checked source resolution",
+            ));
+        }
+        Self::from_expression_mechanism_site(MechanismSiteId::from_expression_site(site)?)
+    }
+
+    #[cfg(test)]
+    pub(super) fn from_site(site: MechanismSiteId) -> Result<Self, MechanismValidationError> {
+        Self::from_expression_mechanism_site(site)
+    }
+
+    fn from_expression_mechanism_site(
+        site: MechanismSiteId,
+    ) -> Result<Self, MechanismValidationError> {
+        if site.kind != MechanismSiteKind::Expression {
+            return Err(invalid(
+                "mechanism semantic root must identify an expression semantic site",
+            ));
+        }
+        Ok(Self(site))
     }
 
     fn validate_scope(
@@ -172,7 +373,13 @@ impl MechanismSemanticRootId {
         analysis_program: &AnalysisProgramId,
         what: &str,
     ) -> Result<(), MechanismValidationError> {
-        self.0.validate_scope(analysis_program, what)
+        self.0.validate_scope(analysis_program, what)?;
+        if self.0.kind != MechanismSiteKind::Expression {
+            return Err(invalid(format!(
+                "{what} must identify an expression semantic site"
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -214,6 +421,127 @@ impl MechanismCaseTargetId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum MechanismNormalization {
     DynamicControlV1,
+}
+
+/// Checked contract explaining how the two endpoint computations are paired.
+/// Merely knowing that a query has a numeric lower and upper value is not
+/// enough: both call sites must resolve to this exact common callable or rule
+/// family before a differential trace can be sealed.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct MechanismEndpointPairingV1 {
+    before_call_site: MechanismSiteId,
+    after_call_site: MechanismSiteId,
+    common_callee: MechanismCallableSiteId,
+}
+
+impl MechanismEndpointPairingV1 {
+    /// Seal a differential endpoint pairing from Phase-A resolution facts.
+    /// Both call expressions must resolve to the same exact supported callable;
+    /// spelling or equal result values are never sufficient.
+    pub(crate) fn from_checked_calls(
+        resolutions: &CheckedResolutionArtifacts,
+        before_call_site: ExprSiteId,
+        after_call_site: ExprSiteId,
+    ) -> Result<Self, MechanismValidationError> {
+        validate_analysis_program_id(&resolutions.analysis_program)?;
+        if before_call_site.analysis_program != resolutions.analysis_program
+            || after_call_site.analysis_program != resolutions.analysis_program
+        {
+            return Err(invalid(
+                "mechanism endpoint call site belongs to another analysis program",
+            ));
+        }
+        if !resolutions
+            .issues_for_reachable_sites([&before_call_site, &after_call_site])
+            .is_empty()
+        {
+            return Err(invalid(
+                "mechanism endpoint pairing is unavailable because checked source resolution is incomplete",
+            ));
+        }
+        let before_target = resolutions
+            .expressions
+            .get(&before_call_site)
+            .and_then(|resolution| resolution.call_target.as_ref())
+            .ok_or_else(|| invalid("before mechanism endpoint is not a resolved call"))?;
+        let after_target = resolutions
+            .expressions
+            .get(&after_call_site)
+            .and_then(|resolution| resolution.call_target.as_ref())
+            .ok_or_else(|| invalid("after mechanism endpoint is not a resolved call"))?;
+        if before_target != after_target {
+            return Err(invalid(
+                "mechanism endpoints do not resolve to the same exact callable",
+            ));
+        }
+        let common_callee = MechanismCallableSiteId::from_checked_target(
+            &resolutions.analysis_program,
+            before_target,
+        )?;
+        Self::from_parts(
+            &resolutions.analysis_program,
+            MechanismSiteId::from_expression_site(&before_call_site)?,
+            MechanismSiteId::from_expression_site(&after_call_site)?,
+            common_callee,
+        )
+    }
+
+    #[cfg(test)]
+    pub(super) fn new_for_test(
+        analysis_program: &AnalysisProgramId,
+        before_call_site: MechanismSiteId,
+        after_call_site: MechanismSiteId,
+        common_callee: MechanismCallableSiteId,
+    ) -> Result<Self, MechanismValidationError> {
+        Self::from_parts(
+            analysis_program,
+            before_call_site,
+            after_call_site,
+            common_callee,
+        )
+    }
+
+    fn from_parts(
+        analysis_program: &AnalysisProgramId,
+        before_call_site: MechanismSiteId,
+        after_call_site: MechanismSiteId,
+        common_callee: MechanismCallableSiteId,
+    ) -> Result<Self, MechanismValidationError> {
+        let pairing = Self {
+            before_call_site,
+            after_call_site,
+            common_callee,
+        };
+        pairing.validate(analysis_program)?;
+        Ok(pairing)
+    }
+
+    fn validate(
+        &self,
+        analysis_program: &AnalysisProgramId,
+    ) -> Result<(), MechanismValidationError> {
+        for (label, site) in [
+            ("before endpoint call site", &self.before_call_site),
+            ("after endpoint call site", &self.after_call_site),
+        ] {
+            site.validate_scope(analysis_program, label)?;
+            if site.kind != MechanismSiteKind::Expression {
+                return Err(invalid(format!(
+                    "{label} must be an expression semantic site"
+                )));
+            }
+        }
+        self.common_callee
+            .validate(analysis_program, "endpoint common callee")?;
+        Ok(())
+    }
+
+    fn hash_into(&self, hasher: &mut StableHasher) {
+        hasher.segment(&self.before_call_site.digest.0);
+        hasher.segment(&self.after_call_site.digest.0);
+        hasher.segment(self.common_callee.token());
+        hasher.segment(&self.common_callee.site().digest.0);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -342,6 +670,16 @@ pub(crate) struct MechanismRequestId {
     digest: StableDigest,
 }
 
+impl MechanismRequestId {
+    pub(crate) const fn digest_bytes(&self) -> [u8; 32] {
+        self.digest.0
+    }
+
+    pub(crate) fn analysis_program(&self) -> &AnalysisProgramId {
+        &self.analysis_program
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismObservationRequest {
     pub(crate) id: MechanismRequestId,
@@ -351,10 +689,130 @@ pub(crate) struct MechanismObservationRequest {
     pub(crate) case_target: MechanismCaseTargetId,
     pub(crate) before_root: MechanismSemanticRootId,
     pub(crate) after_root: MechanismSemanticRootId,
+    pub(crate) endpoint_pairing: MechanismEndpointPairingV1,
     pub(crate) normalization: MechanismNormalization,
     pub(crate) axis_cardinalities: Box<[u128]>,
     pub(crate) sampling: MechanismSamplingPlan,
     pub(crate) bin_fields: Box<[MechanismBinField]>,
+}
+
+/// Case-level mechanism material the run is authorized to retain and expose.
+/// This is deliberately separate from [`MechanismRequestId`]: disclosure may
+/// change storage and publication without renaming the mathematical dynamic
+/// signature `Sigma_(q,h)`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum MechanismIncidenceDisclosure {
+    /// Publish aggregate signature and bin counts, but no case-to-signature
+    /// incidence graph.
+    SummaryOnly,
+    /// Retain and publish the complete matching-case incidence relation when
+    /// it closes.
+    FullMatchingIncidence,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct MechanismDisclosureV1 {
+    pub(crate) incidence: MechanismIncidenceDisclosure,
+    pub(crate) retained_examples_per_signature: u32,
+}
+
+impl MechanismDisclosureV1 {
+    pub(crate) const fn new(
+        incidence: MechanismIncidenceDisclosure,
+        retained_examples_per_signature: u32,
+    ) -> Self {
+        Self {
+            incidence,
+            retained_examples_per_signature,
+        }
+    }
+}
+
+/// Resume identity of the checked mechanism request, including its canonical
+/// sampling and disclosure contracts. Operational trace order and time/work
+/// budgets remain outside this digest.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedMechanismRequestId {
+    analysis_program: AnalysisProgramId,
+    digest: StableDigest,
+}
+
+impl CheckedMechanismRequestId {
+    pub(crate) const fn digest_bytes(&self) -> [u8; 32] {
+        self.digest.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedMechanismObservationRequestV1 {
+    pub(crate) id: CheckedMechanismRequestId,
+    pub(crate) observation: MechanismObservationRequest,
+    pub(crate) disclosure: MechanismDisclosureV1,
+}
+
+impl CheckedMechanismObservationRequestV1 {
+    pub(crate) fn new(
+        observation: MechanismObservationRequest,
+        disclosure: MechanismDisclosureV1,
+    ) -> Result<Self, MechanismValidationError> {
+        observation.validate()?;
+        let id = derive_checked_request_id(&observation, disclosure);
+        Ok(Self {
+            id,
+            observation,
+            disclosure,
+        })
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), MechanismValidationError> {
+        self.observation.validate()?;
+        if self.id != derive_checked_request_id(&self.observation, self.disclosure) {
+            return Err(invalid(
+                "checked mechanism request identity disagrees with its observation and disclosure contract",
+            ));
+        }
+        Ok(())
+    }
+}
+
+fn derive_checked_request_id(
+    observation: &MechanismObservationRequest,
+    disclosure: MechanismDisclosureV1,
+) -> CheckedMechanismRequestId {
+    let mut hasher = StableHasher::new(CHECKED_MECHANISM_REQUEST_HASH_V1);
+    hasher.segment(&observation.id.digest.0);
+    for (name, cases) in [
+        (
+            b"result-representatives".as_slice(),
+            &observation.sampling.result_representatives,
+        ),
+        (
+            b"extrema-witnesses".as_slice(),
+            &observation.sampling.extrema_witnesses,
+        ),
+        (
+            b"required-case-ids".as_slice(),
+            &observation.sampling.required_case_ids,
+        ),
+    ] {
+        hasher.segment(name);
+        hasher.u128(cases.len() as u128);
+        for case_id in cases {
+            hasher.u128(case_id.ordinals().len() as u128);
+            for ordinal in case_id.ordinals().iter().copied() {
+                hasher.u128(ordinal);
+            }
+        }
+    }
+    hasher.segment(match disclosure.incidence {
+        MechanismIncidenceDisclosure::SummaryOnly => b"summary-only",
+        MechanismIncidenceDisclosure::FullMatchingIncidence => b"full-matching-incidence",
+    });
+    hasher.u32(disclosure.retained_examples_per_signature);
+    CheckedMechanismRequestId {
+        analysis_program: observation.analysis_program.clone(),
+        digest: hasher.digest(),
+    }
 }
 
 impl MechanismObservationRequest {
@@ -365,6 +823,7 @@ impl MechanismObservationRequest {
         target: MechanismObservationTarget,
         before_root: MechanismSemanticRootId,
         after_root: MechanismSemanticRootId,
+        endpoint_pairing: MechanismEndpointPairingV1,
         normalization: MechanismNormalization,
         axis_cardinalities: impl Into<Box<[u128]>>,
         sampling: MechanismSamplingPlan,
@@ -376,6 +835,7 @@ impl MechanismObservationRequest {
             &analysis_program,
             &before_root,
             &after_root,
+            &endpoint_pairing,
             &axis_cardinalities,
             &sampling,
             &bin_fields,
@@ -388,6 +848,7 @@ impl MechanismObservationRequest {
             &case_target,
             &before_root,
             &after_root,
+            &endpoint_pairing,
             normalization,
             &axis_cardinalities,
             &bin_fields,
@@ -400,6 +861,7 @@ impl MechanismObservationRequest {
             case_target,
             before_root,
             after_root,
+            endpoint_pairing,
             normalization,
             axis_cardinalities,
             sampling,
@@ -412,6 +874,7 @@ impl MechanismObservationRequest {
             &self.analysis_program,
             &self.before_root,
             &self.after_root,
+            &self.endpoint_pairing,
             &self.axis_cardinalities,
             &self.sampling,
             &self.bin_fields,
@@ -423,6 +886,7 @@ impl MechanismObservationRequest {
             &self.case_target,
             &self.before_root,
             &self.after_root,
+            &self.endpoint_pairing,
             self.normalization,
             &self.axis_cardinalities,
             &self.bin_fields,
@@ -447,6 +911,7 @@ fn validate_request_parts(
     analysis_program: &AnalysisProgramId,
     before_root: &MechanismSemanticRootId,
     after_root: &MechanismSemanticRootId,
+    endpoint_pairing: &MechanismEndpointPairingV1,
     axis_cardinalities: &[u128],
     sampling: &MechanismSamplingPlan,
     bin_fields: &[MechanismBinField],
@@ -454,6 +919,7 @@ fn validate_request_parts(
     validate_analysis_program_id(analysis_program)?;
     before_root.validate_scope(analysis_program, "before semantic root")?;
     after_root.validate_scope(analysis_program, "after semantic root")?;
+    endpoint_pairing.validate(analysis_program)?;
     sampling.validate(axis_cardinalities)?;
 
     let mut names = BTreeSet::new();
@@ -480,11 +946,12 @@ fn derive_request_id(
     case_target: &MechanismCaseTargetId,
     before_root: &MechanismSemanticRootId,
     after_root: &MechanismSemanticRootId,
+    endpoint_pairing: &MechanismEndpointPairingV1,
     normalization: MechanismNormalization,
     axis_cardinalities: &[u128],
     bin_fields: &[MechanismBinField],
 ) -> MechanismRequestId {
-    let mut hasher = StableHasher::new(MECHANISM_REQUEST_HASH_V1);
+    let mut hasher = StableHasher::new(MECHANISM_REQUEST_HASH_V2);
     hasher.segment(analysis_program.as_str().as_bytes());
     hasher.segment(&(query.0).0);
     hasher.segment(match target {
@@ -493,6 +960,7 @@ fn derive_request_id(
     hasher.segment(&case_target.digest.0);
     hasher.segment(&before_root.0.digest.0);
     hasher.segment(&after_root.0.digest.0);
+    endpoint_pairing.hash_into(&mut hasher);
     hasher.segment(match normalization {
         MechanismNormalization::DynamicControlV1 => b"dynamic-control-v1",
     });
@@ -598,6 +1066,365 @@ impl DynamicEventOutcome {
         }
         if let Self::RuleSelection(RuleSelectionOutcome::Selected(site)) = self {
             site.validate_scope(analysis_program, "selected rule site")?;
+            if site.kind != MechanismSiteKind::RuleCandidate {
+                return Err(invalid(
+                    "selected rule outcome must identify a checked rule-candidate site",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+/// Stable checked callee used in an activation path. A rule family is kept
+/// distinct from an ordinary function even when their display names match.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum MechanismCallableSiteId {
+    Function(MechanismSiteId),
+    RuleFamily(MechanismSiteId),
+}
+
+impl MechanismCallableSiteId {
+    fn from_checked_target(
+        analysis_program: &AnalysisProgramId,
+        target: &CheckedCallTarget,
+    ) -> Result<Self, MechanismValidationError> {
+        match target {
+            CheckedCallTarget::Function { callable, .. } => {
+                Self::function(MechanismSiteId::from_callable(analysis_program, callable)?)
+            }
+            CheckedCallTarget::RuleFamily(family) => {
+                Self::rule_family(MechanismSiteId::from_rule_family(analysis_program, family)?)
+            }
+            CheckedCallTarget::Builtin { .. }
+            | CheckedCallTarget::Constructor { .. }
+            | CheckedCallTarget::ScopedMember { .. } => Err(invalid(
+                "mechanism endpoint call target is not traceable as a function or rule family",
+            )),
+        }
+    }
+
+    pub(crate) fn function(site: MechanismSiteId) -> Result<Self, MechanismValidationError> {
+        if site.kind != MechanismSiteKind::Callable {
+            return Err(invalid(
+                "mechanism function activation requires a callable semantic site",
+            ));
+        }
+        Ok(Self::Function(site))
+    }
+
+    pub(crate) fn rule_family(site: MechanismSiteId) -> Result<Self, MechanismValidationError> {
+        if site.kind != MechanismSiteKind::RuleFamily {
+            return Err(invalid(
+                "mechanism rule activation requires a rule-family semantic site",
+            ));
+        }
+        Ok(Self::RuleFamily(site))
+    }
+
+    fn site(&self) -> &MechanismSiteId {
+        match self {
+            Self::Function(site) | Self::RuleFamily(site) => site,
+        }
+    }
+
+    fn token(&self) -> &'static [u8] {
+        match self {
+            Self::Function(_) => b"function",
+            Self::RuleFamily(_) => b"rule-family",
+        }
+    }
+
+    fn validate(
+        &self,
+        analysis_program: &AnalysisProgramId,
+        what: &str,
+    ) -> Result<(), MechanismValidationError> {
+        let site = self.site();
+        site.validate_scope(analysis_program, what)?;
+        match (self, site.kind) {
+            (Self::Function(_), MechanismSiteKind::Callable)
+            | (Self::RuleFamily(_), MechanismSiteKind::RuleFamily) => Ok(()),
+            _ => Err(invalid(format!(
+                "{what} kind disagrees with its stable semantic site"
+            ))),
+        }
+    }
+}
+
+/// One outcome-free frame in the enclosing dynamic activation path. The
+/// invocation ordinal is local to the same call site and enclosing path, so
+/// repeated calls remain distinct without using process order or addresses.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct MechanismActivationStepV1 {
+    pub(crate) call_site: MechanismSiteId,
+    pub(crate) callee: MechanismCallableSiteId,
+    pub(crate) invocation_ordinal: u32,
+}
+
+impl MechanismActivationStepV1 {
+    pub(crate) fn new(
+        request: &MechanismObservationRequest,
+        call_site: MechanismSiteId,
+        callee: MechanismCallableSiteId,
+        invocation_ordinal: u32,
+    ) -> Result<Self, MechanismValidationError> {
+        call_site.validate_scope(&request.analysis_program, "activation call site")?;
+        if call_site.kind != MechanismSiteKind::Expression {
+            return Err(invalid(
+                "mechanism activation call site must be an expression site",
+            ));
+        }
+        callee.validate(&request.analysis_program, "activation callee")?;
+        Ok(Self {
+            call_site,
+            callee,
+            invocation_ordinal,
+        })
+    }
+
+    fn validate(
+        &self,
+        analysis_program: &AnalysisProgramId,
+    ) -> Result<(), MechanismValidationError> {
+        self.call_site
+            .validate_scope(analysis_program, "activation call site")?;
+        if self.call_site.kind != MechanismSiteKind::Expression {
+            return Err(invalid(
+                "mechanism activation call site must be an expression site",
+            ));
+        }
+        self.callee.validate(analysis_program, "activation callee")
+    }
+}
+
+/// Outcome-free pairing key for one occurrence at the lower and upper
+/// endpoints. Adding an earlier before-only event cannot rename this slot.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct MechanismOccurrenceSlotV1 {
+    pub(crate) root_index: u32,
+    pub(crate) activation_path: Box<[MechanismActivationStepV1]>,
+    pub(crate) site: MechanismSiteId,
+    pub(crate) kind: DynamicEventKind,
+    pub(crate) visit_ordinal: u32,
+}
+
+impl MechanismOccurrenceSlotV1 {
+    pub(crate) fn new(
+        request: &MechanismObservationRequest,
+        root_index: u32,
+        activation_path: impl Into<Box<[MechanismActivationStepV1]>>,
+        site: MechanismSiteId,
+        kind: DynamicEventKind,
+        visit_ordinal: u32,
+    ) -> Result<Self, MechanismValidationError> {
+        let slot = Self {
+            root_index,
+            activation_path: activation_path.into(),
+            site,
+            kind,
+            visit_ordinal,
+        };
+        slot.validate(request)?;
+        Ok(slot)
+    }
+
+    fn validate(
+        &self,
+        request: &MechanismObservationRequest,
+    ) -> Result<(), MechanismValidationError> {
+        self.validate_for_program(&request.analysis_program)
+    }
+
+    fn validate_for_program(
+        &self,
+        analysis_program: &AnalysisProgramId,
+    ) -> Result<(), MechanismValidationError> {
+        // DynamicControlV1 currently binds one paired observation root. Keep
+        // the index explicit so a future multi-root normalization can extend
+        // the wire shape without conflating existing signatures.
+        if self.root_index != 0 {
+            return Err(invalid(
+                "dynamic-control-v1 mechanism slot has an unknown root index",
+            ));
+        }
+        self.site
+            .validate_scope(analysis_program, "dynamic occurrence site")?;
+        let site_kind_is_valid = matches!(
+            (self.kind, self.site.kind),
+            (
+                DynamicEventKind::RuleAttempt,
+                MechanismSiteKind::RuleCandidate
+            ) | (
+                DynamicEventKind::RuleSelection,
+                MechanismSiteKind::RuleFamily
+            ) | (
+                DynamicEventKind::IfDecision
+                    | DynamicEventKind::MatchDecision
+                    | DynamicEventKind::ShortCircuitAnd
+                    | DynamicEventKind::ShortCircuitOr,
+                MechanismSiteKind::Expression
+            )
+        );
+        if !site_kind_is_valid {
+            return Err(invalid(
+                "dynamic occurrence kind disagrees with its stable semantic-site kind",
+            ));
+        }
+        for step in self.activation_path.iter() {
+            step.validate(analysis_program)?;
+        }
+        Ok(())
+    }
+
+    fn hash_into(&self, hasher: &mut StableHasher) {
+        hasher.u32(self.root_index);
+        hasher.u128(self.activation_path.len() as u128);
+        for step in self.activation_path.iter() {
+            hasher.segment(&step.call_site.digest.0);
+            hasher.segment(step.callee.token());
+            hasher.segment(&step.callee.site().digest.0);
+            hasher.u32(step.invocation_ordinal);
+        }
+        hasher.segment(&self.site.digest.0);
+        hasher.segment(self.kind.token());
+        hasher.u32(self.visit_ordinal);
+    }
+}
+
+/// One endpoint-local observation before lower/upper pairing. Dependencies use
+/// semantic slots rather than endpoint discovery indices.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct EndpointOccurrenceV1 {
+    pub(crate) slot: MechanismOccurrenceSlotV1,
+    pub(crate) outcome: DynamicEventOutcome,
+    pub(crate) dependencies: BTreeSet<MechanismOccurrenceSlotV1>,
+}
+
+impl EndpointOccurrenceV1 {
+    pub(crate) fn new(
+        slot: MechanismOccurrenceSlotV1,
+        outcome: DynamicEventOutcome,
+        dependencies: BTreeSet<MechanismOccurrenceSlotV1>,
+    ) -> Self {
+        Self {
+            slot,
+            outcome,
+            dependencies,
+        }
+    }
+}
+
+/// Complete bounded dynamic slice for one endpoint. Duplicate occurrence slots
+/// are rejected even when their payloads compare equal: accepting them would
+/// silently guess how repeated visits should pair across endpoints.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct DynamicEndpointTraceV1 {
+    pub(crate) roots: BTreeSet<MechanismOccurrenceSlotV1>,
+    pub(crate) occurrences: BTreeMap<MechanismOccurrenceSlotV1, EndpointOccurrenceV1>,
+}
+
+impl DynamicEndpointTraceV1 {
+    pub(crate) fn new(
+        request: &MechanismObservationRequest,
+        roots: BTreeSet<MechanismOccurrenceSlotV1>,
+        occurrences: impl IntoIterator<Item = EndpointOccurrenceV1>,
+    ) -> Result<Self, MechanismValidationError> {
+        let mut by_slot = BTreeMap::new();
+        for occurrence in occurrences {
+            let slot = occurrence.slot.clone();
+            if by_slot.insert(slot, occurrence).is_some() {
+                return Err(invalid(
+                    "dynamic endpoint trace contains an ambiguous duplicate occurrence slot",
+                ));
+            }
+        }
+        let trace = Self {
+            roots,
+            occurrences: by_slot,
+        };
+        trace.validate(request)?;
+        Ok(trace)
+    }
+
+    fn validate(
+        &self,
+        request: &MechanismObservationRequest,
+    ) -> Result<(), MechanismValidationError> {
+        if self.occurrences.is_empty() != self.roots.is_empty() {
+            return Err(invalid(
+                "only an empty endpoint trace may have no roots or no occurrences",
+            ));
+        }
+        for root in &self.roots {
+            if !self.occurrences.contains_key(root) {
+                return Err(invalid(
+                    "dynamic endpoint trace references a missing root slot",
+                ));
+            }
+        }
+        let mut remaining_dependencies = BTreeMap::new();
+        let mut dependents =
+            BTreeMap::<MechanismOccurrenceSlotV1, Vec<MechanismOccurrenceSlotV1>>::new();
+        for (slot, occurrence) in &self.occurrences {
+            if slot != &occurrence.slot {
+                return Err(invalid(
+                    "dynamic endpoint occurrence map key disagrees with its semantic slot",
+                ));
+            }
+            slot.validate(request)?;
+            occurrence
+                .outcome
+                .validate(slot.kind, &request.analysis_program)?;
+            remaining_dependencies.insert(slot.clone(), occurrence.dependencies.len());
+            for dependency in &occurrence.dependencies {
+                if !self.occurrences.contains_key(dependency) {
+                    return Err(invalid(
+                        "dynamic endpoint occurrence references a missing dependency slot",
+                    ));
+                }
+                dependents
+                    .entry(dependency.clone())
+                    .or_default()
+                    .push(slot.clone());
+            }
+        }
+
+        let mut ready = remaining_dependencies
+            .iter()
+            .filter_map(|(slot, count)| (*count == 0).then_some(slot.clone()))
+            .collect::<BTreeSet<_>>();
+        let mut ordered = 0_usize;
+        while let Some(slot) = ready.pop_first() {
+            ordered += 1;
+            for dependent in dependents.get(&slot).into_iter().flatten() {
+                let count = remaining_dependencies
+                    .get_mut(dependent)
+                    .expect("validated endpoint dependent must be present");
+                *count -= 1;
+                if *count == 0 {
+                    ready.insert(dependent.clone());
+                }
+            }
+        }
+        if ordered != self.occurrences.len() {
+            return Err(invalid(
+                "dynamic endpoint occurrence dependencies contain a cycle",
+            ));
+        }
+
+        let mut reachable = BTreeSet::new();
+        let mut stack = self.roots.iter().cloned().collect::<Vec<_>>();
+        while let Some(slot) = stack.pop() {
+            if !reachable.insert(slot.clone()) {
+                continue;
+            }
+            stack.extend(self.occurrences[&slot].dependencies.iter().cloned());
+        }
+        if reachable.len() != self.occurrences.len() {
+            return Err(invalid(
+                "dynamic endpoint trace retains an occurrence unreachable from its roots",
+            ));
         }
         Ok(())
     }
@@ -611,33 +1438,31 @@ pub(crate) struct MechanismOccurrenceId {
 }
 
 impl MechanismOccurrenceId {
-    fn derive(
-        request: &MechanismRequestId,
-        topological_ordinal: u64,
-        site: &MechanismSiteId,
-        kind: DynamicEventKind,
-    ) -> Self {
-        let mut hasher = StableHasher::new(MECHANISM_OCCURRENCE_HASH_V1);
+    fn derive(request: &MechanismRequestId, slot: &MechanismOccurrenceSlotV1) -> Self {
+        let mut hasher = StableHasher::new(MECHANISM_OCCURRENCE_HASH_V2);
         hasher.segment(&request.digest.0);
-        hasher.u64(topological_ordinal);
-        hasher.segment(&site.digest.0);
-        hasher.segment(kind.token());
+        slot.hash_into(&mut hasher);
         Self {
             request: request.clone(),
             digest: hasher.digest(),
         }
     }
+
+    pub(crate) const fn digest_bytes(&self) -> [u8; 32] {
+        self.digest.0
+    }
 }
 
-/// One normalized node in the paired before/after dynamic occurrence DAG.
+/// Compact storage for zero, one or two endpoint-qualified occurrence nodes
+/// joined by stable-slot correspondence. The logical vertices are
+/// `(before, id)` and `(after, id)`, not one uncoloured vertex: this preserves
+/// two genuine endpoint DAGs even when their dependency orders reverse.
 /// Exactly one or both endpoint observations are present, so before-only and
 /// after-only reachability are preserved rather than erased as "no change".
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct PairedOccurrenceNode {
     pub(crate) id: MechanismOccurrenceId,
-    pub(crate) topological_ordinal: u64,
-    pub(crate) site: MechanismSiteId,
-    pub(crate) kind: DynamicEventKind,
+    pub(crate) slot: MechanismOccurrenceSlotV1,
     pub(crate) before: Option<DynamicEventOutcome>,
     pub(crate) after: Option<DynamicEventOutcome>,
     pub(crate) before_dependencies: BTreeSet<MechanismOccurrenceId>,
@@ -648,9 +1473,7 @@ impl PairedOccurrenceNode {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         request: &MechanismObservationRequest,
-        topological_ordinal: u64,
-        site: MechanismSiteId,
-        kind: DynamicEventKind,
+        slot: MechanismOccurrenceSlotV1,
         before: Option<DynamicEventOutcome>,
         after: Option<DynamicEventOutcome>,
         before_dependencies: BTreeSet<MechanismOccurrenceId>,
@@ -661,12 +1484,12 @@ impl PairedOccurrenceNode {
                 "paired mechanism occurrence must exist before, after, or at both endpoints",
             ));
         }
-        site.validate_scope(&request.analysis_program, "dynamic occurrence site")?;
+        slot.validate(request)?;
         if let Some(outcome) = &before {
-            outcome.validate(kind, &request.analysis_program)?;
+            outcome.validate(slot.kind, &request.analysis_program)?;
         }
         if let Some(outcome) = &after {
-            outcome.validate(kind, &request.analysis_program)?;
+            outcome.validate(slot.kind, &request.analysis_program)?;
         }
         if before.is_none() && !before_dependencies.is_empty() {
             return Err(invalid(
@@ -686,10 +1509,8 @@ impl PairedOccurrenceNode {
             }
         }
         Ok(Self {
-            id: MechanismOccurrenceId::derive(&request.id, topological_ordinal, &site, kind),
-            topological_ordinal,
-            site,
-            kind,
+            id: MechanismOccurrenceId::derive(&request.id, &slot),
+            slot,
             before,
             after,
             before_dependencies,
@@ -703,13 +1524,11 @@ impl PairedOccurrenceNode {
                 "dynamic occurrence belongs to another mechanism request",
             ));
         }
-        self.site
-            .validate_scope(&request.analysis_program, "dynamic occurrence site")?;
-        let expected =
-            MechanismOccurrenceId::derive(request, self.topological_ordinal, &self.site, self.kind);
+        self.slot.validate_for_program(&request.analysis_program)?;
+        let expected = MechanismOccurrenceId::derive(request, &self.slot);
         if self.id != expected {
             return Err(invalid(
-                "dynamic occurrence identity disagrees with its canonical site and ordinal",
+                "dynamic occurrence identity disagrees with its canonical semantic slot",
             ));
         }
         if self.before.is_none() && self.after.is_none() {
@@ -728,10 +1547,10 @@ impl PairedOccurrenceNode {
             ));
         }
         if let Some(outcome) = &self.before {
-            outcome.validate(self.kind, &request.analysis_program)?;
+            outcome.validate(self.slot.kind, &request.analysis_program)?;
         }
         if let Some(outcome) = &self.after {
-            outcome.validate(self.kind, &request.analysis_program)?;
+            outcome.validate(self.slot.kind, &request.analysis_program)?;
         }
         Ok(())
     }
@@ -753,8 +1572,146 @@ impl PairedOccurrenceNode {
     }
 }
 
-/// Canonical differential signature. Empty endpoint roots and nodes are a
-/// valid empty signature; otherwise every retained occurrence must be
+/// Outcome-free shape used only to prove that local occurrence ordinals are
+/// safe to pair across the two endpoint traces. An ordinal is meaningful only
+/// within the same enclosing activation, semantic site and event kind. If one
+/// endpoint has an extra visit or invocation in a group which exists at both
+/// endpoints, ordinal pairing could silently shift and therefore fails closed.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct PairingActivationBaseV1 {
+    call_site: MechanismSiteId,
+    callee: MechanismCallableSiteId,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct PairingOccurrenceBaseV1 {
+    site: MechanismSiteId,
+    kind: DynamicEventKind,
+}
+
+#[derive(Debug, Default)]
+struct PairingShapeNodeV1 {
+    activations: BTreeMap<PairingActivationBaseV1, BTreeMap<u32, PairingShapeNodeV1>>,
+    occurrences: BTreeMap<PairingOccurrenceBaseV1, BTreeSet<u32>>,
+}
+
+#[derive(Debug, Default)]
+struct EndpointPairingShapeV1 {
+    roots: BTreeMap<u32, PairingShapeNodeV1>,
+}
+
+impl EndpointPairingShapeV1 {
+    fn from_trace(trace: &DynamicEndpointTraceV1) -> Result<Self, MechanismValidationError> {
+        Self::from_slots(trace.occurrences.keys())
+    }
+
+    fn from_slots<'slot>(
+        slots: impl IntoIterator<Item = &'slot MechanismOccurrenceSlotV1>,
+    ) -> Result<Self, MechanismValidationError> {
+        let mut shape = Self::default();
+        for slot in slots {
+            let mut node = shape.roots.entry(slot.root_index).or_default();
+            for step in slot.activation_path.iter() {
+                let activation = PairingActivationBaseV1 {
+                    call_site: step.call_site.clone(),
+                    callee: step.callee.clone(),
+                };
+                node = node
+                    .activations
+                    .entry(activation)
+                    .or_default()
+                    .entry(step.invocation_ordinal)
+                    .or_default();
+            }
+            node.occurrences
+                .entry(PairingOccurrenceBaseV1 {
+                    site: slot.site.clone(),
+                    kind: slot.kind,
+                })
+                .or_default()
+                .insert(slot.visit_ordinal);
+        }
+        for node in shape.roots.values() {
+            node.validate_contiguous_ordinals()?;
+        }
+        Ok(shape)
+    }
+
+    fn ensure_unambiguous_with(&self, other: &Self) -> Result<(), MechanismValidationError> {
+        for (root, before) in &self.roots {
+            if let Some(after) = other.roots.get(root) {
+                before.ensure_unambiguous_with(after)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl PairingShapeNodeV1 {
+    fn validate_contiguous_ordinals(&self) -> Result<(), MechanismValidationError> {
+        for invocations in self.activations.values() {
+            if !ordinals_are_zero_based(invocations.keys().copied()) {
+                return Err(invalid(
+                    "dynamic endpoint trace has a non-contiguous activation invocation ordinal",
+                ));
+            }
+            for child in invocations.values() {
+                child.validate_contiguous_ordinals()?;
+            }
+        }
+        for visits in self.occurrences.values() {
+            if !ordinals_are_zero_based(visits.iter().copied()) {
+                return Err(invalid(
+                    "dynamic endpoint trace has a non-contiguous occurrence visit ordinal",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn ensure_unambiguous_with(&self, other: &Self) -> Result<(), MechanismValidationError> {
+        for (activation, before_invocations) in &self.activations {
+            let Some(after_invocations) = other.activations.get(activation) else {
+                continue;
+            };
+            if !before_invocations.keys().eq(after_invocations.keys()) {
+                return Err(invalid(
+                    "differential endpoint pairing is ambiguous because a shared activation has different invocation multiplicity",
+                ));
+            }
+            for (ordinal, before_child) in before_invocations {
+                before_child.ensure_unambiguous_with(
+                    after_invocations
+                        .get(ordinal)
+                        .expect("equal invocation ordinals must be present"),
+                )?;
+            }
+        }
+        for (occurrence, before_visits) in &self.occurrences {
+            let Some(after_visits) = other.occurrences.get(occurrence) else {
+                continue;
+            };
+            if before_visits != after_visits {
+                return Err(invalid(
+                    "differential endpoint pairing is ambiguous because a shared semantic event has different visit multiplicity",
+                ));
+            }
+        }
+        Ok(())
+    }
+}
+
+fn ordinals_are_zero_based(ordinals: impl IntoIterator<Item = u32>) -> bool {
+    ordinals
+        .into_iter()
+        .enumerate()
+        .all(|(expected, actual)| usize::try_from(actual) == Ok(expected))
+}
+
+/// Canonical differential signature containing two edge-coloured endpoint
+/// DAGs over a shared occurrence set. Each endpoint projection is acyclic;
+/// their uncoloured edge union need not be. Empty endpoint roots and nodes are
+/// a valid empty signature; otherwise every retained occurrence must be
 /// reachable from a root at the endpoint where that occurrence exists.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct DynamicMechanismSignature {
@@ -765,6 +1722,86 @@ pub(crate) struct DynamicMechanismSignature {
 }
 
 impl DynamicMechanismSignature {
+    /// Pair two independently validated endpoint slices by their outcome-free
+    /// semantic slots. This union is deterministic and does not depend on the
+    /// order in which either endpoint observer emitted events.
+    pub(crate) fn from_endpoint_traces(
+        request: &MechanismObservationRequest,
+        before: DynamicEndpointTraceV1,
+        after: DynamicEndpointTraceV1,
+    ) -> Result<Self, MechanismValidationError> {
+        before.validate(request)?;
+        after.validate(request)?;
+        EndpointPairingShapeV1::from_trace(&before)?
+            .ensure_unambiguous_with(&EndpointPairingShapeV1::from_trace(&after)?)?;
+
+        let slots = before
+            .occurrences
+            .keys()
+            .chain(after.occurrences.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let ids = slots
+            .iter()
+            .map(|slot| {
+                (
+                    slot.clone(),
+                    MechanismOccurrenceId::derive(&request.id, slot),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut nodes = Vec::with_capacity(slots.len());
+        for slot in slots {
+            let before_occurrence = before.occurrences.get(&slot);
+            let after_occurrence = after.occurrences.get(&slot);
+            let before_dependencies = before_occurrence
+                .into_iter()
+                .flat_map(|occurrence| occurrence.dependencies.iter())
+                .map(|dependency| {
+                    ids.get(dependency)
+                        .cloned()
+                        .expect("validated before dependency must have a paired ID")
+                })
+                .collect();
+            let after_dependencies = after_occurrence
+                .into_iter()
+                .flat_map(|occurrence| occurrence.dependencies.iter())
+                .map(|dependency| {
+                    ids.get(dependency)
+                        .cloned()
+                        .expect("validated after dependency must have a paired ID")
+                })
+                .collect();
+            nodes.push(PairedOccurrenceNode::new(
+                request,
+                slot,
+                before_occurrence.map(|occurrence| occurrence.outcome.clone()),
+                after_occurrence.map(|occurrence| occurrence.outcome.clone()),
+                before_dependencies,
+                after_dependencies,
+            )?);
+        }
+        let before_roots = before
+            .roots
+            .iter()
+            .map(|slot| {
+                ids.get(slot)
+                    .cloned()
+                    .expect("validated before root must have a paired ID")
+            })
+            .collect();
+        let after_roots = after
+            .roots
+            .iter()
+            .map(|slot| {
+                ids.get(slot)
+                    .cloned()
+                    .expect("validated after root must have a paired ID")
+            })
+            .collect();
+        Self::new(request, before_roots, after_roots, nodes)
+    }
+
     pub(crate) fn new(
         request: &MechanismObservationRequest,
         before_roots: BTreeSet<MechanismOccurrenceId>,
@@ -797,7 +1834,6 @@ impl DynamicMechanismSignature {
             ));
         }
 
-        let mut ordinals = BTreeSet::new();
         for (id, node) in &self.nodes {
             if id != &node.id {
                 return Err(invalid(
@@ -805,19 +1841,21 @@ impl DynamicMechanismSignature {
                 ));
             }
             node.validate(&self.request)?;
-            if !ordinals.insert(node.topological_ordinal) {
-                return Err(invalid(
-                    "dynamic mechanism occurrences have duplicate topological ordinals",
-                ));
-            }
         }
-        for (expected, actual) in (0_u64..).zip(ordinals.iter().copied()) {
-            if expected != actual {
-                return Err(invalid(
-                    "dynamic mechanism topological ordinals must be contiguous from zero",
-                ));
-            }
-        }
+
+        let before_shape = EndpointPairingShapeV1::from_slots(
+            self.nodes
+                .values()
+                .filter(|node| node.is_present_at(true))
+                .map(|node| &node.slot),
+        )?;
+        let after_shape = EndpointPairingShapeV1::from_slots(
+            self.nodes
+                .values()
+                .filter(|node| node.is_present_at(false))
+                .map(|node| &node.slot),
+        )?;
+        before_shape.ensure_unambiguous_with(&after_shape)?;
 
         self.validate_endpoint(true)?;
         self.validate_endpoint(false)?;
@@ -869,12 +1907,53 @@ impl DynamicMechanismSignature {
                         "dynamic mechanism {endpoint} dependency is absent at that endpoint"
                     )));
                 }
-                if dependency_node.topological_ordinal >= node.topological_ordinal {
-                    return Err(invalid(format!(
-                        "dynamic mechanism {endpoint} dependency does not precede its dependent occurrence"
-                    )));
+            }
+        }
+
+        // Endpoint order is validated independently. The before and after
+        // DAGs may legitimately reverse two occurrences, so requiring one
+        // global topological ordinal would reject a real differential
+        // mechanism or make occurrence identity insertion-sensitive.
+        let mut remaining_dependencies = self
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.is_present_at(before))
+            .map(|(id, node)| (id.clone(), node.dependencies_at(before).len()))
+            .collect::<BTreeMap<_, _>>();
+        let mut dependents = BTreeMap::<MechanismOccurrenceId, Vec<MechanismOccurrenceId>>::new();
+        for (id, node) in self
+            .nodes
+            .iter()
+            .filter(|(_, node)| node.is_present_at(before))
+        {
+            for dependency in node.dependencies_at(before) {
+                dependents
+                    .entry(dependency.clone())
+                    .or_default()
+                    .push(id.clone());
+            }
+        }
+        let mut ready = remaining_dependencies
+            .iter()
+            .filter_map(|(id, count)| (*count == 0).then_some(id.clone()))
+            .collect::<BTreeSet<_>>();
+        let mut ordered = 0_usize;
+        while let Some(id) = ready.pop_first() {
+            ordered += 1;
+            for dependent in dependents.get(&id).into_iter().flatten() {
+                let count = remaining_dependencies
+                    .get_mut(dependent)
+                    .expect("validated endpoint dependent must be present");
+                *count -= 1;
+                if *count == 0 {
+                    ready.insert(dependent.clone());
                 }
             }
+        }
+        if ordered != endpoint_node_count {
+            return Err(invalid(format!(
+                "dynamic mechanism {endpoint} dependencies contain a cycle"
+            )));
         }
 
         let mut reachable = BTreeSet::new();
@@ -903,7 +1982,7 @@ pub(crate) struct MechanismSignatureId {
 
 impl MechanismSignatureId {
     fn derive(signature: &DynamicMechanismSignature) -> Self {
-        let mut hasher = StableHasher::new(MECHANISM_SIGNATURE_HASH_V1);
+        let mut hasher = StableHasher::new(MECHANISM_SIGNATURE_HASH_V2);
         hasher.segment(&signature.request.digest.0);
         hasher.segment(b"before-roots");
         hasher.u128(signature.before_roots.len() as u128);
@@ -917,13 +1996,15 @@ impl MechanismSignatureId {
         }
 
         let mut nodes = signature.nodes.values().collect::<Vec<_>>();
-        nodes.sort_by_key(|node| node.topological_ordinal);
+        nodes.sort_by(|left, right| {
+            left.slot
+                .cmp(&right.slot)
+                .then_with(|| left.id.cmp(&right.id))
+        });
         hasher.u128(nodes.len() as u128);
         for node in nodes {
-            hasher.u64(node.topological_ordinal);
             hasher.segment(&node.id.digest.0);
-            hasher.segment(&node.site.digest.0);
-            hasher.segment(node.kind.token());
+            node.slot.hash_into(&mut hasher);
             hash_optional_outcome(&mut hasher, node.before.as_ref());
             hash_optional_outcome(&mut hasher, node.after.as_ref());
             hasher.segment(b"before-dependencies");
@@ -941,6 +2022,10 @@ impl MechanismSignatureId {
             request: signature.request.clone(),
             digest: hasher.digest(),
         }
+    }
+
+    pub(crate) const fn digest_bytes(&self) -> [u8; 32] {
+        self.digest.0
     }
 }
 
@@ -1069,7 +2154,10 @@ pub(crate) enum MechanismEvidenceStatus {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum KnownTargetUntracedReason {
-    TraceBudgetExhausted,
+    /// Exact target membership is known, but this case has not yet crossed a
+    /// durable fresh-replay boundary. Pausing or hitting an operational cap
+    /// leaves it pending; it does not mint a synthetic failure observation.
+    Pending,
     ReplayUnavailable,
     ObservationUnsupported,
 }
@@ -1155,7 +2243,51 @@ impl ExactMatchingTargetMembership {
         Ok(exact)
     }
 
-    fn validate_for_request(
+    /// Seal one coordinator-certified complete matching support without
+    /// enumerating its ranks. The support identity must belong to the exact
+    /// request universe; its canonical intervals are lowered directly into a
+    /// binary target-membership DAG.
+    pub(crate) fn from_exact_case_support(
+        request: &MechanismObservationRequest,
+        support: &ExactCaseSupport,
+    ) -> Result<Self, MechanismValidationError> {
+        request.validate()?;
+        let universe = ExploreCaseUniverse::new(request.axis_cardinalities.clone())
+            .map_err(|error| invalid(format!("invalid mechanism case universe: {error}")))?;
+        ExactCaseSupport::empty(&universe)
+            .merge_disjoint(support)
+            .map_err(|error| {
+                invalid(format!(
+                    "exact matching support belongs to another case universe: {error}"
+                ))
+            })?;
+
+        let base = MechanismTargetMembershipDag::from_sparse_classifications(
+            request.axis_cardinalities.to_vec(),
+            Vec::<(Vec<u128>, MechanismTargetMembership)>::new(),
+            MechanismTargetMembership::OutsideTarget,
+        )
+        .map_err(|error| invalid(format!("cannot build empty target membership: {error}")))?;
+        let membership = base
+            .with_rank_interval_overrides(support.iter_intervals().map(|interval| {
+                (
+                    interval.start(),
+                    interval.end_exclusive(),
+                    MechanismTargetMembership::InsideTarget,
+                )
+            }))
+            .map_err(|error| {
+                invalid(format!(
+                    "cannot lower exact matching support into target membership: {error}"
+                ))
+            })?;
+        let id = derive_target_membership_id(&request.case_target, &membership);
+        let exact = Self { id, membership };
+        exact.validate_for_request(request)?;
+        Ok(exact)
+    }
+
+    pub(crate) fn validate_for_request(
         &self,
         request: &MechanismObservationRequest,
     ) -> Result<(), MechanismValidationError> {
@@ -1181,7 +2313,7 @@ impl ExactMatchingTargetMembership {
         Ok(())
     }
 
-    fn inside_count(&self) -> Result<u128, MechanismValidationError> {
+    pub(crate) fn inside_count(&self) -> Result<u128, MechanismValidationError> {
         let counts = self
             .membership
             .terminal_counts()
@@ -1200,7 +2332,7 @@ fn derive_target_membership_id(
     case_target: &MechanismCaseTargetId,
     membership: &MechanismTargetMembershipDag,
 ) -> MechanismTargetMembershipId {
-    let mut hasher = StableHasher::new(MECHANISM_TARGET_MEMBERSHIP_HASH_V1);
+    let mut hasher = StableHasher::new(MECHANISM_TARGET_MEMBERSHIP_HASH_V2);
     hasher.segment(&case_target.digest.0);
     hasher.u128(membership.axis_cardinalities().len() as u128);
     for cardinality in membership.axis_cardinalities().iter().copied() {
@@ -1210,27 +2342,9 @@ fn derive_target_membership_id(
         DecisionRoot::EmptySpace => hasher.segment(b"empty-space"),
         DecisionRoot::Target(target) => {
             hasher.segment(b"target");
-            hash_decision_ref(&mut hasher, target);
-        }
-    }
-    hasher.u128(membership.terminals().len() as u128);
-    for terminal in membership.terminals() {
-        hasher.segment(match terminal {
-            MechanismTargetMembership::OutsideTarget => b"outside-target",
-            MechanismTargetMembership::InsideTarget => b"inside-target",
-        });
-    }
-    hasher.u128(membership.nodes().len() as u128);
-    for node in membership.nodes() {
-        hasher.u128(node.dimension_index() as u128);
-        hasher.u128(node.arcs().len() as u128);
-        for arc in node.arcs() {
-            hasher.u128(arc.ordinals().intervals().len() as u128);
-            for interval in arc.ordinals().intervals() {
-                hasher.u128(interval.start().get());
-                hasher.u128(interval.end_exclusive().get());
-            }
-            hash_decision_ref(&mut hasher, arc.child());
+            let logical_root =
+                logical_membership_ref_digest(membership, target, &mut BTreeMap::new());
+            hasher.segment(&logical_root.0);
         }
     }
     MechanismTargetMembershipId {
@@ -1239,17 +2353,49 @@ fn derive_target_membership_id(
     }
 }
 
-fn hash_decision_ref(hasher: &mut StableHasher, target: DecisionRef) {
-    match target {
-        DecisionRef::Node(id) => {
-            hasher.segment(b"node");
-            hasher.u128(id.index() as u128);
-        }
-        DecisionRef::Terminal(id) => {
-            hasher.segment(b"terminal");
-            hasher.u128(id.index() as u128);
-        }
+fn logical_membership_ref_digest(
+    membership: &MechanismTargetMembershipDag,
+    target: DecisionRef,
+    memo: &mut BTreeMap<DecisionRef, StableDigest>,
+) -> StableDigest {
+    if let Some(digest) = memo.get(&target) {
+        return *digest;
     }
+    let digest = match target {
+        DecisionRef::Terminal(id) => {
+            let terminal = membership
+                .terminal(id)
+                .expect("validated target membership terminal must exist");
+            let mut hasher =
+                StableHasher::new(b"futuruna.explore.target-membership.logical-terminal.v1");
+            hasher.segment(match terminal {
+                MechanismTargetMembership::OutsideTarget => b"outside-target",
+                MechanismTargetMembership::InsideTarget => b"inside-target",
+            });
+            hasher.digest()
+        }
+        DecisionRef::Node(id) => {
+            let node = membership
+                .node(id)
+                .expect("validated target membership node must exist");
+            let mut hasher =
+                StableHasher::new(b"futuruna.explore.target-membership.logical-node.v1");
+            hasher.u128(node.dimension_index() as u128);
+            hasher.u128(node.arcs().len() as u128);
+            for arc in node.arcs() {
+                hasher.u128(arc.ordinals().intervals().len() as u128);
+                for interval in arc.ordinals().intervals() {
+                    hasher.u128(interval.start().get());
+                    hasher.u128(interval.end_exclusive().get());
+                }
+                let child = logical_membership_ref_digest(membership, arc.child(), memo);
+                hasher.segment(&child.0);
+            }
+            hasher.digest()
+        }
+    };
+    memo.insert(target, digest);
+    digest
 }
 
 /// Conservation evidence for `S_req` and the actually traced subset `T`.
@@ -1343,6 +2489,12 @@ pub(crate) struct MechanismSignatureBinIncidence {
     pub(crate) bin: MechanismNumericBin,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct MechanismBinUnavailableSupport {
+    pub(crate) signature: MechanismSignatureId,
+    pub(crate) reason: MechanismBinUnavailableReason,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum MechanismBinFieldEvidence {
     Unavailable(MechanismBinUnavailableReason),
@@ -1350,10 +2502,18 @@ pub(crate) enum MechanismBinFieldEvidence {
         /// Cases classified into one declared bin for this field, partitioned
         /// by their already-known complete mechanism signature.
         observed_supports: BTreeMap<MechanismSignatureId, u128>,
+        /// Successfully replayed values outside every declared interval. They
+        /// make field replay total without fabricating an overflow bin or
+        /// contributing to any requested mechanism-bin count.
+        outside_declared_bins_supports: BTreeMap<MechanismSignatureId, u128>,
+        /// Cases whose mechanism signature is known but whose requested field
+        /// value could not be classified. These supports explain why bin
+        /// counts remain lower bounds instead of silently disappearing.
+        unavailable_supports: BTreeMap<MechanismBinUnavailableSupport, u128>,
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum MechanismBinUnavailableReason {
     ValueReplayUnavailable,
     ValueUnsupported,
@@ -1369,6 +2529,9 @@ pub(crate) struct HomogeneousSignatureRegionCertificate {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismObservedEvidence {
+    /// Disclosure-bearing resume identity which authorized every retained
+    /// case-level incidence edge and example in this materialized view.
+    pub(crate) checked_request: CheckedMechanismObservationRequestV1,
     pub(crate) request: MechanismObservationRequest,
     pub(crate) population: MechanismPopulationEvidence,
     pub(crate) exact_target_membership: Option<ExactMatchingTargetMembership>,
@@ -1385,7 +2548,7 @@ pub(crate) struct MechanismObservedEvidence {
 impl MechanismObservedEvidence {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
-        request: MechanismObservationRequest,
+        checked_request: CheckedMechanismObservationRequestV1,
         population: MechanismPopulationEvidence,
         exact_target_membership: Option<ExactMatchingTargetMembership>,
         canonical_signatures: BTreeMap<MechanismSignatureId, DynamicMechanismSignature>,
@@ -1394,6 +2557,8 @@ impl MechanismObservedEvidence {
         bin_fields: BTreeMap<Box<str>, MechanismBinFieldEvidence>,
         signature_bin_supports: BTreeMap<MechanismSignatureBinIncidence, u128>,
     ) -> Result<Self, MechanismValidationError> {
+        checked_request.validate()?;
+        let request = checked_request.observation.clone();
         let signatures = canonical_signatures
             .into_iter()
             .map(|(id, signature)| {
@@ -1416,6 +2581,7 @@ impl MechanismObservedEvidence {
             ));
         }
         let evidence = Self {
+            checked_request,
             request,
             population,
             exact_target_membership,
@@ -1429,8 +2595,22 @@ impl MechanismObservedEvidence {
     }
 
     pub(crate) fn validate(&self) -> Result<(), MechanismValidationError> {
+        self.checked_request.validate()?;
+        if self.checked_request.observation != self.request {
+            return Err(invalid(
+                "mechanism materialized view disagrees with its checked disclosure request",
+            ));
+        }
         self.request.validate()?;
         self.population.validate_shape()?;
+        if self.population.incidence.is_some()
+            && self.checked_request.disclosure.incidence
+                != MechanismIncidenceDisclosure::FullMatchingIncidence
+        {
+            return Err(invalid(
+                "mechanism incidence was materialized without full-incidence authorization",
+            ));
+        }
         match self.population.status {
             MechanismEvidenceStatus::ScopeOpen => {
                 if self.exact_target_membership.is_some() {
@@ -1493,6 +2673,21 @@ impl MechanismObservedEvidence {
                     "retained mechanism trace references an unknown signature",
                 ));
             }
+            if let Some(incidence) = self.population.incidence.as_ref() {
+                let terminal = incidence
+                    .terminal_for_path(case_id.ordinals())
+                    .map_err(|error| {
+                        invalid(format!(
+                            "cannot resolve retained mechanism trace incidence: {error}"
+                        ))
+                    })?
+                    .ok_or_else(|| invalid("retained mechanism trace has empty incidence space"))?;
+                if terminal != &MechanismIncidenceTerminal::Signature(signature.clone()) {
+                    return Err(invalid(
+                        "retained mechanism trace disagrees with exact case-to-signature incidence",
+                    ));
+                }
+            }
             let count = retained_by_signature.entry(signature.clone()).or_default();
             *count = count
                 .checked_add(1)
@@ -1502,6 +2697,17 @@ impl MechanismObservedEvidence {
             if retained > self.signatures[&signature].observed_support {
                 return Err(invalid(
                     "retained mechanism examples exceed the signature's observed support",
+                ));
+            }
+            if retained
+                > u128::from(
+                    self.checked_request
+                        .disclosure
+                        .retained_examples_per_signature,
+                )
+            {
+                return Err(invalid(
+                    "retained mechanism examples exceed the checked disclosure cap",
                 ));
             }
         }
@@ -1678,7 +2884,10 @@ impl MechanismObservedEvidence {
             };
             if !matches!(
                 self.bin_fields.get(incidence.field_name.as_ref()),
-                Some(MechanismBinFieldEvidence::Observed { observed_supports })
+                Some(MechanismBinFieldEvidence::Observed {
+                    observed_supports,
+                    ..
+                })
                     if observed_supports.contains_key(&incidence.signature)
             ) {
                 return Err(invalid(format!(
@@ -1686,7 +2895,7 @@ impl MechanismObservedEvidence {
                     incidence.field_name
                 )));
             }
-            if !field.bins.contains(&incidence.bin) {
+            if field.bins.binary_search(&incidence.bin).is_err() {
                 return Err(invalid(format!(
                     "mechanism signature/bin support for `{}` references an undeclared bin",
                     incidence.field_name
@@ -1712,16 +2921,38 @@ impl MechanismObservedEvidence {
                         )));
                     }
                 }
-                MechanismBinFieldEvidence::Observed { observed_supports } => {
-                    for (signature, support) in observed_supports {
-                        let Some(signature_evidence) = self.signatures.get(signature) else {
+                MechanismBinFieldEvidence::Observed {
+                    observed_supports,
+                    outside_declared_bins_supports,
+                    unavailable_supports,
+                } => {
+                    for (kind, supports) in [
+                        ("declared-bin", observed_supports),
+                        ("outside-declared-bins", outside_declared_bins_supports),
+                    ] {
+                        for (signature, support) in supports {
+                            let Some(signature_evidence) = self.signatures.get(signature) else {
+                                return Err(invalid(format!(
+                                    "mechanism bin field `{name}` observes an unknown signature"
+                                )));
+                            };
+                            if *support == 0 || *support > signature_evidence.observed_support {
+                                return Err(invalid(format!(
+                                    "mechanism bin field `{name}` has invalid {kind} support for a signature"
+                                )));
+                            }
+                        }
+                    }
+                    for (unavailable, support) in unavailable_supports {
+                        let Some(signature_evidence) = self.signatures.get(&unavailable.signature)
+                        else {
                             return Err(invalid(format!(
-                                "mechanism bin field `{name}` observes an unknown signature"
+                                "mechanism bin field `{name}` has unavailable support for an unknown signature"
                             )));
                         };
                         if *support == 0 || *support > signature_evidence.observed_support {
                             return Err(invalid(format!(
-                                "mechanism bin field `{name}` has invalid observed support for a signature"
+                                "mechanism bin field `{name}` has invalid unavailable support for a signature"
                             )));
                         }
                     }
@@ -1735,17 +2966,56 @@ impl MechanismObservedEvidence {
                             "mechanism bins for `{name}` do not exactly partition the field's observed signature supports"
                         )));
                     }
+                    for (signature, evidence) in &self.signatures {
+                        let binned = observed_supports.get(signature).copied().unwrap_or(0);
+                        let outside = outside_declared_bins_supports
+                            .get(signature)
+                            .copied()
+                            .unwrap_or(0);
+                        let unavailable = unavailable_supports
+                            .iter()
+                            .filter(|(key, _)| &key.signature == signature)
+                            .try_fold(0_u128, |total, (_, support)| {
+                                total.checked_add(*support).ok_or_else(|| {
+                                    invalid("mechanism bin unavailable support exceeds u128::MAX")
+                                })
+                            })?;
+                        let classified = binned
+                            .checked_add(outside)
+                            .and_then(|value| value.checked_add(unavailable))
+                            .ok_or_else(|| {
+                                invalid("mechanism bin field classified support exceeds u128::MAX")
+                            })?;
+                        if classified > evidence.observed_support {
+                            return Err(invalid(format!(
+                                "mechanism bin field `{name}` classifies more cases than the signature supports"
+                            )));
+                        }
+                    }
                 }
             }
         }
         Ok(())
     }
 
-    fn bin_field_is_total(&self, observed_supports: &BTreeMap<MechanismSignatureId, u128>) -> bool {
-        observed_supports.len() == self.signatures.len()
-            && self.signatures.iter().all(|(signature, evidence)| {
-                observed_supports.get(signature) == Some(&evidence.observed_support)
-            })
+    fn bin_field_is_total(
+        &self,
+        observed_supports: &BTreeMap<MechanismSignatureId, u128>,
+        outside_declared_bins_supports: &BTreeMap<MechanismSignatureId, u128>,
+    ) -> bool {
+        self.signatures.iter().all(|(signature, evidence)| {
+            observed_supports
+                .get(signature)
+                .copied()
+                .unwrap_or(0)
+                .checked_add(
+                    outside_declared_bins_supports
+                        .get(signature)
+                        .copied()
+                        .unwrap_or(0),
+                )
+                == Some(evidence.observed_support)
+        })
     }
 
     pub(crate) fn distinct_signatures(&self) -> MechanismCount {
@@ -1781,11 +3051,14 @@ impl MechanismObservedEvidence {
             .bin_fields
             .iter()
             .find(|field| field.name.as_ref() == field_name)?;
-        if !field.bins.contains(&bin) {
+        if field.bins.binary_search(&bin).is_err() {
             return None;
         }
-        let MechanismBinFieldEvidence::Observed { observed_supports } =
-            self.bin_fields.get(field_name)?
+        let MechanismBinFieldEvidence::Observed {
+            observed_supports,
+            outside_declared_bins_supports,
+            unavailable_supports,
+        } = self.bin_fields.get(field_name)?
         else {
             return None;
         };
@@ -1796,7 +3069,8 @@ impl MechanismObservedEvidence {
             .count() as u128;
         Some(
             if self.population.status == MechanismEvidenceStatus::MatchingClosed
-                && self.bin_field_is_total(observed_supports)
+                && unavailable_supports.is_empty()
+                && self.bin_field_is_total(observed_supports, outside_declared_bins_supports)
             {
                 MechanismCount::Exact(count)
             } else {
@@ -1869,31 +3143,96 @@ fn validate_case_id(
 
 #[cfg(test)]
 mod tests {
+    use super::super::case_graph::{
+        DecisionPartition, DecisionPartitionArc, DecisionPartitionTarget,
+    };
     use super::*;
-    use crate::{DeclarationId, DeclarationKind, ModuleId};
+    use crate::{
+        CheckedDeclarationOccurrenceId, CheckedExpressionResolution, CheckedExpressionType,
+        DeclarationId, DeclarationKind, Lexer, ModuleId, Parser, TypeChecker,
+    };
 
     fn analysis_program() -> AnalysisProgramId {
         AnalysisProgramId("11".repeat(32).into_boxed_str())
     }
 
-    fn site(program: &AnalysisProgramId, name: &str, path: u32) -> MechanismSiteId {
-        let expression = ExprSiteId {
-            analysis_program: program.clone(),
-            declaration: DeclarationId {
-                module: ModuleId {
-                    content_hash: "22".repeat(32).into_boxed_str(),
-                    internal_path: Box::default(),
-                },
-                kind: DeclarationKind::Function,
-                owner: None,
-                name: name.to_string().into_boxed_str(),
-                arity: Some(1),
-                ordinal: 0,
+    fn declaration(name: &str) -> DeclarationId {
+        DeclarationId {
+            module: ModuleId {
+                content_hash: "22".repeat(32).into_boxed_str(),
+                internal_path: Box::default(),
             },
+            kind: DeclarationKind::Function,
+            owner: None,
+            name: name.to_string().into_boxed_str(),
+            arity: Some(1),
+            ordinal: 0,
+        }
+    }
+
+    fn expression_site(program: &AnalysisProgramId, name: &str, path: u32) -> ExprSiteId {
+        ExprSiteId {
+            analysis_program: program.clone(),
+            declaration: declaration(name),
             normalized_declaration_ordinal: 0,
             ast_path: vec![path].into_boxed_slice(),
+        }
+    }
+
+    fn site(program: &AnalysisProgramId, name: &str, path: u32) -> MechanismSiteId {
+        MechanismSiteId::from_expression_site(&expression_site(program, name, path)).expect("site")
+    }
+
+    fn rule_family_site(program: &AnalysisProgramId, name: &str) -> MechanismSiteId {
+        MechanismSiteId::from_rule_family(
+            program,
+            &RuleDispatchKey {
+                scope: None,
+                name: name.to_string(),
+                arity: 1,
+            },
+        )
+        .expect("rule family site")
+    }
+
+    fn rule_candidate_site(program: &AnalysisProgramId, name: &str, path: u32) -> MechanismSiteId {
+        let declaration = declaration(name);
+        let candidate = CheckedRuleCandidateResolution {
+            tier: RuleDispatchTier::Clause,
+            source_order: path as usize,
+            declaration: CheckedDeclarationOccurrenceId {
+                declaration: declaration.clone(),
+                normalized_ordinal: 0,
+            },
+            statement_path: vec![path].into_boxed_slice(),
+            head_site: ExprSiteId {
+                analysis_program: program.clone(),
+                declaration,
+                normalized_declaration_ordinal: 0,
+                ast_path: vec![path, 0].into_boxed_slice(),
+            },
+            condition_site: None,
+            value_site: None,
         };
-        MechanismSiteId::from_expression_site(&expression).expect("site")
+        MechanismSiteId::from_rule_candidate(program, &candidate).expect("rule candidate site")
+    }
+
+    fn endpoint_pairing(program: &AnalysisProgramId) -> MechanismEndpointPairingV1 {
+        let callable = CheckedCallableId {
+            declaration: CheckedDeclarationOccurrenceId {
+                declaration: declaration("policy-callable"),
+                normalized_ordinal: 0,
+            },
+            structural_path: Box::default(),
+        };
+        let callable_site = MechanismSiteId::from_callable(program, &callable).expect("callable");
+        MechanismEndpointPairingV1::new_for_test(
+            program,
+            site(program, "before-call", 20),
+            site(program, "after-call", 21),
+            MechanismCallableSiteId::function(callable_site).expect("function callee"),
+        )
+        .expect("endpoint pairing")
     }
 
     fn request(
@@ -1906,8 +3245,11 @@ mod tests {
             program.clone(),
             MechanismQueryId::from_checked_query_bytes(b"query-and-domain"),
             MechanismObservationTarget::MatchingConfigurations,
-            MechanismSemanticRootId::from_site(site(&program, "before", 0)),
-            MechanismSemanticRootId::from_site(site(&program, "after", 0)),
+            MechanismSemanticRootId::from_site(site(&program, "before", 0))
+                .expect("before semantic root"),
+            MechanismSemanticRootId::from_site(site(&program, "after", 0))
+                .expect("after semantic root"),
+            endpoint_pairing(&program),
             MechanismNormalization::DynamicControlV1,
             axis_cardinalities,
             sampling,
@@ -1916,17 +3258,83 @@ mod tests {
         .expect("request")
     }
 
+    #[test]
+    fn checked_query_identity_uses_revalidated_query_and_domain_digests() {
+        let source = r#"
+# Profile = Worker | Student
+| eligible(profile: Profile, income: Int) -> income >= 0
+? explore scan {
+    over eligible(profile, income)
+    find matches
+    bounds {
+        profile in values(Profile)
+        income in range(0, 3)
+    }
+    output { key [profile, income] representative first }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse checked Explore fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("revalidated checked Explore query");
+
+        let identity = MechanismQueryId::from_checked_query(&checked)
+            .expect("checked query and domain identities");
+        let mut expected = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V1);
+        expected.segment(checked.artifact.identity.digest.as_bytes());
+        expected.segment(checked.domain_hash().as_bytes());
+
+        assert_eq!(identity, MechanismQueryId(expected.digest()));
+    }
+
+    fn fully_disclosed(
+        request: MechanismObservationRequest,
+    ) -> CheckedMechanismObservationRequestV1 {
+        CheckedMechanismObservationRequestV1::new(
+            request,
+            MechanismDisclosureV1::new(
+                MechanismIncidenceDisclosure::FullMatchingIncidence,
+                u32::MAX,
+            ),
+        )
+        .expect("checked full-incidence request")
+    }
+
+    fn occurrence_slot(
+        request: &MechanismObservationRequest,
+        site: MechanismSiteId,
+        kind: DynamicEventKind,
+        visit_ordinal: u32,
+    ) -> MechanismOccurrenceSlotV1 {
+        MechanismOccurrenceSlotV1::new(
+            request,
+            0,
+            Vec::<MechanismActivationStepV1>::new(),
+            site,
+            kind,
+            visit_ordinal,
+        )
+        .expect("occurrence slot")
+    }
+
     fn selection_signature(
         request: &MechanismObservationRequest,
         selected: MechanismSiteId,
     ) -> DynamicMechanismSignature {
-        let dispatch = site(&request.analysis_program, "dispatch", 1);
+        let dispatch = rule_family_site(&request.analysis_program, "dispatch");
         let outcome = DynamicEventOutcome::RuleSelection(RuleSelectionOutcome::Selected(selected));
         let node = PairedOccurrenceNode::new(
             request,
-            0,
-            dispatch,
-            DynamicEventKind::RuleSelection,
+            occurrence_slot(request, dispatch, DynamicEventKind::RuleSelection, 0),
             Some(outcome.clone()),
             Some(outcome),
             BTreeSet::new(),
@@ -1948,8 +3356,10 @@ mod tests {
         MechanismSignatureId,
         BTreeMap<MechanismSignatureId, DynamicMechanismSignature>,
     ) {
-        let signature =
-            selection_signature(request, site(&request.analysis_program, "selected-rule", 2));
+        let signature = selection_signature(
+            request,
+            rule_candidate_site(&request.analysis_program, "selected-rule", 2),
+        );
         let mut interner = CanonicalSignatureInterner::new(request);
         let id = interner.intern(signature).expect("intern");
         (id, interner.into_signatures())
@@ -1966,6 +3376,514 @@ mod tests {
     }
 
     #[test]
+    fn disclosure_changes_resume_identity_without_renaming_signatures() {
+        let observation = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let summary = CheckedMechanismObservationRequestV1::new(
+            observation.clone(),
+            MechanismDisclosureV1::new(MechanismIncidenceDisclosure::SummaryOnly, 2),
+        )
+        .expect("summary request");
+        let full = CheckedMechanismObservationRequestV1::new(
+            observation.clone(),
+            MechanismDisclosureV1::new(MechanismIncidenceDisclosure::FullMatchingIncidence, 2),
+        )
+        .expect("full request");
+
+        assert_ne!(summary.id, full.id);
+        assert_eq!(summary.observation.id, full.observation.id);
+        let summary_signature = selection_signature(
+            &summary.observation,
+            rule_candidate_site(&summary.observation.analysis_program, "selected", 9),
+        );
+        let full_signature = selection_signature(
+            &full.observation,
+            rule_candidate_site(&full.observation.analysis_program, "selected", 9),
+        );
+        assert_eq!(
+            MechanismSignatureId::derive(&summary_signature),
+            MechanismSignatureId::derive(&full_signature)
+        );
+    }
+
+    #[test]
+    fn sampling_changes_checked_identity_without_renaming_observation_or_signature() {
+        let selected = ExploreCaseId::new(vec![0_u128]);
+        let sampling_plans = [
+            MechanismSamplingPlan::empty(),
+            MechanismSamplingPlan {
+                result_representatives: BTreeSet::from([selected.clone()]),
+                extrema_witnesses: BTreeSet::new(),
+                required_case_ids: BTreeSet::new(),
+            },
+            MechanismSamplingPlan {
+                result_representatives: BTreeSet::new(),
+                extrema_witnesses: BTreeSet::from([selected.clone()]),
+                required_case_ids: BTreeSet::new(),
+            },
+            MechanismSamplingPlan {
+                result_representatives: BTreeSet::new(),
+                extrema_witnesses: BTreeSet::new(),
+                required_case_ids: BTreeSet::from([selected]),
+            },
+        ];
+        let mut observation_ids = BTreeSet::new();
+        let mut checked_ids = BTreeSet::new();
+        let mut signature_ids = BTreeSet::new();
+        for sampling in sampling_plans {
+            let observation = request(vec![1], sampling, Vec::new());
+            let signature = selection_signature(
+                &observation,
+                rule_candidate_site(&observation.analysis_program, "sampled-selected", 10),
+            );
+            observation_ids.insert(observation.id.clone());
+            signature_ids.insert(MechanismSignatureId::derive(&signature));
+            checked_ids.insert(fully_disclosed(observation).id);
+        }
+
+        assert_eq!(observation_ids.len(), 1);
+        assert_eq!(signature_ids.len(), 1);
+        assert_eq!(checked_ids.len(), 4);
+    }
+
+    #[test]
+    fn materialized_mechanism_view_enforces_disclosure_and_example_cap() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let (signature, signatures) = one_signature(&request);
+        let target = all_matching_target(&request);
+        let incidence = MechanismIncidenceDag::from_sparse_classifications(
+            vec![1],
+            Vec::<(Vec<u128>, MechanismIncidenceTerminal)>::new(),
+            MechanismIncidenceTerminal::Signature(signature.clone()),
+        )
+        .expect("incidence");
+        let summary = CheckedMechanismObservationRequestV1::new(
+            request.clone(),
+            MechanismDisclosureV1::new(MechanismIncidenceDisclosure::SummaryOnly, 1),
+        )
+        .expect("summary request");
+        assert!(MechanismObservedEvidence::new(
+            summary,
+            MechanismPopulationEvidence::new(
+                MechanismEvidenceStatus::MatchingClosed,
+                MechanismCount::Exact(1),
+                1,
+                0,
+                Some(incidence),
+            )
+            .expect("population"),
+            Some(target),
+            signatures.clone(),
+            BTreeMap::from([(signature.clone(), 1)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+        .is_err());
+
+        let no_examples = CheckedMechanismObservationRequestV1::new(
+            request,
+            MechanismDisclosureV1::new(MechanismIncidenceDisclosure::FullMatchingIncidence, 0),
+        )
+        .expect("zero-example request");
+        assert!(MechanismObservedEvidence::new(
+            no_examples,
+            MechanismPopulationEvidence::new(
+                MechanismEvidenceStatus::ScopeOpen,
+                MechanismCount::LowerBound(1),
+                1,
+                0,
+                None,
+            )
+            .expect("population"),
+            None,
+            signatures,
+            BTreeMap::from([(signature.clone(), 1)]),
+            BTreeMap::from([(ExploreCaseId::new(vec![0]), signature)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn stable_slot_pairing_survives_a_before_only_insertion() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let shared = occurrence_slot(
+            &request,
+            site(&request.analysis_program, "shared", 10),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let earlier = occurrence_slot(
+            &request,
+            site(&request.analysis_program, "before-only", 11),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let shared_occurrence = EndpointOccurrenceV1::new(
+            shared.clone(),
+            DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+            BTreeSet::new(),
+        );
+        let baseline_before = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([shared.clone()]),
+            [shared_occurrence.clone()],
+        )
+        .expect("baseline before");
+        let after = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([shared.clone()]),
+            [shared_occurrence.clone()],
+        )
+        .expect("after");
+        let baseline = DynamicMechanismSignature::from_endpoint_traces(
+            &request,
+            baseline_before,
+            after.clone(),
+        )
+        .expect("baseline signature");
+
+        let expanded_before = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([shared.clone()]),
+            [
+                EndpointOccurrenceV1::new(
+                    earlier.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else),
+                    BTreeSet::new(),
+                ),
+                EndpointOccurrenceV1::new(
+                    shared.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                    BTreeSet::from([earlier]),
+                ),
+            ],
+        )
+        .expect("expanded before");
+        let expanded =
+            DynamicMechanismSignature::from_endpoint_traces(&request, expanded_before, after)
+                .expect("expanded signature");
+
+        let shared_id = MechanismOccurrenceId::derive(&request.id, &shared);
+        assert!(baseline.nodes.contains_key(&shared_id));
+        assert!(expanded.nodes.contains_key(&shared_id));
+        assert_ne!(
+            MechanismSignatureId::derive(&baseline),
+            MechanismSignatureId::derive(&expanded)
+        );
+    }
+
+    #[test]
+    fn endpoint_order_may_reverse_without_creating_a_false_union_cycle() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let first = occurrence_slot(
+            &request,
+            site(&request.analysis_program, "first", 12),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let second = occurrence_slot(
+            &request,
+            site(&request.analysis_program, "second", 13),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let before = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([second.clone()]),
+            [
+                EndpointOccurrenceV1::new(
+                    first.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                    BTreeSet::new(),
+                ),
+                EndpointOccurrenceV1::new(
+                    second.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                    BTreeSet::from([first.clone()]),
+                ),
+            ],
+        )
+        .expect("before");
+        let after = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([first.clone()]),
+            [
+                EndpointOccurrenceV1::new(
+                    second.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else),
+                    BTreeSet::new(),
+                ),
+                EndpointOccurrenceV1::new(
+                    first,
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else),
+                    BTreeSet::from([second]),
+                ),
+            ],
+        )
+        .expect("after");
+
+        DynamicMechanismSignature::from_endpoint_traces(&request, before, after)
+            .expect("independent endpoint DAG order must remain representable");
+    }
+
+    #[test]
+    fn repeated_visits_are_distinct_and_duplicate_slots_fail_closed() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let semantic_site = site(&request.analysis_program, "repeated", 14);
+        let first = occurrence_slot(
+            &request,
+            semantic_site.clone(),
+            DynamicEventKind::MatchDecision,
+            0,
+        );
+        let second = occurrence_slot(&request, semantic_site, DynamicEventKind::MatchDecision, 1);
+        assert_ne!(
+            MechanismOccurrenceId::derive(&request.id, &first),
+            MechanismOccurrenceId::derive(&request.id, &second)
+        );
+
+        let occurrence = EndpointOccurrenceV1::new(
+            first.clone(),
+            DynamicEventOutcome::MatchDecision { arm_index: 0 },
+            BTreeSet::new(),
+        );
+        assert!(DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([first]),
+            [occurrence.clone(), occurrence],
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn endpoint_pairing_rejects_shifted_visits_at_one_semantic_site() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let semantic_site = site(&request.analysis_program, "shifted-visit", 15);
+        let first = occurrence_slot(
+            &request,
+            semantic_site.clone(),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let second = occurrence_slot(&request, semantic_site, DynamicEventKind::IfDecision, 1);
+        let before = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([second.clone()]),
+            [
+                EndpointOccurrenceV1::new(
+                    first.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else),
+                    BTreeSet::new(),
+                ),
+                EndpointOccurrenceV1::new(
+                    second,
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                    BTreeSet::from([first.clone()]),
+                ),
+            ],
+        )
+        .expect("before trace");
+        let after = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([first.clone()]),
+            [EndpointOccurrenceV1::new(
+                first,
+                DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                BTreeSet::new(),
+            )],
+        )
+        .expect("after trace");
+
+        let error = DynamicMechanismSignature::from_endpoint_traces(&request, before, after)
+            .expect_err("shifted local visits must not be guessed");
+        assert!(error.to_string().contains("different visit multiplicity"));
+    }
+
+    #[test]
+    fn direct_signature_construction_cannot_bypass_visit_pairing_validation() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let semantic_site = site(&request.analysis_program, "decoded-shifted-visit", 22);
+        let first_slot = occurrence_slot(
+            &request,
+            semantic_site.clone(),
+            DynamicEventKind::IfDecision,
+            0,
+        );
+        let second_slot = occurrence_slot(&request, semantic_site, DynamicEventKind::IfDecision, 1);
+        let first = PairedOccurrenceNode::new(
+            &request,
+            first_slot,
+            Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else)),
+            Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then)),
+            BTreeSet::new(),
+            BTreeSet::new(),
+        )
+        .expect("first paired occurrence");
+        let second = PairedOccurrenceNode::new(
+            &request,
+            second_slot,
+            Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then)),
+            None,
+            BTreeSet::from([first.id.clone()]),
+            BTreeSet::new(),
+        )
+        .expect("second paired occurrence");
+
+        let error = DynamicMechanismSignature::new(
+            &request,
+            BTreeSet::from([second.id.clone()]),
+            BTreeSet::from([first.id.clone()]),
+            [first, second],
+        )
+        .expect_err("decoded signatures must obey the pairing-shape rule");
+        assert!(error.to_string().contains("different visit multiplicity"));
+    }
+
+    #[test]
+    fn endpoint_pairing_rejects_shifted_invocations_at_one_call_site() {
+        let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
+        let call_site = site(&request.analysis_program, "repeated-call", 16);
+        let event_site = site(&request.analysis_program, "inside-call", 17);
+        let activation = |ordinal| {
+            MechanismActivationStepV1::new(
+                &request,
+                call_site.clone(),
+                request.endpoint_pairing.common_callee.clone(),
+                ordinal,
+            )
+            .expect("activation")
+        };
+        let slot = |ordinal| {
+            MechanismOccurrenceSlotV1::new(
+                &request,
+                0,
+                vec![activation(ordinal)],
+                event_site.clone(),
+                DynamicEventKind::IfDecision,
+                0,
+            )
+            .expect("occurrence slot")
+        };
+        let first = slot(0);
+        let second = slot(1);
+        let before = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([second.clone()]),
+            [
+                EndpointOccurrenceV1::new(
+                    first.clone(),
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else),
+                    BTreeSet::new(),
+                ),
+                EndpointOccurrenceV1::new(
+                    second,
+                    DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                    BTreeSet::from([first.clone()]),
+                ),
+            ],
+        )
+        .expect("before trace");
+        let after = DynamicEndpointTraceV1::new(
+            &request,
+            BTreeSet::from([first.clone()]),
+            [EndpointOccurrenceV1::new(
+                first,
+                DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then),
+                BTreeSet::new(),
+            )],
+        )
+        .expect("after trace");
+
+        let error = DynamicMechanismSignature::from_endpoint_traces(&request, before, after)
+            .expect_err("shifted local invocations must not be guessed");
+        assert!(error
+            .to_string()
+            .contains("different invocation multiplicity"));
+    }
+
+    #[test]
+    fn semantic_roots_and_callable_variants_validate_their_site_kinds() {
+        let program = analysis_program();
+        assert!(MechanismSemanticRootId::from_site(rule_family_site(
+            &program,
+            "not-an-expression-root"
+        ))
+        .is_err());
+
+        let mislabeled =
+            MechanismCallableSiteId::Function(rule_family_site(&program, "not-a-function"));
+        assert!(MechanismEndpointPairingV1::new_for_test(
+            &program,
+            site(&program, "lower-call", 18),
+            site(&program, "upper-call", 19),
+            mislabeled,
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn checked_endpoint_pairing_requires_the_same_resolved_callable() {
+        let program = analysis_program();
+        let before = expression_site(&program, "checked-lower-call", 23);
+        let after = expression_site(&program, "checked-upper-call", 24);
+        let callable = CheckedCallableId {
+            declaration: CheckedDeclarationOccurrenceId {
+                declaration: declaration("checked-policy-callable"),
+                normalized_ordinal: 0,
+            },
+            structural_path: Box::default(),
+        };
+        let resolution = |callable| CheckedExpressionResolution {
+            resolved_type: CheckedExpressionType::Unsupported,
+            value_binding: None,
+            call_target: Some(CheckedCallTarget::Function { callable, arity: 1 }),
+            field: None,
+            named_arguments: None,
+            exact_constructor: None,
+        };
+        let mut resolutions = CheckedResolutionArtifacts {
+            analysis_program: program.clone(),
+            source_snapshot_coherent: true,
+            ..CheckedResolutionArtifacts::default()
+        };
+        resolutions
+            .expressions
+            .insert(before.clone(), resolution(callable.clone()));
+        resolutions
+            .expressions
+            .insert(after.clone(), resolution(callable));
+
+        let pairing = MechanismEndpointPairingV1::from_checked_calls(
+            &resolutions,
+            before.clone(),
+            after.clone(),
+        )
+        .expect("source-confirmed endpoint pairing");
+        MechanismSemanticRootId::from_checked_expression(&resolutions, &before)
+            .expect("source-confirmed semantic root");
+        assert_eq!(
+            pairing.before_call_site,
+            MechanismSiteId::from_expression_site(&before).expect("before site")
+        );
+
+        let different_callable = CheckedCallableId {
+            declaration: CheckedDeclarationOccurrenceId {
+                declaration: declaration("different-policy-callable"),
+                normalized_ordinal: 0,
+            },
+            structural_path: Box::default(),
+        };
+        resolutions
+            .expressions
+            .insert(after.clone(), resolution(different_callable));
+        assert!(
+            MechanismEndpointPairingV1::from_checked_calls(&resolutions, before, after,).is_err()
+        );
+    }
+
+    #[test]
     fn representative_sampling_remains_a_scope_open_lower_bound() {
         let representative = ExploreCaseId::new(vec![0_u128]);
         let request = request(
@@ -1979,7 +3897,7 @@ mod tests {
         );
         let (signature, signatures) = one_signature(&request);
         let evidence = MechanismObservedEvidence::new(
-            request,
+            fully_disclosed(request),
             MechanismPopulationEvidence::new(
                 MechanismEvidenceStatus::ScopeOpen,
                 MechanismCount::LowerBound(1),
@@ -2016,7 +3934,8 @@ mod tests {
         ];
         let field = MechanismBinField::new(
             "loss_ore",
-            MechanismSemanticRootId::from_site(site(&program, "loss", 3)),
+            MechanismSemanticRootId::from_site(site(&program, "loss", 3))
+                .expect("loss semantic root"),
             bins.clone(),
         )
         .expect("field");
@@ -2048,7 +3967,7 @@ mod tests {
             ),
         ]);
         let evidence = MechanismObservedEvidence::new(
-            request,
+            fully_disclosed(request),
             MechanismPopulationEvidence::new(
                 MechanismEvidenceStatus::MatchingClosed,
                 MechanismCount::Exact(2),
@@ -2065,6 +3984,8 @@ mod tests {
                 "loss_ore".into(),
                 MechanismBinFieldEvidence::Observed {
                     observed_supports: BTreeMap::from([(signature.clone(), 2)]),
+                    outside_declared_bins_supports: BTreeMap::new(),
+                    unavailable_supports: BTreeMap::new(),
                 },
             )]),
             signature_bin_supports,
@@ -2081,11 +4002,47 @@ mod tests {
         );
         assert_eq!(evidence.distinct_signatures(), MechanismCount::Exact(1));
 
+        let mut with_outside_value = evidence.clone();
+        with_outside_value.bin_fields.insert(
+            "loss_ore".into(),
+            MechanismBinFieldEvidence::Observed {
+                observed_supports: BTreeMap::from([(signature.clone(), 1)]),
+                outside_declared_bins_supports: BTreeMap::from([(signature.clone(), 1)]),
+                unavailable_supports: BTreeMap::new(),
+            },
+        );
+        with_outside_value
+            .signature_bin_supports
+            .remove(&MechanismSignatureBinIncidence {
+                signature: signature.clone(),
+                field_name: "loss_ore".into(),
+                bin: bins[1],
+            });
+        with_outside_value
+            .validate()
+            .expect("outside-bin values still close replay totality");
+        assert_eq!(
+            with_outside_value.mechanisms_in_bin("loss_ore", bins[0]),
+            Some(MechanismCount::Exact(1))
+        );
+        assert_eq!(
+            with_outside_value.mechanisms_in_bin("loss_ore", bins[1]),
+            Some(MechanismCount::Exact(0))
+        );
+
         let mut incomplete = evidence.clone();
         incomplete.bin_fields.insert(
             "loss_ore".into(),
             MechanismBinFieldEvidence::Observed {
                 observed_supports: BTreeMap::from([(signature.clone(), 1)]),
+                outside_declared_bins_supports: BTreeMap::new(),
+                unavailable_supports: BTreeMap::from([(
+                    MechanismBinUnavailableSupport {
+                        signature: signature.clone(),
+                        reason: MechanismBinUnavailableReason::ValueReplayUnavailable,
+                    },
+                    1,
+                )]),
             },
         );
         incomplete
@@ -2100,6 +4057,14 @@ mod tests {
             incomplete.mechanisms_in_bin("loss_ore", bins[0]),
             Some(MechanismCount::LowerBound(1))
         );
+        let MechanismBinFieldEvidence::Observed {
+            unavailable_supports,
+            ..
+        } = &incomplete.bin_fields["loss_ore"]
+        else {
+            panic!("partial field must retain explicit unavailability")
+        };
+        assert_eq!(unavailable_supports.values().copied().sum::<u128>(), 1);
 
         let first = MechanismSignatureBinIncidence {
             signature,
@@ -2115,11 +4080,11 @@ mod tests {
         let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
         let first = selection_signature(
             &request,
-            site(&request.analysis_program, "tied-terminal-a", 4),
+            rule_candidate_site(&request.analysis_program, "tied-terminal-a", 4),
         );
         let second = selection_signature(
             &request,
-            site(&request.analysis_program, "tied-terminal-b", 4),
+            rule_candidate_site(&request.analysis_program, "tied-terminal-b", 4),
         );
         let mut interner = CanonicalSignatureInterner::new(&request);
         let first_id = interner.intern(first).expect("first");
@@ -2135,9 +4100,12 @@ mod tests {
         let shared_site = site(&request.analysis_program, "endpoint-swap", 5);
         let before_only = PairedOccurrenceNode::new(
             &request,
-            0,
-            shared_site.clone(),
-            DynamicEventKind::IfDecision,
+            occurrence_slot(
+                &request,
+                shared_site.clone(),
+                DynamicEventKind::IfDecision,
+                0,
+            ),
             Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then)),
             None,
             BTreeSet::new(),
@@ -2146,9 +4114,7 @@ mod tests {
         .expect("before-only node");
         let after_only = PairedOccurrenceNode::new(
             &request,
-            0,
-            shared_site,
-            DynamicEventKind::IfDecision,
+            occurrence_slot(&request, shared_site, DynamicEventKind::IfDecision, 0),
             None,
             Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then)),
             BTreeSet::new(),
@@ -2176,9 +4142,12 @@ mod tests {
 
         let before = PairedOccurrenceNode::new(
             &request,
-            0,
-            site(&request.analysis_program, "before-dependency", 6),
-            DynamicEventKind::IfDecision,
+            occurrence_slot(
+                &request,
+                site(&request.analysis_program, "before-dependency", 6),
+                DynamicEventKind::IfDecision,
+                0,
+            ),
             Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Then)),
             None,
             BTreeSet::new(),
@@ -2187,9 +4156,12 @@ mod tests {
         .expect("before node");
         let after = PairedOccurrenceNode::new(
             &request,
-            1,
-            site(&request.analysis_program, "after-dependent", 7),
-            DynamicEventKind::IfDecision,
+            occurrence_slot(
+                &request,
+                site(&request.analysis_program, "after-dependent", 7),
+                DynamicEventKind::IfDecision,
+                0,
+            ),
             None,
             Some(DynamicEventOutcome::IfDecision(IfDecisionOutcome::Else)),
             BTreeSet::new(),
@@ -2220,9 +4192,12 @@ mod tests {
             let outcome = DynamicEventOutcome::RuleAttempt(attempt);
             let node = PairedOccurrenceNode::new(
                 &request,
-                0,
-                site(&request.analysis_program, "rule-attempt", 7),
-                DynamicEventKind::RuleAttempt,
+                occurrence_slot(
+                    &request,
+                    rule_candidate_site(&request.analysis_program, "rule-attempt", 7),
+                    DynamicEventKind::RuleAttempt,
+                    0,
+                ),
                 Some(outcome.clone()),
                 Some(outcome),
                 BTreeSet::new(),
@@ -2264,7 +4239,7 @@ mod tests {
         .expect("wrong incidence");
 
         assert!(MechanismObservedEvidence::new(
-            request,
+            fully_disclosed(request),
             MechanismPopulationEvidence::new(
                 MechanismEvidenceStatus::MatchingClosed,
                 MechanismCount::Exact(1),
@@ -2281,6 +4256,76 @@ mod tests {
             BTreeMap::new(),
         )
         .is_err());
+    }
+
+    #[test]
+    fn retained_examples_must_match_exact_incidence() {
+        let request = request(vec![2], MechanismSamplingPlan::empty(), Vec::new());
+        let (signature, signatures) = one_signature(&request);
+        let target = all_matching_target(&request);
+        let incidence = MechanismIncidenceDag::from_sparse_classifications(
+            vec![2],
+            [(
+                vec![0],
+                MechanismIncidenceTerminal::KnownTargetUntraced(KnownTargetUntracedReason::Pending),
+            )],
+            MechanismIncidenceTerminal::Signature(signature.clone()),
+        )
+        .expect("partial incidence");
+
+        assert!(MechanismObservedEvidence::new(
+            fully_disclosed(request),
+            MechanismPopulationEvidence::new(
+                MechanismEvidenceStatus::IncidenceOpen,
+                MechanismCount::Exact(2),
+                1,
+                1,
+                Some(incidence),
+            )
+            .expect("population"),
+            Some(target),
+            signatures,
+            BTreeMap::from([(signature.clone(), 1)]),
+            BTreeMap::from([(ExploreCaseId::new(vec![0]), signature)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn target_membership_identity_ignores_report_local_interning_order() {
+        let request = request(vec![2], MechanismSamplingPlan::empty(), Vec::new());
+        let graph = |reverse: bool| {
+            let mut arcs = vec![
+                DecisionPartitionArc::new(
+                    [(0, 1)],
+                    DecisionPartitionTarget::terminal(MechanismTargetMembership::OutsideTarget),
+                )
+                .expect("outside arc"),
+                DecisionPartitionArc::new(
+                    [(1, 2)],
+                    DecisionPartitionTarget::terminal(MechanismTargetMembership::InsideTarget),
+                )
+                .expect("inside arc"),
+            ];
+            if reverse {
+                arcs.reverse();
+            }
+            let target = DecisionPartitionTarget::decision(0, arcs).expect("decision");
+            MechanismTargetMembershipDag::from_decision_partition(
+                vec![2],
+                DecisionPartition::target(target),
+            )
+            .expect("membership graph")
+        };
+        let first = graph(false);
+        let second = graph(true);
+        assert_ne!(first, second, "fixture must vary physical IDs");
+        assert_eq!(
+            derive_target_membership_id(&request.case_target, &first),
+            derive_target_membership_id(&request.case_target, &second),
+        );
     }
 
     #[test]
@@ -2304,7 +4349,7 @@ mod tests {
         )
         .expect("incidence");
         let evidence = MechanismObservedEvidence::new(
-            request,
+            fully_disclosed(request),
             MechanismPopulationEvidence::new(
                 MechanismEvidenceStatus::MatchingClosed,
                 MechanismCount::Exact(2),

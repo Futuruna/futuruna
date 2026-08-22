@@ -930,6 +930,43 @@ impl ExactEvidenceReducer {
         self.closed_case_count
     }
 
+    /// Return the admissible-match ranks confirmed by evidence accepted so
+    /// far, whether or not classification is closed.
+    ///
+    /// This is a monotone known subset: exact reducer transitions reject
+    /// duplicate or conflicting classification, so accepted matching ranks are
+    /// never withdrawn. A coordinator may use the subset to authorize early
+    /// mechanism replay for those ranks only. It must not treat the subset as
+    /// the complete matching target while any case rank remains open.
+    ///
+    /// `ExactCaseSupport` is persistent, so this clone shares its authenticated
+    /// tree and does not enumerate ranks or intervals.
+    pub(crate) fn confirmed_admissible_match_support(&self) -> ExactCaseSupport {
+        self.debug_assert_classification_support_counts();
+        self.classification_supports.admissible_match.clone()
+    }
+
+    /// Return the authoritative admissible-match support after the complete
+    /// case universe has been classified.
+    ///
+    /// Before closure, the retained matching fiber is only a lower bound and
+    /// must not be installed as a downstream mechanism target. At closure, the
+    /// reducer's disjoint typed fibers form the exact `closed` partition, and
+    /// overlap rejection prevents any later classification extension. The
+    /// resulting content identity is therefore independent of evidence arrival
+    /// order. A coordinator must obtain this support after case closure and
+    /// install the derived mechanism target before accepting mechanism
+    /// observations.
+    ///
+    /// `ExactCaseSupport` is persistent, so this clone shares its authenticated
+    /// tree and does not enumerate ranks or intervals.
+    pub(crate) fn authoritative_admissible_match_support(&self) -> Option<ExactCaseSupport> {
+        if self.closed_case_count != self.universe_case_count {
+            return None;
+        }
+        Some(self.confirmed_admissible_match_support())
+    }
+
     /// Return authenticated classification supports only when their complete
     /// interval population fits the caller's explicit traversal bound.
     ///
@@ -3212,6 +3249,75 @@ mod tests {
             interval_pairs(forward_supports.closed()),
             vec![(0, 3), (4, 6), (7, 8), (10, 12)]
         );
+    }
+
+    #[test]
+    fn authoritative_matching_support_is_closure_gated_and_arrival_order_independent() {
+        let shape = ExactProjectionShapeV1::new(1, 1, 1).unwrap();
+        let mut forward =
+            ExactEvidenceReducer::new(vec![8], shape, ExactRepresentativePolicyV1::First, false)
+                .unwrap();
+        let mut reverse =
+            ExactEvidenceReducer::new(vec![8], shape, ExactRepresentativePolicyV1::First, false)
+                .unwrap();
+
+        let low_excluded = sealed_region(
+            0,
+            2,
+            ExactClosedRegionKindV1::Structural,
+            ExactClosedClassificationV1::Excluded,
+            101,
+        );
+        let middle_nonmatch = sealed_region(
+            3,
+            5,
+            ExactClosedRegionKindV1::Proof,
+            ExactClosedClassificationV1::AdmissibleNonmatch,
+            102,
+        );
+        let high_excluded = sealed_region(
+            6,
+            8,
+            ExactClosedRegionKindV1::Structural,
+            ExactClosedClassificationV1::Excluded,
+            103,
+        );
+
+        forward
+            .accept_closed_region_batch(&region_batch([
+                low_excluded.clone(),
+                middle_nonmatch.clone(),
+                high_excluded.clone(),
+            ]))
+            .unwrap();
+        let forward_low_match = matching(&forward, 2, 1, 2, "low", None);
+        forward.accept_observation(forward_low_match).unwrap();
+        assert_eq!(
+            interval_pairs(&forward.confirmed_admissible_match_support()),
+            vec![(2, 3)]
+        );
+        assert!(forward.authoritative_admissible_match_support().is_none());
+        let forward_high_match = matching(&forward, 5, 1, 5, "high", None);
+        forward.accept_observation(forward_high_match).unwrap();
+
+        let reverse_high_match = matching(&reverse, 5, 1, 5, "high", None);
+        reverse.accept_observation(reverse_high_match).unwrap();
+        reverse.accept_closed_region(high_excluded).unwrap();
+        reverse.accept_closed_region(middle_nonmatch).unwrap();
+        let reverse_low_match = matching(&reverse, 2, 1, 2, "low", None);
+        reverse.accept_observation(reverse_low_match).unwrap();
+        assert!(reverse.authoritative_admissible_match_support().is_none());
+        reverse.accept_closed_region(low_excluded).unwrap();
+
+        let forward_target = forward
+            .authoritative_admissible_match_support()
+            .expect("complete classification has an authoritative target");
+        let reverse_target = reverse
+            .authoritative_admissible_match_support()
+            .expect("complete classification has an authoritative target");
+        assert_eq!(forward_target, reverse_target);
+        assert_eq!(forward_target.case_count(), 2);
+        assert_eq!(interval_pairs(&forward_target), vec![(2, 3), (5, 6)]);
     }
 
     #[test]

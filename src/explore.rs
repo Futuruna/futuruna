@@ -17,6 +17,7 @@ mod classification_regions;
 mod exact;
 mod exact_stream;
 mod mechanism;
+mod mechanism_stream;
 mod probe;
 mod probe_codec;
 mod probe_io;

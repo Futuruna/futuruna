@@ -49,6 +49,16 @@ use super::exact_stream::{
     ExactEvidenceSnapshotV1, ExactProjectionShapeV1, ExactRepresentativePolicyV1,
     ValidatedExactCaseObservationBatchV1, ValidatedExactClosedRegionBatchV1,
 };
+use super::mechanism::{
+    CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
+};
+use super::mechanism_stream::{
+    decode_mechanism_observation_batch_v1, encode_mechanism_observation_batch_v1,
+    restore_committed_mechanism_batch_v1, MechanismBinAssignmentOutcomeV1,
+    MechanismCaseObservationOutcomeProposalV1, MechanismEvidenceReducerV1,
+    MechanismPermanentUntracedReasonV1, ValidatedMechanismObservationBatchV1,
+    MAX_NORMALIZED_SEMANTIC_FACTS_PER_BATCH, MECHANISM_OBSERVATION_BLOB_KIND_V1,
+};
 use super::report::{
     ExploreCaseGraphRequest, ExploreReportRequest, ExploreStopReason,
     DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
@@ -57,14 +67,17 @@ use super::run_store::RunStoreLimits;
 use super::run_stream::{
     CanonicalDigest, CanonicalRunRecordPayload, CoveragePlan, DiscoveryEventKind, ExactCaseSupport,
     ExploreRunCursor, ExploreRunHeader, ExploreRunId, ExploreRunStream, ExploreWriterId,
-    FencedWriterLease, FrontierEvidenceKind, PauseReason, PreparedRunTransition, RequiredFrontier,
-    RequiredObligationId, RunLifecycle, SemanticEvidenceFact, SemanticEvidenceLayer,
-    SemanticEvidenceSubject, TerminalMethodHash, TerminalPayloadHash, TerminalSealKind,
+    FencedWriterLease, FrontierEvidenceKind, ObservationEvidenceKind, PauseReason,
+    PreparedRunTransition, RequiredFrontier, RequiredObligationId, RunLifecycle,
+    SemanticEvidenceFact, SemanticEvidenceLayer, SemanticEvidenceSubject, TerminalMethodHash,
+    TerminalPayloadHash, TerminalSealKind,
 };
 use super::run_stream_codec::{decode_genesis_record, decode_later_record, encode_record};
 use super::run_stream_store::{ExploreRunStreamStore, ExploreWriterFenceReceipt};
 use super::source_proof_plan::SourceProofPlan;
-use super::stream_identity::prepare_exact_stream_header;
+use super::stream_identity::{
+    prepare_exact_stream_header, prepare_exact_stream_header_with_mechanism,
+};
 use super::stream_probe::{
     decode_source_probe_manifest_v1, encode_source_probe_manifest_v1, ExactSourceProbeManifestV1,
     ExactSourceProbePhaseV1, ExactSourceProbeProgressV1, SOURCE_PROBE_MANIFEST_BLOB_KIND_V1,
@@ -120,6 +133,7 @@ const EXACT_STREAM_OBSERVATION_BATCH_TARGET_BYTES_V1: usize = 8 * 1024 * 1024;
 pub(super) struct ExactStreamCoordinatorError {
     message: Box<str>,
     snapshot_publication_capacity: bool,
+    mechanism_operational_capacity: bool,
 }
 
 impl ExactStreamCoordinatorError {
@@ -127,6 +141,7 @@ impl ExactStreamCoordinatorError {
         Self {
             message: message.into().into_boxed_str(),
             snapshot_publication_capacity: false,
+            mechanism_operational_capacity: false,
         }
     }
 
@@ -138,11 +153,24 @@ impl ExactStreamCoordinatorError {
         Self {
             message: format!("{context}: {error}").into_boxed_str(),
             snapshot_publication_capacity: true,
+            mechanism_operational_capacity: false,
+        }
+    }
+
+    fn mechanism_capacity(context: &str, error: impl fmt::Display) -> Self {
+        Self {
+            message: format!("{context}: {error}").into_boxed_str(),
+            snapshot_publication_capacity: false,
+            mechanism_operational_capacity: true,
         }
     }
 
     const fn is_snapshot_publication_capacity(&self) -> bool {
         self.snapshot_publication_capacity
+    }
+
+    pub(super) const fn is_mechanism_operational_capacity(&self) -> bool {
+        self.mechanism_operational_capacity
     }
 }
 
@@ -352,6 +380,10 @@ pub(super) struct ExactStreamCoordinator<'a> {
     store: ExploreRunStreamStore,
     stream: ExploreRunStream,
     exact: ExactEvidenceReducer,
+    /// Present only for the private mechanism-enabled stream identity. The
+    /// ordinary CLI still opens the legacy deferred stream with `None`.
+    mechanism: Option<MechanismEvidenceReducerV1>,
+    mechanism_request: Option<CheckedMechanismObservationRequestV1>,
     evaluator: Option<ExactStreamEvaluator<'a>>,
     statements: &'a [Stmt],
     source_dir: Option<&'a str>,
@@ -394,6 +426,57 @@ impl<'a> ExactStreamCoordinator<'a> {
         accepted_query_index: usize,
         report_request: ExploreReportRequest,
     ) -> Result<Self, ExactStreamCoordinatorError> {
+        Self::open_or_create_internal(
+            directory,
+            limits,
+            statements,
+            source_dir,
+            artifacts,
+            accepted_query_index,
+            report_request,
+            None,
+        )
+    }
+
+    /// Dormant integration seam for a stream whose sequence-zero identity
+    /// explicitly authorizes mechanism incidence. Runtime trace minting and
+    /// public mechanism rendering remain separate future steps; this method
+    /// only joins already checked requests and validated batches to the
+    /// authenticated journal/replay machinery.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn open_or_create_with_mechanism(
+        directory: impl AsRef<Path>,
+        limits: RunStoreLimits,
+        statements: &'a [Stmt],
+        source_dir: Option<&'a str>,
+        artifacts: &'a TypeCheckArtifacts,
+        accepted_query_index: usize,
+        report_request: ExploreReportRequest,
+        mechanism_request: CheckedMechanismObservationRequestV1,
+    ) -> Result<Self, ExactStreamCoordinatorError> {
+        Self::open_or_create_internal(
+            directory,
+            limits,
+            statements,
+            source_dir,
+            artifacts,
+            accepted_query_index,
+            report_request,
+            Some(mechanism_request),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn open_or_create_internal(
+        directory: impl AsRef<Path>,
+        limits: RunStoreLimits,
+        statements: &'a [Stmt],
+        source_dir: Option<&'a str>,
+        artifacts: &'a TypeCheckArtifacts,
+        accepted_query_index: usize,
+        report_request: ExploreReportRequest,
+        mechanism_request: Option<CheckedMechanismObservationRequestV1>,
+    ) -> Result<Self, ExactStreamCoordinatorError> {
         let checked = artifacts
             .checked_exploration_query(accepted_query_index)
             .map_err(|error| {
@@ -401,7 +484,21 @@ impl<'a> ExactStreamCoordinator<'a> {
                     "cannot select checked Explore query for stream coordination: {error:?}"
                 ))
             })?;
+        if let Some(request) = mechanism_request.as_ref() {
+            validate_mechanism_request_for_checked_query(request, &checked)?;
+        }
         let query = checked.closed_query;
+        let mut exact = exact_reducer_for_query(query)?;
+        let mut mechanism = mechanism_request
+            .as_ref()
+            .map(|request| MechanismEvidenceReducerV1::new(request.clone()))
+            .transpose()
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot initialize mechanism evidence reducer",
+                    error,
+                )
+            })?;
         let mut store =
             ExploreRunStreamStore::open_or_create(directory, limits).map_err(|error| {
                 ExactStreamCoordinatorError::context("cannot open run store", error)
@@ -410,17 +507,24 @@ impl<'a> ExactStreamCoordinator<'a> {
             .read_genesis()
             .map_err(|error| ExactStreamCoordinatorError::context("cannot read genesis", error))?;
 
-        let mut exact = exact_reducer_for_query(query)?;
-
         match genesis {
             None => {
                 let nonce = os_random_nonzero_digest("run nonce")?;
-                let prepared_header = prepare_exact_stream_header(
-                    artifacts,
-                    accepted_query_index,
-                    nonce,
-                    report_request,
-                )
+                let prepared_header = match mechanism_request.as_ref() {
+                    None => prepare_exact_stream_header(
+                        artifacts,
+                        accepted_query_index,
+                        nonce,
+                        report_request,
+                    ),
+                    Some(request) => prepare_exact_stream_header_with_mechanism(
+                        artifacts,
+                        accepted_query_index,
+                        nonce,
+                        report_request,
+                        Some(request),
+                    ),
+                }
                 .map_err(|error| {
                     ExactStreamCoordinatorError::context(
                         "cannot prepare checked stream header",
@@ -506,6 +610,8 @@ impl<'a> ExactStreamCoordinator<'a> {
                     store,
                     stream,
                     exact,
+                    mechanism,
+                    mechanism_request,
                     evaluator: None,
                     statements,
                     source_dir,
@@ -545,12 +651,21 @@ impl<'a> ExactStreamCoordinator<'a> {
                 };
                 verify_historical_lease(&store, genesis_lease)?;
 
-                let expected = prepare_exact_stream_header(
-                    artifacts,
-                    accepted_query_index,
-                    stored_header.nonce().identity(),
-                    report_request,
-                )
+                let expected = match mechanism_request.as_ref() {
+                    None => prepare_exact_stream_header(
+                        artifacts,
+                        accepted_query_index,
+                        stored_header.nonce().identity(),
+                        report_request,
+                    ),
+                    Some(request) => prepare_exact_stream_header_with_mechanism(
+                        artifacts,
+                        accepted_query_index,
+                        stored_header.nonce().identity(),
+                        report_request,
+                        Some(request),
+                    ),
+                }
                 .map_err(|error| {
                     ExactStreamCoordinatorError::context(
                         "cannot reconstruct checked stream header",
@@ -624,12 +739,44 @@ impl<'a> ExactStreamCoordinator<'a> {
                     }
                     verify_historical_lease(&store, payload.lease())?;
 
+                    if mechanism_request.is_some()
+                        && matches!(
+                            &payload,
+                            CanonicalRunRecordPayload::Discovery {
+                                kind: DiscoveryEventKind::SnapshotPublished
+                                    | DiscoveryEventKind::SnapshotUnavailablePublished
+                                    | DiscoveryEventKind::TerminalResultPublished,
+                                ..
+                            } | CanonicalRunRecordPayload::TerminalSeal { .. }
+                        )
+                    {
+                        return Err(ExactStreamCoordinatorError::invalid(
+                            "mechanism-enabled stream contains an exact-only publication or terminal seal",
+                        ));
+                    }
+
+                    if matches!(
+                        &payload,
+                        CanonicalRunRecordPayload::SemanticObservation {
+                            producer_kind: ObservationEvidenceKind::MechanismObserved,
+                            ..
+                        }
+                    ) {
+                        synchronize_mechanism_target_knowledge(&exact, mechanism.as_mut(), false)?;
+                    }
                     apply_exact_replay(
                         &store,
                         &mut exact,
                         stream.header(),
                         stream.frontier(),
                         expected.replay_closure,
+                        &payload,
+                    )?;
+                    apply_mechanism_replay(
+                        &store,
+                        mechanism.as_mut(),
+                        mechanism_request.as_ref(),
+                        &stored_header,
                         &payload,
                     )?;
                     let mut staged_candidates = None;
@@ -981,6 +1128,8 @@ impl<'a> ExactStreamCoordinator<'a> {
                     store,
                     stream,
                     exact,
+                    mechanism,
+                    mechanism_request,
                     evaluator: None,
                     statements,
                     source_dir,
@@ -1014,6 +1163,136 @@ impl<'a> ExactStreamCoordinator<'a> {
 
     pub(super) const fn report_request(&self) -> ExploreReportRequest {
         self.report_request
+    }
+
+    fn require_exact_only_publication_contract(
+        &self,
+        action: &str,
+    ) -> Result<(), ExactStreamCoordinatorError> {
+        if self.mechanism_request.is_some() {
+            return Err(ExactStreamCoordinatorError::invalid(format!(
+                "cannot {action}: mechanism-enabled streams remain private until the observable snapshot and terminal-result schemas include mechanism closure"
+            )));
+        }
+        Ok(())
+    }
+
+    /// Commit one already fresh-replay-confirmed mechanism block through the
+    /// same blob -> journal -> reducer ordering as exact case evidence. This
+    /// private seam is intentionally not called by the current CLI: runtime
+    /// instrumentation must mint the validated token first.
+    pub(super) fn commit_validated_mechanism_observation_batch(
+        &mut self,
+        validated: ValidatedMechanismObservationBatchV1,
+    ) -> Result<usize, ExactStreamCoordinatorError> {
+        if self.source_proof_completed.is_none() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "mechanism observation cannot precede the completed source-probe milestone",
+            ));
+        }
+        let request = self.mechanism_request.clone().ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "this Explore stream identity does not authorize mechanism evidence",
+            )
+        })?;
+        synchronize_mechanism_target_knowledge(&self.exact, self.mechanism.as_mut(), false)?;
+
+        let bytes = encode_mechanism_observation_batch_v1(&request, validated.proposal()).map_err(
+            |error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot encode mechanism observation batch",
+                    error,
+                )
+            },
+        )?;
+        let blob_digest = content_digest(&bytes);
+        let facts = mechanism_evidence_projection(
+            self.stream.header().case_universe(),
+            &request,
+            &validated,
+        )?;
+        let prepared_mechanism = self
+            .mechanism
+            .as_ref()
+            .ok_or_else(|| {
+                ExactStreamCoordinatorError::invalid(
+                    "mechanism request exists without its evidence reducer",
+                )
+            })?
+            .prepare_observation_batch(validated)
+            .map_err(|error| {
+                if error.is_reducer_capacity() {
+                    ExactStreamCoordinatorError::mechanism_capacity(
+                        "mechanism observation reached durable reducer capacity",
+                        error,
+                    )
+                } else {
+                    ExactStreamCoordinatorError::context(
+                        "mechanism observation conflicts with reducer state",
+                        error,
+                    )
+                }
+            })?;
+        let lease = self.require_active_lease()?;
+        let transition = self
+            .stream
+            .prepare_observation(
+                lease,
+                super::run_stream::ObservationEvidenceKind::MechanismObserved,
+                facts,
+                blob_digest,
+            )
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot prepare mechanism semantic observation",
+                    error,
+                )
+            })?;
+        self.store
+            .install_blob(
+                MECHANISM_OBSERVATION_BLOB_KIND_V1,
+                &blob_digest.to_lowercase_hex(),
+                &bytes,
+            )
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot install mechanism observation blob",
+                    error,
+                )
+            })?;
+        self.commit_prepared(transition)?;
+        self.mechanism
+            .as_mut()
+            .expect("prepared mechanism reducer must still exist")
+            .apply_prepared_observation_batch(prepared_mechanism);
+        Ok(bytes.len())
+    }
+
+    /// Current mechanism materialization at this cursor. Capacity pressure is
+    /// returned as typed unavailability by the mechanism reducer rather than
+    /// publishing a truncated incidence graph.
+    pub(super) fn mechanism_snapshot(
+        &mut self,
+    ) -> Result<Option<MechanismObservedEvidence>, ExactStreamCoordinatorError> {
+        synchronize_mechanism_target_knowledge(&self.exact, self.mechanism.as_mut(), true)?;
+        self.mechanism
+            .as_ref()
+            .map(|mechanism| {
+                mechanism.snapshot().map_err(|error| {
+                    if error.is_snapshot_capacity() {
+                        ExactStreamCoordinatorError::snapshot_capacity(
+                            "cannot materialize mechanism snapshot",
+                            error,
+                        )
+                    } else {
+                        ExactStreamCoordinatorError::context(
+                            "cannot materialize mechanism snapshot",
+                            error,
+                        )
+                    }
+                })
+            })
+            .transpose()
     }
 
     /// A preceding journal-only pause is durable but has no observer view.
@@ -1067,6 +1346,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         &self,
         authority: &mut ExactStreamSnapshotPublicationAuthority,
     ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("prepare observable snapshot")?;
         if !authority.consume_preparation() {
             return Err(ExactStreamCoordinatorError::invalid(
                 "snapshot-publication authority has already prepared one materialized view",
@@ -1098,6 +1378,7 @@ impl<'a> ExactStreamCoordinator<'a> {
     fn prepare_observable_snapshot_publication_inner(
         &self,
     ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("prepare observable snapshot")?;
         let probe_progress = self.probe_progress()?;
         let snapshot = self.exact.observable_snapshot();
         let metadata = match ExactObservableSnapshotMetadataV1::from_checked_stream(
@@ -1166,6 +1447,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         closed_case_count: u128,
         detail: String,
     ) -> Result<PreparedExactObservableSnapshotPublication, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("prepare snapshot-unavailable receipt")?;
         let canonical_json_line = render_exact_observable_snapshot_unavailable_json_line_v1(
             &self.stream,
             probe_milestone_complete,
@@ -2089,6 +2371,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         &mut self,
         prepared: &PreparedExactObservableSnapshotPublication,
     ) -> Result<CanonicalDigest, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("publish observable snapshot")?;
         if prepared.cursor() != self.stream.cursor() {
             return Err(ExactStreamCoordinatorError::invalid(
                 "prepared observable snapshot belongs to a stale stream cursor",
@@ -2123,6 +2406,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         &mut self,
         case_graph_publication: &PreparedExactCaseGraphPublication,
     ) -> Result<ExactTerminalPublicationAdvanceV1, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("publish terminal result")?;
         self.require_prepared_case_graph_publication(case_graph_publication)?;
         let publication = case_graph_publication.publication();
         if let ExactPreparedCaseGraphPublicationV1::CapacityLimited {
@@ -2176,6 +2460,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         &mut self,
         canonical_bytes: &[u8],
     ) -> Result<ExactTerminalPublicationReceiptV1, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("install terminal result")?;
         let receipt = ExactTerminalPublicationReceiptV1 {
             blob_digest: content_digest(canonical_bytes),
             payload_hash: TerminalPayloadHash::from_canonical_semantic_payload(canonical_bytes),
@@ -2209,6 +2494,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         &mut self,
         receipt: ExactTerminalPublicationReceiptV1,
     ) -> Result<ExploreRunCursor, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("seal completed terminal result")?;
         if self.published_terminal_result != Some(receipt) {
             return Err(ExactStreamCoordinatorError::invalid(
                 "terminal seal receipt does not match the latest published semantic answer",
@@ -2240,6 +2526,7 @@ impl<'a> ExactStreamCoordinator<'a> {
     pub(super) fn read_verified_terminal_result_bytes(
         &self,
     ) -> Result<Vec<u8>, ExactStreamCoordinatorError> {
+        self.require_exact_only_publication_contract("read exact-only terminal result")?;
         if self.stream.lifecycle() != RunLifecycle::Sealed {
             return Err(ExactStreamCoordinatorError::invalid(
                 "terminal-result readback requires a sealed Explore stream",
@@ -3087,6 +3374,53 @@ fn case_graph_publication_resource(
     }
 }
 
+fn validate_mechanism_request_for_checked_query(
+    request: &CheckedMechanismObservationRequestV1,
+    checked: &crate::CheckedExploreQueryView<'_>,
+) -> Result<(), ExactStreamCoordinatorError> {
+    request.validate().map_err(|error| {
+        ExactStreamCoordinatorError::context("invalid checked mechanism request", error)
+    })?;
+    if request.observation.analysis_program.as_str()
+        != checked.artifact.identity.analysis_program.as_str()
+    {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism request belongs to another checked analysis program",
+        ));
+    }
+    let expected_query = MechanismQueryId::from_checked_query(checked).map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot derive mechanism identity from checked Explore query",
+            error,
+        )
+    })?;
+    if request.observation.query != expected_query {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism request belongs to another checked Explore query or domain",
+        ));
+    }
+    let expected_axes = checked
+        .closed_query
+        .universe
+        .dimensions
+        .iter()
+        .map(|dimension| {
+            dimension.domain.cardinality().exact().ok_or_else(|| {
+                ExactStreamCoordinatorError::invalid(format!(
+                    "Explore dimension `{}` cardinality exceeds u128::MAX",
+                    dimension.name
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if request.observation.axis_cardinalities.as_ref() != expected_axes.as_slice() {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism request belongs to another checked case universe",
+        ));
+    }
+    Ok(())
+}
+
 fn exact_reducer_for_query(
     query: &ExploreQueryIr,
 ) -> Result<ExactEvidenceReducer, ExactStreamCoordinatorError> {
@@ -3172,6 +3506,135 @@ fn verify_reducer_frontier(
             "exact reducer coverage disagrees with the authenticated case frontier",
         ));
     }
+    Ok(())
+}
+
+/// Reconstruct the mechanism target frontier from already authenticated case
+/// classification. This is derived state, not a second journal fact: confirmed
+/// matches authorize early `scope_open` replay, and complete classification
+/// deterministically seals the same support as the exact target DAG.
+fn synchronize_mechanism_target_knowledge(
+    exact: &ExactEvidenceReducer,
+    mechanism: Option<&mut MechanismEvidenceReducerV1>,
+    materialize_exact_target: bool,
+) -> Result<(), ExactStreamCoordinatorError> {
+    let Some(mechanism) = mechanism else {
+        return Ok(());
+    };
+    let confirmed = exact.confirmed_admissible_match_support();
+    if mechanism.known_target_support() != &confirmed {
+        let prepared = mechanism
+            .prepare_known_target_support(confirmed.clone())
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot synchronize confirmed matching support for mechanism replay",
+                    error,
+                )
+            })?;
+        mechanism.apply_prepared_known_target_support(prepared);
+    }
+
+    if materialize_exact_target {
+        let Some(authoritative) = exact.authoritative_admissible_match_support() else {
+            return Ok(());
+        };
+        if authoritative != confirmed {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "closure-gated matching support disagrees with confirmed matching support",
+            ));
+        }
+        if !mechanism.has_exact_target() {
+            let prepared = mechanism
+                .prepare_exact_target_from_known_support()
+                .map_err(|error| {
+                    if error.is_snapshot_capacity() {
+                        ExactStreamCoordinatorError::snapshot_capacity(
+                            "cannot materialize exact mechanism target from closed case evidence",
+                            error,
+                        )
+                    } else {
+                        ExactStreamCoordinatorError::context(
+                            "cannot seal exact mechanism target from closed case evidence",
+                            error,
+                        )
+                    }
+                })?;
+            mechanism.apply_prepared_exact_target(prepared);
+        }
+    }
+    Ok(())
+}
+
+fn apply_mechanism_replay(
+    store: &ExploreRunStreamStore,
+    mechanism: Option<&mut MechanismEvidenceReducerV1>,
+    request: Option<&CheckedMechanismObservationRequestV1>,
+    header: &ExploreRunHeader,
+    payload: &CanonicalRunRecordPayload,
+) -> Result<(), ExactStreamCoordinatorError> {
+    let CanonicalRunRecordPayload::SemanticObservation {
+        producer_kind: ObservationEvidenceKind::MechanismObserved,
+        semantic_facts,
+        validation_receipt_hash,
+        ..
+    } = payload
+    else {
+        return Ok(());
+    };
+    let request = request.ok_or_else(|| {
+        ExactStreamCoordinatorError::invalid(
+            "journal contains mechanism evidence but sequence-zero identity defers mechanisms",
+        )
+    })?;
+    let mechanism = mechanism.ok_or_else(|| {
+        ExactStreamCoordinatorError::invalid(
+            "mechanism-enabled stream has no mechanism evidence reducer",
+        )
+    })?;
+    let bytes = store
+        .read_blob(
+            MECHANISM_OBSERVATION_BLOB_KIND_V1,
+            &validation_receipt_hash.to_lowercase_hex(),
+        )
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context("cannot read mechanism observation blob", error)
+        })?;
+    if content_digest(&bytes) != *validation_receipt_hash {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism observation blob bytes disagree with their journal commitment",
+        ));
+    }
+    let proposal = decode_mechanism_observation_batch_v1(request, &bytes).map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot decode canonical mechanism observation blob",
+            error,
+        )
+    })?;
+    let validated = restore_committed_mechanism_batch_v1(request, proposal, |validated| {
+        let projected = mechanism_evidence_projection(header.case_universe(), request, validated)
+            .map_err(|error| error.to_string())?;
+        if projected.as_slice() != semantic_facts.as_ref() {
+            return Err(
+                "mechanism blob disagrees with its normalized semantic evidence facts".to_string(),
+            );
+        }
+        Ok(())
+    })
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot restore coordinator-committed mechanism observations",
+            error,
+        )
+    })?;
+    let prepared = mechanism
+        .prepare_observation_batch(validated)
+        .map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "replayed mechanism observations conflict with reducer state",
+                error,
+            )
+        })?;
+    mechanism.apply_prepared_observation_batch(prepared);
     Ok(())
 }
 
@@ -3537,6 +4000,184 @@ fn proposal_from_validated_regions(
 struct ExactEvidenceProjection {
     support: ExactCaseSupport,
     facts: Vec<SemanticEvidenceFact>,
+}
+
+/// Semantic identity deliberately excludes CaseId, batch boundaries and
+/// validator receipts. Those remain ordered-journal provenance; equal facts
+/// from disjoint batches therefore merge into one authenticated support fiber.
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum MechanismSemanticFactKindV1 {
+    Signature([u8; 32]),
+    PermanentlyUntraced(MechanismPermanentUntracedReasonV1),
+    BinAssignment {
+        signature: [u8; 32],
+        field_name: Box<str>,
+        outcome: MechanismBinAssignmentOutcomeV1,
+    },
+}
+
+fn mechanism_evidence_projection(
+    universe: &super::run_stream::ExploreCaseUniverse,
+    request: &CheckedMechanismObservationRequestV1,
+    batch: &ValidatedMechanismObservationBatchV1,
+) -> Result<Vec<SemanticEvidenceFact>, ExactStreamCoordinatorError> {
+    if request.observation.axis_cardinalities.as_ref() != universe.axis_cardinalities() {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "mechanism semantic facts belong to another case universe",
+        ));
+    }
+    let semantic_entries = batch
+        .proposal()
+        .observations()
+        .iter()
+        .try_fold(
+            batch.proposal().observations().len(),
+            |total, observation| {
+                let assignments = match &observation.outcome {
+                    MechanismCaseObservationOutcomeProposalV1::Observed {
+                        bin_assignments, ..
+                    } => bin_assignments.len(),
+                    MechanismCaseObservationOutcomeProposalV1::PermanentlyUntraced(_) => 0,
+                };
+                total.checked_add(assignments)
+            },
+        )
+        .ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "mechanism semantic-fact entry count exceeds usize::MAX",
+            )
+        })?;
+    if semantic_entries > MAX_NORMALIZED_SEMANTIC_FACTS_PER_BATCH {
+        return Err(ExactStreamCoordinatorError::mechanism_capacity(
+            "cannot normalize mechanism batch",
+            format!(
+                "requires {semantic_entries} semantic-fact entries; fixed limit is {MAX_NORMALIZED_SEMANTIC_FACTS_PER_BATCH}"
+            ),
+        ));
+    }
+    let mut grouped = BTreeMap::<MechanismSemanticFactKindV1, Vec<(u128, u128)>>::new();
+    for observation in batch.proposal().observations() {
+        let end = observation.case_id.rank.checked_add(1).ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid("mechanism CaseId rank overflows u128")
+        })?;
+        match &observation.outcome {
+            MechanismCaseObservationOutcomeProposalV1::Observed {
+                signature,
+                bin_assignments,
+            } => {
+                let signature = signature.digest_bytes();
+                grouped
+                    .entry(MechanismSemanticFactKindV1::Signature(signature))
+                    .or_default()
+                    .push((observation.case_id.rank, end));
+                for assignment in bin_assignments.iter() {
+                    grouped
+                        .entry(MechanismSemanticFactKindV1::BinAssignment {
+                            signature,
+                            field_name: assignment.field_name.clone(),
+                            outcome: assignment.outcome,
+                        })
+                        .or_default()
+                        .push((observation.case_id.rank, end));
+                }
+            }
+            MechanismCaseObservationOutcomeProposalV1::PermanentlyUntraced(reason) => {
+                grouped
+                    .entry(MechanismSemanticFactKindV1::PermanentlyUntraced(*reason))
+                    .or_default()
+                    .push((observation.case_id.rank, end));
+            }
+        }
+    }
+
+    let mut facts = Vec::with_capacity(grouped.len());
+    for (kind, intervals) in grouped {
+        let support = ExactCaseSupport::new(universe, intervals).map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot construct mechanism semantic support",
+                error,
+            )
+        })?;
+        facts.push(
+            SemanticEvidenceFact::new(
+                SemanticEvidenceLayer::MechanismObservation,
+                mechanism_semantic_fact_digest(request, &kind),
+                SemanticEvidenceSubject::cases(support),
+            )
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot construct normalized mechanism semantic fact",
+                    error,
+                )
+            })?,
+        );
+    }
+    facts.sort_by_key(SemanticEvidenceFact::normalized_content_hash);
+    Ok(facts)
+}
+
+fn mechanism_semantic_fact_digest(
+    request: &CheckedMechanismObservationRequestV1,
+    kind: &MechanismSemanticFactKindV1,
+) -> CanonicalDigest {
+    let mut hasher = Sha256::new();
+    hash_mechanism_fact_segment(
+        &mut hasher,
+        b"futuruna.explore.normalized-mechanism-fact.v1",
+    );
+    hash_mechanism_fact_segment(&mut hasher, &request.id.digest_bytes());
+    match kind {
+        MechanismSemanticFactKindV1::Signature(signature) => {
+            hash_mechanism_fact_segment(&mut hasher, b"signature");
+            hash_mechanism_fact_segment(&mut hasher, signature);
+        }
+        MechanismSemanticFactKindV1::PermanentlyUntraced(reason) => {
+            hash_mechanism_fact_segment(&mut hasher, b"permanently-untraced");
+            hash_mechanism_fact_segment(
+                &mut hasher,
+                match reason {
+                    MechanismPermanentUntracedReasonV1::ReplayUnavailable => b"replay-unavailable",
+                    MechanismPermanentUntracedReasonV1::ObservationUnsupported => {
+                        b"observation-unsupported"
+                    }
+                },
+            );
+        }
+        MechanismSemanticFactKindV1::BinAssignment {
+            signature,
+            field_name,
+            outcome,
+        } => {
+            hash_mechanism_fact_segment(&mut hasher, b"bin-assignment");
+            hash_mechanism_fact_segment(&mut hasher, signature);
+            hash_mechanism_fact_segment(&mut hasher, field_name.as_bytes());
+            match outcome {
+                MechanismBinAssignmentOutcomeV1::Binned(bin) => {
+                    hash_mechanism_fact_segment(&mut hasher, b"binned");
+                    hash_mechanism_fact_segment(&mut hasher, &bin.lower_inclusive.to_le_bytes());
+                    hash_mechanism_fact_segment(&mut hasher, &bin.upper_exclusive.to_le_bytes());
+                }
+                MechanismBinAssignmentOutcomeV1::OutsideDeclaredBins => {
+                    hash_mechanism_fact_segment(&mut hasher, b"outside-declared-bins");
+                }
+                MechanismBinAssignmentOutcomeV1::ReplayUnavailable => {
+                    hash_mechanism_fact_segment(&mut hasher, b"value-replay-unavailable");
+                }
+                MechanismBinAssignmentOutcomeV1::ObservationUnsupported => {
+                    hash_mechanism_fact_segment(&mut hasher, b"value-observation-unsupported");
+                }
+            }
+        }
+    }
+    let digest = hasher.finalize();
+    let mut bytes = [0_u8; 32];
+    bytes.copy_from_slice(&digest);
+    CanonicalDigest::from_sha256_bytes(bytes)
+}
+
+fn hash_mechanism_fact_segment(hasher: &mut Sha256, segment: &[u8]) {
+    hasher.update((segment.len() as u64).to_le_bytes());
+    hasher.update(segment);
 }
 
 fn observation_evidence_projection(

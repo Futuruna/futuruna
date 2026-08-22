@@ -13,7 +13,10 @@ candidate facts -> canonical rules -> typed results -> filter -> rank -> prove
 
 This workbook uses Futuruna's existing lists, `range`, `map`, `flat_map`,
 `filter`, `foldl`, invariants, and proofs. The complete executable example is
-[personskat-income-cliffs.audit.runa](personskat-income-cliffs.audit.runa).
+[personskat-income-cliffs.audit.runa](personskat-income-cliffs.audit.runa). It
+is deliberately a handwritten finite audit using ordinary collections, not a
+completed run of the Experimental first-class `? explore` surface described in
+section 9.
 
 ## 1. Formulate the question
 
@@ -305,7 +308,7 @@ The witness proves that this adjacent pair is an income cliff in the encoded
 model under the fixed facts. It also points directly to the changed commuting
 supplement for source and implementation review.
 
-Run the complete exploration from the repository root:
+Run the complete executable audit from the repository root:
 
 ```bash
 ./target/release/runa check examples/danish-income-tax/personskat-income-cliffs.audit.runa
@@ -367,6 +370,194 @@ For a larger worked product search, see
 [personskatteloven-konfiskatorisk.audit.runa](personskatteloven-konfiskatorisk.audit.runa),
 which constructs combinations with nested `flat_map`, evaluates each case,
 filters findings, and selects extrema with `foldl`.
+
+## 9. North star: one bounded, observable exploration
+
+The executable audit above is a useful baseline, but its scope is handcrafted.
+It supplies 50 already-known phase-out boundaries, fixes Copenhagen, fixes a
+60-km daily commute for 203 workdays, and varies only gross income at those 50
+points. The concrete witness in section 7 is exhaustive for that declared
+profile and boundary list. It does not show that Futuruna discovered the
+341,500-DKK area, that 60 km is a relevant distance, or that the same result
+holds for other municipalities.
+
+The first-class direction reverses that responsibility. A `? explore` query
+declares a finite world: which facts vary, each fact's complete domain, which
+facts stay fixed, the property, and the boundary movement. **Bounds define the
+world.** Within that world, the engine discovers which values, thresholds,
+branches, and dynamic rule mechanisms matter. Source-derived candidates may
+make that discovery fast, but candidates never replace proof of the space
+between them. An unresolved complement remains an open frontier.
+
+This section records the Experimental design contract and the next experiment
+plan. It is not additional syntax for the executable audit, and it does not
+claim that a broad Personskat run or mechanism graph has already been
+completed. The normative contract and exact implementation status live in
+[Bounded Rule Exploration with `? explore`](../../docs/rfcs/bounded-rule-exploration.md)
+and its
+[implementation workbook](../../docs/rfcs/bounded-rule-exploration-workbook.md).
+
+### Probes are the first schedule, not a smaller question
+
+An optional probe plan belongs inside the same exploration. It schedules a
+finite first wave—such as source candidates, endpoints, midpoints, or lifted
+profiles—so interesting evidence can emerge early. It does not change the
+bounds, narrow the answer, or establish completeness by itself. A saved probe
+milestone is bound to the normalized exploration configuration and probe plan,
+then the same run continues from its committed frontier.
+
+This makes probing a formal, inspectable discipline without creating a
+separate throwaway pre-run. Exhausting the probes means only that the initial
+schedule finished. The exploration is complete only when the required
+frontiers close.
+
+### Append validated evidence and resume from it
+
+A large exploration should be observable before it ends. The architecture is
+one durable append-only run that emits typed, validated evidence as it learns,
+can pause at a committed frontier, and can resume from exactly that frontier.
+The append-only journal is authoritative for recovery; bounded snapshots are
+materialized observer views and need not be rebuilt on every commit.
+
+The blockchain analogy is useful if stated precisely. Futuruna is not mining
+cases or running distributed consensus: all bounded cases already exist
+mathematically when the run opens. It is appending content-addressed evidence
+about those cases. The journal head records committed arrival order, while a
+normalized evidence root represents the same classified regions and exact open
+frontier independently of worker order. The resulting object is closer to an
+event-sourced Merkle evidence DAG than to a literal blockchain.
+
+The same separation now governs the private mechanism-stream substrate. A
+validated block keeps its replay receipts and complete signature definitions
+in journal order, but its answer facts group equal signature/bin outcomes by
+compressed case support. Splitting the same cases across different work blocks
+therefore changes the chain history, not the mathematical evidence root.
+Already confirmed matching cases may contribute honest `scope_open` lower
+bounds while the rest of the case frontier remains open; a mechanism trace for
+an unconfirmed rank is rejected. Once case polarity closes, the accumulated
+known-match support becomes the exact mechanism target without enumerating one
+row per rank. Runtime trace instrumentation and public mechanism-aware result
+JSON are still deliberately deferred, so this architecture is not yet a claim
+of completed Personskat mechanism results.
+
+### The case DAG answers where; the mechanism DAG answers how
+
+The primary result is a relation between bounded configurations,
+classification, outputs, and optional fresh-replay evidence. Two linked
+projections make that relation intelligible:
+
+```text
+bounded configurations
+        |
+        v
+case decision DAG  --------->  counts, result keys, and distributions
+        |
+        | exact case-to-signature incidence
+        v
+shared mechanism DAG  ------>  changed rules, dispatch, and branches
+```
+
+The case DAG answers **where** the searched property holds. It can share equal
+suffixes while retaining disconnected paths, so a large region need not become
+one JSON row per configuration. The mechanism DAG answers **how** a result
+arose under one explicit observation request. Fresh endpoint replay records
+stable dynamic rule and branch occurrences, pairs the before/after executions
+when sound, and interns equal signatures. Formally, one differential signature
+is two endpoint-local occurrence DAGs plus a fail-closed stable-slot
+correspondence; the compact shared view must not turn reversed endpoint order
+into a false cycle. Different income or municipality paths can therefore point
+back to one shared mechanism without inventing cross-product cases.
+
+Neither graph is a substitute for the other. One projected result can contain
+several mechanisms, and one mechanism can span several result keys, losses,
+bins, and disconnected case regions.
+
+### Read every count with its population and closure
+
+Case closure and mechanism closure are independent. The case DAG can establish
+an exact number of matching configurations while mechanism replay is still
+open. Conversely, every traced case is confirmed evidence even before the
+requested mechanism population closes.
+
+For mechanisms scoped to all matching configurations, the relevant states are:
+
+- `scope_open`: the matching target itself is not exact yet;
+- `incidence_open`: the target is exact, but not every target case has a
+  mechanism signature yet; and
+- `matching_closed`: every matching case is covered by exact signature
+  incidence.
+
+Counts follow the same discipline. Confirmed configurations and distinct
+mechanism signatures are lower bounds while their required frontier is open
+and become exact only at the corresponding closure. With no confirmed evidence
+yet, the honest count may be unknown rather than a fabricated zero.
+
+A requested 50-DKK mechanism-bin view counts distinct dynamic signatures, not
+cases. For a loss bin such as `[50 DKK, 100 DKK)`, it asks how many signatures
+have at least one supporting case whose loss falls in that interval. The same
+signature may occur in several bins, so bin counts need not sum to the global
+mechanism count. A bin count is exact only after target incidence and required
+loss membership close; until then its confirmed signatures form a lower bound.
+
+Caps do not prove infinity. A cap on retained examples changes only disclosure.
+A cap on counting can justify “at least 100 supporting cases,” never “infinite
+cases.” Every support inside a finite `? explore` world is finite; a global or
+symbolically infinite mechanism fiber would require a separate proof and a
+future unbounded contract.
+
+### Grow the experiment organically
+
+The next experiments should expand the declared world, not keep rediscovering
+only the author-supplied 341,500-DKK neighborhood or the 60/130-km profiles.
+The progression is:
+
+1. Start with small complete ranges and finite dimensions that are cheap enough
+   to inspect. Exercise durable pause/resume, case-DAG sharing, mechanism
+   incidence, and exact-versus-lower-bound counts without supplying suspected
+   thresholds as the domain.
+2. Widen one dimension at a time—income, commute distance, municipality, or
+   another model-relevant fact—and inspect what the observable stream discovers
+   and what frontier remains. A dimension with no encoded difference should
+   close as such rather than be forced to produce an interesting result.
+3. Use source events and probes to prioritize cases, then require interval,
+   congruence, SMT, or bounded singleton evidence to close the complement.
+   Candidate discovery is useful early output; certified regions are what make
+   a broad exact count affordable.
+4. Begin the through-1,500,000-DKK annual-income milestone for one fixed profile
+   only after durable run identity, typed replayable chunks, frontier
+   conservation, bounded graph publication, pressure-safe supervision, and
+   region proof closure are wired. Its first slice should tightly cap singleton
+   residual evaluation and become the first committed part of the real stream,
+   not a disposable brute-force run.
+
+There is therefore no planned 1.5-million-income execution merely to obtain an
+early number. The milestone is an architecture and proof-closure experiment;
+the desired signal is that widening the income bound adds a small number of
+source events and certified cells instead of a mandatory evaluation for every
+krone.
+
+Residual work runs inside an operational envelope of at most 80 percent of
+installed CPU and 80 percent of physical RAM, with host pressure free to lower
+capacity or stop dispatch entirely. Those figures are independent admission
+ceilings, not utilization targets or hard guarantees against momentary
+overshoot. Worker count, timing, pressure samples, pause history, and the
+run-state path are operational metadata. They do not change the semantic query
+identity or the normalized answer: more compute may close more of the same
+frontier, but it must not define a different bounded question.
+
+The first in-memory mechanism reducer also uses fixed, identity-bound
+cumulative ceilings—not only a per-block byte limit—for retained signatures,
+signature nodes, nested activation-path steps and edges, keyed support fibers,
+interval nodes, and examples. Sparse incidence materialization also preflights
+rank intervals times dimensions rather than treating a wide-dimensional
+interval as constant work. It rejects the next whole block or observer view
+with typed operational backpressure before append; it never truncates the
+block or partially mutates incidence.
+Sorted numeric-bin declarations use logarithmic lookup and allow a 30,000-bin
+50-DKK grid while still bounding per-field and total declaration size. A future
+storage-backed or distributed reducer may lift these implementation ceilings
+under a new stream contract without changing what a mechanism or bin count
+means.
 
 ## Reading the result responsibly
 

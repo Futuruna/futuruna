@@ -1120,6 +1120,139 @@ impl<T: Clone + Ord> OrderedDecisionDag<T> {
         Ok(graph)
     }
 
+    /// Returns this total DAG with a sparse set of complete point assignments
+    /// replaced by new terminals.
+    ///
+    /// Overrides may arrive in any order. Repeating the same `(path,
+    /// terminal)` pair is harmless, while assigning two different terminals
+    /// to one path is rejected. The source complement is copied structurally:
+    /// source interval arcs are split only at overridden ordinals and skipped
+    /// dimensions remain skipped whenever reduction permits. In particular,
+    /// this operation never expands the complement into singleton paths.
+    pub(super) fn with_sparse_point_overrides<I, P>(
+        &self,
+        overrides: I,
+    ) -> Result<Self, CaseGraphError>
+    where
+        I: IntoIterator<Item = (P, T)>,
+        P: AsRef<[u128]>,
+    {
+        self.validate()?;
+
+        let mut trie = SparseDecisionTrie::new();
+        for (path, terminal) in overrides {
+            let path = path.as_ref();
+            validate_sparse_path(&self.axis_cardinalities, path)?;
+            trie.insert(path, terminal)?;
+        }
+
+        if trie.is_empty() {
+            return Ok(self.clone());
+        }
+
+        let DecisionRoot::Target(source_root) = self.root else {
+            return Err(CaseGraphError::InternalInvariant(
+                "an override survived validation in an empty case universe",
+            ));
+        };
+        let mut builder = SparseOverrideDagBuilder::new(self);
+        let root = builder.build_target(source_root, &trie, 0)?;
+        let graph = Self {
+            axis_cardinalities: self.axis_cardinalities.clone(),
+            root: DecisionRoot::Target(root),
+            nodes: builder.nodes,
+            terminals: builder.terminals,
+        };
+        graph.validate()?;
+        Ok(graph)
+    }
+
+    /// Returns this total DAG with half-open canonical mixed-radix rank
+    /// intervals replaced by new terminals.
+    ///
+    /// Overrides may arrive in any order. Adjacent or overlapping intervals
+    /// carrying the same terminal are coalesced; differently classified
+    /// overlaps are rejected. The overlay descends only through rank-boundary
+    /// blocks and source decisions, so neither an overridden interval nor its
+    /// untouched complement is expanded into singleton paths.
+    pub(super) fn with_rank_interval_overrides<I>(
+        &self,
+        overrides: I,
+    ) -> Result<Self, CaseGraphError>
+    where
+        I: IntoIterator<Item = (u128, u128, T)>,
+    {
+        self.validate()?;
+
+        let overrides = overrides.into_iter().collect::<Vec<_>>();
+        for (start, end_exclusive, _) in &overrides {
+            if start >= end_exclusive {
+                return Err(CaseGraphError::InvalidRankInterval {
+                    start: *start,
+                    end_exclusive: *end_exclusive,
+                });
+            }
+        }
+        if overrides.is_empty() {
+            return Ok(self.clone());
+        }
+
+        let suffix_strides = checked_rank_suffix_strides(&self.axis_cardinalities)?;
+        let universe = suffix_strides[0];
+        let overrides = normalize_rank_interval_overrides(overrides, universe)?;
+        let DecisionRoot::Target(source_root) = self.root else {
+            let first = &overrides[0];
+            return Err(CaseGraphError::RankIntervalOutOfBounds {
+                start: first.start,
+                end_exclusive: first.end_exclusive,
+                universe,
+            });
+        };
+
+        let mut builder = RankIntervalOverrideDagBuilder::new(self, suffix_strides);
+        let root = builder.build_target(source_root, &overrides, 0, 0)?;
+        let graph = Self {
+            axis_cardinalities: self.axis_cardinalities.clone(),
+            root: DecisionRoot::Target(root),
+            nodes: builder.nodes,
+            terminals: builder.terminals,
+        };
+        graph.validate()?;
+        Ok(graph)
+    }
+
+    /// Materializes the selected terminal population as normalized half-open
+    /// canonical mixed-radix rank intervals, subject to an explicit output
+    /// cap.
+    ///
+    /// A selected terminal reached above omitted dimensions contributes its
+    /// whole suffix as one interval. Non-uniform fibers are repeated only when
+    /// their normalized output fits `max_intervals`; otherwise a typed
+    /// capacity error is returned before a large periodic population can be
+    /// expanded.
+    pub(super) fn terminal_rank_intervals_bounded<P>(
+        &self,
+        mut predicate: P,
+        max_intervals: usize,
+    ) -> Result<Vec<(u128, u128)>, CaseGraphError>
+    where
+        P: FnMut(&T) -> bool,
+    {
+        self.validate()?;
+        let selected = self
+            .terminals
+            .iter()
+            .map(&mut predicate)
+            .collect::<Vec<_>>();
+        let DecisionRoot::Target(root) = self.root else {
+            return Ok(Vec::new());
+        };
+        let suffix_strides = checked_rank_suffix_strides(&self.axis_cardinalities)?;
+        let mut extractor =
+            TerminalRankIntervalExtractor::new(self, selected, suffix_strides, max_intervals);
+        extractor.extract_target(root, 0)
+    }
+
     /// Builds a reduced DAG from a complete interval partition without
     /// materializing any singleton case path.
     ///
@@ -1699,6 +1832,10 @@ impl<T: Ord> SparseDecisionTrie<T> {
             }
         }
     }
+
+    fn is_empty(&self) -> bool {
+        self.terminal.is_none() && self.children.is_empty()
+    }
 }
 
 struct SparseDecisionDagBuilder<T> {
@@ -1823,6 +1960,971 @@ impl<T: Clone + Ord> SparseDecisionDagBuilder<T> {
         self.node_interner.insert(node, id);
         id
     }
+}
+
+/// Structurally overlays a sparse point trie on a validated total source DAG.
+///
+/// Each untouched source target is imported at most once. Modified targets are
+/// visited only along trie prefixes; wide source arcs are retained as
+/// intervals and split at the explicit point ordinals.
+struct SparseOverrideDagBuilder<'a, T> {
+    source: &'a OrderedDecisionDag<T>,
+    terminal_interner: BTreeMap<T, TerminalId>,
+    terminals: Vec<T>,
+    node_interner: BTreeMap<DecisionNode, NodeId>,
+    nodes: Vec<DecisionNode>,
+    imported: BTreeMap<DecisionRef, DecisionRef>,
+}
+
+impl<'a, T: Clone + Ord> SparseOverrideDagBuilder<'a, T> {
+    fn new(source: &'a OrderedDecisionDag<T>) -> Self {
+        Self {
+            source,
+            terminal_interner: BTreeMap::new(),
+            terminals: Vec::new(),
+            node_interner: BTreeMap::new(),
+            nodes: Vec::new(),
+            imported: BTreeMap::new(),
+        }
+    }
+
+    fn build_target(
+        &mut self,
+        source_target: DecisionRef,
+        trie: &SparseDecisionTrie<T>,
+        dimension: usize,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if trie.is_empty() {
+            return self.import_source_target(source_target);
+        }
+
+        if dimension == self.source.axis_cardinalities.len() {
+            if !trie.children.is_empty() {
+                return Err(CaseGraphError::InternalInvariant(
+                    "a sparse override leaf retained children beyond the final dimension",
+                ));
+            }
+            let terminal = trie
+                .terminal
+                .as_ref()
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "a nonempty sparse override leaf has no terminal",
+                ))?;
+            return Ok(DecisionRef::Terminal(
+                self.intern_terminal(terminal.clone()),
+            ));
+        }
+        if trie.terminal.is_some() {
+            return Err(CaseGraphError::InternalInvariant(
+                "a sparse override classified a path before the final dimension",
+            ));
+        }
+
+        let cardinality = self.source.axis_cardinalities[dimension];
+        let source_bands = self.source_bands(source_target, dimension, cardinality)?;
+        let mut runs = Vec::new();
+        for (source_interval, source_child) in source_bands {
+            let mut next_ordinal = source_interval.start.0;
+            for (&ordinal, child_trie) in trie
+                .children
+                .range(source_interval.start.0..source_interval.end_exclusive.0)
+            {
+                if next_ordinal < ordinal {
+                    let untouched = self.import_source_target(source_child)?;
+                    append_sparse_run(&mut runs, next_ordinal, ordinal, untouched);
+                }
+                let child = self.build_target(source_child, child_trie, dimension + 1)?;
+                let end_exclusive =
+                    ordinal
+                        .checked_add(1)
+                        .ok_or(CaseGraphError::InternalInvariant(
+                            "a validated sparse override ordinal overflowed",
+                        ))?;
+                append_sparse_run(&mut runs, ordinal, end_exclusive, child);
+                next_ordinal = end_exclusive;
+            }
+            if next_ordinal < source_interval.end_exclusive.0 {
+                let untouched = self.import_source_target(source_child)?;
+                append_sparse_run(
+                    &mut runs,
+                    next_ordinal,
+                    source_interval.end_exclusive.0,
+                    untouched,
+                );
+            }
+        }
+
+        self.intern_runs(dimension, cardinality, runs)
+    }
+
+    fn source_bands(
+        &self,
+        source_target: DecisionRef,
+        dimension: usize,
+        cardinality: u128,
+    ) -> Result<Vec<(OrdinalInterval, DecisionRef)>, CaseGraphError> {
+        let DecisionRef::Node(source_id) = source_target else {
+            return Ok(vec![(OrdinalInterval::new(0, cardinality)?, source_target)]);
+        };
+        let source_node = self.source.node(source_id).ok_or_else(|| {
+            CaseGraphError::InvalidGraph(format!(
+                "sparse override references missing source node {}",
+                source_id.0
+            ))
+        })?;
+        if source_node.dimension_index < dimension {
+            return Err(CaseGraphError::InvalidGraph(format!(
+                "source node {} decides dimension {} after override context advanced to {dimension}",
+                source_id.0, source_node.dimension_index
+            )));
+        }
+        if source_node.dimension_index > dimension {
+            return Ok(vec![(OrdinalInterval::new(0, cardinality)?, source_target)]);
+        }
+
+        let mut bands = source_node
+            .arcs
+            .iter()
+            .flat_map(|arc| {
+                arc.ordinals
+                    .intervals
+                    .iter()
+                    .copied()
+                    .map(move |interval| (interval, arc.child))
+            })
+            .collect::<Vec<_>>();
+        bands.sort_by_key(|(interval, child)| (interval.start.0, interval.end_exclusive.0, *child));
+        Ok(bands)
+    }
+
+    fn import_source_target(
+        &mut self,
+        source_target: DecisionRef,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if let Some(imported) = self.imported.get(&source_target) {
+            return Ok(*imported);
+        }
+
+        let imported = match source_target {
+            DecisionRef::Terminal(source_id) => {
+                let terminal = self.source.terminal(source_id).ok_or_else(|| {
+                    CaseGraphError::InvalidGraph(format!(
+                        "sparse override references missing source terminal {}",
+                        source_id.0
+                    ))
+                })?;
+                DecisionRef::Terminal(self.intern_terminal(terminal.clone()))
+            }
+            DecisionRef::Node(source_id) => {
+                let source_node = self.source.node(source_id).ok_or_else(|| {
+                    CaseGraphError::InvalidGraph(format!(
+                        "sparse override references missing source node {}",
+                        source_id.0
+                    ))
+                })?;
+                let dimension_index = source_node.dimension_index;
+                let source_arcs = source_node.arcs.clone();
+                let mut intervals_by_child = BTreeMap::<DecisionRef, Vec<OrdinalInterval>>::new();
+                for source_arc in source_arcs {
+                    let child = self.import_source_target(source_arc.child)?;
+                    intervals_by_child
+                        .entry(child)
+                        .or_default()
+                        .extend(source_arc.ordinals.intervals);
+                }
+                self.intern_intervals(dimension_index, intervals_by_child)?
+            }
+        };
+        self.imported.insert(source_target, imported);
+        Ok(imported)
+    }
+
+    fn intern_runs(
+        &mut self,
+        dimension: usize,
+        cardinality: u128,
+        runs: Vec<OrdinalRun>,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if runs.is_empty() || runs[0].start != 0 {
+            return Err(CaseGraphError::InternalInvariant(
+                "sparse override runs do not begin at ordinal zero",
+            ));
+        }
+        let mut expected_start = 0_u128;
+        let mut intervals_by_child = BTreeMap::<DecisionRef, Vec<OrdinalInterval>>::new();
+        for run in runs {
+            if run.start != expected_start || run.start >= run.end_exclusive {
+                return Err(CaseGraphError::InternalInvariant(
+                    "sparse override runs are not a contiguous nonempty partition",
+                ));
+            }
+            expected_start = run.end_exclusive;
+            intervals_by_child
+                .entry(run.child)
+                .or_default()
+                .push(OrdinalInterval::new(run.start, run.end_exclusive)?);
+        }
+        if expected_start != cardinality {
+            return Err(CaseGraphError::InternalInvariant(
+                "sparse override runs do not cover the current axis",
+            ));
+        }
+        self.intern_intervals(dimension, intervals_by_child)
+    }
+
+    fn intern_intervals(
+        &mut self,
+        dimension_index: usize,
+        intervals_by_child: BTreeMap<DecisionRef, Vec<OrdinalInterval>>,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if intervals_by_child.len() == 1 {
+            return intervals_by_child
+                .into_keys()
+                .next()
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "a sparse override decision unexpectedly retained no child",
+                ));
+        }
+        if intervals_by_child.is_empty() {
+            return Err(CaseGraphError::InternalInvariant(
+                "a sparse override decision retained no children",
+            ));
+        }
+
+        let mut arcs = intervals_by_child
+            .into_iter()
+            .map(|(child, mut intervals)| {
+                intervals.sort_by_key(|interval| (interval.start.0, interval.end_exclusive.0));
+                let mut normalized: Vec<OrdinalInterval> = Vec::with_capacity(intervals.len());
+                for interval in intervals {
+                    if let Some(last) = normalized.last_mut() {
+                        if interval.start.0 <= last.end_exclusive.0 {
+                            last.end_exclusive.0 =
+                                last.end_exclusive.0.max(interval.end_exclusive.0);
+                            continue;
+                        }
+                    }
+                    normalized.push(interval);
+                }
+                Ok(DecisionArc {
+                    ordinals: OrdinalSet::from_normalized(normalized)?,
+                    child,
+                })
+            })
+            .collect::<Result<Vec<_>, CaseGraphError>>()?;
+        arcs.sort_by_key(|arc| arc.ordinals.first_start());
+        Ok(DecisionRef::Node(self.intern_node(DecisionNode {
+            dimension_index,
+            arcs,
+        })))
+    }
+
+    fn intern_terminal(&mut self, terminal: T) -> TerminalId {
+        if let Some(id) = self.terminal_interner.get(&terminal) {
+            return *id;
+        }
+        let id = TerminalId(self.terminals.len());
+        self.terminals.push(terminal.clone());
+        self.terminal_interner.insert(terminal, id);
+        id
+    }
+
+    fn intern_node(&mut self, node: DecisionNode) -> NodeId {
+        if let Some(id) = self.node_interner.get(&node) {
+            return *id;
+        }
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(node.clone());
+        self.node_interner.insert(node, id);
+        id
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct NormalizedRankIntervalOverride<T> {
+    start: u128,
+    end_exclusive: u128,
+    terminal: T,
+}
+
+fn normalize_rank_interval_overrides<T: Ord>(
+    overrides: Vec<(u128, u128, T)>,
+    universe: u128,
+) -> Result<Vec<NormalizedRankIntervalOverride<T>>, CaseGraphError> {
+    let mut overrides = overrides
+        .into_iter()
+        .map(|(start, end_exclusive, terminal)| {
+            if start >= end_exclusive {
+                return Err(CaseGraphError::InvalidRankInterval {
+                    start,
+                    end_exclusive,
+                });
+            }
+            if end_exclusive > universe {
+                return Err(CaseGraphError::RankIntervalOutOfBounds {
+                    start,
+                    end_exclusive,
+                    universe,
+                });
+            }
+            Ok(NormalizedRankIntervalOverride {
+                start,
+                end_exclusive,
+                terminal,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    overrides.sort_by(|left, right| {
+        (&left.start, &left.end_exclusive, &left.terminal).cmp(&(
+            &right.start,
+            &right.end_exclusive,
+            &right.terminal,
+        ))
+    });
+
+    let mut normalized: Vec<NormalizedRankIntervalOverride<T>> =
+        Vec::with_capacity(overrides.len());
+    for interval in overrides {
+        if let Some(previous) = normalized.last_mut() {
+            if interval.start < previous.end_exclusive {
+                if interval.terminal != previous.terminal {
+                    return Err(CaseGraphError::ConflictingRankIntervalOverrides {
+                        left_start: previous.start,
+                        left_end_exclusive: previous.end_exclusive,
+                        right_start: interval.start,
+                        right_end_exclusive: interval.end_exclusive,
+                    });
+                }
+                previous.end_exclusive = previous.end_exclusive.max(interval.end_exclusive);
+                continue;
+            }
+            if interval.start == previous.end_exclusive && interval.terminal == previous.terminal {
+                previous.end_exclusive = interval.end_exclusive;
+                continue;
+            }
+        }
+        normalized.push(interval);
+    }
+    Ok(normalized)
+}
+
+/// Structurally combines normalized mixed-radix rank intervals with a
+/// validated total source DAG.
+///
+/// At one dimension, cuts come only from source arc boundaries and rank
+/// boundaries. A rank boundary can pierce at most one child ordinal, which is
+/// the only case that descends to the next dimension. Wide untouched source
+/// bands and wide uniform overrides therefore stay wide.
+struct RankIntervalOverrideDagBuilder<'a, T> {
+    source: &'a OrderedDecisionDag<T>,
+    suffix_strides: Vec<u128>,
+    terminal_interner: BTreeMap<T, TerminalId>,
+    terminals: Vec<T>,
+    node_interner: BTreeMap<DecisionNode, NodeId>,
+    nodes: Vec<DecisionNode>,
+    imported: BTreeMap<DecisionRef, DecisionRef>,
+}
+
+impl<'a, T: Clone + Ord> RankIntervalOverrideDagBuilder<'a, T> {
+    fn new(source: &'a OrderedDecisionDag<T>, suffix_strides: Vec<u128>) -> Self {
+        Self {
+            source,
+            suffix_strides,
+            terminal_interner: BTreeMap::new(),
+            terminals: Vec::new(),
+            node_interner: BTreeMap::new(),
+            nodes: Vec::new(),
+            imported: BTreeMap::new(),
+        }
+    }
+
+    fn build_target(
+        &mut self,
+        source_target: DecisionRef,
+        overrides: &[NormalizedRankIntervalOverride<T>],
+        dimension: usize,
+        base: u128,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if overrides.is_empty() {
+            return self.import_source_target(source_target);
+        }
+
+        let block_span = self.suffix_strides.get(dimension).copied().ok_or(
+            CaseGraphError::InternalInvariant(
+                "rank interval overlay dimension has no suffix stride",
+            ),
+        )?;
+        let block_end = base
+            .checked_add(block_span)
+            .ok_or(CaseGraphError::InternalInvariant(
+                "rank interval overlay block endpoint overflowed",
+            ))?;
+        if overrides.len() == 1
+            && overrides[0].start <= base
+            && overrides[0].end_exclusive >= block_end
+        {
+            return Ok(DecisionRef::Terminal(
+                self.intern_terminal(overrides[0].terminal.clone()),
+            ));
+        }
+        if dimension >= self.source.axis_cardinalities.len() {
+            return Err(CaseGraphError::InternalInvariant(
+                "a singleton rank block retained a partial interval override",
+            ));
+        }
+
+        let cardinality = self.source.axis_cardinalities[dimension];
+        let child_span = self.suffix_strides[dimension + 1];
+        if cardinality == 0 || child_span == 0 {
+            return Err(CaseGraphError::InternalInvariant(
+                "nonempty rank interval overlay reached an empty axis",
+            ));
+        }
+
+        let source_bands = self.source_bands(source_target, dimension, cardinality)?;
+        let mut cuts = Vec::with_capacity(
+            source_bands
+                .len()
+                .saturating_mul(2)
+                .saturating_add(overrides.len().saturating_mul(4))
+                .saturating_add(2),
+        );
+        cuts.push(0);
+        cuts.push(cardinality);
+        for (interval, _) in &source_bands {
+            cuts.push(interval.start.0);
+            cuts.push(interval.end_exclusive.0);
+        }
+        for interval in overrides {
+            add_rank_boundary_cuts(
+                &mut cuts,
+                interval.start,
+                base,
+                block_end,
+                child_span,
+                cardinality,
+            )?;
+            add_rank_boundary_cuts(
+                &mut cuts,
+                interval.end_exclusive,
+                base,
+                block_end,
+                child_span,
+                cardinality,
+            )?;
+        }
+        cuts.sort_unstable();
+        cuts.dedup();
+
+        let mut intervals_by_child = BTreeMap::<DecisionRef, Vec<OrdinalInterval>>::new();
+        let mut source_band_index = 0_usize;
+        for cut_pair in cuts.windows(2) {
+            let ordinal_start = cut_pair[0];
+            let ordinal_end = cut_pair[1];
+            if ordinal_start >= ordinal_end {
+                return Err(CaseGraphError::InternalInvariant(
+                    "rank interval overlay retained an empty ordinal band",
+                ));
+            }
+            while source_band_index < source_bands.len()
+                && source_bands[source_band_index].0.end_exclusive.0 <= ordinal_start
+            {
+                source_band_index += 1;
+            }
+            let Some((source_interval, source_child)) =
+                source_bands.get(source_band_index).copied()
+            else {
+                return Err(CaseGraphError::InternalInvariant(
+                    "rank interval overlay exhausted source bands early",
+                ));
+            };
+            if source_interval.start.0 > ordinal_start
+                || source_interval.end_exclusive.0 < ordinal_end
+            {
+                return Err(CaseGraphError::InternalInvariant(
+                    "rank interval overlay cut crosses a source band",
+                ));
+            }
+
+            let rank_start = ordinal_start
+                .checked_mul(child_span)
+                .and_then(|offset| base.checked_add(offset))
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "rank interval overlay band start overflowed",
+                ))?;
+            let rank_end = ordinal_end
+                .checked_mul(child_span)
+                .and_then(|offset| base.checked_add(offset))
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "rank interval overlay band endpoint overflowed",
+                ))?;
+            let first_override =
+                overrides.partition_point(|interval| interval.end_exclusive <= rank_start);
+            let after_last_override =
+                overrides.partition_point(|interval| interval.start < rank_end);
+            let band_overrides = &overrides[first_override..after_last_override];
+
+            let child = if band_overrides.is_empty() {
+                self.import_source_target(source_child)?
+            } else if band_overrides.len() == 1
+                && band_overrides[0].start <= rank_start
+                && band_overrides[0].end_exclusive >= rank_end
+            {
+                DecisionRef::Terminal(self.intern_terminal(band_overrides[0].terminal.clone()))
+            } else if ordinal_end - ordinal_start == 1 {
+                self.build_target(source_child, band_overrides, dimension + 1, rank_start)?
+            } else {
+                return Err(CaseGraphError::InternalInvariant(
+                    "a wide rank overlay band contains an unprojected boundary",
+                ));
+            };
+            intervals_by_child
+                .entry(child)
+                .or_default()
+                .push(OrdinalInterval::new(ordinal_start, ordinal_end)?);
+        }
+
+        self.intern_intervals(dimension, intervals_by_child)
+    }
+
+    fn source_bands(
+        &self,
+        source_target: DecisionRef,
+        dimension: usize,
+        cardinality: u128,
+    ) -> Result<Vec<(OrdinalInterval, DecisionRef)>, CaseGraphError> {
+        let DecisionRef::Node(source_id) = source_target else {
+            return Ok(vec![(OrdinalInterval::new(0, cardinality)?, source_target)]);
+        };
+        let source_node = self.source.node(source_id).ok_or_else(|| {
+            CaseGraphError::InvalidGraph(format!(
+                "rank interval overlay references missing source node {}",
+                source_id.0
+            ))
+        })?;
+        if source_node.dimension_index < dimension {
+            return Err(CaseGraphError::InvalidGraph(format!(
+                "source node {} decides dimension {} after rank overlay context advanced to {dimension}",
+                source_id.0, source_node.dimension_index
+            )));
+        }
+        if source_node.dimension_index > dimension {
+            return Ok(vec![(OrdinalInterval::new(0, cardinality)?, source_target)]);
+        }
+
+        let mut bands = source_node
+            .arcs
+            .iter()
+            .flat_map(|arc| {
+                arc.ordinals
+                    .intervals
+                    .iter()
+                    .copied()
+                    .map(move |interval| (interval, arc.child))
+            })
+            .collect::<Vec<_>>();
+        bands.sort_by_key(|(interval, child)| (interval.start.0, interval.end_exclusive.0, *child));
+        Ok(bands)
+    }
+
+    fn import_source_target(
+        &mut self,
+        source_target: DecisionRef,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if let Some(imported) = self.imported.get(&source_target) {
+            return Ok(*imported);
+        }
+        let imported = match source_target {
+            DecisionRef::Terminal(source_id) => {
+                let terminal = self.source.terminal(source_id).ok_or_else(|| {
+                    CaseGraphError::InvalidGraph(format!(
+                        "rank interval overlay references missing source terminal {}",
+                        source_id.0
+                    ))
+                })?;
+                DecisionRef::Terminal(self.intern_terminal(terminal.clone()))
+            }
+            DecisionRef::Node(source_id) => {
+                let source_node = self.source.node(source_id).ok_or_else(|| {
+                    CaseGraphError::InvalidGraph(format!(
+                        "rank interval overlay references missing source node {}",
+                        source_id.0
+                    ))
+                })?;
+                let dimension_index = source_node.dimension_index;
+                let source_arcs = source_node.arcs.clone();
+                let mut intervals_by_child = BTreeMap::<DecisionRef, Vec<OrdinalInterval>>::new();
+                for source_arc in source_arcs {
+                    let child = self.import_source_target(source_arc.child)?;
+                    intervals_by_child
+                        .entry(child)
+                        .or_default()
+                        .extend(source_arc.ordinals.intervals);
+                }
+                self.intern_intervals(dimension_index, intervals_by_child)?
+            }
+        };
+        self.imported.insert(source_target, imported);
+        Ok(imported)
+    }
+
+    fn intern_intervals(
+        &mut self,
+        dimension_index: usize,
+        intervals_by_child: BTreeMap<DecisionRef, Vec<OrdinalInterval>>,
+    ) -> Result<DecisionRef, CaseGraphError> {
+        if intervals_by_child.is_empty() {
+            return Err(CaseGraphError::InternalInvariant(
+                "rank interval overlay retained no children",
+            ));
+        }
+        if intervals_by_child.len() == 1 {
+            return intervals_by_child
+                .into_keys()
+                .next()
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "rank interval overlay unexpectedly lost its only child",
+                ));
+        }
+
+        let mut arcs = intervals_by_child
+            .into_iter()
+            .map(|(child, mut intervals)| {
+                intervals.sort_by_key(|interval| (interval.start.0, interval.end_exclusive.0));
+                let mut normalized: Vec<OrdinalInterval> = Vec::with_capacity(intervals.len());
+                for interval in intervals {
+                    if let Some(previous) = normalized.last_mut() {
+                        if interval.start.0 <= previous.end_exclusive.0 {
+                            previous.end_exclusive.0 =
+                                previous.end_exclusive.0.max(interval.end_exclusive.0);
+                            continue;
+                        }
+                    }
+                    normalized.push(interval);
+                }
+                Ok(DecisionArc {
+                    ordinals: OrdinalSet::from_normalized(normalized)?,
+                    child,
+                })
+            })
+            .collect::<Result<Vec<_>, CaseGraphError>>()?;
+        arcs.sort_by_key(|arc| arc.ordinals.first_start());
+        Ok(DecisionRef::Node(self.intern_node(DecisionNode {
+            dimension_index,
+            arcs,
+        })))
+    }
+
+    fn intern_terminal(&mut self, terminal: T) -> TerminalId {
+        if let Some(id) = self.terminal_interner.get(&terminal) {
+            return *id;
+        }
+        let id = TerminalId(self.terminals.len());
+        self.terminals.push(terminal.clone());
+        self.terminal_interner.insert(terminal, id);
+        id
+    }
+
+    fn intern_node(&mut self, node: DecisionNode) -> NodeId {
+        if let Some(id) = self.node_interner.get(&node) {
+            return *id;
+        }
+        let id = NodeId(self.nodes.len());
+        self.nodes.push(node.clone());
+        self.node_interner.insert(node, id);
+        id
+    }
+}
+
+fn add_rank_boundary_cuts(
+    cuts: &mut Vec<u128>,
+    boundary: u128,
+    base: u128,
+    block_end: u128,
+    child_span: u128,
+    cardinality: u128,
+) -> Result<(), CaseGraphError> {
+    if boundary <= base || boundary >= block_end {
+        return Ok(());
+    }
+    let offset = boundary
+        .checked_sub(base)
+        .ok_or(CaseGraphError::InternalInvariant(
+            "rank interval boundary precedes its block",
+        ))?;
+    let ordinal = offset / child_span;
+    let remainder = offset % child_span;
+    if ordinal > cardinality {
+        return Err(CaseGraphError::InternalInvariant(
+            "rank interval boundary projects outside its axis",
+        ));
+    }
+    cuts.push(ordinal);
+    if remainder != 0 {
+        let after = ordinal
+            .checked_add(1)
+            .ok_or(CaseGraphError::InternalInvariant(
+                "rank interval boundary ordinal overflowed",
+            ))?;
+        if after > cardinality {
+            return Err(CaseGraphError::InternalInvariant(
+                "rank interval boundary pierces beyond its axis",
+            ));
+        }
+        cuts.push(after);
+    }
+    Ok(())
+}
+
+/// Extracts selected terminal fibers into bounded normalized rank intervals.
+struct TerminalRankIntervalExtractor<'a, T> {
+    source: &'a OrderedDecisionDag<T>,
+    selected_terminals: Vec<bool>,
+    suffix_strides: Vec<u128>,
+    max_intervals: usize,
+    memo: BTreeMap<(DecisionRef, usize), Vec<(u128, u128)>>,
+}
+
+impl<'a, T> TerminalRankIntervalExtractor<'a, T> {
+    fn new(
+        source: &'a OrderedDecisionDag<T>,
+        selected_terminals: Vec<bool>,
+        suffix_strides: Vec<u128>,
+        max_intervals: usize,
+    ) -> Self {
+        Self {
+            source,
+            selected_terminals,
+            suffix_strides,
+            max_intervals,
+            memo: BTreeMap::new(),
+        }
+    }
+
+    fn extract_target(
+        &mut self,
+        target: DecisionRef,
+        next_dimension: usize,
+    ) -> Result<Vec<(u128, u128)>, CaseGraphError> {
+        if let Some(intervals) = self.memo.get(&(target, next_dimension)) {
+            return Ok(intervals.clone());
+        }
+        let span = self.suffix_strides.get(next_dimension).copied().ok_or(
+            CaseGraphError::InternalInvariant(
+                "terminal rank extraction dimension has no suffix stride",
+            ),
+        )?;
+
+        let intervals = match target {
+            DecisionRef::Terminal(terminal_id) => {
+                let selected = self
+                    .selected_terminals
+                    .get(terminal_id.0)
+                    .copied()
+                    .ok_or_else(|| {
+                        CaseGraphError::InvalidGraph(format!(
+                            "terminal rank extraction references missing terminal {}",
+                            terminal_id.0
+                        ))
+                    })?;
+                if selected {
+                    if self.max_intervals == 0 {
+                        return Err(CaseGraphError::RankIntervalCapacityExceeded {
+                            limit: self.max_intervals,
+                        });
+                    }
+                    vec![(0, span)]
+                } else {
+                    Vec::new()
+                }
+            }
+            DecisionRef::Node(node_id) => {
+                let node = self.source.node(node_id).ok_or_else(|| {
+                    CaseGraphError::InvalidGraph(format!(
+                        "terminal rank extraction references missing node {}",
+                        node_id.0
+                    ))
+                })?;
+                if node.dimension_index < next_dimension {
+                    return Err(CaseGraphError::InvalidGraph(format!(
+                        "node {} decides dimension {} after rank extraction context advanced to {next_dimension}",
+                        node_id.0, node.dimension_index
+                    )));
+                }
+                let node_dimension = node.dimension_index;
+                let mut bands = node
+                    .arcs
+                    .iter()
+                    .flat_map(|arc| {
+                        arc.ordinals
+                            .intervals
+                            .iter()
+                            .copied()
+                            .map(move |interval| (interval, arc.child))
+                    })
+                    .collect::<Vec<_>>();
+                bands.sort_by_key(|(interval, child)| {
+                    (interval.start.0, interval.end_exclusive.0, *child)
+                });
+
+                let child_span = self.suffix_strides[node_dimension + 1];
+                let mut one_node_block = Vec::new();
+                for (ordinal_interval, child) in bands {
+                    let child_pattern = self.extract_target(child, node_dimension + 1)?;
+                    let base = ordinal_interval.start.0.checked_mul(child_span).ok_or(
+                        CaseGraphError::InternalInvariant(
+                            "terminal rank extraction ordinal base overflowed",
+                        ),
+                    )?;
+                    self.append_repeated_pattern(
+                        &mut one_node_block,
+                        &child_pattern,
+                        child_span,
+                        ordinal_interval.len(),
+                        base,
+                    )?;
+                }
+
+                let node_span = self.suffix_strides[node_dimension];
+                let repetitions =
+                    span.checked_div(node_span)
+                        .ok_or(CaseGraphError::InternalInvariant(
+                            "terminal rank extraction has a zero node span",
+                        ))?;
+                let mut repeated = Vec::new();
+                self.append_repeated_pattern(
+                    &mut repeated,
+                    &one_node_block,
+                    node_span,
+                    repetitions,
+                    0,
+                )?;
+                repeated
+            }
+        };
+
+        self.memo
+            .insert((target, next_dimension), intervals.clone());
+        Ok(intervals)
+    }
+
+    fn append_repeated_pattern(
+        &self,
+        output: &mut Vec<(u128, u128)>,
+        pattern: &[(u128, u128)],
+        pattern_span: u128,
+        repetitions: u128,
+        base: u128,
+    ) -> Result<(), CaseGraphError> {
+        if pattern.is_empty() || repetitions == 0 {
+            return Ok(());
+        }
+        if pattern.len() == 1 && pattern[0] == (0, pattern_span) {
+            let end_exclusive = repetitions
+                .checked_mul(pattern_span)
+                .and_then(|width| base.checked_add(width))
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "terminal rank extraction uniform repetition overflowed",
+                ))?;
+            return append_rank_interval_bounded(output, base, end_exclusive, self.max_intervals);
+        }
+
+        let pattern_count = pattern.len() as u128;
+        let joins_between = if pattern.first().is_some_and(|interval| interval.0 == 0)
+            && pattern
+                .last()
+                .is_some_and(|interval| interval.1 == pattern_span)
+        {
+            repetitions - 1
+        } else {
+            0
+        };
+        let Some(produced) = pattern_count
+            .checked_mul(repetitions)
+            .and_then(|count| count.checked_sub(joins_between))
+        else {
+            return Err(CaseGraphError::RankIntervalCapacityExceeded {
+                limit: self.max_intervals,
+            });
+        };
+        let joins_existing = output
+            .last()
+            .zip(pattern.first())
+            .is_some_and(|(previous, first)| base.checked_add(first.0) == Some(previous.1))
+            as u128;
+        let Some(required) = (output.len() as u128)
+            .checked_add(produced)
+            .and_then(|count| count.checked_sub(joins_existing))
+        else {
+            return Err(CaseGraphError::RankIntervalCapacityExceeded {
+                limit: self.max_intervals,
+            });
+        };
+        if required > self.max_intervals as u128 {
+            return Err(CaseGraphError::RankIntervalCapacityExceeded {
+                limit: self.max_intervals,
+            });
+        }
+
+        let mut repetition = 0_u128;
+        while repetition < repetitions {
+            let repetition_base = repetition
+                .checked_mul(pattern_span)
+                .and_then(|offset| base.checked_add(offset))
+                .ok_or(CaseGraphError::InternalInvariant(
+                    "terminal rank extraction repetition base overflowed",
+                ))?;
+            for &(start, end_exclusive) in pattern {
+                append_rank_interval_bounded(
+                    output,
+                    repetition_base
+                        .checked_add(start)
+                        .ok_or(CaseGraphError::InternalInvariant(
+                            "terminal rank extraction interval start overflowed",
+                        ))?,
+                    repetition_base.checked_add(end_exclusive).ok_or(
+                        CaseGraphError::InternalInvariant(
+                            "terminal rank extraction interval endpoint overflowed",
+                        ),
+                    )?,
+                    self.max_intervals,
+                )?;
+            }
+            repetition += 1;
+        }
+        Ok(())
+    }
+}
+
+fn append_rank_interval_bounded(
+    intervals: &mut Vec<(u128, u128)>,
+    start: u128,
+    end_exclusive: u128,
+    max_intervals: usize,
+) -> Result<(), CaseGraphError> {
+    if start >= end_exclusive {
+        return Err(CaseGraphError::InternalInvariant(
+            "terminal rank extraction produced an empty interval",
+        ));
+    }
+    if let Some(previous) = intervals.last_mut() {
+        if previous.1 > start {
+            return Err(CaseGraphError::InternalInvariant(
+                "terminal rank extraction produced overlapping intervals",
+            ));
+        }
+        if previous.1 == start {
+            previous.1 = end_exclusive;
+            return Ok(());
+        }
+    }
+    if intervals.len() == max_intervals {
+        return Err(CaseGraphError::RankIntervalCapacityExceeded {
+            limit: max_intervals,
+        });
+    }
+    intervals.push((start, end_exclusive));
+    Ok(())
 }
 
 /// Converts a validated total interval partition into the graph's private
@@ -2648,6 +3750,19 @@ fn checked_product(factors: &[u128]) -> CheckedCardinality {
         })
 }
 
+fn checked_rank_suffix_strides(axis_cardinalities: &[u128]) -> Result<Vec<u128>, CaseGraphError> {
+    if axis_cardinalities.contains(&0) {
+        return Ok(vec![0; axis_cardinalities.len() + 1]);
+    }
+    let mut suffix_strides = vec![1_u128; axis_cardinalities.len() + 1];
+    for dimension in (0..axis_cardinalities.len()).rev() {
+        suffix_strides[dimension] = axis_cardinalities[dimension]
+            .checked_mul(suffix_strides[dimension + 1])
+            .ok_or(CaseGraphError::RankUniverseExceedsU128)?;
+    }
+    Ok(suffix_strides)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) enum CaseGraphError {
     NoRemainingPath,
@@ -2669,6 +3784,25 @@ pub(super) enum CaseGraphError {
     },
     DuplicatePathConflict {
         path: Vec<u128>,
+    },
+    RankUniverseExceedsU128,
+    InvalidRankInterval {
+        start: u128,
+        end_exclusive: u128,
+    },
+    RankIntervalOutOfBounds {
+        start: u128,
+        end_exclusive: u128,
+        universe: u128,
+    },
+    ConflictingRankIntervalOverrides {
+        left_start: u128,
+        left_end_exclusive: u128,
+        right_start: u128,
+        right_end_exclusive: u128,
+    },
+    RankIntervalCapacityExceeded {
+        limit: usize,
     },
     InvalidGraph(String),
     InternalInvariant(&'static str),
@@ -2701,6 +3835,37 @@ impl fmt::Display for CaseGraphError {
             Self::DuplicatePathConflict { path } => write!(
                 formatter,
                 "case path {path:?} was classified with conflicting terminals"
+            ),
+            Self::RankUniverseExceedsU128 => formatter.write_str(
+                "canonical mixed-radix rank intervals require a universe that fits in u128",
+            ),
+            Self::InvalidRankInterval {
+                start,
+                end_exclusive,
+            } => write!(
+                formatter,
+                "rank interval [{start}, {end_exclusive}) is empty or reversed"
+            ),
+            Self::RankIntervalOutOfBounds {
+                start,
+                end_exclusive,
+                universe,
+            } => write!(
+                formatter,
+                "rank interval [{start}, {end_exclusive}) exceeds universe [0, {universe})"
+            ),
+            Self::ConflictingRankIntervalOverrides {
+                left_start,
+                left_end_exclusive,
+                right_start,
+                right_end_exclusive,
+            } => write!(
+                formatter,
+                "rank interval overrides [{left_start}, {left_end_exclusive}) and [{right_start}, {right_end_exclusive}) overlap with different terminals"
+            ),
+            Self::RankIntervalCapacityExceeded { limit } => write!(
+                formatter,
+                "terminal rank interval materialization exceeds limit {limit}"
             ),
             Self::InvalidGraph(message) => write!(formatter, "invalid case graph: {message}"),
             Self::InternalInvariant(message) => {
@@ -3684,6 +4849,481 @@ mod tests {
             BTreeMap::from([(TestTerminal::Match, CheckedCardinality::Exact(1))])
         );
         assert_eq!(classified_singleton.terminals().len(), 1);
+    }
+
+    #[test]
+    fn sparse_point_overrides_keep_a_huge_complement_interval_compact() {
+        let cardinality = 9_000_000_000_000_u128;
+        let base = OrderedDecisionDagBuilder::new(vec![cardinality])
+            .finish_with_remainder(TestTerminal::Nonmatch)
+            .unwrap();
+        let graph = base
+            .with_sparse_point_overrides(vec![
+                (vec![cardinality - 1], TestTerminal::Match),
+                (vec![7], TestTerminal::Match),
+                (vec![4_500_000_000_000], TestTerminal::Open),
+            ])
+            .unwrap();
+
+        assert_eq!(graph.nodes().len(), 1);
+        assert_eq!(graph.terminals().len(), 3);
+        assert_eq!(
+            graph.terminal_counts().unwrap(),
+            BTreeMap::from([
+                (TestTerminal::Match, CheckedCardinality::Exact(2)),
+                (
+                    TestTerminal::Nonmatch,
+                    CheckedCardinality::Exact(cardinality - 3),
+                ),
+                (TestTerminal::Open, CheckedCardinality::Exact(1)),
+            ])
+        );
+        let interval_count = graph.nodes()[0]
+            .arcs()
+            .iter()
+            .map(|arc| arc.ordinals().intervals().len())
+            .sum::<usize>();
+        assert_eq!(interval_count, 6);
+    }
+
+    #[test]
+    fn sparse_point_overrides_refine_existing_decisions_and_coalesce_intervals() {
+        let base = OrderedDecisionDag::from_sparse_classifications(
+            vec![7],
+            vec![
+                (vec![1], TestTerminal::Match),
+                (vec![3], TestTerminal::Match),
+                (vec![5], TestTerminal::Match),
+            ],
+            TestTerminal::Nonmatch,
+        )
+        .unwrap();
+        let graph = base
+            .with_sparse_point_overrides(vec![
+                (vec![6], TestTerminal::Match),
+                (vec![3], TestTerminal::Open),
+                (vec![4], TestTerminal::Match),
+            ])
+            .unwrap();
+
+        for (ordinal, expected) in [
+            (0, TestTerminal::Nonmatch),
+            (1, TestTerminal::Match),
+            (2, TestTerminal::Nonmatch),
+            (3, TestTerminal::Open),
+            (4, TestTerminal::Match),
+            (5, TestTerminal::Match),
+            (6, TestTerminal::Match),
+        ] {
+            assert_eq!(
+                graph.terminal_for_path(&[ordinal]).unwrap(),
+                Some(&expected)
+            );
+        }
+
+        let DecisionRoot::Target(DecisionRef::Node(root)) = graph.root() else {
+            panic!("the refined base still requires one decision");
+        };
+        let match_arc = graph
+            .node(root)
+            .unwrap()
+            .arcs()
+            .iter()
+            .find(|arc| {
+                graph.terminal(match arc.child() {
+                    DecisionRef::Terminal(id) => id,
+                    DecisionRef::Node(_) => panic!("expected a one-axis terminal arc"),
+                }) == Some(&TestTerminal::Match)
+            })
+            .unwrap();
+        assert_eq!(
+            match_arc
+                .ordinals()
+                .intervals()
+                .iter()
+                .map(|interval| (interval.start().get(), interval.end_exclusive().get()))
+                .collect::<Vec<_>>(),
+            vec![(1, 2), (4, 7)]
+        );
+        graph.validate().unwrap();
+    }
+
+    #[test]
+    fn sparse_point_overrides_preserve_reducible_skipped_dimensions() {
+        let base_target = DecisionPartitionTarget::decision(
+            2,
+            vec![
+                DecisionPartitionArc::new(
+                    [(0, 2), (3, 5)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Nonmatch),
+                )
+                .unwrap(),
+                DecisionPartitionArc::new(
+                    [(2, 3)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Match),
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap();
+        let base = OrderedDecisionDag::from_decision_partition(
+            vec![2, 3, 5],
+            DecisionPartition::target(base_target),
+        )
+        .unwrap();
+        let DecisionRoot::Target(DecisionRef::Node(base_root)) = base.root() else {
+            panic!("the base should decide its one relevant axis");
+        };
+        assert_eq!(base.node(base_root).unwrap().dimension_index(), 2);
+
+        let graph = base
+            .with_sparse_point_overrides(vec![
+                (vec![1, 1, 2], TestTerminal::Open),
+                (vec![0, 1, 2], TestTerminal::Open),
+            ])
+            .unwrap();
+        let DecisionRoot::Target(DecisionRef::Node(root)) = graph.root() else {
+            panic!("the overrides should introduce a decision on axis one");
+        };
+        assert_eq!(graph.node(root).unwrap().dimension_index(), 1);
+        assert!(graph.nodes().iter().all(|node| node.dimension_index() != 0));
+        for first_axis in [0, 1] {
+            assert_eq!(
+                graph.terminal_for_path(&[first_axis, 1, 2]).unwrap(),
+                Some(&TestTerminal::Open)
+            );
+            assert_eq!(
+                graph.terminal_for_path(&[first_axis, 0, 2]).unwrap(),
+                Some(&TestTerminal::Match)
+            );
+            assert_eq!(
+                graph.terminal_for_path(&[first_axis, 1, 3]).unwrap(),
+                Some(&TestTerminal::Nonmatch)
+            );
+        }
+        graph.validate().unwrap();
+    }
+
+    #[test]
+    fn sparse_point_overrides_are_order_independent_and_check_duplicates() {
+        let base = OrderedDecisionDagBuilder::new(vec![2, 3])
+            .finish_with_remainder(TestTerminal::Open)
+            .unwrap();
+        let left = base
+            .with_sparse_point_overrides(vec![
+                (vec![1, 2], TestTerminal::Match),
+                (vec![0, 1], TestTerminal::Nonmatch),
+                (vec![1, 2], TestTerminal::Match),
+            ])
+            .unwrap();
+        let right = base
+            .with_sparse_point_overrides(vec![
+                (vec![0, 1], TestTerminal::Nonmatch),
+                (vec![1, 2], TestTerminal::Match),
+            ])
+            .unwrap();
+        assert_eq!(left, right);
+
+        assert_eq!(
+            base.with_sparse_point_overrides(vec![
+                (vec![1, 2], TestTerminal::Match),
+                (vec![1, 2], TestTerminal::Nonmatch),
+            ])
+            .unwrap_err(),
+            CaseGraphError::DuplicatePathConflict { path: vec![1, 2] }
+        );
+    }
+
+    #[test]
+    fn sparse_point_overrides_distinguish_empty_and_zero_axis_spaces() {
+        let empty = OrderedDecisionDagBuilder::<TestTerminal>::new(vec![2, 0, 3])
+            .finish_complete()
+            .unwrap();
+        assert_eq!(
+            empty
+                .with_sparse_point_overrides(std::iter::empty::<(Vec<u128>, TestTerminal)>())
+                .unwrap(),
+            empty
+        );
+        assert!(matches!(
+            empty.with_sparse_point_overrides(vec![(vec![0, 0, 0], TestTerminal::Match)]),
+            Err(CaseGraphError::OrdinalOutOfBounds {
+                dimension: 1,
+                ordinal: 0,
+                cardinality: 0,
+            })
+        ));
+
+        let singleton = OrderedDecisionDagBuilder::new(Vec::new())
+            .finish_with_remainder(TestTerminal::Open)
+            .unwrap();
+        let overridden = singleton
+            .with_sparse_point_overrides(vec![
+                (Vec::<u128>::new(), TestTerminal::Match),
+                (Vec::<u128>::new(), TestTerminal::Match),
+            ])
+            .unwrap();
+        assert_eq!(
+            overridden.terminal_counts().unwrap(),
+            BTreeMap::from([(TestTerminal::Match, CheckedCardinality::Exact(1))])
+        );
+        assert_eq!(
+            singleton
+                .with_sparse_point_overrides(vec![
+                    (Vec::<u128>::new(), TestTerminal::Match),
+                    (Vec::<u128>::new(), TestTerminal::Nonmatch),
+                ])
+                .unwrap_err(),
+            CaseGraphError::DuplicatePathConflict { path: Vec::new() }
+        );
+    }
+
+    #[test]
+    fn rank_interval_overrides_keep_a_huge_one_axis_range_compact() {
+        let cardinality = 9_000_000_000_000_u128;
+        let base = OrderedDecisionDagBuilder::new(vec![cardinality])
+            .finish_with_remainder(TestTerminal::Nonmatch)
+            .unwrap();
+        let graph = base
+            .with_rank_interval_overrides([
+                (cardinality - 5, cardinality - 1, TestTerminal::Match),
+                (7, cardinality - 5, TestTerminal::Match),
+            ])
+            .unwrap();
+
+        assert_eq!(graph.nodes().len(), 1);
+        assert_eq!(graph.terminals().len(), 2);
+        assert_eq!(
+            graph.terminal_counts().unwrap(),
+            BTreeMap::from([
+                (
+                    TestTerminal::Match,
+                    CheckedCardinality::Exact(cardinality - 8),
+                ),
+                (TestTerminal::Nonmatch, CheckedCardinality::Exact(8)),
+            ])
+        );
+        assert_eq!(
+            graph
+                .terminal_rank_intervals_bounded(|terminal| terminal == &TestTerminal::Match, 1,)
+                .unwrap(),
+            vec![(7, cardinality - 1)]
+        );
+    }
+
+    #[test]
+    fn rank_interval_overrides_lower_unaligned_multi_axis_boundaries() {
+        let axes = vec![3, 4, 5];
+        let base = OrderedDecisionDagBuilder::new(axes.clone())
+            .finish_with_remainder(TestTerminal::Nonmatch)
+            .unwrap();
+        let graph = base
+            .with_rank_interval_overrides([(7, 43, TestTerminal::Match)])
+            .unwrap();
+
+        for rank in 0..60 {
+            let expected = if (7..43).contains(&rank) {
+                TestTerminal::Match
+            } else {
+                TestTerminal::Nonmatch
+            };
+            assert_eq!(
+                graph
+                    .terminal_for_path(&path_for_rank(&axes, rank))
+                    .unwrap(),
+                Some(&expected),
+                "rank {rank}"
+            );
+        }
+        assert_eq!(
+            graph
+                .terminal_rank_intervals_bounded(|terminal| terminal == &TestTerminal::Match, 1,)
+                .unwrap(),
+            vec![(7, 43)]
+        );
+        graph.validate().unwrap();
+    }
+
+    #[test]
+    fn rank_interval_overrides_cross_source_decisions_and_skipped_dimensions() {
+        let base_target = DecisionPartitionTarget::decision(
+            2,
+            vec![
+                DecisionPartitionArc::new(
+                    [(0, 2), (3, 5)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Nonmatch),
+                )
+                .unwrap(),
+                DecisionPartitionArc::new(
+                    [(2, 3)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Match),
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap();
+        let axes = vec![2, 3, 5];
+        let base = OrderedDecisionDag::from_decision_partition(
+            axes.clone(),
+            DecisionPartition::target(base_target),
+        )
+        .unwrap();
+        let DecisionRoot::Target(DecisionRef::Node(base_root)) = base.root() else {
+            panic!("the source should decide its skipped third dimension");
+        };
+        assert_eq!(base.node(base_root).unwrap().dimension_index(), 2);
+
+        let graph = base
+            .with_rank_interval_overrides([(4, 22, TestTerminal::Open)])
+            .unwrap();
+        for rank in 0..30 {
+            let path = path_for_rank(&axes, rank);
+            let expected = if (4..22).contains(&rank) {
+                TestTerminal::Open
+            } else if path[2] == 2 {
+                TestTerminal::Match
+            } else {
+                TestTerminal::Nonmatch
+            };
+            assert_eq!(
+                graph.terminal_for_path(&path).unwrap(),
+                Some(&expected),
+                "rank {rank}"
+            );
+        }
+        assert!(graph.nodes().len() < 30);
+        graph.validate().unwrap();
+    }
+
+    #[test]
+    fn rank_interval_overrides_normalize_equal_ranges_and_reject_conflicts() {
+        let base = OrderedDecisionDagBuilder::new(vec![20])
+            .finish_with_remainder(TestTerminal::Nonmatch)
+            .unwrap();
+        let arbitrary = base
+            .with_rank_interval_overrides([
+                (12, 14, TestTerminal::Open),
+                (6, 10, TestTerminal::Match),
+                (2, 7, TestTerminal::Match),
+                (10, 12, TestTerminal::Match),
+                (3, 5, TestTerminal::Match),
+            ])
+            .unwrap();
+        let normalized = base
+            .with_rank_interval_overrides([
+                (2, 12, TestTerminal::Match),
+                (12, 14, TestTerminal::Open),
+            ])
+            .unwrap();
+        assert_eq!(arbitrary, normalized);
+
+        assert!(matches!(
+            base.with_rank_interval_overrides([
+                (2, 8, TestTerminal::Match),
+                (7, 9, TestTerminal::Open),
+            ]),
+            Err(CaseGraphError::ConflictingRankIntervalOverrides { .. })
+        ));
+        assert_eq!(
+            base.with_rank_interval_overrides([(3, 3, TestTerminal::Match)])
+                .unwrap_err(),
+            CaseGraphError::InvalidRankInterval {
+                start: 3,
+                end_exclusive: 3,
+            }
+        );
+        assert_eq!(
+            base.with_rank_interval_overrides([(19, 21, TestTerminal::Match)])
+                .unwrap_err(),
+            CaseGraphError::RankIntervalOutOfBounds {
+                start: 19,
+                end_exclusive: 21,
+                universe: 20,
+            }
+        );
+    }
+
+    #[test]
+    fn rank_interval_overrides_distinguish_empty_and_zero_axis_spaces() {
+        let empty = OrderedDecisionDagBuilder::<TestTerminal>::new(vec![2, 0, 3])
+            .finish_complete()
+            .unwrap();
+        assert_eq!(
+            empty
+                .with_rank_interval_overrides(Vec::<(u128, u128, TestTerminal)>::new())
+                .unwrap(),
+            empty
+        );
+        assert_eq!(
+            empty
+                .with_rank_interval_overrides([(0, 1, TestTerminal::Match)])
+                .unwrap_err(),
+            CaseGraphError::RankIntervalOutOfBounds {
+                start: 0,
+                end_exclusive: 1,
+                universe: 0,
+            }
+        );
+        assert!(empty
+            .terminal_rank_intervals_bounded(|_| true, 0)
+            .unwrap()
+            .is_empty());
+
+        let singleton = OrderedDecisionDagBuilder::new(Vec::new())
+            .finish_with_remainder(TestTerminal::Open)
+            .unwrap();
+        let overridden = singleton
+            .with_rank_interval_overrides([(0, 1, TestTerminal::Match)])
+            .unwrap();
+        assert_eq!(
+            overridden.terminal_counts().unwrap(),
+            BTreeMap::from([(TestTerminal::Match, CheckedCardinality::Exact(1))])
+        );
+        assert_eq!(
+            overridden
+                .terminal_rank_intervals_bounded(|_| true, 1)
+                .unwrap(),
+            vec![(0, 1)]
+        );
+        assert!(singleton
+            .terminal_rank_intervals_bounded(|terminal| terminal == &TestTerminal::Match, 0)
+            .unwrap()
+            .is_empty());
+    }
+
+    #[test]
+    fn terminal_rank_interval_extraction_caps_large_periodic_fibers() {
+        let target = DecisionPartitionTarget::decision(
+            1,
+            vec![
+                DecisionPartitionArc::new(
+                    [(0, 1)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Nonmatch),
+                )
+                .unwrap(),
+                DecisionPartitionArc::new(
+                    [(1, 2)],
+                    DecisionPartitionTarget::terminal(TestTerminal::Match),
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap();
+        let graph = OrderedDecisionDag::from_decision_partition(
+            vec![1_000_000, 2],
+            DecisionPartition::target(target),
+        )
+        .unwrap();
+        assert_eq!(
+            graph
+                .terminal_rank_intervals_bounded(|terminal| terminal == &TestTerminal::Match, 8,)
+                .unwrap_err(),
+            CaseGraphError::RankIntervalCapacityExceeded { limit: 8 }
+        );
+        assert_eq!(
+            graph.terminal_rank_intervals_bounded(|_| true, 1).unwrap(),
+            vec![(0, 2_000_000)]
+        );
     }
 
     #[test]

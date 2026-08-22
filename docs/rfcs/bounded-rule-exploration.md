@@ -14,10 +14,16 @@ first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
 An explicit durable-only `--case-graph full` request now publishes a bounded,
-total current-evidence case DAG. Dynamic mechanism replay and mechanism-DAG
-publication, symbolic/SMT closure, typed output rows, result continuations,
-detached observation, parallel workers, and chunked terminal publication remain
-later implementation slices. No result group is treated as a mechanism.
+total current-evidence case DAG. A private, dormant mechanism-stream substrate
+now source-binds observation identity, encodes replay-confirmed signature
+blocks, retains compressed case incidence, and can join those blocks to the
+authenticated journal with `scope_open`, `incidence_open`, and
+`matching_closed` materializations. Runtime trace minting and public
+mechanism-aware snapshot/terminal schemas remain later slices, so the ordinary
+CLI continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
+typed output rows, result continuations, detached observation, parallel
+workers, and chunked terminal publication also remain later implementation
+slices. No result group is treated as a mechanism.
 
 ## Summary
 
@@ -1064,13 +1070,23 @@ the target population is exact. Changing an unrelated case view does not
 change `h`. Changing the observation roots or endpoint-pairing contract creates
 a different mechanism request and signature identity.
 
-Each replay constructs a finite dynamic occurrence DAG. Occurrence nodes are
-annotated with stable semantic-site IDs, an event kind and canonical causal,
-data or control-dependency edges. Repeated visits to one site remain distinct
-occurrences when multiplicity matters; edges follow replay order, so
-interning cannot introduce cycles. A signature is the canonical sorted root
-set plus the normalized reachable occurrence DAG. Empty signatures are valid.
-Common normalized subgraphs may be hash-consed across signatures.
+Each endpoint replay constructs a finite dynamic occurrence DAG. Occurrence
+nodes are annotated with stable semantic-site IDs, an event kind and canonical
+causal, data or control-dependency edges. Repeated visits to one site remain
+distinct occurrences when multiplicity matters; edges follow replay order, so
+interning cannot introduce cycles. A differential signature consists of the
+two endpoint-local DAGs plus a fail-closed partial correspondence between
+outcome-free stable occurrence slots. Its logical vertices remain
+endpoint-qualified even when a compact representation stores a matched pair
+together. The uncoloured union of before and after dependency edges is not the
+mechanism graph and need not be acyclic when execution order reverses. Empty
+endpoint DAGs are valid. Common normalized subgraphs may be hash-consed across
+signatures.
+
+Local visit or invocation ordinals may participate in the correspondence only
+when the matching semantic group has compatible multiplicity at both
+endpoints. Otherwise an earlier endpoint-only repetition could silently shift
+the ordinals, so pairing is unavailable rather than guessed.
 
 A boundary mechanism compares the computations for the lower and upper
 endpoints and retains the dynamic data/control slice relevant to the roots
@@ -1365,6 +1381,18 @@ does not make an otherwise closed answer/case/value result partial. A budget
 that stops case classification or required value derivation does. Only
 changing `bounds` changes the world being claimed.
 
+Timeout, work, and pressure controls pause between whole semantic commits. The
+first in-memory mechanism reducer additionally binds fixed cumulative resource
+ceilings into stream identity: retained signatures and their nodes/edges,
+their nested activation-path steps, keyed support fibers and intervals, and
+retained examples. Incidence materialization is separately charged for rank
+intervals times traversed dimensions before constructing its DAG. Reaching a
+ceiling rejects the next complete mechanism block or observer view before
+append and leaves the existing run resumable; it never truncates a signature,
+silently drops incidence, or changes case-answer closure. A later
+storage-backed reducer can advertise a different contract digest and higher
+ceilings.
+
 ### Durable observable run
 
 Explore execution is a durable, observable stream of monotone evidence, not a
@@ -1435,6 +1463,19 @@ receipt before accepting it. Accepted evidence never retracts or changes a
 closed fact. A contradiction fails closed instead of rewriting history.
 Scheduling hypotheses, cost estimates and provisional discoveries may be
 superseded because they are explicitly not semantic evidence.
+
+Mechanism observations use two complementary commitments. The ordered journal
+retains each canonical block, complete referenced signature definitions, and
+validation receipts. The normalized answer layer instead keys a fact by the
+checked mechanism request and complete semantic outcome, with an exact
+compressed case support as its subject. It deliberately excludes CaseId from
+the key, validation receipts, arrival order, and batch boundaries. Replaying
+one wide block or the same disjoint cases in many blocks must therefore produce
+the same mechanism evidence root, while the journal still proves how the work
+arrived. Before matching scope closes, only already classified matching support
+may authorize a mechanism observation; those facts are immediately visible as
+`scope_open` lower bounds. Exact case closure seals that same support as the
+target without enumerating its ranks.
 
 Every semantic commit MUST conserve the frontier exactly. If `C_new` is the
 newly accepted disjoint closed support, then:

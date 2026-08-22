@@ -19,6 +19,10 @@ use super::exact_stream::{
     EXACT_OBSERVABLE_RESULT_PREVIEW_SEMANTIC_BYTE_LIMIT_V1,
     EXACT_OBSERVABLE_RESULT_PREVIEW_VALUE_NODE_LIMIT_V1,
 };
+use super::mechanism::{CheckedMechanismObservationRequestV1, MechanismQueryId};
+use super::mechanism_stream::{
+    mechanism_stream_contract_digest_v1, validate_mechanism_stream_request_v1,
+};
 use super::report::{
     ExploreCaseGraphRequest, ExploreLedgerRequest, ExploreReportRequest,
     DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
@@ -69,6 +73,25 @@ pub(super) fn prepare_exact_stream_header(
     nonce: CanonicalDigest,
     report_request: ExploreReportRequest,
 ) -> Result<PreparedExactStreamHeader, String> {
+    prepare_exact_stream_header_with_mechanism(
+        artifacts,
+        accepted_query_index,
+        nonce,
+        report_request,
+        None,
+    )
+}
+
+/// Private sequence-zero constructor for a stream whose immutable answer
+/// contract includes dynamic mechanism evidence. The public CLI continues to
+/// call [`prepare_exact_stream_header`], preserving the deferred identity.
+pub(super) fn prepare_exact_stream_header_with_mechanism(
+    artifacts: &TypeCheckArtifacts,
+    accepted_query_index: usize,
+    nonce: CanonicalDigest,
+    report_request: ExploreReportRequest,
+    mechanism_request: Option<&CheckedMechanismObservationRequestV1>,
+) -> Result<PreparedExactStreamHeader, String> {
     if report_request.ledger != ExploreLedgerRequest::Omit {
         return Err(
             "durable exact streams do not yet implement matching-ledger publication".to_string(),
@@ -81,6 +104,24 @@ pub(super) fn prepare_exact_stream_header(
         .map_err(|error| format!("cannot bind bounded Explore presentation metadata: {error}"))?;
     ExactProjectionLabelsV1::from_checked_query(checked.closed_query)
         .map_err(|error| format!("cannot bind bounded Explore projection labels: {error}"))?;
+    if let Some(request) = mechanism_request {
+        validate_mechanism_stream_request_v1(request)
+            .map_err(|error| format!("cannot bind checked mechanism stream request: {error}"))?;
+        if request.observation.analysis_program.as_str()
+            != checked.artifact.identity.analysis_program.as_str()
+        {
+            return Err(
+                "checked mechanism request belongs to another analysis program".to_string(),
+            );
+        }
+        let expected_query = MechanismQueryId::from_checked_query(&checked)
+            .map_err(|error| format!("cannot bind checked mechanism query identity: {error}"))?;
+        if request.observation.query != expected_query {
+            return Err(
+                "checked mechanism request belongs to another Explore query or domain".to_string(),
+            );
+        }
+    }
 
     let axis_cardinalities = checked
         .closed_query
@@ -96,6 +137,13 @@ pub(super) fn prepare_exact_stream_header(
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
+    if let Some(request) = mechanism_request {
+        if request.observation.axis_cardinalities.as_ref() != axis_cardinalities.as_slice() {
+            return Err(
+                "checked mechanism request belongs to another Explore case universe".to_string(),
+            );
+        }
+    }
     let case_universe = ExploreCaseUniverse::new(axis_cardinalities.into_boxed_slice())
         .map_err(|error| error.to_string())?;
 
@@ -258,7 +306,9 @@ pub(super) fn prepare_exact_stream_header(
             &usize_bytes(DEFAULT_EXPLORE_STEP_LIMIT),
             &usize_bytes(DEFAULT_EXPLORE_COLLECTION_LIMIT),
         ]),
-        contract_digest(&[b"mechanism-observation", b"deferred"]),
+        mechanism_observation_identity_digest(
+            mechanism_request.map(|request| request.id.digest_bytes()),
+        ),
         retention_authorization_digest(report_request),
         schemas,
     );
@@ -270,6 +320,20 @@ pub(super) fn prepare_exact_stream_header(
         header,
         replay_closure,
     })
+}
+
+fn mechanism_observation_identity_digest(checked_request_id: Option<[u8; 32]>) -> CanonicalDigest {
+    match checked_request_id {
+        None => contract_digest(&[b"mechanism-observation", b"deferred"]),
+        Some(checked_request_id) => contract_digest(&[
+            b"mechanism-observation",
+            b"enabled-v1",
+            b"checked-request-id",
+            &checked_request_id,
+            b"batch-codec-and-resource-contract",
+            &mechanism_stream_contract_digest_v1(),
+        ]),
+    }
 }
 
 fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
@@ -339,4 +403,25 @@ fn contract_digest(segments: &[&[u8]]) -> CanonicalDigest {
     }
     CanonicalDigest::from_lowercase_sha256("stream_contract", &encoded)
         .expect("SHA-256 encoding is canonical")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn absent_mechanism_binding_retains_the_legacy_deferred_identity() {
+        assert_eq!(
+            mechanism_observation_identity_digest(None).to_lowercase_hex(),
+            "4a9856309bbfe75824577e9518b222af8f998581e1da1db8fa31414f50b3ab11"
+        );
+    }
+
+    #[test]
+    fn enabled_mechanism_binding_commits_to_the_checked_request() {
+        let left = mechanism_observation_identity_digest(Some([1; 32]));
+        let right = mechanism_observation_identity_digest(Some([2; 32]));
+        assert_ne!(left, right);
+        assert_ne!(left, mechanism_observation_identity_digest(None));
+    }
 }
