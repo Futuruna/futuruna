@@ -14,7 +14,7 @@ first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
 An explicit durable-only `--case-graph full` request now publishes a bounded,
-total current-evidence case DAG. The internal executable mechanism engine now
+total current-evidence search decision DAG. The internal executable mechanism engine now
 has two narrow profiles: one checked top-level endpoint containing one `if`, and one
 checked endpoint making one direct positional call to a checked helper that
 executes one `if`. Both fresh-replay each confirmed matching case in its
@@ -43,15 +43,18 @@ Ordinary execution answers:
 
 Bounded exploration answers:
 
-> For which permitted facts does this property hold or fail?
+> Which permitted before-to-after transitions make this property hold or fail,
+> and which mechanisms explain those transitions?
 
 An exploration names one pure Boolean rule, declares the complete input world,
-optionally identifies an adjacent transition axis, and states what makes two
-answers the same. Futuruna searches the reachable rule graph, confirms every
-reported result through normal execution, and distinguishes a complete answer
-from a partial or undecidable search.
+defines or derives a typed before-to-after transition, and states what makes
+two answers the same. The question may compare the after state with the before
+state or state an absolute property of the after state while both remain
+available for evaluation and replay. Futuruna searches the reachable rule
+graph, confirms every reported result through normal execution, and
+distinguishes a complete answer from a partial or undecidable search.
 
-The core form is:
+The currently accepted compatibility form is:
 
 ```runa
 ? explore QUERY_NAME {
@@ -83,8 +86,9 @@ The core form is:
 }
 ```
 
-`over` defines the question. `bounds` defines the world. `boundaries` defines
-the movement being examined. An optional `probes` block defines a finite,
+`over` defines the question. `bounds` defines the world. `boundaries` derives
+the initial Relative movement being examined; without it the compatibility
+lowering is Identity. An optional `probes` block defines a finite,
 deterministic initial scheduling plan inside the same exploration run without
 changing that world or the answer.
 `output.key` defines the raw answer groups; optional `extrema` summarize them
@@ -114,11 +118,11 @@ analysis-only continuation:
         representative first | maximize EXPR | minimize EXPR
     }
 
-    after REPORT_NAME -> CONTINUATION
+    then REPORT_NAME -> CONTINUATION
 }
 ```
 
-`output as ROW_TYPE` may be used without `after`. `after` requires a typed
+`output as ROW_TYPE` may be used without `then`. `then` requires a typed
 output row. The continuation receives one status-safe
 `ExplorationReport(ROW_TYPE)` after enumeration, replay and canonical sorting;
 it cannot affect the search. This typed form is specified Experimental syntax,
@@ -130,6 +134,10 @@ The feature MUST:
 
 - discover answers without a user-authored list of suspected thresholds;
 - search only an explicit, typed and finite declared assignment space;
+- normalize every explored assignment to a typed before state, after state and
+  conservative transition context;
+- distinguish assignment cases, semantic transitions, output keys and dynamic
+  mechanisms instead of using one ambiguous case count;
 - reuse canonical rule dispatch, imports, defaults and exceptions;
 - enumerate distinct projected answers rather than raw solver assignments;
 - preserve the exact relation between admissible cases, matches, projected
@@ -155,7 +163,7 @@ The first version does not:
 - let the Futuruna question itself run effects, persistence, user streams,
   actors, time or randomness while forming or solving a query; the host may
   durably journal and publish exact search evidence, and an explicit downstream
-  `after` continuation may use ordinary effects;
+  `then` continuation may use ordinary effects;
 - approximate unsupported semantics and still call the result complete;
 - provide population prevalence from a model-space search;
 - claim that an encoded model is legally authoritative merely because its
@@ -168,24 +176,72 @@ The first version does not:
 
 **Declared assignment space**
 : The Cartesian product `U` of the independently varied bound domains, before
-  boundary eligibility and `where` constraints are applied.
+  boundary eligibility and `where` constraints are applied. In normalized
+  transition semantics these axes are role-tagged and extended by any
+  independent after axes to form the generator-coordinate space `U_C`.
 
 **Admissible universe**
-: The subset `D` of the declared assignment space whose required boundary
-  endpoints exist and whose `where` constraints hold.
+: The subset `D_C` of the declared generator-coordinate space whose endpoint
+  and cross-edge validity constraints hold. Current compatibility artifacts
+  call this `D`.
 
 **Assignment**
 : One complete choice of all searched inputs.
 
+**Transition case**
+: One canonical generator coordinate together with its normalized
+  `(context, before, after)` transition, endpoint-validity and question-polarity
+  classification. `CaseId` is injective over `U_C` and remains the identity
+  used by exact search evidence and resume frontiers.
+
+**Before state**
+: The canonical typed value observed at the source endpoint of one transition.
+
+**After state**
+: The canonical typed value observed at the target endpoint of one transition.
+  Its expression may be relative to the before state, may be a parallel
+  evaluation over shared context, or may be independent of the before value.
+  Independence is claimed only when checked dependency analysis proves it.
+
+**Transition context**
+: The canonical bounded facts needed to distinguish the meaning of a
+  before-to-after edge but not represented in its endpoint values. Version one
+  retains every explicitly declared Context field without relevance
+  projection; a future projection may remove a field only with an exact
+  irrelevance proof.
+
+**State identity**
+: `StateId`, the hash of the declared state-type identity and canonical state
+  value. Endpoint role is not part of the identity, so one state may be the
+  target of one edge and the source of another.
+
+**Transition identity**
+: `TransitionId`, the directional hash of the transition schema, before
+  `StateId`, after `StateId` and canonical transition context. Reversing the
+  endpoints changes the identity. Equal endpoint values do not establish equal
+  execution mechanisms.
+
 **Finding**
 : One distinct emitted `output.key` for which at least one admissible
-  assignment has the requested polarity and whose closed group satisfies the
+  transition case has the requested polarity and whose closed group satisfies the
   optional `having` filter.
 
 **Case region**
-: An exact subset of the declared assignment space represented by a normalized
-  path union or ordered decision subgraph. A shared node is interpreted with
-  its incoming path context rather than as a context-free Cartesian region.
+: An exact subset of the declared generator-coordinate space `U_C` represented by a
+  normalized path union or ordered decision subgraph. A shared node is
+  interpreted with its incoming path context rather than as a context-free
+  Cartesian region.
+
+**Search decision DAG**
+: The reduced ordered multi-terminal decision diagram classifying transition
+  cases as excluded, matching, nonmatching or open. The current
+  `graph.case_graph` JSON field contains this artifact.
+
+**Semantic transition graph**
+: The directed graph whose nodes are canonical states and whose edges are
+  canonical transitions, with exact support back to assignment cases. This is
+  the domain-level case graph; it is not the search decision DAG and is not yet
+  published by the current JSON schema.
 
 **Mechanism signature**
 : A canonical replay-derived differential execution signature for one fixed
@@ -245,7 +301,7 @@ The first version does not:
   confirmed rows, open frontier and operational metadata. The full protocol
   may also include explicitly authorized case/mechanism graph views when the
   implementation supports them. Current executable `snapshot.v5` supports an
-  explicitly requested total current-evidence case DAG and reports mechanism
+  explicitly requested total current-evidence search decision DAG and reports mechanism
   evidence as `unavailable_deferred`. Snapshot materialization is an optional,
   separately admitted observer phase; it is neither the resume checkpoint nor
   a prerequisite for a valid pause. A snapshot is never the canonical terminal
@@ -325,8 +381,9 @@ Imported exploration declarations are not executed implicitly.
 The implemented parser recognizes `explore`, `over`, `find`, `bounds`, `where`,
 `boundaries`, `output`, `key`, `extrema`, `having`, `varies`, `show` and
 `representative` contextually inside this form. The specified typed extension
-will additionally recognize `as` and `after` contextually. They do not become
-global keywords.
+will additionally recognize `transition`, endpoint-local `before` and `after`,
+and `as` contextually, and reuses the existing `then` keyword for terminal
+continuation delivery. The new contextual words do not become global keywords.
 
 Existing proof forms remain unchanged. In particular, bare:
 
@@ -339,20 +396,25 @@ continues to prove an invariant named `explore`. Only `? explore {` and
 
 ### Clause order
 
-The specified complete form requires this order:
+The transition-aware complete form requires this order:
 
 1. exactly one `over` clause;
 2. exactly one `find` clause;
 3. exactly one `bounds` block;
-4. zero or one `boundaries` clause;
-5. zero or one `probes` block;
-6. exactly one `output` block, optionally naming a row type with `as`;
-7. zero or one `after` continuation.
+4. exactly one normalized `transition` clause;
+5. zero or one `boundaries` clause supplying a Relative axis and accelerator;
+6. zero or one `probes` block;
+7. exactly one `output` block, optionally naming a row type with `as`;
+8. zero or one `then` continuation.
 
 Clause order is fixed so diagnostics, formatting and source review remain
-predictable.
+predictable. During the Experimental migration, omission of source
+`transition` is accepted only through the specified compatibility lowering:
+no boundary becomes Identity and a boundary becomes Relative. The current
+compiler accepts only that legacy form; it does not yet parse an explicit
+transition clause.
 
-`after` is legal only after `output as ROW_TYPE`. Existing `output { ... }`
+`then` is legal only after `output as ROW_TYPE`. Existing `output { ... }`
 declarations remain valid and retain their CLI-only behavior.
 
 ### Probe scheduling plans
@@ -428,7 +490,8 @@ frequency belong to the invocation and are excluded from every semantic hash.
 
 ## The Question Rule
 
-`over` accepts exactly one call to a named Boolean rule:
+In the currently accepted compatibility syntax, `over` accepts exactly one
+call to a named Boolean rule:
 
 ```runa
 over one_more_never_hurts(household, income, step)
@@ -440,6 +503,21 @@ Literals, field access, nested calls, named arguments and repeated identifiers
 are rejected in `over`; place fixed or derived expressions in `bounds` instead.
 The call also establishes the root of the reachable dependency slice.
 Overloaded rule identities MUST resolve unambiguously by scope, name and arity.
+
+The transition-aware form instead calls one named Boolean rule with the three
+typed contextual products:
+
+```runa
+over one_more_never_hurts(before, after, context)
+```
+
+`before` and `after` have the same declared product type; `context` has its
+declared product type and may be `()`. This three-argument shape is the
+initial explicit-transition contract. A wrapper rule may ignore `before` for
+an absolute after-state question, but both endpoints remain defined. Output
+expressions use the same contextual products. The compatibility bare-argument
+restriction does not apply inside those products and MUST NOT be generalized
+into implicit endpoint guessing.
 
 The question rule and every operation reachable from required answer, case and
 value roots MUST be pure, total and exactly supported by the selected analysis
@@ -606,6 +684,22 @@ For a boundary query, every `where` constraint is checked for both endpoints
 after substituting the boundary axis with `x` and `x + step`. A runtime error is
 not an invalid case; it is an exploration error.
 
+The intended explicit-transition surface makes validity scope visible:
+
+```runa
+where before before_is_valid(before, context)
+where after after_is_valid(after, context)
+where transition permitted_change(before, after, context)
+```
+
+These lower to `Before`, `After` and cross-edge `Transition` constraints. A
+legacy boundary `where` lowers to one checked template applied at both
+endpoints (`BothEndpoints` in typed IR); a legacy no-boundary `where` lowers to
+`Before`, which is equivalent at the Identity after state. An independent
+self-edge is admissible unless an explicit transition constraint excludes it.
+The compiler never guesses such an exclusion from unequal source ordinals or a
+presentation goal.
+
 Constraints are part of the public claim. A complete result is complete only
 for assignments satisfying them. The report prints the constraints and any
 statically computed domain cardinalities.
@@ -618,6 +712,265 @@ validity constraints. Only then may it be omitted from the bounds.
 
 Every remaining free input MUST have a finite domain. Futuruna never fills a
 missing legal or personal fact from a default merely to make a query run.
+
+## Transition Semantics
+
+The semantic unit of Explore is a directed transition, not an isolated row.
+Search and semantic identity are nevertheless different layers. Let `U_C` be
+the finite canonical generator-coordinate space, including context, before and
+independent-after axis ordinals. Let `c(u)` be edge-local context, `b(u)` the
+complete before state, and `a(u)` the after state generated at coordinate `u`.
+Normalization is the total map:
+
+```text
+tau : U_C -> Transition
+tau(u) = (c(u), b(u), a(u))
+U_T = image(tau)
+A(c, b) = { a(u) | u in U_C, c(u) = c, b(u) = b }
+```
+
+Two coordinates remain distinct `CaseId` values even if normalization gives
+them the same semantic edge. The normalized transition generator SHOULD be
+one-to-one by default; an intentional many-to-one mapping retains exact support
+and deduplicates only at the `TransitionId` layer.
+
+Endpoint and cross-edge validity classify generator coordinates, while their
+images define the distinct semantic-transition populations:
+
+```text
+D_C = { u in U_C |
+        V_before(c(u), b(u)) and
+        V_after(c(u), a(u)) and
+        V_edge(c(u), b(u), a(u)) }
+
+M_C = { u in D_C | Q(tau(u)) }
+D_T = image(tau restricted to D_C)
+M_T = image(tau restricted to M_C)
+```
+
+`Q(c, b, a)` may compare `a` with `b`, as an income-cliff question does, or
+may state an absolute property of `a`. The before state remains available in
+either form. An absolute predicate does not erase the transition that supplied
+the after state.
+
+Three normalized constructors cover the initial architecture:
+
+- `Identity` has `A(c, b) = {b}`. It is the compatibility lowering for a
+  legacy query without `boundaries`. It preserves point-search behavior but
+  supplies no nontrivial differential mechanism.
+- `Relative` has `A(c, b) = {F(c, b)}`. Fields not assigned by `F` are copied
+  from `b` under checked frame semantics. A boundary query lowers to this form:
+  the selected axis advances by `step`, invariant endpoint facts are framed,
+  and derived endpoint facts are recomputed rather than copied accidentally.
+- `Independent` has at least one after field drawn from a finite domain whose
+  choices do not depend on the before value. Other after fields may still frame
+  or derive from `b`, so `A(c, b)` remains the general notation. A singleton
+  independent field is the simplest case; a finite alternative-policy or
+  municipality domain produces one edge per alternative.
+
+“Universal” is reserved for quantification over an independent after domain,
+for example requiring a property for every alternative. It is a grouped view
+over concrete edges, not an extra transition constructor and not permission to
+omit the before endpoint.
+
+Endpoint model facts belong in the state value. Action, step, policy-change and
+other edge-local parameters belong in transition context. Context participates
+in question evaluation, output and `TransitionId`, but not in `StateId`.
+Version one retains every declared Context field. A future projected context
+is sound only when dependency analysis proves that removed facts cannot change
+endpoint validity, polarity, outputs or observed mechanisms.
+
+For one fixed transition schema:
+
+```text
+StateId(b) = H(state_type_identity, canonical_value(b))
+TransitionId(c, b, a) =
+    H(transition_schema, canonical_context(c), StateId(b), StateId(a))
+```
+
+`StateId` is role-neutral and `TransitionId` is directional. One canonical
+state may therefore be shared as an after node of one transition and a before
+node of another. `CaseId` remains the query-local canonical ordinal coordinate
+in `U_C`, used for scheduling, frontiers and exact classification. The
+normalized generator MUST either establish a one-to-one
+`CaseId -> TransitionId` mapping or perform explicit semantic-edge
+deduplication before reporting a distinct-transition count. Two generator
+paths MUST NOT silently double-count one edge. The support relation is retained
+when several case coordinates denote the same edge.
+
+### Explicit transition syntax and typed IR direction
+
+The intended source surface is a contextual `transition { ... }` clause.
+`before` and `after` are reserved for endpoint roles; the terminal analysis
+continuation is consequently spelled `then`. The exact transition grammar is
+not accepted by the current compiler. The source direction role-tags bound
+fields explicitly:
+
+```runa
+# IncomeState(
+    household: Household,
+    income: Int
+)
+
+# IncomeChange(step: Int)
+
+| one_more_never_hurts(
+    before: IncomeState,
+    after: IncomeState,
+    context: IncomeChange
+) -> available(after) >= available(before)
+
+over one_more_never_hurts(before, after, context)
+find violations
+
+bounds {
+    before.household in households
+    before.income in range(0, 1_500_001)
+    context.step = 1
+}
+
+transition as IncomeState context IncomeChange {
+    relative
+    after.income = before.income + context.step
+}
+```
+
+`state_schema` and `context_schema` are named, already declared product types;
+context may instead be `()`. This makes the ordinary named rule signature
+authorable before the query. `before.FIELD` and `context.FIELD` declarations
+must cover each corresponding product field exactly once with the declared
+type. Type declaration field order, not incidental bound order, is canonical
+within each role. `after` has exactly the state type. Every after field is then
+assigned one checked source: frame from the same-named before field, derive
+from before and context, or range over an independent finite domain. Types must
+agree exactly. There is no implicit decision about whether an untagged
+explicit bound belongs to state or context.
+
+These shorter forms illustrate the three normalized modes:
+
+```runa
+transition as StateType context () {
+    identity
+}
+
+transition as StateType context ChangeType {
+    relative
+    after.income = before.income + context.step
+}
+
+transition as StateType context ComparisonContext {
+    independent
+    after.municipality in municipalities
+}
+```
+
+Explicit endpoint references are `before.FIELD`, `after.FIELD` and
+`context.FIELD`. Relative fields not assigned in the clause are frame-copied.
+Independent after axes are finite and have canonical source and value order.
+The question rule, key, extrema, shown expressions and representative metric
+receive typed contextual access to both endpoints. During migration, existing
+bare names retain their current lower-assignment meaning; the implementation
+MUST NOT silently reinterpret a bare expression as an endpoint comparison.
+
+The normalized typed query IR makes the transition non-optional and represents
+after construction compositionally per state field:
+
+```text
+AfterFieldSource =
+    FrameBefore
+  | Derived(typed_expr_over_before_and_context)
+  | IndependentDomain(finite_typed_domain)
+
+ExploreTransitionIr {
+    state_type: CanonicalStateTypeId,
+    context_type: CanonicalContextTypeId | Unit,
+    after_fields: [StateField -> AfterFieldSource],
+    boundary_hint?
+}
+```
+
+For explicit syntax the canonical type IDs resolve the named declared
+products. Compatibility lowering mints versioned internal product identities
+from the existing bound names, types and order; those identities are not
+source-visible.
+
+Identity means every after field is `FrameBefore`. Relative uses only framed
+and derived fields and therefore produces one after state for each `(c, b)`.
+Independent has at least one `IndependentDomain`; unchanged fields may still
+frame from before and other fields may be derived. This supports a comparison
+such as “which municipality gives lower tax, if any differs” without a second
+architecture: frame the profile and income, vary `after.municipality`, and
+compare each concrete after state with its before state.
+
+Compatibility lowering is deterministic. Without `boundaries`, every existing
+query-local bound becomes a before-state field, context is empty and the
+transition is Identity. With `boundaries on x by step`, every existing bound
+except the step parameter becomes a before-state field, `step` becomes context,
+and Relative derives `after.x = before.x + context.step`; other fields frame or
+recompute according to their checked dependency role. Existing derived
+bindings remain observations in their current lower environment until explicit
+transition lowering is implemented, so this specification does not pretend the
+current executor already performs that recomputation. These internal
+compatibility products preserve current bound source order; they are not
+source-visible nominal types.
+
+When an explicit transition and `boundaries` coexist, the boundary clause is
+only a validated optimizer assertion. It MUST be entailed by exactly one
+Relative after-field derivation and its endpoint domain; it cannot add axes,
+change `U_C`, add validity conditions or override the transition. A mismatch is
+a compile-time diagnostic. Only omission of explicit `transition` lets the
+legacy boundary clause synthesize the Relative update.
+
+Transition construction does not itself choose what a mechanism replay
+observes. The query-and-report request carries a separate optional typed
+observation contract:
+
+```text
+MechanismObservationIr {
+    endpoint_template: CheckedCallableId,
+    state_type,
+    context_type,
+    observation_type,
+    dependency_roots,
+    normalization_version
+}
+```
+
+The checked template has the pure total shape
+`observe(endpoint: State, context: Context) -> Observation`. Replay evaluates
+that one template once in the before state and once in the after state, with
+isolated endpoint runtime and trace state. Its complete identity forms `h` and
+participates in the mechanism request and stream identities. It is never
+inferred from the two-state Boolean question, from equal result values or from
+two positional `show` expressions. Without an admitted template, transition
+classification may still close but differential mechanism evidence is
+unavailable. The general public spelling for selecting this observation
+remains deferred; the current same-callee shown-root profile is only a narrow
+compatibility producer of this IR when all of its checks succeed.
+
+Generator axes are role-tagged `Context`, `Before` or `AfterIndependent`.
+Explicit-transition order is all varied Context fields in declared product-field
+order, then varied Before fields in declared product-field order, then
+independent After fields in transition source order. Values retain canonical
+domain order. Compatibility products use their separately versioned legacy
+bound order. This axis
+order participates in the query, domain and stream identities. Validity
+constraints are typed with `Before`, `After`, `BothEndpoints` or `Transition`
+scope. The present `ExploreBoundaryIr` becomes a Relative accelerator hint,
+not the definition of Explore. Program, query, mechanism-target and resume
+identities bind the transition mode, schemas, frame rule, axis roles and axis
+order; an old journal therefore fails identity matching instead of resuming
+under new semantics.
+
+The current implementation has not reached this contract. `boundaries` today
+creates an upper environment for endpoint membership and `where` checks, while
+`over`, key, extrema and shown expressions still evaluate in the lower
+environment and manually reconstruct `x + step` when needed. The positional
+same-callee pair of shown roots used by the narrow mechanism experiment is a
+soundly refused-or-replayed compatibility profile, not a general proof that
+those roots are the transition endpoints. First-class transition lowering must
+replace that incidental pairing with one checked endpoint observation template
+evaluated in the before and after states.
 
 ## Boundary Queries
 
@@ -646,10 +999,15 @@ results at `income` and `income + step`:
 ```
 
 The boundary clause gives the explorer the result axis, endpoint-validity
-contract and optimization opportunity. It does not replace the Boolean rule.
+contract and optimization opportunity. Semantically it is compatibility sugar
+for a Relative transition: `after.x = before.x + step`, with every other
+endpoint field framed and dependent values recomputed. It does not replace the
+Boolean rule, and the current compiler limitations described above still
+apply.
 
 Without a `boundaries` clause, `? explore` is an ordinary bounded match or
-violation search over complete assignments.
+violation search over complete assignments, normalized as Identity until the
+explicit transition syntax is implemented.
 
 ### Structural boundary extraction
 
@@ -867,7 +1225,7 @@ to `key` or `show`. The continuation may independently compute from its public
 row and ordinary program declarations, but that is new program logic rather
 than access to the hidden solver assignment or its provenance.
 
-An `after` block is nevertheless an explicit data sink: its user-authored
+A `then` block is nevertheless an explicit data sink: its user-authored
 effects may print, persist or transmit the values it was given. The ordinary
 effect and privacy review therefore applies to the continuation.
 
@@ -918,7 +1276,7 @@ configurations whose key is suppressed. A closed report conserves:
 sum(row support for k in R) = |M_emit|
 ```
 
-`D`, `M`, coverage, the case DAG and an authorized matching-case ledger all
+`D`, `M`, coverage, the search decision DAG and an authorized matching-case ledger all
 remain pre-`having`. Thus an invariant control may truthfully report
 `M = 98`, `R = 0`, one suppressed group and no row. The public report MUST
 carry whether its group filter was `all` or `varies(name)` so identical-looking
@@ -947,26 +1305,40 @@ forward references and cycles are rejected.
 The report states that a representative is one case for the key. It MUST NOT
 imply that every hidden assignment has identical shown values.
 
-## The Exploration Graph
+## The Exploration Relations and Graphs
 
-The semantic truth of an exploration is its evaluation relation: which
-declared assignments are admissible, which admissible assignments match, what
-the declared outputs evaluate to and, where requested, what a fresh replay
+The semantic truth of an exploration is its transition relation: which
+generated before-to-after edges are admissible, which admissible edges match,
+what the declared outputs evaluate to and, where requested, what a fresh replay
 observes. A flat row list is only one projection of that relation. Futuruna may
-represent closed parts of it with two linked but independently scoped graphs:
+represent closed parts of it with three linked but independently scoped
+graphs:
 
-1. a query-relative **case decision DAG** saying exactly where the question
-   matches, does not match, is excluded or remains unresolved; and
-2. a query-and-observation-relative **mechanism DAG** saying which stable
+1. a query-relative **search decision DAG** saying exactly which generated
+   transition cases match, do not match, are excluded or remain unresolved;
+2. a **semantic transition graph** whose canonical state nodes and directed
+   edges show the before-to-after cases represented by that search evidence;
+   and
+3. a query-and-observation-relative **mechanism DAG** saying which stable
    rules, branches and operations formed each replay-derived mechanism
    signature.
 
-The case graph answers **where**. The mechanism graph answers **how**. Neither
-graph is allowed to redefine the other, and neither is required for a
+The search DAG answers **which generated coordinates have what
+classification**. The transition graph answers **what state change each case
+denotes**. The mechanism graph answers **how the observed change was
+computed**. None is allowed to redefine another, and none is required for a
 projection-only report that has closed its declared result keys by another
 exact method.
 
-### Canonical case decision DAG
+The executable `futuruna.explore.snapshot.v5` and
+`futuruna.explore.exact-answer.v4`, plus the specified future
+`futuruna.explore.v1`, use `graph.case_graph` for the search/classification
+DAG. That meaning is preserved. A transition-aware schema bump will expose the
+artifact under `search_decision_dag` and add a separate
+`semantic_transition_graph`; readers MUST NOT reinterpret the old field from
+its name alone.
+
+### Canonical search decision DAG
 
 Let the independently varied bound dimensions, in source order, be
 `A_0, ..., A_n-1`, and let their Cartesian product be:
@@ -975,7 +1347,9 @@ Let the independently varied bound dimensions, in source order, be
 U = A_0 x ... x A_n-1
 ```
 
-The case graph represents one total evidence classification over `U`:
+The search decision DAG represents one total evidence classification over
+`U` (and, after transition lowering, over the canonically ordered transition
+generator axes of `U_C`):
 
 ```text
 F(x) = excluded
@@ -1019,11 +1393,13 @@ apply only when `U` is nonempty.
 
 The following rules are normative:
 
-- decision dimensions are only independently varied `in` bindings;
-- fixed facts, derived facts and the upper boundary endpoint are not new
-  dimensions;
-- dimensions follow bound source order, and values follow canonical domain
-  ordinal order;
+- decision dimensions are only role-tagged independently varied `in` bindings,
+  including explicit independent-after domains;
+- fixed facts, framed or derived after fields and the compatibility upper
+  boundary endpoint are not new dimensions;
+- dimensions follow the normalized Context/Before/AfterIndependent generator
+  order or its versioned compatibility order, and values follow canonical
+  domain ordinal order;
 - outgoing arc sets are nonempty, disjoint and exhaustive for that dimension;
 - child dimension indices strictly increase along every edge;
 - arcs to the same child are coalesced into one canonically normalized ordinal
@@ -1055,6 +1431,68 @@ domain-value order, up to report-local node renaming. A heuristic or learned
 decision tree may be derived for presentation, but it is not the proof object
 and may not change membership, counts or status.
 
+### Semantic transition graph
+
+The optional semantic graph materializes the state-and-edge meaning of a named
+closed or partially closed transition population:
+
+```text
+StateNode {
+    state_id,
+    state_type,
+    canonical_value_or_authorized_projection
+}
+
+TransitionEdge {
+    transition_id,
+    before_state_id,
+    after_state_id,
+    canonical_context_or_authorized_projection,
+    supporting_case_ids_or_exact_region,
+    classification,
+    observations
+}
+```
+
+Its request names the population—declared, admissible, matching or selected
+representatives—and its disclosure projection. State values and context are
+private unless the report request authorizes them. An edge is published only
+after both endpoint identities and its support are validated. Open search
+regions remain in the search decision DAG; they are not invented as endpoint
+nodes with guessed values.
+
+One state node may participate in many incoming and outgoing edges. Two edges
+with equal endpoint state values remain distinct when their canonical context
+or transition schema differs. Conversely, if explicit semantic-edge
+deduplication proves several generated cases have one `TransitionId`, the edge
+retains their exact support rather than discarding multiplicity. State-node
+count, distinct-edge count and supporting-case count are therefore different
+populations. Graph node counts MUST NOT be used as substitutes for exact
+weighted support counts.
+
+Semantic identity has its own reduction closure. For a named case-coordinate
+scope `X`, exact distinct-edge and state-node counts require both:
+
+1. `X` is closed under the requested admissible, matching or representative
+   prerequisite; and
+2. `tau`, `StateId` and `TransitionId` have been evaluated for every coordinate
+   in `X`, or an exact certificate proves their image and deduplication over a
+   whole region.
+
+A closed search support count alone need not close an image-cardinality count;
+a symbolic region may cover millions of `CaseId`s without yet proving how many
+distinct state or transition identities they denote. Observed IDs are lower
+bounds while this identity-reduction frontier is open. Conversely, omitting or
+capacity-limiting graph serialization does not weaken an already closed scalar
+edge or node count.
+
+The semantic graph is an explanatory projection, not the coverage proof. It
+may be omitted or reported `capacity_limited` while the search decision DAG and
+scalar transition-case counts remain exact. A partial semantic graph reports
+lower-bound node and edge populations under its own materialization frontier.
+Mechanism incidence attaches replay evidence to the supported directed edge;
+equal endpoint values never manufacture a shared mechanism signature.
+
 ### Differential mechanism DAG
 
 The resolved program supplies a stable semantic-site catalogue: declarations,
@@ -1063,16 +1501,17 @@ analysis-program identity plus structural AST paths. This catalogue describes
 possible behavior and need not itself be acyclic. Source spans and author
 labels are display annotations rather than identity.
 
-A mechanism request fixes an observation specification `h`: the question and
-value roots whose dependencies matter, any lower/upper endpoint pairing, and
-the signature-normalization version. It also names a requested target
-population `S_req`: either the canonical representative set `Rep(R)` or all
-matching configurations `M`. Let `T` be the cases actually traced, with
-`T` a subset of `S_req`. Fresh replay defines a deterministic, canonical and
-total map on `T`:
+A mechanism request fixes a `MechanismObservationIr` specification `h`: one checked
+endpoint-observation template, the value roots whose dependencies
+matter, the before/after pairing, and the signature-normalization version. It
+also names a requested target population `S_req`: either the canonical
+representative set `Rep(R)` or all matching transition cases `M_C`. Let
+`T_trace` be the transitions actually traced, with `T_trace` a subset of
+`S_req`. Fresh replay defines a deterministic, canonical and total map on that
+scope:
 
 ```text
-Sigma_(q,h) : T -> Signature
+Sigma_(q,h) : T_trace -> Signature
 ```
 
 `S_req` is not known until its prerequisite closes: representative scope needs
@@ -1192,9 +1631,11 @@ import and proves that plan construction refuses the live module graph with the
 frozen-module-graph requirement. The refusal happens before store creation or
 mechanism minting; unchanged live files are not treated as immutable evidence.
 
-A boundary mechanism compares the computations for the lower and upper
-endpoints and retains the dynamic data/control slice relevant to the roots
-fixed by `h`. Candidate atoms include:
+A transition mechanism compares the encoded computations for its before and
+after endpoints and retains the dynamic data/control slice relevant to the
+roots fixed by `h`. It explains how the encoded rule graph's relevant execution
+differs across the declared edge; it does not by itself establish a real-world
+temporal or causal transition. Candidate atoms include:
 
 - a selected default, exception or rule clause changing;
 - an `if` or `match` arm changing;
@@ -1207,20 +1648,21 @@ every configuration would become a different mechanism. Conversely, reaching
 the same top-level rule is not sufficient when different relevant branches or
 dependencies changed.
 
-Generic `boundaries on x by d` syntax identifies two endpoint environments but
-does not identify a universal point-valued operation to compare. Exact
-differential tracing therefore requires either a soundly identifiable pair of
-endpoint computations in the replay, as in the Personskat transition helper,
-or a future explicit endpoint probe. When pairing is unavailable, mechanism
-evidence is reported as unavailable rather than guessed.
+Generic `boundaries on x by d` syntax currently identifies two endpoint
+environments but does not yet identify the checked endpoint-observation
+template required by the normalized transition contract. Exact differential
+tracing therefore requires either the future explicit transition root or the
+narrow soundly identifiable compatibility pair used by the Personskat
+transition helper. When pairing is unavailable, mechanism evidence is reported
+as unavailable rather than guessed.
 
-The exact case-to-signature incidence is retained separately as another
-ordered decision DAG over the same declared axes and canonical dimension order
-as the case graph. Once `S_req` is exact, its terminals are `outside_scope`,
+The exact transition-case-to-signature incidence is retained separately as
+another ordered decision DAG over the same generator axes and canonical order
+as the search decision DAG. Once `S_req` is exact, its terminals are `outside_scope`,
 `signature(id)` and, for a known target case not yet traced,
 `known_target_untraced(reason)`. This representation can encode correlated and
 disconnected fibers without widening them into Cartesian rectangles. The
-signature regions are disjoint and their union is exactly `T` when mechanism
+signature regions are disjoint and their union is exactly `T_trace` when mechanism
 incidence is closed.
 
 A case normally traverses several mechanism atoms, so atom supports may overlap
@@ -1232,21 +1674,22 @@ partition.
 For a closed traced scope, the exact signature fibers satisfy:
 
 ```text
-T = disjoint_union { x in T | Sigma_(q,h)(x) = sigma }
-                   for sigma in Gamma_T
+T_trace = disjoint_union {
+    t in T_trace | Sigma_(q,h)(t) = sigma
+} for sigma in Gamma_trace
 ```
 
 By contrast, the support of an individual atom `a` is
-`{x in T | a occurs in Sigma_(q,h)(x)}`; those supports may overlap.
+`{t in T_trace | a occurs in Sigma_(q,h)(t)}`; those supports may overlap.
 
 Mechanism evidence has its own scope and closure:
 
 - `scope_open` means `S_req` is not yet exact because its case or
   representative prerequisite is open;
-- `incidence_open` means `S_req` is exact but `T` is a strict subset and the
+- `incidence_open` means `S_req` is exact but `T_trace` is a strict subset and the
   known target remainder is retained explicitly;
-- `representatives_closed` means `S_req = Rep(R)` and `T = S_req`;
-- `matching_closed` means `S_req = M` and `T = S_req`;
+- `representatives_closed` means `S_req = Rep(R)` and `T_trace = S_req`;
+- `matching_closed` means `S_req = M_C` and `T_trace = S_req`;
 - `unavailable` makes no automatic mechanism claim and counts no synthetic
   “unknown mechanism” signature.
 
@@ -1256,13 +1699,13 @@ exact exploration status.
 
 ### Cases and mechanisms are independent quotients
 
-For matching cases, `K(x)` is the declared result key. On the traced population
-`T`, `Sigma_(q,h)(x)` is the mechanism signature. They induce two generally
+For matching transition cases, `K(t)` is the declared result key. On the traced
+population `T_trace`, `Sigma_(q,h)(t)` is the mechanism signature. They induce two generally
 incomparable equivalence relations where both are defined:
 
 ```text
-x ~key y        when K(x) = K(y)
-x ~mechanism y  when Sigma_(q,h)(x) = Sigma_(q,h)(y)
+t ~key u        when K(t) = K(u)
+t ~mechanism u  when Sigma_(q,h)(t) = Sigma_(q,h)(u)
 ```
 
 One result key may contain several mechanisms. One mechanism may span several
@@ -1270,7 +1713,7 @@ keys, loss values and disconnected case regions. Their exact joint view is the
 observed incidence set:
 
 ```text
-{ (K(x), Sigma_(q,h)(x)) | x in T }
+{ (K(t), Sigma_(q,h)(t)) | t in T_trace }
 ```
 
 It is never replaced with the Cartesian product of all keys and all
@@ -1289,14 +1732,14 @@ fiber_h(sigma) = { x in X_h | Sigma_h(x) = sigma }
 
 That global fiber may be empty, finite, infinite or not decidable by an
 available backend. A bounded query reports only the observed preimage inside
-its named traced scope `T`, which is a subset of finite `D`. Every such bounded
+its named traced scope `T_trace`, which is a subset of finite `D_C`. Every such bounded
 fiber is finite, even when the same mechanism applies to infinitely many
 inputs outside the query.
 
 Reports therefore say, for example, “17,421 matching configurations within
 these bounds have this mechanism signature.” They do not claim that the
-mechanism has exactly 17,421 cases globally. A reachable program mechanism
-with no cases in `D` is unobserved under this exploration, not absent from the
+mechanism has exactly 17,421 transition cases globally. A reachable program
+mechanism with no cases in `D_C` is unobserved under this exploration, not absent from the
 program.
 
 #### Capped support summaries
@@ -1328,7 +1771,7 @@ solver-unknown region yields `lower_bound(37)` with exploration status
 `unknown`; a timeout yields the same bound with status `partial`. If case
 polarity is closed but mechanism tracing is not, `|M|` may be exact while each
 observed signature has only a lower-bound support and additional signatures
-may still exist. Count certainty says what is proved; layer status says why
+  may still exist. Count certainty says what is proved; layer status says why
 more precision is absent.
 
 A report can therefore state independently:
@@ -1359,7 +1802,7 @@ or redacts full incidence and exposes only `exact(n)` below the cap or
 `at_least(c)` at the cap. Example retention remains independently capped in
 either mode.
 
-Because complete signature fibers partition `T`, their exact or lower-bound
+Because complete signature fibers partition `T_trace`, their exact or lower-bound
 support summaries may be combined with the usual bound arithmetic. Individual
 rule/branch atom supports still overlap and remain non-additive.
 
@@ -1395,22 +1838,24 @@ A **mechanism-bin histogram** is a different, explicitly mechanism-scoped
 view. For a numeric observation `H`, bin `B`, and the bounded signature fiber
 
 ```text
-fiber_T(sigma) = { x in T | Sigma_(q,h)(x) = sigma },
+fiber_trace(sigma) = {
+    t in T_trace | Sigma_(q,h)(t) = sigma
+},
 ```
 
 define:
 
 ```text
 mechanisms_in_bin(B) =
-    |{ sigma in Gamma_T |
-        exists x in fiber_T(sigma), H(x) is in B }|
+    |{ sigma in Gamma_trace |
+        exists t in fiber_trace(sigma), H(t) is in B }|
 ```
 
 This counts distinct query-relative dynamic signatures represented in the bin,
 not cases, projected findings, rule atoms or legal provisions. One signature
 may contain cases whose `H` values fall in several bins, so it is counted once
 in each such bin. Mechanism-bin counts therefore overlap and MUST NOT be summed
-to obtain `|Gamma_T|`.
+to obtain `|Gamma_trace|`.
 
 A legal-mechanism family such as "the § 9 C phase-out" is a coarser authored or
 derived grouping than a dynamic trace signature. One family may contain
@@ -1419,7 +1864,7 @@ paths were relevant. A family-bin histogram is valid only as a separately
 named quotient; its counts cannot be substituted for signature-bin counts.
 
 `mechanisms_in_bin` is exact only when the target scope `S_req` is exact,
-signature incidence is closed with `T = S_req`, and `H` is total and
+signature incidence is closed with `T_trace = S_req`, and `H` is total and
 replay-closed for every case in that target. With open incidence, confirmed
 signature/bin witnesses give only a lower bound; with unresolved loss values
 or membership, the affected bin remains unknown rather than receiving zero.
@@ -1440,7 +1885,7 @@ case-classification disclosure, and the snapshot/terminal schema digests bind
 the lowerer and serialization contracts with their fixed limits. All are
 immutable run identity.
 An omitted-graph run therefore cannot be resumed with full disclosure enabled,
-or vice versa. The baseline request omits the full case graph and ledger,
+or vice versa. The baseline request omits the full search decision DAG and ledger,
 requests no case-level view, and permits only representative provenance when
 available. A future source form may construct a larger request, but canonical
 output never silently expands it.
@@ -1450,7 +1895,7 @@ MUST NOT change the question, universe or case classification. Changing the
 mechanism observation roots is an explicit change to `h`, not an incidental
 effect of requesting a histogram.
 
-A full case graph and a configuration ledger reveal different case-level data:
+A full search decision DAG and a configuration ledger reveal different case-level data:
 the graph can reveal nonmatches and exclusions, while the ledger can reveal
 per-match values. Both require explicit case-level disclosure authorization
 and are omitted by default. Full matching-case mechanism incidence likewise
@@ -1689,7 +2134,7 @@ materialized the view, published a bounded `snapshot_unavailable` capacity
 receipt, or remained deferred, so repeated time-boxed search slices cannot
 silently outrun observation forever.
 
-When the view phase is admitted, the baseline snapshot marks the case graph
+When the view phase is admitted, the baseline snapshot marks the search decision DAG
 `not_requested`. A run created with `--case-graph full` instead publishes
 either the entire canonical total current-evidence DAG or typed
 `capacity_limited` evidence; it never publishes a node or rank prefix. The DAG
@@ -1784,7 +2229,7 @@ outcomes use distinct seal kinds and cannot be mistaken for `Completed`. No
 snapshot, discovered key, probe milestone or process exit may be described as
 final before the appropriate seal validates. A sealed run accepts no further
 semantic evidence. Only a sealed terminal report is eligible for downstream
-`after` delivery; observing or pausing a live run never constructs a typed
+`then` delivery; observing or pausing a live run never constructs a typed
 terminal report and never invokes the continuation.
 
 ### Resource envelope and crash-safe progress
@@ -2009,8 +2454,9 @@ are realized in satisfying scenarios.  That distinction supports Futuruna's
 separate semantic closure, retained-example and display limits.  Realized rule
 atoms are analogous to overlapping mechanism-atom supports, not to the
 disjoint signature fibers defined here: Futuruna therefore keeps the exact
-case graph, replay-derived mechanism signatures and their incidence as three
-linked but distinct objects.  Margrave's `CEILING` bounds scenario size; it is
+search decision DAG, semantic transition graph, replay-derived mechanism
+signatures and their incidence as linked but distinct objects.  Margrave's
+`CEILING` bounds scenario size; it is
 not evidence that an unenumerated family is infinite, just as a Futuruna
 example or tracing cap is never an infinity proof.
 
@@ -2034,7 +2480,7 @@ the invariants specified above.
 A typed output may bind its terminal report:
 
 ```runa
-after report -> publish_support_report(report)
+then report -> publish_support_report(report)
 ```
 
 The binder is immutable and scoped only to the continuation expression. It is
@@ -2093,13 +2539,13 @@ be mistaken for a complete result.
 
 `ExplorationError` represents a terminal solving, decoding or replay error
 after a query has type-checked. Parse and type errors occur before a report
-exists and therefore cannot invoke `after`.
+exists and therefore cannot invoke `then`.
 
 The continuation MUST type-check to `()`. It may call ordinary functions and
 explicit effects. Automatic delivery is **at most once per `run_id`**, not an
 impossible exactly-once guarantee across arbitrary external systems. After the
 terminal report is durable, the coordinator records a separate durable
-delivery claim before invoking `after` and a success receipt afterward. A
+delivery claim before invoking `then` and a success receipt afterward. A
 reopened sealed run with an existing claim does not invoke it again. A crash
 between claim and receipt leaves `continuation_outcome_unknown`; it is not
 retried automatically. An explicit operator retry carries the same `run_id` as
@@ -2117,128 +2563,162 @@ terms, output keys, representative objectives or replay behavior.
 
 Let:
 
-- `U` be the Cartesian product of the independently varied bound domains;
-- `D` be the finite admissible configurations allowed by domains, boundary
-  endpoint membership and constraints;
-- `P(x)` be the Boolean question rule;
-- `Q(x)` be `not P(x)` for `find violations`, otherwise `P(x)`;
-- `M = { x | x in D and Q(x) }` be the matching full configurations;
-- `C(x)` be the canonical case identity containing every independently varied
-  dimension;
-- `K(x)` be the output-key projection;
-- `E_i(x)` be the optional integer extrema measures;
-- `S(x)` be the shown-value projection;
-- `O(x)` be the optional representative objective value;
-- `R_raw = { K(x) | x in M }` be the raw matching key groups;
+- `U_C` be the canonical finite generator-coordinate space;
+- `tau(u) = (c(u), b(u), a(u))` be the total transition-normalization map;
+- `U_T = image(tau)` be the distinct declared semantic transitions;
+- `D_C` be the coordinates satisfying before, after and cross-edge validity;
+- `D_T = image(tau restricted to D_C)` be the distinct admissible transitions;
+- `P(tau(u))` be the Boolean question rule;
+- `Q(tau(u))` be `not P(tau(u))` for `find violations`, otherwise
+  `P(tau(u))`;
+- `M_C = { u | u in D_C and Q(tau(u)) }` be the matching transition cases;
+- `M_T = image(tau restricted to M_C)` be the distinct matching transitions;
+- `CaseId(u)` be the injective query-local generator identity;
+- `StateId(b(u))` and `StateId(a(u))` be the role-neutral endpoint identities;
+- `TransitionId(tau(u))` be the directional semantic-edge identity;
+- `K(u)` be the output-key projection;
+- `E_i(u)` be the optional integer extrema measures;
+- `S(u)` be the shown-value projection;
+- `O(u)` be the optional representative objective value;
+- `R_raw = { K(u) | u in M_C }` be the raw matching key groups;
 - `F_group(k)` be the declared post-aggregation group filter, which is always true
   without `having` and is `min E_i[W(k)] < max E_i[W(k)]` for
   `having varies(E_i)`;
 - `R = { k | k in R_raw and F_group(k) }` be the emitted result keys;
 - `h` be a fixed mechanism-observation specification;
-- `S_req` be the requested mechanism target, either `Rep(R)` or `M`;
-- `T` be the actually traced subset of `S_req`;
-- `Sigma_(q,h)(x)` be the deterministic canonical mechanism signature for
-  every `x in T`; and
-- `Gamma_T = { Sigma_(q,h)(x) | x in T }` be the observed complete mechanism
-  signatures for that traced scope.
+- `S_req` be the requested mechanism target, either `Rep(R)` or `M_C`;
+- `T_trace` be the actually traced subset of `S_req`;
+- `Sigma_(q,h)(u)` be the deterministic canonical mechanism signature for
+  every `u in T_trace`; and
+- `Gamma_trace = { Sigma_(q,h)(u) | u in T_trace }` be the observed complete
+  mechanism signatures for that traced scope.
 
-`C` is injective over `D`; `K` need not be. The cardinalities therefore obey:
+For compatibility with the current artifact vocabulary, the remainder of the
+RFC may write `U`, `D` and `M` for `U_C`, `D_C` and `M_C`; “configuration” in
+an existing field means one generated transition case, not a state or graph
+node. `CaseId` is injective over `U_C`; `K` need not be. The cardinalities
+therefore obey:
 
 ```text
-|R| <= |R_raw| <= |M| <= |D|
+|R| <= |R_raw| <= |M_C| <= |D_C| <= |U_C|
+|M_T| <= |D_T| <= |U_T|
+|U_T| <= |U_C|, |D_T| <= |D_C|, |M_T| <= |M_C|
+|Gamma_trace| <= |T_trace| <= |S_req|
 ```
 
-`|D|` is the admissible-configuration count, `|M|` is the matching-
-configuration count, `|R_raw|` is the raw group count and `|R|` is the emitted
-distinct-result-key count. None may be substituted for another merely because
-they happen to agree for one query.
+`|D_C|` is the admissible-transition-case count, `|M_C|` is the matching-
+transition-case count, `|D_T|` and `|M_T|` count distinct semantic edges,
+`|R_raw|` is the raw group count and `|R|` is the emitted distinct-result-key
+count. None may be substituted for another merely because they happen to agree
+for one query.
+
+For a named case-coordinate scope `X` contained in `U_C`:
+
+```text
+E_X = { TransitionId(tau(u)) | u in X }
+V_X = { StateId(b(u)), StateId(a(u)) | u in X }
+```
+
+`|E_X|` is a distinct semantic-transition count, while `|X|` is its weighted
+supporting-case count. `|E_X| <= |X|`, with equality under the default
+one-to-one generator. State nodes, transition edges, result keys and mechanism
+signatures are otherwise incomparable populations. A mechanism partition is a
+quotient only on traced transition cases: `u ~_h v` exactly when
+`Sigma_(q,h)(u) = Sigma_(q,h)(v)`.
 
 The lossless matched value relation is:
 
 ```text
-J = { (C(x), K(x), S(x), O(x)) | x in M }
+J = {
+    (CaseId(u), TransitionId(tau(u)), StateId(b(u)), StateId(a(u)),
+     K(u), S(u), O(u))
+    | u in M_C
+}
 ```
 
 Mechanism evidence is the separately scoped relation:
 
 ```text
-I_T = { (C(x), K(x), Sigma_(q,h)(x)) | x in T }
+I_trace = {
+    (CaseId(u), TransitionId(tau(u)), K(u), Sigma_(q,h)(u))
+    | u in T_trace
+}
 ```
 
 Raw result groups are the image of `K`, while returned result keys additionally
 satisfy `F_group`; observed mechanism classes are the image of
-`Sigma_(q,h)` on `T`.
+`Sigma_(q,h)` on `T_trace`.
 Neither image determines the other. Their joint view is
-the exact incidence `{(K(x), Sigma_(q,h)(x)) | x in T}`, not
-`R x Gamma_T`. Only `S_req = M` and `T = S_req` justify claims about every
-matching mechanism.
+the exact incidence `{(K(u), Sigma_(q,h)(u)) | u in T_trace}`, not
+`R x Gamma_trace`. Only `S_req = M_C` and `T_trace = S_req` justify claims about
+every matching mechanism.
 
 Partial case evidence additionally conserves the declared space as:
 
 ```text
-U = E_closed + N_closed + M_closed + O_eligibility + O_polarity
+U_C = E_closed + N_closed + M_closed + O_eligibility + O_polarity
 ```
 
-with disjoint union, `E_closed` known outside `D`, `N_closed` known in
-`D - M`, and `M_closed` known in `M`. Exact `D` requires
-`O_eligibility = empty`; exact `M` requires both open sets to be empty.
+with disjoint union, `E_closed` known outside `D_C`, `N_closed` known in
+`D_C - M_C`, and `M_closed` known in `M_C`. Exact `D_C` requires
+`O_eligibility = empty`; exact `M_C` requires both open sets to be empty.
 
 For every returned key `k`, a representative is selected from:
 
 ```text
-W(k) = { x | x in D, Q(x), and K(x) = k }
+W(k) = { u | u in D_C, Q(tau(u)), and K(u) = k }
 ```
 
-Representative closure for key `k` requires a selected `x_k in W(k)`, no
-`y in W(k)` that is strictly better under the declared `first`, `maximize` or
-`minimize` policy, and minimum canonical `C(y)` among objective ties. Projection
-closure alone does not establish this invariant.
+Representative closure for key `k` requires a selected `u_k in W(k)`, no
+`v in W(k)` that is strictly better under the declared `first`, `maximize` or
+`minimize` policy, and minimum canonical `CaseId(v)` among objective ties.
+Projection closure alone does not establish this invariant.
 
 When a report explicitly exposes the configuration ledger, its complete
 payload is the canonically sorted sequence:
 
 ```text
-[L(x) | x in M, ordered by C(x)]
+[L(u) | u in M_C, ordered by CaseId(u)]
 ```
 
-where `L(x)` contains the authorized case identity, key, shown values and
-replay confirmation for that exact configuration. `O(x)` remains internal
+where `L(u)` contains the authorized case and transition identities, key,
+shown values and replay confirmation for that exact transition case. `O(u)` remains internal
 unless it aliases an authorized key/show field, as `loss` does in the example,
 or a future report request explicitly authorizes objective publication.
 
-For group projection `G(x)`, let:
+For group projection `G(u)`, let:
 
 ```text
-groups(D, G) = { G(x) | x in D }
-D_g = { x | x in D and G(x) = g }
-M_g = { x | x in M and G(x) = g }
-R_raw,g = { K(x) | x in M_g }
+groups(D_C, G) = { G(u) | u in D_C }
+D_g = { u | u in D_C and G(u) = g }
+M_g = { u | u in M_C and G(u) = g }
+R_raw,g = { K(u) | u in M_g }
 R_g = { k | k in R_raw,g and F_group(k) }
 ```
 
 An `any` group is satisfied when `M_g` is nonempty. An `all` group is satisfied
 when `D_g` is nonempty and `M_g = D_g`. An exact partition leaf exposes counts
-for `D_g`, `M_g`, `R_raw,g` and `R_g` without changing `D`, `M`, `R_raw` or
-`R`.
+for `D_g`, `M_g`, `R_raw,g` and `R_g` without changing `D_C`, `M_C`, `R_raw`
+or `R`.
 
-When `output as Row` is present, let `RowOf(x)` be the declared row constructor
+When `output as Row` is present, let `RowOf(u)` be the declared row constructor
 applied to the key fields followed by the shown fields of the selected replayed
 representative. The typed complete payload is the canonically sorted list:
 
 ```text
-[RowOf(x_k) | k in R]
+[RowOf(u_k) | k in R]
 ```
 
-The continuation observes this result; it cannot alter `U`, `D`, `M`, `C`,
-`K`, `E`, `F_group`, `S`, `O`, `W`, `R_raw`, `R`, `h`, `S_req`, `T`,
-`Sigma_(q,h)`, either graph or any graph-derived view.
+The continuation observes this result; it cannot alter `U_C`, `D_C`, `M_C`,
+any identity, `K`, `E`, `F_group`, `S`, `O`, `W`, `R_raw`, `R`, `h`,
+`S_req`, `T_trace`, `Sigma_(q,h)`, any graph or any graph-derived view.
 
 A complete exploration guarantees:
 
 ```text
 k is returned
 if and only if
-there exists an admissible bounded assignment x with K(x) = k and Q(x),
+there exists an admissible transition case u with K(u) = k and Q(tau(u)),
 and the closed group satisfies F_group(k)
 ```
 
@@ -2417,10 +2897,10 @@ reason kind of `time_limit` or `resource_admission`. It has no `blob_digest`,
 `canonical_payload`, checkpoint cursor or publication cursor. The final paused
 cursor is sufficient for exact resume. Deferral is operational metadata only:
 it does not add evidence, change the evidence root or run identity, or mean that
-an authorized case graph exceeded a capacity limit. Invocation-local stop
+an authorized search decision DAG exceeded a capacity limit. Invocation-local stop
 details stay in the receipt; an embedded snapshot keeps `invocation_stop` and
 `pause_reason` null. Pausing never constructs `ExplorationReport(Row)` and never
-executes `after`.
+executes `then`.
 
 An admitted capacity outcome is not deferred. Invocation-v1 uses artifact kind
 `snapshot_unavailable`, embeds the separately framed canonical receipt, and
@@ -2441,10 +2921,10 @@ Once classification closes, ordinary slicing pauses at
 atomic-v1 replay/publication unit. It either publishes and seals
 `futuruna.explore.exact-answer.v4`, or commits another pause with typed
 `FinalizationLimit` details (`finalization_limit` in JSON) when the witness set,
-complete raw-group preflight, replay manifest, requested case graph, or single
+complete raw-group preflight, replay manifest, requested search decision DAG, or single
 JSON blob does not fit. That pause may carry an admitted snapshot or a
 journal-only checkpoint under the same view-admission rule. If the immutable
-request includes the case graph, the finalizer refuses to seal unless the graph
+request includes the search decision DAG, the finalizer refuses to seal unless the graph
 is included and both its admissibility and polarity closures are closed.
 Repeating that unchanged v1 invocation reaches the same capability limit; it
 does not make chunked progress. A time limit is a work-boundary soft deadline
@@ -2489,7 +2969,7 @@ final `UNSAT` or exact counting. Both feed the same backend-neutral evidence
 and graph builders.
 
 Key blocking establishes `R_raw`, not `|M|`; closed extrema aggregation and the
-group filter establish emitted `R`. Exact `D` and `M`, a full case graph,
+group filter establish emitted `R`. Exact `D` and `M`, a full search decision DAG,
 configuration coverage or an exposed ledger require canonical case closure by
 finite exhaustion, exact regions, model counting or an equivalent exact
 method. Neither `|R|` nor `|R_raw|` can stand in for `|M|`.
@@ -2561,7 +3041,7 @@ sealed state, Futuruna finalizes the canonical report, constructs
 Terminal partial and unknown reports contain only selection-closed confirmed
 rows, and mechanism evidence may independently be closed, open or unavailable.
 A routine time slice, resource pause or orderly interrupt commits a resumable
-journal checkpoint, not `ExplorationPartial`, and does not invoke `after`. It
+journal checkpoint, not `ExplorationPartial`, and does not invoke `then`. It
 emits snapshot v5 only when the separate materialized-view phase is admitted;
 otherwise the invocation reports a journal-only checkpoint.
 
@@ -2592,7 +3072,7 @@ ordinary resumable pause may not. The variants preserve the same distinction:
 
 CLI `error` covers two phases. Parse, type and query-validation failures happen
 before a typed report exists, so they emit diagnostics but do not invoke
-`after`. `ExplorationError` represents only a terminal post-typecheck solving,
+`then`. `ExplorationError` represents only a terminal post-typecheck solving,
 decoding or replay error for which Futuruna can construct the typed report.
 
 Closure is recorded per semantic layer:
@@ -2607,7 +3087,7 @@ Closure is recorded per semantic layer:
 | `views` | Every requested ledger, coverage, partition or histogram population is derived from closed evidence |
 
 A projected-key report may close `projection` without claiming exact `|D|` or
-`|M|`. A report exposing a full case graph, exact case counts, configuration
+`|M|`. A report exposing a full search decision DAG, exact case counts, configuration
 ledger or case-population histogram also requires `admissibility` and
 `polarity`. Mechanism status is recorded separately as `unavailable`,
 `scope_open`, `incidence_open`, `representatives_closed` or
@@ -2735,7 +3215,7 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
   classification graph. Full versus omitted is bound through the report
   request, retention authorization and schema contracts at run creation; it
   cannot be toggled on resume. Without the option, graph status is
-  `not_requested` and no case DAG is published.
+  `not_requested` and no search decision DAG is published.
 - `--time-limit DURATION` (with current whole-minute alias `--max-minutes`)
   caps one active invocation slice. The library orderly-pauses at a work
   boundary when it reaches the deadline; the outer supervisor may contain a
@@ -2799,7 +3279,7 @@ The process exit contract is:
 | `2` | A durable nonterminal checkpoint, including a typed stop that may require changed resources, evaluator identity or a future finalizer; or an explicitly sealed terminal `partial` report |
 | `3` | A terminal sealed `unknown` report |
 | `4` | A terminal sealed `unsupported` report |
-| `5` | The canonical exploration report was finalized, but its `after` continuation failed |
+| `5` | The canonical exploration report was finalized, but its `then` continuation failed |
 
 A complete search with zero matches deliberately shares exit `0` with a
 complete search having matches. `empty` versus `none`, and zero versus nonzero
@@ -2828,7 +3308,7 @@ The specified continuation is analysis-only:
   exploration;
 - only the explicitly selected root query may execute its continuation;
 - imported and unselected query continuations never execute;
-- attempting to use the `after` binder outside its continuation is an
+- attempting to use the `then` binder outside its continuation is an
   analysis-scope diagnostic.
 
 The canonical human or JSON report is finalized before the continuation runs.
@@ -3388,7 +3868,7 @@ details are never included in the public artifact.
 In a complete artifact, included ledger rows equal `matching_configurations`,
 `results` rows equal `distinct_result_keys`, and every histogram total equals
 its named population. Every case-graph path resolves to exactly one terminal,
-and a closed mechanism-incidence DAG assigns every case in `T` to exactly one
+and a closed mechanism-incidence DAG assigns every case in `T_trace` to exactly one
 existing signature. Physical node IDs are report-local; canonicality is
 defined by the logical ordered graphs and their artifact-content hash. Learned
 explanations remain a separate optional view and cannot rewrite exact status,
@@ -3508,7 +3988,7 @@ computations can be paired soundly. Otherwise the artifact explicitly records
 that differential mechanism evidence is unavailable.
 
 Structural boundary extraction MAY suggest candidates or enrich an already
-confirmed explanation. It does not define `D`, `M`, `R`, the case graph or
+confirmed explanation. It does not define `D`, `M`, `R`, the search decision DAG or
 mechanism completeness. The mechanism graph records differential execution
 evidence; it does not by itself establish legal causality or prove the source
 interpretation.
@@ -3528,7 +4008,7 @@ hidden mechanisms from the report identity.
 ## Compatibility and Feature Stage
 
 The syntax, CLI and JSON contract begin as **Experimental**. `output as` and
-`after` belong to that same `solver-backed-exploration` surface and remain
+`then` belong to that same `solver-backed-exploration` surface and remain
 specified, not implemented. Existing `output { ... }` source remains valid and
 keeps its CLI-only meaning. The existing solver-assisted
 `runa verify` surface is Preview, but exploration introduces a new language and
@@ -3548,33 +4028,40 @@ only by `runa explore` after a report exists.
 
 ## Implementation Slices
 
-1. Freeze grammar, answer-set semantics and diagnostic expectations.
-2. Add AST, parser, formatter, spans and traversal coverage, including optional
-   `output as` and `after`.
-3. Add query-local scope, purity checks, typed domain elaboration, exact output
-   product validation and isolated continuation type-checking.
-4. Add an Explore IR independent of Z3; retain the continuation outside the
-   solver-semantic IR.
-5. Add backend-neutral case, key, value, count and per-layer closure evidence,
-   including distinct eligibility-open and admissible/polarity-open regions.
+1. Freeze transition grammar, compatibility lowering, answer-set semantics and
+   diagnostic expectations.
+2. Add AST, parser, formatter, spans and traversal coverage for explicit
+   transition fields, optional `output as` and `then`.
+3. Add query-local before/after/context scope, purity checks, typed domain and
+   endpoint-state elaboration, exact output product validation and isolated
+   continuation type-checking.
+4. Add a non-optional normalized Explore transition IR independent of Z3, with
+   framed, derived and independent after fields; retain the continuation
+   outside the solver-semantic IR.
+5. Add backend-neutral `CaseId`, `StateId`, `TransitionId`, key, value, count
+   and per-layer closure evidence, including distinct eligibility-open and
+   admissible/polarity-open regions.
 6. Add exact finite exhaustion as the reference producer of canonical
-   `CaseId`, `D`, `M` and `R` evidence.
-7. Build one crate-private reduced ordered decision-DAG core and validate
-   strict axis order, canonical arc coalescing, graph expansion equivalence,
-   path-count conservation and open-frontier handling.
-8. Add deterministic representative selection, exact objectives and
-   graph-derived ledgers, coverage, partitions and histograms.
+   transition cases, `D_C`, `M_C` and `R` evidence.
+7. Build one crate-private reduced ordered search-decision-DAG core and validate
+   strict role-tagged axis order, canonical arc coalescing, graph expansion
+   equivalence, path-count conservation and open-frontier handling.
+8. Add the separately scoped semantic transition graph, deterministic
+   representative selection, exact objectives and graph-derived ledgers,
+   coverage, partitions and histograms.
 9. Add stable analysis-program/declaration/decision identities, explicit
    mechanism observation identity and an optional fresh-interpreter replay
    trace sink.
-10. Add concrete replay, sound differential endpoint pairing, normalized
-    occurrence-DAG signatures, a second ordered incidence DAG and independent
-    mechanism closure.
+10. Add concrete replay from one checked endpoint template in both states,
+    sound differential pairing, normalized occurrence-DAG signatures, a second
+    ordered edge/signature incidence DAG and independent mechanism closure.
 11. Lower polarity, domains, constraints and canonical rule dispatch to SMT as
     another producer of the same evidence; add projection blocking and final
     `UNSAT` closure without exposing solver structure.
-12. Add `runa explore`, human output, the exit-code contract, explicit
-    privacy-authorizing `ReportRequest` and `futuruna.explore.v1`.
+12. Add `runa explore`, human output, the exit-code contract and explicit
+    privacy-authorizing `ReportRequest`; preserve legacy
+    `futuruna.explore.v1` graph meaning and introduce a transition-aware schema
+    rather than reinterpreting it.
 13. Construct the status-safe `ExplorationReport(Row)` and execute only the
     selected continuation in a fresh environment, with hash isolation, JSON
     channel isolation and artifact-preserving failure behavior.
@@ -3666,7 +4153,7 @@ The broad declared-profile query:
 - groups by income transition rather than repeated profile assignments;
 - reports admissible configurations, matching configurations and distinct
   income-transition keys as three separately named exact counts;
-- constructs a lossless case decision DAG whose expansion reproduces every
+- constructs a lossless search decision DAG whose expansion reproduces every
   admissible classification and preserves municipality/income correlations;
 - can expose every replay-confirmed matching configuration when its ledger is
   authorized, without confusing that population with projected findings;
@@ -3700,7 +4187,7 @@ For the opt-in typed form:
 - only the selected root continuation is automatically delivered, at most once
   per `run_id`, with crash ambiguity and explicit idempotent retry reported;
 - ordinary execution, imported queries and unselected queries run none;
-- changing only `after` leaves `query_hash` unchanged;
+- changing only `then` leaves `query_hash` unchanged;
 - hidden assignments and raw solver state are unavailable to the continuation;
 - an auxiliary configuration ledger is not injected into the typed report;
   receiving configurations as `findings` requires an output key `K` that is

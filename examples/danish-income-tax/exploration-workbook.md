@@ -43,10 +43,20 @@ That formulation identifies all of the pieces the program needs:
 - the metric: gross income in øre minus exact final tax in øre
 - the witness: a pair for which the metric falls
 
-Other exploration questions have the same shape. “What is the least tax in
-this search space?” asks for a minimum. “Can total tax be negative?” filters
-for results below zero. “Does this rule always preserve a value?” searches for
-a counterexample to the preservation condition.
+The first-class Explore architecture treats every case as a transition:
+
+```text
+(context, before state) -> after state
+```
+
+The question may compare after with before, or state an absolute condition on
+after while before remains available. A policy-version comparison changes the
+policy field. A municipality comparison can frame the income and profile,
+vary only `after.municipality`, recompute tax, and ask which after state is
+lower—emitting nothing when the declared `having varies(...)` group proves no
+difference. “Can total tax be negative?” is an absolute predicate over the
+after endpoint; a legacy point query lowers to an identity transition. These
+are variations of one transition relation, not separate tax-cliff machinery.
 
 ## 2. Define the metric and fix the facts
 
@@ -482,44 +492,69 @@ and bin evidence. This proves the runtime-to-journal-to-reducer-to-checkpoint
 path for exact mechanism-bin counts; it says nothing yet about the number of
 mechanisms in the Personskat model.
 
-### The case DAG answers where; the mechanism DAG answers how
+### Search, transition, and mechanism graphs answer different questions
 
-The primary result is a relation between bounded configurations,
-classification, outputs, and optional fresh-replay evidence. Two linked
+The primary result is a relation between canonical transition cases,
+classification, outputs, and optional fresh-replay evidence. Three linked
 projections make that relation intelligible:
 
 ```text
-bounded configurations
+generator coordinates
         |
         v
-case decision DAG  --------->  counts, result keys, and distributions
+search decision DAG  -------> coverage and weighted transition-case counts
         |
-        | exact case-to-signature incidence
+        | exact CaseId-to-TransitionId support
         v
-shared mechanism DAG  ------>  changed rules, dispatch, and branches
+semantic transition graph --> shared before/after state nodes and result views
+        |
+        | exact transition-to-signature incidence
+        v
+shared mechanism DAG  ------> changed rules, dispatch, and branches
 ```
 
-The case DAG answers **where** the searched property holds. It can share equal
-suffixes while retaining disconnected paths, so a large region need not become
-one JSON row per configuration. The mechanism DAG answers **how** a result
-arose under one explicit observation request. Fresh endpoint replay records
+The search decision DAG is the exact proof/compression object over declared
+finite axes. It shares equal suffixes while retaining disconnected paths. The
+semantic transition graph is the case graph we mean in the domain: role-neutral
+state nodes connected by directional before-to-after edges. A state can be
+reused across edges, while each edge retains its exact supporting `CaseId` or
+proved region. The current snapshot-v5 and sealed exact-answer-v4
+`graph.case_graph` fields still refer to the search decision DAG; a future
+schema must add the semantic graph under a
+new field rather than changing that field's meaning.
+
+The mechanism DAG answers how the encoded execution differs across a declared
+edge under one explicit observation request. Fresh endpoint replay records
 stable dynamic rule and branch occurrences, pairs the before/after executions
 when sound, and interns equal signatures. Formally, one differential signature
 is two endpoint-local occurrence DAGs plus a fail-closed stable-slot
 correspondence; the compact shared view must not turn reversed endpoint order
-into a false cycle. Different income or municipality paths can therefore point
-back to one shared mechanism without inventing cross-product cases.
+into a false cycle. Different income or municipality transitions can therefore
+point back to one shared mechanism without inventing cross-product cases. This
+is execution evidence in the model, not by itself proof of real-world
+causation.
 
-Neither graph is a substitute for the other. One projected result can contain
-several mechanisms, and one mechanism can span several result keys, losses,
-bins, and disconnected case regions.
+None of the graphs substitutes for another. One projected result can contain
+several mechanisms, one mechanism can span several result keys, losses, bins,
+and disconnected transition regions, and graph node counts are not population
+counts.
 
 ### Read every count with its population and closure
 
-Case closure and mechanism closure are independent. The case DAG can establish
-an exact number of matching configurations while mechanism replay is still
-open. Conversely, every traced case is confirmed evidence even before the
-requested mechanism population closes.
+Search closure, semantic-graph materialization and mechanism closure are
+independent. The search decision DAG can establish an exact number of matching
+transition cases while the semantic graph is omitted and mechanism replay is
+still open. Conversely, every traced transition is confirmed evidence even
+before the requested mechanism population closes.
+
+Always name the population: declared transition cases, admissible transition
+cases, matching transition cases, distinct before states, distinct after
+states, distinct state nodes, distinct transition edges, projected findings,
+or distinct mechanism signatures. A `CaseId` count is weighted search support;
+a `TransitionId` count is semantic edges; neither is a state-node or mechanism
+count. Closing the search population does not close distinct-edge or state
+counts until `tau`'s image is fully reduced or certified; graph serialization
+capacity is a separate disclosure limit.
 
 For mechanisms scoped to all matching configurations, the relevant states are:
 
@@ -529,7 +564,7 @@ For mechanisms scoped to all matching configurations, the relevant states are:
 - `matching_closed`: every matching case is covered by exact signature
   incidence.
 
-Counts follow the same discipline. Confirmed configurations and distinct
+Counts follow the same discipline. Confirmed transition cases and distinct
 mechanism signatures are lower bounds while their required frontier is open
 and become exact only at the corresponding closure. With no confirmed evidence
 yet, the honest count may be unknown rather than a fabricated zero.
@@ -554,7 +589,8 @@ only the author-supplied 341,500-DKK neighborhood or the 60/130-km profiles.
 The progression is:
 
 1. Start with small complete ranges and finite dimensions that are cheap enough
-   to inspect. Exercise durable pause/resume, case-DAG sharing, mechanism
+   to inspect. Exercise durable pause/resume, search-DAG sharing, semantic
+   transition edges, mechanism
    incidence, and exact-versus-lower-bound counts without supplying suspected
    thresholds as the domain.
 2. Widen one dimension at a time—income, commute distance, municipality, or
@@ -566,11 +602,12 @@ The progression is:
    Candidate discovery is useful early output; certified regions are what make
    a broad exact count affordable.
 4. Begin the through-1,500,000-DKK annual-income milestone for one fixed profile
-   only after durable run identity, typed replayable chunks, frontier
-   conservation, bounded graph publication, pressure-safe supervision, and
-   region proof closure are wired. Its first slice should tightly cap singleton
-   residual evaluation and become the first committed part of the real stream,
-   not a disposable brute-force run.
+   only after normalized before/after transition IR, durable run identity,
+   typed replayable chunks, frontier conservation, separately named search and
+   semantic graph publication, pressure-safe supervision, and region proof
+   closure are wired. Its first slice should tightly cap singleton residual
+   evaluation and become the first committed part of the real stream, not a
+   disposable brute-force run.
 
 There is therefore no planned 1.5-million-income execution merely to obtain an
 early number. The milestone is an architecture and proof-closure experiment;
