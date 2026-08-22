@@ -2673,8 +2673,9 @@ Exploration uses a dedicated analysis command. The current human-only
 compatibility path accepts `--case-limit`. The current macOS-supervised durable
 path accepts `--run-state`, `--time-limit`/`--max-minutes`,
 `--pause-after probes`, explicit `--case-graph full`, explicit `--finalize`, and
-`--json`. The first count-only mechanism experiment additionally accepts one
-all-or-none nested-`if` profile and two zero-based `output.show` indexes:
+`--json`. The first count-only mechanism experiments additionally accept an
+all-or-none `nested-if-v1` or `rule-dispatch-v1` profile and two zero-based
+`output.show` indexes:
 
 ```bash
 runa explore model.runa
@@ -2685,6 +2686,7 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --case-graph full --json
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --finalize --json
 runa explore examples/danish-income-tax/mechanism-stream-smoke.runa --query nested_mechanism_stream_smoke --run-state /private/path/nested-if-smoke.run --pause-after probes --mechanism-profile nested-if-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json
+runa explore examples/danish-income-tax/mechanism-rule-dispatch-smoke.runa --query rule_dispatch_mechanism_stream_smoke --run-state /private/path/rule-dispatch-smoke.run --time-limit 10s --mechanism-profile rule-dispatch-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json
 ```
 
 The accepted protocol also reserves the following future surfaces. They are
@@ -2714,12 +2716,16 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
 - Repeating the same command with the same `--run-state` validates the journal
   and resumes its exact open frontier. A changed immutable identity is an error,
   not an implicit new run or probe refresh.
-- `--mechanism-profile nested-if-v1`, `--mechanism-before-show INDEX`, and
+- `--mechanism-profile nested-if-v1|rule-dispatch-v1`,
+  `--mechanism-before-show INDEX`, and
   `--mechanism-after-show INDEX` are an all-or-none experimental selector. The
   indexes must be distinct zero-based shown-field positions. This profile
   requires `--run-state`, binds its checked mechanism request into sequence-zero
   identity, drains confirmed mechanism replay before classifying another case,
-  and publishes count-only checkpoints. It currently rejects `--case-graph
+  and publishes count-only checkpoints. `rule-dispatch-v1` requires both roots
+  to call the same global family directly and records the ordinary dispatcher's
+  reached `HeadMismatch` / `GuardFalse` / `BodyFalse` / `Applicable` candidates
+  plus its terminal selection. It currently rejects `--case-graph
   full` and `--finalize`; signature definitions, incidence DAGs and terminal
   mechanism publication remain private or unavailable. Fully closed mechanism evidence
   therefore pauses with `mechanism_observation_closed_terminal_unavailable`

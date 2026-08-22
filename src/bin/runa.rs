@@ -27,6 +27,7 @@ static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum ExploreMechanismProfileV1 {
     NestedIfV1,
+    RuleDispatchV1,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,11 +37,18 @@ enum ExploreCliExecutionProfile {
         before_show_index: usize,
         after_show_index: usize,
     },
+    RuleDispatchMechanismV1 {
+        before_show_index: usize,
+        after_show_index: usize,
+    },
 }
 
 impl ExploreCliExecutionProfile {
     const fn is_mechanism(self) -> bool {
-        matches!(self, Self::NestedIfMechanismV1 { .. })
+        matches!(
+            self,
+            Self::NestedIfMechanismV1 { .. } | Self::RuleDispatchMechanismV1 { .. }
+        )
     }
 
     fn json(self) -> serde_json::Value {
@@ -51,6 +59,14 @@ impl ExploreCliExecutionProfile {
                 after_show_index,
             } => serde_json::json!({
                 "kind": "nested_if_mechanism_v1",
+                "before_show_index": before_show_index,
+                "after_show_index": after_show_index,
+            }),
+            Self::RuleDispatchMechanismV1 {
+                before_show_index,
+                after_show_index,
+            } => serde_json::json!({
+                "kind": "rule_dispatch_mechanism_v1",
                 "before_show_index": before_show_index,
                 "after_show_index": after_show_index,
             }),
@@ -368,7 +384,9 @@ fn main_inner() {
             }
             "--mechanism-profile" if mode == "explore" => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --mechanism-profile requires `nested-if-v1`");
+                    eprintln!(
+                        "error: --mechanism-profile requires `nested-if-v1` or `rule-dispatch-v1`"
+                    );
                     std::process::exit(1);
                 }
                 explore_mechanism_profile = Some(parse_explore_mechanism_profile(&args[i + 1]));
@@ -690,7 +708,7 @@ fn main_inner() {
                     "  explore --max-minutes N  Compatibility alias for a whole-minute time limit"
                 );
                 eprintln!(
-                    "  explore --mechanism-profile nested-if-v1  Experimental count-only mechanism stream"
+                    "  explore --mechanism-profile nested-if-v1|rule-dispatch-v1  Experimental count-only mechanism stream"
                 );
                 eprintln!(
                     "  explore --mechanism-before-show N --mechanism-after-show N  Select distinct zero-based output.show endpoints"
@@ -787,6 +805,9 @@ fn main_inner() {
                 );
                 eprintln!(
                     "  runa explore examples/danish-income-tax/mechanism-stream-smoke.runa --query nested_mechanism_stream_smoke --run-state /private/nested-if-smoke.run --time-limit 10s --mechanism-profile nested-if-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json"
+                );
+                eprintln!(
+                    "  runa explore examples/danish-income-tax/mechanism-rule-dispatch-smoke.runa --query rule_dispatch_mechanism_stream_smoke --run-state /private/rule-dispatch-smoke.run --time-limit 10s --mechanism-profile rule-dispatch-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json"
                 );
                 std::process::exit(0);
             }
@@ -1112,7 +1133,7 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--mechanism-profile nested-if-v1 --mechanism-before-show INDEX --mechanism-after-show INDEX] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--mechanism-profile nested-if-v1|rule-dispatch-v1 --mechanism-before-show INDEX --mechanism-after-show INDEX] [--json]"
         );
         std::process::exit(1);
     }
@@ -1123,25 +1144,31 @@ fn main_inner() {
         explore_mechanism_after_show,
     ) {
         (None, None, None) => ExploreCliExecutionProfile::Exact,
-        (
-            Some(ExploreMechanismProfileV1::NestedIfV1),
-            Some(before_show_index),
-            Some(after_show_index),
-        ) => {
+        (Some(profile), Some(before_show_index), Some(after_show_index)) => {
             if before_show_index == after_show_index {
                 eprintln!(
                     "error: --mechanism-before-show and --mechanism-after-show must select distinct zero-based indexes"
                 );
                 std::process::exit(1);
             }
-            ExploreCliExecutionProfile::NestedIfMechanismV1 {
-                before_show_index,
-                after_show_index,
+            match profile {
+                ExploreMechanismProfileV1::NestedIfV1 => {
+                    ExploreCliExecutionProfile::NestedIfMechanismV1 {
+                        before_show_index,
+                        after_show_index,
+                    }
+                }
+                ExploreMechanismProfileV1::RuleDispatchV1 => {
+                    ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
+                        before_show_index,
+                        after_show_index,
+                    }
+                }
             }
         }
         _ => {
             eprintln!(
-                "error: mechanism exploration requires --mechanism-profile nested-if-v1, --mechanism-before-show INDEX, and --mechanism-after-show INDEX together"
+                "error: mechanism exploration requires --mechanism-profile nested-if-v1|rule-dispatch-v1, --mechanism-before-show INDEX, and --mechanism-after-show INDEX together"
             );
             std::process::exit(1);
         }
@@ -7475,15 +7502,24 @@ fn write_exact_explore_stream_report(
     };
     writeln!(output, "Run: {lifecycle}")?;
     writeln!(output, "Run state: {}", run_state.display())?;
-    if let ExploreCliExecutionProfile::NestedIfMechanismV1 {
-        before_show_index,
-        after_show_index,
-    } = execution_profile
-    {
-        writeln!(
+    match execution_profile {
+        ExploreCliExecutionProfile::NestedIfMechanismV1 {
+            before_show_index,
+            after_show_index,
+        } => writeln!(
             output,
             "Execution profile: nested-if mechanism V1 (show {before_show_index} -> show {after_show_index})"
-        )?;
+        )?,
+        ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
+            before_show_index,
+            after_show_index,
+        } => writeln!(
+            output,
+            "Execution profile: rule-dispatch mechanism V1 (show {before_show_index} -> show {after_show_index})"
+        )?,
+        ExploreCliExecutionProfile::Exact => {}
+    }
+    if execution_profile.is_mechanism() {
         writeln!(
             output,
             "Mechanism view: count-only (signature definitions, incidence DAGs, case DAGs, and terminal publication are not exposed)"
@@ -7685,6 +7721,18 @@ fn run_exact_explore_stream(
             before_show_index,
             after_show_index,
         } => explore::execute_checked_nested_if_mechanism_stream_slice_v1(
+            &statements,
+            source_dir_for(filename),
+            source,
+            query_name,
+            before_show_index,
+            after_show_index,
+            options,
+        ),
+        ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
+            before_show_index,
+            after_show_index,
+        } => explore::execute_checked_rule_dispatch_mechanism_stream_slice_v1(
             &statements,
             source_dir_for(filename),
             source,
@@ -8485,11 +8533,15 @@ fn parse_explore_case_graph(raw: &str) -> explore::ExploreStreamCaseGraphRequest
 }
 
 fn parse_explore_mechanism_profile(raw: &str) -> ExploreMechanismProfileV1 {
-    if raw == "nested-if-v1" {
-        ExploreMechanismProfileV1::NestedIfV1
-    } else {
-        eprintln!("error: --mechanism-profile requires `nested-if-v1`, got '{raw}'");
-        std::process::exit(1);
+    match raw {
+        "nested-if-v1" => ExploreMechanismProfileV1::NestedIfV1,
+        "rule-dispatch-v1" => ExploreMechanismProfileV1::RuleDispatchV1,
+        _ => {
+            eprintln!(
+                "error: --mechanism-profile requires `nested-if-v1` or `rule-dispatch-v1`, got '{raw}'"
+            );
+            std::process::exit(1);
+        }
     }
 }
 

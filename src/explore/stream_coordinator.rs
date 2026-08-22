@@ -54,8 +54,9 @@ use super::mechanism::{
     CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
 };
 use super::mechanism_runtime::{
-    mint_nested_if_mechanism_observation_v1, mint_single_if_mechanism_observation_v1,
-    seal_runtime_confirmed_mechanism_observation_v1, CheckedNestedIfMechanismRuntimePlanV1,
+    mint_nested_if_mechanism_observation_v1, mint_rule_dispatch_mechanism_observation_v1,
+    mint_single_if_mechanism_observation_v1, seal_runtime_confirmed_mechanism_observation_v1,
+    CheckedNestedIfMechanismRuntimePlanV1, CheckedRuleDispatchMechanismRuntimePlanV1,
     CheckedSingleIfMechanismRuntimePlanV1, MechanismRuntimeMintErrorV1,
 };
 use super::mechanism_snapshot::{
@@ -1484,6 +1485,71 @@ impl<'a> ExactStreamCoordinator<'a> {
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
                     "cannot seal fresh-replay-confirmed nested mechanism case",
+                    error,
+                )
+            })?;
+        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
+        Ok(MechanismStreamAdvanceV1::Committed {
+            rank,
+            canonical_blob_bytes,
+        })
+    }
+
+    /// Fresh-replay and commit one confirmed matching case through the direct
+    /// checked rule-dispatch trace profile.
+    pub(super) fn advance_one_rule_dispatch_mechanism_case(
+        &mut self,
+        plan: &CheckedRuleDispatchMechanismRuntimePlanV1,
+    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
+        if !self.probe_phase_complete() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "mechanism replay cannot precede the completed source-probe milestone",
+            ));
+        }
+        let request = self.mechanism_request.as_ref().ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "this Explore stream identity does not authorize mechanism replay",
+            )
+        })?;
+        if request != plan.request() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "rule-dispatch mechanism runtime plan disagrees with sequence-zero request identity",
+            ));
+        }
+        let Some(rank) = self.next_mechanism_rank_hint()? else {
+            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
+        };
+        let confirmed = {
+            let evaluator = match self.ensure_evaluator_classified() {
+                Ok(evaluator) => evaluator,
+                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
+            };
+            match mint_rule_dispatch_mechanism_observation_v1(plan, evaluator, rank) {
+                Ok(confirmed) => confirmed,
+                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
+                    return Err(ExactStreamCoordinatorError::context(
+                        "cannot fresh-replay confirmed rule mechanism case",
+                        error,
+                    ));
+                }
+            }
+        };
+        if confirmed.rank() != rank {
+            return Err(ExactStreamCoordinatorError::invalid(format!(
+                "rule mechanism runtime returned rank {} while coordinating rank {rank}",
+                confirmed.rank()
+            )));
+        }
+        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot seal fresh-replay-confirmed rule mechanism case",
                     error,
                 )
             })?;

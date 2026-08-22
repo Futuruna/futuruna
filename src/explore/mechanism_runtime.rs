@@ -1,9 +1,10 @@
-//! Private fresh-replay mints for the first two executable mechanism profiles.
+//! Private fresh-replay mints for the first executable mechanism profiles.
 //!
-//! Both profiles pair checked Explore `show` call roots which resolve to one
-//! top-level endpoint function. The original profile evaluates one direct `if`;
-//! the nested profile executes one direct positional helper activation whose
-//! body contains one `if`. The ordinary Interpreter decides the actual branch,
+//! Each profile pairs checked Explore `show` call roots. The original profile
+//! evaluates one direct `if`; the nested profile executes one direct positional
+//! helper activation whose body contains one `if`; the rule profile records the
+//! canonical candidate-attempt prefix and terminal selection of one direct
+//! global rule family. The ordinary Interpreter decides every actual outcome,
 //! and every durable identity comes from checked structural sites. Runtime AST
 //! addresses are never observed, compared, hashed, or persisted.
 
@@ -17,6 +18,7 @@ use super::mechanism::{
     DynamicEndpointTraceV1, DynamicEventKind, DynamicEventOutcome, DynamicMechanismSignature,
     EndpointOccurrenceV1, IfDecisionOutcome, MechanismActivationStepV1, MechanismCallableSiteId,
     MechanismNumericBin, MechanismOccurrenceSlotV1, MechanismSignatureId, MechanismSiteId,
+    RuleAttemptOutcome, RuleSelectionOutcome,
 };
 use super::mechanism_request::{build_checked_mechanism_request_v1, MechanismTraceSelectionV1};
 use super::mechanism_stream::{
@@ -31,6 +33,8 @@ use super::source_events::{
 };
 use crate::{
     has_named_args, CheckedCallTarget, CheckedResolutionIssue, CheckedRuntimeIfDecisionV1,
+    CheckedRuntimeRuleAttemptOutcomeV1, CheckedRuntimeRuleSelectionV1,
+    CheckedRuntimeRuleTraceErrorV1, CheckedRuntimeRuleTracePlanV1, CheckedRuntimeRuleTraceV1,
     CheckedRuntimeTraceErrorV1, CheckedRuntimeTracePlanV1, CheckedRuntimeTraceV1, Env,
     ExploreRuntimeFailure, ExploreRuntimeResource, Expr, ExprKind, ExprSiteId, Interpreter, Stmt,
     TypeCheckArtifacts, Value,
@@ -347,6 +351,305 @@ impl CheckedNestedIfMechanismRuntimePlanV1 {
 
     pub(super) fn request(&self) -> &CheckedMechanismObservationRequestV1 {
         &self.request
+    }
+}
+
+/// Checked plan for the first direct rule-dispatch profile. Each paired show
+/// root calls the same global family directly; the ordinary dispatcher emits
+/// authenticated candidate attempts and one terminal selection.
+pub(super) struct CheckedRuleDispatchMechanismRuntimePlanV1 {
+    request: CheckedMechanismObservationRequestV1,
+    before_show_index: usize,
+    after_show_index: usize,
+    before_show_site: ExprSiteId,
+    after_show_site: ExprSiteId,
+    before_trace: CheckedRuntimeRuleTracePlanV1,
+    after_trace: CheckedRuntimeRuleTracePlanV1,
+}
+
+impl CheckedRuleDispatchMechanismRuntimePlanV1 {
+    pub(super) fn from_show_call_roots(
+        artifacts: &TypeCheckArtifacts,
+        accepted_query_index: usize,
+        before_show_index: usize,
+        after_show_index: usize,
+    ) -> Result<Self, String> {
+        artifacts.require_mechanism_runtime_root_v1()?;
+        if before_show_index == after_show_index {
+            return Err("mechanism before and after show roots must be distinct".to_string());
+        }
+        let request = build_checked_mechanism_request_v1(
+            artifacts,
+            accepted_query_index,
+            MechanismTraceSelectionV1 {
+                before_show_index,
+                after_show_index,
+                bin_fields: Box::default(),
+                retained_examples_per_signature: 1,
+            },
+        )
+        .map_err(|error| format!("cannot check rule-dispatch mechanism request: {error}"))?;
+        let checked = artifacts
+            .checked_exploration_query(accepted_query_index)
+            .map_err(|error| format!("cannot select checked mechanism query: {error:?}"))?;
+        let before_show_site = checked
+            .artifact
+            .sites
+            .show
+            .get(before_show_index)
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "mechanism before show index {before_show_index} is outside {} checked roots",
+                    checked.artifact.sites.show.len()
+                )
+            })?;
+        let after_show_site = checked
+            .artifact
+            .sites
+            .show
+            .get(after_show_index)
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "mechanism after show index {after_show_index} is outside {} checked roots",
+                    checked.artifact.sites.show.len()
+                )
+            })?;
+
+        let source_index =
+            CheckedProgramSiteIndex::build(artifacts, ResolvedEventAdapterLimits::default())
+                .map_err(|error| format!("cannot index checked mechanism source: {error}"))?;
+        let before_source = source_index
+            .expression_slice(&before_show_site)
+            .map_err(|error| format!("cannot locate before rule mechanism root: {error}"))?;
+        let after_source = source_index
+            .expression_slice(&after_show_site)
+            .map_err(|error| format!("cannot locate after rule mechanism root: {error}"))?;
+        validate_rule_trace_endpoint(artifacts, &before_source, "before rule mechanism endpoint")?;
+        validate_rule_trace_endpoint(artifacts, &after_source, "after rule mechanism endpoint")?;
+
+        let before_target = checked_call_target(artifacts, &before_show_site, "before")?;
+        let after_target = checked_call_target(artifacts, &after_show_site, "after")?;
+        if before_target != after_target {
+            return Err(
+                "mechanism show roots do not resolve to the same exact rule family".to_string(),
+            );
+        }
+        let CheckedCallTarget::RuleFamily(family_key) = before_target else {
+            return Err(
+                "rule-dispatch mechanism replay requires a direct checked rule-family target"
+                    .to_string(),
+            );
+        };
+        if family_key.scope.is_some() {
+            return Err(
+                "rule-dispatch mechanism V1 does not yet support RuleScope families".to_string(),
+            );
+        }
+        let family = artifacts
+            .checked_resolutions
+            .rule_families
+            .get(&family_key)
+            .cloned()
+            .ok_or_else(|| {
+                "rule-dispatch mechanism target has no producer-minted candidate catalogue"
+                    .to_string()
+            })?;
+        validate_rule_trace_candidates(artifacts, &source_index, &family)?;
+        let before_trace = CheckedRuntimeRuleTracePlanV1::new(
+            artifacts.analysis_program.id.clone(),
+            before_show_site.clone(),
+            family.clone(),
+        )?;
+        let after_trace = CheckedRuntimeRuleTracePlanV1::new(
+            artifacts.analysis_program.id.clone(),
+            after_show_site.clone(),
+            family,
+        )?;
+
+        Ok(Self {
+            request,
+            before_show_index,
+            after_show_index,
+            before_show_site,
+            after_show_site,
+            before_trace,
+            after_trace,
+        })
+    }
+
+    pub(super) fn request(&self) -> &CheckedMechanismObservationRequestV1 {
+        &self.request
+    }
+}
+
+fn validate_rule_trace_endpoint(
+    artifacts: &TypeCheckArtifacts,
+    source: &CheckedSourceExpressionSlice<'_>,
+    label: &str,
+) -> Result<(), String> {
+    require_fully_checked_slice(artifacts, source)?;
+    let ExprKind::App(function, arguments) = &source.root.expression.kind else {
+        return Err(format!("{label} must be a direct rule-family application"));
+    };
+    if !matches!(&function.kind, ExprKind::Var(_)) {
+        return Err(format!("{label} must call a direct named rule family"));
+    }
+    if has_named_args(arguments) {
+        return Err(format!("{label} must use positional arguments"));
+    }
+    for item in source.descendants.iter() {
+        if item.site == source.root.site {
+            continue;
+        }
+        if matches!(&item.expression.kind, ExprKind::App(_, _)) {
+            return Err(format!(
+                "{label} arguments cannot contain another application in rule-dispatch V1"
+            ));
+        }
+        if let Some(kind) = dynamic_control_kind(item.expression) {
+            return Err(format!(
+                "{label} contains unsupported dynamic control `{kind}` at structural path {:?}",
+                item.site.ast_path
+            ));
+        }
+        if !matches!(
+            &item.expression.kind,
+            ExprKind::Var(_)
+                | ExprKind::Lit(_)
+                | ExprKind::Unit
+                | ExprKind::BinOp(_, _, _)
+                | ExprKind::UnOp(_, _)
+        ) {
+            return Err(format!(
+                "{label} contains an expression outside the direct rule-dispatch subset at structural path {:?}",
+                item.site.ast_path
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_rule_trace_candidates(
+    artifacts: &TypeCheckArtifacts,
+    source_index: &CheckedProgramSiteIndex<'_>,
+    family: &crate::CheckedRuleFamilyResolution,
+) -> Result<(), String> {
+    for candidate in family.candidates.iter() {
+        if !candidate.statement_path.is_empty()
+            || !candidate
+                .declaration
+                .declaration
+                .module
+                .internal_path
+                .is_empty()
+        {
+            return Err(
+                "rule-dispatch mechanism V1 requires top-level checked candidates".to_string(),
+            );
+        }
+        validate_rule_trace_candidate_head(source_index, family, candidate)?;
+        for (role, site) in candidate
+            .condition_site
+            .iter()
+            .map(|site| ("guard", site))
+            .chain(candidate.value_site.iter().map(|site| ("body/value", site)))
+        {
+            let source = source_index
+                .expression_slice(site)
+                .map_err(|error| format!("cannot locate checked rule candidate {role}: {error}"))?;
+            require_fully_checked_slice(artifacts, &source)?;
+            for item in std::iter::once(&source.root).chain(source.descendants.iter()) {
+                if let Some(kind) = dynamic_control_kind(item.expression) {
+                    return Err(format!(
+                        "rule-dispatch mechanism candidate {role} contains unsupported dynamic control `{kind}`"
+                    ));
+                }
+                if matches!(&item.expression.kind, ExprKind::App(_, _)) {
+                    return Err(format!(
+                        "rule-dispatch mechanism candidate {role} contains a nested application"
+                    ));
+                }
+                if !matches!(
+                    &item.expression.kind,
+                    ExprKind::Var(_)
+                        | ExprKind::Lit(_)
+                        | ExprKind::Unit
+                        | ExprKind::BinOp(_, _, _)
+                        | ExprKind::UnOp(_, _)
+                ) {
+                    return Err(format!(
+                        "rule-dispatch mechanism candidate {role} contains an expression outside the direct trace subset"
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// The legacy parser accepts arbitrary expressions in a rule head, while the
+/// ordinary dispatcher interprets only this recursive pattern grammar. Keep
+/// V1 inside that explicit grammar so its `HeadMismatch` evidence never relies
+/// on the matcher's historical catch-all arm.
+fn validate_rule_trace_candidate_head(
+    source_index: &CheckedProgramSiteIndex<'_>,
+    family: &crate::CheckedRuleFamilyResolution,
+    candidate: &crate::CheckedRuleCandidateResolution,
+) -> Result<(), String> {
+    let source = source_index
+        .expression_slice(&candidate.head_site)
+        .map_err(|error| format!("cannot locate checked rule candidate head: {error}"))?;
+    let parameters = match &source.root.expression.kind {
+        ExprKind::App(function, parameters)
+            if matches!(&function.kind, ExprKind::Var(name) if name == &family.key.name)
+                && parameters.len() == family.key.arity =>
+        {
+            parameters.as_slice()
+        }
+        ExprKind::Var(name) if name == &family.key.name && family.key.arity == 0 => &[],
+        _ => {
+            return Err(
+                "rule-dispatch mechanism candidate head disagrees with its checked family"
+                    .to_string(),
+            )
+        }
+    };
+    if parameters.iter().all(rule_trace_matcher_pattern_v1) {
+        Ok(())
+    } else {
+        Err(
+            "rule-dispatch mechanism candidate head contains an expression outside the direct matcher subset"
+                .to_string(),
+        )
+    }
+}
+
+fn rule_trace_matcher_pattern_v1(pattern: &Expr) -> bool {
+    match &pattern.kind {
+        ExprKind::Var(_) | ExprKind::Lit(_) => true,
+        ExprKind::Tuple(items) => items.iter().all(rule_trace_matcher_pattern_v1),
+        ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(_)) => {
+            arguments.iter().all(rule_trace_matcher_pattern_v1)
+        }
+        ExprKind::App(_, _)
+        | ExprKind::Lambda(_, _)
+        | ExprKind::BinOp(_, _, _)
+        | ExprKind::UnOp(_, _)
+        | ExprKind::If(_, _, _)
+        | ExprKind::Match(_, _)
+        | ExprKind::Block(_)
+        | ExprKind::Field(_, _)
+        | ExprKind::Index(_, _)
+        | ExprKind::List(_)
+        | ExprKind::Effect(_, _)
+        | ExprKind::Handle { .. }
+        | ExprKind::Try(_)
+        | ExprKind::Conjunction(_)
+        | ExprKind::Disjunction(_)
+        | ExprKind::Pipe(_, _)
+        | ExprKind::Unit => false,
     }
 }
 
@@ -1061,6 +1364,138 @@ impl ExactFreshMatchShowObserver for NestedIfReplayObserver<'_> {
     }
 }
 
+struct RuleDispatchReplayObserver<'plan> {
+    plan: &'plan CheckedRuleDispatchMechanismRuntimePlanV1,
+    before: Option<CheckedRuntimeRuleTraceV1>,
+    after: Option<CheckedRuntimeRuleTraceV1>,
+}
+
+impl<'plan> RuleDispatchReplayObserver<'plan> {
+    fn new(plan: &'plan CheckedRuleDispatchMechanismRuntimePlanV1) -> Self {
+        Self {
+            plan,
+            before: None,
+            after: None,
+        }
+    }
+
+    fn finish(self) -> Result<(CheckedRuntimeRuleTraceV1, CheckedRuntimeRuleTraceV1), String> {
+        Ok((
+            self.before
+                .ok_or_else(|| "before rule mechanism root was not replayed".to_string())?,
+            self.after
+                .ok_or_else(|| "after rule mechanism root was not replayed".to_string())?,
+        ))
+    }
+}
+
+impl ExactFreshMatchShowObserver for RuleDispatchReplayObserver<'_> {
+    fn requires_rule_candidate_tokens_v1(&self) -> bool {
+        true
+    }
+
+    fn before_show(
+        &mut self,
+        show_index: usize,
+        show_site: &ExprSiteId,
+        interpreter: &mut Interpreter,
+        _environment: &Env,
+        _step_limit: usize,
+        _collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError> {
+        let (expected_site, trace_plan, observed) = if show_index == self.plan.before_show_index {
+            (
+                &self.plan.before_show_site,
+                &self.plan.before_trace,
+                &self.before,
+            )
+        } else if show_index == self.plan.after_show_index {
+            (
+                &self.plan.after_show_site,
+                &self.plan.after_trace,
+                &self.after,
+            )
+        } else {
+            return Ok(());
+        };
+        if expected_site != show_site {
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "rule mechanism show index {show_index} disagrees with its producer-minted checked site"
+            )));
+        }
+        if observed.is_some() {
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "rule mechanism show index {show_index} was replayed more than once"
+            )));
+        }
+        interpreter
+            .begin_checked_runtime_rule_trace_v1(trace_plan.clone())
+            .map_err(|error| {
+                ExactFreshMatchReplayError::Failure(format!(
+                    "cannot arm checked rule mechanism trace: {error:?}"
+                ))
+            })
+    }
+
+    fn after_show(
+        &mut self,
+        show_index: usize,
+        show_site: &ExprSiteId,
+        interpreter: &mut Interpreter,
+        _environment: &Env,
+        _value: &super::ExploreValue,
+        _step_limit: usize,
+        _collection_limit: usize,
+    ) -> Result<(), ExactFreshMatchReplayError> {
+        let (expected_site, observed) = if show_index == self.plan.before_show_index {
+            (&self.plan.before_show_site, &mut self.before)
+        } else if show_index == self.plan.after_show_index {
+            (&self.plan.after_show_site, &mut self.after)
+        } else {
+            return Ok(());
+        };
+        if expected_site != show_site {
+            interpreter.abort_checked_runtime_rule_trace_v1();
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "rule mechanism show index {show_index} changed checked site during replay"
+            )));
+        }
+        if observed.is_some() {
+            interpreter.abort_checked_runtime_rule_trace_v1();
+            return Err(ExactFreshMatchReplayError::Failure(format!(
+                "rule mechanism show index {show_index} produced more than one trace"
+            )));
+        }
+        match interpreter.finish_checked_runtime_rule_trace_v1() {
+            Ok(trace) => {
+                *observed = Some(trace);
+                Ok(())
+            }
+            Err(error) => Err(classify_checked_rule_trace_finish_error(error)),
+        }
+    }
+}
+
+fn classify_checked_rule_trace_finish_error(
+    error: CheckedRuntimeRuleTraceErrorV1,
+) -> ExactFreshMatchReplayError {
+    match error {
+        CheckedRuntimeRuleTraceErrorV1::Unsupported(reason)
+            if reason.is_observation_unsupported() =>
+        {
+            ExactFreshMatchReplayError::ObservationUnsupported(format!(
+                "checked rule mechanism trace is unsupported: {reason:?}"
+            ))
+        }
+        CheckedRuntimeRuleTraceErrorV1::Unsupported(reason) => ExactFreshMatchReplayError::Failure(
+            format!("checked rule mechanism trace invariant failed: {reason:?}"),
+        ),
+        error => ExactFreshMatchReplayError::Failure(format!(
+            "cannot finish checked rule mechanism trace: {error:?}"
+        )),
+    }
+}
+
 fn classify_checked_trace_finish_error(
     error: CheckedRuntimeTraceErrorV1,
 ) -> ExactFreshMatchReplayError {
@@ -1154,6 +1589,109 @@ fn lower_checked_nested_if_trace(
             DynamicEventOutcome::IfDecision(decision),
             BTreeSet::new(),
         )],
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn lower_checked_rule_dispatch_trace(
+    request: &CheckedMechanismObservationRequestV1,
+    expected_plan: &CheckedRuntimeRuleTracePlanV1,
+    trace: CheckedRuntimeRuleTraceV1,
+) -> Result<DynamicEndpointTraceV1, String> {
+    if trace.analysis_program != request.observation.analysis_program
+        || &trace.analysis_program != expected_plan.analysis_program()
+    {
+        return Err("checked rule trace belongs to another analysis program".to_string());
+    }
+    if &trace.endpoint_root != expected_plan.endpoint_root()
+        || &trace.family != expected_plan.family()
+    {
+        return Err("checked rule trace disagrees with its endpoint trace plan".to_string());
+    }
+    if trace.attempts.is_empty()
+        || trace.attempts.len() > expected_plan.candidates().len()
+        || trace
+            .attempts
+            .iter()
+            .zip(expected_plan.candidates())
+            .any(|(actual, expected)| &actual.candidate != expected || actual.visit_ordinal != 0)
+    {
+        return Err("checked rule trace returned an invalid candidate prefix".to_string());
+    }
+
+    let mut occurrences = Vec::with_capacity(trace.attempts.len() + 1);
+    let mut previous_attempt = None;
+    for attempt in trace.attempts.iter() {
+        let slot = MechanismOccurrenceSlotV1::new(
+            &request.observation,
+            0,
+            Vec::<MechanismActivationStepV1>::new(),
+            MechanismSiteId::from_rule_candidate(&trace.analysis_program, &attempt.candidate)
+                .map_err(|error| error.to_string())?,
+            DynamicEventKind::RuleAttempt,
+            attempt.visit_ordinal,
+        )
+        .map_err(|error| error.to_string())?;
+        let outcome = match attempt.outcome {
+            CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch => RuleAttemptOutcome::HeadMismatch,
+            CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse => RuleAttemptOutcome::GuardFalse,
+            CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse => RuleAttemptOutcome::BodyFalse,
+            CheckedRuntimeRuleAttemptOutcomeV1::Applicable => RuleAttemptOutcome::Applicable,
+        };
+        let dependencies = previous_attempt.iter().cloned().collect::<BTreeSet<_>>();
+        occurrences.push(EndpointOccurrenceV1::new(
+            slot.clone(),
+            DynamicEventOutcome::RuleAttempt(outcome),
+            dependencies,
+        ));
+        previous_attempt = Some(slot);
+    }
+    let last_attempt = previous_attempt
+        .ok_or_else(|| "checked rule trace has no terminal candidate attempt".to_string())?;
+    let selection_slot = MechanismOccurrenceSlotV1::new(
+        &request.observation,
+        0,
+        Vec::<MechanismActivationStepV1>::new(),
+        MechanismSiteId::from_rule_family(&trace.analysis_program, &trace.family)
+            .map_err(|error| error.to_string())?,
+        DynamicEventKind::RuleSelection,
+        0,
+    )
+    .map_err(|error| error.to_string())?;
+    let selection = match trace.selection {
+        CheckedRuntimeRuleSelectionV1::NoApplicableRule => {
+            if trace.attempts.len() != expected_plan.candidates().len() {
+                return Err(
+                    "no-applicable rule trace did not attempt the complete checked family"
+                        .to_string(),
+                );
+            }
+            RuleSelectionOutcome::NoApplicableRule
+        }
+        CheckedRuntimeRuleSelectionV1::Selected(candidate) => {
+            if trace.attempts.last().is_none_or(|attempt| {
+                attempt.candidate != candidate
+                    || attempt.outcome != CheckedRuntimeRuleAttemptOutcomeV1::Applicable
+            }) {
+                return Err(
+                    "selected rule trace does not end in its applicable candidate".to_string(),
+                );
+            }
+            RuleSelectionOutcome::Selected(
+                MechanismSiteId::from_rule_candidate(&trace.analysis_program, &candidate)
+                    .map_err(|error| error.to_string())?,
+            )
+        }
+    };
+    occurrences.push(EndpointOccurrenceV1::new(
+        selection_slot.clone(),
+        DynamicEventOutcome::RuleSelection(selection),
+        BTreeSet::from([last_attempt]),
+    ));
+    DynamicEndpointTraceV1::new(
+        &request.observation,
+        BTreeSet::from([selection_slot]),
+        occurrences,
     )
     .map_err(|error| error.to_string())
 }
@@ -1298,6 +1836,69 @@ pub(super) fn mint_nested_if_mechanism_observation_v1(
         Err(ExactFreshMatchReplayError::Failure(message)) => {
             Err(MechanismRuntimeMintErrorV1::Failure(format!(
                 "cannot fresh-replay nested mechanism rank {rank}: {message}"
+            )))
+        }
+    }
+}
+
+pub(super) fn mint_rule_dispatch_mechanism_observation_v1(
+    plan: &CheckedRuleDispatchMechanismRuntimePlanV1,
+    evaluator: &ExactStreamEvaluator<'_>,
+    rank: u128,
+) -> Result<RuntimeConfirmedMechanismObservationV1, MechanismRuntimeMintErrorV1> {
+    if !evaluator.mechanism_runtime_root_authorized() {
+        return Err(MechanismRuntimeMintErrorV1::Failure(
+            "rule-dispatch mechanism evaluator lacks an immutable root-only runtime authorization"
+                .to_string(),
+        ));
+    }
+    if &plan.request.observation.query != evaluator.checked_mechanism_query_id() {
+        return Err(MechanismRuntimeMintErrorV1::Failure(
+            "rule-dispatch mechanism plan and exact evaluator name different checked queries"
+                .to_string(),
+        ));
+    }
+    let ordinals = evaluator.canonical_ordinals_for_rank(rank)?;
+    let case_id = MechanismCanonicalCaseIdV1::new(rank, ordinals);
+    let mut observer = RuleDispatchReplayObserver::new(plan);
+    let replay = evaluator.fresh_replay_confirmed_match_shows(rank, &mut observer);
+
+    match replay {
+        Ok(()) => {
+            let (before, after) = observer.finish()?;
+            let before_trace =
+                lower_checked_rule_dispatch_trace(&plan.request, &plan.before_trace, before)?;
+            let after_trace =
+                lower_checked_rule_dispatch_trace(&plan.request, &plan.after_trace, after)?;
+            Ok(observed_trace_token(
+                &plan.request,
+                case_id,
+                before_trace,
+                after_trace,
+                Box::default(),
+            )?)
+        }
+        Err(ExactFreshMatchReplayError::ReplayUnavailable(_)) => Ok(untraced_token(
+            &plan.request,
+            case_id,
+            MechanismPermanentUntracedReasonV1::ReplayUnavailable,
+        )),
+        Err(ExactFreshMatchReplayError::ObservationUnsupported(_)) => Ok(untraced_token(
+            &plan.request,
+            case_id,
+            MechanismPermanentUntracedReasonV1::ObservationUnsupported,
+        )),
+        Err(ExactFreshMatchReplayError::NotConfirmedMatch) => {
+            Err(MechanismRuntimeMintErrorV1::Failure(format!(
+                "rule mechanism replay rank {rank} no longer fresh-replays as an admissible match"
+            )))
+        }
+        Err(ExactFreshMatchReplayError::OperationalLimit(stop)) => {
+            Err(MechanismRuntimeMintErrorV1::OperationalLimit(stop))
+        }
+        Err(ExactFreshMatchReplayError::Failure(message)) => {
+            Err(MechanismRuntimeMintErrorV1::Failure(format!(
+                "cannot fresh-replay rule mechanism rank {rank}: {message}"
             )))
         }
     }

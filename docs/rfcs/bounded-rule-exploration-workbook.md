@@ -1119,6 +1119,15 @@ runa explore examples/danish-income-tax/mechanism-stream-smoke.runa \
   --mechanism-before-show 0 \
   --mechanism-after-show 1 \
   --json
+
+runa explore examples/danish-income-tax/mechanism-rule-dispatch-smoke.runa \
+  --query rule_dispatch_mechanism_stream_smoke \
+  --run-state /private/path/rule-dispatch-smoke.run \
+  --time-limit 10s \
+  --mechanism-profile rule-dispatch-v1 \
+  --mechanism-before-show 0 \
+  --mechanism-after-show 1 \
+  --json
 ```
 
 The three mechanism flags are all-or-none, their indexes are distinct and
@@ -1144,6 +1153,12 @@ pending, and resumes through the formal scheduler. The closing invocation
 classifies the remaining three boundary configurations, traces all three
 matching targets, and publishes exact three-case / three-signature counts with
 no untraced remainder.
+The companion direct-rule fixture has two matching boundary cases whose shown
+results are both `True`. It still closes at two exact mechanisms: one transition
+changes from the literal-head candidate to the fallback, while the other stays
+on the fallback. The runtime evidence contains the actually reached checked
+`RuleAttempt` chain and a `RuleSelection` root; a candidate skipped after an
+earlier win is absent rather than invented as a mismatch.
 A second focused source-boundary experiment checks the same shape through a
 plain-import helper and requires plan construction to fail with the frozen-
 module-graph requirement. The rejection happens before a mechanism stream is

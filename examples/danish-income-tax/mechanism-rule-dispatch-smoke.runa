@@ -1,0 +1,27 @@
+-- Small protocol fixture for the experimental direct rule-dispatch stream.
+-- Both endpoints return True. The mechanisms differ only because canonical
+-- rule dispatch reaches and selects different checked candidates.
+-- This is not a Personskat search bound or a policy result.
+
+| route(0) -> True
+| route(value: Int) -> True
+
+| eligible(income: Int, step: Int) -> True
+
+? explore rule_dispatch_mechanism_stream_smoke {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(0, 3)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = route(income),
+            after = route(income + step)
+        ]
+        representative first
+    }
+}

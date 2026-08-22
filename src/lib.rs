@@ -6978,6 +6978,11 @@ pub struct RuleScopeFrame {
 #[derive(Debug)]
 struct PreparedRuntimeRuleDispatch {
     matching: Vec<Rc<Rule>>,
+    /// Producer-minted checked capabilities aligned with `matching`. Ordinary
+    /// interpretation and unsupported scoped dispatches retain `None`; exact
+    /// rule-mechanism replay requires every attempted global candidate to
+    /// authenticate through this seam before it can become evidence.
+    checked_candidate_tokens: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
     exceptions: Vec<usize>,
     conditional_defaults: Vec<usize>,
     clauses: Vec<usize>,
@@ -12387,6 +12392,10 @@ pub struct Interpreter {
     /// A fresh, checked exact-replay trace. Ordinary interpretation never
     /// installs this state, and the state never participates in language fuel.
     checked_runtime_trace_v1: Option<CheckedRuntimeTraceStateV1>,
+    /// A separately checked direct rule-family trace. Keeping this distinct
+    /// from the strict nested-function trace prevents the first rule profile
+    /// from silently widening that profile's execution subset.
+    checked_runtime_rule_trace_v1: Option<CheckedRuntimeRuleTraceStateV1>,
     /// Producer-minted bridge from one immutable checked function occurrence to
     /// the closure created while loading that exact module content. Tokens are
     /// interpreter-local capabilities: they are never exposed to Futuruna code
@@ -12398,6 +12407,16 @@ pub struct Interpreter {
     /// Mirrors the actual last-wins runtime function registry so reconstructed
     /// named closures preserve (or deliberately lack) their checked capability.
     checked_runtime_function_tokens_v1: BTreeMap<String, CheckedRuntimeCallableTokenV1>,
+    /// Producer capabilities for top-level rule declarations. The source map
+    /// is keyed only by immutable module/declaration identity; ambiguous
+    /// repeated checked occurrences intentionally receive no runtime token.
+    checked_runtime_rule_candidate_sources_v1:
+        BTreeMap<CheckedRuntimeRuleCandidateLocatorV1, CheckedRuntimeRuleCandidateTokenV1>,
+    checked_runtime_rule_candidate_tokens_v1:
+        BTreeMap<CheckedRuntimeRuleCandidateTokenV1, CheckedRuntimeRuleCandidateIdentityV1>,
+    /// Parallel to `rules`; tokens are interpreter-private and never become
+    /// persisted mechanism identity.
+    registered_rule_candidate_tokens_v1: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
     /// Imports execute a filtered runtime statement slice. This override retains
     /// the identity of the complete freshly loaded module whose content was
     /// checked before any closure token can be minted from that slice.
@@ -12482,9 +12501,13 @@ impl Interpreter {
             exact_prepared_rule_dispatch: BTreeMap::new(),
             exact_prepared_rule_dispatch_enabled: false,
             checked_runtime_trace_v1: None,
+            checked_runtime_rule_trace_v1: None,
             checked_runtime_callable_sources_v1: BTreeMap::new(),
             checked_runtime_callable_tokens_v1: BTreeMap::new(),
             checked_runtime_function_tokens_v1: BTreeMap::new(),
+            checked_runtime_rule_candidate_sources_v1: BTreeMap::new(),
+            checked_runtime_rule_candidate_tokens_v1: BTreeMap::new(),
+            registered_rule_candidate_tokens_v1: Vec::new(),
             checked_runtime_module_override_v1: None,
             constructors: {
                 let mut c = BTreeMap::new();
@@ -12761,15 +12784,38 @@ impl Interpreter {
                 );
             }
         }
+        let previous_rule_endpoint_active = self
+            .checked_runtime_rule_trace_v1
+            .as_ref()
+            .map(|state| state.endpoint_evaluation_active);
+        if let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() {
+            match root_site {
+                Some(root_site) if root_site == &state.plan.endpoint_root => {
+                    state.endpoint_evaluation_active = true;
+                }
+                _ => state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootMismatch),
+            }
+        }
         let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            if let Some(root_site) = root_site {
-                self.eval_at_checked_runtime_site_v1(expression, env, root_site.clone())
+            if self.checked_runtime_trace_v1.is_some() {
+                match root_site {
+                    Some(root_site) => {
+                        self.eval_at_checked_runtime_site_v1(expression, env, root_site.clone())
+                    }
+                    None => self.eval(expression, env),
+                }
             } else {
                 self.eval(expression, env)
             }
         }));
         if let Some(state) = self.checked_runtime_trace_v1.as_mut() {
             state.cursor = previous_trace_cursor;
+        }
+        if let (Some(state), Some(previous)) = (
+            self.checked_runtime_rule_trace_v1.as_mut(),
+            previous_rule_endpoint_active,
+        ) {
+            state.endpoint_evaluation_active = previous;
         }
         let budget_exceeded = self.budget_exceeded;
         let error = self.ground_error.borrow_mut().take();
@@ -12791,44 +12837,72 @@ impl Interpreter {
         // `Unit` so evaluation can unwind normally; reporting fuel first would
         // otherwise turn a known-invalid path into an apparently honest
         // Partial frontier.
-        let trace_integrity_failure = self
+        let function_trace_integrity_failure = self
             .checked_runtime_trace_v1
             .as_ref()
             .and_then(|state| state.unsupported)
             .filter(|reason| !reason.is_observation_unsupported());
-        if let Some(reason) = trace_integrity_failure {
-            self.abort_checked_runtime_trace_v1();
-            return Err(ExploreRuntimeFailure::RuntimeError {
-                message: format!("checked runtime trace encountered integrity failure {reason:?}"),
-            });
+        let rule_trace_integrity_failure = self
+            .checked_runtime_rule_trace_v1
+            .as_ref()
+            .and_then(|state| state.unsupported)
+            .filter(|reason| !reason.is_observation_unsupported());
+        if let Some(message) = function_trace_integrity_failure
+            .map(|reason| format!("checked runtime trace encountered integrity failure {reason:?}"))
+            .or_else(|| {
+                rule_trace_integrity_failure.map(|reason| {
+                    format!("checked runtime rule trace encountered integrity failure {reason:?}")
+                })
+            })
+        {
+            self.abort_checked_runtime_traces_v1();
+            return Err(ExploreRuntimeFailure::RuntimeError { message });
         }
         if let Some(message) = effect_error {
-            self.abort_checked_runtime_trace_v1();
+            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
         }
         if produced_output {
-            self.abort_checked_runtime_trace_v1();
+            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::ProducedOutput);
         }
         if let Some(error) = error {
-            self.abort_checked_runtime_trace_v1();
+            self.abort_checked_runtime_traces_v1();
             return Err(error);
         }
         if evaluation.is_err() {
-            self.abort_checked_runtime_trace_v1();
+            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::Panicked);
         }
         if budget_exceeded {
-            let trace_unsupported = self
+            let function_trace_unsupported = self
                 .checked_runtime_trace_v1
                 .as_ref()
                 .and_then(|state| state.unsupported);
-            self.abort_checked_runtime_trace_v1();
-            if let Some(reason) = trace_unsupported {
-                let message = format!(
-                    "checked runtime trace encountered {reason:?} before exhausting its expression-step budget"
-                );
-                return Err(if reason.is_observation_unsupported() {
+            let rule_trace_unsupported = self
+                .checked_runtime_rule_trace_v1
+                .as_ref()
+                .and_then(|state| state.unsupported);
+            let trace_unsupported = function_trace_unsupported
+                .map(|reason| {
+                    (
+                        format!("checked runtime trace encountered {reason:?}"),
+                        reason.is_observation_unsupported(),
+                    )
+                })
+                .or_else(|| {
+                    rule_trace_unsupported.map(|reason| {
+                        (
+                            format!("checked runtime rule trace encountered {reason:?}"),
+                            reason.is_observation_unsupported(),
+                        )
+                    })
+                });
+            self.abort_checked_runtime_traces_v1();
+            if let Some((trace_detail, observation_unsupported)) = trace_unsupported {
+                let message =
+                    format!("{trace_detail} before exhausting its expression-step budget");
+                return Err(if observation_unsupported {
                     ExploreRuntimeFailure::UnsupportedCapability { message }
                 } else {
                     ExploreRuntimeFailure::RuntimeError { message }
@@ -12862,19 +12936,23 @@ impl Interpreter {
         );
     }
 
-    /// Install interpreter-local capabilities for top-level functions in one
-    /// immutable checked analysis program. The runtime later mints a capability
-    /// onto a closure only when the freshly loaded complete module has the same
-    /// producer-derived content identity and selects one unambiguous checked
-    /// function occurrence. Names and arities are locators inside that immutable
-    /// module; the capability's identity is the analysis program plus occurrence.
+    /// Install interpreter-local capabilities for top-level functions and,
+    /// only for a rule-observer replay, rule candidates in one immutable
+    /// checked analysis program. The runtime later mints a capability only when
+    /// the freshly loaded complete module has the same producer-derived content
+    /// identity and selects one unambiguous checked occurrence. Capabilities
+    /// never cross the interpreter boundary.
     pub(crate) fn install_checked_runtime_callable_tokens_v1(
         &mut self,
         artifacts: &TypeCheckArtifacts,
+        include_rule_candidates: bool,
     ) {
         self.checked_runtime_callable_sources_v1.clear();
         self.checked_runtime_callable_tokens_v1.clear();
         self.checked_runtime_function_tokens_v1.clear();
+        self.checked_runtime_rule_candidate_sources_v1.clear();
+        self.checked_runtime_rule_candidate_tokens_v1.clear();
+        self.registered_rule_candidate_tokens_v1.clear();
         self.checked_runtime_module_override_v1 = None;
 
         if artifacts.analysis_program.id != artifacts.checked_resolutions.analysis_program
@@ -12924,6 +13002,58 @@ impl Interpreter {
             };
             self.checked_runtime_callable_sources_v1
                 .insert(locator, *token);
+        }
+
+        if include_rule_candidates {
+            let mut rule_candidates = BTreeMap::<
+                CheckedRuntimeRuleCandidateLocatorV1,
+                Vec<CheckedRuntimeRuleCandidateTokenV1>,
+            >::new();
+            let mut next_rule_token = 1i64;
+            for family in artifacts.checked_resolutions.rule_families.values() {
+                if family.key.scope.is_some() {
+                    continue;
+                }
+                for candidate in family.candidates.iter() {
+                    if !candidate.statement_path.is_empty()
+                        || !candidate
+                            .declaration
+                            .declaration
+                            .module
+                            .internal_path
+                            .is_empty()
+                    {
+                        continue;
+                    }
+                    let locator = CheckedRuntimeRuleCandidateLocatorV1 {
+                        module: candidate.declaration.declaration.module.clone(),
+                        declaration_ordinal: candidate.declaration.declaration.ordinal,
+                    };
+                    let token = CheckedRuntimeRuleCandidateTokenV1(next_rule_token);
+                    let Some(next) = next_rule_token.checked_add(1) else {
+                        break;
+                    };
+                    next_rule_token = next;
+                    self.checked_runtime_rule_candidate_tokens_v1.insert(
+                        token,
+                        CheckedRuntimeRuleCandidateIdentityV1 {
+                            analysis_program: artifacts.analysis_program.id.clone(),
+                            family: family.key.clone(),
+                            candidate: candidate.clone(),
+                        },
+                    );
+                    rule_candidates.entry(locator).or_default().push(token);
+                }
+            }
+            for (locator, tokens) in rule_candidates {
+                let [token] = tokens.as_slice() else {
+                    // Repeated content-identical occurrences cannot be distinguished
+                    // by the legacy loader yet. Refuse to authenticate either.
+                    continue;
+                };
+                self.checked_runtime_rule_candidate_sources_v1
+                    .insert(locator, *token);
+            }
         }
     }
 
@@ -13024,7 +13154,7 @@ impl Interpreter {
         &mut self,
         plan: CheckedRuntimeTracePlanV1,
     ) -> Result<(), CheckedRuntimeTraceErrorV1> {
-        if self.checked_runtime_trace_v1.is_some() {
+        if self.checked_runtime_trace_v1.is_some() || self.checked_runtime_rule_trace_v1.is_some() {
             return Err(CheckedRuntimeTraceErrorV1::AlreadyActive);
         }
         self.checked_runtime_trace_v1 = Some(CheckedRuntimeTraceStateV1 {
@@ -13074,6 +13204,72 @@ impl Interpreter {
         self.checked_runtime_trace_v1 = None;
     }
 
+    /// Arm one fresh direct rule-family trace. Candidate events are admitted
+    /// only when the ordinary frozen dispatcher presents producer-minted
+    /// capabilities matching this exact checked plan.
+    pub(crate) fn begin_checked_runtime_rule_trace_v1(
+        &mut self,
+        plan: CheckedRuntimeRuleTracePlanV1,
+    ) -> Result<(), CheckedRuntimeRuleTraceErrorV1> {
+        if self.checked_runtime_trace_v1.is_some() || self.checked_runtime_rule_trace_v1.is_some() {
+            return Err(CheckedRuntimeRuleTraceErrorV1::AlreadyActive);
+        }
+        self.checked_runtime_rule_trace_v1 = Some(CheckedRuntimeRuleTraceStateV1 {
+            plan,
+            endpoint_evaluation_active: false,
+            endpoint_application_seen: false,
+            dispatch_active: false,
+            dispatch_seen: false,
+            next_candidate_index: 0,
+            attempted_source_orders: BTreeSet::new(),
+            attempts: Vec::new(),
+            selection: None,
+            unsupported: None,
+        });
+        Ok(())
+    }
+
+    pub(crate) fn finish_checked_runtime_rule_trace_v1(
+        &mut self,
+    ) -> Result<CheckedRuntimeRuleTraceV1, CheckedRuntimeRuleTraceErrorV1> {
+        let Some(mut state) = self.checked_runtime_rule_trace_v1.take() else {
+            return Err(CheckedRuntimeRuleTraceErrorV1::NotActive);
+        };
+        if state.endpoint_evaluation_active || state.dispatch_active {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::UnbalancedTrace);
+        }
+        if !state.endpoint_application_seen || !state.dispatch_seen {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
+        }
+        if let Some(reason) = state.unsupported {
+            return Err(CheckedRuntimeRuleTraceErrorV1::Unsupported(reason));
+        }
+        let Some(selection) = state.selection else {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
+            return Err(CheckedRuntimeRuleTraceErrorV1::Unsupported(
+                state
+                    .unsupported
+                    .expect("missing rule selection records an unsupported reason"),
+            ));
+        };
+        Ok(CheckedRuntimeRuleTraceV1 {
+            analysis_program: state.plan.analysis_program.clone(),
+            endpoint_root: state.plan.endpoint_root.clone(),
+            family: state.plan.family.clone(),
+            attempts: state.attempts.into_boxed_slice(),
+            selection,
+        })
+    }
+
+    pub(crate) fn abort_checked_runtime_rule_trace_v1(&mut self) {
+        self.checked_runtime_rule_trace_v1 = None;
+    }
+
+    fn abort_checked_runtime_traces_v1(&mut self) {
+        self.abort_checked_runtime_trace_v1();
+        self.abort_checked_runtime_rule_trace_v1();
+    }
+
     /// Install only the exact rule-dispatch metadata needed by execution.
     /// Hosts that already completed their own checked-program gate can use
     /// this without repeating Explore or calculation artifact elaboration.
@@ -13121,6 +13317,15 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
+        self.register_rule_with_checked_runtime_token_v1(name, rule, None);
+    }
+
+    fn register_rule_with_checked_runtime_token_v1(
+        &mut self,
+        name: String,
+        rule: Rule,
+        checked_token: Option<CheckedRuntimeRuleCandidateTokenV1>,
+    ) {
         if let Some(arity) = Self::rule_arity(&rule) {
             self.exact_prepared_rule_dispatch.remove(&RuleDispatchKey {
                 scope: None,
@@ -13164,6 +13369,11 @@ impl Interpreter {
         }
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
+        self.registered_rule_candidate_tokens_v1.push(checked_token);
+        debug_assert_eq!(
+            self.rules.len(),
+            self.registered_rule_candidate_tokens_v1.len()
+        );
         self.rules_by_name.entry(name).or_default().push(index);
     }
 
@@ -14060,7 +14270,13 @@ impl Interpreter {
             .checked_runtime_module_override_v1
             .clone()
             .unwrap_or_else(|| TypeChecker::analysis_module_id(stmts));
+        let mut declaration_ordinal = 0usize;
         for stmt in stmts {
+            let statement_ordinal = TypeChecker::analysis_declaration_signature(stmt).map(|_| {
+                let ordinal = declaration_ordinal;
+                declaration_ordinal += 1;
+                ordinal
+            });
             match stmt {
                 Stmt::Defn(defn @ Defn::Fn { name, .. }) => {
                     self.register_runtime_callable_declaration(
@@ -14091,7 +14307,19 @@ impl Interpreter {
                         &name,
                         None,
                     );
-                    self.register_rule(name, rule.clone());
+                    let checked_token = statement_ordinal.and_then(|declaration_ordinal| {
+                        self.checked_runtime_rule_candidate_sources_v1
+                            .get(&CheckedRuntimeRuleCandidateLocatorV1 {
+                                module: module.clone(),
+                                declaration_ordinal,
+                            })
+                            .copied()
+                    });
+                    self.register_rule_with_checked_runtime_token_v1(
+                        name,
+                        rule.clone(),
+                        checked_token,
+                    );
                 }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(name, body);
@@ -16630,6 +16858,230 @@ impl Interpreter {
         });
     }
 
+    fn checked_runtime_rule_trace_note_application_v1(&mut self, function: &Expr, args: &[Expr]) {
+        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
+            return;
+        };
+        if state.has_integrity_failure() {
+            return;
+        }
+        if !state.endpoint_evaluation_active {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootMismatch);
+            return;
+        }
+        if state.endpoint_application_seen {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::NestedApplication);
+            return;
+        }
+        if has_named_args(args) {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::NamedArguments);
+            return;
+        }
+        let ExprKind::Var(name) = &function.kind else {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootNotApplication);
+            return;
+        };
+        if state.plan.family.scope.is_some()
+            || name != &state.plan.family.name
+            || args.len() != state.plan.family.arity
+        {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointTargetMismatch);
+            return;
+        }
+        state.endpoint_application_seen = true;
+    }
+
+    fn checked_runtime_rule_trace_fail_v1(&mut self, reason: CheckedRuntimeRuleTraceUnsupportedV1) {
+        if let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() {
+            state.fail(reason);
+        }
+    }
+
+    fn checked_runtime_rule_dispatch_candidate_identities_v1(
+        &self,
+        dispatch: &PreparedRuntimeRuleDispatch,
+    ) -> Option<Vec<CheckedRuntimeRuleCandidateIdentityV1>> {
+        dispatch
+            .exceptions
+            .iter()
+            .chain(dispatch.conditional_defaults.iter())
+            .chain(dispatch.clauses.iter())
+            .chain(dispatch.unconditional_defaults.iter())
+            .map(|index| {
+                let token = dispatch.checked_candidate_tokens.get(*index)?.as_ref()?;
+                self.checked_runtime_rule_candidate_tokens_v1
+                    .get(token)
+                    .cloned()
+            })
+            .collect()
+    }
+
+    fn begin_checked_runtime_rule_dispatch_v1(&mut self, dispatch: &PreparedRuntimeRuleDispatch) {
+        if self.checked_runtime_rule_trace_v1.is_none() {
+            return;
+        }
+        let actual = self.checked_runtime_rule_dispatch_candidate_identities_v1(dispatch);
+        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
+            return;
+        };
+        if state.unsupported.is_some() {
+            return;
+        }
+        if !state.endpoint_application_seen {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
+            return;
+        }
+        if state.dispatch_seen || state.dispatch_active {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MultipleDispatches);
+            return;
+        }
+        let Some(actual) = actual else {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateIdentityMissing);
+            return;
+        };
+        if actual.len() != state.plan.candidates.len()
+            || actual
+                .iter()
+                .zip(state.plan.candidates.iter())
+                .any(|(actual, expected)| {
+                    actual.analysis_program != state.plan.analysis_program
+                        || actual.family != state.plan.family
+                        || &actual.candidate != expected
+                })
+        {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateSetMismatch);
+            return;
+        }
+        state.dispatch_seen = true;
+        state.dispatch_active = true;
+    }
+
+    fn checked_runtime_rule_candidate_identity_v1(
+        &self,
+        dispatch: &PreparedRuntimeRuleDispatch,
+        matching_index: usize,
+    ) -> Option<CheckedRuntimeRuleCandidateIdentityV1> {
+        let token = dispatch
+            .checked_candidate_tokens
+            .get(matching_index)?
+            .as_ref()?;
+        self.checked_runtime_rule_candidate_tokens_v1
+            .get(token)
+            .cloned()
+    }
+
+    fn record_checked_runtime_rule_attempt_v1(
+        &mut self,
+        dispatch: &PreparedRuntimeRuleDispatch,
+        matching_index: usize,
+        outcome: CheckedRuntimeRuleAttemptOutcomeV1,
+    ) {
+        if self.checked_runtime_rule_trace_v1.is_none() {
+            return;
+        }
+        let actual = self.checked_runtime_rule_candidate_identity_v1(dispatch, matching_index);
+        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
+            return;
+        };
+        if state.unsupported.is_some() {
+            return;
+        }
+        if !state.dispatch_active {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::UnbalancedTrace);
+            return;
+        }
+        let Some(actual) = actual else {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateIdentityMissing);
+            return;
+        };
+        let Some(expected) = state.plan.candidates.get(state.next_candidate_index) else {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
+            return;
+        };
+        if actual.analysis_program != state.plan.analysis_program
+            || actual.family != state.plan.family
+            || &actual.candidate != expected
+        {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
+            return;
+        }
+        let outcome_matches_tier = match outcome {
+            CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch
+            | CheckedRuntimeRuleAttemptOutcomeV1::Applicable => true,
+            CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse => matches!(
+                actual.candidate.tier,
+                RuleDispatchTier::Exception | RuleDispatchTier::ConditionalDefault
+            ),
+            CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse => {
+                actual.candidate.tier == RuleDispatchTier::Clause
+            }
+        };
+        if !outcome_matches_tier {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
+            return;
+        }
+        if !state
+            .attempted_source_orders
+            .insert(actual.candidate.source_order)
+        {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::DuplicateAttempt);
+            return;
+        }
+        state.attempts.push(CheckedRuntimeRuleAttemptEventV1 {
+            candidate: actual.candidate,
+            outcome,
+            visit_ordinal: 0,
+        });
+        state.next_candidate_index += 1;
+    }
+
+    fn record_checked_runtime_rule_selection_v1(
+        &mut self,
+        dispatch: &PreparedRuntimeRuleDispatch,
+        selected_matching_index: Option<usize>,
+    ) {
+        if self.checked_runtime_rule_trace_v1.is_none() {
+            return;
+        }
+        let selected = selected_matching_index
+            .and_then(|index| self.checked_runtime_rule_candidate_identity_v1(dispatch, index));
+        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
+            return;
+        };
+        if state.unsupported.is_some() {
+            return;
+        }
+        if !state.dispatch_active || state.selection.is_some() {
+            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::InvalidSelection);
+            return;
+        }
+        let selection = match (selected_matching_index, selected) {
+            (Some(_), Some(selected))
+                if selected.analysis_program == state.plan.analysis_program
+                    && selected.family == state.plan.family
+                    && state.attempts.last().is_some_and(|attempt| {
+                        attempt.candidate == selected.candidate
+                            && attempt.outcome == CheckedRuntimeRuleAttemptOutcomeV1::Applicable
+                    }) =>
+            {
+                CheckedRuntimeRuleSelectionV1::Selected(selected.candidate)
+            }
+            (None, None)
+                if state.attempts.iter().all(|attempt| {
+                    attempt.outcome != CheckedRuntimeRuleAttemptOutcomeV1::Applicable
+                }) && state.next_candidate_index == state.plan.candidates.len() =>
+            {
+                CheckedRuntimeRuleSelectionV1::NoApplicableRule
+            }
+            _ => {
+                state.fail(CheckedRuntimeRuleTraceUnsupportedV1::InvalidSelection);
+                return;
+            }
+        };
+        state.selection = Some(selection);
+        state.dispatch_active = false;
+    }
+
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.checked_runtime_trace_v1.is_some() {
             self.checked_runtime_trace_fail_v1(
@@ -16692,6 +17144,7 @@ impl Interpreter {
                 Literal::Bool(b) => Value::Bool(*b),
             },
             ExprKind::App(func, args) => {
+                self.checked_runtime_rule_trace_note_application_v1(func, args);
                 self.checked_runtime_trace_validate_app_v1(func, args);
                 if let ExprKind::Field(obj, method) = &func.as_ref().kind {
                     let obj_val = self.eval_checked_runtime_descendant_v1(obj, env, &[0, 0]);
@@ -20149,6 +20602,30 @@ impl Interpreter {
             .collect()
     }
 
+    fn rules_named_with_checked_tokens_v1(
+        &self,
+        name: &str,
+    ) -> (
+        Vec<Rc<Rule>>,
+        Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
+    ) {
+        let mut rules = Vec::new();
+        let mut tokens = Vec::new();
+        for index in self.rules_by_name.get(name).into_iter().flatten().copied() {
+            let Some((_, rule)) = self.rules.get(index) else {
+                continue;
+            };
+            rules.push(rule.clone());
+            tokens.push(
+                self.registered_rule_candidate_tokens_v1
+                    .get(index)
+                    .copied()
+                    .flatten(),
+            );
+        }
+        (rules, tokens)
+    }
+
     fn exact_prepared_rule_dispatch_is_active(&self) -> bool {
         self.exact_prepared_rule_dispatch_enabled && self.exhaustive_preview_forbid_effects
     }
@@ -20188,12 +20665,17 @@ impl Interpreter {
 
     fn prepare_runtime_rule_dispatch(
         matching: Vec<Rc<Rule>>,
+        checked_candidate_tokens: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
         arity: usize,
     ) -> Option<PreparedRuntimeRuleDispatch> {
-        let matching = matching
+        if matching.len() != checked_candidate_tokens.len() {
+            return None;
+        }
+        let (matching, checked_candidate_tokens): (Vec<_>, Vec<_>) = matching
             .into_iter()
-            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(arity))
-            .collect::<Vec<_>>();
+            .zip(checked_candidate_tokens)
+            .filter(|(rule, _)| Self::rule_arity(rule.as_ref()) == Some(arity))
+            .unzip();
         if matching.is_empty() {
             return None;
         }
@@ -20234,6 +20716,7 @@ impl Interpreter {
 
         Some(PreparedRuntimeRuleDispatch {
             matching,
+            checked_candidate_tokens,
             exceptions,
             conditional_defaults,
             clauses,
@@ -20257,8 +20740,10 @@ impl Interpreter {
         if let Some(prepared) = self.exact_prepared_rule_dispatch.get(&key) {
             return Some(prepared.clone());
         }
+        let (matching, checked_candidate_tokens) = self.rules_named_with_checked_tokens_v1(name);
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
-            self.rules_named(name),
+            matching,
+            checked_candidate_tokens,
             arity,
         )?);
         self.exact_prepared_rule_dispatch
@@ -20281,8 +20766,11 @@ impl Interpreter {
             return Some(prepared.clone());
         }
         let definition = self.rule_scopes.get(scope).cloned()?;
+        let matching = Self::rule_scope_matching_rules(&definition, name, arity);
+        let checked_candidate_tokens = vec![None; matching.len()];
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
-            Self::rule_scope_matching_rules(&definition, name, arity),
+            matching,
+            checked_candidate_tokens,
             arity,
         )?);
         self.exact_prepared_rule_dispatch
@@ -20480,7 +20968,9 @@ impl Interpreter {
         env: &Env,
         matching: Vec<Rc<Rule>>,
     ) -> Option<Value> {
-        let prepared = Self::prepare_runtime_rule_dispatch(matching, args.len())?;
+        let checked_candidate_tokens = vec![None; matching.len()];
+        let prepared =
+            Self::prepare_runtime_rule_dispatch(matching, checked_candidate_tokens, args.len())?;
         self.try_rule_call_from_prepared(args, env, &prepared)
     }
 
@@ -20490,6 +20980,7 @@ impl Interpreter {
         env: &Env,
         dispatch: &PreparedRuntimeRuleDispatch,
     ) -> Option<Value> {
+        self.begin_checked_runtime_rule_dispatch_v1(dispatch);
         // Evaluate arguments once (in caller's env so variables resolve correctly).
         // Named rule calls are normalized to the declaration-order head names here
         // so exception/default/clause matching stays purely positional below.
@@ -20532,12 +21023,38 @@ impl Interpreter {
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     let cond_met = match condition {
-                        Some(cond) => matches!(self.eval(cond, &rule_env), Value::Bool(true)),
+                        Some(cond) => match self.eval(cond, &rule_env) {
+                            Value::Bool(value) => value,
+                            _ => {
+                                self.checked_runtime_rule_trace_fail_v1(
+                                    CheckedRuntimeRuleTraceUnsupportedV1::NonBooleanGuard,
+                                );
+                                false
+                            }
+                        },
                         None => true,
                     };
                     if cond_met {
-                        return Some(self.eval(value, &rule_env));
+                        let result = self.eval(value, &rule_env);
+                        self.record_checked_runtime_rule_attempt_v1(
+                            dispatch,
+                            *index,
+                            CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                        );
+                        self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
+                        return Some(result);
                     }
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse,
+                    );
+                } else {
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
+                    );
                 }
             }
         }
@@ -20552,9 +21069,36 @@ impl Interpreter {
             } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
-                    if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
-                        return Some(self.eval(value, &rule_env));
+                    let cond_met = match self.eval(cond, &rule_env) {
+                        Value::Bool(value) => value,
+                        _ => {
+                            self.checked_runtime_rule_trace_fail_v1(
+                                CheckedRuntimeRuleTraceUnsupportedV1::NonBooleanGuard,
+                            );
+                            false
+                        }
+                    };
+                    if cond_met {
+                        let result = self.eval(value, &rule_env);
+                        self.record_checked_runtime_rule_attempt_v1(
+                            dispatch,
+                            *index,
+                            CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                        );
+                        self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
+                        return Some(result);
                     }
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse,
+                    );
+                } else {
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
+                    );
                 }
             }
         }
@@ -20566,12 +21110,34 @@ impl Interpreter {
             if let Rule::Clause { head, body } = dispatch.matching[*index].as_ref() {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
-                        None => return Some(Value::Bool(true)), // bare fact — head matched
+                        None => {
+                            self.record_checked_runtime_rule_attempt_v1(
+                                dispatch,
+                                *index,
+                                CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                            );
+                            self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
+                            return Some(Value::Bool(true));
+                        }
                         Some(body_expr) => {
                             if let ExprKind::Conjunction(goals) = &body_expr.kind {
                                 if self.eval_conjunction(goals, &rule_env) {
+                                    self.record_checked_runtime_rule_attempt_v1(
+                                        dispatch,
+                                        *index,
+                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                                    );
+                                    self.record_checked_runtime_rule_selection_v1(
+                                        dispatch,
+                                        Some(*index),
+                                    );
                                     return Some(Value::Bool(true));
                                 }
+                                self.record_checked_runtime_rule_attempt_v1(
+                                    dispatch,
+                                    *index,
+                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
+                                );
                                 matched_false_clause = true;
                             } else if let ExprKind::Disjunction(alts) = &body_expr.kind {
                                 // Disjunction: succeed if ANY alternative succeeds
@@ -20582,19 +21148,53 @@ impl Interpreter {
                                     _ => !matches!(self.eval(alt, &rule_env), Value::Bool(false)),
                                 });
                                 if ok {
+                                    self.record_checked_runtime_rule_attempt_v1(
+                                        dispatch,
+                                        *index,
+                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                                    );
+                                    self.record_checked_runtime_rule_selection_v1(
+                                        dispatch,
+                                        Some(*index),
+                                    );
                                     return Some(Value::Bool(true));
                                 }
+                                self.record_checked_runtime_rule_attempt_v1(
+                                    dispatch,
+                                    *index,
+                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
+                                );
                                 matched_false_clause = true;
                             } else {
                                 let result = self.eval(body_expr, &rule_env);
                                 if !matches!(result, Value::Bool(false)) {
+                                    self.record_checked_runtime_rule_attempt_v1(
+                                        dispatch,
+                                        *index,
+                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                                    );
+                                    self.record_checked_runtime_rule_selection_v1(
+                                        dispatch,
+                                        Some(*index),
+                                    );
                                     return Some(result);
                                 }
+                                self.record_checked_runtime_rule_attempt_v1(
+                                    dispatch,
+                                    *index,
+                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
+                                );
                                 matched_false_clause = true;
                                 // Body returned false — backtrack to next clause
                             }
                         }
                     }
+                } else {
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
+                    );
                 }
             }
         }
@@ -20609,11 +21209,25 @@ impl Interpreter {
             } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
-                    return Some(self.eval(value, &rule_env));
+                    let result = self.eval(value, &rule_env);
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
+                    );
+                    self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
+                    return Some(result);
+                } else {
+                    self.record_checked_runtime_rule_attempt_v1(
+                        dispatch,
+                        *index,
+                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
+                    );
                 }
             }
         }
 
+        self.record_checked_runtime_rule_selection_v1(dispatch, None);
         matched_false_clause.then_some(Value::Bool(false))
     }
 
@@ -22482,6 +23096,190 @@ struct CheckedRuntimeCallableIdentityV1 {
     callable: CheckedCallableId,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct CheckedRuntimeRuleCandidateLocatorV1 {
+    module: ModuleId,
+    declaration_ordinal: usize,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+struct CheckedRuntimeRuleCandidateTokenV1(i64);
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CheckedRuntimeRuleCandidateIdentityV1 {
+    analysis_program: AnalysisProgramId,
+    family: RuleDispatchKey,
+    candidate: CheckedRuleCandidateResolution,
+}
+
+/// Immutable checked identity input for one direct global rule-family trace.
+/// The endpoint itself is the implicit root; this deliberately does not yet
+/// authorize nested, scoped, repeated, or first-class rule activation.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedRuntimeRuleTracePlanV1 {
+    analysis_program: AnalysisProgramId,
+    endpoint_root: ExprSiteId,
+    family: RuleDispatchKey,
+    candidates: Arc<[CheckedRuleCandidateResolution]>,
+}
+
+impl CheckedRuntimeRuleTracePlanV1 {
+    pub(crate) fn new(
+        analysis_program: AnalysisProgramId,
+        endpoint_root: ExprSiteId,
+        family: CheckedRuleFamilyResolution,
+    ) -> Result<Self, String> {
+        if endpoint_root.analysis_program != analysis_program {
+            return Err(
+                "runtime rule trace endpoint belongs to another checked program".to_string(),
+            );
+        }
+        if family.key.scope.is_some() {
+            return Err("runtime rule trace V1 requires a global rule family".to_string());
+        }
+        if family.candidates.is_empty() {
+            return Err("runtime rule trace family has no checked candidates".to_string());
+        }
+        let mut source_orders = BTreeSet::new();
+        for candidate in family.candidates.iter() {
+            if !candidate.statement_path.is_empty() {
+                return Err("runtime rule trace V1 requires top-level rule candidates".to_string());
+            }
+            if !source_orders.insert(candidate.source_order) {
+                return Err(
+                    "runtime rule trace family repeats a checked candidate source order"
+                        .to_string(),
+                );
+            }
+            if std::iter::once(&candidate.head_site)
+                .chain(candidate.condition_site.iter())
+                .chain(candidate.value_site.iter())
+                .any(|site| site.analysis_program != analysis_program)
+            {
+                return Err(
+                    "runtime rule trace candidate belongs to another checked program".to_string(),
+                );
+            }
+        }
+        Ok(Self {
+            analysis_program,
+            endpoint_root,
+            family: family.key,
+            candidates: Arc::from(family.candidates),
+        })
+    }
+
+    pub(crate) fn analysis_program(&self) -> &AnalysisProgramId {
+        &self.analysis_program
+    }
+
+    pub(crate) fn endpoint_root(&self) -> &ExprSiteId {
+        &self.endpoint_root
+    }
+
+    pub(crate) fn family(&self) -> &RuleDispatchKey {
+        &self.family
+    }
+
+    pub(crate) fn candidates(&self) -> &[CheckedRuleCandidateResolution] {
+        &self.candidates
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CheckedRuntimeRuleAttemptOutcomeV1 {
+    HeadMismatch,
+    GuardFalse,
+    BodyFalse,
+    Applicable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedRuntimeRuleAttemptEventV1 {
+    pub(crate) candidate: CheckedRuleCandidateResolution,
+    pub(crate) outcome: CheckedRuntimeRuleAttemptOutcomeV1,
+    pub(crate) visit_ordinal: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CheckedRuntimeRuleSelectionV1 {
+    NoApplicableRule,
+    Selected(CheckedRuleCandidateResolution),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedRuntimeRuleTraceV1 {
+    pub(crate) analysis_program: AnalysisProgramId,
+    pub(crate) endpoint_root: ExprSiteId,
+    pub(crate) family: RuleDispatchKey,
+    pub(crate) attempts: Box<[CheckedRuntimeRuleAttemptEventV1]>,
+    pub(crate) selection: CheckedRuntimeRuleSelectionV1,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CheckedRuntimeRuleTraceUnsupportedV1 {
+    EndpointRootMismatch,
+    EndpointRootNotApplication,
+    EndpointTargetMismatch,
+    NamedArguments,
+    NestedApplication,
+    MissingDispatch,
+    MultipleDispatches,
+    RuntimeFamilyMismatch,
+    RuntimeCandidateIdentityMissing,
+    RuntimeCandidateSetMismatch,
+    RuntimeAttemptOrderMismatch,
+    DuplicateAttempt,
+    NonBooleanGuard,
+    InvalidSelection,
+    UnbalancedTrace,
+}
+
+impl CheckedRuntimeRuleTraceUnsupportedV1 {
+    pub(crate) const fn is_observation_unsupported(self) -> bool {
+        matches!(self, Self::NamedArguments | Self::NestedApplication)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CheckedRuntimeRuleTraceErrorV1 {
+    AlreadyActive,
+    NotActive,
+    Unsupported(CheckedRuntimeRuleTraceUnsupportedV1),
+}
+
+struct CheckedRuntimeRuleTraceStateV1 {
+    plan: CheckedRuntimeRuleTracePlanV1,
+    endpoint_evaluation_active: bool,
+    endpoint_application_seen: bool,
+    dispatch_active: bool,
+    dispatch_seen: bool,
+    next_candidate_index: usize,
+    attempted_source_orders: BTreeSet<usize>,
+    attempts: Vec<CheckedRuntimeRuleAttemptEventV1>,
+    selection: Option<CheckedRuntimeRuleSelectionV1>,
+    unsupported: Option<CheckedRuntimeRuleTraceUnsupportedV1>,
+}
+
+impl CheckedRuntimeRuleTraceStateV1 {
+    fn fail(&mut self, reason: CheckedRuntimeRuleTraceUnsupportedV1) {
+        let replace = match self.unsupported {
+            None => true,
+            Some(existing) => {
+                existing.is_observation_unsupported() && !reason.is_observation_unsupported()
+            }
+        };
+        if replace {
+            self.unsupported = Some(reason);
+        }
+    }
+
+    fn has_integrity_failure(&self) -> bool {
+        self.unsupported
+            .is_some_and(|reason| !reason.is_observation_unsupported())
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum CheckedRuntimeTraceUnsupportedV1 {
     EndpointRootMismatch,
@@ -22919,7 +23717,7 @@ pub(crate) enum CheckedResolutionIssue {
     UnsupportedExpression(Box<str>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CheckedRuleCandidateResolution {
     pub(crate) tier: RuleDispatchTier,
     pub(crate) source_order: usize,
@@ -22930,7 +23728,7 @@ pub(crate) struct CheckedRuleCandidateResolution {
     pub(crate) value_site: Option<ExprSiteId>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CheckedRuleFamilyResolution {
     pub(crate) key: RuleDispatchKey,
     pub(crate) candidates: Box<[CheckedRuleCandidateResolution]>,

@@ -451,10 +451,15 @@ four-case protocol through the experimental `nested-if-v1` CLI selector before
 any Personskat-scale range is attempted. Its closed count checkpoint remains a
 paused `mechanism_observation_closed_terminal_unavailable` result until a
 mechanism-aware terminal schema exists.
-General multi-activation and rule-attempt tracing, mechanism-DAG publication
-and public mechanism-aware result JSON are still deliberately deferred, so
-this architecture is not yet a claim of completed Personskat mechanism
-results.
+The additional `mechanism-rule-dispatch-smoke.runa` fixture is the first
+runtime rule-graph reflection: two checked boundary cases both return `True`,
+yet close at two exact mechanisms because ordinary dispatch reaches and selects
+different rule candidates. `rule-dispatch-v1` records each reached
+`HeadMismatch`, `GuardFalse`, `BodyFalse` or `Applicable` candidate and one
+terminal selection; skipped candidates remain absent. General nested/repeated
+rule activation, mechanism-DAG publication and public mechanism-aware result
+JSON are still deliberately deferred, so this architecture is not yet a claim
+of completed Personskat mechanism results.
 
 #### Empirical checkpoint: first exact runtime mechanism bins (2026-08-22)
 

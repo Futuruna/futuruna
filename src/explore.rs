@@ -2289,7 +2289,7 @@ fn finalize_or_pause_classification_closed_stream(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NestedIfMechanismStreamWorkV1 {
+enum MechanismStreamWorkV1 {
     ReplayConfirmedMechanism { rank: u128 },
     ClassifyCase { rank: u128 },
     ClassificationAndMechanismClosed,
@@ -2312,28 +2312,28 @@ fn fixed_mechanism_limit_stop_v1(
 /// mechanism incidence always wins over further classification so a bounded
 /// invocation exposes newly discovered signatures promptly and never grows an
 /// avoidable replay backlog.
-fn next_nested_if_mechanism_stream_work_v1(
+fn next_mechanism_stream_work_v1(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
-) -> Result<NestedIfMechanismStreamWorkV1, ExploreExecutionPreparationError> {
+) -> Result<MechanismStreamWorkV1, ExploreExecutionPreparationError> {
     if let Some(rank) = coordinator.next_mechanism_rank_hint().map_err(|error| {
         ExploreExecutionPreparationError::Execution(format!(
             "cannot select confirmed mechanism replay work: {error}"
         ))
     })? {
-        return Ok(NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank });
+        return Ok(MechanismStreamWorkV1::ReplayConfirmedMechanism { rank });
     }
     Ok(match coordinator.next_open_rank_hint() {
-        Some(rank) => NestedIfMechanismStreamWorkV1::ClassifyCase { rank },
-        None => NestedIfMechanismStreamWorkV1::ClassificationAndMechanismClosed,
+        Some(rank) => MechanismStreamWorkV1::ClassifyCase { rank },
+        None => MechanismStreamWorkV1::ClassificationAndMechanismClosed,
     })
 }
 
 #[allow(clippy::too_many_arguments)]
-fn advance_nested_if_mechanism_stream_slice_v1(
+fn advance_mechanism_stream_slice_v1(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
     resources: &mut stream_resource::ExactStreamOneWorkerEnvelope,
     query: &ExploreQueryIr,
-    plan: &mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1,
+    plan: &CheckedMechanismRuntimePlanV1,
     deadline: Option<Instant>,
     mut singleton_cases_evaluated_this_slice: u128,
     closed_cases_at_slice_start: u128,
@@ -2359,8 +2359,8 @@ fn advance_nested_if_mechanism_stream_slice_v1(
             );
         }
 
-        match next_nested_if_mechanism_stream_work_v1(coordinator)? {
-            NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank } => {
+        match next_mechanism_stream_work_v1(coordinator)? {
+            MechanismStreamWorkV1::ReplayConfirmedMechanism { rank } => {
                 let work_subject =
                     stream_resource::ExactStreamWorkSubject::MechanismCaseIdRank(rank);
                 let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
@@ -2398,7 +2398,14 @@ fn advance_nested_if_mechanism_stream_slice_v1(
                             .to_string(),
                     ));
                 }
-                let advance = coordinator.advance_one_nested_if_mechanism_case(plan);
+                let advance = match plan {
+                    CheckedMechanismRuntimePlanV1::NestedIf(plan) => {
+                        coordinator.advance_one_nested_if_mechanism_case(plan)
+                    }
+                    CheckedMechanismRuntimePlanV1::RuleDispatch(plan) => {
+                        coordinator.advance_one_rule_dispatch_mechanism_case(plan)
+                    }
+                };
                 finish_exact_stream_work(resources, in_flight)?;
                 let advance = match advance {
                     Ok(advance) => advance,
@@ -2418,7 +2425,7 @@ fn advance_nested_if_mechanism_stream_slice_v1(
                     }
                     Err(error) => {
                         return Err(ExploreExecutionPreparationError::Execution(format!(
-                            "cannot advance durable nested mechanism evidence: {error}"
+                            "cannot advance durable mechanism evidence: {error}"
                         )));
                     }
                 };
@@ -2466,7 +2473,7 @@ fn advance_nested_if_mechanism_stream_slice_v1(
                     }
                 }
             }
-            NestedIfMechanismStreamWorkV1::ClassifyCase { rank } => {
+            MechanismStreamWorkV1::ClassifyCase { rank } => {
                 let work_subject = stream_resource::ExactStreamWorkSubject::CaseIdRank(rank);
                 let in_flight = match admit_exact_stream_work(resources, work_subject, deadline)? {
                     ExactStreamWorkAdmission::Granted(in_flight) => in_flight,
@@ -2571,7 +2578,7 @@ fn advance_nested_if_mechanism_stream_slice_v1(
                     }
                 }
             }
-            NestedIfMechanismStreamWorkV1::ClassificationAndMechanismClosed => {
+            MechanismStreamWorkV1::ClassificationAndMechanismClosed => {
                 return publish_or_defer_and_pause_exact_stream_slice(
                     coordinator,
                     resources,
@@ -2620,6 +2627,24 @@ enum CheckedStreamExecutionProfileV1 {
         before_show_index: usize,
         after_show_index: usize,
     },
+    RuleDispatchMechanism {
+        before_show_index: usize,
+        after_show_index: usize,
+    },
+}
+
+enum CheckedMechanismRuntimePlanV1 {
+    NestedIf(mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1),
+    RuleDispatch(mechanism_runtime::CheckedRuleDispatchMechanismRuntimePlanV1),
+}
+
+impl CheckedMechanismRuntimePlanV1 {
+    fn request(&self) -> &mechanism::CheckedMechanismObservationRequestV1 {
+        match self {
+            Self::NestedIf(plan) => plan.request(),
+            Self::RuleDispatch(plan) => plan.request(),
+        }
+    }
 }
 
 /// Execute one bounded slice of the Experimental positional nested-`if`
@@ -2658,6 +2683,48 @@ pub fn execute_checked_nested_if_mechanism_stream_slice_v1(
         query_name,
         options,
         CheckedStreamExecutionProfileV1::NestedIfMechanism {
+            before_show_index,
+            after_show_index,
+        },
+        None,
+    )
+}
+
+/// Execute one bounded slice of the Experimental direct rule-dispatch
+/// mechanism profile.
+///
+/// Paired checked `output.show` positions must call the same global rule
+/// family directly. The canonical interpreter records reached candidate
+/// outcomes and the selected rule; durable publication remains count-only in
+/// this first surface.
+#[allow(clippy::too_many_arguments)]
+pub fn execute_checked_rule_dispatch_mechanism_stream_slice_v1(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    before_show_index: usize,
+    after_show_index: usize,
+    options: ExploreStreamSliceOptions,
+) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
+    if options.finalize {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "mechanism-stream terminal finalization is not implemented".to_string(),
+        ));
+    }
+    if options.case_graph != ExploreStreamCaseGraphRequest::Omit {
+        return Err(ExploreExecutionPreparationError::Execution(
+            "mechanism-stream execution currently requires omitted public case-graph disclosure"
+                .to_string(),
+        ));
+    }
+    execute_checked_stream_slice_v1(
+        statements,
+        source_dir,
+        source,
+        query_name,
+        options,
+        CheckedStreamExecutionProfileV1::RuleDispatchMechanism {
             before_show_index,
             after_show_index,
         },
@@ -2768,7 +2835,27 @@ fn execute_checked_stream_slice_v1(
                         )));
                     }
                 };
-            Some(plan)
+            Some(CheckedMechanismRuntimePlanV1::NestedIf(plan))
+        }
+        CheckedStreamExecutionProfileV1::RuleDispatchMechanism {
+            before_show_index,
+            after_show_index,
+        } => {
+            let plan = match mechanism_runtime::CheckedRuleDispatchMechanismRuntimePlanV1::from_show_call_roots(
+                &artifacts,
+                selected,
+                before_show_index,
+                after_show_index,
+            ) {
+                Ok(plan) => plan,
+                Err(error) => {
+                    finish_exact_stream_work(&mut resources, preparation_in_flight)?;
+                    return Err(ExploreExecutionPreparationError::Execution(format!(
+                        "cannot prepare checked rule-dispatch mechanism stream: {error}"
+                    )));
+                }
+            };
+            Some(CheckedMechanismRuntimePlanV1::RuleDispatch(plan))
         }
     };
     let query = &artifacts.exploration_universes[selected];
@@ -3193,7 +3280,7 @@ fn execute_checked_stream_slice_v1(
     }
 
     if let Some(plan) = mechanism_plan.as_ref() {
-        return advance_nested_if_mechanism_stream_slice_v1(
+        return advance_mechanism_stream_slice_v1(
             &mut coordinator,
             &mut resources,
             query,
@@ -7889,9 +7976,8 @@ mod tests {
         // scheduler must service that durable backlog before classifying rank 1.
         let mut coordinator = open().expect("resume the probe-paused nested mechanism stream");
         assert_eq!(
-            next_nested_if_mechanism_stream_work_v1(&mut coordinator)
-                .expect("select first post-probe work"),
-            NestedIfMechanismStreamWorkV1::ClassifyCase { rank: 0 }
+            next_mechanism_stream_work_v1(&mut coordinator).expect("select first post-probe work"),
+            MechanismStreamWorkV1::ClassifyCase { rank: 0 }
         );
 
         assert!(matches!(
@@ -7901,9 +7987,9 @@ mod tests {
             stream_coordinator::ExactStreamAdvance::Committed { rank: 0, .. }
         ));
         assert_eq!(
-            next_nested_if_mechanism_stream_work_v1(&mut coordinator)
+            next_mechanism_stream_work_v1(&mut coordinator)
                 .expect("prioritize the newly confirmed mechanism target"),
-            NestedIfMechanismStreamWorkV1::ReplayConfirmedMechanism { rank: 0 }
+            MechanismStreamWorkV1::ReplayConfirmedMechanism { rank: 0 }
         );
         let partial_before_recovery = coordinator
             .mechanism_snapshot()
@@ -8039,6 +8125,304 @@ mod tests {
         drop(coordinator);
         std::fs::remove_dir_all(&directory)
             .expect("remove nested mechanism stream fixture directory");
+    }
+
+    #[test]
+    fn rule_dispatch_mechanism_stream_traces_equal_results_through_distinct_candidates() {
+        let source = r#"
+| route(0) -> True
+| route(value: Int) -> True
+| eligible(income: Int, step: Int) -> True
+? explore rule_dispatch_mechanism_stream_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(0, 3)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = route(income),
+            after = route(income + step)
+        ]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse rule-dispatch mechanism stream fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let selected = 0;
+        let plan =
+            mechanism_runtime::CheckedRuleDispatchMechanismRuntimePlanV1::from_show_call_roots(
+                &artifacts, selected, 0, 1,
+            )
+            .expect("check direct rule-dispatch mechanism runtime plan");
+        let route_family = artifacts
+            .checked_resolutions
+            .rule_families
+            .get(&RuleDispatchKey {
+                scope: None,
+                name: "route".to_string(),
+                arity: 1,
+            })
+            .expect("checked route family");
+        let [literal_candidate, fallback_candidate] = route_family.candidates.as_ref() else {
+            panic!("route fixture must retain exactly two checked candidates")
+        };
+        let literal_site = mechanism::MechanismSiteId::from_rule_candidate(
+            &artifacts.analysis_program.id,
+            literal_candidate,
+        )
+        .expect("literal rule candidate site");
+        let fallback_site = mechanism::MechanismSiteId::from_rule_candidate(
+            &artifacts.analysis_program.id,
+            fallback_candidate,
+        )
+        .expect("fallback rule candidate site");
+        let selection_site = mechanism::MechanismSiteId::from_rule_family(
+            &artifacts.analysis_program.id,
+            &route_family.key,
+        )
+        .expect("route selection site");
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_rule_dispatch_mechanism_stream_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let report_request = report::ExploreReportRequest {
+            case_graph: report::ExploreCaseGraphRequest::Omit,
+            ledger: report::ExploreLedgerRequest::Omit,
+        };
+
+        let final_report = execute_checked_stream_slice_v1(
+            &statements,
+            None,
+            source,
+            Some("rule_dispatch_mechanism_stream_fixture"),
+            ExploreStreamSliceOptions {
+                run_state: directory.clone(),
+                max_runtime: Some(Duration::from_secs(10)),
+                pause_after: None,
+                case_graph: ExploreStreamCaseGraphRequest::Omit,
+                finalize: false,
+            },
+            CheckedStreamExecutionProfileV1::RuleDispatchMechanism {
+                before_show_index: 0,
+                after_show_index: 1,
+            },
+            Some(
+                stream_resource::ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+                    .expect("create deterministic rule scheduler-test resource authority"),
+            ),
+        )
+        .expect("close the tiny rule-dispatch mechanism stream");
+        assert_eq!(
+            final_report.stop,
+            ExploreStreamSliceStop::MechanismObservationClosedTerminalUnavailable
+        );
+        assert!(final_report.probe_milestone_complete);
+        assert_eq!(final_report.singleton_cases_evaluated_this_slice, 3);
+        let final_json = match &final_report.artifact {
+            ExploreStreamArtifact::MechanismCheckpointJsonLine {
+                canonical_json_line,
+                ..
+            } => std::str::from_utf8(canonical_json_line)
+                .expect("closed rule mechanism checkpoint is UTF-8"),
+            other => panic!("expected closed rule mechanism checkpoint, got {other:?}"),
+        };
+        assert!(
+            final_json.contains("\"target_cases\":{\"certainty\":\"exact\",\"value\":\"2\"}"),
+            "{final_json}"
+        );
+        assert!(
+            final_json.contains("\"traced_cases\":\"2\""),
+            "{final_json}"
+        );
+        assert!(
+            final_json
+                .contains("\"mechanism_signatures\":{\"certainty\":\"exact\",\"value\":\"2\"}"),
+            "{final_json}"
+        );
+
+        let mut recovered =
+            stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+                &directory,
+                run_store::RunStoreLimits::default(),
+                &statements,
+                None,
+                &artifacts,
+                selected,
+                report_request,
+                plan.request().clone(),
+            )
+            .expect("recover closed rule-dispatch mechanism stream");
+        let evidence = recovered
+            .mechanism_snapshot()
+            .expect("materialize recovered rule mechanism evidence")
+            .expect("rule mechanism evidence is enabled");
+        assert_eq!(
+            evidence.population.requested_target,
+            mechanism::MechanismCount::Exact(2)
+        );
+        assert_eq!(evidence.population.traced, 2);
+        assert_eq!(evidence.signatures.len(), 2);
+
+        let mut saw_candidate_transition = false;
+        let mut saw_stable_fallback = false;
+        for signature in evidence.signatures.values() {
+            assert_eq!(signature.observed_support, 1);
+            let selection = signature
+                .signature
+                .nodes
+                .values()
+                .find(|node| node.slot.site == selection_site)
+                .expect("rule signature has a selection root");
+            assert_eq!(
+                selection.slot.kind,
+                mechanism::DynamicEventKind::RuleSelection
+            );
+            assert!(signature.signature.before_roots.contains(&selection.id));
+            assert!(signature.signature.after_roots.contains(&selection.id));
+            assert!(selection.slot.activation_path.is_empty());
+            let literal = signature
+                .signature
+                .nodes
+                .values()
+                .find(|node| node.slot.site == literal_site)
+                .expect("rule signature retains literal candidate attempt");
+            let fallback = signature
+                .signature
+                .nodes
+                .values()
+                .find(|node| node.slot.site == fallback_site)
+                .expect("rule signature retains fallback candidate attempt");
+            assert_eq!(literal.slot.kind, mechanism::DynamicEventKind::RuleAttempt);
+            assert_eq!(fallback.slot.kind, mechanism::DynamicEventKind::RuleAttempt);
+            assert!(literal.slot.activation_path.is_empty());
+            assert!(fallback.slot.activation_path.is_empty());
+            assert!(literal.before_dependencies.is_empty());
+            assert!(literal.after_dependencies.is_empty());
+
+            let applicable = Some(mechanism::DynamicEventOutcome::RuleAttempt(
+                mechanism::RuleAttemptOutcome::Applicable,
+            ));
+            let head_mismatch = Some(mechanism::DynamicEventOutcome::RuleAttempt(
+                mechanism::RuleAttemptOutcome::HeadMismatch,
+            ));
+            let selected_literal = Some(mechanism::DynamicEventOutcome::RuleSelection(
+                mechanism::RuleSelectionOutcome::Selected(literal_site.clone()),
+            ));
+            let selected_fallback = Some(mechanism::DynamicEventOutcome::RuleSelection(
+                mechanism::RuleSelectionOutcome::Selected(fallback_site.clone()),
+            ));
+            if literal.before == applicable {
+                assert_eq!(literal.after, head_mismatch);
+                assert_eq!(fallback.before, None);
+                assert_eq!(fallback.after, applicable);
+                assert!(fallback.before_dependencies.is_empty());
+                assert_eq!(
+                    fallback.after_dependencies,
+                    BTreeSet::from([literal.id.clone()])
+                );
+                assert_eq!(selection.before, selected_literal);
+                assert_eq!(selection.after, selected_fallback);
+                assert_eq!(
+                    selection.before_dependencies,
+                    BTreeSet::from([literal.id.clone()])
+                );
+                assert_eq!(
+                    selection.after_dependencies,
+                    BTreeSet::from([fallback.id.clone()])
+                );
+                saw_candidate_transition = true;
+            } else {
+                assert_eq!(literal.before, head_mismatch);
+                assert_eq!(literal.after, head_mismatch);
+                assert_eq!(fallback.before, applicable);
+                assert_eq!(fallback.after, applicable);
+                assert_eq!(
+                    fallback.before_dependencies,
+                    BTreeSet::from([literal.id.clone()])
+                );
+                assert_eq!(
+                    fallback.after_dependencies,
+                    BTreeSet::from([literal.id.clone()])
+                );
+                assert_eq!(selection.before, selected_fallback);
+                assert_eq!(selection.after, selected_fallback);
+                assert_eq!(
+                    selection.before_dependencies,
+                    BTreeSet::from([fallback.id.clone()])
+                );
+                assert_eq!(
+                    selection.after_dependencies,
+                    BTreeSet::from([fallback.id.clone()])
+                );
+                saw_stable_fallback = true;
+            }
+        }
+        assert!(saw_candidate_transition && saw_stable_fallback);
+        drop(recovered);
+        std::fs::remove_dir_all(&directory)
+            .expect("remove rule-dispatch mechanism stream fixture directory");
+    }
+
+    #[test]
+    fn rule_dispatch_mechanism_profile_rejects_non_pattern_head_before_replay() {
+        let source = r#"
+| route(1 + 1) -> True
+| eligible(income: Int, step: Int) -> True
+? explore rule_dispatch_non_pattern_head_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(0, 2)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = route(income),
+            after = route(income + step)
+        ]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse non-pattern rule-head fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let error =
+            mechanism_runtime::CheckedRuleDispatchMechanismRuntimePlanV1::from_show_call_roots(
+                &artifacts, 0, 0, 1,
+            )
+            .err()
+            .expect("non-pattern rule head must be rejected before replay");
+        assert!(
+            error.contains("outside the direct matcher subset"),
+            "{error}"
+        );
     }
 
     #[test]

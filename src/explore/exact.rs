@@ -429,11 +429,17 @@ impl ExactRuntimeContext<'_> {
     /// environment. This is called once for enumeration and once for each
     /// publicly exposed case replay; runtime state is never shared between
     /// those phases.
-    fn fresh(&self) -> Result<ExactRuntime, ExactEngineFailure> {
+    fn fresh(
+        &self,
+        include_rule_candidate_tokens: bool,
+    ) -> Result<ExactRuntime, ExactEngineFailure> {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.install_rule_dispatch_metadata(self.artifacts);
-        interpreter.install_checked_runtime_callable_tokens_v1(self.artifacts);
+        interpreter.install_checked_runtime_callable_tokens_v1(
+            self.artifacts,
+            include_rule_candidate_tokens,
+        );
         interpreter.source_dir = self.source_dir.map(str::to_string);
         let mut base_env = interpreter.default_env();
         interpreter
@@ -476,6 +482,7 @@ impl ExactRuntime {
             Ok(value) => Ok(value),
             Err(message) => {
                 self.interpreter.abort_checked_runtime_trace_v1();
+                self.interpreter.abort_checked_runtime_rule_trace_v1();
                 Err(ExactEngineFailure::Error(format!(
                     "while {context}: {message}"
                 )))
@@ -504,6 +511,7 @@ impl ExactRuntime {
             Ok(value) => Ok(value),
             Err(message) => {
                 self.interpreter.abort_checked_runtime_trace_v1();
+                self.interpreter.abort_checked_runtime_rule_trace_v1();
                 Err(ExactEngineFailure::Error(format!(
                     "while {context}: {message}"
                 )))
@@ -1706,6 +1714,13 @@ pub(super) enum ExactFreshMatchReplayError {
 /// environment.  Keeping both edges explicit lets mechanism tracing surround
 /// the real computation while numeric observers reuse its result.
 pub(super) trait ExactFreshMatchShowObserver {
+    /// Rule-candidate capability indexing is proportional to the checked rule
+    /// corpus, so ordinary exact execution and the function-only profiles do
+    /// not pay for it on every fresh replay.
+    fn requires_rule_candidate_tokens_v1(&self) -> bool {
+        false
+    }
+
     fn before_show(
         &mut self,
         show_index: usize,
@@ -1877,7 +1892,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             collection_limit,
             phase_override: None,
         }
-        .fresh()
+        .fresh(false)
         .map_err(exact_stream_prepare_error)?;
         Ok(Self {
             statements,
@@ -1941,7 +1956,9 @@ impl<'a> ExactStreamEvaluator<'a> {
             phase_override: None,
         }
         .for_replay();
-        let mut runtime = context.fresh().map_err(exact_fresh_match_replay_error)?;
+        let mut runtime = context
+            .fresh(observer.requires_rule_candidate_tokens_v1())
+            .map_err(exact_fresh_match_replay_error)?;
         let assignment = assignment_values(self.query, &ordinals)
             .map_err(ExactFreshMatchReplayError::Failure)?;
         let lower_env =
@@ -2287,7 +2304,7 @@ fn replay_and_confirm(
     expected: &SearchObservation,
 ) -> Result<(), ExactEngineFailure> {
     let replay_context = runtime_context.for_replay();
-    let mut runtime = replay_context.fresh()?;
+    let mut runtime = replay_context.fresh(false)?;
     let assignment = expected
         .case_id
         .assignment(query)
@@ -2347,7 +2364,7 @@ fn replay_and_confirm_extrema_witness(
         ));
     }
     let replay_context = runtime_context.for_replay();
-    let mut runtime = replay_context.fresh()?;
+    let mut runtime = replay_context.fresh(false)?;
     let assignment = case_id
         .assignment(query)
         .map_err(ExactEngineFailure::Error)?;
@@ -3095,7 +3112,7 @@ fn execute_exact_finite_with_order(
         collection_limit: budget.collection_limit,
         phase_override: None,
     };
-    let mut runtime = match runtime_context.fresh() {
+    let mut runtime = match runtime_context.fresh(false) {
         Ok(runtime) => runtime,
         Err(ExactEngineFailure::OperationalLimit(stop)) => {
             let state = match candidate_search.as_ref() {

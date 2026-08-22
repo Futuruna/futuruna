@@ -33,9 +33,9 @@ pub(crate) struct MechanismBinShowSelectionV1 {
 /// Private invocation configuration for the first checked mechanism slice.
 ///
 /// The two endpoint roots must be distinct direct calls to the same exact
-/// checked function. Target population, normalization, sampling, axes, query
-/// identity, and full matching-case disclosure are deliberately not caller
-/// configurable in this version.
+/// checked function or global rule family. Target population, normalization,
+/// sampling, axes, query identity, and full matching-case disclosure are
+/// deliberately not caller configurable in this version.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismTraceSelectionV1 {
     pub(crate) before_show_index: usize,
@@ -164,8 +164,8 @@ pub(crate) fn build_checked_mechanism_request_v1(
                 .filter_map(|field| shown_sites.get(field.show_index)),
         ),
     )?;
-    let before_type = direct_function_call_type(artifacts, before_site, "before")?;
-    let after_type = direct_function_call_type(artifacts, after_site, "after")?;
+    let before_type = direct_traceable_call_type(artifacts, before_site, "before")?;
+    let after_type = direct_traceable_call_type(artifacts, after_site, "after")?;
     if !same_ty(before_type.1, &shown[selection.before_show_index].ty)
         || !same_ty(after_type.1, &shown[selection.after_show_index].ty)
     {
@@ -175,7 +175,7 @@ pub(crate) fn build_checked_mechanism_request_v1(
     }
     if before_type.0 != after_type.0 {
         return Err(invalid(
-            "before and after mechanism roots resolve to different checked functions",
+            "before and after mechanism roots resolve to different checked call targets",
         ));
     }
     if !same_ty(before_type.1, after_type.1) {
@@ -370,7 +370,7 @@ fn require_issue_free_sites<'a>(
     }
 }
 
-fn direct_function_call_type<'a>(
+fn direct_traceable_call_type<'a>(
     artifacts: &'a TypeCheckArtifacts,
     site: &ExprSiteId,
     role: &str,
@@ -384,9 +384,12 @@ fn direct_function_call_type<'a>(
         .call_target
         .as_ref()
         .ok_or_else(|| invalid(format!("{role} mechanism root is not a direct call")))?;
-    if !matches!(target, CheckedCallTarget::Function { .. }) {
+    if !matches!(
+        target,
+        CheckedCallTarget::Function { .. } | CheckedCallTarget::RuleFamily(_)
+    ) {
         return Err(invalid(format!(
-            "{role} mechanism root must resolve to a checked function"
+            "{role} mechanism root must resolve to a checked function or rule family"
         )));
     }
     let CheckedExpressionType::Resolved(ty) = &resolution.resolved_type else {
